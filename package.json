@@ -24,6 +24,10 @@
       "types": "./dist/web/index.d.ts",
       "import": "./dist/web/index.js"
     },
+    "./web/icons": {
+      "types": "./dist/web/icons/index.d.ts",
+      "import": "./dist/web/icons/index.js"
+    },
     "./web/styles": "./dist/styles/index.css",
     "./web/styles/tokens": "./dist/styles/tokens.css",
     "./package.json": "./package.json"

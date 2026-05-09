@@ -2,7 +2,7 @@
 
 Shared UI package for every `thefactory-*` consumer — a React 19 component library with a four-layer split (`tokens/` → `headless/` → `web/` → future `native/`). Tailwind v4 for `web/`; React Native StyleSheet for the upcoming `native/`.
 
-Status: **scaffolded, not yet published**. See [docs/implementation-plan.md](./docs/implementation-plan.md) for what's shipped vs. what's next.
+Status: **scaffolded, not yet published**. See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the layer rules, locked-in decisions, file structure, and conventions; see [docs/implementation-plan.md](./docs/implementation-plan.md) for the open-work backlog.
 
 ## Install
 

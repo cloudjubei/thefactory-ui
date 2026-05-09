@@ -17,6 +17,7 @@ export default defineConfig({
     'tokens/index': 'src/tokens/index.ts',
     'headless/index': 'src/headless/index.ts',
     'web/index': 'src/web/index.ts',
+    'web/icons/index': 'src/web/icons/index.ts',
   },
   format: ['esm'],
   dts: true,
