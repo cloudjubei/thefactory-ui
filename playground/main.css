@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+@import 'thefactory-ui/web/styles';
+
+html,
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
