@@ -16,7 +16,7 @@ _(Empty — all earlier open questions resolved and moved to ARCHITECTURE.md.)_
 
 ### Wire `overseer-local` (Electron renderer)
 
-> **Blocked on `thefactory-overseer-web` parity.** `overseer-local` is the visual reference — until the web app's screens match it (see [thefactory-overseer-web/docs/implementation-plan.md §B](../../thefactory-overseer-web/docs/implementation-plan.md)), wiring `overseer-local` against this package would mean swapping in components that don't yet match what its users see today. Do not start the phases below until that parity backlog has landed.
+> **Unblocked.** `thefactory-overseer-web` has reached visual parity with `overseer-local`'s screens (status bar removed, Settings pinned to footer, Stories / Chat / Tests / Tools / Settings restyled, Git 3-panel layout, Gantt-style Timeline). Wiring `overseer-local` against this package can now proceed.
 
 Phased — the desktop app has a parallel-implementation tree under `src/renderer/src/components/ui/`, `components/stories/`, etc. Don't bulk-replace; do it in stages, each its own PR.
 
