@@ -14,19 +14,19 @@ _(Empty — all earlier open questions resolved and moved to ARCHITECTURE.md.)_
 
 ## B. Pending tasks
 
-### Wire `overseer-local` (Electron renderer)
+### Wire `overseer-local` (Electron renderer) _(in progress — driven from [overseer-local/docs/conversion-plan.md](../../overseer-local/docs/conversion-plan.md))_
 
-> **Unblocked.** `thefactory-overseer-web` has reached visual parity with `overseer-local`'s screens (status bar removed, Settings pinned to footer, Stories / Chat / Tests / Tools / Settings restyled, Git 3-panel layout, Gantt-style Timeline). Wiring `overseer-local` against this package can now proceed.
+> **Status.** The conversion is being driven screen-by-screen from inside `overseer-local`, not from this side. The detailed step-by-step plan, deferred swaps, and accepted divergences live at [overseer-local/docs/conversion-plan.md](../../overseer-local/docs/conversion-plan.md). This entry is now a pointer + a place to record upstream changes made to `thefactory-ui` during the conversion.
+>
+> When the conversion drains (every screen migrated, `src/renderer/src/components/ui/` reduced to Electron-specific bits), tick this entry off and proceed to publish.
 
-Phased — the desktop app has a parallel-implementation tree under `src/renderer/src/components/ui/`, `components/stories/`, etc. Don't bulk-replace; do it in stages, each its own PR.
+### Upstream fixes landed during the `overseer-local` conversion
 
-1. **Phase 1 — link + 3–4 primitives.** Add `"thefactory-ui": "file:../thefactory-ui"` to [overseer-local](../../overseer-local/) (mirror the `file:../thefactory-tools` pattern already used there). Adopt `tokens/` plus `Button`, `Modal`, `Tooltip`, `Spinner`. Keep the existing local components alongside — only point _new_ code at `thefactory-ui`. Goal: validate that the published shape works inside an Electron renderer (path resolution, CSS pipeline, no `react-dom` peer-version surprises).
+Recording what changed in `thefactory-ui` itself while the conversion has been running. New entries get appended as conversion steps surface gaps.
 
-2. **Phase 2 — heavy components.** Swap `DiffViewer`, `Markdown`, `CommandPalette`, and the chat / file family. Each replaces its equivalent under `src/renderer/src/components/ui/`. Land each as its own PR — easier to bisect if something breaks.
-
-3. **Phase 3 — delete the redundant local components.** Once Phase 2 is in and the renderer has been exercised, remove `src/renderer/src/components/ui/` (and any sibling trees) that the package now covers.
-
-Electron-specific chrome (window controls, IPC bridges, native menus) stays in `overseer-local` — out of scope.
+- **`Button` — fix icon + text stacking inside the wrapper span.** _2026-05-11._ The Button wraps children in a `<span>` (to support the loading-state opacity overlay). The span was `display: inline`, so SVG children (which Tailwind preflight sets to `display: block`) broke onto their own line. Changed the wrapper to `inline-flex items-center gap-2`. [src/web/primitives/Button.tsx](../src/web/primitives/Button.tsx).
+- **`ConfirmDialog` — add `closeOnOverlayClick` and `closeOnEsc` props.** _2026-05-11._ The dialog had no way to disable overlay / Escape dismissal. `overseer-local`'s discard-confirm needed sticky behaviour. Threaded through to the inner `Modal`. [src/web/primitives/Modal.tsx](../src/web/primitives/Modal.tsx).
+- **`FileSelector` — switch to arb-value CSS-var classes for the selected-row checkmark.** _2026-05-12._ The checkmark used `bg-brand-600`/`border-brand-600` which require the consumer's Tailwind to register the package's `@theme inline { --color-brand-N }` block; that didn't fire reliably in `overseer-local`. Switched to `bg-(--color-brand-600)`/`border-(--color-brand-600)`. Same rule for any future custom-palette utility — recorded in [ARCHITECTURE.md](./ARCHITECTURE.md) under Conventions.
 
 ### Lift-when-needed primitives
 

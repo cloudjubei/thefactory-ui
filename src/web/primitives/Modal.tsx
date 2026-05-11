@@ -214,6 +214,8 @@ export type ConfirmDialogProps = {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  closeOnOverlayClick?: boolean
+  closeOnEsc?: boolean
 }
 
 export function ConfirmDialog({
@@ -225,6 +227,8 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   destructive = false,
+  closeOnOverlayClick = true,
+  closeOnEsc = true,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null)
   const reactId = useId()
@@ -238,6 +242,8 @@ export function ConfirmDialog({
       size="sm"
       initialFocusRef={confirmRef}
       describedById={descId}
+      closeOnOverlayClick={closeOnOverlayClick}
+      closeOnEsc={closeOnEsc}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>

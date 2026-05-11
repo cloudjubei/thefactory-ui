@@ -93,8 +93,14 @@ export default function FileSelector({
                   <span
                     className={[
                       'inline-flex items-center justify-center w-5 h-5 rounded-sm border text-[10px]',
+                      // Reference the CSS variable directly rather than the
+                      // `bg-brand-600` theme utility — consumers without the
+                      // `@theme inline` block registered (e.g. via legacy
+                      // piecemeal Tailwind imports) won't have the named
+                      // utility generated, but `--color-brand-600` is always
+                      // defined by the package's `tokens.css`.
                       isSelected
-                        ? 'bg-brand-600 text-white border-brand-600'
+                        ? 'bg-(--color-brand-600) text-white border-(--color-brand-600)'
                         : 'bg-transparent text-(--text-muted) border-(--border-subtle)',
                     ].join(' ')}
                     aria-hidden
