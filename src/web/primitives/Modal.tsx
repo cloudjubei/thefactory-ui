@@ -35,6 +35,14 @@ export type ModalProps = {
    * overflow-y-auto` scroll behaviour.
    */
   contentClassName?: string
+  /**
+   * Extra classes appended to the panel container (the dialog box itself).
+   * Use this for fine-grained sizing overrides — e.g. `'w-[420px]'` to pin
+   * a specific width — without changing the `size` preset's other concerns.
+   * Appended after the `SIZE_CLASS[size]` width, so it can win via Tailwind
+   * specificity / source-order.
+   */
+  panelClassName?: string
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
@@ -74,6 +82,7 @@ export function Modal({
   headerActions,
   hideHeader = false,
   contentClassName,
+  panelClassName,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -155,7 +164,14 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={describedById}
         onKeyDown={onPanelKeyDown}
-        className={`relative z-10 w-full ${SIZE_CLASS[size]} max-h-[90vh] flex flex-col rounded-lg border shadow-xl outline-none`}
+        className={[
+          'relative z-10 w-full',
+          SIZE_CLASS[size],
+          'max-h-[90vh] flex flex-col rounded-lg border shadow-xl outline-none',
+          panelClassName,
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border-subtle)' }}
       >
         {!hideHeader && (title || headerActions || !hideCloseButton) && (
