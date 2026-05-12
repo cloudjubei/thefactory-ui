@@ -1,14 +1,7 @@
-/* Single import target for the @uikit/web style bundle.
-   Consumers import this once and get tokens + primitives + components + layout. */
-
 @import './tokens.css';
 @import './tailwind-palette.css';
-
-/* Foundations and primitives */
 @import './foundations/metrics.css';
 @import './primitives/effects.css';
-
-/* Components */
 @import './components/buttons.css';
 @import './components/forms.css';
 @import './components/feedback.css';
@@ -22,9 +15,5 @@
 @import './components/chat.css';
 @import './components/markdown.css';
 @import './components/standard-picker.css';
-
-/* Layout */
 @import './layout/nav.css';
-
-/* Semantic utility bridge */
 @import './utilities/semantic-utilities.css';
