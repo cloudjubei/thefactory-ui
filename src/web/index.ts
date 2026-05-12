@@ -16,7 +16,20 @@ export { DotBadge, type DotBadgeProps } from './primitives/DotBadge'
 export { default as Field, type FieldProps } from './primitives/Field'
 export { Input, type InputProps, type InputSize } from './primitives/Input'
 export { ConfirmDialog, Modal, type ModalProps, type ModalSize } from './primitives/Modal'
-export { Select, type SelectProps } from './primitives/Select'
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  type SelectTriggerSize,
+} from './primitives/Select'
+export {
+  NativeSelect,
+  type NativeSelectProps,
+  type NativeSelectSize,
+} from './primitives/NativeSelect'
 export {
   default as SegmentedControl,
   type SegmentedControlProps,
