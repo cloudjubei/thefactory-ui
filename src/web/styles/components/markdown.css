@@ -1,4 +1,11 @@
-/* Markdown content styling. Tokenised — no shadcn-style "muted" classes. */
+/* Container-level markdown rules. Per-element styling (headings, lists,
+   tables, code blocks, links, etc.) is set on the React `components` map
+   inside `Markdown.tsx` via Tailwind utility classes, NOT here — `.markdown-
+   content X` selectors have higher specificity than a single Tailwind class,
+   so leaving heading/list/p rules in both places would silently undo the
+   component-map intent. Only rules that genuinely belong at the container
+   level (overflow-wrap, inline-code hardening inside narrow chat bubbles)
+   stay here. */
 
 .markdown-content {
   overflow-wrap: break-word;
@@ -9,174 +16,16 @@
   max-width: 100%;
 }
 
-/* Inline-code hardening so long identifiers / paths break inside narrow
-   chat bubbles. Doesn't affect fenced blocks (which scroll horizontally). */
+/* Inline-code hardening: long identifiers / paths should break inside narrow
+   chat bubbles. Doesn't affect fenced blocks (which scroll horizontally and
+   are styled by the component map). */
 .markdown-content :not(pre) > code {
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: break-spaces;
-  background: var(--surface-muted);
-  padding: 1px 4px;
-  border-radius: var(--radius-1, 4px);
-  font-family: var(--font-mono);
-  font-size: 0.9em;
 }
 
-.markdown-content pre {
-  background: var(--surface-muted);
-  padding: 12px;
-  border-radius: var(--radius-2, 6px);
-  overflow-x: auto;
-  margin: 12px 0;
-}
-
-.markdown-content pre code {
-  background: transparent;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
-.markdown-content table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  white-space: nowrap;
-  border-collapse: collapse;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-2, 6px);
-  margin: 12px 0;
-  width: 100%;
-}
-
-.markdown-content thead {
-  background: var(--surface-muted);
-  white-space: nowrap;
-}
-
-.markdown-content th,
-.markdown-content td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
-  text-align: left;
-}
-
-.markdown-content th:last-child,
-.markdown-content td:last-child {
-  border-right: none;
-}
-
-.markdown-content th {
-  font-weight: var(--fw-medium);
-  color: var(--text-muted);
-}
-
-.markdown-content tbody td {
-  white-space: normal;
-  min-width: 150px;
-}
-
-.markdown-content tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.markdown-content tbody tr:hover {
-  background: var(--surface-muted);
-}
-
-.markdown-content blockquote {
-  border-left: 3px solid var(--border-default);
-  padding-left: 12px;
-  margin: 8px 0;
-  color: var(--text-secondary);
-}
-
-.markdown-content a {
-  color: var(--accent-primary);
-  text-decoration: none;
-}
-
-.markdown-content a:hover {
-  text-decoration: underline;
-}
-
-/* GFM task lists */
+/* GFM task lists — sensible default checkbox margin. */
 .markdown-content input[type='checkbox'] {
   margin-right: 6px;
-}
-
-/* Heading rhythm */
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
-.markdown-content h6 {
-  font-weight: var(--fw-semibold);
-  margin: 16px 0 8px;
-  color: var(--text-primary);
-}
-
-.markdown-content h1 {
-  font-size: var(--fs-2xl);
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 4px;
-}
-
-.markdown-content h2 {
-  font-size: var(--fs-xl);
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 4px;
-}
-
-.markdown-content h3 {
-  font-size: var(--fs-lg);
-}
-
-.markdown-content h4 {
-  font-size: var(--fs-md);
-}
-
-.markdown-content h5,
-.markdown-content h6 {
-  font-size: var(--fs-sm);
-}
-
-.markdown-content p {
-  margin: 6px 0;
-  line-height: var(--lh-relaxed);
-}
-
-.markdown-content ul,
-.markdown-content ol {
-  margin: 6px 0;
-  padding-left: 24px;
-}
-
-.markdown-content ul {
-  list-style: disc outside;
-}
-
-.markdown-content ol {
-  list-style: decimal outside;
-}
-
-.markdown-content li {
-  margin: 2px 0;
-}
-
-.markdown-content hr {
-  border: none;
-  border-top: 1px solid var(--border-subtle);
-  margin: 16px 0;
-}
-
-.markdown-content strong {
-  font-weight: var(--fw-semibold);
-}
-
-.markdown-content del {
-  text-decoration: line-through;
-  color: var(--text-muted);
 }

@@ -28,6 +28,13 @@ export type ModalProps = {
   closeOnOverlayClick?: boolean
   headerActions?: ReactNode
   hideHeader?: boolean
+  /**
+   * Extra classes applied to the scrollable content area that wraps
+   * `children`. Use this to override the default `p-4` padding (e.g. set to
+   * `'p-0'` for full-bleed content) without giving up the `flex-grow
+   * overflow-y-auto` scroll behaviour.
+   */
+  contentClassName?: string
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
@@ -66,6 +73,7 @@ export function Modal({
   closeOnOverlayClick = true,
   headerActions,
   hideHeader = false,
+  contentClassName,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -175,7 +183,13 @@ export function Modal({
             </div>
           </div>
         )}
-        <div className="flex-grow overflow-y-auto p-4">{children}</div>
+        <div
+          className={['flex-grow overflow-y-auto p-4', contentClassName]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {children}
+        </div>
         {footer && (
           <div className="shrink-0 border-t p-3" style={{ borderColor: 'var(--border-subtle)' }}>
             {footer}

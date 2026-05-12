@@ -3,12 +3,23 @@ type SpinnerProps = {
   className?: string
   /** Stroke colour; defaults to `currentColor` so it inherits from text colour. */
   color?: string
+  /**
+   * Optional caption rendered to the right of the spinner. When set, the
+   * component returns a flex row containing both elements. Useful for
+   * indeterminate loading states with explanatory text ("Loading preview…").
+   */
+  label?: string
 }
 
-export default function Spinner({ size = 16, className, color = 'currentColor' }: SpinnerProps) {
-  return (
+export default function Spinner({
+  size = 16,
+  className,
+  color = 'currentColor',
+  label,
+}: SpinnerProps) {
+  const svg = (
     <svg
-      className={className}
+      className={label ? undefined : className}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -34,5 +45,13 @@ export default function Spinner({ size = 16, className, color = 'currentColor' }
         />
       </path>
     </svg>
+  )
+
+  if (!label) return svg
+  return (
+    <span className={['inline-flex items-center gap-2', className].filter(Boolean).join(' ')}>
+      {svg}
+      <span className="text-sm text-(--text-muted)">{label}</span>
+    </span>
   )
 }

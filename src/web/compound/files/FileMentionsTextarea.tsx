@@ -5,13 +5,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FocusEventHandler,
   type ForwardedRef,
   type KeyboardEvent,
   type MouseEventHandler,
   type ReactEventHandler,
 } from 'react'
-import { Textarea } from '../../primitives/Textarea'
 import { applyMention, parseMention } from './mention'
 import {
   applyReference,
@@ -51,6 +51,10 @@ export type FileMentionsTextareaProps = {
   rows?: number
   disabled?: boolean
   className?: string
+  /** Inline style forwarded to the underlying `<textarea>`. */
+  style?: CSSProperties
+  /** `id` forwarded to the underlying `<textarea>` for `<label htmlFor>`. */
+  id?: string
   ariaLabel?: string
   autoFocus?: boolean
   /** Forwarded textarea event handlers. Library handlers run first. */
@@ -73,6 +77,8 @@ function FileMentionsTextareaInner(
     rows = 3,
     disabled,
     className,
+    style,
+    id,
     ariaLabel,
     autoFocus,
     onKeyDown,
@@ -251,7 +257,14 @@ function FileMentionsTextareaInner(
           ))}
         </ul>
       )}
-      <Textarea
+      {/* Raw textarea so consumers control border / background entirely. The
+          shared `<Textarea>` primitive adds `rounded-md border bg-surface-raised`
+          which fights chat-input cards that already provide their own border.
+          Default classes here are minimal: full-width, neutral background, no
+          outline (focus styling is the consumer's job — typically a
+          `focus-within:ring-2` on the parent card). */}
+      <textarea
+        id={id}
         ref={setRef}
         value={value}
         onChange={(e) => {
@@ -273,7 +286,13 @@ function FileMentionsTextareaInner(
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className={className}
+        className={[
+          'w-full bg-transparent text-(--text-primary) placeholder:text-(--text-muted) outline-none resize-none',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={style}
         aria-label={ariaLabel}
         autoFocus={autoFocus}
       />
