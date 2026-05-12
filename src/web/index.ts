@@ -62,16 +62,20 @@ export {
 } from './compound/diff'
 export {
   applyMention,
+  applyReference,
   FileDisplay,
   FileMentionsTextarea,
   FileSelector,
   parseMention,
+  parseReference,
   rankMentionMatches,
   RichText,
   type FileDisplayProps,
   type FileMentionsTextareaProps,
   type FileSelectorProps,
   type MentionParse,
+  type ReferenceParse,
+  type ReferenceSuggestion,
   type RichTextProps,
   type UikitFileMeta,
 } from './compound/files'
