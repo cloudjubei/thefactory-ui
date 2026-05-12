@@ -6,15 +6,8 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import {
-  IconFileBadge,
-  IconFileDefault,
-  IconFileImage,
-  IconFileJson,
-  IconFileText,
-  IconFileZip,
-} from '../../icons'
 import Tooltip from '../../primitives/Tooltip'
+import { extFromTypeOrName, iconForExt } from './FileTypeIcon'
 
 // Library-shape file metadata. The domain `FileMeta` from thefactory-tools
 // reduces to (a superset of) this; consumers map their own shape to UikitFileMeta.
@@ -83,109 +76,12 @@ function formatDate(input?: number | string | Date | null): string | null {
   })
 }
 
-function extFromTypeOrName(type?: string | null, name?: string): string | null {
-  if (type) {
-    const parts = type.split('/')
-    if (parts.length === 2 && parts[1]) return parts[1]
-    return type.toLowerCase()
-  }
-  if (name && name.includes('.')) {
-    const ext = name.split('.').pop()
-    if (ext) return ext.toLowerCase()
-  }
-  return null
-}
-
-function iconForExt(ext: string | null): ReactNode {
-  switch (ext) {
-    case 'md':
-    case 'markdown':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="MD" fill="#e8eefc" stroke="#a7b7f9" textColor="#3b5bdb" />
-        </span>
-      )
-    case 'json':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileJson />
-        </span>
-      )
-    case 'js':
-    case 'cjs':
-    case 'mjs':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="JS" fill="#fffbe6" stroke="#ffe58f" textColor="#d4b106" />
-        </span>
-      )
-    case 'ts':
-    case 'tsx':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="TS" fill="#e7f5ff" stroke="#a5d8ff" textColor="#1971c2" />
-        </span>
-      )
-    case 'css':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="CSS" fill="#f3f0ff" stroke="#d0bfff" textColor="#7048e8" />
-        </span>
-      )
-    case 'html':
-    case 'htm':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="HTML" fill="#fff0f0" stroke="#ffc9c9" textColor="#e03131" />
-        </span>
-      )
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'bmp':
-    case 'svg':
-    case 'webp':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileImage />
-        </span>
-      )
-    case 'pdf':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileBadge badgeText="PDF" fill="#fff5f5" stroke="#ffa8a8" textColor="#c92a2a" />
-        </span>
-      )
-    case 'zip':
-    case 'tar':
-    case 'gz':
-    case 'tgz':
-    case 'rar':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileZip />
-        </span>
-      )
-    case 'txt':
-    case 'log':
-    case 'text':
-      return (
-        <span className="fd-icon" aria-hidden>
-          <IconFileText />
-        </span>
-      )
-    default:
-      return (
-        <span className="fd-icon fd-icon--badge" aria-hidden>
-          <IconFileDefault />
-        </span>
-      )
-  }
-}
-
 function defaultIconFor(file: UikitFileMeta): ReactNode {
-  return iconForExt(extFromTypeOrName(file.type ?? undefined, file.name))
+  return (
+    <span className="fd-icon" aria-hidden>
+      {iconForExt(extFromTypeOrName(file.type, file.name))}
+    </span>
+  )
 }
 
 const TEXT_LIKE_EXTS = new Set([

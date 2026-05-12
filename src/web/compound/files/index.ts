@@ -1,4 +1,5 @@
 export { default as FileDisplay, type FileDisplayProps, type UikitFileMeta } from './FileDisplay'
+export { FileTypeIcon, type FileTypeIconProps } from './FileTypeIcon'
 export {
   default as FileMentionsTextarea,
   type FileMentionsTextareaProps,

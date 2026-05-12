@@ -66,6 +66,7 @@ export {
   FileDisplay,
   FileMentionsTextarea,
   FileSelector,
+  FileTypeIcon,
   parseMention,
   parseReference,
   rankMentionMatches,
@@ -73,6 +74,7 @@ export {
   type FileDisplayProps,
   type FileMentionsTextareaProps,
   type FileSelectorProps,
+  type FileTypeIconProps,
   type MentionParse,
   type ReferenceParse,
   type ReferenceSuggestion,
@@ -99,6 +101,11 @@ export {
 } from './compound/CommandPalette'
 export { default as JsonView, type JsonViewProps } from './compound/JsonView'
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
+export {
+  default as MarkdownEditor,
+  type MarkdownEditorPaneView,
+  type MarkdownEditorProps,
+} from './compound/MarkdownEditor'
 export {
   default as NotificationBadge,
   getNotificationBadgeColorClass,

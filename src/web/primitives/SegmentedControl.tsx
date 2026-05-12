@@ -16,6 +16,13 @@ export type SegmentedControlProps = {
   size?: SegmentedSize
   ariaLabel?: string
   className?: string
+  /**
+   * When true, visually hide the per-option labels (keeping them accessible
+   * to screen readers via `sr-only`). Useful for icon-only switches when the
+   * `icon` field is supplied on every option. Each option's `label` is also
+   * forwarded as the option's `title` so a hover tooltip is preserved.
+   */
+  hideLabels?: boolean
 }
 
 export default function SegmentedControl({
@@ -25,6 +32,7 @@ export default function SegmentedControl({
   size = 'md',
   ariaLabel = 'View switch',
   className,
+  hideLabels = false,
 }: SegmentedControlProps) {
   const selectedIndex = Math.max(
     0,
@@ -83,13 +91,14 @@ export default function SegmentedControl({
             className={cn('segmented__option', active && 'is-active')}
             onClick={() => onChange(opt.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
+            title={hideLabels ? opt.label : undefined}
           >
             {opt.icon && (
               <span className="segmented__icon" aria-hidden="true">
                 {opt.icon}
               </span>
             )}
-            <span className="segmented__label">{opt.label}</span>
+            <span className={cn('segmented__label', hideLabels && 'sr-only')}>{opt.label}</span>
           </button>
         )
       })}
