@@ -1,6 +1,8 @@
-import { memo, type FC } from 'react'
+import { memo, useMemo, type FC } from 'react'
 import ReactMarkdown, { type Components, type Options } from 'react-markdown'
 import rehypeExternalLinks from 'rehype-external-links'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 
 // Markdown renderer for chat / story content.
@@ -178,22 +180,59 @@ const MemoizedReactMarkdown: FC<Options> = memo(
   (prev, next) => prev.children === next.children,
 )
 
-const REHYPE_PLUGINS = [
-  [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-] as Options['rehypePlugins']
+// Allow `className`, `target`, and `rel` attributes after the sanitize pass —
+// the components map relies on `className` for code-block language hints, and
+// external links need `target` / `rel`. Mirrors the legacy local schema.
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    '*': [
+      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> })
+        .attributes?.['*'] as unknown[]) ?? []),
+      'className',
+    ],
+    a: [
+      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> })
+        .attributes?.['a'] as unknown[]) ?? []),
+      ['target', /^(_blank|_self|_parent|_top)$/],
+      [
+        'rel',
+        /^(noopener|noreferrer|nofollow|ugc|external)(\s+(noopener|noreferrer|nofollow|ugc|external))*$/,
+      ],
+    ],
+  },
+}
 
 const REMARK_PLUGINS = [remarkGfm] as Options['remarkPlugins']
 
 export type MarkdownProps = {
   text: string
+  /**
+   * Allow raw HTML in the input (via `rehype-raw`) and sanitise it (via
+   * `rehype-sanitize`). Defaults to `false`. Use for content where the source
+   * may include literal `<details>`, `<br>`, etc. — most chat content
+   * doesn't, but `.md` file preview / editor surfaces do.
+   */
+  allowHtml?: boolean
 }
 
-export default function Markdown({ text }: MarkdownProps) {
+export default function Markdown({ text, allowHtml = false }: MarkdownProps) {
+  const rehypePlugins = useMemo(() => {
+    const plugins: NonNullable<Options['rehypePlugins']> = []
+    if (allowHtml) {
+      plugins.push(rehypeRaw)
+      plugins.push([rehypeSanitize, sanitizeSchema])
+    }
+    plugins.push([rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }])
+    return plugins
+  }, [allowHtml])
+
   return (
     <div className="markdown-content">
       <MemoizedReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={REHYPE_PLUGINS}
+        rehypePlugins={rehypePlugins}
         components={components}
       >
         {text}
