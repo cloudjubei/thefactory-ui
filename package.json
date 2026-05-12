@@ -1,6 +1,6 @@
 {
   "name": "thefactory-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared UI package for thefactory-* consumers (web, Electron, future React Native).",
   "license": "MIT",
   "type": "module",

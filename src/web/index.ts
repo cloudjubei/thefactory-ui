@@ -125,9 +125,30 @@ export {
   type NotificationBadgeColor,
   type NotificationBadgeProps,
 } from './compound/NotificationBadge'
+export {
+  ICON_RAIL_DEFAULT_WIDTH,
+  IconRail,
+  IconRailButton,
+  type IconRailButtonProps,
+  type IconRailProps,
+} from './compound/IconRail'
 export { PathDisplay, splitPath } from './compound/PathDisplay'
+export {
+  PROJECT_ICON_REGISTRY,
+  PROJECT_ICONS,
+  renderProjectIcon,
+  type ProjectIconKey,
+} from './compound/projectIcons'
 export { ResizeHandle, type ResizeHandleProps } from './compound/ResizeHandle'
 export { default as SafeText, type SafeTextProps } from './compound/SafeText'
+export {
+  TimeAxisHeader,
+  TimeAxisRow,
+  type TimeAxisHeaderGroup,
+  type TimeAxisHeaderProps,
+  type TimeAxisRowProps,
+  type TimeAxisUnit,
+} from './compound/TimeAxis'
 export { default as TypewriterText, type TypewriterTextProps } from './compound/TypewriterText'
 export {
   ShortcutsHelpView,
