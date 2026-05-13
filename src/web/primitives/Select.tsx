@@ -50,25 +50,18 @@ export const SelectContent = React.forwardRef<
       <SelectPrimitive.Content
         ref={ref}
         className={cn(
-          'z-[2000] min-w-[10rem] overflow-hidden rounded-md border bg-(--surface-raised) text-(--text-primary) shadow-md',
+          'z-[2000] min-w-[10rem] rounded-md border bg-(--surface-raised) text-(--text-primary) shadow-md',
           'border-(--border-default)',
           className,
         )}
         position={position}
         side="bottom"
         sideOffset={6}
-        avoidCollisions={false}
         {...props}
       >
-        <SelectPrimitive.ScrollUpButton className="flex items-center justify-center py-1 text-(--text-muted)">
-          ▲
-        </SelectPrimitive.ScrollUpButton>
-        <SelectPrimitive.Viewport className="p-1 max-h-60 overflow-auto">
+        <SelectPrimitive.Viewport className="p-1 max-h-80 overflow-y-auto">
           {children}
         </SelectPrimitive.Viewport>
-        <SelectPrimitive.ScrollDownButton className="flex items-center justify-center py-1 text-(--text-muted)">
-          ▼
-        </SelectPrimitive.ScrollDownButton>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
