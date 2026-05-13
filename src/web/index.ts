@@ -141,6 +141,8 @@ export {
 } from './compound/projectIcons'
 export { ResizeHandle, type ResizeHandleProps } from './compound/ResizeHandle'
 export { default as SafeText, type SafeTextProps } from './compound/SafeText'
+export { CodeInfoChip, type CodeInfoChipProps } from './compound/CodeInfoChip'
+export { renderLanguageIcon, type CodeInfoLanguage } from './compound/codeInfoIcons'
 export { SecretInput, type SecretInputProps } from './compound/SecretInput'
 export {
   TimeAxisHeader,
