@@ -143,6 +143,18 @@ export { ResizeHandle, type ResizeHandleProps } from './compound/ResizeHandle'
 export { default as SafeText, type SafeTextProps } from './compound/SafeText'
 export { CodeInfoChip, type CodeInfoChipProps } from './compound/CodeInfoChip'
 export { CopyButton, type CopyButtonProps } from './compound/CopyButton'
+export {
+  FeatureCard,
+  type FeatureCardData,
+  type FeatureCardProps,
+} from './compound/FeatureCard'
+export {
+  StoryCard,
+  StoryStatusPill,
+  type StoryCardData,
+  type StoryCardProps,
+  type StoryStatus,
+} from './compound/StoryCard'
 export { renderLanguageIcon, type CodeInfoLanguage } from './compound/codeInfoIcons'
 export { SecretInput, type SecretInputProps } from './compound/SecretInput'
 export {

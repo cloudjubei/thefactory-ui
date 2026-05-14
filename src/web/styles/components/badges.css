@@ -3,10 +3,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: var(--radius-round);
   font-size: var(--fs-xs, 12px);
-  line-height: 1;
+  line-height: 1.2;
   border: 1px solid transparent;
 }
 .badge--soft.badge--empty {
@@ -157,10 +157,12 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 8px;
   border-radius: var(--radius-round);
-  font-size: var(--fs-xxs, 10px);
+  font-size: var(--fs-xs, 12px);
+  line-height: 1.2;
   border: 1px solid var(--border-default);
   background: var(--surface-base);
   color: var(--text-secondary);
