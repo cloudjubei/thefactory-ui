@@ -90,10 +90,14 @@
   border-top: 1px solid var(--border-subtle);
 }
 .feature-row {
+  /* Same compaction as `.story-grid`: rail is `max-content` (id + status +
+   * counts stack), tight 8px column gap, so the title sits flush against
+   * the rail. The previous `0.1fr` rail + 12px gap left ~70px of dead space
+   * before the title — match desktop's denser layout. */
   display: grid;
-  grid-template-columns: 0.1fr 1.3fr max-content;
+  grid-template-columns: max-content 1fr max-content;
   grid-template-rows: auto auto auto;
-  gap: 2px 12px;
+  gap: 2px 8px;
   align-items: center;
   padding: 12px 8px;
 }
@@ -110,7 +114,6 @@
 }
 .feature-row .col-id {
   grid-row: 1 / 4;
-  width: 60px;
   display: flex;
   flex-direction: column;
   gap: 4px;

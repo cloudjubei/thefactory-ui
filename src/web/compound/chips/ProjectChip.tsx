@@ -32,16 +32,18 @@ export default function ProjectChip({
 
   const chipBody = (
     <>
-      <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden />
-      <span className="truncate max-w-[18ch]" style={{ lineHeight: 1 }}>
-        {label}
-      </span>
+      <span
+        className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"
+        aria-hidden
+      />
+      <span className="truncate max-w-[18ch]">{label}</span>
     </>
   )
 
-  const baseClasses = ['inline-flex items-center gap-1', CHIP_PILL_NEUTRAL, className || '']
-    .join(' ')
-    .trim()
+  // The `chip-pill` CSS class already provides `inline-flex; align-items:
+  // center; gap; padding; text-box-trim`, so no Tailwind layout utilities
+  // need to wrap it.
+  const baseClasses = [CHIP_PILL_NEUTRAL, className || ''].join(' ').trim()
 
   const chip = nonActionable ? (
     <div className={baseClasses} title={label}>

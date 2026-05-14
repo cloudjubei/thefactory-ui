@@ -71,14 +71,18 @@
   right: 8px;
 }
 
-/* Board grid uses auto-flow columns so it can overflow horizontally */
+/* Board grid uses auto-flow columns so it can overflow horizontally. The
+ * single implicit row is forced to `minmax(0, 1fr)` so it fills the
+ * viewport height — without this, `align-items: start` (or default) leaves
+ * the row content-sized and `.board-col`'s `max-height: 100%` never clamps,
+ * which is why overlong columns never scrolled. */
 .board {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: clamp(260px, 28vw, 360px);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--space-4, 12px);
   padding: var(--space-4, 12px);
-  align-items: start;
 }
 
 /* Column: make it its own vertical scroll container with sticky header */

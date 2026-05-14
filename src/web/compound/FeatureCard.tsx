@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { cn } from '../utils/cn'
 import Markdown from './Markdown'
-import { StoryStatusPill, type StoryStatus } from './StoryCard'
+import type { StoryStatus } from './StoryCard'
+import StatusControl from './StatusControl'
 
 /** Minimal feature shape this card renders. */
 export type FeatureCardData = {
@@ -111,7 +112,7 @@ export function FeatureCard({
 
       {showStatus && (
         <div className="flex items-center gap-2 mt-1">
-          <StoryStatusPill status={feature.status} />
+          <StatusControl status={feature.status} />
         </div>
       )}
     </div>

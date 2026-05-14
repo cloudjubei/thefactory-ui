@@ -1,13 +1,72 @@
-/* Components: Badges and Priority Tags */
-.badge {
+/* ─────────────────────────────────────────────────────────────────────────
+ * Chip / badge sizing.
+ *
+ * Two integer-pixel sizes are used across the entire chip family:
+ *   - Standard (24 px tall) — status pills, dependency chips, References /
+ *     Blocks / count labels, id chips. Used almost everywhere.
+ *   - Small (20 px tall) — ProjectChip and notification / count badges.
+ *
+ * Both use `box-sizing: border-box`, explicit `height`, horizontal-only
+ * padding, and `display: inline-flex; align-items: center` for centring.
+ * Every value is an integer pixel — no percentages, no calc, no font-size
+ * derived units. Sub-pixel rounding only occurs on the auto-sized *width*
+ * (depends on the rendered text's natural width) but not on the height. */
+
+.chip-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  justify-content: center;
+  gap: 4px;
   border-radius: var(--radius-round);
-  font-size: var(--fs-xs, 12px);
-  line-height: 1.2;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Standard chip — 12 px label, 24 px tall. `min/max` lock the height in
+ * case any cascade or animation tries to shift it. */
+.chip-pill--md {
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+/* Small chip — 20 px tall (project chip, count / notification badges). */
+.chip-pill--sm {
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+/* Neutral colour variant — used by `ProjectChip` and similar app-context
+ * chips. Light surface with subtle border; identical metrics to the
+ * variant-less chip. */
+.chip-pill--neutral {
+  border: 1px solid var(--border-default);
+  background: var(--surface-base);
+  color: var(--text-secondary);
+}
+
+/* Components: Badges and Priority Tags */
+.badge {
+  /* Status pill — same standard 24 px recipe as `.chip-pill --md`. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-round);
+  font-size: 12px;
+  line-height: 1;
   border: 1px solid transparent;
+  box-sizing: border-box;
 }
 .badge--soft.badge--empty {
   background: var(--status-empty-soft-bg);
@@ -84,6 +143,18 @@
   color: var(--status-blocked-fg);
 }
 
+/* Interactive (editable) badge — used by `StatusControl` when an `onChange`
+ * is provided. Surfaces the hand cursor and suppresses accidental text
+ * selection while the picker is being opened. */
+.status-badge--editable {
+  cursor: pointer;
+  user-select: none;
+}
+.status-badge--editable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+}
+
 /* Priority tags */
 .priority-tag {
   display: inline-flex;
@@ -119,15 +190,21 @@
 
 /* ID chip: compact bubble for IDs (stories/features), similar to dependency chips */
 .id-chip {
+  /* Same fixed 24 px height as the rest of the chip family — the digit
+   * label is small but the chip itself matches its neighbours. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 6px;
   border-radius: var(--radius-round);
+  box-sizing: border-box;
   border: 1px solid var(--border-default);
   background: var(--surface-raised);
   color: var(--text-secondary);
-  font-size: var(--fs-xxs, 10px);
+  font-size: 12px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -148,26 +225,42 @@
   margin-top: 4px;
 }
 .chips-sub__label {
-  font-size: var(--fs-xxs, 10px);
-  color: var(--text-muted);
-  padding: 2px 8px;
-  border-radius: var(--radius-round);
-  border: 1px solid var(--border-subtle);
-}
-.chip {
+  /* Standard chip metrics — fixed 24 px height, matches `.chip` / `.badge`. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 3px 8px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 8px;
   border-radius: var(--radius-round);
-  font-size: var(--fs-xs, 12px);
-  line-height: 1.2;
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-muted);
+  box-sizing: border-box;
+}
+.chip {
+  /* Same fixed 24 px recipe as `.badge` / `.chips-sub__label` so chips
+   * placed side-by-side measure exactly the same. Only the colour palette
+   * differs (neutral default + soft status variants below). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-round);
+  font-size: 12px;
+  line-height: 1;
   border: 1px solid var(--border-default);
   background: var(--surface-base);
   color: var(--text-secondary);
   white-space: nowrap;
   cursor: pointer;
+  box-sizing: border-box;
   transition:
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
@@ -235,14 +328,15 @@
   border-color: var(--color-red-800);
 }
 
-/* Close button for inline-removable chips */
+/* Close button for inline-removable chips. Spacing comes from `.chip`'s
+ * `gap` — no extra margin so the X sits tight against the label. */
 .chip__close {
-  margin-left: 6px;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   border-radius: 999px;
   border: none;
   background: transparent;

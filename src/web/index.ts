@@ -150,11 +150,46 @@ export {
 } from './compound/FeatureCard'
 export {
   StoryCard,
-  StoryStatusPill,
   type StoryCardData,
   type StoryCardProps,
   type StoryStatus,
 } from './compound/StoryCard'
+export {
+  default as StatusControl,
+  StatusPicker,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  statusKey,
+  type StatusControlProps,
+  type StatusPickerProps,
+  type StatusPickerValue,
+  type StatusSemanticKey,
+} from './compound/StatusControl'
+export {
+  default as DependencyChip,
+  type DependencyChipKind,
+  type DependencyChipProps,
+  type DependencyChipVariant,
+} from './compound/DependencyChip'
+export {
+  STORY_SORT_OPTIONS,
+  FEATURE_SORT_OPTIONS,
+  STATUS_OPTIONS,
+  type StoryListSorting,
+  type FeatureListSorting,
+} from './compound/storiesOptions'
+export {
+  default as RunAgentButton,
+  AgentTypePicker,
+  type AgentRunType,
+  type AgentTypePickerProps,
+  type RunAgentButtonProps,
+} from './compound/RunAgentButton'
+export {
+  default as StoryForm,
+  type StoryFormProps,
+  type StoryFormValues,
+} from './compound/StoryForm'
 export { renderLanguageIcon, type CodeInfoLanguage } from './compound/codeInfoIcons'
 export { SecretInput, type SecretInputProps } from './compound/SecretInput'
 export {
@@ -171,6 +206,26 @@ export {
   type ShortcutEntry,
   type ShortcutsHelpViewProps,
 } from './compound/ShortcutsHelpView'
+export {
+  UsageModal,
+  type UsageModalCostAggregate,
+  type UsageModalCostBreakdown,
+  type UsageModalMessage,
+  type UsageModalModelPrice,
+  type UsageModalProps,
+  type UsageModalUsage,
+} from './compound/UsageModal'
+export {
+  ModelChip,
+  type ModelChipConfig,
+  type ModelChipMode,
+  type ModelChipProps,
+} from './compound/ModelChip'
+export {
+  ChatSidebarPanel,
+  type ChatSidebarPanelChildrenArgs,
+  type ChatSidebarPanelProps,
+} from './compound/ChatSidebarPanel'
 
 // Utils
 export { cn } from './utils/cn'

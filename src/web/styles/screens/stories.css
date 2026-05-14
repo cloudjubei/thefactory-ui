@@ -137,15 +137,17 @@
 /* New grid for main story info */
 .story-grid {
   display: grid;
-  grid-template-columns: 0.1fr 1.3fr max-content;
+  grid-template-columns: max-content 1fr max-content;
   grid-template-rows: auto auto auto;
-  gap: 4px 12px;
+  gap: 4px 8px;
   align-items: center;
   padding: 4px 2px;
 }
 .story-grid .col-id {
+  /* `max-content` column means the rail is exactly the width of the id +
+   * status + counts stack. Combined with the tight 8px column gap, the title
+   * sits flush against the rail instead of floating in a 70-pixel margin. */
   grid-row: 1 / 4;
-  width: 60px;
   display: flex;
   flex-direction: column;
   gap: 4px;

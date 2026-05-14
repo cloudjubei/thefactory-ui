@@ -3,10 +3,8 @@
 // these pills. Layout (flex direction, gap) stays per-chip because TokensChip
 // stacks vertically while the others lay out horizontally.
 
-export const CHIP_PILL_NEUTRAL = [
-  'rounded-full border px-2 py-0.5',
-  'text-xs font-medium',
-  'bg-neutral-50 text-neutral-800',
-  'dark:bg-neutral-800/60 dark:text-neutral-200',
-  'border-neutral-200 dark:border-neutral-700',
-].join(' ')
+// Defers entirely to the CSS `.chip-pill .chip-pill--sm .chip-pill--neutral`
+// recipe so project / cost / tokens chips share the `text-box-trim`-based
+// optical centring with `.badge` and `.chip`. Don't add Tailwind utilities
+// here that fight the CSS — keep it as a single token consumers can compose.
+export const CHIP_PILL_NEUTRAL = 'chip-pill chip-pill--sm chip-pill--neutral font-medium'

@@ -1,6 +1,7 @@
 import type { DragEvent, ReactNode } from 'react'
 import { cn } from '../utils/cn'
 import Markdown from './Markdown'
+import StatusControl from './StatusControl'
 
 /**
  * The five story / feature statuses recognised across all `thefactory-*`
@@ -132,49 +133,9 @@ export function StoryCard({
 
       {showStatus && (
         <div className="flex items-center gap-2 mt-1">
-          <StoryStatusPill status={story.status} />
+          <StatusControl status={story.status} />
         </div>
       )}
     </div>
-  )
-}
-
-const STATUS_LABELS: Record<StoryStatus, string> = {
-  '+': 'Done',
-  '~': 'Crunching',
-  '-': 'Pending',
-  '?': 'Blocked',
-  '=': 'Deferred',
-}
-
-const STATUS_VARIANT: Record<StoryStatus, string> = {
-  '+': 'done',
-  '~': 'working',
-  '-': 'queued',
-  '?': 'stuck',
-  '=': 'onhold',
-}
-
-/** Small inline "soft badge" representing a story / feature status.
- *  Renders the shared `.badge.badge--soft` recipe from `thefactory-ui`'s
- *  badges stylesheet, so a status pill placed next to a `.chip` dependency
- *  bullet has the same height, padding, line-height, and baseline. */
-export function StoryStatusPill({
-  status,
-  className,
-}: {
-  status: StoryStatus
-  className?: string
-}) {
-  const label = STATUS_LABELS[status] ?? String(status)
-  const variant = STATUS_VARIANT[status] ?? 'queued'
-  return (
-    <span
-      className={cn('badge badge--soft', `badge--${variant}`, className)}
-      aria-label={`${label} status`}
-      title={label}
-    >
-      {label}
-    </span>
   )
 }
