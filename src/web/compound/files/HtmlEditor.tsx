@@ -1,104 +1,51 @@
 import { useState, type ReactNode } from 'react'
-import Markdown from './Markdown'
-import { Button } from '../primitives/Button'
-import SegmentedControl from '../primitives/SegmentedControl'
-import Spinner from '../primitives/Spinner'
-import { IconSave } from '../icons/IconSave'
 
-// Two-pane Markdown editor shell: textarea on the left, rendered preview on
-// the right, with a header that has per-pane labels, a pane-visibility
-// SegmentedControl, and an icon save button.
-//
-// Stateless w.r.t. file I/O — consumers (overseer-local, overseer-web) own
-// the load / write-back and supply `value` + `onChange` + `onSave` + `isDirty`.
-// The component only owns the pane-visibility state.
+import SegmentedControl from '../../primitives/SegmentedControl'
+import Spinner from '../../primitives/Spinner'
+import { Button } from '../../primitives/Button'
+import { IconSave } from '../../icons'
 
-export type MarkdownEditorPaneView = 'edit' | 'both' | 'preview'
+import { MARKDOWN_PANE_OPTIONS, type MarkdownEditorPaneView } from '../MarkdownEditor'
 
-export type MarkdownEditorProps = {
+// Reuses the same three-way pane control as MarkdownEditor — the underlying
+// "edit / both / preview" semantics carry over verbatim, so we treat its
+// view union as a generic editor-pane view type.
+export type HtmlEditorPaneView = MarkdownEditorPaneView
+
+export type HtmlEditorProps = {
   value: string
   onChange: (next: string) => void
-  /**
-   * Optional title shown left of the pane-visibility switch (typically the
-   * file name). When omitted, the header just has the per-pane labels +
-   * controls.
-   */
+  /** Optional title shown left of the pane-visibility switch (typically the file name). */
   title?: ReactNode
-  /**
-   * When set, surfaces the save button. The button is disabled until
-   * `isDirty` is true.
-   */
+  /** When set, surfaces the save button. Disabled until `isDirty` is true. */
   onSave?: () => void | Promise<void>
   isDirty?: boolean
   /** Replaces the editor body with a centred spinner. */
   loading?: boolean
-  /** Forwarded to `<Markdown>` — required to render raw HTML in `.md` files. */
-  allowHtml?: boolean
   /** Initial pane visibility. Defaults to `'both'`. */
-  initialView?: MarkdownEditorPaneView
-  /**
-   * Controlled pane visibility. When provided, the internal state is ignored
-   * and the consumer drives view changes via `onViewChange`. Useful when the
-   * pane toggle lives in a host-provided header.
-   */
-  view?: MarkdownEditorPaneView
-  onViewChange?: (next: MarkdownEditorPaneView) => void
-  /**
-   * Skips rendering the internal header (title + pane toggle + save button).
-   * Used when the host (e.g. a file pane) provides those controls itself.
-   */
+  initialView?: HtmlEditorPaneView
+  /** Controlled pane visibility (mirrors MarkdownEditor). */
+  view?: HtmlEditorPaneView
+  onViewChange?: (next: HtmlEditorPaneView) => void
+  /** Skip rendering the internal header (host provides its own). */
   hideHeader?: boolean
 }
 
-export const MARKDOWN_PANE_OPTIONS = [
-  {
-    value: 'edit',
-    label: 'Edit only',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" />
-        <rect x="1.5" y="2.5" width="6.5" height="11" fill="currentColor" opacity="0.6" />
-      </svg>
-    ),
-  },
-  {
-    value: 'both',
-    label: 'Both panes',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" />
-        <line x1="8" y1="2.5" x2="8" y2="13.5" stroke="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    value: 'preview',
-    label: 'Preview only',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" />
-        <rect x="8" y="2.5" width="6.5" height="11" fill="currentColor" opacity="0.6" />
-      </svg>
-    ),
-  },
-] as const
-
-export default function MarkdownEditor({
+export default function HtmlEditor({
   value,
   onChange,
   title,
   onSave,
   isDirty = false,
   loading = false,
-  allowHtml,
   initialView = 'both',
   view: controlledView,
   onViewChange,
   hideHeader = false,
-}: MarkdownEditorProps) {
-  const [internalView, setInternalView] = useState<MarkdownEditorPaneView>(initialView)
+}: HtmlEditorProps) {
+  const [internalView, setInternalView] = useState<HtmlEditorPaneView>(initialView)
   const view = controlledView ?? internalView
-  const setView = (next: MarkdownEditorPaneView) => {
+  const setView = (next: HtmlEditorPaneView) => {
     if (onViewChange) onViewChange(next)
     if (controlledView === undefined) setInternalView(next)
   }
@@ -128,7 +75,7 @@ export default function MarkdownEditor({
               size="sm"
               ariaLabel="Pane visibility"
               value={view}
-              onChange={(v) => setView(v as MarkdownEditorPaneView)}
+              onChange={(v) => setView(v as HtmlEditorPaneView)}
               options={MARKDOWN_PANE_OPTIONS.map((o) => ({
                 value: o.value,
                 label: o.label,
@@ -188,9 +135,18 @@ export default function MarkdownEditor({
               >
                 Preview view
               </div>
-              <div className="flex-1 overflow-auto p-3">
-                <Markdown text={value || ''} allowHtml={allowHtml} />
-              </div>
+              <iframe
+                title="HTML preview"
+                srcDoc={value}
+                // `sandbox=""` (no flags) is the strictest setting: no JS, no
+                // form submission, no top-navigation, unique origin. This
+                // matches how rehype-sanitize behaves for Markdown previews
+                // — we render the markup, we don't run the page.
+                sandbox=""
+                referrerPolicy="no-referrer"
+                className="flex-1 w-full border-0"
+                style={{ background: 'white' }}
+              />
             </section>
           )}
         </div>
