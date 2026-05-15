@@ -247,5 +247,35 @@ export {
   type ChatSidebarPanelProps,
 } from './compound/ChatSidebarPanel'
 
+// Tests view (lifted from web + desktop's TestsView)
+export {
+  CoverageTable,
+  TEST_CONFIG_PATTERN,
+  TestCustomConfigInput,
+  TestResultsList,
+  TestsAggregateBar,
+  TestsProgressBar,
+  formatUncoveredLines,
+  isTestConfigPath,
+  msToShort,
+  pctBarClass,
+  pctColorClass,
+  type CoverageFileStatsLike,
+  type CoverageResultLike,
+  type CoverageTableProps,
+  type TestConfigCandidate,
+  type TestConfigEnvVarLike,
+  type TestCustomConfigInputProps,
+  type TestFailureLike,
+  type TestNameLike,
+  type TestResultLike,
+  type TestResultsListProps,
+  type TestStatusLike,
+  type TestSummaryLike,
+  type TestsAggregateBarProps,
+  type TestsProgressBarProps,
+  type TestsResultLike,
+} from './compound/tests'
+
 // Utils
 export { cn } from './utils/cn'
