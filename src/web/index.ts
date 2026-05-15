@@ -277,5 +277,45 @@ export {
   type TestsResultLike,
 } from './compound/tests'
 
+// Git view (lifted from web + desktop's GitView)
+export {
+  GitCommitGraph,
+  GitCommitGraphHeader,
+  GitCommitGraphRow,
+  GitFileChangesPills,
+  GitFileDiffItem,
+  GitFileRow,
+  GitFileStatusIcon,
+  GitSidebar,
+  GitSidebarBranchFolder,
+  GitSidebarBranchList,
+  GitSidebarBranchRow,
+  GitSidebarSectionHeader,
+  GitSidebarStashRow,
+  computeCommitGraph,
+  countPatchAddDel,
+  getFilePatch,
+  type GitCommitGraphHeaderProps,
+  type GitCommitGraphProps,
+  type GitCommitGraphRowProps,
+  type GitFileChangesPillsProps,
+  type GitFileDiffItemProps,
+  type GitFileRowProps,
+  type GitFileStatusIconProps,
+  type GitLocalFileEntry,
+  type GitLogCommitLike,
+  type GitLogRefLike,
+  type GitMergeReportFileLike,
+  type GitSidebarBranchFolderProps,
+  type GitSidebarBranchListProps,
+  type GitSidebarBranchRowProps,
+  type GitSidebarProps,
+  type GitSidebarSectionHeaderProps,
+  type GitSidebarStashRowProps,
+  type GitStashListItemLike,
+  type GitUnifiedBranchLike,
+  type GraphNode,
+} from './compound/git'
+
 // Utils
 export { cn } from './utils/cn'

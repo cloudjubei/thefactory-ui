@@ -1,20 +1,35 @@
-import type { CSSProperties, MouseEvent, PointerEvent } from 'react'
+import { useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 
 export interface ResizeHandleProps {
   orientation: 'horizontal' | 'vertical'
   onResizeStart: (e: PointerEvent<HTMLDivElement>) => void
-  // For vertical orientation, handlePos tracks the pointer along the height of the divider;
-  // for horizontal, along the width.
+  /**
+   * Pixel offset along the divider for the visible bubble. When omitted, the
+   * component tracks the mouse internally — pass an explicit value only if
+   * the consumer needs to drive the bubble's position from outside state
+   * (e.g. while syncing across split panes).
+   */
   handlePos?: number
   onMouseMove?: (e: MouseEvent<HTMLDivElement>) => void
   className?: string
   style?: CSSProperties
-  // Width/height of the hoverable hit-box. Default 6.
+  /** Width/height of the hoverable hit-box. Default 10 — big enough to grab without overshooting. */
   hitBoxSize?: number
-  // Pixel offset for centring the divider relative to the parent.
+  /** Pixel offset for centring the divider relative to the parent. */
   offset?: number
 }
 
+/**
+ * Vertical or horizontal split divider.
+ *
+ * Two ergonomic affordances make this match desktop:
+ *  1. **Pointer capture** — `setPointerCapture` on pointer-down means
+ *     the user can drag past the handle's bounding box without losing the
+ *     gesture, so wide content underneath the cursor doesn't steal events.
+ *  2. **Self-tracking bubble** — when `handlePos` isn't passed, the component
+ *     tracks the mouse internally so the visible grab pill always follows
+ *     the cursor along the divider axis.
+ */
 export function ResizeHandle({
   orientation,
   onResizeStart,
@@ -22,16 +37,47 @@ export function ResizeHandle({
   onMouseMove,
   className = '',
   style,
-  hitBoxSize = 6,
+  hitBoxSize = 10,
   offset = 0,
 }: ResizeHandleProps) {
   const isHorizontal = orientation === 'horizontal'
+
+  const [trackedPos, setTrackedPos] = useState<number | null>(null)
 
   const hasPositioning =
     className.includes('absolute') ||
     className.includes('fixed') ||
     className.includes('relative') ||
     className.includes('sticky')
+
+  const onInternalPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    // Pointer capture keeps the move events flowing even when the cursor
+    // moves over a child element of the host (e.g. an overlapping scrollbar
+    // or absolutely-positioned panel). Falls back silently if the browser
+    // refuses (Safari sometimes rejects capture on synthetic elements).
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {
+      // ignore — drag still works via the window-level move listener consumers attach
+    }
+    onResizeStart(e)
+  }
+
+  const onInternalMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (handlePos === undefined) {
+      const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+      setTrackedPos(isHorizontal ? e.clientX - r.left : e.clientY - r.top)
+    }
+    onMouseMove?.(e)
+  }
+
+  // Intentionally no mouse-leave handler — the visible bubble fades out via
+  // `group-hover` opacity, so we don't need to reset the tracked position.
+  // Clearing it caused the bubble to snap back to centre at the end of a
+  // drag (the cursor briefly leaves the hit box during the release
+  // transition), which the user reported as a visual glitch.
+
+  const effectivePos = handlePos !== undefined ? handlePos : trackedPos
 
   return (
     <div
@@ -40,13 +86,20 @@ export function ResizeHandle({
       } ${className}`}
       style={{
         ...style,
+        // The hit area extends beyond the visible 1px divider line so the
+        // handle is easy to grab without precise aiming. The visible line
+        // and bubble are rendered as absolutely-positioned children below.
         ...(isHorizontal ? { height: hitBoxSize } : { width: hitBoxSize }),
+        // Make sure the handle sits above neighbouring panels (graph cells,
+        // diff scroller). z-50 on the bubble alone wasn't enough when an
+        // ancestor establishes a new stacking context.
+        zIndex: 30,
       }}
       role="separator"
       aria-orientation={orientation}
       aria-label={`Resize ${orientation}ly`}
-      onPointerDown={onResizeStart}
-      onMouseMove={onMouseMove}
+      onPointerDown={onInternalPointerDown}
+      onMouseMove={onInternalMouseMove}
     >
       <div
         className={`absolute ${
@@ -56,13 +109,17 @@ export function ResizeHandle({
         }`}
       />
       <div
-        className="absolute z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        className="absolute opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
         style={{
+          zIndex: 9999,
           ...(isHorizontal
             ? {
                 width: 48,
                 height: 8,
-                left: handlePos !== undefined ? handlePos - 24 : `calc(50% - 24px + ${offset}px)`,
+                left:
+                  effectivePos !== null && effectivePos !== undefined
+                    ? effectivePos - 24
+                    : `calc(50% - 24px + ${offset}px)`,
                 top: '50%',
                 transform: 'translateY(-50%)',
               }
@@ -71,7 +128,10 @@ export function ResizeHandle({
                 height: 48,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                top: handlePos !== undefined ? handlePos - 24 : `calc(50% - 24px + ${offset}px)`,
+                top:
+                  effectivePos !== null && effectivePos !== undefined
+                    ? effectivePos - 24
+                    : `calc(50% - 24px + ${offset}px)`,
               }),
         }}
         aria-hidden

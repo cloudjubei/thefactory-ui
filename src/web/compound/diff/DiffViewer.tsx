@@ -98,14 +98,20 @@ export function DiffViewer({
 
   const handleApplySelection = () => {
     if (!patch || !onApplyPatch) return
-    onApplyPatch(generateSelectedPatch(patch, selectedLines), !!isStaged)
+    // `reverse=isStaged`: when viewing a staged file the user is unstaging,
+    // and `generateSelectedPatch` needs to know to handle unselected `+/-`
+    // lines correctly for reverse direction (skip vs context flip).
+    onApplyPatch(generateSelectedPatch(patch, selectedLines, !!isStaged), !!isStaged)
     setSelectable(false)
     setSelectedLines(new Set())
   }
 
   const handleDiscardSelection = () => {
     if (!patch || !onDiscardPatch) return
-    onDiscardPatch(generateSelectedPatch(patch, selectedLines))
+    // Discard is always applied with `cached: false, reverse: true` against
+    // the working tree; the patch's "new" side is the working tree state,
+    // so unselected `+/-` follow the reverse-direction rules.
+    onDiscardPatch(generateSelectedPatch(patch, selectedLines, true))
     setSelectable(false)
     setSelectedLines(new Set())
   }

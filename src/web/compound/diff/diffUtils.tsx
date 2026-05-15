@@ -590,6 +590,17 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
 export function generateSelectedPatch(
   patch: string,
   selectedLines: Set<string>, // format: "hunkIndex:lineIndex"
+  /**
+   * When true, the resulting patch is intended to be applied in reverse
+   * direction (e.g. unstaging hunks from a staged diff via
+   * `git apply --cached --reverse`). The asymmetry matters: an unselected
+   * `-` line in a staging diff means the line stays in the index (so
+   * appears as context), but in a *staged* diff (the target of reverse
+   * apply) an unselected `-` means the line is NOT in the index — so it
+   * must be skipped entirely, not promoted to context. Same swap for
+   * unselected `+` lines.
+   */
+  reverse = false,
 ): string {
   const hunks = parseUnifiedDiff(patch)
 
@@ -633,6 +644,14 @@ export function generateSelectedPatch(
           newLinesCount++
           hasModifications = true
           lastLineIncluded = 'add'
+        } else if (reverse) {
+          // Unselected `+` when generating a reverse-direction patch: line
+          // IS in the index (we're not unstaging it), so it must appear
+          // as context to anchor the surrounding hunk.
+          hunkBody += ' ' + line.text + '\n'
+          oldLinesCount++
+          newLinesCount++
+          lastLineIncluded = 'ctx'
         } else {
           lastLineIncluded = null
         }
@@ -642,6 +661,13 @@ export function generateSelectedPatch(
           oldLinesCount++
           hasModifications = true
           lastLineIncluded = 'del'
+        } else if (reverse) {
+          // Unselected `-` in a reverse-direction patch: line is NOT in
+          // the index (it was already deleted by the staged change we're
+          // leaving alone). Skip entirely — promoting to context would
+          // claim the line is in the index when it isn't, breaking
+          // `git apply --reverse` context matching.
+          lastLineIncluded = null
         } else {
           hunkBody += ' ' + line.text + '\n'
           oldLinesCount++
