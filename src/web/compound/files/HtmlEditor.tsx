@@ -66,9 +66,7 @@ export default function HtmlEditor({
           style={{ borderColor: 'var(--border-subtle)' }}
         >
           <div className="flex flex-1 min-w-0 items-center gap-2">
-            {title && (
-              <span className="truncate font-semibold text-(--text-primary)">{title}</span>
-            )}
+            {title && <span className="truncate font-semibold text-(--text-primary)">{title}</span>}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <SegmentedControl

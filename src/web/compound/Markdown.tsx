@@ -24,10 +24,7 @@ import remarkGfm from 'remark-gfm'
 
 const components: Partial<Components> = {
   pre: ({ children, ...props }) => (
-    <pre
-      className="p-4 rounded-md overflow-x-auto my-4 bg-(--surface-muted)"
-      {...props}
-    >
+    <pre className="p-4 rounded-md overflow-x-auto my-4 bg-(--surface-muted)" {...props}>
       {children}
     </pre>
   ),
@@ -106,10 +103,7 @@ const components: Partial<Components> = {
     </td>
   ),
   tr: ({ children, ...props }) => (
-    <tr
-      className="hover:bg-(--surface-hover) transition-colors last:border-b-0"
-      {...props}
-    >
+    <tr className="hover:bg-(--surface-hover) transition-colors last:border-b-0" {...props}>
       {children}
     </tr>
   ),
@@ -129,10 +123,7 @@ const components: Partial<Components> = {
     </a>
   ),
   h1: ({ children, ...props }) => (
-    <h1
-      className="text-2xl font-bold mt-4 mb-2 pb-1 border-b border-(--border-subtle)"
-      {...props}
-    >
+    <h1 className="text-2xl font-bold mt-4 mb-2 pb-1 border-b border-(--border-subtle)" {...props}>
       {children}
     </h1>
   ),
@@ -188,13 +179,15 @@ const sanitizeSchema = {
   attributes: {
     ...defaultSchema.attributes,
     '*': [
-      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> })
-        .attributes?.['*'] as unknown[]) ?? []),
+      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> }).attributes?.[
+        '*'
+      ] as unknown[]) ?? []),
       'className',
     ],
     a: [
-      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> })
-        .attributes?.['a'] as unknown[]) ?? []),
+      ...(((defaultSchema as unknown as { attributes?: Record<string, unknown[]> }).attributes?.[
+        'a'
+      ] as unknown[]) ?? []),
       ['target', /^(_blank|_self|_parent|_top)$/],
       [
         'rel',

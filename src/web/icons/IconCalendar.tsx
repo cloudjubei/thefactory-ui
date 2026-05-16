@@ -17,7 +17,11 @@ export function IconCalendar({ className }: { className?: string }) {
       {/* Header line */}
       <path d="M3 9h18" stroke="#10B981" strokeWidth="2" />
       {/* Date dots */}
-      <path d="M7 12h0M11 12h0M15 12h0M19 12h0M7 16h0M11 16h0M15 16h0M19 16h0" stroke="#F59E0B" strokeWidth="2" />
+      <path
+        d="M7 12h0M11 12h0M15 12h0M19 12h0M7 16h0M11 16h0M15 16h0M19 16h0"
+        stroke="#F59E0B"
+        strokeWidth="2"
+      />
     </svg>
   )
 }

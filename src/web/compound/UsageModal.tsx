@@ -117,9 +117,7 @@ type UsageRow = {
   price?: UsageModalModelPrice
 }
 
-function isAssistantWithUsage(
-  m: UsageModalMessage,
-): m is UsageModalMessage & {
+function isAssistantWithUsage(m: UsageModalMessage): m is UsageModalMessage & {
   role: 'assistant'
   model: { provider: string; model: string }
   usage: UsageModalUsage

@@ -26,10 +26,7 @@ export type FileTypeIconProps = {
   className?: string
 }
 
-export function extFromTypeOrName(
-  type?: string | null,
-  name?: string,
-): string | null {
+export function extFromTypeOrName(type?: string | null, name?: string): string | null {
   if (type) {
     const parts = type.split('/')
     if (parts.length === 2 && parts[1]) return parts[1].toLowerCase()

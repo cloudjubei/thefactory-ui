@@ -76,9 +76,7 @@ export default function StoryForm({
   useEffect(() => {
     const baseline = initialSnapshotRef.current!
     const dirty =
-      title !== baseline.title ||
-      status !== baseline.status ||
-      description !== baseline.description
+      title !== baseline.title || status !== baseline.status || description !== baseline.description
     onDirtyChange?.(dirty)
   }, [title, status, description, onDirtyChange])
 

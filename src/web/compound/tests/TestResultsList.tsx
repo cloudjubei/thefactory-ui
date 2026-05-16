@@ -140,7 +140,11 @@ function CollapsibleSection({
           style={{ transform: open ? 'rotate(90deg)' : undefined }}
         />
       </button>
-      {open && <div className="p-3 pt-2 space-y-2 border-t border-neutral-200 dark:border-neutral-800">{children}</div>}
+      {open && (
+        <div className="p-3 pt-2 space-y-2 border-t border-neutral-200 dark:border-neutral-800">
+          {children}
+        </div>
+      )}
     </section>
   )
 }

@@ -200,9 +200,7 @@ export function Modal({
           </div>
         )}
         <div
-          className={['flex-grow overflow-y-auto p-4', contentClassName]
-            .filter(Boolean)
-            .join(' ')}
+          className={['flex-grow overflow-y-auto p-4', contentClassName].filter(Boolean).join(' ')}
         >
           {children}
         </div>

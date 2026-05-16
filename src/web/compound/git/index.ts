@@ -1,7 +1,4 @@
-export {
-  default as GitCommitGraph,
-  type GitCommitGraphProps,
-} from './commitGraph/GitCommitGraph'
+export { default as GitCommitGraph, type GitCommitGraphProps } from './commitGraph/GitCommitGraph'
 export {
   default as GitCommitGraphHeader,
   type GitCommitGraphHeaderProps,
@@ -12,14 +9,8 @@ export {
 } from './commitGraph/GitCommitGraphRow'
 export { computeCommitGraph, type GraphNode } from './commitGraph/gitCommitGraphUtils'
 
-export {
-  GitFileChangesPills,
-  type GitFileChangesPillsProps,
-} from './common/GitFileChangesPills'
-export {
-  default as GitFileDiffItem,
-  type GitFileDiffItemProps,
-} from './common/GitFileDiffItem'
+export { GitFileChangesPills, type GitFileChangesPillsProps } from './common/GitFileChangesPills'
+export { default as GitFileDiffItem, type GitFileDiffItemProps } from './common/GitFileDiffItem'
 export {
   default as GitFileRow,
   type GitFileRowProps,

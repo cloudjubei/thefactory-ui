@@ -163,11 +163,7 @@ export { ResizeHandle, type ResizeHandleProps } from './compound/ResizeHandle'
 export { default as SafeText, type SafeTextProps } from './compound/SafeText'
 export { CodeInfoChip, type CodeInfoChipProps } from './compound/CodeInfoChip'
 export { CopyButton, type CopyButtonProps } from './compound/CopyButton'
-export {
-  FeatureCard,
-  type FeatureCardData,
-  type FeatureCardProps,
-} from './compound/FeatureCard'
+export { FeatureCard, type FeatureCardData, type FeatureCardProps } from './compound/FeatureCard'
 export {
   StoryCard,
   type StoryCardData,
@@ -246,6 +242,66 @@ export {
   type ChatSidebarPanelChildrenArgs,
   type ChatSidebarPanelProps,
 } from './compound/ChatSidebarPanel'
+
+// Chat view (lifted from web + desktop's ChatView)
+export {
+  ChatBody,
+  ChatHeader,
+  ChatInput,
+  ChatSettingsDropdown,
+  ChatTopicCreateModal,
+  HistorySummarizationSettings,
+  interpolatePrompt,
+  MessageList,
+  MessageRow,
+  MessageSanitizationSettings,
+  renderToolPreview,
+  WriteToolsPreview,
+  WriteMultiToolsPreview,
+  StatusIcon as ChatToolStatusIcon,
+  StatusPill as ChatToolStatusPill,
+  SystemPromptBubble,
+  SystemPromptViewerModal,
+  ThinkingRow,
+  ToolCallCard,
+  ToolCallHoverCard,
+  ToolConfirmationModal,
+  type ChatBodyProps,
+  type ChatContextLike,
+  type ChatHeaderProps,
+  type ChatInputProps,
+  type ChatLiveStateLike,
+  type ChatMessageLike,
+  type ChatSettingsDropdownProps,
+  type ChatTopicCreateModalProps,
+  type CompletionSettingsLike,
+  type MessageListProps,
+  type MessageRowProps,
+  type MessageUsageLike,
+  type PendingToolConfirmationLike,
+  type SystemPromptBubbleProps,
+  type SystemPromptViewerModalProps,
+  type ThinkingRowProps,
+  type ToolCallCardProps,
+  type ToolCallHoverCardProps,
+  type ToolCallLike,
+  type ToolConfirmationModalProps,
+  type ToolResultLike,
+  type ToolResultTypeLike,
+  type ToolToggle,
+  type PromptVariables,
+  type HistorySummarization,
+  type HistorySummarizationSettingsProps,
+  type MessageSanitization,
+  type MessageSanitizationSettingsProps,
+  type RenderToolPreviewArgs,
+  type StoryShape,
+  type FeatureShape,
+  type ToolPreview,
+  type ToolPreviewHooks,
+  type WriteToolsPreviewProps,
+  type WriteMultiToolsPreviewProps,
+} from './compound/chat'
 
 // Tests view (lifted from web + desktop's TestsView)
 export {

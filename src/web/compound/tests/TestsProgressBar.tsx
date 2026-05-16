@@ -30,10 +30,7 @@ export function TestsProgressBar({ label, completed, total, currentFile }: Tests
         </span>
       </div>
       {pct != null && (
-        <div
-          className="h-1 rounded overflow-hidden"
-          style={{ background: 'var(--surface-muted)' }}
-        >
+        <div className="h-1 rounded overflow-hidden" style={{ background: 'var(--surface-muted)' }}>
           <div
             className="h-full transition-all"
             style={{ width: `${pct}%`, background: 'var(--color-brand-700)' }}

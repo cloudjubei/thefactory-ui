@@ -46,11 +46,7 @@ export default function GitCommitGraphHeader({
         ? { width }
         : undefined
 
-  const layoutClass = flex1
-    ? 'flex-1 min-w-0'
-    : autoWidth
-      ? 'shrink-0 w-auto'
-      : 'shrink-0'
+  const layoutClass = flex1 ? 'flex-1 min-w-0' : autoWidth ? 'shrink-0 w-auto' : 'shrink-0'
 
   return (
     <div

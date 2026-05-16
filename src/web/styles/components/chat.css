@@ -64,20 +64,24 @@
 }
 .chat-collapsed-panel .top {
   justify-self: center; /* horizontally centered */
-  align-self: start;    /* pinned to the top */
+  align-self: start; /* pinned to the top */
 }
 .chat-collapsed-panel .center {
   justify-self: center; /* horizontally centered */
-  align-self: center;    /* centered vertically within the middle row */
+  align-self: center; /* centered vertically within the middle row */
 }
 .chat-collapsed-panel .bottom {
   justify-self: center;
-  align-self: end;       /* ensures any bottom content sits at the bottom */
+  align-self: end; /* ensures any bottom content sits at the bottom */
 }
 
 /* Markdown body inside assistant messages */
-.markdown-body > * + * { margin-top: 0.5rem; }
-.markdown-body p { white-space: pre-wrap; }
+.markdown-body > * + * {
+  margin-top: 0.5rem;
+}
+.markdown-body p {
+  white-space: pre-wrap;
+}
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
@@ -88,9 +92,15 @@
   line-height: 1.25;
   color: inherit;
 }
-.markdown-body h1 { font-size: 1.15em; }
-.markdown-body h2 { font-size: 1.08em; }
-.markdown-body h3 { font-size: 1.03em; }
+.markdown-body h1 {
+  font-size: 1.15em;
+}
+.markdown-body h2 {
+  font-size: 1.08em;
+}
+.markdown-body h3 {
+  font-size: 1.03em;
+}
 .markdown-body ul {
   list-style: disc;
   padding-left: 1.25rem;

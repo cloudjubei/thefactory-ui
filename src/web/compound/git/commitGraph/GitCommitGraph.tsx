@@ -159,9 +159,7 @@ export function GitCommitGraph({
     // misbehaves when ancestor stacking contexts are introduced).
     // Scrollbars are hidden — the graph is busy enough already and the
     // user can still scroll via wheel/trackpad.
-    <div
-      className="flex-1 min-h-0 flex flex-col bg-(--surface-raised) relative overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <div className="flex-1 min-h-0 flex flex-col bg-(--surface-raised) relative overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex flex-col min-w-fit min-h-0 flex-1">
         <div className="flex items-stretch shrink-0 bg-(--surface-muted) shadow-sm border-b border-(--border-subtle)">
           <GitCommitGraphHeader

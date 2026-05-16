@@ -265,11 +265,7 @@ export default function StatusControl({
     <>
       <div
         ref={containerRef}
-        className={cn(
-          'status-inline max-w-[140px]',
-          isEditable && 'editable',
-          className,
-        )}
+        className={cn('status-inline max-w-[140px]', isEditable && 'editable', className)}
       >
         <span
           className={cn(

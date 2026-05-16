@@ -71,7 +71,7 @@
 @keyframes rating-pop-keyframes {
   0% {
     transform: scale(1) rotate(0deg);
-    filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   }
   35% {
     transform: scale(1.25) rotate(var(--rating-rotate, 0deg));
@@ -79,7 +79,7 @@
   }
   100% {
     transform: scale(1) rotate(0deg);
-    filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   }
 }
 
@@ -132,8 +132,12 @@
 }
 
 /* Color context inherited from button: we keep up/down matching */
-.rating-sparkles--up { color: var(--success-9, #059669); }
-.rating-sparkles--down { color: var(--danger-9, #dc2626); }
+.rating-sparkles--up {
+  color: var(--success-9, #059669);
+}
+.rating-sparkles--down {
+  color: var(--danger-9, #dc2626);
+}
 
 @keyframes spark-out {
   0% {
@@ -150,9 +154,15 @@
   }
 }
 @keyframes spark-fade {
-  0% { opacity: 0.9; }
-  60% { opacity: 0.5; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0.9;
+  }
+  60% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

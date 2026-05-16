@@ -240,8 +240,7 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
                 // something to improve — same rule desktop's `CoverageReport`
                 // used: lines coverage under 80% OR any uncovered line.
                 // Files that already meet the bar render an empty cell.
-                const showActions =
-                  (f.pct_lines ?? 0) < 80 || (f.uncovered_lines?.length ?? 0) > 0
+                const showActions = (f.pct_lines ?? 0) < 80 || (f.uncovered_lines?.length ?? 0) > 0
                 const actions =
                   showActions && renderActions
                     ? renderActions(f.file, f.uncovered_lines ?? [])

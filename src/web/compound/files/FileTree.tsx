@@ -321,7 +321,12 @@ function FileRow({
         title={node.name}
         aria-current={isSelected ? 'true' : undefined}
       >
-        <FileTypeIcon name={node.name} type={node.type ?? undefined} size={14} className="shrink-0" />
+        <FileTypeIcon
+          name={node.name}
+          type={node.type ?? undefined}
+          size={14}
+          className="shrink-0"
+        />
         <span className="truncate">{node.name}</span>
       </button>
     </li>

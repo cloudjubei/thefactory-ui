@@ -59,9 +59,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
           <Spinner size={16} />
         </span>
       )}
-      <span
-        className={cn('inline-flex items-center gap-2', loading && 'opacity-0')}
-      >
+      <span className={cn('inline-flex items-center gap-2', loading && 'opacity-0')}>
         {children}
       </span>
     </Comp>

@@ -6,13 +6,13 @@ The contract here is the contract: the four-layer split below makes it possible 
 
 ## Layers
 
-| Folder | What lives here | May import | May NOT import |
-|---|---|---|---|
-| `tokens/` | Pure TS palette + metrics + theme objects | nothing | React, DOM, RN, CSS, app domain |
-| `headless/` | React-only logic (state machines, hooks for command menu / tooltip / toast queue) | `tokens/`, React | DOM (`document`, `window`), `react-dom`, CSS, RN |
-| `web/styles/` | Tailwind v4 CSS bundle (foundations, primitives, components, layout, utilities) | — | — |
-| `web/primitives/` | Atomic DOM components | `tokens/`, `headless/`, React, `react-dom` | app domain |
-| `web/compound/` | Composed UI built from primitives | `tokens/`, `headless/`, primitives | app domain |
+| Folder            | What lives here                                                                   | May import                                 | May NOT import                                   |
+| ----------------- | --------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------ |
+| `tokens/`         | Pure TS palette + metrics + theme objects                                         | nothing                                    | React, DOM, RN, CSS, app domain                  |
+| `headless/`       | React-only logic (state machines, hooks for command menu / tooltip / toast queue) | `tokens/`, React                           | DOM (`document`, `window`), `react-dom`, CSS, RN |
+| `web/styles/`     | Tailwind v4 CSS bundle (foundations, primitives, components, layout, utilities)   | —                                          | —                                                |
+| `web/primitives/` | Atomic DOM components                                                             | `tokens/`, `headless/`, React, `react-dom` | app domain                                       |
+| `web/compound/`   | Composed UI built from primitives                                                 | `tokens/`, `headless/`, primitives         | app domain                                       |
 
 The boundary is enforced — `npm run check:uikit` runs as `prebuild` and `pretest`. Failures are CI-blocking.
 
@@ -53,7 +53,7 @@ The semantic theme uses CSS-shaped strings (`color-mix(...)`, `var(--...)`) for 
 - `web/compound/diff/`: DiffViewer (single-file widget with selectable hunks / intra-line modes / partial-apply), `parseUnifiedDiff` / `generateSelectedPatch` / `generateHunkPatch`, StructuredUnifiedDiff, InlineTextDiff, SimpleUnifiedDiff, SimpleSplitText
 - `web/compound/files/`: FileDisplay (with `UikitFileMeta` shape and `onReadPreview`/`onNavigate` callbacks)
 
-What's *not* here yet — file-input forms (FileMentionsTextarea / FileSelector / RichText / TypewriterText) — is tracked in [docs/implementation-plan.md §B](../../docs/implementation-plan.md#b-pending-tasks).
+What's _not_ here yet — file-input forms (FileMentionsTextarea / FileSelector / RichText / TypewriterText) — is tracked in [docs/implementation-plan.md §B](../../docs/implementation-plan.md#b-pending-tasks).
 
 ## Extraction plan
 

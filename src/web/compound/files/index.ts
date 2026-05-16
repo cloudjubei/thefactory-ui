@@ -5,11 +5,7 @@ export {
   type FileMentionsTextareaProps,
 } from './FileMentionsTextarea'
 export { default as FileSelector, type FileSelectorProps } from './FileSelector'
-export {
-  default as FileTree,
-  type FileTreeEntry,
-  type FileTreeProps,
-} from './FileTree'
+export { default as FileTree, type FileTreeEntry, type FileTreeProps } from './FileTree'
 export {
   default as FilePane,
   classifyFileByExtension,
@@ -22,11 +18,7 @@ export {
   type FileInfoData,
 } from './FileInfoButton'
 export { default as FilePaneHeader, type FilePaneHeaderProps } from './FilePaneHeader'
-export {
-  default as HtmlEditor,
-  type HtmlEditorPaneView,
-  type HtmlEditorProps,
-} from './HtmlEditor'
+export { default as HtmlEditor, type HtmlEditorPaneView, type HtmlEditorProps } from './HtmlEditor'
 export { default as ImageViewer, type ImageViewerProps } from './ImageViewer'
 export { default as PdfViewer, type PdfViewerProps } from './PdfViewer'
 export { default as RichText, type RichTextProps } from './RichText'

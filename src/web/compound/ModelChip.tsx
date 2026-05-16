@@ -178,7 +178,23 @@ function Picker({
     update()
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
+
+    // Re-measure once the panel has actually mounted (its width is known)
+    // so the viewport-clamp in `computePosition` runs against the real
+    // panel size instead of the default fallback. Also observe future
+    // size changes (price strings load async + grow the menu).
+    let ro: ResizeObserver | null = null
+    const rafId = requestAnimationFrame(() => {
+      update()
+      if (panelRef.current && typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(() => update())
+        ro.observe(panelRef.current)
+      }
+    })
+
     return () => {
+      cancelAnimationFrame(rafId)
+      ro?.disconnect()
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
     }

@@ -13,11 +13,7 @@ import {
   type ReactEventHandler,
 } from 'react'
 import { applyMention, parseMention } from './mention'
-import {
-  applyReference,
-  parseReference,
-  type ReferenceSuggestion,
-} from './reference'
+import { applyReference, parseReference, type ReferenceSuggestion } from './reference'
 
 export type FileMentionsTextareaProps = {
   value: string

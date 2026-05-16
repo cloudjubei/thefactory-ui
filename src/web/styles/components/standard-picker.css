@@ -35,5 +35,7 @@
 }
 
 /* Side variants (optional hooks for arrow or spacing) */
-.standard-picker--top {}
-.standard-picker--bottom {}
+.standard-picker--top {
+}
+.standard-picker--bottom {
+}

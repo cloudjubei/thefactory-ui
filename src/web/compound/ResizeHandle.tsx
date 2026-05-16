@@ -56,7 +56,7 @@ export function ResizeHandle({
     // or absolutely-positioned panel). Falls back silently if the browser
     // refuses (Safari sometimes rejects capture on synthetic elements).
     try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {
       // ignore — drag still works via the window-level move listener consumers attach
     }

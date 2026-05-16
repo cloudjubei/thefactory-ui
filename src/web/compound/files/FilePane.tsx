@@ -280,12 +280,7 @@ export function FilePane({
     <>
       {isText && (
         <Tooltip content="Copy file contents">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={copyAll}
-            aria-label="Copy file contents"
-          >
+          <Button variant="secondary" size="icon" onClick={copyAll} aria-label="Copy file contents">
             <IconCopy className="w-4 h-4" />
           </Button>
         </Tooltip>

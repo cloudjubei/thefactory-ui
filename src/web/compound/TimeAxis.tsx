@@ -153,10 +153,7 @@ export function TimeAxisRow<U extends TimeAxisUnit = TimeAxisUnit>({
           return (
             <div
               key={u.key}
-              className={cn(
-                'flex-none h-full',
-                isHighlighted && 'bg-(--color-brand-500)/5',
-              )}
+              className={cn('flex-none h-full', isHighlighted && 'bg-(--color-brand-500)/5')}
               style={{
                 width: `${(1 / unitCount) * 100}%`,
                 borderLeft: i > 0 ? '1px solid var(--border-subtle)' : 'none',

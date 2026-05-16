@@ -32,10 +32,7 @@ export default function ProjectChip({
 
   const chipBody = (
     <>
-      <span
-        className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"
-        aria-hidden
-      />
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden />
       <span className="truncate max-w-[18ch]">{label}</span>
     </>
   )
