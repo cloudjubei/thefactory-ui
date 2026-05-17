@@ -131,6 +131,7 @@ export {
   type CommandPaletteItem,
   type CommandPaletteProps,
 } from './compound/CommandPalette'
+export { default as ErrorBubble, type ErrorBubbleProps } from './compound/ErrorBubble'
 export { default as JsonView, type JsonViewProps } from './compound/JsonView'
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
 export {
@@ -194,6 +195,16 @@ export {
   type StoryListSorting,
   type FeatureListSorting,
 } from './compound/storiesOptions'
+export {
+  WarningChip,
+  ExclamationChip,
+  ContextFileChip,
+  StoryAndFeatureCallout,
+  type WarningChipProps,
+  type ExclamationChipProps,
+  type ContextFileChipProps,
+  type StoryAndFeatureCalloutProps,
+} from './compound/stories'
 export {
   default as RunAgentButton,
   AgentTypePicker,

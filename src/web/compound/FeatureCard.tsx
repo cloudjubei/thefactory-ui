@@ -24,6 +24,8 @@ export type FeatureCardProps = {
   /** Renderer for each blocker chip — see `StoryCardProps.renderBlocker`. */
   renderBlocker?: (dep: string) => ReactNode
   showStatus?: boolean
+  /** When provided, the status chip becomes an inline picker. */
+  onStatusChange?: (status: StoryStatus) => void
   className?: string
   onClick?: () => void
   ariaLabel?: string
@@ -41,6 +43,7 @@ export function FeatureCard({
   actions,
   footer,
   showStatus = true,
+  onStatusChange,
   renderBlocker,
   className,
   onClick,
@@ -112,7 +115,7 @@ export function FeatureCard({
 
       {showStatus && (
         <div className="flex items-center gap-2 mt-1">
-          <StatusControl status={feature.status} />
+          <StatusControl status={feature.status} onChange={onStatusChange} />
         </div>
       )}
     </div>

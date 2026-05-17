@@ -425,23 +425,22 @@ export function renderToolPreview({
     )
   }
 
-  // ---- search / web / tests / generic fallback ----
-  if (
-    name === 'searchFilesByExact' ||
-    name === 'searchFilesByKeywords' ||
-    name === 'searchFiles' ||
-    name === 'searchFilePaths' ||
-    name === 'searchFilesAndRead'
-  ) {
-    const qLines =
-      (extract(args, ['needles']) as string[] | undefined) ||
-      (extract(args, ['keywords']) as string[] | undefined) ||
-      [tryString(extract(args, ['query']) || extract(result, ['query'])) || '']
-    const resultLines = Array.isArray(result) ? (result as string[]) : []
+  // ---- search variants ----
+  if (name === 'searchFilesByExact' || name === 'searchFilesByKeywords') {
+    // Args carry an array of needles / keywords.
+    const rawQ = extract(args, ['needles']) ?? extract(args, ['keywords'])
+    const qLines: string[] = Array.isArray(rawQ)
+      ? rawQ.filter((l): l is string => typeof l === 'string')
+      : typeof rawQ === 'string'
+        ? [rawQ]
+        : ['']
+    const resultLines: string[] = Array.isArray(result)
+      ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
+      : []
     return (
       <div className="text-xs space-y-1">
         <SectionTitle>Query:</SectionTitle>
-        <PreLimited lines={qLines.filter((l): l is string => typeof l === 'string')} maxLines={10} />
+        <PreLimited lines={qLines} maxLines={10} />
         {resultType === 'success' ? (
           resultLines.length > 0 ? (
             <div>
@@ -456,6 +455,285 @@ export function renderToolPreview({
             <div className="text-[11px] text-(--text-secondary)">No matches</div>
           )
         ) : null}
+      </div>
+    )
+  }
+  if (name === 'searchFiles' || name === 'searchFilePaths' || name === 'searchFilesAndRead') {
+    // Args carry a single `query` string (multi-line ok).
+    const query = tryString(extract(args, ['query']) ?? extract(result, ['query'])) ?? ''
+    const qLines = query ? query.split(/\r?\n/) : ['']
+    const resultLines: string[] = Array.isArray(result)
+      ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
+      : []
+    return (
+      <div className="text-xs space-y-1">
+        <SectionTitle>Query:</SectionTitle>
+        <PreLimited lines={qLines} maxLines={2} />
+        {resultType === 'success' ? (
+          resultLines.length > 0 ? (
+            <div>
+              <SectionTitle>Results</SectionTitle>
+              <PreLimited
+                lines={resultLines}
+                maxLines={10}
+                renderTruncationMessage={(omitted) => <>+ {omitted} more</>}
+              />
+            </div>
+          ) : (
+            <div className="text-[11px] text-(--text-secondary)">No matches</div>
+          )
+        ) : null}
+      </div>
+    )
+  }
+
+  // ---- compileCheck ----
+  if (name === 'compileCheck') {
+    const paths = (extract(args, ['paths']) ?? []) as Array<string | undefined>
+    const safePaths = paths.filter((p): p is string => typeof p === 'string')
+    const strict = extract(args, ['strict'])
+
+    const failingPathsRaw =
+      extract(result, ['failingPaths']) ??
+      extract(result, ['failedPaths']) ??
+      extract(result, ['errorsByFile']) ??
+      extract(result, ['failuresByPath']) ??
+      extract(result, ['files'])
+    const failingPaths: string[] = Array.isArray(failingPathsRaw)
+      ? (failingPathsRaw as unknown[]).filter((p): p is string => typeof p === 'string')
+      : failingPathsRaw && typeof failingPathsRaw === 'object'
+        ? Object.keys(failingPathsRaw as Record<string, unknown>)
+        : []
+    const shownPaths = resultType === 'success' ? failingPaths : safePaths
+
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-(--text-secondary)">strict:</span>
+          <span className="font-mono text-[11px]">{String(!!strict)}</span>
+        </Row>
+
+        {shownPaths.length > 0 ? (
+          <div>
+            <SectionTitle>{resultType === 'success' ? 'Failing paths' : 'Paths'}</SectionTitle>
+            <PreLimited lines={shownPaths} maxLines={10} />
+          </div>
+        ) : resultType === 'success' ? (
+          <div className="text-[11px] text-(--text-secondary)">No failing paths</div>
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No paths</div>
+        )}
+      </div>
+    )
+  }
+
+  // ---- gitResetFiles ----
+  if (name === 'gitResetFiles') {
+    const paths = (extract(args, ['paths']) ?? []) as Array<string | undefined>
+    const safePaths = paths.filter((p): p is string => typeof p === 'string')
+    return (
+      <div className="text-xs space-y-1">
+        {safePaths.length > 0 ? (
+          safePaths.map((file, idx) => (
+            <Row key={`${file}-${idx}`}>
+              <span className="font-mono text-[11px]">{file}</span>
+            </Row>
+          ))
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No paths</div>
+        )}
+      </div>
+    )
+  }
+
+  // ---- gitDiff ----
+  if (name === 'gitDiff') {
+    const options = (extract(args, ['options']) ?? {}) as Record<string, unknown>
+    const paths = (extract(options, ['paths']) ?? []) as Array<string | undefined>
+    const safePaths = paths.filter((p): p is string => typeof p === 'string')
+    const staged = extract(options, ['staged'])
+    const includePatch = extract(options, ['includePatch'])
+    const includeStructured = extract(options, ['includeStructured'])
+
+    const filesRaw =
+      extract(result, ['files']) ??
+      extract(result, ['diffs']) ??
+      extract(result, ['entries']) ??
+      []
+    const files = Array.isArray(filesRaw) ? (filesRaw as Array<Record<string, unknown>>) : []
+
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-(--text-secondary)">mode:</span>
+          <span className="font-mono text-[11px]">{staged ? 'staged' : 'unstaged'}</span>
+          {includePatch ? (
+            <span className="text-[10px] font-medium text-(--text-secondary)">patch</span>
+          ) : null}
+          {includeStructured ? (
+            <span className="text-[10px] font-medium text-(--text-secondary)">structured</span>
+          ) : null}
+        </Row>
+
+        {safePaths.length > 0 ? (
+          <div>
+            <SectionTitle>Paths</SectionTitle>
+            <PreLimited lines={safePaths} maxLines={10} />
+          </div>
+        ) : null}
+
+        {resultType === 'success' ? (
+          files.length > 0 ? (
+            <div>
+              <SectionTitle>Results</SectionTitle>
+              <div className="space-y-1">
+                {files.map((file, idx) => {
+                  const path =
+                    tryString(extract(file, ['path'])) ??
+                    tryString(extract(file, ['newPath'])) ??
+                    tryString(extract(file, ['oldPath'])) ??
+                    `(entry ${idx + 1})`
+                  const added = extract(file, ['addedLines']) ?? extract(file, ['additions'])
+                  const removed = extract(file, ['removedLines']) ?? extract(file, ['deletions'])
+                  const truncated = !!extract(file, ['patchTruncated'])
+                  return (
+                    <Row key={`${path}-${idx}`} className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[11px]">{path}</span>
+                      {typeof added === 'number' ? (
+                        <span className="font-mono text-[11px] text-(--text-secondary)">+{added}</span>
+                      ) : null}
+                      {typeof removed === 'number' ? (
+                        <span className="font-mono text-[11px] text-(--text-secondary)">-{removed}</span>
+                      ) : null}
+                      {truncated ? (
+                        <span className="text-[10px] font-medium text-(--text-secondary)">
+                          patch truncated
+                        </span>
+                      ) : null}
+                    </Row>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-(--text-secondary)">No diff results</div>
+          )
+        ) : null}
+      </div>
+    )
+  }
+
+  // ---- webReadURLs ----
+  if (name === 'webReadURLs') {
+    const urls = (extract(args, ['urls']) ?? []) as Array<string | undefined>
+    const safeUrls = urls.filter((u): u is string => typeof u === 'string')
+    return (
+      <div className="text-xs space-y-1">
+        {safeUrls.length > 0 ? (
+          safeUrls.map((url, idx) => (
+            <Row key={url || idx}>
+              <span className="font-mono text-[11px]">{url || '(unknown)'}</span>
+            </Row>
+          ))
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No URLs</div>
+        )}
+      </div>
+    )
+  }
+
+  // ---- AST outline / code intel ----
+  if (name === 'getAstOutline') {
+    const raw = extract(result, ['result']) ?? extract(result, ['nodes']) ?? result
+    const items: Array<Record<string, unknown>> = Array.isArray(raw)
+      ? (raw as Array<Record<string, unknown>>)
+      : []
+    return (
+      <div className="text-xs space-y-1">
+        {items.length > 0 ? (
+          <div>
+            <SectionTitle>AST Outline</SectionTitle>
+            <PreLimited
+              lines={items.map(
+                (it) =>
+                  `${String(it.kind ?? '').padEnd(25)} ${String(it.name ?? '')} (L${String(it.startLine ?? '?')}-L${String(it.endLine ?? '?')})`,
+              )}
+              maxLines={15}
+              renderTruncationMessage={(omitted) => <>+ {omitted} more nodes</>}
+            />
+          </div>
+        ) : resultType === 'success' ? (
+          <div className="text-[11px] text-(--text-secondary)">No nodes</div>
+        ) : null}
+      </div>
+    )
+  }
+  if (name === 'getCode') {
+    const requestedNamesRaw = extract(args, ['names'])
+    const requestedNames: string[] = Array.isArray(requestedNamesRaw)
+      ? (requestedNamesRaw as unknown[]).filter((it): it is string => typeof it === 'string')
+      : []
+    const rawResults =
+      extract(result, ['result']) ??
+      extract(result, ['results']) ??
+      extract(result, ['items']) ??
+      result
+    const resultCount = Array.isArray(rawResults)
+      ? rawResults.length
+      : rawResults && typeof rawResults === 'object'
+        ? Object.keys(rawResults as Record<string, unknown>).length
+        : 0
+    return (
+      <div className="text-xs space-y-1">
+        <SectionTitle>Names</SectionTitle>
+        {requestedNames.length > 0 ? (
+          <PreLimited lines={requestedNames} maxLines={10} />
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No names</div>
+        )}
+        {resultType === 'success' ? (
+          <div>
+            <SectionTitle>Results</SectionTitle>
+            <div className="text-[11px] text-(--text-secondary)">
+              {resultCount} result{resultCount === 1 ? '' : 's'}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+  if (name === 'listContents' || name === 'getInterface') {
+    const raw =
+      extract(result, ['result']) ??
+      extract(result, ['results']) ??
+      extract(result, ['items']) ??
+      extract(result, ['files']) ??
+      extract(result, ['paths']) ??
+      result
+    const items: string[] = Array.isArray(raw)
+      ? (raw as unknown[])
+          .flatMap((it) => {
+            if (typeof it === 'string') return [it]
+            const p = tryString(extract(it, ['path', 'name', 'id', 'key', 'title']))
+            if (p) return [p]
+            const s = tryString(it)
+            return s ? [s] : []
+          })
+          .filter((l): l is string => typeof l === 'string')
+      : typeof raw === 'string'
+        ? raw.split(/\r?\n/).filter((l) => l.length > 0)
+        : []
+    return (
+      <div className="text-xs space-y-1">
+        {items.length > 0 ? (
+          items.map((line, idx) => (
+            <Row key={`${line}-${idx}`}>
+              <span className="font-mono text-[11px]">{line}</span>
+            </Row>
+          ))
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No results</div>
+        )}
       </div>
     )
   }

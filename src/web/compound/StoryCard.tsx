@@ -31,6 +31,8 @@ export type StoryCardProps = {
   footer?: ReactNode
   /** Pass `false` to hide the status row entirely. */
   showStatus?: boolean
+  /** When provided, the status chip becomes an inline picker. */
+  onStatusChange?: (status: StoryStatus) => void
   /** Renderer for each blocker chip. Defaults to a plain text chip showing
    *  the raw dependency string; host apps pass their own renderer (e.g.
    *  desktop's `DependencyBullet`) to resolve `storyId.featureIndex` refs
@@ -58,6 +60,7 @@ export function StoryCard({
   actions,
   footer,
   showStatus = true,
+  onStatusChange,
   renderBlocker,
   className,
   onClick,
@@ -133,7 +136,7 @@ export function StoryCard({
 
       {showStatus && (
         <div className="flex items-center gap-2 mt-1">
-          <StatusControl status={story.status} />
+          <StatusControl status={story.status} onChange={onStatusChange} />
         </div>
       )}
     </div>
