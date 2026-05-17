@@ -5,3 +5,9 @@ export {
   default as StoryAndFeatureCallout,
   type StoryAndFeatureCalloutProps,
 } from './StoryAndFeatureCallout'
+export {
+  default as DependencyBullet,
+  type DependencyBulletProps,
+  type DependencyCardShape,
+  type ResolvedDependency,
+} from './DependencyBullet'

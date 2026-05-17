@@ -131,6 +131,17 @@ export {
   type CommandPaletteItem,
   type CommandPaletteProps,
 } from './compound/CommandPalette'
+export {
+  AgentRunBullet,
+  AgentModelQuickSelect,
+  AgentRunRowCard,
+  type AgentRunBulletData,
+  type AgentRunBulletProps,
+  type AgentModelQuickSelectProps,
+  type AgentRunRowCardData,
+  type AgentRunRowCardProps,
+  type ModelQuickSelectOption,
+} from './compound/agents'
 export { default as ErrorBubble, type ErrorBubbleProps } from './compound/ErrorBubble'
 export { default as JsonView, type JsonViewProps } from './compound/JsonView'
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
@@ -200,10 +211,14 @@ export {
   ExclamationChip,
   ContextFileChip,
   StoryAndFeatureCallout,
+  DependencyBullet,
   type WarningChipProps,
   type ExclamationChipProps,
   type ContextFileChipProps,
   type StoryAndFeatureCalloutProps,
+  type DependencyBulletProps,
+  type DependencyCardShape,
+  type ResolvedDependency,
 } from './compound/stories'
 export {
   default as RunAgentButton,
