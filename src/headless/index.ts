@@ -2,6 +2,53 @@
 // React only — no DOM, no `window`, no RN.
 export { useTypewriter } from './hooks/useTypewriter'
 export { useDebouncedSetExit } from './hooks/useDebouncedSetExit'
+export { useDurationTimer } from './hooks/useDurationTimer'
+export {
+  useDependencySelector,
+  type FeatureLike,
+  type StoryLike,
+  type DependencySelectorOptions,
+  type DependencyItem,
+  type UseDependencySelector,
+} from './hooks/useDependencySelector'
+export {
+  useFeatureForm,
+  type FeatureFormInitialValues,
+  type FeatureFormValues,
+  type UseFeatureForm,
+  type UseFeatureFormOptions,
+} from './hooks/useFeatureForm'
+export {
+  useStoryForm,
+  type StoryFormInitialValues,
+  type StoryFormValues,
+  type UseStoryForm,
+  type UseStoryFormOptions,
+} from './hooks/useStoryForm'
+export {
+  useBadgeCountsCore,
+  ZERO_BADGE_COUNTS,
+  type BadgeChannelToggles,
+  type BadgeCounts,
+  type BadgeChatInput,
+  type BadgeGitInput,
+  type ChatBadgeCountMode,
+  type GitBadgeSubToggles,
+  type UseBadgeCountsCoreInput,
+} from './hooks/useBadgeCountsCore'
+export {
+  useResolvedTheme,
+  type ResolvedTheme,
+  type SystemThemeSource,
+  type Theme,
+  type UseResolvedThemeOptions,
+} from './hooks/useResolvedTheme'
+export {
+  useChatLastRead,
+  type ChatLastReadStore,
+  type UseChatLastReadApi,
+  type UseChatLastReadOptions,
+} from './hooks/useChatLastRead'
 
 // Chat-thinking helpers
 export {
@@ -31,3 +78,24 @@ export {
   hasAnyBadge,
   type BadgeState,
 } from './utils/badgeAggregation'
+
+// Time / duration helpers
+export {
+  formatDate,
+  formatDurationMs,
+  formatFriendlyTimestamp,
+  formatHmsCompact,
+  formatTime,
+  timeAgo,
+} from './utils/time'
+
+// Agent-run derivations
+export {
+  computeAgentRunUsage,
+  computeCostUSD,
+  computeRunDurations,
+  type AgentRunLike,
+  type AgentRunMessageLike,
+  type AgentRunUsage,
+  type LLMPriceLike,
+} from './utils/agentRun'
