@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useTooltipState } from '../../headless/hooks/useTooltipState'
 
 export type TooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
 export type TooltipSideAlign = 'center' | 'start' | 'end'
@@ -54,14 +55,17 @@ export default function Tooltip({
   zIndex,
   closeDelayMs,
 }: TooltipProps) {
-  const [open, setOpen] = useState(false)
+  const {
+    open,
+    show,
+    hide: hideRaw,
+    setOpen,
+  } = useTooltipState({ delayMs, closeDelayMs, disabled })
   const [pinned, setPinned] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
   const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined)
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined)
   const [effectivePlacement, setEffectivePlacement] = useState<TooltipPlacement>(placement)
-  const timerRef = useRef<number | null>(null)
-  const hideTimerRef = useRef<number | null>(null)
   const internalAnchorRef = useRef<HTMLElement | null>(null)
   const anchorRef = externalAnchorRef || internalAnchorRef
   const tooltipRef = useRef<HTMLDivElement | null>(null)
@@ -81,49 +85,16 @@ export default function Tooltip({
     }
   }
 
-  const DEFAULT_CLOSE_DELAY = 160
-  const CLOSE_DELAY = closeDelayMs ?? DEFAULT_CLOSE_DELAY
-
-  const clearOpenTimer = () => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-  }
-  const clearHideTimer = () => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = null
-    }
-  }
-
-  const show = (immediate = false) => {
-    if (disabled) return
-    clearHideTimer()
-    if (immediate) {
-      clearOpenTimer()
-      setOpen(true)
-      return
-    }
-    clearOpenTimer()
-    timerRef.current = window.setTimeout(() => setOpen(true), delayMs)
-  }
+  // `pinned` is web-only (click-to-pin). Wrap the headless `hide` so a
+  // pinned tooltip stays visible until the user dismisses it explicitly.
   const hide = (immediate = false) => {
     if (pinned && !immediate) return
-    clearOpenTimer()
-    clearHideTimer()
-    if (immediate) {
-      setOpen(false)
-      setPinned(false)
-      return
-    }
-    hideTimerRef.current = window.setTimeout(() => setOpen(false), CLOSE_DELAY)
+    if (immediate) setPinned(false)
+    hideRaw(immediate)
   }
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current)
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
       cancelDeferredMeasure()
       removeOutsideHandlers()
       if (sizeObserverRef.current) sizeObserverRef.current.disconnect()
@@ -258,10 +229,7 @@ export default function Tooltip({
       if (m) {
         const r = tip.getBoundingClientRect()
         const inside = m.x >= r.left && m.x <= r.right && m.y >= r.top && m.y <= r.bottom
-        if (inside) {
-          clearHideTimer()
-          show(true)
-        }
+        if (inside) show(true)
       }
     })
 

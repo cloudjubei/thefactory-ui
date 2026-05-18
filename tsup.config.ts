@@ -43,9 +43,8 @@ export default defineConfig({
     const indexCss = resolve(stylesOut, 'index.css')
     writeFileSync(indexCss, readFileSync(indexCss, 'utf8') + SOURCE_DIRECTIVE)
 
-    // Mirror the same shape for the native styles entry. Native ships only
-    // `tokens.css` (no Tailwind `@source` directive — RN consumers run
-    // NativeWind / Tailwind v4 against their app's own source set).
+    // Native ships only `tokens.css` — NativeWind consumers scan their own
+    // app sources, so no `@source` directive is appended here.
     rmSync(nativeStylesOut, { recursive: true, force: true })
     mkdirSync(nativeStylesOut, { recursive: true })
     cpSync(nativeStylesSrc, nativeStylesOut, { recursive: true })

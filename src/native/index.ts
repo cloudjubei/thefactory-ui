@@ -1,18 +1,10 @@
 // Public surface for @uikit/native.
-// React Native presentation peers of `src/web/`. May import `react`,
-// `react-native`, `tokens/`, `headless/`. Must NOT import from `react-dom`
-// or `src/web/` — the boundary check enforces this.
+// React Native peers of `src/web/`. May import @uikit/tokens and @uikit/headless.
 //
-// Conventions mirror `src/web/index.ts`:
-//   - Components are exposed as named exports here regardless of whether the
-//     underlying module uses `export default`.
-//   - Types travel with their component. Props types use the `<ComponentName>Props`
-//     form; supporting unions stay alongside.
+// Conventions mirror `src/web/index.ts`: components are surfaced as named
+// exports regardless of whether the underlying module uses `export default`;
+// types travel with their component as `<ComponentName>Props`.
 
-// RN-flavoured token exports — numeric metrics, flat hex colours, RN-typed
-// shadow / status / semantic-theme objects. Consumers of `'thefactory-ui/native'`
-// reach for these when they need to read a token value directly inside a
-// `style={{}}` prop or feed them into a NativeWind theme extension.
 export * from '../tokens/native'
 
 // Primitives
@@ -20,6 +12,13 @@ export { default as Alert, type AlertProps, type AlertVariant } from './primitiv
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './primitives/Button'
 export { default as Field, type FieldProps } from './primitives/Field'
 export { Input, type InputProps, type InputSize } from './primitives/Input'
+export {
+  ConfirmDialog,
+  Modal,
+  type ConfirmDialogProps,
+  type ModalProps,
+  type ModalSize,
+} from './primitives/Modal'
 export {
   default as Skeleton,
   SkeletonText,
@@ -29,3 +28,16 @@ export {
 export { default as Spinner, type SpinnerProps } from './primitives/Spinner'
 export { Switch, type SwitchProps } from './primitives/Switch'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
+export {
+  ToastProvider,
+  useToast,
+  type ToastMessage,
+  type ToastVariant,
+} from './primitives/Toast'
+export {
+  default as Tooltip,
+  type TooltipPlacement,
+  type TooltipProps,
+  type TooltipSideAlign,
+  type TooltipVariant,
+} from './primitives/Tooltip'

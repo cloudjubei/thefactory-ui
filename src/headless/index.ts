@@ -49,6 +49,19 @@ export {
   type UseChatLastReadApi,
   type UseChatLastReadOptions,
 } from './hooks/useChatLastRead'
+export {
+  useTooltipState,
+  type UseTooltipState,
+  type UseTooltipStateOptions,
+} from './hooks/useTooltipState'
+export {
+  useToastQueue,
+  type ToastAction,
+  type ToastItem,
+  type ToastMessage,
+  type ToastVariant,
+  type UseToastQueue,
+} from './hooks/useToastQueue'
 
 // Chat-thinking helpers
 export {

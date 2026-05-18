@@ -11,9 +11,11 @@ import {
 
 export type InputSize = 'sm' | 'md' | 'lg'
 
-export interface InputProps extends Omit<TextInputProps, 'style'> {
+export interface InputProps extends Omit<TextInputProps, 'style' | 'editable'> {
   size?: InputSize
   invalid?: boolean
+  /** API parity with web's `disabled`; maps to RN's `editable={false}`. */
+  disabled?: boolean
   style?: StyleProp<TextStyle>
 }
 
@@ -29,11 +31,10 @@ function sizeStyle(size: InputSize): TextStyle {
 }
 
 export const Input = forwardRef<RNTextInput, InputProps>(function Input(
-  { size = 'md', invalid = false, style, className, onFocus, onBlur, editable, ...props },
+  { size = 'md', invalid = false, disabled = false, style, className, onFocus, onBlur, ...props },
   ref,
 ) {
   const [focused, setFocused] = useState(false)
-  const isDisabled = editable === false
   const borderColor = invalid
     ? nativeLightStatus.stuck.bg
     : focused
@@ -44,7 +45,7 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
     <TextInput
       ref={ref}
       className={className}
-      editable={editable}
+      editable={!disabled}
       placeholderTextColor={nativeLightTheme.text.muted}
       onFocus={(e) => {
         setFocused(true)
@@ -62,7 +63,7 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
           borderWidth: 1,
           borderColor,
           borderRadius: nativeRadii[2],
-          opacity: isDisabled ? 0.6 : 1,
+          opacity: disabled ? 0.6 : 1,
         },
         sizeStyle(size),
         style,

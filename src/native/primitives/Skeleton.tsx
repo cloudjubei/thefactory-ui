@@ -8,11 +8,6 @@ export interface SkeletonProps {
   style?: StyleProp<ViewStyle>
 }
 
-/**
- * Solid muted block with a slow pulse animation. Mirrors the web peer's
- * `ui-skeleton` look — the animation runs natively (RN `Animated` with the
- * native driver) so it doesn't block the JS thread.
- */
 export default function Skeleton({ className, style }: SkeletonProps) {
   const opacity = useRef(new Animated.Value(0.6)).current
 

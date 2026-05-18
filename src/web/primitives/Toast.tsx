@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,70 +10,18 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  useToastQueue,
+  type ToastItem,
+  type ToastMessage,
+  type ToastVariant,
+} from '../../headless/hooks/useToastQueue'
 
-export type ToastVariant = 'default' | 'success' | 'error' | 'warning'
-
-export type ToastMessage = {
-  id?: string
-  title?: string
-  description?: string
-  variant?: ToastVariant
-  durationMs?: number
-  action?: { label: string; onClick: () => void }
-}
+export type { ToastMessage, ToastVariant }
 
 type ToastCtx = { toast: (msg: ToastMessage) => void }
 
 const Ctx = createContext<ToastCtx | null>(null)
-
-type ToastItem = Required<ToastMessage> & { isClosing?: boolean }
-
-function useToastsState() {
-  const [items, setItems] = useState<ToastItem[]>([])
-  const idSeq = useRef(0)
-  const closeTimers = useRef(new Map<string, number>())
-
-  const remove = useCallback((id: string) => {
-    setItems((xs) => xs.filter((x) => x.id !== id))
-    const t = closeTimers.current.get(id)
-    if (t) {
-      clearTimeout(t)
-      closeTimers.current.delete(id)
-    }
-  }, [])
-
-  const startClose = useCallback(
-    (id: string, afterMs = 200) => {
-      setItems((xs) => xs.map((x) => (x.id === id ? { ...x, isClosing: true } : x)))
-      const timeout = window.setTimeout(() => remove(id), afterMs)
-      closeTimers.current.set(id, timeout)
-    },
-    [remove],
-  )
-
-  const add = useCallback(
-    (msg: ToastMessage) => {
-      const id = msg.id || String(++idSeq.current)
-      const duration = msg.durationMs ?? 3500
-      const item: ToastItem = {
-        id,
-        title: msg.title ?? '',
-        description: msg.description ?? '',
-        variant: msg.variant ?? 'default',
-        durationMs: duration,
-        action: msg.action ?? { label: '', onClick: () => {} },
-        isClosing: false,
-      }
-      setItems((xs) => [...xs, item])
-      if (duration > 0) {
-        window.setTimeout(() => startClose(id), duration)
-      }
-    },
-    [startClose],
-  )
-
-  return { items, add, startClose, remove }
-}
 
 function VariantIcon({ variant }: { variant: ToastVariant }) {
   const styles = (() => {
@@ -264,7 +211,7 @@ function ToastViewport({ items, onClose }: { items: ToastItem[]; onClose: (id: s
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const { items, add, startClose } = useToastsState()
+  const { items, add, startClose } = useToastQueue()
   const api = useMemo<ToastCtx>(() => ({ toast: add }), [add])
   return (
     <Ctx.Provider value={api}>

@@ -14,19 +14,15 @@ import Spinner from './Spinner'
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
-// Props mirror the web Button as closely as RN allows. `onPress` is the RN
-// equivalent of `onClick`; `disabled` is honoured by Pressable directly.
-// `asChild` (Radix Slot pattern) has no RN analogue and is omitted; render the
-// custom touchable yourself if you need a non-Pressable root.
+// `asChild` (web's Radix Slot pattern) has no RN analogue and is intentionally
+// omitted — render your own touchable root if Pressable doesn't fit.
 export interface ButtonProps extends Omit<PressableProps, 'children' | 'style' | 'disabled'> {
   variant?: ButtonVariant
   size?: ButtonSize
   loading?: boolean
   disabled?: boolean
   className?: string
-  /** Optional override applied on top of the variant style. */
   style?: StyleProp<ViewStyle>
-  /** Optional override applied to the inner text content. */
   textStyle?: StyleProp<TextStyle>
   children?: ReactNode
 }
@@ -79,7 +75,7 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
   }
 }
 
-function sizeStyles(size: ButtonSize): { container: ViewStyle; text: TextStyle } {
+function sizeStyles(size: ButtonSize): VariantStyle {
   switch (size) {
     case 'sm':
       return {
@@ -133,6 +129,8 @@ const Button = forwardRef<RNView, ButtonProps>(function Button(
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       className={className}
+      // Order matters: size first, variant second (so 'link' can zero out the
+      // size's horizontal padding), then the consumer's `style` wins last.
       style={({ pressed }) => [
         {
           flexDirection: 'row',
@@ -141,8 +139,8 @@ const Button = forwardRef<RNView, ButtonProps>(function Button(
           borderRadius: nativeRadii[2],
           opacity: isDisabled ? 0.55 : pressed ? 0.8 : 1,
         },
-        v.container,
         s.container,
+        v.container,
         style,
       ]}
       {...props}
@@ -171,7 +169,7 @@ const Button = forwardRef<RNView, ButtonProps>(function Button(
         }}
       >
         {typeof children === 'string' ? (
-          <Text style={[v.text, s.text, textStyle]}>{children}</Text>
+          <Text style={[s.text, v.text, textStyle]}>{children}</Text>
         ) : (
           children
         )}

@@ -13,14 +13,8 @@ export interface AlertProps {
 }
 
 const VARIANT_STYLE: Record<AlertVariant, { backgroundColor: string; color: string }> = {
-  error: {
-    backgroundColor: nativePalette.red[50],
-    color: nativePalette.red[700],
-  },
-  info: {
-    backgroundColor: nativePalette.blue[50],
-    color: nativePalette.blue[700],
-  },
+  error: { backgroundColor: nativePalette.red[50], color: nativePalette.red[700] },
+  info: { backgroundColor: nativePalette.blue[50], color: nativePalette.blue[700] },
 }
 
 export default function Alert({ variant = 'error', children, className, style }: AlertProps) {

@@ -1,5 +1,5 @@
 import { Switch as RNSwitch, Text, View } from 'react-native'
-import { nativeLightTheme } from '../../tokens/native'
+import { nativeLightTheme, nativeSpace } from '../../tokens/native'
 
 export interface SwitchProps {
   checked: boolean
@@ -19,7 +19,7 @@ export function Switch({
   return (
     <View
       className={className}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[4] }}
     >
       <RNSwitch
         value={checked}

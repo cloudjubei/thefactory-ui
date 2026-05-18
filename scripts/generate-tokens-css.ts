@@ -1,11 +1,8 @@
 // Emits src/web/styles/tokens.css and src/native/styles/tokens.css from the
-// TS token source. Run via: npm run generate:tokens
-//
-// The TS source is authoritative. Hand-editing either output is a smell —
-// fix the TS source and re-run instead. The native output is a strict subset:
-// only the variables that resolve cleanly on RN (palette + semantic +
-// status-bold). It uses flat hex / rgba for what web computes via
-// `color-mix()`, so NativeWind's class resolver can find a numeric value.
+// TS token source. Run via: npm run generate:tokens. The TS source is
+// authoritative; hand-editing either output is a smell. The native output is
+// a strict subset — flat hex / rgba in place of web's `color-mix()`, no
+// shadow strings, no easing curves.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -194,12 +191,9 @@ function build(): string {
   return lines.join('\n')
 }
 
-// RN-flavoured tokens — emit only the CSS variables that translate to RN
-// via NativeWind. No `color-mix()`, no shadows-as-strings, no easing curves,
-// no `color-scheme`. Metrics that map to NativeWind's built-in scale are
-// also omitted; consumers can extend their NativeWind theme with the
-// numeric metrics from `thefactory-ui/tokens` (`nativeSpace`, etc.) directly
-// in their `tailwind.config.js`.
+// Metrics that map to NativeWind's built-in scale are omitted from the native
+// CSS — consumers extend their tailwind.config with `nativeSpace` etc. from
+// `thefactory-ui/native` directly.
 
 function nativeSemanticVars(theme: NativeSemanticTheme): string[] {
   const out: string[] = []

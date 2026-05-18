@@ -8,22 +8,24 @@ import {
   nativeSpace,
 } from '../../tokens/native'
 
-export interface TextareaProps extends Omit<TextInputProps, 'multiline' | 'numberOfLines' | 'style'> {
+export interface TextareaProps
+  extends Omit<TextInputProps, 'multiline' | 'numberOfLines' | 'style' | 'editable'> {
   invalid?: boolean
-  /** Visual hint for initial height. Mapped to RN's `numberOfLines` so Android
-   * sizes the field accordingly; iOS approximates via min height. */
+  /** Initial height in lines. Android honours via `numberOfLines`; iOS
+   * approximates via `minHeight`. */
   rows?: number
+  /** API parity with web's `disabled`; maps to RN's `editable={false}`. */
+  disabled?: boolean
   style?: StyleProp<TextStyle>
 }
 
 const APPROX_LINE_HEIGHT = 20
 
 export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea(
-  { invalid = false, rows = 4, style, className, onFocus, onBlur, editable, ...props },
+  { invalid = false, rows = 4, disabled = false, style, className, onFocus, onBlur, ...props },
   ref,
 ) {
   const [focused, setFocused] = useState(false)
-  const isDisabled = editable === false
   const borderColor = invalid
     ? nativeLightStatus.stuck.bg
     : focused
@@ -36,7 +38,7 @@ export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea
       className={className}
       multiline
       numberOfLines={rows}
-      editable={editable}
+      editable={!disabled}
       placeholderTextColor={nativeLightTheme.text.muted}
       textAlignVertical="top"
       onFocus={(e) => {
@@ -59,7 +61,7 @@ export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea
           paddingHorizontal: nativeSpace[6],
           paddingVertical: nativeSpace[4],
           fontSize: 14,
-          opacity: isDisabled ? 0.6 : 1,
+          opacity: disabled ? 0.6 : 1,
         },
         style,
       ]}
