@@ -7,7 +7,13 @@ import {
   type ReactNode,
 } from 'react'
 import Tooltip from '../../primitives/Tooltip'
-import { extFromTypeOrName, iconForExt } from './FileTypeIcon'
+import {
+  extFromTypeOrName,
+  formatBytes,
+  formatFileDate,
+  isTextLikeExt,
+} from '../../../headless/utils/path'
+import { iconForExt } from './FileTypeIcon'
 
 // Library-shape file metadata. The domain `FileMeta` from thefactory-tools
 // reduces to (a superset of) this; consumers map their own shape to UikitFileMeta.
@@ -51,31 +57,6 @@ export interface FileDisplayProps {
   onReadPreview?: (relativePath: string) => Promise<string | null>
 }
 
-function formatBytes(size?: number | null): string | null {
-  if (size == null || Number.isNaN(size)) return null
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let s = size
-  let i = 0
-  while (s >= 1024 && i < units.length - 1) {
-    s /= 1024
-    i++
-  }
-  return `${s % 1 === 0 ? s.toFixed(0) : s.toFixed(1)} ${units[i]}`
-}
-
-function formatDate(input?: number | string | Date | null): string | null {
-  if (!input && input !== 0) return null
-  const d = input instanceof Date ? input : new Date(input)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 function defaultIconFor(file: UikitFileMeta): ReactNode {
   return (
     <span className="fd-icon" aria-hidden>
@@ -84,27 +65,8 @@ function defaultIconFor(file: UikitFileMeta): ReactNode {
   )
 }
 
-const TEXT_LIKE_EXTS = new Set([
-  'css',
-  'js',
-  'cjs',
-  'mjs',
-  'json',
-  'log',
-  'markdown',
-  'md',
-  'styles',
-  'text',
-  'ts',
-  'tsx',
-  'txt',
-  'yaml',
-  'yml',
-])
-
 function isTextLike(file: UikitFileMeta): boolean {
-  const ext = extFromTypeOrName(file.type ?? undefined, file.name)
-  return ext != null && TEXT_LIKE_EXTS.has(ext)
+  return isTextLikeExt(extFromTypeOrName(file.type ?? undefined, file.name))
 }
 
 const MAX_PREVIEW_CHARS = 1200
@@ -155,7 +117,7 @@ function FilePreviewCard({
   onReadPreview?: (relativePath: string) => Promise<string | null>
 }) {
   const sizeLabel = formatBytes(file.size ?? null)
-  const dateLabel = formatDate(file.mtime ?? null)
+  const dateLabel = formatFileDate(file.mtime ?? null)
   const typeLabel = file.type ?? extFromTypeOrName(undefined, file.name) ?? 'unknown'
   const relPath = file.relativePath
   const { loading, error, text } = useFilePreviewContent(file, onReadPreview)
@@ -218,7 +180,7 @@ export default function FileDisplay({
   onReadPreview,
 }: FileDisplayProps) {
   const sizeLabel = formatBytes(file.size ?? null)
-  const dateLabel = formatDate(file.mtime ?? null)
+  const dateLabel = formatFileDate(file.mtime ?? null)
 
   const aria =
     ariaLabel ||

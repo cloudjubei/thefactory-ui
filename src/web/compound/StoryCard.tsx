@@ -2,13 +2,9 @@ import type { DragEvent, ReactNode } from 'react'
 import { cn } from '../utils/cn'
 import Markdown from './Markdown'
 import StatusControl from './StatusControl'
+import type { StoryStatus } from '../../headless/utils/status'
 
-/**
- * The five story / feature statuses recognised across all `thefactory-*`
- * apps. Kept inline as a string union so the package has no upstream type
- * dependency on `thefactory-tools`.
- */
-export type StoryStatus = '+' | '-' | '~' | '?' | '='
+export type { StoryStatus }
 
 /** Minimal shape this card renders. Apps pass the matching subset of their
  *  own Story / Feature types — fields they don't have can be omitted. */

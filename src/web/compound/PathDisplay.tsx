@@ -1,8 +1,6 @@
-export function splitPath(p: string): { dir: string; name: string } {
-  const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))
-  if (idx === -1) return { dir: '', name: p }
-  return { dir: p.slice(0, idx + 1), name: p.slice(idx + 1) }
-}
+import { splitPath } from '../../headless/utils/path'
+
+export { splitPath }
 
 // Left-aligned path with bold filename; directory left-truncates first via the
 // RTL-flip trick — the filename only starts shrinking once the dir collapses.

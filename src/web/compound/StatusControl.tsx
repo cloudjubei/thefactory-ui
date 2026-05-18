@@ -1,60 +1,33 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../utils/cn'
-import type { StoryStatus } from './StoryCard'
+import {
+  STATUS_LABELS,
+  STATUS_ORDER,
+  statusKey,
+  statusLabel,
+  type StatusPickerValue,
+  type StatusSemanticKey,
+  type StoryStatus,
+} from '../../headless/utils/status'
+
+export { STATUS_LABELS, STATUS_ORDER, statusKey, type StatusSemanticKey }
+export type { StatusPickerValue }
 
 /**
- * Story/feature status control — single source of truth for both web and
- * desktop. Renders the shared `.badge.badge--soft.badge--{semantic}` recipe
- * from the package's badges stylesheet and opens a portal-rendered
+ * Story/feature status control. Renders the shared `.badge.badge--soft.badge--{semantic}`
+ * recipe from the package's badges stylesheet and opens a portal-rendered
  * `StatusPicker` when interactive (i.e. `onChange` is provided).
  */
-
-export const STATUS_LABELS: Record<StoryStatus, string> = {
-  '+': 'Done',
-  '~': 'Crunching',
-  '-': 'Pending',
-  '?': 'Blocked',
-  '=': 'Deferred',
-}
-
-export const STATUS_ORDER: StoryStatus[] = ['-', '~', '+', '=', '?']
-
-export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhold'
-
-export function statusKey(s: StoryStatus): StatusSemanticKey {
-  switch (s) {
-    case '-':
-      return 'queued'
-    case '~':
-      return 'working'
-    case '+':
-      return 'done'
-    case '?':
-      return 'stuck'
-    case '=':
-      return 'onhold'
-  }
-}
 
 function mapStatusToSemantic(status: StoryStatus | string): {
   key: StatusSemanticKey
   label: string
 } {
-  switch (status) {
-    case '+':
-      return { key: 'done', label: 'Done' }
-    case '~':
-      return { key: 'working', label: 'Crunching' }
-    case '-':
-      return { key: 'queued', label: 'Pending' }
-    case '?':
-      return { key: 'stuck', label: 'Blocked' }
-    case '=':
-      return { key: 'onhold', label: 'Deferred' }
-    default:
-      return { key: 'queued', label: String(status || '') }
+  if (status === '+' || status === '~' || status === '-' || status === '?' || status === '=') {
+    return { key: statusKey(status), label: statusLabel(status) }
   }
+  return { key: 'queued', label: statusLabel(status) }
 }
 
 function useOutsideClick(refs: React.RefObject<HTMLElement | null>[], onOutside: () => void) {
@@ -81,10 +54,6 @@ function positionFor(
   const left = r.left + window.scrollX
   return { top, left, minWidth: r.width, side }
 }
-
-/** Sentinel values the picker can emit when the host opts in to extra
- *  filter rows (e.g. an "All" pseudo-status or "Not done"). */
-export type StatusPickerValue = StoryStatus | 'all' | 'not-done'
 
 export type StatusPickerProps = {
   anchorEl: HTMLElement

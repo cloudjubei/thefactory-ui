@@ -1,6 +1,6 @@
 # thefactory-ui
 
-Shared UI package for every `thefactory-*` consumer — a React 19 component library with a four-layer split (`tokens/` → `headless/` → `web/` → future `native/`). Tailwind v4 for `web/`; React Native StyleSheet for the upcoming `native/`.
+Shared UI package for every `thefactory-*` consumer — a React 19 component library with a four-layer split (`tokens/` → `headless/` → `web/` + `native/`). Tailwind v4 on the web; NativeWind v4 on React Native.
 
 Status: **scaffolded, not yet published**. See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the layer rules, locked-in decisions, file structure, and conventions; see [docs/implementation-plan.md](./docs/implementation-plan.md) for the open-work backlog.
 
@@ -10,9 +10,9 @@ Status: **scaffolded, not yet published**. See [docs/ARCHITECTURE.md](./docs/ARC
 npm install thefactory-ui
 ```
 
-Peer deps: `react@^19`, `react-dom@^19`.
+Peer deps: `react@^19`, plus one of `react-dom@^19` (web) or `react-native@>=0.76` (native).
 
-## Use
+## Use from web
 
 ```tsx
 import { Button, Modal, ToastProvider, useToast } from 'thefactory-ui/web'
@@ -31,6 +31,40 @@ If you only want the design tokens (no layered styles):
 
 ```css
 @import 'thefactory-ui/web/styles/tokens';
+```
+
+## Use from React Native
+
+```tsx
+import { Button, Modal, ToastProvider, useToast } from 'thefactory-ui/native'
+```
+
+The native peers expose the same component names + prop surfaces as `'thefactory-ui/web'`. Swapping the import path is most of what porting a screen takes; the rest is platform-required differences (e.g. `onPress` instead of `onClick`).
+
+Wire NativeWind v4 in your app once, and add the package's compiled output to your Tailwind `content` so utility classes used inside the primitives are emitted:
+
+```js
+// tailwind.config.js
+module.exports = {
+  presets: [require('nativewind/preset')],
+  content: [
+    './src/**/*.{ts,tsx}',
+    './node_modules/thefactory-ui/dist/native/**/*.{js,mjs}',
+  ],
+}
+```
+
+For the design-token CSS variables (so `bg-(--surface-base)` resolves):
+
+```css
+/* your NativeWind-processed CSS */
+@import 'thefactory-ui/native/styles';
+```
+
+When you need a token value directly inside a `style={{}}` prop (e.g. a `shadowColor` or numeric spacing), reach for the RN-typed exports:
+
+```tsx
+import { nativeSpace, nativeLightTheme, nativeShadows } from 'thefactory-ui/native'
 ```
 
 ## Develop
@@ -53,7 +87,7 @@ Boundary rules (enforced by [scripts/check-uikit-boundaries.sh](./scripts/check-
 - `src/tokens/` — pure TS. No React, no DOM, no RN, no CSS imports.
 - `src/headless/` — React only. No `react-dom`, no RN, no CSS, no DOM globals.
 - `src/web/` — DOM + Tailwind. No RN.
-- `src/native/` (future) — RN. No `react-dom`, no `web/` imports.
+- `src/native/` — RN + NativeWind. No `react-dom`, no `web/` imports.
 
 Branch naming drives the auto-release on PR merge:
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { StoryStatus } from '../../web/compound/StoryCard'
+import type { StoryStatus } from '../utils/status'
 
 /**
  * Headless state machine for "create / edit story". Sister to `useFeatureForm`.

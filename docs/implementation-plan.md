@@ -31,42 +31,34 @@ A new contributor opening web, desktop, and mobile side by side should be able t
 
 ## B. Pending tasks
 
-### 1. RN primitives — composite group
+The full primitive surface (`Alert`, `Button`, `Field`, `Input`, `Skeleton` + `SkeletonText`, `Spinner`, `Switch`, `Textarea`, `Modal` + `ConfirmDialog`, `Tooltip`, `Toast` + `ToastProvider` + `useToast`, `SegmentedControl`, `Select` family) ships from `src/native/primitives/`. `ResizeHandle` stays web-only — RN has no equivalent affordance.
 
-The earlier batches (`Alert`, `Button`, `Field`, `Input`, `Skeleton` + `SkeletonText`, `Spinner`, `Switch`, `Textarea`, plus the overlay group `Modal` + `ConfirmDialog`, `Tooltip`, `Toast` + `ToastProvider` + `useToast`) ship from `src/native/primitives/` and consume the shared `useTooltipState` / `useToastQueue` from `headless/`. Remaining primitives:
+### 1. Headless promotions triggered by `src/native/`
 
-- **`SegmentedControl`** — wraps either RN's `SegmentedControlIOS` (deprecated; usually replaced by a community component) or a hand-rolled row of pressables. Same `value` / `onValueChange` / `options` surface as the web peer.
-- **`Select`** — wraps an `ActionSheetIOS` / Android dialog under the hood. Exposes the Radix-style `Select` + `SelectTrigger` + `SelectContent` + `SelectItem` + `SelectValue` composition shape that web's Select offers, adapted to the platform's modal presentation.
-
-`ResizeHandle` is web-only — no native peer.
-
-### 2. Headless promotions triggered by §B.1
-
-As `src/native/` peers are written, anything currently entangled in `src/web/` that needs to be shared between web and native gets lifted into `src/headless/`. Already lifted: `useTooltipState`, `useToastQueue`. Remaining candidates:
+When a native peer (or a near-future compound) needs logic currently entangled in `src/web/`, lift it into `src/headless/` and rewire both consumers. Don't lift speculatively — wait for the actual second consumer.
 
 - **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
-- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Worth lifting so the mobile (and the in-progress conflict-safe-editing flow in web) can reuse it. Tracked here as the natural shared piece for the lift mentioned in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane).
-- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Native textarea needs the same suggestions logic.
+- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Lift when either §B.2's `MergeConflictResolver` native peer arrives or the in-progress conflict-safe-editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane) needs to share the algorithm.
+- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Lift when the chat surface lands in §B.2.
 
-Promotion trigger: a real second consumer in `src/native/` would need the same code. Don't lift speculatively.
+### 2. RN compounds (native siblings of `src/web/compound/`)
 
-### 3. RN compounds (native siblings of `src/web/compound/`)
+Most compounds now ship from `src/native/compound/`: chip family (`BranchChip`, `ProjectChip`, `StatusChip`, `CostChip`, `TokensChip`, `TurnChip`), `DotBadge`, `SpinnerWithDot`, `NotificationBadge`, stories family (`WarningChip`, `ExclamationChip`, `StoryAndFeatureCallout`, `DependencyChip`, `DependencyBullet`, `StoryCard`, `FeatureCard`, `StatusControl`, `ContextFileChip`), agents (`AgentRunBullet`, `AgentRunRowCard`, `AgentModelQuickSelect`), files (`PathDisplay`, `FileDisplay`, `FileSelector`, `RichText`), forms (`StoryForm`), groups (`GroupHome`), and a partial chat surface (`SystemPromptBubble`, `ThinkingRow`). The headless promotions that landed alongside: `useTooltipState`, `useToastQueue`, the `status` utilities, the `path` / file-type utilities, the rich-text tokeniser.
 
-The compounds reuse the headless state machines already in `src/headless/` so the native impl is largely presentation. Order roughly by how much value they unlock for mobile screens:
+Remaining:
 
-- Chat surface: `MessageList`, `MessageRow`, `ChatInput`, `ChatBody`, `ChatHeader`, `ChatSettingsDropdown`, `ToolCallCard`, `ToolCallHoverCard`, `ThinkingRow`, `SystemPromptBubble`.
-- Stories: `StoryCard`, `FeatureCard`, `StoryForm`, `FeatureForm` (already use `useStoryForm` / `useFeatureForm` headless hooks), `DependencyChip`, `DependencyBullet`, `ContextFileChip`, `StoryAndFeatureCallout`, `WarningChip`, `ExclamationChip`.
-- Agents: `AgentRunRowCard`, `AgentRunBullet`, `AgentModelQuickSelect`.
-- Files: `FileDisplay`, `FileSelector`, `PathDisplay`, `RichText` (use `react-native-markdown-display` or similar for markdown).
-- Groups + nav: `GroupHome`, `NotificationBadge`, `SpinnerWithDot`, `DotBadge`, `BranchChip`, `ProjectChip`, `StatusChip`, `ModelChip`, `CostChip`, `TokensChip`, `TurnChip`.
-- Diff / merge: `DiffViewer`, `MergeConflictResolver` — these are large enough that they may stay web-only initially. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
+- **Chat compounds** (the bulk of `src/web/compound/chat/`): `MessageList`, `MessageRow`, `ChatInput`, `ChatBody`, `ChatHeader`, `ChatSettingsDropdown`, `ToolCallCard`, `ToolCallHoverCard`. These are large (≈400–700 lines each on web) and lean on the chat message shapes; the shared `Message` / `ToolCall` types currently live inside the web peers and should lift into `src/headless/utils/chat.ts` first so both peers share the same vocabulary.
+- **`ModelChip`** — the LLM picker. Web's 460-line version uses a portal-rendered popover with hover state; native rebuilds it on top of `Modal`. Worth its own pass so the picker UX gets care.
+- **`FeatureForm`** — the headless `useFeatureForm` hook already lives in `headless/`; the web peer doesn't ship a `FeatureForm.tsx` yet. Skip until web ships it.
+- **Markdown rendering** — `SystemPromptBubble` / `ThinkingRow` render their content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
+- **Diff / merge** (`DiffViewer`, `MergeConflictResolver`) — large enough to stay web-only initially. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
 
-### 4. Documentation pass
+### 3. Documentation pass
 
 - `docs/ARCHITECTURE.md` — drop the `_(future)_` tag on the `native` row of the layer table now that `src/native/` exists with primitives.
 - `README.md` — add a "Use from React Native" section pointing at `'thefactory-ui/native'` + the NativeWind setup snippet (consumers add `node_modules/thefactory-ui/dist/native/**/*.{js,mjs}` to their Tailwind `content` array; `@import 'thefactory-ui/native/styles'` in their NativeWind-processed CSS provides the token variables).
 
-### 5. Promote backend API client + auth contexts into `headless/`
+### 4. Promote backend API client + auth contexts into `headless/`
 
 The shared spine for talking to `thefactory-backend`. Currently duplicated across [thefactory-overseer-web/src/api/](../../thefactory-overseer-web/src/api/) and [overseer-local/src/renderer/src/api/](../../overseer-local/src/renderer/src/api/); [thefactory-overseer-mobile](../../thefactory-overseer-mobile) will need the third copy if not promoted first.
 
@@ -95,5 +87,5 @@ Architectural note: the generated SDK is technically a backend artifact and woul
 - Storybook. Visual verification stays `npm run build` + `playground/` smoke run + consumer integration. RN consumers verify in EAS Build + simulator.
 - A web↔native style-conversion CLI. The two platforms write their own peers; they don't share a single source for layout. Tokens are shared, components aren't.
 - A single CSS bundle that works in both web and native. The styling pipelines stay separate (`src/web/styles/*.css` + Tailwind v4 on web; NativeWind on native).
-- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §B.3.
+- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §B.2.
 - A second design system. The whole point of this package is one set of tokens + components across desktop, web, and mobile.

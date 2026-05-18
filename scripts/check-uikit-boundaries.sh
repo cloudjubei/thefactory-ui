@@ -37,13 +37,18 @@ scan "react-native import inside src/tokens/" \
 scan ".css import inside src/tokens/" \
   "from '.*\\.css'" "$SRC/tokens"
 
-# 2. headless/ is React-only — no react-dom, no RN, no CSS, no DOM globals.
+# 2. headless/ is React-only — no react-dom, no RN, no CSS, no DOM globals,
+#    no reach-throughs into web/ or native/.
 scan "react-dom import inside src/headless/" \
   "from 'react-dom" "$SRC/headless"
 scan "react-native import inside src/headless/" \
   "from 'react-native" "$SRC/headless"
 scan ".css import inside src/headless/" \
   "from '.*\\.css'" "$SRC/headless"
+scan "../web/ import inside src/headless/" \
+  "from '.*\\.\\./web" "$SRC/headless"
+scan "../native/ import inside src/headless/" \
+  "from '.*\\.\\./native" "$SRC/headless"
 
 # 3. web/ may not import RN.
 scan "react-native import inside src/web/" \

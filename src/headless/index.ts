@@ -112,3 +112,29 @@ export {
   type AgentRunUsage,
   type LLMPriceLike,
 } from './utils/agentRun'
+
+// Story / feature status
+export {
+  STATUS_LABELS,
+  STATUS_ORDER,
+  statusKey,
+  statusLabel,
+  type StatusPickerValue,
+  type StatusSemanticKey,
+  type StoryStatus,
+} from './utils/status'
+
+// Path / file-type helpers
+export {
+  extFromTypeOrName,
+  formatBytes,
+  formatFileDate,
+  isTextLikeExt,
+  splitPath,
+} from './utils/path'
+
+// Rich-text tokeniser (@file + #dep mentions)
+export {
+  tokenizeRichText,
+  type RichTextSegment,
+} from './utils/richTextTokenize'

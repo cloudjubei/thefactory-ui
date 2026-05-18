@@ -7,36 +7,16 @@ import {
   IconFileText,
   IconFileZip,
 } from '../../icons/IconFileTypes'
+import { extFromTypeOrName } from '../../../headless/utils/path'
 
-// Routes a file name / type to a coloured language-or-mime icon.
-//
-// Used by `FileDisplay` (the chat-attachment row, file-picker row, etc.) and
-// by consumer file-tree views (e.g. `FilesView` in overseer-local) — anywhere
-// a per-file icon is helpful. The component is intentionally a thin shell
-// around an `iconForExt` switch so the same routing rules are shared.
+export { extFromTypeOrName }
 
 export type FileTypeIconProps = {
-  /** File name (extension is derived from the substring after the last `.`). */
   name?: string
-  /** MIME-like type hint (e.g. `'image/png'`, `'json'`). Takes priority over the name extension. */
   type?: string | null
   /** SVG square size in px. Defaults to 20. */
   size?: number
-  /** Class on the wrapping `<span>`. The library doesn't apply any default — pass e.g. `'w-4 h-4'` for tree-row icons. */
   className?: string
-}
-
-export function extFromTypeOrName(type?: string | null, name?: string): string | null {
-  if (type) {
-    const parts = type.split('/')
-    if (parts.length === 2 && parts[1]) return parts[1].toLowerCase()
-    return type.toLowerCase()
-  }
-  if (name && name.includes('.')) {
-    const ext = name.split('.').pop()
-    if (ext) return ext.toLowerCase()
-  }
-  return null
 }
 
 // Bare icon switch — returns the icon SVG with no wrapping span. The

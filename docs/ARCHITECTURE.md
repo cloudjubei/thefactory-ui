@@ -14,12 +14,12 @@ When a new pattern surfaces in a consumer, it earns its keep in this package as 
 
 Four sub-layers, enforced by [scripts/check-uikit-boundaries.sh](../scripts/check-uikit-boundaries.sh) as `prebuild` and `pretest`. A future React Native client imports `tokens/` and `headless/` verbatim and only writes its own `native/` peer to `web/`.
 
-| Layer                 | Path            | Contents                                                  | May import              |
-| --------------------- | --------------- | --------------------------------------------------------- | ----------------------- |
-| **tokens**            | `src/tokens/`   | Palette, semantic light/dark, metrics, motion, shadows    | Pure TS only            |
-| **headless**          | `src/headless/` | React-only state machines / hooks                         | React                   |
-| **web**               | `src/web/`      | Tailwind primitives + compounds, icons, hand-authored CSS | React, `react-dom`, DOM |
-| **native** _(future)_ | `src/native/`   | RN equivalents of the same primitives + compounds         | React, `react-native`   |
+| Layer        | Path            | Contents                                                  | May import              |
+| ------------ | --------------- | --------------------------------------------------------- | ----------------------- |
+| **tokens**   | `src/tokens/`   | Palette, semantic light/dark, metrics, motion, shadows    | Pure TS only            |
+| **headless** | `src/headless/` | React-only state machines / hooks                         | React                   |
+| **web**      | `src/web/`      | Tailwind primitives + compounds, icons, hand-authored CSS | React, `react-dom`, DOM |
+| **native**   | `src/native/`   | RN equivalents of the same primitives + compounds         | React, `react-native`   |
 
 ```
 consumers (overseer-local, thefactory-overseer-web, RN app)
