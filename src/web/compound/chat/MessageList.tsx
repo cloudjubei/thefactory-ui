@@ -184,13 +184,32 @@ export default function MessageList({
     return c.scrollTop + c.clientHeight >= c.scrollHeight - NEAR_BOTTOM_PX
   }, [])
 
+  // Track the last iso we already reported as read so we don't fire
+  // `onReadLatest` repeatedly with the same value — that callback writes to
+  // localStorage and broadcasts a CustomEvent that triggers re-renders in
+  // every consumer of `useBadgeCounts`, which re-renders MessageList,
+  // which re-runs this check, which fires onReadLatest again → infinite
+  // loop ("Maximum update depth exceeded"). The previous transition-only
+  // implementation accidentally avoided this; the fix is to advance the
+  // marker on every new message while still being idempotent.
+  const lastFiredReadIsoRef = useRef<string | undefined>(undefined)
+
   const updateAtBottomState = useCallback(() => {
     const nearBottom = computeIsNearBottom()
     if (nearBottom !== isAtBottomRef.current) {
       isAtBottomRef.current = nearBottom
       onAtBottomChange?.(nearBottom)
-      if (nearBottom) onReadLatest?.(lastMessageIso(messages))
     }
+    if (!nearBottom) return
+    // Advance the last-read marker when at bottom AND the latest message
+    // is actually newer than what we last reported. Streaming chats keep
+    // the user pinned to the bottom (no transition fires), so this
+    // catches every new message — but only once per iso.
+    const latest = lastMessageIso(messages)
+    if (!latest) return
+    if (lastFiredReadIsoRef.current === latest) return
+    lastFiredReadIsoRef.current = latest
+    onReadLatest?.(latest)
   }, [computeIsNearBottom, messages, onAtBottomChange, onReadLatest])
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {

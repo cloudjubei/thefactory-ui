@@ -143,6 +143,11 @@ export {
   type ModelQuickSelectOption,
 } from './compound/agents'
 export { default as ErrorBubble, type ErrorBubbleProps } from './compound/ErrorBubble'
+export {
+  default as GroupHome,
+  type GroupHomeProps,
+  type GroupHomeProjectCard,
+} from './compound/GroupHome'
 export { default as JsonView, type JsonViewProps } from './compound/JsonView'
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
 export {
