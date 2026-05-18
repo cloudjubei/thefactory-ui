@@ -55,6 +55,10 @@ export {
   type UseTooltipStateOptions,
 } from './hooks/useTooltipState'
 export {
+  useStorageBackedState,
+  type SyncKVStorage,
+} from './hooks/useStorageBackedState'
+export {
   useToastQueue,
   type ToastAction,
   type ToastItem,
@@ -124,6 +128,38 @@ export {
   type StoryStatus,
 } from './utils/status'
 
+// Story / feature list options (sorts + status filter)
+export {
+  FEATURE_SORT_OPTIONS,
+  STATUS_OPTIONS,
+  STORY_SORT_OPTIONS,
+  type FeatureListSorting,
+  type StoryListSorting,
+} from './utils/storiesOptions'
+
+// Persisted client settings (theme, shortcuts, notifications, ...)
+// `Theme` and `ChatBadgeCountMode` are owned by their respective hook
+// modules and re-exported above — not duplicated here.
+export {
+  AVAILABLE_THEMES,
+  BADGE_COLORS,
+  DEFAULT_APP_SETTINGS,
+  DEFAULT_NOTIFICATION_PREFS,
+  DEFAULT_PROJECT_SETTINGS,
+  DEFAULT_SHORTCUTS,
+  type AppSettings,
+  type BadgeColor,
+  type NotificationCategory,
+  type NotificationPrefs,
+  type ProjectSettings,
+  type ShortcutsConfig,
+  type ShortcutsModifier,
+  type StoriesListSorting,
+  type StoriesListStatusFilter,
+  type StoriesViewMode,
+  type UserPreferences,
+} from './types/settings'
+
 // Path / file-type helpers
 export {
   extFromTypeOrName,
@@ -138,6 +174,12 @@ export {
   tokenizeRichText,
   type RichTextSegment,
 } from './utils/richTextTokenize'
+
+// File-extension → renderer-kind classifier (markdown / html / image / pdf / text / binary).
+export {
+  classifyFileByExtension,
+  type FilePaneKind,
+} from './utils/filePaneKind'
 
 // Chat-view domain types (shared between web and native chat compounds)
 export type {

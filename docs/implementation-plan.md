@@ -33,13 +33,22 @@ A new contributor opening web, desktop, and mobile side by side should be able t
 
 The full primitive surface (`Alert`, `Button`, `Field`, `Input`, `Skeleton` + `SkeletonText`, `Spinner`, `Switch`, `Textarea`, `Modal` + `ConfirmDialog`, `Tooltip`, `Toast` + `ToastProvider` + `useToast`, `SegmentedControl`, `Select` family) ships from `src/native/primitives/`. `ResizeHandle` stays web-only — RN has no equivalent affordance.
 
-### 1. Headless promotions triggered by `src/native/`
+### 1. Headless promotions triggered by `src/native/` consumers
 
-When a native peer (or a near-future compound) needs logic currently entangled in `src/web/`, lift it into `src/headless/` and rewire both consumers. Don't lift speculatively — wait for the actual second consumer.
+When a native peer (or a real second consumer) needs logic currently entangled in `src/web/`, lift it into `src/headless/` and rewire both consumers. Don't lift speculatively — wait for the actual second consumer.
+
+Recently landed:
+
+- `classifyFileByExtension` → `headless/utils/filePaneKind.ts`; web's `FilePane` + `FilesContext` rewired.
+- `useStorageBackedState` + `SyncKVStorage` adapter → `headless/hooks/useStorageBackedState.ts`; web's `AppSettingsContext` refactored to inject a `localStorage`-backed adapter, all 7 unit tests green.
+- `StoryListSorting` / `FeatureListSorting` / `STORY_SORT_OPTIONS` / `FEATURE_SORT_OPTIONS` / `STATUS_OPTIONS` → `headless/utils/storiesOptions.ts`; web's `compound/storiesOptions.ts` is a thin re-export so existing import paths keep working.
+- `AppSettings` types + defaults — `AppSettings`, `DEFAULT_APP_SETTINGS`, `NotificationPrefs`, `DEFAULT_NOTIFICATION_PREFS`, `UserPreferences`, `ShortcutsConfig`, `DEFAULT_SHORTCUTS`, `ProjectSettings`, `DEFAULT_PROJECT_SETTINGS`, `BadgeColor`, `BADGE_COLORS`, `NotificationCategory`, `ShortcutsModifier`, `AVAILABLE_THEMES`, `StoriesViewMode`, `StoriesListSorting`, `StoriesListStatusFilter` → `headless/types/settings.ts`. Web's `src/core/types/settings.ts` is a re-export shim that patches `DEFAULT_APP_SETTINGS.userPreferences.shortcutsModifier` with the mac-aware default the headless layer can't sniff. Mobile + desktop can drop their duplicate copies.
+
+Deferred (waiting on their trigger):
 
 - **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
 - **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Lift when either §B.2's `MergeConflictResolver` native peer arrives or the in-progress conflict-safe-editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane) needs to share the algorithm.
-- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Lift when the chat surface lands in §B.2.
+- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Lift when the native chat input grows mention autocomplete.
 
 ### 2. RN compounds (native siblings of `src/web/compound/`)
 
