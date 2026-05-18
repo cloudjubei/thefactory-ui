@@ -30,6 +30,12 @@
     },
     "./web/styles": "./dist/styles/index.css",
     "./web/styles/tokens": "./dist/styles/tokens.css",
+    "./native": {
+      "types": "./dist/native/index.d.ts",
+      "import": "./dist/native/index.js",
+      "react-native": "./dist/native/index.js"
+    },
+    "./native/styles": "./dist/native/styles/tokens.css",
     "./package.json": "./package.json"
   },
   "files": [
@@ -50,7 +56,16 @@
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-native": ">=0.76.0"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.2.6",
@@ -71,9 +86,11 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
+    "nativewind": "^4.2.4",
     "prettier": "^3.6.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-native": "^0.85.3",
     "tailwindcss": "^4.1.13",
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",

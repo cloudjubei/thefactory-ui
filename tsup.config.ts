@@ -6,6 +6,8 @@ import { defineConfig } from 'tsup'
 const here = dirname(fileURLToPath(import.meta.url))
 const stylesSrc = resolve(here, 'src/web/styles')
 const stylesOut = resolve(here, 'dist/styles')
+const nativeStylesSrc = resolve(here, 'src/native/styles')
+const nativeStylesOut = resolve(here, 'dist/native/styles')
 
 // Tailwind v4 `@source` directive — path is relative to dist/styles/index.css
 // → resolves to node_modules/thefactory-ui/dist/**/*.{js,mjs} in any consumer.
@@ -21,6 +23,7 @@ export default defineConfig({
     'headless/index': 'src/headless/index.ts',
     'web/index': 'src/web/index.ts',
     'web/icons/index': 'src/web/icons/index.ts',
+    'native/index': 'src/native/index.ts',
   },
   format: ['esm'],
   dts: true,
@@ -39,5 +42,12 @@ export default defineConfig({
     cpSync(stylesSrc, stylesOut, { recursive: true })
     const indexCss = resolve(stylesOut, 'index.css')
     writeFileSync(indexCss, readFileSync(indexCss, 'utf8') + SOURCE_DIRECTIVE)
+
+    // Mirror the same shape for the native styles entry. Native ships only
+    // `tokens.css` (no Tailwind `@source` directive — RN consumers run
+    // NativeWind / Tailwind v4 against their app's own source set).
+    rmSync(nativeStylesOut, { recursive: true, force: true })
+    mkdirSync(nativeStylesOut, { recursive: true })
+    cpSync(nativeStylesSrc, nativeStylesOut, { recursive: true })
   },
 })

@@ -16,7 +16,7 @@ What that means for this package specifically:
 
 - **Tokens, headless hooks/stores, business logic, badge math, sanitisers, form state machines all live here.** If a piece of logic is needed by two clients, it lives in `src/headless/` (or `src/tokens/` for visual primitives), not duplicated in each client.
 - **`src/web/` and `src/native/` are presentation peers with identical public APIs.** Same component name, same prop surface, same headless hook consumed underneath. Swapping `'thefactory-ui/web'` → `'thefactory-ui/native'` in a screen should compile and behave equivalently, modulo platform-required differences (e.g. native `Modal` vs DOM `Modal`).
-- **A new shared piece lands here first, then clients pull it in.** New consumer in any client → check `headless/` first; promote if it's a real second consumer. The "don't lift speculatively" rule in §B.4 still applies — but once a second consumer exists, lifting is mandatory, not optional.
+- **A new shared piece lands here first, then clients pull it in.** New consumer in any client → check `headless/` first; promote if it's a real second consumer. Don't lift speculatively — but once a second consumer exists, lifting is mandatory, not optional.
 - **Drift between clients is a bug in this package.** If web's `useFoo` diverges from desktop's `useFoo`, that's a missing `src/headless/useFoo.ts` waiting to happen. File the promotion ticket, don't accept the drift.
 
 A new contributor opening web, desktop, and mobile side by side should be able to navigate by analogy. This package is the reason that's possible.
@@ -25,35 +25,40 @@ A new contributor opening web, desktop, and mobile side by side should be able t
 
 ## A. Open questions / blocked tasks
 
-*(Currently empty — the previous NativeWind-vs-StyleSheet question is resolved: NativeWind v4. See §B.2 and the mobile plan.)*
+*(Currently empty.)*
 
 ---
 
 ## B. Pending tasks
 
-### 1. Split `src/web/` → `src/web/` + `src/native/`
+### 1. RN primitives — overlay group
 
-Active task — mobile work is starting (see [thefactory-overseer-mobile/docs/implementation-plan.md](../../thefactory-overseer-mobile/docs/implementation-plan.md)).
+The first batch (`Alert`, `Button`, `Field`, `Input`, `Skeleton` + `SkeletonText`, `Spinner`, `Switch`, `Textarea`) is already in `src/native/primitives/` and exported from the `./native` barrel. Remaining primitives, in dependency order:
 
-- Introduce `src/native/` as a peer to `src/web/`. `tokens/` and `headless/` stay shared.
-- The `exports` map gets `./native` and `./native/styles` entries; `./web` and `./web/styles` stay as they are.
-- Add `react-native` to peer deps as optional (`peerDependenciesMeta: { "react-native": { optional: true } }`) so web/desktop consumers don't pull it in.
-- The boundary check ([scripts/check-uikit-boundaries.sh](../scripts/check-uikit-boundaries.sh)) gets a new rule: `src/native/` may import `react`, `react-native`, `tokens/`, `headless/`; never `src/web/` or `react-dom`. Mirrors the existing web-side rule.
-- The tsup config grows a `./native` entry pointing at `src/native/index.ts`.
-- Public APIs stay identical between web and native peers: a consumer that does `import { Button } from 'thefactory-ui/web'` can swap to `'thefactory-ui/native'` and get the same prop surface.
+- **`Modal`** — wraps RN's `Modal`. Same prop surface as web's: `isOpen`, `onClose`, `title`, `size`, `closeOnOverlayClick`, `closeOnEsc` (no-op on RN — back-button handled separately).
+- **`Tooltip`** — long-press affordance instead of hover. The open/close state machine should be lifted into `src/headless/useTooltip.ts` so the two peers share it (see §B.3).
+- **`Toast`** — absolute-positioned overlay above the active screen. The append-with-dismiss queue should be lifted into `src/headless/useToastQueue.ts` (see §B.3).
 
-### 2. RN primitives (native siblings of `src/web/primitives/`)
+`ResizeHandle` is web-only — no native peer.
 
-In order of dependency:
+### 2. RN primitives — composite group
 
-- `Button`, `Input`, `Textarea`, `Switch`, `Field`, `Alert`, `Spinner`, `Skeleton`, `SkeletonText`.
-- `Modal` (uses RN's `Modal`), `Tooltip` (long-press affordance), `Toast` (uses an absolute-positioned overlay).
-- `SegmentedControl`, `Select` (composes RN `ActionSheetIOS` / `Picker` under the hood — exposes the same `value` / `onValueChange` surface as web's Select).
-- `ResizeHandle` is web-only (no equivalent on mobile); native gets no peer.
+- **`SegmentedControl`** — wraps either RN's `SegmentedControlIOS` (deprecated; usually replaced by a community component) or a hand-rolled row of pressables. Exposes the same `value` / `onValueChange` / `options` surface as the web peer.
+- **`Select`** — wraps an `ActionSheetIOS` / Android dialog under the hood. Exposes the Radix-style `Select` + `SelectTrigger` + `SelectContent` + `SelectItem` + `SelectValue` composition shape that web's Select offers, adapted to the platform's modal presentation.
 
-Each primitive lands together with its web peer's test coverage — `headless` hooks already drive the behaviour; the native impl is presentation only.
+### 3. Headless promotions triggered by §B.1–2
 
-### 3. RN compounds (native siblings of `src/web/compound/`)
+As `src/native/` peers are written, anything currently entangled in `src/web/` that needs to be shared between web and native gets lifted into `src/headless/`. Concrete candidates:
+
+- **`useTooltip`** — position calculation + open/close state. Currently in `src/web/primitives/Tooltip.tsx`. Native variant doesn't need positioning (long-press shows an overlay), but shares the open/close state machine.
+- **`useToastQueue`** — append-with-dismiss queue. The render side differs (DOM vs RN view); the queue logic doesn't.
+- **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
+- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Worth lifting so the mobile (and the in-progress conflict-safe-editing flow in web) can reuse it. Tracked here as the natural shared piece for the lift mentioned in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane).
+- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Native textarea needs the same suggestions logic.
+
+Promotion trigger: a real second consumer in `src/native/` would need the same code. Don't lift speculatively.
+
+### 4. RN compounds (native siblings of `src/web/compound/`)
 
 The compounds reuse the headless state machines already in `src/headless/` so the native impl is largely presentation. Order roughly by how much value they unlock for mobile screens:
 
@@ -64,37 +69,10 @@ The compounds reuse the headless state machines already in `src/headless/` so th
 - Groups + nav: `GroupHome`, `NotificationBadge`, `SpinnerWithDot`, `DotBadge`, `BranchChip`, `ProjectChip`, `StatusChip`, `ModelChip`, `CostChip`, `TokensChip`, `TurnChip`.
 - Diff / merge: `DiffViewer`, `MergeConflictResolver` — these are large enough that they may stay web-only initially. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
 
-### 4. Headless promotions triggered by mobile
+### 5. Documentation pass
 
-As `src/native/` peers are written, anything currently entangled in `src/web/` that needs to be shared between web and native gets lifted into `src/headless/`. Concrete candidates already identified:
-
-- **`useTooltip`** — position calculation + open/close state. Currently in `src/web/primitives/Tooltip.tsx`. Native variant doesn't need positioning (long-press shows an overlay), but shares the open/close state machine.
-- **`useToastQueue`** — append-with-dismiss queue. The render side differs (DOM vs RN view); the queue logic doesn't.
-- **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
-- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Worth lifting so the mobile (and the in-progress conflict-safe-editing flow in web) can reuse it. Tracked here as the natural shared piece for the lift mentioned in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane).
-- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Native textarea needs the same suggestions logic.
-
-Promotion trigger: a real second consumer in `src/native/` would need the same code. Don't lift speculatively.
-
-### 5. Tokens → RN StyleSheet bridge
-
-`src/tokens/` already authors palette + semantic + metrics in pure TS. For RN consumption:
-
-- Add `src/tokens/native.ts` that re-exports the same TS source as RN-friendly objects (numeric metrics in `dp`, colors as hex strings).
-- A NativeWind preset bound to these tokens so `bg-(--surface-base)` class strings resolve to the right colour on both platforms. The CSS-variable form stays the source of truth; the RN preset is a generated mirror.
-
-### 6. Per-platform exports + bundler hints
-
-- The package's `exports` map gets:
-  - `"./native": { "types": "./dist/native/index.d.ts", "import": "./dist/native/index.js", "react-native": "./dist/native/index.js" }`
-  - `"./native/styles": "./dist/native/styles.js"` (the NativeWind preset entry)
-- Add `"react-native"` to peer deps (optional, see §B.1).
-- `tsup` config grows the `./native` entry. The CSS pipeline stays web-only — RN doesn't ship `.css`.
-
-### 7. Documentation pass
-
-- `docs/ARCHITECTURE.md` already describes the four-layer split; update the `native` row's "_(future)_" tag once the native folder exists with at least one primitive.
-- README gets a "Use from React Native" section pointing at `'thefactory-ui/native'` + the NativeWind setup snippet.
+- `docs/ARCHITECTURE.md` — drop the `_(future)_` tag on the `native` row of the layer table now that `src/native/` exists with primitives.
+- `README.md` — add a "Use from React Native" section pointing at `'thefactory-ui/native'` + the NativeWind setup snippet (consumers add `node_modules/thefactory-ui/dist/native/**/*.{js,mjs}` to their Tailwind `content` array; `@import 'thefactory-ui/native/styles'` in their NativeWind-processed CSS provides the token variables).
 
 ---
 
@@ -103,5 +81,5 @@ Promotion trigger: a real second consumer in `src/native/` would need the same c
 - Storybook. Visual verification stays `npm run build` + `playground/` smoke run + consumer integration. RN consumers verify in EAS Build + simulator.
 - A web↔native style-conversion CLI. The two platforms write their own peers; they don't share a single source for layout. Tokens are shared, components aren't.
 - A single CSS bundle that works in both web and native. The styling pipelines stay separate (`src/web/styles/*.css` + Tailwind v4 on web; NativeWind on native).
-- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §B.3.
+- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §B.4.
 - A second design system. The whole point of this package is one set of tokens + components across desktop, web, and mobile.

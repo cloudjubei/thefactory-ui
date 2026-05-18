@@ -1,10 +1,13 @@
-// Emits src/web/styles/tokens.css from the TS token source.
-// Run via: npm run generate:tokens
+// Emits src/web/styles/tokens.css and src/native/styles/tokens.css from the
+// TS token source. Run via: npm run generate:tokens
 //
-// The TS source is authoritative. Hand-editing tokens.css is a smell —
-// fix the TS source and re-run instead.
+// The TS source is authoritative. Hand-editing either output is a smell —
+// fix the TS source and re-run instead. The native output is a strict subset:
+// only the variables that resolve cleanly on RN (palette + semantic +
+// status-bold). It uses flat hex / rgba for what web computes via
+// `color-mix()`, so NativeWind's class resolver can find a numeric value.
 
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { palette } from '../src/tokens/colors'
@@ -14,6 +17,14 @@ import {
   type SemanticTheme,
   type StatusTokens,
 } from '../src/tokens/semantic'
+import {
+  nativeDarkStatus,
+  nativeDarkTheme,
+  nativeLightStatus,
+  nativeLightTheme,
+  type NativeSemanticTheme,
+  type NativeStatusTokens,
+} from '../src/tokens/native'
 import {
   controls,
   fontFamilies,
@@ -183,7 +194,89 @@ function build(): string {
   return lines.join('\n')
 }
 
+// RN-flavoured tokens — emit only the CSS variables that translate to RN
+// via NativeWind. No `color-mix()`, no shadows-as-strings, no easing curves,
+// no `color-scheme`. Metrics that map to NativeWind's built-in scale are
+// also omitted; consumers can extend their NativeWind theme with the
+// numeric metrics from `thefactory-ui/tokens` (`nativeSpace`, etc.) directly
+// in their `tailwind.config.js`.
+
+function nativeSemanticVars(theme: NativeSemanticTheme): string[] {
+  const out: string[] = []
+  out.push('  /* Surfaces */')
+  out.push(`  --surface-base: ${theme.surface.base};`)
+  out.push(`  --surface-raised: ${theme.surface.raised};`)
+  out.push(`  --surface-overlay: ${theme.surface.overlay};`)
+  out.push(`  --surface-muted: ${theme.surface.muted};`)
+  out.push(`  --surface-hover: ${theme.surface.hover};`)
+  out.push('  --surface-0: var(--surface-base);')
+  out.push('  --surface-1: var(--surface-raised);')
+  out.push('  --surface-2: var(--surface-overlay);')
+  out.push('')
+  out.push('  /* Text */')
+  out.push(`  --text-primary: ${theme.text.primary};`)
+  out.push(`  --text-secondary: ${theme.text.secondary};`)
+  out.push(`  --text-muted: ${theme.text.muted};`)
+  out.push(`  --text-inverted: ${theme.text.inverted};`)
+  out.push('')
+  out.push('  /* Borders */')
+  out.push(`  --border-subtle: ${theme.border.subtle};`)
+  out.push(`  --border-default: ${theme.border.default};`)
+  out.push(`  --border-strong: ${theme.border.strong};`)
+  out.push(`  --border-focus: ${theme.border.focus};`)
+  out.push('')
+  out.push('  /* Accents */')
+  out.push(`  --accent-primary: ${theme.accent.primary};`)
+  out.push(`  --accent-primary-hover: ${theme.accent.primaryHover};`)
+  out.push(`  --accent-primary-active: ${theme.accent.primaryActive};`)
+  out.push('')
+  out.push(`  --focus-ring: ${theme.focusRing};`)
+  out.push('')
+  return out
+}
+
+function nativeStatusVars(s: NativeStatusTokens): string[] {
+  const out: string[] = []
+  out.push('  /* Status: bold */')
+  for (const key of ['empty', 'done', 'working', 'stuck', 'on_hold', 'review', 'queued', 'blocked'] as const) {
+    out.push(`  --status-${key}-bg: ${s[key].bg};`)
+    out.push(`  --status-${key}-fg: ${s[key].fg};`)
+  }
+  return out
+}
+
+function buildNative(): string {
+  const lines: string[] = [
+    '/* AUTO-GENERATED from src/tokens/. Do not edit by hand. */',
+    '/* Run: npm run generate:tokens */',
+    '/* RN-safe subset: no color-mix, no shadow strings, no easing curves. */',
+    '',
+  ]
+
+  lines.push(':root {')
+  lines.push(...paletteVars())
+  lines.push(...nativeSemanticVars(nativeLightTheme))
+  lines.push(...nativeStatusVars(nativeLightStatus))
+  lines.push('}')
+  lines.push('')
+
+  lines.push('.dark,')
+  lines.push("[data-theme='dark'] {")
+  lines.push(...nativeSemanticVars(nativeDarkTheme))
+  lines.push(...nativeStatusVars(nativeDarkStatus))
+  lines.push('}')
+  lines.push('')
+
+  return lines.join('\n')
+}
+
 const here = dirname(fileURLToPath(import.meta.url))
-const out = resolve(here, '..', 'src/web/styles/tokens.css')
-writeFileSync(out, build())
-console.log(`tokens.css written → ${out}`)
+
+const webOut = resolve(here, '..', 'src/web/styles/tokens.css')
+writeFileSync(webOut, build())
+console.log(`tokens.css written → ${webOut}`)
+
+const nativeOut = resolve(here, '..', 'src/native/styles/tokens.css')
+mkdirSync(dirname(nativeOut), { recursive: true })
+writeFileSync(nativeOut, buildNative())
+console.log(`tokens.css written → ${nativeOut}`)
