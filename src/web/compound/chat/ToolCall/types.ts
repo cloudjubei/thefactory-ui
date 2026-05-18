@@ -1,4 +1,8 @@
-import type { ToolCallLike, ToolResultLike, ToolResultTypeLike } from '../types'
+import type {
+  ToolCallLike,
+  ToolResultLike,
+  ToolResultTypeLike,
+} from '../../../../headless/utils/chatTypes'
 
 /**
  * Backwards-compatible aliases for code inside the lifted ToolCall

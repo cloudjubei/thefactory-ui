@@ -5,7 +5,7 @@ import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import Tooltip from '../../primitives/Tooltip'
 import { IconDelete, IconRefresh, IconToolbox } from '../../icons'
 import { ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
-import type { ChatMessageLike } from './types'
+import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 
 const USD = new Intl.NumberFormat('en-US', {
   style: 'currency',

@@ -43,14 +43,14 @@ When a native peer (or a near-future compound) needs logic currently entangled i
 
 ### 2. RN compounds (native siblings of `src/web/compound/`)
 
-Most compounds now ship from `src/native/compound/`: chip family (`BranchChip`, `ProjectChip`, `StatusChip`, `CostChip`, `TokensChip`, `TurnChip`), `DotBadge`, `SpinnerWithDot`, `NotificationBadge`, stories family (`WarningChip`, `ExclamationChip`, `StoryAndFeatureCallout`, `DependencyChip`, `DependencyBullet`, `StoryCard`, `FeatureCard`, `StatusControl`, `ContextFileChip`), agents (`AgentRunBullet`, `AgentRunRowCard`, `AgentModelQuickSelect`), files (`PathDisplay`, `FileDisplay`, `FileSelector`, `RichText`), forms (`StoryForm`), groups (`GroupHome`), and a partial chat surface (`SystemPromptBubble`, `ThinkingRow`). The headless promotions that landed alongside: `useTooltipState`, `useToastQueue`, the `status` utilities, the `path` / file-type utilities, the rich-text tokeniser.
+The native compound surface now covers chip family (`BranchChip`, `ProjectChip`, `StatusChip`, `CostChip`, `TokensChip`, `TurnChip`), `DotBadge`, `SpinnerWithDot`, `NotificationBadge`, stories family (`WarningChip`, `ExclamationChip`, `StoryAndFeatureCallout`, `DependencyChip`, `DependencyBullet`, `StoryCard`, `FeatureCard`, `StatusControl`, `ContextFileChip`), agents (`AgentRunBullet`, `AgentRunRowCard`, `AgentModelQuickSelect`, `ModelChip`), files (`PathDisplay`, `FileDisplay`, `FileSelector`, `RichText`), forms (`StoryForm`), groups (`GroupHome`), and a working chat surface (`ChatBody`, `ChatHeader`, `ChatInput`, `MessageList`, `MessageRow`, `SystemPromptBubble`, `ThinkingRow`). Headless promotions that landed alongside: `useTooltipState`, `useToastQueue`, the `status` utilities, the `path` / file-type utilities, the rich-text tokeniser, the chat-view domain types (`ChatMessageLike`, `ChatContextLike`, `ToolCallLike`, …).
 
 Remaining:
 
-- **Chat compounds** (the bulk of `src/web/compound/chat/`): `MessageList`, `MessageRow`, `ChatInput`, `ChatBody`, `ChatHeader`, `ChatSettingsDropdown`, `ToolCallCard`, `ToolCallHoverCard`. These are large (≈400–700 lines each on web) and lean on the chat message shapes; the shared `Message` / `ToolCall` types currently live inside the web peers and should lift into `src/headless/utils/chat.ts` first so both peers share the same vocabulary.
-- **`ModelChip`** — the LLM picker. Web's 460-line version uses a portal-rendered popover with hover state; native rebuilds it on top of `Modal`. Worth its own pass so the picker UX gets care.
+- **`ToolCallCard` / `ToolCallHoverCard`** — tool-result rendering. The native chat surface ships with a `renderToolCall` host slot in lieu of these; the proper native peer can land once a real RN consumer hits the limitation.
+- **`ChatSettingsDropdown`** + `ToolConfirmationModal` + `HistorySummarizationSettings` + `MessageSanitizationSettings` + `ChatTopicCreateModal` — settings / modal surfaces around the chat. Each is its own pass; the chat shell accepts the dropdown as a slot so consumers can keep using their own for now.
 - **`FeatureForm`** — the headless `useFeatureForm` hook already lives in `headless/`; the web peer doesn't ship a `FeatureForm.tsx` yet. Skip until web ships it.
-- **Markdown rendering** — `SystemPromptBubble` / `ThinkingRow` render their content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
+- **Markdown rendering** — `SystemPromptBubble` / `ThinkingRow` / `MessageRow` render their content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
 - **Diff / merge** (`DiffViewer`, `MergeConflictResolver`) — large enough to stay web-only initially. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
 
 ### 3. Documentation pass
@@ -60,23 +60,21 @@ Remaining:
 
 ### 4. Promote backend API client + auth contexts into `headless/`
 
-The shared spine for talking to `thefactory-backend`. Currently duplicated across [thefactory-overseer-web/src/api/](../../thefactory-overseer-web/src/api/) and [overseer-local/src/renderer/src/api/](../../overseer-local/src/renderer/src/api/); [thefactory-overseer-mobile](../../thefactory-overseer-mobile) will need the third copy if not promoted first.
+The shared spine for talking to `thefactory-backend`. The SDK-independent slice has shipped — `WsClient`, `extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`, `ServerError` now live under `src/headless/api/` and are exposed via the `'thefactory-ui/headless/api'` subpath as well as the main `'thefactory-ui/headless'` barrel. [thefactory-overseer-web](../../thefactory-overseer-web) has been rewired: `src/api/WsClient.ts` + `src/api/errorMessage.ts` are deleted and the trimmed `src/api/helpers.ts` keeps only the SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`). The `reconnecting-websocket` runtime dep moved into this package.
 
-Lifts into this package (most likely under a `src/headless/api/` sub-path so the "backend client, not a UI primitive" boundary stays readable):
+Remaining work (the SDK-coupled half):
 
 - **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`. The `openapi-ts.config.ts` and `generate:backend` script move here; each client deletes its in-repo `src/generated/backend/` and the script from its `package.json`.
-- **`WsClient`, `bootstrap`, `helpers`, `errorMessage`, `types`** — pure TS, no React or DOM. Direct verbatim lift.
+- **`bootstrap`, `types`, SDK-typed `helpers`** — depend on the generated client (`isTestRun`, `isCoverage`, `isGrepHit`, `LastTestsRunRaw`, `LastCoverageRaw`, `GrepHit`, `GrepResult`). Land together with the codegen move.
 - **`AuthContext`, `ApiContext`** — same React surface across clients. Storage is injected via a `TokenStorage` adapter passed to `AuthProvider`: `localStorage` on web, `safeStorage` IPC on desktop, `SecureStore` on mobile.
 
-Cross-client landing (non-negotiable per the parity mandate — same release window):
+Cross-client landing for the remaining work (non-negotiable per the parity mandate — same release window):
 
-- [thefactory-overseer-web](../../thefactory-overseer-web): delete `src/api/`, `src/generated/backend/`, `src/core/contexts/AuthContext.tsx`, `src/core/contexts/ApiContext.tsx`; re-point imports at this package; supply the `localStorage`-backed `TokenStorage` adapter.
-- [overseer-local](../../overseer-local) (desktop): same deletions under `src/renderer/src/`; supply the `safeStorage`-backed `TokenStorage` adapter that drives the existing `auth:get|set|clear` IPC.
-- [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume from this package on day one; supply the `SecureStore`-backed adapter.
+- [thefactory-overseer-web](../../thefactory-overseer-web): delete the rest of `src/api/`, `src/generated/backend/`, `src/core/contexts/AuthContext.tsx`, `src/core/contexts/ApiContext.tsx`; supply the `localStorage`-backed `TokenStorage` adapter.
+- [overseer-local](../../overseer-local) (desktop): same deletions under `src/renderer/src/`; supply the `safeStorage`-backed adapter that drives the existing `auth:get|set|clear` IPC.
+- [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume from day one; supply the `SecureStore`-backed adapter.
 
 Each client keeps only its first-run / login screen (presentation only) and its 3-line `TokenStorage` adapter. Drop any per-client `npm run generate:backend` script — codegen runs here.
-
-Trigger: §B.2 of [overseer-local/docs/implementation-plan.md](../../overseer-local/docs/implementation-plan.md) lifted the web API layer into desktop verbatim under `src/renderer/src/api/`. That placement mirrors web's `src/api/` 1:1 for parity, but the code itself is non-UI logic — its right home is here. This task collapses the duplication.
 
 Architectural note: the generated SDK is technically a backend artifact and would live most cleanly in a dedicated `thefactory-backend-client` npm package. We accept placing it under `thefactory-ui/headless/api/` to avoid package proliferation; revisit only if the boundary becomes noisy.
 

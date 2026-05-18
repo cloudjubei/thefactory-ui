@@ -21,6 +21,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'tokens/index': 'src/tokens/index.ts',
     'headless/index': 'src/headless/index.ts',
+    'headless/api/index': 'src/headless/api/index.ts',
     'web/index': 'src/web/index.ts',
     'web/icons/index': 'src/web/icons/index.ts',
     'native/index': 'src/native/index.ts',

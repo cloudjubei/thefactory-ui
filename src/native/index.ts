@@ -137,6 +137,13 @@ export {
   type AgentRunRowCardProps,
 } from './compound/agents/AgentRunRowCard'
 export {
+  ModelChip,
+  type ModelChipConfig,
+  type ModelChipMode,
+  type ModelChipProps,
+  type ModelPriceRecord,
+} from './compound/ModelChip'
+export {
   default as StoryForm,
   type StoryFormHandle,
   type StoryFormProps,
@@ -166,6 +173,27 @@ export {
   type GroupHomeProps,
 } from './compound/GroupHome'
 export {
+  default as ChatBody,
+  type ChatBodyProps,
+} from './compound/chat/ChatBody'
+export {
+  default as ChatHeader,
+  type ChatHeaderProps,
+} from './compound/chat/ChatHeader'
+export {
+  default as ChatInput,
+  type ChatInputAttachment,
+  type ChatInputProps,
+} from './compound/chat/ChatInput'
+export {
+  default as MessageList,
+  type MessageListProps,
+} from './compound/chat/MessageList'
+export {
+  default as MessageRow,
+  type MessageRowProps,
+} from './compound/chat/MessageRow'
+export {
   default as SystemPromptBubble,
   type SystemPromptBubbleProps,
 } from './compound/chat/SystemPromptBubble'
@@ -173,3 +201,15 @@ export {
   default as ThinkingRow,
   type ThinkingRowProps,
 } from './compound/chat/ThinkingRow'
+
+// Chat-view domain types (re-exported from headless for convenience)
+export type {
+  ChatContextLike,
+  ChatLiveStateLike,
+  ChatMessageLike,
+  MessageUsageLike,
+  PendingToolConfirmationLike,
+  ToolCallLike,
+  ToolResultLike,
+  ToolResultTypeLike,
+} from '../headless/utils/chatTypes'

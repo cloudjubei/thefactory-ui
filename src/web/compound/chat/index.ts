@@ -52,7 +52,7 @@ export type {
   ToolCallLike,
   ToolResultLike,
   ToolResultTypeLike,
-} from './types'
+} from '../../../headless/utils/chatTypes'
 
 export { interpolatePrompt, type PromptVariables } from './promptInterpolate'
 

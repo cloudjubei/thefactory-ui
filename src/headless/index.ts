@@ -138,3 +138,32 @@ export {
   tokenizeRichText,
   type RichTextSegment,
 } from './utils/richTextTokenize'
+
+// Chat-view domain types (shared between web and native chat compounds)
+export type {
+  ChatContextLike,
+  ChatLiveStateLike,
+  ChatMessageLike,
+  MessageUsageLike,
+  PendingToolConfirmationLike,
+  ToolCallLike,
+  ToolResultLike,
+  ToolResultTypeLike,
+} from './utils/chatTypes'
+
+// Backend API client (WsClient + SDK-independent error/helper utilities).
+// SDK-specific parts (generated hey-api client, test-run / coverage / grep
+// helpers) lift here once codegen relocates from each consumer repo.
+export {
+  WsClient,
+  type WsClientOptions,
+  type WsConnectionState,
+  type WsEventHandler,
+} from './api/WsClient'
+export { extractErrorMessage } from './api/errorMessage'
+export {
+  extractServerError,
+  getResponseDataMessage,
+  unwrapGitEnvelope,
+  type ServerError,
+} from './api/helpers'

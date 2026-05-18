@@ -14,7 +14,7 @@ import MessageRow from './MessageRow'
 import { Switch } from '../../primitives/Switch'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ToolCall, ToolResultType } from './ToolCall'
-import type { ChatMessageLike } from './types'
+import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 
 function isToolMessage(msg: ChatMessageLike): boolean {
   return msg.role === 'tool' || !!msg.toolCall

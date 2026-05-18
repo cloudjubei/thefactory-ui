@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import Surface from '../../primitives/Surface'
-import type { PendingToolConfirmationLike } from './types'
+import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 
 export type ToolConfirmationModalProps = {
   pending: PendingToolConfirmationLike | null

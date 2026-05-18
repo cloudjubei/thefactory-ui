@@ -1,10 +1,8 @@
-/**
- * Structural types the chat-view components consume. Mirrors the domain
- * shapes from `thefactory-tools` (`Chat`, `ChatMessage`, `ChatContext`,
- * `ToolCall`, …) but stays in this package so consumers don't take a
- * hard dep on the tools package — both web and desktop already produce
- * data in this shape.
- */
+// Structural types the chat-view compounds consume. Mirrors the domain
+// shapes from `thefactory-tools` (`Chat`, `ChatMessage`, `ChatContext`,
+// `ToolCall`, …) but stays in this package so consumers don't take a hard
+// dep on the tools package — both web and desktop already produce data in
+// this shape.
 
 export type ChatContextLike = {
   type:
@@ -33,11 +31,8 @@ export type ToolCallLike = {
   arguments?: unknown
 }
 
-/**
- * Tool result type. Web's backend currently emits a free-form string;
- * desktop's agent loop has a tighter enum. Renderers fall back gracefully
- * for unknown values.
- */
+// Web's backend currently emits a free-form string; desktop's agent loop has
+// a tighter enum. Renderers fall back gracefully for unknown values.
 export type ToolResultTypeLike =
   | 'success'
   | 'errored'
@@ -71,26 +66,22 @@ export type ChatMessageLike = {
   toolCall?: ToolCallLike
   toolResult?: ToolResultLike
   error?: string
-  /**
-   * Some hosts attach the model directly to assistant messages. Accepts
-   * either a plain name (`"gpt-4o"`) or a record (`{ model, provider }`)
-   * since the desktop and web shapes diverge here.
-   */
+  // Some hosts attach the model directly to assistant messages. Accepts
+  // either a plain name (`"gpt-4o"`) or a record (`{ model, provider }`)
+  // since the desktop and web shapes diverge here.
   model?: string | { model?: string; provider?: string }
 }
 
-/**
- * Per-context live state that the chat shell consumes — tracks the
- * in-flight send, the partial assistant turn currently streaming, the
- * queue of tool calls awaiting confirmation, and any send error.
- */
+export type PendingToolConfirmationLike = {
+  toolCalls: ToolCallLike[]
+}
+
+// Per-context live state the chat shell consumes — tracks the in-flight
+// send, the partial assistant turn currently streaming, the queue of tool
+// calls awaiting confirmation, and any send error.
 export type ChatLiveStateLike = {
   isSending: boolean
   pendingAssistant: { turn: number; content: string } | null
   pendingToolConfirmation: PendingToolConfirmationLike | null
   sendError: Error | null
-}
-
-export type PendingToolConfirmationLike = {
-  toolCalls: ToolCallLike[]
 }

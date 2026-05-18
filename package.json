@@ -20,6 +20,10 @@
       "types": "./dist/headless/index.d.ts",
       "import": "./dist/headless/index.js"
     },
+    "./headless/api": {
+      "types": "./dist/headless/api/index.d.ts",
+      "import": "./dist/headless/api/index.js"
+    },
     "./web": {
       "types": "./dist/web/index.d.ts",
       "import": "./dist/web/index.js"
@@ -73,6 +77,7 @@
     "clsx": "^2.1.1",
     "prismjs": "^1.30.0",
     "react-markdown": "^10.1.0",
+    "reconnecting-websocket": "^4.4.0",
     "rehype-external-links": "^3.0.0",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
