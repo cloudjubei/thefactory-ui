@@ -25,74 +25,49 @@ A new contributor opening web, desktop, and mobile side by side should be able t
 
 ## A. Open questions / blocked tasks
 
-*(Currently empty.)*
+Pieces waiting on a real second consumer or an external trigger. Don't preemptively lift; when the trigger fires, move the item into §B.
+
+- **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
+- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Lift when either the `MergeConflictResolver` native peer (also in this list) ships or the conflict-safe-editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane) needs to share the algorithm.
+- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Lift when the native chat input grows mention autocomplete.
+- **`ToolCallCard` / `ToolCallHoverCard`** native peers — the chat shell ships with a `renderToolCall` host slot in lieu of these. Lift when a real RN consumer hits the limitation.
+- **`FeatureForm`** native peer — the headless `useFeatureForm` hook already lives in `headless/`; the web peer doesn't ship a `FeatureForm.tsx` yet. Skip until web ships it.
+- **Markdown rendering** in native chat — `SystemPromptBubble` / `ThinkingRow` / `MessageRow` render content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
+- **Diff / merge** (`DiffViewer`, `MergeConflictResolver`) native peers — stay web-only. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
 
 ---
 
 ## B. Pending tasks
 
-The full primitive surface (`Alert`, `Button`, `Field`, `Input`, `Skeleton` + `SkeletonText`, `Spinner`, `Switch`, `Textarea`, `Modal` + `ConfirmDialog`, `Tooltip`, `Toast` + `ToastProvider` + `useToast`, `SegmentedControl`, `Select` family) ships from `src/native/primitives/`. `ResizeHandle` stays web-only — RN has no equivalent affordance.
+### 1. RN compounds (native siblings of `src/web/compound/`)
 
-### 1. Headless promotions triggered by `src/native/` consumers
+When a real RN consumer needs a web compound, write the native peer in `src/native/compound/<name>/` and rewire the consumer. Promote any logic the two peers would otherwise duplicate into `src/headless/` first.
 
-When a native peer (or a real second consumer) needs logic currently entangled in `src/web/`, lift it into `src/headless/` and rewire both consumers. Don't lift speculatively — wait for the actual second consumer.
-
-Recently landed:
-
-- `classifyFileByExtension` → `headless/utils/filePaneKind.ts`; web's `FilePane` + `FilesContext` rewired.
-- `useStorageBackedState` + `SyncKVStorage` adapter → `headless/hooks/useStorageBackedState.ts`; web's `AppSettingsContext` refactored to inject a `localStorage`-backed adapter, all 7 unit tests green.
-- `StoryListSorting` / `FeatureListSorting` / `STORY_SORT_OPTIONS` / `FEATURE_SORT_OPTIONS` / `STATUS_OPTIONS` → `headless/utils/storiesOptions.ts`; web's `compound/storiesOptions.ts` is a thin re-export so existing import paths keep working.
-- `AppSettings` types + defaults — `AppSettings`, `DEFAULT_APP_SETTINGS`, `NotificationPrefs`, `DEFAULT_NOTIFICATION_PREFS`, `UserPreferences`, `ShortcutsConfig`, `DEFAULT_SHORTCUTS`, `ProjectSettings`, `DEFAULT_PROJECT_SETTINGS`, `BadgeColor`, `BADGE_COLORS`, `NotificationCategory`, `ShortcutsModifier`, `AVAILABLE_THEMES`, `StoriesViewMode`, `StoriesListSorting`, `StoriesListStatusFilter` → `headless/types/settings.ts`. Web's `src/core/types/settings.ts` is a re-export shim that patches `DEFAULT_APP_SETTINGS.userPreferences.shortcutsModifier` with the mac-aware default the headless layer can't sniff. Mobile + desktop can drop their duplicate copies.
-
-Deferred (waiting on their trigger):
-
-- **`useModalFocusTrap`** — only meaningful on web (RN's `Modal` handles focus). Stays web-only.
-- **`useDiff`** — the three-way merge algorithm currently inside `MergeConflictResolver` and tightly coupled to its UI. Lift when either §B.2's `MergeConflictResolver` native peer arrives or the in-progress conflict-safe-editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md#b-conflict-safe-editing--mid-flight-remote-updates-in-filepane) needs to share the algorithm.
-- **`useFileMentions`** — `@`-mention popover state machine, currently inside web's `FileMentionsTextarea`. Lift when the native chat input grows mention autocomplete.
-
-### 2. RN compounds (native siblings of `src/web/compound/`)
-
-The native compound surface now covers chip family (`BranchChip`, `ProjectChip`, `StatusChip`, `CostChip`, `TokensChip`, `TurnChip`), `DotBadge`, `SpinnerWithDot`, `NotificationBadge`, stories family (`WarningChip`, `ExclamationChip`, `StoryAndFeatureCallout`, `DependencyChip`, `DependencyBullet`, `StoryCard`, `FeatureCard`, `StatusControl`, `ContextFileChip`), agents (`AgentRunBullet`, `AgentRunRowCard`, `AgentModelQuickSelect`, `ModelChip`), files (`PathDisplay`, `FileDisplay`, `FileSelector`, `RichText`), forms (`StoryForm`), groups (`GroupHome`), and a working chat surface (`ChatBody`, `ChatHeader`, `ChatInput`, `MessageList`, `MessageRow`, `SystemPromptBubble`, `ThinkingRow`). Headless promotions that landed alongside: `useTooltipState`, `useToastQueue`, the `status` utilities, the `path` / file-type utilities, the rich-text tokeniser, the chat-view domain types (`ChatMessageLike`, `ChatContextLike`, `ToolCallLike`, …).
-
-Remaining:
-
-- **`ToolCallCard` / `ToolCallHoverCard`** — tool-result rendering. The native chat surface ships with a `renderToolCall` host slot in lieu of these; the proper native peer can land once a real RN consumer hits the limitation.
 - **`ChatSettingsDropdown`** + `ToolConfirmationModal` + `HistorySummarizationSettings` + `MessageSanitizationSettings` + `ChatTopicCreateModal` — settings / modal surfaces around the chat. Each is its own pass; the chat shell accepts the dropdown as a slot so consumers can keep using their own for now.
-- **`FeatureForm`** — the headless `useFeatureForm` hook already lives in `headless/`; the web peer doesn't ship a `FeatureForm.tsx` yet. Skip until web ships it.
-- **Markdown rendering** — `SystemPromptBubble` / `ThinkingRow` / `MessageRow` render their content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
-- **Diff / merge** (`DiffViewer`, `MergeConflictResolver`) — large enough to stay web-only initially. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
 
-### 3. Documentation pass
+### 2. Documentation pass
 
 - `docs/ARCHITECTURE.md` — drop the `_(future)_` tag on the `native` row of the layer table now that `src/native/` exists with primitives.
 - `README.md` — add a "Use from React Native" section pointing at `'thefactory-ui/native'` + the NativeWind setup snippet (consumers add `node_modules/thefactory-ui/dist/native/**/*.{js,mjs}` to their Tailwind `content` array; `@import 'thefactory-ui/native/styles'` in their NativeWind-processed CSS provides the token variables).
 
-### 4. Promote backend API client + auth contexts into `headless/`
+### 3. Cross-client cutover to `'thefactory-ui/headless/api'`
 
-Landed so far in `src/headless/api/` (exposed via `'thefactory-ui/headless/api'` and the main `'thefactory-ui/headless'` barrel):
+The full backend client lives in `src/headless/api/` and is the only thing frontend clients should reach for. What ships from `'thefactory-ui/headless/api'`:
 
-- `WsClient`, `extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`, `ServerError` — SDK-independent transport + error helpers. `reconnecting-websocket` is now a dependency of this package.
-- `AuthProvider` + `useAuth` + `TokenStorage` adapter shape — same React surface as web's `AuthContext`. Consumers wire their own storage (`localStorage` on web, `safeStorage` IPC on desktop, `expo-secure-store` / MMKV on mobile).
-- `ApiProvider` + `useApi` + `ConfigureBackendClient` callback shape — wraps the WS lifecycle and accepts a per-client `configure` callback that bootstraps the SDK (so the SDK relocation below can land independently).
+- **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`, written to `src/headless/api/generated/`. Re-exported wholesale; codegen runs here (`npm run generate:backend`).
+- **`configureBackendClient({ baseUrl, getToken, onUnauthorized, onAuthorized })`** — wires the generated client's `setConfig` + a single 401 interceptor.
+- **`sdkTypes`** — friendly aliases over the generated shapes (`ChatMessage`, request-body inputs, envelope-unwrapped Git types, hand-written WS payload shapes for `tests:progress` / `ingestion:progress`, `ToolDescriptor`, `PricingSnapshot`, …).
+- **`helpers`** — SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`) + SDK-independent transport helpers (`extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`).
+- **`WsClient`** + reconnecting-websocket lifecycle.
+- **`AuthProvider` + `useAuth` + `TokenStorage`** — consumers supply their own storage adapter.
+- **`ApiProvider` + `useApi`** — wraps WS lifecycle + SDK bootstrap; takes the local `configureBackendClient` as a `configure` prop.
 
-[thefactory-overseer-web](../../thefactory-overseer-web) has been rewired:
+Cross-client landing (non-negotiable per the parity mandate — same release window):
 
-- `src/api/WsClient.ts` + `src/api/errorMessage.ts` deleted; `src/api/helpers.ts` trimmed to only the SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`).
-- `src/core/contexts/AuthContext.tsx` is a thin wrapper injecting a `localStorage`-backed `TokenStorage` adapter (with the existing `VITE_BEARER_TOKEN` env-var fallback).
-- `src/core/contexts/ApiContext.tsx` is a thin wrapper passing the local `configureBackendClient` to the headless provider. All 85 web unit tests still pass.
-
-Remaining work (the SDK-coupled half):
-
-- **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`. The `openapi-ts.config.ts` and `generate:backend` script move here; each client deletes its in-repo `src/generated/backend/` and the script from its `package.json`. Mobile flagged this as the blocker for its own `bootstrap` / `types` lift.
-- **`bootstrap`, `types`, SDK-typed `helpers`** — depend on the generated client (`isTestRun`, `isCoverage`, `isGrepHit`, `LastTestsRunRaw`, `LastCoverageRaw`, `GrepHit`, `GrepResult`). Land together with the codegen move.
-
-Cross-client landing for the remaining work (non-negotiable per the parity mandate — same release window):
-
-- [thefactory-overseer-web](../../thefactory-overseer-web): delete the rest of `src/api/` + `src/generated/backend/` once codegen lives here.
-- [overseer-local](../../overseer-local) (desktop): supply the `safeStorage`-backed `TokenStorage` adapter that drives the existing `auth:get|set|clear` IPC; consume `ApiProvider` + `useApi` from this package; delete the duplicated SDK once codegen lives here.
+- [overseer-local](../../overseer-local) (desktop): supply the `safeStorage`-backed `TokenStorage` adapter that drives the existing `auth:get|set|clear` IPC; consume `ApiProvider` + `useApi`; delete the duplicated SDK + `generate:backend` script.
 - [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume `AuthProvider` + `ApiProvider` from day one; supply the `SecureStore` / MMKV-backed `TokenStorage` adapter.
 
-Each client keeps only its first-run / login screen (presentation only) and its `TokenStorage` adapter. Drop any per-client `npm run generate:backend` script — codegen runs here.
+Each client keeps only its first-run / login screen (presentation only) and its `TokenStorage` adapter.
 
 Architectural note: the generated SDK is technically a backend artifact and would live most cleanly in a dedicated `thefactory-backend-client` npm package. We accept placing it under `thefactory-ui/headless/api/` to avoid package proliferation; revisit only if the boundary becomes noisy.
 
@@ -103,5 +78,5 @@ Architectural note: the generated SDK is technically a backend artifact and woul
 - Storybook. Visual verification stays `npm run build` + `playground/` smoke run + consumer integration. RN consumers verify in EAS Build + simulator.
 - A web↔native style-conversion CLI. The two platforms write their own peers; they don't share a single source for layout. Tokens are shared, components aren't.
 - A single CSS bundle that works in both web and native. The styling pipelines stay separate (`src/web/styles/*.css` + Tailwind v4 on web; NativeWind on native).
-- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §B.2.
+- Promoting `MergeConflictResolver` or `DiffViewer` to native before a real RN consumer asks. See §A.
 - A second design system. The whole point of this package is one set of tokens + components across desktop, web, and mobile.
