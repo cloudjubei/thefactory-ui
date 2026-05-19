@@ -202,6 +202,12 @@ export {
   type ThinkingRowProps,
 } from './compound/chat/ThinkingRow'
 
+// Status / shell compounds
+export {
+  default as DisconnectedBanner,
+  type DisconnectedBannerProps,
+} from './compound/DisconnectedBanner'
+
 // Chat-view domain types (re-exported from headless for convenience)
 export type {
   ChatContextLike,

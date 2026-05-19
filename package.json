@@ -56,6 +56,8 @@
     "dev": "tsup --watch",
     "playground:dev": "vite playground",
     "playground": "npm run build && vite build playground && vite preview playground",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -103,7 +105,8 @@
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.6"
+    "vite": "^7.1.6",
+    "vitest": "^4.1.6"
   },
   "engines": {
     "node": ">=20"

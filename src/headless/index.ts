@@ -159,6 +159,7 @@ export {
   type StoriesViewMode,
   type UserPreferences,
 } from './types/settings'
+export { mergeSettings } from './utils/settings'
 
 // Path / file-type helpers
 export {
