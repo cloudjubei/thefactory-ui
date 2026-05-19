@@ -1,7 +1,24 @@
-// SDK-independent boundary helpers shared between web's hey-api client and
-// any other consumer of `thefactory-backend`. The narrower SDK-typed helpers
-// (`isTestRun`, `isCoverage`, `isGrepHit`) stay co-located with the generated
-// client in each consumer for now and lift once the SDK itself does.
+// Boundary helpers around the generated SDK. Includes SDK-typed predicates
+// (`isTestRun`, `isCoverage`, `isGrepHit`) alongside the SDK-independent
+// helpers every consumer of `thefactory-backend` shares.
+
+import type { CoverageResult, TestsResult } from './generated'
+import type { GrepHit, GrepResult, LastCoverageRaw, LastTestsRunRaw } from './sdkTypes'
+
+/** True when a `last-*` test endpoint returned a real run (not the empty placeholder). */
+export function isTestRun(value: LastTestsRunRaw): value is TestsResult {
+  return typeof value === 'object' && value !== null && 'status' in value && 'tests' in value
+}
+
+/** True when the `last-coverage` endpoint returned a real coverage report. */
+export function isCoverage(value: LastCoverageRaw): value is CoverageResult {
+  return typeof value === 'object' && value !== null && 'status' in value && 'files' in value
+}
+
+/** True when a single grep entry succeeded (vs. errored on its target file). */
+export function isGrepHit(result: GrepResult): result is GrepHit {
+  return 'matches' in result
+}
 
 /**
  * Several git endpoints wrap their data in a per-call envelope:

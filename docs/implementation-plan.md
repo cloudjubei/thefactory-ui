@@ -69,21 +69,30 @@ Remaining:
 
 ### 4. Promote backend API client + auth contexts into `headless/`
 
-The shared spine for talking to `thefactory-backend`. The SDK-independent slice has shipped — `WsClient`, `extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`, `ServerError` now live under `src/headless/api/` and are exposed via the `'thefactory-ui/headless/api'` subpath as well as the main `'thefactory-ui/headless'` barrel. [thefactory-overseer-web](../../thefactory-overseer-web) has been rewired: `src/api/WsClient.ts` + `src/api/errorMessage.ts` are deleted and the trimmed `src/api/helpers.ts` keeps only the SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`). The `reconnecting-websocket` runtime dep moved into this package.
+Landed so far in `src/headless/api/` (exposed via `'thefactory-ui/headless/api'` and the main `'thefactory-ui/headless'` barrel):
+
+- `WsClient`, `extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`, `ServerError` — SDK-independent transport + error helpers. `reconnecting-websocket` is now a dependency of this package.
+- `AuthProvider` + `useAuth` + `TokenStorage` adapter shape — same React surface as web's `AuthContext`. Consumers wire their own storage (`localStorage` on web, `safeStorage` IPC on desktop, `expo-secure-store` / MMKV on mobile).
+- `ApiProvider` + `useApi` + `ConfigureBackendClient` callback shape — wraps the WS lifecycle and accepts a per-client `configure` callback that bootstraps the SDK (so the SDK relocation below can land independently).
+
+[thefactory-overseer-web](../../thefactory-overseer-web) has been rewired:
+
+- `src/api/WsClient.ts` + `src/api/errorMessage.ts` deleted; `src/api/helpers.ts` trimmed to only the SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`).
+- `src/core/contexts/AuthContext.tsx` is a thin wrapper injecting a `localStorage`-backed `TokenStorage` adapter (with the existing `VITE_BEARER_TOKEN` env-var fallback).
+- `src/core/contexts/ApiContext.tsx` is a thin wrapper passing the local `configureBackendClient` to the headless provider. All 85 web unit tests still pass.
 
 Remaining work (the SDK-coupled half):
 
-- **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`. The `openapi-ts.config.ts` and `generate:backend` script move here; each client deletes its in-repo `src/generated/backend/` and the script from its `package.json`.
+- **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`. The `openapi-ts.config.ts` and `generate:backend` script move here; each client deletes its in-repo `src/generated/backend/` and the script from its `package.json`. Mobile flagged this as the blocker for its own `bootstrap` / `types` lift.
 - **`bootstrap`, `types`, SDK-typed `helpers`** — depend on the generated client (`isTestRun`, `isCoverage`, `isGrepHit`, `LastTestsRunRaw`, `LastCoverageRaw`, `GrepHit`, `GrepResult`). Land together with the codegen move.
-- **`AuthContext`, `ApiContext`** — same React surface across clients. Storage is injected via a `TokenStorage` adapter passed to `AuthProvider`: `localStorage` on web, `safeStorage` IPC on desktop, `SecureStore` on mobile.
 
 Cross-client landing for the remaining work (non-negotiable per the parity mandate — same release window):
 
-- [thefactory-overseer-web](../../thefactory-overseer-web): delete the rest of `src/api/`, `src/generated/backend/`, `src/core/contexts/AuthContext.tsx`, `src/core/contexts/ApiContext.tsx`; supply the `localStorage`-backed `TokenStorage` adapter.
-- [overseer-local](../../overseer-local) (desktop): same deletions under `src/renderer/src/`; supply the `safeStorage`-backed adapter that drives the existing `auth:get|set|clear` IPC.
-- [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume from day one; supply the `SecureStore`-backed adapter.
+- [thefactory-overseer-web](../../thefactory-overseer-web): delete the rest of `src/api/` + `src/generated/backend/` once codegen lives here.
+- [overseer-local](../../overseer-local) (desktop): supply the `safeStorage`-backed `TokenStorage` adapter that drives the existing `auth:get|set|clear` IPC; consume `ApiProvider` + `useApi` from this package; delete the duplicated SDK once codegen lives here.
+- [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume `AuthProvider` + `ApiProvider` from day one; supply the `SecureStore` / MMKV-backed `TokenStorage` adapter.
 
-Each client keeps only its first-run / login screen (presentation only) and its 3-line `TokenStorage` adapter. Drop any per-client `npm run generate:backend` script — codegen runs here.
+Each client keeps only its first-run / login screen (presentation only) and its `TokenStorage` adapter. Drop any per-client `npm run generate:backend` script — codegen runs here.
 
 Architectural note: the generated SDK is technically a backend artifact and would live most cleanly in a dedicated `thefactory-backend-client` npm package. We accept placing it under `thefactory-ui/headless/api/` to avoid package proliferation; revisit only if the boundary becomes noisy.
 

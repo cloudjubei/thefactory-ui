@@ -193,9 +193,11 @@ export type {
   ToolResultTypeLike,
 } from './utils/chatTypes'
 
-// Backend API client (WsClient + SDK-independent error/helper utilities).
-// SDK-specific parts (generated hey-api client, test-run / coverage / grep
-// helpers) lift here once codegen relocates from each consumer repo.
+// Backend API client (WsClient + SDK-independent error/helper utilities +
+// auth / api context providers with adapter hooks for storage / SDK
+// configuration). SDK-specific parts (generated hey-api client, test-run /
+// coverage / grep helpers) lift here once codegen relocates from each
+// consumer repo.
 export {
   WsClient,
   type WsClientOptions,
@@ -209,3 +211,18 @@ export {
   unwrapGitEnvelope,
   type ServerError,
 } from './api/helpers'
+export {
+  AuthProvider,
+  useAuth,
+  type AuthContextValue,
+  type AuthProviderProps,
+  type TokenStorage,
+} from './api/AuthContext'
+export {
+  ApiProvider,
+  useApi,
+  type ApiContextValue,
+  type ApiProviderProps,
+  type ConfigureBackendClient,
+  type ConfigureBackendClientOptions,
+} from './api/ApiContext'
