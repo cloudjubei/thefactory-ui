@@ -34,7 +34,6 @@ export {
   useApi,
   type ApiContextValue,
   type ApiProviderProps,
-  type ConfigureBackendClient,
   type ConfigureBackendClientOptions,
 } from './ApiContext'
 

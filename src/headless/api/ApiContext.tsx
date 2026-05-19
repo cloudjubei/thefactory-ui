@@ -8,15 +8,13 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
+import { configureBackendClient } from './bootstrap'
 import { WsClient, type WsConnectionState } from './WsClient'
 
 /**
- * Configuration handed to the SDK-specific bootstrap. The HTTP-client
- * configuration lives per-client because the generated hey-api client is
- * not (yet) part of this package — see `thefactory-ui/docs/implementation-plan.md`
- * §B.4. Web / desktop / mobile each pass their own `configure` callback
- * that wires `getToken` + the 401 callbacks into the local SDK instance,
- * and returns a teardown.
+ * Configuration accepted by `configureBackendClient` — exported for callers
+ * that want to wire the SDK manually (e.g. a non-React boot path). Inside
+ * this package, `ApiProvider` handles the wiring on render.
  */
 export interface ConfigureBackendClientOptions {
   baseUrl: string
@@ -24,8 +22,6 @@ export interface ConfigureBackendClientOptions {
   onUnauthorized: () => void
   onAuthorized: () => void
 }
-
-export type ConfigureBackendClient = (opts: ConfigureBackendClientOptions) => () => void
 
 export interface ApiContextValue {
   ws: WsClient
@@ -35,55 +31,45 @@ export interface ApiContextValue {
 const ApiContext = createContext<ApiContextValue | null>(null)
 
 export interface ApiProviderProps {
-  apiBaseUrl: string
-  wsBaseUrl: string
-  /** Called once on mount; returns a teardown invoked on unmount. */
-  configure: ConfigureBackendClient
+  /**
+   * HTTP base URL for the generated SDK. `null` skips SDK configuration —
+   * use this when the backend URL is user-configured and hasn't been
+   * supplied yet (e.g. desktop's pre-login state).
+   */
+  apiBaseUrl: string | null
+  /** WebSocket base URL. `null` keeps the socket idle. */
+  wsBaseUrl: string | null
   children: ReactNode
 }
 
-export function ApiProvider({
-  apiBaseUrl,
-  wsBaseUrl,
-  configure,
-  children,
-}: ApiProviderProps) {
+export function ApiProvider({ apiBaseUrl, wsBaseUrl, children }: ApiProviderProps) {
   const { token, markUnauthorized, clearUnauthorized } = useAuth()
   const [wsState, setWsState] = useState<WsConnectionState>('idle')
 
-  // Current auth is held in a ref so one-time-constructed clients and
-  // resolvers can read the latest values without reconstruction.
   const authRef = useRef({ token, markUnauthorized, clearUnauthorized })
   authRef.current = { token, markUnauthorized, clearUnauthorized }
 
-  // The HTTP client is configured during render (not in a useEffect) because
-  // React fires useEffects child-first. If we configured in an effect, child
-  // data providers would fire their refresh effects — and HTTP calls — before
-  // this provider's effect set the axios baseURL, sending the first request
-  // to the wrong origin. Inline configuration guarantees the SDK is ready
-  // before any child renders or mounts.
-  //
-  // No cleanup-on-unmount: `configure` is idempotent (ejects old interceptors
-  // before installing new) and lives on the module-level singleton client.
-  // Calling teardown on unmount would, under StrictMode's mount→unmount→mount
-  // cycle, eject the interceptors without a follow-up render to reinstall
-  // them — leaving the SDK silently unauthenticated. The next mount of
-  // ApiProvider re-runs configure, which ejects any stragglers.
-  const sdkRef = useRef<{ baseUrl: string } | null>(null)
-  if (sdkRef.current?.baseUrl !== apiBaseUrl) {
-    configure({
+  // SDK is configured inline (not in a useEffect) so child providers mounted
+  // in the same render cycle observe a configured SDK before their effects
+  // fire HTTP calls. Effects run child-first, so a useEffect here would lose
+  // the race the first time `apiBaseUrl` transitions from null → real.
+  // `configureBackendClient` is idempotent (ejects prior interceptors before
+  // installing new), so calling it on every change is safe.
+  const configuredBaseUrlRef = useRef<string | null>(null)
+  if (apiBaseUrl && apiBaseUrl !== configuredBaseUrlRef.current) {
+    configureBackendClient({
       baseUrl: apiBaseUrl,
       getToken: () => authRef.current.token,
       onUnauthorized: () => authRef.current.markUnauthorized(),
       onAuthorized: () => authRef.current.clearUnauthorized(),
     })
-    sdkRef.current = { baseUrl: apiBaseUrl }
+    configuredBaseUrlRef.current = apiBaseUrl
   }
 
   const ws = useMemo(
     () =>
       new WsClient({
-        baseUrl: wsBaseUrl,
+        baseUrl: wsBaseUrl ?? '',
         getToken: () => authRef.current.token,
         onStateChange: setWsState,
       }),
@@ -91,13 +77,13 @@ export function ApiProvider({
   )
 
   useEffect(() => {
-    if (!token) {
+    if (!wsBaseUrl || !token) {
       ws.disconnect()
       return
     }
     ws.connect()
     return () => ws.disconnect()
-  }, [token, ws])
+  }, [token, ws, wsBaseUrl])
 
   const value = useMemo<ApiContextValue>(() => ({ ws, wsState }), [ws, wsState])
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>

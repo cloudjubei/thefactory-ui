@@ -34,6 +34,7 @@ Pieces waiting on a real second consumer or an external trigger. Don't preemptiv
 - **`FeatureForm`** native peer — the headless `useFeatureForm` hook already lives in `headless/`; the web peer doesn't ship a `FeatureForm.tsx` yet. Skip until web ships it.
 - **Markdown rendering** in native chat — `SystemPromptBubble` / `ThinkingRow` / `MessageRow` render content as plain `Text` on RN. Lift to a real Markdown native peer (`react-native-markdown-display` is the leading option) when content fidelity becomes load-bearing.
 - **Diff / merge** (`DiffViewer`, `MergeConflictResolver`) native peers — stay web-only. The conflict-safe editing flow in [thefactory-overseer-web/docs/implementation-plan.md § B](../../thefactory-overseer-web/docs/implementation-plan.md) is the natural pull-forward trigger.
+- **Lift `WsClient.test.ts` into this package.** Currently lives in [overseer-local](../../overseer-local) (`src/renderer/src/test/WsClient.test.ts`) because desktop already has a vitest setup; web's equivalent test was dropped when its `src/api/` directory was deleted. The test imports `WsClient` from `'thefactory-ui/headless/api'` and the package consumer's vitest mocks `reconnecting-websocket`. Once `thefactory-ui` grows its own vitest config (a one-time chore — devDeps, config, `test` script), move the file here and drop the `reconnecting-websocket` dep + the resolver alias from desktop. Trigger: any second headless-only test would justify the vitest setup.
 
 ---
 
@@ -50,24 +51,23 @@ When a real RN consumer needs a web compound, write the native peer in `src/nati
 - `docs/ARCHITECTURE.md` — drop the `_(future)_` tag on the `native` row of the layer table now that `src/native/` exists with primitives.
 - `README.md` — add a "Use from React Native" section pointing at `'thefactory-ui/native'` + the NativeWind setup snippet (consumers add `node_modules/thefactory-ui/dist/native/**/*.{js,mjs}` to their Tailwind `content` array; `@import 'thefactory-ui/native/styles'` in their NativeWind-processed CSS provides the token variables).
 
-### 3. Cross-client cutover to `'thefactory-ui/headless/api'`
+### 3. Mobile cutover to `'thefactory-ui/headless/api'`
 
 The full backend client lives in `src/headless/api/` and is the only thing frontend clients should reach for. What ships from `'thefactory-ui/headless/api'`:
 
 - **Generated SDK** — output of `@hey-api/openapi-ts` against `thefactory-backend/swagger/swagger.json`, written to `src/headless/api/generated/`. Re-exported wholesale; codegen runs here (`npm run generate:backend`).
-- **`configureBackendClient({ baseUrl, getToken, onUnauthorized, onAuthorized })`** — wires the generated client's `setConfig` + a single 401 interceptor.
+- **`configureBackendClient({ baseUrl, getToken, onUnauthorized, onAuthorized })`** — wires the generated client's `setConfig` + a request interceptor that stamps `Authorization: Bearer <token>` and strips axios's `auth` field (so the xhr adapter doesn't synthesise a Basic header), plus a 401 response interceptor.
 - **`sdkTypes`** — friendly aliases over the generated shapes (`ChatMessage`, request-body inputs, envelope-unwrapped Git types, hand-written WS payload shapes for `tests:progress` / `ingestion:progress`, `ToolDescriptor`, `PricingSnapshot`, …).
 - **`helpers`** — SDK-typed predicates (`isTestRun`, `isCoverage`, `isGrepHit`) + SDK-independent transport helpers (`extractErrorMessage`, `unwrapGitEnvelope`, `getResponseDataMessage`, `extractServerError`).
 - **`WsClient`** + reconnecting-websocket lifecycle.
 - **`AuthProvider` + `useAuth` + `TokenStorage`** — consumers supply their own storage adapter.
-- **`ApiProvider` + `useApi`** — wraps WS lifecycle + SDK bootstrap; takes the local `configureBackendClient` as a `configure` prop.
+- **`ApiProvider` + `useApi`** — wraps WS lifecycle + SDK bootstrap. Takes `apiBaseUrl: string | null` + `wsBaseUrl: string | null`; `null` keeps the SDK unconfigured and the socket idle (used by clients whose backend URL is user-supplied at runtime).
 
-Cross-client landing (non-negotiable per the parity mandate — same release window):
+[thefactory-overseer-mobile](../../thefactory-overseer-mobile) is the remaining client to land:
 
-- [overseer-local](../../overseer-local) (desktop): supply the `safeStorage`-backed `TokenStorage` adapter that drives the existing `auth:get|set|clear` IPC; consume `ApiProvider` + `useApi`; delete the duplicated SDK + `generate:backend` script.
-- [thefactory-overseer-mobile](../../thefactory-overseer-mobile): consume `AuthProvider` + `ApiProvider` from day one; supply the `SecureStore` / MMKV-backed `TokenStorage` adapter.
-
-Each client keeps only its first-run / login screen (presentation only) and its `TokenStorage` adapter.
+- Consume `AuthProvider` + `ApiProvider` from `'thefactory-ui/headless/api'` from day one.
+- Supply a `SecureStore` / MMKV-backed `TokenStorage` adapter.
+- The mobile app's first-run / login screen is the only presentation it owns; everything else flows from headless.
 
 Architectural note: the generated SDK is technically a backend artifact and would live most cleanly in a dedicated `thefactory-backend-client` npm package. We accept placing it under `thefactory-ui/headless/api/` to avoid package proliferation; revisit only if the boundary becomes noisy.
 
