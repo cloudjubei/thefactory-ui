@@ -21,6 +21,10 @@ export interface ChatInputProps {
   onAbort?: () => void
   isThinking?: boolean
   isConfigured?: boolean
+  /** When true, the backend WS is disconnected: sending is blocked but the
+   *  input stays editable so the user can compose while the client
+   *  reconnects. The host surfaces the "why" via its disconnected banner. */
+  disconnected?: boolean
 
   /** Suggested quick-reply chips from the last assistant turn. */
   suggestedActions?: string[]
@@ -48,6 +52,7 @@ export default function ChatInput({
   onAbort,
   isThinking = false,
   isConfigured = true,
+  disconnected = false,
   suggestedActions,
   onPickAttachment,
   autoFocus = false,
@@ -64,8 +69,8 @@ export default function ChatInput({
   }, [autoFocus])
 
   const canSend = useMemo(
-    () => value.trim().length > 0 && !isThinking && !submitting && isConfigured,
-    [value, isThinking, submitting, isConfigured],
+    () => value.trim().length > 0 && !isThinking && !submitting && isConfigured && !disconnected,
+    [value, isThinking, submitting, isConfigured, disconnected],
   )
 
   const send = useCallback(
@@ -207,7 +212,7 @@ export default function ChatInput({
             accessibilityRole="button"
             accessibilityLabel="Attach a file"
             onPress={onPickAttachment}
-            disabled={isThinking || !isConfigured}
+            disabled={isThinking || !isConfigured || disconnected}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -215,7 +220,7 @@ export default function ChatInput({
               justifyContent: 'center',
               borderRadius: nativeRadii[2],
               backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
-              opacity: isThinking || !isConfigured ? 0.4 : 1,
+              opacity: isThinking || !isConfigured || disconnected ? 0.4 : 1,
             })}
           >
             <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>📎</Text>
