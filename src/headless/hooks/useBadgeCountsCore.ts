@@ -103,8 +103,7 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
         }
         if (!anyThinking && c.isThinking) anyThinking = true
       }
-      out.chat =
-        input.chatBadgeCountMode === 'total_messages' ? totalUnread : chatsWithUnread
+      out.chat = input.chatBadgeCountMode === 'total_messages' ? totalUnread : chatsWithUnread
       out.chatThinking = anyThinking
     }
 

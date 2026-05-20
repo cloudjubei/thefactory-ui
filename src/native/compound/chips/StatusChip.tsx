@@ -51,9 +51,7 @@ export default function StatusChip({ state, label }: StatusChipProps) {
   const colors = STATE_COLORS[state]
   return (
     <Tooltip
-      content={
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>{text}</Text>
-      }
+      content={<Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>{text}</Text>}
     >
       <View
         accessibilityLabel={text}

@@ -114,13 +114,15 @@ function PickerItem({
             : 'transparent',
       })}
     >
-      <View
-        style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }}
-      />
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text
           numberOfLines={1}
-          style={{ fontSize: 14, fontWeight: selected ? '600' : '400', color: nativeLightTheme.text.primary }}
+          style={{
+            fontSize: 14,
+            fontWeight: selected ? '600' : '400',
+            color: nativeLightTheme.text.primary,
+          }}
         >
           {cfg.name ?? cfg.model ?? cfg.id}
         </Text>
@@ -133,9 +135,7 @@ function PickerItem({
           {formatUSD(price.inputPerMTokensUSD)} in · {formatUSD(price.outputPerMTokensUSD)} out
         </Text>
       )}
-      {selected && (
-        <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>
-      )}
+      {selected && <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>}
     </Pressable>
   )
 }
@@ -154,7 +154,9 @@ export function ModelChip({
   getPrice,
 }: ModelChipProps) {
   const [open, setOpen] = useState(false)
-  const [pricesByKey, setPricesByKey] = useState<Record<string, ModelPriceRecord | null | undefined>>({})
+  const [pricesByKey, setPricesByKey] = useState<
+    Record<string, ModelPriceRecord | null | undefined>
+  >({})
 
   let prov = providerLabel(provider)
   let displayModel = model
@@ -218,9 +220,7 @@ export function ModelChip({
           opacity: pressed ? 0.8 : 1,
         })}
       >
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>
-          Configure LLM…
-        </Text>
+        <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>Configure LLM…</Text>
       </Pressable>
     )
   }
@@ -353,9 +353,7 @@ export function ModelChip({
                   backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
                 })}
               >
-                <Text
-                  style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}
-                >
+                <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
                   Manage LLM Configurations…
                 </Text>
               </Pressable>

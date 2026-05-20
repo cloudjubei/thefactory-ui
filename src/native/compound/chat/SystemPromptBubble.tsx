@@ -1,11 +1,7 @@
 import { memo } from 'react'
 import { ScrollView, Text, View } from 'react-native'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../../tokens/native'
+import Markdown from '../Markdown'
+import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 
 export interface SystemPromptBubbleProps {
   content: string
@@ -13,8 +9,6 @@ export interface SystemPromptBubbleProps {
   maxHeight?: number
 }
 
-// Markdown rendering is plain-text on RN until a native Markdown peer lands;
-// see the chat batch in implementation-plan.md.
 function SystemPromptBubble({ content, timestamp, maxHeight }: SystemPromptBubbleProps) {
   return (
     <View style={{ alignItems: 'center' }}>
@@ -48,7 +42,7 @@ function SystemPromptBubble({ content, timestamp, maxHeight }: SystemPromptBubbl
             ...nativeShadows[1],
           }}
         >
-          <Text style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>{content}</Text>
+          <Markdown text={content} />
         </ScrollView>
       </View>
     </View>

@@ -33,7 +33,13 @@ export default defineConfig({
   target: 'es2022',
   splitting: true,
   treeshake: true,
-  external: ['react', 'react-dom', 'react-native'],
+  external: [
+    'react',
+    'react-dom',
+    'react-native',
+    'react-native-markdown-display',
+    'react-native-syntax-highlighter',
+  ],
   esbuildOptions(options) {
     options.jsx = 'automatic'
   },

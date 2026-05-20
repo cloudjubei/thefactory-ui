@@ -70,12 +70,7 @@ function findContent(children: ReactNode): ReactNode | null {
   return found
 }
 
-export function Select({
-  value: controlled,
-  defaultValue,
-  onValueChange,
-  children,
-}: SelectProps) {
+export function Select({ value: controlled, defaultValue, onValueChange, children }: SelectProps) {
   const [internal, setInternal] = useState<string | undefined>(defaultValue)
   const [open, setOpen] = useState(false)
 
@@ -322,9 +317,7 @@ export function SelectItem({ value, children, disabled = false, className }: Sel
           children
         )}
       </View>
-      {active && (
-        <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>
-      )}
+      {active && <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>}
     </Pressable>
   )
 }

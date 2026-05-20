@@ -54,10 +54,7 @@ export {
   type UseTooltipState,
   type UseTooltipStateOptions,
 } from './hooks/useTooltipState'
-export {
-  useStorageBackedState,
-  type SyncKVStorage,
-} from './hooks/useStorageBackedState'
+export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
 export {
   useToastQueue,
   type ToastAction,
@@ -161,6 +158,17 @@ export {
 } from './types/settings'
 export { mergeSettings } from './utils/settings'
 
+// Flat-path → directory-aware tree builder used by the FileTree compound on
+// web + native. Cross-client lift from
+// thefactory-overseer-web/src/core/files/fileTree.ts.
+export {
+  buildFileTree,
+  filterFileTree,
+  type DirNode,
+  type FileNode,
+  type TreeNode,
+} from './utils/fileTree'
+
 // Path / file-type helpers
 export {
   extFromTypeOrName,
@@ -171,16 +179,28 @@ export {
 } from './utils/path'
 
 // Rich-text tokeniser (@file + #dep mentions)
+export { tokenizeRichText, type RichTextSegment } from './utils/richTextTokenize'
+
+// `@file` mention + `#dep` reference parsers (shared between web's
+// `FileMentionsTextarea` and the native peer via `useFileMentions`).
+export { applyMention, parseMention, rankMentionMatches, type MentionParse } from './utils/mention'
 export {
-  tokenizeRichText,
-  type RichTextSegment,
-} from './utils/richTextTokenize'
+  applyReference,
+  parseReference,
+  type ReferenceParse,
+  type ReferenceSuggestion,
+} from './utils/reference'
+
+// `useFileMentions` — caret-tracking + accept-suggestion state machine
+// consumed by web's `FileMentionsTextarea` and the native peer.
+export {
+  useFileMentions,
+  type UseFileMentions,
+  type UseFileMentionsOptions,
+} from './hooks/useFileMentions'
 
 // File-extension → renderer-kind classifier (markdown / html / image / pdf / text / binary).
-export {
-  classifyFileByExtension,
-  type FilePaneKind,
-} from './utils/filePaneKind'
+export { classifyFileByExtension, type FilePaneKind } from './utils/filePaneKind'
 
 // Chat-view domain types (shared between web and native chat compounds)
 export type {

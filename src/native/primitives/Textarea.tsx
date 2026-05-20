@@ -1,15 +1,12 @@
 import { forwardRef, useState } from 'react'
 import { TextInput } from 'react-native'
 import type { StyleProp, TextStyle, TextInput as RNTextInput, TextInputProps } from 'react-native'
-import {
-  nativeLightStatus,
-  nativeLightTheme,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightStatus, nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
 
-export interface TextareaProps
-  extends Omit<TextInputProps, 'multiline' | 'numberOfLines' | 'style' | 'editable'> {
+export interface TextareaProps extends Omit<
+  TextInputProps,
+  'multiline' | 'numberOfLines' | 'style' | 'editable'
+> {
   invalid?: boolean
   /** Initial height in lines. Android honours via `numberOfLines`; iOS
    * approximates via `minHeight`. */

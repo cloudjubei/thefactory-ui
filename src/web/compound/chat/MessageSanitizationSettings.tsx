@@ -11,9 +11,7 @@ export type MessageSanitization = {
 
 export type MessageSanitizationSettingsProps = {
   messageSanitization?: MessageSanitization
-  persistSettings: (patch: {
-    messageSanitization?: MessageSanitization
-  }) => Promise<void> | void
+  persistSettings: (patch: { messageSanitization?: MessageSanitization }) => Promise<void> | void
 }
 
 /**
@@ -31,9 +29,7 @@ export default function MessageSanitizationSettings({
     <div className="space-y-3 pt-2 border-t border-(--border-subtle)">
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-xs font-medium text-(--text-secondary)">
-            Message sanitization
-          </span>
+          <span className="text-xs font-medium text-(--text-secondary)">Message sanitization</span>
           <span className="text-[10px] text-(--text-tertiary)">
             Clamp very large tool outputs/arguments before sending to the LLM
           </span>
@@ -54,10 +50,7 @@ export default function MessageSanitizationSettings({
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <label
-            className="text-xs font-medium text-(--text-secondary)"
-            htmlFor="keepLastMessages"
-          >
+          <label className="text-xs font-medium text-(--text-secondary)" htmlFor="keepLastMessages">
             Keep last messages:
             <span className="pl-4 text-[14px] text-(--text-secondary)">{effectiveKeepLast}</span>
           </label>

@@ -1,12 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { tokenizeRichText } from '../../../headless/utils/richTextTokenize'
-import {
-  nativeLightTheme,
-  nativePalette,
-  nativeRadii,
-  nativeSpace,
-} from '../../../tokens/native'
+import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 
 export interface RichTextProps {
@@ -34,10 +29,7 @@ export default function RichText({ text, onResolveFile, renderDependency }: Rich
       {segments.map((seg, idx) => {
         if (seg.type === 'text') {
           return (
-            <Text
-              key={idx}
-              style={{ fontSize: 14, color: nativeLightTheme.text.primary }}
-            >
+            <Text key={idx} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
               {seg.value}
             </Text>
           )
@@ -45,10 +37,7 @@ export default function RichText({ text, onResolveFile, renderDependency }: Rich
         if (seg.type === 'dep') {
           if (renderDependency) return <View key={idx}>{renderDependency(seg.value)}</View>
           return (
-            <Text
-              key={idx}
-              style={{ fontSize: 14, color: nativeLightTheme.text.primary }}
-            >
+            <Text key={idx} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
               {seg.raw}
             </Text>
           )

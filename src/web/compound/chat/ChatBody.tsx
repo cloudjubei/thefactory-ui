@@ -5,7 +5,11 @@ import MessageList from './MessageList'
 import ToolConfirmationModal from './ToolConfirmationModal'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ToolCall, ToolResultType } from './ToolCall'
-import type { ChatLiveStateLike, ChatMessageLike, PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
+import type {
+  ChatLiveStateLike,
+  ChatMessageLike,
+  PendingToolConfirmationLike,
+} from '../../../headless/utils/chatTypes'
 
 export type ChatBodyProps = {
   /** Stable id for the chat — drives MessageList scroll/visibility resets. */

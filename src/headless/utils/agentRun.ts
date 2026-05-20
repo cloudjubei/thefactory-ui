@@ -61,11 +61,7 @@ export type LLMPriceLike = {
 }
 
 /** Pricing math: USD cost from prompt+completion tokens and per-1M USD prices. */
-export function computeCostUSD(
-  prompt: number,
-  completion: number,
-  price?: LLMPriceLike,
-): number {
+export function computeCostUSD(prompt: number, completion: number, price?: LLMPriceLike): number {
   if (!price) return 0
   const input = price.costInputPerMTokensUSD ?? 0
   const output = price.costOutputPerMTokensUSD ?? 0

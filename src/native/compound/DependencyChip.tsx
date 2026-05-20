@@ -2,12 +2,7 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import Tooltip from '../primitives/Tooltip'
-import {
-  nativeLightTheme,
-  nativePalette,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 
 export type DependencyChipKind = 'story' | 'feature' | 'missing'
 export type DependencyChipVariant = 'ok' | 'blocks' | 'missing'

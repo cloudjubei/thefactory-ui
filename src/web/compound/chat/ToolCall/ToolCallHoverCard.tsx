@@ -49,8 +49,7 @@ export default function ToolCallHoverCard({
   variant = 'default',
 }: ToolCallHoverCardProps) {
   const [sideBySide, setSideBySide] = useState(false)
-  const widthClass =
-    variant === 'small' ? 'min-w-[120px] max-w-[70vw]' : 'w-[480px] max-w-[70vw]'
+  const widthClass = variant === 'small' ? 'min-w-[120px] max-w-[70vw]' : 'w-[480px] max-w-[70vw]'
 
   return (
     <div

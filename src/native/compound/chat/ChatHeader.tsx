@@ -1,10 +1,6 @@
-import type { ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeSpace,
-} from '../../../tokens/native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Animated, Pressable, Text, View, type LayoutChangeEvent } from 'react-native'
+import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export interface ChatHeaderProps {
   isCollapsible?: boolean
@@ -28,10 +24,20 @@ export interface ChatHeaderProps {
   isRunningAgent?: boolean
 
   modelChip?: ReactNode
-  /** Settings dropdown rendered beneath the icon row; host owns its state. */
+  /** Slot rendered immediately below the row. Hosts thread a bottom-sheet
+   *  trigger here on RN — the sheet itself is rendered as a sibling of the
+   *  `<ChatHeader>`, not inside it. */
   settingsDropdown?: ReactNode
   /** Optional slot rendered to the far right (after settings). */
   extraRight?: ReactNode
+
+  /** Auto-hide on scroll. When `true`, the compound slides its full height
+   *  off the top of the viewport over 200ms via `translateY`. Consumers
+   *  toggle this from their scroll handler — see the mobile chat session
+   *  view for the canonical wiring. The space the header would occupy is
+   *  preserved (the underlying wrapper keeps `height`), so list content
+   *  doesn't reflow when the header hides. */
+  hidden?: boolean
 }
 
 function formatUSD(n?: number): string {
@@ -67,13 +73,23 @@ function IconBtn({
         opacity: onPress ? 1 : 0.4,
       })}
     >
-      <Text style={{ fontSize: 16, color: tint ?? nativeLightTheme.text.secondary }}>
-        {glyph}
-      </Text>
+      <Text style={{ fontSize: 16, color: tint ?? nativeLightTheme.text.secondary }}>{glyph}</Text>
     </Pressable>
   )
 }
 
+/**
+ * Native peer of [web's `ChatHeader`](../../../web/compound/chat/ChatHeader.tsx).
+ * Same prop surface plus a mobile-only `hidden` flag for auto-hide on
+ * scroll — the typical wiring is to detect downward scrolling in the
+ * consumer's `onScroll` and flip the flag.
+ *
+ * Bottom-sheet dropdowns: on RN, dropdown menus are awkward to anchor
+ * accurately, so the convention here is that consumers render the
+ * `settingsDropdown` slot as a `<ChatSettingsDropdown>` bottom sheet
+ * (controlled by `isSettingsOpen`); the slot mounts at the bottom of the
+ * header but the sheet itself overlays the whole screen.
+ */
 export default function ChatHeader({
   isCollapsible,
   onCollapse,
@@ -89,10 +105,27 @@ export default function ChatHeader({
   modelChip,
   settingsDropdown,
   extraRight,
+  hidden = false,
 }: ChatHeaderProps) {
+  const [measuredHeight, setMeasuredHeight] = useState(0)
+  const translateY = useRef(new Animated.Value(0)).current
+  const onLayout = (e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height
+    if (h > 0 && Math.abs(h - measuredHeight) > 0.5) setMeasuredHeight(h)
+  }
+  useEffect(() => {
+    Animated.timing(translateY, {
+      toValue: hidden ? -measuredHeight : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start()
+  }, [hidden, measuredHeight, translateY])
+
   return (
-    <View
+    <Animated.View
+      onLayout={onLayout}
       style={{
+        transform: [{ translateY }],
         borderBottomWidth: 1,
         borderBottomColor: nativeLightTheme.border.subtle,
         backgroundColor: nativeLightTheme.surface.raised,
@@ -107,16 +140,10 @@ export default function ChatHeader({
           gap: nativeSpace[2],
         }}
       >
-        {isCollapsible && (
-          <IconBtn glyph="‹" label="Collapse chat" onPress={onCollapse} />
-        )}
+        {isCollapsible && <IconBtn glyph="‹" label="Collapse chat" onPress={onCollapse} />}
         {contextInfoSlot}
         <IconBtn glyph="📝" label="System prompt" onPress={onOpenPrompt} />
-        <IconBtn
-          glyph={`💲${formatUSD(totalCostUSD)}`}
-          label="Costs"
-          onPress={onOpenCosts}
-        />
+        <IconBtn glyph={`💲${formatUSD(totalCostUSD)}`} label="Costs" onPress={onOpenCosts} />
         {onOpenDynamicContext && (
           <IconBtn glyph="📜" label="Dynamic context" onPress={onOpenDynamicContext} />
         )}
@@ -139,6 +166,6 @@ export default function ChatHeader({
         )}
       </View>
       {settingsDropdown}
-    </View>
+    </Animated.View>
   )
 }

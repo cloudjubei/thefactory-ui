@@ -440,15 +440,10 @@ export default function MessageList({
   useEffect(() => {
     setSelectedToolIds([])
   }, [chatId, messagesToDisplay.length])
-  const toggleToolSelected = useCallback(
-    (id: string) => {
-      if (!id) return
-      setSelectedToolIds((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-      )
-    },
-    [],
-  )
+  const toggleToolSelected = useCallback((id: string) => {
+    if (!id) return
+    setSelectedToolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }, [])
 
   // Pre-applied preview cache for `require_confirmation` tools.
   const [toolPreviewById, setToolPreviewById] = useState<Record<string, unknown>>({})
@@ -479,7 +474,11 @@ export default function MessageList({
       ;(async () => {
         try {
           const res = await previewTool(toolCallId, toolName, m.toolCall?.arguments)
-          if (res && typeof res === 'object' && (res as { type?: string }).type === 'not_supported') {
+          if (
+            res &&
+            typeof res === 'object' &&
+            (res as { type?: string }).type === 'not_supported'
+          ) {
             return
           }
           const patch = typeof res === 'string' ? res : JSON.stringify(res, null, 2)

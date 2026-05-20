@@ -93,10 +93,7 @@ export default function AgentRunRowCard({
         style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.7 : 1 })}
       >
         {typeof target === 'string' ? (
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 14, color: nativeLightTheme.text.primary }}
-          >
+          <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
             {target}
           </Text>
         ) : (
@@ -123,7 +120,9 @@ export default function AgentRunRowCard({
         }}
       >
         <StatusChip state={state} label={state} />
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>{messageCount} msgs</Text>
+        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+          {messageCount} msgs
+        </Text>
         {totalCostUSD > 0 && (
           <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
             ${totalCostUSD.toFixed(4)}

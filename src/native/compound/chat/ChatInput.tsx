@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import type { TextInput as RNTextInput } from 'react-native'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeSpace,
-} from '../../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -86,7 +82,16 @@ export default function ChatInput({
         setSubmitting(false)
       }
     },
-    [onSend, attachments, onChange, onChangeAttachments, isThinking, submitting, isConfigured, clearOnSend],
+    [
+      onSend,
+      attachments,
+      onChange,
+      onChangeAttachments,
+      isThinking,
+      submitting,
+      isConfigured,
+      clearOnSend,
+    ],
   )
 
   const onPressSend = () => void send(value, { reason: 'user' })
@@ -209,9 +214,7 @@ export default function ChatInput({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: nativeRadii[2],
-              backgroundColor: pressed
-                ? nativeLightTheme.surface.muted
-                : 'transparent',
+              backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
               opacity: isThinking || !isConfigured ? 0.4 : 1,
             })}
           >

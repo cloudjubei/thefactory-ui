@@ -1,11 +1,7 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import {
-  extFromTypeOrName,
-  formatBytes,
-  formatFileDate,
-} from '../../../headless/utils/path'
+import { extFromTypeOrName, formatBytes, formatFileDate } from '../../../headless/utils/path'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export interface UikitFileMeta {
@@ -118,10 +114,7 @@ export default function FileDisplay({
         {leadingVisual ?? <Text style={{ fontSize: 18 }}>{glyphFor(file)}</Text>}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: 14, color: nativeLightTheme.text.primary }}
-        >
+        <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
           {file.name}
         </Text>
         {showMeta && (sizeLabel || dateLabel) && (

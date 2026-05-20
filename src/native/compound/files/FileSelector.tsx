@@ -112,9 +112,7 @@ export default function FileSelector({
                       borderColor: isSelected
                         ? nativeLightTheme.accent.primary
                         : nativeLightTheme.border.subtle,
-                      backgroundColor: isSelected
-                        ? nativeLightTheme.accent.primary
-                        : 'transparent',
+                      backgroundColor: isSelected ? nativeLightTheme.accent.primary : 'transparent',
                     }}
                   >
                     {isSelected && (

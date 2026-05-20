@@ -2,12 +2,7 @@ import type { ReactNode } from 'react'
 import { Modal, Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { useTooltipState } from '../../headless/hooks/useTooltipState'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 
 export type TooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
 export type TooltipSideAlign = 'center' | 'start' | 'end'
@@ -59,12 +54,7 @@ export default function Tooltip({
       >
         {children}
       </Pressable>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => hide(true)}
-      >
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => hide(true)}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss tooltip"

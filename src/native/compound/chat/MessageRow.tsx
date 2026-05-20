@@ -1,8 +1,13 @@
 import { memo, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
+import Markdown from '../Markdown'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
-import type { ChatMessageLike, ToolCallLike, ToolResultTypeLike } from '../../../headless/utils/chatTypes'
+import type {
+  ChatMessageLike,
+  ToolCallLike,
+  ToolResultTypeLike,
+} from '../../../headless/utils/chatTypes'
 import {
   nativeLightTheme,
   nativePalette,
@@ -63,9 +68,7 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
     : isTool
       ? nativeLightTheme.surface.overlay
       : nativePalette.blue[50]
-  const fg = isUser
-    ? nativeLightTheme.text.inverted
-    : nativeLightTheme.text.primary
+  const fg = isUser ? nativeLightTheme.text.inverted : nativeLightTheme.text.primary
   const label = isUser ? 'You' : isTool ? '🛠' : 'AI'
   return (
     <View
@@ -293,14 +296,7 @@ function MessageRow({
                 renderDependency={renderDependency}
               />
             ) : (
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: nativeLightTheme.text.primary,
-                }}
-              >
-                {msg.content}
-              </Text>
+              <Markdown text={msg.content} />
             )}
           </View>
         )}

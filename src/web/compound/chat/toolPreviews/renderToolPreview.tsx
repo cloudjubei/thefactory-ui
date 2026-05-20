@@ -1,7 +1,14 @@
 import { type ReactNode } from 'react'
 import Code from '../../Code'
 import type { ToolCall, ToolResultType } from './../ToolCall'
-import { InlineOldNew, NewContentOnly, PreLimited, ReorderList, Row, SectionTitle } from './components'
+import {
+  InlineOldNew,
+  NewContentOnly,
+  PreLimited,
+  ReorderList,
+  Row,
+  SectionTitle,
+} from './components'
 import { PatchPreview, SmallBadge } from './FieldDiff'
 import { WriteMultiToolsPreview } from './WriteMultiToolsPreview'
 import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
@@ -136,7 +143,7 @@ export function renderToolPreview({
   // ---- story / feature update tools ----
   if (name === 'updateStory') {
     const storyId = tryString(extract(args, ['storyId']))
-    const patch = ((extract(args, ['patch']) || {}) as Record<string, unknown>)
+    const patch = (extract(args, ['patch']) || {}) as Record<string, unknown>
     const story = storyId ? hooks?.getStory?.(storyId) : undefined
     const resultObject =
       typeof (result as { patch?: string })?.patch === 'string'
@@ -149,7 +156,9 @@ export function renderToolPreview({
     const nextStory = resultStory ?? (story ? ({ ...story, ...patch } as StoryShape) : undefined)
     const isComplete = !isInFlight
     const completedCard =
-      isComplete && hooks?.renderStoryCard && nextStory ? hooks.renderStoryCard(nextStory) : undefined
+      isComplete && hooks?.renderStoryCard && nextStory
+        ? hooks.renderStoryCard(nextStory)
+        : undefined
     if (!story && !nextStory) {
       return <div className="text-[11px] text-(--text-secondary)">No story data</div>
     }
@@ -168,7 +177,7 @@ export function renderToolPreview({
   if (name === 'updateFeature') {
     const storyId = tryString(extract(args, ['storyId']))
     const featureId = tryString(extract(args, ['featureId']))
-    const patch = ((extract(args, ['patch']) || {}) as Record<string, unknown>)
+    const patch = (extract(args, ['patch']) || {}) as Record<string, unknown>
     const story = storyId ? hooks?.getStory?.(storyId) : undefined
     const feature = storyId && featureId ? hooks?.getFeature?.(storyId, featureId) : undefined
     const resultStory =
@@ -177,7 +186,8 @@ export function renderToolPreview({
         : undefined
     const targetId = feature?.id ?? featureId
     const resultFeature = resultStory?.features?.find((f) => f.id === targetId)
-    const nextFeature = resultFeature ?? (feature ? ({ ...feature, ...patch } as FeatureShape) : undefined)
+    const nextFeature =
+      resultFeature ?? (feature ? ({ ...feature, ...patch } as FeatureShape) : undefined)
     const isComplete = !isInFlight
     const completedCard =
       isComplete && hooks?.renderFeatureCard && story && nextFeature
@@ -217,7 +227,9 @@ export function renderToolPreview({
       <PatchPreview
         headerBadge="story · new"
         headerId={storyInput.id}
-        patchKeys={Object.keys(storyInput).filter((k) => (STORY_FIELDS as readonly string[]).includes(k))}
+        patchKeys={Object.keys(storyInput).filter((k) =>
+          (STORY_FIELDS as readonly string[]).includes(k),
+        )}
         before={undefined}
         after={storyInput as unknown as Record<string, unknown>}
         sideBySide={sideBySide}
@@ -264,9 +276,10 @@ export function renderToolPreview({
     const files: string[] = Array.isArray(extract(args, ['paths']))
       ? (extract(args, ['paths']) as string[])
       : []
-    const resultMap = result && typeof result === 'object' && !Array.isArray(result)
-      ? (result as Record<string, string>)
-      : {}
+    const resultMap =
+      result && typeof result === 'object' && !Array.isArray(result)
+        ? (result as Record<string, string>)
+        : {}
     if (files.length === 0) {
       return <div className="text-[11px] text-(--text-secondary)">No paths</div>
     }
@@ -293,9 +306,10 @@ export function renderToolPreview({
   if (name === 'readFileRanges') {
     const queries = extract(args, ['queries']) as Array<Record<string, unknown>> | undefined
     const safe = Array.isArray(queries) ? queries : []
-    const resultMap = result && typeof result === 'object' && !Array.isArray(result)
-      ? (result as Record<string, string>)
-      : {}
+    const resultMap =
+      result && typeof result === 'object' && !Array.isArray(result)
+        ? (result as Record<string, string>)
+        : {}
     return (
       <div className="text-xs space-y-1">
         {safe.length > 0 ? (
@@ -328,9 +342,10 @@ export function renderToolPreview({
   if (name === 'grepFiles') {
     const queries = extract(args, ['queries']) as Array<Record<string, unknown>> | undefined
     const safe = Array.isArray(queries) ? queries : []
-    const resultMap = result && typeof result === 'object' && !Array.isArray(result)
-      ? (result as Record<string, unknown[]>)
-      : {}
+    const resultMap =
+      result && typeof result === 'object' && !Array.isArray(result)
+        ? (result as Record<string, unknown[]>)
+        : {}
     return (
       <div className="text-xs space-y-2">
         {safe.length > 0 ? (
@@ -342,7 +357,9 @@ export function renderToolPreview({
             return (
               <div key={`${path}-${idx}`} className="space-y-0.5">
                 <Row>
-                  <span className="font-mono text-[11px] break-words">{pattern || '(no pattern)'}</span>
+                  <span className="font-mono text-[11px] break-words">
+                    {pattern || '(no pattern)'}
+                  </span>
                 </Row>
                 <Row className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-mono text-[11px]">{path}</span>
@@ -403,7 +420,8 @@ export function renderToolPreview({
     const order =
       (extract(result, ['order']) ||
         extract(feature, ['order']) ||
-        extract(feature, ['features'])) ?? []
+        extract(feature, ['features'])) ??
+      []
     const movedId = tryString(extract(args, ['featureId']) || extract(result, ['featureId']))
     if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
     return <div className="text-[11px] text-(--text-secondary)">No reorder data</div>
@@ -556,10 +574,7 @@ export function renderToolPreview({
     const includeStructured = extract(options, ['includeStructured'])
 
     const filesRaw =
-      extract(result, ['files']) ??
-      extract(result, ['diffs']) ??
-      extract(result, ['entries']) ??
-      []
+      extract(result, ['files']) ?? extract(result, ['diffs']) ?? extract(result, ['entries']) ?? []
     const files = Array.isArray(filesRaw) ? (filesRaw as Array<Record<string, unknown>>) : []
 
     return (
@@ -600,10 +615,14 @@ export function renderToolPreview({
                     <Row key={`${path}-${idx}`} className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-mono text-[11px]">{path}</span>
                       {typeof added === 'number' ? (
-                        <span className="font-mono text-[11px] text-(--text-secondary)">+{added}</span>
+                        <span className="font-mono text-[11px] text-(--text-secondary)">
+                          +{added}
+                        </span>
                       ) : null}
                       {typeof removed === 'number' ? (
-                        <span className="font-mono text-[11px] text-(--text-secondary)">-{removed}</span>
+                        <span className="font-mono text-[11px] text-(--text-secondary)">
+                          -{removed}
+                        </span>
                       ) : null}
                       {truncated ? (
                         <span className="text-[10px] font-medium text-(--text-secondary)">
@@ -860,9 +879,7 @@ function coerceStoriesList(raw: unknown): StoryShape[] {
   if (!Array.isArray(candidate)) return []
   return candidate.filter(
     (item): item is StoryShape =>
-      !!item &&
-      typeof item === 'object' &&
-      typeof (item as { id?: unknown }).id === 'string',
+      !!item && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string',
   )
 }
 

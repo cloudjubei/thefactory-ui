@@ -47,10 +47,7 @@ Wire NativeWind v4 in your app once, and add the package's compiled output to yo
 // tailwind.config.js
 module.exports = {
   presets: [require('nativewind/preset')],
-  content: [
-    './src/**/*.{ts,tsx}',
-    './node_modules/thefactory-ui/dist/native/**/*.{js,mjs}',
-  ],
+  content: ['./src/**/*.{ts,tsx}', './node_modules/thefactory-ui/dist/native/**/*.{js,mjs}'],
 }
 ```
 

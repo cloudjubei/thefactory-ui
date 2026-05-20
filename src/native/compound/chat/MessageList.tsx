@@ -14,12 +14,7 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 
 const AT_BOTTOM_THRESHOLD = 32
 
@@ -88,8 +83,7 @@ export default function MessageList({
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
-      const distanceFromBottom =
-        contentSize.height - (contentOffset.y + layoutMeasurement.height)
+      const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height)
       const nextAtBottom = distanceFromBottom <= AT_BOTTOM_THRESHOLD
       if (nextAtBottom !== lastAtBottomRef.current) {
         lastAtBottomRef.current = nextAtBottom

@@ -6,9 +6,7 @@ export function Row({ children, className }: { children: ReactNode; className?: 
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <div className="text-[11px] font-semibold text-(--text-secondary) mb-1">{children}</div>
-  )
+  return <div className="text-[11px] font-semibold text-(--text-secondary) mb-1">{children}</div>
 }
 
 export function PreLimited({
@@ -80,26 +78,17 @@ export function NewContentOnly({ text, label }: { text?: string; label?: string 
   )
 }
 
-export function ReorderList({
-  items,
-  movedId,
-}: {
-  items: unknown[]
-  movedId?: string
-}) {
+export function ReorderList({ items, movedId }: { items: unknown[]; movedId?: string }) {
   return (
     <div className="text-xs space-y-1">
       {items.map((it, idx) => {
         const item = it as { id?: string; key?: string; title?: string } | string | undefined
         const id =
-          typeof item === 'string'
-            ? item
-            : item?.id || item?.key || item?.title || String(idx)
+          typeof item === 'string' ? item : item?.id || item?.key || item?.title || String(idx)
         const title =
           typeof item === 'object' && item ? item.title || id : (item as string) || String(id)
         const moved =
-          !!movedId &&
-          ((typeof item === 'object' && item?.id === movedId) || id === movedId)
+          !!movedId && ((typeof item === 'object' && item?.id === movedId) || id === movedId)
 
         return (
           <div key={id} className={moved ? 'font-semibold' : undefined}>

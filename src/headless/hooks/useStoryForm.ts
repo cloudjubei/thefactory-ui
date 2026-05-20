@@ -31,7 +31,12 @@ export type UseStoryForm = {
   errors: { title?: string }
   canSubmit: boolean
   handleSubmit: () => Promise<void>
-  onKeyDown: (e: { key: string; metaKey?: boolean; ctrlKey?: boolean; preventDefault: () => void }) => void
+  onKeyDown: (e: {
+    key: string
+    metaKey?: boolean
+    ctrlKey?: boolean
+    preventDefault: () => void
+  }) => void
 }
 
 function seed(v?: StoryFormInitialValues): StoryFormValues {
@@ -55,9 +60,7 @@ export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
 
   const baseline = baselineRef.current
   const dirty =
-    title !== baseline.title ||
-    status !== baseline.status ||
-    description !== baseline.description
+    title !== baseline.title || status !== baseline.status || description !== baseline.description
 
   useEffect(() => {
     onDirty?.(dirty)

@@ -21,10 +21,7 @@ export interface DisconnectedBannerProps {
  * `useAuth.token`-only vs desktop's `token + baseUrl` vs mobile's
  * future URL-aware variant).
  */
-export default function DisconnectedBanner({
-  wsState,
-  visible = true,
-}: DisconnectedBannerProps) {
+export default function DisconnectedBanner({ wsState, visible = true }: DisconnectedBannerProps) {
   if (!visible) return null
   if (wsState === 'open') return null
 
@@ -54,10 +51,7 @@ export default function DisconnectedBanner({
           backgroundColor: dotColor(wsState),
         }}
       />
-      <Text
-        style={{ fontSize: 12, fontWeight: '500', color: '#78350f' }}
-        numberOfLines={1}
-      >
+      <Text style={{ fontSize: 12, fontWeight: '500', color: '#78350f' }} numberOfLines={1}>
         {label}
       </Text>
       <Text

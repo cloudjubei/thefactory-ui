@@ -73,7 +73,7 @@ export function useChatLastRead({
   )
 
   const markReadByContext = useCallback(
-    <T,>(ctx: T, iso?: string) => {
+    <T>(ctx: T, iso?: string) => {
       if (!contextKey) return
       store.setLastRead(contextKey(ctx), iso || new Date().toISOString())
       setVersion((v) => v + 1)
@@ -81,10 +81,7 @@ export function useChatLastRead({
     [store, contextKey],
   )
 
-  const getLastReadForKey = useCallback(
-    (key: string) => store.getLastRead(key),
-    [store],
-  )
+  const getLastReadForKey = useCallback((key: string) => store.getLastRead(key), [store])
 
   return { lastReadIso, markReadByKey, markReadByContext, getLastReadForKey }
 }

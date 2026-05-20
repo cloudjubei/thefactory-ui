@@ -2,12 +2,7 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import type { StoryStatus } from '../../headless/utils/status'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import StatusControl from './StatusControl'
 
 export type { StoryStatus }
@@ -87,10 +82,7 @@ export function StoryCard({
         {story.title}
       </Text>
       {story.description && (
-        <Text
-          numberOfLines={4}
-          style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}
-        >
+        <Text numberOfLines={4} style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
           {story.description}
         </Text>
       )}

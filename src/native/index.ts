@@ -48,18 +48,10 @@ export {
   type SkeletonTextProps,
 } from './primitives/Skeleton'
 export { default as Spinner, type SpinnerProps } from './primitives/Spinner'
-export {
-  default as SpinnerWithDot,
-  type SpinnerWithDotProps,
-} from './primitives/SpinnerWithDot'
+export { default as SpinnerWithDot, type SpinnerWithDotProps } from './primitives/SpinnerWithDot'
 export { Switch, type SwitchProps } from './primitives/Switch'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
-export {
-  ToastProvider,
-  useToast,
-  type ToastMessage,
-  type ToastVariant,
-} from './primitives/Toast'
+export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {
   default as Tooltip,
   type TooltipPlacement,
@@ -117,10 +109,7 @@ export {
   default as StoryAndFeatureCallout,
   type StoryAndFeatureCalloutProps,
 } from './compound/stories/StoryAndFeatureCallout'
-export {
-  default as WarningChip,
-  type WarningChipProps,
-} from './compound/stories/WarningChip'
+export { default as WarningChip, type WarningChipProps } from './compound/stories/WarningChip'
 export {
   default as AgentModelQuickSelect,
   type AgentModelQuickSelectProps,
@@ -155,58 +144,88 @@ export {
   type FileDisplayProps,
   type UikitFileMeta,
 } from './compound/files/FileDisplay'
-export {
-  default as FileSelector,
-  type FileSelectorProps,
-} from './compound/files/FileSelector'
+export { default as FileSelector, type FileSelectorProps } from './compound/files/FileSelector'
 export {
   default as ContextFileChip,
   type ContextFileChipProps,
 } from './compound/stories/ContextFileChip'
-export {
-  default as RichText,
-  type RichTextProps,
-} from './compound/files/RichText'
+export { default as RichText, type RichTextProps } from './compound/files/RichText'
 export {
   default as GroupHome,
   type GroupHomeProjectCard,
   type GroupHomeProps,
 } from './compound/GroupHome'
+export { default as BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
+export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBody'
+export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
-  default as ChatBody,
-  type ChatBodyProps,
-} from './compound/chat/ChatBody'
+  default as ChatSettingsDropdown,
+  type ChatSettingsAction,
+  type ChatSettingsDropdownProps,
+} from './compound/chat/ChatSettingsDropdown'
 export {
-  default as ChatHeader,
-  type ChatHeaderProps,
-} from './compound/chat/ChatHeader'
+  default as ChatTopicCreateModal,
+  type ChatTopicCreateModalProps,
+} from './compound/chat/ChatTopicCreateModal'
+export {
+  default as SystemPromptViewerModal,
+  type SystemPromptViewerModalProps,
+} from './compound/chat/SystemPromptViewerModal'
+export {
+  default as ToolConfirmationModal,
+  type ToolConfirmationModalProps,
+} from './compound/chat/ToolConfirmationModal'
+export {
+  default as UsageModal,
+  type UsageModalProps,
+  type UsageModelRow,
+} from './compound/chat/UsageModal'
 export {
   default as ChatInput,
   type ChatInputAttachment,
   type ChatInputProps,
 } from './compound/chat/ChatInput'
-export {
-  default as MessageList,
-  type MessageListProps,
-} from './compound/chat/MessageList'
-export {
-  default as MessageRow,
-  type MessageRowProps,
-} from './compound/chat/MessageRow'
+export { default as MessageList, type MessageListProps } from './compound/chat/MessageList'
+export { default as MessageRow, type MessageRowProps } from './compound/chat/MessageRow'
 export {
   default as SystemPromptBubble,
   type SystemPromptBubbleProps,
 } from './compound/chat/SystemPromptBubble'
-export {
-  default as ThinkingRow,
-  type ThinkingRowProps,
-} from './compound/chat/ThinkingRow'
+export { default as ThinkingRow, type ThinkingRowProps } from './compound/chat/ThinkingRow'
 
 // Status / shell compounds
 export {
   default as DisconnectedBanner,
   type DisconnectedBannerProps,
 } from './compound/DisconnectedBanner'
+
+// Text / code viewers
+export { default as Markdown, type MarkdownProps } from './compound/Markdown'
+export { default as Code, type CodeProps } from './compound/Code'
+export {
+  default as FileMentionsTextarea,
+  type FileMentionsTextareaHandle,
+  type FileMentionsTextareaProps,
+} from './compound/files/FileMentionsTextarea'
+
+// Rich-input compounds (FeatureForm + DependencySelector)
+export {
+  default as DependencySelector,
+  type DependencySelectorProps,
+} from './compound/stories/DependencySelector'
+export {
+  default as FeatureForm,
+  type FeatureFormHandle,
+  type FeatureFormProps,
+  type FeatureFormValues,
+  type FeatureFormInitialValues,
+} from './compound/stories/FeatureForm'
+
+export {
+  default as FileTree,
+  type FileTreeEntry,
+  type FileTreeProps,
+} from './compound/files/FileTree'
 
 // Chat-view domain types (re-exported from headless for convenience)
 export type {

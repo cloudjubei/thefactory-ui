@@ -26,9 +26,7 @@ describe('mergeSettings', () => {
     })
     expect(out.userPreferences.storiesViewMode).toBe('board')
     expect(out.userPreferences.storiesListViewSorting).toBe('index_desc')
-    expect(out.userPreferences.shortcuts).toEqual(
-      DEFAULT_APP_SETTINGS.userPreferences.shortcuts,
-    )
+    expect(out.userPreferences.shortcuts).toEqual(DEFAULT_APP_SETTINGS.userPreferences.shortcuts)
   })
 
   it('fills in missing shortcut fields with defaults', () => {

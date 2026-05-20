@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View } from 'react-native'
 import {
   useToastQueue,
@@ -105,10 +98,7 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
           </Text>
         ) : null}
         {item.description ? (
-          <Text
-            numberOfLines={3}
-            style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}
-          >
+          <Text numberOfLines={3} style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
             {item.description}
           </Text>
         ) : null}

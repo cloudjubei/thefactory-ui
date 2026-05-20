@@ -48,9 +48,7 @@ function defaultTooltip(resolved: ResolvedDependency): ReactNode {
       <div className="p-3 rounded-md max-w-xs" style={{ minWidth: 200 }}>
         <div className="text-xs opacity-60 mb-1">Not found</div>
         <h3 className="text-sm font-semibold mb-2">Dependency missing</h3>
-        <p className="text-xs opacity-80">
-          The referenced story or feature could not be resolved.
-        </p>
+        <p className="text-xs opacity-80">The referenced story or feature could not be resolved.</p>
         <div className="mt-2">
           <StatusControl status="-" />
         </div>
@@ -85,8 +83,10 @@ export default function DependencyBullet({
   onClick,
   renderTooltip,
 }: DependencyBulletProps) {
-  const effectiveResolved: ResolvedDependency =
-    resolved ?? { kind: 'missing', display: notFoundDisplay ?? dependency ?? '?' }
+  const effectiveResolved: ResolvedDependency = resolved ?? {
+    kind: 'missing',
+    display: notFoundDisplay ?? dependency ?? '?',
+  }
 
   const display =
     effectiveResolved.kind === 'missing'
@@ -109,7 +109,9 @@ export default function DependencyBullet({
       tooltip={tooltip}
       disableHoverInfo={disableHoverInfo}
       interactive={interactive}
-      onClick={effectiveResolved.kind === 'missing' ? undefined : () => onClick?.(effectiveResolved)}
+      onClick={
+        effectiveResolved.kind === 'missing' ? undefined : () => onClick?.(effectiveResolved)
+      }
       onRemove={onRemove}
       title={`${display}${isOutbound ? ' (requires this)' : ''}`}
     />

@@ -52,9 +52,7 @@ function defaultTooltip(resolved: ResolvedDependency): ReactNode {
         }}
       >
         <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>Not found</Text>
-        <Text
-          style={{ fontSize: 14, fontWeight: '600', color: nativeLightTheme.text.primary }}
-        >
+        <Text style={{ fontSize: 14, fontWeight: '600', color: nativeLightTheme.text.primary }}>
           Dependency missing
         </Text>
         <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
@@ -82,13 +80,13 @@ export default function DependencyBullet({
   onPress,
   renderTooltip,
 }: DependencyBulletProps) {
-  const effective: ResolvedDependency =
-    resolved ?? { kind: 'missing', display: notFoundDisplay ?? dependency ?? '?' }
+  const effective: ResolvedDependency = resolved ?? {
+    kind: 'missing',
+    display: notFoundDisplay ?? dependency ?? '?',
+  }
 
   const display =
-    effective.kind === 'missing'
-      ? (notFoundDisplay ?? effective.display)
-      : effective.display
+    effective.kind === 'missing' ? (notFoundDisplay ?? effective.display) : effective.display
 
   const variant: 'ok' | 'blocks' | 'missing' =
     effective.kind === 'missing' ? 'missing' : isOutbound ? 'blocks' : 'ok'

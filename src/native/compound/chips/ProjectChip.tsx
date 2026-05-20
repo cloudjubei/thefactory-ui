@@ -57,9 +57,7 @@ export default function ProjectChip({
       disabled={nonActionable}
       content={
         <View>
-          <Text
-            style={{ fontSize: 12, fontWeight: '600', color: nativeLightTheme.text.primary }}
-          >
+          <Text style={{ fontSize: 12, fontWeight: '600', color: nativeLightTheme.text.primary }}>
             {label}
           </Text>
           {description ? (

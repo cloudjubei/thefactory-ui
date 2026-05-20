@@ -8,10 +8,7 @@ import {
 } from 'react'
 import { Text, View } from 'react-native'
 import type { TextInput as RNTextInput } from 'react-native'
-import {
-  useStoryForm,
-  type StoryFormValues,
-} from '../../headless/hooks/useStoryForm'
+import { useStoryForm, type StoryFormValues } from '../../headless/hooks/useStoryForm'
 import { nativeLightStatus, nativeSpace } from '../../tokens/native'
 import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'

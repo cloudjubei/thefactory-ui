@@ -232,7 +232,16 @@ function nativeSemanticVars(theme: NativeSemanticTheme): string[] {
 function nativeStatusVars(s: NativeStatusTokens): string[] {
   const out: string[] = []
   out.push('  /* Status: bold */')
-  for (const key of ['empty', 'done', 'working', 'stuck', 'on_hold', 'review', 'queued', 'blocked'] as const) {
+  for (const key of [
+    'empty',
+    'done',
+    'working',
+    'stuck',
+    'on_hold',
+    'review',
+    'queued',
+    'blocked',
+  ] as const) {
     out.push(`  --status-${key}-bg: ${s[key].bg};`)
     out.push(`  --status-${key}-fg: ${s[key].fg};`)
   }

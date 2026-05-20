@@ -66,7 +66,12 @@ export type UseFeatureForm = {
   /** Validates and (if valid) invokes `onSubmit` with the current values. */
   handleSubmit: () => Promise<void>
   /** Convenience: `(meta|ctrl)+Enter` submits — bind to the form keydown. */
-  onKeyDown: (e: { key: string; metaKey?: boolean; ctrlKey?: boolean; preventDefault: () => void }) => void
+  onKeyDown: (e: {
+    key: string
+    metaKey?: boolean
+    ctrlKey?: boolean
+    preventDefault: () => void
+  }) => void
 }
 
 const DEFAULTS: FeatureFormValues = {
@@ -150,8 +155,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   )
 
   const addContextFile = useCallback(
-    (path: string) =>
-      setContext((prev) => (prev.includes(path) ? prev : [...prev, path])),
+    (path: string) => setContext((prev) => (prev.includes(path) ? prev : [...prev, path])),
     [],
   )
 

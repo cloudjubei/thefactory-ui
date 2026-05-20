@@ -1,12 +1,7 @@
 import type { ReactNode } from 'react'
 import { Modal as RNModal, Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import { Button } from './Button'
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
@@ -54,12 +49,7 @@ export function Modal({
   const showHeader = !hideHeader && (title || headerActions || !hideCloseButton)
 
   return (
-    <RNModal
-      visible={isOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <RNModal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={closeOnOverlayClick ? 'Dismiss modal' : undefined}
@@ -132,15 +122,15 @@ export function Modal({
                         opacity: pressed ? 0.6 : 0.85,
                       })}
                     >
-                      <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>×</Text>
+                      <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>
+                        ×
+                      </Text>
                     </Pressable>
                   )}
                 </View>
               </View>
             )}
-            <View
-              style={[{ flexShrink: 1, padding: nativeSpace[8] }, contentStyle]}
-            >
+            <View style={[{ flexShrink: 1, padding: nativeSpace[8] }, contentStyle]}>
               {children}
             </View>
             {footer && (

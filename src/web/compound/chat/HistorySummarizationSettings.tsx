@@ -8,9 +8,7 @@ export type HistorySummarization = {
 
 export type HistorySummarizationSettingsProps = {
   historySummarization?: HistorySummarization
-  persistSettings: (patch: {
-    historySummarization?: HistorySummarization
-  }) => Promise<void> | void
+  persistSettings: (patch: { historySummarization?: HistorySummarization }) => Promise<void> | void
 }
 
 /**
@@ -34,9 +32,7 @@ export default function HistorySummarizationSettings({
     <div className="space-y-3 pt-2 border-t border-(--border-subtle)">
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-xs font-medium text-(--text-secondary)">
-            History Summarization
-          </span>
+          <span className="text-xs font-medium text-(--text-secondary)">History Summarization</span>
           <span className="text-[10px] text-(--text-tertiary)">
             Summarize older messages to reduce token usage while preserving context
           </span>
@@ -82,9 +78,7 @@ export default function HistorySummarizationSettings({
                 htmlFor="maxOpsInSummary"
               >
                 Max ops in summary:
-                <span className="pl-4 text-[14px] text-(--text-secondary)">
-                  {maxOpsInSummary}
-                </span>
+                <span className="pl-4 text-[14px] text-(--text-secondary)">{maxOpsInSummary}</span>
               </label>
             </div>
             <input

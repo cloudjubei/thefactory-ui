@@ -29,9 +29,7 @@ export type UseResolvedThemeOptions = {
 }
 
 export function useResolvedTheme({ theme, system }: UseResolvedThemeOptions): ResolvedTheme {
-  const [systemNow, setSystemNow] = useState<ResolvedTheme>(() =>
-    system ? system.get() : 'light',
-  )
+  const [systemNow, setSystemNow] = useState<ResolvedTheme>(() => (system ? system.get() : 'light'))
 
   useEffect(() => {
     if (theme !== 'system' || !system) return

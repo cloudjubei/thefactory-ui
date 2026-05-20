@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import {
-  nativeLightTheme,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
 
 export interface GroupHomeProjectCard {
   id: string
@@ -59,9 +55,7 @@ export default function GroupHome({
         }}
       >
         <Text style={{ fontSize: 24 }}>⚠</Text>
-        <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
-          {missingLabel}
-        </Text>
+        <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>{missingLabel}</Text>
       </View>
     )
   }
@@ -99,7 +93,13 @@ export default function GroupHome({
         >
           {title}
         </Text>
-        <Text style={{ marginTop: nativeSpace[2], fontSize: 14, color: nativeLightTheme.text.secondary }}>
+        <Text
+          style={{
+            marginTop: nativeSpace[2],
+            fontSize: 14,
+            color: nativeLightTheme.text.secondary,
+          }}
+        >
           {subtitleText}
         </Text>
       </View>

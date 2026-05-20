@@ -72,9 +72,7 @@ export default function GroupHome({
       className={`flex flex-col flex-1 overflow-y-auto bg-(--surface-default) text-(--text-primary) p-8 ${className}`}
     >
       <div className="max-w-4xl mx-auto w-full">
-        {typeTag ? (
-          <p className="text-xs uppercase tracking-wide opacity-60">{typeTag}</p>
-        ) : null}
+        {typeTag ? <p className="text-xs uppercase tracking-wide opacity-60">{typeTag}</p> : null}
         <h1 className="text-2xl font-semibold mt-1 mb-2">{title}</h1>
         <p className="text-(--text-secondary) mb-8">{subtitleText}</p>
 

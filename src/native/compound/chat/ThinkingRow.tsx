@@ -34,9 +34,7 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
           backgroundColor: nativePalette.blue[50],
         }}
       >
-        <Text
-          style={{ fontSize: 11, fontWeight: '600', color: nativeLightTheme.text.primary }}
-        >
+        <Text style={{ fontSize: 11, fontWeight: '600', color: nativeLightTheme.text.primary }}>
           AI
         </Text>
       </View>

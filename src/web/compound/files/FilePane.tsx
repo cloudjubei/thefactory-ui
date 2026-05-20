@@ -18,10 +18,7 @@ import { default as MarkdownEditor, MARKDOWN_PANE_OPTIONS } from '../MarkdownEdi
 import type { MarkdownEditorPaneView } from '../MarkdownEditor'
 import { default as HtmlEditor } from './HtmlEditor'
 import type { FileInfoData } from './FileInfoButton'
-import {
-  classifyFileByExtension,
-  type FilePaneKind,
-} from '../../../headless/utils/filePaneKind'
+import { classifyFileByExtension, type FilePaneKind } from '../../../headless/utils/filePaneKind'
 
 export { classifyFileByExtension }
 export type { FilePaneKind }

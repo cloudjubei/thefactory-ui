@@ -104,23 +104,25 @@ export function useDependencySelector(opts: DependencySelectorOptions): UseDepen
       const storyHay = `${storyDisplay} ${story.title} ${story.description ?? ''}`.toLowerCase()
       const storyMatches = !q || storyHay.includes(q)
 
-      const features = story.features.map((f) => {
-        const featureDep = `${story.id}.${f.id}`
-        const fIdx = String(getFeatureDisplayIndex?.(story.id, f.id) ?? f.id)
-        const featureDisplay = `${storyDisplay}.${fIdx}`
-        const featureHay = `${featureDisplay} ${f.title} ${f.description ?? ''}`.toLowerCase()
-        const matches = !q || featureHay.includes(q)
-        return matches
-          ? {
-              feature: f,
-              featureDep,
-              featureDisplay,
-              disabled:
-                (currentStoryId === story.id && currentFeatureId === f.id) ||
-                existingDeps.includes(featureDep),
-            }
-          : null
-      }).filter((x): x is NonNullable<typeof x> => x !== null)
+      const features = story.features
+        .map((f) => {
+          const featureDep = `${story.id}.${f.id}`
+          const fIdx = String(getFeatureDisplayIndex?.(story.id, f.id) ?? f.id)
+          const featureDisplay = `${storyDisplay}.${fIdx}`
+          const featureHay = `${featureDisplay} ${f.title} ${f.description ?? ''}`.toLowerCase()
+          const matches = !q || featureHay.includes(q)
+          return matches
+            ? {
+                feature: f,
+                featureDep,
+                featureDisplay,
+                disabled:
+                  (currentStoryId === story.id && currentFeatureId === f.id) ||
+                  existingDeps.includes(featureDep),
+              }
+            : null
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null)
 
       if (!storyMatches && features.length === 0) continue
 

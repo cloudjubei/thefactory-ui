@@ -40,7 +40,10 @@ export function WriteMultiToolsPreview({
 
   const isPreviewObject = !!(result && typeof result === 'object' && 'status' in (result as object))
   const preview = isPreviewObject
-    ? (result as { status: 'pending' } | { status: 'error'; error: string } | { status: 'ready'; patch: string })
+    ? (result as
+        | { status: 'pending' }
+        | { status: 'error'; error: string }
+        | { status: 'ready'; patch: string })
     : undefined
 
   const actualData = useMemo<unknown>(() => {
@@ -144,7 +147,9 @@ export function WriteMultiToolsPreview({
               </div>
             </div>
             {err && !isExpanded ? (
-              <div className="text-[10px] text-red-500 px-2 pb-1.5 bg-(--surface-overlay)">{err}</div>
+              <div className="text-[10px] text-red-500 px-2 pb-1.5 bg-(--surface-overlay)">
+                {err}
+              </div>
             ) : null}
 
             {isExpanded && (
