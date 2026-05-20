@@ -8,6 +8,13 @@ export interface ChatHeaderProps {
   /** Web's "open chat in own route" affordance — keep on RN too (deep-links). */
   onMaximize?: () => void
 
+  /** Mobile-only: when set, a back chevron renders on the far left. Web's
+   *  chat header sits inside a routed shell that owns navigation; on a phone
+   *  the chat screen is pushed, so the header carries its own back affordance. */
+  onBack?: () => void
+  /** Mobile-only: a centred title between the left + right icon clusters. */
+  title?: string
+
   totalCostUSD?: number
 
   /** Caller-rendered context info button (typically a connected `i` icon). */
@@ -94,6 +101,8 @@ export default function ChatHeader({
   isCollapsible,
   onCollapse,
   onMaximize,
+  onBack,
+  title,
   totalCostUSD,
   contextInfoSlot,
   onOpenPrompt,
@@ -140,14 +149,29 @@ export default function ChatHeader({
           gap: nativeSpace[2],
         }}
       >
+        {onBack && <IconBtn glyph="‹" label="Back" onPress={onBack} />}
         {isCollapsible && <IconBtn glyph="‹" label="Collapse chat" onPress={onCollapse} />}
         {contextInfoSlot}
+        {title ? (
+          <Text
+            style={{
+              flex: 1,
+              fontSize: 15,
+              fontWeight: '600',
+              color: nativeLightTheme.text.primary,
+            }}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
+            {title}
+          </Text>
+        ) : null}
         <IconBtn glyph="📝" label="System prompt" onPress={onOpenPrompt} />
         <IconBtn glyph={`💲${formatUSD(totalCostUSD)}`} label="Costs" onPress={onOpenCosts} />
         {onOpenDynamicContext && (
           <IconBtn glyph="📜" label="Dynamic context" onPress={onOpenDynamicContext} />
         )}
-        <View style={{ flex: 1 }} />
+        {!title && <View style={{ flex: 1 }} />}
         {!isRunningAgent && (
           <>
             {onMaximize && <IconBtn glyph="⤢" label="Open chat" onPress={onMaximize} />}

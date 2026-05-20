@@ -1,6 +1,7 @@
 /* AUTO-GENERATED from src/tokens/. Do not edit by hand. */
 /* Run: npm run generate:tokens */
 
+
 :root {
   /* Palette ramps */
   --color-gray-50: #f9fafb;
@@ -178,9 +179,7 @@
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --fs-xxs: 10px;
   --fs-xs: 12px;
   --fs-sm: 14px;

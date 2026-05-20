@@ -45,10 +45,6 @@ export interface ChatBodyProps {
 
   onSend: (content: string, attachments?: string[]) => Promise<void> | void
   onAbort?: () => Promise<void> | void
-  /** Tool-confirmation hooks are accepted for API parity with web; the
-   * inline confirmation modal isn't shipped on RN yet. */
-  onConfirmTools?: (grantedToolCallIds: string[]) => Promise<void> | void
-  onCancelToolConfirmation?: () => void
 
   onDeleteLastMessage?: () => Promise<void> | void
   onRetry?: () => Promise<void> | void

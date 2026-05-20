@@ -1,52 +1,97 @@
-import { ScrollView, Text, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
+import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export interface ToolConfirmationModalProps {
-  isOpen: boolean
-  /** Cancel / dismiss — equivalent to "reject". */
-  onClose: () => void
-  /** Tool name (e.g. `git_commit`, `bash`). */
-  toolName: string
-  /** Optional one-line description. */
-  toolDescription?: string
-  /** Pretty-printed JSON args. */
-  argsJson: string
-  /** Optional warning (e.g. "this tool writes files"). */
-  warning?: string
-  onApprove: () => void
-  onReject: () => void
-  /** Suppress the "Always allow" button when the tool is one-off. */
-  showAlwaysAllow?: boolean
-  onAlwaysAllow?: () => void
+  pending: PendingToolConfirmationLike | null
+  busy: boolean
+  onConfirm: (grantedToolCallIds: string[]) => Promise<void> | void
+  onCancel: () => void
+}
+
+function formatJson(v: unknown): string {
+  try {
+    return JSON.stringify(v ?? null, null, 2)
+  } catch {
+    return String(v)
+  }
+}
+
+function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      onPress={onToggle}
+      hitSlop={6}
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: nativeRadii[1],
+        borderWidth: 1.5,
+        borderColor: checked ? nativeLightTheme.accent.primary : nativeLightTheme.border.strong,
+        backgroundColor: checked ? nativeLightTheme.accent.primary : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {checked ? (
+        <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>✓</Text>
+      ) : null}
+    </Pressable>
+  )
 }
 
 /**
  * Native peer of
  * [web's `ToolConfirmationModal`](../../../web/compound/chat/ToolConfirmationModal.tsx).
- * Shows the pending tool call with its args, a Reject + Approve action,
- * and an optional "Always allow" affordance that the host wires to its
- * tool-trust store.
+ * Surfaces the proposed tool calls when the backend returns
+ * `require_confirmation` from `sendCompletionWithTools` / `resumeCompletion`.
+ * Each tool call is granted individually by `toolCallId`; the resume request
+ * uses that list to decide which ones run.
  */
 export default function ToolConfirmationModal({
-  isOpen,
-  onClose,
-  toolName,
-  toolDescription,
-  argsJson,
-  warning,
-  onApprove,
-  onReject,
-  showAlwaysAllow = false,
-  onAlwaysAllow,
+  pending,
+  busy,
+  onConfirm,
+  onCancel,
 }: ToolConfirmationModalProps) {
+  const [granted, setGranted] = useState<Record<string, boolean>>({})
+
+  // Reset selection whenever a new wave of tools arrives — the toolCallIds
+  // change between waves, so prior choices are meaningless.
+  useEffect(() => {
+    if (!pending) return
+    const next: Record<string, boolean> = {}
+    for (const t of pending.toolCalls) next[t.toolCallId] = true
+    setGranted(next)
+  }, [pending])
+
+  const grantedIds = useMemo(
+    () =>
+      Object.entries(granted)
+        .filter(([, v]) => v)
+        .map(([k]) => k),
+    [granted],
+  )
+
+  if (!pending) return null
+
+  const allOn = pending.toolCalls.every((t) => granted[t.toolCallId])
+  const noneOn = pending.toolCalls.every((t) => !granted[t.toolCallId])
+
+  const setAll = (value: boolean) =>
+    setGranted(Object.fromEntries(pending.toolCalls.map((t) => [t.toolCallId, value])))
+
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Tool call requires approval"
+      isOpen
+      onClose={onCancel}
+      title="The agent wants to run tools"
       size="lg"
       footer={
         <View
@@ -57,75 +102,92 @@ export default function ToolConfirmationModal({
             flexWrap: 'wrap',
           }}
         >
-          <Button variant="ghost" onPress={onReject}>
-            Reject
+          <Button variant="ghost" onPress={onCancel} disabled={busy}>
+            Cancel
           </Button>
-          {showAlwaysAllow && onAlwaysAllow && (
-            <Button variant="secondary" onPress={onAlwaysAllow}>
-              Always allow
-            </Button>
-          )}
-          <Button onPress={onApprove}>Approve</Button>
+          <Button variant="secondary" onPress={() => void onConfirm([])} disabled={busy}>
+            Deny all
+          </Button>
+          <Button onPress={() => void onConfirm(grantedIds)} loading={busy} disabled={noneOn}>
+            {allOn ? 'Allow all' : `Allow ${grantedIds.length}`}
+          </Button>
         </View>
       }
     >
       <View style={{ gap: nativeSpace[3] }}>
-        <View>
-          <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>Tool</Text>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '600',
-              color: nativeLightTheme.text.primary,
-              marginTop: 2,
-            }}
-          >
-            {toolName}
-          </Text>
-          {toolDescription ? (
-            <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary, marginTop: 4 }}>
-              {toolDescription}
+        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+          Untick any tool you don&apos;t want to run. Denied tools come back to the agent as{' '}
+          <Text style={{ fontFamily: 'Courier', fontSize: 12 }}>not_allowed</Text>; the agent will
+          adjust and may propose different tools next turn.
+        </Text>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[3] }}>
+          <Pressable onPress={() => setAll(true)} hitSlop={6}>
+            <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>Select all</Text>
+          </Pressable>
+          <Pressable onPress={() => setAll(false)} hitSlop={6}>
+            <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>
+              Select none
             </Text>
-          ) : null}
+          </Pressable>
         </View>
 
-        {warning ? (
-          <View
-            style={{
-              padding: nativeSpace[3],
-              borderRadius: nativeRadii[3],
-              backgroundColor: '#fef3c7',
-              borderWidth: 1,
-              borderColor: '#fde68a',
-            }}
-          >
-            <Text style={{ fontSize: 12, color: '#78350f' }}>{warning}</Text>
-          </View>
-        ) : null}
-
-        <View>
-          <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>Args</Text>
-          <ScrollView
-            style={{
-              maxHeight: 280,
-              marginTop: 4,
-              padding: nativeSpace[3],
-              borderRadius: nativeRadii[3],
-              backgroundColor: nativeLightTheme.surface.muted,
-            }}
-          >
-            <Text
-              selectable
+        <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: nativeSpace[2] }}>
+          {pending.toolCalls.map((tc) => (
+            <View
+              key={tc.toolCallId}
               style={{
-                fontFamily: 'Courier',
-                fontSize: 12,
-                color: nativeLightTheme.text.primary,
+                padding: nativeSpace[3],
+                borderRadius: nativeRadii[3],
+                borderWidth: 1,
+                borderColor: nativeLightTheme.border.subtle,
+                backgroundColor: nativeLightTheme.surface.muted,
+                gap: nativeSpace[2],
               }}
             >
-              {argsJson}
-            </Text>
-          </ScrollView>
-        </View>
+              <Pressable
+                onPress={() =>
+                  setGranted((prev) => ({ ...prev, [tc.toolCallId]: !prev[tc.toolCallId] }))
+                }
+                style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
+              >
+                <Checkbox
+                  checked={granted[tc.toolCallId] ?? false}
+                  onToggle={() =>
+                    setGranted((prev) => ({ ...prev, [tc.toolCallId]: !prev[tc.toolCallId] }))
+                  }
+                />
+                <Text
+                  style={{
+                    fontFamily: 'Courier',
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: nativeLightTheme.text.primary,
+                  }}
+                >
+                  {tc.name}
+                </Text>
+              </Pressable>
+              {tc.arguments !== undefined ? (
+                <ScrollView
+                  style={{ maxHeight: 160 }}
+                  contentContainerStyle={{ padding: nativeSpace[2] }}
+                >
+                  <Text
+                    selectable
+                    style={{
+                      fontFamily: 'Courier',
+                      fontSize: 12,
+                      color: nativeLightTheme.text.secondary,
+                    }}
+                  >
+                    {formatJson(tc.arguments)}
+                  </Text>
+                </ScrollView>
+              ) : null}
+            </View>
+          ))}
+        </ScrollView>
       </View>
     </Modal>
   )
