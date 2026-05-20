@@ -28,11 +28,4 @@ Pieces waiting on a real second consumer or an external trigger. Don't preemptiv
 
 ## B. Pending tasks
 
-### 1. Documentation pass
-
-- `docs/ARCHITECTURE.md` — drop the `_(future)_` tag on the `native` row of the layer table now that `src/native/` exists with primitives + compounds.
-- `README.md` — add a "Use from React Native" section: import from `'thefactory-ui/native'`, add `node_modules/thefactory-ui/dist/native/**/*.{js,mjs}` to the consumer's Tailwind `content` array, and `@import 'thefactory-ui/native/styles'` in the NativeWind-processed CSS for the token variables.
-
-### 2. Lift `WsClient.test.ts` into this package
-
-`WsClient.test.ts` currently lives in [overseer-local](../../overseer-local) (`src/renderer/src/test/WsClient.test.ts`) — desktop had a vitest setup first. This package now has its own vitest suite, so move the file here (it imports `WsClient` from `'thefactory-ui/headless/api'` and mocks `reconnecting-websocket`), then drop the `reconnecting-websocket` dev-dependency + the resolver alias from desktop.
+_None — every ready-to-execute task has shipped (git history keeps the record). Items in §A land here when their trigger fires._
