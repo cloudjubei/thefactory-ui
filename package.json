@@ -53,6 +53,7 @@
     "prebuild": "npm run check:uikit && npm run generate:tokens",
     "pretest": "npm run check:uikit",
     "build": "tsup",
+    "prepublishOnly": "npm run build",
     "dev": "tsup --watch",
     "playground:dev": "vite playground",
     "playground": "npm run build && vite build playground && vite preview playground",
