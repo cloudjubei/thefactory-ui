@@ -10,6 +10,16 @@
 
 When a new pattern surfaces in a consumer, it earns its keep in this package as soon as a second consumer would render it.
 
+## The three-client model
+
+`thefactory-ui` exists to serve a deliberate client architecture:
+
+- **`thefactory-overseer-web` is the first-class client** and the source of all new behaviour — the only client with _both_ a big-screen and a small-screen (narrow viewport) experience.
+- **`overseer-local` (desktop) is big-screen only** — it mirrors web's big-screen methodology.
+- **`thefactory-overseer-mobile` is small-screen only** — it mirrors web's small-screen methodology.
+
+Desktop and mobile _stem from_ web: a big-screen behaviour built on web is translated to desktop, a small-screen behaviour to mobile. `thefactory-ui` is the shared layer that makes those translations cheap — tokens, headless logic, and the `web/` + `native/` primitive pairs are written once here so each consumer is mostly data wiring. When adding to this package, prefer additive, optional props so a change made for one client never breaks another.
+
 ## Layer split
 
 Four sub-layers, enforced by [scripts/check-uikit-boundaries.sh](../scripts/check-uikit-boundaries.sh) as `prebuild` and `pretest`. A future React Native client imports `tokens/` and `headless/` verbatim and only writes its own `native/` peer to `web/`.

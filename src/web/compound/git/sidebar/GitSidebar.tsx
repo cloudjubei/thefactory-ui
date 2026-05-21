@@ -10,6 +10,10 @@ import GitSidebarStashRow from './GitSidebarStashRow'
 
 const STORAGE_KEY = 'GitSidebar.widthPx'
 const DEFAULT_WIDTH = 280
+// Floor the resizable width so the Branches / Remotes / Stashes sections
+// always stay comfortably readable — narrower than this the panel is just a
+// cramped strip.
+const MIN_WIDTH = 240
 const SECTIONS_KEY = 'GitSidebar.sectionsOpen'
 const FOLDERS_KEY = 'GitSidebar.foldersOpen'
 
@@ -19,7 +23,7 @@ function readStoredWidth(): number {
     const v = window.localStorage.getItem(STORAGE_KEY)
     if (!v) return DEFAULT_WIDTH
     const n = parseInt(v, 10)
-    return Number.isFinite(n) && n > 100 ? n : DEFAULT_WIDTH
+    return Number.isFinite(n) && n > 0 ? Math.max(MIN_WIDTH, n) : DEFAULT_WIDTH
   } catch {
     return DEFAULT_WIDTH
   }
@@ -109,6 +113,11 @@ export type GitSidebarProps = {
   onSelectBranch: (b: GitUnifiedBranchLike) => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
   onSelectStash: (ref: string) => void
+  /**
+   * Fill the parent's width and drop the resize handle — for narrow layouts
+   * where the sidebar is the full-width master of a master/detail pair.
+   */
+  fullWidth?: boolean
 }
 
 export default function GitSidebar({
@@ -124,6 +133,7 @@ export default function GitSidebar({
   onSelectBranch,
   onDoubleClickBranch,
   onSelectStash,
+  fullWidth = false,
 }: GitSidebarProps) {
   const [widthPx, setWidthPx] = useState<number>(() => readStoredWidth())
   const resizeRef = useRef<{ startX: number; startW: number; maxW: number } | null>(null)
@@ -154,13 +164,13 @@ export default function GitSidebar({
   const onResizeStart = (e: PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
-    const maxW = Math.max(100, Math.floor(window.innerWidth * 0.5))
+    const maxW = Math.max(MIN_WIDTH, Math.floor(window.innerWidth * 0.5))
     resizeRef.current = { startX: e.clientX, startW: widthPx, maxW }
 
     const onMove = (ev: globalThis.PointerEvent) => {
       const st = resizeRef.current
       if (!st) return
-      setWidthPx(Math.max(100, Math.min(st.maxW, st.startW + ev.clientX - st.startX)))
+      setWidthPx(Math.max(MIN_WIDTH, Math.min(st.maxW, st.startW + ev.clientX - st.startX)))
     }
     const onUp = () => {
       resizeRef.current = null
@@ -174,8 +184,8 @@ export default function GitSidebar({
   // Keep width within viewport bounds when the window shrinks.
   useEffect(() => {
     const clamp = () => {
-      const maxW = Math.max(100, Math.floor(window.innerWidth * 0.5))
-      setWidthPx((v) => Math.max(100, Math.min(maxW, v)))
+      const maxW = Math.max(MIN_WIDTH, Math.floor(window.innerWidth * 0.5))
+      setWidthPx((v) => Math.max(MIN_WIDTH, Math.min(maxW, v)))
     }
     window.addEventListener('resize', clamp)
     return () => window.removeEventListener('resize', clamp)
@@ -189,9 +199,12 @@ export default function GitSidebar({
       // absolutely-positioned resize handle spans the whole panel even when
       // the branch list is shorter than the available height. Width stays
       // fixed via the inline `style.width` below, so the flex sizing only
-      // affects the cross axis.
-      className="relative flex-1 min-h-0 border-r border-(--border-subtle) flex flex-col pt-1"
-      style={{ width: widthPx }}
+      // affects the cross axis. In `fullWidth` mode (narrow master/detail
+      // layouts) the panel fills its container and the handle is dropped.
+      className={`relative flex-1 min-h-0 flex flex-col pt-1 ${
+        fullWidth ? 'w-full' : 'border-r border-(--border-subtle)'
+      }`}
+      style={fullWidth ? undefined : { width: widthPx }}
     >
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {!projectId ? (
@@ -290,12 +303,15 @@ export default function GitSidebar({
         )}
       </div>
 
-      <ResizeHandle
-        orientation="vertical"
-        className="absolute top-0 bottom-0 -right-[3px] z-10 hover:bg-(--surface-muted) transition-colors"
-        hitBoxSize={6}
-        onResizeStart={onResizeStart}
-      />
+      {!fullWidth && (
+        <ResizeHandle
+          orientation="vertical"
+          className="absolute top-0 bottom-0 right-0 z-10 hover:bg-(--surface-muted) transition-colors"
+          hitBoxSize={6}
+          hideLine
+          onResizeStart={onResizeStart}
+        />
+      )}
     </div>
   )
 }

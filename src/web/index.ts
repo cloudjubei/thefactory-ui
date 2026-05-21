@@ -11,6 +11,7 @@
 // Primitives
 export { default as Alert, type AlertProps, type AlertVariant } from './primitives/Alert'
 export { Button, type ButtonProps } from './primitives/Button'
+export { BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
 export { Chip, type ChipProps } from './primitives/Chip'
 export { DotBadge, type DotBadgeProps } from './primitives/DotBadge'
 export { default as Field, type FieldProps } from './primitives/Field'
@@ -198,6 +199,11 @@ export {
   type StatusPickerValue,
   type StatusSemanticKey,
 } from './compound/StatusControl'
+export {
+  OptionPicker,
+  type OptionPickerProps,
+  type OptionPickerOption,
+} from './compound/OptionPicker'
 export {
   default as DependencyChip,
   type DependencyChipKind,

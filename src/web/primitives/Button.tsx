@@ -4,7 +4,14 @@ import { Slot } from '@radix-ui/react-slot'
 import { cn } from '../utils/cn'
 import Spinner from './Spinner'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link'
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
+  | 'success'
+  | 'link'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,6 +27,7 @@ const variantClass: Record<ButtonVariant, string> = {
   outline: 'btn btn-primary',
   ghost: 'btn btn-ghost',
   danger: 'btn btn-danger',
+  success: 'btn btn-success',
   link: 'btn btn-link',
 }
 

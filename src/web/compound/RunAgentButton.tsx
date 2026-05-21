@@ -180,9 +180,22 @@ export function AgentTypePicker({
 export type RunAgentButtonProps = {
   className?: string
   onClick: (next: AgentRunType) => void
+  /** When set, the trigger renders with a visible text label instead of icon-only. */
+  label?: string
+  /**
+   * Render the trigger as a plain `<button>` carrying this exact class
+   * instead of the default `btn` styling — lets a host drop the control
+   * into its own menu / list so it matches the surrounding rows.
+   */
+  triggerClassName?: string
 }
 
-export default function RunAgentButton({ className = '', onClick }: RunAgentButtonProps) {
+export default function RunAgentButton({
+  className = '',
+  onClick,
+  label,
+  triggerClassName,
+}: RunAgentButtonProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -251,32 +264,43 @@ export default function RunAgentButton({ className = '', onClick }: RunAgentButt
 
   useEffect(() => () => clearPressTimer(), [])
 
+  const triggerProps = {
+    ref: buttonRef,
+    type: 'button' as const,
+    'aria-label': 'Run Agent',
+    title: 'Run Agent',
+    style: { touchAction: 'manipulation', userSelect: 'none' } as React.CSSProperties,
+    onPointerDown: handlePointerDown,
+    onPointerUp: handlePointerUpLike,
+    onPointerCancel: handlePointerUpLike,
+    onPointerLeave: handlePointerUpLike,
+    onClick: handleClick,
+    onContextMenu: (e: React.MouseEvent) => {
+      if (open) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    },
+    draggable: false,
+    'data-picker-open': open ? '1' : '0',
+  }
+
   return (
     <>
       <div ref={containerRef} className={cn('no-drag', className)}>
-        <Button
-          ref={buttonRef}
-          type="button"
-          className="btn btn-icon"
-          aria-label="Run Agent"
-          title="Run Agent"
-          style={{ touchAction: 'manipulation', userSelect: 'none' }}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUpLike}
-          onPointerCancel={handlePointerUpLike}
-          onPointerLeave={handlePointerUpLike}
-          onClick={handleClick}
-          onContextMenu={(e: React.MouseEvent) => {
-            if (open) {
-              e.preventDefault()
-              e.stopPropagation()
-            }
-          }}
-          draggable={false}
-          data-picker-open={open ? '1' : '0'}
-        >
-          <IconPlay />
-        </Button>
+        {triggerClassName ? (
+          <button {...triggerProps} className={triggerClassName}>
+            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+              <IconPlay className="h-4 w-4" />
+            </span>
+            {label}
+          </button>
+        ) : (
+          <Button {...triggerProps} className={label ? 'btn' : 'btn btn-icon'}>
+            <IconPlay />
+            {label ? <span className="ml-1">{label}</span> : null}
+          </Button>
+        )}
       </div>
       {open && containerRef.current && (
         <AgentTypePicker

@@ -117,6 +117,24 @@
   color: var(--color-red-800);
 }
 
+/* Success */
+.btn-success {
+  border-color: var(--color-green-600);
+  background: color-mix(in srgb, var(--color-green-600) 10%, transparent);
+  color: var(--color-green-600);
+  border-width: 2px;
+}
+.btn-success:hover {
+  border-color: var(--color-green-700);
+  background: color-mix(in srgb, var(--color-green-700) 20%, transparent);
+  color: var(--color-green-700);
+}
+.btn-success:active {
+  border-color: var(--color-green-800);
+  background: color-mix(in srgb, var(--color-green-800) 20%, transparent);
+  color: var(--color-green-800);
+}
+
 /* Link */
 .btn-link {
   background: transparent;

@@ -23,6 +23,12 @@ export interface ResizeHandleProps {
    * background-toned "···" grip) when on.
    */
   alwaysVisible?: boolean
+  /**
+   * Suppress the built-in 1px divider line — for hosts that already draw
+   * their own border at the split (e.g. a panel with `border-r`), so the
+   * two lines can't drift apart.
+   */
+  hideLine?: boolean
 }
 
 /**
@@ -46,6 +52,7 @@ export function ResizeHandle({
   hitBoxSize = 10,
   offset = 0,
   alwaysVisible = false,
+  hideLine = false,
 }: ResizeHandleProps) {
   const isHorizontal = orientation === 'horizontal'
 
@@ -101,6 +108,11 @@ export function ResizeHandle({
         // diff scroller). z-50 on the bubble alone wasn't enough when an
         // ancestor establishes a new stacking context.
         zIndex: 30,
+        // Without this, touch devices interpret a drag on the handle as a
+        // scroll gesture after a few pixels and stop delivering pointer
+        // events — the resize would "stick" partway. `none` keeps the whole
+        // gesture ours.
+        touchAction: 'none',
       }}
       role="separator"
       aria-orientation={orientation}
@@ -108,13 +120,15 @@ export function ResizeHandle({
       onPointerDown={onInternalPointerDown}
       onMouseMove={onInternalMouseMove}
     >
-      <div
-        className={`absolute ${
-          isHorizontal
-            ? 'inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-neutral-200 dark:bg-neutral-800'
-            : 'inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-neutral-200 dark:bg-neutral-800'
-        }`}
-      />
+      {!hideLine && (
+        <div
+          className={`absolute ${
+            isHorizontal
+              ? 'inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-neutral-200 dark:bg-neutral-800'
+              : 'inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-neutral-200 dark:bg-neutral-800'
+          }`}
+        />
+      )}
       <div
         className={`absolute pointer-events-none ${
           alwaysVisible ? '' : 'opacity-0 transition-opacity group-hover:opacity-100'
