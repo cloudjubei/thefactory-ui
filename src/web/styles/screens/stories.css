@@ -408,3 +408,20 @@
   display: block;
   height: 16px;
 }
+
+/* Mobile mode (<768px): the dense desktop row adapts for touch. There is no
+   hover on touch, so row actions are always visible; the blockers row wraps
+   tightly instead of relying on horizontal room. */
+@media (max-width: 767.98px) {
+  .story-grid .col-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .story-grid .col-blockers {
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .stories-toolbar {
+    flex-wrap: wrap;
+  }
+}

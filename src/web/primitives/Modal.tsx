@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
@@ -150,7 +151,10 @@ export function Modal({
 
   if (!isOpen) return null
 
-  return (
+  // Portal to <body> so the overlay is never clipped or re-anchored by an
+  // ancestor's `overflow`/`transform` (e.g. the sidebar, which is the
+  // containing block for fixed descendants while it's a drawer).
+  return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       <div
         ref={overlayRef}
@@ -210,7 +214,8 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

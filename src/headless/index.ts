@@ -134,6 +134,26 @@ export {
   type StoryListSorting,
 } from './utils/storiesOptions'
 
+// Shell navigation model — shared structure for the web `Sidebar` / responsive
+// drawer and the native `NavDrawer`.
+export {
+  GROUP_TAB_DEFS,
+  SHELL_TAB_DEFS,
+  groupTabToProjectTab,
+  isGroupTabKey,
+  isShellTabKey,
+  projectTabToGroupTab,
+  splitGroupsAndProjects,
+  type GroupTabDef,
+  type GroupTabKey,
+  type NavGroupLike,
+  type NavIconKey,
+  type NavProjectLike,
+  type ShellTabDef,
+  type ShellTabKey,
+  type SplitGroupsAndProjects,
+} from './utils/shellNav'
+
 // Persisted client settings (theme, shortcuts, notifications, ...)
 // `Theme` and `ChatBadgeCountMode` are owned by their respective hook
 // modules and re-exported above — not duplicated here.

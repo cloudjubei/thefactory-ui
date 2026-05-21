@@ -17,6 +17,12 @@ export interface ResizeHandleProps {
   hitBoxSize?: number
   /** Pixel offset for centring the divider relative to the parent. */
   offset?: number
+  /**
+   * Render the grab grip permanently rather than only on hover — for touch /
+   * small screens where there is no hover to reveal it. Styled subtly (a
+   * background-toned "···" grip) when on.
+   */
+  alwaysVisible?: boolean
 }
 
 /**
@@ -39,6 +45,7 @@ export function ResizeHandle({
   style,
   hitBoxSize = 10,
   offset = 0,
+  alwaysVisible = false,
 }: ResizeHandleProps) {
   const isHorizontal = orientation === 'horizontal'
 
@@ -109,7 +116,9 @@ export function ResizeHandle({
         }`}
       />
       <div
-        className="absolute opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        className={`absolute pointer-events-none ${
+          alwaysVisible ? '' : 'opacity-0 transition-opacity group-hover:opacity-100'
+        }`}
         style={{
           zIndex: 9999,
           ...(isHorizontal
@@ -136,15 +145,41 @@ export function ResizeHandle({
         }}
         aria-hidden
       >
-        <div className="h-full w-full rounded bg-teal-500/20 border border-teal-500 shadow">
+        <div
+          className={`h-full w-full rounded border ${
+            alwaysVisible
+              ? 'border-(--border-subtle) bg-(--surface-muted)'
+              : 'border-teal-500 bg-teal-500/20 shadow'
+          }`}
+        >
           <div className="h-full w-full flex items-center justify-center gap-[3px]">
             {isHorizontal ? (
-              <div className="w-[24px] h-[2px] rounded-sm bg-teal-600" />
+              alwaysVisible ? (
+                <div className="flex items-center gap-[3px]">
+                  <span className="w-[3px] h-[3px] rounded-full bg-(--text-muted)" />
+                  <span className="w-[3px] h-[3px] rounded-full bg-(--text-muted)" />
+                  <span className="w-[3px] h-[3px] rounded-full bg-(--text-muted)" />
+                </div>
+              ) : (
+                <div className="w-[24px] h-[2px] rounded-sm bg-teal-600" />
+              )
             ) : (
               <>
-                <div className="w-[2px] h-[24px] rounded-sm bg-teal-600" />
-                <div className="w-[2px] h-[24px] rounded-sm bg-teal-600" />
-                <div className="w-[2px] h-[24px] rounded-sm bg-teal-600" />
+                <div
+                  className={`w-[2px] h-[24px] rounded-sm ${
+                    alwaysVisible ? 'bg-(--text-muted)' : 'bg-teal-600'
+                  }`}
+                />
+                <div
+                  className={`w-[2px] h-[24px] rounded-sm ${
+                    alwaysVisible ? 'bg-(--text-muted)' : 'bg-teal-600'
+                  }`}
+                />
+                <div
+                  className={`w-[2px] h-[24px] rounded-sm ${
+                    alwaysVisible ? 'bg-(--text-muted)' : 'bg-teal-600'
+                  }`}
+                />
               </>
             )}
           </div>

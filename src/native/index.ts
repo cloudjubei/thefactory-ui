@@ -86,6 +86,11 @@ export {
   type StoryStatus,
 } from './compound/StatusControl'
 export { StoryCard, type StoryCardData, type StoryCardProps } from './compound/StoryCard'
+export {
+  default as ActionMenu,
+  type ActionMenuItem,
+  type ActionMenuProps,
+} from './compound/ActionMenu'
 export { default as CostChip, type CostChipProps } from './compound/chips/CostChip'
 export { default as ProjectChip, type ProjectChipProps } from './compound/chips/ProjectChip'
 export {
@@ -198,6 +203,13 @@ export {
   default as DisconnectedBanner,
   type DisconnectedBannerProps,
 } from './compound/DisconnectedBanner'
+export { default as AppHeader, type AppHeaderProps } from './compound/shell/AppHeader'
+export {
+  default as NavDrawer,
+  type NavDrawerGroup,
+  type NavDrawerItem,
+  type NavDrawerProps,
+} from './compound/shell/NavDrawer'
 
 // Text / code viewers
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
