@@ -25,6 +25,7 @@ export default defineConfig({
     'web/index': 'src/web/index.ts',
     'web/icons/index': 'src/web/icons/index.ts',
     'native/index': 'src/native/index.ts',
+    'native/icons/index': 'src/native/icons/index.ts',
   },
   format: ['esm'],
   dts: true,
@@ -38,7 +39,7 @@ export default defineConfig({
     'react-dom',
     'react-native',
     'react-native-markdown-display',
-    'react-native-syntax-highlighter',
+    'react-native-svg',
   ],
   esbuildOptions(options) {
     options.jsx = 'automatic'

@@ -18,6 +18,7 @@ import {
   nativeZIndex,
 } from '../../../tokens/native'
 import SpinnerWithDot from '../../primitives/SpinnerWithDot'
+import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
 
 export interface NavDrawerItem {
   key: string
@@ -380,29 +381,68 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
     )
   }
 
-  const chevron = (
-    <Pressable
-      onPress={() => setOpen((v) => !v)}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={open ? `Collapse ${group.label}` : `Expand ${group.label}`}
-      style={{ paddingHorizontal: nativeSpace[1] }}
-    >
-      <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>{open ? '▾' : '▸'}</Text>
-    </Pressable>
-  )
+  const toggle = () => setOpen((v) => !v)
   return (
     <View>
-      <Row
-        item={{
-          key: group.key,
-          label: group.label,
-          icon: group.icon,
-          active: group.active,
-          onPress: group.onPress,
+      {/* The folder icon and the right-hand chevron both toggle open/closed;
+          the label selects (navigates to) the group. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          minHeight: 44,
+          borderRadius: nativeRadii[2],
+          backgroundColor: group.active ? nativePalette.brand[50] : 'transparent',
         }}
-        trailing={chevron}
-      />
+      >
+        <Pressable
+          onPress={toggle}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={open ? `Collapse ${group.label}` : `Expand ${group.label}`}
+          style={{
+            paddingLeft: nativeSpace[3],
+            paddingRight: nativeSpace[2],
+            paddingVertical: nativeSpace[2],
+          }}
+        >
+          {open ? (
+            <IconFolderOpen size={22} color={nativeLightTheme.text.secondary} />
+          ) : (
+            <IconFolder size={22} color={nativeLightTheme.text.secondary} />
+          )}
+        </Pressable>
+        <Pressable
+          onPress={group.onPress}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!group.active }}
+          style={{ flex: 1, paddingVertical: nativeSpace[2] }}
+        >
+          <Text
+            numberOfLines={1}
+            style={{
+              fontSize: 15,
+              fontWeight: group.active ? '600' : '400',
+              color: group.active ? nativePalette.brand[700] : nativeLightTheme.text.primary,
+            }}
+          >
+            {group.label}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={toggle}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={open ? `Collapse ${group.label}` : `Expand ${group.label}`}
+          style={{ paddingHorizontal: nativeSpace[3], paddingVertical: nativeSpace[2] }}
+        >
+          {open ? (
+            <IconChevronDown size={16} color={nativeLightTheme.text.muted} />
+          ) : (
+            <IconChevronRight size={16} color={nativeLightTheme.text.muted} />
+          )}
+        </Pressable>
+      </View>
       {open
         ? group.projects.map((project) => <Row key={project.key} item={project} indent />)
         : null}

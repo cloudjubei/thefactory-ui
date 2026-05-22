@@ -1,0 +1,13 @@
+import Svg, { Circle, Path } from 'react-native-svg'
+
+export function IconRunner({ size = 24, color }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="8" cy="6" r="2" stroke="#6366F1" strokeWidth="2" />
+      <Path d="M10 8l3 2" stroke="#3B82F6" strokeWidth="2" />
+      <Path d="M9 12l3-2 3 2" stroke="#06B6D4" strokeWidth="2" />
+      <Path d="M9 12l-2 4" stroke="#10B981" strokeWidth="2" />
+      <Path d="M12 14l3 4" stroke="#22D3EE" strokeWidth="2" />
+    </Svg>
+  )
+}

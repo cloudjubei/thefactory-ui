@@ -39,6 +39,11 @@
       "import": "./dist/native/index.js",
       "react-native": "./dist/native/index.js"
     },
+    "./native/icons": {
+      "types": "./dist/native/icons/index.d.ts",
+      "import": "./dist/native/icons/index.js",
+      "react-native": "./dist/native/icons/index.js"
+    },
     "./native/styles": "./dist/native/styles/tokens.css",
     "./package.json": "./package.json"
   },
@@ -67,6 +72,7 @@
     "react-dom": "^19.0.0",
     "react-native": ">=0.76.0",
     "react-native-markdown-display": ">=7.0.0",
+    "react-native-svg": ">=15.0.0",
     "thefactory-tools": "*"
   },
   "peerDependenciesMeta": {
@@ -77,6 +83,9 @@
       "optional": true
     },
     "react-native-markdown-display": {
+      "optional": true
+    },
+    "react-native-svg": {
       "optional": true
     }
   },
@@ -110,6 +119,7 @@
     "react-dom": "^19.1.1",
     "react-native": "^0.85.3",
     "react-native-markdown-display": "^7.0.2",
+    "react-native-svg": "^15.12.1",
     "tailwindcss": "^4.1.13",
     "thefactory-tools": "file:../thefactory-tools",
     "tsup": "^8.3.0",

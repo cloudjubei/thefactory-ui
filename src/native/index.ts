@@ -89,6 +89,12 @@ export {
 } from './compound/StatusControl'
 export { StoryCard, type StoryCardData, type StoryCardProps } from './compound/StoryCard'
 export {
+  PROJECT_ICON_REGISTRY,
+  PROJECT_ICONS,
+  renderProjectIcon,
+  type ProjectIconKey,
+} from './compound/projectIcons'
+export {
   default as ActionMenu,
   type ActionMenuItem,
   type ActionMenuProps,
@@ -291,18 +297,9 @@ export {
 } from './compound/settings/LLMConfigForm'
 
 // Tools screen compounds
-export {
-  default as ToolArgInput,
-  type ToolArgInputProps,
-} from './compound/tools/ToolArgInput'
-export {
-  default as ToolArgsForm,
-  type ToolArgsFormProps,
-} from './compound/tools/ToolArgsForm'
-export {
-  default as ToolListCard,
-  type ToolListCardProps,
-} from './compound/tools/ToolListCard'
+export { default as ToolArgInput, type ToolArgInputProps } from './compound/tools/ToolArgInput'
+export { default as ToolArgsForm, type ToolArgsFormProps } from './compound/tools/ToolArgsForm'
+export { default as ToolListCard, type ToolListCardProps } from './compound/tools/ToolListCard'
 export {
   default as ToolResultPanel,
   type ToolResultPanelProps,
