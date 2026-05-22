@@ -71,7 +71,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-native": ">=0.76.0",
+    "react-native-gesture-handler": ">=2.20.0",
     "react-native-markdown-display": ">=7.0.0",
+    "react-native-reanimated": ">=3.16.0",
     "react-native-svg": ">=15.0.0",
     "thefactory-tools": "*"
   },
@@ -82,7 +84,13 @@
     "react-native": {
       "optional": true
     },
+    "react-native-gesture-handler": {
+      "optional": true
+    },
     "react-native-markdown-display": {
+      "optional": true
+    },
+    "react-native-reanimated": {
       "optional": true
     },
     "react-native-svg": {
@@ -118,7 +126,9 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-native": "^0.85.3",
+    "react-native-gesture-handler": "^2.31.2",
     "react-native-markdown-display": "^7.0.2",
+    "react-native-reanimated": "^4.3.1",
     "react-native-svg": "^15.12.1",
     "tailwindcss": "^4.1.13",
     "thefactory-tools": "file:../thefactory-tools",

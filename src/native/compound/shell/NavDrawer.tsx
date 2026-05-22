@@ -209,65 +209,68 @@ export default function NavDrawer({
           </Text>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingVertical: nativeSpace[2] }}
-          showsVerticalScrollIndicator={false}
+        {/* Fixed nav section — only the projects list below scrolls, matching
+            web's `Sidebar` (nav rows `shrink-0`, projects `overflow-auto`). */}
+        {navItems && navItems.length > 0 ? (
+          <View style={{ paddingHorizontal: nativeSpace[2], paddingTop: nativeSpace[2] }}>
+            {navItems.map((item) => (
+              <Row key={item.key} item={item} />
+            ))}
+          </View>
+        ) : null}
+
+        {(navItems?.length ?? 0) > 0 ? <Divider /> : null}
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: nativeSpace[4],
+            paddingTop: (navItems?.length ?? 0) > 0 ? nativeSpace[1] : nativeSpace[3],
+            paddingBottom: nativeSpace[1],
+          }}
         >
-          {navItems && navItems.length > 0 ? (
-            <View style={{ paddingHorizontal: nativeSpace[2] }}>
-              {navItems.map((item) => (
-                <Row key={item.key} item={item} />
-              ))}
-            </View>
-          ) : null}
-
-          {(navItems?.length ?? 0) > 0 ? <Divider /> : null}
-
-          <View
+          <Text
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: nativeSpace[4],
-              paddingTop: nativeSpace[2],
-              paddingBottom: nativeSpace[1],
+              fontSize: 11,
+              fontWeight: '600',
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              color: nativeLightTheme.text.muted,
             }}
           >
+            {projectsLabel}
+          </Text>
+          {projectsHeaderAction}
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: nativeSpace[2],
+            paddingBottom: nativeSpace[2],
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {!hasProjects ? (
             <Text
               style={{
-                fontSize: 11,
-                fontWeight: '600',
-                letterSpacing: 0.6,
-                textTransform: 'uppercase',
+                paddingHorizontal: nativeSpace[2],
+                paddingVertical: nativeSpace[2],
+                fontSize: 14,
                 color: nativeLightTheme.text.muted,
               }}
             >
-              {projectsLabel}
+              {projectsEmptyLabel}
             </Text>
-            {projectsHeaderAction}
-          </View>
-
-          <View style={{ paddingHorizontal: nativeSpace[2] }}>
-            {!hasProjects ? (
-              <Text
-                style={{
-                  paddingHorizontal: nativeSpace[2],
-                  paddingVertical: nativeSpace[2],
-                  fontSize: 14,
-                  color: nativeLightTheme.text.muted,
-                }}
-              >
-                {projectsEmptyLabel}
-              </Text>
-            ) : null}
-            {projects?.map((item) => (
-              <Row key={item.key} item={item} />
-            ))}
-            {groups?.map((group) => (
-              <GroupFolder key={group.key} group={group} />
-            ))}
-          </View>
+          ) : null}
+          {projects?.map((item) => (
+            <Row key={item.key} item={item} />
+          ))}
+          {groups?.map((group) => (
+            <GroupFolder key={group.key} group={group} />
+          ))}
         </ScrollView>
 
         {footerItem ? (

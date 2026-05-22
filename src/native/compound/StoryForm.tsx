@@ -48,15 +48,12 @@ const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm
 
   return (
     <View accessibilityLabel="Story form" style={{ gap: nativeSpace[6] }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <StatusControl status={form.values.status} onChange={form.setStatus} />
-        {renderProjectChip ? renderProjectChip() : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <StatusControl status={form.values.status} onChange={form.setStatus} />
+        </View>
+        <View>{renderProjectChip ? renderProjectChip() : null}</View>
+        <View style={{ flex: 1 }} />
       </View>
 
       <Field label="Title">

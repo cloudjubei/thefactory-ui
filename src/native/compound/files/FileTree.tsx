@@ -27,6 +27,20 @@ export type FileTreeProps = {
   onSelectFile: (path: string) => void
   /** Folders at depth < `defaultExpandedDepth` start open. Default `0`. */
   defaultExpandedDepth?: number
+  /**
+   * Fires after the tree filters with the count of visible leaf files. Lets
+   * the caller render a live "N files" status that tracks the active filter.
+   */
+  onVisibleCountChange?: (count: number) => void
+}
+
+function countLeafFiles(nodes: ReadonlyArray<TreeNode>): number {
+  let n = 0
+  for (const node of nodes) {
+    if (node.kind === 'file') n++
+    else n += countLeafFiles(node.children)
+  }
+  return n
 }
 
 /**
@@ -45,6 +59,7 @@ export default function FileTree({
   query,
   onSelectFile,
   defaultExpandedDepth = 0,
+  onVisibleCountChange,
 }: FileTreeProps) {
   const tree = useMemo(() => buildFileTree(files.map((f) => f.relativePath)), [files])
 
@@ -97,6 +112,13 @@ export default function FileTree({
     if (!q) return tree
     return filterFileTree(tree, q)
   }, [tree, q])
+
+  // Report the count of visible LEAF files (not directory rows) so the host
+  // can render a live "N files" status that tracks the active filter.
+  useEffect(() => {
+    if (!onVisibleCountChange) return
+    onVisibleCountChange(countLeafFiles(displayTree))
+  }, [displayTree, onVisibleCountChange])
 
   const toggleOpen = (path: string) =>
     setOpenSet((prev) => {

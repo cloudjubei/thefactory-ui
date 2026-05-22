@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Animated,
-  Modal as RNModal,
+  type LayoutChangeEvent,
   PanResponder,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native'
 import { nativeLightTheme, nativeMotion, nativeRadii, nativeSpace } from '../../tokens/native'
+import { OverlayPortal } from './Overlay'
 
 export interface BottomSheetProps {
   isOpen: boolean
@@ -28,11 +30,11 @@ const DISMISS_DRAG_PX = 110
 const DISMISS_VELOCITY = 0.6
 
 /**
- * Slide-from-bottom sheet built on RN's `Modal`. Mobile-only — web uses
- * dropdowns / popovers in the same role. Dismisses on backdrop tap or by
- * dragging the handle down. It stays mounted through the close animation so it
- * slides out instead of vanishing, and clips its content to the rounded top
- * corners; tall content scrolls rather than overflowing.
+ * Slide-from-bottom sheet. Mobile-only — web uses dropdowns / popovers in the
+ * same role. Renders through the app overlay host so it can open from inside
+ * any other overlay. Dismisses on backdrop tap or by dragging the handle down.
+ * The sheet hugs its content; it only scrolls internally when the content
+ * would exceed `maxHeightFraction` of the screen.
  */
 export default function BottomSheet({
   isOpen,
@@ -44,9 +46,11 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const { height: screenHeight } = useWindowDimensions()
   const translateY = useRef(new Animated.Value(screenHeight)).current
-  // Two-step mount so the close animation is visible — an RNModal hidden by
-  // `visible=false` would unmount in a single frame (a flash).
+  // Two-step mount so the close animation is visible.
   const [rendered, setRendered] = useState(isOpen)
+  const [headerH, setHeaderH] = useState(0)
+  const [footerH, setFooterH] = useState(0)
+  const [contentH, setContentH] = useState(0)
 
   // The pan responder is created once; route it to the freshest `onClose`.
   const onCloseRef = useRef(onClose)
@@ -95,25 +99,31 @@ export default function BottomSheet({
     extrapolate: 'clamp',
   })
 
+  const maxPanelH = Math.round(maxHeightFraction * screenHeight)
+  const bottomSpacer = nativeSpace[8]
+  const availForContent = maxPanelH - headerH - footerH - bottomSpacer
+  const scroll = contentH > availForContent && availForContent > 0
+
+  const content = (
+    <View
+      onLayout={(e: LayoutChangeEvent) => setContentH(e.nativeEvent.layout.height)}
+      style={{ paddingHorizontal: nativeSpace[5], paddingTop: nativeSpace[2] }}
+    >
+      {children}
+    </View>
+  )
+
   return (
-    <RNModal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <OverlayPortal>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View
           pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#000',
-            opacity: backdropOpacity,
-          }}
+          style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: backdropOpacity }]}
         />
         <Pressable
           accessibilityLabel="Dismiss sheet"
           onPress={onClose}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          style={StyleSheet.absoluteFill}
         />
         <Animated.View
           style={{
@@ -121,11 +131,14 @@ export default function BottomSheet({
             borderTopLeftRadius: nativeRadii[5],
             borderTopRightRadius: nativeRadii[5],
             overflow: 'hidden',
-            maxHeight: Math.round(maxHeightFraction * screenHeight),
+            maxHeight: maxPanelH,
             transform: [{ translateY }],
           }}
         >
-          <View {...panResponder.panHandlers}>
+          <View
+            {...panResponder.panHandlers}
+            onLayout={(e: LayoutChangeEvent) => setHeaderH(e.nativeEvent.layout.height)}
+          >
             <View style={{ alignItems: 'center', paddingTop: nativeSpace[2] }}>
               <View
                 style={{
@@ -153,19 +166,22 @@ export default function BottomSheet({
               </View>
             ) : null}
           </View>
-          <ScrollView
-            style={{ flexShrink: 1 }}
-            contentContainerStyle={{
-              paddingHorizontal: nativeSpace[5],
-              paddingTop: nativeSpace[2],
-            }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {children}
-          </ScrollView>
+
+          {scroll ? (
+            <ScrollView
+              style={{ height: availForContent }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {content}
+            </ScrollView>
+          ) : (
+            content
+          )}
+
           {footer ? (
             <View
+              onLayout={(e: LayoutChangeEvent) => setFooterH(e.nativeEvent.layout.height)}
               style={{
                 paddingHorizontal: nativeSpace[5],
                 paddingTop: nativeSpace[3],
@@ -176,9 +192,9 @@ export default function BottomSheet({
               {footer}
             </View>
           ) : null}
-          <View style={{ height: nativeSpace[8] }} />
+          <View style={{ height: bottomSpacer }} />
         </Animated.View>
       </View>
-    </RNModal>
+    </OverlayPortal>
   )
 }

@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Modal as RNModal, Pressable, ScrollView, Text, View } from 'react-native'
-import {
-  nativeLightTheme,
-  nativePalette,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { Pressable, Text, View } from 'react-native'
+import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import BottomSheet from '../primitives/BottomSheet'
 
 export interface ModelChipConfig {
   id: string
@@ -82,6 +77,11 @@ function formatUSD(n?: number): string {
   return `$${trimmed}`
 }
 
+/** Cap chip-face text so a long provider/model name can't blow out the chip. */
+function trim10(s: string): string {
+  return s.length > 10 ? `${s.slice(0, 10)}…` : s
+}
+
 function PickerItem({
   cfg,
   selected,
@@ -104,13 +104,14 @@ function PickerItem({
         flexDirection: 'row',
         alignItems: 'center',
         gap: nativeSpace[4],
-        paddingVertical: nativeSpace[4],
-        paddingHorizontal: nativeSpace[5],
-        borderRadius: nativeRadii[1],
+        minHeight: 48,
+        paddingVertical: nativeSpace[3],
+        paddingHorizontal: nativeSpace[3],
+        borderRadius: nativeRadii[3],
         backgroundColor: pressed
-          ? nativeLightTheme.surface.muted
+          ? nativeLightTheme.surface.hover
           : selected
-            ? nativeLightTheme.surface.overlay
+            ? nativeLightTheme.surface.muted
             : 'transparent',
       })}
     >
@@ -250,14 +251,14 @@ export function ModelChip({
             color: nativeLightTheme.text.secondary,
           }}
         >
-          {prov || (editable ? 'Select' : '—')}
+          {trim10(prov || (editable ? 'Select' : '—'))}
         </Text>
         {(displayModel || editable) && (
           <Text
             numberOfLines={1}
             style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}
           >
-            {displayModel || (editable ? 'model…' : '')}
+            {trim10(displayModel || (editable ? 'model…' : ''))}
           </Text>
         )}
       </View>
@@ -285,82 +286,50 @@ export function ModelChip({
   return (
     <>
       {chip}
-      <RNModal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss"
-          onPress={() => setOpen(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: nativeSpace[6],
-          }}
-        >
-          <Pressable
-            accessible={false}
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              maxHeight: '80%',
-              borderRadius: nativeRadii[3],
-              backgroundColor: nativeLightTheme.surface.overlay,
-              borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              ...nativeShadows[4],
-            }}
-          >
-            <ScrollView contentContainerStyle={{ padding: nativeSpace[3] }}>
-              {recents.map((cfg) => {
-                const key = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : ''
-                return (
-                  <PickerItem
-                    key={cfg.id}
-                    cfg={cfg}
-                    selected={cfg.id === activeConfig?.id}
-                    price={key ? pricesByKey[key] : undefined}
-                    onPress={() => {
-                      onPick(cfg.id)
-                      setOpen(false)
-                    }}
-                  />
-                )
-              })}
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: nativeLightTheme.border.subtle,
-                  marginVertical: nativeSpace[2],
-                }}
-              />
-              <Pressable
-                accessibilityRole="menuitem"
+      <BottomSheet isOpen={open} onClose={() => setOpen(false)} title="Select model">
+        <View style={{ paddingBottom: nativeSpace[3] }}>
+          {recents.map((cfg) => {
+            const key = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : ''
+            return (
+              <PickerItem
+                key={cfg.id}
+                cfg={cfg}
+                selected={cfg.id === activeConfig?.id}
+                price={key ? pricesByKey[key] : undefined}
                 onPress={() => {
-                  onOpenSettings()
+                  onPick(cfg.id)
                   setOpen(false)
                 }}
-                style={({ pressed }) => ({
-                  paddingVertical: nativeSpace[4],
-                  paddingHorizontal: nativeSpace[5],
-                  borderRadius: nativeRadii[1],
-                  backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
-                })}
-              >
-                <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
-                  Manage LLM Configurations…
-                </Text>
-              </Pressable>
-            </ScrollView>
+              />
+            )
+          })}
+          <View
+            style={{
+              height: 1,
+              backgroundColor: nativeLightTheme.border.subtle,
+              marginVertical: nativeSpace[2],
+            }}
+          />
+          <Pressable
+            accessibilityRole="menuitem"
+            onPress={() => {
+              onOpenSettings()
+              setOpen(false)
+            }}
+            style={({ pressed }) => ({
+              minHeight: 48,
+              justifyContent: 'center',
+              paddingHorizontal: nativeSpace[3],
+              borderRadius: nativeRadii[3],
+              backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+            })}
+          >
+            <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
+              Manage LLM Configurations…
+            </Text>
           </Pressable>
-        </Pressable>
-      </RNModal>
+        </View>
+      </BottomSheet>
     </>
   )
 }

@@ -36,17 +36,16 @@ export default function ToolListCard({
     >
       <Text
         style={{
-          fontFamily: 'Menlo',
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: '600',
           color: isActive ? nativePalette.blue[700] : nativeLightTheme.text.primary,
         }}
         numberOfLines={1}
       >
-        {name}
+        <Text style={{ fontFamily: 'Menlo' }}>{name}</Text>
       </Text>
       <Text
-        style={{ fontSize: 12, color: nativeLightTheme.text.secondary, marginTop: 2 }}
+        style={{ fontSize: 12, color: nativeLightTheme.text.secondary, marginTop: 4 }}
         numberOfLines={2}
       >
         {description || 'No description provided.'}

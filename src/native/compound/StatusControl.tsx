@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal as RNModal, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import {
   STATUS_LABELS,
   STATUS_ORDER,
@@ -8,13 +8,8 @@ import {
   type StatusSemanticKey,
   type StoryStatus,
 } from '../../headless/utils/status'
-import {
-  nativeLightTheme,
-  nativePalette,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import BottomSheet from '../primitives/BottomSheet'
 
 export type { StoryStatus, StatusSemanticKey }
 export { STATUS_LABELS, STATUS_ORDER, statusKey, statusLabel }
@@ -106,85 +101,57 @@ export default function StatusControl({ status, onChange, size = 'sm' }: StatusC
       >
         {badge}
       </Pressable>
-      <RNModal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss"
-          onPress={() => setOpen(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: nativeSpace[6],
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              maxWidth: 280,
-              padding: nativeSpace[3],
-              borderRadius: nativeRadii[3],
-              backgroundColor: nativeLightTheme.surface.overlay,
-              borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              ...nativeShadows[3],
-            }}
-          >
-            {STATUS_ORDER.map((opt) => {
-              const optResolved = resolve(opt)
-              const selected = opt === status
-              return (
-                <Pressable
-                  key={opt}
-                  accessibilityRole="menuitem"
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    onChange?.(opt)
-                    setOpen(false)
+      <BottomSheet isOpen={open} onClose={() => setOpen(false)} title="Set status">
+        <View style={{ paddingBottom: nativeSpace[3] }}>
+          {STATUS_ORDER.map((opt) => {
+            const optResolved = resolve(opt)
+            const selected = opt === status
+            return (
+              <Pressable
+                key={opt}
+                accessibilityRole="menuitem"
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  onChange?.(opt)
+                  setOpen(false)
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: nativeSpace[4],
+                  minHeight: 48,
+                  paddingVertical: nativeSpace[3],
+                  paddingHorizontal: nativeSpace[3],
+                  borderRadius: nativeRadii[3],
+                  backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+                })}
+              >
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: optResolved.colors.fg,
                   }}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: nativeSpace[4],
-                    paddingVertical: nativeSpace[4],
-                    paddingHorizontal: nativeSpace[5],
-                    borderRadius: nativeRadii[1],
-                    backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
-                  })}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 15,
+                    fontWeight: selected ? '600' : '400',
+                    color: nativeLightTheme.text.primary,
+                  }}
                 >
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: optResolved.colors.fg,
-                    }}
-                  />
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      fontWeight: selected ? '600' : '400',
-                      color: nativeLightTheme.text.primary,
-                    }}
-                  >
-                    {optResolved.label}
-                  </Text>
-                  {selected && (
-                    <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>
-                  )}
-                </Pressable>
-              )
-            })}
-          </View>
-        </Pressable>
-      </RNModal>
+                  {optResolved.label}
+                </Text>
+                {selected && (
+                  <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>
+                )}
+              </Pressable>
+            )
+          })}
+        </View>
+      </BottomSheet>
     </>
   )
 }

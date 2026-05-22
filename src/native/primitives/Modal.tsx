@@ -1,8 +1,15 @@
-import type { ReactNode } from 'react'
-import { Modal as RNModal, Pressable, Text, View } from 'react-native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
+import {
+  nativeLightTheme,
+  nativeMotion,
+  nativeRadii,
+  nativeShadows,
+  nativeSpace,
+} from '../../tokens/native'
 import { Button } from './Button'
+import { OverlayPortal } from './Overlay'
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
 
@@ -17,7 +24,7 @@ export interface ModalProps {
   closeOnOverlayClick?: boolean
   headerActions?: ReactNode
   hideHeader?: boolean
-  /** No-op on RN — back-button dismissal is handled by `onRequestClose`. */
+  /** No-op on RN — back-button dismissal is handled by the OS. */
   closeOnEsc?: boolean
   panelStyle?: StyleProp<ViewStyle>
   contentStyle?: StyleProp<ViewStyle>
@@ -31,6 +38,12 @@ const MAX_WIDTH: Record<ModalSize, number> = {
   xl: 720,
 }
 
+/**
+ * Centred modal dialog. Renders through the app overlay host (not RN's
+ * `<Modal>`), so it can open from inside a `BottomSheet` or another `Modal`
+ * without the iOS double-presentation crash. Enters with a fade + slide-up +
+ * scale and reverses on close.
+ */
 export function Modal({
   isOpen,
   onClose,
@@ -47,25 +60,53 @@ export function Modal({
   className,
 }: ModalProps) {
   const showHeader = !hideHeader && (title || headerActions || !hideCloseButton)
+  // Two-step mount so the close animation is visible.
+  const [rendered, setRendered] = useState(isOpen)
+  const progress = useRef(new Animated.Value(isOpen ? 1 : 0)).current
+
+  useEffect(() => {
+    if (isOpen) setRendered(true)
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!rendered) return
+    Animated.timing(progress, {
+      toValue: isOpen ? 1 : 0,
+      duration: isOpen ? nativeMotion.normal : nativeMotion.fast,
+      easing: isOpen ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && !isOpen) setRendered(false)
+    })
+  }, [isOpen, rendered, progress])
+
+  if (!rendered) return null
+
+  const backdropOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.4] })
+  const panelTranslateY = progress.interpolate({ inputRange: [0, 1], outputRange: [28, 0] })
+  const panelScale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] })
 
   return (
-    <RNModal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={closeOnOverlayClick ? 'Dismiss modal' : undefined}
-        onPress={closeOnOverlayClick ? onClose : undefined}
+    <OverlayPortal>
+      <View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
           alignItems: 'center',
           justifyContent: 'center',
           padding: nativeSpace[6],
         }}
       >
-        {/* Inner Pressable absorbs taps so they don't bubble to the backdrop. */}
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: backdropOpacity }]}
+        />
         <Pressable
-          accessible={false}
-          onPress={() => {}}
+          accessibilityRole="button"
+          accessibilityLabel={closeOnOverlayClick ? 'Dismiss modal' : undefined}
+          onPress={closeOnOverlayClick ? onClose : undefined}
+          style={StyleSheet.absoluteFill}
+        />
+        <Animated.View
           style={[
             {
               width: '100%',
@@ -76,11 +117,13 @@ export function Modal({
               borderWidth: 1,
               borderColor: nativeLightTheme.border.subtle,
               ...nativeShadows[4],
+              opacity: progress,
+              transform: [{ translateY: panelTranslateY }, { scale: panelScale }],
             },
             panelStyle,
           ]}
         >
-          <View className={className} accessibilityViewIsModal>
+          <View className={className} accessibilityViewIsModal style={{ flexShrink: 1 }}>
             {showHeader && (
               <View
                 style={{
@@ -96,6 +139,7 @@ export function Modal({
                 {title && (
                   <Text
                     accessibilityRole="header"
+                    numberOfLines={2}
                     style={{
                       flex: 1,
                       fontSize: 16,
@@ -145,9 +189,9 @@ export function Modal({
               </View>
             )}
           </View>
-        </Pressable>
-      </Pressable>
-    </RNModal>
+        </Animated.View>
+      </View>
+    </OverlayPortal>
   )
 }
 

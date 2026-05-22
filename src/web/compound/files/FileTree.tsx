@@ -3,6 +3,12 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { IconChevron, IconFolder, IconFolderOpen } from '../../icons'
 import { FileTypeIcon } from './FileTypeIcon'
 
+function countLeafFiles(node: DirNode): number {
+  let n = node.files.length
+  for (const d of node.dirs) n += countLeafFiles(d)
+  return n
+}
+
 export type FileTreeEntry = {
   /** Project-relative path, e.g. `src/components/Foo.tsx`. */
   relativePath: string
@@ -23,6 +29,11 @@ export type FileTreeProps = {
   defaultExpandedDepth?: number
   /** Optional className for the outermost `<ul>`. */
   className?: string
+  /**
+   * Fires after the tree filters with the count of visible leaf files. Lets
+   * the caller render a live "N files" status that tracks the active filter.
+   */
+  onVisibleCountChange?: (count: number) => void
 }
 
 type DirNode = {
@@ -100,6 +111,7 @@ export function FileTree({
   onSelectFile,
   defaultExpandedDepth = 0,
   className,
+  onVisibleCountChange,
 }: FileTreeProps) {
   const tree = useMemo(() => buildTree(files), [files])
 
@@ -156,6 +168,13 @@ export function FileTree({
     if (!q) return tree
     return filterDir(tree, q) ?? { ...tree, dirs: [], files: [] }
   }, [tree, q])
+
+  // Report the count of visible LEAF files (not directory rows) so the host
+  // can render a live "N files" status that tracks the active filter.
+  useEffect(() => {
+    if (!onVisibleCountChange) return
+    onVisibleCountChange(countLeafFiles(displayTree))
+  }, [displayTree, onVisibleCountChange])
 
   const toggleOpen = (relPath: string) =>
     setOpenSet((prev) => {

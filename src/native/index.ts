@@ -20,6 +20,7 @@ export {
   type ModalProps,
   type ModalSize,
 } from './primitives/Modal'
+export { OverlayProvider, OverlayPortal, useHasOverlayProvider } from './primitives/Overlay'
 export {
   Select,
   SelectContent,
@@ -94,6 +95,8 @@ export {
   renderProjectIcon,
   type ProjectIconKey,
 } from './compound/projectIcons'
+export { default as CodeInfoChip, type CodeInfoChipProps } from './compound/CodeInfoChip'
+export { renderLanguageIcon, type CodeInfoLanguage } from './compound/codeInfoIcons'
 export {
   default as ActionMenu,
   type ActionMenuItem,
@@ -274,6 +277,10 @@ export {
 } from './compound/files/FileTree'
 export { default as ImageViewer, type ImageViewerProps } from './compound/files/ImageViewer'
 export { default as FileTypeIcon, type FileTypeIconProps } from './compound/files/FileTypeIcon'
+export {
+  default as FilePaneHeader,
+  type FilePaneHeaderProps,
+} from './compound/files/FilePaneHeader'
 
 // Git screen compounds
 export { default as UnifiedDiff, type UnifiedDiffProps } from './compound/git/UnifiedDiff'
