@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState, type ReactNode } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
@@ -8,12 +8,16 @@ import {
   type ReferenceSuggestion,
   type StoryLike,
 } from '../../../headless'
-import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
+import { Modal } from '../../primitives/Modal'
 import FileMentionsTextarea from '../files/FileMentionsTextarea'
+import FileSelector from '../files/FileSelector'
+import type { UikitFileMeta } from '../files/FileDisplay'
+import ContextFileChip from './ContextFileChip'
 import DependencySelector from './DependencySelector'
 import StatusControl from '../StatusControl'
+import { IconPlus } from '../../icons'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export type { FeatureFormValues, FeatureFormInitialValues }
@@ -23,27 +27,25 @@ export interface FeatureFormHandle {
 }
 
 export interface FeatureFormProps {
-  /** Parent story — provides the form's display context (chip in header) and
-   *  scopes `normalizeDependency` to the right project. */
-  storyTitle?: string
-  /** Stories used to populate the `DependencySelector` modal — usually the
-   *  current project's full list. */
+  /** Slot for the host's project chip — shown in the form header. */
+  projectChip?: ReactNode
+  /** Slot for the host's parent-story chip (e.g. a `DependencyBullet`),
+   *  shown at the header's trailing edge. */
+  storyChip?: ReactNode
+  /** Stories used to populate the `DependencySelector` modal. */
   stories: ReadonlyArray<StoryLike>
   /** Display-index resolvers — mirror the props on `useDependencySelector`. */
   getStoryDisplayIndex?: (storyId: string) => string | number | undefined
   getFeatureDisplayIndex?: (storyId: string, featureId: string) => string | number | undefined
   currentStoryId?: string
   currentFeatureId?: string
-  /** Optional: when the user types `#3.2` in the description, the host can
-   *  expand it to a canonical id before it lands in `values.blockers`. */
   normalizeDependency?: (raw: string) => string
-  /** `@<path>` autocomplete: the host returns ranked path suggestions. */
   onSearchFiles?: (token: string) => ReadonlyArray<string>
-  /** `#<dep>` autocomplete: the host returns reference suggestions. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
-  /** Render a single blocker chip. Hosts use the project-aware
-   *  `DependencyBullet` here so taps navigate to the referenced item. */
+  /** Render a single blocker chip. */
   renderBlocker?: (dep: string, idx: number, onRemove: () => void) => ReactNode
+  /** Project files — feed the context-files picker + chip metadata. */
+  files?: ReadonlyArray<UikitFileMeta>
 
   isCreate?: boolean
   initialValues?: FeatureFormInitialValues
@@ -52,22 +54,55 @@ export interface FeatureFormProps {
   onDirtyChange?: (dirty: boolean) => void
 }
 
+/** A small bordered chip that opens a picker — the native peer of web's
+ *  `chip chip--ok` "+ Add" affordance. */
+function AddChip({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: nativeSpace[2],
+        paddingVertical: 4,
+        borderRadius: nativeRadii[2],
+        borderWidth: 1,
+        borderColor: nativeLightTheme.accent.primary,
+        opacity: disabled ? 0.5 : pressed ? 0.6 : 1,
+      })}
+    >
+      <IconPlus size={12} color={nativeLightTheme.accent.primary} />
+      <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.accent.primary }}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
 /**
  * Native peer of
  * [web's `FeatureForm`](../../../../../thefactory-overseer-web/src/ui/components/stories/FeatureForm.tsx).
- * Same `useFeatureForm` hook (shared state machine), same field flow —
- * status pill + parent-story chip header, title, description (rich textarea
- * with `@file` / `#dep` autocomplete), rejection (same), blockers chip row
- * (taps a "+ Add" button to open `DependencySelector`), context-files chip
- * row (auto-pruned: `@<path>` mentions in any text field drive the set).
- *
- * The rich-text inputs route through
- * [`FileMentionsTextarea`](../files/FileMentionsTextarea.tsx) which shares
- * its state machine with web via `useFileMentions`.
+ * Same `useFeatureForm` hook, same field flow: a header with the status pill,
+ * the project chip, and the parent-story chip; then title, description,
+ * rejection reason (always shown, matching web), a bordered context-files
+ * box and a bordered blockers box — each with an inline "+ Add".
  */
 const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function FeatureForm(
   {
-    storyTitle,
+    projectChip,
+    storyChip,
     stories,
     getStoryDisplayIndex,
     getFeatureDisplayIndex,
@@ -77,6 +112,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     onSearchFiles,
     onSearchReferences,
     renderBlocker,
+    files,
     isCreate = false,
     initialValues,
     onSubmit,
@@ -95,6 +131,38 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
   useImperativeHandle(ref, () => ({ submit: () => void form.handleSubmit() }), [form])
 
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [fileSelectorOpen, setFileSelectorOpen] = useState(false)
+
+  const fileByPath = useMemo(() => {
+    const m = new Map<string, UikitFileMeta>()
+    for (const f of files ?? []) {
+      if (f.relativePath) m.set(f.relativePath, f)
+    }
+    return m
+  }, [files])
+
+  const metaFor = (path: string): UikitFileMeta =>
+    fileByPath.get(path) ?? {
+      name: path.split('/').pop() ?? path,
+      relativePath: path,
+      absolutePath: path,
+      type: null,
+      size: 0,
+      mtime: 0,
+    }
+
+  const boxStyle = {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: nativeLightTheme.border.default,
+    borderRadius: nativeRadii[2],
+    padding: nativeSpace[2],
+    backgroundColor: nativeLightTheme.surface.raised,
+  }
 
   return (
     <ScrollView contentContainerStyle={{ gap: nativeSpace[3], paddingBottom: nativeSpace[4] }}>
@@ -107,31 +175,14 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
         }}
       >
         <StatusControl status={form.values.status} onChange={form.setStatus} />
-        {storyTitle ? (
-          <View
-            style={{
-              alignSelf: 'flex-start',
-              borderRadius: nativeRadii[2],
-              backgroundColor: 'rgba(0, 115, 234, 0.1)',
-              paddingHorizontal: nativeSpace[2],
-              paddingVertical: 2,
-              flexShrink: 1,
-            }}
-          >
-            <Text
-              style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}
-              numberOfLines={1}
-            >
-              {storyTitle}
-            </Text>
-          </View>
-        ) : null}
+        {projectChip}
+        {storyChip}
       </View>
 
       <Field label="Title">
         <Input
           value={form.values.title}
-          placeholder={isCreate ? 'Give your feature a clear title' : 'Title'}
+          placeholder={isCreate ? 'What is this feature?' : 'Title'}
           onChangeText={form.setTitle}
           disabled={submitting}
           returnKeyType="next"
@@ -152,97 +203,65 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
         />
       </Field>
 
-      {(form.values.status === '=' || form.values.rejection.length > 0) && (
-        <Field label="Rejection reason">
-          <FileMentionsTextarea
-            value={form.values.rejection}
-            onChangeText={form.setRejection}
-            onSearchFiles={onSearchFiles}
-            onSearchReferences={onSearchReferences}
-            onAcceptFileMention={form.addContextFile}
-            onAcceptReference={form.addBlocker}
-            placeholder="Why was this rejected?"
-            rows={2}
-            disabled={submitting}
-          />
-        </Field>
-      )}
-
-      <Field label={`Blockers (${form.values.blockers.length})`}>
-        <View style={{ gap: nativeSpace[2] }}>
-          {form.values.blockers.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {form.values.blockers.map((dep, i) =>
-                renderBlocker ? (
-                  <View key={`${dep}-${i}`}>
-                    {renderBlocker(dep, i, () => form.removeBlockerAt(i))}
-                  </View>
-                ) : (
-                  <Pressable
-                    key={`${dep}-${i}`}
-                    onPress={() => form.removeBlockerAt(i)}
-                    accessibilityLabel={`Remove blocker ${dep}`}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: nativeSpace[2],
-                      paddingVertical: 2,
-                      borderRadius: nativeRadii[2],
-                      backgroundColor: nativeLightTheme.surface.muted,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>
-                      #{dep}
-                    </Text>
-                    <Text style={{ fontSize: 14, opacity: 0.5 }}>×</Text>
-                  </Pressable>
-                ),
-              )}
-            </View>
-          )}
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={() => setPickerOpen(true)}
-            disabled={submitting}
-          >
-            + Add blocker
-          </Button>
-        </View>
+      <Field label="Rejection reason">
+        <FileMentionsTextarea
+          value={form.values.rejection}
+          onChangeText={form.setRejection}
+          onSearchFiles={onSearchFiles}
+          onSearchReferences={onSearchReferences}
+          onAcceptFileMention={form.addContextFile}
+          onAcceptReference={form.addBlocker}
+          placeholder="Optional reason for rejection (leave blank to remove)"
+          rows={2}
+          disabled={submitting}
+        />
       </Field>
 
-      <Field label={`Context files (${form.values.context.length})`}>
-        <View style={{ gap: nativeSpace[2] }}>
-          {form.values.context.length === 0 ? (
-            <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
-              Mention a file in the description with `@path` to add it here.
-            </Text>
-          ) : (
-            <View style={{ gap: 4 }}>
-              {form.values.context.map((path, i) => (
-                <Pressable
-                  key={`${path}-${i}`}
-                  onPress={() => form.removeContextAt(i)}
-                  accessibilityLabel={`Remove context ${path}`}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingHorizontal: nativeSpace[2],
-                    paddingVertical: 4,
-                    borderRadius: nativeRadii[2],
-                    backgroundColor: nativeLightTheme.surface.muted,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, flex: 1 }} numberOfLines={1} ellipsizeMode="middle">
-                    {path}
-                  </Text>
-                  <Text style={{ fontSize: 14, opacity: 0.5 }}>×</Text>
-                </Pressable>
-              ))}
-            </View>
+      <Field label="Context files">
+        <View style={boxStyle}>
+          {form.values.context.map((path, i) => (
+            <ContextFileChip
+              key={`${path}-${i}`}
+              file={metaFor(path)}
+              warn={!form.mentionedPaths.has(path)}
+              onRemove={() => form.removeContextAt(i)}
+            />
+          ))}
+          <AddChip label="Add" onPress={() => setFileSelectorOpen(true)} disabled={submitting} />
+        </View>
+        <Text style={{ marginTop: 4, fontSize: 12, color: nativeLightTheme.text.muted }}>
+          Files that give the agent useful context. Tip: type @ in the description to reference one.
+        </Text>
+      </Field>
+
+      <Field label="Blockers">
+        <View style={boxStyle}>
+          {form.values.blockers.map((dep, i) =>
+            renderBlocker ? (
+              <View key={`${dep}-${i}`}>
+                {renderBlocker(dep, i, () => form.removeBlockerAt(i))}
+              </View>
+            ) : (
+              <Pressable
+                key={`${dep}-${i}`}
+                onPress={() => form.removeBlockerAt(i)}
+                accessibilityLabel={`Remove blocker ${dep}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: nativeSpace[2],
+                  paddingVertical: 2,
+                  borderRadius: nativeRadii[2],
+                  backgroundColor: nativeLightTheme.surface.muted,
+                }}
+              >
+                <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>#{dep}</Text>
+                <Text style={{ fontSize: 14, opacity: 0.5 }}>×</Text>
+              </Pressable>
+            ),
           )}
+          <AddChip label="Add" onPress={() => setPickerOpen(true)} disabled={submitting} />
         </View>
       </Field>
 
@@ -261,6 +280,24 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           for (const dep of deps) form.addBlocker(dep)
         }}
       />
+
+      <Modal
+        isOpen={fileSelectorOpen}
+        onClose={() => setFileSelectorOpen(false)}
+        title="Select context files"
+        size="lg"
+      >
+        <FileSelector
+          files={[...(files ?? [])]}
+          initialSelected={form.values.context}
+          onCancel={() => setFileSelectorOpen(false)}
+          onConfirm={(picked) => {
+            for (const p of picked) form.addContextFile(p)
+            setFileSelectorOpen(false)
+          }}
+          allowMultiple
+        />
+      </Modal>
     </ScrollView>
   )
 })

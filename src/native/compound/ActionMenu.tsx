@@ -8,9 +8,7 @@ export interface ActionMenuItem {
   label: string
   /** Optional one-line description shown beneath the label. */
   description?: string
-  /** Optional leading emoji / glyph. */
-  glyph?: string
-  /** Optional leading icon node — takes precedence over `glyph`. */
+  /** Optional leading icon node. */
   icon?: ReactNode
   /** Renders the row in a destructive (red) treatment. */
   destructive?: boolean
@@ -56,8 +54,6 @@ export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMe
           >
             {a.icon ? (
               <View style={{ width: 24, alignItems: 'center' }}>{a.icon}</View>
-            ) : a.glyph ? (
-              <Text style={{ width: 24, textAlign: 'center', fontSize: 18 }}>{a.glyph}</Text>
             ) : null}
             <View style={{ flex: 1 }}>
               <Text

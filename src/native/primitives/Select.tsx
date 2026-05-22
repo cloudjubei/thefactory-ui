@@ -8,15 +8,10 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { Modal as RNModal, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import {
-  nativeControls,
-  nativeLightTheme,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeControls, nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import BottomSheet from './BottomSheet'
 
 export type SelectTriggerSize = 'sm' | 'md' | 'lg'
 
@@ -99,44 +94,11 @@ export function Select({ value: controlled, defaultValue, onValueChange, childre
   return (
     <SelectCtx.Provider value={ctx}>
       {children}
-      <RNModal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss"
-          onPress={() => setOpen(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: nativeSpace[6],
-          }}
-        >
-          <Pressable
-            accessible={false}
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              maxHeight: '80%',
-              borderRadius: nativeRadii[3],
-              backgroundColor: nativeLightTheme.surface.overlay,
-              borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              ...nativeShadows[4],
-            }}
-          >
-            <ScrollView contentContainerStyle={{ padding: nativeSpace[3] }}>
-              {contentChildren}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </RNModal>
+      {/* The dropdown is a bottom sheet — the standard mobile pattern, and
+          consistent with `ActionMenu`. */}
+      <BottomSheet isOpen={open} onClose={() => setOpen(false)}>
+        {contentChildren}
+      </BottomSheet>
     </SelectCtx.Provider>
   )
 }
