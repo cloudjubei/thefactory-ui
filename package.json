@@ -67,7 +67,8 @@
     "react-dom": "^19.0.0",
     "react-native": ">=0.76.0",
     "react-native-markdown-display": ">=7.0.0",
-    "react-native-syntax-highlighter": ">=2.0.0"
+    "react-native-syntax-highlighter": ">=2.0.0",
+    "thefactory-tools": "*"
   },
   "peerDependenciesMeta": {
     "react-dom": {
@@ -115,6 +116,7 @@
     "react-native-markdown-display": "^7.0.2",
     "react-native-syntax-highlighter": "^2.1.0",
     "tailwindcss": "^4.1.13",
+    "thefactory-tools": "file:../thefactory-tools",
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.9.2",

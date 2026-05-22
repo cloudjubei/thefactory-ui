@@ -31,6 +31,41 @@ function messageIso(m: ChatMessageLike): string | undefined {
   return m.completedAt ?? m.startedAt
 }
 
+function safeNumber(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+}
+
+/**
+ * Compact per-message usage chip. Web reveals the full token breakdown in a
+ * hover tooltip; touch has no hover, so the native chip shows the cost (or a
+ * token count fallback) inline.
+ */
+function UsageChip({ msg }: { msg: ChatMessageLike }) {
+  const usage = msg.usage
+  if (!usage) return null
+  const cost = typeof usage.cost === 'number' ? usage.cost : undefined
+  const promptTokens = safeNumber(usage.promptTokens)
+  const completionTokens = safeNumber(usage.completionTokens)
+  const label =
+    cost != null
+      ? `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`
+      : `${Math.round(promptTokens + completionTokens).toLocaleString()} tok`
+  return (
+    <View
+      style={{
+        paddingHorizontal: nativeSpace[2],
+        paddingVertical: 1,
+        borderRadius: nativeRadii.round,
+        borderWidth: 1,
+        borderColor: nativeLightTheme.border.subtle,
+        backgroundColor: nativeLightTheme.surface.overlay,
+      }}
+    >
+      <Text style={{ fontSize: 10, color: nativeLightTheme.text.secondary }}>{label}</Text>
+    </View>
+  )
+}
+
 export interface MessageRowProps {
   msg: ChatMessageLike & { showModel?: boolean; isFirstInGroup?: boolean }
   globalIndex: number
@@ -197,7 +232,7 @@ function MessageRow({
           gap: nativeSpace[2],
         }}
       >
-        {isAssistant && (modelLabel || thinkingLabel || ts) && (
+        {isAssistant && (modelLabel || thinkingLabel || ts || msg.usage) && (
           <View
             style={{
               flexDirection: 'row',
@@ -238,6 +273,7 @@ function MessageRow({
                   </Text>
                 </View>
               )}
+              {msg.usage ? <UsageChip msg={msg} /> : null}
             </View>
             {(ts || thinkingLabel) && (
               <Text

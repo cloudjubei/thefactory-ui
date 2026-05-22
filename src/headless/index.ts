@@ -55,6 +55,7 @@ export {
   type UseTooltipStateOptions,
 } from './hooks/useTooltipState'
 export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
+export { useDirtyGuard, type UseDirtyGuard } from './hooks/useDirtyGuard'
 export {
   useToastQueue,
   type ToastAction,
@@ -93,6 +94,14 @@ export {
   type BadgeState,
 } from './utils/badgeAggregation'
 
+// Chat grouping for the Categories navigation view (topics + per-story buckets)
+export {
+  groupChats,
+  type ChatFeatureGroup,
+  type ChatStoryGroup,
+  type GroupedChats,
+} from './utils/chatGrouping'
+
 // Time / duration helpers
 export {
   formatDate,
@@ -125,13 +134,23 @@ export {
   type StoryStatus,
 } from './utils/status'
 
-// Story / feature list options (sorts + status filter)
+// Story / feature list options (sorts + status filter) and the shared
+// filter / sort operations both clients' list screens run on.
 export {
   FEATURE_SORT_OPTIONS,
   STATUS_OPTIONS,
   STORY_SORT_OPTIONS,
+  filterFeatures,
+  filterStories,
+  sortFeatures,
+  sortStories,
+  storyHasRejectedFeatures,
+  type FeatureFilterOptions,
   type FeatureListSorting,
+  type FeatureSortOptions,
+  type StoryFilterOptions,
   type StoryListSorting,
+  type StorySortOptions,
 } from './utils/storiesOptions'
 
 // Shell navigation model — shared structure for the web `Sidebar` / responsive
@@ -200,6 +219,26 @@ export {
 
 // Rich-text tokeniser (@file + #dep mentions)
 export { tokenizeRichText, type RichTextSegment } from './utils/richTextTokenize'
+
+// Chat system-prompt `{{placeholder}}` interpolation
+export { interpolatePrompt, type PromptVariables } from './utils/promptInterpolate'
+
+// Unified-diff parsing, patch utilities and the "create PR" URL builder are
+// single-sourced in `thefactory-tools/utils` — import them from there
+// (`parseUnifiedDiff`, `countPatchAddDel`, `generateHunkPatch`,
+// `getFilePatch`, `getPRUrl`), not from this package.
+
+// Raw project-file bytes endpoint (image / PDF / binary viewers)
+export { rawFileUrl } from './utils/rawFileUrl'
+
+// Tools screen — JSON-Schema accessors, value coercion, category grouping
+export {
+  coerceValue,
+  getProperties,
+  getRequired,
+  groupByCategory,
+  type ToolLike,
+} from './utils/toolSchema'
 
 // `@file` mention + `#dep` reference parsers (shared between web's
 // `FileMentionsTextarea` and the native peer via `useFileMentions`).

@@ -60,18 +60,17 @@ export {
   type CollapsibleSidebarItem,
   type CollapsibleSidebarProps,
 } from './compound/CollapsibleSidebar'
+// `parseUnifiedDiff` / `generateHunkPatch` / `ParsedHunk` are owned by
+// `thefactory-ui/headless` — import them from there, not the web barrel.
 export {
   DiffViewer,
-  generateHunkPatch,
   generateSelectedPatch,
   InlineTextDiff,
-  parseUnifiedDiff,
   SimpleSplitText,
   SimpleUnifiedDiff,
   StructuredUnifiedDiff,
   type DiffViewerProps,
   type IntraMode,
-  type ParsedHunk,
   type StructuredUnifiedDiffProps,
 } from './compound/diff'
 export {

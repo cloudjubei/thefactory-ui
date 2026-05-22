@@ -49,6 +49,8 @@ export {
 } from './primitives/Skeleton'
 export { default as Spinner, type SpinnerProps } from './primitives/Spinner'
 export { default as SpinnerWithDot, type SpinnerWithDotProps } from './primitives/SpinnerWithDot'
+export { Slider, type SliderProps } from './primitives/Slider'
+export { SecretInput, type SecretInputProps } from './primitives/SecretInput'
 export { Switch, type SwitchProps } from './primitives/Switch'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
@@ -138,6 +140,13 @@ export {
   type ModelPriceRecord,
 } from './compound/ModelChip'
 export {
+  default as RunAgentButton,
+  AGENT_RUN_TYPES,
+  AGENT_RUN_TYPE_LABELS,
+  type AgentRunType,
+  type RunAgentButtonProps,
+} from './compound/RunAgentButton'
+export {
   default as StoryForm,
   type StoryFormHandle,
   type StoryFormProps,
@@ -165,9 +174,20 @@ export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBod
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
   default as ChatSettingsDropdown,
-  type ChatSettingsAction,
   type ChatSettingsDropdownProps,
+  type CompletionSettingsLike,
+  type ToolToggle,
 } from './compound/chat/ChatSettingsDropdown'
+export {
+  default as HistorySummarizationSettings,
+  type HistorySummarization,
+  type HistorySummarizationSettingsProps,
+} from './compound/chat/HistorySummarizationSettings'
+export {
+  default as MessageSanitizationSettings,
+  type MessageSanitization,
+  type MessageSanitizationSettingsProps,
+} from './compound/chat/MessageSanitizationSettings'
 export {
   default as ChatTopicCreateModal,
   type ChatTopicCreateModalProps,
@@ -192,6 +212,14 @@ export {
 } from './compound/chat/ChatInput'
 export { default as MessageList, type MessageListProps } from './compound/chat/MessageList'
 export { default as MessageRow, type MessageRowProps } from './compound/chat/MessageRow'
+export {
+  default as ToolCallCard,
+  type ToolCallCardProps,
+} from './compound/chat/ToolCall/ToolCallCard'
+export {
+  default as ChatDynamicContextModal,
+  type ChatDynamicContextModalProps,
+} from './compound/chat/ChatDynamicContextModal'
 export {
   default as SystemPromptBubble,
   type SystemPromptBubbleProps,
@@ -238,6 +266,48 @@ export {
   type FileTreeEntry,
   type FileTreeProps,
 } from './compound/files/FileTree'
+export { default as ImageViewer, type ImageViewerProps } from './compound/files/ImageViewer'
+export { default as FileTypeIcon, type FileTypeIconProps } from './compound/files/FileTypeIcon'
+
+// Git screen compounds
+export { default as UnifiedDiff, type UnifiedDiffProps } from './compound/git/UnifiedDiff'
+export {
+  default as GitFileRow,
+  type GitFileEntryLike,
+  type GitFileRowProps,
+} from './compound/git/GitFileRow'
+export {
+  default as GitFileStatusIcon,
+  type GitFileStatusIconProps,
+} from './compound/git/GitFileStatusIcon'
+
+// Settings compounds
+export {
+  default as LLMConfigForm,
+  type LLMConfigFormHandle,
+  type LLMConfigFormProps,
+  type LLMConfigFormValues,
+  type LlmProviderId,
+} from './compound/settings/LLMConfigForm'
+
+// Tools screen compounds
+export {
+  default as ToolArgInput,
+  type ToolArgInputProps,
+} from './compound/tools/ToolArgInput'
+export {
+  default as ToolArgsForm,
+  type ToolArgsFormProps,
+} from './compound/tools/ToolArgsForm'
+export {
+  default as ToolListCard,
+  type ToolListCardProps,
+} from './compound/tools/ToolListCard'
+export {
+  default as ToolResultPanel,
+  type ToolResultPanelProps,
+  type ToolResultStatus,
+} from './compound/tools/ToolResultPanel'
 
 // Chat-view domain types (re-exported from headless for convenience)
 export type {

@@ -32,6 +32,9 @@ export interface ChatBodyProps {
   systemPrompt?: string
   systemPromptTimestamp?: string
 
+  /** Draws a context cut-off divider per the chat's `numberMessagesToSend`. */
+  numberMessagesToSend?: number
+
   /** Host renderer for a tool call until `ToolCallCard`'s native peer lands. */
   renderToolCall?: (args: {
     toolCall: ToolCallLike
@@ -76,6 +79,7 @@ export default function ChatBody({
   liveState,
   systemPrompt,
   systemPromptTimestamp,
+  numberMessagesToSend,
   renderToolCall,
   onResolveFile,
   renderDependency,
@@ -114,6 +118,7 @@ export default function ChatBody({
           pending={pending}
           systemPrompt={systemPrompt}
           systemPromptTimestamp={systemPromptTimestamp}
+          numberMessagesToSend={numberMessagesToSend}
           renderToolCall={renderToolCall}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}

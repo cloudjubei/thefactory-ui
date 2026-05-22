@@ -54,7 +54,7 @@ export type {
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 
-export { interpolatePrompt, type PromptVariables } from './promptInterpolate'
+export { interpolatePrompt, type PromptVariables } from '../../../headless/utils/promptInterpolate'
 
 export {
   asArray,

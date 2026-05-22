@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import type { TextInput as RNTextInput } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import FileMentionsTextarea, {
+  type FileMentionsTextareaHandle,
+} from '../files/FileMentionsTextarea'
+import { rankMentionMatches, type ReferenceSuggestion } from '../../../headless'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 type SendReason = 'user' | 'suggested_action'
@@ -29,10 +32,16 @@ export interface ChatInputProps {
   /** Suggested quick-reply chips from the last assistant turn. */
   suggestedActions?: string[]
 
-  /** Mobile-only: opens a file picker provided by the host. Replaces web's
-   * `onUploadAttachment` shape — RN host owns the picker (`expo-document-picker`
-   * etc.) and pushes the resolved path back via `onChangeAttachments`. */
+  /** Mobile-only: opens a file picker provided by the host. When omitted the
+   *  attach button is hidden. */
   onPickAttachment?: () => void
+
+  /** `@`-file mention paths. When omitted the `@` autocomplete is disabled. */
+  filePaths?: string[]
+  /** `#`-reference search. When omitted the `#` autocomplete is disabled. */
+  onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** Fires after the user accepts a `#`-reference suggestion. */
+  onAcceptReference?: (value: string) => void
 
   autoFocus?: boolean
   clearOnSend?: boolean
@@ -55,13 +64,16 @@ export default function ChatInput({
   disconnected = false,
   suggestedActions,
   onPickAttachment,
+  filePaths,
+  onSearchReferences,
+  onAcceptReference,
   autoFocus = false,
   clearOnSend = true,
   clearOnSuggestedAction = true,
   placeholder,
   hints,
 }: ChatInputProps) {
-  const inputRef = useRef<RNTextInput>(null)
+  const inputRef = useRef<FileMentionsTextareaHandle>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -103,14 +115,18 @@ export default function ChatInput({
 
   const removeAttachment = (idx: number) => {
     if (!onChangeAttachments) return
-    const next = attachments.filter((_, i) => i !== idx)
-    onChangeAttachments(next)
+    onChangeAttachments(attachments.filter((_, i) => i !== idx))
   }
 
   const onSuggestion = (text: string) => {
     if (clearOnSuggestedAction) onChange('')
     void send(text, { reason: 'suggested_action' })
   }
+
+  const onSearchFiles = useCallback(
+    (token: string) => (filePaths ? rankMentionMatches(filePaths, token, 8) : []),
+    [filePaths],
+  )
 
   const resolvedPlaceholder =
     placeholder ?? (isConfigured ? 'Message…' : 'Configure a model in Settings to chat.')
@@ -164,7 +180,7 @@ export default function ChatInput({
         </ScrollView>
       )}
 
-      {suggestedActions && suggestedActions.length > 0 && (
+      {suggestedActions && suggestedActions.length > 0 && !isThinking && isConfigured && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -226,30 +242,19 @@ export default function ChatInput({
             <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>📎</Text>
           </Pressable>
         )}
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={onChange}
-          editable={isConfigured && !submitting}
-          placeholder={resolvedPlaceholder}
-          placeholderTextColor={nativeLightTheme.text.muted}
-          multiline
-          textAlignVertical="top"
-          accessibilityLabel="Message"
-          style={{
-            flex: 1,
-            minHeight: 40,
-            maxHeight: 160,
-            paddingHorizontal: nativeSpace[5],
-            paddingVertical: nativeSpace[3],
-            borderRadius: nativeRadii[3],
-            borderWidth: 1,
-            borderColor: nativeLightTheme.border.default,
-            backgroundColor: nativeLightTheme.surface.base,
-            color: nativeLightTheme.text.primary,
-            fontSize: 14,
-          }}
-        />
+        <View style={{ flex: 1 }}>
+          <FileMentionsTextarea
+            ref={inputRef}
+            value={value}
+            onChangeText={onChange}
+            onSearchFiles={filePaths ? onSearchFiles : undefined}
+            onSearchReferences={onSearchReferences}
+            onAcceptReference={onAcceptReference}
+            placeholder={resolvedPlaceholder}
+            rows={1}
+            disabled={!isConfigured || submitting}
+          />
+        </View>
         {isThinking && onAbort ? (
           <Pressable
             accessibilityRole="button"

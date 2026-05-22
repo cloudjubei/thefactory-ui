@@ -4,6 +4,7 @@ import type { StyleProp, ViewStyle } from 'react-native'
 import type { StoryStatus } from '../../headless/utils/status'
 import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import StatusControl from './StatusControl'
+import Markdown from './Markdown'
 
 export interface FeatureCardData {
   id: string
@@ -79,11 +80,7 @@ export function FeatureCard({
       >
         {feature.title}
       </Text>
-      {feature.description && (
-        <Text numberOfLines={4} style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
-          {feature.description}
-        </Text>
-      )}
+      {feature.description ? <Markdown text={feature.description} /> : null}
       {feature.blockers && feature.blockers.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[3] }}>
           {feature.blockers.map((b) =>

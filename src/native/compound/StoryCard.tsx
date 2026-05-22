@@ -4,6 +4,7 @@ import type { StyleProp, ViewStyle } from 'react-native'
 import type { StoryStatus } from '../../headless/utils/status'
 import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import StatusControl from './StatusControl'
+import Markdown from './Markdown'
 
 export type { StoryStatus }
 
@@ -81,11 +82,7 @@ export function StoryCard({
       >
         {story.title}
       </Text>
-      {story.description && (
-        <Text numberOfLines={4} style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
-          {story.description}
-        </Text>
-      )}
+      {story.description ? <Markdown text={story.description} /> : null}
       {story.blockers && story.blockers.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[3] }}>
           {story.blockers.map((b) =>

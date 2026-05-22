@@ -1,5 +1,21 @@
 import { useMemo, useState } from 'react'
+// Diff parsing is single-sourced in `thefactory-tools/utils` (shared with the
+// backend + native). This module adapts that parser's result to the web
+// renderer's hunk model and re-exports `generateHunkPatch` unchanged.
+import {
+  parseUnifiedDiff as parseUnifiedDiffShared,
+  generateHunkPatch,
+} from 'thefactory-tools/utils'
 
+export { generateHunkPatch }
+
+/**
+ * Web-local hunk type — the shared parser's hunk shape plus the optional
+ * intraline render annotations (`_hidden` / `_markup`) the web
+ * `StructuredUnifiedDiff` layers on, and the web `'ctx'` / `'meta'` line
+ * classification (the shared parser yields `'context'` and folds the
+ * no-newline marker into it).
+ */
 export type ParsedHunk = {
   header?: string
   oldStart: number
@@ -17,53 +33,28 @@ export type ParsedHunk = {
   }>
 }
 
+/**
+ * Parse a unified-diff patch into the web renderer's hunk model. Delegates
+ * the actual parsing to `thefactory-tools/utils` and maps its `'context'`
+ * lines to the web `'ctx'` / `'meta'` split (the trailing `\ No newline at
+ * end of file` marker becomes `'meta'`).
+ */
 export function parseUnifiedDiff(patch: string): ParsedHunk[] {
-  const out: ParsedHunk[] = []
-  if (!patch) return out
-  const lines = patch.replace(/\r\n/g, '\n').split('\n')
-  let cur: ParsedHunk | null = null
-  let oldLine = 0
-  let newLine = 0
-  for (const ln of lines) {
-    if (ln.startsWith('@@')) {
-      const m = ln.match(/@@\s*-([0-9]+)(?:,([0-9]+))?\s*\+([0-9]+)(?:,([0-9]+))?\s*@@\s*(.*)?/)
-      if (m) {
-        if (cur) out.push(cur)
-        oldLine = parseInt(m[1], 10) - 1
-        newLine = parseInt(m[3], 10) - 1
-        cur = {
-          header: m[5] || undefined,
-          oldStart: oldLine + 1,
-          oldLines: m[2] ? parseInt(m[2], 10) : undefined,
-          newStart: newLine + 1,
-          newLines: m[4] ? parseInt(m[4], 10) : undefined,
-          lines: [],
-        }
-        continue
-      }
-    }
-    if (!cur) continue
-    if (ln.startsWith('+++ ') || ln.startsWith('--- ')) continue
-
-    if (ln.startsWith('+')) {
-      newLine += 1
-      cur.lines.push({ type: 'add', text: ln.slice(1), newLine })
-    } else if (ln.startsWith('-')) {
-      oldLine += 1
-      cur.lines.push({ type: 'del', text: ln.slice(1), oldLine })
-    } else if (ln.startsWith(' ')) {
-      oldLine += 1
-      newLine += 1
-      cur.lines.push({ type: 'ctx', text: ln.slice(1), oldLine, newLine })
-    } else if (ln.startsWith('\\')) {
-      // \ No newline at end of file
-      cur.lines.push({ type: 'meta', text: ln })
-    } else {
-      cur.lines.push({ type: 'ctx', text: ln })
-    }
-  }
-  if (cur) out.push(cur)
-  return out
+  const hunks = parseUnifiedDiffShared(patch) ?? []
+  return hunks.map((h) => ({
+    header: h.header,
+    oldStart: h.oldStart,
+    oldLines: h.oldLines,
+    newStart: h.newStart,
+    newLines: h.newLines,
+    lines: h.lines.map((l) => ({
+      type:
+        l.type === 'context' ? (l.text.startsWith('\\ ') ? 'meta' : 'ctx') : l.type,
+      text: l.text,
+      oldLine: l.oldLine,
+      newLine: l.newLine,
+    })),
+  }))
 }
 
 export type IntraMode = 'none' | 'word' | 'char'
@@ -375,7 +366,7 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onDiscardHunk,
   } = props
 
-  const hunksRaw = useMemo(() => parseUnifiedDiff(patch), [patch])
+  const hunksRaw = useMemo<ParsedHunk[]>(() => parseUnifiedDiff(patch), [patch])
   const totalRenderableLines = useMemo(
     () =>
       hunksRaw.reduce(
@@ -685,36 +676,3 @@ export function generateSelectedPatch(
   return out.trimEnd() + '\n'
 }
 
-/** Generate a patch for a single hunk by index */
-export function generateHunkPatch(patch: string, hunkIndex: number): string {
-  // Rather than reconstructing the hunk line-by-line and potentially missing edge cases
-  // like internal meta lines, we can extract the exact raw string of this hunk.
-  // We locate the Nth hunk header and extract everything up to the next hunk header or EOF.
-  let out = ''
-  const lines = patch.replace(/\r\n/g, '\n').split('\n')
-  for (const l of lines) {
-    if (l.startsWith('@@')) break
-    out += l + '\n'
-  }
-
-  let currentHunkIdx = -1
-  let inTargetHunk = false
-
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i]
-    if (l.startsWith('@@')) {
-      currentHunkIdx++
-      if (currentHunkIdx === hunkIndex) {
-        inTargetHunk = true
-      } else if (currentHunkIdx > hunkIndex) {
-        break
-      }
-    }
-
-    if (inTargetHunk) {
-      out += l + '\n'
-    }
-  }
-
-  return out.trimEnd() + '\n'
-}
