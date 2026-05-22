@@ -35,6 +35,9 @@ export interface ChatBodyProps {
   /** Draws a context cut-off divider per the chat's `numberMessagesToSend`. */
   numberMessagesToSend?: number
 
+  /** Last-read timestamp — opens the list at the first unread message. */
+  lastReadIso?: string
+
   /** Host renderer for a tool call until `ToolCallCard`'s native peer lands. */
   renderToolCall?: (args: {
     toolCall: ToolCallLike
@@ -80,6 +83,7 @@ export default function ChatBody({
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
+  lastReadIso,
   renderToolCall,
   onResolveFile,
   renderDependency,
@@ -119,6 +123,7 @@ export default function ChatBody({
           systemPrompt={systemPrompt}
           systemPromptTimestamp={systemPromptTimestamp}
           numberMessagesToSend={numberMessagesToSend}
+          lastReadIso={lastReadIso}
           renderToolCall={renderToolCall}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}

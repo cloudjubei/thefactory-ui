@@ -8,6 +8,7 @@ import {
   type TreeNode,
 } from '../../../headless/utils/fileTree'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import FileTypeIcon from './FileTypeIcon'
 
 export type FileTreeEntry = {
   /** Project-relative path, e.g. `src/components/Foo.tsx`. */
@@ -298,7 +299,7 @@ function FileRow({
             : 'transparent',
       })}
     >
-      <Text style={{ fontSize: 12 }}>📄</Text>
+      <FileTypeIcon path={path} size={16} />
       <Text
         style={{
           flex: 1,

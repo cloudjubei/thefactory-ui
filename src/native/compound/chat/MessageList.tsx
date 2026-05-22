@@ -29,6 +29,10 @@ function isEmptyAssistantMessage(msg: ChatMessageLike): boolean {
   return !msg.content || msg.content.trim().length === 0
 }
 
+function messageIso(m: ChatMessageLike): string | undefined {
+  return m.completedAt ?? m.startedAt
+}
+
 export interface MessageListProps {
   /** Stable identifier — when it changes, the list resets scroll position. */
   chatId?: string
@@ -43,6 +47,11 @@ export interface MessageListProps {
   /** When set, draws a "context cut-off" divider above the oldest message
    *  that will still be included in the next request. */
   numberMessagesToSend?: number
+
+  /** Last-read message timestamp. When set and the chat has newer messages,
+   *  the list opens positioned at the first unread message (with a divider)
+   *  instead of at the bottom. */
+  lastReadIso?: string
 
   onAtBottomChange?: (atBottom: boolean) => void
   /** Bump this number to scroll the list to the bottom (used right after the
@@ -74,6 +83,7 @@ export default function MessageList({
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
+  lastReadIso,
   onAtBottomChange,
   scrollToBottomSignal,
   onDeleteLastMessage,
@@ -86,6 +96,12 @@ export default function MessageList({
   const scrollRef = useRef<RNScrollView>(null)
   const [atBottom, setAtBottom] = useState(true)
   const lastAtBottomRef = useRef(true)
+  // First-unread positioning: the y-offset of the unread divider, the chat
+  // we've already positioned, and the current first-unread window index
+  // (mirrored into a ref so the chatId effect can read it without a dep).
+  const anchorYRef = useRef<number | null>(null)
+  const positionedChatRef = useRef<string | undefined>(undefined)
+  const firstUnreadRef = useRef<number | null>(null)
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -101,13 +117,19 @@ export default function MessageList({
     [onAtBottomChange],
   )
 
-  // Auto-scroll to the bottom on chat changes, new messages while pinned to
-  // the bottom, and any `scrollToBottomSignal` bump.
+  // On chat change: open at the first unread message when there is one
+  // (the unread anchor's `onLayout` does the scroll); otherwise open pinned
+  // to the bottom.
   useEffect(() => {
-    scrollRef.current?.scrollToEnd({ animated: false })
-    lastAtBottomRef.current = true
-    setAtBottom(true)
-    onAtBottomChange?.(true)
+    positionedChatRef.current = undefined
+    anchorYRef.current = null
+    const hasUnread = firstUnreadRef.current != null
+    if (!hasUnread) {
+      scrollRef.current?.scrollToEnd({ animated: false })
+    }
+    lastAtBottomRef.current = !hasUnread
+    setAtBottom(!hasUnread)
+    onAtBottomChange?.(!hasUnread)
   }, [chatId, onAtBottomChange])
 
   useEffect(() => {
@@ -133,6 +155,25 @@ export default function MessageList({
   }, [chatId])
   const startIndex = Math.max(0, renderable.length - visibleCount)
   const windowed = useMemo(() => renderable.slice(startIndex), [renderable, startIndex])
+
+  // ---- First-unread positioning ------------------------------------------
+  const firstUnreadInWindow = useMemo(() => {
+    if (!lastReadIso) return null
+    for (let i = 0; i < windowed.length; i++) {
+      const iso = messageIso(windowed[i])
+      if (iso && iso > lastReadIso) return i
+    }
+    return null
+  }, [windowed, lastReadIso])
+  firstUnreadRef.current = firstUnreadInWindow
+
+  /** Scroll to the unread divider once per chat, after it has laid out. */
+  const positionToUnread = useCallback(() => {
+    if (positionedChatRef.current === chatId) return
+    if (firstUnreadRef.current == null || anchorYRef.current == null) return
+    positionedChatRef.current = chatId
+    scrollRef.current?.scrollTo({ y: Math.max(0, anchorYRef.current - 12), animated: false })
+  }, [chatId])
 
   // ---- Context cut-off divider -------------------------------------------
   const cutoffIndex = useMemo(() => {
@@ -201,28 +242,43 @@ export default function MessageList({
             </Text>
           </Pressable>
         )}
-        {windowed.map((msg, i) => (
-          <View key={msg.id ?? `msg-${startIndex + i}`} style={{ gap: nativeSpace[6] }}>
-            {cutoffIndexInWindow === i ? (
-              <CutoffDivider numberMessagesToSend={numberMessagesToSend} />
-            ) : null}
-            <MessageRow
-              msg={msg}
-              globalIndex={i}
-              totalMessages={windowed.length}
-              isThinking={isThinking}
-              isLast={i === lastIndex}
-              prevUserMessagesLen={prevUserCount}
-              enhancedTotalLength={windowed.length}
-              renderToolCall={renderToolCall}
-              onDeleteLastMessage={onDeleteLastMessage}
-              onRetry={onRetry}
-              onResolveFile={onResolveFile}
-              renderDependency={renderDependency}
-              thinkingLabel={thinkingLabel}
-            />
-          </View>
-        ))}
+        {windowed.map((msg, i) => {
+          const row = (
+            <View key={msg.id ?? `msg-${startIndex + i}`} style={{ gap: nativeSpace[6] }}>
+              {cutoffIndexInWindow === i ? (
+                <CutoffDivider numberMessagesToSend={numberMessagesToSend} />
+              ) : null}
+              <MessageRow
+                msg={msg}
+                globalIndex={i}
+                totalMessages={windowed.length}
+                isThinking={isThinking}
+                isLast={i === lastIndex}
+                prevUserMessagesLen={prevUserCount}
+                enhancedTotalLength={windowed.length}
+                renderToolCall={renderToolCall}
+                onDeleteLastMessage={onDeleteLastMessage}
+                onRetry={onRetry}
+                onResolveFile={onResolveFile}
+                renderDependency={renderDependency}
+                thinkingLabel={thinkingLabel}
+              />
+            </View>
+          )
+          if (i !== firstUnreadInWindow) return row
+          return [
+            <View
+              key="unread-anchor"
+              onLayout={(e) => {
+                anchorYRef.current = e.nativeEvent.layout.y
+                positionToUnread()
+              }}
+            >
+              <UnreadDivider />
+            </View>,
+            row,
+          ]
+        })}
         {pending && pending.content && (
           <MessageRow
             msg={{ role: pending.role, content: pending.content }}
@@ -287,6 +343,27 @@ function CutoffDivider({ numberMessagesToSend }: { numberMessagesToSend?: number
         {numberMessagesToSend ? ` (last ${numberMessagesToSend})` : ''}
       </Text>
       <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.default }} />
+    </View>
+  )
+}
+
+/** "New messages" divider — marks where the first unread message starts. */
+function UnreadDivider() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.accent.primary }} />
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          color: nativeLightTheme.accent.primary,
+        }}
+      >
+        New messages
+      </Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.accent.primary }} />
     </View>
   )
 }

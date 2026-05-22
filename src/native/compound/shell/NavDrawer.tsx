@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Animated,
-  Modal as RNModal,
+  BackHandler,
   Pressable,
   ScrollView,
   Text,
@@ -11,10 +11,13 @@ import {
 import {
   nativeLightTheme,
   nativeMotion,
+  nativePalette,
   nativeRadii,
   nativeShadows,
   nativeSpace,
+  nativeZIndex,
 } from '../../../tokens/native'
+import SpinnerWithDot from '../../primitives/SpinnerWithDot'
 
 export interface NavDrawerItem {
   key: string
@@ -26,6 +29,9 @@ export interface NavDrawerItem {
   badgeCount?: number
   /** Renders a small dot instead of a count (e.g. "thinking"). */
   showDot?: boolean
+  /** Renders a spinner (with a dot) — the chat "thinking" affordance. Takes
+   *  precedence over `showDot`; a numeric `badgeCount` still wins over both. */
+  thinking?: boolean
   onPress: () => void
 }
 
@@ -45,6 +51,8 @@ export interface NavDrawerProps {
   onClose: () => void
   /** Brand / title shown at the top of the drawer. */
   title?: string
+  /** Optional brand mark rendered left of the title (the app icon). */
+  logo?: ReactNode
   /** Pinned nav section (shell tabs or group tabs). */
   navItems?: NavDrawerItem[]
   /** Ungrouped projects, listed above the groups. */
@@ -77,6 +85,7 @@ export default function NavDrawer({
   open,
   onClose,
   title,
+  logo,
   navItems,
   projects,
   groups,
@@ -90,155 +99,191 @@ export default function NavDrawer({
   const { width: screenWidth } = useWindowDimensions()
   const panelWidth = Math.min(MAX_WIDTH, Math.round(screenWidth * WIDTH_FRACTION))
   const anim = useRef(new Animated.Value(0)).current
+  // Two-step mount: the drawer stays rendered through its close animation so
+  // it slides out smoothly. An RNModal unmounts on `visible=false` and
+  // vanishes in a single frame (the flash); an in-tree overlay also avoids
+  // the native modal present/dismiss cost that stutters against a screen
+  // push. Mirrors web `Sidebar`'s `drawerRender` / `drawerShown` pair.
+  const [rendered, setRendered] = useState(open)
 
   useEffect(() => {
+    if (open) setRendered(true)
+  }, [open])
+
+  useEffect(() => {
+    if (!rendered) return
     Animated.timing(anim, {
       toValue: open ? 1 : 0,
-      duration: nativeMotion.normal,
+      duration: open ? nativeMotion.normal : nativeMotion.fast,
       useNativeDriver: true,
-    }).start()
-  }, [open, anim])
+    }).start(({ finished }) => {
+      if (finished && !open) setRendered(false)
+    })
+  }, [open, rendered, anim])
+
+  // Android hardware back closes the drawer instead of popping a screen.
+  useEffect(() => {
+    if (!rendered) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!open) return false
+      onClose()
+      return true
+    })
+    return () => sub.remove()
+  }, [rendered, open, onClose])
 
   const hasProjects = (projects?.length ?? 0) > 0 || (groups?.length ?? 0) > 0
 
+  if (!rendered) return null
+
   return (
-    <RNModal
-      visible={open}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
+    <View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: nativeZIndex.modal,
+      }}
     >
-      <View style={{ flex: 1 }}>
-        <Animated.View
-          pointerEvents="none"
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#000',
+          opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
+        }}
+      />
+      <Pressable
+        accessibilityLabel="Dismiss menu"
+        onPress={onClose}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      <Animated.View
+        style={{
+          width: panelWidth,
+          height: '100%',
+          backgroundColor: nativeLightTheme.surface.base,
+          borderRightWidth: 1,
+          borderRightColor: nativeLightTheme.border.subtle,
+          ...nativeShadows[3],
+          transform: [
+            {
+              translateX: anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-panelWidth, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <View
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#000',
-            opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
-          }}
-        />
-        <Pressable
-          accessibilityLabel="Dismiss menu"
-          onPress={onClose}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-        <Animated.View
-          style={{
-            width: panelWidth,
-            height: '100%',
-            backgroundColor: nativeLightTheme.surface.base,
-            borderRightWidth: 1,
-            borderRightColor: nativeLightTheme.border.subtle,
-            ...nativeShadows[3],
-            transform: [
-              {
-                translateX: anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-panelWidth, 0],
-                }),
-              },
-            ],
+            paddingTop: topInset + nativeSpace[3],
+            paddingBottom: nativeSpace[3],
+            paddingHorizontal: nativeSpace[4],
+            borderBottomWidth: 1,
+            borderBottomColor: nativeLightTheme.border.subtle,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: nativeSpace[3],
           }}
         >
+          {logo}
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontSize: 17,
+              fontWeight: '700',
+              color: nativeLightTheme.text.primary,
+            }}
+          >
+            {title ?? 'Overseer'}
+          </Text>
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingVertical: nativeSpace[2] }}
+          showsVerticalScrollIndicator={false}
+        >
+          {navItems && navItems.length > 0 ? (
+            <View style={{ paddingHorizontal: nativeSpace[2] }}>
+              {navItems.map((item) => (
+                <Row key={item.key} item={item} />
+              ))}
+            </View>
+          ) : null}
+
+          {(navItems?.length ?? 0) > 0 ? <Divider /> : null}
+
           <View
             style={{
-              paddingTop: topInset + nativeSpace[3],
-              paddingBottom: nativeSpace[3],
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               paddingHorizontal: nativeSpace[4],
-              borderBottomWidth: 1,
-              borderBottomColor: nativeLightTheme.border.subtle,
+              paddingTop: nativeSpace[2],
+              paddingBottom: nativeSpace[1],
             }}
           >
             <Text
-              numberOfLines={1}
-              style={{ fontSize: 17, fontWeight: '700', color: nativeLightTheme.text.primary }}
-            >
-              {title ?? 'Overseer'}
-            </Text>
-          </View>
-
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingVertical: nativeSpace[2] }}
-            showsVerticalScrollIndicator={false}
-          >
-            {navItems && navItems.length > 0 ? (
-              <View style={{ paddingHorizontal: nativeSpace[2] }}>
-                {navItems.map((item) => (
-                  <Row key={item.key} item={item} />
-                ))}
-              </View>
-            ) : null}
-
-            {(navItems?.length ?? 0) > 0 ? <Divider /> : null}
-
-            <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: nativeSpace[4],
-                paddingTop: nativeSpace[2],
-                paddingBottom: nativeSpace[1],
+                fontSize: 11,
+                fontWeight: '600',
+                letterSpacing: 0.6,
+                textTransform: 'uppercase',
+                color: nativeLightTheme.text.muted,
               }}
             >
+              {projectsLabel}
+            </Text>
+            {projectsHeaderAction}
+          </View>
+
+          <View style={{ paddingHorizontal: nativeSpace[2] }}>
+            {!hasProjects ? (
               <Text
                 style={{
-                  fontSize: 11,
-                  fontWeight: '600',
-                  letterSpacing: 0.6,
-                  textTransform: 'uppercase',
+                  paddingHorizontal: nativeSpace[2],
+                  paddingVertical: nativeSpace[2],
+                  fontSize: 14,
                   color: nativeLightTheme.text.muted,
                 }}
               >
-                {projectsLabel}
+                {projectsEmptyLabel}
               </Text>
-              {projectsHeaderAction}
-            </View>
+            ) : null}
+            {projects?.map((item) => (
+              <Row key={item.key} item={item} />
+            ))}
+            {groups?.map((group) => (
+              <GroupFolder key={group.key} group={group} />
+            ))}
+          </View>
+        </ScrollView>
 
-            <View style={{ paddingHorizontal: nativeSpace[2] }}>
-              {!hasProjects ? (
-                <Text
-                  style={{
-                    paddingHorizontal: nativeSpace[2],
-                    paddingVertical: nativeSpace[2],
-                    fontSize: 14,
-                    color: nativeLightTheme.text.muted,
-                  }}
-                >
-                  {projectsEmptyLabel}
-                </Text>
-              ) : null}
-              {projects?.map((item) => (
-                <Row key={item.key} item={item} />
-              ))}
-              {groups?.map((group) => (
-                <GroupFolder key={group.key} group={group} />
-              ))}
-            </View>
-          </ScrollView>
-
-          {footerItem ? (
-            <View
-              style={{
-                paddingHorizontal: nativeSpace[2],
-                paddingTop: nativeSpace[1],
-                paddingBottom: bottomInset + nativeSpace[1],
-                borderTopWidth: 1,
-                borderTopColor: nativeLightTheme.border.subtle,
-              }}
-            >
-              <Row item={footerItem} />
-            </View>
-          ) : null}
-        </Animated.View>
-      </View>
-    </RNModal>
+        {footerItem ? (
+          <View
+            style={{
+              paddingHorizontal: nativeSpace[2],
+              paddingTop: nativeSpace[1],
+              paddingBottom: bottomInset + nativeSpace[1],
+              borderTopWidth: 1,
+              borderTopColor: nativeLightTheme.border.subtle,
+            }}
+          >
+            <Row item={footerItem} />
+          </View>
+        ) : null}
+      </Animated.View>
+    </View>
   )
 }
 
@@ -279,7 +324,7 @@ function Row({
         paddingLeft: indent ? nativeSpace[10] : nativeSpace[3],
         borderRadius: nativeRadii[2],
         backgroundColor: item.active
-          ? nativeLightTheme.surface.muted
+          ? nativePalette.brand[50]
           : pressed
             ? nativeLightTheme.surface.hover
             : 'transparent',
@@ -292,13 +337,15 @@ function Row({
           flex: 1,
           fontSize: 15,
           fontWeight: item.active ? '600' : '400',
-          color: item.active ? nativeLightTheme.accent.primary : nativeLightTheme.text.primary,
+          color: item.active ? nativePalette.brand[700] : nativeLightTheme.text.primary,
         }}
       >
         {item.label}
       </Text>
       {item.badgeCount && item.badgeCount > 0 ? (
         <CountBadge count={item.badgeCount} />
+      ) : item.thinking ? (
+        <SpinnerWithDot size={14} showDot dotColor={nativeLightTheme.accent.primary} />
       ) : item.showDot ? (
         <View
           style={{
