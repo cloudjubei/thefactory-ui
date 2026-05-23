@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Spinner from '../../../primitives/Spinner'
 import type { GitLogCommitLike } from '../types'
-import { computeCommitGraph, type GraphNode } from './gitCommitGraphUtils'
+import { computeCommitGraph, type GraphNode } from '../../../../headless/utils/gitCommitGraph'
 import GitCommitGraphRow from './GitCommitGraphRow'
 import GitCommitGraphHeader from './GitCommitGraphHeader'
 

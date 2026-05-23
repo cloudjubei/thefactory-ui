@@ -2,21 +2,12 @@
 // shapes from `thefactory-tools` (`GitLogCommit`, `GitUnifiedBranch`, etc.)
 // but stays in this package so consumers don't need a hard dep on the
 // tools package — both web and desktop already produce data in this shape.
+//
+// `GitLogCommitLike` + `GitLogRefLike` are owned by the headless layer so
+// the native commit-graph compound can share them; re-exported here for
+// continuity with the rest of the git-view types declared in this file.
 
-export type GitLogRefLike = {
-  type: 'branch' | 'remote' | 'tag' | 'HEAD'
-  name: string
-}
-
-export type GitLogCommitLike = {
-  hash: string
-  parents: string[]
-  subject: string
-  authorName: string
-  authorEmail: string
-  authorDate: number
-  refs: GitLogRefLike[]
-}
+export type { GitLogCommitLike, GitLogRefLike } from '../../../headless/utils/gitCommitGraph'
 
 export type GitUnifiedBranchLike = {
   name: string

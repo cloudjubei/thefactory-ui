@@ -102,6 +102,29 @@ export {
   type GroupedChats,
 } from './utils/chatGrouping'
 
+// Tests format helpers — shared between web + native test viewers.
+export {
+  COVERAGE_IMPROVE_THRESHOLD,
+  TEST_CONFIG_PATTERN,
+  coverageBucket,
+  formatUncoveredLines,
+  getDirname,
+  getFilename,
+  isTestConfigPath,
+  msToShort,
+  normalizeRel,
+  type CoverageBucket,
+} from './utils/testsFormat'
+
+// Git commit-graph topology — shared by web + native renderers.
+export {
+  LANE_COLORS,
+  computeCommitGraph,
+  type GitLogCommitLike,
+  type GitLogRefLike,
+  type GraphNode,
+} from './utils/gitCommitGraph'
+
 // Time / duration helpers
 export {
   formatDate,
@@ -111,6 +134,29 @@ export {
   formatTime,
   timeAgo,
 } from './utils/time'
+
+// Timeline / Gantt math — buckets, column math, story+feature event reducer.
+export {
+  buildColumns,
+  buildYearGroups,
+  bucketKey,
+  bucketLabel,
+  bucketStart,
+  bucketStep,
+  bucketYearLabel,
+  columnIndex,
+  computeWindow,
+  groupEventsByStory,
+  groupLabelsByBucket,
+  storyEvents,
+  storyEventsAcrossProjects,
+  type Bucket,
+  type StoryFeatureEvent,
+  type TimelineColumn,
+  type TimelineEvent,
+  type TimelineStoryRow,
+  type TimelineYearGroup,
+} from './utils/timeline'
 
 // Agent-run derivations
 export {

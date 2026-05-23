@@ -7,7 +7,7 @@ export {
   default as GitCommitGraphRow,
   type GitCommitGraphRowProps,
 } from './commitGraph/GitCommitGraphRow'
-export { computeCommitGraph, type GraphNode } from './commitGraph/gitCommitGraphUtils'
+export { computeCommitGraph, type GraphNode } from '../../../headless/utils/gitCommitGraph'
 
 export { GitFileChangesPills, type GitFileChangesPillsProps } from './common/GitFileChangesPills'
 export { default as GitFileDiffItem, type GitFileDiffItemProps } from './common/GitFileDiffItem'

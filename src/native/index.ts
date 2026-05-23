@@ -235,6 +235,14 @@ export {
 } from './compound/chat/SystemPromptBubble'
 export { default as ThinkingRow, type ThinkingRowProps } from './compound/chat/ThinkingRow'
 
+// Timeline / Gantt compound (project timeline screen — body)
+export {
+  TimelineGantt,
+  type TimelineGanttLabel,
+  type TimelineGanttProps,
+  type TimelineGanttStory,
+} from './compound/timeline/TimelineGantt'
+
 // Status / shell compounds
 export {
   default as DisconnectedBanner,
@@ -293,6 +301,38 @@ export {
   default as GitFileStatusIcon,
   type GitFileStatusIconProps,
 } from './compound/git/GitFileStatusIcon'
+export { default as CommitGraph, type CommitGraphProps } from './compound/git/CommitGraph'
+
+// Tests screen compounds
+export { default as CoverageTable, type CoverageTableProps } from './compound/tests/CoverageTable'
+export {
+  default as TestCustomConfigInput,
+  type TestConfigCandidate,
+  type TestConfigEnvVarLike,
+  type TestCustomConfigInputProps,
+} from './compound/tests/TestCustomConfigInput'
+export {
+  default as TestResultsList,
+  type TestResultsListProps,
+} from './compound/tests/TestResultsList'
+export {
+  default as TestsAggregateBar,
+  type TestsAggregateBarProps,
+} from './compound/tests/TestsAggregateBar'
+export {
+  default as TestsProgressBar,
+  type TestsProgressBarProps,
+} from './compound/tests/TestsProgressBar'
+export type {
+  CoverageFileStatsLike,
+  CoverageResultLike,
+  TestFailureLike,
+  TestNameLike,
+  TestResultLike,
+  TestStatusLike,
+  TestSummaryLike,
+  TestsResultLike,
+} from './compound/tests/types'
 
 // Settings compounds
 export {

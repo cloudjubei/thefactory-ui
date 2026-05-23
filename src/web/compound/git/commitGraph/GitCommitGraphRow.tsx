@@ -1,15 +1,5 @@
-import type { GraphNode } from './gitCommitGraphUtils'
+import { LANE_COLORS, type GraphNode } from '../../../../headless/utils/gitCommitGraph'
 
-const LANE_COLORS = [
-  '#ef4444',
-  '#3b82f6',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#14b8a6',
-  '#ec4899',
-  '#6366f1',
-]
 const ROW_HEIGHT = 32
 const LANE_WIDTH = 14
 const RADIUS = 4
