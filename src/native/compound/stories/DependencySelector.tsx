@@ -17,7 +17,7 @@ export interface DependencySelectorProps extends Omit<DependencySelectorOptions,
   stories: ReadonlyArray<StoryLike>
   /** Fires on `Add` with the selected deps (`["3", "3.2", …]`). */
   onConfirm: (deps: ReadonlyArray<string>) => void
-  /** Modal title — defaults to `"Add blockers"`. */
+  /** Modal title — defaults to `"Add references"`. */
   title?: string
 }
 
@@ -44,7 +44,7 @@ export default function DependencySelector({
   getStoryDisplayIndex,
   getFeatureDisplayIndex,
   sortStories,
-  title = 'Add blockers',
+  title = 'Add references',
 }: DependencySelectorProps) {
   const { search, setSearch, selected, items, toggle, canConfirm, collect } = useDependencySelector(
     {
@@ -70,10 +70,10 @@ export default function DependencySelector({
       title={title}
       size="lg"
       footer={
+        // Cancel is intentionally omitted — closing via the modal's X /
+        // overlay / back gesture IS the cancel. The only footer action is
+        // the primary confirm.
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
-          <Button variant="ghost" onPress={onClose}>
-            Cancel
-          </Button>
           <Button onPress={onAdd} disabled={!canConfirm}>
             {selected.size > 0 ? `Add ${selected.size}` : 'Add'}
           </Button>

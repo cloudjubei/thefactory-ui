@@ -10,6 +10,11 @@ export * from '../tokens/native'
 // Primitives
 export { default as Alert, type AlertProps, type AlertVariant } from './primitives/Alert'
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './primitives/Button'
+export {
+  default as IconButton,
+  type IconButtonProps,
+  type IconButtonSize,
+} from './primitives/IconButton'
 export { default as DotBadge, type DotBadgeProps } from './primitives/DotBadge'
 export { default as Field, type FieldProps } from './primitives/Field'
 export { Input, type InputProps, type InputSize } from './primitives/Input'
@@ -338,9 +343,8 @@ export type {
 export {
   default as LLMConfigForm,
   type LLMConfigFormHandle,
+  type LLMConfigFormMode,
   type LLMConfigFormProps,
-  type LLMConfigFormValues,
-  type LlmProviderId,
 } from './compound/settings/LLMConfigForm'
 
 // Tools screen compounds

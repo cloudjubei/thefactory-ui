@@ -47,7 +47,9 @@ const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm
   }, [titleInputRef])
 
   return (
-    <View accessibilityLabel="Story form" style={{ gap: nativeSpace[6] }}>
+    // 16-px vertical rhythm matches web's `space-y-4` so field-to-field
+    // spacing reads the same across platforms.
+    <View accessibilityLabel="Story form" style={{ gap: nativeSpace[8] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
           <StatusControl status={form.values.status} onChange={form.setStatus} />

@@ -1,7 +1,9 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
+import FileTypeIcon from '../files/FileTypeIcon'
 import WarningChip from './WarningChip'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { IconXCircle } from '../../icons'
+import { nativeLightStatus, nativeSpace } from '../../../tokens/native'
 
 export interface ContextFileChipProps {
   file: UikitFileMeta
@@ -14,7 +16,12 @@ export interface ContextFileChipProps {
 
 export default function ContextFileChip({ file, onRemove, warn }: ContextFileChipProps) {
   return (
-    <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
+    // Full-row layout: each chip claims the parent's full width, so the
+    // wrapping `Blockers / Context Files` row stacks one chip per line and
+    // both the title and meta have plenty of horizontal space. The chip
+    // itself is intentionally borderless — the surrounding `Field` box owns
+    // the container border.
+    <View style={{ position: 'relative', width: '100%' }}>
       {warn && (
         <View style={{ position: 'absolute', top: -4, left: -4, zIndex: 1 }}>
           <WarningChip
@@ -26,19 +33,22 @@ export default function ContextFileChip({ file, onRemove, warn }: ContextFileChi
       <FileDisplay
         file={file}
         density="normal"
+        leadingVisual={
+          <FileTypeIcon path={file.relativePath ?? file.name} type={file.type} size={18} />
+        }
         trailing={
           onRemove ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Remove file"
               onPress={onRemove}
-              hitSlop={4}
+              hitSlop={6}
               style={({ pressed }) => ({
                 padding: nativeSpace[2],
-                opacity: pressed ? 0.5 : 0.7,
+                opacity: pressed ? 0.5 : 1,
               })}
             >
-              <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>×</Text>
+              <IconXCircle size={16} color={nativeLightStatus.stuck.bg} />
             </Pressable>
           ) : undefined
         }

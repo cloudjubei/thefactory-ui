@@ -46,8 +46,10 @@ export default function SegmentedControl({
         {
           flexDirection: 'row',
           alignSelf: 'flex-start',
-          backgroundColor: nativeLightTheme.surface.muted,
-          borderRadius: nativeRadii[2],
+          backgroundColor: nativeLightTheme.surface.raised,
+          borderWidth: 1,
+          borderColor: nativeLightTheme.border.default,
+          borderRadius: nativeRadii.round,
           padding: 2,
           gap: 2,
         },
@@ -70,8 +72,8 @@ export default function SegmentedControl({
               alignItems: 'center',
               justifyContent: 'center',
               gap: nativeSpace[3],
-              borderRadius: nativeRadii[1],
-              backgroundColor: active ? nativeLightTheme.surface.raised : 'transparent',
+              borderRadius: nativeRadii.round,
+              backgroundColor: active ? nativeLightTheme.accent.primary : 'transparent',
               opacity: pressed && !active ? 0.7 : 1,
             })}
           >
@@ -81,7 +83,7 @@ export default function SegmentedControl({
                 style={{
                   fontSize: TEXT_SIZE[size],
                   fontWeight: active ? '600' : '500',
-                  color: active ? nativeLightTheme.text.primary : nativeLightTheme.text.secondary,
+                  color: active ? nativeLightTheme.text.inverted : nativeLightTheme.text.secondary,
                 }}
               >
                 {opt.label}

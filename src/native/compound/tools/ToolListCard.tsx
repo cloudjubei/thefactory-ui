@@ -25,7 +25,8 @@ export default function ToolListCard({
       style={({ pressed }) => ({
         borderRadius: nativeRadii[3],
         borderWidth: 1,
-        padding: nativeSpace[3],
+        paddingHorizontal: nativeSpace[5],
+        paddingVertical: nativeSpace[4],
         borderColor: isActive ? nativePalette.blue[500] : nativeLightTheme.border.subtle,
         backgroundColor: isActive
           ? nativePalette.blue[50]

@@ -1,7 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Pressable, SectionList, Text, View } from 'react-native'
+import type {
+  SectionListData,
+  SectionListRenderItem,
+  StyleProp,
+  ViewStyle,
+} from 'react-native'
 import Code from '../Code'
 import Spinner from '../../primitives/Spinner'
+import { IconChevronDown, IconChevronRight } from '../../icons'
 import { msToShort } from '../../../headless/utils/testsFormat'
 import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
 import type { TestFailureLike, TestResultLike, TestsResultLike } from './types'
@@ -15,20 +22,56 @@ export type TestResultsListProps = {
    * `readFile` SDK). When omitted, snippets are not rendered.
    */
   readFile?: (relPath: string) => Promise<string | undefined>
+  /** Optional content rendered above the virtualized rows (used by callers
+   *  like `CustomPane` to pin their own controls above the list). */
+  ListHeaderComponent?: ReactNode
+  /** Forwarded to the underlying SectionList. */
+  style?: StyleProp<ViewStyle>
+  /** Forwarded to the underlying SectionList's content container. */
+  contentContainerStyle?: StyleProp<ViewStyle>
+}
+
+type Tone = 'failure' | 'pass' | 'skip'
+type SectionKey = 'fail' | 'pass' | 'skip'
+
+interface Section {
+  key: SectionKey
+  tone: Tone
+  title: string
+  open: boolean
+  data: TestResultLike[]
+  emptyMessage?: string
 }
 
 /**
  * Native peer of `web/compound/tests/TestResultsList`. Three collapsible
- * sections (Failing / Passing / Skipped); each test file is a card with
- * a header line, per-failure rows (with optional source snippet), and the
- * pass/skip rosters.
+ * sections (Failing / Passing / Skipped) rendered with a virtualized
+ * `SectionList` so each section's header sticks to the top of the viewport
+ * while its file cards scroll past — standard mobile vertical-table UX. Only
+ * the visible cards stay mounted, keeping push / unmount instant even with
+ * hundreds of test files.
  */
-export function TestResultsList({ results, readFile }: TestResultsListProps) {
+export function TestResultsList({
+  results,
+  readFile,
+  ListHeaderComponent,
+  style,
+  contentContainerStyle,
+}: TestResultsListProps) {
   const tests = Array.isArray(results.tests) ? results.tests : []
 
-  const failing = tests.filter((t) => (t.failures?.length || 0) > 0 || t.status === 'fail')
-  const skippedFiles = tests.filter((t) => (t.summary?.skipped || 0) > 0)
-  const passing = tests.filter((t) => (t.summary?.passed || 0) > 0 && t.status === 'ok')
+  const failing = useMemo(
+    () => tests.filter((t) => (t.failures?.length || 0) > 0 || t.status === 'fail'),
+    [tests],
+  )
+  const skippedFiles = useMemo(
+    () => tests.filter((t) => (t.summary?.skipped || 0) > 0),
+    [tests],
+  )
+  const passing = useMemo(
+    () => tests.filter((t) => (t.summary?.passed || 0) > 0 && t.status === 'ok'),
+    [tests],
+  )
 
   const failedCount = results.summary?.failed || 0
   const passedCount = results.summary?.passed || 0
@@ -37,101 +80,128 @@ export function TestResultsList({ results, readFile }: TestResultsListProps) {
   const hasSkips = skippedCount > 0
   const hasPasses = passedCount > 0
 
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({
+    fail: true,
+    pass: true,
+    skip: true,
+  })
+  const toggle = useCallback(
+    (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  )
+
+  const sections = useMemo<Section[]>(() => {
+    const out: Section[] = []
+    if (hasFailures) {
+      out.push({
+        key: 'fail',
+        tone: 'failure',
+        title: `${failedCount} failing test${failedCount === 1 ? '' : 's'}`,
+        open: open.fail,
+        data: open.fail ? failing : [],
+        emptyMessage: failing.length === 0 ? 'No structured failures detected.' : undefined,
+      })
+    }
+    if (hasPasses) {
+      out.push({
+        key: 'pass',
+        tone: 'pass',
+        title: `${passedCount} passing test${passedCount === 1 ? '' : 's'}`,
+        open: open.pass,
+        data: open.pass ? passing : [],
+      })
+    }
+    if (hasSkips) {
+      out.push({
+        key: 'skip',
+        tone: 'skip',
+        title: `${skippedCount} skipped test${skippedCount === 1 ? '' : 's'}`,
+        open: open.skip,
+        data: open.skip ? skippedFiles : [],
+      })
+    }
+    return out
+  }, [
+    hasFailures,
+    hasPasses,
+    hasSkips,
+    failing,
+    passing,
+    skippedFiles,
+    failedCount,
+    passedCount,
+    skippedCount,
+    open,
+  ])
+
+  const keyExtractor = useCallback((item: TestResultLike, idx: number) => `${item.filePath}-${idx}`, [])
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionListData<TestResultLike, Section> }) => (
+      <View
+        style={{
+          backgroundColor: nativeLightTheme.surface.base,
+          paddingTop: 4,
+          paddingBottom: 6,
+        }}
+      >
+        <SectionHeader
+          title={section.title}
+          tone={section.tone}
+          open={section.open}
+          onToggle={() => toggle(section.key)}
+        />
+        {section.open && section.emptyMessage ? (
+          <Text
+            style={{
+              fontSize: 12,
+              color: nativeLightTheme.text.muted,
+              paddingHorizontal: 12,
+              paddingTop: 6,
+            }}
+          >
+            {section.emptyMessage}
+          </Text>
+        ) : null}
+      </View>
+    ),
+    [toggle],
+  )
+
+  const renderItem = useCallback<SectionListRenderItem<TestResultLike, Section>>(
+    ({ item, section }) => (
+      <View style={{ paddingTop: 8 }}>
+        <FileCard test={item} tone={section.tone} readFile={readFile} />
+      </View>
+    ),
+    [readFile],
+  )
+
   if (!hasFailures && !hasSkips && !hasPasses) {
-    return <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>No tests found.</Text>
+    return (
+      <View>
+        {ListHeaderComponent}
+        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>No tests found.</Text>
+      </View>
+    )
   }
 
   return (
-    <View style={{ gap: 16 }}>
-      {hasFailures ? (
-        <CollapsibleSection
-          title={`${failedCount} failing test${failedCount === 1 ? '' : 's'}`}
-          tone="failure"
-        >
-          {failing.length === 0 ? (
-            <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
-              No structured failures detected.
-            </Text>
-          ) : null}
-          {failing.map((t, idx) => (
-            <View
-              key={`fail-${idx}`}
-              style={{
-                borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
-                borderRadius: 6,
-                padding: 12,
-                gap: 8,
-              }}
-            >
-              <FileHeader t={t} />
-              <View style={{ gap: 8 }}>
-                {(t.failures || []).map((f, i) => (
-                  <FailureItem key={i} test={t} failure={f} readFile={readFile} />
-                ))}
-              </View>
-              <SkipsList t={t} />
-              <PassesList t={t} />
-              <RawOutput t={t} />
-            </View>
-          ))}
-        </CollapsibleSection>
-      ) : null}
-
-      {hasPasses ? (
-        <CollapsibleSection
-          title={`${passedCount} passing test${passedCount === 1 ? '' : 's'}`}
-          tone="pass"
-        >
-          {passing.map((t, idx) => (
-            <View
-              key={`pass-${idx}`}
-              style={{
-                borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
-                borderRadius: 6,
-                padding: 12,
-                gap: 8,
-              }}
-            >
-              <FileHeader t={t} />
-              <PassesList t={t} />
-              <SkipsList t={t} />
-              <RawOutput t={t} />
-            </View>
-          ))}
-        </CollapsibleSection>
-      ) : null}
-
-      {hasSkips ? (
-        <CollapsibleSection
-          title={`${skippedCount} skipped test${skippedCount === 1 ? '' : 's'}`}
-          tone="skip"
-        >
-          {skippedFiles.map((t, idx) => (
-            <View
-              key={`skip-${idx}`}
-              style={{
-                borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
-                borderRadius: 6,
-                padding: 12,
-                gap: 8,
-              }}
-            >
-              <FileHeader t={t} />
-              <SkipsList t={t} />
-              <PassesList t={t} />
-              <RawOutput t={t} />
-            </View>
-          ))}
-        </CollapsibleSection>
-      ) : null}
-    </View>
+    <SectionList
+      sections={sections}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      renderSectionHeader={renderSectionHeader}
+      stickySectionHeadersEnabled
+      ListHeaderComponent={ListHeaderComponent != null ? <>{ListHeaderComponent}</> : null}
+      initialNumToRender={6}
+      windowSize={5}
+      removeClippedSubviews
+      style={style}
+      contentContainerStyle={contentContainerStyle}
+    />
   )
 }
-
-type Tone = 'failure' | 'pass' | 'skip'
 
 const TONE_COLOR: Record<Tone, string> = {
   failure: '#b91c1c',
@@ -139,58 +209,78 @@ const TONE_COLOR: Record<Tone, string> = {
   skip: '#b45309',
 }
 
-function CollapsibleSection({
+const SectionHeader = memo(function SectionHeader({
   title,
   tone,
-  defaultOpen = true,
-  children,
+  open,
+  onToggle,
 }: {
   title: string
   tone: Tone
-  defaultOpen?: boolean
-  children: ReactNode
+  open: boolean
+  onToggle: () => void
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: nativeLightTheme.border.subtle,
+        borderRadius: 6,
+        backgroundColor: pressed ? nativeLightTheme.surface.hover : nativeLightTheme.surface.raised,
+      })}
+    >
+      <Text style={{ fontSize: 14, fontWeight: '500', color: TONE_COLOR[tone] }}>{title}</Text>
+      {open ? (
+        <IconChevronDown size={16} color={nativeLightTheme.text.muted} />
+      ) : (
+        <IconChevronRight size={16} color={nativeLightTheme.text.muted} />
+      )}
+    </Pressable>
+  )
+})
+
+const FileCard = memo(function FileCard({
+  test,
+  tone,
+  readFile,
+}: {
+  test: TestResultLike
+  tone: Tone
+  readFile?: (relPath: string) => Promise<string | undefined>
+}) {
   return (
     <View
       style={{
         borderWidth: 1,
         borderColor: nativeLightTheme.border.subtle,
         borderRadius: 6,
-        overflow: 'hidden',
+        padding: 12,
+        gap: 8,
+        backgroundColor: nativeLightTheme.surface.base,
       }}
     >
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
-        })}
-      >
-        <Text style={{ fontSize: 14, fontWeight: '500', color: TONE_COLOR[tone] }}>{title}</Text>
-        <Text style={{ color: nativeLightTheme.text.muted }}>{open ? '▾' : '▸'}</Text>
-      </Pressable>
-      {open ? (
-        <View
-          style={{
-            padding: 12,
-            paddingTop: 8,
-            gap: 8,
-            borderTopWidth: 1,
-            borderTopColor: nativeLightTheme.border.subtle,
-          }}
-        >
-          {children}
+      <FileHeader t={test} />
+      {tone === 'failure' ? (
+        <View style={{ gap: 8 }}>
+          {(test.failures || []).map((f, i) => (
+            <FailureItem key={i} test={test} failure={f} readFile={readFile} />
+          ))}
         </View>
       ) : null}
+      {tone === 'failure' || tone === 'pass' ? <PassesList t={test} /> : null}
+      <SkipsList t={test} />
+      {tone !== 'failure' ? <PassesList t={test} /> : null}
+      <RawOutput t={test} />
     </View>
   )
-}
+})
 
 function FileHeader({ t }: { t: TestResultLike }) {
   const dur = msToShort(t.summary?.durationMs)
@@ -393,9 +483,19 @@ function RawOutput({ t }: { t: TestResultLike }) {
   if (!t.rawText) return null
   return (
     <View>
-      <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" hitSlop={4}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        hitSlop={4}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      >
+        {open ? (
+          <IconChevronDown size={14} color={nativeLightTheme.text.muted} />
+        ) : (
+          <IconChevronRight size={14} color={nativeLightTheme.text.muted} />
+        )}
         <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
-          {open ? '▾ Hide raw output' : '▸ Show raw output'}
+          {open ? 'Hide raw output' : 'Show raw output'}
         </Text>
       </Pressable>
       {open ? (

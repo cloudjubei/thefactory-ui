@@ -228,6 +228,13 @@ export default function FileDisplay({
       placement={previewPlacement}
       delayMs={previewDelayMs}
       disabled={!showPreviewOnHover}
+      // `display: contents` makes the anchor transparent in the layout tree
+      // so the inner `.file-display` becomes a direct layout child of the
+      // caller's wrapper. Without this, the default inline `<span>` anchor
+      // caps the file-display's width to content — breaking `w-full` rows
+      // (e.g. FileSelector) where the trailing slot should sit at the right
+      // edge and the name should grow into the available space.
+      anchorStyle={{ display: 'contents' }}
     >
       {isCompact ? (
         <span className="badge badge--soft badge--ok">{file.name}</span>

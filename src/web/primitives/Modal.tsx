@@ -249,6 +249,12 @@ export type ConfirmDialogProps = {
   destructive?: boolean
   closeOnOverlayClick?: boolean
   closeOnEsc?: boolean
+  /**
+   * Hide the secondary "Cancel" button. Use when closing the dialog via X /
+   * overlay / Esc IS the cancel action — the dialog then shows only the
+   * primary (confirm / discard) button.
+   */
+  hideCancel?: boolean
 }
 
 export function ConfirmDialog({
@@ -262,6 +268,7 @@ export function ConfirmDialog({
   destructive = false,
   closeOnOverlayClick = true,
   closeOnEsc = true,
+  hideCancel = false,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null)
   const reactId = useId()
@@ -279,9 +286,11 @@ export function ConfirmDialog({
       closeOnEsc={closeOnEsc}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            {cancelLabel}
-          </Button>
+          {!hideCancel && (
+            <Button variant="secondary" onClick={onClose}>
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             ref={confirmRef}
             variant={destructive ? 'danger' : 'primary'}

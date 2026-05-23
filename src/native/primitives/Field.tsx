@@ -4,18 +4,35 @@ import { nativeLightTheme, nativeSpace } from '../../tokens/native'
 
 export interface FieldProps {
   label: ReactNode
+  /** Optional content rendered to the right of the label (e.g. a "+ Add"
+   *  affordance for a list-shaped input). */
+  labelTrailing?: ReactNode
   hint?: ReactNode
   children: ReactNode
 }
 
 // RN has no `<label>` equivalent — set `accessibilityLabel` on the child
 // input if it isn't already accessible by content.
-export default function Field({ label, hint, children }: FieldProps) {
+//
+// Label typography mirrors web's `<label>` in `Field.tsx`: a `text-sm
+// font-medium` heading (14px / 500) above the input. The hint sits underneath
+// at `text-xs`, dimmed.
+export default function Field({ label, labelTrailing, hint, children }: FieldProps) {
   return (
     <View style={{ gap: nativeSpace[2] }}>
-      <Text style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}>
-        {label}
-      </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: nativeSpace[3],
+        }}
+      >
+        <Text style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+          {label}
+        </Text>
+        {labelTrailing}
+      </View>
       {children}
       {hint && (
         <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted, opacity: 0.85 }}>

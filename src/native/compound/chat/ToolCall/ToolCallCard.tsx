@@ -1,11 +1,14 @@
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
-import type {
-  ToolCallLike,
-  ToolResultTypeLike,
-} from '../../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
+import { IconChevronDown, IconChevronRight } from '../../../icons'
+import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
+import {
+  nativeLightTheme,
+  nativePalette,
+  nativeRadii,
+  nativeSpace,
+} from '../../../../tokens/native'
 
 export type ToolCallCardProps = {
   toolCall: ToolCallLike
@@ -128,9 +131,11 @@ function ToolCallCardInner({
           </Text>
         ) : null}
         {hasArgs ? (
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
-            {argsOpen ? '▾' : '▸'}
-          </Text>
+          argsOpen ? (
+            <IconChevronDown size={14} color={nativeLightTheme.text.secondary} />
+          ) : (
+            <IconChevronRight size={14} color={nativeLightTheme.text.secondary} />
+          )
         ) : null}
       </Pressable>
 

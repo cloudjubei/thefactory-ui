@@ -28,6 +28,13 @@ export interface ModalProps {
   closeOnEsc?: boolean
   panelStyle?: StyleProp<ViewStyle>
   contentStyle?: StyleProp<ViewStyle>
+  /**
+   * When true, the panel pins to its `maxHeight` (90% screen) and the inner
+   * column gets `flex: 1` so a `flex-1` ScrollView in `children` actually
+   * stretches. Use for modals that host a long list (e.g. Manage Projects).
+   * Default `false` — the panel hugs its content like a normal dialog.
+   */
+  fillHeight?: boolean
   className?: string
 }
 
@@ -57,6 +64,7 @@ export function Modal({
   hideHeader = false,
   panelStyle,
   contentStyle,
+  fillHeight = false,
   className,
 }: ModalProps) {
   const showHeader = !hideHeader && (title || headerActions || !hideCloseButton)
@@ -120,10 +128,20 @@ export function Modal({
               opacity: progress,
               transform: [{ translateY: panelTranslateY }, { scale: panelScale }],
             },
+            // When `fillHeight`, the panel pins to its maxHeight so the inner
+            // `flex: 1` column has something to fill.
+            fillHeight ? { height: '90%' } : null,
             panelStyle,
           ]}
         >
-          <View className={className} accessibilityViewIsModal style={{ flexShrink: 1 }}>
+          <View
+            className={className}
+            accessibilityViewIsModal
+            // Default: column hugs content (`flexShrink: 1` only) — matches
+            // dialog/compact modal sizing. `fillHeight` opts in to `flex: 1`
+            // for modals hosting a long internal scroll region.
+            style={fillHeight ? { flex: 1 } : { flexShrink: 1 }}
+          >
             {showHeader && (
               <View
                 style={{
@@ -205,6 +223,12 @@ export interface ConfirmDialogProps {
   cancelLabel?: string
   destructive?: boolean
   closeOnOverlayClick?: boolean
+  /**
+   * Hide the secondary "Cancel" button. Use when closing the dialog via X /
+   * overlay / back gesture IS the cancel action — the dialog then shows
+   * only the primary (confirm / discard) button.
+   */
+  hideCancel?: boolean
 }
 
 export function ConfirmDialog({
@@ -217,6 +241,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   destructive = false,
   closeOnOverlayClick = true,
+  hideCancel = false,
 }: ConfirmDialogProps) {
   return (
     <Modal
@@ -227,9 +252,11 @@ export function ConfirmDialog({
       closeOnOverlayClick={closeOnOverlayClick}
       footer={
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[4] }}>
-          <Button variant="secondary" onPress={onClose}>
-            {cancelLabel}
-          </Button>
+          {!hideCancel && (
+            <Button variant="secondary" onPress={onClose}>
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             variant={destructive ? 'danger' : 'primary'}
             onPress={async () => {

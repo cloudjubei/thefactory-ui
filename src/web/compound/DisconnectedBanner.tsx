@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Text, View } from 'react-native'
 import type { WsConnectionState } from '../../headless/api/WsClient'
 
 export interface DisconnectedBannerProps {
@@ -16,14 +15,13 @@ export interface DisconnectedBannerProps {
 }
 
 /**
- * Native peer of desktop's `DisconnectedBanner`
- * (overseer-local/src/renderer/src/ui/components/shell/DisconnectedBanner.tsx).
- * Persistent strip surfaced when the WebSocket is not `open` for longer than
- * `graceMs`. Informational only — reconnect is handled by `WsClient`'s
- * reconnecting-websocket logic.
+ * Web peer of the native `DisconnectedBanner`. Persistent strip surfaced when
+ * the WebSocket is not `open` for longer than `graceMs`. Informational only —
+ * reconnect is handled by `WsClient`'s reconnecting-websocket logic.
  *
- * The grace window exists so flickering states during a normal refetch don't
- * paint a banner; only genuine drops surface.
+ * The grace window prevents transient flickers (e.g. a backend operation that
+ * briefly drops the socket) from painting a banner; only genuine drops
+ * surface.
  */
 export default function DisconnectedBanner({
   wsState,
@@ -37,39 +35,24 @@ export default function DisconnectedBanner({
   const { label, sublabel } = describe(wsState)
 
   return (
-    <View
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-3 px-4 py-1.5 text-xs border-b"
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: '#fffbeb',
-        borderBottomWidth: 1,
-        borderBottomColor: '#fde68a',
+        background: 'var(--color-amber-50, #fffbeb)',
+        color: 'var(--color-amber-900, #78350f)',
+        borderColor: 'var(--color-amber-200, #fde68a)',
       }}
     >
-      <View
-        accessibilityElementsHidden
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: dotColor(wsState),
-        }}
+      <span
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: dotColor(wsState) }}
+        aria-hidden
       />
-      <Text style={{ fontSize: 12, fontWeight: '500', color: '#78350f' }} numberOfLines={1}>
-        {label}
-      </Text>
-      <Text
-        style={{ fontSize: 12, color: '#78350f', opacity: 0.8, flexShrink: 1 }}
-        numberOfLines={1}
-      >
-        {sublabel}
-      </Text>
-    </View>
+      <span className="font-medium">{label}</span>
+      <span className="opacity-80">{sublabel}</span>
+    </div>
   )
 }
 
@@ -92,12 +75,10 @@ function describe(state: WsConnectionState): { label: string; sublabel: string }
 }
 
 function dotColor(state: WsConnectionState): string {
-  if (state === 'connecting') return '#f59e0b'
-  return '#9ca3af'
+  if (state === 'connecting') return 'var(--color-orange-500, #f59e0b)'
+  return 'var(--color-gray-400, #9ca3af)'
 }
 
-/** Returns true only after `wsState` has been non-`open` continuously for
- *  `graceMs`. Resets immediately when the socket recovers. */
 function useStableNonOpen(wsState: WsConnectionState, graceMs: number): boolean {
   const [down, setDown] = useState(false)
   useEffect(() => {

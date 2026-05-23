@@ -23,6 +23,13 @@ export interface BottomSheetProps {
   footer?: ReactNode
   /** Cap the sheet's height as a fraction of the screen. Default `0.85`. */
   maxHeightFraction?: number
+  /**
+   * When `true`, the sheet panel pins to `maxHeightFraction × screen` (so it
+   * fills the available space) instead of hugging its content. Use for
+   * surfaces that need an internal flex layout — e.g. a full-screen chat
+   * hosted in the sheet.
+   */
+  fillHeight?: boolean
 }
 
 // A downward drag past this distance — or a fast downward fling — dismisses.
@@ -43,6 +50,7 @@ export default function BottomSheet({
   children,
   footer,
   maxHeightFraction = 0.85,
+  fillHeight = false,
 }: BottomSheetProps) {
   const { height: screenHeight } = useWindowDimensions()
   const translateY = useRef(new Animated.Value(screenHeight)).current
@@ -100,11 +108,21 @@ export default function BottomSheet({
   })
 
   const maxPanelH = Math.round(maxHeightFraction * screenHeight)
-  const bottomSpacer = nativeSpace[8]
+  // Comfortably clears the iOS home indicator (~34pt) on devices that have
+  // one; on devices without one, just looks like generous bottom breathing
+  // room. Pre-Nitro `react-native-safe-area-context` isn't a dep of this
+  // package, so we use a fixed conservative value rather than reading the
+  // actual inset.
+  const bottomSpacer = nativeSpace[16]
   const availForContent = maxPanelH - headerH - footerH - bottomSpacer
   const scroll = contentH > availForContent && availForContent > 0
 
-  const content = (
+  const content = fillHeight ? (
+    // When pinning to a fixed height, the consumer manages its own scrolling
+    // / flex layout — pass children through as a flex-1 container without
+    // sheet padding (chat & similar surfaces own the inset).
+    <View style={{ flex: 1 }}>{children}</View>
+  ) : (
     <View
       onLayout={(e: LayoutChangeEvent) => setContentH(e.nativeEvent.layout.height)}
       style={{ paddingHorizontal: nativeSpace[5], paddingTop: nativeSpace[2] }}
@@ -131,7 +149,7 @@ export default function BottomSheet({
             borderTopLeftRadius: nativeRadii[5],
             borderTopRightRadius: nativeRadii[5],
             overflow: 'hidden',
-            maxHeight: maxPanelH,
+            ...(fillHeight ? { height: maxPanelH } : { maxHeight: maxPanelH }),
             transform: [{ translateY }],
           }}
         >
@@ -139,12 +157,18 @@ export default function BottomSheet({
             {...panResponder.panHandlers}
             onLayout={(e: LayoutChangeEvent) => setHeaderH(e.nativeEvent.layout.height)}
           >
-            <View style={{ alignItems: 'center', paddingTop: nativeSpace[2] }}>
+            <View
+              style={{
+                alignItems: 'center',
+                paddingTop: nativeSpace[4],
+                paddingBottom: nativeSpace[3],
+              }}
+            >
               <View
                 style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
+                  width: 44,
+                  height: 5,
+                  borderRadius: 3,
                   backgroundColor: nativeLightTheme.border.default,
                 }}
               />
@@ -167,7 +191,9 @@ export default function BottomSheet({
             ) : null}
           </View>
 
-          {scroll ? (
+          {fillHeight ? (
+            content
+          ) : scroll ? (
             <ScrollView
               style={{ height: availForContent }}
               showsVerticalScrollIndicator={false}
@@ -192,7 +218,7 @@ export default function BottomSheet({
               {footer}
             </View>
           ) : null}
-          <View style={{ height: bottomSpacer }} />
+          {!fillHeight && <View style={{ height: bottomSpacer }} />}
         </Animated.View>
       </View>
     </OverlayPortal>

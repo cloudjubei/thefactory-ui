@@ -1,5 +1,6 @@
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import WarningChip from './WarningChip'
+import { IconXCircle } from '../../icons'
 
 export type ContextFileChipProps = {
   /** Resolved file metadata. Hosts wire this from their FilesContext —
@@ -23,7 +24,12 @@ export type ContextFileChipProps = {
  */
 export default function ContextFileChip({ file, onRemove, warn }: ContextFileChipProps) {
   return (
-    <div className="inline-flex relative">
+    // On small screens (where mobile parity matters), each chip claims a
+    // full row so name + meta have plenty of horizontal space. On `md+` the
+    // chips fall back to inline-flex and the parent's `flex-wrap` packs
+    // multiple chips per row. The `context-file-chip` class enables the
+    // compact `.file-display` overrides in `file-display.css`.
+    <div className="context-file-chip relative w-full md:inline-flex md:w-auto">
       {warn ? (
         <div className="absolute -top-1 -left-1 z-10">
           <WarningChip
@@ -41,7 +47,7 @@ export default function ContextFileChip({ file, onRemove, warn }: ContextFileChi
           onRemove ? (
             <button
               type="button"
-              className="text-xs px-1 text-(--text-secondary) hover:text-(--text-primary)"
+              className="px-1 text-red-600 hover:text-red-700"
               onClick={(e) => {
                 e.stopPropagation()
                 onRemove()
@@ -49,7 +55,7 @@ export default function ContextFileChip({ file, onRemove, warn }: ContextFileChi
               title="Remove file"
               aria-label="Remove file"
             >
-              ✕
+              <IconXCircle className="h-4 w-4" />
             </button>
           ) : undefined
         }

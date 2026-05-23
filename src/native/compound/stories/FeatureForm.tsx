@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useMemo, useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
   useFeatureForm,
@@ -17,7 +17,7 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import ContextFileChip from './ContextFileChip'
 import DependencySelector from './DependencySelector'
 import StatusControl from '../StatusControl'
-import { IconPlus } from '../../icons'
+import { IconClose, IconPlus } from '../../icons'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export type { FeatureFormValues, FeatureFormInitialValues }
@@ -47,6 +47,11 @@ export interface FeatureFormProps {
   /** Project files — feed the context-files picker + chip metadata. */
   files?: ReadonlyArray<UikitFileMeta>
 
+  /**
+   * Kept for symmetry with web's `FeatureForm`. The native form currently
+   * has no create-vs-edit visual difference (placeholder & title come from
+   * the host modal), so the flag is accepted but unused.
+   */
   isCreate?: boolean
   initialValues?: FeatureFormInitialValues
   onSubmit: (values: FeatureFormValues) => void | Promise<void>
@@ -54,8 +59,11 @@ export interface FeatureFormProps {
   onDirtyChange?: (dirty: boolean) => void
 }
 
-/** A small bordered chip that opens a picker — the native peer of web's
- *  `chip chip--ok` "+ Add" affordance. */
+/**
+ * Native peer of web's `chip chip--ok` "+ Add" affordance. Round (pill) shape
+ * with a soft border and primary text colour — the same recipe as
+ * `thefactory-ui/src/web/styles/components/badges.css :: .chip`.
+ */
 function AddChip({
   label,
   onPress,
@@ -75,16 +83,19 @@ function AddChip({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        paddingHorizontal: nativeSpace[2],
-        paddingVertical: 4,
-        borderRadius: nativeRadii[2],
+        height: 24,
+        paddingHorizontal: nativeSpace[4],
+        borderRadius: nativeRadii.round,
         borderWidth: 1,
         borderColor: nativeLightTheme.accent.primary,
+        backgroundColor: nativeLightTheme.surface.base,
         opacity: disabled ? 0.5 : pressed ? 0.6 : 1,
       })}
     >
       <IconPlus size={12} color={nativeLightTheme.accent.primary} />
-      <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.accent.primary }}>
+      {/* Border + leading icon stay accent.primary (blue), but the label uses
+       *  text.primary so the chip reads as a neutral pill with a blue affordance. */}
+      <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}>
         {label}
       </Text>
     </Pressable>
@@ -113,7 +124,8 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     onSearchReferences,
     renderBlocker,
     files,
-    isCreate = false,
+    // Accepted for API symmetry with the web form; not currently consumed.
+    isCreate: _isCreate = false,
     initialValues,
     onSubmit,
     submitting = false,
@@ -133,6 +145,12 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
   const [pickerOpen, setPickerOpen] = useState(false)
   const [fileSelectorOpen, setFileSelectorOpen] = useState(false)
 
+  // Cap the multiline textareas so they grow up to ~30% of the available
+  // window height, then scroll internally — otherwise the form stretches
+  // forever and the submit button is pushed off-screen.
+  const { height: windowHeight } = useWindowDimensions()
+  const textareaMaxHeight = Math.round(windowHeight * 0.3)
+
   const fileByPath = useMemo(() => {
     const m = new Map<string, UikitFileMeta>()
     for (const f of files ?? []) {
@@ -151,21 +169,28 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
       mtime: 0,
     }
 
-  const boxStyle = {
+  // Wrapper for the bordered Context Files / Blockers boxes. Border + bg
+  // live on the outer View so the inner ScrollView can take over scrolling
+  // once the chip cluster exceeds `textareaMaxHeight`. Same growth model as
+  // the multiline textareas above.
+  const boxOuterStyle = {
+    minHeight: 44,
+    maxHeight: textareaMaxHeight,
+    borderWidth: 1,
+    borderColor: nativeLightTheme.border.default,
+    borderRadius: nativeRadii[2],
+    backgroundColor: nativeLightTheme.surface.raised,
+  }
+  const boxContentStyle = {
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
     alignItems: 'center' as const,
     gap: 6,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: nativeLightTheme.border.default,
-    borderRadius: nativeRadii[2],
     padding: nativeSpace[2],
-    backgroundColor: nativeLightTheme.surface.raised,
   }
 
   return (
-    <ScrollView contentContainerStyle={{ gap: nativeSpace[3], paddingBottom: nativeSpace[4] }}>
+    <ScrollView contentContainerStyle={{ gap: nativeSpace[8], paddingBottom: nativeSpace[4] }}>
       <View
         style={{
           flexDirection: 'row',
@@ -182,7 +207,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
       <Field label="Title">
         <Input
           value={form.values.title}
-          placeholder={isCreate ? 'What is this feature?' : 'Title'}
+          placeholder="What is this feature?"
           onChangeText={form.setTitle}
           disabled={submitting}
           returnKeyType="next"
@@ -197,13 +222,14 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           onSearchReferences={onSearchReferences}
           onAcceptFileMention={form.addContextFile}
           onAcceptReference={form.addBlocker}
-          placeholder="Optional description (type @file or #3.2 to autocomplete)"
-          rows={3}
+          placeholder="Optional details or acceptance criteria. Tip: @ to reference files, # to reference stories/features"
+          rows={4}
           disabled={submitting}
+          textInputProps={{ style: { maxHeight: textareaMaxHeight } }}
         />
       </Field>
 
-      <Field label="Rejection reason">
+      <Field label="Rejection Reason">
         <FileMentionsTextarea
           value={form.values.rejection}
           onChangeText={form.setRejection}
@@ -211,57 +237,73 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           onSearchReferences={onSearchReferences}
           onAcceptFileMention={form.addContextFile}
           onAcceptReference={form.addBlocker}
-          placeholder="Optional reason for rejection (leave blank to remove)"
-          rows={2}
+          placeholder="Optional reason for rejection (leave blank to remove). Tip: @ files, # stories/features"
+          rows={3}
           disabled={submitting}
+          textInputProps={{ style: { maxHeight: textareaMaxHeight } }}
         />
       </Field>
 
-      <Field label="Context files">
-        <View style={boxStyle}>
-          {form.values.context.map((path, i) => (
-            <ContextFileChip
-              key={`${path}-${i}`}
-              file={metaFor(path)}
-              warn={!form.mentionedPaths.has(path)}
-              onRemove={() => form.removeContextAt(i)}
-            />
-          ))}
+      <Field
+        label="Context Files"
+        labelTrailing={
           <AddChip label="Add" onPress={() => setFileSelectorOpen(true)} disabled={submitting} />
+        }
+      >
+        <View style={boxOuterStyle}>
+          <ScrollView contentContainerStyle={boxContentStyle}>
+            {form.values.context.map((path, i) => (
+              <ContextFileChip
+                key={`${path}-${i}`}
+                file={metaFor(path)}
+                warn={!form.mentionedPaths.has(path)}
+                onRemove={() => form.removeContextAt(i)}
+              />
+            ))}
+          </ScrollView>
         </View>
         <Text style={{ marginTop: 4, fontSize: 12, color: nativeLightTheme.text.muted }}>
-          Files that give the agent useful context. Tip: type @ in the description to reference one.
+          Select any files across the project that provide useful context for this feature. Tip:
+          type @ in description to quickly reference files.
         </Text>
       </Field>
 
-      <Field label="Blockers">
-        <View style={boxStyle}>
-          {form.values.blockers.map((dep, i) =>
-            renderBlocker ? (
-              <View key={`${dep}-${i}`}>
-                {renderBlocker(dep, i, () => form.removeBlockerAt(i))}
-              </View>
-            ) : (
-              <Pressable
-                key={`${dep}-${i}`}
-                onPress={() => form.removeBlockerAt(i)}
-                accessibilityLabel={`Remove blocker ${dep}`}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: nativeSpace[2],
-                  paddingVertical: 2,
-                  borderRadius: nativeRadii[2],
-                  backgroundColor: nativeLightTheme.surface.muted,
-                }}
-              >
-                <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>#{dep}</Text>
-                <Text style={{ fontSize: 14, opacity: 0.5 }}>×</Text>
-              </Pressable>
-            ),
-          )}
+      <Field
+        label="Blockers"
+        labelTrailing={
           <AddChip label="Add" onPress={() => setPickerOpen(true)} disabled={submitting} />
+        }
+      >
+        <View style={boxOuterStyle}>
+          <ScrollView contentContainerStyle={boxContentStyle}>
+            {form.values.blockers.map((dep, i) =>
+              renderBlocker ? (
+                <View key={`${dep}-${i}`}>
+                  {renderBlocker(dep, i, () => form.removeBlockerAt(i))}
+                </View>
+              ) : (
+                <Pressable
+                  key={`${dep}-${i}`}
+                  onPress={() => form.removeBlockerAt(i)}
+                  accessibilityLabel={`Remove blocker ${dep}`}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: nativeSpace[2],
+                    paddingVertical: 2,
+                    borderRadius: nativeRadii[2],
+                    backgroundColor: nativeLightTheme.surface.muted,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>
+                    #{dep}
+                  </Text>
+                  <IconClose size={12} color={nativeLightTheme.text.muted} />
+                </Pressable>
+              ),
+            )}
+          </ScrollView>
         </View>
       </Field>
 
@@ -290,7 +332,6 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
         <FileSelector
           files={[...(files ?? [])]}
           initialSelected={form.values.context}
-          onCancel={() => setFileSelectorOpen(false)}
           onConfirm={(picked) => {
             for (const p of picked) form.addContextFile(p)
             setFileSelectorOpen(false)

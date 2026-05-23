@@ -3,13 +3,28 @@ import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 
+const SMALL_SCREEN_MEDIA_QUERY = '(max-width: 767px)'
+
+function useIsSmallScreen(): boolean {
+  const [isSmall, setIsSmall] = useState(() =>
+    typeof window === 'undefined' ? false : window.matchMedia(SMALL_SCREEN_MEDIA_QUERY).matches,
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia(SMALL_SCREEN_MEDIA_QUERY)
+    const handler = (e: MediaQueryListEvent) => setIsSmall(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isSmall
+}
+
 export type FileSelectorProps = {
   /** Pool of files to choose from. Library doesn't fetch — consumer supplies. */
   files: UikitFileMeta[]
   /** Initial selection (matches against `file.relativePath`). Subsequent prop changes are ignored. */
   initialSelected?: string[]
   onConfirm: (selected: string[]) => void
-  onCancel?: () => void
   allowMultiple?: boolean
   title?: string
   /** Async preview loader passed through to `FileDisplay`. */
@@ -20,7 +35,6 @@ export default function FileSelector({
   files,
   initialSelected,
   onConfirm,
-  onCancel,
   allowMultiple = true,
   title,
   onReadPreview,
@@ -28,6 +42,7 @@ export default function FileSelector({
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string[]>(() => initialSelected ?? [])
   const inputRef = useRef<HTMLInputElement>(null)
+  const isSmall = useIsSmallScreen()
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0)
@@ -74,21 +89,26 @@ export default function FileSelector({
         role="listbox"
         aria-label={title || 'Files'}
         aria-multiselectable={allowMultiple}
-        className="border border-(--border-subtle) rounded-md max-h-[50vh] overflow-auto p-1 bg-(--surface-raised)"
+        className="border border-(--border-subtle) rounded-md max-h-[50vh] overflow-auto p-1 bg-(--surface-raised) flex flex-col gap-1"
       >
         {filtered.map((file) => {
           const path = file.relativePath ?? file.name
           const isSelected = selected.includes(path)
           return (
-            <div key={path} role="option" aria-selected={isSelected} className="flex items-center">
+            <div
+              key={path}
+              role="option"
+              aria-selected={isSelected}
+              className="context-file-chip flex w-full items-center"
+            >
               <FileDisplay
                 file={file}
                 density="normal"
                 interactive
-                showPreviewOnHover
+                showPreviewOnHover={!isSmall}
                 onReadPreview={onReadPreview}
                 onClick={() => toggle(path)}
-                className={isSelected ? 'bg-(--surface-hover)' : ''}
+                className={`w-full ${isSelected ? 'bg-(--surface-hover)' : ''}`}
                 trailing={
                   <span
                     className={[
@@ -118,11 +138,9 @@ export default function FileSelector({
       </div>
 
       <div className="flex justify-end gap-2">
-        {onCancel && (
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
+        {/* Cancel intentionally removed across all platforms — closing the
+         *  modal via X / overlay / Esc IS the cancel. Only the primary
+         *  Confirm remains. */}
         <Button onClick={() => onConfirm(selected)} disabled={selected.length === 0}>
           Confirm{selected.length ? ` (${selected.length})` : ''}
         </Button>

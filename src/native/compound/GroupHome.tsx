@@ -107,7 +107,11 @@ export default function GroupHome({
       {projects.length === 0 ? (
         <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>{emptyLabel}</Text>
       ) : (
-        <View style={{ gap: nativeSpace[4] }}>
+        // Card grid spacing mirrors web's `gap-4` (16px between cards), with
+        // each card matching `p-4 gap-3 rounded-lg` exactly. Keep these in
+        // lockstep with `src/web/compound/GroupHome.tsx` so the same
+        // user-picked project icon sits in the same-sized card across clients.
+        <View style={{ gap: nativeSpace[8] }}>
           {projects.map((p) => (
             <Pressable
               key={p.id}
@@ -117,8 +121,8 @@ export default function GroupHome({
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: nativeSpace[5],
-                padding: nativeSpace[6],
+                gap: nativeSpace[6],
+                padding: nativeSpace[8],
                 borderRadius: nativeRadii[3],
                 borderWidth: 1,
                 borderColor: nativeLightTheme.border.subtle,

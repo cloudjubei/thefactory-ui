@@ -8,6 +8,11 @@
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-base);
 }
+/* On small screens the toolbar sits flush against the parent shell which
+ * already supplies its own gutter — drop the redundant padding + bottom
+ * border (StoryDetailsView stacks two `.stories-toolbar` blocks in the
+ * narrow layout, which produced two unwanted divider lines below the
+ * controls). */
 .stories-toolbar .left,
 .stories-toolbar .right {
   display: flex;
@@ -27,6 +32,35 @@
   outline: none;
   border-color: var(--border-focus);
   box-shadow: 0 0 0 var(--focus-ring-width) color-mix(in srgb, var(--focus-ring) 45%, transparent);
+}
+/* Small-screen overrides — placed AFTER the desktop rules so the cascade
+ * picks them up (same specificity, source order decides).
+ *
+ * `.stories-toolbar` is used in two places on narrow viewports:
+ *   1. StoryDetailsView's stacked search + filter rows, whose parent
+ *      already supplies a `px-4` gutter → padding + border are redundant
+ *      and produce double dividers, so we zero them.
+ *   2. StoriesListView's `.stories-searchbar` variant, which is the only
+ *      thing supplying the gutter on the list view → keep the desktop
+ *      padding + border.
+ * The `:not(.stories-searchbar)` modifier separates the two. */
+@media (max-width: 767px) {
+  .stories-toolbar:not(.stories-searchbar) {
+    padding: 0;
+    border-bottom: 0;
+  }
+  /* The StoriesListView render stacks the searchbar above a count row that
+   * supplies its own bottom border on small — drop the searchbar's border so
+   * the divider only appears under the count row (matching mobile). Also
+   * drop the bottom padding so the dropdowns sit flush against the count
+   * row above. */
+  .stories-toolbar.stories-searchbar {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .stories-toolbar .control input[type='search'] {
+    width: 100%;
+  }
 }
 .stories-toolbar .search-wrapper {
   position: relative;
@@ -50,14 +84,26 @@
 .stories-toolbar .status-filter-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--control-pad-x);
+  /* Left-aligned children (bullet + label) so the bullet anchors to the
+   * leading edge. The `.ui-select` background-image chevron renders on the
+   * right via `padding-right` reserved space — don't use the `background:`
+   * shorthand here because it would wipe the inherited `background-image`. */
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 calc(var(--control-pad-x) + 18px) 0 var(--control-pad-x);
   height: var(--control-h-md);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-2);
   color: var(--text-primary);
   cursor: pointer;
+}
+.stories-toolbar .status-filter-btn .standard-picker__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .stories-toolbar .status-filter-btn:focus {
   outline: none;

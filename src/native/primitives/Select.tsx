@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
+import { IconChevronDown } from '../icons'
 import { nativeControls, nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
 import BottomSheet from './BottomSheet'
 
@@ -95,9 +96,13 @@ export function Select({ value: controlled, defaultValue, onValueChange, childre
     <SelectCtx.Provider value={ctx}>
       {children}
       {/* The dropdown is a bottom sheet — the standard mobile pattern, and
-          consistent with `ActionMenu`. */}
+          consistent with `ActionMenu`. The inner `SelectCtx.Provider` is the
+          portal context bridge: `BottomSheet` teleports its children into the
+          app overlay host (outside this provider's tree position), so without
+          re-providing the context inside the portalled subtree, `SelectItem`
+          would throw "must be used inside <Select>". */}
       <BottomSheet isOpen={open} onClose={() => setOpen(false)}>
-        {contentChildren}
+        <SelectCtx.Provider value={ctx}>{contentChildren}</SelectCtx.Provider>
       </BottomSheet>
     </SelectCtx.Provider>
   )
@@ -167,7 +172,7 @@ export function SelectTrigger({
           children
         )}
       </View>
-      <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>▾</Text>
+      <IconChevronDown size={14} color={nativeLightTheme.text.muted} />
     </Pressable>
   )
 }

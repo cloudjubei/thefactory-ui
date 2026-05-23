@@ -60,6 +60,10 @@ export {
   type CollapsibleSidebarItem,
   type CollapsibleSidebarProps,
 } from './compound/CollapsibleSidebar'
+export {
+  default as DisconnectedBanner,
+  type DisconnectedBannerProps,
+} from './compound/DisconnectedBanner'
 // `parseUnifiedDiff` / `generateHunkPatch` / `ParsedHunk` are owned by
 // `thefactory-ui/headless` — import them from there, not the web barrel.
 export {

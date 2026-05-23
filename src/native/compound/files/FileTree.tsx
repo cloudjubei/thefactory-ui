@@ -7,6 +7,7 @@ import {
   type DirNode,
   type TreeNode,
 } from '../../../headless/utils/fileTree'
+import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 import FileTypeIcon from './FileTypeIcon'
 
@@ -237,10 +238,14 @@ function DirRow({
           backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
         })}
       >
-        <Text style={{ width: 12, color: nativeLightTheme.text.muted, fontSize: 12 }}>
-          {open ? '▾' : '▸'}
-        </Text>
-        <Text style={{ fontSize: 14 }}>{open ? '📂' : '📁'}</Text>
+        <View style={{ width: 12, alignItems: 'center', justifyContent: 'center' }}>
+          {open ? (
+            <IconChevronDown size={12} color={nativeLightTheme.text.muted} />
+          ) : (
+            <IconChevronRight size={12} color={nativeLightTheme.text.muted} />
+          )}
+        </View>
+        {open ? <IconFolderOpen size={16} /> : <IconFolder size={16} />}
         <Text
           style={{
             flex: 1,

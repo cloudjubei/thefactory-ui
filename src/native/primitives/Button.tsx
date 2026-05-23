@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { Children, forwardRef, isValidElement } from 'react'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { PressableProps, View as RNView, StyleProp, ViewStyle, TextStyle } from 'react-native'
@@ -11,7 +11,14 @@ import {
 } from '../../tokens/native'
 import Spinner from './Spinner'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link'
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
+  | 'success'
+  | 'link'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
 // `asChild` (web's Radix Slot pattern) has no RN analogue and is intentionally
@@ -63,9 +70,26 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
         text: { color: nativeLightTheme.text.primary },
       }
     case 'danger':
+      // Mirrors web's `.btn-danger`: red border, red-tinted fill, red text.
+      // Uses the `stuck` status token (red-600 light / red-700 dark).
       return {
-        container: { backgroundColor: nativeLightStatus.stuck.bg, borderWidth: 0 },
-        text: { color: nativeLightStatus.stuck.fg },
+        container: {
+          backgroundColor: `${nativeLightStatus.stuck.bg}1A`, // ~10% alpha
+          borderWidth: 2,
+          borderColor: nativeLightStatus.stuck.bg,
+        },
+        text: { color: nativeLightStatus.stuck.bg },
+      }
+    case 'success':
+      // Mirrors web's `.btn-success`: green border, green-tinted fill, green
+      // text. Uses the `done` status token (green-600 light / green-700 dark).
+      return {
+        container: {
+          backgroundColor: `${nativeLightStatus.done.bg}1A`, // ~10% alpha
+          borderWidth: 2,
+          borderColor: nativeLightStatus.done.bg,
+        },
+        text: { color: nativeLightStatus.done.bg },
       }
     case 'link':
       return {
@@ -102,6 +126,34 @@ function sizeStyles(size: ButtonSize): VariantStyle {
         text: { fontSize: 14 },
       }
   }
+}
+
+// RN forbids raw strings/numbers as JSX children outside <Text>. Web's <button>
+// happily renders mixed children like `Reindex all ({count})`, so on RN we
+// auto-wrap any string/number leaves in a single <Text> next to element
+// children. If every leaf is text-ish, we collapse to one <Text>.
+function renderButtonChildren(children: ReactNode, textStyle: StyleProp<TextStyle>): ReactNode {
+  if (children == null || typeof children === 'boolean') return null
+  if (typeof children === 'string' || typeof children === 'number') {
+    return <Text style={textStyle}>{children}</Text>
+  }
+  const arr = Children.toArray(children)
+  const allTextLike = arr.every(
+    (c) => typeof c === 'string' || typeof c === 'number' || isValidElement(c) === false,
+  )
+  if (allTextLike) {
+    return <Text style={textStyle}>{arr}</Text>
+  }
+  return arr.map((c, i) => {
+    if (typeof c === 'string' || typeof c === 'number') {
+      return (
+        <Text key={`t-${i}`} style={textStyle}>
+          {c}
+        </Text>
+      )
+    }
+    return c
+  })
 }
 
 const Button = forwardRef<RNView, ButtonProps>(function Button(
@@ -168,11 +220,7 @@ const Button = forwardRef<RNView, ButtonProps>(function Button(
           opacity: loading ? 0 : 1,
         }}
       >
-        {typeof children === 'string' ? (
-          <Text style={[s.text, v.text, textStyle]}>{children}</Text>
-        ) : (
-          children
-        )}
+        {renderButtonChildren(children, [s.text, v.text, textStyle])}
       </View>
     </Pressable>
   )

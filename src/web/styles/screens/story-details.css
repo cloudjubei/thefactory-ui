@@ -47,6 +47,13 @@
 .details-content {
   padding: 12px;
 }
+/* On small screens the .panel children already provide their own padding +
+ * border, so the outer wrapper's 12px just stacks extra wasted gutter. */
+@media (max-width: 767px) {
+  .details-content {
+    padding: 0;
+  }
+}
 .panel {
   background: var(--surface-raised);
   border: 1px solid var(--border-default);

@@ -1,31 +1,90 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
-import type { TextInput as RNTextInput } from 'react-native'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FlatList, Text, View } from 'react-native'
+import type { ListRenderItem, TextInput as RNTextInput } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
+import FileTypeIcon from './FileTypeIcon'
 
 export interface FileSelectorProps {
   files: UikitFileMeta[]
   /** Initial selection (matches against `file.relativePath`). Subsequent prop changes are ignored. */
   initialSelected?: string[]
   onConfirm: (selected: string[]) => void
-  onCancel?: () => void
   allowMultiple?: boolean
   title?: string
 }
+
+function pathOf(file: UikitFileMeta): string {
+  return file.relativePath ?? file.name
+}
+
+interface RowProps {
+  file: UikitFileMeta
+  isSelected: boolean
+  onToggle: (path: string) => void
+}
+
+// `React.memo` so toggling one row's selection doesn't re-render the
+// neighbours that FlatList currently keeps mounted. With `selected` as a Set
+// only the rows whose `isSelected` actually flipped get a new prop.
+const FileSelectorRow = memo(function FileSelectorRow({ file, isSelected, onToggle }: RowProps) {
+  const path = pathOf(file)
+  return (
+    <View
+      accessibilityRole="none"
+      accessibilityState={{ selected: isSelected }}
+      style={{
+        borderRadius: nativeRadii[1],
+        backgroundColor: isSelected ? nativeLightTheme.surface.muted : 'transparent',
+        padding: nativeSpace[3],
+      }}
+    >
+      <FileDisplay
+        file={file}
+        density="normal"
+        interactive
+        onPress={() => onToggle(path)}
+        leadingVisual={
+          <FileTypeIcon path={file.relativePath ?? file.name} type={file.type} size={18} />
+        }
+        trailing={
+          <View
+            style={{
+              width: 20,
+              height: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: nativeRadii[1],
+              borderWidth: 1,
+              borderColor: isSelected
+                ? nativeLightTheme.accent.primary
+                : nativeLightTheme.border.subtle,
+              backgroundColor: isSelected ? nativeLightTheme.accent.primary : 'transparent',
+            }}
+          >
+            {isSelected && (
+              <Text style={{ fontSize: 10, color: nativeLightTheme.text.inverted }}>✓</Text>
+            )}
+          </View>
+        }
+      />
+    </View>
+  )
+})
 
 export default function FileSelector({
   files,
   initialSelected,
   onConfirm,
-  onCancel,
   allowMultiple = true,
   title,
 }: FileSelectorProps) {
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<string[]>(() => initialSelected ?? [])
+  // `Set` for O(1) lookups during render — with hundreds of files the
+  // previous `array.includes` made each toggle a quadratic re-render.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialSelected ?? []))
   const inputRef = useRef<RNTextInput>(null)
 
   useEffect(() => {
@@ -46,11 +105,28 @@ export default function FileSelector({
     })
   }, [files, query])
 
-  const toggle = (path: string) =>
-    setSelected((prev) => {
-      if (prev.includes(path)) return prev.filter((p) => p !== path)
-      return allowMultiple ? [...prev, path] : [path]
-    })
+  const toggle = useCallback(
+    (path: string) =>
+      setSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(path)) next.delete(path)
+        else {
+          if (!allowMultiple) next.clear()
+          next.add(path)
+        }
+        return next
+      }),
+    [allowMultiple],
+  )
+
+  const keyExtractor = useCallback((file: UikitFileMeta) => pathOf(file), [])
+
+  const renderItem = useCallback<ListRenderItem<UikitFileMeta>>(
+    ({ item }) => (
+      <FileSelectorRow file={item} isSelected={selected.has(pathOf(item))} onToggle={toggle} />
+    ),
+    [selected, toggle],
+  )
 
   return (
     <View style={{ gap: nativeSpace[5] }}>
@@ -69,7 +145,7 @@ export default function FileSelector({
         </Text>
       </View>
 
-      <ScrollView
+      <FlatList
         accessibilityRole="list"
         accessibilityLabel={title ?? 'Files'}
         style={{
@@ -80,51 +156,18 @@ export default function FileSelector({
           backgroundColor: nativeLightTheme.surface.raised,
         }}
         contentContainerStyle={{ padding: nativeSpace[2] }}
-      >
-        {filtered.map((file) => {
-          const path = file.relativePath ?? file.name
-          const isSelected = selected.includes(path)
-          return (
-            <View
-              key={path}
-              accessibilityRole="none"
-              accessibilityState={{ selected: isSelected }}
-              style={{
-                borderRadius: nativeRadii[1],
-                backgroundColor: isSelected ? nativeLightTheme.surface.muted : 'transparent',
-                padding: nativeSpace[3],
-              }}
-            >
-              <FileDisplay
-                file={file}
-                density="normal"
-                interactive
-                onPress={() => toggle(path)}
-                trailing={
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: nativeRadii[1],
-                      borderWidth: 1,
-                      borderColor: isSelected
-                        ? nativeLightTheme.accent.primary
-                        : nativeLightTheme.border.subtle,
-                      backgroundColor: isSelected ? nativeLightTheme.accent.primary : 'transparent',
-                    }}
-                  >
-                    {isSelected && (
-                      <Text style={{ fontSize: 10, color: nativeLightTheme.text.inverted }}>✓</Text>
-                    )}
-                  </View>
-                }
-              />
-            </View>
-          )
-        })}
-        {filtered.length === 0 && (
+        data={filtered}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        // FlatList compares this by reference to decide whether to re-render
+        // mounted rows; replacing the Set on every toggle is what makes
+        // selection feel instant.
+        extraData={selected}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={20}
+        windowSize={5}
+        removeClippedSubviews
+        ListEmptyComponent={
           <Text
             style={{
               padding: nativeSpace[8],
@@ -134,17 +177,17 @@ export default function FileSelector({
           >
             No files match your search.
           </Text>
-        )}
-      </ScrollView>
+        }
+      />
 
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[4] }}>
-        {onCancel && (
-          <Button variant="secondary" onPress={onCancel}>
-            Cancel
-          </Button>
-        )}
-        <Button onPress={() => onConfirm(selected)} disabled={selected.length === 0}>
-          {selected.length ? `Confirm (${selected.length})` : 'Confirm'}
+        {/* Per the user-policy: no Cancel here — close via the modal's X /
+         *  overlay / back gesture. Only the primary confirm remains. */}
+        <Button
+          onPress={() => onConfirm(Array.from(selected))}
+          disabled={selected.size === 0}
+        >
+          {selected.size ? `Confirm (${selected.size})` : 'Confirm'}
         </Button>
       </View>
     </View>

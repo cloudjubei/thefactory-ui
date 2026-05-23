@@ -81,10 +81,7 @@ export default function ChatTopicCreateModal({
       title={modalTitle}
       size="sm"
       footer={
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
+        <div className="flex justify-end">
           <Button
             type="button"
             onClick={() => void handleSubmit()}

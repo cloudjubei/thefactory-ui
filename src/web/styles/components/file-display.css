@@ -110,3 +110,36 @@
 .file-selector [role='option'] {
   align-items: stretch;
 }
+
+/* Compact density for `ContextFileChip` — strips the chip's own padding so
+ * the only spacing comes from the wrapping `Field`/box on the host form,
+ * matching the mobile peer. Scoped by the `.context-file-chip` wrapper class
+ * so standalone FileDisplay elsewhere keeps its default look. */
+.context-file-chip .file-display {
+  padding: 0;
+  gap: 6px;
+}
+.context-file-chip .fd-leading {
+  width: 20px;
+  height: 20px;
+}
+.context-file-chip .fd-content {
+  gap: 0;
+  row-gap: 0;
+  align-content: start;
+}
+/* Same line-box height on both rows so the title and meta stack flush
+ * with matching vertical extent — the meta's containing `.fd-meta` div
+ * otherwise inherits the browser's default line-height (~1.4-1.5 of the
+ * root font) and reads as a 24px-tall block sitting above the title. */
+.context-file-chip .fd-name {
+  font-size: 14px;
+  line-height: 16px;
+}
+.context-file-chip .fd-meta,
+.context-file-chip .fd-size,
+.context-file-chip .fd-date,
+.context-file-chip .fd-sep {
+  font-size: 11px;
+  line-height: 16px;
+}

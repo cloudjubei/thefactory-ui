@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import Tooltip from '../primitives/Tooltip'
+import { IconXCircle } from '../icons'
 import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 
 export type DependencyChipKind = 'story' | 'feature' | 'missing'
@@ -72,7 +73,10 @@ export default function DependencyChip({
   title,
 }: DependencyChipProps) {
   const colors = chipColors(kind, variant)
-  const isInteractive = interactive && !onRemove && onPress != null
+  // Mirrors web: the chip body fires `onPress` whenever it's interactive and
+  // a handler is provided. When `onRemove` is also set, the inline X button
+  // owns its own press (stops propagation via the nested Pressable below).
+  const isInteractive = interactive && onPress != null
 
   const body = (
     <View
@@ -100,7 +104,7 @@ export default function DependencyChip({
           hitSlop={4}
           style={({ pressed }) => ({ opacity: pressed ? 0.5 : 0.8 })}
         >
-          <Text style={{ fontSize: 12, color: colors.fg }}>×</Text>
+          <IconXCircle size={14} color={colors.fg} />
         </Pressable>
       )}
     </View>
