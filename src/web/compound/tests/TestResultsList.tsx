@@ -127,24 +127,31 @@ function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="rounded-md border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-900/40"
-      >
-        <span className={`text-sm font-medium ${TONE_CLASS[tone]}`}>{title}</span>
-        <IconChevron
-          className="w-4 h-4 opacity-70 transition-transform"
-          style={{ transform: open ? 'rotate(90deg)' : undefined }}
-        />
-      </button>
-      {open && (
-        <div className="p-3 pt-2 space-y-2 border-t border-neutral-200 dark:border-neutral-800">
-          {children}
-        </div>
-      )}
+    <section className="relative">
+      {/* Sticky section header — pins to the top of the scroll container as
+       *  the section's contents scroll past, then transitions out as the
+       *  next section's header takes its place. Matches the mobile
+       *  `SectionList` sticky-header pattern. The wrapping div carries the
+       *  opaque background so the corners outside the rounded button still
+       *  paint, otherwise content would scroll visibly through them. The
+       *  `-top-3` overshoots the scroll container's `pt-3` so the sticky
+       *  pins flush with the visible viewport — without it, items would
+       *  scroll into the 12px padding gap above the header. */}
+      <div className="sticky -top-3 z-10 bg-(--surface-base) pt-3">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left rounded-md border border-neutral-200 dark:border-neutral-800 bg-(--surface-raised) hover:bg-neutral-50 dark:hover:bg-neutral-900/40"
+        >
+          <span className={`text-sm font-medium ${TONE_CLASS[tone]}`}>{title}</span>
+          <IconChevron
+            className="w-4 h-4 opacity-70 transition-transform"
+            style={{ transform: open ? 'rotate(90deg)' : undefined }}
+          />
+        </button>
+      </div>
+      {open && <div className="space-y-2">{children}</div>}
     </section>
   )
 }
