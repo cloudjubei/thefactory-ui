@@ -7,6 +7,10 @@ export type GitSidebarBranchListProps = {
   isRemoteSection?: boolean
   selectedBranchName?: string
   selectedStashRef?: string
+  /** Suppress per-row selected-background highlight. Forwarded to each row. */
+  hideSelection?: boolean
+  /** Dirty file count for the current branch — rendered on its row only. */
+  dirtyCount?: number
   /**
    * Persisted folder open state. Folders not in the map default to open
    * (matches the sidebar's "first time" UX); explicit `false` keeps a
@@ -44,6 +48,8 @@ export default function GitSidebarBranchList({
   isRemoteSection,
   selectedBranchName,
   selectedStashRef,
+  hideSelection,
+  dirtyCount,
   folderOpenMap,
   folderKeyPrefix,
   onFolderToggle,
@@ -63,6 +69,8 @@ export default function GitSidebarBranchList({
           branch={b}
           isSelected={selectedBranchName === b.name && !selectedStashRef}
           isRemoteSection={isRemoteSection}
+          hideSelection={hideSelection}
+          dirtyCount={dirtyCount}
           onClick={() => onSelectBranch(b)}
           onDoubleClick={() => onDoubleClickBranch?.(b)}
         />
@@ -82,6 +90,8 @@ export default function GitSidebarBranchList({
             isRemoteSection={isRemoteSection}
             selectedBranchName={selectedBranchName}
             selectedStashRef={selectedStashRef}
+            hideSelection={hideSelection}
+            dirtyCount={dirtyCount}
             open={open}
             onToggle={onFolderToggle?.(key)}
             onSelectBranch={onSelectBranch}

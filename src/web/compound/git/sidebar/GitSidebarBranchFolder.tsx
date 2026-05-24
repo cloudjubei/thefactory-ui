@@ -9,6 +9,10 @@ export type GitSidebarBranchFolderProps = {
   isRemoteSection?: boolean
   selectedBranchName?: string
   selectedStashRef?: string
+  /** Forwarded to each child branch row. */
+  hideSelection?: boolean
+  /** Dirty count, surfaced only on the current-branch row. */
+  dirtyCount?: number
   /**
    * Controlled open state. When omitted, the folder manages its own state
    * (default: open) — matches the original uncontrolled API for callers
@@ -26,6 +30,8 @@ export default function GitSidebarBranchFolder({
   isRemoteSection,
   selectedBranchName,
   selectedStashRef,
+  hideSelection,
+  dirtyCount,
   open: openProp,
   onToggle,
   onSelectBranch,
@@ -78,6 +84,8 @@ export default function GitSidebarBranchFolder({
               branch={b}
               isSelected={b.name === selectedBranchName && !selectedStashRef}
               isRemoteSection={isRemoteSection}
+              hideSelection={hideSelection}
+              dirtyCount={dirtyCount}
               indent={1}
               onClick={() => onSelectBranch(b)}
               onDoubleClick={() => onDoubleClickBranch?.(b)}

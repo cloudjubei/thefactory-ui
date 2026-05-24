@@ -135,6 +135,20 @@ export {
   timeAgo,
 } from './utils/time'
 
+// Diff annotation — shared between web `StructuredUnifiedDiff` and native
+// `UnifiedDiff` so both renderers stay 1:1 on `ignoreWhitespace` / `intra`.
+export {
+  annotateHunks,
+  diffIntra,
+  generateSelectedPatch,
+  hunkLineRange,
+  parseUnifiedDiffAnnotated,
+  type DiffLineMarkupSegment,
+  type IntraMode,
+  type ParsedDiffHunk,
+  type ParsedDiffLine,
+} from './utils/diffAnnotate'
+
 // Timeline / Gantt math — buckets, column math, story+feature event reducer.
 export {
   buildColumns,

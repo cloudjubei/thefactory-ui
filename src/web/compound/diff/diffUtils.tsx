@@ -1,176 +1,34 @@
 import { useMemo, useState } from 'react'
-// Diff parsing is single-sourced in `thefactory-tools/utils` (shared with the
-// backend + native). This module adapts that parser's result to the web
-// renderer's hunk model and re-exports `generateHunkPatch` unchanged.
+// Diff parsing + annotation is single-sourced in
+// `headless/utils/diffAnnotate` so web's `StructuredUnifiedDiff` and
+// native's `UnifiedDiff` share the same hunk model and identical
+// `ignoreWhitespace` / `intra` semantics.
+import { generateHunkPatch } from 'thefactory-tools/utils'
 import {
-  parseUnifiedDiff as parseUnifiedDiffShared,
-  generateHunkPatch,
-} from 'thefactory-tools/utils'
+  annotateHunks as annotateHunksShared,
+  generateSelectedPatch,
+  hunkLineRange as hunkLineRangeShared,
+  parseUnifiedDiffAnnotated,
+  type IntraMode,
+  type ParsedDiffHunk,
+} from '../../../headless/utils/diffAnnotate'
 
-export { generateHunkPatch }
+export { generateHunkPatch, generateSelectedPatch }
+export type { IntraMode }
 
-/**
- * Web-local hunk type — the shared parser's hunk shape plus the optional
- * intraline render annotations (`_hidden` / `_markup`) the web
- * `StructuredUnifiedDiff` layers on, and the web `'ctx'` / `'meta'` line
- * classification (the shared parser yields `'context'` and folds the
- * no-newline marker into it).
- */
-export type ParsedHunk = {
-  header?: string
-  oldStart: number
-  oldLines?: number
-  newStart: number
-  newLines?: number
-  lines: Array<{
-    type: 'add' | 'del' | 'ctx' | 'meta'
-    text: string
-    oldLine?: number
-    newLine?: number
-    // Render-time annotations (optional)
-    _hidden?: boolean
-    _markup?: Array<{ t: 'text' | 'ins' | 'del'; v: string }>
-  }>
-}
+/** Local alias preserved for callers that already import `ParsedHunk` from
+ *  this module — same shape as the shared `ParsedDiffHunk`. */
+export type ParsedHunk = ParsedDiffHunk
 
-/**
- * Parse a unified-diff patch into the web renderer's hunk model. Delegates
- * the actual parsing to `thefactory-tools/utils` and maps its `'context'`
- * lines to the web `'ctx'` / `'meta'` split (the trailing `\ No newline at
- * end of file` marker becomes `'meta'`).
- */
 export function parseUnifiedDiff(patch: string): ParsedHunk[] {
-  const hunks = parseUnifiedDiffShared(patch) ?? []
-  return hunks.map((h) => ({
-    header: h.header,
-    oldStart: h.oldStart,
-    oldLines: h.oldLines,
-    newStart: h.newStart,
-    newLines: h.newLines,
-    lines: h.lines.map((l) => ({
-      type:
-        l.type === 'context' ? (l.text.startsWith('\\ ') ? 'meta' : 'ctx') : l.type,
-      text: l.text,
-      oldLine: l.oldLine,
-      newLine: l.newLine,
-    })),
-  }))
+  return parseUnifiedDiffAnnotated(patch)
 }
 
-export type IntraMode = 'none' | 'word' | 'char'
-
-function normalizeWS(s: string): string {
-  return s.replace(/\s+/g, ' ').trim()
-}
-
-function diffIntra(
-  a: string,
-  b: string,
-  mode: IntraMode,
-): {
-  aSegs: Array<{ t: 'text' | 'del'; v: string }>
-  bSegs: Array<{ t: 'text' | 'ins'; v: string }>
-} {
-  if (mode === 'none') return { aSegs: [{ t: 'text', v: a }], bSegs: [{ t: 'text', v: b }] }
-  const seqA = mode === 'word' ? a.split(/(\s+|\b)/) : a.split('')
-  const seqB = mode === 'word' ? b.split(/(\s+|\b)/) : b.split('')
-  const n = seqA.length
-  const m = seqB.length
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = seqA[i] === seqB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
-    }
-  }
-  const aOut: Array<{ t: 'text' | 'del'; v: string }> = []
-  const bOut: Array<{ t: 'text' | 'ins'; v: string }> = []
-  let i = 0,
-    j = 0
-  while (i < n && j < m) {
-    if (seqA[i] === seqB[j]) {
-      aOut.push({ t: 'text', v: seqA[i] })
-      bOut.push({ t: 'text', v: seqB[j] })
-      i++
-      j++
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      aOut.push({ t: 'del', v: seqA[i++] })
-    } else {
-      bOut.push({ t: 'ins', v: seqB[j++] })
-    }
-  }
-  while (i < n) aOut.push({ t: 'del', v: seqA[i++] })
-  while (j < m) bOut.push({ t: 'ins', v: seqB[j++] })
-
-  const merge = <T extends { t: any; v: string }>(arr: T[]) =>
-    arr.reduce<T[]>((acc, cur) => {
-      const prev = acc[acc.length - 1]
-      if (prev && prev.t === cur.t) prev.v += cur.v
-      else acc.push({ ...cur })
-      return acc
-    }, [])
-
-  return { aSegs: merge(aOut), bSegs: merge(bOut) }
-}
-
-function annotateHunks(
-  hunks: ParsedHunk[],
-  opts: { ignoreWhitespace?: boolean; intra?: IntraMode },
-): ParsedHunk[] {
-  const out = hunks.map((h) => ({
-    ...h,
-    lines: h.lines.map((l) => ({ ...l })),
-  }))
-
-  for (const h of out) {
-    const dels: { idx: number; text: string }[] = []
-
-    for (let i = 0; i < h.lines.length; i++) {
-      const ln = h.lines[i]
-      if (ln.type === 'del') {
-        dels.push({ idx: i, text: ln.text })
-      } else if (ln.type === 'add') {
-        if (dels.length > 0) {
-          const cand = dels.shift()!
-          if (cand) {
-            const a = h.lines[cand.idx]
-            const b = ln
-
-            let matched = false
-            if (opts.ignoreWhitespace) {
-              if (normalizeWS(a.text) === normalizeWS(b.text)) {
-                a._hidden = true
-                b._hidden = true
-                matched = true
-              }
-            }
-
-            if (!matched && opts.intra && opts.intra !== 'none') {
-              const { aSegs, bSegs } = diffIntra(a.text, b.text, opts.intra)
-              a._markup = aSegs
-              b._markup = bSegs
-            }
-          }
-        }
-      } else {
-        dels.length = 0
-      }
-    }
-  }
-  return out
-}
-
-/** Compute the line range covered by a hunk (first to last actual line number touched) */
-function hunkLineRange(hunk: ParsedHunk): { start: number; end: number } {
-  const nums: number[] = []
-  for (const l of hunk.lines) {
-    if (l.oldLine !== undefined) nums.push(l.oldLine)
-    if (l.newLine !== undefined) nums.push(l.newLine)
-  }
-  if (nums.length === 0) {
-    return { start: hunk.oldStart, end: hunk.oldStart }
-  }
-  return { start: Math.min(...nums), end: Math.max(...nums) }
-}
+// Local aliases — the real implementations are in `headless/utils/diffAnnotate`.
+// Keep these one-liners so the rest of this file's references (and any
+// downstream importer) don't need to change at the same time.
+const annotateHunks = annotateHunksShared
+const hunkLineRange = hunkLineRangeShared
 
 export type StructuredUnifiedDiffProps = {
   patch: string
@@ -576,103 +434,5 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
       })}
     </div>
   )
-}
-
-export function generateSelectedPatch(
-  patch: string,
-  selectedLines: Set<string>, // format: "hunkIndex:lineIndex"
-  /**
-   * When true, the resulting patch is intended to be applied in reverse
-   * direction (e.g. unstaging hunks from a staged diff via
-   * `git apply --cached --reverse`). The asymmetry matters: an unselected
-   * `-` line in a staging diff means the line stays in the index (so
-   * appears as context), but in a *staged* diff (the target of reverse
-   * apply) an unselected `-` means the line is NOT in the index — so it
-   * must be skipped entirely, not promoted to context. Same swap for
-   * unselected `+` lines.
-   */
-  reverse = false,
-): string {
-  const hunks = parseUnifiedDiff(patch)
-
-  let out = ''
-  const lines = patch.replace(/\r\n/g, '\n').split('\n')
-  for (const l of lines) {
-    if (l.startsWith('@@')) break
-    out += l + '\n'
-  }
-
-  for (let hIdx = 0; hIdx < hunks.length; hIdx++) {
-    const hunk = hunks[hIdx]
-    let oldLinesCount = 0
-    let newLinesCount = 0
-    let hunkBody = ''
-    let hasModifications = false
-
-    let lastLineIncluded: 'add' | 'del' | 'ctx' | null = null
-
-    for (let lIdx = 0; lIdx < hunk.lines.length; lIdx++) {
-      const line = hunk.lines[lIdx]
-      const isSelected = selectedLines.has(`${hIdx}:${lIdx}`)
-
-      if (line.type === 'meta') {
-        // If the preceding line was included (as add/del/ctx), include this meta line.
-        // E.g. \ No newline at end of file
-        if (lastLineIncluded) {
-          hunkBody += line.text + '\n'
-        }
-        continue
-      }
-
-      if (line.type === 'ctx') {
-        hunkBody += ' ' + line.text + '\n'
-        oldLinesCount++
-        newLinesCount++
-        lastLineIncluded = 'ctx'
-      } else if (line.type === 'add') {
-        if (isSelected) {
-          hunkBody += '+' + line.text + '\n'
-          newLinesCount++
-          hasModifications = true
-          lastLineIncluded = 'add'
-        } else if (reverse) {
-          // Unselected `+` when generating a reverse-direction patch: line
-          // IS in the index (we're not unstaging it), so it must appear
-          // as context to anchor the surrounding hunk.
-          hunkBody += ' ' + line.text + '\n'
-          oldLinesCount++
-          newLinesCount++
-          lastLineIncluded = 'ctx'
-        } else {
-          lastLineIncluded = null
-        }
-      } else if (line.type === 'del') {
-        if (isSelected) {
-          hunkBody += '-' + line.text + '\n'
-          oldLinesCount++
-          hasModifications = true
-          lastLineIncluded = 'del'
-        } else if (reverse) {
-          // Unselected `-` in a reverse-direction patch: line is NOT in
-          // the index (it was already deleted by the staged change we're
-          // leaving alone). Skip entirely — promoting to context would
-          // claim the line is in the index when it isn't, breaking
-          // `git apply --reverse` context matching.
-          lastLineIncluded = null
-        } else {
-          hunkBody += ' ' + line.text + '\n'
-          oldLinesCount++
-          newLinesCount++
-          lastLineIncluded = 'ctx'
-        }
-      }
-    }
-
-    if (hasModifications) {
-      out += `@@ -${hunk.oldStart},${oldLinesCount} +${hunk.newStart},${newLinesCount} @@${hunk.header ? ' ' + hunk.header : ''}\n`
-      out += hunkBody
-    }
-  }
-  return out.trimEnd() + '\n'
 }
 

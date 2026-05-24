@@ -110,12 +110,20 @@ export type GitSidebarProps = {
   current?: GitUnifiedBranchLike
   selectedBranchName?: string
   selectedStashRef?: string
+  /**
+   * Staged + unstaged file count for the current branch — rendered as a
+   * warning-tinted chip on the current-branch row, matching mobile's
+   * `BranchRow`. Pass `0` (or omit) to hide.
+   */
+  dirtyCount?: number
   onSelectBranch: (b: GitUnifiedBranchLike) => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
   onSelectStash: (ref: string) => void
   /**
    * Fill the parent's width and drop the resize handle — for narrow layouts
    * where the sidebar is the full-width master of a master/detail pair.
+   * Implies `hideSelection` for rows (the narrow flow push-navigates to
+   * detail; there's no persistent "selected" state to highlight).
    */
   fullWidth?: boolean
 }
@@ -130,11 +138,15 @@ export default function GitSidebar({
   current,
   selectedBranchName,
   selectedStashRef,
+  dirtyCount,
   onSelectBranch,
   onDoubleClickBranch,
   onSelectStash,
   fullWidth = false,
 }: GitSidebarProps) {
+  // Narrow / master-detail mode → no persistent selection highlight on
+  // either list (rows push-navigate to a detail screen).
+  const hideSelection = fullWidth
   const [widthPx, setWidthPx] = useState<number>(() => readStoredWidth())
   const resizeRef = useRef<{ startX: number; startW: number; maxW: number } | null>(null)
 
@@ -230,6 +242,8 @@ export default function GitSidebar({
                     branch={current}
                     isSelected={selectedBranchName === current.name && !selectedStashRef}
                     isRemoteSection={false}
+                    hideSelection={hideSelection}
+                    dirtyCount={dirtyCount}
                     onClick={() => onSelectBranch(current)}
                     onDoubleClick={() => onDoubleClickBranch?.(current)}
                   />
@@ -242,6 +256,8 @@ export default function GitSidebar({
                   isRemoteSection={false}
                   selectedBranchName={selectedBranchName}
                   selectedStashRef={selectedStashRef}
+                  hideSelection={hideSelection}
+                  dirtyCount={dirtyCount}
                   folderOpenMap={folderOpenMap}
                   folderKeyPrefix="local"
                   onFolderToggle={setFolderOpen}
@@ -267,6 +283,7 @@ export default function GitSidebar({
                     isRemoteSection={true}
                     selectedBranchName={selectedBranchName}
                     selectedStashRef={selectedStashRef}
+                    hideSelection={hideSelection}
                     folderOpenMap={folderOpenMap}
                     folderKeyPrefix="remote"
                     onFolderToggle={setFolderOpen}
@@ -292,6 +309,7 @@ export default function GitSidebar({
                         key={s.ref}
                         stash={s}
                         isSelected={selectedStashRef === s.ref}
+                        hideSelection={hideSelection}
                         onClick={() => onSelectStash(s.ref)}
                       />
                     ))}

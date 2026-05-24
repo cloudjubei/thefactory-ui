@@ -3,10 +3,13 @@ import { Pressable, Text, View } from 'react-native'
 import { countPatchAddDel } from 'thefactory-tools/utils'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
 import {
+  IconDelete,
   IconDotsVertical,
+  IconFastMerge,
   IconFileAdded,
   IconFileDeleted,
   IconFileModified,
+  IconRevert,
   IconWarningTriangle,
 } from '../../icons'
 import IconButton from '../../primitives/IconButton'
@@ -17,6 +20,13 @@ export interface GitFileEntryLike {
   path: string
   status?: string
   patch?: string
+  /** Pre-computed numstat (from `git diff --numstat` on the backend).
+   *  Prefer these over parsing `patch` — branch / commit diff summaries
+   *  return a single combined `patch` blob and don't split it per file,
+   *  so `patch` is always undefined on commit-file rows and pills
+   *  derived from it would never render. */
+  additions?: number
+  deletions?: number
   binary?: boolean
   isConflicted?: boolean
 }
@@ -58,8 +68,16 @@ function StatusIcon({ status, isConflicted }: { status?: string; isConflicted?: 
   return <IconFileModified size={16} color={status ? (ICON_TINT[status] ?? ICON_TINT.X) : ICON_TINT.X} />
 }
 
-function ChangesPills({ patch }: { patch?: string }) {
-  const { add, del } = useMemo(() => countPatchAddDel(patch), [patch])
+function ChangesPills({ file }: { file: GitFileEntryLike }) {
+  // Prefer the pre-computed numstat (commits / branch diffs); fall back
+  // to parsing the working-tree patch (staged / unstaged rows, where
+  // `additions` / `deletions` aren't populated).
+  const { add, del } = useMemo(() => {
+    if (typeof file.additions === 'number' || typeof file.deletions === 'number') {
+      return { add: file.additions ?? 0, del: file.deletions ?? 0 }
+    }
+    return countPatchAddDel(file.patch)
+  }, [file.additions, file.deletions, file.patch])
   if (add === 0 && del === 0) return null
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -118,7 +136,7 @@ export default function GitFileRow({
     actions.push({
       key: 'resolve',
       label: 'Resolve conflict',
-      icon: <IconWarningTriangle size={20} color="#b45309" />,
+      icon: <IconFastMerge size={20} color={nativeLightTheme.text.primary} />,
       onPress: () => {
         setMenuOpen(false)
         onResolveConflict(file)
@@ -129,7 +147,7 @@ export default function GitFileRow({
     actions.push({
       key: 'reset',
       label: 'Discard local changes',
-      icon: <IconFileModified size={20} color="#dc2626" />,
+      icon: <IconRevert size={20} color="#dc2626" />,
       destructive: true,
       onPress: () => {
         setMenuOpen(false)
@@ -141,7 +159,7 @@ export default function GitFileRow({
     actions.push({
       key: 'remove',
       label: 'Delete file',
-      icon: <IconFileDeleted size={20} color="#dc2626" />,
+      icon: <IconDelete size={20} color="#dc2626" />,
       destructive: true,
       onPress: () => {
         setMenuOpen(false)
@@ -206,7 +224,7 @@ export default function GitFileRow({
           <PathDisplay path={file.path} />
         </Pressable>
 
-        <ChangesPills patch={file.patch} />
+        <ChangesPills file={file} />
 
         {hasActions ? (
           <IconButton

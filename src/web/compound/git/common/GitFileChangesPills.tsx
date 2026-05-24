@@ -1,16 +1,34 @@
 import { countPatchAddDel } from './gitUtils'
 
 export type GitFileChangesPillsProps = {
+  /** When provided, the patch is parsed for `+`/`-` lines. */
   patch?: string
+  /** Pre-computed additions — preferred for aggregate (multi-file) totals
+   *  where there's no single patch to parse. Overrides `patch`. */
+  additions?: number
+  /** Pre-computed deletions — overrides `patch`. */
+  deletions?: number
 }
 
 /**
- * Pair of `+N` / `-N` pills derived from a unified-diff patch — used in
- * StatusPanel rows and merge report listings.
+ * Pair of `+N` / `-N` pills derived from either a unified-diff patch or
+ * an explicit additions/deletions count. Used in StatusPanel rows, merge
+ * report listings, and the commit-files header (where the aggregate
+ * totals come from the diff summary).
  */
-export function GitFileChangesPills({ patch }: GitFileChangesPillsProps) {
-  if (!patch) return null
-  const { add, del } = countPatchAddDel(patch)
+export function GitFileChangesPills({ patch, additions, deletions }: GitFileChangesPillsProps) {
+  let add: number
+  let del: number
+  if (typeof additions === 'number' || typeof deletions === 'number') {
+    add = additions ?? 0
+    del = deletions ?? 0
+  } else if (patch) {
+    const counts = countPatchAddDel(patch)
+    add = counts.add
+    del = counts.del
+  } else {
+    return null
+  }
   if (add === 0 && del === 0) return null
 
   return (

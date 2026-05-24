@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   StructuredUnifiedDiff,
   type IntraMode,
@@ -6,8 +6,9 @@ import {
   generateSelectedPatch,
   generateHunkPatch,
 } from './diffUtils'
+import { OptionPicker } from '../OptionPicker'
 import { PathDisplay } from '../PathDisplay'
-import { IconWarningTriangle } from '../../icons'
+import { IconChevron, IconWarningTriangle } from '../../icons'
 
 export type { IntraMode } from './diffUtils'
 
@@ -173,18 +174,12 @@ export function DiffViewer({
               />
               <span>Ignore WS</span>
             </label>
-            <label className="inline-flex items-center gap-1 cursor-pointer">
-              <span>Intra</span>
-              <select
-                className="border bg-transparent rounded px-1 py-0.5 border-(--border-subtle)"
-                value={intra}
-                onChange={(e) => onIntraChange(e.target.value as IntraMode)}
-              >
-                <option value="none">none</option>
-                <option value="word">word</option>
-                <option value="char">char</option>
-              </select>
-            </label>
+            {/* Intra dropdown — uses the shared `OptionPicker` recipe so the
+                touch-friendly portalled popover matches every other
+                dropdown in the app instead of the native `<select>` UA
+                widget (which positions inconsistently on iOS / Android web
+                small screens). */}
+            <IntraPicker value={intra} onChange={onIntraChange} />
           </div>
         )}
 
@@ -280,6 +275,59 @@ export function DiffViewer({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const INTRA_OPTIONS: ReadonlyArray<{ value: IntraMode; label: string }> = [
+  { value: 'none', label: 'none' },
+  { value: 'word', label: 'word' },
+  { value: 'char', label: 'char' },
+]
+
+/**
+ * `OptionPicker`-anchored Intra dropdown trigger. Standard-picker shell
+ * (border + chevron) wrapped around the same `OptionPicker` recipe used by
+ * Stories filters / LiveData provider picks — gives the diff toolbar a
+ * dropdown that positions reliably on small-screen web, instead of the
+ * native `<select>` which renders inconsistently across iOS / Android.
+ */
+function IntraPicker({
+  value,
+  onChange,
+}: {
+  value: IntraMode
+  onChange: (next: IntraMode) => void
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="inline-flex items-center gap-1">
+      <span>Intra</span>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1 rounded border border-(--border-subtle) bg-(--surface-raised) px-1.5 py-0.5 text-(--text-primary) hover:bg-(--surface-muted)"
+      >
+        <span>{value}</span>
+        <IconChevron className="w-2.5 h-2.5" style={{ transform: 'rotate(90deg)' }} />
+      </button>
+      {open && triggerRef.current && (
+        <OptionPicker
+          anchorEl={triggerRef.current}
+          value={value}
+          options={INTRA_OPTIONS}
+          ariaLabel="Intra-line highlighting"
+          onSelect={(v) => {
+            onChange(v as IntraMode)
+            setOpen(false)
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   )
 }

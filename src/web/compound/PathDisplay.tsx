@@ -2,8 +2,13 @@ import { splitPath } from '../../headless/utils/path'
 
 export { splitPath }
 
-// Left-aligned path with bold filename; directory left-truncates first via the
-// RTL-flip trick — the filename only starts shrinking once the dir collapses.
+// Left-aligned path with bold filename; directory left-truncates first via
+// the RTL-flip trick — the filename only starts shrinking once the dir
+// collapses. The inner `<bdi>` (Unicode bidi isolation) processes the
+// embedded LTR path as its own context, so the outer `direction: rtl`
+// doesn't re-attach neutral characters (the leading `.` on dot-folders
+// like `.factory`, the trailing `/`) to the wrong directional run —
+// without it `/.factory/` would render as `/factory./`.
 export function PathDisplay({ path }: { path: string }) {
   const { dir, name } = splitPath(path)
   return (
@@ -13,7 +18,7 @@ export function PathDisplay({ path }: { path: string }) {
           className="truncate text-neutral-500"
           style={{ flexShrink: 1, minWidth: 0, direction: 'rtl', textAlign: 'left' }}
         >
-          <span style={{ direction: 'ltr' }}>{`/${dir}`}</span>
+          <bdi style={{ direction: 'ltr' }}>{`/${dir}`}</bdi>
         </span>
       ) : null}
       <span
