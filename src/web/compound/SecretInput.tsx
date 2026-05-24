@@ -56,6 +56,15 @@ export const SecretInput = forwardRef<HTMLInputElement, SecretInputProps>(functi
     <div className={cn('relative inline-block w-full', wrapperClassName)}>
       <Input
         ref={ref}
+        autoComplete="off"
+        // Discourage password managers + browser extensions (1Password,
+        // LastPass, MetaMask injectors, …) from autofilling / overwriting
+        // these fields. They occasionally clear or stomp the rendered value
+        // — visible as a key intermittently showing as empty.
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
         {...rest}
         value={value}
         defaultValue={defaultValue}

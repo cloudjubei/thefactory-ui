@@ -138,13 +138,7 @@ export function TestResultsList({
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<TestResultLike, Section> }) => (
-      <View
-        style={{
-          backgroundColor: nativeLightTheme.surface.base,
-          paddingTop: 4,
-          paddingBottom: 6,
-        }}
-      >
+      <View style={{ backgroundColor: nativeLightTheme.surface.base }}>
         <SectionHeader
           title={section.title}
           tone={section.tone}
@@ -168,12 +162,10 @@ export function TestResultsList({
     [toggle],
   )
 
+  // No padding around the card — items slide flush under the sticky header.
+  // Inter-card spacing comes from `ItemSeparatorComponent` (= a 8px spacer).
   const renderItem = useCallback<SectionListRenderItem<TestResultLike, Section>>(
-    ({ item, section }) => (
-      <View style={{ paddingTop: 8 }}>
-        <FileCard test={item} tone={section.tone} readFile={readFile} />
-      </View>
-    ),
+    ({ item, section }) => <FileCard test={item} tone={section.tone} readFile={readFile} />,
     [readFile],
   )
 
@@ -193,6 +185,7 @@ export function TestResultsList({
       renderItem={renderItem}
       renderSectionHeader={renderSectionHeader}
       stickySectionHeadersEnabled
+      ItemSeparatorComponent={SeparatorEight}
       ListHeaderComponent={ListHeaderComponent != null ? <>{ListHeaderComponent}</> : null}
       initialNumToRender={6}
       windowSize={5}
@@ -201,6 +194,10 @@ export function TestResultsList({
       contentContainerStyle={contentContainerStyle}
     />
   )
+}
+
+function SeparatorEight() {
+  return <View style={{ height: 8 }} />
 }
 
 const TONE_COLOR: Record<Tone, string> = {

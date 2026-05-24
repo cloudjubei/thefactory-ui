@@ -278,6 +278,12 @@ export {
   type ModelChipProps,
 } from './compound/ModelChip'
 export {
+  default as LLMProviderIcon,
+  LLM_PROVIDER_STYLES,
+  type LLMProviderIconProps,
+  type LLMProviderId,
+} from './compound/LLMProviderIcon'
+export {
   ChatSidebarPanel,
   type ChatSidebarPanelChildrenArgs,
   type ChatSidebarPanelProps,

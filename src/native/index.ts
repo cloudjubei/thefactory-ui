@@ -346,6 +346,12 @@ export {
   type LLMConfigFormMode,
   type LLMConfigFormProps,
 } from './compound/settings/LLMConfigForm'
+export {
+  default as LLMProviderIcon,
+  LLM_PROVIDER_STYLES,
+  type LLMProviderIconProps,
+  type LLMProviderId,
+} from './compound/LLMProviderIcon'
 
 // Tools screen compounds
 export { default as ToolArgInput, type ToolArgInputProps } from './compound/tools/ToolArgInput'

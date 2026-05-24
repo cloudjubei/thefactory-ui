@@ -39,3 +39,16 @@
 .border-border-focus {
   border-color: var(--border-focus) !important;
 }
+
+/* Hide the native scrollbar without losing scroll. Apply on any
+ * `overflow-auto`/`overflow-scroll` ancestor where the bar should stay
+ * invisible (settings lists, sidebars, …). */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge / IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+  width: 0;
+  height: 0;
+}
