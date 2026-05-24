@@ -22,6 +22,12 @@ export {
 } from './common/GitFileStatusIcon'
 export { countPatchAddDel, getFilePatch } from './common/gitUtils'
 
+export {
+  default as GitCredentialErrorModal,
+  type GitCredentialErrorModalProps,
+  type GitCredentialErrorOp,
+} from './GitCredentialErrorModal'
+
 export { default as GitSidebar, type GitSidebarProps } from './sidebar/GitSidebar'
 export {
   default as GitSidebarBranchFolder,

@@ -15,6 +15,7 @@ export {
   extractServerError,
   getResponseDataMessage,
   isCoverage,
+  isGitCredentialError,
   isGrepHit,
   isTestRun,
   unwrapGitEnvelope,

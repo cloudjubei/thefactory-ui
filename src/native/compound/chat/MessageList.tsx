@@ -54,6 +54,12 @@ export interface MessageListProps {
   lastReadIso?: string
 
   onAtBottomChange?: (atBottom: boolean) => void
+  /** Fired with the ISO timestamp of the latest message visible at the
+   * bottom of the list — used by the host to advance per-chat read cursors
+   * as the user scrolls. Web peer fires this on every scroll event; the RN
+   * surface fires it whenever the at-bottom state flips to true (mobile has
+   * no per-row visibility tracking yet). */
+  onReadLatest?: (iso?: string) => void
   /** Bump this number to scroll the list to the bottom (used right after the
    * user sends a message). */
   scrollToBottomSignal?: number
@@ -85,6 +91,7 @@ export default function MessageList({
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
+  onReadLatest,
   scrollToBottomSignal,
   onDeleteLastMessage,
   onRetry,
@@ -103,6 +110,10 @@ export default function MessageList({
   const positionedChatRef = useRef<string | undefined>(undefined)
   const firstUnreadRef = useRef<number | null>(null)
 
+  // Latest message iso — kept in a ref so onScroll can fire `onReadLatest`
+  // without re-binding on every render.
+  const latestIsoRef = useRef<string | undefined>(undefined)
+
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
@@ -112,9 +123,10 @@ export default function MessageList({
         lastAtBottomRef.current = nextAtBottom
         setAtBottom(nextAtBottom)
         onAtBottomChange?.(nextAtBottom)
+        if (nextAtBottom) onReadLatest?.(latestIsoRef.current)
       }
     },
-    [onAtBottomChange],
+    [onAtBottomChange, onReadLatest],
   )
 
   // On chat change: open at the first unread message when there is one
@@ -147,6 +159,19 @@ export default function MessageList({
     () => messages.filter((m) => !isEmptyAssistantMessage(m) || isToolMessage(m)),
     [messages],
   )
+
+  // Latest message iso (excluding empty-assistant filler) — drives the
+  // `onReadLatest` callback. Recompute whenever the message list changes.
+  useEffect(() => {
+    for (let i = renderable.length - 1; i >= 0; i--) {
+      const iso = messageIso(renderable[i])
+      if (iso) {
+        latestIsoRef.current = iso
+        return
+      }
+    }
+    latestIsoRef.current = undefined
+  }, [renderable])
 
   // ---- Windowed pagination (newest-first "Load more") --------------------
   const [visibleCount, setVisibleCount] = useState(DEFAULT_VISIBLE)

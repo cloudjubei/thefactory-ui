@@ -58,6 +58,9 @@ export interface ChatBodyProps {
   canSend?: boolean
 
   onAtBottomChange?: (atBottom: boolean) => void
+  /** Fired with the latest visible message's ISO when the list returns to
+   * the bottom — host advances per-chat read cursors. Matches web. */
+  onReadLatest?: (iso?: string) => void
   scrollToBottomSignal?: number
 
   /** Caller-rendered empty-state — currently unused on RN (MessageList is
@@ -93,6 +96,7 @@ export default function ChatBody({
   onRetry,
   canSend = true,
   onAtBottomChange,
+  onReadLatest,
   scrollToBottomSignal,
   inputProps,
   inputValue,
@@ -130,6 +134,7 @@ export default function ChatBody({
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           onAtBottomChange={onAtBottomChange}
+          onReadLatest={onReadLatest}
           scrollToBottomSignal={scrollToBottomSignal}
         />
       </View>

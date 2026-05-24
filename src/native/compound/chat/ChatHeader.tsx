@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View, type LayoutChangeEvent } from 'react-native'
+import {
+  IconCalculator,
+  IconChevron,
+  IconCode,
+  IconMaximize,
+  IconRefreshChat,
+  IconScroll,
+  IconSettings,
+} from '../../icons'
 import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { red } from '../../../tokens/colors'
 
 export interface ChatHeaderProps {
   isCollapsible?: boolean
@@ -53,16 +63,17 @@ function formatUSD(n?: number): string {
 }
 
 function IconBtn({
-  glyph,
+  children,
   label,
   onPress,
-  tint,
+  variant = 'ghost',
 }: {
-  glyph: string
+  children: ReactNode
   label: string
   onPress?: () => void
-  tint?: string
+  variant?: 'ghost' | 'danger'
 }) {
+  const isDanger = variant === 'danger'
   return (
     <Pressable
       accessibilityRole="button"
@@ -76,11 +87,21 @@ function IconBtn({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: nativeRadii[2],
-        backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
+        borderWidth: 1,
+        borderColor: isDanger
+          ? red[500]
+          : nativeLightTheme.border.subtle,
+        backgroundColor: isDanger
+          ? pressed
+            ? `${red[500]}33`
+            : `${red[500]}1a`
+          : pressed
+            ? nativeLightTheme.surface.hover
+            : nativeLightTheme.surface.overlay,
         opacity: onPress ? 1 : 0.4,
       })}
     >
-      <Text style={{ fontSize: 16, color: tint ?? nativeLightTheme.text.secondary }}>{glyph}</Text>
+      {children}
     </Pressable>
   )
 }
@@ -130,6 +151,8 @@ export default function ChatHeader({
     }).start()
   }, [hidden, measuredHeight, translateY])
 
+  const iconColor = nativeLightTheme.text.secondary
+
   return (
     <Animated.View
       onLayout={onLayout}
@@ -144,13 +167,25 @@ export default function ChatHeader({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: nativeSpace[5],
-          paddingVertical: nativeSpace[3],
+          paddingHorizontal: nativeSpace[3],
+          paddingVertical: nativeSpace[2],
           gap: nativeSpace[2],
         }}
       >
-        {onBack && <IconBtn glyph="‹" label="Back" onPress={onBack} />}
-        {isCollapsible && <IconBtn glyph="‹" label="Collapse chat" onPress={onCollapse} />}
+        {onBack && (
+          <IconBtn label="Back" onPress={onBack}>
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <IconChevron size={16} color={iconColor} />
+            </View>
+          </IconBtn>
+        )}
+        {isCollapsible && (
+          <IconBtn label="Collapse chat" onPress={onCollapse}>
+            <View style={{ transform: [{ rotate: '90deg' }] }}>
+              <IconChevron size={16} color={iconColor} />
+            </View>
+          </IconBtn>
+        )}
         {contextInfoSlot}
         {title ? (
           <Text
@@ -166,25 +201,41 @@ export default function ChatHeader({
             {title}
           </Text>
         ) : null}
-        <IconBtn glyph="📝" label="System prompt" onPress={onOpenPrompt} />
-        <IconBtn glyph={`💲${formatUSD(totalCostUSD)}`} label="Costs" onPress={onOpenCosts} />
+        <IconBtn label="View System Prompt" onPress={onOpenPrompt}>
+          <IconScroll size={16} color={iconColor} />
+        </IconBtn>
+        <IconBtn
+          label={
+            typeof totalCostUSD === 'number' && totalCostUSD > 0
+              ? `Usage costs — ${formatUSD(totalCostUSD)}`
+              : 'Usage costs'
+          }
+          onPress={onOpenCosts}
+        >
+          <IconCalculator size={16} color={iconColor} />
+        </IconBtn>
         {onOpenDynamicContext && (
-          <IconBtn glyph="📜" label="Dynamic context" onPress={onOpenDynamicContext} />
+          <IconBtn label="Dynamic context" onPress={onOpenDynamicContext}>
+            <IconCode size={16} color={iconColor} />
+          </IconBtn>
         )}
         {!title && <View style={{ flex: 1 }} />}
         {!isRunningAgent && (
           <>
-            {onMaximize && <IconBtn glyph="⤢" label="Open chat" onPress={onMaximize} />}
+            {onMaximize && (
+              <IconBtn label="Open chat in its own view" onPress={onMaximize}>
+                <IconMaximize size={16} color={iconColor} />
+              </IconBtn>
+            )}
             {onRefresh && (
-              <IconBtn
-                glyph="↻"
-                label="Clear chat"
-                onPress={onRefresh}
-                tint={nativeLightTheme.accent.primary}
-              />
+              <IconBtn label="Clear chat" onPress={onRefresh} variant="danger">
+                <IconRefreshChat size={16} color={red[600]} />
+              </IconBtn>
             )}
             {modelChip}
-            <IconBtn glyph="⚙" label="Chat settings" onPress={onOpenSettings} />
+            <IconBtn label="Chat settings" onPress={onOpenSettings}>
+              <IconSettings size={16} color={iconColor} />
+            </IconBtn>
             {extraRight}
           </>
         )}

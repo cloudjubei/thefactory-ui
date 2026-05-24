@@ -7,6 +7,7 @@ import {
   type GitLogCommitLike,
   type GraphNode,
 } from '../../../headless/utils/gitCommitGraph'
+import { timeAgo } from '../../../headless'
 import { nativeLightTheme } from '../../../tokens/native'
 
 export type CommitGraphProps = {
@@ -300,23 +301,15 @@ function CommitGraphRow({
               {commit.subject}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontFamily: 'Menlo',
-                color: nativeLightTheme.text.muted,
-              }}
-            >
-              {commit.hash.slice(0, 7)}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={{ flex: 1, fontSize: 10, color: nativeLightTheme.text.muted }}
-            >
-              {commit.authorName}
-            </Text>
-          </View>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ fontSize: 10, color: nativeLightTheme.text.muted }}
+          >
+            {commit.authorDate ? `${timeAgo(Date.now(), commit.authorDate * 1000)} · ` : ''}
+            <Text style={{ fontFamily: 'Menlo' }}>{commit.hash.slice(0, 7)}</Text>
+            {commit.authorName ? ` · ${commit.authorName}` : ''}
+          </Text>
         </View>
       )}
     </Pressable>

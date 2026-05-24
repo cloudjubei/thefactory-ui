@@ -1,8 +1,8 @@
-import { useMemo } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { parseUnifiedDiff } from 'thefactory-tools/utils'
 import type { GitDiffLineType } from 'thefactory-tools/types'
-import { nativeLightTheme, nativePalette, nativeSpace } from '../../../tokens/native'
+import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 
 export interface UnifiedDiffProps {
   /** Unified-diff patch body. */
@@ -11,6 +11,13 @@ export interface UnifiedDiffProps {
   binary?: boolean
   /** Max height before the diff body scrolls vertically. Default 360. */
   maxHeight?: number
+  /**
+   * Above this many renderable lines the diff is gated behind a "Show
+   * anyway" button — rendering a huge unified diff blocks the JS thread
+   * long enough to feel like a freeze. Mirrors web's
+   * `StructuredUnifiedDiff` `largeGuardLines` (default 5000).
+   */
+  largeGuardLines?: number
 }
 
 const LINE_BG: Record<GitDiffLineType, string> = {
@@ -32,14 +39,62 @@ const GUTTER: Record<GitDiffLineType, string> = { add: '+', del: '-', context: '
  * No intraline word-diff (web-only refinement); each line is tinted by type
  * with a +/− gutter, inside a horizontal scroller so long lines don't wrap.
  */
-export default function UnifiedDiff({ patch, binary, maxHeight = 360 }: UnifiedDiffProps) {
+export default function UnifiedDiff({
+  patch,
+  binary,
+  maxHeight = 360,
+  largeGuardLines = 5000,
+}: UnifiedDiffProps) {
   const hunks = useMemo(() => (patch ? (parseUnifiedDiff(patch) ?? []) : []), [patch])
+  const totalRenderableLines = useMemo(
+    () => hunks.reduce((acc, h) => acc + h.lines.filter((l) => l.type !== 'context' || l.text !== undefined).length, 0),
+    [hunks],
+  )
+  // Initial bypass is per-mount: navigating to a new diff resets the gate.
+  const [guardBypass, setGuardBypass] = useState(false)
 
   if (binary) {
     return <Placeholder text="Binary file — diff not shown" />
   }
   if (!patch || hunks.length === 0) {
     return <Placeholder text="No changes to display." />
+  }
+  if (!guardBypass && totalRenderableLines > largeGuardLines) {
+    return (
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: nativeLightTheme.border.subtle,
+          borderRadius: 6,
+          padding: nativeSpace[4],
+          gap: nativeSpace[3],
+        }}
+      >
+        <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>
+          Diff is very large ({totalRenderableLines} lines). Showing it might freeze the UI.
+        </Text>
+        <Pressable
+          onPress={() => setGuardBypass(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Show large diff anyway"
+          style={({ pressed }) => ({
+            alignSelf: 'flex-start',
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: nativeLightTheme.border.subtle,
+            paddingHorizontal: nativeSpace[3],
+            paddingVertical: nativeSpace[2],
+            backgroundColor: pressed
+              ? nativeLightTheme.surface.hover
+              : nativeLightTheme.surface.muted,
+          })}
+        >
+          <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>
+            Show anyway
+          </Text>
+        </Pressable>
+      </View>
+    )
   }
 
   return (

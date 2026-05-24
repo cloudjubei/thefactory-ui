@@ -307,6 +307,11 @@ export {
   type GitFileStatusIconProps,
 } from './compound/git/GitFileStatusIcon'
 export { default as CommitGraph, type CommitGraphProps } from './compound/git/CommitGraph'
+export {
+  default as GitCredentialErrorModal,
+  type GitCredentialErrorModalProps,
+  type GitCredentialErrorOp,
+} from './compound/git/GitCredentialErrorModal'
 
 // Tests screen compounds
 export { default as CoverageTable, type CoverageTableProps } from './compound/tests/CoverageTable'

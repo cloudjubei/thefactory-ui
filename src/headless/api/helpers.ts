@@ -95,3 +95,35 @@ export function extractServerError(err: unknown, fallback = 'Request failed'): S
   if (typeof err === 'string' && err.length > 0) return { message: err }
   return { message: fallback }
 }
+
+/**
+ * True when an SDK error (or any value) looks like a GitHub-credentials
+ * failure — bad token, missing scopes, no repo access, deleted repo, …
+ * Used by every client's `GitContext` to surface a single "credentials
+ * don't have access" modal instead of bubbling raw 500 strings into the
+ * Git pane.
+ *
+ * Prefers the backend's explicit `code: 'GIT_CREDENTIAL_ERROR'` (set by
+ * `routes/git.ts` for push/pull/fetch), then falls back to a heuristic
+ * against `message` so legacy code paths (clone, initialize-repo, anything
+ * that still throws a raw 500) still light the modal.
+ */
+export function isGitCredentialError(err: unknown): boolean {
+  const se = extractServerError(err, '')
+  if (se.code === 'GIT_CREDENTIAL_ERROR') return true
+  const m = se.message.toLowerCase()
+  if (!m) return false
+  return (
+    m.includes('authentication failed') ||
+    m.includes('bad credentials') ||
+    m.includes('could not read username') ||
+    m.includes('could not read password') ||
+    m.includes('permission denied') ||
+    m.includes('403 forbidden') ||
+    m.includes('repository not found') ||
+    m.includes('remote: not found') ||
+    m.includes('remote: repository not found') ||
+    m.includes('access denied') ||
+    m.includes('terminal prompts disabled')
+  )
+}
