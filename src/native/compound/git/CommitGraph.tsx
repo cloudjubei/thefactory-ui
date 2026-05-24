@@ -7,8 +7,27 @@ import {
   type GitLogCommitLike,
   type GraphNode,
 } from '../../../headless/utils/gitCommitGraph'
-import { timeAgo } from '../../../headless'
 import { nativeLightTheme } from '../../../tokens/native'
+
+/**
+ * Format a commit's authorDate (ms since epoch — already converted by
+ * `GitTools.getLog`, see thefactory-tools/src/git/GitTools.ts:640) as
+ * `Mon DD, YYYY` to match web's `GitCommitGraphRow` exactly. Empty string
+ * when the date is missing / invalid so the surrounding ` · ` separators
+ * still read cleanly.
+ */
+function formatCommitDate(ms?: number): string {
+  if (!ms || !Number.isFinite(ms)) return ''
+  try {
+    return new Date(ms).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  } catch {
+    return ''
+  }
+}
 
 export type CommitGraphProps = {
   /** Caller fetches the log; this component renders the topology + metadata. */
@@ -306,7 +325,7 @@ function CommitGraphRow({
             ellipsizeMode="tail"
             style={{ fontSize: 10, color: nativeLightTheme.text.muted }}
           >
-            {commit.authorDate ? `${timeAgo(Date.now(), commit.authorDate * 1000)} · ` : ''}
+            {commit.authorDate ? `${formatCommitDate(commit.authorDate)} · ` : ''}
             <Text style={{ fontFamily: 'Menlo' }}>{commit.hash.slice(0, 7)}</Text>
             {commit.authorName ? ` · ${commit.authorName}` : ''}
           </Text>

@@ -1,4 +1,5 @@
-import type { DragEvent, MouseEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Tooltip from '../../../primitives/Tooltip'
 import { PathDisplay } from '../../PathDisplay'
 import { IconDelete, IconDotsVertical, IconFastMerge, IconRevert } from '../../../icons'
@@ -111,52 +112,148 @@ export default function GitFileRow({
             </button>
           </Tooltip>
         </div>
-        {/* Touch overflow menu — only on narrow viewports. Tap to pin a small
-            popover with the same actions the hover row exposes. */}
-        <div className="md:hidden" onClick={(e) => e.stopPropagation()}>
-          <Tooltip
-            placement="bottom"
-            anchorAs="button"
-            anchorClassName="inline-flex items-center justify-center rounded p-1 text-(--text-secondary) hover:bg-(--surface-muted)"
-            content={
-              <div
-                className="flex flex-col py-1 min-w-45"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {file.isConflicted && onResolveConflict ? (
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 px-3 py-2 text-left text-sm text-amber-700 dark:text-amber-300 hover:bg-(--surface-hover)"
-                    onClick={() => onResolveConflict(file)}
-                  >
-                    <IconFastMerge className="w-4 h-4" />
-                    Resolve conflict
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-red-700 dark:text-red-300 hover:bg-(--surface-hover)"
-                  onClick={() => onReset(file)}
-                >
-                  <IconRevert className="w-4 h-4" />
-                  Discard local changes
-                </button>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm text-(--text-primary) hover:bg-(--surface-hover)"
-                  onClick={() => onRemove(file)}
-                >
-                  <IconDelete className="w-4 h-4" />
-                  Delete file
-                </button>
-              </div>
-            }
-          >
-            <IconDotsVertical className="w-4 h-4" />
-            <span className="sr-only">Actions for {file.path}</span>
-          </Tooltip>
+        {/* Touch overflow menu — only on narrow viewports. Controlled
+            state + a portal so clicking an action runs the handler AND
+            dismisses the popover in the same tick (the Tooltip primitive
+            would stay pinned and visually overlap any ConfirmDialog the
+            handler opens). */}
+        <div className="md:hidden">
+          <RowOverflowMenu file={file} onReset={onReset} onRemove={onRemove} onResolveConflict={onResolveConflict} />
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Self-contained "⋮" popover for narrow-viewport file rows. Owns its
+ * open/close state so each menu item can both fire its callback AND
+ * dismiss the popover before any follow-up modal (ConfirmDialog) renders.
+ */
+function RowOverflowMenu({
+  file,
+  onReset,
+  onRemove,
+  onResolveConflict,
+}: {
+  file: GitLocalFileEntry
+  onReset: (file: GitLocalFileEntry) => void
+  onRemove: (file: GitLocalFileEntry) => void
+  onResolveConflict?: (file: GitLocalFileEntry) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+
+  // Reposition on open / window resize. Read inside an effect because
+  // `getBoundingClientRect()` is only meaningful after layout.
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  useEffect(() => {
+    if (!open || !btnRef.current) return
+    const measure = () => setAnchor(btnRef.current?.getBoundingClientRect() ?? null)
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [open])
+
+  const run = (cb: () => void) => {
+    setOpen(false)
+    cb()
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        aria-label={`Actions for ${file.path}`}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        className="inline-flex items-center justify-center rounded p-1 text-(--text-secondary) hover:bg-(--surface-muted)"
+      >
+        <IconDotsVertical className="w-4 h-4" />
+      </button>
+      {open
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                aria-label="Dismiss menu"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                }}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div
+                role="menu"
+                className="fixed z-50 flex flex-col rounded-md border border-(--border-subtle) bg-(--surface-base) py-1 shadow-xl min-w-45"
+                style={{
+                  top: (anchor?.bottom ?? 0) + 4,
+                  right: Math.max(8, window.innerWidth - (anchor?.right ?? window.innerWidth - 8)),
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {file.isConflicted && onResolveConflict ? (
+                  <MenuItem
+                    icon={<IconFastMerge className="w-4 h-4" />}
+                    label="Resolve conflict"
+                    tone="warning"
+                    onClick={() => run(() => onResolveConflict(file))}
+                  />
+                ) : null}
+                <MenuItem
+                  icon={<IconRevert className="w-4 h-4" />}
+                  label="Discard local changes"
+                  tone="danger"
+                  onClick={() => run(() => onReset(file))}
+                />
+                <MenuItem
+                  icon={<IconDelete className="w-4 h-4" />}
+                  label="Delete file"
+                  onClick={() => run(() => onRemove(file))}
+                />
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
+    </>
+  )
+}
+
+function MenuItem({
+  icon,
+  label,
+  tone,
+  onClick,
+}: {
+  icon: ReactNode
+  label: string
+  tone?: 'danger' | 'warning'
+  onClick: () => void
+}) {
+  const toneCls =
+    tone === 'danger'
+      ? 'text-red-700 dark:text-red-300'
+      : tone === 'warning'
+        ? 'text-amber-700 dark:text-amber-300'
+        : 'text-(--text-primary)'
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-(--surface-hover) ${toneCls}`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
