@@ -33,6 +33,13 @@ export type GitCommitGraphProps = {
   loadingMore?: boolean
   /** When false, the graph stops asking for more pages. */
   hasMore?: boolean
+  /**
+   * Mobile-style list rendering — drop the resizable column header strip
+   * and lay each commit out as a two-line cell (refs + subject above,
+   * date · short-hash · author below). Used on small-screen web so the
+   * narrow viewport reads identically to the mobile `CommitGraph`.
+   */
+  compact?: boolean
 }
 
 // Graph / Description / Author are user-resizable. Commit (SHA) and Date are
@@ -57,6 +64,7 @@ export function GitCommitGraph({
   onLoadMore,
   loadingMore,
   hasMore,
+  compact = false,
 }: GitCommitGraphProps) {
   const [graphWidth, setGraphWidth] = useState(DEFAULT_GRAPH_WIDTH)
   const [descriptionWidth, setDescriptionWidth] = useState(DEFAULT_DESCRIPTION_WIDTH)
@@ -152,6 +160,67 @@ export function GitCommitGraph({
     return <div className="p-4 text-sm text-(--text-muted)">No commits found.</div>
   }
 
+  const onScrollMore = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!onLoadMore || !hasMore || loadingMore) return
+    const el = e.currentTarget
+    // Pull the next page when the user reaches the last ~250px of the
+    // rendered log. Threshold is generous enough that fetch latency
+    // doesn't show through as a scroll halt.
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 250) {
+      onLoadMore()
+    }
+  }
+
+  const footer = (
+    <>
+      {loadingMore && (
+        <div className="flex items-center justify-center gap-2 py-2 text-xs text-(--text-muted)">
+          <Spinner /> Loading more commits…
+        </div>
+      )}
+      {!loadingMore && !hasMore && commits.length > 0 && (
+        <div className="text-center py-2 text-[10px] text-(--text-muted)">
+          — End of history —
+        </div>
+      )}
+    </>
+  )
+
+  // Compact (mobile-style) list — no column-headers strip, no horizontal
+  // scroll, no resize handles. Each row lays out as a graph cell + a flex-1
+  // two-line cell (refs+subject above, date · hash · author below) to match
+  // the native `CommitGraph` 1:1 on narrow viewports.
+  if (compact) {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col bg-(--surface-raised)">
+        <div
+          ref={scrollRegionRef}
+          className="flex-1 min-h-0 overflow-y-auto"
+          onScroll={onScrollMore}
+        >
+          {graphNodes.map((node) => {
+            const sha = node.commit.hash
+            return (
+              <GitCommitGraphRow
+                key={sha}
+                node={node}
+                isSelected={selectedCommitSha === sha}
+                colWidths={colLayout}
+                compact
+                rowRef={setRowRef(sha)}
+                onClick={() => {
+                  onSelectCommit?.(sha)
+                  if (sha !== 'UNCOMMITTED') onSelectBranchBySha?.(sha)
+                }}
+              />
+            )
+          })}
+          {footer}
+        </div>
+      </div>
+    )
+  }
+
   return (
     // Outer pane owns horizontal scroll (so wide rows can extend beyond the
     // visible width); inner rows region owns vertical scroll so the column
@@ -190,16 +259,7 @@ export function GitCommitGraph({
         <div
           ref={scrollRegionRef}
           className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          onScroll={(e) => {
-            if (!onLoadMore || !hasMore || loadingMore) return
-            const el = e.currentTarget
-            // Pull the next page when the user reaches the last ~250px of
-            // the rendered log. Threshold is generous enough that fetch
-            // latency doesn't show through as a scroll halt.
-            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 250) {
-              onLoadMore()
-            }
-          }}
+          onScroll={onScrollMore}
         >
           {graphNodes.map((node) => {
             const sha = node.commit.hash
@@ -217,16 +277,7 @@ export function GitCommitGraph({
               />
             )
           })}
-          {loadingMore && (
-            <div className="flex items-center justify-center gap-2 py-2 text-xs text-(--text-muted)">
-              <Spinner /> Loading more commits…
-            </div>
-          )}
-          {!loadingMore && !hasMore && commits.length > 0 && (
-            <div className="text-center py-2 text-[10px] text-(--text-muted)">
-              — End of history —
-            </div>
-          )}
+          {footer}
         </div>
       </div>
     </div>
