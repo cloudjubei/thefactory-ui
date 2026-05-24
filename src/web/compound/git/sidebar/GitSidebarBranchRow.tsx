@@ -72,25 +72,16 @@ export default function GitSidebarBranchRow({
         {displayName}
       </span>
 
-      {/* Chip order: Diff (dirty count) → Local → Remote → ahead → behind.
-          Diff comes first so the user immediately spots the unsaved work on
-          the current branch. Same order is mirrored in mobile's `BranchRow`. */}
+      {/* Chip order: Diff (dirty count) → ahead (to push) → behind (to pull)
+          → Local → Remote. Diff + ahead/behind come first so the user
+          immediately spots actionable state on the current branch. Same
+          order is mirrored in mobile's `BranchRow`. */}
       <span className="flex items-center gap-0.5 shrink-0">
         {!isRemoteSection && branch.current && (dirtyCount ?? 0) > 0 ? (
           <span className="px-1 py-0.5 text-[9px] leading-none rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold">
             {dirtyCount}
           </span>
         ) : null}
-        {!isRemoteSection && branch.isLocal && (
-          <span className="px-1 py-0.5 text-[9px] leading-none rounded bg-(--surface-muted) text-(--text-muted) font-medium">
-            L
-          </span>
-        )}
-        {!isRemoteSection && branch.isRemote && (
-          <span className="px-1 py-0.5 text-[9px] leading-none rounded bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 font-medium">
-            R
-          </span>
-        )}
         {!isRemoteSection && branch.ahead ? (
           <span className="inline-flex items-center gap-0.5 text-[9px] leading-none font-semibold px-1 py-0.5 rounded bg-green-500/10 text-green-700 dark:text-green-400">
             <IconArrowUp className="w-2.5 h-2.5" />
@@ -103,6 +94,16 @@ export default function GitSidebarBranchRow({
             {branch.behind}
           </span>
         ) : null}
+        {!isRemoteSection && branch.isLocal && (
+          <span className="px-1 py-0.5 text-[9px] leading-none rounded bg-(--surface-muted) text-(--text-muted) font-medium">
+            L
+          </span>
+        )}
+        {!isRemoteSection && branch.isRemote && (
+          <span className="px-1 py-0.5 text-[9px] leading-none rounded bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 font-medium">
+            R
+          </span>
+        )}
       </span>
     </div>
   )
