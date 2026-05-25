@@ -11,6 +11,11 @@ export interface RichTextProps {
   /** Renders `#<dep>`. Receives the value without the leading `#`. When
    * omitted, the raw token renders as plain text. */
   renderDependency?: (dep: string) => ReactNode
+  /**
+   * Overrides the default text color. Used by the user-bubble in chat
+   * messages to render white text on the blue background (matches web).
+   */
+  textColor?: string
 }
 
 const TOKEN_PILL_STYLE = {
@@ -21,15 +26,16 @@ const TOKEN_PILL_STYLE = {
   borderColor: nativeLightTheme.border.subtle,
 }
 
-export default function RichText({ text, onResolveFile, renderDependency }: RichTextProps) {
+export default function RichText({ text, onResolveFile, renderDependency, textColor }: RichTextProps) {
   const segments = useMemo(() => tokenizeRichText(text ?? ''), [text])
+  const baseColor = textColor ?? nativeLightTheme.text.primary
 
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
       {segments.map((seg, idx) => {
         if (seg.type === 'text') {
           return (
-            <Text key={idx} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
+            <Text key={idx} style={{ fontSize: 14, color: baseColor }}>
               {seg.value}
             </Text>
           )
@@ -37,7 +43,7 @@ export default function RichText({ text, onResolveFile, renderDependency }: Rich
         if (seg.type === 'dep') {
           if (renderDependency) return <View key={idx}>{renderDependency(seg.value)}</View>
           return (
-            <Text key={idx} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
+            <Text key={idx} style={{ fontSize: 14, color: baseColor }}>
               {seg.raw}
             </Text>
           )

@@ -93,3 +93,28 @@ export function formatDate(iso?: string): string {
     return iso
   }
 }
+
+type DateLike = Date | string | number
+
+function toDate(value: DateLike): Date | null {
+  const raw = typeof value === 'number' ? new Date(value * 1000) : new Date(value)
+  return Number.isNaN(raw.getTime()) ? null : raw
+}
+
+/** "Apr 30, 2026" — short calendar date, no time. Tolerant of bad input. */
+export function formatDateShort(value: DateLike): string {
+  const date = toDate(value)
+  if (!date) return typeof value === 'string' ? value : ''
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+/** "4/30/2026, 10:45:13 AM" — locale-aware date + time. Tolerant of bad input. */
+export function formatDateTime(value: DateLike): string {
+  const date = toDate(value)
+  if (!date) return typeof value === 'string' ? value : ''
+  return date.toLocaleString()
+}

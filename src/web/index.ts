@@ -424,3 +424,9 @@ export {
 
 // Utils
 export { cn } from './utils/cn'
+export { playBeep } from './utils/beep'
+export {
+  arrayBufferToBase64,
+  detectUploadEncoding,
+  type UploadEncoding,
+} from './utils/uploadEncoding'

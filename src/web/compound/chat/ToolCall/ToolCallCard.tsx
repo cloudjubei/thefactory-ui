@@ -1,10 +1,32 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Code from '../../Code'
+import { PathDisplay } from '../../PathDisplay'
+import { BottomSheet } from '../../../primitives/BottomSheet'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
+import { isFilePathTool } from '../../../../headless/utils/toolPreview'
 import StatusIcon, { StatusPill } from './StatusIcon'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import type { ToolCall, ToolResultType } from './types'
+
+// Web small-screen breakpoint mirrors the rest of the package
+// (`FileSelector`, `CollapsibleSidebar`) so a single CSS-media-query value
+// drives every "switch to tap/bottom-sheet UI" rule across the app.
+const SMALL_SCREEN_MEDIA_QUERY = '(max-width: 767px)'
+
+function useIsSmallScreen(): boolean {
+  const [isSmall, setIsSmall] = useState(() =>
+    typeof window === 'undefined' ? false : window.matchMedia(SMALL_SCREEN_MEDIA_QUERY).matches,
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia(SMALL_SCREEN_MEDIA_QUERY)
+    const handler = (e: MediaQueryListEvent) => setIsSmall(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isSmall
+}
 
 export type ToolCallCardProps = {
   toolCall: ToolCall
@@ -73,6 +95,8 @@ function ToolCallCardInner({
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const isSmallScreen = useIsSmallScreen()
 
   const hasArgs = useMemo(() => {
     const a = toolCall.arguments
@@ -104,9 +128,6 @@ function ToolCallCardInner({
         <div className="flex items-center gap-2 min-w-0">
           <StatusIcon resultType={resultType} />
           <span className="font-semibold truncate">{toolCall.name}</span>
-          {durationMs ? (
-            <span className="text-xs text-(--text-secondary)">{durationMs}ms</span>
-          ) : null}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {selectable || disabled ? (
@@ -146,19 +167,30 @@ function ToolCallCardInner({
       </div>
 
       {headerPath ? (
-        <div
-          className="px-3 mt-0.5 font-mono text-[11px] text-(--text-secondary) truncate"
-          title={headerPath}
-        >
-          {headerPath}
+        <div className="px-3 mt-0.5" title={headerPath}>
+          {isFilePathTool(toolCall.name) ? (
+            <PathDisplay path={headerPath} />
+          ) : (
+            <div className="font-mono text-[11px] text-(--text-secondary) truncate">
+              {headerPath}
+            </div>
+          )}
         </div>
       ) : null}
 
-      {resultType ? (
-        <div className="flex items-center gap-2 px-3 py-2">
-          <StatusPill resultType={resultType} />
-          {resultType === 'pending' ? (
-            <span className="text-[11px] text-blue-600 dark:text-blue-400">Queued</span>
+      {resultType || durationMs ? (
+        // Status pill on the left, time-taken on the right — mirrors the
+        // mobile `ToolCallCard` layout so both clients render status +
+        // duration on the same line.
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {resultType ? <StatusPill resultType={resultType} /> : null}
+            {resultType === 'pending' ? (
+              <span className="text-[11px] text-blue-600 dark:text-blue-400">Queued</span>
+            ) : null}
+          </div>
+          {durationMs ? (
+            <span className="text-[11px] text-(--text-secondary) shrink-0">{durationMs}ms</span>
           ) : null}
         </div>
       ) : null}
@@ -209,6 +241,52 @@ function ToolCallCardInner({
       (resultType === 'require_confirmation' ||
         resultType === 'pending' ||
         resultType === 'running'))
+
+  // Small-screen viewports get a tap-to-open bottom sheet instead of the
+  // hover-driven tooltip. Touch devices either can't trigger `:hover` at
+  // all, or fire it as a sticky single-tap, so the tooltip path is
+  // unreliable there. This mirrors the native mobile pattern in
+  // `ToolPreviewSheet` so the rich preview reads the same on both.
+  if (isSmallScreen) {
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          className={`${anchorClassName} cursor-pointer`}
+          onClick={() => setSheetOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setSheetOpen(true)
+            }
+          }}
+        >
+          {body}
+        </div>
+        <BottomSheet
+          isOpen={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          ariaLabel={`Tool call: ${toolCall.name}`}
+          minHeightFraction={0.2}
+          maxHeightFraction={0.8}
+        >
+          <div className="overflow-auto p-3">
+            <ToolCallHoverCard
+              toolCall={toolCall}
+              result={hoverResult}
+              resultType={resultType}
+              renderResult={renderResult}
+              splitToggle={canShowSplitToggle}
+              headerPath={headerPath}
+              variant={isSmall ? 'small' : 'default'}
+              widthMode="fluid"
+            />
+          </div>
+        </BottomSheet>
+      </>
+    )
+  }
 
   return (
     <Tooltip

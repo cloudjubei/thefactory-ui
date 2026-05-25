@@ -1,10 +1,9 @@
 /**
- * Defensive accessors used by the tool-call hover preview registry. Tool
- * payloads are loosely-typed — these helpers extract fields the SDK
- * doesn't promise (`result.diff.patch`, etc.) without throwing.
- *
- * Lifted from `overseer-local`'s `ToolCall/utils.ts` 1:1 so both apps
- * share one source of truth.
+ * Defensive accessors used by the tool-call preview registry on both web
+ * and native. Tool payloads are loosely-typed — these helpers extract
+ * fields the SDK doesn't promise (`result.diff.patch`, etc.) without
+ * throwing. Shared between the web and native renderers so a single source
+ * of truth governs extraction behaviour across platforms.
  */
 
 export function tryString(v: unknown): string | undefined {
@@ -80,6 +79,66 @@ export function buildUnifiedDiffIfPresent(result: unknown): string | undefined {
   if (typeof nestedPatch === 'string' && nestedPatch.trim()) return nestedPatch
   if (typeof result === 'string' && result.includes('@@')) return result
   return undefined
+}
+
+/** Tools whose `getToolHeaderPath` value is a single file path string.
+ *  Used by native renderers to pick the dir-truncated `PathDisplay` chrome
+ *  instead of plain monospace text. `renamePath` is intentionally absent:
+ *  its header is a `src → dst` string, not a single path. Story / feature
+ *  refs fall through to text. */
+const FILE_PATH_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'writeFile',
+  'readFileStructure',
+  'listContents',
+  'getAstOutline',
+  'deletePath',
+])
+
+export function isFilePathTool(name?: string): boolean {
+  return !!name && FILE_PATH_TOOL_NAMES.has(name)
+}
+
+/**
+ * Optional "what does this tool operate on" line shown under the tool
+ * title (web + mobile) and inside the preview header. For file tools we
+ * surface the file path; for story/feature ops we surface the
+ * `story <id> / feature <id>` reference. Single source of truth for both
+ * platforms — keep in sync with what each client renders.
+ */
+export function getToolHeaderPath(toolCall: {
+  name?: string
+  arguments?: unknown
+}): string | undefined {
+  const args = asRecord(toolCall.arguments)
+  switch (toolCall.name) {
+    case 'writeFile':
+    case 'readFileStructure':
+    case 'listContents':
+    case 'getAstOutline':
+      return tryString(args.path)
+    case 'deletePath':
+      return tryString(args.path)
+    case 'renamePath': {
+      const src = tryString(args.src)
+      const dst = tryString(args.dst)
+      if (src && dst) return `${src} → ${dst}`
+      return src ?? dst
+    }
+    case 'addFeature':
+    case 'updateStory':
+    case 'updateFeature':
+    case 'reorderFeature':
+    case 'finishFeature':
+    case 'blockFeature': {
+      const storyId = tryString(args.storyId)
+      const featureId = tryString(args.featureId)
+      if (storyId && featureId) return `story ${storyId} / feature ${featureId}`
+      if (storyId) return `story ${storyId}`
+      return undefined
+    }
+    default:
+      return undefined
+  }
 }
 
 export function isCompletelyNewFile(result: unknown, diff?: string): boolean {

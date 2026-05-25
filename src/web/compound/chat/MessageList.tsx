@@ -538,16 +538,16 @@ export default function MessageList({
 
       <div ref={contentRef} className="w-full space-y-3">
         {hiddenCountAbove > 0 && (
-          <div className="relative my-2 flex items-center justify-center gap-2">
-            <div className="text-xs text-(--text-secondary) bg-(--surface-overlay) border border-(--border-subtle) rounded-full px-3 py-1 shadow">
-              {hiddenCountAbove} older message{hiddenCountAbove === 1 ? '' : 's'} hidden
-            </div>
+          // Single tappable chip — both the label and the load action live
+          // on the same element so the row reads as one affordance instead
+          // of "label + separate button". Mirrored on mobile.
+          <div className="relative my-2 flex items-center justify-center">
             <button
               type="button"
-              className="text-[12px] rounded border border-(--border-subtle) bg-(--surface-raised) text-(--text-primary) px-3 py-1.5 hover:bg-(--surface-hover)"
               onClick={() => setVisibleCount((c) => Math.min(totalMessages, c + BATCH_SIZE))}
+              className="text-xs text-(--text-secondary) hover:text-(--text-primary) bg-(--surface-overlay) hover:bg-(--surface-raised) border border-(--border-subtle) rounded-full px-3 py-1 shadow transition-colors"
             >
-              Load more
+              {hiddenCountAbove} older message{hiddenCountAbove === 1 ? '' : 's'} hidden — click to load
             </button>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import { IconAttach, IconSend } from '../../icons'
 import FileMentionsTextarea, {
   type FileMentionsTextareaHandle,
 } from '../files/FileMentionsTextarea'
@@ -239,7 +240,7 @@ export default function ChatInput({
               opacity: isThinking || !isConfigured || disconnected ? 0.4 : 1,
             })}
           >
-            <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>📎</Text>
+            <IconAttach size={18} color={nativeLightTheme.text.secondary} />
           </Pressable>
         )}
         <View style={{ flex: 1 }}>
@@ -284,20 +285,13 @@ export default function ChatInput({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: nativeRadii[2],
-              backgroundColor: canSend
-                ? nativeLightTheme.accent.primary
-                : nativeLightTheme.surface.muted,
-              opacity: pressed ? 0.8 : 1,
+              // No background swap between enabled / disabled — matches web's
+              // `disabled:opacity-40` send button which keeps the icon in
+              // place and only fades it when there's nothing to send.
+              opacity: canSend ? (pressed ? 0.7 : 1) : 0.4,
             })}
           >
-            <Text
-              style={{
-                fontSize: 16,
-                color: canSend ? nativeLightTheme.text.inverted : nativeLightTheme.text.muted,
-              }}
-            >
-              ↑
-            </Text>
+            <IconSend size={16} color={nativeLightTheme.accent.primary} />
           </Pressable>
         )}
       </View>

@@ -72,10 +72,13 @@ export default function ChatSettingsDropdown({
   extraContent,
   title = 'Chat settings',
 }: ChatSettingsDropdownProps) {
-  const maxBodyHeight = Math.round(Dimensions.get('window').height * 0.62)
+  // Sheet takes ~80% of viewport (user-requested) and the inner scroller
+  // takes ~70% — leaves room for the sheet handle, title bar, and a bit of
+  // bottom safe-area inset before the scroll content kicks in.
+  const maxBodyHeight = Math.round(Dimensions.get('window').height * 0.7)
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title={title} maxHeightFraction={0.85}>
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={title} maxHeightFraction={0.8}>
       <ScrollView
         style={{ maxHeight: maxBodyHeight }}
         contentContainerStyle={{ gap: nativeSpace[5], paddingBottom: nativeSpace[4] }}
@@ -173,6 +176,11 @@ export default function ChatSettingsDropdown({
               tools.map((tool, i) => (
                 <View
                   key={tool.name}
+                  // Name + description on the left, two stacked
+                  // (label-above-switch) toggles on the right. Labels above
+                  // give the switches enough breathing room to be tappable
+                  // on touch without truncating the captions; matches web's
+                  // settings dropdown layout 1:1.
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -225,14 +233,19 @@ export default function ChatSettingsDropdown({
         </View>
 
         {canDelete ? (
+          // Compact destructive button, left-aligned (per user feedback —
+          // sits where the rest of the section's content starts, not flush
+          // to the right edge).
           <View
             style={{
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
               paddingTop: nativeSpace[3],
               borderTopWidth: 1,
               borderTopColor: nativeLightTheme.border.subtle,
             }}
           >
-            <Button variant="danger" onPress={() => void onDeleteChat()}>
+            <Button size="sm" variant="danger" onPress={() => void onDeleteChat()}>
               Delete this chat
             </Button>
           </View>

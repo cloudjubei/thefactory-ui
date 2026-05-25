@@ -1,8 +1,9 @@
-import { memo, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
 import Markdown from '../Markdown'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
+import { IconDelete, IconToolbox } from '../../icons'
 import type {
   ChatMessageLike,
   ToolCallLike,
@@ -31,38 +32,107 @@ function messageIso(m: ChatMessageLike): string | undefined {
   return m.completedAt ?? m.startedAt
 }
 
-function safeNumber(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+/**
+ * Native peer of web's `CollapsibleContent`. Clips children to `maxHeight`
+ * via `overflow: 'hidden'` and shows a "Show more / less" toggle if the
+ * natural content height exceeds the cap. Natural height is captured via
+ * `onLayout` on an inner wrapper whose own layout is unconstrained by the
+ * parent's `maxHeight` clip.
+ */
+function CollapsibleContent({
+  children,
+  maxHeight = 600,
+}: {
+  children: ReactNode
+  maxHeight?: number
+}) {
+  const [naturalHeight, setNaturalHeight] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const needsCollapse = naturalHeight !== null && naturalHeight > maxHeight + 8
+  return (
+    <View>
+      <View
+        style={{
+          overflow: 'hidden',
+          maxHeight: expanded || !needsCollapse ? undefined : maxHeight,
+        }}
+      >
+        <View
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height
+            if (h > 0) setNaturalHeight(h)
+          }}
+        >
+          {children}
+        </View>
+      </View>
+      {needsCollapse ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Show less' : 'Show more'}
+          onPress={() => setExpanded((v) => !v)}
+          style={({ pressed }) => ({
+            alignSelf: 'flex-end',
+            marginTop: nativeSpace[2],
+            paddingHorizontal: nativeSpace[3],
+            paddingVertical: nativeSpace[2],
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: nativeLightTheme.border.subtle,
+            backgroundColor: pressed
+              ? nativeLightTheme.surface.muted
+              : nativeLightTheme.surface.overlay,
+          })}
+        >
+          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+            {expanded ? 'Show less' : 'Show more'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
 }
 
 /**
- * Compact per-message usage chip. Web reveals the full token breakdown in a
- * hover tooltip; touch has no hover, so the native chip shows the cost (or a
- * token count fallback) inline.
+ * Compact per-message usage chip — pressable. Just shows `$` (matches web).
+ * Web reveals the full token breakdown in a hover tooltip; touch has no
+ * hover, so on tap the host opens a `MessageUsageSheet` with the full
+ * breakdown.
  */
-function UsageChip({ msg }: { msg: ChatMessageLike }) {
-  const usage = msg.usage
-  if (!usage) return null
-  const cost = typeof usage.cost === 'number' ? usage.cost : undefined
-  const promptTokens = safeNumber(usage.promptTokens)
-  const completionTokens = safeNumber(usage.completionTokens)
-  const label =
-    cost != null
-      ? `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`
-      : `${Math.round(promptTokens + completionTokens).toLocaleString()} tok`
+function UsageChip({ msg, onPress }: { msg: ChatMessageLike; onPress?: () => void }) {
+  if (!msg.usage) return null
   return (
-    <View
-      style={{
-        paddingHorizontal: nativeSpace[2],
-        paddingVertical: 1,
-        borderRadius: nativeRadii.round,
-        borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.overlay,
-      }}
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      hitSlop={6}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? 'View message usage details' : undefined}
     >
-      <Text style={{ fontSize: 10, color: nativeLightTheme.text.secondary }}>{label}</Text>
-    </View>
+      <View
+        // Bumped padding so the `$` chip matches the model chip's height
+        // (4px vert + 6px horiz = ~22-24px tall) and sits visually centred
+        // with the AI avatar. Matches web's chip dimensions.
+        style={{
+          paddingHorizontal: 6,
+          paddingVertical: 3,
+          borderRadius: nativeRadii.round,
+          borderWidth: 1,
+          borderColor: nativeLightTheme.border.subtle,
+          backgroundColor: nativeLightTheme.surface.overlay,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: '600',
+            color: nativeLightTheme.text.secondary,
+          }}
+        >
+          $
+        </Text>
+      </View>
+    </Pressable>
   )
 }
 
@@ -92,6 +162,13 @@ export interface MessageRowProps {
   /** Render an inline `#<id>` reference. */
   renderDependency?: (dep: string) => ReactNode
 
+  /**
+   * Fired when the user taps the per-message usage `$` chip. The host
+   * opens a `MessageUsageSheet` with the full breakdown — the native
+   * analogue of web's hover-revealed usage tooltip.
+   */
+  onShowUsage?: (msg: ChatMessageLike) => void
+
   thinkingLabel?: string
 }
 
@@ -104,7 +181,6 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
       ? nativeLightTheme.surface.overlay
       : nativePalette.blue[50]
   const fg = isUser ? nativeLightTheme.text.inverted : nativeLightTheme.text.primary
-  const label = isUser ? 'You' : isTool ? '🛠' : 'AI'
   return (
     <View
       accessibilityElementsHidden
@@ -119,7 +195,15 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
         borderColor: nativeLightTheme.border.subtle,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>{label}</Text>
+      {isTool ? (
+        // `IconToolbox` matches web's tool-avatar 1:1; replaces the
+        // previous emoji placeholder + later `IconHammer` swap.
+        <IconToolbox size={14} color={fg} />
+      ) : (
+        <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>
+          {isUser ? 'You' : 'AI'}
+        </Text>
+      )}
     </View>
   )
 }
@@ -133,6 +217,7 @@ function MessageRow({
   onRetry,
   onResolveFile,
   renderDependency,
+  onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
   const role = msg.role
@@ -218,7 +303,7 @@ function MessageRow({
               opacity: isThinking ? 0.4 : 1,
             })}
           >
-            <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>🗑</Text>
+            <IconDelete size={12} color={nativeLightTheme.text.secondary} />
           </Pressable>
         )}
       </View>
@@ -232,25 +317,41 @@ function MessageRow({
           gap: nativeSpace[2],
         }}
       >
-        {isAssistant && (modelLabel || thinkingLabel || ts || msg.usage) && (
+        {isAssistant && (
+          // Show the meta row on every assistant message — model chip
+          // always rendered when a model is known (the user explicitly
+          // asked for this; web's same-chip-as-previous-message dedup is
+          // ignored here so every assistant message carries its identity).
+          // The `$` chip is now tappable → opens a `MessageUsageSheet`
+          // with the full breakdown (touch analogue of web's hover tooltip).
           <View
+            // `minHeight: 28` matches the avatar circle's height so the
+            // chip / timestamp row sits in a vertical box the same size as
+            // the avatar. Combined with `alignItems: 'center'`, both the
+            // chip cluster on the left and the timestamp on the right are
+            // vertically centred inside that box — aligning their centres
+            // with the avatar's centre on the same parent row.
             style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
-              alignItems: 'baseline',
+              alignItems: 'center',
+              minHeight: 28,
               width: '100%',
               gap: nativeSpace[3],
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-              {msg.showModel && modelLabel && (
+              {modelLabel ? (
                 <View
+                  // Padding bumped to 4px vertically (was 2px) so the chip
+                  // height is ~22-24px and reads visually centred against
+                  // the 28px avatar — matches web's chip dimensions.
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: nativeSpace[2],
                     paddingHorizontal: nativeSpace[5],
-                    paddingVertical: 2,
+                    paddingVertical: 4,
                     borderRadius: nativeRadii.round,
                     borderWidth: 1,
                     borderColor: nativeLightTheme.border.subtle,
@@ -272,8 +373,10 @@ function MessageRow({
                     {modelLabel}
                   </Text>
                 </View>
-              )}
-              {msg.usage ? <UsageChip msg={msg} /> : null}
+              ) : null}
+              {msg.usage ? (
+                <UsageChip msg={msg} onPress={onShowUsage ? () => onShowUsage(msg) : undefined} />
+              ) : null}
             </View>
             {(ts || thinkingLabel) && (
               <Text
@@ -325,15 +428,20 @@ function MessageRow({
                     },
             ]}
           >
-            {isUser ? (
-              <RichText
-                text={msg.content}
-                onResolveFile={onResolveFile}
-                renderDependency={renderDependency}
-              />
-            ) : (
-              <Markdown text={msg.content} />
-            )}
+            <CollapsibleContent maxHeight={600}>
+              {isUser ? (
+                <RichText
+                  text={msg.content}
+                  onResolveFile={onResolveFile}
+                  renderDependency={renderDependency}
+                  // User bubble is blue → text must be white to read against
+                  // it. Matches web's `text-(--text-inverted)` user bubble.
+                  textColor={nativeLightTheme.text.inverted}
+                />
+              ) : (
+                <Markdown text={msg.content} />
+              )}
+            </CollapsibleContent>
           </View>
         )}
 

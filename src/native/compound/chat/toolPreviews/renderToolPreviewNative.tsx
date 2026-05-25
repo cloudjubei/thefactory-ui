@@ -1,18 +1,23 @@
 import { type ReactNode } from 'react'
+import { Text, View } from 'react-native'
+
+import { extract, tryString } from '../../../../headless/utils/toolPreview'
+import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
+import { nativeFontFamilies, nativeLightTheme, nativeSpace } from '../../../../tokens/native'
 import Code from '../../Code'
-import type { ToolCall, ToolResultType } from './../ToolCall'
 import {
   InlineOldNew,
+  MonoText,
   NewContentOnly,
   PreLimited,
   ReorderList,
   Row,
   SectionTitle,
+  SecondaryText,
 } from './components'
 import { PatchPreview, SmallBadge } from './FieldDiff'
 import { WriteMultiToolsPreview } from './WriteMultiToolsPreview'
 import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
-import { extract, tryString } from '../../../../headless/utils/toolPreview'
 
 export type StoryShape = {
   id: string
@@ -29,35 +34,19 @@ export type FeatureShape = {
 }
 
 export type ToolPreviewHooks = {
-  /** Lookup a story by id — used by `updateStory` / `addStory` previews. */
   getStory?: (id: string) => StoryShape | undefined
-  /** Lookup a feature by (storyId, featureId) — used by `updateFeature`. */
   getFeature?: (storyId: string, featureId: string) => FeatureShape | undefined
-  /** Render the rich `StoryCard` for a completed `addStory` / `updateStory`.
-   * Host owns the styling — the registry just hands off the story object. */
   renderStoryCard?: (story: StoryShape) => ReactNode
-  /** Render the rich `FeatureCard` for a completed `addFeature` /
-   * `updateFeature`. */
   renderFeatureCard?: (story: StoryShape, feature: FeatureShape) => ReactNode
-  /** Render a story-and-feature callout (used for `finishFeature` /
-   * `blockFeature`). Host wires its own component. */
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
-  /** Render a dependency bullet for `listStories` / inline `#` refs.
-   * Receives the story id. */
   renderStoryBullet?: (storyId: string) => ReactNode
-  /** Pre-applied diff preview for `require_confirmation` write tools.
-   * Host typically caches these per toolCallId (see desktop's
-   * `toolPreviewById` map). */
   getToolPreview?: (toolCallId: string) => ToolPreview | undefined
 }
 
 export type RenderToolPreviewArgs = {
-  toolCall: ToolCall
+  toolCall: ToolCallLike
   result?: unknown
-  resultType?: ToolResultType
-  sideBySide?: boolean
-  /** Host-supplied hooks for story/feature/preview rendering. Falls back
-   * gracefully when omitted. */
+  resultType?: ToolResultTypeLike
   hooks?: ToolPreviewHooks
 }
 
@@ -87,20 +76,15 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
 }
 
 /**
- * The shared tool-call hover-preview dispatcher. Mirrors
- * `overseer-local`'s `ToolCallHoverCard` body 1:1, with host-specific
- * pieces (story/feature cards, story bullets) injected via `hooks` so
- * both web and desktop render identical previews against their own data.
- *
- * Consumers wire this as `<ChatBody renderToolResult={({toolCall, result,
- * resultType}) => renderToolPreview({toolCall, result, resultType,
- * hooks})}>`. Tool-call hover cards then show the rich body.
+ * Native peer of web's `renderToolPreview`. Returns the rich per-tool
+ * preview React tree (View / Text / Code / UnifiedDiff) — the wrapper sheet
+ * just hosts it. Same dispatch order as web so a chat rendered on both
+ * platforms picks the same renderer for each tool name.
  */
-export function renderToolPreview({
+export function renderToolPreviewNative({
   toolCall,
   result,
   resultType,
-  sideBySide = false,
   hooks,
 }: RenderToolPreviewArgs): ReactNode {
   const name = String(toolCall?.name ?? 'tool')
@@ -135,7 +119,6 @@ export function renderToolPreview({
         toolCall={toolCall}
         result={previewFromHost ?? result}
         resultType={resultType}
-        sideBySide={sideBySide}
       />
     )
   }
@@ -160,7 +143,7 @@ export function renderToolPreview({
         ? hooks.renderStoryCard(nextStory)
         : undefined
     if (!story && !nextStory) {
-      return <div className="text-[11px] text-(--text-secondary)">No story data</div>
+      return <SecondaryText>No story data</SecondaryText>
     }
     return (
       <PatchPreview
@@ -169,7 +152,6 @@ export function renderToolPreview({
         patchKeys={changedKeys(patch, STORY_FIELDS)}
         before={story as Record<string, unknown> | undefined}
         after={nextStory as Record<string, unknown> | undefined}
-        sideBySide={sideBySide}
         completedCard={completedCard}
       />
     )
@@ -194,7 +176,7 @@ export function renderToolPreview({
         ? hooks.renderFeatureCard(story, nextFeature)
         : undefined
     if (!feature && !nextFeature) {
-      return <div className="text-[11px] text-(--text-secondary)">No feature data</div>
+      return <SecondaryText>No feature data</SecondaryText>
     }
     return (
       <PatchPreview
@@ -202,15 +184,17 @@ export function renderToolPreview({
         headerId={feature?.id || nextFeature?.id}
         headerSub={
           story?.id || resultStory?.id ? (
-            <div className="text-[11px] text-(--text-secondary)">
-              Story: <span className="font-mono">{story?.id || resultStory?.id}</span>
-            </div>
+            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+              Story:{' '}
+              <Text style={{ fontFamily: nativeFontFamilies.mono }}>
+                {story?.id || resultStory?.id}
+              </Text>
+            </Text>
           ) : undefined
         }
         patchKeys={changedKeys(patch, FEATURE_FIELDS)}
         before={feature as Record<string, unknown> | undefined}
         after={nextFeature as Record<string, unknown> | undefined}
-        sideBySide={sideBySide}
         completedCard={completedCard}
       />
     )
@@ -232,7 +216,6 @@ export function renderToolPreview({
         )}
         before={undefined}
         after={storyInput as unknown as Record<string, unknown>}
-        sideBySide={sideBySide}
       />
     )
   }
@@ -256,9 +239,10 @@ export function renderToolPreview({
         headerId={featureInput.id}
         headerSub={
           story?.id ? (
-            <div className="text-[11px] text-(--text-secondary)">
-              Story: <span className="font-mono">{story.id}</span>
-            </div>
+            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+              Story:{' '}
+              <Text style={{ fontFamily: nativeFontFamilies.mono }}>{story.id}</Text>
+            </Text>
           ) : undefined
         }
         patchKeys={Object.keys(featureInput).filter((k) =>
@@ -266,7 +250,6 @@ export function renderToolPreview({
         )}
         before={undefined}
         after={featureInput as unknown as Record<string, unknown>}
-        sideBySide={sideBySide}
       />
     )
   }
@@ -280,11 +263,9 @@ export function renderToolPreview({
       result && typeof result === 'object' && !Array.isArray(result)
         ? (result as Record<string, string>)
         : {}
-    if (files.length === 0) {
-      return <div className="text-[11px] text-(--text-secondary)">No paths</div>
-    }
+    if (files.length === 0) return <SecondaryText>No paths</SecondaryText>
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {files.map((file, idx) => {
           const content = typeof resultMap[file] === 'string' ? resultMap[file] : undefined
           const suffix =
@@ -292,15 +273,23 @@ export function renderToolPreview({
               ? `: ${content.length} chars`
               : ''
           return (
-            <Row key={file || idx} className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-mono text-[11px]">{file || '(unknown)'}</span>
+            <Row key={file || idx}>
+              <MonoText>{file || '(unknown)'}</MonoText>
               {suffix ? (
-                <span className="font-mono text-[11px] text-(--text-secondary)">{suffix}</span>
+                <Text
+                  style={{
+                    fontFamily: nativeFontFamilies.mono,
+                    fontSize: 11,
+                    color: nativeLightTheme.text.secondary,
+                  }}
+                >
+                  {suffix}
+                </Text>
               ) : null}
             </Row>
           )
         })}
-      </div>
+      </View>
     )
   }
   if (name === 'readFileRanges') {
@@ -311,7 +300,7 @@ export function renderToolPreview({
         ? (result as Record<string, string>)
         : {}
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {safe.length > 0 ? (
           safe.map((q, idx) => {
             const path = tryString(extract(q, ['path'])) || '(unknown)'
@@ -323,20 +312,28 @@ export function renderToolPreview({
                 ? `: ${content.length} chars`
                 : ''
             return (
-              <Row key={`${path}-${idx}`} className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-mono text-[11px]">
+              <Row key={`${path}-${idx}`}>
+                <MonoText>
                   L{String(startLine ?? '?')}:L{String(endLine ?? '?')} {path}
-                </span>
+                </MonoText>
                 {suffix ? (
-                  <span className="font-mono text-[11px] text-(--text-secondary)">{suffix}</span>
+                  <Text
+                    style={{
+                      fontFamily: nativeFontFamilies.mono,
+                      fontSize: 11,
+                      color: nativeLightTheme.text.secondary,
+                    }}
+                  >
+                    {suffix}
+                  </Text>
                 ) : null}
               </Row>
             )
           })
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No queries</div>
+          <SecondaryText>No queries</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
   if (name === 'grepFiles') {
@@ -347,7 +344,7 @@ export function renderToolPreview({
         ? (result as Record<string, unknown[]>)
         : {}
     return (
-      <div className="text-xs space-y-2">
+      <View style={{ gap: nativeSpace[2] }}>
         {safe.length > 0 ? (
           safe.map((q, idx) => {
             const path = tryString(extract(q, ['path'])) || '(unknown)'
@@ -355,25 +352,31 @@ export function renderToolPreview({
             const matches = Array.isArray(resultMap[path]) ? resultMap[path] : undefined
             const suffix = resultType === 'success' && matches ? `: ${matches.length} matches` : ''
             return (
-              <div key={`${path}-${idx}`} className="space-y-0.5">
+              <View key={`${path}-${idx}`} style={{ gap: 2 }}>
                 <Row>
-                  <span className="font-mono text-[11px] break-words">
-                    {pattern || '(no pattern)'}
-                  </span>
+                  <MonoText>{pattern || '(no pattern)'}</MonoText>
                 </Row>
-                <Row className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-mono text-[11px]">{path}</span>
+                <Row>
+                  <MonoText>{path}</MonoText>
                   {suffix ? (
-                    <span className="font-mono text-[11px] text-(--text-secondary)">{suffix}</span>
+                    <Text
+                      style={{
+                        fontFamily: nativeFontFamilies.mono,
+                        fontSize: 11,
+                        color: nativeLightTheme.text.secondary,
+                      }}
+                    >
+                      {suffix}
+                    </Text>
                   ) : null}
                 </Row>
-              </div>
+              </View>
             )
           })
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No queries</div>
+          <SecondaryText>No queries</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
   if (name === 'renamePath') {
@@ -389,30 +392,33 @@ export function renderToolPreview({
   // ---- listStories / reorderFeature / callouts ----
   if (name === 'listStories') {
     const stories = coerceStoriesList(result)
-    if (stories.length === 0) {
-      return <div className="text-[11px] text-(--text-secondary)">No stories</div>
-    }
+    if (stories.length === 0) return <SecondaryText>No stories</SecondaryText>
     if (hooks?.renderStoryBullet) {
       return (
-        <div className="grid grid-cols-4 gap-2 items-start">
+        <View style={{ gap: nativeSpace[1] }}>
           {stories.map((story) => (
-            <div key={story.id} className="min-w-0">
-              {hooks.renderStoryBullet!(story.id)}
-            </div>
+            <View key={story.id}>{hooks.renderStoryBullet!(story.id)}</View>
           ))}
-        </div>
+        </View>
       )
     }
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {stories.map((s) => (
-          <Row key={s.id} className="flex items-center gap-1.5 flex-wrap">
+          <Row key={s.id}>
             <SmallBadge>story</SmallBadge>
-            <span className="font-mono text-[11px]">{s.id}</span>
-            {s.title ? <span className="truncate">— {s.title}</span> : null}
+            <MonoText>{s.id}</MonoText>
+            {s.title ? (
+              <Text
+                style={{ fontSize: 12, color: nativeLightTheme.text.primary }}
+                numberOfLines={1}
+              >
+                — {s.title}
+              </Text>
+            ) : null}
           </Row>
         ))}
-      </div>
+      </View>
     )
   }
   if (name === 'reorderFeature') {
@@ -424,28 +430,29 @@ export function renderToolPreview({
       []
     const movedId = tryString(extract(args, ['featureId']) || extract(result, ['featureId']))
     if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
-    return <div className="text-[11px] text-(--text-secondary)">No reorder data</div>
+    return <SecondaryText>No reorder data</SecondaryText>
   }
   if (name === 'finishFeature' || name === 'blockFeature') {
     const storyId = tryString(extract(args, ['storyId']))
     const featureId = tryString(extract(args, ['featureId']))
     if (hooks?.renderStoryAndFeatureCallout) {
-      return <div className="p-2">{hooks.renderStoryAndFeatureCallout({ storyId, featureId })}</div>
+      return <View>{hooks.renderStoryAndFeatureCallout({ storyId, featureId })}</View>
     }
     return (
-      <div className="text-xs">
+      <View>
         <SectionTitle>{name === 'finishFeature' ? 'Finished' : 'Blocked'}</SectionTitle>
         <Row>
-          story <span className="font-mono">{storyId}</span> / feature{' '}
-          <span className="font-mono">{featureId}</span>
+          <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>
+            story <Text style={{ fontFamily: nativeFontFamilies.mono }}>{storyId}</Text> / feature{' '}
+            <Text style={{ fontFamily: nativeFontFamilies.mono }}>{featureId}</Text>
+          </Text>
         </Row>
-      </div>
+      </View>
     )
   }
 
   // ---- search variants ----
   if (name === 'searchFilesByExact' || name === 'searchFilesByKeywords') {
-    // Args carry an array of needles / keywords.
     const rawQ = extract(args, ['needles']) ?? extract(args, ['keywords'])
     const qLines: string[] = Array.isArray(rawQ)
       ? rawQ.filter((l): l is string => typeof l === 'string')
@@ -456,52 +463,51 @@ export function renderToolPreview({
       ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
       : []
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         <SectionTitle>Query:</SectionTitle>
         <PreLimited lines={qLines} maxLines={10} />
         {resultType === 'success' ? (
           resultLines.length > 0 ? (
-            <div>
+            <View>
               <SectionTitle>Results</SectionTitle>
               <PreLimited
                 lines={resultLines}
                 maxLines={10}
-                renderTruncationMessage={(omitted) => <>+ {omitted} more</>}
+                renderTruncationMessage={(omitted) => `+ ${omitted} more`}
               />
-            </div>
+            </View>
           ) : (
-            <div className="text-[11px] text-(--text-secondary)">No matches</div>
+            <SecondaryText>No matches</SecondaryText>
           )
         ) : null}
-      </div>
+      </View>
     )
   }
   if (name === 'searchFiles' || name === 'searchFilePaths' || name === 'searchFilesAndRead') {
-    // Args carry a single `query` string (multi-line ok).
     const query = tryString(extract(args, ['query']) ?? extract(result, ['query'])) ?? ''
     const qLines = query ? query.split(/\r?\n/) : ['']
     const resultLines: string[] = Array.isArray(result)
       ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
       : []
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         <SectionTitle>Query:</SectionTitle>
         <PreLimited lines={qLines} maxLines={2} />
         {resultType === 'success' ? (
           resultLines.length > 0 ? (
-            <div>
+            <View>
               <SectionTitle>Results</SectionTitle>
               <PreLimited
                 lines={resultLines}
                 maxLines={10}
-                renderTruncationMessage={(omitted) => <>+ {omitted} more</>}
+                renderTruncationMessage={(omitted) => `+ ${omitted} more`}
               />
-            </div>
+            </View>
           ) : (
-            <div className="text-[11px] text-(--text-secondary)">No matches</div>
+            <SecondaryText>No matches</SecondaryText>
           )
         ) : null}
-      </div>
+      </View>
     )
   }
 
@@ -523,25 +529,23 @@ export function renderToolPreview({
         ? Object.keys(failingPathsRaw as Record<string, unknown>)
         : []
     const shownPaths = resultType === 'success' ? failingPaths : safePaths
-
     return (
-      <div className="text-xs space-y-1">
-        <Row className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-(--text-secondary)">strict:</span>
-          <span className="font-mono text-[11px]">{String(!!strict)}</span>
+      <View style={{ gap: 4 }}>
+        <Row>
+          <SecondaryText>strict:</SecondaryText>
+          <MonoText>{String(!!strict)}</MonoText>
         </Row>
-
         {shownPaths.length > 0 ? (
-          <div>
+          <View>
             <SectionTitle>{resultType === 'success' ? 'Failing paths' : 'Paths'}</SectionTitle>
             <PreLimited lines={shownPaths} maxLines={10} />
-          </div>
+          </View>
         ) : resultType === 'success' ? (
-          <div className="text-[11px] text-(--text-secondary)">No failing paths</div>
+          <SecondaryText>No failing paths</SecondaryText>
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No paths</div>
+          <SecondaryText>No paths</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
 
@@ -550,17 +554,17 @@ export function renderToolPreview({
     const paths = (extract(args, ['paths']) ?? []) as Array<string | undefined>
     const safePaths = paths.filter((p): p is string => typeof p === 'string')
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {safePaths.length > 0 ? (
           safePaths.map((file, idx) => (
             <Row key={`${file}-${idx}`}>
-              <span className="font-mono text-[11px]">{file}</span>
+              <MonoText>{file}</MonoText>
             </Row>
           ))
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No paths</div>
+          <SecondaryText>No paths</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
 
@@ -578,30 +582,24 @@ export function renderToolPreview({
     const files = Array.isArray(filesRaw) ? (filesRaw as Array<Record<string, unknown>>) : []
 
     return (
-      <div className="text-xs space-y-1">
-        <Row className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-(--text-secondary)">mode:</span>
-          <span className="font-mono text-[11px]">{staged ? 'staged' : 'unstaged'}</span>
-          {includePatch ? (
-            <span className="text-[10px] font-medium text-(--text-secondary)">patch</span>
-          ) : null}
-          {includeStructured ? (
-            <span className="text-[10px] font-medium text-(--text-secondary)">structured</span>
-          ) : null}
+      <View style={{ gap: 4 }}>
+        <Row>
+          <SecondaryText>mode:</SecondaryText>
+          <MonoText>{staged ? 'staged' : 'unstaged'}</MonoText>
+          {includePatch ? <SecondaryText>patch</SecondaryText> : null}
+          {includeStructured ? <SecondaryText>structured</SecondaryText> : null}
         </Row>
-
         {safePaths.length > 0 ? (
-          <div>
+          <View>
             <SectionTitle>Paths</SectionTitle>
             <PreLimited lines={safePaths} maxLines={10} />
-          </div>
+          </View>
         ) : null}
-
         {resultType === 'success' ? (
           files.length > 0 ? (
-            <div>
+            <View>
               <SectionTitle>Results</SectionTitle>
-              <div className="space-y-1">
+              <View style={{ gap: 4 }}>
                 {files.map((file, idx) => {
                   const path =
                     tryString(extract(file, ['path'])) ??
@@ -612,33 +610,41 @@ export function renderToolPreview({
                   const removed = extract(file, ['removedLines']) ?? extract(file, ['deletions'])
                   const truncated = !!extract(file, ['patchTruncated'])
                   return (
-                    <Row key={`${path}-${idx}`} className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[11px]">{path}</span>
+                    <Row key={`${path}-${idx}`}>
+                      <MonoText>{path}</MonoText>
                       {typeof added === 'number' ? (
-                        <span className="font-mono text-[11px] text-(--text-secondary)">
+                        <Text
+                          style={{
+                            fontFamily: nativeFontFamilies.mono,
+                            fontSize: 11,
+                            color: nativeLightTheme.text.secondary,
+                          }}
+                        >
                           +{added}
-                        </span>
+                        </Text>
                       ) : null}
                       {typeof removed === 'number' ? (
-                        <span className="font-mono text-[11px] text-(--text-secondary)">
+                        <Text
+                          style={{
+                            fontFamily: nativeFontFamilies.mono,
+                            fontSize: 11,
+                            color: nativeLightTheme.text.secondary,
+                          }}
+                        >
                           -{removed}
-                        </span>
+                        </Text>
                       ) : null}
-                      {truncated ? (
-                        <span className="text-[10px] font-medium text-(--text-secondary)">
-                          patch truncated
-                        </span>
-                      ) : null}
+                      {truncated ? <SecondaryText>patch truncated</SecondaryText> : null}
                     </Row>
                   )
                 })}
-              </div>
-            </div>
+              </View>
+            </View>
           ) : (
-            <div className="text-[11px] text-(--text-secondary)">No diff results</div>
+            <SecondaryText>No diff results</SecondaryText>
           )
         ) : null}
-      </div>
+      </View>
     )
   }
 
@@ -647,17 +653,17 @@ export function renderToolPreview({
     const urls = (extract(args, ['urls']) ?? []) as Array<string | undefined>
     const safeUrls = urls.filter((u): u is string => typeof u === 'string')
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {safeUrls.length > 0 ? (
           safeUrls.map((url, idx) => (
             <Row key={url || idx}>
-              <span className="font-mono text-[11px]">{url || '(unknown)'}</span>
+              <MonoText>{url || '(unknown)'}</MonoText>
             </Row>
           ))
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No URLs</div>
+          <SecondaryText>No URLs</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
 
@@ -668,23 +674,25 @@ export function renderToolPreview({
       ? (raw as Array<Record<string, unknown>>)
       : []
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {items.length > 0 ? (
-          <div>
+          <View>
             <SectionTitle>AST Outline</SectionTitle>
             <PreLimited
               lines={items.map(
                 (it) =>
-                  `${String(it.kind ?? '').padEnd(25)} ${String(it.name ?? '')} (L${String(it.startLine ?? '?')}-L${String(it.endLine ?? '?')})`,
+                  `${String(it.kind ?? '').padEnd(25)} ${String(it.name ?? '')} (L${String(
+                    it.startLine ?? '?',
+                  )}-L${String(it.endLine ?? '?')})`,
               )}
               maxLines={15}
-              renderTruncationMessage={(omitted) => <>+ {omitted} more nodes</>}
+              renderTruncationMessage={(omitted) => `+ ${omitted} more nodes`}
             />
-          </div>
+          </View>
         ) : resultType === 'success' ? (
-          <div className="text-[11px] text-(--text-secondary)">No nodes</div>
+          <SecondaryText>No nodes</SecondaryText>
         ) : null}
-      </div>
+      </View>
     )
   }
   if (name === 'getCode') {
@@ -703,22 +711,22 @@ export function renderToolPreview({
         ? Object.keys(rawResults as Record<string, unknown>).length
         : 0
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         <SectionTitle>Names</SectionTitle>
         {requestedNames.length > 0 ? (
           <PreLimited lines={requestedNames} maxLines={10} />
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No names</div>
+          <SecondaryText>No names</SecondaryText>
         )}
         {resultType === 'success' ? (
-          <div>
+          <View>
             <SectionTitle>Results</SectionTitle>
-            <div className="text-[11px] text-(--text-secondary)">
+            <SecondaryText>
               {resultCount} result{resultCount === 1 ? '' : 's'}
-            </div>
-          </div>
+            </SecondaryText>
+          </View>
         ) : null}
-      </div>
+      </View>
     )
   }
   if (name === 'listContents' || name === 'getInterface') {
@@ -743,17 +751,17 @@ export function renderToolPreview({
         ? raw.split(/\r?\n/).filter((l) => l.length > 0)
         : []
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
         {items.length > 0 ? (
           items.map((line, idx) => (
             <Row key={`${line}-${idx}`}>
-              <span className="font-mono text-[11px]">{line}</span>
+              <MonoText>{line}</MonoText>
             </Row>
           ))
         ) : (
-          <div className="text-[11px] text-(--text-secondary)">No results</div>
+          <SecondaryText>No results</SecondaryText>
         )}
-      </div>
+      </View>
     )
   }
   if (name === 'webSearch') {
@@ -774,26 +782,24 @@ export function renderToolPreview({
           .filter((t): t is string => !!t)
       : []
     return (
-      <div className="text-xs space-y-1">
-        <Row>
-          <span className="text-(--text-secondary)">Query:</span>
-        </Row>
+      <View style={{ gap: 4 }}>
+        <SecondaryText>Query:</SecondaryText>
         <PreLimited lines={qLines} maxLines={2} />
         {resultType === 'success' ? (
           titles.length > 0 ? (
-            <div>
+            <View>
               <SectionTitle>Results</SectionTitle>
               <PreLimited
                 lines={titles}
                 maxLines={10}
-                renderTruncationMessage={(omitted) => <>+ {omitted} more</>}
+                renderTruncationMessage={(omitted) => `+ ${omitted} more`}
               />
-            </div>
+            </View>
           ) : (
-            <div className="text-[11px] text-(--text-secondary)">No results</div>
+            <SecondaryText>No results</SecondaryText>
           )
         ) : null}
-      </div>
+      </View>
     )
   }
   if (name === 'runTests' || name === 'runAllTests' || name === 'runTestsCoverage') {
@@ -806,29 +812,27 @@ export function renderToolPreview({
     const testFiles = (extract(args, ['paths']) as Array<string | undefined> | undefined) ?? []
     const safeTestFiles = testFiles.filter((p): p is string => typeof p === 'string')
     return (
-      <div className="text-xs space-y-1">
+      <View style={{ gap: 4 }}>
+        <SecondaryText>Summary:</SecondaryText>
         <Row>
-          <span className="text-(--text-secondary)">Summary:</span>
+          <MonoText>passed={passed}</MonoText>
+          <MonoText>·</MonoText>
+          <MonoText>failed={failed}</MonoText>
+          <MonoText>·</MonoText>
+          <MonoText>skipped={skipped}</MonoText>
+          <MonoText>·</MonoText>
+          <MonoText>total={total}</MonoText>
         </Row>
         <Row>
-          <span className="font-mono text-[11px]">passed={passed}</span>
-          <span className="mx-1">·</span>
-          <span className="font-mono text-[11px]">failed={failed}</span>
-          <span className="mx-1">·</span>
-          <span className="font-mono text-[11px]">skipped={skipped}</span>
-          <span className="mx-1">·</span>
-          <span className="font-mono text-[11px]">total={total}</span>
-        </Row>
-        <Row>
-          <span className="font-mono text-[11px]">durationMs={duration}</span>
+          <MonoText>durationMs={duration}</MonoText>
         </Row>
         {safeTestFiles.length > 0 ? (
-          <div>
+          <View>
             <SectionTitle>Files</SectionTitle>
             <PreLimited lines={safeTestFiles} maxLines={10} />
-          </div>
+          </View>
         ) : null}
-      </div>
+      </View>
     )
   }
   if (name === 'bash' || name === 'runShellCommand' || name === 'shell') {
@@ -836,24 +840,24 @@ export function renderToolPreview({
     const stdout = tryString(extract(result, ['stdout'])) || ''
     const stderr = tryString(extract(result, ['stderr'])) || ''
     return (
-      <div className="text-xs space-y-2">
-        <div>
+      <View style={{ gap: nativeSpace[2] }}>
+        <View>
           <SectionTitle>Command</SectionTitle>
-          <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">{cmd}</pre>
-        </div>
+          <MonoText>{cmd}</MonoText>
+        </View>
         {stdout ? (
-          <div>
+          <View>
             <SectionTitle>stdout</SectionTitle>
             <PreLimited lines={stdout.split(/\r?\n/)} maxLines={20} />
-          </div>
+          </View>
         ) : null}
         {stderr ? (
-          <div>
+          <View>
             <SectionTitle>stderr</SectionTitle>
             <PreLimited lines={stderr.split(/\r?\n/)} maxLines={20} />
-          </div>
+          </View>
         ) : null}
-      </div>
+      </View>
     )
   }
 

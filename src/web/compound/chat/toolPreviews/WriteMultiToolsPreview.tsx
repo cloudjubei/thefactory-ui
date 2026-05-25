@@ -7,7 +7,7 @@ import { StructuredUnifiedDiff } from '../../diff/diffUtils'
 import { cn } from '../../../utils/cn'
 import { IconChevron } from '../../../icons'
 import type { ToolCall, ToolResultType } from '../ToolCall'
-import { tryString } from './utils'
+import { tryString } from '../../../../headless/utils/toolPreview'
 
 export type WriteMultiToolsPreviewProps = {
   toolCall: ToolCall
@@ -153,7 +153,7 @@ export function WriteMultiToolsPreview({
             ) : null}
 
             {isExpanded && (
-              <div className="flex flex-col bg-(--surface-base) px-2 py-2 gap-2">
+              <div className="flex flex-col bg-(--surface-base) gap-2">
                 {fileResults.map((r, i) => {
                   const patch = tryString(r.diff) || tryString(r.patch)
                   const hunkErr = tryString(r.error)

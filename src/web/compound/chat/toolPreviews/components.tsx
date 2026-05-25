@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { toLines } from './utils'
+import { toLines } from '../../../../headless/utils/toolPreview'
 
 export function Row({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={['text-xs leading-relaxed', className || ''].join(' ')}>{children}</div>

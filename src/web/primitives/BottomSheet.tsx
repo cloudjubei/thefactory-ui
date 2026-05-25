@@ -16,10 +16,19 @@ export type BottomSheetProps = {
   /** Accessible label for the sheet dialog. */
   ariaLabel?: string
   /**
-   * Sheet height as a fraction of the viewport. Default 0.9 — tall enough
+   * Sheet height as a fraction of the viewport. Default `0.9` — tall enough
    * for a chat surface while leaving a backdrop strip to tap-dismiss.
+   * Ignored when either `minHeightFraction` or `maxHeightFraction` is set;
+   * in that case the sheet sizes to its content within that range.
    */
   heightFraction?: number
+  /** Minimum sheet height as a fraction of the viewport when using dynamic
+   *  content-driven sizing. Combine with `maxHeightFraction` to let the
+   *  sheet shrink to its content but never collapse past this floor. */
+  minHeightFraction?: number
+  /** Maximum sheet height as a fraction of the viewport when using dynamic
+   *  content-driven sizing. */
+  maxHeightFraction?: number
 }
 
 const TRANSITION_MS = 300
@@ -39,7 +48,12 @@ export function BottomSheet({
   children,
   ariaLabel,
   heightFraction = 0.9,
+  minHeightFraction,
+  maxHeightFraction,
 }: BottomSheetProps) {
+  const isDynamic = minHeightFraction !== undefined || maxHeightFraction !== undefined
+  const dynamicMin = minHeightFraction !== undefined ? `${Math.round(minHeightFraction * 100)}dvh` : undefined
+  const dynamicMax = maxHeightFraction !== undefined ? `${Math.round(maxHeightFraction * 100)}dvh` : undefined
   // Two-step open/close so the slide transition plays in both directions:
   // `render` keeps the node mounted through the exit animation, `shown`
   // drives the transform/opacity.
@@ -137,7 +151,9 @@ export function BottomSheet({
         aria-label={ariaLabel}
         className="relative flex flex-col rounded-t-xl border-t shadow-xl ease-out"
         style={{
-          height: `${Math.round(heightFraction * 100)}dvh`,
+          ...(isDynamic
+            ? { height: 'auto', minHeight: dynamicMin, maxHeight: dynamicMax }
+            : { height: `${Math.round(heightFraction * 100)}dvh` }),
           transform: shown ? `translateY(${dragY}px)` : 'translateY(100%)',
           // While dragging we want the panel to follow the pointer 1:1
           // without an animated catch-up; the spring-back / open animation

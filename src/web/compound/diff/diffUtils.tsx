@@ -256,6 +256,17 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     )
   }
 
+  // Non-empty patch that didn't parse into any hunks — typically a payload
+  // that isn't a real unified diff. Same copy as native `UnifiedDiff` so
+  // both clients communicate the failure with the same words.
+  if (patch && hunks.length === 0) {
+    return (
+      <div className="text-xs text-(--text-secondary) border border-(--border-subtle)">
+        Invalid hunk — couldn&apos;t parse.
+      </div>
+    )
+  }
+
   if (sideBySide) {
     return (
       <div className="font-mono text-xs text-(--text-primary) bg-(--surface-base) rounded border border-(--border-subtle)">

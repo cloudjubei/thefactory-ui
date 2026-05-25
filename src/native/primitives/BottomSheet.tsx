@@ -18,6 +18,14 @@ export interface BottomSheetProps {
   onClose: () => void
   /** Sheet header — usually a short title. */
   title?: string
+  /**
+   * Rich header slot rendered above the scrollable body. Pinned — it does
+   * NOT scroll with the children. Use this when the sheet's chrome needs
+   * more than the plain `title` text (status icon, path, action chips,
+   * etc.). Mirrors web's `ToolCallHoverCard` layout where the header /
+   * path stay in place and only `renderResult` scrolls.
+   */
+  headerNode?: ReactNode
   children: ReactNode
   /** Optional footer slot (typically action buttons). */
   footer?: ReactNode
@@ -47,6 +55,7 @@ export default function BottomSheet({
   isOpen,
   onClose,
   title,
+  headerNode,
   children,
   footer,
   maxHeightFraction = 0.85,
@@ -123,9 +132,19 @@ export default function BottomSheet({
     // sheet padding (chat & similar surfaces own the inset).
     <View style={{ flex: 1 }}>{children}</View>
   ) : (
+    // `width: '100%'` is load-bearing for descendants that use `flex: 1`
+    // inside a horizontal row (e.g. the per-hunk `ScrollView` in
+    // `UnifiedDiff`). Without an explicit cross-axis width here, RN's
+    // vertical ScrollView contentContainer lets the row size to its
+    // intrinsic content and the inner horizontal scroll never gets a
+    // chance to claim space.
     <View
       onLayout={(e: LayoutChangeEvent) => setContentH(e.nativeEvent.layout.height)}
-      style={{ paddingHorizontal: nativeSpace[5], paddingTop: nativeSpace[2] }}
+      style={{
+        width: '100%',
+        paddingHorizontal: nativeSpace[5],
+        paddingTop: nativeSpace[2],
+      }}
     >
       {children}
     </View>
@@ -189,20 +208,40 @@ export default function BottomSheet({
                 </Text>
               </View>
             ) : null}
+            {headerNode ? (
+              <View
+                style={{
+                  paddingHorizontal: nativeSpace[5],
+                  paddingTop: title ? nativeSpace[1] : nativeSpace[3],
+                  // 8px bottom so the pinned header reads as visually separate
+                  // from the scrolling body below — matches web's `mb-2` on
+                  // the hover-card path block.
+                  paddingBottom: nativeSpace[4],
+                }}
+              >
+                {headerNode}
+              </View>
+            ) : null}
           </View>
 
           {fillHeight ? (
             content
-          ) : scroll ? (
+          ) : (
+            // Always render through the same ScrollView wrapper so when
+            // a child grows past `availForContent` (e.g. the user expands
+            // a row in a multi-file diff preview) we don't switch parent
+            // component types and remount the subtree. The scroll
+            // container's `maxHeight` only kicks in when `availForContent`
+            // is known and the content actually exceeds it; below that
+            // threshold the sheet still hugs its content because the
+            // outer panel applies its own `maxHeight: maxPanelH`.
             <ScrollView
-              style={{ height: availForContent }}
+              style={scroll ? { maxHeight: availForContent } : undefined}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
               {content}
             </ScrollView>
-          ) : (
-            content
           )}
 
           {footer ? (

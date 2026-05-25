@@ -50,6 +50,10 @@ export type ToolResultLike = {
 export type MessageUsageLike = {
   promptTokens?: number
   completionTokens?: number
+  /** Tokens served from the provider's prompt cache. Web's `UsageModal`
+   *  shows this in the per-message breakdown and the mobile peer mirrors
+   *  it; safe to leave undefined for providers that don't report it. */
+  cachedReadInputTokens?: number
   cost?: number
   model?: string
 }

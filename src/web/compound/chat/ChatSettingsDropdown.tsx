@@ -202,7 +202,10 @@ export default function ChatSettingsDropdown({
                       {tool.description}
                     </div>
                   </div>
-                  <div className="flex flex-col items-center gap-1">
+                  {/* Two label-above-switch toggles side by side. Mirrors
+                      the native peer 1:1 — Available on the left, Auto-call
+                      on the right, each with its caption above. */}
+                  <div className="flex flex-row items-center gap-3">
                     <div className="flex flex-col items-center space-y-px">
                       <span className="text-[10px] text-(--text-secondary)">Available</span>
                       <Switch

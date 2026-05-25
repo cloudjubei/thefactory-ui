@@ -220,6 +220,10 @@ export {
   type UsageModelRow,
 } from './compound/chat/UsageModal'
 export {
+  default as MessageUsageSheet,
+  type MessageUsageSheetProps,
+} from './compound/chat/MessageUsageSheet'
+export {
   default as ChatInput,
   type ChatInputAttachment,
   type ChatInputProps,
@@ -230,6 +234,33 @@ export {
   default as ToolCallCard,
   type ToolCallCardProps,
 } from './compound/chat/ToolCall/ToolCallCard'
+export {
+  default as ToolPreviewSheet,
+  type ToolPreviewSheetProps,
+} from './compound/chat/ToolCall/ToolPreviewSheet'
+export {
+  FieldDiff,
+  InlineOldNew,
+  MonoText,
+  NewContentOnly,
+  PatchPreview,
+  PreLimited,
+  ReorderList,
+  Row,
+  SecondaryText,
+  SectionTitle,
+  SmallBadge,
+  WriteMultiToolsPreview,
+  WriteToolsPreview,
+  renderToolPreviewNative,
+  type FeatureShape,
+  type RenderToolPreviewArgs,
+  type StoryShape,
+  type ToolPreview,
+  type ToolPreviewHooks,
+  type WriteMultiToolsPreviewProps,
+  type WriteToolsPreviewProps,
+} from './compound/chat/toolPreviews'
 export {
   default as ChatDynamicContextModal,
   type ChatDynamicContextModalProps,
@@ -306,6 +337,10 @@ export {
   default as GitFileStatusIcon,
   type GitFileStatusIconProps,
 } from './compound/git/GitFileStatusIcon'
+export {
+  GitFileChangesPills,
+  type GitFileChangesPillsProps,
+} from './compound/git/GitFileChangesPills'
 export { default as CommitGraph, type CommitGraphProps } from './compound/git/CommitGraph'
 export {
   default as GitCredentialErrorModal,

@@ -49,6 +49,10 @@ export interface ChatBodyProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
 
+  /** Fired when the user taps the per-message `$` usage chip. Host opens
+   *  a `MessageUsageSheet` with the full breakdown. */
+  onShowUsage?: (msg: ChatMessageLike) => void
+
   onSend: (content: string, attachments?: string[]) => Promise<void> | void
   onAbort?: () => Promise<void> | void
 
@@ -90,6 +94,7 @@ export default function ChatBody({
   renderToolCall,
   onResolveFile,
   renderDependency,
+  onShowUsage,
   onSend,
   onAbort,
   onDeleteLastMessage,
@@ -131,6 +136,7 @@ export default function ChatBody({
           renderToolCall={renderToolCall}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}
+          onShowUsage={onShowUsage}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           onAtBottomChange={onAtBottomChange}

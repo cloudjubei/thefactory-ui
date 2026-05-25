@@ -35,6 +35,10 @@ export type StoriesViewMode = 'list' | 'board'
 export type StoriesListSorting = StoryListSorting
 export type StoriesListStatusFilter = 'all' | 'not-done' | StoryStatus
 
+/** Syntax-highlight theme for `<Code>` blocks (tool args / results etc.). */
+export type CodeBlockTheme = 'light' | 'dark'
+export const CODE_BLOCK_THEMES: readonly CodeBlockTheme[] = ['light', 'dark'] as const
+
 export type UserPreferences = {
   /** Last project the user was viewing; used to restore selection on boot. */
   lastActiveProjectId?: string
@@ -50,6 +54,13 @@ export type UserPreferences = {
   storiesListViewSorting: StoriesListSorting
   /** Stories list status filter. `all` shows everything; `not-done` hides done items. */
   storiesListViewStatusFilter: StoriesListStatusFilter
+  /**
+   * Syntax-highlight theme applied to `<Code>` blocks (tool call args /
+   * results, dynamic context, etc.). Independent of the overall app
+   * theme — defaults to `'light'` so the code is readable against the
+   * default light app theme.
+   */
+  codeBlockTheme: CodeBlockTheme
 }
 
 export type NotificationCategory = 'chat' | 'tests' | 'git' | 'agent_runs'
@@ -108,6 +119,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     storiesViewMode: 'list',
     storiesListViewSorting: 'index_asc',
     storiesListViewStatusFilter: 'all',
+    codeBlockTheme: 'light',
   },
   notifications: DEFAULT_NOTIFICATION_PREFS,
 }

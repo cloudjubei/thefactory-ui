@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { ScrollView, Text } from 'react-native'
 import { Modal } from '../../primitives/Modal'
-import Code from '../Code'
 import { nativeLightTheme } from '../../../tokens/native'
 
 export interface ChatDynamicContextModalProps {
@@ -34,8 +33,21 @@ export default function ChatDynamicContextModal({
   return (
     <Modal isOpen onClose={onClose} title="Dynamic context" size="lg">
       {formatted ? (
+        // Match web's `<pre className="whitespace-pre-wrap font-mono">` —
+        // plain monospace text on the modal's own background, no `Code`
+        // block tint behind it.
         <ScrollView style={{ maxHeight: 420 }}>
-          <Code language="json" code={formatted} />
+          <Text
+            selectable
+            style={{
+              fontFamily: 'Menlo',
+              fontSize: 12,
+              lineHeight: 20,
+              color: nativeLightTheme.text.secondary,
+            }}
+          >
+            {formatted}
+          </Text>
         </ScrollView>
       ) : (
         <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>

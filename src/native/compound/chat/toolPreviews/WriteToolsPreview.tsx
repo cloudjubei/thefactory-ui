@@ -1,14 +1,16 @@
 import { useMemo, type ReactNode } from 'react'
-import Code from '../../Code'
-import Spinner from '../../../primitives/Spinner'
-import { StructuredUnifiedDiff } from '../../diff/diffUtils'
-import type { ToolCall, ToolResultType } from '../ToolCall'
+import { ActivityIndicator, Text, View } from 'react-native'
+
 import {
   buildUnifiedDiffIfPresent,
   extract,
   isCompletelyNewFile,
   tryString,
 } from '../../../../headless/utils/toolPreview'
+import { nativeLightTheme, nativePalette, nativeSpace } from '../../../../tokens/native'
+import Code from '../../Code'
+import UnifiedDiff from '../../git/UnifiedDiff'
+import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 
 export type ToolPreview =
   | { status: 'pending' }
@@ -16,27 +18,18 @@ export type ToolPreview =
   | { status: 'ready'; patch: string }
 
 export type WriteToolsPreviewProps = {
-  toolCall: ToolCall
+  toolCall: ToolCallLike
   result?: unknown
-  resultType?: ToolResultType
-  sideBySide: boolean
+  resultType?: ToolResultTypeLike
 }
 
 /**
- * Hover-card preview for single-file write tools (`writeFile`,
- * `writeDiffToFile`, `writeStructuredDiffToFile`). Renders a
- * `StructuredUnifiedDiff` when the result has a unified patch, falls back
- * to a `Code` block otherwise. Shows a banner when the file is brand-new.
- *
- * Lifted from `overseer-local`'s `WriteToolsPreview` so both apps share
- * the same rendering surface.
+ * Native peer of web's `WriteToolsPreview`. Renders the same unified-diff
+ * preview for `writeFile` / `writeDiffToFile` / `writeStructuredDiffToFile`
+ * — `UnifiedDiff` for proper unified patches, `<Code language="diff">` for
+ * everything else.
  */
-export function WriteToolsPreview({
-  toolCall,
-  result,
-  resultType,
-  sideBySide,
-}: WriteToolsPreviewProps) {
+export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPreviewProps) {
   const toolName = String(toolCall?.name)
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
@@ -57,7 +50,7 @@ export function WriteToolsPreview({
   const preview = isPreviewObject ? (result as ToolPreview) : undefined
 
   if (preview?.status === 'error') {
-    return errorContent(preview.error || 'Preview failed')
+    return <ErrorContent message={preview.error || 'Preview failed'} />
   }
 
   const actualData = useMemo(() => {
@@ -93,45 +86,68 @@ export function WriteToolsPreview({
 
   const isNewFile = toolName === 'writeFile' ? isCompletelyNewFile(actualData, successPatch) : false
 
-  if (resultError) return errorContent(resultError)
+  if (resultError) return <ErrorContent message={resultError} />
 
-  if (preview?.status === 'pending') return spinnerContent('Loading diff preview…')
+  if (preview?.status === 'pending') return <SpinnerContent label="Loading diff preview…" />
 
   if (!successPatch) {
-    if (isInFlight) return spinnerContent('Loading diff preview…')
-    return <div className="text-[11px] text-(--text-secondary)">No diff output</div>
+    if (isInFlight) return <SpinnerContent label="Loading diff preview…" />
+    return (
+      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>No diff output</Text>
+    )
   }
 
   const isUnified = successPatch.includes('@@')
 
   if (isNewFile) {
     return (
-      <div>
-        <div className="mb-2 text-red-500 font-extrabold text-lg tracking-wide">NEW FILE</div>
+      <View>
+        <Text
+          style={{
+            marginBottom: nativeSpace[2],
+            color: nativePalette.red[600],
+            fontWeight: '800',
+            fontSize: 16,
+            letterSpacing: 0.5,
+          }}
+        >
+          NEW FILE
+        </Text>
         <Code code={successPatch} language="diff" />
-      </div>
+      </View>
     )
   }
 
   if (isUnified) {
-    return <StructuredUnifiedDiff patch={successPatch} sideBySide={sideBySide} />
+    // Non-inline UnifiedDiff owns its own scroll, so its `stickyHeaderIndices`
+    // can pin each hunk header against that scroll — matching web's
+    // `StructuredUnifiedDiff` behaviour. `maxHeight: 9999` is effectively
+    // unbounded; the actual height comes from the flex-1 parent the
+    // preview sheet provides for single-scroller tools like `writeFile`.
+    return <UnifiedDiff patch={successPatch} maxHeight={9999} />
   }
 
   return <Code code={successPatch} language="diff" />
 }
 
-function spinnerContent(label?: string): ReactNode {
+function SpinnerContent({ label }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center py-4">
-      <Spinner label={label ?? 'Loading preview…'} />
-    </div>
+    <View style={{ paddingVertical: nativeSpace[3], alignItems: 'center', gap: nativeSpace[2] }}>
+      <ActivityIndicator />
+      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+        {label ?? 'Loading preview…'}
+      </Text>
+    </View>
   )
 }
 
-function errorContent(message: string): ReactNode {
+function ErrorContent({ message }: { message: string }): ReactNode {
   return (
-    <div className="text-xs text-red-500 py-2 px-1">
-      <span className="font-semibold">Error:</span> {message}
-    </div>
+    <View style={{ paddingVertical: nativeSpace[2], paddingHorizontal: 4 }}>
+      <Text style={{ fontSize: 12, color: nativePalette.red[600] }}>
+        <Text style={{ fontWeight: '600' }}>Error: </Text>
+        {message}
+      </Text>
+    </View>
   )
 }

@@ -8,6 +8,7 @@ import type {
 import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
+import { formatDurationMs } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type {
   ChatMessageLike,
@@ -78,6 +79,9 @@ export interface MessageListProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
 
+  /** Forwards to `MessageRow.onShowUsage`. */
+  onShowUsage?: (msg: ChatMessageLike) => void
+
   thinkingLabel?: string
 }
 
@@ -98,6 +102,7 @@ export default function MessageList({
   renderToolCall,
   onResolveFile,
   renderDependency,
+  onShowUsage,
   thinkingLabel,
 }: MessageListProps) {
   const scrollRef = useRef<RNScrollView>(null)
@@ -155,10 +160,11 @@ export default function MessageList({
     scrollRef.current?.scrollToEnd({ animated: true })
   }, [scrollToBottomSignal])
 
-  const renderable = useMemo(
-    () => messages.filter((m) => !isEmptyAssistantMessage(m) || isToolMessage(m)),
-    [messages],
-  )
+  // No filtering — web renders empty-content assistant messages so the
+  // user can see the model + cost + time row that precedes a group of
+  // tool calls. The mobile previously dropped these for "noise"; the user
+  // explicitly wants parity here.
+  const renderable = useMemo(() => messages, [messages])
 
   // Latest message iso (excluding empty-assistant filler) — drives the
   // `onReadLatest` callback. Recompute whenever the message list changes.
@@ -246,9 +252,11 @@ export default function MessageList({
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
         {startIndex > 0 && (
+          // Single tappable chip — label + load action in one affordance.
+          // Mirrors web's `MessageList` older-messages pill.
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Load older messages"
+            accessibilityLabel={`${startIndex} older messages hidden — tap to load`}
             onPress={() => setVisibleCount((c) => Math.min(renderable.length, c + BATCH_SIZE))}
             style={({ pressed }) => ({
               alignSelf: 'center',
@@ -263,11 +271,22 @@ export default function MessageList({
             })}
           >
             <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
-              Load {Math.min(BATCH_SIZE, startIndex)} older
+              {startIndex} older message{startIndex === 1 ? '' : 's'} hidden — click to load
             </Text>
           </Pressable>
         )}
         {windowed.map((msg, i) => {
+          // Per-message thinking label = time between this assistant
+          // message's iso and the previous message's iso, formatted as
+          // `+X ms` / `+X s`. Mirrors web's `MessageList.thinkingLabel`
+          // computation so the prefix appears next to each assistant
+          // bubble's timestamp on every client.
+          const prevIso = i > 0 ? messageIso(windowed[i - 1]) : undefined
+          const curIso = messageIso(msg)
+          const perMsgThinking =
+            msg.role === 'assistant' && prevIso && curIso
+              ? formatDurationMs(new Date(curIso).getTime() - new Date(prevIso).getTime())
+              : undefined
           const row = (
             <View key={msg.id ?? `msg-${startIndex + i}`} style={{ gap: nativeSpace[6] }}>
               {cutoffIndexInWindow === i ? (
@@ -286,7 +305,8 @@ export default function MessageList({
                 onRetry={onRetry}
                 onResolveFile={onResolveFile}
                 renderDependency={renderDependency}
-                thinkingLabel={thinkingLabel}
+                onShowUsage={onShowUsage}
+                thinkingLabel={perMsgThinking}
               />
             </View>
           )

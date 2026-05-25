@@ -12,7 +12,7 @@ export { splitPath }
 export function PathDisplay({ path }: { path: string }) {
   const { dir, name } = splitPath(path)
   return (
-    <div className="flex items-baseline min-w-0 w-full overflow-hidden">
+    <div className="flex items-baseline min-w-0 w-full overflow-hidden text-xs">
       {dir ? (
         <span
           className="truncate text-neutral-500"

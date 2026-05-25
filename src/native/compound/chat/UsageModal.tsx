@@ -16,10 +16,20 @@ export interface UsageModelRow {
 export interface UsageModalProps {
   isOpen: boolean
   onClose: () => void
-  /** Cost summary, grouped by model. */
+  /** Durable (persisted cost ledger) breakdown grouped by model. */
   rows: ReadonlyArray<UsageModelRow>
-  /** Total across all models. */
+  /** Total across all models in the durable ledger. */
   totalCostUSD: number
+  /**
+   * In-memory "current" breakdown — usage aggregated from the messages
+   * currently loaded in the chat. Mirrors web's `CURRENT` section: useful
+   * when the durable ledger persists across chat clears, so the user can
+   * see what's been spent on just the visible conversation. Omit to hide
+   * the section entirely.
+   */
+  currentRows?: ReadonlyArray<UsageModelRow>
+  /** Total across all models in the in-memory current breakdown. */
+  currentTotalCostUSD?: number
   title?: string
 }
 
@@ -57,62 +67,34 @@ export default function UsageModal({
   onClose,
   rows,
   totalCostUSD,
+  currentRows,
+  currentTotalCostUSD,
   title = 'Usage',
 }: UsageModalProps) {
-  const totalIn = rows.reduce((s, r) => s + (r.inputTokens ?? 0), 0)
-  const totalOut = rows.reduce((s, r) => s + (r.outputTokens ?? 0), 0)
-  const totalCached = rows.reduce((s, r) => s + (r.cachedTokens ?? 0), 0)
+  const hasCurrent = !!currentRows && currentRows.length > 0
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg" contentStyle={{ padding: 0 }}>
-      <View style={{ backgroundColor: nativeLightTheme.surface.base }}>
-        <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[6] }}>
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
-            Ledger totals (durable)
-          </Text>
-        </View>
-        <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[3] }}>
-          <View
-            style={{
-              borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              borderRadius: 6,
-              overflow: 'hidden',
-            }}
-          >
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <View style={{ minWidth: 720 }}>
-                <HeaderRow />
-                <TotalsRow
-                  costUSD={totalCostUSD}
-                  promptTokens={totalIn}
-                  completionTokens={totalOut}
-                  cachedTokens={totalCached}
-                />
-                {rows.length === 0 ? null : (
-                  <ScrollView style={{ maxHeight: 360 }} horizontal={false}>
-                    {rows.map((row) => (
-                      <DataRow
-                        key={row.model}
-                        label={row.model}
-                        costUSD={row.costUSD}
-                        promptTokens={row.inputTokens ?? 0}
-                        completionTokens={row.outputTokens ?? 0}
-                        cachedTokens={row.cachedTokens ?? 0}
-                      />
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            </ScrollView>
-          </View>
-        </View>
+      <ScrollView
+        style={{ backgroundColor: nativeLightTheme.surface.base }}
+        contentContainerStyle={{ paddingBottom: nativeSpace[6] }}
+      >
+        <UsageSection label="Ledger totals (durable)" rows={rows} totalCostUSD={totalCostUSD} />
+
+        {hasCurrent ? (
+          <>
+            <DividerWithLabel label="CURRENT" />
+            <UsageSection
+              rows={currentRows!}
+              totalCostUSD={currentTotalCostUSD ?? 0}
+            />
+          </>
+        ) : null}
 
         <View
           style={{
             paddingHorizontal: nativeSpace[6],
             paddingTop: nativeSpace[6],
-            paddingBottom: nativeSpace[6],
             gap: nativeSpace[2],
           }}
         >
@@ -139,8 +121,98 @@ export default function UsageModal({
             and do not decrease if you clear/restart/delete a chat.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </Modal>
+  )
+}
+
+/**
+ * One labelled table block (TOTALS row + breakdown). Used for both the
+ * durable ledger and the in-memory current sections so they read 1:1.
+ */
+function UsageSection({
+  label,
+  rows,
+  totalCostUSD,
+}: {
+  label?: string
+  rows: ReadonlyArray<UsageModelRow>
+  totalCostUSD: number
+}) {
+  const totalIn = rows.reduce((s, r) => s + (r.inputTokens ?? 0), 0)
+  const totalOut = rows.reduce((s, r) => s + (r.outputTokens ?? 0), 0)
+  const totalCached = rows.reduce((s, r) => s + (r.cachedTokens ?? 0), 0)
+  return (
+    <View>
+      {label ? (
+        <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[6] }}>
+          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>{label}</Text>
+        </View>
+      ) : null}
+      <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[3] }}>
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: nativeLightTheme.border.subtle,
+            borderRadius: 6,
+            overflow: 'hidden',
+          }}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator>
+            <View style={{ minWidth: 720 }}>
+              <HeaderRow />
+              <TotalsRow
+                costUSD={totalCostUSD}
+                promptTokens={totalIn}
+                completionTokens={totalOut}
+                cachedTokens={totalCached}
+              />
+              {rows.map((row) => (
+                <DataRow
+                  key={row.model}
+                  label={row.model}
+                  costUSD={row.costUSD}
+                  promptTokens={row.inputTokens ?? 0}
+                  completionTokens={row.outputTokens ?? 0}
+                  cachedTokens={row.cachedTokens ?? 0}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+/** Hairline divider with a centred CURRENT label — mirrors web's row. */
+function DividerWithLabel({ label }: { label: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: nativeSpace[3],
+        paddingHorizontal: nativeSpace[6],
+        paddingTop: nativeSpace[6],
+      }}
+    >
+      <View
+        style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.subtle }}
+      />
+      <Text
+        style={{
+          fontSize: 11,
+          color: nativeLightTheme.text.secondary,
+          letterSpacing: 1,
+        }}
+      >
+        {label}
+      </Text>
+      <View
+        style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.subtle }}
+      />
+    </View>
   )
 }
 

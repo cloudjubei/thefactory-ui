@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { ScrollView, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Textarea } from '../../primitives/Textarea'
-import Markdown from '../Markdown'
-import { nativeSpace } from '../../../tokens/native'
+import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
 
 export interface SystemPromptViewerModalProps {
   isOpen: boolean
@@ -79,7 +78,21 @@ export default function SystemPromptViewerModal({
         {editing ? (
           <Textarea value={draft} onChangeText={setDraft} rows={10} />
         ) : (
-          <Markdown text={content || '_(empty)_'} />
+          // Render the prompt as plain monospace text — matches web's
+          // `<pre>` system-prompt viewer. Keeps any `{{var}}` placeholders
+          // visible verbatim and avoids stripping leading whitespace that
+          // markdown would interpret as structural.
+          <Text
+            selectable
+            style={{
+              fontFamily: 'Menlo',
+              fontSize: 12,
+              lineHeight: 18,
+              color: nativeLightTheme.text.primary,
+            }}
+          >
+            {content || '(empty)'}
+          </Text>
         )}
       </ScrollView>
     </Modal>

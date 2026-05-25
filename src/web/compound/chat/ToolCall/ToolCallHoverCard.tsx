@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { PathDisplay } from '../../PathDisplay'
+import { isFilePathTool } from '../../../../headless/utils/toolPreview'
 import StatusIcon from './StatusIcon'
 import type { ToolCall, ToolResultType } from './types'
 
@@ -31,6 +33,11 @@ export type ToolCallHoverCardProps = {
   /** Render a small popup variant (used by `finishFeature` / `blockFeature`
    * callouts that don't need the wide 480px frame). */
   variant?: 'default' | 'small'
+  /** Width / framing mode. `fixed` (default) draws the rounded popup chrome
+   * at the canonical hover widths. `fluid` strips the outer chrome + width
+   * cap so the body fills its container — used by the small-screen
+   * tap-to-open bottom sheet where the sheet itself owns the framing. */
+  widthMode?: 'fixed' | 'fluid'
 }
 
 /**
@@ -47,14 +54,22 @@ export default function ToolCallHoverCard({
   splitToggle = false,
   headerPath,
   variant = 'default',
+  widthMode = 'fixed',
 }: ToolCallHoverCardProps) {
   const [sideBySide, setSideBySide] = useState(false)
-  const widthClass = variant === 'small' ? 'min-w-[120px] max-w-[70vw]' : 'w-[480px] max-w-[70vw]'
+  const widthClass =
+    widthMode === 'fluid'
+      ? 'w-full'
+      : variant === 'small'
+        ? 'min-w-[120px] max-w-[70vw]'
+        : 'w-[480px] max-w-[70vw]'
+  const chromeClass =
+    widthMode === 'fluid'
+      ? ''
+      : 'rounded-md border border-(--border-subtle) bg-(--surface-overlay) p-2 shadow-lg'
 
   return (
-    <div
-      className={`${widthClass} rounded-md border border-(--border-subtle) bg-(--surface-overlay) p-2 shadow-lg`}
-    >
+    <div className={`${widthClass} ${chromeClass}`.trim()}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <StatusIcon resultType={resultType} />
@@ -93,16 +108,19 @@ export default function ToolCallHoverCard({
       </div>
 
       {headerPath ? (
-        <div
-          className="mt-1 font-mono text-[11px] text-(--text-secondary) truncate"
-          title={headerPath}
-        >
-          {headerPath}
+        <div className="mt-1 mb-2" title={headerPath}>
+          {isFilePathTool(toolCall.name) ? (
+            <PathDisplay path={headerPath} />
+          ) : (
+            <div className="font-mono text-[11px] text-(--text-secondary) truncate">
+              {headerPath}
+            </div>
+          )}
         </div>
       ) : null}
 
       {renderResult ? (
-        <div className="mt-2 max-h-[60vh] overflow-auto pr-1">
+        <div className="max-h-[60vh] overflow-auto pr-1">
           {renderResult({ toolCall, result, resultType, sideBySide })}
         </div>
       ) : null}

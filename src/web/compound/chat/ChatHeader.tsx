@@ -27,6 +27,11 @@ export type ChatHeaderProps = {
    * (no fallback) to match desktop. */
   contextInfoSlot?: ReactNode
 
+  /** Visible chat title (e.g. `Story #5`, `Feature #5.2`). Rendered next to
+   * `contextInfoSlot` and truncates when the header gets tight, so the
+   * surface matches mobile's `ScreenShell` title for the same chat. */
+  title?: string
+
   onOpenPrompt: () => void
   onOpenCosts: () => void
   onOpenDynamicContext?: () => void
@@ -77,6 +82,7 @@ export default function ChatHeader({
   onMaximize,
   totalCostUSD,
   contextInfoSlot,
+  title,
   onOpenPrompt,
   onOpenCosts,
   onOpenDynamicContext,
@@ -105,6 +111,15 @@ export default function ChatHeader({
         ) : null}
 
         {contextInfoSlot}
+
+        {title ? (
+          <span
+            className="min-w-0 truncate text-sm font-semibold text-(--text-primary)"
+            title={title}
+          >
+            {title}
+          </span>
+        ) : null}
 
         <button
           type="button"

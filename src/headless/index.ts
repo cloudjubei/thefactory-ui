@@ -43,6 +43,7 @@ export {
   type Theme,
   type UseResolvedThemeOptions,
 } from './hooks/useResolvedTheme'
+export { CodeBlockThemeProvider, useCodeBlockTheme } from './hooks/useCodeBlockTheme'
 export {
   useChatLastRead,
   type ChatLastReadStore,
@@ -128,12 +129,34 @@ export {
 // Time / duration helpers
 export {
   formatDate,
+  formatDateShort,
+  formatDateTime,
   formatDurationMs,
   formatFriendlyTimestamp,
   formatHmsCompact,
   formatTime,
   timeAgo,
 } from './utils/time'
+
+// Misc UI formatters
+export { formatJson } from './utils/json'
+export { maskSecret } from './utils/mask'
+
+// Tool-call preview helpers — shared between web + native tool-preview
+// renderers so a single source of truth governs extraction logic and the
+// "what does this tool operate on" headline.
+export {
+  asArray,
+  asRecord,
+  buildUnifiedDiffIfPresent,
+  extract,
+  getToolHeaderPath,
+  isCompletelyNewFile,
+  isFilePathTool,
+  looksLikeDiffPatchText,
+  toLines,
+  tryString,
+} from './utils/toolPreview'
 
 // Diff annotation — shared between web `StructuredUnifiedDiff` and native
 // `UnifiedDiff` so both renderers stay 1:1 on `ignoreWhitespace` / `intra`.
@@ -239,12 +262,14 @@ export {
 export {
   AVAILABLE_THEMES,
   BADGE_COLORS,
+  CODE_BLOCK_THEMES,
   DEFAULT_APP_SETTINGS,
   DEFAULT_NOTIFICATION_PREFS,
   DEFAULT_PROJECT_SETTINGS,
   DEFAULT_SHORTCUTS,
   type AppSettings,
   type BadgeColor,
+  type CodeBlockTheme,
   type NotificationCategory,
   type NotificationPrefs,
   type ProjectSettings,
@@ -332,6 +357,10 @@ export type {
   ToolResultLike,
   ToolResultTypeLike,
 } from './utils/chatTypes'
+
+// Shared chat-title formatter — used by web / mobile / desktop chat-session
+// headers so the title reads identically across all clients.
+export { formatChatTitle, type ChatTitleInputs } from './utils/chatTitle'
 
 // Backend API client (WsClient + SDK-independent error/helper utilities +
 // auth / api context providers with adapter hooks for storage / SDK

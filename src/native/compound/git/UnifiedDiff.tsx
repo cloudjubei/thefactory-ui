@@ -49,6 +49,16 @@ export interface UnifiedDiffProps {
   onStageHunk?: (hunkIndex: number) => void
   onUnstageHunk?: (hunkIndex: number) => void
   onDiscardHunk?: (hunkIndex: number) => void
+
+  /**
+   * Render inline: no internal scroll wrapper, no fixed-height container.
+   * Hunks stack vertically and the parent (a chat preview sheet, etc.)
+   * provides the scroll. `maxHeight` / `stickyHeaderIndices` are ignored
+   * in this mode — sticky hunk headers aren't meaningful when there's no
+   * inner scroll to pin against, and the parent scroller already lets the
+   * user reach every hunk. Default `false` (Git pane behaviour).
+   */
+  inline?: boolean
 }
 
 const LINE_FG: Record<ParsedDiffLine['type'], string> = {
@@ -102,6 +112,7 @@ export default function UnifiedDiff({
   onStageHunk,
   onUnstageHunk,
   onDiscardHunk,
+  inline = false,
 }: UnifiedDiffProps) {
   const hunksRaw = useMemo<ParsedDiffHunk[]>(
     () => (patch ? parseUnifiedDiffAnnotated(patch) : []),
@@ -125,8 +136,18 @@ export default function UnifiedDiff({
   if (binary) {
     return <Placeholder text="Binary file — diff not shown" />
   }
-  if (!patch || hunks.length === 0) {
+  if (!patch) {
+    // Empty / missing patch — the consumer's surrounding chrome already
+    // covers this; in standalone mode show a generic copy.
+    if (inline) return null
     return <Placeholder text="No changes to display." />
+  }
+  if (hunks.length === 0) {
+    // Non-empty patch that didn't parse into any hunks — typically a
+    // server-side payload that isn't a real unified diff. Show the same
+    // "Invalid hunk — couldn't parse." copy on every surface (Git pane,
+    // chat preview, etc.) so the user has consistent language.
+    return <Placeholder text="Invalid hunk — couldn't parse." />
   }
   if (!guardBypass && totalRenderableLines > largeGuardLines) {
     return (
@@ -200,6 +221,17 @@ export default function UnifiedDiff({
       />,
     )
   })
+
+  if (inline) {
+    // Parent owns the vertical scroll — stack hunks directly so the diff
+    // sizes to its content and an outer ScrollView can reach every line.
+    // `width: '100%'` + `alignSelf: 'stretch'` are load-bearing: without a
+    // definite cross-axis width here each `HunkBody` row's inner
+    // horizontal `ScrollView` (with `flex: 1`) has no space to claim, the
+    // row sizes to its children's intrinsic widths, and long lines push
+    // every hunk wide instead of scrolling within their own ScrollView.
+    return <View style={{ width: '100%', alignSelf: 'stretch' }}>{children}</View>
+  }
 
   return (
     <View style={{ flex: 1, maxHeight }}>
@@ -561,7 +593,6 @@ function Placeholder({ text }: { text: string }) {
       style={{
         borderWidth: 1,
         borderColor: nativeLightTheme.border.subtle,
-        borderRadius: 6,
         padding: nativeSpace[4],
       }}
     >
