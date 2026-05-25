@@ -18,7 +18,8 @@ import ContextFileChip from './ContextFileChip'
 import DependencySelector from './DependencySelector'
 import StatusControl from '../StatusControl'
 import { IconClose, IconPlus } from '../../icons'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type { FeatureFormValues, FeatureFormInitialValues }
 
@@ -73,6 +74,7 @@ function AddChip({
   onPress: () => void
   disabled?: boolean
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       onPress={onPress}
@@ -87,15 +89,15 @@ function AddChip({
         paddingHorizontal: nativeSpace[4],
         borderRadius: nativeRadii.round,
         borderWidth: 1,
-        borderColor: nativeLightTheme.accent.primary,
-        backgroundColor: nativeLightTheme.surface.base,
+        borderColor: theme.accent.primary,
+        backgroundColor: theme.surface.base,
         opacity: disabled ? 0.5 : pressed ? 0.6 : 1,
       })}
     >
-      <IconPlus size={12} color={nativeLightTheme.accent.primary} />
+      <IconPlus size={12} color={theme.accent.primary} />
       {/* Border + leading icon stay accent.primary (blue), but the label uses
        *  text.primary so the chip reads as a neutral pill with a blue affordance. */}
-      <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
         {label}
       </Text>
     </Pressable>
@@ -133,6 +135,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
   },
   ref,
 ) {
+  const { theme } = useNativeTheme()
   const form = useFeatureForm({
     initialValues,
     onSubmit,
@@ -177,9 +180,9 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     minHeight: 44,
     maxHeight: textareaMaxHeight,
     borderWidth: 1,
-    borderColor: nativeLightTheme.border.default,
+    borderColor: theme.border.default,
     borderRadius: nativeRadii[2],
-    backgroundColor: nativeLightTheme.surface.raised,
+    backgroundColor: theme.surface.raised,
   }
   const boxContentStyle = {
     flexDirection: 'row' as const,
@@ -262,7 +265,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
             ))}
           </ScrollView>
         </View>
-        <Text style={{ marginTop: 4, fontSize: 12, color: nativeLightTheme.text.muted }}>
+        <Text style={{ marginTop: 4, fontSize: 12, color: theme.text.muted }}>
           Select any files across the project that provide useful context for this feature. Tip:
           type @ in description to quickly reference files.
         </Text>
@@ -293,13 +296,13 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
                     paddingHorizontal: nativeSpace[2],
                     paddingVertical: 2,
                     borderRadius: nativeRadii[2],
-                    backgroundColor: nativeLightTheme.surface.muted,
+                    backgroundColor: theme.surface.muted,
                   }}
                 >
-                  <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>
+                  <Text style={{ fontSize: 12, color: theme.accent.primary }}>
                     #{dep}
                   </Text>
-                  <IconClose size={12} color={nativeLightTheme.text.muted} />
+                  <IconClose size={12} color={theme.text.muted} />
                 </Pressable>
               ),
             )}

@@ -10,7 +10,8 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ChatBodyProps {
   chatId?: string
@@ -107,6 +108,7 @@ export default function ChatBody({
   inputValue,
   onInputChange,
 }: ChatBodyProps) {
+  const { theme } = useNativeTheme()
   const pending = liveState.pendingAssistant
     ? { role: 'assistant' as const, content: liveState.pendingAssistant.content }
     : null
@@ -121,7 +123,7 @@ export default function ChatBody({
     : undefined
 
   return (
-    <View style={{ flex: 1, backgroundColor: nativeLightTheme.surface.base }}>
+    <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
       {header}
       <View style={{ flex: 1 }}>
         <MessageList

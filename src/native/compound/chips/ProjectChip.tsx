@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Tooltip from '../../primitives/Tooltip'
-import { nativeLightTheme, nativePalette, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { chipPillStyle, chipPillTextStyle } from './pillStyles'
 
 export interface ProjectChipProps {
@@ -19,8 +20,9 @@ export default function ProjectChip({
   onPress,
   className,
 }: ProjectChipProps) {
+  const { theme } = useNativeTheme()
   const body = (
-    <View style={chipPillStyle}>
+    <View style={chipPillStyle(theme)}>
       <View
         style={{
           width: 6,
@@ -29,7 +31,7 @@ export default function ProjectChip({
           backgroundColor: nativePalette.orange[500],
         }}
       />
-      <Text numberOfLines={1} style={[chipPillTextStyle, { color: nativeLightTheme.text.primary }]}>
+      <Text numberOfLines={1} style={[chipPillTextStyle(theme), { color: theme.text.primary }]}>
         {label}
       </Text>
     </View>
@@ -57,7 +59,7 @@ export default function ProjectChip({
       disabled={nonActionable}
       content={
         <View>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: nativeLightTheme.text.primary }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
             {label}
           </Text>
           {description ? (
@@ -66,7 +68,7 @@ export default function ProjectChip({
                 style={{
                   marginTop: nativeSpace[2],
                   fontSize: 12,
-                  color: nativeLightTheme.text.secondary,
+                  color: theme.text.secondary,
                 }}
               >
                 {description}

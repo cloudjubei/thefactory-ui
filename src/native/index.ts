@@ -7,6 +7,10 @@
 
 export * from '../tokens/native'
 
+// Hooks — runtime theme accessor (NativeWind-driven). Every chrome / surface
+// component that switches colours on theme change reads through this hook.
+export { useNativeTheme, type NativeThemeValue } from './hooks/useNativeTheme'
+
 // Primitives
 export { default as Alert, type AlertProps, type AlertVariant } from './primitives/Alert'
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './primitives/Button'

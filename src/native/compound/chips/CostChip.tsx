@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native'
 import Tooltip from '../../primitives/Tooltip'
-import { nativeLightTheme, nativePalette, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { chipPillStyle, chipPillTextStyle } from './pillStyles'
 
 export interface CostChipProps {
@@ -19,17 +20,18 @@ function formatUSD(n?: number): string {
 }
 
 export default function CostChip({ provider, model, price, costUSD }: CostChipProps) {
+  const { theme } = useNativeTheme()
   const tooltipBody = (
     <View>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: nativeLightTheme.text.primary }}>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
         {(provider || 'Unknown') + ' · ' + (model || 'Unknown')}
       </Text>
       {price ? (
         <View style={{ marginTop: nativeSpace[2], gap: 2 }}>
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             Input: ${price.inputPerMTokensUSD} per 1M tokens
           </Text>
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             Output: ${price.outputPerMTokensUSD} per 1M tokens
           </Text>
         </View>
@@ -38,7 +40,7 @@ export default function CostChip({ provider, model, price, costUSD }: CostChipPr
           style={{
             marginTop: nativeSpace[2],
             fontSize: 12,
-            color: nativeLightTheme.text.muted,
+            color: theme.text.muted,
           }}
         >
           Pricing unavailable
@@ -49,7 +51,7 @@ export default function CostChip({ provider, model, price, costUSD }: CostChipPr
 
   return (
     <Tooltip content={tooltipBody}>
-      <View style={chipPillStyle}>
+      <View style={chipPillStyle(theme)}>
         <View
           style={{
             width: 6,
@@ -58,7 +60,7 @@ export default function CostChip({ provider, model, price, costUSD }: CostChipPr
             backgroundColor: nativePalette.green[500],
           }}
         />
-        <Text style={chipPillTextStyle}>{formatUSD(costUSD)}</Text>
+        <Text style={chipPillTextStyle(theme)}>{formatUSD(costUSD)}</Text>
       </View>
     </Tooltip>
   )

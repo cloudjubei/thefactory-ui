@@ -7,7 +7,7 @@ import {
   type GitLogCommitLike,
   type GraphNode,
 } from '../../../headless/utils/gitCommitGraph'
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 /**
  * Format a commit's authorDate (ms since epoch — already converted by
@@ -77,6 +77,7 @@ export function CommitGraph({
   loadingMore,
   hasMore,
 }: CommitGraphProps) {
+  const { theme } = useNativeTheme()
   const listRef = useRef<FlatList<GraphNode>>(null)
   const lastScrolledShaRef = useRef<string | null>(null)
 
@@ -133,7 +134,7 @@ export function CommitGraph({
   if (graphNodes.length === 0) {
     return (
       <View style={{ padding: 16 }}>
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>No commits found.</Text>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>No commits found.</Text>
       </View>
     )
   }
@@ -173,11 +174,11 @@ export function CommitGraph({
       ListFooterComponent={
         <View style={{ padding: 8, alignItems: 'center' }}>
           {loadingMore ? (
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>
               Loading more commits…
             </Text>
           ) : !hasMore && commits.length > 0 ? (
-            <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>
+            <Text style={{ fontSize: 10, color: theme.text.muted }}>
               — End of history —
             </Text>
           ) : null}
@@ -196,6 +197,7 @@ function CommitGraphRow({
   isSelected: boolean
   onPress: () => void
 }) {
+  const { theme } = useNativeTheme()
   const { commit, nodeLane, incomingLanes, outgoingLanes } = node
   const halfH = ROW_HEIGHT / 2
   const getColor = (i: number) => LANE_COLORS[i % LANE_COLORS.length]
@@ -210,12 +212,12 @@ function CommitGraphRow({
         alignItems: 'stretch',
         height: ROW_HEIGHT,
         backgroundColor: isSelected
-          ? nativeLightTheme.accent.primary + '22'
+          ? theme.accent.primary + '22'
           : pressed
-            ? nativeLightTheme.surface.hover
+            ? theme.surface.hover
             : 'transparent',
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
+        borderBottomColor: theme.border.subtle,
       })}
     >
       <View style={{ width: graphWidth, height: ROW_HEIGHT }}>
@@ -300,7 +302,7 @@ function CommitGraphRow({
               fontSize: 12,
               fontStyle: 'italic',
               fontWeight: '600',
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
             }}
           >
             Uncommitted changes
@@ -315,7 +317,7 @@ function CommitGraphRow({
             <Text
               numberOfLines={1}
               ellipsizeMode="tail"
-              style={{ flexShrink: 1, fontSize: 12, color: nativeLightTheme.text.primary }}
+              style={{ flexShrink: 1, fontSize: 12, color: theme.text.primary }}
             >
               {commit.subject}
             </Text>
@@ -323,7 +325,7 @@ function CommitGraphRow({
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
-            style={{ fontSize: 10, color: nativeLightTheme.text.muted }}
+            style={{ fontSize: 10, color: theme.text.muted }}
           >
             {commit.authorDate ? `${formatCommitDate(commit.authorDate)} · ` : ''}
             <Text style={{ fontFamily: 'Menlo' }}>{commit.hash.slice(0, 7)}</Text>

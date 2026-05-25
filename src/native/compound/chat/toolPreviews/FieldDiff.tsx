@@ -3,10 +3,10 @@ import { Text, View } from 'react-native'
 
 import {
   nativeFontFamilies,
-  nativeLightTheme,
   nativeRadii,
   nativeSpace,
 } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { MonoText, SectionTitle, SecondaryText } from './components'
 
 function formatValue(value: unknown): string {
@@ -51,6 +51,7 @@ export function FieldDiff({
   after: unknown
   sideBySide?: boolean
 }) {
+  const { theme } = useNativeTheme()
   const beforeText = formatValue(before)
   const afterText = formatValue(after)
   const hasChanges = beforeText !== afterText
@@ -104,7 +105,7 @@ export function FieldDiff({
           ) : null}
         </View>
       ) : (
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
           No visible changes
         </Text>
       )}
@@ -113,18 +114,19 @@ export function FieldDiff({
 }
 
 export function SmallBadge({ children }: { children: ReactNode }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.base,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.base,
         borderRadius: nativeRadii[1],
         paddingHorizontal: 4,
         paddingVertical: 1,
       }}
     >
-      <Text style={{ fontSize: 10, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+      <Text style={{ fontSize: 10, fontWeight: '500', color: theme.text.secondary }}>
         {children}
       </Text>
     </View>
@@ -155,6 +157,7 @@ export function PatchPreview({
   sideBySide?: boolean
   completedCard?: ReactNode
 }) {
+  const { theme } = useNativeTheme()
   if (completedCard) return <>{completedCard}</>
 
   return (
@@ -162,8 +165,8 @@ export function PatchPreview({
       <View
         style={{
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
-          backgroundColor: nativeLightTheme.surface.base,
+          borderColor: theme.border.subtle,
+          backgroundColor: theme.surface.base,
           borderRadius: nativeRadii[2],
           padding: nativeSpace[2],
           gap: nativeSpace[1],
@@ -176,7 +179,7 @@ export function PatchPreview({
               style={{
                 fontFamily: nativeFontFamilies.mono,
                 fontSize: 11,
-                color: nativeLightTheme.text.secondary,
+                color: theme.text.secondary,
               }}
             >
               {headerId}
@@ -193,7 +196,7 @@ export function PatchPreview({
           ))}
         </View>
       ) : (
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
           No changed fields
         </Text>
       )}

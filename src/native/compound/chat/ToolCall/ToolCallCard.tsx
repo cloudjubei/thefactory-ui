@@ -6,11 +6,11 @@ import { IconChevronDown, IconChevronRight } from '../../../icons'
 import { isFilePathTool } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import {
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeSpace,
 } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusIcon, statusVisual } from './StatusIcon'
 
 function formatDurationLabel(ms?: number): string | undefined {
@@ -67,6 +67,7 @@ function ToolCallCardInner({
   headerPath,
   onPreview,
 }: ToolCallCardProps) {
+  const { theme } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
 
@@ -109,10 +110,10 @@ function ToolCallCardInner({
       style={{
         borderRadius: nativeRadii[2],
         borderWidth: 1,
-        borderColor: isRequireConfirm ? nativePalette.green[600] : nativeLightTheme.border.subtle,
+        borderColor: isRequireConfirm ? nativePalette.green[600] : theme.border.subtle,
         backgroundColor: isRequireConfirm
           ? 'rgba(22,163,74,0.08)'
-          : nativeLightTheme.surface.overlay,
+          : theme.surface.overlay,
       }}
     >
       {/* Header — status icon + name. The chevron lives in its own
@@ -134,7 +135,7 @@ function ToolCallCardInner({
             flex: 1,
             fontSize: 13,
             fontWeight: '600',
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
           numberOfLines={1}
         >
@@ -149,9 +150,9 @@ function ToolCallCardInner({
             style={{ padding: 2 }}
           >
             {argsOpen ? (
-              <IconChevronDown size={14} color={nativeLightTheme.text.secondary} />
+              <IconChevronDown size={14} color={theme.text.secondary} />
             ) : (
-              <IconChevronRight size={14} color={nativeLightTheme.text.secondary} />
+              <IconChevronRight size={14} color={theme.text.secondary} />
             )}
           </Pressable>
         ) : null}
@@ -167,7 +168,7 @@ function ToolCallCardInner({
               style={{
                 fontFamily: 'Menlo',
                 fontSize: 11,
-                color: nativeLightTheme.text.secondary,
+                color: theme.text.secondary,
               }}
             >
               {headerPath}
@@ -211,7 +212,7 @@ function ToolCallCardInner({
             </View>
           ) : <View />}
           {durationMs ? (
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
               {formatDurationLabel(durationMs)}
             </Text>
           ) : null}
@@ -225,7 +226,7 @@ function ToolCallCardInner({
             paddingTop: PAD,
             paddingBottom: PAD,
             borderTopWidth: 1,
-            borderTopColor: nativeLightTheme.border.subtle,
+            borderTopColor: theme.border.subtle,
           }}
         >
           <Code language="json" code={jsonString(toolCall.arguments)} />
@@ -239,7 +240,7 @@ function ToolCallCardInner({
             paddingTop: PAD,
             paddingBottom: PAD,
             borderTopWidth: 1,
-            borderTopColor: nativeLightTheme.border.subtle,
+            borderTopColor: theme.border.subtle,
           }}
         >
           {custom}
@@ -248,7 +249,7 @@ function ToolCallCardInner({
         // The "View result" row + its expanded body are their own
         // Pressables — taps inside this section don't bubble to the
         // card-root preview handler. Per the user's item-7 spec.
-        <View style={{ borderTopWidth: 1, borderTopColor: nativeLightTheme.border.subtle }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: theme.border.subtle }}>
           <Pressable
             onPress={() => setResultOpen((v) => !v)}
             accessibilityRole="button"
@@ -261,10 +262,10 @@ function ToolCallCardInner({
               paddingVertical: PAD,
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
               {detail.label}
             </Text>
-            <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
               {resultOpen ? '−' : '+'}
             </Text>
           </Pressable>
@@ -279,7 +280,7 @@ function ToolCallCardInner({
                 paddingTop: PAD,
                 paddingBottom: PAD,
                 borderTopWidth: 1,
-                borderTopColor: nativeLightTheme.border.subtle,
+                borderTopColor: theme.border.subtle,
               }}
             >
               <Code language={detail.language} code={detail.code} />

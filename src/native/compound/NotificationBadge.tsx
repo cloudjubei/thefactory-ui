@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightTheme, nativePalette } from '../../tokens/native'
+import { nativePalette } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange'
 
@@ -40,6 +41,7 @@ export default function NotificationBadge({
   className,
   style,
 }: NotificationBadgeProps) {
+  const { theme } = useNativeTheme()
   const bg = background ?? getNotificationBadgeColor(color, isInformative)
   return (
     <View
@@ -55,7 +57,7 @@ export default function NotificationBadge({
           justifyContent: 'center',
           backgroundColor: bg,
           borderWidth: 2,
-          borderColor: nativeLightTheme.surface.raised,
+          borderColor: theme.surface.raised,
         },
         style,
       ]}

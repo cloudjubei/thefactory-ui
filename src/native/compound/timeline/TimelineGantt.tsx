@@ -11,7 +11,8 @@ import {
   type StatusSemanticKey,
   type TimelineColumn,
 } from '../../../headless'
-import { nativeLightTheme, nativePalette } from '../../../tokens/native'
+import { nativePalette } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 /**
  * Native peer of web's `ProjectTimelineView` body. Renders the same
@@ -152,6 +153,7 @@ export function TimelineGantt({
   onSelectLabel,
   scrollToToday,
 }: TimelineGanttProps) {
+  const { theme } = useNativeTheme()
   const headerScrollRef = useRef<ScrollView>(null)
   const bodyScrollRef = useRef<ScrollView>(null)
   const labelStripScrollRef = useRef<ScrollView>(null)
@@ -216,20 +218,20 @@ export function TimelineGantt({
           height: HEADER_HEIGHT,
           flexDirection: 'row',
           borderBottomWidth: 1,
-          borderBottomColor: nativeLightTheme.border.subtle,
-          backgroundColor: nativeLightTheme.surface.raised,
+          borderBottomColor: theme.border.subtle,
+          backgroundColor: theme.surface.raised,
         }}
       >
         <View
           style={{
             width: leftColumnWidth,
             borderRightWidth: 1,
-            borderRightColor: nativeLightTheme.border.subtle,
+            borderRightColor: theme.border.subtle,
             justifyContent: 'center',
             paddingHorizontal: 8,
           }}
         >
-          <Text style={{ fontSize: 11, fontWeight: '600', color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.muted }}>
             Stories
           </Text>
         </View>
@@ -258,7 +260,7 @@ export function TimelineGantt({
                     width: g.len * columnWidth,
                     height: YEAR_STRIP_HEIGHT,
                     borderLeftWidth: i > 0 ? 1 : 0,
-                    borderLeftColor: nativeLightTheme.border.subtle,
+                    borderLeftColor: theme.border.subtle,
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
@@ -269,7 +271,7 @@ export function TimelineGantt({
                       fontSize: 10,
                       fontWeight: '700',
                       letterSpacing: 0.5,
-                      color: nativeLightTheme.text.primary,
+                      color: theme.text.primary,
                     }}
                   >
                     {g.label}
@@ -299,20 +301,20 @@ export function TimelineGantt({
             height: LABEL_STRIP_HEIGHT,
             flexDirection: 'row',
             borderBottomWidth: 1,
-            borderBottomColor: nativeLightTheme.border.subtle,
-            backgroundColor: nativeLightTheme.surface.base,
+            borderBottomColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
           }}
         >
           <View
             style={{
               width: leftColumnWidth,
               borderRightWidth: 1,
-              borderRightColor: nativeLightTheme.border.subtle,
+              borderRightColor: theme.border.subtle,
               justifyContent: 'center',
               paddingHorizontal: 8,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '600', color: nativeLightTheme.text.muted }}>
+            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.text.muted }}>
               Labels
             </Text>
           </View>
@@ -362,8 +364,8 @@ export function TimelineGantt({
           style={{
             width: leftColumnWidth,
             borderRightWidth: 1,
-            borderRightColor: nativeLightTheme.border.subtle,
-            backgroundColor: nativeLightTheme.surface.base,
+            borderRightColor: theme.border.subtle,
+            backgroundColor: theme.surface.base,
           }}
         >
           <FlatList
@@ -379,12 +381,12 @@ export function TimelineGantt({
                   paddingHorizontal: 8,
                   justifyContent: 'center',
                   borderBottomWidth: 1,
-                  borderBottomColor: nativeLightTheme.border.subtle,
+                  borderBottomColor: theme.border.subtle,
                 }}
               >
                 <Text
                   numberOfLines={2}
-                  style={{ fontSize: 11, color: nativeLightTheme.text.primary }}
+                  style={{ fontSize: 11, color: theme.text.primary }}
                 >
                   {item.title || '(untitled)'}
                 </Text>
@@ -436,15 +438,16 @@ function DateStripCell({
   columnWidth: number
   isToday: boolean
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
         width: columnWidth,
         height: DATE_STRIP_HEIGHT,
         borderLeftWidth: col.index > 0 ? 1 : 0,
-        borderLeftColor: nativeLightTheme.border.subtle,
+        borderLeftColor: theme.border.subtle,
         backgroundColor: isToday
-          ? `${nativeLightTheme.accent.primary}1A` // ~10% alpha
+          ? `${theme.accent.primary}1A` // ~10% alpha
           : 'transparent',
         justifyContent: 'center',
         alignItems: 'center',
@@ -456,7 +459,7 @@ function DateStripCell({
         style={{
           fontSize: 10,
           fontWeight: isToday ? '700' : '500',
-          color: isToday ? nativeLightTheme.accent.primary : nativeLightTheme.text.primary,
+          color: isToday ? theme.accent.primary : theme.text.primary,
         }}
       >
         {col.label}
@@ -484,6 +487,7 @@ function GridRow({
   todayCol: number
   onSelectEvent: (event: StoryFeatureEvent) => void
 }) {
+  const { theme } = useNativeTheme()
   const renderable = useMemo(
     () => buildRenderableEvents(story, bucket, originDate, columnCount, columnWidth),
     [story, bucket, originDate, columnCount, columnWidth],
@@ -495,7 +499,7 @@ function GridRow({
         height: rowHeight,
         position: 'relative',
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
+        borderBottomColor: theme.border.subtle,
       }}
     >
       {/* Today's column highlight */}
@@ -508,7 +512,7 @@ function GridRow({
             left: todayCol * columnWidth,
             width: columnWidth,
             height: rowHeight,
-            backgroundColor: `${nativeLightTheme.accent.primary}0F`,
+            backgroundColor: `${theme.accent.primary}0F`,
           }}
         />
       ) : null}
@@ -522,7 +526,7 @@ function GridRow({
             left: todayCol * columnWidth + columnWidth / 2,
             width: 1,
             height: rowHeight,
-            backgroundColor: nativeLightTheme.accent.primary,
+            backgroundColor: theme.accent.primary,
             opacity: 0.6,
           }}
         />

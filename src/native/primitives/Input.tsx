@@ -4,10 +4,10 @@ import type { StyleProp, TextStyle, TextInput as RNTextInput, TextInputProps } f
 import {
   nativeControls,
   nativeLightStatus,
-  nativeLightTheme,
   nativeRadii,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type InputSize = 'sm' | 'md' | 'lg'
 
@@ -34,19 +34,20 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
   { size = 'md', invalid = false, disabled = false, style, className, onFocus, onBlur, ...props },
   ref,
 ) {
+  const { theme } = useNativeTheme()
   const [focused, setFocused] = useState(false)
   const borderColor = invalid
     ? nativeLightStatus.stuck.bg
     : focused
-      ? nativeLightTheme.border.focus
-      : nativeLightTheme.border.default
+      ? theme.border.focus
+      : theme.border.default
 
   return (
     <TextInput
       ref={ref}
       className={className}
       editable={!disabled}
-      placeholderTextColor={nativeLightTheme.text.muted}
+      placeholderTextColor={theme.text.muted}
       onFocus={(e) => {
         setFocused(true)
         onFocus?.(e)
@@ -58,8 +59,8 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
       style={[
         {
           width: '100%',
-          color: nativeLightTheme.text.primary,
-          backgroundColor: nativeLightTheme.surface.raised,
+          color: theme.text.primary,
+          backgroundColor: theme.surface.raised,
           borderWidth: 1,
           borderColor,
           borderRadius: nativeRadii[2],

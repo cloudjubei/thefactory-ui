@@ -1,7 +1,8 @@
 import { ScrollView, Text, View } from 'react-native'
 
 import { Modal } from '../../primitives/Modal'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface UsageModelRow {
   model: string
@@ -71,12 +72,13 @@ export default function UsageModal({
   currentTotalCostUSD,
   title = 'Usage',
 }: UsageModalProps) {
+  const { theme } = useNativeTheme()
   const hasCurrent = !!currentRows && currentRows.length > 0
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg" contentStyle={{ padding: 0 }}>
       <ScrollView
-        style={{ backgroundColor: nativeLightTheme.surface.base }}
+        style={{ backgroundColor: theme.surface.base }}
         contentContainerStyle={{ paddingBottom: nativeSpace[6] }}
       >
         <UsageSection label="Ledger totals (durable)" rows={rows} totalCostUSD={totalCostUSD} />
@@ -101,7 +103,7 @@ export default function UsageModal({
           <Text
             style={{
               fontSize: 11,
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
               opacity: 0.8,
               lineHeight: 16,
             }}
@@ -112,7 +114,7 @@ export default function UsageModal({
           <Text
             style={{
               fontSize: 11,
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
               opacity: 0.8,
               lineHeight: 16,
             }}
@@ -139,6 +141,7 @@ function UsageSection({
   rows: ReadonlyArray<UsageModelRow>
   totalCostUSD: number
 }) {
+  const { theme } = useNativeTheme()
   const totalIn = rows.reduce((s, r) => s + (r.inputTokens ?? 0), 0)
   const totalOut = rows.reduce((s, r) => s + (r.outputTokens ?? 0), 0)
   const totalCached = rows.reduce((s, r) => s + (r.cachedTokens ?? 0), 0)
@@ -146,14 +149,14 @@ function UsageSection({
     <View>
       {label ? (
         <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[6] }}>
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>{label}</Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{label}</Text>
         </View>
       ) : null}
       <View style={{ paddingHorizontal: nativeSpace[6], paddingTop: nativeSpace[3] }}>
         <View
           style={{
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
+            borderColor: theme.border.subtle,
             borderRadius: 6,
             overflow: 'hidden',
           }}
@@ -187,6 +190,7 @@ function UsageSection({
 
 /** Hairline divider with a centred CURRENT label — mirrors web's row. */
 function DividerWithLabel({ label }: { label: string }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
@@ -198,19 +202,19 @@ function DividerWithLabel({ label }: { label: string }) {
       }}
     >
       <View
-        style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.subtle }}
+        style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }}
       />
       <Text
         style={{
           fontSize: 11,
-          color: nativeLightTheme.text.secondary,
+          color: theme.text.secondary,
           letterSpacing: 1,
         }}
       >
         {label}
       </Text>
       <View
-        style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.subtle }}
+        style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }}
       />
     </View>
   )
@@ -228,7 +232,8 @@ const cellBase = {
 } as const
 
 function HeaderRow() {
-  const t = nativeLightTheme
+  const { theme } = useNativeTheme()
+  const t = theme
   const text = {
     fontSize: 12,
     fontWeight: '600' as const,
@@ -269,7 +274,8 @@ function DataRow({
   cachedTokens: number
   emphasized?: boolean
 }) {
-  const t = nativeLightTheme
+  const { theme } = useNativeTheme()
+  const t = theme
   const totalTokens = promptTokens + completionTokens + cachedTokens
   const cachedRatio = pct(cachedTokens, promptTokens + cachedTokens)
   const num = {

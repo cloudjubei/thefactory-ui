@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import Code from '../Code'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 /** Tool result status — execute result types plus the preview-flow states. */
 export type ToolResultStatus =
@@ -59,13 +60,14 @@ export default function ToolResultPanel({
   body,
   onCopy,
 }: ToolResultPanelProps) {
+  const { theme } = useNativeTheme()
   const text = useMemo(() => formatJson(body), [body])
   const label = statusLabel ?? status.replace(/_/g, ' ')
 
   return (
     <View style={{ gap: nativeSpace[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
           Result
         </Text>
         <Text
@@ -80,7 +82,7 @@ export default function ToolResultPanel({
           {label}
         </Text>
         {durationMs !== undefined ? (
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>{durationMs}ms</Text>
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>{durationMs}ms</Text>
         ) : null}
         <View style={{ flex: 1 }} />
         {onCopy ? (
@@ -94,13 +96,13 @@ export default function ToolResultPanel({
               paddingVertical: nativeSpace[1],
               borderRadius: nativeRadii[2],
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
+              borderColor: theme.border.subtle,
               backgroundColor: pressed
-                ? nativeLightTheme.surface.muted
-                : nativeLightTheme.surface.overlay,
+                ? theme.surface.muted
+                : theme.surface.overlay,
             })}
           >
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>Copy</Text>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>Copy</Text>
           </Pressable>
         ) : null}
       </View>

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { Input, type InputProps } from './Input'
 import { IconEye, IconEyeOff } from '../icons'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SecretInputProps extends Omit<InputProps, 'secureTextEntry'> {}
 
@@ -14,6 +15,7 @@ export interface SecretInputProps extends Omit<InputProps, 'secureTextEntry'> {}
  * implementation 1:1.
  */
 export function SecretInput({ style, ...rest }: SecretInputProps) {
+  const { theme } = useNativeTheme()
   const [revealed, setRevealed] = useState(false)
   return (
     <View style={{ position: 'relative', width: '100%' }}>
@@ -42,13 +44,13 @@ export function SecretInput({ style, ...rest }: SecretInputProps) {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: nativeRadii[1],
-          backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
+          backgroundColor: pressed ? theme.surface.muted : 'transparent',
         })}
       >
         {revealed ? (
-          <IconEyeOff size={18} color={nativeLightTheme.text.muted} />
+          <IconEyeOff size={18} color={theme.text.muted} />
         ) : (
-          <IconEye size={18} color={nativeLightTheme.text.muted} />
+          <IconEye size={18} color={theme.text.muted} />
         )}
       </Pressable>
     </View>

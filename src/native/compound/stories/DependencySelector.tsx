@@ -8,7 +8,8 @@ import {
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface DependencySelectorProps extends Omit<DependencySelectorOptions, 'stories'> {
   /** Modal open state — consumer-owned. */
@@ -46,6 +47,7 @@ export default function DependencySelector({
   sortStories,
   title = 'Add references',
 }: DependencySelectorProps) {
+  const { theme } = useNativeTheme()
   const { search, setSearch, selected, items, toggle, canConfirm, collect } = useDependencySelector(
     {
       stories,
@@ -94,7 +96,7 @@ export default function DependencySelector({
             <Text
               style={{
                 fontSize: 13,
-                color: nativeLightTheme.text.muted,
+                color: theme.text.muted,
                 paddingVertical: nativeSpace[3],
                 textAlign: 'center',
               }}
@@ -158,6 +160,7 @@ function DepRow({
   level: 0 | 1
   matches: boolean
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -171,7 +174,7 @@ function DepRow({
         paddingHorizontal: nativeSpace[2],
         marginLeft: level === 0 ? 0 : nativeSpace[5],
         borderRadius: nativeRadii[2],
-        backgroundColor: pressed && !disabled ? nativeLightTheme.surface.hover : 'transparent',
+        backgroundColor: pressed && !disabled ? theme.surface.hover : 'transparent',
         opacity: disabled || !matches ? 0.5 : 1,
       })}
     >
@@ -181,14 +184,14 @@ function DepRow({
           height: 18,
           borderRadius: 4,
           borderWidth: 1,
-          borderColor: selected ? nativeLightTheme.accent.primary : nativeLightTheme.border.default,
-          backgroundColor: selected ? nativeLightTheme.accent.primary : 'transparent',
+          borderColor: selected ? theme.accent.primary : theme.border.default,
+          backgroundColor: selected ? theme.accent.primary : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         {selected && (
-          <Text style={{ color: nativeLightTheme.text.inverted, fontSize: 12, lineHeight: 14 }}>
+          <Text style={{ color: theme.text.inverted, fontSize: 12, lineHeight: 14 }}>
             ✓
           </Text>
         )}
@@ -196,7 +199,7 @@ function DepRow({
       <Text
         style={{
           fontSize: 12,
-          color: nativeLightTheme.accent.primary,
+          color: theme.accent.primary,
           fontVariant: ['tabular-nums'],
           minWidth: 32,
         }}
@@ -204,12 +207,12 @@ function DepRow({
         #{display}
       </Text>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, color: nativeLightTheme.text.primary }} numberOfLines={1}>
+        <Text style={{ fontSize: 14, color: theme.text.primary }} numberOfLines={1}>
           {title}
         </Text>
         {description ? (
           <Text
-            style={{ fontSize: 12, color: nativeLightTheme.text.muted, marginTop: 2 }}
+            style={{ fontSize: 12, color: theme.text.muted, marginTop: 2 }}
             numberOfLines={1}
           >
             {description}

@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Button } from '../../primitives/Button'
 import StatusChip, { type ChipState } from '../chips/StatusChip'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface AgentRunRowCardData {
   runId?: string
@@ -39,6 +40,7 @@ function RatingButton({
   active: boolean
   onPress: () => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="button"
@@ -52,7 +54,7 @@ function RatingButton({
         opacity: pressed ? 0.6 : active ? 1 : 0.4,
       })}
     >
-      <Text style={{ fontSize: 16, color: nativeLightTheme.text.primary }}>{glyph}</Text>
+      <Text style={{ fontSize: 16, color: theme.text.primary }}>{glyph}</Text>
     </Pressable>
   )
 }
@@ -66,6 +68,7 @@ export default function AgentRunRowCard({
   onRate,
   className,
 }: AgentRunRowCardProps) {
+  const { theme } = useNativeTheme()
   const state = run.state ?? 'created'
   const messageCount = run.messageCount ?? 0
   const totalCostUSD = run.totalCostUSD ?? 0
@@ -82,8 +85,8 @@ export default function AgentRunRowCard({
         paddingVertical: nativeSpace[4],
         borderRadius: nativeRadii[2],
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.raised,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.raised,
       }}
     >
       <Pressable
@@ -93,7 +96,7 @@ export default function AgentRunRowCard({
         style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.7 : 1 })}
       >
         {typeof target === 'string' ? (
-          <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, color: theme.text.primary }}>
             {target}
           </Text>
         ) : (
@@ -105,7 +108,7 @@ export default function AgentRunRowCard({
             marginTop: 2,
             fontSize: 11,
             fontFamily: 'Menlo',
-            color: nativeLightTheme.text.muted,
+            color: theme.text.muted,
           }}
         >
           {(run.type ?? 'run') + ' · ' + (run.runId?.slice(0, 8) ?? '?')}
@@ -120,11 +123,11 @@ export default function AgentRunRowCard({
         }}
       >
         <StatusChip state={state} label={state} />
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>
           {messageCount} msgs
         </Text>
         {totalCostUSD > 0 && (
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>
             ${totalCostUSD.toFixed(4)}
           </Text>
         )}
@@ -155,7 +158,7 @@ export default function AgentRunRowCard({
         )}
         {onDelete && (
           <Button size="sm" variant="ghost" onPress={onDelete}>
-            <Text style={{ fontSize: 16, color: nativeLightTheme.text.secondary }}>🗑</Text>
+            <Text style={{ fontSize: 16, color: theme.text.secondary }}>🗑</Text>
           </Button>
         )}
       </View>

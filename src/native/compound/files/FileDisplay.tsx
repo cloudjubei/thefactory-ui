@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { extFromTypeOrName, formatBytes, formatFileDate } from '../../../headless/utils/path'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface UikitFileMeta {
   name: string
@@ -67,6 +68,7 @@ export default function FileDisplay({
   className,
   style,
 }: FileDisplayProps) {
+  const { theme } = useNativeTheme()
   const sizeLabel = formatBytes(file.size ?? null)
   const dateLabel = formatFileDate(file.mtime ?? null)
   const aria =
@@ -89,14 +91,14 @@ export default function FileDisplay({
             paddingHorizontal: nativeSpace[5],
             paddingVertical: 2,
             borderRadius: nativeRadii.round,
-            backgroundColor: nativeLightTheme.surface.muted,
+            backgroundColor: theme.surface.muted,
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
+            borderColor: theme.border.subtle,
           },
           style,
         ]}
       >
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>{file.name}</Text>
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{file.name}</Text>
       </View>
     )
   }
@@ -114,11 +116,11 @@ export default function FileDisplay({
         {leadingVisual ?? <Text style={{ fontSize: 18 }}>{glyphFor(file)}</Text>}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
+        <Text numberOfLines={1} style={{ fontSize: 14, color: theme.text.primary }}>
           {file.name}
         </Text>
         {showMeta && (sizeLabel || dateLabel) && (
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>
             {[sizeLabel, dateLabel].filter(Boolean).join(' • ')}
           </Text>
         )}

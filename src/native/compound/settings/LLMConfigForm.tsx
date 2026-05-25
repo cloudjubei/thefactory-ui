@@ -30,7 +30,8 @@ import {
 import { IconChat } from '../../icons/IconChat'
 import { IconRobot } from '../../icons/IconRobot'
 import { IconSave } from '../../icons/IconSave'
-import { nativeLightStatus, nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeLightStatus, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 type Provider = GetLlmConfigResponse['provider']
 
@@ -117,6 +118,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   { mode, onCancel },
   ref,
 ) {
+  const { theme } = useNativeTheme()
   const initial = mode.kind === 'edit' ? mode.config : null
   const [name, setName] = useState(initial?.name ?? '')
   const [provider, setProvider] = useState<Provider>(initial?.provider ?? 'openai')
@@ -300,7 +302,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             gap: nativeSpace[2],
             paddingBottom: nativeSpace[2],
             borderBottomWidth: 1,
-            borderBottomColor: nativeLightTheme.border.subtle,
+            borderBottomColor: theme.border.subtle,
           }}
         >
           <Button
@@ -314,7 +316,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             <IconRobot
               size={14}
               color={
-                mode.isAgentActive ? nativeLightStatus.done.bg : nativeLightTheme.accent.primary
+                mode.isAgentActive ? nativeLightStatus.done.bg : theme.accent.primary
               }
             />
             <Text
@@ -323,7 +325,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
                 fontWeight: '500',
                 color: mode.isAgentActive
                   ? nativeLightStatus.done.bg
-                  : nativeLightTheme.accent.primary,
+                  : theme.accent.primary,
               }}
             >
               {mode.isAgentActive ? 'Agent Active' : 'Activate Agent'}
@@ -340,7 +342,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             <IconChat
               size={14}
               color={
-                mode.isChatActive ? nativeLightStatus.done.bg : nativeLightTheme.accent.primary
+                mode.isChatActive ? nativeLightStatus.done.bg : theme.accent.primary
               }
             />
             <Text
@@ -349,7 +351,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
                 fontWeight: '500',
                 color: mode.isChatActive
                   ? nativeLightStatus.done.bg
-                  : nativeLightTheme.accent.primary,
+                  : theme.accent.primary,
               }}
             >
               {mode.isChatActive ? 'Chat Active' : 'Activate Chat'}
@@ -419,7 +421,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           }}
         >
           <Text
-            style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}
+            style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}
           >
             Model
           </Text>
@@ -435,7 +437,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
                 style={{
                   fontSize: 13,
                   fontWeight: '500',
-                  color: nativeLightTheme.accent.primary,
+                  color: theme.accent.primary,
                 }}
               >
                 {modelsLoading ? 'Loading…' : 'Refresh Models'}
@@ -447,7 +449,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           <Text
             style={{
               fontSize: 12,
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
               marginBottom: 4,
             }}
           >
@@ -513,7 +515,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             onPress={onSubmit}
             accessibilityLabel="Save"
           >
-            <IconSave size={16} color={nativeLightTheme.text.primary} />
+            <IconSave size={16} color={theme.text.primary} />
           </Button>
         )}
       </View>

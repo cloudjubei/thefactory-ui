@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface GroupHomeProjectCard {
   id: string
@@ -41,6 +42,7 @@ export default function GroupHome({
   renderProjectIcon,
   className,
 }: GroupHomeProps) {
+  const { theme } = useNativeTheme()
   if (isMissing) {
     return (
       <View
@@ -55,7 +57,7 @@ export default function GroupHome({
         }}
       >
         <Text style={{ fontSize: 24 }}>⚠</Text>
-        <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>{missingLabel}</Text>
+        <Text style={{ fontSize: 14, color: theme.text.secondary }}>{missingLabel}</Text>
       </View>
     )
   }
@@ -67,7 +69,7 @@ export default function GroupHome({
     <ScrollView
       className={className}
       contentContainerStyle={{ padding: nativeSpace[8], gap: nativeSpace[6] }}
-      style={{ flex: 1, backgroundColor: nativeLightTheme.surface.base }}
+      style={{ flex: 1, backgroundColor: theme.surface.base }}
     >
       <View>
         {typeTag && (
@@ -77,7 +79,7 @@ export default function GroupHome({
               fontWeight: '600',
               letterSpacing: 0.5,
               textTransform: 'uppercase',
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
             }}
           >
             {typeTag}
@@ -88,7 +90,7 @@ export default function GroupHome({
             marginTop: 4,
             fontSize: 24,
             fontWeight: '600',
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
         >
           {title}
@@ -97,7 +99,7 @@ export default function GroupHome({
           style={{
             marginTop: nativeSpace[2],
             fontSize: 14,
-            color: nativeLightTheme.text.secondary,
+            color: theme.text.secondary,
           }}
         >
           {subtitleText}
@@ -105,7 +107,7 @@ export default function GroupHome({
       </View>
 
       {projects.length === 0 ? (
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>{emptyLabel}</Text>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>{emptyLabel}</Text>
       ) : (
         // Card grid spacing mirrors web's `gap-4` (16px between cards), with
         // each card matching `p-4 gap-3 rounded-lg` exactly. Keep these in
@@ -125,10 +127,10 @@ export default function GroupHome({
                 padding: nativeSpace[8],
                 borderRadius: nativeRadii[3],
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
+                borderColor: theme.border.subtle,
                 backgroundColor: pressed
-                  ? nativeLightTheme.surface.muted
-                  : nativeLightTheme.surface.raised,
+                  ? theme.surface.muted
+                  : theme.surface.raised,
               })}
             >
               <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
@@ -141,13 +143,13 @@ export default function GroupHome({
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}
+                  style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}
                 >
                   {p.title}
                 </Text>
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 11, color: nativeLightTheme.text.muted }}
+                  style={{ fontSize: 11, color: theme.text.muted }}
                 >
                   {p.description ?? p.id}
                 </Text>

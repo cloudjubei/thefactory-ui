@@ -2,12 +2,12 @@ import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Spinner from '../../primitives/Spinner'
 import {
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeShadows,
   nativeSpace,
 } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ThinkingRowProps {
   thinking?: string
@@ -16,6 +16,7 @@ export interface ThinkingRowProps {
 }
 
 function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: ThinkingRowProps) {
+  const { theme } = useNativeTheme()
   const [open, setOpen] = useState(defaultOpen)
   const reasoning = thinking?.trim()
 
@@ -30,11 +31,11 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
+          borderColor: theme.border.subtle,
           backgroundColor: nativePalette.blue[50],
         }}
       >
-        <Text style={{ fontSize: 11, fontWeight: '600', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}>
           AI
         </Text>
       </View>
@@ -46,8 +47,8 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
               borderTopLeftRadius: nativeRadii[5],
               borderBottomLeftRadius: nativeRadii[1],
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              backgroundColor: nativeLightTheme.surface.raised,
+              borderColor: theme.border.subtle,
+              backgroundColor: theme.surface.raised,
               overflow: 'hidden',
               ...nativeShadows[1],
             }}
@@ -63,18 +64,18 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
                 justifyContent: 'space-between',
                 paddingHorizontal: nativeSpace[6],
                 paddingVertical: nativeSpace[4],
-                backgroundColor: pressed ? nativeLightTheme.surface.overlay : 'transparent',
+                backgroundColor: pressed ? theme.surface.overlay : 'transparent',
               })}
             >
               <Text
-                style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}
+                style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}
               >
                 {label}
               </Text>
               <Text
                 style={{
                   fontSize: 12,
-                  color: nativeLightTheme.text.secondary,
+                  color: theme.text.secondary,
                   transform: [{ rotate: open ? '90deg' : '0deg' }],
                 }}
               >
@@ -85,12 +86,12 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
               <View
                 style={{
                   borderTopWidth: 1,
-                  borderTopColor: nativeLightTheme.border.subtle,
+                  borderTopColor: theme.border.subtle,
                   paddingHorizontal: nativeSpace[6],
                   paddingVertical: nativeSpace[4],
                 }}
               >
-                <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                   {reasoning}
                 </Text>
               </View>
@@ -105,8 +106,8 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
               borderTopLeftRadius: nativeRadii[5],
               borderBottomLeftRadius: nativeRadii[1],
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              backgroundColor: nativeLightTheme.surface.raised,
+              borderColor: theme.border.subtle,
+              backgroundColor: theme.surface.raised,
               alignSelf: 'flex-start',
               ...nativeShadows[1],
             }}

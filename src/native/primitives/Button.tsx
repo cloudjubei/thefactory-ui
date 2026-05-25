@@ -5,10 +5,10 @@ import type { PressableProps, View as RNView, StyleProp, ViewStyle, TextStyle } 
 import {
   nativeControls,
   nativeLightStatus,
-  nativeLightTheme,
   nativeRadii,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import Spinner from './Spinner'
 
 export type ButtonVariant =
@@ -40,34 +40,35 @@ interface VariantStyle {
 }
 
 function variantStyles(variant: ButtonVariant): VariantStyle {
+  const { theme } = useNativeTheme()
   switch (variant) {
     case 'primary':
       return {
-        container: { backgroundColor: nativeLightTheme.accent.primary, borderWidth: 0 },
-        text: { color: nativeLightTheme.text.inverted },
+        container: { backgroundColor: theme.accent.primary, borderWidth: 0 },
+        text: { color: theme.text.inverted },
       }
     case 'secondary':
       return {
         container: {
-          backgroundColor: nativeLightTheme.surface.raised,
+          backgroundColor: theme.surface.raised,
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.default,
+          borderColor: theme.border.default,
         },
-        text: { color: nativeLightTheme.text.primary },
+        text: { color: theme.text.primary },
       }
     case 'outline':
       return {
         container: {
           backgroundColor: 'transparent',
           borderWidth: 1,
-          borderColor: nativeLightTheme.accent.primary,
+          borderColor: theme.accent.primary,
         },
-        text: { color: nativeLightTheme.accent.primary },
+        text: { color: theme.accent.primary },
       }
     case 'ghost':
       return {
         container: { backgroundColor: 'transparent', borderWidth: 0 },
-        text: { color: nativeLightTheme.text.primary },
+        text: { color: theme.text.primary },
       }
     case 'danger':
       // Mirrors web's `.btn-danger`: red border, red-tinted fill, red text.
@@ -94,7 +95,7 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
     case 'link':
       return {
         container: { backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 0 },
-        text: { color: nativeLightTheme.accent.primary, textDecorationLine: 'underline' },
+        text: { color: theme.accent.primary, textDecorationLine: 'underline' },
       }
   }
 }

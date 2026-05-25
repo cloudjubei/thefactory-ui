@@ -4,7 +4,8 @@ import BottomSheet from '../../../primitives/BottomSheet'
 import Code from '../../Code'
 import { isFilePathTool } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativeSpace } from '../../../../tokens/native'
+import { nativeSpace } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { PathDisplay } from '../../PathDisplay'
 import { StatusIcon, statusVisual } from './StatusIcon'
 
@@ -64,6 +65,7 @@ export default function ToolPreviewSheet({
   headerPath,
   renderResult,
 }: ToolPreviewSheetProps) {
+  const { theme } = useNativeTheme()
   if (!toolCall) {
     return (
       <BottomSheet isOpen={isOpen} onClose={onClose}>
@@ -109,7 +111,7 @@ export default function ToolPreviewSheet({
                 flex: 1,
                 fontSize: 16,
                 fontWeight: '600',
-                color: nativeLightTheme.text.primary,
+                color: theme.text.primary,
               }}
             >
               {toolCall.name}
@@ -125,7 +127,7 @@ export default function ToolPreviewSheet({
                 style={{
                   fontFamily: 'Menlo',
                   fontSize: 11,
-                  color: nativeLightTheme.text.secondary,
+                  color: theme.text.secondary,
                 }}
               >
                 {headerPath}
@@ -168,6 +170,7 @@ function FallbackArgsResult({
   result?: unknown
   resultType?: ToolResultTypeLike
 }) {
+  const { theme } = useNativeTheme()
   const hasArgs =
     toolCall.arguments &&
     (typeof toolCall.arguments !== 'object' ||
@@ -187,7 +190,7 @@ function FallbackArgsResult({
         </Section>
       ) : null}
       {!hasArgs && !hasResult ? (
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>
           No arguments or result to display.
         </Text>
       ) : null}
@@ -196,6 +199,7 @@ function FallbackArgsResult({
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ marginBottom: nativeSpace[4] }}>
       <Text
@@ -205,7 +209,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
           fontWeight: '600',
           letterSpacing: 0.6,
           textTransform: 'uppercase',
-          color: nativeLightTheme.text.secondary,
+          color: theme.text.secondary,
         }}
       >
         {label}

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { countPatchAddDel } from 'thefactory-tools/utils'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
   IconDelete,
   IconDotsVertical,
@@ -129,6 +130,7 @@ export default function GitFileRow({
   onRemove,
   onResolveConflict,
 }: GitFileRowProps) {
+  const { theme } = useNativeTheme()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const actions: ActionMenuItem[] = []
@@ -136,7 +138,7 @@ export default function GitFileRow({
     actions.push({
       key: 'resolve',
       label: 'Resolve conflict',
-      icon: <IconFastMerge size={20} color={nativeLightTheme.text.primary} />,
+      icon: <IconFastMerge size={20} color={theme.text.primary} />,
       onPress: () => {
         setMenuOpen(false)
         onResolveConflict(file)
@@ -179,10 +181,10 @@ export default function GitFileRow({
           paddingHorizontal: nativeSpace[3],
           paddingVertical: nativeSpace[2],
           borderBottomWidth: 1,
-          borderBottomColor: nativeLightTheme.border.subtle,
+          borderBottomColor: theme.border.subtle,
           backgroundColor: file.isConflicted
             ? 'rgba(220,38,38,0.06)'
-            : nativeLightTheme.surface.raised,
+            : theme.surface.raised,
         }}
       >
         {onToggle ? (
@@ -198,9 +200,9 @@ export default function GitFileRow({
               borderRadius: 4,
               borderWidth: 1.5,
               borderColor: checked
-                ? nativeLightTheme.accent.primary
-                : nativeLightTheme.border.strong,
-              backgroundColor: checked ? nativeLightTheme.accent.primary : 'transparent',
+                ? theme.accent.primary
+                : theme.border.strong,
+              backgroundColor: checked ? theme.accent.primary : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -233,7 +235,7 @@ export default function GitFileRow({
             accessibilityLabel={`Actions for ${file.path}`}
             style={{ borderRadius: nativeRadii[2] }}
           >
-            <IconDotsVertical size={16} color={nativeLightTheme.text.muted} />
+            <IconDotsVertical size={16} color={theme.text.muted} />
           </IconButton>
         ) : null}
       </View>

@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { Linking, StyleSheet, View } from 'react-native'
 import MarkdownDisplay, { type MarkdownProps as DisplayProps } from 'react-native-markdown-display'
 
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type MarkdownProps = {
   text: string
@@ -15,16 +16,16 @@ export type MarkdownProps = {
  * Native peer of [web's `Markdown`](../../web/compound/Markdown.tsx). Renders
  * GFM markdown via `react-native-markdown-display` with the same per-element
  * visual rhythm web's `<Markdown>` produces — paragraph margins, heading
- * weights, list indentation, code-block chrome. Styles route through
- * `nativeLightTheme` tokens for parity with sibling compounds; native dark
- * mode is not wired across `src/native/` yet (tracked separately).
+ * weights, list indentation, code-block chrome. Styles route through the
+ * runtime-reactive `useNativeTheme` hook for parity with sibling compounds.
  *
  * External links open via `Linking.openURL`. Inline `@<path>` /
  * `#<dep>` mentions are not interpreted here — render the source through
  * [`RichText`](./files/RichText.tsx) for the mention-aware variant.
  */
 export default function Markdown({ text }: MarkdownProps) {
-  const styles = useMemo(() => makeStyles(), [])
+  const { theme } = useNativeTheme()
+  const styles = useMemo(() => makeStyles(theme), [theme])
 
   const onLinkPress = useMemo<DisplayProps['onLinkPress']>(
     () => (url) => {
@@ -43,8 +44,7 @@ export default function Markdown({ text }: MarkdownProps) {
   )
 }
 
-function makeStyles() {
-  const t = nativeLightTheme
+function makeStyles(t: NativeSemanticTheme) {
   // Sizes mirror web's Tailwind classes: text-2xl (24) for h1, text-xl (20)
   // for h2 + h3, text-lg (18) for h4, text-base (16) for h5, text-sm (14) for
   // h6. Paragraph rhythm uses `marginVertical: nativeSpace[1]` (~4px) to

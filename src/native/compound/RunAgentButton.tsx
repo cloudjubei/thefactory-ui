@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import ActionMenu, { type ActionMenuItem } from './ActionMenu'
 
 /**
@@ -58,8 +59,9 @@ function PlayGlyph({ color }: { color: string }) {
 }
 
 export default function RunAgentButton({ onSelect, label, disabled = false }: RunAgentButtonProps) {
+  const { theme } = useNativeTheme()
   const [pickerOpen, setPickerOpen] = useState(false)
-  const accent = nativeLightTheme.accent.primary
+  const accent = theme.accent.primary
 
   const items: ActionMenuItem[] = AGENT_RUN_TYPES.map((type) => ({
     key: type,

@@ -2,11 +2,11 @@ import { Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import {
   nativeLightStatus,
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type BranchChipType = 'local' | 'remote' | 'current' | 'same' | 'updated' | 'story'
 
@@ -27,41 +27,45 @@ const DEFAULT_LABEL: Record<BranchChipType, string> = {
   story: 'Story',
 }
 
-const TYPE_COLORS: Record<BranchChipType, { bg: string; fg: string; border: string }> = {
-  local: {
-    bg: nativeLightTheme.surface.muted,
-    fg: nativeLightTheme.text.secondary,
-    border: nativeLightTheme.border.subtle,
-  },
-  same: {
-    bg: nativeLightTheme.surface.muted,
-    fg: nativeLightTheme.text.secondary,
-    border: nativeLightTheme.border.subtle,
-  },
-  remote: {
-    bg: nativePalette.orange[100],
-    fg: nativePalette.orange[800],
-    border: nativePalette.orange[200],
-  },
-  current: {
-    bg: nativePalette.green[100],
-    fg: nativePalette.green[800],
-    border: nativePalette.green[200],
-  },
-  updated: {
-    bg: nativePalette.blue[100],
-    fg: nativePalette.blue[800],
-    border: nativePalette.blue[200],
-  },
-  story: {
-    bg: nativeLightStatus.queued.bg,
-    fg: nativeLightStatus.queued.fg,
-    border: nativeLightTheme.border.subtle,
-  },
+function typeColors(type: BranchChipType): { bg: string; fg: string; border: string } {
+  const { theme } = useNativeTheme()
+  const TYPE_COLORS: Record<BranchChipType, { bg: string; fg: string; border: string }> = {
+    local: {
+      bg: theme.surface.muted,
+      fg: theme.text.secondary,
+      border: theme.border.subtle,
+    },
+    same: {
+      bg: theme.surface.muted,
+      fg: theme.text.secondary,
+      border: theme.border.subtle,
+    },
+    remote: {
+      bg: nativePalette.orange[100],
+      fg: nativePalette.orange[800],
+      border: nativePalette.orange[200],
+    },
+    current: {
+      bg: nativePalette.green[100],
+      fg: nativePalette.green[800],
+      border: nativePalette.green[200],
+    },
+    updated: {
+      bg: nativePalette.blue[100],
+      fg: nativePalette.blue[800],
+      border: nativePalette.blue[200],
+    },
+    story: {
+      bg: nativeLightStatus.queued.bg,
+      fg: nativeLightStatus.queued.fg,
+      border: theme.border.subtle,
+    },
+  }
+  return TYPE_COLORS[type]
 }
 
 export function BranchChip({ type, label, size = 'sm', className, style }: BranchChipProps) {
-  const colors = TYPE_COLORS[type]
+  const colors = typeColors(type)
   const fontSize = size === 'xs' ? 9 : 10
   return (
     <View

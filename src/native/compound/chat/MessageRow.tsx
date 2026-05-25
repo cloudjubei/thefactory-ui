@@ -10,12 +10,12 @@ import type {
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 import {
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeShadows,
   nativeSpace,
 } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -46,6 +46,7 @@ function CollapsibleContent({
   children: ReactNode
   maxHeight?: number
 }) {
+  const { theme } = useNativeTheme()
   const [naturalHeight, setNaturalHeight] = useState<number | null>(null)
   const [expanded, setExpanded] = useState(false)
   const needsCollapse = naturalHeight !== null && naturalHeight > maxHeight + 8
@@ -78,13 +79,13 @@ function CollapsibleContent({
             paddingVertical: nativeSpace[2],
             borderRadius: nativeRadii[2],
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
+            borderColor: theme.border.subtle,
             backgroundColor: pressed
-              ? nativeLightTheme.surface.muted
-              : nativeLightTheme.surface.overlay,
+              ? theme.surface.muted
+              : theme.surface.overlay,
           })}
         >
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {expanded ? 'Show less' : 'Show more'}
           </Text>
         </Pressable>
@@ -100,6 +101,7 @@ function CollapsibleContent({
  * breakdown.
  */
 function UsageChip({ msg, onPress }: { msg: ChatMessageLike; onPress?: () => void }) {
+  const { theme } = useNativeTheme()
   if (!msg.usage) return null
   return (
     <Pressable
@@ -118,15 +120,15 @@ function UsageChip({ msg, onPress }: { msg: ChatMessageLike; onPress?: () => voi
           paddingVertical: 3,
           borderRadius: nativeRadii.round,
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
-          backgroundColor: nativeLightTheme.surface.overlay,
+          borderColor: theme.border.subtle,
+          backgroundColor: theme.surface.overlay,
         }}
       >
         <Text
           style={{
             fontSize: 11,
             fontWeight: '600',
-            color: nativeLightTheme.text.secondary,
+            color: theme.text.secondary,
           }}
         >
           $
@@ -173,14 +175,15 @@ export interface MessageRowProps {
 }
 
 function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
+  const { theme } = useNativeTheme()
   const isUser = kind === 'user'
   const isTool = kind === 'tool'
   const bg = isUser
-    ? nativeLightTheme.accent.primary
+    ? theme.accent.primary
     : isTool
-      ? nativeLightTheme.surface.overlay
+      ? theme.surface.overlay
       : nativePalette.blue[50]
-  const fg = isUser ? nativeLightTheme.text.inverted : nativeLightTheme.text.primary
+  const fg = isUser ? theme.text.inverted : theme.text.primary
   return (
     <View
       accessibilityElementsHidden
@@ -192,7 +195,7 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
         justifyContent: 'center',
         backgroundColor: bg,
         borderWidth: isUser ? 0 : 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
       }}
     >
       {isTool ? (
@@ -220,6 +223,7 @@ function MessageRow({
   onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
+  const { theme } = useNativeTheme()
   const role = msg.role
   const isSystem = role === 'system'
   const isUser = role === 'user'
@@ -259,7 +263,7 @@ function MessageRow({
               opacity: pressed ? 0.5 : isThinking ? 0.5 : 1,
             })}
           >
-            <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>↻</Text>
+            <Text style={{ fontSize: 18, color: theme.text.secondary }}>↻</Text>
           </Pressable>
         )}
       </View>
@@ -296,14 +300,14 @@ function MessageRow({
               justifyContent: 'center',
               borderRadius: nativeRadii[1],
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
+              borderColor: theme.border.subtle,
               backgroundColor: pressed
-                ? nativeLightTheme.surface.muted
-                : nativeLightTheme.surface.raised,
+                ? theme.surface.muted
+                : theme.surface.raised,
               opacity: isThinking ? 0.4 : 1,
             })}
           >
-            <IconDelete size={12} color={nativeLightTheme.text.secondary} />
+            <IconDelete size={12} color={theme.text.secondary} />
           </Pressable>
         )}
       </View>
@@ -354,8 +358,8 @@ function MessageRow({
                     paddingVertical: 4,
                     borderRadius: nativeRadii.round,
                     borderWidth: 1,
-                    borderColor: nativeLightTheme.border.subtle,
-                    backgroundColor: nativeLightTheme.surface.overlay,
+                    borderColor: theme.border.subtle,
+                    backgroundColor: theme.surface.overlay,
                   }}
                 >
                   <View
@@ -363,12 +367,12 @@ function MessageRow({
                       width: 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: nativeLightTheme.accent.primary,
+                      backgroundColor: theme.accent.primary,
                     }}
                   />
                   <Text
                     numberOfLines={1}
-                    style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}
+                    style={{ fontSize: 11, color: theme.text.secondary }}
                   >
                     {modelLabel}
                   </Text>
@@ -381,7 +385,7 @@ function MessageRow({
             {(ts || thinkingLabel) && (
               <Text
                 selectable={false}
-                style={{ fontSize: 10, color: nativeLightTheme.text.secondary, opacity: 0.8 }}
+                style={{ fontSize: 10, color: theme.text.secondary, opacity: 0.8 }}
               >
                 {thinkingLabel ? `+${thinkingLabel}` : ''}
                 {thinkingLabel && ts ? ' · ' : ''}
@@ -393,7 +397,7 @@ function MessageRow({
         {!isAssistant && !isTool && ts && (
           <Text
             selectable={false}
-            style={{ fontSize: 10, color: nativeLightTheme.text.secondary, opacity: 0.8 }}
+            style={{ fontSize: 10, color: theme.text.secondary, opacity: 0.8 }}
           >
             {ts}
           </Text>
@@ -411,19 +415,19 @@ function MessageRow({
               },
               isUser
                 ? {
-                    backgroundColor: nativeLightTheme.accent.primary,
+                    backgroundColor: theme.accent.primary,
                     borderBottomRightRadius: nativeRadii[1],
                   }
                 : isSystem
                   ? {
-                      backgroundColor: nativeLightTheme.surface.overlay,
+                      backgroundColor: theme.surface.overlay,
                       borderWidth: 1,
-                      borderColor: nativeLightTheme.border.subtle,
+                      borderColor: theme.border.subtle,
                     }
                   : {
-                      backgroundColor: nativeLightTheme.surface.raised,
+                      backgroundColor: theme.surface.raised,
                       borderWidth: 1,
-                      borderColor: nativeLightTheme.border.subtle,
+                      borderColor: theme.border.subtle,
                       borderBottomLeftRadius: nativeRadii[1],
                     },
             ]}
@@ -436,7 +440,7 @@ function MessageRow({
                   renderDependency={renderDependency}
                   // User bubble is blue → text must be white to read against
                   // it. Matches web's `text-(--text-inverted)` user bubble.
-                  textColor={nativeLightTheme.text.inverted}
+                  textColor={theme.text.inverted}
                 />
               ) : (
                 <Markdown text={msg.content} />
@@ -461,15 +465,15 @@ function MessageRow({
                   paddingVertical: nativeSpace[4],
                   borderRadius: nativeRadii[2],
                   borderWidth: 1,
-                  borderColor: nativeLightTheme.border.subtle,
-                  backgroundColor: nativeLightTheme.surface.muted,
+                  borderColor: theme.border.subtle,
+                  backgroundColor: theme.surface.muted,
                 }}
               >
                 <Text
                   style={{
                     fontFamily: 'Menlo',
                     fontSize: 12,
-                    color: nativeLightTheme.text.primary,
+                    color: theme.text.primary,
                   }}
                 >
                   {msg.toolCall.name}

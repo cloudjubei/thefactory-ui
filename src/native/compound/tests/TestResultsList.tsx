@@ -10,7 +10,8 @@ import Code from '../Code'
 import Spinner from '../../primitives/Spinner'
 import { IconChevronDown, IconChevronRight } from '../../icons'
 import { msToShort } from '../../../headless/utils/testsFormat'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { TestFailureLike, TestResultLike, TestsResultLike } from './types'
 
 export type TestResultsListProps = {
@@ -58,6 +59,7 @@ export function TestResultsList({
   style,
   contentContainerStyle,
 }: TestResultsListProps) {
+  const { theme } = useNativeTheme()
   const tests = Array.isArray(results.tests) ? results.tests : []
 
   const failing = useMemo(
@@ -138,7 +140,7 @@ export function TestResultsList({
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<TestResultLike, Section> }) => (
-      <View style={{ backgroundColor: nativeLightTheme.surface.base }}>
+      <View style={{ backgroundColor: theme.surface.base }}>
         <SectionHeader
           title={section.title}
           tone={section.tone}
@@ -149,7 +151,7 @@ export function TestResultsList({
           <Text
             style={{
               fontSize: 12,
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
               paddingHorizontal: 12,
               paddingTop: 6,
             }}
@@ -173,7 +175,7 @@ export function TestResultsList({
     return (
       <View>
         {ListHeaderComponent}
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>No tests found.</Text>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>No tests found.</Text>
       </View>
     )
   }
@@ -217,6 +219,7 @@ const SectionHeader = memo(function SectionHeader({
   open: boolean
   onToggle: () => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       onPress={onToggle}
@@ -228,16 +231,16 @@ const SectionHeader = memo(function SectionHeader({
         paddingHorizontal: 12,
         paddingVertical: 10,
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         borderRadius: 6,
-        backgroundColor: pressed ? nativeLightTheme.surface.hover : nativeLightTheme.surface.raised,
+        backgroundColor: pressed ? theme.surface.hover : theme.surface.raised,
       })}
     >
       <Text style={{ fontSize: 14, fontWeight: '500', color: TONE_COLOR[tone] }}>{title}</Text>
       {open ? (
-        <IconChevronDown size={16} color={nativeLightTheme.text.muted} />
+        <IconChevronDown size={16} color={theme.text.muted} />
       ) : (
-        <IconChevronRight size={16} color={nativeLightTheme.text.muted} />
+        <IconChevronRight size={16} color={theme.text.muted} />
       )}
     </Pressable>
   )
@@ -252,15 +255,16 @@ const FileCard = memo(function FileCard({
   tone: Tone
   readFile?: (relPath: string) => Promise<string | undefined>
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         borderRadius: 6,
         padding: 12,
         gap: 8,
-        backgroundColor: nativeLightTheme.surface.base,
+        backgroundColor: theme.surface.base,
       }}
     >
       <FileHeader t={test} />
@@ -280,6 +284,7 @@ const FileCard = memo(function FileCard({
 })
 
 function FileHeader({ t }: { t: TestResultLike }) {
+  const { theme } = useNativeTheme()
   const dur = msToShort(t.summary?.durationMs)
   return (
     <View
@@ -297,7 +302,7 @@ function FileHeader({ t }: { t: TestResultLike }) {
           flex: 1,
           fontSize: 12,
           fontFamily: 'Menlo',
-          color: nativeLightTheme.text.secondary,
+          color: theme.text.secondary,
         }}
       >
         {t.filePath}
@@ -307,7 +312,7 @@ function FileHeader({ t }: { t: TestResultLike }) {
         <Text style={{ fontSize: 12, color: '#b91c1c' }}>{`✗ ${t.summary.failed}`}</Text>
         <Text style={{ fontSize: 12, color: '#b45309' }}>{`○ ${t.summary.skipped}`}</Text>
         {dur ? (
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>{`• ${dur}`}</Text>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{`• ${dur}`}</Text>
         ) : null}
       </View>
     </View>
@@ -323,20 +328,21 @@ function FailureItem({
   failure: TestFailureLike
   readFile?: (relPath: string) => Promise<string | undefined>
 }) {
+  const { theme } = useNativeTheme()
   const rel = test.filePath
   const hasLineLocation = Boolean(failure.line && failure.column)
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         borderRadius: 6,
         padding: 12,
         gap: 8,
       }}
     >
       {failure.testName ? (
-        <Text style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
           {failure.testName}
         </Text>
       ) : null}
@@ -345,7 +351,7 @@ function FailureItem({
           {failure.message}
         </Text>
       ) : null}
-      <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted, fontFamily: 'Menlo' }}>
+      <Text style={{ fontSize: 12, color: theme.text.muted, fontFamily: 'Menlo' }}>
         {rel}
         {failure.line ? `:${failure.line}` : ''}
         {failure.column ? `:${failure.column}` : ''}
@@ -365,7 +371,7 @@ function FailureItem({
           style={{
             fontSize: 11,
             fontFamily: 'Menlo',
-            color: nativeLightTheme.text.muted,
+            color: theme.text.muted,
           }}
         >
           {failure.stack}
@@ -386,6 +392,7 @@ function CodeSnippet({
   line: number | null
   column: number | null
 }) {
+  const { theme } = useNativeTheme()
   const [state, setState] = useState<{ loading: boolean; text?: string; error?: string }>({
     loading: true,
   })
@@ -427,13 +434,13 @@ function CodeSnippet({
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Spinner size={14} />
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>Loading snippet…</Text>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>Loading snippet…</Text>
       </View>
     )
   }
   if (state.error || !state.text) {
     return (
-      <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
+      <Text style={{ fontSize: 12, color: theme.text.muted }}>
         Failed to load snippet{state.error ? `: ${state.error}` : ''}
       </Text>
     )
@@ -476,6 +483,7 @@ function PassesList({ t }: { t: TestResultLike }) {
 }
 
 function RawOutput({ t }: { t: TestResultLike }) {
+  const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
   if (!t.rawText) return null
   return (
@@ -487,11 +495,11 @@ function RawOutput({ t }: { t: TestResultLike }) {
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
       >
         {open ? (
-          <IconChevronDown size={14} color={nativeLightTheme.text.muted} />
+          <IconChevronDown size={14} color={theme.text.muted} />
         ) : (
-          <IconChevronRight size={14} color={nativeLightTheme.text.muted} />
+          <IconChevronRight size={14} color={theme.text.muted} />
         )}
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>
           {open ? 'Hide raw output' : 'Show raw output'}
         </Text>
       </Pressable>

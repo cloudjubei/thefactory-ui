@@ -4,7 +4,8 @@ import { ScrollView, Text, View } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Textarea } from '../../primitives/Textarea'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface SystemPromptViewerModalProps {
   isOpen: boolean
@@ -29,6 +30,7 @@ export default function SystemPromptViewerModal({
   onSave,
   title = 'System prompt',
 }: SystemPromptViewerModalProps) {
+  const { theme } = useNativeTheme()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(content)
 
@@ -88,7 +90,7 @@ export default function SystemPromptViewerModal({
               fontFamily: 'Menlo',
               fontSize: 12,
               lineHeight: 18,
-              color: nativeLightTheme.text.primary,
+              color: theme.text.primary,
             }}
           >
             {content || '(empty)'}

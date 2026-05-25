@@ -3,11 +3,11 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { tryString } from '../../../../headless/utils/toolPreview'
 import {
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeSpace,
 } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconChevron } from '../../../icons'
 import { PathDisplay } from '../../PathDisplay'
 import { GitFileChangesPills } from '../../git/GitFileChangesPills'
@@ -37,6 +37,7 @@ export function WriteMultiToolsPreview({
   result,
   resultType,
 }: WriteMultiToolsPreviewProps) {
+  const { theme } = useNativeTheme()
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
 
@@ -108,7 +109,7 @@ export function WriteMultiToolsPreview({
   const resultsToShow = multiResults ?? []
   if (resultsToShow.length === 0 && !isInFlight) {
     return (
-      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>No files changed</Text>
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>No files changed</Text>
     )
   }
   if (resultsToShow.length === 0) return <SpinnerContent />
@@ -125,9 +126,9 @@ export function WriteMultiToolsPreview({
     <View
       style={{
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         borderRadius: nativeRadii[2],
-        backgroundColor: nativeLightTheme.surface.base,
+        backgroundColor: theme.surface.base,
         overflow: 'hidden',
       }}
     >
@@ -145,7 +146,7 @@ export function WriteMultiToolsPreview({
             key={path}
             style={{
               borderBottomWidth: isLast ? 0 : 1,
-              borderBottomColor: nativeLightTheme.border.subtle,
+              borderBottomColor: theme.border.subtle,
             }}
           >
             <Pressable
@@ -154,13 +155,13 @@ export function WriteMultiToolsPreview({
                 paddingHorizontal: nativeSpace[2],
                 paddingVertical: 6,
                 backgroundColor: pressed
-                  ? nativeLightTheme.surface.raised
-                  : nativeLightTheme.surface.overlay,
+                  ? theme.surface.raised
+                  : theme.surface.overlay,
               })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
                 <View style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}>
-                  <IconChevron size={14} color={nativeLightTheme.text.muted} />
+                  <IconChevron size={14} color={theme.text.muted} />
                 </View>
                 <GitFileStatusIcon status="M" />
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -178,7 +179,7 @@ export function WriteMultiToolsPreview({
                 style={{
                   paddingHorizontal: nativeSpace[2],
                   paddingBottom: 6,
-                  backgroundColor: nativeLightTheme.surface.overlay,
+                  backgroundColor: theme.surface.overlay,
                 }}
               >
                 <Text style={{ fontSize: 10, color: nativePalette.red[600] }}>{err}</Text>
@@ -191,7 +192,7 @@ export function WriteMultiToolsPreview({
                   // web's `WriteMultiToolsPreview` where the expanded body
                   // has no extra padding around `StructuredUnifiedDiff`.
                   gap: nativeSpace[2],
-                  backgroundColor: nativeLightTheme.surface.base,
+                  backgroundColor: theme.surface.base,
                 }}
               >
                 {fileResults.map((r, i) => {
@@ -225,10 +226,11 @@ export function WriteMultiToolsPreview({
 }
 
 function SpinnerContent({ label }: { label?: string }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ paddingVertical: nativeSpace[3], alignItems: 'center', gap: nativeSpace[2] }}>
       <ActivityIndicator />
-      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
         {label ?? 'Loading diff preview…'}
       </Text>
     </View>

@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { Input } from '../../primitives/Input'
 import { Switch } from '../../primitives/Switch'
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 /** One env var a custom test config exposes to the UI. */
 export type TestConfigEnvVarLike = {
@@ -57,6 +57,7 @@ export function TestCustomConfigInput({
   placeholder = 'e.g. tests/e2e/playwright.config.ts',
   helperText,
 }: TestCustomConfigInputProps) {
+  const { theme } = useNativeTheme()
   const list = candidates ?? []
   const selectedCandidate = list.find((c) => c.path === value)
   const envSpec = selectedCandidate?.env ?? []
@@ -73,7 +74,7 @@ export function TestCustomConfigInput({
   return (
     <View style={{ gap: 8 }}>
       {helperText ? (
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>{helperText}</Text>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>{helperText}</Text>
       ) : null}
       <Input
         value={value}
@@ -85,7 +86,7 @@ export function TestCustomConfigInput({
       />
       {list.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>Detected:</Text>
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>Detected:</Text>
           {list.map((c) => {
             const isActive = c.path === value
             return (
@@ -95,16 +96,16 @@ export function TestCustomConfigInput({
                 disabled={disabled}
                 style={({ pressed }) => ({
                   borderWidth: 1,
-                  borderColor: nativeLightTheme.border.default,
+                  borderColor: theme.border.default,
                   borderRadius: 999,
                   paddingHorizontal: 10,
                   paddingVertical: 2,
                   opacity: disabled ? 0.5 : 1,
                   backgroundColor: isActive
-                    ? nativeLightTheme.accent.primary + '22'
+                    ? theme.accent.primary + '22'
                     : pressed
-                      ? nativeLightTheme.surface.hover
-                      : nativeLightTheme.surface.raised,
+                      ? theme.surface.hover
+                      : theme.surface.raised,
                 })}
               >
                 <Text
@@ -112,8 +113,8 @@ export function TestCustomConfigInput({
                     fontFamily: 'Menlo',
                     fontSize: 11,
                     color: isActive
-                      ? nativeLightTheme.accent.primary
-                      : nativeLightTheme.text.secondary,
+                      ? theme.accent.primary
+                      : theme.text.secondary,
                   }}
                 >
                   {c.label ?? c.path}
@@ -131,8 +132,8 @@ export function TestCustomConfigInput({
             padding: 12,
             borderRadius: 6,
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
-            backgroundColor: nativeLightTheme.surface.raised,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.raised,
           }}
         >
           <Text
@@ -140,7 +141,7 @@ export function TestCustomConfigInput({
               fontSize: 11,
               textTransform: 'uppercase',
               letterSpacing: 0.5,
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
             }}
           >
             Environment for this config
@@ -171,6 +172,7 @@ function EnvField({
   disabled?: boolean
   onChange: (next: string | undefined) => void
 }) {
+  const { theme } = useNativeTheme()
   const label = spec.label ?? spec.name
 
   if (spec.type === 'flag') {
@@ -186,8 +188,8 @@ function EnvField({
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>{label}</Text>
-          <Text style={{ fontSize: 11, fontFamily: 'Menlo', color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 13, color: theme.text.primary }}>{label}</Text>
+          <Text style={{ fontSize: 11, fontFamily: 'Menlo', color: theme.text.muted }}>
             {spec.name}
           </Text>
         </View>
@@ -202,9 +204,9 @@ function EnvField({
 
   return (
     <View style={{ gap: 4 }}>
-      <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>
+      <Text style={{ fontSize: 13, color: theme.text.primary }}>
         {label}{' '}
-        <Text style={{ fontSize: 11, fontFamily: 'Menlo', color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 11, fontFamily: 'Menlo', color: theme.text.muted }}>
           {spec.name}
         </Text>
       </Text>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type FilePaneHeaderProps = {
   /** Basename (e.g. `Foo.tsx`). Falls back to last `/`-segment of `path`. */
@@ -33,6 +33,7 @@ function humanSize(n: number): string {
  * supplied by the host (Copy / Save / pane toggle / Rename / Delete).
  */
 export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHeaderProps) {
+  const { theme } = useNativeTheme()
   const resolvedName = name ?? (path ? path.split('/').pop() : undefined) ?? ''
   return (
     <View
@@ -46,8 +47,8 @@ export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHead
         paddingVertical: 4,
         height: 44,
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.base,
+        borderBottomColor: theme.border.subtle,
+        backgroundColor: theme.surface.base,
       }}
     >
       <View
@@ -62,7 +63,7 @@ export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHead
             fontFamily: 'Menlo',
             fontSize: 12,
             fontWeight: '500',
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
         >
           {resolvedName}
@@ -71,7 +72,7 @@ export function FilePaneHeader({ name, path, size, info, actions }: FilePaneHead
           <Text
             style={{
               fontSize: 12,
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
               flexShrink: 0,
             }}
           >

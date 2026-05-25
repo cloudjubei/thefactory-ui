@@ -5,7 +5,8 @@ import { FeatureCard } from '../FeatureCard'
 import { StoryCard } from '../StoryCard'
 import StatusControl from '../StatusControl'
 import type { StoryStatus } from '../../../headless/utils/status'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface DependencyCardShape {
   id: string
@@ -39,7 +40,7 @@ export interface DependencyBulletProps {
   renderTooltip?: (resolved: ResolvedDependency) => ReactNode
 }
 
-function defaultTooltip(resolved: ResolvedDependency): ReactNode {
+function defaultTooltip(resolved: ResolvedDependency, theme: NativeSemanticTheme): ReactNode {
   if (resolved.kind === 'missing') {
     return (
       <View
@@ -51,11 +52,11 @@ function defaultTooltip(resolved: ResolvedDependency): ReactNode {
           minWidth: 200,
         }}
       >
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>Not found</Text>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>Not found</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}>
           Dependency missing
         </Text>
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
           The referenced story or feature could not be resolved.
         </Text>
         <StatusControl status="-" />
@@ -80,6 +81,7 @@ export default function DependencyBullet({
   onPress,
   renderTooltip,
 }: DependencyBulletProps) {
+  const { theme } = useNativeTheme()
   const effective: ResolvedDependency = resolved ?? {
     kind: 'missing',
     display: notFoundDisplay ?? dependency ?? '?',
@@ -91,7 +93,7 @@ export default function DependencyBullet({
   const variant: 'ok' | 'blocks' | 'missing' =
     effective.kind === 'missing' ? 'missing' : isOutbound ? 'blocks' : 'ok'
 
-  const tooltip = (renderTooltip ?? defaultTooltip)(effective)
+  const tooltip = renderTooltip ? renderTooltip(effective) : defaultTooltip(effective, theme)
 
   return (
     <DependencyChip

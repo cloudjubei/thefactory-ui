@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native'
 import { Switch } from '../../primitives/Switch'
 import { Slider } from '../../primitives/Slider'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type HistorySummarization = {
   enabled: boolean
@@ -22,6 +23,7 @@ export default function HistorySummarizationSettings({
   historySummarization,
   persistSettings,
 }: HistorySummarizationSettingsProps) {
+  const { theme } = useNativeTheme()
   const enabled = !!historySummarization?.enabled
   const keepLastTurns = historySummarization?.keepLastTurns ?? 4
   const maxOpsInSummary = historySummarization?.maxOpsInSummary ?? 30
@@ -37,7 +39,7 @@ export default function HistorySummarizationSettings({
         gap: nativeSpace[3],
         paddingTop: nativeSpace[3],
         borderTopWidth: 1,
-        borderTopColor: nativeLightTheme.border.subtle,
+        borderTopColor: theme.border.subtle,
       }}
     >
       <View
@@ -49,10 +51,10 @@ export default function HistorySummarizationSettings({
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
             History summarization
           </Text>
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted, marginTop: 2 }}>
+          <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
             Summarize older messages to reduce token usage while preserving context
           </Text>
         </View>
@@ -97,13 +99,14 @@ function SliderRow({
   step?: number
   onChange: (v: number) => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[1] }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>{value}</Text>
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>{value}</Text>
       </View>
       <Slider value={value} min={min} max={max} step={step} onChange={onChange} />
     </View>

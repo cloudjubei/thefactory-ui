@@ -40,6 +40,11 @@ export default defineConfig({
     'react-native',
     'react-native-markdown-display',
     'react-native-svg',
+    // `nativewind` ships a CJS doctor module that uses unflagged JSX inside a
+    // `.js` file; bundling it through esbuild trips a JSX-syntax error. The
+    // package is always a peer dep of any native consumer, so leaving it
+    // external (resolved at consumer build time) is the right call.
+    'nativewind',
   ],
   esbuildOptions(options) {
     options.jsx = 'automatic'

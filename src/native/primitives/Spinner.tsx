@@ -1,5 +1,5 @@
 import { ActivityIndicator, Text, View } from 'react-native'
-import { nativeLightTheme } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SpinnerProps {
   /** Size in dp; iOS clamps numeric sizes to its system default. */
@@ -12,15 +12,17 @@ export interface SpinnerProps {
 
 export default function Spinner({
   size = 16,
-  color = nativeLightTheme.text.muted,
+  color,
   label,
   className,
 }: SpinnerProps) {
+  const { theme } = useNativeTheme()
+  const resolvedColor = color ?? theme.text.muted
   if (!label) {
     return (
       <ActivityIndicator
         size={size}
-        color={color}
+        color={resolvedColor}
         className={className}
         accessibilityLabel="Loading"
       />
@@ -35,8 +37,8 @@ export default function Spinner({
       className={className}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
     >
-      <ActivityIndicator size={size} color={color} />
-      <Text style={{ fontSize: 14, color: nativeLightTheme.text.muted }}>{label}</Text>
+      <ActivityIndicator size={size} color={resolvedColor} />
+      <Text style={{ fontSize: 14, color: theme.text.muted }}>{label}</Text>
     </View>
   )
 }

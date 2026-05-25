@@ -3,7 +3,8 @@ import { FlatList, Text, View } from 'react-native'
 import type { ListRenderItem, TextInput as RNTextInput } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 import FileTypeIcon from './FileTypeIcon'
 
@@ -30,6 +31,7 @@ interface RowProps {
 // neighbours that FlatList currently keeps mounted. With `selected` as a Set
 // only the rows whose `isSelected` actually flipped get a new prop.
 const FileSelectorRow = memo(function FileSelectorRow({ file, isSelected, onToggle }: RowProps) {
+  const { theme } = useNativeTheme()
   const path = pathOf(file)
   return (
     <View
@@ -37,7 +39,7 @@ const FileSelectorRow = memo(function FileSelectorRow({ file, isSelected, onTogg
       accessibilityState={{ selected: isSelected }}
       style={{
         borderRadius: nativeRadii[1],
-        backgroundColor: isSelected ? nativeLightTheme.surface.muted : 'transparent',
+        backgroundColor: isSelected ? theme.surface.muted : 'transparent',
         padding: nativeSpace[3],
       }}
     >
@@ -59,13 +61,13 @@ const FileSelectorRow = memo(function FileSelectorRow({ file, isSelected, onTogg
               borderRadius: nativeRadii[1],
               borderWidth: 1,
               borderColor: isSelected
-                ? nativeLightTheme.accent.primary
-                : nativeLightTheme.border.subtle,
-              backgroundColor: isSelected ? nativeLightTheme.accent.primary : 'transparent',
+                ? theme.accent.primary
+                : theme.border.subtle,
+              backgroundColor: isSelected ? theme.accent.primary : 'transparent',
             }}
           >
             {isSelected && (
-              <Text style={{ fontSize: 10, color: nativeLightTheme.text.inverted }}>✓</Text>
+              <Text style={{ fontSize: 10, color: theme.text.inverted }}>✓</Text>
             )}
           </View>
         }
@@ -81,6 +83,7 @@ export default function FileSelector({
   allowMultiple = true,
   title,
 }: FileSelectorProps) {
+  const { theme } = useNativeTheme()
   const [query, setQuery] = useState('')
   // `Set` for O(1) lookups during render — with hundreds of files the
   // previous `array.includes` made each toggle a quadratic re-render.
@@ -140,7 +143,7 @@ export default function FileSelector({
             accessibilityLabel="Search files"
           />
         </View>
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>
           {filtered.length} files
         </Text>
       </View>
@@ -151,9 +154,9 @@ export default function FileSelector({
         style={{
           maxHeight: 360,
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
+          borderColor: theme.border.subtle,
           borderRadius: nativeRadii[2],
-          backgroundColor: nativeLightTheme.surface.raised,
+          backgroundColor: theme.surface.raised,
         }}
         contentContainerStyle={{ padding: nativeSpace[2] }}
         data={filtered}
@@ -172,7 +175,7 @@ export default function FileSelector({
             style={{
               padding: nativeSpace[8],
               fontSize: 13,
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
             }}
           >
             No files match your search.

@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { chipPillStyle, chipPillTextStyle } from './pillStyles'
 
 export interface TurnChipProps {
@@ -7,17 +7,18 @@ export interface TurnChipProps {
 }
 
 export default function TurnChip({ turn }: TurnChipProps) {
+  const { theme } = useNativeTheme()
   return (
-    <View style={chipPillStyle}>
+    <View style={chipPillStyle(theme)}>
       <View
         style={{
           width: 6,
           height: 6,
           borderRadius: 3,
-          backgroundColor: nativeLightTheme.text.muted,
+          backgroundColor: theme.text.muted,
         }}
       />
-      <Text style={chipPillTextStyle}>T{turn}</Text>
+      <Text style={chipPillTextStyle(theme)}>T{turn}</Text>
     </View>
   )
 }

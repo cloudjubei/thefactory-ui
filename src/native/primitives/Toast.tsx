@@ -7,12 +7,12 @@ import {
   type ToastVariant,
 } from '../../headless/hooks/useToastQueue'
 import {
-  nativeLightTheme,
   nativePalette,
   nativeRadii,
   nativeShadows,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type { ToastMessage, ToastVariant }
 
@@ -33,6 +33,7 @@ const ENTER_OFFSET = -12
 const ANIMATION_MS = 200
 
 function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) => void }) {
+  const { theme } = useNativeTheme()
   const opacity = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(ENTER_OFFSET)).current
 
@@ -70,9 +71,9 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
         gap: nativeSpace[5],
         padding: nativeSpace[6],
         borderRadius: nativeRadii[4],
-        backgroundColor: nativeLightTheme.surface.overlay,
+        backgroundColor: theme.surface.overlay,
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         ...nativeShadows[3],
       }}
     >
@@ -92,13 +93,13 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
         {item.title ? (
           <Text
             numberOfLines={1}
-            style={{ fontSize: 14, fontWeight: '600', color: nativeLightTheme.text.primary }}
+            style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}
           >
             {item.title}
           </Text>
         ) : null}
         {item.description ? (
-          <Text numberOfLines={3} style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+          <Text numberOfLines={3} style={{ fontSize: 13, color: theme.text.secondary }}>
             {item.description}
           </Text>
         ) : null}
@@ -115,11 +116,11 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
               paddingHorizontal: nativeSpace[6],
               paddingVertical: nativeSpace[3],
               borderRadius: 999,
-              backgroundColor: nativeLightTheme.surface.muted,
+              backgroundColor: theme.surface.muted,
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
               {item.action.label}
             </Text>
           </Pressable>
@@ -134,7 +135,7 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
           opacity: pressed ? 0.5 : 0.8,
         })}
       >
-        <Text style={{ fontSize: 16, color: nativeLightTheme.text.muted }}>×</Text>
+        <Text style={{ fontSize: 16, color: theme.text.muted }}>×</Text>
       </Pressable>
     </Animated.View>
   )

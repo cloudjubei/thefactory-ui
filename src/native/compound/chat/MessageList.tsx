@@ -15,7 +15,8 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 const AT_BOTTOM_THRESHOLD = 32
 const DEFAULT_VISIBLE = 30
@@ -105,6 +106,7 @@ export default function MessageList({
   onShowUsage,
   thinkingLabel,
 }: MessageListProps) {
+  const { theme } = useNativeTheme()
   const scrollRef = useRef<RNScrollView>(null)
   const [atBottom, setAtBottom] = useState(true)
   const lastAtBottomRef = useRef(true)
@@ -264,13 +266,13 @@ export default function MessageList({
               paddingVertical: nativeSpace[2],
               borderRadius: nativeRadii.round,
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.default,
+              borderColor: theme.border.default,
               backgroundColor: pressed
-                ? nativeLightTheme.surface.muted
-                : nativeLightTheme.surface.overlay,
+                ? theme.surface.muted
+                : theme.surface.overlay,
             })}
           >
-            <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
               {startIndex} older message{startIndex === 1 ? '' : 's'} hidden — click to load
             </Text>
           </Pressable>
@@ -354,14 +356,14 @@ export default function MessageList({
             paddingHorizontal: nativeSpace[6],
             paddingVertical: nativeSpace[3],
             borderRadius: nativeRadii.round,
-            backgroundColor: nativeLightTheme.surface.overlay,
+            backgroundColor: theme.surface.overlay,
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.default,
+            borderColor: theme.border.default,
             opacity: pressed ? 0.7 : 1,
             ...nativeShadows[2],
           })}
         >
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>
             ↓ Scroll to latest
           </Text>
         </Pressable>
@@ -373,13 +375,14 @@ export default function MessageList({
 /** "Context cut-off" divider — messages above it are dropped from the next
  *  request given the chat's `numberMessagesToSend` setting. */
 function CutoffDivider({ numberMessagesToSend }: { numberMessagesToSend?: number }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
-      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.default }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.border.default }} />
       <Text
         style={{
           fontSize: 10,
-          color: nativeLightTheme.text.muted,
+          color: theme.text.muted,
           textAlign: 'center',
           maxWidth: '70%',
         }}
@@ -387,28 +390,29 @@ function CutoffDivider({ numberMessagesToSend }: { numberMessagesToSend?: number
         Context cut-off — messages below are sent
         {numberMessagesToSend ? ` (last ${numberMessagesToSend})` : ''}
       </Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.border.default }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.border.default }} />
     </View>
   )
 }
 
 /** "New messages" divider — marks where the first unread message starts. */
 function UnreadDivider() {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
-      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.accent.primary }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.accent.primary }} />
       <Text
         style={{
           fontSize: 10,
           fontWeight: '700',
           letterSpacing: 0.5,
           textTransform: 'uppercase',
-          color: nativeLightTheme.accent.primary,
+          color: theme.accent.primary,
         }}
       >
         New messages
       </Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: nativeLightTheme.accent.primary }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.accent.primary }} />
     </View>
   )
 }

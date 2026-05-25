@@ -3,7 +3,8 @@ import { Text, View } from 'react-native'
 
 import { extract, tryString } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
-import { nativeFontFamilies, nativeLightTheme, nativeSpace } from '../../../../tokens/native'
+import { nativeFontFamilies, nativeSpace } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Code from '../../Code'
 import {
   InlineOldNew,
@@ -87,6 +88,7 @@ export function renderToolPreviewNative({
   resultType,
   hooks,
 }: RenderToolPreviewArgs): ReactNode {
+  const { theme } = useNativeTheme()
   const name = String(toolCall?.name ?? 'tool')
   const args = (toolCall?.arguments as Record<string, unknown>) ?? {}
   const isInFlight =
@@ -184,7 +186,7 @@ export function renderToolPreviewNative({
         headerId={feature?.id || nextFeature?.id}
         headerSub={
           story?.id || resultStory?.id ? (
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
               Story:{' '}
               <Text style={{ fontFamily: nativeFontFamilies.mono }}>
                 {story?.id || resultStory?.id}
@@ -239,7 +241,7 @@ export function renderToolPreviewNative({
         headerId={featureInput.id}
         headerSub={
           story?.id ? (
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
               Story:{' '}
               <Text style={{ fontFamily: nativeFontFamilies.mono }}>{story.id}</Text>
             </Text>
@@ -280,7 +282,7 @@ export function renderToolPreviewNative({
                   style={{
                     fontFamily: nativeFontFamilies.mono,
                     fontSize: 11,
-                    color: nativeLightTheme.text.secondary,
+                    color: theme.text.secondary,
                   }}
                 >
                   {suffix}
@@ -321,7 +323,7 @@ export function renderToolPreviewNative({
                     style={{
                       fontFamily: nativeFontFamilies.mono,
                       fontSize: 11,
-                      color: nativeLightTheme.text.secondary,
+                      color: theme.text.secondary,
                     }}
                   >
                     {suffix}
@@ -363,7 +365,7 @@ export function renderToolPreviewNative({
                       style={{
                         fontFamily: nativeFontFamilies.mono,
                         fontSize: 11,
-                        color: nativeLightTheme.text.secondary,
+                        color: theme.text.secondary,
                       }}
                     >
                       {suffix}
@@ -410,7 +412,7 @@ export function renderToolPreviewNative({
             <MonoText>{s.id}</MonoText>
             {s.title ? (
               <Text
-                style={{ fontSize: 12, color: nativeLightTheme.text.primary }}
+                style={{ fontSize: 12, color: theme.text.primary }}
                 numberOfLines={1}
               >
                 — {s.title}
@@ -442,7 +444,7 @@ export function renderToolPreviewNative({
       <View>
         <SectionTitle>{name === 'finishFeature' ? 'Finished' : 'Blocked'}</SectionTitle>
         <Row>
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>
             story <Text style={{ fontFamily: nativeFontFamilies.mono }}>{storyId}</Text> / feature{' '}
             <Text style={{ fontFamily: nativeFontFamilies.mono }}>{featureId}</Text>
           </Text>
@@ -617,7 +619,7 @@ export function renderToolPreviewNative({
                           style={{
                             fontFamily: nativeFontFamilies.mono,
                             fontSize: 11,
-                            color: nativeLightTheme.text.secondary,
+                            color: theme.text.secondary,
                           }}
                         >
                           +{added}
@@ -628,7 +630,7 @@ export function renderToolPreviewNative({
                           style={{
                             fontFamily: nativeFontFamilies.mono,
                             fontSize: 11,
-                            color: nativeLightTheme.text.secondary,
+                            color: theme.text.secondary,
                           }}
                         >
                           -{removed}

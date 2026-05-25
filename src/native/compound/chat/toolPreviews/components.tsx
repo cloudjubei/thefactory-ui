@@ -2,7 +2,8 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View, type ViewStyle } from 'react-native'
 
 import { toLines } from '../../../../headless/utils/toolPreview'
-import { nativeFontFamilies, nativeLightTheme, nativeSpace } from '../../../../tokens/native'
+import { nativeFontFamilies, nativeSpace } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 
 // Native peers of the web tool-preview building blocks
 // (`web/compound/chat/toolPreviews/components.tsx`). The visual rhythm —
@@ -11,6 +12,7 @@ import { nativeFontFamilies, nativeLightTheme, nativeSpace } from '../../../../t
 // between the two clients.
 
 export function Row({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={[{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }, style]}>
       {typeof children === 'string' ? (
@@ -18,7 +20,7 @@ export function Row({ children, style }: { children: ReactNode; style?: ViewStyl
           style={{
             fontSize: 12,
             lineHeight: 18,
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
         >
           {children}
@@ -31,12 +33,13 @@ export function Row({ children, style }: { children: ReactNode; style?: ViewStyl
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
+  const { theme } = useNativeTheme()
   return (
     <Text
       style={{
         fontSize: 11,
         fontWeight: '600',
-        color: nativeLightTheme.text.secondary,
+        color: theme.text.secondary,
         marginBottom: nativeSpace[1],
       }}
     >
@@ -46,6 +49,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 export function MonoText({ children, style }: { children: ReactNode; style?: object }) {
+  const { theme } = useNativeTheme()
   return (
     <Text
       selectable
@@ -54,7 +58,7 @@ export function MonoText({ children, style }: { children: ReactNode; style?: obj
           fontFamily: nativeFontFamilies.mono,
           fontSize: 11,
           lineHeight: 16,
-          color: nativeLightTheme.text.primary,
+          color: theme.text.primary,
         },
         style,
       ]}
@@ -65,8 +69,9 @@ export function MonoText({ children, style }: { children: ReactNode; style?: obj
 }
 
 export function SecondaryText({ children }: { children: ReactNode }) {
+  const { theme } = useNativeTheme()
   return (
-    <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>{children}</Text>
+    <Text style={{ fontSize: 11, color: theme.text.secondary }}>{children}</Text>
   )
 }
 
@@ -79,6 +84,7 @@ export function PreLimited({
   maxLines?: number
   renderTruncationMessage?: (omitted: number) => ReactNode
 }) {
+  const { theme } = useNativeTheme()
   const [expanded, setExpanded] = useState(false)
 
   const { shownLines, omitted } = useMemo(() => {
@@ -96,7 +102,7 @@ export function PreLimited({
           <Text
             style={{
               fontSize: 11,
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
               textDecorationLine: 'underline',
             }}
           >
@@ -140,6 +146,7 @@ export function NewContentOnly({ text, label }: { text?: string; label?: string 
 }
 
 export function ReorderList({ items, movedId }: { items: unknown[]; movedId?: string }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[1] }}>
       {items.map((it, idx) => {
@@ -155,7 +162,7 @@ export function ReorderList({ items, movedId }: { items: unknown[]; movedId?: st
             key={id}
             style={{
               fontSize: 12,
-              color: nativeLightTheme.text.primary,
+              color: theme.text.primary,
               fontWeight: moved ? '600' : '400',
             }}
           >

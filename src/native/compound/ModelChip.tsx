@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
 
 export interface ModelChipConfig {
@@ -93,6 +94,7 @@ function PickerItem({
   price: ModelPriceRecord | null | undefined
   onPress: () => void
 }) {
+  const { theme } = useNativeTheme()
   const dot = providerDot(cfg.provider)
   const prov = providerLabel(cfg.provider)
   return (
@@ -109,9 +111,9 @@ function PickerItem({
         paddingHorizontal: nativeSpace[3],
         borderRadius: nativeRadii[3],
         backgroundColor: pressed
-          ? nativeLightTheme.surface.hover
+          ? theme.surface.hover
           : selected
-            ? nativeLightTheme.surface.muted
+            ? theme.surface.muted
             : 'transparent',
       })}
     >
@@ -122,21 +124,21 @@ function PickerItem({
           style={{
             fontSize: 14,
             fontWeight: selected ? '600' : '400',
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
         >
           {cfg.name ?? cfg.model ?? cfg.id}
         </Text>
-        <Text numberOfLines={1} style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+        <Text numberOfLines={1} style={{ fontSize: 11, color: theme.text.muted }}>
           {[prov, cfg.model].filter(Boolean).join(' · ')}
         </Text>
       </View>
       {price && (
-        <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>
           {formatUSD(price.inputPerMTokensUSD)} in · {formatUSD(price.outputPerMTokensUSD)} out
         </Text>
       )}
-      {selected && <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>}
+      {selected && <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>}
     </Pressable>
   )
 }
@@ -154,6 +156,7 @@ export function ModelChip({
   onOpenSettings,
   getPrice,
 }: ModelChipProps) {
+  const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
   const [pricesByKey, setPricesByKey] = useState<
     Record<string, ModelPriceRecord | null | undefined>
@@ -216,12 +219,12 @@ export function ModelChip({
           paddingVertical: nativeSpace[3],
           borderRadius: nativeRadii[2],
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.default,
-          backgroundColor: nativeLightTheme.surface.raised,
+          borderColor: theme.border.default,
+          backgroundColor: theme.surface.raised,
           opacity: pressed ? 0.8 : 1,
         })}
       >
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>Configure LLM…</Text>
+        <Text style={{ fontSize: 13, color: theme.text.primary }}>Configure LLM…</Text>
       </Pressable>
     )
   }
@@ -236,8 +239,8 @@ export function ModelChip({
         paddingVertical: nativeSpace[3],
         borderRadius: nativeRadii.round,
         borderWidth: 1,
-        borderColor: isChatMode ? nativePalette.teal[600] : nativeLightTheme.border.default,
-        backgroundColor: isChatMode ? nativePalette.teal[100] : nativeLightTheme.surface.muted,
+        borderColor: isChatMode ? nativePalette.teal[600] : theme.border.default,
+        backgroundColor: isChatMode ? nativePalette.teal[100] : theme.surface.muted,
       }}
     >
       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor }} />
@@ -248,7 +251,7 @@ export function ModelChip({
             fontSize: 9,
             letterSpacing: 0.5,
             textTransform: 'uppercase',
-            color: nativeLightTheme.text.secondary,
+            color: theme.text.secondary,
           }}
         >
           {trim10(prov || (editable ? 'Select' : '—'))}
@@ -256,7 +259,7 @@ export function ModelChip({
         {(displayModel || editable) && (
           <Text
             numberOfLines={1}
-            style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.primary }}
+            style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}
           >
             {trim10(displayModel || (editable ? 'model…' : ''))}
           </Text>
@@ -306,7 +309,7 @@ export function ModelChip({
           <View
             style={{
               height: 1,
-              backgroundColor: nativeLightTheme.border.subtle,
+              backgroundColor: theme.border.subtle,
               marginVertical: nativeSpace[2],
             }}
           />
@@ -321,10 +324,10 @@ export function ModelChip({
               justifyContent: 'center',
               paddingHorizontal: nativeSpace[3],
               borderRadius: nativeRadii[3],
-              backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+              backgroundColor: pressed ? theme.surface.hover : 'transparent',
             })}
           >
-            <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontSize: 14, color: theme.text.secondary }}>
               Manage LLM Configurations…
             </Text>
           </Pressable>

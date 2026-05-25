@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import BottomSheet from '../primitives/BottomSheet'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface ActionMenuItem {
   key: string
@@ -30,6 +31,7 @@ export interface ActionMenuProps {
  * surface (a modal, a confirm dialog, …).
  */
 export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMenuProps) {
+  const { theme } = useNativeTheme()
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
       <View style={{ gap: nativeSpace[1], paddingBottom: nativeSpace[3] }}>
@@ -48,7 +50,7 @@ export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMe
               paddingHorizontal: nativeSpace[3],
               borderRadius: nativeRadii[3],
               backgroundColor:
-                pressed && !a.disabled ? nativeLightTheme.surface.hover : 'transparent',
+                pressed && !a.disabled ? theme.surface.hover : 'transparent',
               opacity: a.disabled ? 0.5 : 1,
             })}
           >
@@ -61,7 +63,7 @@ export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMe
                 style={{
                   fontSize: 15,
                   fontWeight: '500',
-                  color: a.destructive ? '#dc2626' : nativeLightTheme.text.primary,
+                  color: a.destructive ? '#dc2626' : theme.text.primary,
                 }}
               >
                 {a.label}
@@ -69,7 +71,7 @@ export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMe
               {a.description ? (
                 <Text
                   numberOfLines={2}
-                  style={{ marginTop: 2, fontSize: 12, color: nativeLightTheme.text.muted }}
+                  style={{ marginTop: 2, fontSize: 12, color: theme.text.muted }}
                 >
                   {a.description}
                 </Text>

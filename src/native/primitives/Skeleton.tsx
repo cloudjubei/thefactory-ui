@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Animated, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SkeletonProps {
   className?: string
@@ -9,6 +10,7 @@ export interface SkeletonProps {
 }
 
 export default function Skeleton({ className, style }: SkeletonProps) {
+  const { theme } = useNativeTheme()
   const opacity = useRef(new Animated.Value(0.6)).current
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function Skeleton({ className, style }: SkeletonProps) {
       importantForAccessibility="no-hide-descendants"
       style={[
         {
-          backgroundColor: nativeLightTheme.surface.muted,
+          backgroundColor: theme.surface.muted,
           borderRadius: nativeRadii[1],
           opacity,
         },

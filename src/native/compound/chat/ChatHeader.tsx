@@ -9,7 +9,8 @@ import {
   IconScroll,
   IconSettings,
 } from '../../icons'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { red } from '../../../tokens/colors'
 
 export interface ChatHeaderProps {
@@ -73,6 +74,7 @@ function IconBtn({
   onPress?: () => void
   variant?: 'ghost' | 'danger'
 }) {
+  const { theme } = useNativeTheme()
   const isDanger = variant === 'danger'
   return (
     <Pressable
@@ -90,14 +92,14 @@ function IconBtn({
         borderWidth: 1,
         borderColor: isDanger
           ? red[500]
-          : nativeLightTheme.border.subtle,
+          : theme.border.subtle,
         backgroundColor: isDanger
           ? pressed
             ? `${red[500]}33`
             : `${red[500]}1a`
           : pressed
-            ? nativeLightTheme.surface.hover
-            : nativeLightTheme.surface.overlay,
+            ? theme.surface.hover
+            : theme.surface.overlay,
         opacity: onPress ? 1 : 0.4,
       })}
     >
@@ -137,6 +139,7 @@ export default function ChatHeader({
   extraRight,
   hidden = false,
 }: ChatHeaderProps) {
+  const { theme } = useNativeTheme()
   const [measuredHeight, setMeasuredHeight] = useState(0)
   const translateY = useRef(new Animated.Value(0)).current
   const onLayout = (e: LayoutChangeEvent) => {
@@ -151,7 +154,7 @@ export default function ChatHeader({
     }).start()
   }, [hidden, measuredHeight, translateY])
 
-  const iconColor = nativeLightTheme.text.secondary
+  const iconColor = theme.text.secondary
 
   return (
     <Animated.View
@@ -159,8 +162,8 @@ export default function ChatHeader({
       style={{
         transform: [{ translateY }],
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.raised,
+        borderBottomColor: theme.border.subtle,
+        backgroundColor: theme.surface.raised,
       }}
     >
       <View
@@ -193,7 +196,7 @@ export default function ChatHeader({
               flex: 1,
               fontSize: 15,
               fontWeight: '600',
-              color: nativeLightTheme.text.primary,
+              color: theme.text.primary,
             }}
             numberOfLines={1}
             ellipsizeMode="middle"

@@ -8,7 +8,8 @@ import {
   type TreeNode,
 } from '../../../headless/utils/fileTree'
 import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FileTypeIcon from './FileTypeIcon'
 
 export type FileTreeEntry = {
@@ -62,6 +63,7 @@ export default function FileTree({
   defaultExpandedDepth = 0,
   onVisibleCountChange,
 }: FileTreeProps) {
+  const { theme } = useNativeTheme()
   const tree = useMemo(() => buildFileTree(files.map((f) => f.relativePath)), [files])
 
   const [openSet, setOpenSet] = useState<Set<string>>(() => new Set<string>(['']))
@@ -132,7 +134,7 @@ export default function FileTree({
   if (displayTree.length === 0) {
     return (
       <View style={{ padding: nativeSpace[3] }}>
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>No files.</Text>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>No files.</Text>
       </View>
     )
   }
@@ -218,6 +220,7 @@ function DirRow({
   onSelectFile: (path: string) => void
   onToggle: (path: string) => void
 }) {
+  const { theme } = useNativeTheme()
   const open = force || openSet.has(node.path)
   const childCount = node.children.length
 
@@ -235,14 +238,14 @@ function DirRow({
           paddingHorizontal: 6,
           paddingLeft: indent(level),
           borderRadius: nativeRadii[2],
-          backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+          backgroundColor: pressed ? theme.surface.hover : 'transparent',
         })}
       >
         <View style={{ width: 12, alignItems: 'center', justifyContent: 'center' }}>
           {open ? (
-            <IconChevronDown size={12} color={nativeLightTheme.text.muted} />
+            <IconChevronDown size={12} color={theme.text.muted} />
           ) : (
-            <IconChevronRight size={12} color={nativeLightTheme.text.muted} />
+            <IconChevronRight size={12} color={theme.text.muted} />
           )}
         </View>
         {open ? <IconFolderOpen size={16} /> : <IconFolder size={16} />}
@@ -251,7 +254,7 @@ function DirRow({
             flex: 1,
             fontSize: 14,
             fontWeight: '500',
-            color: nativeLightTheme.text.primary,
+            color: theme.text.primary,
           }}
           numberOfLines={1}
         >
@@ -263,14 +266,14 @@ function DirRow({
             paddingVertical: 1,
             borderRadius: 10,
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
-            backgroundColor: nativeLightTheme.surface.raised,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.raised,
           }}
         >
           <Text
             style={{
               fontSize: 10,
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
               fontVariant: ['tabular-nums'],
             }}
           >
@@ -306,6 +309,7 @@ function FileRow({
   isSelected: boolean
   onSelectFile: (path: string) => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="button"
@@ -320,9 +324,9 @@ function FileRow({
         paddingLeft: indent(level) + 12,
         borderRadius: nativeRadii[2],
         backgroundColor: isSelected
-          ? nativeLightTheme.surface.muted
+          ? theme.surface.muted
           : pressed
-            ? nativeLightTheme.surface.hover
+            ? theme.surface.hover
             : 'transparent',
       })}
     >
@@ -331,7 +335,7 @@ function FileRow({
         style={{
           flex: 1,
           fontSize: 14,
-          color: isSelected ? nativeLightTheme.accent.primary : nativeLightTheme.text.primary,
+          color: isSelected ? theme.accent.primary : theme.text.primary,
         }}
         numberOfLines={1}
       >

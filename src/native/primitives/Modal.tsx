@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import {
-  nativeLightTheme,
   nativeMotion,
   nativeRadii,
   nativeShadows,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { Button } from './Button'
 import { OverlayPortal } from './Overlay'
 
@@ -67,6 +67,7 @@ export function Modal({
   fillHeight = false,
   className,
 }: ModalProps) {
+  const { theme } = useNativeTheme()
   const showHeader = !hideHeader && (title || headerActions || !hideCloseButton)
   // Two-step mount so the close animation is visible.
   const [rendered, setRendered] = useState(isOpen)
@@ -121,9 +122,9 @@ export function Modal({
               maxWidth: MAX_WIDTH[size],
               maxHeight: '90%',
               borderRadius: nativeRadii[3],
-              backgroundColor: nativeLightTheme.surface.overlay,
+              backgroundColor: theme.surface.overlay,
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
+              borderColor: theme.border.subtle,
               ...nativeShadows[4],
               opacity: progress,
               transform: [{ translateY: panelTranslateY }, { scale: panelScale }],
@@ -151,7 +152,7 @@ export function Modal({
                   paddingHorizontal: nativeSpace[8],
                   paddingVertical: nativeSpace[5],
                   borderBottomWidth: 1,
-                  borderBottomColor: nativeLightTheme.border.subtle,
+                  borderBottomColor: theme.border.subtle,
                 }}
               >
                 {title && (
@@ -162,7 +163,7 @@ export function Modal({
                       flex: 1,
                       fontSize: 16,
                       fontWeight: '600',
-                      color: nativeLightTheme.text.primary,
+                      color: theme.text.primary,
                     }}
                   >
                     {title}
@@ -184,7 +185,7 @@ export function Modal({
                         opacity: pressed ? 0.6 : 0.85,
                       })}
                     >
-                      <Text style={{ fontSize: 18, color: nativeLightTheme.text.secondary }}>
+                      <Text style={{ fontSize: 18, color: theme.text.secondary }}>
                         ×
                       </Text>
                     </Pressable>
@@ -200,7 +201,7 @@ export function Modal({
                 style={{
                   padding: nativeSpace[6],
                   borderTopWidth: 1,
-                  borderTopColor: nativeLightTheme.border.subtle,
+                  borderTopColor: theme.border.subtle,
                 }}
               >
                 {footer}
@@ -243,6 +244,7 @@ export function ConfirmDialog({
   closeOnOverlayClick = true,
   hideCancel = false,
 }: ConfirmDialogProps) {
+  const { theme } = useNativeTheme()
   return (
     <Modal
       isOpen={isOpen}
@@ -270,7 +272,7 @@ export function ConfirmDialog({
       }
     >
       {description && (
-        <Text style={{ fontSize: 14, color: nativeLightTheme.text.secondary }}>{description}</Text>
+        <Text style={{ fontSize: 14, color: theme.text.secondary }}>{description}</Text>
       )}
     </Modal>
   )

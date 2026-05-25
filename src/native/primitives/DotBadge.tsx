@@ -1,6 +1,7 @@
 import { View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightStatus, nativeLightTheme } from '../../tokens/native'
+import { nativeLightStatus } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface DotBadgeProps {
   color?: string
@@ -14,11 +15,13 @@ export interface DotBadgeProps {
 export default function DotBadge({
   color = nativeLightStatus.stuck.bg,
   size = 10,
-  ringColor = nativeLightTheme.surface.raised,
+  ringColor,
   ringWidth = 2,
   className,
   style,
 }: DotBadgeProps) {
+  const { theme } = useNativeTheme()
+  const resolvedRingColor = ringColor ?? theme.surface.raised
   return (
     <View
       className={className}
@@ -31,7 +34,7 @@ export default function DotBadge({
           borderRadius: size / 2,
           backgroundColor: color,
           borderWidth: ringWidth,
-          borderColor: ringColor,
+          borderColor: resolvedRingColor,
         },
         style,
       ]}

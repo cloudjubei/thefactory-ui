@@ -1,7 +1,8 @@
 import { forwardRef, useState } from 'react'
 import { TextInput } from 'react-native'
 import type { StyleProp, TextStyle, TextInput as RNTextInput, TextInputProps } from 'react-native'
-import { nativeLightStatus, nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeLightStatus, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface TextareaProps extends Omit<
   TextInputProps,
@@ -22,12 +23,13 @@ export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea
   { invalid = false, rows = 4, disabled = false, style, className, onFocus, onBlur, ...props },
   ref,
 ) {
+  const { theme } = useNativeTheme()
   const [focused, setFocused] = useState(false)
   const borderColor = invalid
     ? nativeLightStatus.stuck.bg
     : focused
-      ? nativeLightTheme.border.focus
-      : nativeLightTheme.border.default
+      ? theme.border.focus
+      : theme.border.default
 
   return (
     <TextInput
@@ -36,7 +38,7 @@ export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea
       multiline
       numberOfLines={rows}
       editable={!disabled}
-      placeholderTextColor={nativeLightTheme.text.muted}
+      placeholderTextColor={theme.text.muted}
       textAlignVertical="top"
       onFocus={(e) => {
         setFocused(true)
@@ -50,8 +52,8 @@ export const Textarea = forwardRef<RNTextInput, TextareaProps>(function Textarea
         {
           width: '100%',
           minHeight: rows * APPROX_LINE_HEIGHT + nativeSpace[8],
-          color: nativeLightTheme.text.primary,
-          backgroundColor: nativeLightTheme.surface.raised,
+          color: theme.text.primary,
+          backgroundColor: theme.surface.raised,
           borderWidth: 1,
           borderColor,
           borderRadius: nativeRadii[2],

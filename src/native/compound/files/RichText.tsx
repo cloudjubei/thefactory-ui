@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { tokenizeRichText } from '../../../headless/utils/richTextTokenize'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 
 export interface RichTextProps {
@@ -18,17 +19,17 @@ export interface RichTextProps {
   textColor?: string
 }
 
-const TOKEN_PILL_STYLE = {
-  paddingHorizontal: nativeSpace[3],
-  paddingVertical: 2,
-  borderRadius: nativeRadii[1],
-  borderWidth: 1,
-  borderColor: nativeLightTheme.border.subtle,
-}
-
 export default function RichText({ text, onResolveFile, renderDependency, textColor }: RichTextProps) {
+  const { theme } = useNativeTheme()
+  const TOKEN_PILL_STYLE = {
+    paddingHorizontal: nativeSpace[3],
+    paddingVertical: 2,
+    borderRadius: nativeRadii[1],
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+  }
   const segments = useMemo(() => tokenizeRichText(text ?? ''), [text])
-  const baseColor = textColor ?? nativeLightTheme.text.primary
+  const baseColor = textColor ?? theme.text.primary
 
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
@@ -60,7 +61,7 @@ export default function RichText({ text, onResolveFile, renderDependency, textCo
                 backgroundColor: 'transparent',
               }}
             >
-              <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
                 @{seg.value}
               </Text>
             </View>

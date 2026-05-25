@@ -9,7 +9,6 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import {
-  nativeLightTheme,
   nativeMotion,
   nativePalette,
   nativeRadii,
@@ -17,6 +16,7 @@ import {
   nativeSpace,
   nativeZIndex,
 } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import SpinnerWithDot from '../../primitives/SpinnerWithDot'
 import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
 
@@ -97,6 +97,7 @@ export default function NavDrawer({
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
+  const { theme } = useNativeTheme()
   const { width: screenWidth } = useWindowDimensions()
   const panelWidth = Math.min(MAX_WIDTH, Math.round(screenWidth * WIDTH_FRACTION))
   const anim = useRef(new Animated.Value(0)).current
@@ -169,9 +170,9 @@ export default function NavDrawer({
         style={{
           width: panelWidth,
           height: '100%',
-          backgroundColor: nativeLightTheme.surface.base,
+          backgroundColor: theme.surface.base,
           borderRightWidth: 1,
-          borderRightColor: nativeLightTheme.border.subtle,
+          borderRightColor: theme.border.subtle,
           ...nativeShadows[3],
           transform: [
             {
@@ -189,7 +190,7 @@ export default function NavDrawer({
             paddingBottom: nativeSpace[3],
             paddingHorizontal: nativeSpace[4],
             borderBottomWidth: 1,
-            borderBottomColor: nativeLightTheme.border.subtle,
+            borderBottomColor: theme.border.subtle,
             flexDirection: 'row',
             alignItems: 'center',
             gap: nativeSpace[3],
@@ -202,7 +203,7 @@ export default function NavDrawer({
               flex: 1,
               fontSize: 17,
               fontWeight: '700',
-              color: nativeLightTheme.text.primary,
+              color: theme.text.primary,
             }}
           >
             {title ?? 'Overseer'}
@@ -237,7 +238,7 @@ export default function NavDrawer({
               fontWeight: '600',
               letterSpacing: 0.6,
               textTransform: 'uppercase',
-              color: nativeLightTheme.text.muted,
+              color: theme.text.muted,
             }}
           >
             {projectsLabel}
@@ -259,7 +260,7 @@ export default function NavDrawer({
                 paddingHorizontal: nativeSpace[2],
                 paddingVertical: nativeSpace[2],
                 fontSize: 14,
-                color: nativeLightTheme.text.muted,
+                color: theme.text.muted,
               }}
             >
               {projectsEmptyLabel}
@@ -280,7 +281,7 @@ export default function NavDrawer({
               paddingTop: nativeSpace[1],
               paddingBottom: bottomInset + nativeSpace[1],
               borderTopWidth: 1,
-              borderTopColor: nativeLightTheme.border.subtle,
+              borderTopColor: theme.border.subtle,
             }}
           >
             <Row item={footerItem} />
@@ -292,11 +293,12 @@ export default function NavDrawer({
 }
 
 function Divider() {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
         height: 1,
-        backgroundColor: nativeLightTheme.border.subtle,
+        backgroundColor: theme.border.subtle,
         marginVertical: nativeSpace[2],
         marginHorizontal: nativeSpace[4],
       }}
@@ -313,6 +315,7 @@ function Row({
   indent?: boolean
   trailing?: ReactNode
 }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       onPress={item.onPress}
@@ -330,7 +333,7 @@ function Row({
         backgroundColor: item.active
           ? nativePalette.brand[50]
           : pressed
-            ? nativeLightTheme.surface.hover
+            ? theme.surface.hover
             : 'transparent',
       })}
     >
@@ -341,7 +344,7 @@ function Row({
           flex: 1,
           fontSize: 15,
           fontWeight: item.active ? '600' : '400',
-          color: item.active ? nativePalette.brand[700] : nativeLightTheme.text.primary,
+          color: item.active ? nativePalette.brand[700] : theme.text.primary,
         }}
       >
         {item.label}
@@ -349,14 +352,14 @@ function Row({
       {item.badgeCount && item.badgeCount > 0 ? (
         <CountBadge count={item.badgeCount} />
       ) : item.thinking ? (
-        <SpinnerWithDot size={14} showDot dotColor={nativeLightTheme.accent.primary} />
+        <SpinnerWithDot size={14} showDot dotColor={theme.accent.primary} />
       ) : item.showDot ? (
         <View
           style={{
             width: 8,
             height: 8,
             borderRadius: 4,
-            backgroundColor: nativeLightTheme.accent.primary,
+            backgroundColor: theme.accent.primary,
           }}
         />
       ) : null}
@@ -366,6 +369,7 @@ function Row({
 }
 
 function GroupFolder({ group }: { group: NavDrawerGroup }) {
+  const { theme } = useNativeTheme()
   const [open, setOpen] = useState(() => group.projects.some((p) => p.active))
 
   // SCOPE groups (and any group with no member projects) are flat rows — no
@@ -410,9 +414,9 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
           }}
         >
           {open ? (
-            <IconFolderOpen size={22} color={nativeLightTheme.text.secondary} />
+            <IconFolderOpen size={22} color={theme.text.secondary} />
           ) : (
-            <IconFolder size={22} color={nativeLightTheme.text.secondary} />
+            <IconFolder size={22} color={theme.text.secondary} />
           )}
         </Pressable>
         <Pressable
@@ -426,7 +430,7 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
             style={{
               fontSize: 15,
               fontWeight: group.active ? '600' : '400',
-              color: group.active ? nativePalette.brand[700] : nativeLightTheme.text.primary,
+              color: group.active ? nativePalette.brand[700] : theme.text.primary,
             }}
           >
             {group.label}
@@ -440,9 +444,9 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
           style={{ paddingHorizontal: nativeSpace[3], paddingVertical: nativeSpace[2] }}
         >
           {open ? (
-            <IconChevronDown size={16} color={nativeLightTheme.text.muted} />
+            <IconChevronDown size={16} color={theme.text.muted} />
           ) : (
-            <IconChevronRight size={16} color={nativeLightTheme.text.muted} />
+            <IconChevronRight size={16} color={theme.text.muted} />
           )}
         </Pressable>
       </View>
@@ -454,6 +458,7 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
 }
 
 function CountBadge({ count }: { count: number }) {
+  const { theme } = useNativeTheme()
   const label = count > 99 ? '99+' : String(count)
   return (
     <View
@@ -464,10 +469,10 @@ function CountBadge({ count }: { count: number }) {
         borderRadius: 9,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: nativeLightTheme.accent.primary,
+        backgroundColor: theme.accent.primary,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '700', color: nativeLightTheme.text.inverted }}>
+      <Text style={{ fontSize: 11, fontWeight: '700', color: theme.text.inverted }}>
         {label}
       </Text>
     </View>

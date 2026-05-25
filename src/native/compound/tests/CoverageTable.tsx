@@ -9,7 +9,7 @@ import {
   normalizeRel,
   type CoverageBucket,
 } from '../../../headless/utils/testsFormat'
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { CoverageFileStatsLike, CoverageResultLike } from './types'
 
 export type CoverageTableProps = {
@@ -63,6 +63,7 @@ const BUCKET_BAR_COLOR: Record<CoverageBucket, string> = {
 }
 
 function ProgressBar({ value }: { value: number }) {
+  const { theme } = useNativeTheme()
   const clamped = Math.max(0, Math.min(100, value))
   const bucket = coverageBucket(clamped)
   return (
@@ -71,7 +72,7 @@ function ProgressBar({ value }: { value: number }) {
         height: 6,
         borderRadius: 3,
         overflow: 'hidden',
-        backgroundColor: nativeLightTheme.surface.muted,
+        backgroundColor: theme.surface.muted,
       }}
     >
       <View
@@ -86,18 +87,19 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function MetricCell({ label, pct }: { label: string; pct: number | null }) {
+  const { theme } = useNativeTheme()
   if (typeof pct !== 'number') {
     return (
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>{label}</Text>
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>—</Text>
+        <Text style={{ fontSize: 10, color: theme.text.muted }}>{label}</Text>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>—</Text>
       </View>
     )
   }
   const bucket = coverageBucket(pct)
   return (
     <View style={{ flex: 1, gap: 2 }}>
-      <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>{label}</Text>
+      <Text style={{ fontSize: 10, color: theme.text.muted }}>{label}</Text>
       <Text
         style={{
           fontSize: 13,
@@ -116,6 +118,7 @@ function MetricCell({ label, pct }: { label: string; pct: number | null }) {
  * summary card at the top mirrors web's first table row.
  */
 export function CoverageTable({ data, renderActions }: CoverageTableProps) {
+  const { theme } = useNativeTheme()
   const rows = useMemo<Row[]>(() => {
     const list: Row[] = []
     for (const [file, v] of Object.entries(data?.files ?? {}) as Array<
@@ -156,14 +159,14 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
       <View
         style={{
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
+          borderColor: theme.border.subtle,
           borderRadius: 6,
           padding: 12,
           gap: 8,
-          backgroundColor: nativeLightTheme.surface.raised,
+          backgroundColor: theme.surface.raised,
         }}
       >
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>
           {`${summary.fileCount} files`}
         </Text>
         <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -175,7 +178,7 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
       </View>
 
       {rows.length === 0 ? (
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>
           No coverage data found.
         </Text>
       ) : (
@@ -190,25 +193,25 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
               key={f.file}
               style={{
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
+                borderColor: theme.border.subtle,
                 borderRadius: 6,
                 padding: 12,
                 gap: 10,
-                backgroundColor: nativeLightTheme.surface.raised,
+                backgroundColor: theme.surface.raised,
               }}
             >
               <View>
                 <Text
                   numberOfLines={1}
                   ellipsizeMode="middle"
-                  style={{ fontSize: 13, color: nativeLightTheme.text.primary }}
+                  style={{ fontSize: 13, color: theme.text.primary }}
                 >
                   {getFilename(f.file)}
                 </Text>
                 <Text
                   numberOfLines={1}
                   ellipsizeMode="middle"
-                  style={{ fontSize: 11, color: nativeLightTheme.text.muted }}
+                  style={{ fontSize: 11, color: theme.text.muted }}
                 >
                   {getDirname(f.file)}
                 </Text>
@@ -225,7 +228,7 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
                   style={{
                     fontSize: 11,
                     fontFamily: 'Menlo',
-                    color: nativeLightTheme.text.muted,
+                    color: theme.text.muted,
                   }}
                 >
                   Uncovered: {uncoveredText}

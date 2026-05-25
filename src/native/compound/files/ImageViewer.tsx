@@ -3,7 +3,8 @@ import { ActivityIndicator, Image, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ImageViewerProps {
   /** Raw-bytes URL for the image. */
@@ -25,6 +26,7 @@ const MAX_SCALE = 6
  * `_layout.tsx`).
  */
 export default function ImageViewer({ uri, headers }: ImageViewerProps) {
+  const { theme } = useNativeTheme()
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   const scale = useSharedValue(1)
@@ -81,13 +83,13 @@ export default function ImageViewer({ uri, headers }: ImageViewerProps) {
         alignItems: 'center',
         justifyContent: 'center',
         padding: nativeSpace[4],
-        backgroundColor: nativeLightTheme.surface.muted,
+        backgroundColor: theme.surface.muted,
         overflow: 'hidden',
       }}
     >
       {state === 'loading' ? <ActivityIndicator /> : null}
       {state === 'error' ? (
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>
           Could not load image.
         </Text>
       ) : null}

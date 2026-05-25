@@ -10,7 +10,8 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native'
-import { nativeLightTheme, nativeMotion, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeMotion, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { OverlayPortal } from './Overlay'
 
 export interface BottomSheetProps {
@@ -61,6 +62,7 @@ export default function BottomSheet({
   maxHeightFraction = 0.85,
   fillHeight = false,
 }: BottomSheetProps) {
+  const { theme } = useNativeTheme()
   const { height: screenHeight } = useWindowDimensions()
   const translateY = useRef(new Animated.Value(screenHeight)).current
   // Two-step mount so the close animation is visible.
@@ -164,7 +166,7 @@ export default function BottomSheet({
         />
         <Animated.View
           style={{
-            backgroundColor: nativeLightTheme.surface.overlay,
+            backgroundColor: theme.surface.overlay,
             borderTopLeftRadius: nativeRadii[5],
             borderTopRightRadius: nativeRadii[5],
             overflow: 'hidden',
@@ -188,7 +190,7 @@ export default function BottomSheet({
                   width: 44,
                   height: 5,
                   borderRadius: 3,
-                  backgroundColor: nativeLightTheme.border.default,
+                  backgroundColor: theme.border.default,
                 }}
               />
             </View>
@@ -202,7 +204,7 @@ export default function BottomSheet({
               >
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 16, fontWeight: '600', color: nativeLightTheme.text.primary }}
+                  style={{ fontSize: 16, fontWeight: '600', color: theme.text.primary }}
                 >
                   {title}
                 </Text>
@@ -251,7 +253,7 @@ export default function BottomSheet({
                 paddingHorizontal: nativeSpace[5],
                 paddingTop: nativeSpace[3],
                 borderTopWidth: 1,
-                borderTopColor: nativeLightTheme.border.subtle,
+                borderTopColor: theme.border.subtle,
               }}
             >
               {footer}

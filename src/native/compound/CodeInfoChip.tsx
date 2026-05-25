@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { renderLanguageIcon, type CodeInfoLanguage } from './codeInfoIcons'
 
 export type CodeInfoChipProps = {
@@ -24,6 +25,7 @@ export default function CodeInfoChip({
   isInteractive,
   onPress,
 }: CodeInfoChipProps): ReactNode {
+  const { theme } = useNativeTheme()
   const inner =
     type === 'language' ? (
       <View accessibilityLabel={value}>{renderLanguageIcon(value as CodeInfoLanguage, 16)}</View>
@@ -32,7 +34,7 @@ export default function CodeInfoChip({
         style={{
           fontSize: 12,
           fontWeight: '500',
-          color: nativeLightTheme.text.primary,
+          color: theme.text.primary,
         }}
         numberOfLines={1}
       >
@@ -48,8 +50,8 @@ export default function CodeInfoChip({
     paddingVertical: 2,
     borderRadius: nativeRadii[5] ?? 999,
     borderWidth: 1,
-    borderColor: nativeLightTheme.border.subtle,
-    backgroundColor: nativeLightTheme.surface.raised,
+    borderColor: theme.border.subtle,
+    backgroundColor: theme.surface.raised,
   }
 
   if (isInteractive && onPress) {
@@ -62,7 +64,7 @@ export default function CodeInfoChip({
           containerStyle,
           {
             backgroundColor: pressed
-              ? nativeLightTheme.surface.muted
+              ? theme.surface.muted
               : containerStyle.backgroundColor,
           },
         ]}

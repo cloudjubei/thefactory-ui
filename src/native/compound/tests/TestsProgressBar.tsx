@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type TestsProgressBarProps = {
   /** Heading shown to the left of the counts (e.g. "Unit tests running…"). */
@@ -18,6 +19,7 @@ export type TestsProgressBarProps = {
  * reports `total` so we never show a misleading zero-progress sliver.
  */
 export function TestsProgressBar({ label, completed, total, currentFile }: TestsProgressBarProps) {
+  const { theme } = useNativeTheme()
   const pct =
     typeof total === 'number' && total > 0
       ? Math.min(100, Math.round((completed / total) * 100))
@@ -30,20 +32,20 @@ export function TestsProgressBar({ label, completed, total, currentFile }: Tests
         borderRadius: 6,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: nativeLightTheme.surface.raised,
+        backgroundColor: theme.surface.raised,
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
           {label}
         </Text>
         <Text
           style={{
             fontSize: 12,
             fontFamily: 'Menlo',
-            color: nativeLightTheme.text.muted,
+            color: theme.text.muted,
           }}
         >
           {typeof total === 'number' ? `${completed} / ${total}` : `${completed} files`}
@@ -52,7 +54,7 @@ export function TestsProgressBar({ label, completed, total, currentFile }: Tests
         <Text
           numberOfLines={1}
           ellipsizeMode="middle"
-          style={{ flex: 1, fontSize: 12, color: nativeLightTheme.text.muted }}
+          style={{ flex: 1, fontSize: 12, color: theme.text.muted }}
         >
           {currentFile ?? ''}
         </Text>
@@ -63,14 +65,14 @@ export function TestsProgressBar({ label, completed, total, currentFile }: Tests
             height: 4,
             borderRadius: 2,
             overflow: 'hidden',
-            backgroundColor: nativeLightTheme.surface.muted,
+            backgroundColor: theme.surface.muted,
           }}
         >
           <View
             style={{
               width: `${pct}%`,
               height: '100%',
-              backgroundColor: nativeLightTheme.accent.primary,
+              backgroundColor: theme.accent.primary,
             }}
           />
         </View>

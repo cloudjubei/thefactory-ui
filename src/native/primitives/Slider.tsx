@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { PanResponder, View, type LayoutChangeEvent } from 'react-native'
-import { nativeLightTheme } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SliderProps {
   value: number
@@ -31,6 +31,7 @@ export function Slider({
   onCommit,
   disabled = false,
 }: SliderProps) {
+  const { theme } = useNativeTheme()
   const [trackWidth, setTrackWidth] = useState(0)
   const widthRef = useRef(0)
 
@@ -94,7 +95,7 @@ export function Slider({
         style={{
           height: TRACK_HEIGHT,
           borderRadius: TRACK_HEIGHT / 2,
-          backgroundColor: nativeLightTheme.border.default,
+          backgroundColor: theme.border.default,
         }}
       >
         <View
@@ -105,7 +106,7 @@ export function Slider({
             bottom: 0,
             width: fillWidth,
             borderRadius: TRACK_HEIGHT / 2,
-            backgroundColor: nativeLightTheme.accent.primary,
+            backgroundColor: theme.accent.primary,
           }}
         />
       </View>
@@ -119,7 +120,7 @@ export function Slider({
           borderRadius: THUMB / 2,
           backgroundColor: '#ffffff',
           borderWidth: 2,
-          borderColor: nativeLightTheme.accent.primary,
+          borderColor: theme.accent.primary,
         }}
       />
     </View>

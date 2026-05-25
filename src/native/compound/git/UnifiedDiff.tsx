@@ -8,7 +8,8 @@ import {
   type ParsedDiffHunk,
   type ParsedDiffLine,
 } from '../../../headless/utils/diffAnnotate'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface UnifiedDiffProps {
   /** Unified-diff patch body. */
@@ -61,12 +62,6 @@ export interface UnifiedDiffProps {
   inline?: boolean
 }
 
-const LINE_FG: Record<ParsedDiffLine['type'], string> = {
-  add: nativePalette.green[700],
-  del: nativePalette.red[700],
-  ctx: nativeLightTheme.text.secondary,
-  meta: nativeLightTheme.text.muted,
-}
 const LINE_BG: Record<ParsedDiffLine['type'], string> = {
   add: 'rgba(22,163,74,0.12)',
   del: 'rgba(220,38,38,0.12)',
@@ -114,6 +109,7 @@ export default function UnifiedDiff({
   onDiscardHunk,
   inline = false,
 }: UnifiedDiffProps) {
+  const { theme } = useNativeTheme()
   const hunksRaw = useMemo<ParsedDiffHunk[]>(
     () => (patch ? parseUnifiedDiffAnnotated(patch) : []),
     [patch],
@@ -154,13 +150,13 @@ export default function UnifiedDiff({
       <View
         style={{
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.subtle,
+          borderColor: theme.border.subtle,
           borderRadius: 6,
           padding: nativeSpace[4],
           gap: nativeSpace[3],
         }}
       >
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 13, color: theme.text.primary }}>
           Diff is very large ({totalRenderableLines} lines). Showing it might freeze the UI.
         </Text>
         <Pressable
@@ -171,15 +167,15 @@ export default function UnifiedDiff({
             alignSelf: 'flex-start',
             borderRadius: nativeRadii[2],
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
+            borderColor: theme.border.subtle,
             paddingHorizontal: nativeSpace[3],
             paddingVertical: nativeSpace[2],
             backgroundColor: pressed
-              ? nativeLightTheme.surface.hover
-              : nativeLightTheme.surface.muted,
+              ? theme.surface.hover
+              : theme.surface.muted,
           })}
         >
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.primary }}>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>
             Show anyway
           </Text>
         </Pressable>
@@ -265,6 +261,7 @@ function HunkHeader({
   onUnstageHunk?: (hunkIndex: number) => void
   onDiscardHunk?: (hunkIndex: number) => void
 }) {
+  const { theme } = useNativeTheme()
   const range = useMemo(() => hunkLineRange(hunk), [hunk])
   const { allSelected, anySelected } = useMemo(() => {
     const modIdxs = hunk.lines
@@ -287,9 +284,9 @@ function HunkHeader({
         gap: nativeSpace[2],
         paddingHorizontal: nativeSpace[2],
         paddingVertical: nativeSpace[2],
-        backgroundColor: nativeLightTheme.surface.muted,
+        backgroundColor: theme.surface.muted,
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
+        borderBottomColor: theme.border.subtle,
       }}
     >
       {selectable ? (
@@ -303,12 +300,12 @@ function HunkHeader({
         style={{
           fontSize: 10,
           fontWeight: '700',
-          color: nativeLightTheme.text.secondary,
+          color: theme.text.secondary,
         }}
       >
         Hunk {hunkIndex + 1}:
       </Text>
-      <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>
+      <Text style={{ fontSize: 10, color: theme.text.muted }}>
         Lines {range.start}–{range.end}
       </Text>
       <View style={{ flex: 1 }} />
@@ -345,6 +342,13 @@ function HunkBody({
   selectedLines?: Set<string>
   onToggleLineSelection?: (hunkIndex: number, lineIndex: number) => void
 }) {
+  const { theme } = useNativeTheme()
+  const LINE_FG: Record<ParsedDiffLine['type'], string> = {
+    add: nativePalette.green[700],
+    del: nativePalette.red[700],
+    ctx: theme.text.secondary,
+    meta: theme.text.muted,
+  }
   // Original (full) line indices for each visible line so selection keys
   // stay aligned with the unfiltered hunk model `generateSelectedPatch`
   // expects.
@@ -370,7 +374,7 @@ function HunkBody({
               minHeight: LINE_HEIGHT,
               backgroundColor: LINE_BG[l.type],
               borderRightWidth: 1,
-              borderRightColor: nativeLightTheme.border.subtle,
+              borderRightColor: theme.border.subtle,
             }}
           >
             {selectable ? (
@@ -397,7 +401,7 @@ function HunkBody({
                 paddingRight: 4,
                 fontFamily: 'Menlo',
                 fontSize: 10,
-                color: nativeLightTheme.text.muted,
+                color: theme.text.muted,
               }}
             >
               {l.oldLine ?? ''}
@@ -409,7 +413,7 @@ function HunkBody({
                 paddingRight: 4,
                 fontFamily: 'Menlo',
                 fontSize: 10,
-                color: nativeLightTheme.text.muted,
+                color: theme.text.muted,
               }}
             >
               {l.newLine ?? ''}
@@ -521,6 +525,7 @@ function SelectionCheckbox({
   onPress: () => void
   accessibilityLabel: string
 }) {
+  const { theme } = useNativeTheme()
   const isOn = state !== 'unchecked'
   return (
     <Pressable
@@ -534,8 +539,8 @@ function SelectionCheckbox({
         height: 14,
         borderRadius: 3,
         borderWidth: 1.5,
-        borderColor: isOn ? nativeLightTheme.accent.primary : nativeLightTheme.border.strong,
-        backgroundColor: isOn ? nativeLightTheme.accent.primary : 'transparent',
+        borderColor: isOn ? theme.accent.primary : theme.border.strong,
+        backgroundColor: isOn ? theme.accent.primary : 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -588,15 +593,16 @@ function MarkupText({
 }
 
 function Placeholder({ text }: { text: string }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
+        borderColor: theme.border.subtle,
         padding: nativeSpace[4],
       }}
     >
-      <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>{text}</Text>
+      <Text style={{ fontSize: 13, color: theme.text.muted }}>{text}</Text>
     </View>
   )
 }

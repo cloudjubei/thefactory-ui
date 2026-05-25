@@ -1,5 +1,6 @@
 import { Pressable, Text } from 'react-native'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ToolListCardProps {
   name: string
@@ -18,6 +19,7 @@ export default function ToolListCard({
   isActive = false,
   onPress,
 }: ToolListCardProps) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="button"
@@ -27,26 +29,26 @@ export default function ToolListCard({
         borderWidth: 1,
         paddingHorizontal: nativeSpace[5],
         paddingVertical: nativeSpace[4],
-        borderColor: isActive ? nativePalette.blue[500] : nativeLightTheme.border.subtle,
+        borderColor: isActive ? nativePalette.blue[500] : theme.border.subtle,
         backgroundColor: isActive
           ? nativePalette.blue[50]
           : pressed
-            ? nativeLightTheme.surface.muted
-            : nativeLightTheme.surface.raised,
+            ? theme.surface.muted
+            : theme.surface.raised,
       })}
     >
       <Text
         style={{
           fontSize: 14,
           fontWeight: '600',
-          color: isActive ? nativePalette.blue[700] : nativeLightTheme.text.primary,
+          color: isActive ? nativePalette.blue[700] : theme.text.primary,
         }}
         numberOfLines={1}
       >
         <Text style={{ fontFamily: 'Menlo' }}>{name}</Text>
       </Text>
       <Text
-        style={{ fontSize: 12, color: nativeLightTheme.text.secondary, marginTop: 4 }}
+        style={{ fontSize: 12, color: theme.text.secondary, marginTop: 4 }}
         numberOfLines={2}
       >
         {description || 'No description provided.'}

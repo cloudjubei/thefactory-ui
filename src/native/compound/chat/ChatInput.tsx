@@ -5,7 +5,8 @@ import FileMentionsTextarea, {
   type FileMentionsTextareaHandle,
 } from '../files/FileMentionsTextarea'
 import { rankMentionMatches, type ReferenceSuggestion } from '../../../headless'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -74,6 +75,7 @@ export default function ChatInput({
   placeholder,
   hints,
 }: ChatInputProps) {
+  const { theme } = useNativeTheme()
   const inputRef = useRef<FileMentionsTextareaHandle>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -137,8 +139,8 @@ export default function ChatInput({
       style={{
         gap: nativeSpace[3],
         borderTopWidth: 1,
-        borderTopColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.raised,
+        borderTopColor: theme.border.subtle,
+        backgroundColor: theme.surface.raised,
         paddingHorizontal: nativeSpace[5],
         paddingTop: nativeSpace[4],
         paddingBottom: nativeSpace[5],
@@ -160,12 +162,12 @@ export default function ChatInput({
                 paddingHorizontal: nativeSpace[4],
                 paddingVertical: nativeSpace[2],
                 borderRadius: nativeRadii.round,
-                backgroundColor: nativeLightTheme.surface.muted,
+                backgroundColor: theme.surface.muted,
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
+                borderColor: theme.border.subtle,
               }}
             >
-              <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                 {path.split('/').pop() ?? path}
               </Text>
               <Pressable
@@ -174,7 +176,7 @@ export default function ChatInput({
                 onPress={() => removeAttachment(i)}
                 hitSlop={4}
               >
-                <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>×</Text>
+                <Text style={{ fontSize: 12, color: theme.text.muted }}>×</Text>
               </Pressable>
             </View>
           ))}
@@ -199,16 +201,16 @@ export default function ChatInput({
                 paddingVertical: nativeSpace[3],
                 borderRadius: nativeRadii.round,
                 backgroundColor: pressed
-                  ? nativeLightTheme.surface.muted
-                  : nativeLightTheme.surface.overlay,
+                  ? theme.surface.muted
+                  : theme.surface.overlay,
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
+                borderColor: theme.border.subtle,
                 opacity: isThinking ? 0.6 : 1,
               })}
             >
               <Text
                 numberOfLines={1}
-                style={{ fontSize: 13, color: nativeLightTheme.text.primary }}
+                style={{ fontSize: 13, color: theme.text.primary }}
               >
                 {sa}
               </Text>
@@ -236,11 +238,11 @@ export default function ChatInput({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: nativeRadii[2],
-              backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
+              backgroundColor: pressed ? theme.surface.muted : 'transparent',
               opacity: isThinking || !isConfigured || disconnected ? 0.4 : 1,
             })}
           >
-            <IconAttach size={18} color={nativeLightTheme.text.secondary} />
+            <IconAttach size={18} color={theme.text.secondary} />
           </Pressable>
         )}
         <View style={{ flex: 1 }}>
@@ -267,11 +269,11 @@ export default function ChatInput({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: nativeRadii[2],
-              backgroundColor: nativeLightTheme.surface.muted,
+              backgroundColor: theme.surface.muted,
               opacity: pressed ? 0.7 : 1,
             })}
           >
-            <Text style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>■</Text>
+            <Text style={{ fontSize: 14, color: theme.text.primary }}>■</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -291,7 +293,7 @@ export default function ChatInput({
               opacity: canSend ? (pressed ? 0.7 : 1) : 0.4,
             })}
           >
-            <IconSend size={16} color={nativeLightTheme.accent.primary} />
+            <IconSend size={16} color={theme.accent.primary} />
           </Pressable>
         )}
       </View>
@@ -299,7 +301,7 @@ export default function ChatInput({
       {hints && (
         <View>
           {typeof hints === 'string' ? (
-            <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted }}>{hints}</Text>
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>{hints}</Text>
           ) : (
             hints
           )}

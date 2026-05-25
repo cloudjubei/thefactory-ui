@@ -7,7 +7,8 @@ import {
   isCompletelyNewFile,
   tryString,
 } from '../../../../headless/utils/toolPreview'
-import { nativeLightTheme, nativePalette, nativeSpace } from '../../../../tokens/native'
+import { nativePalette, nativeSpace } from '../../../../tokens/native'
+import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Code from '../../Code'
 import UnifiedDiff from '../../git/UnifiedDiff'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
@@ -30,6 +31,7 @@ export type WriteToolsPreviewProps = {
  * everything else.
  */
 export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPreviewProps) {
+  const { theme } = useNativeTheme()
   const toolName = String(toolCall?.name)
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
@@ -93,7 +95,7 @@ export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPr
   if (!successPatch) {
     if (isInFlight) return <SpinnerContent label="Loading diff preview…" />
     return (
-      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>No diff output</Text>
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>No diff output</Text>
     )
   }
 
@@ -131,10 +133,11 @@ export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPr
 }
 
 function SpinnerContent({ label }: { label?: string }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ paddingVertical: nativeSpace[3], alignItems: 'center', gap: nativeSpace[2] }}>
       <ActivityIndicator />
-      <Text style={{ fontSize: 11, color: nativeLightTheme.text.secondary }}>
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
         {label ?? 'Loading preview…'}
       </Text>
     </View>

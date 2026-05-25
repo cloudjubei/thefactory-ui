@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type IconButtonSize = 'sm' | 'md' | 'lg'
 
@@ -33,6 +34,7 @@ export default function IconButton({
   className,
   style,
 }: IconButtonProps) {
+  const { theme } = useNativeTheme()
   const d = HIT[size]
   return (
     <Pressable
@@ -50,7 +52,7 @@ export default function IconButton({
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: nativeRadii[2],
-          backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
+          backgroundColor: pressed ? theme.surface.muted : 'transparent',
           opacity: disabled ? 0.5 : 1,
           padding: nativeSpace[2],
         },

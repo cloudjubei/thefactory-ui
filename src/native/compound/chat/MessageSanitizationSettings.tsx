@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native'
 import { Switch } from '../../primitives/Switch'
 import { Slider } from '../../primitives/Slider'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type MessageSanitization = {
   enabled: boolean
@@ -25,6 +26,7 @@ export default function MessageSanitizationSettings({
   messageSanitization,
   persistSettings,
 }: MessageSanitizationSettingsProps) {
+  const { theme } = useNativeTheme()
   const enabled = messageSanitization?.enabled ?? false
   const keepLast = messageSanitization?.keepLastMessages ?? 8
 
@@ -45,7 +47,7 @@ export default function MessageSanitizationSettings({
         gap: nativeSpace[3],
         paddingTop: nativeSpace[3],
         borderTopWidth: 1,
-        borderTopColor: nativeLightTheme.border.subtle,
+        borderTopColor: theme.border.subtle,
       }}
     >
       <View
@@ -57,10 +59,10 @@ export default function MessageSanitizationSettings({
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
             Message sanitization
           </Text>
-          <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted, marginTop: 2 }}>
+          <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
             Clamp very large tool outputs/arguments before sending to the LLM
           </Text>
         </View>
@@ -69,10 +71,10 @@ export default function MessageSanitizationSettings({
 
       <View style={{ gap: nativeSpace[1] }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
             Keep last messages
           </Text>
-          <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>{keepLast}</Text>
+          <Text style={{ fontSize: 13, color: theme.text.secondary }}>{keepLast}</Text>
         </View>
         <Slider
           value={keepLast}

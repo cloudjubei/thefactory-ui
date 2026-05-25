@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native'
 import BottomSheet from '../../primitives/BottomSheet'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface MessageUsageSheetProps {
   isOpen: boolean
@@ -44,6 +45,7 @@ function fmtDurationMs(ms?: number): string {
  * single message.
  */
 export default function MessageUsageSheet({ isOpen, onClose, message }: MessageUsageSheetProps) {
+  const { theme } = useNativeTheme()
   const usage = message?.usage
   const rawModel = usage?.model ?? message?.model
   const provider = typeof rawModel === 'object' ? rawModel?.provider : undefined
@@ -72,7 +74,7 @@ export default function MessageUsageSheet({ isOpen, onClose, message }: MessageU
           style={{
             paddingTop: nativeSpace[2],
             borderTopWidth: 1,
-            borderTopColor: nativeLightTheme.border.subtle,
+            borderTopColor: theme.border.subtle,
             gap: nativeSpace[2],
           }}
         >
@@ -86,7 +88,7 @@ export default function MessageUsageSheet({ isOpen, onClose, message }: MessageU
             style={{
               paddingTop: nativeSpace[2],
               borderTopWidth: 1,
-              borderTopColor: nativeLightTheme.border.subtle,
+              borderTopColor: theme.border.subtle,
             }}
           >
             <Row label="Duration" value={fmtDurationMs(durationMs)} mono />
@@ -106,6 +108,7 @@ function Row({
   value: string
   mono?: boolean
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
@@ -115,11 +118,11 @@ function Row({
         paddingVertical: 2,
       }}
     >
-      <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>{label}</Text>
+      <Text style={{ fontSize: 12, color: theme.text.secondary }}>{label}</Text>
       <Text
         style={{
           fontSize: 13,
-          color: nativeLightTheme.text.primary,
+          color: theme.text.primary,
           fontFamily: mono ? 'Menlo' : undefined,
           fontVariant: mono ? (['tabular-nums'] as ['tabular-nums']) : undefined,
         }}

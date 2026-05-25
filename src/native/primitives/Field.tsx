@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { nativeLightTheme, nativeSpace } from '../../tokens/native'
+import { nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface FieldProps {
   label: ReactNode
@@ -18,6 +19,7 @@ export interface FieldProps {
 // font-medium` heading (14px / 500) above the input. The hint sits underneath
 // at `text-xs`, dimmed.
 export default function Field({ label, labelTrailing, hint, children }: FieldProps) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[2] }}>
       <View
@@ -28,14 +30,14 @@ export default function Field({ label, labelTrailing, hint, children }: FieldPro
           gap: nativeSpace[3],
         }}
       >
-        <Text style={{ fontSize: 14, fontWeight: '500', color: nativeLightTheme.text.primary }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
           {label}
         </Text>
         {labelTrailing}
       </View>
       {children}
       {hint && (
-        <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted, opacity: 0.85 }}>
+        <Text style={{ fontSize: 12, color: theme.text.muted, opacity: 0.85 }}>
           {hint}
         </Text>
       )}

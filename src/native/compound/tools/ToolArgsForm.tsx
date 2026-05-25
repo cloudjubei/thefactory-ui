@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native'
 import ToolArgInput from './ToolArgInput'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ToolArgsFormProps {
   /** JSON-Schema `properties` map (from headless `getProperties`). */
@@ -25,10 +26,11 @@ export default function ToolArgsForm({
   values,
   onChange,
 }: ToolArgsFormProps) {
+  const { theme } = useNativeTheme()
   const entries = Object.entries(properties)
   if (entries.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>
+      <Text style={{ fontSize: 13, color: theme.text.muted }}>
         This tool has no arguments.
       </Text>
     )

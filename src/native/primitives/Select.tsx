@@ -11,7 +11,8 @@ import {
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { IconChevronDown } from '../icons'
-import { nativeControls, nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeControls, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from './BottomSheet'
 
 export type SelectTriggerSize = 'sm' | 'md' | 'lg'
@@ -135,6 +136,7 @@ export function SelectTrigger({
   className,
   style,
 }: SelectTriggerProps) {
+  const { theme } = useNativeTheme()
   const { setOpen, open } = useSelectCtx('SelectTrigger')
   return (
     <Pressable
@@ -153,8 +155,8 @@ export function SelectTrigger({
           paddingHorizontal: TRIGGER_PAD_X[size],
           borderRadius: nativeRadii[2],
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.default,
-          backgroundColor: nativeLightTheme.surface.raised,
+          borderColor: theme.border.default,
+          backgroundColor: theme.surface.raised,
           opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
         },
         style,
@@ -164,7 +166,7 @@ export function SelectTrigger({
         {typeof children === 'string' ? (
           <Text
             numberOfLines={1}
-            style={{ fontSize: TRIGGER_FONT_SIZE[size], color: nativeLightTheme.text.primary }}
+            style={{ fontSize: TRIGGER_FONT_SIZE[size], color: theme.text.primary }}
           >
             {children}
           </Text>
@@ -172,7 +174,7 @@ export function SelectTrigger({
           children
         )}
       </View>
-      <IconChevronDown size={14} color={nativeLightTheme.text.muted} />
+      <IconChevronDown size={14} color={theme.text.muted} />
     </Pressable>
   )
 }
@@ -182,17 +184,18 @@ export interface SelectValueProps {
 }
 
 export function SelectValue({ placeholder }: SelectValueProps) {
+  const { theme } = useNativeTheme()
   const { value, itemLabels } = useSelectCtx('SelectValue')
   const label = value !== undefined ? (itemLabels.get(value) ?? value) : undefined
   if (label === undefined || label === '') {
     return placeholder ? (
-      <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.muted }}>
+      <Text numberOfLines={1} style={{ fontSize: 14, color: theme.text.muted }}>
         {placeholder}
       </Text>
     ) : null
   }
   return typeof label === 'string' ? (
-    <Text numberOfLines={1} style={{ fontSize: 14, color: nativeLightTheme.text.primary }}>
+    <Text numberOfLines={1} style={{ fontSize: 14, color: theme.text.primary }}>
       {label}
     </Text>
   ) : (
@@ -216,6 +219,7 @@ export interface SelectGroupProps {
 }
 
 export function SelectGroup({ label, children }: SelectGroupProps) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ paddingVertical: nativeSpace[2] }}>
       {label != null && (
@@ -227,7 +231,7 @@ export function SelectGroup({ label, children }: SelectGroupProps) {
             fontWeight: '600',
             letterSpacing: 0.5,
             textTransform: 'uppercase',
-            color: nativeLightTheme.text.muted,
+            color: theme.text.muted,
           }}
         >
           {label}
@@ -246,6 +250,7 @@ export interface SelectItemProps {
 }
 
 export function SelectItem({ value, children, disabled = false, className }: SelectItemProps) {
+  const { theme } = useNativeTheme()
   const { value: selected, onValueChange, setOpen } = useSelectCtx('SelectItem')
   const active = selected === value
   return (
@@ -265,7 +270,7 @@ export function SelectItem({ value, children, disabled = false, className }: Sel
         paddingVertical: nativeSpace[5],
         paddingHorizontal: nativeSpace[5],
         borderRadius: nativeRadii[1],
-        backgroundColor: pressed ? nativeLightTheme.surface.muted : 'transparent',
+        backgroundColor: pressed ? theme.surface.muted : 'transparent',
         opacity: disabled ? 0.5 : 1,
       })}
     >
@@ -275,7 +280,7 @@ export function SelectItem({ value, children, disabled = false, className }: Sel
             style={{
               fontSize: 14,
               fontWeight: active ? '600' : '400',
-              color: nativeLightTheme.text.primary,
+              color: theme.text.primary,
             }}
           >
             {children}
@@ -284,7 +289,7 @@ export function SelectItem({ value, children, disabled = false, className }: Sel
           children
         )}
       </View>
-      {active && <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>}
+      {active && <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>}
     </Pressable>
   )
 }

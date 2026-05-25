@@ -1,5 +1,6 @@
 import { Switch as RNSwitch, Text, View } from 'react-native'
-import { nativeLightTheme, nativeSpace } from '../../tokens/native'
+import { nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SwitchProps {
   checked: boolean
@@ -16,6 +17,7 @@ export function Switch({
   disabled = false,
   className,
 }: SwitchProps) {
+  const { theme } = useNativeTheme()
   return (
     <View
       className={className}
@@ -26,18 +28,18 @@ export function Switch({
         disabled={disabled}
         onValueChange={onCheckedChange}
         trackColor={{
-          false: nativeLightTheme.border.default,
-          true: nativeLightTheme.accent.primary,
+          false: theme.border.default,
+          true: theme.accent.primary,
         }}
         thumbColor="#ffffff"
-        ios_backgroundColor={nativeLightTheme.border.default}
+        ios_backgroundColor={theme.border.default}
       />
       {label && (
         <Text
           style={{
             fontSize: 14,
             fontWeight: '500',
-            color: disabled ? nativeLightTheme.text.muted : nativeLightTheme.text.primary,
+            color: disabled ? theme.text.muted : theme.text.primary,
           }}
         >
           {label}

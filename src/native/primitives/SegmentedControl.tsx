@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export interface SegmentedOption {
   value: string
@@ -37,6 +38,7 @@ export default function SegmentedControl({
   hideLabels = false,
   style,
 }: SegmentedControlProps) {
+  const { theme } = useNativeTheme()
   return (
     <View
       accessibilityRole="radiogroup"
@@ -46,9 +48,9 @@ export default function SegmentedControl({
         {
           flexDirection: 'row',
           alignSelf: 'flex-start',
-          backgroundColor: nativeLightTheme.surface.raised,
+          backgroundColor: theme.surface.raised,
           borderWidth: 1,
-          borderColor: nativeLightTheme.border.default,
+          borderColor: theme.border.default,
           borderRadius: nativeRadii.round,
           padding: 2,
           gap: 2,
@@ -73,7 +75,7 @@ export default function SegmentedControl({
               justifyContent: 'center',
               gap: nativeSpace[3],
               borderRadius: nativeRadii.round,
-              backgroundColor: active ? nativeLightTheme.accent.primary : 'transparent',
+              backgroundColor: active ? theme.accent.primary : 'transparent',
               opacity: pressed && !active ? 0.7 : 1,
             })}
           >
@@ -83,7 +85,7 @@ export default function SegmentedControl({
                 style={{
                   fontSize: TEXT_SIZE[size],
                   fontWeight: active ? '600' : '500',
-                  color: active ? nativeLightTheme.text.inverted : nativeLightTheme.text.secondary,
+                  color: active ? theme.text.inverted : theme.text.secondary,
                 }}
               >
                 {opt.label}

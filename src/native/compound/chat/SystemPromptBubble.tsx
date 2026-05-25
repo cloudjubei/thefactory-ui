@@ -1,7 +1,8 @@
 import { memo } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import Markdown from '../Markdown'
-import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface SystemPromptBubbleProps {
   content: string
@@ -10,6 +11,7 @@ export interface SystemPromptBubbleProps {
 }
 
 function SystemPromptBubble({ content, timestamp, maxHeight }: SystemPromptBubbleProps) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ alignItems: 'center' }}>
       <View style={{ alignItems: 'flex-end', maxWidth: '100%' }}>
@@ -20,7 +22,7 @@ function SystemPromptBubble({ content, timestamp, maxHeight }: SystemPromptBubbl
               fontSize: 10,
               lineHeight: 14,
               marginBottom: nativeSpace[2],
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
               opacity: 0.8,
             }}
           >
@@ -36,9 +38,9 @@ function SystemPromptBubble({ content, timestamp, maxHeight }: SystemPromptBubbl
             paddingHorizontal: nativeSpace[6],
             paddingVertical: nativeSpace[4],
             borderRadius: nativeRadii[5],
-            backgroundColor: nativeLightTheme.surface.overlay,
+            backgroundColor: theme.surface.overlay,
             borderWidth: 1,
-            borderColor: nativeLightTheme.border.subtle,
+            borderColor: theme.border.subtle,
             ...nativeShadows[1],
           }}
         >

@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../primitives/Select'
-import { nativeLightStatus, nativeLightTheme } from '../../../tokens/native'
+import { nativeLightStatus } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ToolArgInputProps {
   name: string
@@ -35,6 +36,7 @@ export default function ToolArgInput({
   value,
   onChange,
 }: ToolArgInputProps) {
+  const { theme } = useNativeTheme()
   const s = (schema && typeof schema === 'object' ? schema : {}) as Record<string, unknown>
   const type = (s.type as string | undefined) ?? 'string'
   const description = (s.description as string | undefined) ?? name
@@ -72,7 +74,7 @@ export default function ToolArgInput({
       <Field label={label}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Switch checked={value === true} onCheckedChange={(c) => onChange(c)} />
-          <Text style={{ fontSize: 13, color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 13, color: theme.text.muted }}>
             {value === true ? 'true' : 'false'}
           </Text>
         </View>

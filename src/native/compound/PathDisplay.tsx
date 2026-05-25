@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import { splitPath } from '../../headless/utils/path'
-import { nativeLightTheme } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export { splitPath }
 
@@ -14,6 +14,7 @@ export interface PathDisplayProps {
 // (12pt) — 2pt smaller than the default body text so the path reads as a
 // secondary metadata line and never crowds the row it's nested in.
 export function PathDisplay({ path }: PathDisplayProps) {
+  const { theme } = useNativeTheme()
   const { dir, name } = splitPath(path)
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', minWidth: 0 }}>
@@ -21,7 +22,7 @@ export function PathDisplay({ path }: PathDisplayProps) {
         <Text
           numberOfLines={1}
           ellipsizeMode="head"
-          style={{ flexShrink: 1, fontSize: 12, color: nativeLightTheme.text.muted }}
+          style={{ flexShrink: 1, fontSize: 12, color: theme.text.muted }}
         >
           {`/${dir}`}
         </Text>
@@ -34,7 +35,7 @@ export function PathDisplay({ path }: PathDisplayProps) {
           fontSize: 12,
           fontFamily: 'Menlo',
           fontWeight: '600',
-          color: nativeLightTheme.text.primary,
+          color: theme.text.primary,
         }}
       >
         {dir ? ` ${name}` : name}

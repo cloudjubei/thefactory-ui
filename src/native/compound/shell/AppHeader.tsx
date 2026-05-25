@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { nativeSpace } from '../../../tokens/native'
 
 export interface AppHeaderProps {
   /** Screen title — sits immediately to the right of the left slot. */
@@ -21,6 +22,7 @@ const HEADER_HEIGHT = 52
  * absorbs any remaining width.
  */
 export default function AppHeader({ title, left, right }: AppHeaderProps) {
+  const { theme } = useNativeTheme()
   return (
     <View
       style={{
@@ -29,8 +31,8 @@ export default function AppHeader({ title, left, right }: AppHeaderProps) {
         height: HEADER_HEIGHT,
         paddingHorizontal: nativeSpace[2],
         borderBottomWidth: 1,
-        borderBottomColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.base,
+        borderBottomColor: theme.border.subtle,
+        backgroundColor: theme.surface.base,
       }}
     >
       <View style={{ alignItems: 'flex-start' }}>{left}</View>
@@ -42,7 +44,7 @@ export default function AppHeader({ title, left, right }: AppHeaderProps) {
           paddingHorizontal: nativeSpace[2],
           fontSize: 17,
           fontWeight: '600',
-          color: nativeLightTheme.text.primary,
+          color: theme.text.primary,
         }}
       >
         {title}

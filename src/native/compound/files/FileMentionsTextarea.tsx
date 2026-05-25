@@ -12,7 +12,8 @@ import {
 } from 'react-native'
 
 import { useFileMentions, type ReferenceSuggestion } from '../../../headless'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type FileMentionsTextareaHandle = {
   focus: () => void
@@ -85,6 +86,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
     },
     ref,
   ) {
+    const { theme } = useNativeTheme()
     const inputRef = useRef<TextInput | null>(null)
     useImperativeHandle(
       ref,
@@ -167,15 +169,15 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
                 paddingVertical: nativeSpace[2],
                 borderRadius: nativeRadii[3],
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
-                backgroundColor: nativeLightTheme.surface.raised,
-                color: nativeLightTheme.text.primary,
+                borderColor: theme.border.subtle,
+                backgroundColor: theme.surface.raised,
+                color: theme.text.primary,
                 fontSize: 14,
                 lineHeight: 20,
               },
               textInputProps?.style,
             ]}
-            placeholderTextColor={nativeLightTheme.text.muted}
+            placeholderTextColor={theme.text.muted}
           />
         </KeyboardAvoidingView>
       </View>
@@ -198,6 +200,7 @@ function SuggestionsStrip({
   onPickFile: (path: string) => void
   onPickReference: (value: string) => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View
       accessibilityRole="list"
@@ -206,8 +209,8 @@ function SuggestionsStrip({
         marginBottom: nativeSpace[1],
         borderRadius: nativeRadii[3],
         borderWidth: 1,
-        borderColor: nativeLightTheme.border.subtle,
-        backgroundColor: nativeLightTheme.surface.overlay,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.overlay,
         overflow: 'hidden',
       }}
     >
@@ -221,12 +224,12 @@ function SuggestionsStrip({
                 paddingHorizontal: nativeSpace[3],
                 paddingVertical: nativeSpace[2],
                 borderTopWidth: idx === 0 ? 0 : 1,
-                borderTopColor: nativeLightTheme.border.subtle,
-                backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+                borderTopColor: theme.border.subtle,
+                backgroundColor: pressed ? theme.surface.hover : 'transparent',
               })}
             >
               <Text
-                style={{ fontSize: 13, color: nativeLightTheme.text.primary }}
+                style={{ fontSize: 13, color: theme.text.primary }}
                 numberOfLines={1}
                 ellipsizeMode="middle"
               >
@@ -243,19 +246,19 @@ function SuggestionsStrip({
                 paddingHorizontal: nativeSpace[3],
                 paddingVertical: nativeSpace[2],
                 borderTopWidth: idx === 0 ? 0 : 1,
-                borderTopColor: nativeLightTheme.border.subtle,
-                backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+                borderTopColor: theme.border.subtle,
+                backgroundColor: pressed ? theme.surface.hover : 'transparent',
               })}
             >
               <Text
-                style={{ fontSize: 13, color: nativeLightTheme.text.primary }}
+                style={{ fontSize: 13, color: theme.text.primary }}
                 numberOfLines={1}
               >
                 {sug.label}
               </Text>
               {sug.description && (
                 <Text
-                  style={{ fontSize: 11, color: nativeLightTheme.text.muted, marginTop: 2 }}
+                  style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}
                   numberOfLines={1}
                 >
                   {sug.description}

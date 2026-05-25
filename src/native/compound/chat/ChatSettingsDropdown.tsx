@@ -5,7 +5,8 @@ import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 import { Slider } from '../../primitives/Slider'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ToolToggle = {
   name: string
@@ -72,6 +73,7 @@ export default function ChatSettingsDropdown({
   extraContent,
   title = 'Chat settings',
 }: ChatSettingsDropdownProps) {
+  const { theme } = useNativeTheme()
   // Sheet takes ~80% of viewport (user-requested) and the inner scroller
   // takes ~70% — leaves room for the sheet handle, title bar, and a bit of
   // bottom safe-area inset before the scroll content kicks in.
@@ -132,12 +134,12 @@ export default function ChatSettingsDropdown({
                   style={{
                     fontSize: 12,
                     fontWeight: '500',
-                    color: nativeLightTheme.text.secondary,
+                    color: theme.text.secondary,
                   }}
                 >
                   Finish turn on errors
                 </Text>
-                <Text style={{ fontSize: 11, color: nativeLightTheme.text.muted, marginTop: 2 }}>
+                <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
                   When enabled, the agent ends the current turn if a tool call errors.
                 </Text>
               </View>
@@ -157,7 +159,7 @@ export default function ChatSettingsDropdown({
           <View
             style={{
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
+              borderColor: theme.border.subtle,
               borderRadius: nativeRadii[3],
             }}
           >
@@ -165,7 +167,7 @@ export default function ChatSettingsDropdown({
               <Text
                 style={{
                   fontSize: 12,
-                  color: nativeLightTheme.text.secondary,
+                  color: theme.text.secondary,
                   paddingHorizontal: nativeSpace[3],
                   paddingVertical: nativeSpace[4],
                 }}
@@ -188,19 +190,19 @@ export default function ChatSettingsDropdown({
                     paddingHorizontal: nativeSpace[3],
                     paddingVertical: nativeSpace[3],
                     borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: nativeLightTheme.border.subtle,
+                    borderTopColor: theme.border.subtle,
                   }}
                 >
                   <View style={{ flex: 1 }}>
                     <Text
-                      style={{ fontSize: 13, color: nativeLightTheme.text.primary }}
+                      style={{ fontSize: 13, color: theme.text.primary }}
                       numberOfLines={1}
                     >
                       {tool.name}
                     </Text>
                     {tool.description ? (
                       <Text
-                        style={{ fontSize: 11, color: nativeLightTheme.text.muted }}
+                        style={{ fontSize: 11, color: theme.text.muted }}
                         numberOfLines={1}
                       >
                         {tool.description}
@@ -208,7 +210,7 @@ export default function ChatSettingsDropdown({
                     ) : null}
                   </View>
                   <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 10, color: nativeLightTheme.text.secondary }}>
+                    <Text style={{ fontSize: 10, color: theme.text.secondary }}>
                       Available
                     </Text>
                     <Switch
@@ -217,7 +219,7 @@ export default function ChatSettingsDropdown({
                     />
                   </View>
                   <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 10, color: nativeLightTheme.text.secondary }}>
+                    <Text style={{ fontSize: 10, color: theme.text.secondary }}>
                       Auto-call
                     </Text>
                     <Switch
@@ -242,7 +244,7 @@ export default function ChatSettingsDropdown({
               justifyContent: 'flex-start',
               paddingTop: nativeSpace[3],
               borderTopWidth: 1,
-              borderTopColor: nativeLightTheme.border.subtle,
+              borderTopColor: theme.border.subtle,
             }}
           >
             <Button size="sm" variant="danger" onPress={() => void onDeleteChat()}>
@@ -256,8 +258,9 @@ export default function ChatSettingsDropdown({
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
+  const { theme } = useNativeTheme()
   return (
-    <Text style={{ fontSize: 12, fontWeight: '600', color: nativeLightTheme.text.secondary }}>
+    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>
       {children}
     </Text>
   )
@@ -276,18 +279,19 @@ function SliderRow({
   max: number
   onChange: (v: number) => void
 }) {
+  const { theme } = useNativeTheme()
   return (
     <View style={{ gap: nativeSpace[1] }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 12, fontWeight: '500', color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>{value}</Text>
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>{value}</Text>
       </View>
       <Slider value={value} min={min} max={max} onChange={onChange} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>{min}</Text>
-        <Text style={{ fontSize: 10, color: nativeLightTheme.text.muted }}>{max}</Text>
+        <Text style={{ fontSize: 10, color: theme.text.muted }}>{min}</Text>
+        <Text style={{ fontSize: 10, color: theme.text.muted }}>{max}</Text>
       </View>
     </View>
   )

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ScrollView, Text } from 'react-native'
 import { Modal } from '../../primitives/Modal'
-import { nativeLightTheme } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ChatDynamicContextModalProps {
   isOpen: boolean
@@ -19,6 +19,7 @@ export default function ChatDynamicContextModal({
   onClose,
   dynamicContext,
 }: ChatDynamicContextModalProps) {
+  const { theme } = useNativeTheme()
   const formatted = useMemo(() => {
     if (dynamicContext == null) return undefined
     try {
@@ -43,14 +44,14 @@ export default function ChatDynamicContextModal({
               fontFamily: 'Menlo',
               fontSize: 12,
               lineHeight: 20,
-              color: nativeLightTheme.text.secondary,
+              color: theme.text.secondary,
             }}
           >
             {formatted}
           </Text>
         </ScrollView>
       ) : (
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           No dynamic context available on this chat.
         </Text>
       )}

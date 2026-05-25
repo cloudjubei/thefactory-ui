@@ -4,7 +4,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
-import { nativeLightTheme, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ToolConfirmationModalProps {
   pending: PendingToolConfirmationLike | null
@@ -22,6 +23,7 @@ function formatJson(v: unknown): string {
 }
 
 function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
+  const { theme } = useNativeTheme()
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -33,8 +35,8 @@ function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => voi
         height: 20,
         borderRadius: nativeRadii[1],
         borderWidth: 1.5,
-        borderColor: checked ? nativeLightTheme.accent.primary : nativeLightTheme.border.strong,
-        backgroundColor: checked ? nativeLightTheme.accent.primary : 'transparent',
+        borderColor: checked ? theme.accent.primary : theme.border.strong,
+        backgroundColor: checked ? theme.accent.primary : 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -60,6 +62,7 @@ export default function ToolConfirmationModal({
   onConfirm,
   onCancel,
 }: ToolConfirmationModalProps) {
+  const { theme } = useNativeTheme()
   const [granted, setGranted] = useState<Record<string, boolean>>({})
 
   // Reset selection whenever a new wave of tools arrives — the toolCallIds
@@ -115,7 +118,7 @@ export default function ToolConfirmationModal({
       }
     >
       <View style={{ gap: nativeSpace[3] }}>
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           Untick any tool you don&apos;t want to run. Denied tools come back to the agent as{' '}
           <Text style={{ fontFamily: 'Courier', fontSize: 12 }}>not_allowed</Text>; the agent will
           adjust and may propose different tools next turn.
@@ -123,10 +126,10 @@ export default function ToolConfirmationModal({
 
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[3] }}>
           <Pressable onPress={() => setAll(true)} hitSlop={6}>
-            <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>Select all</Text>
+            <Text style={{ fontSize: 12, color: theme.accent.primary }}>Select all</Text>
           </Pressable>
           <Pressable onPress={() => setAll(false)} hitSlop={6}>
-            <Text style={{ fontSize: 12, color: nativeLightTheme.accent.primary }}>
+            <Text style={{ fontSize: 12, color: theme.accent.primary }}>
               Select none
             </Text>
           </Pressable>
@@ -140,8 +143,8 @@ export default function ToolConfirmationModal({
                 padding: nativeSpace[3],
                 borderRadius: nativeRadii[3],
                 borderWidth: 1,
-                borderColor: nativeLightTheme.border.subtle,
-                backgroundColor: nativeLightTheme.surface.muted,
+                borderColor: theme.border.subtle,
+                backgroundColor: theme.surface.muted,
                 gap: nativeSpace[2],
               }}
             >
@@ -162,7 +165,7 @@ export default function ToolConfirmationModal({
                     fontFamily: 'Courier',
                     fontSize: 14,
                     fontWeight: '600',
-                    color: nativeLightTheme.text.primary,
+                    color: theme.text.primary,
                   }}
                 >
                   {tc.name}
@@ -178,7 +181,7 @@ export default function ToolConfirmationModal({
                     style={{
                       fontFamily: 'Courier',
                       fontSize: 12,
-                      color: nativeLightTheme.text.secondary,
+                      color: theme.text.secondary,
                     }}
                   >
                     {formatJson(tc.arguments)}

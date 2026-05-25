@@ -2,7 +2,8 @@ import { Text, View } from 'react-native'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type GitCredentialErrorOp = 'push' | 'pull' | 'fetch' | 'commit'
 
@@ -38,6 +39,7 @@ export default function GitCredentialErrorModal({
   message,
   repoUrl,
 }: GitCredentialErrorModalProps) {
+  const { theme } = useNativeTheme()
   const verb = op ? OP_LABEL[op] : 'access'
   return (
     <Modal
@@ -59,9 +61,9 @@ export default function GitCredentialErrorModal({
           {`Couldn't ${verb} — the GitHub credentials configured for this project don't have access to its repository.`}
         </Alert>
         {repoUrl ? (
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.muted }}>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>
             Repository:{' '}
-            <Text style={{ fontFamily: 'Menlo', color: nativeLightTheme.text.secondary }}>
+            <Text style={{ fontFamily: 'Menlo', color: theme.text.secondary }}>
               {repoUrl}
             </Text>
           </Text>
@@ -72,22 +74,22 @@ export default function GitCredentialErrorModal({
               padding: nativeSpace[2],
               borderRadius: 6,
               borderWidth: 1,
-              borderColor: nativeLightTheme.border.subtle,
-              backgroundColor: nativeLightTheme.surface.muted,
+              borderColor: theme.border.subtle,
+              backgroundColor: theme.surface.muted,
             }}
           >
             <Text
               style={{
                 fontFamily: 'Menlo',
                 fontSize: 11,
-                color: nativeLightTheme.text.primary,
+                color: theme.text.primary,
               }}
             >
               {message}
             </Text>
           </View>
         ) : null}
-        <Text style={{ fontSize: 13, color: nativeLightTheme.text.secondary }}>
+        <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           Update your GitHub Personal Access Token in Settings → GitHub, or pick a
           credential set that has access to this repository.
         </Text>

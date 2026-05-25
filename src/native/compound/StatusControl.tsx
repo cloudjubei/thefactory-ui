@@ -8,7 +8,8 @@ import {
   type StatusSemanticKey,
   type StoryStatus,
 } from '../../headless/utils/status'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
 
 export type { StoryStatus, StatusSemanticKey }
@@ -63,6 +64,7 @@ function resolve(status: StoryStatus | string): { colors: StatusColors; label: s
 }
 
 export default function StatusControl({ status, onChange, size = 'sm' }: StatusControlProps) {
+  const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
   const { colors, label } = resolve(status)
   const interactive = onChange != null
@@ -123,7 +125,7 @@ export default function StatusControl({ status, onChange, size = 'sm' }: StatusC
                   paddingVertical: nativeSpace[3],
                   paddingHorizontal: nativeSpace[3],
                   borderRadius: nativeRadii[3],
-                  backgroundColor: pressed ? nativeLightTheme.surface.hover : 'transparent',
+                  backgroundColor: pressed ? theme.surface.hover : 'transparent',
                 })}
               >
                 <View
@@ -139,13 +141,13 @@ export default function StatusControl({ status, onChange, size = 'sm' }: StatusC
                     flex: 1,
                     fontSize: 15,
                     fontWeight: selected ? '600' : '400',
-                    color: nativeLightTheme.text.primary,
+                    color: theme.text.primary,
                   }}
                 >
                   {optResolved.label}
                 </Text>
                 {selected && (
-                  <Text style={{ fontSize: 14, color: nativeLightTheme.accent.primary }}>✓</Text>
+                  <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>
                 )}
               </Pressable>
             )

@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativeLightTheme } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type LLMProviderId =
   | 'openai'
@@ -60,14 +60,15 @@ export default function LLMProviderIcon({
   style,
   fallback = false,
 }: LLMProviderIconProps) {
+  const { theme } = useNativeTheme()
   const key = normalise(provider)
   if (!key && !fallback) return null
   const palette: ProviderStyle = key
     ? PROVIDER_STYLES[key]
     : {
         letter: (provider.trim()[0] ?? '?').toUpperCase(),
-        bg: nativeLightTheme.surface.muted,
-        fg: nativeLightTheme.text.secondary,
+        bg: theme.surface.muted,
+        fg: theme.text.secondary,
       }
   return (
     <View

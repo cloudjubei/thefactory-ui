@@ -3,7 +3,8 @@ import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import Tooltip from '../primitives/Tooltip'
 import { IconXCircle } from '../icons'
-import { nativeLightTheme, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type DependencyChipKind = 'story' | 'feature' | 'missing'
 export type DependencyChipVariant = 'ok' | 'blocks' | 'missing'
@@ -31,10 +32,11 @@ interface ChipColors {
 }
 
 function chipColors(kind: DependencyChipKind, variant: DependencyChipVariant): ChipColors {
+  const { theme } = useNativeTheme()
   if (kind === 'missing' || variant === 'missing') {
     return {
       bg: nativePalette.red[50],
-      fg: nativeLightTheme.text.primary,
+      fg: theme.text.primary,
       border: nativePalette.red[200],
     }
   }
@@ -53,9 +55,9 @@ function chipColors(kind: DependencyChipKind, variant: DependencyChipVariant): C
     }
   }
   return {
-    bg: nativeLightTheme.surface.base,
-    fg: nativeLightTheme.text.secondary,
-    border: nativeLightTheme.border.default,
+    bg: theme.surface.base,
+    fg: theme.text.secondary,
+    border: theme.border.default,
   }
 }
 

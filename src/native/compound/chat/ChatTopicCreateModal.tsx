@@ -6,7 +6,8 @@ import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
-import { nativeLightTheme, nativeSpace } from '../../../tokens/native'
+import { nativeSpace } from '../../../tokens/native'
+import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ChatTopicCreateModalProps {
   isOpen: boolean
@@ -44,6 +45,7 @@ export default function ChatTopicCreateModal({
   hint = 'Used as the topic name in the sidebar.',
   disabledReason = null,
 }: ChatTopicCreateModalProps) {
+  const { theme } = useNativeTheme()
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,7 +109,7 @@ export default function ChatTopicCreateModal({
           />
         </Field>
         {disabledReason ? (
-          <Text style={{ fontSize: 12, color: nativeLightTheme.text.secondary }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {disabledReason}
           </Text>
         ) : null}

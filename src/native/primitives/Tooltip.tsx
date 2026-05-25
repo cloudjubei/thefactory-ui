@@ -3,12 +3,12 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { useTooltipState } from '../../headless/hooks/useTooltipState'
 import {
-  nativeLightTheme,
   nativeMotion,
   nativeRadii,
   nativeShadows,
   nativeSpace,
 } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import { OverlayPortal } from './Overlay'
 
 export type TooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
@@ -46,6 +46,7 @@ export default function Tooltip({
   anchorClassName,
   anchorStyle,
 }: TooltipProps) {
+  const { theme } = useNativeTheme()
   const { open, show, hide } = useTooltipState({ delayMs: 0, closeDelayMs: 0, disabled })
   const bare = variant === 'bare'
   // Two-step mount so the fade-out is visible.
@@ -102,14 +103,14 @@ export default function Tooltip({
                   paddingHorizontal: bare ? 0 : nativeSpace[8],
                   paddingVertical: bare ? 0 : nativeSpace[5],
                   borderRadius: nativeRadii[2],
-                  backgroundColor: bare ? 'transparent' : nativeLightTheme.surface.overlay,
+                  backgroundColor: bare ? 'transparent' : theme.surface.overlay,
                   borderWidth: bare ? 0 : 1,
-                  borderColor: nativeLightTheme.border.subtle,
+                  borderColor: theme.border.subtle,
                   ...(!bare ? nativeShadows[2] : null),
                 }}
               >
                 {typeof content === 'string' ? (
-                  <Text style={{ fontSize: 13, color: nativeLightTheme.text.primary }}>
+                  <Text style={{ fontSize: 13, color: theme.text.primary }}>
                     {content}
                   </Text>
                 ) : (

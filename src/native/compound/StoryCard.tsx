@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import type { StoryStatus } from '../../headless/utils/status'
-import { nativeLightTheme, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
+import { nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
+import { useNativeTheme } from '../hooks/useNativeTheme'
 import StatusControl from './StatusControl'
 import Markdown from './Markdown'
 
@@ -44,13 +45,14 @@ export function StoryCard({
   onPress,
   ariaLabel,
 }: StoryCardProps) {
+  const { theme } = useNativeTheme()
   const wrapperStyle: StyleProp<ViewStyle> = [
     {
       padding: nativeSpace[8],
       borderRadius: nativeRadii[4],
       borderWidth: 1,
-      borderColor: nativeLightTheme.border.subtle,
-      backgroundColor: nativeLightTheme.surface.raised,
+      borderColor: theme.border.subtle,
+      backgroundColor: theme.surface.raised,
       gap: nativeSpace[5],
       ...nativeShadows[2],
     },
@@ -78,7 +80,7 @@ export function StoryCard({
       )}
       <Text
         numberOfLines={2}
-        style={{ fontSize: 18, fontWeight: '600', color: nativeLightTheme.text.primary }}
+        style={{ fontSize: 18, fontWeight: '600', color: theme.text.primary }}
       >
         {story.title}
       </Text>
@@ -96,15 +98,15 @@ export function StoryCard({
                   paddingVertical: 2,
                   borderRadius: nativeRadii[1],
                   borderWidth: 1,
-                  borderColor: nativeLightTheme.border.subtle,
-                  backgroundColor: nativeLightTheme.surface.base,
+                  borderColor: theme.border.subtle,
+                  backgroundColor: theme.surface.base,
                 }}
               >
                 <Text
                   style={{
                     fontFamily: 'Menlo',
                     fontSize: 11,
-                    color: nativeLightTheme.text.secondary,
+                    color: theme.text.secondary,
                   }}
                 >
                   {b}
