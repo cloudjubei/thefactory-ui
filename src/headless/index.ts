@@ -56,6 +56,10 @@ export {
   type UseTooltipStateOptions,
 } from './hooks/useTooltipState'
 export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
+export {
+  useProjectSettings,
+  type ProjectSettingsApi,
+} from './hooks/useProjectSettings'
 export { useDirtyGuard, type UseDirtyGuard } from './hooks/useDirtyGuard'
 export {
   useToastQueue,
@@ -86,6 +90,17 @@ export {
   type ChatsByProjectId,
   type UnreadCounts,
 } from './utils/chatUnread'
+
+// Chat-row status — single computation shared by web's `ChatsNavigationSidebar`
+// and mobile's `ChatRow`. Each host wraps it in a thin hook that supplies
+// `chat` + `isSending` (from `useChats`) and `seen` (from `useChatsSeen`).
+export {
+  computeChatRowStatus,
+  isChatUnread,
+  markSeen,
+  type ChatRowStatus,
+  type ChatsSeenMap,
+} from './utils/chatRowStatus'
 
 // Badge aggregation
 export {
@@ -394,3 +409,16 @@ export {
   type ApiProviderProps,
   type ConfigureBackendClientOptions,
 } from './api/ApiContext'
+
+// Chats context factory — single source of truth for the ChatsProvider /
+// useChats pair shared by web + mobile + desktop. Apps inject their per-app
+// `useLLMConfigs` / `useActiveProject` hooks and re-export the resulting
+// Provider + hook (see each app's `core/contexts/ChatsContext.tsx`).
+export {
+  createChatsContext,
+  type ChatLiveState,
+  type ChatSettingsPatch,
+  type ChatsContextValue,
+  type CreateChatsContextDeps,
+  type PendingToolConfirmation,
+} from './contexts/createChatsContext'

@@ -295,6 +295,7 @@ export {
   type NavDrawerItem,
   type NavDrawerProps,
 } from './compound/shell/NavDrawer'
+export { default as ScreenShell, type ScreenShellProps } from './compound/shell/ScreenShell'
 
 // Text / code viewers
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
