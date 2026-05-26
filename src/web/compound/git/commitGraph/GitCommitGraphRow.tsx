@@ -96,7 +96,7 @@ export default function GitCommitGraphRow({
         ref={rowRef}
         className={`flex items-stretch border-b border-neutral-100 dark:border-neutral-800/50 cursor-pointer ${
           isSelected
-            ? 'bg-sky-50 dark:bg-sky-900/20'
+            ? 'bg-blue-50/80 dark:bg-blue-900/20'
             : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
         }`}
         style={{ height: rowH }}
@@ -205,7 +205,7 @@ export default function GitCommitGraphRow({
       ref={rowRef}
       className={`flex items-stretch border-b border-neutral-100 dark:border-neutral-800/50 cursor-pointer ${
         isSelected
-          ? 'bg-sky-50 dark:bg-sky-900/20'
+          ? 'bg-blue-50/80 dark:bg-blue-900/20'
           : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
       }`}
       style={{ height: ROW_HEIGHT }}

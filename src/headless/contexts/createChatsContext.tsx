@@ -25,6 +25,8 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
+import { useLLMConfigs } from './LLMConfigsContext'
+import { useActiveProject } from './ProjectsContext'
 
 type CompletionSettings = SendCompletionWithToolsData['body']['settings']
 export type ChatSettingsPatch = NonNullable<
@@ -690,3 +692,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
   return { ChatsProvider, useChats }
 }
+
+/**
+ * Pre-bound `{ ChatsProvider, useChats }` pair using the headless
+ * `useLLMConfigs` / `useActiveProject`. Every app's `useLLMConfigs` is a
+ * straight re-export of the headless one (the local file is a platform
+ * `storage` adapter wrapper around `LLMConfigsProvider`), and
+ * `useActiveProject` is shipped from headless — so a single shared instance
+ * is identical across web, desktop, and mobile.
+ */
+const HeadlessBound = createChatsContext({ useLLMConfigs, useActiveProject })
+export const ChatsProvider = HeadlessBound.ChatsProvider
+export const useChats = HeadlessBound.useChats

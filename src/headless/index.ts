@@ -157,6 +157,13 @@ export {
 export { formatJson } from './utils/json'
 export { maskSecret } from './utils/mask'
 
+// Per-project tri-state override resolver (notification categories, badges)
+export { resolveTriState } from './utils/triState'
+
+// Keyboard-shortcut combo parsing + matching + pretty-printing.
+// `Mod` resolves to ⌘ or Ctrl based on the consumer's `ShortcutsModifier`.
+export { comboMatches, prettyCombo } from './utils/comboMatcher'
+
 // Tool-call preview helpers — shared between web + native tool-preview
 // renderers so a single source of truth governs extraction logic and the
 // "what does this tool operate on" headline.
@@ -410,11 +417,14 @@ export {
   type ConfigureBackendClientOptions,
 } from './api/ApiContext'
 
-// Chats context factory — single source of truth for the ChatsProvider /
-// useChats pair shared by web + mobile + desktop. Apps inject their per-app
-// `useLLMConfigs` / `useActiveProject` hooks and re-export the resulting
-// Provider + hook (see each app's `core/contexts/ChatsContext.tsx`).
+// Chats context factory + pre-bound `ChatsProvider` / `useChats` pair —
+// single source of truth for chat orchestration shared by web + mobile +
+// desktop. The pre-bound version uses the headless `useLLMConfigs` /
+// `useActiveProject` so a single shared instance is identical across all
+// clients; the factory is still exported for tests / future divergence.
 export {
+  ChatsProvider,
+  useChats,
   createChatsContext,
   type ChatLiveState,
   type ChatSettingsPatch,
@@ -422,3 +432,137 @@ export {
   type CreateChatsContextDeps,
   type PendingToolConfirmation,
 } from './contexts/createChatsContext'
+
+// App settings (theme, shortcuts, notification prefs) backed by an
+// app-provided `SyncKVStorage`. The provider takes an optional `defaults`
+// prop so apps can supply platform-aware first-launch values (e.g. the
+// mac-aware `Mod` key) without re-implementing the rest of the provider.
+export {
+  AppSettingsProvider,
+  useAppSettings,
+  type AppSettingsContextValue,
+  type AppSettingsProviderProps,
+} from './contexts/AppSettingsContext'
+
+// LLM cost aggregation per chat — TTL-cached + de-duped fetcher shared by
+// all clients' usage / cost views.
+export { CostsProvider, useCosts, type CostsContextValue } from './contexts/CostsContext'
+
+// LLM provider configs (create / update / delete + per-purpose active +
+// recents) backed by an app-provided `SyncKVStorage` for the active /
+// recents persistence.
+export {
+  LLMConfigsProvider,
+  useLLMConfigs,
+  type LLMConfigsContextValue,
+  type LLMConfigsProviderProps,
+} from './contexts/LLMConfigsContext'
+
+// Git credentials (HTTPS PATs / SSH keys) CRUD.
+export {
+  GitCredentialsProvider,
+  useGitCredentials,
+  type GitCredentialsContextValue,
+} from './contexts/GitCredentialsContext'
+
+// Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
+// of truth across clients. Listens to the `projectsGroups:updated` WS topic.
+export {
+  ProjectsGroupsProvider,
+  useProjectsGroups,
+  type GroupType,
+  type ProjectsGroup,
+  type ProjectsGroupsContextValue,
+} from './contexts/ProjectsGroupsContext'
+
+// The "overseer" — central / config-repo state (remote URL, setup status).
+// Listens to the `overseer:updated` WS topic.
+export {
+  OverseerProvider,
+  useOverseer,
+  type OverseerContextValue,
+} from './contexts/OverseerContext'
+
+// Projects list + active project selection. Persists the active id via
+// `useAppSettings().userPreferences.lastActiveProjectId` so the headless
+// `AppSettingsProvider` must be mounted above this one.
+export {
+  ProjectsProvider,
+  useActiveProject,
+  useProjects,
+  type ProjectsContextValue,
+} from './contexts/ProjectsContext'
+
+// Entities (knowledge graph nodes) for the active project. Listens to the
+// `entities:updated` WS topic.
+export {
+  EntitiesProvider,
+  useEntities,
+  type EntitiesContextValue,
+} from './contexts/EntitiesContext'
+
+// Live-data providers (project-scoped + globals) and their cached payloads.
+// Listens to the `liveData:updated` WS topic.
+export {
+  LiveDataProvidersProvider,
+  useLiveDataProviders,
+  type LiveDataProvidersContextValue,
+} from './contexts/LiveDataProvidersContext'
+
+// Per-project test + coverage runs. Wires the `tests:progress` / `tests:result`
+// WS topics into a deferred runner so callers can `await` a unit / coverage
+// run and get back the final result.
+export {
+  TestsProvider,
+  useTests,
+  type TestsContextValue,
+  type TestsRunKind,
+  type TestsRunningJob,
+} from './contexts/TestsContext'
+
+// Stories + features for the active project, with dependency resolution
+// (display-index → uuid normalisation, blocker lookup). Listens to the
+// `stories:updated` WS topic.
+export {
+  StoriesProvider,
+  useStories,
+  type InvalidRefError,
+  type ResolvedFeatureRef,
+  type ResolvedRef,
+  type ResolvedStoryRef,
+  type StoriesContextValue,
+} from './contexts/StoriesContext'
+
+// Web-search API key store (per-provider). Token-gated initial load; CRUD
+// goes through `/web-search/keys` endpoints. Shared across all clients.
+export {
+  WebSearchKeysProvider,
+  useWebSearchKeys,
+  type WebSearchKeysContextValue,
+} from './contexts/WebSearchKeysContext'
+
+// Per-project file list + selected-file content + CRUD. Listens to the
+// `files:changed` WS topic. Routes binary/PDF/image clicks to the raw-bytes
+// endpoint by skipping the text read for non-text extensions.
+export {
+  FilesProvider,
+  useFiles,
+  type FilesContextValue,
+} from './contexts/FilesContext'
+
+// Ingestion job tracker. Listens to `ingestion:progress` WS topic and
+// maintains a Map of in-flight + recently-completed jobs.
+export {
+  IngestionProvider,
+  useIngestion,
+  type IngestionContextValue,
+  type IngestionJobState,
+} from './contexts/IngestionContext'
+
+// Tool registry + execute / preview. Token-gated initial load; per-call
+// project context comes from `useActiveProject`.
+export {
+  ToolsProvider,
+  useTools,
+  type ToolsContextValue,
+} from './contexts/ToolsContext'

@@ -105,11 +105,31 @@ export function CommitGraph({
   }, [commits, uncommittedChanges])
 
   // Auto-select first commit (or the UNCOMMITTED stub) when nothing is
-  // selected yet — mirrors the web bootstrap behaviour.
+  // selected yet. `autoSelectedRef` tracks which sha we auto-picked so
+  // tip→UNCOMMITTED promotion fires when status finishes loading after the
+  // log, while a manual tap (which changes `selectedCommitSha` but leaves
+  // the ref behind) still sticks.
+  const autoSelectedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (selectedCommitSha || !onSelectCommit) return
-    if (uncommittedChanges) onSelectCommit('UNCOMMITTED')
-    else if (commits.length > 0) onSelectCommit(commits[0].hash)
+    if (!onSelectCommit) return
+    if (!selectedCommitSha) {
+      if (uncommittedChanges) {
+        autoSelectedRef.current = 'UNCOMMITTED'
+        onSelectCommit('UNCOMMITTED')
+      } else if (commits.length > 0) {
+        autoSelectedRef.current = commits[0].hash
+        onSelectCommit(commits[0].hash)
+      }
+      return
+    }
+    if (
+      uncommittedChanges &&
+      selectedCommitSha !== 'UNCOMMITTED' &&
+      autoSelectedRef.current === selectedCommitSha
+    ) {
+      autoSelectedRef.current = 'UNCOMMITTED'
+      onSelectCommit('UNCOMMITTED')
+    }
   }, [commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
 
   // Scroll to a target SHA when it changes; re-attempt as more pages
@@ -212,7 +232,7 @@ function CommitGraphRow({
         alignItems: 'stretch',
         height: ROW_HEIGHT,
         backgroundColor: isSelected
-          ? theme.accent.primary + '22'
+          ? theme.accent.primary + '33'
           : pressed
             ? theme.surface.hover
             : 'transparent',

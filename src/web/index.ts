@@ -235,6 +235,74 @@ export {
   type ResolvedDependency,
 } from './compound/stories'
 export {
+  default as BlockersField,
+  type BlockersFieldProps,
+} from './compound/stories/BlockersField'
+export {
+  default as ScreenErrorBoundary,
+} from './compound/shell/ScreenErrorBoundary'
+export {
+  default as ShellTabs,
+  type ShellTabsProps,
+  type TabDef as ShellTabsTabDef,
+  type TabKey as ShellTabsTabKey,
+} from './compound/shell/ShellTabs'
+export {
+  default as LoadingScreen,
+  type LoadingScreenProps,
+} from './compound/shell/LoadingScreen'
+export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
+
+// Project timeline (Gantt) — shared types, date / item utils, grid row.
+// `TimelineHoverCard` stays in-app because it depends on the connected
+// `DependencyBullet` wrapper that hasn't been lifted yet.
+export type {
+  HoverInfo,
+  RowDefinition,
+  RowItem,
+  TimelineLabel,
+  TimestampContent,
+  Unit,
+  Zoom,
+} from './compound/projectTimeline/ProjectTimelineTypes'
+export {
+  addDays,
+  addMonths,
+  addWeeks,
+  clamp,
+  diffInDays,
+  diffInMonths,
+  diffInWeeks,
+  getUnitIndex,
+  isoWeekNumber,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  tsToInput,
+} from './compound/projectTimeline/timelineDateUtils'
+export {
+  ENTITY_TYPE,
+  buildAllProjectsRows,
+  buildLabelRows,
+  getStoryCompletedAt,
+  mapFeatureToTimelineLabel,
+  mapStoryToTimelineLabel,
+  normalizeLabels,
+  storyColorStyles,
+  type AllProjectsBuildInput,
+} from './compound/projectTimeline/timelineItemUtils'
+export { TimelineGridRow } from './compound/projectTimeline/TimelineGridRow'
+
+// Settings panels (connected to the lifted contexts).
+export { default as VisualSettings } from './compound/settings/VisualSettings'
+
+// Shell-level connected components: command menu + shortcuts help overlay.
+export { default as CommandMenu } from './compound/shell/CommandMenu'
+export { default as ShortcutsHelp } from './compound/shell/ShortcutsHelp'
+
+// Stories Kanban board.
+export { default as BoardView, type BoardViewProps } from './compound/stories/BoardView'
+export {
   default as RunAgentButton,
   AgentTypePicker,
   type AgentRunType,
@@ -292,11 +360,15 @@ export {
 // Chat view (lifted from web + desktop's ChatView)
 export {
   ChatBody,
+  ChatDynamicContextModal,
   ChatHeader,
   ChatInput,
   ChatSettingsDropdown,
   ChatTopicCreateModal,
+  ChatTopicCreateModalConnected,
   HistorySummarizationSettings,
+  SystemPromptViewerConnected,
+  UsageModalConnected,
   interpolatePrompt,
   MessageList,
   MessageRow,
@@ -320,6 +392,10 @@ export {
   type ChatMessageLike,
   type ChatSettingsDropdownProps,
   type ChatTopicCreateModalProps,
+  type ChatTopicCreateModalConnectedProps,
+  type ChatDynamicContextModalProps,
+  type SystemPromptViewerConnectedProps,
+  type UsageModalConnectedProps,
   type CompletionSettingsLike,
   type MessageListProps,
   type MessageRowProps,
@@ -422,6 +498,27 @@ export {
   type GraphNode,
 } from './compound/git'
 
+// Keyboard-shortcut provider — apps pass their `ShortcutsModifier` setting
+// in; the provider owns the `window` keydown listener and dispatch.
+export {
+  ShortcutsProvider,
+  useShortcuts,
+  type Shortcut,
+  type ShortcutHandler,
+  type ShortcutsApi,
+  type ShortcutsProviderProps,
+} from './compound/shortcuts/ShortcutsContext'
+
+// Per-chat "last seen" timestamps for unread badges, localStorage-backed
+// with cross-tab + same-document sync. Pure helpers (`isChatUnread`,
+// `markSeen`, `ChatsSeenMap`) come from `thefactory-ui/headless`.
+export {
+  CHATS_SEEN_EVENT,
+  readChatsSeen,
+  useChatsSeen,
+  writeChatsSeen,
+} from './compound/notifications/chatsSeen'
+
 // Utils
 export { cn } from './utils/cn'
 export { playBeep } from './utils/beep'
@@ -430,3 +527,37 @@ export {
   detectUploadEncoding,
   type UploadEncoding,
 } from './utils/uploadEncoding'
+// Projects-related connected components (group editor, code-info modal, editor form).
+export { default as ProjectGroupsEditor } from './compound/projects/ProjectGroupsEditor'
+export {
+  default as ProjectCodeInfoModal,
+  type CodeInfoValue,
+} from './compound/projects/ProjectCodeInfoModal'
+export {
+  ProjectEditorForm,
+  blankProjectForm,
+  projectToFormState,
+  type ProjectEditorFormProps,
+  type ProjectFormState,
+} from './compound/projects/ProjectEditorForm'
+
+// Settings panels — all wired to the lifted headless contexts.
+export {
+  default as DataLocationPanel,
+  type DataLocation,
+} from './compound/settings/DataLocationPanel'
+export { default as DataLocationSettingsPanel } from './compound/settings/DataLocationSettingsPanel'
+export { default as DatabaseSettings } from './compound/settings/DatabaseSettings'
+export { default as GitCredentialsForm } from './compound/settings/GitCredentialsForm'
+export { default as GitHubSettings } from './compound/settings/GitHubSettings'
+export { default as IngestionPanel } from './compound/settings/IngestionPanel'
+export { default as OverseerPanel } from './compound/settings/OverseerPanel'
+export { default as WebSearchSettings } from './compound/settings/WebSearchSettings'
+export {
+  default as LLMConfigForm,
+  type LLMConfigFormHandle,
+  type LLMConfigFormProps,
+} from './compound/settings/LLMConfigForm'
+
+// Shell-level overlay
+export { default as DiagnosticsOverlay } from './compound/shell/DiagnosticsOverlay'

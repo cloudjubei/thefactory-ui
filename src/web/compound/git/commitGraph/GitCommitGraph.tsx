@@ -85,11 +85,32 @@ export function GitCommitGraph({
   const scrollRegionRef = useRef<HTMLDivElement | null>(null)
 
   // Auto-select first commit (or the UNCOMMITTED stub) when nothing is
-  // selected yet — matches desktop's bootstrap behaviour.
+  // selected yet. `autoSelectedRef` tracks WHICH sha we auto-picked so we
+  // can promote tip → UNCOMMITTED when status finishes loading after the
+  // log (common race), while still respecting a user's explicit click —
+  // a manual click changes `selectedCommitSha` but leaves the ref behind,
+  // so the promotion guard `ref === selected` skips and the click sticks.
+  const autoSelectedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (selectedCommitSha || !onSelectCommit) return
-    if (uncommittedChanges) onSelectCommit('UNCOMMITTED')
-    else if (commits.length > 0) onSelectCommit(commits[0].hash)
+    if (!onSelectCommit) return
+    if (!selectedCommitSha) {
+      if (uncommittedChanges) {
+        autoSelectedRef.current = 'UNCOMMITTED'
+        onSelectCommit('UNCOMMITTED')
+      } else if (commits.length > 0) {
+        autoSelectedRef.current = commits[0].hash
+        onSelectCommit(commits[0].hash)
+      }
+      return
+    }
+    if (
+      uncommittedChanges &&
+      selectedCommitSha !== 'UNCOMMITTED' &&
+      autoSelectedRef.current === selectedCommitSha
+    ) {
+      autoSelectedRef.current = 'UNCOMMITTED'
+      onSelectCommit('UNCOMMITTED')
+    }
   }, [commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
 
   useEffect(() => {

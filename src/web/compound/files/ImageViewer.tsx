@@ -18,6 +18,7 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
   const [zoom, setZoom] = useState(1)
   const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const dragRef = useRef<{ startX: number; startY: number; tx: number; ty: number } | null>(null)
+  const surfaceRef = useRef<HTMLDivElement | null>(null)
 
   // Reset when src changes (different image).
   useEffect(() => {
@@ -25,18 +26,29 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
     setTranslate({ x: 0, y: 0 })
   }, [src])
 
+  // Ctrl/Cmd + wheel zoom. Attached via the DOM API (not React's `onWheel`)
+  // so the listener is non-passive and `preventDefault()` can suppress the
+  // browser's native page-zoom / horizontal-scroll behaviour. React's
+  // synthetic wheel listener is passive on `document`, making the same
+  // call a no-op + console warning.
+  useEffect(() => {
+    const el = surfaceRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+      setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
   const zoomIn = () => setZoom((z) => Math.min(MAX_ZOOM, z * ZOOM_STEP))
   const zoomOut = () => setZoom((z) => Math.max(MIN_ZOOM, z / ZOOM_STEP))
   const reset = () => {
     setZoom(1)
     setTranslate({ x: 0, y: 0 })
-  }
-
-  const onWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return
-    e.preventDefault()
-    const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
-    setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)))
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -95,8 +107,8 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
         <span className="ml-2 text-(--text-muted)">Hold Ctrl/⌘ + scroll to zoom; drag to pan.</span>
       </div>
       <div
+        ref={surfaceRef}
         className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-black/5 dark:bg-white/5"
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

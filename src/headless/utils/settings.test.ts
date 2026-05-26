@@ -22,7 +22,7 @@ describe('mergeSettings', () => {
         shortcuts: DEFAULT_APP_SETTINGS.userPreferences.shortcuts,
         storiesListViewSorting: 'index_desc',
         storiesListViewStatusFilter: 'not-done',
-      },
+      } as Partial<typeof DEFAULT_APP_SETTINGS.userPreferences> as typeof DEFAULT_APP_SETTINGS.userPreferences,
     })
     expect(out.userPreferences.storiesViewMode).toBe('board')
     expect(out.userPreferences.storiesListViewSorting).toBe('index_desc')

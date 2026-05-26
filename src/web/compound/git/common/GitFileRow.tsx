@@ -60,57 +60,59 @@ export default function GitFileRow({
       </div>
 
       <div className="flex items-center shrink-0 min-h-5 justify-end pl-2 gap-1">
-        {/* Pills: always visible on narrow (no hover) so the +/- counts stay
-            readable on touch; on desktop they fade out on hover to make space
-            for the inline action buttons. */}
-        <div className="flex items-center justify-end opacity-100 md:group-hover:opacity-0 transition-opacity pointer-events-none">
-          <GitFileChangesPills patch={file.patch} />
-        </div>
-        {/* Desktop actions — only show at md+ on row hover; non-interactive
-            on narrow (touch has no hover, and the overflow menu below covers
-            those entry points). */}
-        <div className="relative z-10 hidden md:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-          {file.isConflicted && onResolveConflict && (
-            <Tooltip content="Resolve Conflict" placement="bottom">
+        {/* md+: pills and inline actions share the same slot. Pills sit in
+            normal flow (so the row reserves their width) and the actions
+            overlay them on row hover via absolute positioning — pills
+            `invisible` on hover so they don't bleed through. On narrow
+            viewports the actions block is `hidden` and the overflow menu
+            covers the same entry points (touch has no hover). */}
+        <div className="relative inline-flex items-center justify-end">
+          <div className="flex items-center md:group-hover:invisible">
+            <GitFileChangesPills patch={file.patch} />
+          </div>
+          <div className="hidden md:group-hover:flex absolute inset-y-0 right-0 z-10 items-center gap-1">
+            {file.isConflicted && onResolveConflict && (
+              <Tooltip content="Resolve Conflict" placement="bottom">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted) text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400"
+                  aria-label="Resolve Conflict"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onResolveConflict(file)
+                  }}
+                >
+                  <IconFastMerge className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Reset (discard local changes)" placement="bottom">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted) text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400"
-                aria-label="Resolve Conflict"
+                className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted) text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                aria-label="Reset file changes"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onResolveConflict(file)
+                  onReset(file)
                 }}
               >
-                <IconFastMerge className="w-4 h-4" />
+                <IconRevert className="w-4 h-4" />
               </button>
             </Tooltip>
-          )}
-          <Tooltip content="Reset (discard local changes)" placement="bottom">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted) text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-              aria-label="Reset file changes"
-              onClick={(e) => {
-                e.stopPropagation()
-                onReset(file)
-              }}
-            >
-              <IconRevert className="w-4 h-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Remove (delete file)" placement="bottom">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted)"
-              aria-label="Remove file"
-              onClick={(e) => {
-                e.stopPropagation()
-                onRemove(file)
-              }}
-            >
-              <IconDelete className="w-4 h-4" />
-            </button>
-          </Tooltip>
+            <Tooltip content="Remove (delete file)" placement="bottom">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted)"
+                aria-label="Remove file"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRemove(file)
+                }}
+              >
+                <IconDelete className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          </div>
         </div>
         {/* Touch overflow menu — only on narrow viewports. Controlled
             state + a portal so clicking an action runs the handler AND
@@ -118,7 +120,12 @@ export default function GitFileRow({
             would stay pinned and visually overlap any ConfirmDialog the
             handler opens). */}
         <div className="md:hidden">
-          <RowOverflowMenu file={file} onReset={onReset} onRemove={onRemove} onResolveConflict={onResolveConflict} />
+          <RowOverflowMenu
+            file={file}
+            onReset={onReset}
+            onRemove={onRemove}
+            onResolveConflict={onResolveConflict}
+          />
         </div>
       </div>
     </div>

@@ -44,3 +44,15 @@ export {
 export { configureBackendClient } from './bootstrap'
 export * from './generated'
 export * from './sdkTypes'
+
+// Process-singleton cache + lookup helpers for backend pricing snapshots.
+// Single source of truth for chat usage modals, model chips, and the
+// pricing settings panel across web / desktop / mobile.
+export {
+  getCachedPricing,
+  setCachedPricing,
+  isPricingStale,
+  getPricingState,
+  refreshPricingState,
+  getPrice,
+} from './pricingService'
