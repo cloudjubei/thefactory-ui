@@ -28,4 +28,51 @@ Pieces waiting on a real second consumer or an external trigger. Don't preemptiv
 
 ## B. Pending tasks
 
-_None — every ready-to-execute task has shipped (git history keeps the record). Items in §A land here when their trigger fires._
+Backed by the cross-repo plan at `/Users/cloud/.claude/plans/splendid-hopping-sunrise.md`. Four independent features; each pickable by a separate developer.
+
+### B.1 `GitCredentialsForm` — add "Authorize with GitHub" (Feature 1)
+
+Extend [src/web/compound/settings/GitCredentialsForm.tsx](../src/web/compound/settings/GitCredentialsForm.tsx) (and native peer) with two OAuth buttons next to the existing paste field:
+- **Authorize with GitHub (redirect)** — `startGitCredentialGithubRedirect` then `window.location.assign(authUrl)`. Disabled when the host can't redirect.
+- **Authorize with GitHub (device)** — `startGitCredentialGithubDevice`, show `user_code`, "Copy & open GitHub" button, poll `pollGitCredentialGithubDevice` until `authorized`.
+
+Host capabilities arrive via a new prop `hostCapabilities={{ canOpenBrowser, canRedirect }}`. Native peer (mobile/desktop) only exposes the device flow.
+
+### B.2 `useSpeechToText` headless hook + engine context (Feature 2)
+
+New [src/headless/hooks/useSpeechToText.ts](../src/headless/hooks/useSpeechToText.ts) (signature in the cross-repo plan §Feature 2). The engine is injected via `SpeechToTextEngineContext` — `thefactory-ui` has no platform deps. Native + web `ChatInput.tsx` gain an optional mic button that only renders when `useSpeechToText().isSupported` is true.
+
+Tests at `src/headless/hooks/useSpeechToText.test.ts` — stub engine drives partial/final/error paths.
+
+### B.3 Git tool previews × ~10 (Feature 3)
+
+New files in [src/web/compound/chat/toolPreviews/](../src/web/compound/chat/toolPreviews/) (each with a native peer): `GitFetchPreview`, `GitPullPreview`, `GitPushPreview`, `GitCommitPreview`, `GitMergePreview`, `GitCheckoutBranchPreview`, `GitCreateBranchPreview`, `GitDeleteBranchPreview`, `GitListBranchesPreview`, `GitStashPreview` (dispatches over `gitListStashes` / `gitAddStash` / `gitApplyStash` / `gitRemoveStash` on `toolCall.name`).
+
+All reuse `Row`, `SectionTitle`, `PreLimited`, `InlineOldNew`, `PatchPreview`, `SmallBadge` from `components.tsx` + `FieldDiff.tsx`. Wire each `case` into `renderToolPreview.tsx`; re-export from `toolPreviews/index.ts`. No UI unit tests; visual verification via `playground/`.
+
+### B.4 CLI surface — hooks + ModelChip + settings form + permission UI (Feature 4)
+
+Headless additions:
+- [src/headless/hooks/useCliConfig.ts](../src/headless/hooks/useCliConfig.ts) + [src/headless/contexts/CliConfigsContext.tsx](../src/headless/contexts/CliConfigsContext.tsx) (mirrors `LLMConfigsContext`). Wires WS `cli:auth-login` chunks into per-loginId streams.
+- [src/headless/hooks/useChatCliRunner.ts](../src/headless/hooks/useChatCliRunner.ts) — `cliRunner?: ChatCliRunner` (undefined = API-backed); `attach` / `detach`.
+- [src/headless/contexts/createChatsContext.tsx](../src/headless/contexts/createChatsContext.tsx) — in the `sendCompletionWithTools` call site, branch on `chat.cliRunner`: present → `sendChatWithCli`; absent → existing path.
+- `usePendingToolGrants(chatKey, runId?)` — unified hook surfacing both API `require_confirmation` calls and CLI `PendingAction`s into a single `PendingToolGrant[]` shape:
+  ```ts
+  interface PendingToolGrant {
+    id: string                          // toolCallId | actionId
+    source: 'api' | 'cli'
+    label: string
+    detail?: ReactNode
+    decide(outcome: 'once' | 'permanent' | 'deny'): Promise<void>  // 'permanent' only exposed for cli
+  }
+  ```
+
+Components:
+- New [src/web/compound/settings/CliConfigForm.tsx](../src/web/compound/settings/CliConfigForm.tsx) (+ native peer): list caches grouped by CLI; per-row "Test (models)" (instant) + "Test (live)" (sandbox-boot, spinner + "may take 10–30s" banner); per-row "Default" radio; "Add credential" picker triggers `startAuthLogin` with chunked WS output; per-CLI "Enable in chip" toggle.
+- Modify [src/web/compound/ModelChip.tsx](../src/web/compound/ModelChip.tsx) (+ native): top "Use CLI" switch; sub-selector of enabled CLIs + model-list dropdown from `probeModels`; persists via `useChatCliRunner.attach`. Small "API" / "CLI" pill on the chip itself.
+- Modify [src/web/compound/chat/ToolConfirmationModal.tsx](../src/web/compound/chat/ToolConfirmationModal.tsx) (+ native): consume the new `PendingToolGrant[]` shape. Per row, when `grant.source === 'cli'`, render a third button **"Allow permanently"** alongside the existing Allow / Deny. Footer Cancel / Deny all / Allow all stays. **No new `CliPermissionModal`** — the existing surface owns both pools.
+- Modify [src/web/compound/chips/CostChip.tsx](../src/web/compound/chips/CostChip.tsx) and `UsageModal` (+ native peers): add an "API" / "CLI" pill from `LLMCostLedgerEntryContent.source`. Aggregate breakdowns per source.
+
+Re-exports: append new symbols to `src/web/index.ts`, `src/native/index.ts`, `src/headless/index.ts`.
+
+Doc updates: [ARCHITECTURE.md](./ARCHITECTURE.md) — diagrams for the `SpeechToTextEngine` injection seam and the runner-aware `createChatsContext` branching.

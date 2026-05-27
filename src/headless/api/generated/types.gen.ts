@@ -1281,6 +1281,13 @@ export type CliRunUsage = {
   cacheCreationTokens?: number
 }
 
+export type ModelInfo = {
+  id: string
+  label: string
+  cli: CliTool
+  notes?: string
+}
+
 export type CliAgentSubscriptionStatus = {
   plan?: string
   tokensRemainingPerWindow?: number
@@ -1355,6 +1362,24 @@ export type SandboxPolicy = {
   workspaceSizeCapBytes?: number
 }
 
+export type CliRunFailureKind =
+  | 'auth-expired'
+  | 'rate-limited'
+  | 'quota-exceeded'
+  | 'network-unreachable'
+  | 'sandbox-killed'
+  | 'tool-protocol'
+  | 'unknown'
+
+export type CliRunRetryHistoryEntry = {
+  at: number
+  attempt: number
+  kind: CliRunFailureKind
+  message: string
+  retryAfterSec?: number
+  delayMs: number
+}
+
 export type CliRun = {
   id: string
   projectId: string
@@ -1366,6 +1391,7 @@ export type CliRun = {
     version: string
   }
   cliSessionId?: string
+  modelId?: string
   authCredentialId?: string
   apiKeyCredentialId?: string
   prompt: string
@@ -1396,20 +1422,14 @@ export type CliRun = {
     windowResetAt?: number
     [key: string]: unknown
   }
+  retryAttempts?: number
+  nextRetryAt?: number
+  retryHistory?: Array<CliRunRetryHistoryEntry>
   createdAt: number
   updatedAt: number
   exitCode?: number
   abortReason?: string
 }
-
-export type CliRunFailureKind =
-  | 'auth-expired'
-  | 'rate-limited'
-  | 'quota-exceeded'
-  | 'network-unreachable'
-  | 'sandbox-killed'
-  | 'tool-protocol'
-  | 'unknown'
 
 export type CliRunFailure = {
   kind: CliRunFailureKind
@@ -1417,6 +1437,35 @@ export type CliRunFailure = {
   retryable: boolean
   retryAfterSec?: number
 }
+
+export type CliRunFailurePolicy = {
+  rateLimited?: 'retry' | 'pause' | 'abort'
+  authExpired?: 'pause' | 'abort'
+  networkUnreachable?: 'retry' | 'abort'
+  toolProtocol?: 'retry' | 'abort'
+  quotaExceeded?: 'pause' | 'abort'
+  sandboxKilled?: 'abort'
+  unknown?: 'abort'
+}
+
+export type RetryPlannerInput = {
+  failure: CliRunFailure
+  retryHistory: Array<CliRunRetryHistoryEntry>
+  policy: CliRunFailurePolicy | unknown
+  maxRetriesPerKind: number
+}
+
+export type RetryPlan =
+  | {
+      action: 'retry'
+      delayMs: number
+    }
+  | {
+      action: 'pause'
+    }
+  | {
+      action: 'abort'
+    }
 
 export type CliRunResult = {
   runId: string
@@ -1454,6 +1503,23 @@ export type CliAgentPendingActionFilter = {
   runId?: string
 }
 
+export type PerCliRunnerExtra = {
+  resumeSessionId?: string
+  seed?: {
+    parent?: {
+      runId: string
+      via: 'resume' | 'fork'
+      notes?: string
+    }
+    transcript?: Array<CliRunTranscriptEntry>
+    artifacts?: Array<CliRunArtifact>
+    retryState?: {
+      attempts: number
+      history: Array<CliRunRetryHistoryEntry>
+    }
+  }
+}
+
 export type WorkspaceSnapshot = unknown
 
 export type ClaudeCodeInitMetadata = {
@@ -1466,6 +1532,10 @@ export type CursorInitMetadata = {
   model?: string
   apiKeySource?: string
   permissionMode?: string
+}
+
+export type CodexInitMetadata = {
+  sessionId: string
 }
 
 export type ApplyFilesEmittedResult = {
@@ -1526,6 +1596,45 @@ export type CliAgentAuthExpiredPayload = {
   cli: CliTool
   message: string
   status?: number
+}
+
+export type ProjectMetadata = {
+  id: string
+  title: string
+  description: string
+  repo_url: string
+  codeInfo?: {
+    language: ProgrammingLanguage
+    framework?:
+      | JavaScriptFramework
+      | PythonFramework
+      | JavaFramework
+      | GoFramework
+      | RubyFramework
+      | PhpFramework
+      | CSharpFramework
+      | CppFramework
+      | RustFramework
+      | KotlinFramework
+      | SwiftFramework
+    testFramework?:
+      | JavaScriptTestFramework
+      | PythonTestFramework
+      | JavaTestFramework
+      | GoTestFramework
+      | RubyTestFramework
+      | PhpTestFramework
+      | CSharpTestFramework
+      | CppTestFramework
+      | RustTestFramework
+      | KotlinTestFramework
+      | SwiftTestFramework
+  }
+  dataLocation?: 'central' | 'inProject'
+  mainGroupId?: string
+  scopeGroupIds: Array<string>
+  createdAt: string
+  updatedAt: string
 }
 
 export type AuthCredentialReference =
@@ -2775,6 +2884,8 @@ export type PricingConfig = {
   }
 }
 
+export type LlmCostSourceKind = 'api' | 'cli'
+
 export type LlmCostLedgerEntryContent = {
   costUSD: number
   usage: {
@@ -2784,6 +2895,8 @@ export type LlmCostLedgerEntryContent = {
   }
   model: LlmModel
   chatContext: ChatContext
+  source: LlmCostSourceKind
+  sourceExtra?: string
 }
 
 export type LlmCostLedgerEntryEntity = {
@@ -3094,6 +3207,11 @@ export type StoryUpdate = {
   order?: Array<string>
 }
 
+export type StoryOrderRecord = {
+  ids: Array<string>
+  updatedAt: string
+}
+
 export type CreateTestTempDirOptions = {
   prefix?: string
   testName?: string
@@ -3123,13 +3241,6 @@ export type BuildTestResultArgs = {
 }
 
 export type TestStatus = 'ok' | 'fail' | 'skipped' | 'error'
-
-export type TestUpdateType = 'add' | 'change' | 'delete'
-
-export type TestUpdate = {
-  type: TestUpdateType
-  path: string
-}
 
 export type TestRegular = {
   testName: string
@@ -3353,6 +3464,15 @@ export type WebSearchResponse = {
   items: Array<WebSearchResultItem>
   raw?: unknown
 }
+
+export type ProbeResult =
+  | {
+      ok: true
+    }
+  | {
+      ok: false
+      error: string
+    }
 
 export type MigrateOptions = {
   toVersion?: number
@@ -3859,6 +3979,12 @@ export type HealthResponses = {
     status: string
     version: string
     uptime: number
+    sandbox: {
+      docker: 'ok' | 'missing'
+      images: {
+        [key: string]: 'ok' | 'missing'
+      }
+    }
   }
 }
 
@@ -3877,6 +4003,101 @@ export type MetricsResponses = {
    */
   200: unknown
 }
+
+export type GetDbHealthData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/db/health'
+}
+
+export type GetDbHealthResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    configured: boolean
+    connected: boolean
+    initialized: boolean
+    phase: 'unconfigured' | 'idle' | 'connecting' | 'ready' | 'error'
+    error?: string
+    errorCategory?: 'unreachable' | 'auth' | 'database-missing' | 'timeout' | 'unknown'
+    docker: {
+      installed: boolean
+      running: boolean
+      container?: {
+        name: string
+        exists: boolean
+        running: boolean
+      }
+    }
+  }
+}
+
+export type GetDbHealthResponse = GetDbHealthResponses[keyof GetDbHealthResponses]
+
+export type StartDbData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/db/start'
+}
+
+export type StartDbErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+  }
+}
+
+export type StartDbError = StartDbErrors[keyof StartDbErrors]
+
+export type StartDbResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    started: boolean
+    alreadyRunning: boolean
+    initResult: {
+      ok: boolean
+      error?: string
+    }
+    health: {
+      configured: boolean
+      connected: boolean
+      initialized: boolean
+      phase: 'unconfigured' | 'idle' | 'connecting' | 'ready' | 'error'
+      error?: string
+      errorCategory?: 'unreachable' | 'auth' | 'database-missing' | 'timeout' | 'unknown'
+      docker: {
+        installed: boolean
+        running: boolean
+        container?: {
+          name: string
+          exists: boolean
+          running: boolean
+        }
+      }
+    }
+  }
+}
+
+export type StartDbResponse = StartDbResponses[keyof StartDbResponses]
 
 export type ListProjectsData = {
   body?: never
@@ -5174,6 +5395,140 @@ export type UpdateGitCredentialResponses = {
 
 export type UpdateGitCredentialResponse =
   UpdateGitCredentialResponses[keyof UpdateGitCredentialResponses]
+
+export type ListCliAuthCachesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-auth-caches'
+}
+
+export type ListCliAuthCachesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<CliAuthCacheEntry>
+}
+
+export type ListCliAuthCachesResponse = ListCliAuthCachesResponses[keyof ListCliAuthCachesResponses]
+
+export type CreateCliAuthCacheData = {
+  body: CliAuthCacheCreateInput
+  path?: never
+  query?: never
+  url: '/api/v1/cli-auth-caches'
+}
+
+export type CreateCliAuthCacheResponses = {
+  /**
+   * Default Response
+   */
+  201: CliAuthCacheEntry
+}
+
+export type CreateCliAuthCacheResponse =
+  CreateCliAuthCacheResponses[keyof CreateCliAuthCacheResponses]
+
+export type DeleteCliAuthCacheData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/cli-auth-caches/{id}'
+}
+
+export type DeleteCliAuthCacheErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteCliAuthCacheError = DeleteCliAuthCacheErrors[keyof DeleteCliAuthCacheErrors]
+
+export type DeleteCliAuthCacheResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteCliAuthCacheResponse =
+  DeleteCliAuthCacheResponses[keyof DeleteCliAuthCacheResponses]
+
+export type GetCliAuthCacheData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/cli-auth-caches/{id}'
+}
+
+export type GetCliAuthCacheErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetCliAuthCacheError = GetCliAuthCacheErrors[keyof GetCliAuthCacheErrors]
+
+export type GetCliAuthCacheResponses = {
+  /**
+   * Default Response
+   */
+  200: CliAuthCacheEntry
+}
+
+export type GetCliAuthCacheResponse = GetCliAuthCacheResponses[keyof GetCliAuthCacheResponses]
+
+export type UpdateCliAuthCacheData = {
+  body: {
+    name?: string
+    cli?: string
+    files?: {
+      [key: string]: string
+    }
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/cli-auth-caches/{id}'
+}
+
+export type UpdateCliAuthCacheErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateCliAuthCacheError = UpdateCliAuthCacheErrors[keyof UpdateCliAuthCacheErrors]
+
+export type UpdateCliAuthCacheResponses = {
+  /**
+   * Default Response
+   */
+  200: CliAuthCacheEntry
+}
+
+export type UpdateCliAuthCacheResponse =
+  UpdateCliAuthCacheResponses[keyof UpdateCliAuthCacheResponses]
 
 export type DeleteChatData = {
   body: ChatContextBody
@@ -9449,6 +9804,13 @@ export type StartAgentRunData = {
     }
     settings: CompletionSettings
     isolated?: boolean
+    runner?: 'api' | 'cli'
+    cliRunner?: {
+      cli: 'claude-code' | 'cursor-agent' | 'codex'
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+      workspaceHostPath?: string
+    }
   }
   path?: never
   query?: never
@@ -9511,6 +9873,452 @@ export type AbortCompletionResponses = {
 }
 
 export type AbortCompletionResponse = AbortCompletionResponses[keyof AbortCompletionResponses]
+
+export type StartCliAgentRunData = {
+  body: {
+    projectId: string
+    cli: CliTool
+    prompt: string
+    chatContextId?: string
+    storyId?: string
+    policy?: {
+      network?: 'none' | 'proxied'
+      proxyAllowlist?: Array<string>
+      cpuLimit?: string
+      memoryLimit?: string
+      pidsLimit?: number
+      workspaceSizeCapBytes?: number
+    }
+    authCredentialId?: string
+    apiKeyCredentialId?: string
+    workspaceHostPath?: string
+    subscription?: {
+      plan?: string
+      tokensRemainingPerWindow?: number
+      windowResetAt?: number
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/start'
+}
+
+export type StartCliAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartCliAgentRunError = StartCliAgentRunErrors[keyof StartCliAgentRunErrors]
+
+export type StartCliAgentRunResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    runId: string
+  }
+}
+
+export type StartCliAgentRunResponse = StartCliAgentRunResponses[keyof StartCliAgentRunResponses]
+
+export type ResumeCliAgentRunData = {
+  body: {
+    prompt: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/resume'
+}
+
+export type ResumeCliAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ResumeCliAgentRunError = ResumeCliAgentRunErrors[keyof ResumeCliAgentRunErrors]
+
+export type ResumeCliAgentRunResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    runId: string
+  }
+}
+
+export type ResumeCliAgentRunResponse = ResumeCliAgentRunResponses[keyof ResumeCliAgentRunResponses]
+
+export type ForkCliAgentRunData = {
+  body: {
+    sourceRunId: string
+    cli: CliTool
+    prompt: string
+    authCredentialId?: string
+    apiKeyCredentialId?: string
+    notes?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/fork'
+}
+
+export type ForkCliAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ForkCliAgentRunError = ForkCliAgentRunErrors[keyof ForkCliAgentRunErrors]
+
+export type ForkCliAgentRunResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    runId: string
+  }
+}
+
+export type ForkCliAgentRunResponse = ForkCliAgentRunResponses[keyof ForkCliAgentRunResponses]
+
+export type AbortCliAgentRunData = {
+  body: {
+    reason?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/abort'
+}
+
+export type AbortCliAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AbortCliAgentRunError = AbortCliAgentRunErrors[keyof AbortCliAgentRunErrors]
+
+export type AbortCliAgentRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type AbortCliAgentRunResponse = AbortCliAgentRunResponses[keyof AbortCliAgentRunResponses]
+
+export type ListCliAgentRunsData = {
+  body?: never
+  path?: never
+  query?: {
+    projectId?: string
+    storyId?: string
+    status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+  }
+  url: '/api/v1/cli-runs'
+}
+
+export type ListCliAgentRunsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<CliRun>
+}
+
+export type ListCliAgentRunsResponse = ListCliAgentRunsResponses[keyof ListCliAgentRunsResponses]
+
+export type ListPendingCliAgentActionsData = {
+  body?: never
+  path?: never
+  query?: {
+    runId?: string
+  }
+  url: '/api/v1/cli-runs/actions'
+}
+
+export type ListPendingCliAgentActionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<PendingAction>
+}
+
+export type ListPendingCliAgentActionsResponse =
+  ListPendingCliAgentActionsResponses[keyof ListPendingCliAgentActionsResponses]
+
+export type DecideCliAgentActionData = {
+  body: {
+    outcome: 'approved' | 'denied'
+    metadata?: unknown
+  }
+  path: {
+    actionId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/actions/{actionId}/decide'
+}
+
+export type DecideCliAgentActionErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DecideCliAgentActionError = DecideCliAgentActionErrors[keyof DecideCliAgentActionErrors]
+
+export type DecideCliAgentActionResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DecideCliAgentActionResponse =
+  DecideCliAgentActionResponses[keyof DecideCliAgentActionResponses]
+
+export type GetCliAgentRunData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}'
+}
+
+export type GetCliAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetCliAgentRunError = GetCliAgentRunErrors[keyof GetCliAgentRunErrors]
+
+export type GetCliAgentRunResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRun
+}
+
+export type GetCliAgentRunResponse = GetCliAgentRunResponses[keyof GetCliAgentRunResponses]
+
+export type GetCliAgentRunSubscriptionStatusData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/subscription'
+}
+
+export type GetCliAgentRunSubscriptionStatusErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetCliAgentRunSubscriptionStatusError =
+  GetCliAgentRunSubscriptionStatusErrors[keyof GetCliAgentRunSubscriptionStatusErrors]
+
+export type GetCliAgentRunSubscriptionStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: CliAgentSubscriptionStatus
+}
+
+export type GetCliAgentRunSubscriptionStatusResponse =
+  GetCliAgentRunSubscriptionStatusResponses[keyof GetCliAgentRunSubscriptionStatusResponses]
+
+export type ApplyCliAgentArtifactData = {
+  body: {
+    projectId: string
+    targetDir?: string
+    gitCredentialId?: string
+  }
+  path: {
+    runId: string
+    artifactId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/apply'
+}
+
+export type ApplyCliAgentArtifactErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ApplyCliAgentArtifactError =
+  ApplyCliAgentArtifactErrors[keyof ApplyCliAgentArtifactErrors]
+
+export type ApplyCliAgentArtifactResponses = {
+  /**
+   * Default Response
+   */
+  200: ApplyCliAgentArtifactResult
+}
+
+export type ApplyCliAgentArtifactResponse =
+  ApplyCliAgentArtifactResponses[keyof ApplyCliAgentArtifactResponses]
+
+export type StartCliAuthLoginData = {
+  body: {
+    cli: CliTool
+    label: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-auth/login'
+}
+
+export type StartCliAuthLoginErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartCliAuthLoginError = StartCliAuthLoginErrors[keyof StartCliAuthLoginErrors]
+
+export type StartCliAuthLoginResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    loginId: string
+  }
+}
+
+export type StartCliAuthLoginResponse = StartCliAuthLoginResponses[keyof StartCliAuthLoginResponses]
+
+export type CancelCliAuthLoginData = {
+  body?: never
+  path: {
+    loginId: string
+  }
+  query?: never
+  url: '/api/v1/cli-auth/login/{loginId}/cancel'
+}
+
+export type CancelCliAuthLoginErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CancelCliAuthLoginError = CancelCliAuthLoginErrors[keyof CancelCliAuthLoginErrors]
+
+export type CancelCliAuthLoginResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type CancelCliAuthLoginResponse =
+  CancelCliAuthLoginResponses[keyof CancelCliAuthLoginResponses]
 
 export type IngestAllData = {
   body?: never

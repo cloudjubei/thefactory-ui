@@ -100,6 +100,30 @@ function persistFolders(m: Record<string, boolean>) {
   }
 }
 
+/**
+ * Should THIS row (in `rowSection`) light up given the user's selection?
+ * - No section selected → both rows of the same name highlight (legacy).
+ * - Selected matches this row's section → highlight.
+ * - Local and remote SHAs are equivalent (no divergence) → highlight both
+ *   so the user isn't fooled into thinking a single-tip branch is "the
+ *   wrong row".
+ */
+export function sectionMatches(
+  branch: GitUnifiedBranchLike,
+  rowSection: 'local' | 'remote',
+  selectedBranchSection: 'local' | 'remote' | undefined,
+): boolean {
+  if (!selectedBranchSection) return true
+  if (selectedBranchSection === rowSection) return true
+  if (
+    branch.localSha &&
+    branch.remoteSha &&
+    branch.localSha === branch.remoteSha
+  )
+    return true
+  return false
+}
+
 export type GitSidebarProps = {
   projectId?: string
   loading: boolean
@@ -109,6 +133,14 @@ export type GitSidebarProps = {
   stashes?: GitStashListItemLike[]
   current?: GitUnifiedBranchLike
   selectedBranchName?: string
+  /**
+   * Which side of the same-named branch the user picked. A branch can
+   * appear in BOTH the Branches and Remotes sections when its `localSha`
+   * and `remoteSha` differ — and the two anchor on different commits.
+   * `undefined` (legacy) highlights both rows; the two rows also collapse
+   * to the same highlight when the SHAs are equivalent.
+   */
+  selectedBranchSection?: 'local' | 'remote'
   selectedStashRef?: string
   /**
    * Staged + unstaged file count for the current branch — rendered as a
@@ -116,7 +148,7 @@ export type GitSidebarProps = {
    * `BranchRow`. Pass `0` (or omit) to hide.
    */
   dirtyCount?: number
-  onSelectBranch: (b: GitUnifiedBranchLike) => void
+  onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
   onSelectStash: (ref: string) => void
   /**
@@ -137,6 +169,7 @@ export default function GitSidebar({
   stashes,
   current,
   selectedBranchName,
+  selectedBranchSection,
   selectedStashRef,
   dirtyCount,
   onSelectBranch,
@@ -240,11 +273,15 @@ export default function GitSidebar({
                 {current && (
                   <GitSidebarBranchRow
                     branch={current}
-                    isSelected={selectedBranchName === current.name && !selectedStashRef}
+                    isSelected={
+                      selectedBranchName === current.name &&
+                      !selectedStashRef &&
+                      sectionMatches(current, 'local', selectedBranchSection)
+                    }
                     isRemoteSection={false}
                     hideSelection={hideSelection}
                     dirtyCount={dirtyCount}
-                    onClick={() => onSelectBranch(current)}
+                    onClick={() => onSelectBranch(current, 'local')}
                     onDoubleClick={() => onDoubleClickBranch?.(current)}
                   />
                 )}
@@ -255,6 +292,7 @@ export default function GitSidebar({
                   branches={otherLocals}
                   isRemoteSection={false}
                   selectedBranchName={selectedBranchName}
+                  selectedBranchSection={selectedBranchSection}
                   selectedStashRef={selectedStashRef}
                   hideSelection={hideSelection}
                   dirtyCount={dirtyCount}
@@ -282,6 +320,7 @@ export default function GitSidebar({
                     branches={remoteBranches}
                     isRemoteSection={true}
                     selectedBranchName={selectedBranchName}
+                    selectedBranchSection={selectedBranchSection}
                     selectedStashRef={selectedStashRef}
                     hideSelection={hideSelection}
                     folderOpenMap={folderOpenMap}

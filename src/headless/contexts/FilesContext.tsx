@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   deleteFiles,
@@ -14,6 +14,12 @@ import {
 import { classifyFileByExtension } from '../utils/filePaneKind'
 import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
+import { ProjectResourceCache } from '../utils/projectResourceCache'
+import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+
+/** SWR cache keyed by projectId — instant render on switch back to a
+ *  project we've already seen this session. */
+const filesCache = new ProjectResourceCache<FileMeta[]>(16)
 
 export type FilesContextValue = {
   /** True once the first file-list fetch for the active project has completed. */
@@ -76,32 +82,80 @@ export function FilesProvider({ children }: { children: ReactNode }) {
   const [isContentLoading, setIsContentLoading] = useState(false)
   const [contentError, setContentError] = useState<Error | null>(null)
 
+  // AbortController per refresh: project switch (or StrictMode's double-
+  // invoke of the load effect) aborts the previous request so it can't
+  // hold a browser connection slot or land on stale state.
+  const abortRef = useRef<AbortController | null>(null)
+  // Generation counter — second guard against stale responses landing in
+  // state after the controller's abort hasn't propagated yet.
+  const refreshGenRef = useRef(0)
   const refresh = useCallback(async () => {
-    if (!projectId) {
+    const gen = ++refreshGenRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
+    const reqProjectId = projectId
+    if (!reqProjectId) {
+      if (gen !== refreshGenRef.current) return
       setFiles([])
       setIsLoaded(true)
       setLoadError(null)
+      clearTimeout(timeoutId)
       return
     }
+    const cached = filesCache.get(reqProjectId)
     try {
-      const { data } = await getAllFileStats({ path: { projectId }, throwOnError: true })
-      setFiles(data)
+      const res = await getAllFileStats({
+        path: { projectId: reqProjectId },
+        headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined,
+        signal: controller.signal,
+        validateStatus: acceptOkOr304,
+        throwOnError: true,
+      })
+      if (gen !== refreshGenRef.current || controller.signal.aborted) return
+      if (res.status !== 304) {
+        const data = (res.data ?? []) as FileMeta[]
+        const etag = readEtagHeader(res.headers)
+        setFiles(data)
+        filesCache.set(reqProjectId, data, etag)
+      }
       setLoadError(null)
     } catch (err) {
+      if (controller.signal.aborted) return
+      if (gen !== refreshGenRef.current) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      setIsLoaded(true)
+      clearTimeout(timeoutId)
+      if (gen === refreshGenRef.current && !controller.signal.aborted) {
+        setIsLoaded(true)
+      }
     }
   }, [projectId])
 
+  // On project switch, hydrate the file list from cache if available so
+  // the file tree renders without a spinner; selectedPath / content are
+  // cleared (they're tab-local state, not project-cacheable).
   useEffect(() => {
-    setIsLoaded(false)
-    setFiles([])
     setSelectedPath(null)
     setContent(null)
     setLoadError(null)
     setContentError(null)
+    if (!projectId) {
+      setFiles([])
+      setIsLoaded(true)
+    } else {
+      const cached = filesCache.get(projectId)
+      if (cached) {
+        setFiles(cached.data)
+        setIsLoaded(true)
+      } else {
+        setFiles([])
+        setIsLoaded(false)
+      }
+    }
     void refresh()
+    return () => abortRef.current?.abort()
   }, [projectId, refresh])
 
   const paths = useMemo<string[]>(

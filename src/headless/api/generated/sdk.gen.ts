@@ -6,6 +6,9 @@ import type {
   AbortChatCompletionData,
   AbortChatCompletionErrors,
   AbortChatCompletionResponses,
+  AbortCliAgentRunData,
+  AbortCliAgentRunErrors,
+  AbortCliAgentRunResponses,
   AbortCompletionData,
   AbortCompletionErrors,
   AbortCompletionResponses,
@@ -21,6 +24,12 @@ import type {
   AddDatabaseData,
   AddDatabaseErrors,
   AddDatabaseResponses,
+  ApplyCliAgentArtifactData,
+  ApplyCliAgentArtifactErrors,
+  ApplyCliAgentArtifactResponses,
+  CancelCliAuthLoginData,
+  CancelCliAuthLoginErrors,
+  CancelCliAuthLoginResponses,
   ClearChatData,
   ClearChatErrors,
   ClearChatResponses,
@@ -34,6 +43,8 @@ import type {
   ConfirmOverseerLocalOnlyResponses,
   CreateChatData,
   CreateChatResponses,
+  CreateCliAuthCacheData,
+  CreateCliAuthCacheResponses,
   CreateDocumentData,
   CreateDocumentErrors,
   CreateDocumentResponses,
@@ -69,8 +80,14 @@ import type {
   CreateStoryResponses,
   CreateTopicChatData,
   CreateTopicChatResponses,
+  DecideCliAgentActionData,
+  DecideCliAgentActionErrors,
+  DecideCliAgentActionResponses,
   DeleteChatData,
   DeleteChatResponses,
+  DeleteCliAuthCacheData,
+  DeleteCliAuthCacheErrors,
+  DeleteCliAuthCacheResponses,
   DeleteDatabaseData,
   DeleteDatabaseErrors,
   DeleteDatabaseResponses,
@@ -128,6 +145,9 @@ import type {
   FetchLiveDataProviderData,
   FetchLiveDataProviderErrors,
   FetchLiveDataProviderResponses,
+  ForkCliAgentRunData,
+  ForkCliAgentRunErrors,
+  ForkCliAgentRunResponses,
   GetAllFileStatsData,
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
@@ -135,6 +155,15 @@ import type {
   GetChatResponses,
   GetChatsSettingsData,
   GetChatsSettingsResponses,
+  GetCliAgentRunData,
+  GetCliAgentRunErrors,
+  GetCliAgentRunResponses,
+  GetCliAgentRunSubscriptionStatusData,
+  GetCliAgentRunSubscriptionStatusErrors,
+  GetCliAgentRunSubscriptionStatusResponses,
+  GetCliAuthCacheData,
+  GetCliAuthCacheErrors,
+  GetCliAuthCacheResponses,
   GetCodeIntelCatalogueData,
   GetCodeIntelCatalogueErrors,
   GetCodeIntelCatalogueResponses,
@@ -147,6 +176,8 @@ import type {
   GetCostsByChatData,
   GetCostsByChatErrors,
   GetCostsByChatResponses,
+  GetDbHealthData,
+  GetDbHealthResponses,
   GetDocumentData,
   GetDocumentErrors,
   GetDocumentResponses,
@@ -275,6 +306,10 @@ import type {
   InitializeRepoResponses,
   ListChatsData,
   ListChatsResponses,
+  ListCliAgentRunsData,
+  ListCliAgentRunsResponses,
+  ListCliAuthCachesData,
+  ListCliAuthCachesResponses,
   ListDatabasesData,
   ListDatabasesErrors,
   ListDatabasesResponses,
@@ -304,6 +339,8 @@ import type {
   ListLlmModelsResponses,
   ListOverseerAuthProvidersData,
   ListOverseerAuthProvidersResponses,
+  ListPendingCliAgentActionsData,
+  ListPendingCliAgentActionsResponses,
   ListProjectsData,
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
@@ -377,6 +414,9 @@ import type {
   ReorderStoriesResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResumeCliAgentRunData,
+  ResumeCliAgentRunErrors,
+  ResumeCliAgentRunResponses,
   ResumeCompletionData,
   ResumeCompletionErrors,
   ResumeCompletionResponses,
@@ -427,12 +467,21 @@ import type {
   StartAgentRunData,
   StartAgentRunErrors,
   StartAgentRunResponses,
+  StartCliAgentRunData,
+  StartCliAgentRunErrors,
+  StartCliAgentRunResponses,
+  StartCliAuthLoginData,
+  StartCliAuthLoginErrors,
+  StartCliAuthLoginResponses,
   StartCoverageAllRunData,
   StartCoverageAllRunErrors,
   StartCoverageAllRunResponses,
   StartCoverageRunData,
   StartCoverageRunErrors,
   StartCoverageRunResponses,
+  StartDbData,
+  StartDbErrors,
+  StartDbResponses,
   StartOverseerGithubDeviceFlowData,
   StartOverseerGithubDeviceFlowErrors,
   StartOverseerGithubDeviceFlowResponses,
@@ -448,6 +497,9 @@ import type {
   UpdateChatDynamicContextResponses,
   UpdateChatErrors,
   UpdateChatResponses,
+  UpdateCliAuthCacheData,
+  UpdateCliAuthCacheErrors,
+  UpdateCliAuthCacheResponses,
   UpdateDocumentData,
   UpdateDocumentErrors,
   UpdateDocumentResponses,
@@ -529,6 +581,26 @@ export const metrics = <ThrowOnError extends boolean = false>(
   (options?.client ?? client).get<MetricsResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/metrics',
+    ...options,
+  })
+
+export const getDbHealth = <ThrowOnError extends boolean = false>(
+  options?: Options<GetDbHealthData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetDbHealthResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/db/health',
+    ...options,
+  })
+
+export const startDb = <ThrowOnError extends boolean = false>(
+  options?: Options<StartDbData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<StartDbResponses, StartDbErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/db/start',
     ...options,
   })
 
@@ -1037,6 +1109,71 @@ export const updateGitCredential = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/git-credentials/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listCliAuthCaches = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliAuthCachesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliAuthCachesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth-caches',
+    ...options,
+  })
+
+export const createCliAuthCache = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCliAuthCacheData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateCliAuthCacheResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth-caches',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteCliAuthCache = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteCliAuthCacheData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteCliAuthCacheResponses,
+    DeleteCliAuthCacheErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth-caches/{id}',
+    ...options,
+  })
+
+export const getCliAuthCache = <ThrowOnError extends boolean = false>(
+  options: Options<GetCliAuthCacheData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetCliAuthCacheResponses, GetCliAuthCacheErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth-caches/{id}',
+    ...options,
+  })
+
+export const updateCliAuthCache = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCliAuthCacheData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateCliAuthCacheResponses,
+    UpdateCliAuthCacheErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth-caches/{id}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2431,6 +2568,177 @@ export const abortCompletion = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const startCliAgentRun = <ThrowOnError extends boolean = false>(
+  options: Options<StartCliAgentRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<StartCliAgentRunResponses, StartCliAgentRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/start',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const resumeCliAgentRun = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeCliAgentRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResumeCliAgentRunResponses,
+    ResumeCliAgentRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const forkCliAgentRun = <ThrowOnError extends boolean = false>(
+  options: Options<ForkCliAgentRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ForkCliAgentRunResponses, ForkCliAgentRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/fork',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const abortCliAgentRun = <ThrowOnError extends boolean = false>(
+  options: Options<AbortCliAgentRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<AbortCliAgentRunResponses, AbortCliAgentRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/abort',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listCliAgentRuns = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliAgentRunsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliAgentRunsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs',
+    ...options,
+  })
+
+export const listPendingCliAgentActions = <ThrowOnError extends boolean = false>(
+  options?: Options<ListPendingCliAgentActionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListPendingCliAgentActionsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/actions',
+    ...options,
+  })
+
+export const decideCliAgentAction = <ThrowOnError extends boolean = false>(
+  options: Options<DecideCliAgentActionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DecideCliAgentActionResponses,
+    DecideCliAgentActionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/actions/{actionId}/decide',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getCliAgentRun = <ThrowOnError extends boolean = false>(
+  options: Options<GetCliAgentRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetCliAgentRunResponses, GetCliAgentRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}',
+    ...options,
+  })
+
+export const getCliAgentRunSubscriptionStatus = <ThrowOnError extends boolean = false>(
+  options: Options<GetCliAgentRunSubscriptionStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetCliAgentRunSubscriptionStatusResponses,
+    GetCliAgentRunSubscriptionStatusErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/subscription',
+    ...options,
+  })
+
+export const applyCliAgentArtifact = <ThrowOnError extends boolean = false>(
+  options: Options<ApplyCliAgentArtifactData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ApplyCliAgentArtifactResponses,
+    ApplyCliAgentArtifactErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/apply',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startCliAuthLogin = <ThrowOnError extends boolean = false>(
+  options: Options<StartCliAuthLoginData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartCliAuthLoginResponses,
+    StartCliAuthLoginErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth/login',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const cancelCliAuthLogin = <ThrowOnError extends boolean = false>(
+  options: Options<CancelCliAuthLoginData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CancelCliAuthLoginResponses,
+    CancelCliAuthLoginErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth/login/{loginId}/cancel',
+    ...options,
   })
 
 export const ingestAll = <ThrowOnError extends boolean = false>(

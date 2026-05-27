@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   createEntity,
@@ -12,6 +12,13 @@ import {
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
+import { ProjectResourceCache } from '../utils/projectResourceCache'
+import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+
+/** SWR cache keyed by projectId. Module-scope so it survives provider
+ *  re-mounts and lets switching back to a previously-seen project render
+ *  instantly (no spinner). */
+const entitiesCache = new ProjectResourceCache<Entity[]>(16)
 
 export type EntitiesContextValue = {
   isLoaded: boolean
@@ -41,32 +48,79 @@ export function EntitiesProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
 
+  // AbortController per refresh: project switch (or StrictMode's double-
+  // invoke of the load effect) aborts the previous request. Without this
+  // every project switch leaks an in-flight slow query, eating browser
+  // connection slots and the backend pg pool.
+  const abortRef = useRef<AbortController | null>(null)
+  // Generation counter — second guard against stale responses landing in
+  // state after the controller's abort hasn't propagated yet.
+  const refreshGenRef = useRef(0)
   const refresh = useCallback(async () => {
-    if (!projectId) {
+    const gen = ++refreshGenRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
+    const reqProjectId = projectId
+    if (!reqProjectId) {
+      if (gen !== refreshGenRef.current) return
       setEntities(EMPTY_ENTITIES)
       setIsLoaded(true)
       setLoadError(null)
+      clearTimeout(timeoutId)
       return
     }
+    const cached = entitiesCache.get(reqProjectId)
     try {
-      const { data } = await listEntities({
-        query: { projectIds: projectId },
+      const res = await listEntities({
+        query: { projectIds: reqProjectId },
+        headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined,
+        signal: controller.signal,
+        validateStatus: acceptOkOr304,
         throwOnError: true,
       })
-      setEntities(data)
+      if (gen !== refreshGenRef.current || controller.signal.aborted) return
+      if (res.status !== 304) {
+        const data = (res.data ?? []) as Entity[]
+        const etag = readEtagHeader(res.headers)
+        setEntities(data)
+        entitiesCache.set(reqProjectId, data, etag)
+      }
       setLoadError(null)
     } catch (err) {
+      if (controller.signal.aborted) return
+      if (gen !== refreshGenRef.current) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      setIsLoaded(true)
+      clearTimeout(timeoutId)
+      if (gen === refreshGenRef.current && !controller.signal.aborted) {
+        setIsLoaded(true)
+      }
     }
   }, [projectId])
 
+  // On project switch, hydrate from cache if we have one (no spinner) and
+  // kick off a revalidate in the background. Cache miss falls back to the
+  // spinner until the first 200.
   useEffect(() => {
-    setIsLoaded(false)
-    setEntities(EMPTY_ENTITIES)
     setLoadError(null)
+    if (!projectId) {
+      setEntities(EMPTY_ENTITIES)
+      setIsLoaded(true)
+      void refresh()
+      return
+    }
+    const cached = entitiesCache.get(projectId)
+    if (cached) {
+      setEntities(cached.data)
+      setIsLoaded(true)
+    } else {
+      setEntities(EMPTY_ENTITIES)
+      setIsLoaded(false)
+    }
     void refresh()
+    return () => abortRef.current?.abort()
   }, [projectId, refresh])
 
   useEffect(() => ws.on('entities:updated', () => void refresh()), [ws, refresh])

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { executeTool, listTools, previewTool } from '../api'
 import type { ToolDescriptor, ToolExecuteResult, ToolPreviewResult } from '../api'
@@ -25,21 +25,31 @@ export function ToolsProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
 
+  // AbortController per refresh — StrictMode double-invoke aborts the first
+  // request as the second takes over, so we never make two concurrent calls
+  // for the same data.
+  const abortRef = useRef<AbortController | null>(null)
   const refresh = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
-      const { data } = await listTools({ throwOnError: true })
+      const { data } = await listTools({ signal: controller.signal, throwOnError: true })
+      if (controller.signal.aborted) return
       setTools(data)
       setLoadError(null)
     } catch (err) {
+      if (controller.signal.aborted) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      setIsLoaded(true)
+      if (!controller.signal.aborted) setIsLoaded(true)
     }
   }, [])
 
   useEffect(() => {
     if (!token) return
     void refresh()
+    return () => abortRef.current?.abort()
   }, [token, refresh])
 
   const requireProject = useCallback(() => {

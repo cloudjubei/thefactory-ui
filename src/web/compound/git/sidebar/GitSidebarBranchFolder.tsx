@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { IconChevronDown, IconFolder, IconFolderOpen } from '../../../icons'
 import type { GitUnifiedBranchLike } from '../types'
 import GitSidebarBranchRow from './GitSidebarBranchRow'
+import { sectionMatches } from './GitSidebar'
 
 export type GitSidebarBranchFolderProps = {
   groupName: string
   branches: GitUnifiedBranchLike[]
   isRemoteSection?: boolean
   selectedBranchName?: string
+  /** Which side (local vs remote) of the same-named branch the user picked. */
+  selectedBranchSection?: 'local' | 'remote'
   selectedStashRef?: string
   /** Forwarded to each child branch row. */
   hideSelection?: boolean
@@ -20,7 +23,7 @@ export type GitSidebarBranchFolderProps = {
    */
   open?: boolean
   onToggle?: (open: boolean) => void
-  onSelectBranch: (b: GitUnifiedBranchLike) => void
+  onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
 }
 
@@ -29,6 +32,7 @@ export default function GitSidebarBranchFolder({
   branches,
   isRemoteSection,
   selectedBranchName,
+  selectedBranchSection,
   selectedStashRef,
   hideSelection,
   dirtyCount,
@@ -37,6 +41,7 @@ export default function GitSidebarBranchFolder({
   onSelectBranch,
   onDoubleClickBranch,
 }: GitSidebarBranchFolderProps) {
+  const rowSection: 'local' | 'remote' = isRemoteSection ? 'remote' : 'local'
   const hasSelected = branches.some((b) => b.name === selectedBranchName && !selectedStashRef)
   const [internalOpen, setInternalOpen] = useState(true)
   const isControlled = openProp !== undefined
@@ -82,12 +87,16 @@ export default function GitSidebarBranchFolder({
             <GitSidebarBranchRow
               key={b.name}
               branch={b}
-              isSelected={b.name === selectedBranchName && !selectedStashRef}
+              isSelected={
+                b.name === selectedBranchName &&
+                !selectedStashRef &&
+                sectionMatches(b, rowSection, selectedBranchSection)
+              }
               isRemoteSection={isRemoteSection}
               hideSelection={hideSelection}
               dirtyCount={dirtyCount}
               indent={1}
-              onClick={() => onSelectBranch(b)}
+              onClick={() => onSelectBranch(b, rowSection)}
               onDoubleClick={() => onDoubleClickBranch?.(b)}
             />
           ))}

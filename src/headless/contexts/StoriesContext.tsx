@@ -19,6 +19,14 @@ import {
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import { useProjects } from './ProjectsContext'
+import { ProjectResourceCache } from '../utils/projectResourceCache'
+import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+
+/** SWR caches keyed by projectId. Module-scope so they survive provider
+ *  re-mounts (e.g. StrictMode double-invoke) and let project switches
+ *  hydrate immediately from any data we've seen this session. */
+const storiesCache = new ProjectResourceCache<GetStoryResponse[]>(16)
+const orderCache = new ProjectResourceCache<string[]>(16)
 
 /** Mirrors desktop's `ResolvedStoryRef`. */
 export type ResolvedStoryRef = {
@@ -107,13 +115,25 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
 
-  // Tracks the latest active project so an in-flight `refresh()` whose project
-  // has since been switched away from drops its result instead of clobbering
-  // the new project's stories (stale-response race → flicker + stale list).
-  const activeProjectIdRef = useRef(activeProjectId)
-  activeProjectIdRef.current = activeProjectId
+  // `latestProjectIdRef` always reflects the currently rendered project.
+  // Used as a second guard alongside the gen counter: a mutation callback
+  // (`await refresh()` after a story create / update) captures the OLD
+  // `refresh` closure when it was enqueued, so on a mid-flight project
+  // switch its later increment can outrank the switch-triggered refresh
+  // in gen alone. The projectId capture catches that case unconditionally.
+  const latestProjectIdRef = useRef(activeProjectId)
+  useEffect(() => {
+    latestProjectIdRef.current = activeProjectId
+  }, [activeProjectId])
 
+  // Held only so a project switch can abort the previous revalidate — frees
+  // the browser's per-origin connection slot and stops a hung response from
+  // wedging the next request behind it.
+  const abortRef = useRef<AbortController | null>(null)
+
+  const refreshGenRef = useRef(0)
   const refresh = useCallback(async () => {
+    const gen = ++refreshGenRef.current
     const reqProjectId = activeProjectId
     if (!reqProjectId) {
       setStoriesRaw([])
@@ -122,38 +142,92 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       setLoadError(null)
       return
     }
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
+
+    const storiesEntry = storiesCache.get(reqProjectId)
+    const orderEntry = orderCache.get(reqProjectId)
+
     try {
       const [storiesRes, orderRes] = await Promise.all([
-        listStories({ path: { projectId: reqProjectId }, throwOnError: true }),
-        getStoriesOrder({ path: { projectId: reqProjectId }, throwOnError: true }),
+        listStories({
+          path: { projectId: reqProjectId },
+          headers: storiesEntry?.etag ? { 'If-None-Match': storiesEntry.etag } : undefined,
+          signal: controller.signal,
+          validateStatus: acceptOkOr304,
+          throwOnError: true,
+        }),
+        getStoriesOrder({
+          path: { projectId: reqProjectId },
+          headers: orderEntry?.etag ? { 'If-None-Match': orderEntry.etag } : undefined,
+          signal: controller.signal,
+          validateStatus: acceptOkOr304,
+          throwOnError: true,
+        }),
       ])
-      if (activeProjectIdRef.current !== reqProjectId) return
-      setStoriesRaw(storiesRes.data)
-      setOrder(orderRes.data ?? [])
+
+      if (gen !== refreshGenRef.current || latestProjectIdRef.current !== reqProjectId) return
+
+      if (storiesRes.status !== 304) {
+        const data = (storiesRes.data ?? []) as GetStoryResponse[]
+        const etag = readEtagHeader(storiesRes.headers)
+        setStoriesRaw(data)
+        storiesCache.set(reqProjectId, data, etag)
+      }
+      if (orderRes.status !== 304) {
+        const data = (orderRes.data ?? []) as string[]
+        const etag = readEtagHeader(orderRes.headers)
+        setOrder(data)
+        orderCache.set(reqProjectId, data, etag)
+      }
       setLoadError(null)
     } catch (err) {
-      if (activeProjectIdRef.current !== reqProjectId) return
+      // Aborts are expected (supersede or timeout) — leave existing state
+      // untouched so the cached data stays visible.
+      if (controller.signal.aborted) return
+      if (gen !== refreshGenRef.current || latestProjectIdRef.current !== reqProjectId) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      if (activeProjectIdRef.current === reqProjectId) setIsLoaded(true)
+      clearTimeout(timeoutId)
+      if (latestProjectIdRef.current === reqProjectId) setIsLoaded(true)
     }
   }, [activeProjectId])
 
-  // When the active project changes, clear the old list and reload. The
-  // intermediate "empty + not loaded" state is what surfaces the loading
-  // spinner while the new project's stories are fetched.
+  // When the active project changes, hydrate from the SWR cache if we have
+  // one — that's the entire point of the cache: instant render on a project
+  // we've already seen, no spinner. Cache miss falls back to the spinner
+  // (`isLoaded = false`) while the revalidate populates state for the first
+  // time. Either way, we kick off a revalidate so any drift gets reconciled.
   useEffect(() => {
-    setIsLoaded(false)
-    setStoriesRaw([])
-    setOrder([])
     setLoadError(null)
+    if (!activeProjectId) {
+      setStoriesRaw([])
+      setOrder([])
+      setIsLoaded(true)
+      void refresh()
+      return
+    }
+    const cachedStories = storiesCache.get(activeProjectId)
+    const cachedOrder = orderCache.get(activeProjectId)
+    if (cachedStories && cachedOrder) {
+      setStoriesRaw(cachedStories.data)
+      setOrder(cachedOrder.data)
+      setIsLoaded(true)
+    } else {
+      setStoriesRaw([])
+      setOrder([])
+      setIsLoaded(false)
+    }
     void refresh()
   }, [activeProjectId, refresh])
 
   // WS-driven invalidation. `stories:updated` covers both story payload
   // changes (create/update/delete) and reorder events — the backend
-  // broadcasts the same channel on every mutation in [stories.ts]. Coarse-
-  // grained refetch for now; switch to incremental updates once we need to.
+  // broadcasts the same channel on every mutation in [stories.ts]. We don't
+  // pre-clear the cache: the backend's ETag will have moved, so refresh
+  // returns 200 (not 304) and overwrites the stale entry naturally.
   useEffect(() => ws.on('stories:updated', () => void refresh()), [ws, refresh])
 
   // Apply `order.json` to the raw story list: ids present in `order` come

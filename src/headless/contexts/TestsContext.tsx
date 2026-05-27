@@ -22,6 +22,20 @@ import type {
 } from '../api'
 import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
+import { ProjectResourceCache } from '../utils/projectResourceCache'
+import { REVALIDATE_TIMEOUT_MS } from '../utils/swrFetch'
+
+type TestsBundle = {
+  available: string[]
+  lastRun: TestsResult | null
+  lastCustomRun: TestsResult | null
+  lastCoverage: CoverageResult | null
+}
+
+/** SWR cache keyed by projectId. Stores the whole tests bundle so a switch
+ *  back to a previously-seen project re-renders the four panels (list,
+ *  last run, last custom run, last coverage) without a spinner. */
+const testsCache = new ProjectResourceCache<TestsBundle>(16)
 
 export type TestsRunKind = 'unit' | 'unit-all' | 'coverage' | 'coverage-all'
 
@@ -100,28 +114,31 @@ export function TestsProvider({ children }: { children: ReactNode }) {
     deferred: Deferred<TestsResult | CoverageResult>
   } | null>(null)
 
-  // Track the latest active project id so an in-flight refresh that resolves
-  // *after* the user has switched projects can detect itself as stale and
-  // drop its setState calls — otherwise it would overwrite the new project's
-  // (reset) state with the previous project's results.
-  const latestProjectIdRef = useRef<string | undefined>(projectId)
-  useEffect(() => {
-    latestProjectIdRef.current = projectId
-  }, [projectId])
-
+  // AbortController per refresh — project switch / StrictMode double-invoke
+  // aborts the previous fan-out so it can't hold connection slots or land
+  // on stale state.
+  const abortRef = useRef<AbortController | null>(null)
+  const refreshGenRef = useRef(0)
   const refresh = useCallback(async () => {
+    const gen = ++refreshGenRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
     const requestedProjectId = projectId
     if (!requestedProjectId) {
+      if (gen !== refreshGenRef.current) return
       setAvailable(EMPTY_AVAILABLE)
       setLastRun(null)
       setLastCustomRun(null)
       setLastCoverage(null)
       setIsLoaded(true)
       setLoadError(null)
+      clearTimeout(timeoutId)
       return
     }
     const path = { projectId: requestedProjectId }
-    const opts = { path, throwOnError: true } as const
+    const opts = { path, signal: controller.signal, throwOnError: true } as const
     // Each endpoint is independent — `listTests` is the only one that's
     // load-bearing for rendering. The three `getLast*` calls return cached
     // results and can transiently 404 right after a project is checked out;
@@ -132,43 +149,71 @@ export function TestsProvider({ children }: { children: ReactNode }) {
       getLastTestsCustomRun(opts),
       getLastCoverage(opts),
     ])
-    if (latestProjectIdRef.current !== requestedProjectId) return
+    clearTimeout(timeoutId)
+    if (gen !== refreshGenRef.current || controller.signal.aborted) return
+
+    const available =
+      listRes.status === 'fulfilled' ? listRes.value.data : EMPTY_AVAILABLE
+    const lastRun =
+      runRes.status === 'fulfilled' && isTestRun(runRes.value.data)
+        ? runRes.value.data
+        : null
+    const lastCustomRun =
+      customRes.status === 'fulfilled' && isTestRun(customRes.value.data)
+        ? customRes.value.data
+        : null
+    const lastCoverage =
+      coverageRes.status === 'fulfilled' && isCoverage(coverageRes.value.data)
+        ? coverageRes.value.data
+        : null
+
+    setAvailable(available)
+    setLastRun(lastRun)
+    setLastCustomRun(lastCustomRun)
+    setLastCoverage(lastCoverage)
     if (listRes.status === 'fulfilled') {
-      setAvailable(listRes.value.data)
       setLoadError(null)
     } else {
       const err = listRes.reason
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     }
-    setLastRun(
-      runRes.status === 'fulfilled' && isTestRun(runRes.value.data) ? runRes.value.data : null,
-    )
-    setLastCustomRun(
-      customRes.status === 'fulfilled' && isTestRun(customRes.value.data)
-        ? customRes.value.data
-        : null,
-    )
-    setLastCoverage(
-      coverageRes.status === 'fulfilled' && isCoverage(coverageRes.value.data)
-        ? coverageRes.value.data
-        : null,
-    )
+    // Cache the bundle only when the load-bearing endpoint succeeded.
+    // A failed list would otherwise pin an empty array as "warm cache".
+    if (listRes.status === 'fulfilled') {
+      testsCache.set(requestedProjectId, { available, lastRun, lastCustomRun, lastCoverage }, null)
+    }
     setIsLoaded(true)
   }, [projectId])
 
   useEffect(() => {
-    setIsLoaded(false)
-    setAvailable(EMPTY_AVAILABLE)
-    setLastRun(null)
-    setLastCustomRun(null)
-    setLastCoverage(null)
     setLoadError(null)
-    // Clear any in-flight job state so a project switch doesn't leak the
-    // previous project's running indicator or resolve a stale `pendingRef`
-    // with the new project's events.
+    // Clear any in-flight job state — those are session-scoped, not cached.
     setRunningJob(null)
     pendingRef.current = null
+    if (!projectId) {
+      setAvailable(EMPTY_AVAILABLE)
+      setLastRun(null)
+      setLastCustomRun(null)
+      setLastCoverage(null)
+      setIsLoaded(true)
+    } else {
+      const cached = testsCache.get(projectId)
+      if (cached) {
+        setAvailable(cached.data.available)
+        setLastRun(cached.data.lastRun)
+        setLastCustomRun(cached.data.lastCustomRun)
+        setLastCoverage(cached.data.lastCoverage)
+        setIsLoaded(true)
+      } else {
+        setAvailable(EMPTY_AVAILABLE)
+        setLastRun(null)
+        setLastCustomRun(null)
+        setLastCoverage(null)
+        setIsLoaded(false)
+      }
+    }
     void refresh()
+    return () => abortRef.current?.abort()
   }, [projectId, refresh])
 
   // Other broadcasters (sync run endpoints, agent runs) still emit

@@ -104,16 +104,24 @@ export function CommitGraph({
     return nodes
   }, [commits, uncommittedChanges])
 
-  // Auto-select first commit (or the UNCOMMITTED stub) when nothing is
-  // selected yet. `autoSelectedRef` tracks which sha we auto-picked so
-  // tip→UNCOMMITTED promotion fires when status finishes loading after the
-  // log, while a manual tap (which changes `selectedCommitSha` but leaves
-  // the ref behind) still sticks.
+  // Auto-select a sensible default whenever the parent clears
+  // `selectedCommitSha`. `autoSelectedRef` tracks our last auto-pick — a
+  // manual tap changes `selectedCommitSha` but leaves the ref behind, so
+  // the re-evaluation block is guarded by `ref === selected` and never
+  // overrides an explicit choice. Priority: `scrollToSha` (parent's
+  // anchor — e.g. selected branch tip) > UNCOMMITTED > newest commit.
+  // Re-evaluation also promotes tip → UNCOMMITTED on the initial-load
+  // race (status arrives after the log) but ONLY when the parent didn't
+  // pin us via `scrollToSha`.
   const autoSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!onSelectCommit) return
+
     if (!selectedCommitSha) {
-      if (uncommittedChanges) {
+      if (scrollToSha) {
+        autoSelectedRef.current = scrollToSha
+        onSelectCommit(scrollToSha)
+      } else if (uncommittedChanges) {
         autoSelectedRef.current = 'UNCOMMITTED'
         onSelectCommit('UNCOMMITTED')
       } else if (commits.length > 0) {
@@ -122,15 +130,39 @@ export function CommitGraph({
       }
       return
     }
+
+    if (autoSelectedRef.current !== selectedCommitSha) return
+
     if (
-      uncommittedChanges &&
-      selectedCommitSha !== 'UNCOMMITTED' &&
-      autoSelectedRef.current === selectedCommitSha
+      scrollToSha &&
+      scrollToSha !== selectedCommitSha &&
+      (scrollToSha === 'UNCOMMITTED' || commits.some((c) => c.hash === scrollToSha))
     ) {
+      autoSelectedRef.current = scrollToSha
+      onSelectCommit(scrollToSha)
+      return
+    }
+
+    const isStale =
+      selectedCommitSha !== 'UNCOMMITTED' &&
+      commits.length > 0 &&
+      !commits.some((c) => c.hash === selectedCommitSha)
+    if (isStale) {
+      if (uncommittedChanges) {
+        autoSelectedRef.current = 'UNCOMMITTED'
+        onSelectCommit('UNCOMMITTED')
+      } else {
+        autoSelectedRef.current = commits[0].hash
+        onSelectCommit(commits[0].hash)
+      }
+      return
+    }
+
+    if (uncommittedChanges && selectedCommitSha !== 'UNCOMMITTED' && !scrollToSha) {
       autoSelectedRef.current = 'UNCOMMITTED'
       onSelectCommit('UNCOMMITTED')
     }
-  }, [commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
+  }, [scrollToSha, commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
 
   // Scroll to a target SHA when it changes; re-attempt as more pages
   // arrive if the SHA isn't in the loaded window yet.
@@ -167,7 +199,7 @@ export function CommitGraph({
         isSelected={selectedCommitSha === sha}
         onPress={() => {
           onSelectCommit?.(sha)
-          if (sha !== 'UNCOMMITTED') onSelectBranchBySha?.(sha)
+          onSelectBranchBySha?.(sha)
         }}
       />
     )

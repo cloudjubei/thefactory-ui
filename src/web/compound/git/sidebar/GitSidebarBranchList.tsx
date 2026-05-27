@@ -1,11 +1,14 @@
 import type { GitUnifiedBranchLike } from '../types'
 import GitSidebarBranchFolder from './GitSidebarBranchFolder'
 import GitSidebarBranchRow from './GitSidebarBranchRow'
+import { sectionMatches } from './GitSidebar'
 
 export type GitSidebarBranchListProps = {
   branches: GitUnifiedBranchLike[]
   isRemoteSection?: boolean
   selectedBranchName?: string
+  /** Which side (local vs remote) of the same-named branch the user picked. */
+  selectedBranchSection?: 'local' | 'remote'
   selectedStashRef?: string
   /** Suppress per-row selected-background highlight. Forwarded to each row. */
   hideSelection?: boolean
@@ -23,7 +26,7 @@ export type GitSidebarBranchListProps = {
   folderKeyPrefix?: string
   /** Callback to mutate the persisted map for a single folder. */
   onFolderToggle?: (folder: string) => (open: boolean) => void
-  onSelectBranch: (b: GitUnifiedBranchLike) => void
+  onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
 }
 
@@ -47,6 +50,7 @@ export default function GitSidebarBranchList({
   branches,
   isRemoteSection,
   selectedBranchName,
+  selectedBranchSection,
   selectedStashRef,
   hideSelection,
   dirtyCount,
@@ -60,6 +64,7 @@ export default function GitSidebarBranchList({
     folderKeyPrefix ? `${folderKeyPrefix}:${groupName}` : groupName
   const { root, groups } = groupBranches(branches)
   const sortedGroupNames = Object.keys(groups).sort((a, b) => a.localeCompare(b))
+  const rowSection: 'local' | 'remote' = isRemoteSection ? 'remote' : 'local'
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -67,11 +72,15 @@ export default function GitSidebarBranchList({
         <GitSidebarBranchRow
           key={b.name}
           branch={b}
-          isSelected={selectedBranchName === b.name && !selectedStashRef}
+          isSelected={
+            selectedBranchName === b.name &&
+            !selectedStashRef &&
+            sectionMatches(b, rowSection, selectedBranchSection)
+          }
           isRemoteSection={isRemoteSection}
           hideSelection={hideSelection}
           dirtyCount={dirtyCount}
-          onClick={() => onSelectBranch(b)}
+          onClick={() => onSelectBranch(b, rowSection)}
           onDoubleClick={() => onDoubleClickBranch?.(b)}
         />
       ))}
@@ -89,6 +98,7 @@ export default function GitSidebarBranchList({
             branches={groups[g]}
             isRemoteSection={isRemoteSection}
             selectedBranchName={selectedBranchName}
+            selectedBranchSection={selectedBranchSection}
             selectedStashRef={selectedStashRef}
             hideSelection={hideSelection}
             dirtyCount={dirtyCount}

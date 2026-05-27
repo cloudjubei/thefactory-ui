@@ -84,17 +84,34 @@ export function GitCommitGraph({
   const lastScrolledShaRef = useRef<string | null>(null)
   const scrollRegionRef = useRef<HTMLDivElement | null>(null)
 
-  // Auto-select first commit (or the UNCOMMITTED stub) when nothing is
-  // selected yet. `autoSelectedRef` tracks WHICH sha we auto-picked so we
-  // can promote tip → UNCOMMITTED when status finishes loading after the
-  // log (common race), while still respecting a user's explicit click —
-  // a manual click changes `selectedCommitSha` but leaves the ref behind,
-  // so the promotion guard `ref === selected` skips and the click sticks.
+  // Auto-select a sensible default whenever the parent clears
+  // `selectedCommitSha` (mount, project switch, branch switch).
+  //
+  // `autoSelectedRef` tracks which sha we last auto-picked. A manual click
+  // changes `selectedCommitSha` but leaves the ref behind, so the
+  // re-evaluation block below is guarded by `ref === selected` — once the
+  // user has picked something explicit, we never override it.
+  //
+  // Re-evaluation priority for an auto-driven selection:
+  //   1. Parent provided a new `scrollToSha` (branch tip / UNCOMMITTED) →
+  //      follow it. This is the path that fixes branch switches: when the
+  //      user picks a non-current branch, `scrollToSha = branch.localSha`
+  //      and the highlight tracks it instead of staying on the previous
+  //      tip or jumping to UNCOMMITTED.
+  //   2. Our previous pick is no longer in the log (stale auto-pick after
+  //      a branch switch) → re-pick from the new log.
+  //   3. The parent left `scrollToSha` empty AND the working tree just
+  //      became dirty → promote to UNCOMMITTED. This is the initial-load
+  //      race fix (commits arrived before status).
   const autoSelectedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!onSelectCommit) return
+
     if (!selectedCommitSha) {
-      if (uncommittedChanges) {
+      if (scrollToSha) {
+        autoSelectedRef.current = scrollToSha
+        onSelectCommit(scrollToSha)
+      } else if (uncommittedChanges) {
         autoSelectedRef.current = 'UNCOMMITTED'
         onSelectCommit('UNCOMMITTED')
       } else if (commits.length > 0) {
@@ -103,15 +120,39 @@ export function GitCommitGraph({
       }
       return
     }
+
+    if (autoSelectedRef.current !== selectedCommitSha) return
+
     if (
-      uncommittedChanges &&
-      selectedCommitSha !== 'UNCOMMITTED' &&
-      autoSelectedRef.current === selectedCommitSha
+      scrollToSha &&
+      scrollToSha !== selectedCommitSha &&
+      (scrollToSha === 'UNCOMMITTED' || commits.some((c) => c.hash === scrollToSha))
     ) {
+      autoSelectedRef.current = scrollToSha
+      onSelectCommit(scrollToSha)
+      return
+    }
+
+    const isStale =
+      selectedCommitSha !== 'UNCOMMITTED' &&
+      commits.length > 0 &&
+      !commits.some((c) => c.hash === selectedCommitSha)
+    if (isStale) {
+      if (uncommittedChanges) {
+        autoSelectedRef.current = 'UNCOMMITTED'
+        onSelectCommit('UNCOMMITTED')
+      } else {
+        autoSelectedRef.current = commits[0].hash
+        onSelectCommit(commits[0].hash)
+      }
+      return
+    }
+
+    if (uncommittedChanges && selectedCommitSha !== 'UNCOMMITTED' && !scrollToSha) {
       autoSelectedRef.current = 'UNCOMMITTED'
       onSelectCommit('UNCOMMITTED')
     }
-  }, [commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
+  }, [scrollToSha, commits, uncommittedChanges, selectedCommitSha, onSelectCommit])
 
   useEffect(() => {
     if (!scrollToSha) return
@@ -231,7 +272,7 @@ export function GitCommitGraph({
                 rowRef={setRowRef(sha)}
                 onClick={() => {
                   onSelectCommit?.(sha)
-                  if (sha !== 'UNCOMMITTED') onSelectBranchBySha?.(sha)
+                  onSelectBranchBySha?.(sha)
                 }}
               />
             )
@@ -293,7 +334,7 @@ export function GitCommitGraph({
                 rowRef={setRowRef(sha)}
                 onClick={() => {
                   onSelectCommit?.(sha)
-                  if (sha !== 'UNCOMMITTED') onSelectBranchBySha?.(sha)
+                  onSelectBranchBySha?.(sha)
                 }}
               />
             )

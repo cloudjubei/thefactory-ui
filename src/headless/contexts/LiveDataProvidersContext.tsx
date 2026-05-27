@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   createLiveDataProvider,
@@ -17,6 +17,11 @@ import type {
 } from '../api'
 import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
+import { ProjectResourceCache } from '../utils/projectResourceCache'
+import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+
+/** SWR cache keyed by projectId — instant render on switch back. */
+const liveDataCache = new ProjectResourceCache<LiveDataProvider[]>(16)
 
 export type LiveDataProvidersContextValue = {
   isLoaded: boolean
@@ -51,32 +56,71 @@ export function LiveDataProvidersProvider({ children }: { children: ReactNode })
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
 
+  // AbortController per refresh — project switch / StrictMode double-invoke
+  // aborts the previous request so it can't hold a slot or land stale.
+  const abortRef = useRef<AbortController | null>(null)
+  const refreshGenRef = useRef(0)
   const refresh = useCallback(async () => {
-    if (!projectId) {
+    const gen = ++refreshGenRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
+    const reqProjectId = projectId
+    if (!reqProjectId) {
+      if (gen !== refreshGenRef.current) return
       setProviders(EMPTY)
       setIsLoaded(true)
       setLoadError(null)
+      clearTimeout(timeoutId)
       return
     }
+    const cached = liveDataCache.get(reqProjectId)
     try {
-      const { data } = await listLiveDataProviders({
-        query: { projectId },
+      const res = await listLiveDataProviders({
+        query: { projectId: reqProjectId },
+        headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined,
+        signal: controller.signal,
+        validateStatus: acceptOkOr304,
         throwOnError: true,
       })
-      setProviders(data)
+      if (gen !== refreshGenRef.current || controller.signal.aborted) return
+      if (res.status !== 304) {
+        const data = (res.data ?? []) as LiveDataProvider[]
+        const etag = readEtagHeader(res.headers)
+        setProviders(data)
+        liveDataCache.set(reqProjectId, data, etag)
+      }
       setLoadError(null)
     } catch (err) {
+      if (controller.signal.aborted) return
+      if (gen !== refreshGenRef.current) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
-      setIsLoaded(true)
+      clearTimeout(timeoutId)
+      if (gen === refreshGenRef.current && !controller.signal.aborted) {
+        setIsLoaded(true)
+      }
     }
   }, [projectId])
 
   useEffect(() => {
-    setIsLoaded(false)
-    setProviders(EMPTY)
     setLoadError(null)
+    if (!projectId) {
+      setProviders(EMPTY)
+      setIsLoaded(true)
+    } else {
+      const cached = liveDataCache.get(projectId)
+      if (cached) {
+        setProviders(cached.data)
+        setIsLoaded(true)
+      } else {
+        setProviders(EMPTY)
+        setIsLoaded(false)
+      }
+    }
     void refresh()
+    return () => abortRef.current?.abort()
   }, [projectId, refresh])
 
   // Apply incremental status updates so a long-running fetch flips the row's

@@ -278,7 +278,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [liveStateByKey],
     )
 
+    // AbortController per refresh — StrictMode double-invoke aborts the
+    // first request as the second takes over, plus WS-driven refreshes
+    // don't pile up if one is already in flight.
+    const abortRef = useRef<AbortController | null>(null)
     const refresh = useCallback(async () => {
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
       if (!token) {
         setChats([])
         setIsLoaded(true)
@@ -290,13 +297,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // per-project unread / thinking badges for every project, not just
         // the active one. Without this the badges flash on project switch
         // and never settle for non-active projects.
-        const { data } = await listChats({ throwOnError: true })
+        const { data } = await listChats({ signal: controller.signal, throwOnError: true })
+        if (controller.signal.aborted) return
         setChats(data)
         setLoadError(null)
       } catch (err) {
+        if (controller.signal.aborted) return
         setLoadError(err instanceof Error ? err : new Error(String(err)))
       } finally {
-        setIsLoaded(true)
+        if (!controller.signal.aborted) setIsLoaded(true)
       }
     }, [token])
 
@@ -309,6 +318,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         return
       }
       void refresh()
+      return () => abortRef.current?.abort()
     }, [token, refresh])
 
     useEffect(() => ws.on('chats:updated', () => void refresh()), [ws, refresh])

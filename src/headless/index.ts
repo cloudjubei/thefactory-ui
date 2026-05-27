@@ -566,3 +566,11 @@ export {
   useTools,
   type ToolsContextValue,
 } from './contexts/ToolsContext'
+
+// SWR cache primitive. App-side contexts that the host owns
+// (GitContext, AgentsContext) import this to cache per-project bundles
+// so project switches render from memory while a background revalidate
+// reconciles with the backend. See
+// thefactory-ui/src/headless/utils/projectResourceCache.ts for the
+// LRU + ETag semantics.
+export { ProjectResourceCache, type CacheEntry } from './utils/projectResourceCache'
