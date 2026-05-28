@@ -650,6 +650,233 @@ export function renderToolPreviewNative({
     )
   }
 
+  // ---- gitFetch / gitPull / gitPush (remote sync) ----
+  if (name === 'gitFetch' || name === 'gitPull' || name === 'gitPush') {
+    const remote = tryString(extract(args, ['remote'])) ?? 'origin'
+    const branch = tryString(extract(args, ['branch']))
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const errMsg =
+      resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok === false
+        ? (tryString(extract(result, ['error'])) ?? 'failed')
+        : undefined
+    const action = name === 'gitFetch' ? 'fetched' : name === 'gitPull' ? 'pulled' : 'pushed'
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          <SecondaryText>remote:</SecondaryText>
+          <MonoText>{remote}</MonoText>
+          {branch ? (
+            <>
+              <SecondaryText>branch:</SecondaryText>
+              <MonoText>{branch}</MonoText>
+            </>
+          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
+        </Row>
+        {errMsg ? <SecondaryText>{errMsg}</SecondaryText> : null}
+      </View>
+    )
+  }
+
+  // ---- gitCommit ----
+  if (name === 'gitCommit') {
+    const input = (extract(args, ['input']) ?? {}) as Record<string, unknown>
+    const message = tryString(extract(input, ['message']))
+    const amend = !!extract(input, ['amend'])
+    const pushToOrigin = !!extract(input, ['pushToOrigin'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    return (
+      <View style={{ gap: 4 }}>
+        {message ? (
+          <View>
+            <SectionTitle>Message</SectionTitle>
+            <PreLimited lines={message.split(/\r?\n/)} maxLines={5} />
+          </View>
+        ) : (
+          <SecondaryText>No message</SecondaryText>
+        )}
+        <Row>
+          {amend ? <SmallBadge>amend</SmallBadge> : null}
+          {pushToOrigin ? <SmallBadge>push to origin</SmallBadge> : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+      </View>
+    )
+  }
+
+  // ---- gitCreateBranch / gitCheckoutBranch / gitDeleteBranch ----
+  if (
+    name === 'gitCreateBranch' ||
+    name === 'gitCheckoutBranch' ||
+    name === 'gitDeleteBranch'
+  ) {
+    const branchName = tryString(extract(args, ['name']))
+    const checkoutAfter = !!extract(args, ['checkoutAfter'])
+    const create = !!extract(args, ['create'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const action =
+      name === 'gitCreateBranch'
+        ? 'created'
+        : name === 'gitCheckoutBranch'
+          ? 'checked out'
+          : 'deleted'
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          <SecondaryText>branch:</SecondaryText>
+          <MonoText>{branchName || '(unknown)'}</MonoText>
+          {name === 'gitCreateBranch' && checkoutAfter ? <SmallBadge>+checkout</SmallBadge> : null}
+          {name === 'gitCheckoutBranch' && create ? (
+            <SmallBadge>create if missing</SmallBadge>
+          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
+        </Row>
+      </View>
+    )
+  }
+
+  // ---- gitListBranches ----
+  if (name === 'gitListBranches') {
+    const scope = tryString(extract(args, ['scope'])) ?? 'local'
+    const branchesRaw = extract(result, ['branches'])
+    const branches = Array.isArray(branchesRaw)
+      ? (branchesRaw as Array<Record<string, unknown>>)
+      : []
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          <SecondaryText>scope:</SecondaryText>
+          <MonoText>{scope}</MonoText>
+        </Row>
+        {resultType === 'success' ? (
+          branches.length > 0 ? (
+            <View>
+              <SectionTitle>Branches</SectionTitle>
+              <PreLimited
+                lines={branches.map((b) => {
+                  const bn = tryString(extract(b, ['name'])) ?? '(unknown)'
+                  const current = !!extract(b, ['current'])
+                  return `${current ? '* ' : '  '}${bn}`
+                })}
+                maxLines={15}
+              />
+            </View>
+          ) : (
+            <SecondaryText>No branches</SecondaryText>
+          )
+        ) : null}
+      </View>
+    )
+  }
+
+  // ---- gitCreateMergePlan / gitApplyMerge ----
+  if (name === 'gitCreateMergePlan' || name === 'gitApplyMerge') {
+    const options = (extract(args, ['options']) ?? {}) as Record<string, unknown>
+    const baseRef = tryString(extract(options, ['baseRef']))
+    const sourcesRaw = extract(options, ['sources'])
+    const sources: string[] = Array.isArray(sourcesRaw)
+      ? (sourcesRaw as unknown[]).filter((s): s is string => typeof s === 'string')
+      : []
+    const conflictsRaw = extract(result, ['conflicts']) ?? extract(result, ['conflictFiles'])
+    const conflicts: string[] = Array.isArray(conflictsRaw)
+      ? (conflictsRaw as unknown[]).filter((s): s is string => typeof s === 'string')
+      : []
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          {baseRef ? (
+            <>
+              <SecondaryText>base:</SecondaryText>
+              <MonoText>{baseRef}</MonoText>
+            </>
+          ) : null}
+          {sources.length > 0 ? (
+            <>
+              <SecondaryText>sources:</SecondaryText>
+              <MonoText>{sources.join(', ')}</MonoText>
+            </>
+          ) : null}
+          {resultType === 'success' ? (
+            <SmallBadge>
+              {ok ? (name === 'gitCreateMergePlan' ? 'planned' : 'merged') : 'failed'}
+            </SmallBadge>
+          ) : null}
+        </Row>
+        {conflicts.length > 0 ? (
+          <View>
+            <SectionTitle>Conflicts</SectionTitle>
+            <PreLimited lines={conflicts} maxLines={10} />
+          </View>
+        ) : null}
+      </View>
+    )
+  }
+
+  // ---- gitListStashes / gitAddStash / gitApplyStash / gitRemoveStash ----
+  if (name === 'gitListStashes') {
+    const stashesRaw = extract(result, ['stashes'])
+    const stashes = Array.isArray(stashesRaw)
+      ? (stashesRaw as Array<Record<string, unknown>>)
+      : []
+    return (
+      <View style={{ gap: 4 }}>
+        {resultType === 'success' ? (
+          stashes.length > 0 ? (
+            <View>
+              <SectionTitle>Stashes</SectionTitle>
+              <PreLimited
+                lines={stashes.map((s) => {
+                  const ref = tryString(extract(s, ['ref'])) ?? '?'
+                  const msg = tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
+                  return `${ref}  ${msg}`
+                })}
+                maxLines={10}
+              />
+            </View>
+          ) : (
+            <SecondaryText>No stashes</SecondaryText>
+          )
+        ) : null}
+      </View>
+    )
+  }
+  if (name === 'gitAddStash' || name === 'gitApplyStash' || name === 'gitRemoveStash') {
+    const options = (extract(args, ['options']) ?? {}) as Record<string, unknown>
+    const stashRef = tryString(extract(options, ['stashRef']))
+    const stashName = tryString(extract(options, ['name']))
+    const keepStaged = !!extract(options, ['keepStagedChanges'])
+    const includeUntracked = !!extract(options, ['includeUntracked'])
+    const deleteAfterApply = !!extract(options, ['deleteAfterApply'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const action =
+      name === 'gitAddStash' ? 'stashed' : name === 'gitApplyStash' ? 'applied' : 'removed'
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          {stashName ? (
+            <>
+              <SecondaryText>name:</SecondaryText>
+              <MonoText>{stashName}</MonoText>
+            </>
+          ) : null}
+          {stashRef ? (
+            <>
+              <SecondaryText>ref:</SecondaryText>
+              <MonoText>{stashRef}</MonoText>
+            </>
+          ) : null}
+          {name === 'gitAddStash' && keepStaged ? <SmallBadge>keep staged</SmallBadge> : null}
+          {name === 'gitAddStash' && includeUntracked ? <SmallBadge>+untracked</SmallBadge> : null}
+          {name === 'gitApplyStash' && deleteAfterApply ? <SmallBadge>+drop</SmallBadge> : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
+        </Row>
+      </View>
+    )
+  }
+
   // ---- webReadURLs ----
   if (name === 'webReadURLs') {
     const urls = (extract(args, ['urls']) ?? []) as Array<string | undefined>

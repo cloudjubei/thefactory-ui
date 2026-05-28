@@ -642,6 +642,239 @@ export function renderToolPreview({
     )
   }
 
+  // ---- gitFetch / gitPull / gitPush (remote sync) ----
+  if (name === 'gitFetch' || name === 'gitPull' || name === 'gitPush') {
+    const remote = tryString(extract(args, ['remote'])) ?? 'origin'
+    const branch = tryString(extract(args, ['branch']))
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const errMsg =
+      resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok === false
+        ? (tryString(extract(result, ['error'])) ?? 'failed')
+        : undefined
+    const action = name === 'gitFetch' ? 'fetched' : name === 'gitPull' ? 'pulled' : 'pushed'
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-(--text-secondary)">remote:</span>
+          <span className="font-mono text-[11px]">{remote}</span>
+          {branch ? (
+            <>
+              <span className="text-(--text-secondary)">branch:</span>
+              <span className="font-mono text-[11px]">{branch}</span>
+            </>
+          ) : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+        {errMsg ? (
+          <div className="text-[11px] text-(--text-secondary)">{errMsg}</div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // ---- gitCommit ----
+  if (name === 'gitCommit') {
+    const input = (extract(args, ['input']) ?? {}) as Record<string, unknown>
+    const message = tryString(extract(input, ['message']))
+    const amend = !!extract(input, ['amend'])
+    const pushToOrigin = !!extract(input, ['pushToOrigin'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    return (
+      <div className="text-xs space-y-1">
+        {message ? (
+          <div>
+            <SectionTitle>Message</SectionTitle>
+            <PreLimited lines={message.split(/\r?\n/)} maxLines={5} />
+          </div>
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No message</div>
+        )}
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          {amend ? <SmallBadge>amend</SmallBadge> : null}
+          {pushToOrigin ? <SmallBadge>push to origin</SmallBadge> : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+      </div>
+    )
+  }
+
+  // ---- gitCreateBranch / gitCheckoutBranch / gitDeleteBranch ----
+  if (
+    name === 'gitCreateBranch' ||
+    name === 'gitCheckoutBranch' ||
+    name === 'gitDeleteBranch'
+  ) {
+    const branchName = tryString(extract(args, ['name']))
+    const checkoutAfter = !!extract(args, ['checkoutAfter'])
+    const create = !!extract(args, ['create'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const action =
+      name === 'gitCreateBranch'
+        ? 'created'
+        : name === 'gitCheckoutBranch'
+          ? 'checked out'
+          : 'deleted'
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-(--text-secondary)">branch:</span>
+          <span className="font-mono text-[11px]">{branchName || '(unknown)'}</span>
+          {name === 'gitCreateBranch' && checkoutAfter ? <SmallBadge>+checkout</SmallBadge> : null}
+          {name === 'gitCheckoutBranch' && create ? <SmallBadge>create if missing</SmallBadge> : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+      </div>
+    )
+  }
+
+  // ---- gitListBranches ----
+  if (name === 'gitListBranches') {
+    const scope = tryString(extract(args, ['scope'])) ?? 'local'
+    const branchesRaw = extract(result, ['branches'])
+    const branches = Array.isArray(branchesRaw)
+      ? (branchesRaw as Array<Record<string, unknown>>)
+      : []
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-(--text-secondary)">scope:</span>
+          <span className="font-mono text-[11px]">{scope}</span>
+        </Row>
+        {resultType === 'success' ? (
+          branches.length > 0 ? (
+            <div>
+              <SectionTitle>Branches</SectionTitle>
+              <PreLimited
+                lines={branches.map((b) => {
+                  const bn = tryString(extract(b, ['name'])) ?? '(unknown)'
+                  const current = !!extract(b, ['current'])
+                  return `${current ? '* ' : '  '}${bn}`
+                })}
+                maxLines={15}
+              />
+            </div>
+          ) : (
+            <div className="text-[11px] text-(--text-secondary)">No branches</div>
+          )
+        ) : null}
+      </div>
+    )
+  }
+
+  // ---- gitCreateMergePlan / gitApplyMerge ----
+  if (name === 'gitCreateMergePlan' || name === 'gitApplyMerge') {
+    const options = (extract(args, ['options']) ?? {}) as Record<string, unknown>
+    const baseRef = tryString(extract(options, ['baseRef']))
+    const sourcesRaw = extract(options, ['sources'])
+    const sources: string[] = Array.isArray(sourcesRaw)
+      ? (sourcesRaw as unknown[]).filter((s): s is string => typeof s === 'string')
+      : []
+    const conflictsRaw = extract(result, ['conflicts']) ?? extract(result, ['conflictFiles'])
+    const conflicts: string[] = Array.isArray(conflictsRaw)
+      ? (conflictsRaw as unknown[]).filter((s): s is string => typeof s === 'string')
+      : []
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          {baseRef ? (
+            <>
+              <span className="text-(--text-secondary)">base:</span>
+              <span className="font-mono text-[11px]">{baseRef}</span>
+            </>
+          ) : null}
+          {sources.length > 0 ? (
+            <>
+              <span className="text-(--text-secondary)">sources:</span>
+              <span className="font-mono text-[11px]">{sources.join(', ')}</span>
+            </>
+          ) : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? (name === 'gitCreateMergePlan' ? 'planned' : 'merged') : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+        {conflicts.length > 0 ? (
+          <div>
+            <SectionTitle>Conflicts</SectionTitle>
+            <PreLimited lines={conflicts} maxLines={10} />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // ---- gitListStashes / gitAddStash / gitApplyStash / gitRemoveStash ----
+  if (name === 'gitListStashes') {
+    const stashesRaw = extract(result, ['stashes'])
+    const stashes = Array.isArray(stashesRaw)
+      ? (stashesRaw as Array<Record<string, unknown>>)
+      : []
+    return (
+      <div className="text-xs space-y-1">
+        {resultType === 'success' ? (
+          stashes.length > 0 ? (
+            <div>
+              <SectionTitle>Stashes</SectionTitle>
+              <PreLimited
+                lines={stashes.map((s) => {
+                  const ref = tryString(extract(s, ['ref'])) ?? '?'
+                  const msg = tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
+                  return `${ref}  ${msg}`
+                })}
+                maxLines={10}
+              />
+            </div>
+          ) : (
+            <div className="text-[11px] text-(--text-secondary)">No stashes</div>
+          )
+        ) : null}
+      </div>
+    )
+  }
+  if (name === 'gitAddStash' || name === 'gitApplyStash' || name === 'gitRemoveStash') {
+    const options = (extract(args, ['options']) ?? {}) as Record<string, unknown>
+    const stashRef = tryString(extract(options, ['stashRef']))
+    const stashName = tryString(extract(options, ['name']))
+    const keepStaged = !!extract(options, ['keepStagedChanges'])
+    const includeUntracked = !!extract(options, ['includeUntracked'])
+    const deleteAfterApply = !!extract(options, ['deleteAfterApply'])
+    const ok = resultType === 'success' && (result as { ok?: boolean } | undefined)?.ok !== false
+    const action =
+      name === 'gitAddStash' ? 'stashed' : name === 'gitApplyStash' ? 'applied' : 'removed'
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          {stashName ? (
+            <>
+              <span className="text-(--text-secondary)">name:</span>
+              <span className="font-mono text-[11px]">{stashName}</span>
+            </>
+          ) : null}
+          {stashRef ? (
+            <>
+              <span className="text-(--text-secondary)">ref:</span>
+              <span className="font-mono text-[11px]">{stashRef}</span>
+            </>
+          ) : null}
+          {name === 'gitAddStash' && keepStaged ? <SmallBadge>keep staged</SmallBadge> : null}
+          {name === 'gitAddStash' && includeUntracked ? (
+            <SmallBadge>+untracked</SmallBadge>
+          ) : null}
+          {name === 'gitApplyStash' && deleteAfterApply ? <SmallBadge>+drop</SmallBadge> : null}
+          {resultType === 'success' ? (
+            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
+          ) : null}
+        </Row>
+      </div>
+    )
+  }
+
   // ---- webReadURLs ----
   if (name === 'webReadURLs') {
     const urls = (extract(args, ['urls']) ?? []) as Array<string | undefined>
