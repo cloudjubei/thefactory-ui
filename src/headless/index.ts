@@ -1,6 +1,20 @@
 // Public surface for @uikit/headless.
 // React only — no DOM, no `window`, no RN.
 export { useTypewriter } from './hooks/useTypewriter'
+export {
+  useSpeechToText,
+  SpeechToTextEngineContext,
+  type SpeechToTextEngine,
+  type SpeechToTextStatus,
+  type UseSpeechToText,
+} from './hooks/useSpeechToText'
+export {
+  useNativeDictationTrigger,
+  NativeDictationTriggerContext,
+  type NativeDictationTrigger,
+  type NativeDictationResult,
+  type NativeDictationFailureReason,
+} from './hooks/useNativeDictationTrigger'
 export { useDebouncedSetExit } from './hooks/useDebouncedSetExit'
 export { useDurationTimer } from './hooks/useDurationTimer'
 export {

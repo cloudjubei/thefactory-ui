@@ -92,7 +92,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   osNotificationsEnabled: false,
   categories: { chat: true, tests: true, git: true, agent_runs: true },
   badgesEnabled: { chat: true, tests: true, git: true, agent_runs: true },
-  badgeColors: { chat: 'blue', tests: 'green', git: 'orange', agent_runs: 'red' },
+  badgeColors: { chat: 'red', tests: 'green', git: 'orange', agent_runs: 'red' },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },
   displayDurationSeconds: 5,

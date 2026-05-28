@@ -18,6 +18,10 @@ import {
 } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import SpinnerWithDot from '../../primitives/SpinnerWithDot'
+import NotificationBadge, {
+  getNotificationBadgeColor,
+  type NotificationBadgeColor,
+} from '../NotificationBadge'
 import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
 
 export interface NavDrawerItem {
@@ -28,6 +32,9 @@ export interface NavDrawerItem {
   active?: boolean
   /** Numeric badge; `0` / `undefined` renders nothing. */
   badgeCount?: number
+  /** Badge / dot colour — matches the per-category palette the user picks in
+   *  notification settings. Falls back to red, mirroring the web `NavRow`. */
+  badgeColor?: NotificationBadgeColor
   /** Renders a small dot instead of a count (e.g. "thinking"). */
   showDot?: boolean
   /** Renders a spinner (with a dot) — the chat "thinking" affordance. Takes
@@ -350,16 +357,24 @@ function Row({
         {item.label}
       </Text>
       {item.badgeCount && item.badgeCount > 0 ? (
-        <CountBadge count={item.badgeCount} />
+        <NotificationBadge
+          text={item.badgeCount > 99 ? '99+' : String(item.badgeCount)}
+          color={item.badgeColor}
+          tooltipLabel={item.label}
+        />
       ) : item.thinking ? (
-        <SpinnerWithDot size={14} showDot dotColor={theme.accent.primary} />
+        <SpinnerWithDot
+          size={14}
+          showDot
+          dotColor={getNotificationBadgeColor(item.badgeColor)}
+        />
       ) : item.showDot ? (
         <View
           style={{
             width: 8,
             height: 8,
             borderRadius: 4,
-            backgroundColor: theme.accent.primary,
+            backgroundColor: getNotificationBadgeColor(item.badgeColor),
           }}
         />
       ) : null}
@@ -457,24 +472,3 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
   )
 }
 
-function CountBadge({ count }: { count: number }) {
-  const { theme } = useNativeTheme()
-  const label = count > 99 ? '99+' : String(count)
-  return (
-    <View
-      style={{
-        minWidth: 18,
-        height: 18,
-        paddingHorizontal: 5,
-        borderRadius: 9,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.accent.primary,
-      }}
-    >
-      <Text style={{ fontSize: 11, fontWeight: '700', color: theme.text.inverted }}>
-        {label}
-      </Text>
-    </View>
-  )
-}

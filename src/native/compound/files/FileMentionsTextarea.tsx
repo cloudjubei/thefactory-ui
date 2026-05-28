@@ -164,6 +164,10 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
             style={[
               {
                 minHeight: 20 + 20 * rows,
+                // Same clamp web uses (`MAX_INPUT_HEIGHT_PX = 250`) —
+                // without this, the textarea grows with every newline
+                // until it pushes the keyboard off the screen.
+                maxHeight: 250,
                 textAlignVertical: 'top',
                 paddingHorizontal: nativeSpace[3],
                 paddingVertical: nativeSpace[2],
