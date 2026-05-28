@@ -28,6 +28,19 @@ export {
   type GitCredentialErrorOp,
 } from './GitCredentialErrorModal'
 
+// Dialog family for the per-project Git view — each takes `isOpen` /
+// `onClose` and drives the corresponding mutation via `useGit()`.
+// Modal chrome, validation, and confirmation flows are inside; the host
+// app only has to mount them as a modal stack inside `GitView`.
+export { default as CommitDialog, type CommitDialogProps } from './dialogs/CommitDialog'
+export { CheckoutDialog, CreateBranchDialog } from './dialogs/BranchDialogs'
+export { default as StashDialog, type StashDialogProps } from './dialogs/StashDialog'
+export { default as MergeDialog, type MergeDialogProps } from './dialogs/MergeDialog'
+export {
+  default as MergeConflictResolver,
+  type MergeConflictResolverProps,
+} from './dialogs/MergeConflictResolver'
+
 export { default as GitSidebar, type GitSidebarProps } from './sidebar/GitSidebar'
 export {
   default as GitSidebarBranchFolder,

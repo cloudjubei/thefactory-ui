@@ -567,6 +567,35 @@ export {
   type ToolsContextValue,
 } from './contexts/ToolsContext'
 
+// Agent-run orchestration. Derives `runs` from `useChats()` and starts /
+// cancels / deletes / rates runs via the backend. Requires the chats /
+// LLM-configs / git-credentials / web-search-keys providers above it.
+export {
+  AgentsProvider,
+  useAgents,
+  AGENT_TYPES,
+  type AgentsContextValue,
+  type AgentType,
+  type RunChat,
+} from './contexts/AgentsContext'
+
+// Per-project git state (status / branches / log / stashes) + every
+// mutation op (commit, push, pull, stash, merge, etc.). Takes a `storage`
+// adapter for per-project merge prefs persistence — host apps pass a
+// `localStorage`-backed adapter on web/desktop and an MMKV-backed
+// adapter on mobile.
+export {
+  GitProvider,
+  useGit,
+  type GitContextValue,
+  type GitCredentialError,
+  type GitProviderProps,
+  type GitSelection,
+  type LocalDiff,
+  type LocalDiffEntry,
+  type MergePreferences,
+} from './contexts/GitContext'
+
 // SWR cache primitive. App-side contexts that the host owns
 // (GitContext, AgentsContext) import this to cache per-project bundles
 // so project switches render from memory while a background revalidate

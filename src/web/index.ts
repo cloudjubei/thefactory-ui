@@ -224,12 +224,16 @@ export {
   WarningChip,
   ExclamationChip,
   ContextFileChip,
+  StoryAndFeatureCalloutBase,
   StoryAndFeatureCallout,
+  DependencyBulletBase,
   DependencyBullet,
   type WarningChipProps,
   type ExclamationChipProps,
   type ContextFileChipProps,
+  type StoryAndFeatureCalloutBaseProps,
   type StoryAndFeatureCalloutProps,
+  type DependencyBulletBaseProps,
   type DependencyBulletProps,
   type DependencyCardShape,
   type ResolvedDependency,
@@ -253,9 +257,8 @@ export {
 } from './compound/shell/LoadingScreen'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
 
-// Project timeline (Gantt) — shared types, date / item utils, grid row.
-// `TimelineHoverCard` stays in-app because it depends on the connected
-// `DependencyBullet` wrapper that hasn't been lifted yet.
+// Project timeline (Gantt) — shared types, date / item utils, grid row,
+// and the connected hover card.
 export type {
   HoverInfo,
   RowDefinition,
@@ -292,6 +295,7 @@ export {
   type AllProjectsBuildInput,
 } from './compound/projectTimeline/timelineItemUtils'
 export { TimelineGridRow } from './compound/projectTimeline/TimelineGridRow'
+export { TimelineHoverCard } from './compound/projectTimeline/TimelineHoverCard'
 
 // Settings panels (connected to the lifted contexts).
 export { default as VisualSettings } from './compound/settings/VisualSettings'
@@ -457,6 +461,9 @@ export {
 
 // Git view (lifted from web + desktop's GitView)
 export {
+  CheckoutDialog,
+  CommitDialog,
+  CreateBranchDialog,
   GitCommitGraph,
   GitCommitGraphHeader,
   GitCommitGraphRow,
@@ -471,9 +478,13 @@ export {
   GitSidebarBranchRow,
   GitSidebarSectionHeader,
   GitSidebarStashRow,
+  MergeConflictResolver,
+  MergeDialog,
+  StashDialog,
   computeCommitGraph,
   countPatchAddDel,
   getFilePatch,
+  type CommitDialogProps,
   type GitCommitGraphHeaderProps,
   type GitCommitGraphProps,
   type GitCommitGraphRowProps,
@@ -496,6 +507,9 @@ export {
   type GitStashListItemLike,
   type GitUnifiedBranchLike,
   type GraphNode,
+  type MergeConflictResolverProps,
+  type MergeDialogProps,
+  type StashDialogProps,
 } from './compound/git'
 
 // Keyboard-shortcut provider — apps pass their `ShortcutsModifier` setting
@@ -561,3 +575,15 @@ export {
 
 // Shell-level overlay
 export { default as DiagnosticsOverlay } from './compound/shell/DiagnosticsOverlay'
+
+// Top-level screens shared by web + desktop (mobile renders its own
+// native equivalents).
+export { default as WelcomeView } from './screens/WelcomeView'
+export { default as ProjectTimelineView } from './screens/ProjectTimelineView'
+export {
+  default as GithubCallback,
+  GITHUB_OAUTH_MESSAGE_TYPE,
+  GITHUB_TOKEN_STORAGE_KEY,
+  type GithubOAuthMessage,
+  type GithubOAuthResult,
+} from './screens/GithubCallback'
