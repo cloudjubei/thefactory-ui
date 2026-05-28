@@ -35,23 +35,41 @@ function WaveBar({ delay, height }: { delay: number; height: number }) {
   const scale = useRef(new Animated.Value(0.35)).current
 
   useEffect(() => {
+    // JS-driven, not native-driven. The native driver is the obvious
+    // choice for a fire-and-forget transform, but combining it with
+    // the rapidly-re-measuring TextInput sitting beside us in the
+    // composer produces two ugly artifacts in dev builds:
+    //
+    //   - `Sending onAnimatedValueUpdate with no listeners` warnings
+    //     on unmount (the native side ticks a final frame after JS
+    //     has torn the listener down).
+    //   - intermittent `CoreGraphics: invalid numeric value (NaN)`
+    //     errors as RN's layout engine reads stale dimensions while
+    //     the transform is mid-flight.
+    //
+    // For 5 small bars (~3px wide), the JS thread can drive 60fps
+    // without breaking a sweat — the perf cost is invisible and the
+    // logs stay clean.
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(scale, {
           toValue: 1,
           duration: 600,
-          useNativeDriver: true,
+          useNativeDriver: false,
           delay,
         }),
         Animated.timing(scale, {
           toValue: 0.35,
           duration: 600,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]),
     )
     loop.start()
-    return () => loop.stop()
+    return () => {
+      loop.stop()
+      scale.removeAllListeners()
+    }
   }, [scale, delay])
 
   return (
