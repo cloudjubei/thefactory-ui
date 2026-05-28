@@ -65,6 +65,24 @@ export type UserPreferences = {
 
 export type NotificationCategory = 'chat' | 'tests' | 'git' | 'agent_runs'
 
+/**
+ * Subset of `NotificationCategory` whose badge colour the user can pick.
+ * `agent_runs` is intentionally excluded — agent-run badges always use the
+ * component-level default (red), so there is no per-user colour to store.
+ */
+export type BadgeColorCategory = Exclude<NotificationCategory, 'agent_runs'>
+
+export const BADGE_COLOR_CATEGORIES: readonly BadgeColorCategory[] = [
+  'chat',
+  'tests',
+  'git',
+] as const
+
+/** Type-guard: narrows a `NotificationCategory` to one that carries a badge colour. */
+export function isBadgeColorCategory(c: NotificationCategory): c is BadgeColorCategory {
+  return (BADGE_COLOR_CATEGORIES as readonly NotificationCategory[]).includes(c)
+}
+
 export type BadgeColor = 'red' | 'blue' | 'green' | 'orange'
 
 export const BADGE_COLORS: readonly BadgeColor[] = ['red', 'blue', 'green', 'orange'] as const
@@ -76,8 +94,8 @@ export type NotificationPrefs = {
   categories: Record<NotificationCategory, boolean>
   /** Per-category badge enablement (sidebar / favicon dots). */
   badgesEnabled: Record<NotificationCategory, boolean>
-  /** Per-category badge colour. */
-  badgeColors: Record<NotificationCategory, BadgeColor>
+  /** Per-category badge colour. `agent_runs` is excluded — its badge always uses the default. */
+  badgeColors: Record<BadgeColorCategory, BadgeColor>
   /** Whether chat badges count chats with unread messages or total unread messages. */
   chatBadgeCountMode: ChatBadgeCountMode
   /** Sub-toggles for the `git` category. */
@@ -92,7 +110,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   osNotificationsEnabled: false,
   categories: { chat: true, tests: true, git: true, agent_runs: true },
   badgesEnabled: { chat: true, tests: true, git: true, agent_runs: true },
-  badgeColors: { chat: 'red', tests: 'green', git: 'orange', agent_runs: 'red' },
+  badgeColors: { chat: 'red', tests: 'green', git: 'orange' },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },
   displayDurationSeconds: 5,

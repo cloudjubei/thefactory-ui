@@ -297,14 +297,17 @@ export {
 // modules and re-exported above — not duplicated here.
 export {
   AVAILABLE_THEMES,
+  BADGE_COLOR_CATEGORIES,
   BADGE_COLORS,
   CODE_BLOCK_THEMES,
   DEFAULT_APP_SETTINGS,
   DEFAULT_NOTIFICATION_PREFS,
   DEFAULT_PROJECT_SETTINGS,
   DEFAULT_SHORTCUTS,
+  isBadgeColorCategory,
   type AppSettings,
   type BadgeColor,
+  type BadgeColorCategory,
   type CodeBlockTheme,
   type NotificationCategory,
   type NotificationPrefs,

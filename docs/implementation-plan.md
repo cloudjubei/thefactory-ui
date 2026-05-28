@@ -44,13 +44,7 @@ New [src/headless/hooks/useSpeechToText.ts](../src/headless/hooks/useSpeechToTex
 
 Tests at `src/headless/hooks/useSpeechToText.test.ts` — stub engine drives partial/final/error paths.
 
-### B.3 Git tool previews × ~10 (Feature 3)
-
-New files in [src/web/compound/chat/toolPreviews/](../src/web/compound/chat/toolPreviews/) (each with a native peer): `GitFetchPreview`, `GitPullPreview`, `GitPushPreview`, `GitCommitPreview`, `GitMergePreview`, `GitCheckoutBranchPreview`, `GitCreateBranchPreview`, `GitDeleteBranchPreview`, `GitListBranchesPreview`, `GitStashPreview` (dispatches over `gitListStashes` / `gitAddStash` / `gitApplyStash` / `gitRemoveStash` on `toolCall.name`).
-
-All reuse `Row`, `SectionTitle`, `PreLimited`, `InlineOldNew`, `PatchPreview`, `SmallBadge` from `components.tsx` + `FieldDiff.tsx`. Wire each `case` into `renderToolPreview.tsx`; re-export from `toolPreviews/index.ts`. No UI unit tests; visual verification via `playground/`.
-
-### B.4 CLI surface — hooks + ModelChip + settings form + permission UI (Feature 4)
+### B.3 CLI surface — hooks + ModelChip + settings form + permission UI (Feature 4)
 
 Headless additions:
 - [src/headless/hooks/useCliConfig.ts](../src/headless/hooks/useCliConfig.ts) + [src/headless/contexts/CliConfigsContext.tsx](../src/headless/contexts/CliConfigsContext.tsx) (mirrors `LLMConfigsContext`). Wires WS `cli:auth-login` chunks into per-loginId streams.
