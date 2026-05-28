@@ -563,7 +563,12 @@ export {
 export { default as DataLocationSettingsPanel } from './compound/settings/DataLocationSettingsPanel'
 export { default as DatabaseSettings } from './compound/settings/DatabaseSettings'
 export { default as GitCredentialsForm } from './compound/settings/GitCredentialsForm'
+export type {
+  GitCredentialsFormProps,
+  GitCredentialsFormHostCapabilities,
+} from './compound/settings/GitCredentialsForm'
 export { default as GitHubSettings } from './compound/settings/GitHubSettings'
+export type { GitHubSettingsProps } from './compound/settings/GitHubSettings'
 export { default as IngestionPanel } from './compound/settings/IngestionPanel'
 export { default as OverseerPanel } from './compound/settings/OverseerPanel'
 export { default as WebSearchSettings } from './compound/settings/WebSearchSettings'
@@ -584,6 +589,8 @@ export {
   default as GithubCallback,
   GITHUB_OAUTH_MESSAGE_TYPE,
   GITHUB_TOKEN_STORAGE_KEY,
+  GITHUB_CREDENTIAL_STORAGE_KEY,
+  GITHUB_GITCRED_SCOPE_LABEL_STORAGE_KEY,
   type GithubOAuthMessage,
   type GithubOAuthResult,
 } from './screens/GithubCallback'

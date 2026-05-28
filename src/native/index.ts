@@ -386,6 +386,10 @@ export type {
 
 // Settings compounds
 export {
+  default as GitCredentialsForm,
+  type GitCredentialsFormProps,
+} from './compound/settings/GitCredentialsForm'
+export {
   default as LLMConfigForm,
   type LLMConfigFormHandle,
   type LLMConfigFormMode,

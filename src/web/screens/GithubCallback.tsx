@@ -1,25 +1,41 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { completeOverseerGithubAuth, getResponseDataMessage } from '../../headless/api'
+import {
+  completeGitCredentialGithubRedirect,
+  completeOverseerGithubAuth,
+  getResponseDataMessage,
+} from '../../headless/api'
 import LoadingScreen from '../compound/shell/LoadingScreen'
 
 /**
- * Landing page for the GitHub OAuth redirect flow. GitHub redirects here with
- * `?code=...&state=...` after the user authorises the app. We POST those to
- * `completeOverseerGithubAuth` and then surface the resulting `tokenId` two
- * ways depending on how this page is reached:
+ * Landing page for the GitHub OAuth redirect flow. GitHub redirects here
+ * with `?code=...&state=...` after the user authorises the app. The
+ * `state` is namespaced by purpose:
  *
- *   - **Popup mode** (the main app opened this in `window.open(...)`): post
- *     the result back to the opener via `postMessage` and `window.close()`
- *     ourselves. The opener picks it up and resumes inline. No redirect, no
- *     full-page reload.
- *   - **Full-page mode** (the main app did `window.location.assign(authUrl)`,
- *     usually as a popup-blocked fallback): stash the `tokenId` in
- *     `sessionStorage` under {@link GITHUB_TOKEN_STORAGE_KEY} and
- *     `navigate('/')`. `WelcomeView` reads the key on mount and resumes at
- *     the repo-create step.
+ *   - `bootstrap:<uuid>` — the overseer first-run flow. Resolves to a
+ *     `tokenId` (in-memory, 10 min TTL) that `WelcomeView` consumes to
+ *     create the overseer repo.
+ *   - `gitcred:<uuid>` — adding a per-credential GitHub login from
+ *     Settings → Credentials. Resolves to a persisted `GitCredential`;
+ *     this page hands the credential id back to the host (sessionStorage
+ *     key {@link GITHUB_CREDENTIAL_STORAGE_KEY}) and navigates home so the
+ *     credentials screen can refresh its list.
+ *
+ * Two delivery modes for the bootstrap path:
+ *
+ *   - **Popup mode** (`window.open(...)`): post the result back to the
+ *     opener via `postMessage` and `window.close()`. The opener resumes
+ *     inline.
+ *   - **Full-page mode**: stash the `tokenId` under
+ *     {@link GITHUB_TOKEN_STORAGE_KEY} and `navigate('/')`. `WelcomeView`
+ *     reads the key on mount.
+ *
+ * The gitcred path is always full-page (a popup-with-postMessage
+ * variant would be doable but isn't needed for the settings flow).
  */
 export const GITHUB_TOKEN_STORAGE_KEY = 'overseer.github.tokenId'
+export const GITHUB_CREDENTIAL_STORAGE_KEY = 'overseer.github.gitcred.credentialId'
+export const GITHUB_GITCRED_SCOPE_LABEL_STORAGE_KEY = 'overseer.github.gitcred.scopeLabel'
 export const GITHUB_OAUTH_MESSAGE_TYPE = 'overseer-github-oauth-result'
 
 /**
@@ -49,6 +65,32 @@ export default function GithubCallback() {
     let cancelled = false
     void (async () => {
       try {
+        if (state.startsWith('gitcred:')) {
+          // Per-credential GitHub login from Settings → Credentials. The
+          // backend persists the resulting `GitCredential` itself; we
+          // just hand the id back to the host via sessionStorage so the
+          // credentials screen can refresh.
+          let scopeLabel: string | undefined
+          try {
+            scopeLabel = sessionStorage.getItem(GITHUB_GITCRED_SCOPE_LABEL_STORAGE_KEY) ?? undefined
+            sessionStorage.removeItem(GITHUB_GITCRED_SCOPE_LABEL_STORAGE_KEY)
+          } catch {
+            // sessionStorage may be unavailable; non-fatal.
+          }
+          const { data } = await completeGitCredentialGithubRedirect({
+            body: { code, state, scopeLabel },
+            throwOnError: true,
+          })
+          if (cancelled) return
+          try {
+            sessionStorage.setItem(GITHUB_CREDENTIAL_STORAGE_KEY, data.credential.id)
+          } catch {
+            // Non-fatal — caller can resync from /git-credentials directly.
+          }
+          navigate('/', { replace: true })
+          return
+        }
+
         const { data } = await completeOverseerGithubAuth({
           body: { code, state },
           throwOnError: true,

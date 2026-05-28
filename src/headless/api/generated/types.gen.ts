@@ -2033,12 +2033,18 @@ export type LlmConfigCreateInput = {
   costCacheReadInputPerMTokensUSD?: number
 }
 
+export type GitCredentialTokenSource = 'pat' | 'oauth'
+
 export type GitCredentialEntry = {
   id: string
   name: string
   username: string
   email: string
   token: string
+  tokenSource?: 'pat' | 'oauth'
+  refreshToken?: string
+  expiresAt?: string
+  scopes?: Array<string>
   createdAt: string
   updatedAt: string
 }
@@ -2048,6 +2054,10 @@ export type GitCredentialCreateInput = {
   username: string
   email: string
   token: string
+  tokenSource?: 'pat' | 'oauth'
+  refreshToken?: string
+  expiresAt?: string
+  scopes?: Array<string>
 }
 
 export type CliAuthCacheEntry = {
@@ -3851,6 +3861,10 @@ export type GitCredentialEditInput = {
   username?: string
   email?: string
   token?: string
+  tokenSource?: 'pat' | 'oauth'
+  refreshToken?: string
+  expiresAt?: string
+  scopes?: Array<string>
 }
 
 export type JsonValue =
@@ -5529,6 +5543,193 @@ export type UpdateCliAuthCacheResponses = {
 
 export type UpdateCliAuthCacheResponse =
   UpdateCliAuthCacheResponses[keyof UpdateCliAuthCacheResponses]
+
+export type StartGitCredentialGithubRedirectData = {
+  body: {
+    scopeLabel?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/git-credentials/github/redirect/start'
+}
+
+export type StartGitCredentialGithubRedirectErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartGitCredentialGithubRedirectError =
+  StartGitCredentialGithubRedirectErrors[keyof StartGitCredentialGithubRedirectErrors]
+
+export type StartGitCredentialGithubRedirectResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    authUrl: string
+    state: string
+  }
+}
+
+export type StartGitCredentialGithubRedirectResponse =
+  StartGitCredentialGithubRedirectResponses[keyof StartGitCredentialGithubRedirectResponses]
+
+export type CompleteGitCredentialGithubRedirectData = {
+  body: {
+    code: string
+    state: string
+    scopeLabel?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/git-credentials/github/redirect/callback'
+}
+
+export type CompleteGitCredentialGithubRedirectErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CompleteGitCredentialGithubRedirectError =
+  CompleteGitCredentialGithubRedirectErrors[keyof CompleteGitCredentialGithubRedirectErrors]
+
+export type CompleteGitCredentialGithubRedirectResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    credential: GitCredentialEntry
+  }
+}
+
+export type CompleteGitCredentialGithubRedirectResponse =
+  CompleteGitCredentialGithubRedirectResponses[keyof CompleteGitCredentialGithubRedirectResponses]
+
+export type StartGitCredentialGithubDeviceData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/git-credentials/github/device/start'
+}
+
+export type StartGitCredentialGithubDeviceErrors = {
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartGitCredentialGithubDeviceError =
+  StartGitCredentialGithubDeviceErrors[keyof StartGitCredentialGithubDeviceErrors]
+
+export type StartGitCredentialGithubDeviceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    flowId: string
+    userCode: string
+    verificationUri: string
+    verificationUriComplete?: string
+    expiresAt: number
+    intervalMs: number
+  }
+}
+
+export type StartGitCredentialGithubDeviceResponse =
+  StartGitCredentialGithubDeviceResponses[keyof StartGitCredentialGithubDeviceResponses]
+
+export type PollGitCredentialGithubDeviceData = {
+  body: {
+    flowId: string
+    scopeLabel?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/git-credentials/github/device/poll'
+}
+
+export type PollGitCredentialGithubDeviceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PollGitCredentialGithubDeviceError =
+  PollGitCredentialGithubDeviceErrors[keyof PollGitCredentialGithubDeviceErrors]
+
+export type PollGitCredentialGithubDeviceResponses = {
+  /**
+   * Default Response
+   */
+  200:
+    | {
+        status: 'pending'
+      }
+    | {
+        status: 'slow_down'
+      }
+    | {
+        status: 'authorized'
+        credential: GitCredentialEntry
+      }
+}
+
+export type PollGitCredentialGithubDeviceResponse =
+  PollGitCredentialGithubDeviceResponses[keyof PollGitCredentialGithubDeviceResponses]
 
 export type DeleteChatData = {
   body: ChatContextBody
@@ -10217,6 +10418,14 @@ export type ApplyCliAgentArtifactErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  401: {
     error: string
     code?: string
     requestId?: string

@@ -36,6 +36,9 @@ import type {
   CloneOverseerData,
   CloneOverseerErrors,
   CloneOverseerResponses,
+  CompleteGitCredentialGithubRedirectData,
+  CompleteGitCredentialGithubRedirectErrors,
+  CompleteGitCredentialGithubRedirectResponses,
   CompleteOverseerGithubAuthData,
   CompleteOverseerGithubAuthErrors,
   CompleteOverseerGithubAuthResponses,
@@ -367,6 +370,9 @@ import type {
   MatchDocumentsResponses,
   MetricsData,
   MetricsResponses,
+  PollGitCredentialGithubDeviceData,
+  PollGitCredentialGithubDeviceErrors,
+  PollGitCredentialGithubDeviceResponses,
   PollOverseerGithubDeviceFlowData,
   PollOverseerGithubDeviceFlowErrors,
   PollOverseerGithubDeviceFlowResponses,
@@ -482,6 +488,12 @@ import type {
   StartDbData,
   StartDbErrors,
   StartDbResponses,
+  StartGitCredentialGithubDeviceData,
+  StartGitCredentialGithubDeviceErrors,
+  StartGitCredentialGithubDeviceResponses,
+  StartGitCredentialGithubRedirectData,
+  StartGitCredentialGithubRedirectErrors,
+  StartGitCredentialGithubRedirectResponses,
   StartOverseerGithubDeviceFlowData,
   StartOverseerGithubDeviceFlowErrors,
   StartOverseerGithubDeviceFlowResponses,
@@ -1174,6 +1186,74 @@ export const updateCliAuthCache = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-auth-caches/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
+  options: Options<StartGitCredentialGithubRedirectData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartGitCredentialGithubRedirectResponses,
+    StartGitCredentialGithubRedirectErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/git-credentials/github/redirect/start',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const completeGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteGitCredentialGithubRedirectData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CompleteGitCredentialGithubRedirectResponses,
+    CompleteGitCredentialGithubRedirectErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/git-credentials/github/redirect/callback',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startGitCredentialGithubDevice = <ThrowOnError extends boolean = false>(
+  options?: Options<StartGitCredentialGithubDeviceData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    StartGitCredentialGithubDeviceResponses,
+    StartGitCredentialGithubDeviceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/git-credentials/github/device/start',
+    ...options,
+  })
+
+export const pollGitCredentialGithubDevice = <ThrowOnError extends boolean = false>(
+  options: Options<PollGitCredentialGithubDeviceData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PollGitCredentialGithubDeviceResponses,
+    PollGitCredentialGithubDeviceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/git-credentials/github/device/poll',
     ...options,
     headers: {
       'Content-Type': 'application/json',
