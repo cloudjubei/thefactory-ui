@@ -71,6 +71,9 @@ import type {
   CreateOverseerGithubRepoErrors,
   CreateOverseerGithubRepoResponses,
   CreateProjectData,
+  CreateProjectFromTemplateData,
+  CreateProjectFromTemplateErrors,
+  CreateProjectFromTemplateResponses,
   CreateProjectGithubRepoData,
   CreateProjectGithubRepoErrors,
   CreateProjectGithubRepoResponses,
@@ -190,6 +193,9 @@ import type {
   GetGitBranchDiffSummaryData,
   GetGitBranchDiffSummaryErrors,
   GetGitBranchDiffSummaryResponses,
+  GetGitBundleData,
+  GetGitBundleErrors,
+  GetGitBundleResponses,
   GetGitCredentialData,
   GetGitCredentialErrors,
   GetGitCredentialResponses,
@@ -227,9 +233,24 @@ import type {
   GetLlmConfigErrors,
   GetLlmConfigResponses,
   GetOverseerData,
+  GetOverseerGitBranchesData,
+  GetOverseerGitBranchesErrors,
+  GetOverseerGitBranchesResponses,
+  GetOverseerGitDiffData,
+  GetOverseerGitDiffErrors,
+  GetOverseerGitDiffResponses,
+  GetOverseerGitDiffSummaryData,
+  GetOverseerGitDiffSummaryErrors,
+  GetOverseerGitDiffSummaryResponses,
   GetOverseerGithubAuthUrlData,
   GetOverseerGithubAuthUrlErrors,
   GetOverseerGithubAuthUrlResponses,
+  GetOverseerGitLogData,
+  GetOverseerGitLogErrors,
+  GetOverseerGitLogResponses,
+  GetOverseerGitStatusData,
+  GetOverseerGitStatusErrors,
+  GetOverseerGitStatusResponses,
   GetOverseerResponses,
   GetPricingData,
   GetPricingErrors,
@@ -293,6 +314,9 @@ import type {
   GitUnstageData,
   GitUnstageErrors,
   GitUnstageResponses,
+  GrantProjectAppViewTokenData,
+  GrantProjectAppViewTokenErrors,
+  GrantProjectAppViewTokenResponses,
   GrepFilesData,
   GrepFilesErrors,
   GrepFilesResponses,
@@ -350,6 +374,9 @@ import type {
   ListProjectsResponses,
   ListStoriesData,
   ListStoriesResponses,
+  ListTemplatesData,
+  ListTemplatesErrors,
+  ListTemplatesResponses,
   ListTestConfigCandidatesData,
   ListTestConfigCandidatesErrors,
   ListTestConfigCandidatesResponses,
@@ -548,6 +575,8 @@ import type {
   UploadFileData,
   UploadFileErrors,
   UploadFileResponses,
+  ViewProjectFileData,
+  ViewProjectFileResponses,
   WriteFileData,
   WriteFileErrors,
   WriteFileExactReplacesData,
@@ -666,6 +695,24 @@ export const updateProject = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const createProjectFromTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectFromTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateProjectFromTemplateResponses,
+    CreateProjectFromTemplateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/from-template',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1629,6 +1676,29 @@ export const writeFileExactReplaces = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const grantProjectAppViewToken = <ThrowOnError extends boolean = false>(
+  options: Options<GrantProjectAppViewTokenData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GrantProjectAppViewTokenResponses,
+    GrantProjectAppViewTokenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/grant',
+    ...options,
+  })
+
+export const viewProjectFile = <ThrowOnError extends boolean = false>(
+  options: Options<ViewProjectFileData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ViewProjectFileResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/{*}',
+    ...options,
+  })
+
 export const getGitStatus = <ThrowOnError extends boolean = false>(
   options: Options<GetGitStatusData, ThrowOnError>,
 ) =>
@@ -1988,6 +2058,16 @@ export const listUnifiedGitBranches = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/git/branches/unified',
+    ...options,
+  })
+
+export const getGitBundle = <ThrowOnError extends boolean = false>(
+  options: Options<GetGitBundleData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetGitBundleResponses, GetGitBundleErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/bundle',
     ...options,
   })
 
@@ -2360,6 +2440,16 @@ export const getCostsByChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/costs/{chatKey}',
+    ...options,
+  })
+
+export const listTemplates = <ThrowOnError extends boolean = false>(
+  options?: Options<ListTemplatesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/templates',
     ...options,
   })
 
@@ -3162,6 +3252,80 @@ export const createOverseerGithubRepo = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/overseer/github/create-repo',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getOverseerGitStatus = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerGitStatusData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetOverseerGitStatusResponses,
+    GetOverseerGitStatusErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/overseer/git/status',
+    ...options,
+  })
+
+export const getOverseerGitBranches = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerGitBranchesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetOverseerGitBranchesResponses,
+    GetOverseerGitBranchesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/overseer/git/branches',
+    ...options,
+  })
+
+export const getOverseerGitLog = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerGitLogData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetOverseerGitLogResponses,
+    GetOverseerGitLogErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/overseer/git/log',
+    ...options,
+  })
+
+export const getOverseerGitDiff = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOverseerGitDiffData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetOverseerGitDiffResponses,
+    GetOverseerGitDiffErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/overseer/git/diff',
+    ...options,
+  })
+
+export const getOverseerGitDiffSummary = <ThrowOnError extends boolean = false>(
+  options: Options<GetOverseerGitDiffSummaryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GetOverseerGitDiffSummaryResponses,
+    GetOverseerGitDiffSummaryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/overseer/git/diff-summary',
     ...options,
     headers: {
       'Content-Type': 'application/json',

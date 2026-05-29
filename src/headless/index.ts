@@ -613,6 +613,17 @@ export {
   type MergePreferences,
 } from './contexts/GitContext'
 
+// Read-only overseer Git data layer — shared between web, desktop, and
+// mobile. Tracks just the commit log (paged) and exposes a per-commit
+// diff fetcher; subscribes to `overseer:git-status-changed` over the WS
+// hub for live refresh. The mutating side of the overseer (commit, push,
+// daily-squash) is owned by the backend, not the UI.
+export {
+  OverseerGitProvider,
+  useOverseerGit,
+  type OverseerGitContextValue,
+} from './contexts/OverseerGitContext'
+
 // SWR cache primitive. App-side contexts that the host owns
 // (GitContext, AgentsContext) import this to cache per-project bundles
 // so project switches render from memory while a background revalidate

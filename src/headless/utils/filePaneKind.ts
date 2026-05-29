@@ -110,12 +110,26 @@ const TEXT_EXTS = new Set([
 export function classifyFileByExtension(path: string | null | undefined): FilePaneKind {
   if (!path) return 'binary'
   const lower = path.toLowerCase()
-  const lastDot = lower.lastIndexOf('.')
-  const ext = lastDot >= 0 ? lower.slice(lastDot + 1) : ''
+  // Look for the extension dot in the basename only — `vendor/v1.2.3/LICENSE`
+  // would otherwise be misclassified because the path-internal `.` wins
+  // over the genuinely extensionless basename.
+  const lastSlash = lower.lastIndexOf('/')
+  const basename = lastSlash >= 0 ? lower.slice(lastSlash + 1) : lower
+  const lastDot = basename.lastIndexOf('.')
+  // `lastDot === 0` is a leading-dot dotfile (`.gitignore`) — the extension
+  // is the rest of the name. `lastDot < 0` means no extension at all.
+  const ext =
+    lastDot > 0 ? basename.slice(lastDot + 1) : lastDot === 0 ? basename.slice(1) : ''
   if (MARKDOWN_EXTS.has(ext)) return 'markdown'
   if (HTML_EXTS.has(ext)) return 'html'
   if (IMAGE_EXTS.has(ext)) return 'image'
   if (PDF_EXTS.has(ext)) return 'pdf'
   if (TEXT_EXTS.has(ext)) return 'text'
+  // Genuinely extensionless basenames (LICENSE, Makefile, Dockerfile,
+  // CHANGELOG) are almost always plain text in the wild — default them to
+  // `text` so the user can read the content. Unknown EXTENSIONS still fall
+  // through to `binary` because a real binary almost always carries an
+  // identifying extension and rendering it as text would garble the pane.
+  if (ext === '') return 'text'
   return 'binary'
 }

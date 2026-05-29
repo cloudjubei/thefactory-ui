@@ -2675,25 +2675,11 @@ export type GitBranchState = {
   }
 }
 
-export type GitBranchEvent = GitBranchState & {
-  schemaVersion: string
-  kind: 'git-branch-state'
-}
-
 export type GitStoryResolverArgs = {
   repoPath: string
   baseRef: string
   headRef: string
   diff: GitDiffSummary
-}
-
-export type GitMonitorState = {
-  name: string
-  headSha: string
-  ahead: number
-  behind: number
-  lastUpdatedAt: number
-  hasUncommittedChanges: boolean
 }
 
 export type GitBranchReport = {
@@ -2827,6 +2813,26 @@ export type GitLogCommit = {
 
 export type GitLogResult = {
   commits: Array<GitLogCommit>
+}
+
+export type GitMonitorRegistryOptions = {
+  hotPollIntervalMs?: number
+  coldPollIntervalMs?: number
+  coldJitterRatio?: number
+  hotIdleMs?: number
+  hotLruMax?: number
+  idleDemotionCheckMs?: number
+  coldScanIntervalMs?: number
+}
+
+export type GitMonitorRegistryMetrics = {
+  hotSize: number
+  coldSize: number
+  hotPollCount: number
+  coldPollCount: number
+  failedSweepCount: number
+  lastHotSweepAt?: string
+  lastColdSweepAt?: string
 }
 
 export type IngestionResult = {
@@ -2965,6 +2971,27 @@ export type CommandResult = {
   stderr: string
   timedOut?: boolean
   aborted?: boolean
+}
+
+export type TransientSpawnEvent = {
+  code: string | unknown
+  message: string | unknown
+  ebadfAttempt: number
+}
+
+export type TransientGiveUpEvent = {
+  code: string | unknown
+  message: string | unknown
+  cmd: string
+  args: Array<string>
+}
+
+export type RunCommandTelemetry = {
+  transientRetryCount: number
+  transientRetryGiveUpCount: number
+  firstTransientErrorAt: string | unknown
+  firstTransientErrorCode: string | unknown
+  firstTransientErrorMessage: string | unknown
 }
 
 export type ProjectDataPaths = {
@@ -3999,6 +4026,33 @@ export type HealthResponses = {
         [key: string]: 'ok' | 'missing'
       }
     }
+    gitMonitor?: {
+      hotSize: number
+      coldSize: number
+      hotPollCount: number
+      coldPollCount: number
+      failedSweepCount: number
+      lastHotSweepAt?: string
+      lastColdSweepAt?: string
+    }
+    fd: {
+      soft: number | 'unlimited' | unknown
+      hard: number | 'unlimited' | unknown
+    }
+    libuv: {
+      totalHandles: number
+      activeHandles: number
+      byType: {
+        [key: string]: number
+      }
+    }
+    spawn: {
+      transientRetryCount: number
+      transientRetryGiveUpCount: number
+      firstTransientErrorAt?: string
+      firstTransientErrorCode?: string
+      firstTransientErrorMessage?: string
+    }
   }
 }
 
@@ -4310,6 +4364,57 @@ export type UpdateProjectResponses = {
 }
 
 export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses]
+
+export type CreateProjectFromTemplateData = {
+  body: {
+    templateId: string
+    id: string
+    mainGroupId?: string | unknown
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/projects/from-template'
+}
+
+export type CreateProjectFromTemplateErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateProjectFromTemplateError =
+  CreateProjectFromTemplateErrors[keyof CreateProjectFromTemplateErrors]
+
+export type CreateProjectFromTemplateResponses = {
+  /**
+   * Default Response
+   */
+  201: ProjectSpec
+}
+
+export type CreateProjectFromTemplateResponse =
+  CreateProjectFromTemplateResponses[keyof CreateProjectFromTemplateResponses]
 
 export type SetProjectActiveData = {
   body: {
@@ -6526,6 +6631,60 @@ export type WriteFileExactReplacesResponses = {
 export type WriteFileExactReplacesResponse =
   WriteFileExactReplacesResponses[keyof WriteFileExactReplacesResponses]
 
+export type GrantProjectAppViewTokenData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/view/grant'
+}
+
+export type GrantProjectAppViewTokenErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GrantProjectAppViewTokenError =
+  GrantProjectAppViewTokenErrors[keyof GrantProjectAppViewTokenErrors]
+
+export type GrantProjectAppViewTokenResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    token: string
+    expiresAt: string
+  }
+}
+
+export type GrantProjectAppViewTokenResponse =
+  GrantProjectAppViewTokenResponses[keyof GrantProjectAppViewTokenResponses]
+
+export type ViewProjectFileData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    viewToken?: string
+  }
+  url: '/api/v1/projects/{projectId}/view/{*}'
+}
+
+export type ViewProjectFileResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
+
 export type GetGitStatusData = {
   body?: never
   path: {
@@ -7735,6 +7894,66 @@ export type ListUnifiedGitBranchesResponses = {
 
 export type ListUnifiedGitBranchesResponse =
   ListUnifiedGitBranchesResponses[keyof ListUnifiedGitBranchesResponses]
+
+export type GetGitBundleData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    ref?: string
+    all?: boolean
+    maxCount?: number
+    skip?: number
+    path?: string
+  }
+  url: '/api/v1/projects/{projectId}/git/bundle'
+}
+
+export type GetGitBundleErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetGitBundleError = GetGitBundleErrors[keyof GetGitBundleErrors]
+
+export type GetGitBundleResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: GitOpResult & {
+      status?: {
+        staged: Array<string>
+        unstaged: Array<string>
+        untracked: Array<string>
+      }
+    }
+    branches: GitOpResult & {
+      branches?: Array<GitUnifiedBranch>
+    }
+    log: {
+      commits: Array<GitLogCommit>
+    }
+    stashes: GitListStashesResult
+  }
+}
+
+export type GetGitBundleResponse = GetGitBundleResponses[keyof GetGitBundleResponses]
 
 export type ListTestsData = {
   body?: never
@@ -9214,6 +9433,43 @@ export type GetCostsByChatResponses = {
 }
 
 export type GetCostsByChatResponse = GetCostsByChatResponses[keyof GetCostsByChatResponses]
+
+export type ListTemplatesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/templates'
+}
+
+export type ListTemplatesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors]
+
+export type ListTemplatesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    templates: Array<{
+      id: string
+      name: string
+      description: string
+      repoUrl: string
+      thumbnailUrl?: string
+    }>
+  }
+}
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses]
 
 export type DeleteEntitiesData = {
   body?: never
@@ -11454,3 +11710,187 @@ export type CreateOverseerGithubRepoResponses = {
 
 export type CreateOverseerGithubRepoResponse =
   CreateOverseerGithubRepoResponses[keyof CreateOverseerGithubRepoResponses]
+
+export type GetOverseerGitStatusData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/overseer/git/status'
+}
+
+export type GetOverseerGitStatusErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetOverseerGitStatusError = GetOverseerGitStatusErrors[keyof GetOverseerGitStatusErrors]
+
+export type GetOverseerGitStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: GitOpResult & {
+    status?: {
+      staged: Array<string>
+      unstaged: Array<string>
+      untracked: Array<string>
+    }
+  }
+}
+
+export type GetOverseerGitStatusResponse =
+  GetOverseerGitStatusResponses[keyof GetOverseerGitStatusResponses]
+
+export type GetOverseerGitBranchesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/overseer/git/branches'
+}
+
+export type GetOverseerGitBranchesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetOverseerGitBranchesError =
+  GetOverseerGitBranchesErrors[keyof GetOverseerGitBranchesErrors]
+
+export type GetOverseerGitBranchesResponses = {
+  /**
+   * Default Response
+   */
+  200: GitOpResult & {
+    branches?: Array<GitUnifiedBranch>
+  }
+}
+
+export type GetOverseerGitBranchesResponse =
+  GetOverseerGitBranchesResponses[keyof GetOverseerGitBranchesResponses]
+
+export type GetOverseerGitLogData = {
+  body?: never
+  path?: never
+  query?: {
+    ref?: string
+    all?: boolean
+    maxCount?: number
+    skip?: number
+    path?: string
+  }
+  url: '/api/v1/overseer/git/log'
+}
+
+export type GetOverseerGitLogErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetOverseerGitLogError = GetOverseerGitLogErrors[keyof GetOverseerGitLogErrors]
+
+export type GetOverseerGitLogResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    commits: Array<GitLogCommit>
+  }
+}
+
+export type GetOverseerGitLogResponse = GetOverseerGitLogResponses[keyof GetOverseerGitLogResponses]
+
+export type GetOverseerGitDiffData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/overseer/git/diff'
+}
+
+export type GetOverseerGitDiffErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetOverseerGitDiffError = GetOverseerGitDiffErrors[keyof GetOverseerGitDiffErrors]
+
+export type GetOverseerGitDiffResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    path: string
+    status: 'A' | 'M' | 'D' | 'R' | 'C' | 'T' | 'U' | '?' | '!' | 'X'
+    additions?: number
+    deletions?: number
+    oldPath?: string
+    renameFrom?: string
+    renameScore?: number
+    patch?: string
+    patchHunks?: Array<GitPatchHunk>
+    patchTruncated?: boolean
+    binary?: boolean
+    submodule?: boolean
+  }>
+}
+
+export type GetOverseerGitDiffResponse =
+  GetOverseerGitDiffResponses[keyof GetOverseerGitDiffResponses]
+
+export type GetOverseerGitDiffSummaryData = {
+  body: {
+    baseRef: string
+    headRef: string
+    includePatch?: boolean
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/overseer/git/diff-summary'
+}
+
+export type GetOverseerGitDiffSummaryErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetOverseerGitDiffSummaryError =
+  GetOverseerGitDiffSummaryErrors[keyof GetOverseerGitDiffSummaryErrors]
+
+export type GetOverseerGitDiffSummaryResponses = {
+  /**
+   * Default Response
+   */
+  200: GitDiffSummary
+}
+
+export type GetOverseerGitDiffSummaryResponse =
+  GetOverseerGitDiffSummaryResponses[keyof GetOverseerGitDiffSummaryResponses]

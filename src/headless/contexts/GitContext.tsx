@@ -5,10 +5,10 @@ import {
   deleteFiles,
   deleteGitBranch,
   getGitBranchDiffSummary,
+  getGitBundle,
   getGitFileContent,
   getGitLocalDiff,
   getGitLog,
-  getGitStatus,
   gitApplyPatch,
   gitResetAll,
   gitCheckout,
@@ -26,8 +26,6 @@ import {
   gitStashDrop,
   gitUnstage,
   isGitCredentialError,
-  listGitStashes,
-  listUnifiedGitBranches,
   unwrapGitEnvelope,
 } from '../api'
 import type {
@@ -312,11 +310,14 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     latestProjectIdRef.current = projectId
   }, [projectId])
 
-  // AbortController per refresh + 20s timeout. Project switch / StrictMode
+  // AbortController per refresh + 60s timeout. Project switch / StrictMode
   // double-invoke aborts the previous fan-out so it can't hold connection
-  // slots or land on stale state.
+  // slots or land on stale state. 60 s matches the backend's bundle-handler
+  // hard cap exactly — anything that the backend doesn't finish by then
+  // isn't going to anyway, and the FE surfaces a Retry CTA via the
+  // catch + finally below instead of a frozen spinner.
   const abortRef = useRef<AbortController | null>(null)
-  const REVALIDATE_TIMEOUT_MS = 20_000
+  const REVALIDATE_TIMEOUT_MS = 60_000
   // Generation counter — second guard against stale responses landing in
   // state after the controller's abort hasn't propagated yet.
   const refreshGenRef = useRef(0)
@@ -341,27 +342,32 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     try {
       const path = { projectId: reqProjectId }
       const sigOpts = { signal: controller.signal, throwOnError: true } as const
-      const [statusRes, branchesRes, logRes, stashesRes] = await Promise.all([
-        getGitStatus({ path, ...sigOpts }),
-        listUnifiedGitBranches({ path, ...sigOpts }),
-        getGitLog({
-          path,
-          query: { all: true, maxCount: LOG_PAGE_SIZE },
-          ...sigOpts,
-        }),
-        listGitStashes({ path, ...sigOpts }),
-      ])
+      // Single bundled request → the backend runs the four reads
+      // sequentially under one HTTP request. This collapses the FE's
+      // historical 4-parallel spawn burst into a single spawn-at-a-time
+      // chain, which (together with the runCommand semaphore + EBADF
+      // retries downstream) was the source of the intermittent
+      // `spawn EBADF` under rapid project switching.
+      const bundleRes = await getGitBundle({
+        path,
+        query: { all: true, maxCount: LOG_PAGE_SIZE },
+        ...sigOpts,
+      })
       if (
         gen !== refreshGenRef.current ||
         latestProjectIdRef.current !== reqProjectId ||
         controller.signal.aborted
       )
         return
-      const nextStatus = unwrapGitEnvelope(statusRes.data, 'status', EMPTY_STATUS)
-      const nextBranches = unwrapGitEnvelope(branchesRes.data, 'branches', EMPTY_BRANCHES)
-      const commits = logRes.data.commits
+      const nextStatus = unwrapGitEnvelope(bundleRes.data.status, 'status', EMPTY_STATUS)
+      const nextBranches = unwrapGitEnvelope(
+        bundleRes.data.branches,
+        'branches',
+        EMPTY_BRANCHES,
+      )
+      const commits = bundleRes.data.log.commits
       const nextHasMore = commits.length >= LOG_PAGE_SIZE
-      const nextStashes = unwrapGitEnvelope(stashesRes.data, 'stashes', EMPTY_STASHES)
+      const nextStashes = unwrapGitEnvelope(bundleRes.data.stashes, 'stashes', EMPTY_STASHES)
       setStatus(nextStatus)
       setBranches(nextBranches)
       setLog(commits)
@@ -380,16 +386,34 @@ export function GitProvider({ children, storage }: GitProviderProps) {
         null,
       )
     } catch (err) {
-      if (controller.signal.aborted) return
+      // Stale renders (project switched, or a newer refresh started)
+      // discard their error — the live request will surface its own.
       if (
         gen !== refreshGenRef.current ||
         latestProjectIdRef.current !== reqProjectId
       )
         return
-      setLoadError(err instanceof Error ? err : new Error(String(err)))
+      // Aborts on the LIVE project (i.e. nobody switched away) come from
+      // our own revalidate timeout firing — surface them as a real error
+      // so the screen exits the loading state. Previously this `catch`
+      // silently returned and the finally also skipped `setIsLoaded(true)`,
+      // leaving the spinner stuck until the next project switch.
+      if (controller.signal.aborted) {
+        setLoadError(
+          new Error(
+            `Git refresh timed out after ${REVALIDATE_TIMEOUT_MS / 1000}s — backend may be queued; try again.`,
+          ),
+        )
+      } else {
+        setLoadError(err instanceof Error ? err : new Error(String(err)))
+      }
     } finally {
       clearTimeout(timeoutId)
-      if (latestProjectIdRef.current === reqProjectId && !controller.signal.aborted) {
+      // Always exit the loading state on the live project, including the
+      // timeout-abort case. Project-switch aborts (latestProjectIdRef
+      // moved on) are still skipped — the new project's refresh will set
+      // its own `isLoaded`.
+      if (latestProjectIdRef.current === reqProjectId) {
         setIsLoaded(true)
       }
     }
