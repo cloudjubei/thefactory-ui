@@ -70,3 +70,13 @@ Components:
 Re-exports: append new symbols to `src/web/index.ts`, `src/native/index.ts`, `src/headless/index.ts`.
 
 Doc updates: [ARCHITECTURE.md](./ARCHITECTURE.md) — diagrams for the `SpeechToTextEngine` injection seam and the runner-aware `createChatsContext` branching.
+
+---
+
+## C. Deferred
+
+### C.1 React testing setup for headless contexts/hooks
+
+Vitest here runs in `environment: 'node'` with no React renderer, so context providers and hooks (e.g. `OverseerGitContext`, `GitContext`) have no co-located tests — consumers carry the only coverage. Add `jsdom` + `@testing-library/react` (+ `@testing-library/jest-dom`) as dev deps, switch the relevant tests to a jsdom environment (per-file `// @vitest-environment jsdom` or a second vitest project), then add provider/hook tests starting with `src/headless/contexts/OverseerGitContext.tsx` (mount → asserts the `overseer:git-status-changed` WS subscription drives a refresh, and `fetchCommitDiff` delegates with body+signal) and backfill `GitContext`.
+
+Deferred because it's test-infra setup, not a feature blocker — the contexts are exercised through the client apps today. No external trigger; pick up when touching this area or when a context regression slips through.
