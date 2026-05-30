@@ -510,6 +510,23 @@ export {
   type ProjectsContextValue,
 } from './contexts/ProjectsContext'
 
+// Catalog of project templates the user can fork from. Bundles the
+// `createFromTemplate` mutation alongside the catalog read — matches the
+// `LLMConfigsContext.createConfig` pattern of co-locating mutations with
+// their list. Requires `AuthProvider` + `ApiProvider` above.
+export {
+  TemplatesProvider,
+  useTemplates,
+  type Template,
+  type TemplatesContextValue,
+  type CreateFromTemplateInput,
+} from './contexts/TemplatesContext'
+
+// App-view URL + signed-token refresh for one project. Standalone hook
+// (no context) because the surface is per-project; bundling it into
+// `ProjectsContext` would couple the catalog to a per-project transport.
+export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
+
 // Entities (knowledge graph nodes) for the active project. Listens to the
 // `entities:updated` WS topic.
 export {
@@ -621,6 +638,7 @@ export {
 export {
   OverseerGitProvider,
   useOverseerGit,
+  OVERSEER_AUTOMATION_TOOLTIP,
   type OverseerGitContextValue,
 } from './contexts/OverseerGitContext'
 

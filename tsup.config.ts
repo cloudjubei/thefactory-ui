@@ -26,6 +26,13 @@ export default defineConfig({
     'web/icons/index': 'src/web/icons/index.ts',
     'native/index': 'src/native/index.ts',
     'native/icons/index': 'src/native/icons/index.ts',
+    // `ProjectAppView` ships in its own bundle so the `native/index`
+    // barrel doesn't top-level-import `react-native-webview` — RN
+    // consumers that don't render the App-view surface shouldn't have to
+    // install the optional peer or rebuild their native binary just to
+    // import any other native primitive. Subpath at
+    // `thefactory-ui/native/ProjectAppView`.
+    'native/ProjectAppView/index': 'src/native/compound/ProjectAppView.tsx',
   },
   format: ['esm'],
   dts: true,
@@ -40,6 +47,10 @@ export default defineConfig({
     'react-native',
     'react-native-markdown-display',
     'react-native-svg',
+    // Optional native peer — only resolved when a consumer imports from the
+    // `./native/ProjectAppView` subpath. Listed here so esbuild keeps the
+    // import as a runtime reference instead of trying to bundle it.
+    'react-native-webview',
     // `nativewind` ships a CJS doctor module that uses unflagged JSX inside a
     // `.js` file; bundling it through esbuild trips a JSX-syntax error. The
     // package is always a peer dep of any native consumer, so leaving it

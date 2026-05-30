@@ -13,6 +13,7 @@ describe('SHELL_TAB_DEFS', () => {
   it('lists the per-project surfaces in display order', () => {
     expect(SHELL_TAB_DEFS.map((t) => t.key)).toEqual([
       'stories',
+      'app',
       'files',
       'chat',
       'git',

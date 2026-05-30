@@ -423,3 +423,12 @@ export type {
   ToolResultLike,
   ToolResultTypeLike,
 } from '../headless/utils/chatTypes'
+
+// Template picker — native peer of the matching web compound. Same prop API.
+//
+// `ProjectAppView` is **deliberately not exported here**. It depends on
+// `react-native-webview` (an optional peer), and a top-level barrel
+// export would force every native consumer to install + build the native
+// binary for that package — crashing at module init otherwise. Import it
+// from the dedicated subpath instead: `thefactory-ui/native/ProjectAppView`.
+export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'

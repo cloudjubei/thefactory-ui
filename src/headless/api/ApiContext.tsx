@@ -26,6 +26,14 @@ export interface ConfigureBackendClientOptions {
 export interface ApiContextValue {
   ws: WsClient
   wsState: WsConnectionState
+  /**
+   * The configured HTTP base URL (mirror of the `apiBaseUrl` prop on
+   * `ApiProvider`). `null` when the SDK hasn't been configured yet.
+   * Exposed so consumers can construct URLs the SDK doesn't directly
+   * generate — e.g. the App-view iframe `src` that has to be absolute on
+   * desktop + mobile because they're cross-origin to the backend.
+   */
+  apiBaseUrl: string | null
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null)
@@ -85,7 +93,10 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, children }: ApiProviderProp
     return () => ws.disconnect()
   }, [token, ws, wsBaseUrl])
 
-  const value = useMemo<ApiContextValue>(() => ({ ws, wsState }), [ws, wsState])
+  const value = useMemo<ApiContextValue>(
+    () => ({ ws, wsState, apiBaseUrl }),
+    [ws, wsState, apiBaseUrl],
+  )
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>
 }
 

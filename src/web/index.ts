@@ -594,3 +594,13 @@ export {
   type GithubOAuthMessage,
   type GithubOAuthResult,
 } from './screens/GithubCallback'
+
+// React hooks for `window.localStorage`-backed state. Used by resizable
+// pane splits and collapsible-sidebar toggles across web + desktop.
+export { useLocalStorageNumber, useLocalStorageBool } from './hooks/useLocalStorage'
+
+// App-view surface (iframe) + template picker for the from-template
+// wizard. Headless data + scheduling live in `useProjectAppView` and
+// `TemplatesContext` respectively.
+export { default as ProjectAppView, type ProjectAppViewProps } from './compound/ProjectAppView'
+export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'

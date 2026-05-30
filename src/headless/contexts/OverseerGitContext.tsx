@@ -16,6 +16,18 @@ const EMPTY_LOG: GitLogCommit[] = []
 const LOG_PAGE_SIZE = 300
 
 /**
+ * Canonical user-facing explanation of the overseer's automated commit /
+ * squash / push cadence. Shown in every client's "Overseer Git" entry
+ * panel and view header behind an "i" affordance. Sourced once here so
+ * the wording stays in lockstep with the actual backend behaviour
+ * (`overseerRepoService.scheduleNonChatCommit` debounces at 10s,
+ * `scheduleChatCommit` at 60s, `dailySquash` runs nightly and pushes
+ * `main` to `origin`).
+ */
+export const OVERSEER_AUTOMATION_TOOLTIP =
+  'The overseer repo commits automatically (every 10s for non-chat, 60s for chats), squashes daily to `main`, and pushes on the daily schedule. This view is read-only.'
+
+/**
  * Read-only data layer behind the overseer Git view that the web / desktop /
  * mobile clients all render. Calls only the two SDK methods the view needs
  * (`getOverseerGitLog`, `getOverseerGitDiffSummary`) and subscribes to
