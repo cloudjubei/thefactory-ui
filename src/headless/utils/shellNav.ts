@@ -47,8 +47,8 @@ export type ShellTabDef = {
  * `NAV_ITEMS` 1:1.
  */
 export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
-  { key: 'stories', label: 'Home', icon: 'home' },
   { key: 'app', label: 'App', icon: 'app' },
+  { key: 'stories', label: 'Home', icon: 'home' },
   { key: 'files', label: 'Files', icon: 'files' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
   { key: 'git', label: 'Git', icon: 'git' },

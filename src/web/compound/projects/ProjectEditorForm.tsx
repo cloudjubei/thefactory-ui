@@ -27,7 +27,7 @@ export type ProjectFormState = {
   description: string
   repo_url: string
   active: boolean
-  metadata: { icon: string; githubCredentialsId?: string }
+  metadata: { icon: string; githubCredentialsId?: string; hasApp?: boolean }
   codeInfo?: NonNullable<UpdateProjectData['body']['codeInfo']>
   /**
    * `null` is the explicit "no main group" choice — must round-trip to
@@ -55,9 +55,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const md = (p.metadata ?? {}) as Record<string, unknown>
   const iconKey = typeof md.icon === 'string' && md.icon in PROJECT_ICONS ? md.icon : 'folder'
   const credsId = typeof md.githubCredentialsId === 'string' ? md.githubCredentialsId : undefined
-  // `codeInfo` and `mainGroupId` may be on the spec when the backend joined
-  // them in; cast through `unknown` since `GetProjectResponse` doesn't carry
-  // them in its base shape.
+  const hasApp = md.hasApp === true
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -65,7 +63,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
     description: p.description ?? '',
     repo_url: p.repo_url ?? '',
     active: p.active !== false,
-    metadata: { icon: iconKey, githubCredentialsId: credsId },
+    metadata: { icon: iconKey, githubCredentialsId: credsId, hasApp },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
     scopeGroupIds: Array.isArray(anyP.scopeGroupIds) ? (anyP.scopeGroupIds as string[]) : [],
@@ -207,6 +205,21 @@ export function ProjectEditorForm({
         <Switch
           checked={form.active}
           onCheckedChange={(checked) => setForm((s) => ({ ...s, active: checked }))}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium">Has App surface</div>
+          <div className="text-xs text-(--text-secondary)">
+            Show the App tab — toggle off for projects that don&apos;t ship an embedded app (db, backend, etc.).
+          </div>
+        </div>
+        <Switch
+          checked={form.metadata.hasApp === true}
+          onCheckedChange={(checked) =>
+            setForm((s) => ({ ...s, metadata: { ...s.metadata, hasApp: checked } }))
+          }
         />
       </div>
 

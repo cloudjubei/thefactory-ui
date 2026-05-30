@@ -599,6 +599,11 @@ export {
 // pane splits and collapsible-sidebar toggles across web + desktop.
 export { useLocalStorageNumber, useLocalStorageBool } from './hooks/useLocalStorage'
 
+// `useIsNarrowViewport` — Tailwind `md`-breakpoint media query as a hook.
+// Drives the narrow / master-detail layout switches in `CommitDiffViewer`
+// and any other layout that flips at the same width.
+export { useIsNarrowViewport } from './hooks/useIsNarrowViewport'
+
 // App-view surface (iframe) + template picker for the from-template
 // wizard. Headless data + scheduling live in `useProjectAppView` and
 // `TemplatesContext` respectively.
