@@ -463,6 +463,7 @@ export {
 export {
   CheckoutDialog,
   CommitDialog,
+  CommitDiffViewer,
   CreateBranchDialog,
   GitCommitGraph,
   GitCommitGraphHeader,
@@ -485,6 +486,8 @@ export {
   countPatchAddDel,
   getFilePatch,
   type CommitDialogProps,
+  type CommitDiffFetcher,
+  type CommitDiffViewerProps,
   type GitCommitGraphHeaderProps,
   type GitCommitGraphProps,
   type GitCommitGraphRowProps,
@@ -594,6 +597,18 @@ export {
   type GithubOAuthMessage,
   type GithubOAuthResult,
 } from './screens/GithubCallback'
+
+// Overseer Git surface — read-only view + settings-panel entry point.
+// Both shipped from `thefactory-ui/web` so web and desktop render the
+// same screen; the host only owns the route + back-nav wiring (`onBack`).
+export {
+  default as OverseerGitView,
+  type OverseerGitViewProps,
+} from './screens/OverseerGitView'
+export {
+  default as OverseerGitPanel,
+  type OverseerGitPanelProps,
+} from './compound/settings/OverseerGitPanel'
 
 // React hooks for `window.localStorage`-backed state. Used by resizable
 // pane splits and collapsible-sidebar toggles across web + desktop.

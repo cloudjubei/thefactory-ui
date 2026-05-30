@@ -1,14 +1,10 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 
 /**
- * Number value persisted to `window.localStorage` under `key`, with a
- * `fallback` returned when no value is stored, the stored value isn't
- * parseable, or the parsed number isn't positive-finite. Writes round
- * to the nearest integer (consumers are widths / heights in pixels,
- * which never benefit from subpixel persistence). Returns the standard
- * React `[value, setValue]` tuple so consumers can use either the value
- * form (`setX(n)`) or the function form (`setX(prev => prev + 1)`).
- * SSR-safe via the `typeof window === 'undefined'` guards.
+ * Number value persisted to `window.localStorage` under `key`. Falls back
+ * to `fallback` when nothing is stored or the stored value isn't a
+ * positive-finite number; persists rounded to an integer. Returns the
+ * standard React `[value, setValue]` tuple. SSR-safe.
  */
 export function useLocalStorageNumber(
   key: string,
