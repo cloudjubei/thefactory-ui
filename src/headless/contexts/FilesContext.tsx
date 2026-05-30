@@ -21,6 +21,9 @@ import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/s
  *  project we've already seen this session. */
 const filesCache = new ProjectResourceCache<FileMeta[]>(16)
 
+/** Coalesce window for `files:changed`-driven refreshes. */
+const FILES_CHANGED_DEBOUNCE_MS = 250
+
 export type FilesContextValue = {
   /** True once the first file-list fetch for the active project has completed. */
   isLoaded: boolean
@@ -163,7 +166,26 @@ export function FilesProvider({ children }: { children: ReactNode }) {
     [files],
   )
 
-  useEffect(() => ws.on('files:changed', () => void refresh()), [ws, refresh])
+  // Coalesce a burst of `files:changed` events (e.g. an agent writing many
+  // files in quick succession) into a single refresh so the list doesn't
+  // refetch per event.
+  const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const unsub = ws.on('files:changed', () => {
+      if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current)
+      refreshDebounceRef.current = setTimeout(() => {
+        refreshDebounceRef.current = null
+        void refresh()
+      }, FILES_CHANGED_DEBOUNCE_MS)
+    })
+    return () => {
+      unsub()
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current)
+        refreshDebounceRef.current = null
+      }
+    }
+  }, [ws, refresh])
 
   // Fetch content whenever the selected path changes (or after a write, via refresh).
   useEffect(() => {

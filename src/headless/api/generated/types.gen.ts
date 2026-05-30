@@ -3872,6 +3872,14 @@ export type GitMergeApplyInput = {
   dryRun?: boolean
 }
 
+export type Template = {
+  id: string
+  name: string
+  description: string
+  repoUrl: string
+  thumbnailUrl?: string
+}
+
 export type LlmConfigEditInput = {
   name?: string
   provider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
@@ -9459,13 +9467,7 @@ export type ListTemplatesResponses = {
    * Default Response
    */
   200: {
-    templates: Array<{
-      id: string
-      name: string
-      description: string
-      repoUrl: string
-      thumbnailUrl?: string
-    }>
+    templates: Array<Template>
   }
 }
 

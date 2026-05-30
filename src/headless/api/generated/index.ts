@@ -1446,6 +1446,7 @@ export type {
   SupportedLanguage,
   SwiftFramework,
   SwiftTestFramework,
+  Template,
   TestConfigDeclaration,
   TestConfigEnvVar,
   TestFailure,

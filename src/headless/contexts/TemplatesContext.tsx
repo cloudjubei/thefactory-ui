@@ -3,18 +3,12 @@ import type { ReactNode } from 'react'
 import {
   listTemplates,
   createProjectFromTemplate as sdkCreateProjectFromTemplate,
-  type ListTemplatesResponse,
+  type Template,
   type GetProjectResponse,
 } from '../api/generated'
 import { useAuth } from '../api/AuthContext'
 
-/**
- * One template catalog entry. Derived from the generated SDK rather than
- * declared explicitly so the shape always matches the wire contract — the
- * backend's `TemplateSchema` is inlined in the OpenAPI spec, so it doesn't
- * surface as a named export.
- */
-export type Template = ListTemplatesResponse['templates'][number]
+export type { Template }
 
 export interface CreateFromTemplateInput {
   templateId: string
