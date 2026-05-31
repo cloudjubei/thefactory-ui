@@ -1,4 +1,4 @@
-import { countPatchAddDel } from './gitUtils'
+import { countPatchAddDel } from 'thefactory-tools/utils'
 
 export type GitFileChangesPillsProps = {
   /** When provided, the patch is parsed for `+`/`-` lines. */

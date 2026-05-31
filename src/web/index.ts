@@ -483,8 +483,6 @@ export {
   MergeDialog,
   StashDialog,
   computeCommitGraph,
-  countPatchAddDel,
-  getFilePatch,
   type CommitDialogProps,
   type CommitDiffFetcher,
   type CommitDiffViewerProps,

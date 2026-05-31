@@ -20,7 +20,6 @@ export {
   default as GitFileStatusIcon,
   type GitFileStatusIconProps,
 } from './common/GitFileStatusIcon'
-export { countPatchAddDel, getFilePatch } from './common/gitUtils'
 
 // Lifted from `thefactory-overseer-web`'s `src/ui/components/git/` so web
 // and desktop import the same screen-level component (used by both the

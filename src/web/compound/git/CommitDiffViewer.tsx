@@ -9,7 +9,7 @@ import { PathDisplay } from '../PathDisplay'
 import { DiffViewer, type IntraMode } from '../diff'
 import { GitFileChangesPills } from './common/GitFileChangesPills'
 import GitFileStatusIcon from './common/GitFileStatusIcon'
-import { getFilePatch } from './common/gitUtils'
+import { getFilePatch } from 'thefactory-tools/utils'
 import { useIsNarrowViewport } from '../../hooks/useIsNarrowViewport'
 import { useLocalStorageNumber } from '../../hooks/useLocalStorage'
 
