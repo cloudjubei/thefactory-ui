@@ -4,6 +4,10 @@ export {
   default as FileMentionsTextarea,
   type FileMentionsTextareaProps,
 } from './FileMentionsTextarea'
+export {
+  default as FileMentionsTextareaConnected,
+  type FileMentionsTextareaConnectedProps,
+} from './FileMentionsTextareaConnected'
 export { default as FileSelector, type FileSelectorProps } from './FileSelector'
 export { default as FileTree, type FileTreeEntry, type FileTreeProps } from './FileTree'
 export {

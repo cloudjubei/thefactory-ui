@@ -49,10 +49,10 @@ src/index.ts           ─── root barrel re-exports `./web` + `./headless` +
 
 `thefactory-ui` is the shared **UI / React** spine. `thefactory-tools` is the shared **backend-logic** package the Fastify backend is built on. A consumer app (web, desktop, mobile) gets:
 
-- **From `thefactory-ui`** — tokens, primitives, compounds, headless hooks, the backend SDK surface (`thefactory-ui/headless/api`). This is the default; reach here first.
+- **From `thefactory-ui`** — tokens, primitives, compounds, headless hooks, the backend SDK surface (`thefactory-ui/headless/api`). This is the default; reach here first. Pure `thefactory-tools` helpers an app needs (the git/diff family — `parseUnifiedDiff`, `countPatchAddDel`, `generateHunkPatch`, `getFilePatch`, `getPRUrl`, `mergeUnstagedWithUntracked`) are re-exported from `thefactory-ui/headless`; import them there, so the app keeps a single dependency edge to `thefactory-ui` and `thefactory-tools` stays an internal detail of the spine.
 - **From `thefactory-tools` directly** — _only_ pure, node-free helpers whose output must byte-match the backend's own derivation. Currently that is `getChatContextKey` / `getChatContext` from `thefactory-tools/utils`: they derive the `chatKey` used for routing and cost-aggregate lookups, so a client-side re-implementation that drifts from the backend silently breaks (it did — cost totals read `$0` because the client queried `projects/X` while the backend stored `/projects/X`). Each client re-exports these through its own `core/chats/chatKey.ts` shim.
 
-The `thefactory-tools` exception is deliberately narrow: pure functions, no node dependencies, and a hard "must match the backend exactly" justification. Anything else is a `thefactory-ui` (or backend SDK) concern.
+The direct-`thefactory-tools` exception is deliberately narrow: pure functions, no node dependencies, and a hard "must match the backend exactly" justification. Everything else an app needs from `thefactory-tools` is routed through `thefactory-ui`'s re-export.
 
 ## Resolved decisions
 

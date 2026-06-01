@@ -347,10 +347,18 @@ export { tokenizeRichText, type RichTextSegment } from './utils/richTextTokenize
 // Chat system-prompt `{{placeholder}}` interpolation
 export { interpolatePrompt, type PromptVariables } from './utils/promptInterpolate'
 
-// Unified-diff parsing, patch utilities and the "create PR" URL builder are
-// single-sourced in `thefactory-tools/utils` — import them from there
-// (`parseUnifiedDiff`, `countPatchAddDel`, `generateHunkPatch`,
-// `getFilePatch`, `getPRUrl`), not from this package.
+// Pure git/diff helpers single-sourced in `thefactory-tools/utils`, re-exported
+// here so apps consume them through `thefactory-ui` rather than importing
+// `thefactory-tools` directly (see ARCHITECTURE.md). The `chatKey` derivation
+// remains the sole sanctioned direct-from-`thefactory-tools` app import.
+export {
+  parseUnifiedDiff,
+  countPatchAddDel,
+  generateHunkPatch,
+  getFilePatch,
+  getPRUrl,
+  mergeUnstagedWithUntracked,
+} from 'thefactory-tools/utils'
 
 // Raw project-file bytes endpoint (image / PDF / binary viewers)
 export { rawFileUrl } from './utils/rawFileUrl'

@@ -16,3 +16,5 @@ export {
   type ResolvedDependency,
 } from './DependencyBulletBase'
 export { default as DependencyBullet, type DependencyBulletProps } from './DependencyBullet'
+export { default as ContextInfoButton, type ContextInfoButtonProps } from './ContextInfoButton'
+export { default as StoryFormConnected, type StoryFormConnectedProps } from './StoryFormConnected'

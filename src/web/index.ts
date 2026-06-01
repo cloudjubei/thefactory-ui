@@ -81,6 +81,7 @@ export {
   applyReference,
   FileDisplay,
   FileMentionsTextarea,
+  FileMentionsTextareaConnected,
   classifyFileByExtension,
   FileInfoButton,
   FilePane,
@@ -97,6 +98,7 @@ export {
   type FileInfoButtonProps,
   type FileInfoData,
   type FileMentionsTextareaProps,
+  type FileMentionsTextareaConnectedProps,
   type FilePaneHeaderProps,
   type FilePaneKind,
   type FilePaneProps,
@@ -220,15 +222,19 @@ export {
   WarningChip,
   ExclamationChip,
   ContextFileChip,
+  ContextInfoButton,
   StoryAndFeatureCalloutBase,
   StoryAndFeatureCallout,
+  StoryFormConnected,
   DependencyBulletBase,
   DependencyBullet,
   type WarningChipProps,
   type ExclamationChipProps,
   type ContextFileChipProps,
+  type ContextInfoButtonProps,
   type StoryAndFeatureCalloutBaseProps,
   type StoryAndFeatureCalloutProps,
+  type StoryFormConnectedProps,
   type DependencyBulletBaseProps,
   type DependencyBulletProps,
   type DependencyCardShape,
@@ -529,6 +535,10 @@ export {
   useChatsSeen,
   writeChatsSeen,
 } from './compound/notifications/chatsSeen'
+export {
+  useChatContextLastRead,
+  type UseChatContextLastReadApi,
+} from './compound/notifications/chatLastRead'
 
 // Utils
 export { cn } from './utils/cn'
