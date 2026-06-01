@@ -22,7 +22,6 @@ export { default as HtmlEditor, type HtmlEditorPaneView, type HtmlEditorProps } 
 export { default as ImageViewer, type ImageViewerProps } from './ImageViewer'
 export { default as PdfViewer, type PdfViewerProps } from './PdfViewer'
 export { default as RichText, type RichTextProps } from './RichText'
-export { applyMention, parseMention, rankMentionMatches, type MentionParse } from './mention'
 export {
   applyReference,
   parseReference,

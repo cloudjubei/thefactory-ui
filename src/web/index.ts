@@ -78,7 +78,6 @@ export {
   type StructuredUnifiedDiffProps,
 } from './compound/diff'
 export {
-  applyMention,
   applyReference,
   FileDisplay,
   FileMentionsTextarea,
@@ -91,10 +90,8 @@ export {
   FileTree,
   FileTypeIcon,
   ImageViewer,
-  parseMention,
   parseReference,
   PdfViewer,
-  rankMentionMatches,
   RichText,
   type FileDisplayProps,
   type FileInfoButtonProps,
@@ -110,7 +107,6 @@ export {
   type HtmlEditorPaneView,
   type HtmlEditorProps,
   type ImageViewerProps,
-  type MentionParse,
   type PdfViewerProps,
   type ReferenceParse,
   type ReferenceSuggestion,

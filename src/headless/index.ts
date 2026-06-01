@@ -527,6 +527,17 @@ export {
 // `ProjectsContext` would couple the catalog to a per-project transport.
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
 
+// App↔Overseer postMessage bridge protocol (shared by the ProjectAppView
+// web + native transports; semantics supplied by the host's onBridgeMessage).
+export {
+  BRIDGE_PREFIX,
+  bridgeMessageName,
+  buildBridgeResponse,
+  parseBridgeMessage,
+  type BridgeRequest,
+  type BridgeResponse,
+} from './utils/appBridge'
+
 // Entities (knowledge graph nodes) for the active project. Listens to the
 // `entities:updated` WS topic.
 export {

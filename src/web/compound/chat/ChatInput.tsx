@@ -10,7 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import FileMentionsTextarea from '../files/FileMentionsTextarea'
-import { rankMentionMatches } from '../files/mention'
+import { rankMentionMatches } from '../../../headless/utils/mention'
 import type { ReferenceSuggestion } from '../files/reference'
 import Tooltip from '../../primitives/Tooltip'
 import { Modal } from '../../primitives/Modal'

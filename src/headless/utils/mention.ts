@@ -7,9 +7,8 @@
  * Returns the token range (so callers can replace it on completion), or `null`
  * when the cursor is not in a mention.
  *
- * Pure utility — no DOM, no RN. Lifted from
- * `src/web/compound/files/mention.ts` so the native `FileMentionsTextarea`
- * peer can consume the same parser through `useFileMentions`.
+ * Pure utility — no DOM, no RN. The web and native `FileMentionsTextarea`
+ * peers both consume this parser through `useFileMentions`.
  */
 export type MentionParse = {
   /** Token that follows `@`, used for filtering candidates. */

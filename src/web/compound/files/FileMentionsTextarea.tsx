@@ -12,7 +12,7 @@ import {
   type MouseEventHandler,
   type ReactEventHandler,
 } from 'react'
-import { applyMention, parseMention } from './mention'
+import { applyMention, parseMention } from '../../../headless/utils/mention'
 import { applyReference, parseReference, type ReferenceSuggestion } from './reference'
 
 export type FileMentionsTextareaProps = {
