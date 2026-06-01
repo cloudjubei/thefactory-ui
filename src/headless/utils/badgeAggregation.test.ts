@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   aggregateGroupBadgeState,
+  formatBadgeCount,
   hasAnyBadge,
   EMPTY_BADGE_STATE,
   type BadgeState,
@@ -36,6 +37,16 @@ describe('hasAnyBadge', () => {
     expect(hasAnyBadge(makeState({ git: { incoming: 1, uncommitted: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ git: { incoming: 0, uncommitted: 3 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ tests: { failing: 1 } }))).toBe(true)
+  })
+})
+
+describe('formatBadgeCount', () => {
+  it('renders the number, capping at 99+', () => {
+    expect(formatBadgeCount(0)).toBe('0')
+    expect(formatBadgeCount(5)).toBe('5')
+    expect(formatBadgeCount(99)).toBe('99')
+    expect(formatBadgeCount(100)).toBe('99+')
+    expect(formatBadgeCount(1000)).toBe('99+')
   })
 })
 

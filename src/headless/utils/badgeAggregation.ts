@@ -57,3 +57,8 @@ export function hasAnyBadge(s: BadgeState): boolean {
     s.tests.failing > 0
   )
 }
+
+/** Render a badge count, capping at "99+" so wide numbers don't blow out a row. */
+export function formatBadgeCount(n: number): string {
+  return n > 99 ? '99+' : `${n}`
+}

@@ -22,6 +22,7 @@ import NotificationBadge, {
   getNotificationBadgeColor,
   type NotificationBadgeColor,
 } from '../NotificationBadge'
+import { formatBadgeCount } from '../../../headless/utils/badgeAggregation'
 import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
 
 export interface NavDrawerItem {
@@ -368,7 +369,7 @@ function Row({
       </Text>
       {item.badgeCount && item.badgeCount > 0 ? (
         <NotificationBadge
-          text={item.badgeCount > 99 ? '99+' : String(item.badgeCount)}
+          text={formatBadgeCount(item.badgeCount)}
           color={item.badgeColor}
           tooltipLabel={item.label}
         />
@@ -473,7 +474,7 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
           <View style={{ paddingHorizontal: nativeSpace[1] }}>
             {headerBadgeCount > 0 ? (
               <NotificationBadge
-                text={headerBadgeCount > 99 ? '99+' : String(headerBadgeCount)}
+                text={formatBadgeCount(headerBadgeCount)}
                 color={group.badgeColor}
                 tooltipLabel={group.label}
               />

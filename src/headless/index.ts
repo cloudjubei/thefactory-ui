@@ -120,6 +120,7 @@ export {
 export {
   EMPTY_BADGE_STATE,
   aggregateGroupBadgeState,
+  formatBadgeCount,
   hasAnyBadge,
   type BadgeState,
 } from './utils/badgeAggregation'
