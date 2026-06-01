@@ -52,6 +52,16 @@ export interface NavDrawerGroup {
   onPress: () => void
   /** Member projects; when non-empty the row becomes an expandable folder. */
   projects: NavDrawerItem[]
+  /** Chat unread shown when the row is flat (SCOPE) or the folder is
+   *  COLLAPSED — typically the aggregate of the group + its member projects. */
+  badgeCount?: number
+  badgeColor?: NotificationBadgeColor
+  /** Spinner affordance when the collapsed/flat badge is streaming. */
+  thinking?: boolean
+  /** Chat unread shown when an expandable folder is OPEN — typically the
+   *  group's OWN chats only (member projects show their own rows). */
+  openBadgeCount?: number
+  openThinking?: boolean
 }
 
 export interface NavDrawerProps {
@@ -398,12 +408,20 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
           icon: group.icon,
           active: group.active,
           onPress: group.onPress,
+          badgeCount: group.badgeCount,
+          badgeColor: group.badgeColor,
+          thinking: group.thinking,
         }}
       />
     )
   }
 
   const toggle = () => setOpen((v) => !v)
+  // Open folders show the group's own chats; collapsed folders show the
+  // aggregate. The parent supplies both; we pick by the current open state.
+  const headerBadgeCount = open ? (group.openBadgeCount ?? 0) : (group.badgeCount ?? 0)
+  const headerThinking = open ? !!group.openThinking : !!group.thinking
+  const showHeaderBadge = headerBadgeCount > 0 || headerThinking
   return (
     <View>
       {/* The folder icon and the right-hand chevron both toggle open/closed;
@@ -451,6 +469,19 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
             {group.label}
           </Text>
         </Pressable>
+        {showHeaderBadge ? (
+          <View style={{ paddingHorizontal: nativeSpace[1] }}>
+            {headerBadgeCount > 0 ? (
+              <NotificationBadge
+                text={headerBadgeCount > 99 ? '99+' : String(headerBadgeCount)}
+                color={group.badgeColor}
+                tooltipLabel={group.label}
+              />
+            ) : (
+              <SpinnerWithDot size={14} showDot dotColor={getNotificationBadgeColor(group.badgeColor)} />
+            )}
+          </View>
+        ) : null}
         <Pressable
           onPress={toggle}
           hitSlop={6}

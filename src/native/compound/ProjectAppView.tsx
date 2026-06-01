@@ -15,22 +15,17 @@ export type ProjectAppViewProps = {
   /** Rendered when `url` is `undefined` (e.g. token still being granted). */
   fallback?: ReactNode
   /**
-   * Host handler for App↔Overseer bridge messages. Same contract as the web
-   * peer: return a value to send back as the response `result`, throw to send
-   * an `error`, return `undefined` for fire-and-forget. Omit to ignore the bridge.
+   * Bridge handler for messages the embedded app posts. Returned value →
+   * response `result`; thrown error → response `error`; `undefined` →
+   * fire-and-forget. Omit to ignore the bridge.
    */
   onBridgeMessage?: (req: BridgeRequest) => unknown | Promise<unknown>
   style?: StyleProp<ViewStyle>
 }
 
-/**
- * Native peer for the App-view surface. Mirrors the web peer's prop API 1:1.
- * The bridge transport here uses the WebView's `onMessage` (app → host, via
- * `window.ReactNativeWebView.postMessage`) and `injectJavaScript` (host → app,
- * delivered as a `message` event the app listens for). `react-native-webview`
- * is a hard import — this module is reached only through the dedicated
- * `thefactory-ui/native/ProjectAppView` subpath.
- */
+// Native peer for the App-view surface. Reached only via the dedicated
+// `thefactory-ui/native/ProjectAppView` subpath (not the barrel) because the
+// `react-native-webview` hard import pulls in a native module.
 export default function ProjectAppView({
   url,
   remountKey = 0,

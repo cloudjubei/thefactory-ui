@@ -13,26 +13,17 @@ export type ProjectAppViewProps = {
   /** Rendered when `url` is `undefined` (e.g. token still being granted, or project has no preview yet). */
   fallback?: ReactNode
   /**
-   * Host handler for App↔Overseer bridge messages the embedded app posts.
-   * Return a value to send back as the response `result`, throw/reject to send
-   * an `error`, or return `undefined` for fire-and-forget. Omit to ignore the
-   * bridge entirely (the app then behaves as a plain iframe).
+   * Bridge handler for messages the embedded app posts. Returned value →
+   * response `result`; thrown error → response `error`; `undefined` →
+   * fire-and-forget. Omit to ignore the bridge.
    */
   onBridgeMessage?: (req: BridgeRequest) => unknown | Promise<unknown>
   className?: string
   style?: CSSProperties
-  /** Forwarded to the iframe; defaults to a descriptive a11y title. */
   title?: string
 }
 
-/**
- * Web peer for the App-view surface. Renders the project's current files
- * inside a sandboxed iframe and, when `onBridgeMessage` is supplied, runs the
- * App↔Overseer `postMessage` bridge: it validates that messages come from
- * this iframe at the served origin, dispatches them to the host handler, and
- * posts the response back. The iframe is cross-origin to the host, so it
- * cannot reach the host window's state directly — the bridge is the only seam.
- */
+/** Web peer for the App-view surface: the project's files in a sandboxed iframe + the App↔Overseer bridge. */
 export default function ProjectAppView({
   url,
   remountKey = 0,

@@ -1,28 +1,16 @@
-/**
- * Protocol for the App↔Overseer `postMessage` bridge — the channel between
- * an embedded project app (iframe on web/desktop, `<WebView>` on native) and
- * the `ProjectAppView` wrapper. The app asks Overseer to do things it can't
- * (and shouldn't) do itself; the wrapper holds the authed context, so the
- * sandboxed app never holds a credential.
- *
- * Transport lives in the `ProjectAppView` web/native peers; semantics are
- * supplied by the host via an `onBridgeMessage` handler. These types + the
- * pure parse/build helpers are the shared, testable core.
- */
+// Protocol for the App↔Overseer `postMessage` bridge between an embedded
+// project app (iframe / `<WebView>`) and the `ProjectAppView` wrapper.
 
 export const BRIDGE_PREFIX = 'overseer:'
 
-/** Inbound message from the embedded app. `type` is always `overseer:<name>`. */
 export interface BridgeRequest {
-  /** Correlation id the app supplies so it can match the response. Optional (fire-and-forget). */
+  /** Correlation id; omit for fire-and-forget. */
   id?: string
-  /** Namespaced message type, e.g. `overseer:ready`, `overseer:toast`. */
   type: string
-  /** Arbitrary message payload. */
   payload?: unknown
 }
 
-/** Outbound response posted back into the app. Marked so the app can filter it from other messages. */
+/** The `overseerBridgeResponse` marker lets the app filter responses from other messages. */
 export interface BridgeResponse {
   overseerBridgeResponse: true
   id?: string
@@ -31,17 +19,14 @@ export interface BridgeResponse {
   error?: string
 }
 
-/** The bare name after the `overseer:` prefix, e.g. `ready`, `toast`, `data.put`. */
 export function bridgeMessageName(type: string): string {
   return type.startsWith(BRIDGE_PREFIX) ? type.slice(BRIDGE_PREFIX.length) : type
 }
 
 /**
- * Validate + normalize a raw `postMessage` payload into a `BridgeRequest`.
- * Returns `null` for anything that isn't a well-formed `overseer:`-prefixed
- * message (other messages on the channel are ignored). Accepts a JSON string
- * (the native WebView path posts strings) or an already-parsed object (the
- * web iframe path).
+ * Normalize a raw `postMessage` payload into a `BridgeRequest`, or `null` if
+ * it isn't an `overseer:`-prefixed message. Accepts a JSON string (native
+ * WebView) or an object (web iframe).
  */
 export function parseBridgeMessage(raw: unknown): BridgeRequest | null {
   let obj: unknown = raw
@@ -61,7 +46,6 @@ export function parseBridgeMessage(raw: unknown): BridgeRequest | null {
   return req
 }
 
-/** Build the response envelope for a request, from a handler's result or error. */
 export function buildBridgeResponse(
   req: BridgeRequest,
   outcome: { result?: unknown } | { error: string },
