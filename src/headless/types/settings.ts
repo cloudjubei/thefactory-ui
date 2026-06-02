@@ -63,14 +63,10 @@ export type UserPreferences = {
   codeBlockTheme: CodeBlockTheme
 }
 
-export type NotificationCategory = 'chat' | 'tests' | 'git' | 'agent_runs'
+export type NotificationCategory = 'chat' | 'tests' | 'git'
 
-/**
- * Subset of `NotificationCategory` whose badge colour the user can pick.
- * `agent_runs` is intentionally excluded — agent-run badges always use the
- * component-level default (red), so there is no per-user colour to store.
- */
-export type BadgeColorCategory = Exclude<NotificationCategory, 'agent_runs'>
+/** Subset of `NotificationCategory` whose badge colour the user can pick. */
+export type BadgeColorCategory = NotificationCategory
 
 export const BADGE_COLOR_CATEGORIES: readonly BadgeColorCategory[] = [
   'chat',
@@ -94,7 +90,7 @@ export type NotificationPrefs = {
   categories: Record<NotificationCategory, boolean>
   /** Per-category badge enablement (sidebar / favicon dots). */
   badgesEnabled: Record<NotificationCategory, boolean>
-  /** Per-category badge colour. `agent_runs` is excluded — its badge always uses the default. */
+  /** Per-category badge colour. */
   badgeColors: Record<BadgeColorCategory, BadgeColor>
   /** Whether chat badges count chats with unread messages or total unread messages. */
   chatBadgeCountMode: ChatBadgeCountMode
@@ -108,8 +104,8 @@ export type NotificationPrefs = {
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   osNotificationsEnabled: false,
-  categories: { chat: true, tests: true, git: true, agent_runs: true },
-  badgesEnabled: { chat: true, tests: true, git: true, agent_runs: true },
+  categories: { chat: true, tests: true, git: true },
+  badgesEnabled: { chat: true, tests: true, git: true },
   badgeColors: { chat: 'red', tests: 'green', git: 'orange' },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },

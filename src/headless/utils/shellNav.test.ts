@@ -22,7 +22,6 @@ describe('SHELL_TAB_DEFS', () => {
       'timeline',
       'tools',
       'settings',
-      'agents',
     ])
   })
 
@@ -30,11 +29,6 @@ describe('SHELL_TAB_DEFS', () => {
     const landing = SHELL_TAB_DEFS.find((t) => t.key === 'stories')
     expect(landing?.label).toBe('Home')
     expect(landing?.icon).toBe('home')
-  })
-
-  it('marks only "agents" as hidden from the sidebar', () => {
-    const hidden = SHELL_TAB_DEFS.filter((t) => t.hiddenInSidebar).map((t) => t.key)
-    expect(hidden).toEqual(['agents'])
   })
 
   it('gives each tab an icon key', () => {
@@ -51,7 +45,7 @@ describe('GROUP_TAB_DEFS', () => {
 describe('isShellTabKey', () => {
   it('accepts known shell tab keys', () => {
     expect(isShellTabKey('stories')).toBe(true)
-    expect(isShellTabKey('agents')).toBe(true)
+    expect(isShellTabKey('chat')).toBe(true)
   })
 
   it('rejects unknown values and undefined', () => {

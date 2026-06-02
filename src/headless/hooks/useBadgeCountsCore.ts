@@ -2,10 +2,10 @@ import { useMemo } from 'react'
 
 /**
  * Headless badge-count computation shared by web (`useBadgeCounts`) and
- * desktop (`useNotifications`). Both apps collect the same four channels
- * (chat unread + thinking, agent runs, git changes, failing tests) from
- * different context shapes — this hook accepts the normalised inputs and
- * returns a uniform `BadgeCounts` honouring per-channel toggles.
+ * desktop (`useNotifications`). Both apps collect the same channels
+ * (chat unread + thinking, git changes, failing tests) from different context
+ * shapes — this hook accepts the normalised inputs and returns a uniform
+ * `BadgeCounts` honouring per-channel toggles.
  *
  * No DOM, no I/O — the host pulls everything from its own context and
  * passes it in. Channels with `enabled=false` always return zero/false,
@@ -18,8 +18,6 @@ export type BadgeCounts = {
   chat: number
   /** True when any chat in scope has an LLM call in flight. */
   chatThinking: boolean
-  /** Active agent runs (`created` | `running`). */
-  agent_runs: number
   /** Sum of incoming-commits + uncommitted-changes, gated on sub-toggles. */
   git: number
   /** Number of failing tests in the last run. */
@@ -29,14 +27,12 @@ export type BadgeCounts = {
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
   chat: 0,
   chatThinking: false,
-  agent_runs: 0,
   git: 0,
   tests: 0,
 }
 
 export type BadgeChannelToggles = {
   chat?: boolean
-  agent_runs?: boolean
   git?: boolean
   tests?: boolean
 }
@@ -66,8 +62,6 @@ export type UseBadgeCountsCoreInput = {
   /** Set of chats in scope (project / group). Each entry contributes its
    *  unread + thinking. */
   chats: ReadonlyArray<BadgeChatInput>
-  /** Active agent runs in scope. */
-  activeAgentRuns: number
   /** Git state in scope (single project = one entry; group rollups happen
    *  upstream via `aggregateGroupBadgeState`). */
   git?: BadgeGitInput
@@ -85,7 +79,6 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
   return useMemo(() => {
     const enabled = {
       chat: input.enabled?.chat !== false,
-      agent_runs: input.enabled?.agent_runs !== false,
       git: input.enabled?.git !== false,
       tests: input.enabled?.tests !== false,
     }
@@ -107,10 +100,6 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       out.chatThinking = anyThinking
     }
 
-    if (enabled.agent_runs) {
-      out.agent_runs = input.activeAgentRuns
-    }
-
     if (enabled.git && input.git) {
       const sub = input.gitSubToggles ?? {}
       let g = 0
@@ -126,7 +115,6 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
     return out
   }, [
     input.chats,
-    input.activeAgentRuns,
     input.git,
     input.failingTests,
     input.enabled,

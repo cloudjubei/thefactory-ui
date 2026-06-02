@@ -16,7 +16,6 @@ export type NavIconKey =
   | 'timeline'
   | 'tools'
   | 'settings'
-  | 'agents'
   | 'app'
 
 /** Per-project shell surface keys. Map to URL segments `/projects/:id/{key}`. */
@@ -30,7 +29,6 @@ export type ShellTabKey =
   | 'timeline'
   | 'tools'
   | 'settings'
-  | 'agents'
   | 'app'
 
 export type ShellTabDef = {
@@ -57,8 +55,6 @@ export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
   { key: 'timeline', label: 'Timeline', icon: 'timeline' },
   { key: 'tools', label: 'Tools', icon: 'tools' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
-  // Hidden — routable but not shown in the sidebar (parity with desktop).
-  { key: 'agents', label: 'Agents', icon: 'agents', hiddenInSidebar: true },
 ]
 
 export function isShellTabKey(v: string | undefined): v is ShellTabKey {
