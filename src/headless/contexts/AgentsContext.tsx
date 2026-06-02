@@ -61,9 +61,6 @@ export type AgentsContextValue = {
     featureId?: string
   }) => Promise<{ agentRunId: string; chatContext: ChatCtx }>
 
-  /** Active runs scoped to a project (defaults to the active one). */
-  getProjectRunningCount: (projectId?: string) => number
-
   /**
    * Cancel an in-flight run by aborting its completion. The backend
    * resolves the in-flight call with `resultType: 'aborted'` and the run
@@ -149,14 +146,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
     [llmConfigs, credentials, webSearchKeys],
   )
 
-  const getProjectRunningCount = useCallback(
-    (projectId?: string) => {
-      if (!projectId) return runsActive.length
-      return runsActive.filter((r) => r.context.projectId === projectId).length
-    },
-    [runsActive],
-  )
-
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(
     async (run) => {
       try {
@@ -195,7 +184,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       runsActive,
       runsHistory,
       startAgent,
-      getProjectRunningCount,
       cancelRun,
       deleteRun,
       rateRun,
@@ -205,7 +193,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       runsActive,
       runsHistory,
       startAgent,
-      getProjectRunningCount,
       cancelRun,
       deleteRun,
       rateRun,
