@@ -301,6 +301,7 @@ export { TimelineHoverCard } from './compound/projectTimeline/TimelineHoverCard'
 
 // Settings panels (connected to the lifted contexts).
 export { default as VisualSettings } from './compound/settings/VisualSettings'
+export { default as NotificationSettings } from './compound/settings/NotificationSettings'
 
 // Shell-level connected components: command menu + shortcuts help overlay.
 export { default as CommandMenu } from './compound/shell/CommandMenu'
