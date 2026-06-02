@@ -79,7 +79,7 @@ export default function ProjectAppView({
       ref={iframeRef}
       key={remountKey}
       src={url}
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms"
       className={className}
       style={{ border: 0, width: '100%', height: '100%', ...style }}
       title={title}
