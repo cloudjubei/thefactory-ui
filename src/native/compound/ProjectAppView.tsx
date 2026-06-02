@@ -63,6 +63,11 @@ export default function ProjectAppView({
       originWhitelist={['*']}
       javaScriptEnabled
       onMessage={onBridgeMessage ? handleMessage : undefined}
+      // Match the fixed-page feel of the web/desktop iframe: no rubber-band
+      // overscroll, which would otherwise reveal the WebView backing behind the
+      // app's own background.
+      bounces={false}
+      overScrollMode="never"
       style={style}
     />
   )
