@@ -2090,6 +2090,48 @@ export type LlmConfigsActiveState = {
   recentAgentRun?: Array<string>
 }
 
+export type DataRecord = {
+  scope: string
+  type: string
+  key: string | unknown
+  content:
+    | {
+        [key: string]: JsonValue
+      }
+    | Array<JsonValue>
+  metadata?: {
+    [key: string]: JsonValue
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type DataRecordInput = {
+  scope: string
+  type: string
+  key?: string | unknown
+  content:
+    | {
+        [key: string]: unknown
+      }
+    | Array<unknown>
+  metadata?: {
+    [key: string]: unknown
+  }
+}
+
+export type DataRecordRef = {
+  scope: string
+  type: string
+  key: string
+}
+
+export type DataQuery = {
+  scope: string
+  type?: string
+  key?: string
+}
+
 export type FilesResult = {
   [key: string]: string | Array<string>
 }
@@ -2921,6 +2963,7 @@ export type LlmCostLedgerEntryEntity = {
   type: string & 'cost-ledger-entry'
   shouldEmbed: boolean
   content: unknown & LlmCostLedgerEntryContent
+  externalKey?: string | unknown
   createdAt: string
   updatedAt: string
   metadata?: {
@@ -2953,6 +2996,7 @@ export type LlmCostAggregateEntity = {
   type: string & 'cost-aggregate'
   shouldEmbed: boolean
   content: unknown & LlmCostAggregateContent
+  externalKey?: string | unknown
   createdAt: string
   updatedAt: string
   metadata?: {
@@ -3606,6 +3650,7 @@ export type EntityInput = {
       }
     | Array<unknown>
   shouldEmbed?: boolean
+  externalKey?: string | unknown
   metadata?: {
     [key: string]: unknown
   }
@@ -3619,6 +3664,7 @@ export type EntityPatch = {
       }
     | Array<unknown>
   shouldEmbed?: boolean
+  externalKey?: string | unknown
   metadata?: {
     [key: string]: unknown
   }
@@ -3630,6 +3676,7 @@ export type EntityWithScore = {
   type: string
   shouldEmbed: boolean
   content: unknown
+  externalKey?: string | unknown
   createdAt: string
   updatedAt: string
   metadata?: {
@@ -10019,6 +10066,140 @@ export type MatchDocumentsResponses = {
 }
 
 export type MatchDocumentsResponse = MatchDocumentsResponses[keyof MatchDocumentsResponses]
+
+export type DeleteProjectDataData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query: {
+    type: string
+    key: string
+  }
+  url: '/api/v1/projects/{projectId}/data'
+}
+
+export type DeleteProjectDataErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProjectDataError = DeleteProjectDataErrors[keyof DeleteProjectDataErrors]
+
+export type DeleteProjectDataResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteProjectDataResponse = DeleteProjectDataResponses[keyof DeleteProjectDataResponses]
+
+export type ListProjectDataData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    type?: string
+    key?: string
+  }
+  url: '/api/v1/projects/{projectId}/data'
+}
+
+export type ListProjectDataErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectDataError = ListProjectDataErrors[keyof ListProjectDataErrors]
+
+export type ListProjectDataResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<DataRecord>
+}
+
+export type ListProjectDataResponse = ListProjectDataResponses[keyof ListProjectDataResponses]
+
+export type PutProjectDataData = {
+  body: {
+    type: string
+    key?: string | unknown
+    content:
+      | {
+          [key: string]: JsonValue
+        }
+      | Array<JsonValue>
+    metadata?: {
+      [key: string]: JsonValue
+    }
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/data'
+}
+
+export type PutProjectDataErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PutProjectDataError = PutProjectDataErrors[keyof PutProjectDataErrors]
+
+export type PutProjectDataResponses = {
+  /**
+   * Default Response
+   */
+  200: DataRecord
+}
+
+export type PutProjectDataResponse = PutProjectDataResponses[keyof PutProjectDataResponses]
 
 export type ListWebSearchKeysData = {
   body?: never

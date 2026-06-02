@@ -131,6 +131,9 @@ import type {
   DeleteLlmConfigErrors,
   DeleteLlmConfigResponses,
   DeleteProjectData,
+  DeleteProjectDataData,
+  DeleteProjectDataErrors,
+  DeleteProjectDataResponses,
   DeleteProjectResponses,
   DeleteProjectsGroupData,
   DeleteProjectsGroupResponses,
@@ -368,6 +371,9 @@ import type {
   ListOverseerAuthProvidersResponses,
   ListPendingCliAgentActionsData,
   ListPendingCliAgentActionsResponses,
+  ListProjectDataData,
+  ListProjectDataErrors,
+  ListProjectDataResponses,
   ListProjectsData,
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
@@ -409,6 +415,9 @@ import type {
   PushOverseerData,
   PushOverseerErrors,
   PushOverseerResponses,
+  PutProjectDataData,
+  PutProjectDataErrors,
+  PutProjectDataResponses,
   RateChatData,
   RateChatErrors,
   RateChatResponses,
@@ -2622,6 +2631,43 @@ export const matchDocuments = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/documents/match',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteProjectData = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProjectDataData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProjectDataResponses,
+    DeleteProjectDataErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/data',
+    ...options,
+  })
+
+export const listProjectData = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectDataData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListProjectDataResponses, ListProjectDataErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/data',
+    ...options,
+  })
+
+export const putProjectData = <ThrowOnError extends boolean = false>(
+  options: Options<PutProjectDataData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<PutProjectDataResponses, PutProjectDataErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/data',
     ...options,
     headers: {
       'Content-Type': 'application/json',
