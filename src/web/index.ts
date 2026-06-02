@@ -352,6 +352,10 @@ export {
   type ModelChipProps,
 } from './compound/ModelChip'
 export {
+  default as ModelChipConnected,
+  type ModelChipConnectedProps,
+} from './compound/ModelChipConnected'
+export {
   default as LLMProviderIcon,
   LLM_PROVIDER_STYLES,
   type LLMProviderIconProps,
@@ -627,6 +631,7 @@ export {
 // React hooks for `window.localStorage`-backed state. Used by resizable
 // pane splits and collapsible-sidebar toggles across web + desktop.
 export { useLocalStorageNumber, useLocalStorageBool } from './hooks/useLocalStorage'
+export { useProjectSettingsConnected } from './hooks/useProjectSettingsConnected'
 
 // `useIsNarrowViewport` — Tailwind `md`-breakpoint media query as a hook.
 // Drives the narrow / master-detail layout switches in `CommitDiffViewer`
