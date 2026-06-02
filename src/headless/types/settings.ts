@@ -122,8 +122,8 @@ export type AppSettings = {
 
 // `shortcutsModifier` defaults to `'ctrl'` here because the headless layer
 // can't sniff platform. Consumers that want the mac-aware default
-// (`AppSettingsContext` on web) compose `DEFAULT_APP_SETTINGS` with a local
-// override.
+// (`thefactory-ui/web`'s `AppSettingsProviderConnected`) compose
+// `DEFAULT_APP_SETTINGS` with a local override.
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'system',
   userPreferences: {

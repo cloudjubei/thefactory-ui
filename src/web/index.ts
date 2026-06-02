@@ -525,6 +525,16 @@ export {
   type ShortcutsApi,
   type ShortcutsProviderProps,
 } from './compound/shortcuts/ShortcutsContext'
+export { ShortcutsProviderConnected } from './compound/shortcuts/ShortcutsProviderConnected'
+
+// Browser-storage bindings + connected settings providers — the per-device
+// `localStorage` adapter every browser client shares, plus the
+// `AppSettings` / `LLMConfigs` providers pre-wired with it (and, for
+// AppSettings, the platform-aware defaults). Read state via `useAppSettings`
+// / `useLLMConfigs` from `thefactory-ui/headless`.
+export { localStorageAdapter } from './compound/storage/localStorageAdapter'
+export { AppSettingsProviderConnected } from './compound/settings/AppSettingsProviderConnected'
+export { LLMConfigsProviderConnected } from './compound/settings/LLMConfigsProviderConnected'
 
 // Per-chat "last seen" timestamps for unread badges, localStorage-backed
 // with cross-tab + same-document sync. Pure helpers (`isChatUnread`,
