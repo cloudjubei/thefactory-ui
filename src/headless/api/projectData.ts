@@ -44,6 +44,27 @@ export async function deleteProjectDataRecord(
   await deleteProjectData({ path: { projectId }, query: ref, throwOnError: true })
 }
 
+export interface ProjectDataApi {
+  query: (query?: ProjectDataQuery) => Promise<DataRecord[]>
+  put: (input: ProjectDataPutInput) => Promise<DataRecord>
+  remove: (ref: ProjectDataRef) => Promise<void>
+}
+
+/**
+ * Bind the data wrappers to a project. `query` resolves to `[]` when no project
+ * is active (nothing to list); `put`/`remove` reject — a write needs a target.
+ */
+export function createProjectDataApi(projectId: string | undefined): ProjectDataApi {
+  const noProject = () => new Error('projectData: no active project')
+  return {
+    query: (query = {}) => (projectId ? queryProjectData(projectId, query) : Promise.resolve([])),
+    put: (input) =>
+      projectId ? putProjectDataRecord(projectId, input) : Promise.reject(noProject()),
+    remove: (ref) =>
+      projectId ? deleteProjectDataRecord(projectId, ref) : Promise.reject(noProject()),
+  }
+}
+
 /**
  * Dispatch an `overseer:data.*` bridge request to the backend on behalf of an
  * embedded app. Returns `undefined` for messages that aren't `data.*` (so the

@@ -12,6 +12,7 @@ import {
   putProjectDataRecord,
   deleteProjectDataRecord,
   dispatchProjectDataBridge,
+  createProjectDataApi,
 } from './projectData'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,6 +133,47 @@ describe('dispatchProjectDataBridge', () => {
         payload: { type: 'holding' },
       }),
     ).rejects.toThrow(/key/i)
+    expect(deleteProjectData).not.toHaveBeenCalled()
+  })
+})
+
+describe('createProjectDataApi', () => {
+  it('binds the project id to query / put / remove', async () => {
+    asMock(listProjectData).mockResolvedValue({ data: [] })
+    asMock(putProjectData).mockResolvedValue({ data: { scope: 'p1' } })
+    asMock(deleteProjectData).mockResolvedValue({ data: undefined })
+    const api = createProjectDataApi('p1')
+
+    await api.query({ type: 'holding' })
+    await api.put({ type: 'holding', key: 'AAPL', content: {} })
+    await api.remove({ type: 'holding', key: 'AAPL' })
+
+    expect(listProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: 'p1' } }),
+    )
+    expect(putProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: 'p1' } }),
+    )
+    expect(deleteProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: 'p1' } }),
+    )
+  })
+
+  it('query resolves to [] when no project is active', async () => {
+    const api = createProjectDataApi(undefined)
+    expect(await api.query()).toEqual([])
+    expect(listProjectData).not.toHaveBeenCalled()
+  })
+
+  it('put rejects when no project is active', async () => {
+    const api = createProjectDataApi(undefined)
+    await expect(api.put({ type: 'holding', content: {} })).rejects.toThrow(/project/i)
+    expect(putProjectData).not.toHaveBeenCalled()
+  })
+
+  it('remove rejects when no project is active', async () => {
+    const api = createProjectDataApi(undefined)
+    await expect(api.remove({ type: 'holding', key: 'AAPL' })).rejects.toThrow(/project/i)
     expect(deleteProjectData).not.toHaveBeenCalled()
   })
 })
