@@ -632,6 +632,11 @@ export {
 // pane splits and collapsible-sidebar toggles across web + desktop.
 export { useLocalStorageNumber, useLocalStorageBool } from './hooks/useLocalStorage'
 export { useProjectSettingsConnected } from './hooks/useProjectSettingsConnected'
+export {
+  useWebNotifications,
+  type NotificationPermissionState,
+  type WebNotificationsApi,
+} from './hooks/useWebNotifications'
 
 // `useIsNarrowViewport` — Tailwind `md`-breakpoint media query as a hook.
 // Drives the narrow / master-detail layout switches in `CommitDiffViewer`
