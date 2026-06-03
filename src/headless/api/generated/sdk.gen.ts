@@ -48,6 +48,9 @@ import type {
   CreateChatResponses,
   CreateCliAuthCacheData,
   CreateCliAuthCacheResponses,
+  CreateDataSourceData,
+  CreateDataSourceErrors,
+  CreateDataSourceResponses,
   CreateDocumentData,
   CreateDocumentErrors,
   CreateDocumentResponses,
@@ -62,9 +65,6 @@ import type {
   CreateGitBranchResponses,
   CreateGitCredentialData,
   CreateGitCredentialResponses,
-  CreateLiveDataProviderData,
-  CreateLiveDataProviderErrors,
-  CreateLiveDataProviderResponses,
   CreateLlmConfigData,
   CreateLlmConfigResponses,
   CreateOverseerGithubRepoData,
@@ -97,6 +97,9 @@ import type {
   DeleteDatabaseData,
   DeleteDatabaseErrors,
   DeleteDatabaseResponses,
+  DeleteDataSourceData,
+  DeleteDataSourceErrors,
+  DeleteDataSourceResponses,
   DeleteDocumentData,
   DeleteDocumentErrors,
   DeleteDocumentResponses,
@@ -124,9 +127,6 @@ import type {
   DeleteLastChatMessageData,
   DeleteLastChatMessageErrors,
   DeleteLastChatMessageResponses,
-  DeleteLiveDataProviderData,
-  DeleteLiveDataProviderErrors,
-  DeleteLiveDataProviderResponses,
   DeleteLlmConfigData,
   DeleteLlmConfigErrors,
   DeleteLlmConfigResponses,
@@ -151,9 +151,6 @@ import type {
   ExecuteToolData,
   ExecuteToolErrors,
   ExecuteToolResponses,
-  FetchLiveDataProviderData,
-  FetchLiveDataProviderErrors,
-  FetchLiveDataProviderResponses,
   ForkCliAgentRunData,
   ForkCliAgentRunErrors,
   ForkCliAgentRunResponses,
@@ -185,6 +182,9 @@ import type {
   GetCostsByChatData,
   GetCostsByChatErrors,
   GetCostsByChatResponses,
+  GetDataSourceData,
+  GetDataSourceErrors,
+  GetDataSourceResponses,
   GetDbHealthData,
   GetDbHealthResponses,
   GetDocumentData,
@@ -226,12 +226,6 @@ import type {
   GetLastTestsRunData,
   GetLastTestsRunErrors,
   GetLastTestsRunResponses,
-  GetLiveDataPayloadData,
-  GetLiveDataPayloadErrors,
-  GetLiveDataPayloadResponses,
-  GetLiveDataProviderData,
-  GetLiveDataProviderErrors,
-  GetLiveDataProviderResponses,
   GetLlmConfigData,
   GetLlmConfigErrors,
   GetLlmConfigResponses,
@@ -343,6 +337,9 @@ import type {
   ListDatabasesData,
   ListDatabasesErrors,
   ListDatabasesResponses,
+  ListDataSourcesData,
+  ListDataSourcesErrors,
+  ListDataSourcesResponses,
   ListDocumentsData,
   ListDocumentsErrors,
   ListDocumentsResponses,
@@ -360,8 +357,6 @@ import type {
   ListGitStashesData,
   ListGitStashesErrors,
   ListGitStashesResponses,
-  ListLiveDataProvidersData,
-  ListLiveDataProvidersResponses,
   ListLlmConfigsData,
   ListLlmConfigsResponses,
   ListLlmModelsData,
@@ -374,10 +369,16 @@ import type {
   ListProjectDataData,
   ListProjectDataErrors,
   ListProjectDataResponses,
+  ListProjectDataSubscriptionsData,
+  ListProjectDataSubscriptionsErrors,
+  ListProjectDataSubscriptionsResponses,
   ListProjectsData,
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
   ListProjectsResponses,
+  ListSourceRecordsData,
+  ListSourceRecordsErrors,
+  ListSourceRecordsResponses,
   ListStoriesData,
   ListStoriesResponses,
   ListTemplatesData,
@@ -432,6 +433,12 @@ import type {
   ReadFileRawData,
   ReadFileRawResponses,
   ReadFileResponses,
+  ReadProjectLiveDataData,
+  ReadProjectLiveDataErrors,
+  ReadProjectLiveDataResponses,
+  RefreshDataSourceData,
+  RefreshDataSourceErrors,
+  RefreshDataSourceResponses,
   RefreshPricingData,
   RefreshPricingErrors,
   RefreshPricingResponses,
@@ -539,6 +546,12 @@ import type {
   StartTestsRunData,
   StartTestsRunErrors,
   StartTestsRunResponses,
+  SubscribeProjectDataSourceData,
+  SubscribeProjectDataSourceErrors,
+  SubscribeProjectDataSourceResponses,
+  UnsubscribeProjectDataSourceData,
+  UnsubscribeProjectDataSourceErrors,
+  UnsubscribeProjectDataSourceResponses,
   UpdateChatData,
   UpdateChatDynamicContextData,
   UpdateChatDynamicContextErrors,
@@ -548,6 +561,9 @@ import type {
   UpdateCliAuthCacheData,
   UpdateCliAuthCacheErrors,
   UpdateCliAuthCacheResponses,
+  UpdateDataSourceData,
+  UpdateDataSourceErrors,
+  UpdateDataSourceResponses,
   UpdateDocumentData,
   UpdateDocumentErrors,
   UpdateDocumentResponses,
@@ -560,9 +576,6 @@ import type {
   UpdateGitCredentialData,
   UpdateGitCredentialErrors,
   UpdateGitCredentialResponses,
-  UpdateLiveDataProviderData,
-  UpdateLiveDataProviderErrors,
-  UpdateLiveDataProviderResponses,
   UpdateLlmConfigData,
   UpdateLlmConfigErrors,
   UpdateLlmConfigResponses,
@@ -3034,27 +3047,23 @@ export const deleteDatabase = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
-export const listLiveDataProviders = <ThrowOnError extends boolean = false>(
-  options?: Options<ListLiveDataProvidersData, ThrowOnError>,
+export const listDataSources = <ThrowOnError extends boolean = false>(
+  options?: Options<ListDataSourcesData, ThrowOnError>,
 ) =>
-  (options?.client ?? client).get<ListLiveDataProvidersResponses, unknown, ThrowOnError>({
+  (options?.client ?? client).get<ListDataSourcesResponses, ListDataSourcesErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers',
+    url: '/api/v1/live-data/sources',
     ...options,
   })
 
-export const createLiveDataProvider = <ThrowOnError extends boolean = false>(
-  options: Options<CreateLiveDataProviderData, ThrowOnError>,
+export const createDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDataSourceData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<
-    CreateLiveDataProviderResponses,
-    CreateLiveDataProviderErrors,
-    ThrowOnError
-  >({
+  (options.client ?? client).post<CreateDataSourceResponses, CreateDataSourceErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers',
+    url: '/api/v1/live-data/sources',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3062,76 +3071,123 @@ export const createLiveDataProvider = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const deleteLiveDataProvider = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteLiveDataProviderData, ThrowOnError>,
+export const deleteDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDataSourceData, ThrowOnError>,
 ) =>
   (options.client ?? client).delete<
-    DeleteLiveDataProviderResponses,
-    DeleteLiveDataProviderErrors,
+    DeleteDataSourceResponses,
+    DeleteDataSourceErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers/{id}',
+    url: '/api/v1/live-data/sources/{id}',
     ...options,
   })
 
-export const getLiveDataProvider = <ThrowOnError extends boolean = false>(
-  options: Options<GetLiveDataProviderData, ThrowOnError>,
+export const getDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<GetDataSourceData, ThrowOnError>,
 ) =>
-  (options.client ?? client).get<
-    GetLiveDataProviderResponses,
-    GetLiveDataProviderErrors,
-    ThrowOnError
-  >({
+  (options.client ?? client).get<GetDataSourceResponses, GetDataSourceErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers/{id}',
+    url: '/api/v1/live-data/sources/{id}',
     ...options,
   })
 
-export const updateLiveDataProvider = <ThrowOnError extends boolean = false>(
-  options: Options<UpdateLiveDataProviderData, ThrowOnError>,
+export const updateDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDataSourceData, ThrowOnError>,
 ) =>
-  (options.client ?? client).patch<
-    UpdateLiveDataProviderResponses,
-    UpdateLiveDataProviderErrors,
-    ThrowOnError
-  >({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers/{id}',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
+  (options.client ?? client).patch<UpdateDataSourceResponses, UpdateDataSourceErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/live-data/sources/{id}',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
     },
-  })
+  )
 
-export const fetchLiveDataProvider = <ThrowOnError extends boolean = false>(
-  options: Options<FetchLiveDataProviderData, ThrowOnError>,
+export const refreshDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<RefreshDataSourceData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    FetchLiveDataProviderResponses,
-    FetchLiveDataProviderErrors,
+    RefreshDataSourceResponses,
+    RefreshDataSourceErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers/{id}/fetch',
+    url: '/api/v1/live-data/sources/{id}/refresh',
     ...options,
   })
 
-export const getLiveDataPayload = <ThrowOnError extends boolean = false>(
-  options: Options<GetLiveDataPayloadData, ThrowOnError>,
+export const listSourceRecords = <ThrowOnError extends boolean = false>(
+  options: Options<ListSourceRecordsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListSourceRecordsResponses, ListSourceRecordsErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/live-data/sources/{id}/records',
+      ...options,
+    },
+  )
+
+export const listProjectDataSubscriptions = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectDataSubscriptionsData, ThrowOnError>,
 ) =>
   (options.client ?? client).get<
-    GetLiveDataPayloadResponses,
-    GetLiveDataPayloadErrors,
+    ListProjectDataSubscriptionsResponses,
+    ListProjectDataSubscriptionsErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/live-data/providers/{id}/data',
+    url: '/api/v1/projects/{projectId}/live-data/subscriptions',
+    ...options,
+  })
+
+export const unsubscribeProjectDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<UnsubscribeProjectDataSourceData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    UnsubscribeProjectDataSourceResponses,
+    UnsubscribeProjectDataSourceErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/live-data/subscriptions/{sourceId}',
+    ...options,
+  })
+
+export const subscribeProjectDataSource = <ThrowOnError extends boolean = false>(
+  options: Options<SubscribeProjectDataSourceData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SubscribeProjectDataSourceResponses,
+    SubscribeProjectDataSourceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/live-data/subscriptions/{sourceId}',
+    ...options,
+  })
+
+export const readProjectLiveData = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLiveDataData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ReadProjectLiveDataResponses,
+    ReadProjectLiveDataErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/live-data',
     ...options,
   })
 

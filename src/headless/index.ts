@@ -70,10 +70,7 @@ export {
   type UseTooltipStateOptions,
 } from './hooks/useTooltipState'
 export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
-export {
-  useProjectSettings,
-  type ProjectSettingsApi,
-} from './hooks/useProjectSettings'
+export { useProjectSettings, type ProjectSettingsApi } from './hooks/useProjectSettings'
 export { useDirtyGuard, type UseDirtyGuard } from './hooks/useDirtyGuard'
 export {
   useToastQueue,
@@ -537,11 +534,7 @@ export {
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 export { useProjectDataBridge } from './hooks/useProjectDataBridge'
-export type {
-  ProjectDataQuery,
-  ProjectDataPutInput,
-  ProjectDataRef,
-} from './api/projectData'
+export type { ProjectDataQuery, ProjectDataPutInput, ProjectDataRef } from './api/projectData'
 
 // App↔Overseer postMessage bridge protocol (shared by the ProjectAppView
 // web + native transports; semantics supplied by the host's onBridgeMessage).
@@ -562,13 +555,22 @@ export {
   type EntitiesContextValue,
 } from './contexts/EntitiesContext'
 
-// Live-data providers (project-scoped + globals) and their cached payloads.
-// Listens to the `liveData:updated` WS topic.
+// Live data: the global catalogue of data sources + the active project's
+// subscriptions. Listens to the `liveData:updated` WS topic.
 export {
-  LiveDataProvidersProvider,
-  useLiveDataProviders,
-  type LiveDataProvidersContextValue,
-} from './contexts/LiveDataProvidersContext'
+  DataSourcesProvider,
+  useDataSources,
+  type DataSourcesContextValue,
+} from './contexts/DataSourcesContext'
+export {
+  emptySourceForm,
+  sourceToForm,
+  formToSourceInput,
+  validateSourceForm,
+  humanizeMs,
+  isSourceFresh,
+  type LiveDataSourceForm,
+} from './utils/liveDataForm'
 
 // Per-project test + coverage runs. Wires the `tests:progress` / `tests:result`
 // WS topics into a deferred runner so callers can `await` a unit / coverage
@@ -605,11 +607,7 @@ export {
 // Per-project file list + selected-file content + CRUD. Listens to the
 // `files:changed` WS topic. Routes binary/PDF/image clicks to the raw-bytes
 // endpoint by skipping the text read for non-text extensions.
-export {
-  FilesProvider,
-  useFiles,
-  type FilesContextValue,
-} from './contexts/FilesContext'
+export { FilesProvider, useFiles, type FilesContextValue } from './contexts/FilesContext'
 
 // Ingestion job tracker. Listens to `ingestion:progress` WS topic and
 // maintains a Map of in-flight + recently-completed jobs.
@@ -622,11 +620,7 @@ export {
 
 // Tool registry + execute / preview. Token-gated initial load; per-call
 // project context comes from `useActiveProject`.
-export {
-  ToolsProvider,
-  useTools,
-  type ToolsContextValue,
-} from './contexts/ToolsContext'
+export { ToolsProvider, useTools, type ToolsContextValue } from './contexts/ToolsContext'
 
 // Agent-run orchestration. Derives `runs` from `useChats()` and starts /
 // cancels / deletes / rates runs via the backend. Requires the chats /

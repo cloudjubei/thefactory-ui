@@ -2916,6 +2916,116 @@ export type IngestionProgressEvent =
       error: string
     }
 
+export type HistoryPoint = {
+  t: string
+  v: number
+}
+
+export type LiveContent = {
+  latest: HistoryPoint
+  history: Array<HistoryPoint>
+  [key: string]: unknown
+}
+
+export type SourceKind = 'sample' | 'snapshot'
+
+export type FetchedItem =
+  | {
+      key: string
+      kind: 'sample'
+      point: HistoryPoint
+      fields: {
+        [key: string]: unknown
+      }
+    }
+  | {
+      key: string
+      kind: 'snapshot'
+      content: {
+        [key: string]: unknown
+      }
+    }
+
+export type DataSourceMap = {
+  key: string
+  value?: string
+  time?: string
+  fields?: {
+    [key: string]: string
+  }
+}
+
+export type DataSourceFetch = {
+  url: string
+  method?: string
+  headers?: {
+    [key: string]: string
+  }
+}
+
+export type DataSourceAdapter = {
+  fetch: DataSourceFetch
+  itemsPath: string
+  kind?: 'sample' | 'snapshot'
+  map: DataSourceMap
+}
+
+export type DataSource = {
+  id: string
+  name: string
+  recordType: string
+  freshness: number
+  autoUpdate: boolean
+  adapter: DataSourceAdapter
+  historyCap?: number
+  createdAt: string
+  updatedAt: string
+  lastRefreshedAt?: string
+}
+
+export type DataSourceInput = {
+  name: string
+  recordType: string
+  freshness: number
+  autoUpdate: boolean
+  adapter: DataSourceAdapter
+  historyCap?: number
+}
+
+export type DataSourcePatch = {
+  name?: string
+  recordType?: string
+  freshness?: number
+  autoUpdate?: boolean
+  adapter?: {
+    fetch: DataSourceFetch
+    itemsPath: string
+    kind?: 'sample' | 'snapshot'
+    map: DataSourceMap
+  }
+  historyCap?: number
+}
+
+export type DataSubscription = {
+  projectId: string
+  sourceId: string
+  subscribedAt: string
+}
+
+export type RefreshResult = {
+  sourceId: string
+  recordType: string
+  itemCount: number
+  at: string
+  error?: string
+}
+
+export type SubscribedRecords = {
+  sourceId: string
+  recordType: string
+  records: Array<DataRecord>
+}
+
 export type ModelPrice = {
   provider: string
   model: string
@@ -3958,58 +4068,6 @@ export type JsonValue =
   | {
       [key: string]: JsonValue
     }
-
-export type LiveDataProvider = {
-  id: string
-  name: string
-  description: string
-  freshnessPolicy: 'daily' | 'weekly' | 'monthly'
-  autoUpdate: {
-    enabled: boolean
-    trigger: 'onAppLaunch' | 'scheduled'
-    time?: string
-  }
-  scope: 'global' | 'project'
-  projectId?: string
-  lastUpdated?: string
-  isUpdating?: boolean
-  isFresh?: boolean
-  config: JsonValue
-}
-
-export type LiveDataProviderCreateInput = {
-  name: string
-  description: string
-  freshnessPolicy: 'daily' | 'weekly' | 'monthly'
-  autoUpdate: {
-    enabled: boolean
-    trigger: 'onAppLaunch' | 'scheduled'
-    time?: string
-  }
-  scope: 'global' | 'project'
-  projectId?: string
-  config: JsonValue
-}
-
-export type LiveDataProviderEditInput = {
-  name?: string
-  description?: string
-  freshnessPolicy?: 'daily' | 'weekly' | 'monthly'
-  autoUpdate?: {
-    enabled: boolean
-    trigger: 'onAppLaunch' | 'scheduled'
-    time?: string
-  }
-  scope?: 'global' | 'project'
-  projectId?: string
-  config?: unknown
-}
-
-export type LiveDataPayload = {
-  providerId: string
-  fetchedAt?: string
-  data?: unknown
-}
 
 export type OverseerState = {
   path: string
@@ -11264,164 +11322,74 @@ export type DeleteDatabaseResponses = {
 
 export type DeleteDatabaseResponse = DeleteDatabaseResponses[keyof DeleteDatabaseResponses]
 
-export type ListLiveDataProvidersData = {
+export type ListDataSourcesData = {
   body?: never
   path?: never
-  query?: {
-    projectId?: string
-  }
-  url: '/api/v1/live-data/providers'
+  query?: never
+  url: '/api/v1/live-data/sources'
 }
 
-export type ListLiveDataProvidersResponses = {
+export type ListDataSourcesErrors = {
   /**
    * Default Response
    */
-  200: Array<LiveDataProvider>
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
-export type ListLiveDataProvidersResponse =
-  ListLiveDataProvidersResponses[keyof ListLiveDataProvidersResponses]
+export type ListDataSourcesError = ListDataSourcesErrors[keyof ListDataSourcesErrors]
 
-export type CreateLiveDataProviderData = {
-  body: LiveDataProviderCreateInput
+export type ListDataSourcesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<DataSource>
+}
+
+export type ListDataSourcesResponse = ListDataSourcesResponses[keyof ListDataSourcesResponses]
+
+export type CreateDataSourceData = {
+  body: DataSourceInput
   path?: never
   query?: never
-  url: '/api/v1/live-data/providers'
+  url: '/api/v1/live-data/sources'
 }
 
-export type CreateLiveDataProviderErrors = {
+export type CreateDataSourceErrors = {
   /**
    * Default Response
    */
-  400: {
+  500: {
     error: string
     code?: string
     requestId?: string
   }
 }
 
-export type CreateLiveDataProviderError =
-  CreateLiveDataProviderErrors[keyof CreateLiveDataProviderErrors]
+export type CreateDataSourceError = CreateDataSourceErrors[keyof CreateDataSourceErrors]
 
-export type CreateLiveDataProviderResponses = {
+export type CreateDataSourceResponses = {
   /**
    * Default Response
    */
-  201: LiveDataProvider
+  201: DataSource
 }
 
-export type CreateLiveDataProviderResponse =
-  CreateLiveDataProviderResponses[keyof CreateLiveDataProviderResponses]
+export type CreateDataSourceResponse = CreateDataSourceResponses[keyof CreateDataSourceResponses]
 
-export type DeleteLiveDataProviderData = {
+export type DeleteDataSourceData = {
   body?: never
   path: {
     id: string
   }
   query?: never
-  url: '/api/v1/live-data/providers/{id}'
+  url: '/api/v1/live-data/sources/{id}'
 }
 
-export type DeleteLiveDataProviderErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type DeleteLiveDataProviderError =
-  DeleteLiveDataProviderErrors[keyof DeleteLiveDataProviderErrors]
-
-export type DeleteLiveDataProviderResponses = {
-  /**
-   * Default Response
-   */
-  204: void
-}
-
-export type DeleteLiveDataProviderResponse =
-  DeleteLiveDataProviderResponses[keyof DeleteLiveDataProviderResponses]
-
-export type GetLiveDataProviderData = {
-  body?: never
-  path: {
-    id: string
-  }
-  query?: never
-  url: '/api/v1/live-data/providers/{id}'
-}
-
-export type GetLiveDataProviderErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type GetLiveDataProviderError = GetLiveDataProviderErrors[keyof GetLiveDataProviderErrors]
-
-export type GetLiveDataProviderResponses = {
-  /**
-   * Default Response
-   */
-  200: LiveDataProvider
-}
-
-export type GetLiveDataProviderResponse =
-  GetLiveDataProviderResponses[keyof GetLiveDataProviderResponses]
-
-export type UpdateLiveDataProviderData = {
-  body: LiveDataProviderEditInput
-  path: {
-    id: string
-  }
-  query?: never
-  url: '/api/v1/live-data/providers/{id}'
-}
-
-export type UpdateLiveDataProviderErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type UpdateLiveDataProviderError =
-  UpdateLiveDataProviderErrors[keyof UpdateLiveDataProviderErrors]
-
-export type UpdateLiveDataProviderResponses = {
-  /**
-   * Default Response
-   */
-  200: LiveDataProvider
-}
-
-export type UpdateLiveDataProviderResponse =
-  UpdateLiveDataProviderResponses[keyof UpdateLiveDataProviderResponses]
-
-export type FetchLiveDataProviderData = {
-  body?: never
-  path: {
-    id: string
-  }
-  query?: never
-  url: '/api/v1/live-data/providers/{id}/fetch'
-}
-
-export type FetchLiveDataProviderErrors = {
+export type DeleteDataSourceErrors = {
   /**
    * Default Response
    */
@@ -11440,29 +11408,27 @@ export type FetchLiveDataProviderErrors = {
   }
 }
 
-export type FetchLiveDataProviderError =
-  FetchLiveDataProviderErrors[keyof FetchLiveDataProviderErrors]
+export type DeleteDataSourceError = DeleteDataSourceErrors[keyof DeleteDataSourceErrors]
 
-export type FetchLiveDataProviderResponses = {
+export type DeleteDataSourceResponses = {
   /**
    * Default Response
    */
-  200: LiveDataPayload
+  204: void
 }
 
-export type FetchLiveDataProviderResponse =
-  FetchLiveDataProviderResponses[keyof FetchLiveDataProviderResponses]
+export type DeleteDataSourceResponse = DeleteDataSourceResponses[keyof DeleteDataSourceResponses]
 
-export type GetLiveDataPayloadData = {
+export type GetDataSourceData = {
   body?: never
   path: {
     id: string
   }
   query?: never
-  url: '/api/v1/live-data/providers/{id}/data'
+  url: '/api/v1/live-data/sources/{id}'
 }
 
-export type GetLiveDataPayloadErrors = {
+export type GetDataSourceErrors = {
   /**
    * Default Response
    */
@@ -11471,19 +11437,310 @@ export type GetLiveDataPayloadErrors = {
     code?: string
     requestId?: string
   }
-}
-
-export type GetLiveDataPayloadError = GetLiveDataPayloadErrors[keyof GetLiveDataPayloadErrors]
-
-export type GetLiveDataPayloadResponses = {
   /**
    * Default Response
    */
-  200: LiveDataPayload
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
-export type GetLiveDataPayloadResponse =
-  GetLiveDataPayloadResponses[keyof GetLiveDataPayloadResponses]
+export type GetDataSourceError = GetDataSourceErrors[keyof GetDataSourceErrors]
+
+export type GetDataSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: DataSource
+}
+
+export type GetDataSourceResponse = GetDataSourceResponses[keyof GetDataSourceResponses]
+
+export type UpdateDataSourceData = {
+  body: DataSourcePatch
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/live-data/sources/{id}'
+}
+
+export type UpdateDataSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateDataSourceError = UpdateDataSourceErrors[keyof UpdateDataSourceErrors]
+
+export type UpdateDataSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: DataSource
+}
+
+export type UpdateDataSourceResponse = UpdateDataSourceResponses[keyof UpdateDataSourceResponses]
+
+export type RefreshDataSourceData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/live-data/sources/{id}/refresh'
+}
+
+export type RefreshDataSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RefreshDataSourceError = RefreshDataSourceErrors[keyof RefreshDataSourceErrors]
+
+export type RefreshDataSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: RefreshResult
+}
+
+export type RefreshDataSourceResponse = RefreshDataSourceResponses[keyof RefreshDataSourceResponses]
+
+export type ListSourceRecordsData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/live-data/sources/{id}/records'
+}
+
+export type ListSourceRecordsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListSourceRecordsError = ListSourceRecordsErrors[keyof ListSourceRecordsErrors]
+
+export type ListSourceRecordsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<DataRecord>
+}
+
+export type ListSourceRecordsResponse = ListSourceRecordsResponses[keyof ListSourceRecordsResponses]
+
+export type ListProjectDataSubscriptionsData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/live-data/subscriptions'
+}
+
+export type ListProjectDataSubscriptionsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectDataSubscriptionsError =
+  ListProjectDataSubscriptionsErrors[keyof ListProjectDataSubscriptionsErrors]
+
+export type ListProjectDataSubscriptionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<DataSubscription>
+}
+
+export type ListProjectDataSubscriptionsResponse =
+  ListProjectDataSubscriptionsResponses[keyof ListProjectDataSubscriptionsResponses]
+
+export type UnsubscribeProjectDataSourceData = {
+  body?: never
+  path: {
+    projectId: string
+    sourceId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/live-data/subscriptions/{sourceId}'
+}
+
+export type UnsubscribeProjectDataSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UnsubscribeProjectDataSourceError =
+  UnsubscribeProjectDataSourceErrors[keyof UnsubscribeProjectDataSourceErrors]
+
+export type UnsubscribeProjectDataSourceResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type UnsubscribeProjectDataSourceResponse =
+  UnsubscribeProjectDataSourceResponses[keyof UnsubscribeProjectDataSourceResponses]
+
+export type SubscribeProjectDataSourceData = {
+  body?: never
+  path: {
+    projectId: string
+    sourceId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/live-data/subscriptions/{sourceId}'
+}
+
+export type SubscribeProjectDataSourceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SubscribeProjectDataSourceError =
+  SubscribeProjectDataSourceErrors[keyof SubscribeProjectDataSourceErrors]
+
+export type SubscribeProjectDataSourceResponses = {
+  /**
+   * Default Response
+   */
+  200: DataSubscription
+}
+
+export type SubscribeProjectDataSourceResponse =
+  SubscribeProjectDataSourceResponses[keyof SubscribeProjectDataSourceResponses]
+
+export type ReadProjectLiveDataData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    viewToken?: string
+  }
+  url: '/api/v1/projects/{projectId}/view/live-data'
+}
+
+export type ReadProjectLiveDataErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ReadProjectLiveDataError = ReadProjectLiveDataErrors[keyof ReadProjectLiveDataErrors]
+
+export type ReadProjectLiveDataResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<SubscribedRecords>
+}
+
+export type ReadProjectLiveDataResponse =
+  ReadProjectLiveDataResponses[keyof ReadProjectLiveDataResponses]
 
 export type ResetOverseerData = {
   body?: never

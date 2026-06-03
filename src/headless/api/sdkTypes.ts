@@ -108,13 +108,15 @@ export type FetchInput = GitFetchData['body']
 
 // --- Live data ---
 //
-// `LiveDataProvider`, `LiveDataProviderCreateInput`, `LiveDataProviderEditInput`,
-// and `LiveDataPayload` are all promoted in the generated SDK — import them
-// directly. Only the WS `liveData:updated` event has no REST schema, so it's
-// hand-written here.
+// `DataSource`, `DataSubscription`, `RefreshResult`, `SubscribedRecords` are
+// promoted in the generated SDK — import them directly. Only the WS
+// `liveData:updated` event has no REST schema, so it's hand-written here.
 export type LiveDataUpdatedEvent = {
-  providerId: string
+  sourceId: string
   status: 'fetching' | 'fresh' | 'error'
+  recordType?: string
+  itemCount?: number
+  error?: string
 }
 
 // --- Web search keys ---
