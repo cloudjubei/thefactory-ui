@@ -632,6 +632,7 @@ export type {
   ExecuteToolResponse,
   ExecuteToolResponses,
   ExternalFilesResult,
+  ExtractedItem,
   Feature,
   FeatureCreateInput,
   FeatureEditInput,

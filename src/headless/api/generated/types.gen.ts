@@ -2946,12 +2946,21 @@ export type FetchedItem =
       }
     }
 
+export type ExtractedItem = {
+  item: unknown
+  entryKey?: string
+}
+
 export type DataSourceMap = {
   key: string
   value?: string
   time?: string
   fields?: {
     [key: string]: string
+  }
+  valueScale?: number
+  constFields?: {
+    [key: string]: string | number | boolean
   }
 }
 
@@ -2978,6 +2987,7 @@ export type DataSource = {
   autoUpdate: boolean
   adapter: DataSourceAdapter
   historyCap?: number
+  system?: boolean
   createdAt: string
   updatedAt: string
   lastRefreshedAt?: string
@@ -2990,6 +3000,7 @@ export type DataSourceInput = {
   autoUpdate: boolean
   adapter: DataSourceAdapter
   historyCap?: number
+  system?: boolean
 }
 
 export type DataSourcePatch = {
@@ -3004,6 +3015,7 @@ export type DataSourcePatch = {
     map: DataSourceMap
   }
   historyCap?: number
+  system?: boolean
 }
 
 export type DataSubscription = {
@@ -11385,7 +11397,9 @@ export type DeleteDataSourceData = {
   path: {
     id: string
   }
-  query?: never
+  query?: {
+    force?: boolean
+  }
   url: '/api/v1/live-data/sources/{id}'
 }
 
@@ -11394,6 +11408,14 @@ export type DeleteDataSourceErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
     error: string
     code?: string
     requestId?: string

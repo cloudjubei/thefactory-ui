@@ -34,7 +34,7 @@ export type DataSourcesContextValue = {
   refreshing: Record<string, boolean>
   createSource: (input: DataSourceInput) => Promise<DataSource>
   updateSource: (id: string, patch: DataSourcePatch) => Promise<DataSource>
-  deleteSource: (id: string) => Promise<void>
+  deleteSource: (id: string, force?: boolean) => Promise<void>
   refreshSource: (id: string) => Promise<RefreshResult>
   subscribe: (sourceId: string) => Promise<DataSubscription>
   unsubscribe: (sourceId: string) => Promise<void>
@@ -123,8 +123,12 @@ export function DataSourcesProvider({ children }: { children: ReactNode }) {
   )
 
   const deleteSource = useCallback(
-    async (id: string) => {
-      await deleteDataSource({ path: { id }, throwOnError: true })
+    async (id: string, force?: boolean) => {
+      await deleteDataSource({
+        path: { id },
+        ...(force ? { query: { force: true } } : {}),
+        throwOnError: true,
+      })
       await refreshSources()
     },
     [refreshSources],
