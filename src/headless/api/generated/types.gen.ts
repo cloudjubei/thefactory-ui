@@ -311,6 +311,11 @@ export type CliRunnerDispatchOptions = {
   workspaceHostPath?: string
 }
 
+export type ResearchSource = {
+  title: string
+  url: string
+}
+
 export type ChatContextType =
   | 'GENERAL'
   | 'GROUP'
@@ -321,6 +326,49 @@ export type ChatContextType =
   | 'AGENT_RUN_STORY'
   | 'AGENT_RUN_FEATURE'
   | 'PROJECT_TOPIC'
+
+export type ChatContext = {
+  type:
+    | 'GENERAL'
+    | 'GROUP'
+    | 'GROUP_TOPIC'
+    | 'PROJECT'
+    | 'STORY'
+    | 'FEATURE'
+    | 'AGENT_RUN_STORY'
+    | 'AGENT_RUN_FEATURE'
+    | 'PROJECT_TOPIC'
+  groupId?: string
+  projectId?: string
+  storyId?: string
+  featureId?: string
+  agentRunId?: string
+  topicId?: string
+  timestamp?: string
+}
+
+export type ResearchParams = {
+  query: string
+  instructions: string
+  llmConfig: LlmConfig
+  searchLimit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type ResearchResult = {
+  items: Array<unknown>
+  sources: Array<ResearchSource>
+}
 
 export type ChatContextGeneral = {
   type: 'GENERAL'
@@ -360,26 +408,6 @@ export type ChatContextProjectTopic = {
   type: 'PROJECT_TOPIC'
   projectId: string
   topicId: string
-}
-
-export type ChatContext = {
-  type:
-    | 'GENERAL'
-    | 'GROUP'
-    | 'GROUP_TOPIC'
-    | 'PROJECT'
-    | 'STORY'
-    | 'FEATURE'
-    | 'AGENT_RUN_STORY'
-    | 'AGENT_RUN_FEATURE'
-    | 'PROJECT_TOPIC'
-  groupId?: string
-  projectId?: string
-  storyId?: string
-  featureId?: string
-  agentRunId?: string
-  topicId?: string
-  timestamp?: string
 }
 
 export type CompletionHistorySummarization = {
@@ -11763,6 +11791,111 @@ export type ReadProjectLiveDataResponses = {
 
 export type ReadProjectLiveDataResponse =
   ReadProjectLiveDataResponses[keyof ReadProjectLiveDataResponses]
+
+export type WebSearchData = {
+  body: {
+    query: string
+    limit?: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/web/search'
+}
+
+export type WebSearchErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type WebSearchError = WebSearchErrors[keyof WebSearchErrors]
+
+export type WebSearchResponses = {
+  /**
+   * Default Response
+   */
+  200: WebSearchResponse
+}
+
+export type WebSearchResponse2 = WebSearchResponses[keyof WebSearchResponses]
+
+export type RunAnalysisJobData = {
+  body: {
+    llmConfigId?: string
+    params?: {
+      [key: string]: unknown
+    }
+  }
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+    /**
+     * Registered analysis job name (e.g. "opportunities").
+     */
+    jobName: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/analysis/jobs/{jobName}/run'
+}
+
+export type RunAnalysisJobErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RunAnalysisJobError = RunAnalysisJobErrors[keyof RunAnalysisJobErrors]
+
+export type RunAnalysisJobResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    records: Array<{
+      type: string
+      key: string
+      content: unknown
+    }>
+  }
+}
+
+export type RunAnalysisJobResponse = RunAnalysisJobResponses[keyof RunAnalysisJobResponses]
 
 export type ResetOverseerData = {
   body?: never

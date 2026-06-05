@@ -478,6 +478,9 @@ import type {
   RunAllTestsData,
   RunAllTestsErrors,
   RunAllTestsResponses,
+  RunAnalysisJobData,
+  RunAnalysisJobErrors,
+  RunAnalysisJobResponses,
   RunCoverageData,
   RunCoverageErrors,
   RunCoverageResponses,
@@ -599,6 +602,9 @@ import type {
   UploadFileResponses,
   ViewProjectFileData,
   ViewProjectFileResponses,
+  WebSearchData,
+  WebSearchErrors,
+  WebSearchResponses,
   WriteFileData,
   WriteFileErrors,
   WriteFileExactReplacesData,
@@ -3189,6 +3195,34 @@ export const readProjectLiveData = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/view/live-data',
     ...options,
+  })
+
+export const webSearch = <ThrowOnError extends boolean = false>(
+  options: Options<WebSearchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<WebSearchResponses, WebSearchErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/web/search',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const runAnalysisJob = <ThrowOnError extends boolean = false>(
+  options: Options<RunAnalysisJobData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<RunAnalysisJobResponses, RunAnalysisJobErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/analysis/jobs/{jobName}/run',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const resetOverseer = <ThrowOnError extends boolean = false>(
