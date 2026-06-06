@@ -7,3 +7,5 @@ playground/dist/
 .env.local
 .vscode/
 .idea/
+
+.factory/knowledge
