@@ -27,14 +27,32 @@ export async function dispatchAnalysisBridge(
       if (!payload.jobName) {
         throw new Error('analysis.run requires a jobName')
       }
-      const res = await runAnalysisJob({
-        path: { projectId, jobName: payload.jobName },
-        body: { llmConfigId, params: payload.params },
-        throwOnError: true,
-      })
-      return res.data
+      try {
+        const res = await runAnalysisJob({
+          path: { projectId, jobName: payload.jobName },
+          body: { llmConfigId, params: payload.params },
+          throwOnError: true,
+        })
+        return res.data
+      } catch (err) {
+        throw analysisRunError(err)
+      }
     }
     default:
       throw new Error(`Unknown analysis bridge op: ${name}`)
   }
+}
+
+/**
+ * Lift the backend's real message out of the axios error. The generated client
+ * rethrows a raw `AxiosError` whose `.message` is a generic "status code 500";
+ * the useful cause (`sendError`'s `{ error }` body) lives on `response.data.error`.
+ */
+function analysisRunError(err: unknown): Error {
+  const e = err as { response?: { data?: { error?: unknown } }; message?: unknown }
+  const detail = e?.response?.data?.error
+  if (typeof detail === 'string' && detail.trim()) return new Error(detail)
+  if (err instanceof Error) return err
+  if (typeof e?.message === 'string' && e.message) return new Error(e.message)
+  return new Error('Analysis request failed')
 }

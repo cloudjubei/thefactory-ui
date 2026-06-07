@@ -60,4 +60,29 @@ describe('dispatchAnalysisBridge', () => {
       dispatchAnalysisBridge('p1', { type: 'overseer:analysis.frobnicate' }),
     ).rejects.toThrow()
   })
+
+  it('surfaces the real backend error message from the axios response body', async () => {
+    // The generated client (throwOnError) rejects with a raw AxiosError whose
+    // `.message` is generic; the useful cause lives on response.data.error.
+    asMock(runAnalysisJob).mockRejectedValue({
+      message: 'Request failed with status code 500',
+      response: { data: { error: 'Web search failed: Exa returned 429 (rate limit)' } },
+    })
+    await expect(
+      dispatchAnalysisBridge('p1', {
+        type: 'overseer:analysis.run',
+        payload: { jobName: 'news', params: {} },
+      }),
+    ).rejects.toThrow('Web search failed: Exa returned 429 (rate limit)')
+  })
+
+  it('falls back to the error message when no response body is present', async () => {
+    asMock(runAnalysisJob).mockRejectedValue(new Error('Network Error'))
+    await expect(
+      dispatchAnalysisBridge('p1', {
+        type: 'overseer:analysis.run',
+        payload: { jobName: 'news', params: {} },
+      }),
+    ).rejects.toThrow('Network Error')
+  })
 })
