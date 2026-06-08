@@ -35,13 +35,22 @@ export type ActionRequest = {
   runId: string
   kind: string
   payload: ActionPayload
+  credentialId?: string
   timeoutMs?: number
 }
 
 export type ActionDecisionInput = {
-  outcome: 'approved' | 'denied'
+  outcome: 'approved' | 'denied' | 'approved-permanent'
   metadata?: unknown
   reason?: string
+}
+
+export type PermanentActionGrant = {
+  id: string
+  credentialId?: string
+  kind: string
+  payloadSignature: string
+  createdAt: number
 }
 
 export type ActionDecision =
@@ -65,6 +74,7 @@ export type PendingAction = {
   runId: string
   kind: string
   payload: ActionPayload
+  credentialId?: string
   status: PendingActionStatus
   createdAt: number
   decidedAt?: number
@@ -302,6 +312,124 @@ export type MatchAgentResponse = {
   requiresTools?: boolean
 }
 
+export type WorkspaceMode = 'shared' | 'worktree'
+
+export type AgentPersona = {
+  id: string
+  systemPrompt: string
+  toolNames: Array<string>
+  canSpawn: boolean
+  spawnablePersonas?: Array<string>
+  defaultMaxTurns?: number
+  workspaceMode?: 'shared' | 'worktree'
+}
+
+export type SpawnBudgetState = {
+  remainingUsd: number
+  maxDepth: number
+}
+
+export type MakeBudgetStateOptions = {
+  budgetUsd?: number
+  maxDepth?: number
+}
+
+export type SpawnRefusalReason =
+  | 'unknown_persona'
+  | 'missing_task'
+  | 'depth_exceeded'
+  | 'budget_exhausted'
+  | 'worktree_unsupported'
+
+export type DirSnapshotChangeStatus = 'added' | 'modified' | 'deleted'
+
+export type DirSnapshotChange = {
+  path: string
+  status: DirSnapshotChangeStatus
+  hashBefore?: string
+  hashAfter?: string
+  contentAfter?: string
+}
+
+export type SpawnAgentResult =
+  | {
+      status: 'ok'
+      persona: string
+      finalMessage: string
+      costUSD: number
+      changedFiles?: Array<DirSnapshotChange>
+    }
+  | {
+      status: 'refused'
+      reason: SpawnRefusalReason
+      message: string
+    }
+  | {
+      status: 'errored'
+      message: string
+    }
+
+export type PanelVerdict = {
+  compiles: boolean
+  compileErrorCount: number
+  testsRun: boolean
+  testsPassed: boolean
+  verified: boolean
+}
+
+export type PanelCandidate = {
+  index: number
+  status: 'ok' | 'errored'
+  costUSD: number
+  finalMessage?: string
+  changedFiles?: Array<DirSnapshotChange>
+  verdict?: {
+    compiles: boolean
+    compileErrorCount: number
+    testsRun: boolean
+    testsPassed: boolean
+    verified: boolean
+  }
+  error?: string
+}
+
+export type SpawnPanelResult =
+  | {
+      status: 'ok'
+      best?: {
+        index: number
+        status: 'ok' | 'errored'
+        costUSD: number
+        finalMessage?: string
+        changedFiles?: Array<DirSnapshotChange>
+        verdict?: {
+          compiles: boolean
+          compileErrorCount: number
+          testsRun: boolean
+          testsPassed: boolean
+          verified: boolean
+        }
+        error?: string
+      }
+      candidates: Array<PanelCandidate>
+      totalCostUSD: number
+    }
+  | {
+      status: 'refused'
+      reason: SpawnRefusalReason
+      message: string
+    }
+  | {
+      status: 'errored'
+      message: string
+    }
+
+export type AgentTaskResult = {
+  resultType: AgentToolsResultType
+  finalMessage: string
+  costUSD: number
+}
+
 export type AgentRunnerRunnerKind = 'api' | 'cli'
 
 export type CliRunnerDispatchOptions = {
@@ -460,6 +588,12 @@ export type ChatRating = {
   score: number
   comment?: string
   createdAt: string
+}
+
+export type ChatCliRunner = {
+  tool: string
+  credentialId?: string
+  apiKeyCredentialId?: string
 }
 
 export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -632,6 +766,11 @@ export type Chat = {
   metadata?: {
     [key: string]: JsonValue
   }
+  cliRunner?: {
+    tool: string
+    credentialId?: string
+    apiKeyCredentialId?: string
+  }
   createdAt?: string
   updatedAt?: string
 }
@@ -790,6 +929,11 @@ export type ChatUpdate = {
     }
     metadata?: {
       [key: string]: unknown
+    }
+    cliRunner?: {
+      tool: string
+      credentialId?: string
+      apiKeyCredentialId?: string
     }
     createdAt: string
     updatedAt: string
@@ -1323,22 +1467,12 @@ export type CliAgentSubscriptionStatus = {
   [key: string]: unknown
 }
 
-export type FilesEmittedFileStatus = 'added' | 'modified' | 'deleted'
-
-export type FilesEmittedFile = {
-  path: string
-  status: FilesEmittedFileStatus
-  hashBefore?: string
-  hashAfter?: string
-  contentAfter?: string
-}
-
 export type FilesEmittedArtifact = {
   id: string
   kind: 'files-emitted'
   at: number
   payload: {
-    files: Array<FilesEmittedFile>
+    files: Array<DirSnapshotChange>
   }
 }
 
@@ -1527,6 +1661,12 @@ export type CliVersionSupportOutcome = {
   observed: string
 }
 
+export type CliAgentSpawnConfig = {
+  llmConfigId: string
+  budgetUsd?: number
+  maxDepth?: number
+}
+
 export type CliAgentPendingActionFilter = {
   runId?: string
 }
@@ -1548,7 +1688,7 @@ export type PerCliRunnerExtra = {
   }
 }
 
-export type WorkspaceSnapshot = unknown
+export type DirSnapshot = unknown
 
 export type ClaudeCodeInitMetadata = {
   sessionId?: string
@@ -1988,6 +2128,7 @@ export type CompletionRequest = {
   abortSignal?: unknown
   availableTools?: Array<string>
   numberMessagesToSend?: number
+  structuredOutput?: boolean
   historySummarization?: {
     enabled: boolean
     keepLastTurns?: number
@@ -2116,6 +2257,14 @@ export type LlmConfigsActiveState = {
   }
   recentChat?: Array<string>
   recentAgentRun?: Array<string>
+}
+
+export type CliConfigsActiveState = {
+  activeCli?: string
+  activeCliCredentialId?: string
+  enabled?: {
+    [key: string]: boolean
+  }
 }
 
 export type DataRecord = {
@@ -3665,6 +3814,125 @@ export type ReorderPayload = {
   toIndex: number
 }
 
+export type UiTarget = 'web' | 'electron'
+
+export type UiConnection = 'host' | 'sandbox' | 'cdp-remote'
+
+export type UiViewport = {
+  width: number
+  height: number
+}
+
+export type OpenWebUiSessionOptions = {
+  headless?: boolean
+  viewport?: {
+    width: number
+    height: number
+  }
+  connection?: 'host' | 'sandbox' | 'cdp-remote'
+}
+
+export type OpenElectronUiSessionOptions = {
+  args?: Array<string>
+  env?: {
+    [key: string]: string
+  }
+  connection?: 'host' | 'sandbox' | 'cdp-remote'
+}
+
+export type TypeUiOptions = {
+  clear?: boolean
+  submit?: boolean
+}
+
+export type WaitForUiOptions = {
+  text?: string
+  ref?: string
+  state?: 'visible' | 'hidden'
+  loadState?: 'load' | 'domcontentloaded' | 'networkidle'
+  timeoutMs?: number
+}
+
+export type ScreenshotUiOptions = {
+  ref?: string
+  fullPage?: boolean
+}
+
+export type UiSessionResult = {
+  sessionId: string
+  target: UiTarget
+  url?: string
+  title?: string
+}
+
+export type UiSessionInfo = {
+  sessionId: string
+  target: UiTarget
+  url?: string
+  createdAt: number
+}
+
+export type UiSnapshotResult = {
+  sessionId: string
+  ok: boolean
+  url: string
+  title: string
+  snapshot: string
+  refsCount: number
+  error?: string
+}
+
+export type UiActionResult = {
+  sessionId: string
+  ok: boolean
+  url: string
+  title: string
+  error?: string
+}
+
+export type UiScreenshotResult = {
+  sessionId: string
+  ok: boolean
+  path?: string
+  width?: number
+  height?: number
+  error?: string
+}
+
+export type UiConsoleMessage = {
+  type: string
+  text: string
+  location?: string
+}
+
+export type UiNetworkRequest = {
+  url: string
+  method: string
+  status?: number
+  ok?: boolean
+  resourceType?: string
+  failure?: string
+}
+
+export type CreateUiTestToolsOptions = {
+  headless?: boolean
+}
+
+export type RawConsoleInput = {
+  type?: string
+  text?: string
+  url?: string
+  lineNumber?: number
+}
+
+export type RawNetworkInput = {
+  url?: string
+  method?: string
+  status?: number
+  resourceType?: string
+  failure?: string
+}
+
 export type WebReadUrlsResult = {
   [key: string]: string
 }
@@ -4716,16 +4984,61 @@ export type InitializeRepoResponses = {
 
 export type InitializeRepoResponse = InitializeRepoResponses[keyof InitializeRepoResponses]
 
+export type CheckProjectGithubNameData = {
+  body?: never
+  path?: never
+  query: {
+    name: string
+  }
+  url: '/api/v1/projects/github/check-name'
+}
+
+export type CheckProjectGithubNameErrors = {
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CheckProjectGithubNameError =
+  CheckProjectGithubNameErrors[keyof CheckProjectGithubNameErrors]
+
+export type CheckProjectGithubNameResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    connected: boolean
+    login?: string
+    available?: boolean
+  }
+}
+
+export type CheckProjectGithubNameResponse =
+  CheckProjectGithubNameResponses[keyof CheckProjectGithubNameResponses]
+
 export type CreateProjectGithubRepoData = {
   body:
     | {
-        tokenId: string
+        tokenId?: string
         name: string
         private?: boolean
         projectId: string
       }
     | {
-        tokenId: string
+        tokenId?: string
         name: string
         private?: boolean
         projectMeta: {
@@ -5802,6 +6115,60 @@ export type UpdateCliAuthCacheResponses = {
 export type UpdateCliAuthCacheResponse =
   UpdateCliAuthCacheResponses[keyof UpdateCliAuthCacheResponses]
 
+export type GetActiveCliStateData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/active'
+}
+
+export type GetActiveCliStateResponses = {
+  /**
+   * Default Response
+   */
+  200: CliConfigsActiveState
+}
+
+export type GetActiveCliStateResponse = GetActiveCliStateResponses[keyof GetActiveCliStateResponses]
+
+export type SetActiveCliData = {
+  body: {
+    cli: CliTool
+    credentialId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/active'
+}
+
+export type SetActiveCliResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetActiveCliResponse = SetActiveCliResponses[keyof SetActiveCliResponses]
+
+export type SetCliEnabledData = {
+  body: {
+    cli: CliTool
+    enabled: boolean
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/enabled'
+}
+
+export type SetCliEnabledResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetCliEnabledResponse = SetCliEnabledResponses[keyof SetCliEnabledResponses]
+
 export type StartGitCredentialGithubRedirectData = {
   body: {
     scopeLabel?: string
@@ -6102,6 +6469,69 @@ export type CreateTopicChatResponses = {
 }
 
 export type CreateTopicChatResponse = CreateTopicChatResponses[keyof CreateTopicChatResponses]
+
+export type AttachChatCliRunnerData = {
+  body: {
+    context: ChatContext
+    cliRunner: ChatCliRunner
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chats/cli-runner'
+}
+
+export type AttachChatCliRunnerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AttachChatCliRunnerError = AttachChatCliRunnerErrors[keyof AttachChatCliRunnerErrors]
+
+export type AttachChatCliRunnerResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type AttachChatCliRunnerResponse =
+  AttachChatCliRunnerResponses[keyof AttachChatCliRunnerResponses]
+
+export type DetachChatCliRunnerData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/cli-runner/detach'
+}
+
+export type DetachChatCliRunnerErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DetachChatCliRunnerError = DetachChatCliRunnerErrors[keyof DetachChatCliRunnerErrors]
+
+export type DetachChatCliRunnerResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type DetachChatCliRunnerResponse =
+  DetachChatCliRunnerResponses[keyof DetachChatCliRunnerResponses]
 
 export type AddChatMessagesData = {
   body: AddMessagesInput
@@ -10839,7 +11269,7 @@ export type ListPendingCliAgentActionsResponse =
 
 export type DecideCliAgentActionData = {
   body: {
-    outcome: 'approved' | 'denied'
+    outcome: 'approved' | 'denied' | 'approved-permanent'
     metadata?: unknown
   }
   path: {
@@ -10871,6 +11301,82 @@ export type DecideCliAgentActionResponses = {
 
 export type DecideCliAgentActionResponse =
   DecideCliAgentActionResponses[keyof DecideCliAgentActionResponses]
+
+export type ListCliAgentModelsData = {
+  body?: never
+  path?: never
+  query: {
+    cli: CliTool
+  }
+  url: '/api/v1/cli-runs/probe/models'
+}
+
+export type ListCliAgentModelsErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListCliAgentModelsError = ListCliAgentModelsErrors[keyof ListCliAgentModelsErrors]
+
+export type ListCliAgentModelsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    models: Array<ModelInfo>
+  }
+}
+
+export type ListCliAgentModelsResponse =
+  ListCliAgentModelsResponses[keyof ListCliAgentModelsResponses]
+
+export type LiveCliAgentProbeData = {
+  body: {
+    cli: CliTool
+    credentialId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/probe/live'
+}
+
+export type LiveCliAgentProbeErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type LiveCliAgentProbeError = LiveCliAgentProbeErrors[keyof LiveCliAgentProbeErrors]
+
+export type LiveCliAgentProbeResponses = {
+  /**
+   * Default Response
+   */
+  200:
+    | {
+        ok: true
+        durationMs: number
+        transcriptHead: string
+      }
+    | {
+        ok: false
+        error: string
+        durationMs: number
+      }
+}
+
+export type LiveCliAgentProbeResponse = LiveCliAgentProbeResponses[keyof LiveCliAgentProbeResponses]
 
 export type GetCliAgentRunData = {
   body?: never

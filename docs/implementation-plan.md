@@ -71,6 +71,19 @@ Re-exports: append new symbols to `src/web/index.ts`, `src/native/index.ts`, `sr
 
 Doc updates: [ARCHITECTURE.md](./ARCHITECTURE.md) — diagrams for the `SpeechToTextEngine` injection seam and the runner-aware `createChatsContext` branching.
 
+### B.4 Template-creation UI journey (major)
+
+The template platform works end to end at the data layer (one shipped template — the Investment Planner — forks a real repo, seeds `.factory/`, and renders in the App tab), but the **create-from-template UX has never been built out properly**. Today the entry point is a single rocket icon in the per-client `ProjectManagerModal` (`startFromTemplate` → `from-template` mode → `TemplatePicker`), and the journey from there is thin and unverified.
+
+Build the journey as a first-class flow, shared here and surfaced per client:
+
+- **Template browser** — evolve [src/web/compound/TemplatePicker.tsx](../src/web/compound/TemplatePicker.tsx) (+ native peer) from a bare list into a real picker: card per template with name, description, difficulty/estimated-time, and a thumbnail/preview (the catalog already carries the metadata via `useTemplates`). Empty/loading/error states. The headless `TemplatesContext` (`useTemplates`) stays the single source.
+- **From-template create form** — name + recommended id (checked for collisions) + target group, then `createFromTemplate`; route into the new project's **App** tab on success, not the file tree. Surface fork progress (clone → seed → first commit can take a few seconds).
+- **Entry point** — replace the unlabelled rocket with a clear "New from template" affordance in `ProjectManagerModal` (web + desktop; add to mobile project-create if/when it exists). Verify the whole path end to end on a device, per the parity mandate.
+- **Integrate with GitHub-backed creation** — the in-flight "create project + GitHub repo" wizard work (backend `…/projects/github/create-repo` + a stored-credential reuse path + a name-availability check) should compose with the from-template flow, so a user can fork a template **into a fresh GitHub repo** in one step.
+
+Tracking note: only the Investment Planner template exists; a second (car-buyer helper) is planned, which is the real second consumer that will shake out the picker + journey.
+
 ---
 
 ## C. Deferred

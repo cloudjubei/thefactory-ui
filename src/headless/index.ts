@@ -534,6 +534,15 @@ export {
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 export { useProjectDataBridge } from './hooks/useProjectDataBridge'
+export {
+  useProjectGithubRepo,
+  sanitizeRepoName,
+  githubRepoReadiness,
+  type UseProjectGithubRepoOptions,
+  type UseProjectGithubRepoResult,
+  type GithubRepoNameStatus,
+  type GithubRepoReadiness,
+} from './hooks/useProjectGithubRepo'
 export type { ProjectDataQuery, ProjectDataPutInput, ProjectDataRef } from './api/projectData'
 
 // App↔Overseer postMessage bridge protocol (shared by the ProjectAppView

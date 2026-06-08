@@ -27,9 +27,15 @@ import type {
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
+  AttachChatCliRunnerData,
+  AttachChatCliRunnerErrors,
+  AttachChatCliRunnerResponses,
   CancelCliAuthLoginData,
   CancelCliAuthLoginErrors,
   CancelCliAuthLoginResponses,
+  CheckProjectGithubNameData,
+  CheckProjectGithubNameErrors,
+  CheckProjectGithubNameResponses,
   ClearChatData,
   ClearChatErrors,
   ClearChatResponses,
@@ -142,6 +148,9 @@ import type {
   DeleteWebSearchKeyData,
   DeleteWebSearchKeyErrors,
   DeleteWebSearchKeyResponses,
+  DetachChatCliRunnerData,
+  DetachChatCliRunnerErrors,
+  DetachChatCliRunnerResponses,
   DetectEnvironmentData,
   DetectEnvironmentErrors,
   DetectEnvironmentResponses,
@@ -154,6 +163,8 @@ import type {
   ForkCliAgentRunData,
   ForkCliAgentRunErrors,
   ForkCliAgentRunResponses,
+  GetActiveCliStateData,
+  GetActiveCliStateResponses,
   GetAllFileStatsData,
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
@@ -330,6 +341,9 @@ import type {
   InitializeRepoResponses,
   ListChatsData,
   ListChatsResponses,
+  ListCliAgentModelsData,
+  ListCliAgentModelsErrors,
+  ListCliAgentModelsResponses,
   ListCliAgentRunsData,
   ListCliAgentRunsResponses,
   ListCliAuthCachesData,
@@ -399,6 +413,9 @@ import type {
   ListWebSearchKeysData,
   ListWebSearchKeysErrors,
   ListWebSearchKeysResponses,
+  LiveCliAgentProbeData,
+  LiveCliAgentProbeErrors,
+  LiveCliAgentProbeResponses,
   MatchDocumentsData,
   MatchDocumentsErrors,
   MatchDocumentsResponses,
@@ -508,6 +525,10 @@ import type {
   SendCompletionWithToolsData,
   SendCompletionWithToolsErrors,
   SendCompletionWithToolsResponses,
+  SetActiveCliData,
+  SetActiveCliResponses,
+  SetCliEnabledData,
+  SetCliEnabledResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
   SetProjectActiveData,
@@ -812,6 +833,20 @@ export const initializeRepo = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const checkProjectGithubName = <ThrowOnError extends boolean = false>(
+  options: Options<CheckProjectGithubNameData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    CheckProjectGithubNameResponses,
+    CheckProjectGithubNameErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/github/check-name',
+    ...options,
   })
 
 export const createProjectGithubRepo = <ThrowOnError extends boolean = false>(
@@ -1268,6 +1303,42 @@ export const updateCliAuthCache = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getActiveCliState = <ThrowOnError extends boolean = false>(
+  options?: Options<GetActiveCliStateData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetActiveCliStateResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/active',
+    ...options,
+  })
+
+export const setActiveCli = <ThrowOnError extends boolean = false>(
+  options: Options<SetActiveCliData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SetActiveCliResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/active',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setCliEnabled = <ThrowOnError extends boolean = false>(
+  options: Options<SetCliEnabledData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SetCliEnabledResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/enabled',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const startGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
   options: Options<StartGitCredentialGithubRedirectData, ThrowOnError>,
 ) =>
@@ -1408,6 +1479,42 @@ export const createTopicChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/topic',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const attachChatCliRunner = <ThrowOnError extends boolean = false>(
+  options: Options<AttachChatCliRunnerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AttachChatCliRunnerResponses,
+    AttachChatCliRunnerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/cli-runner',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const detachChatCliRunner = <ThrowOnError extends boolean = false>(
+  options: Options<DetachChatCliRunnerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DetachChatCliRunnerResponses,
+    DetachChatCliRunnerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/cli-runner/detach',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2895,6 +3002,38 @@ export const decideCliAgentAction = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/actions/{actionId}/decide',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listCliAgentModels = <ThrowOnError extends boolean = false>(
+  options: Options<ListCliAgentModelsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListCliAgentModelsResponses,
+    ListCliAgentModelsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/models',
+    ...options,
+  })
+
+export const liveCliAgentProbe = <ThrowOnError extends boolean = false>(
+  options: Options<LiveCliAgentProbeData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    LiveCliAgentProbeResponses,
+    LiveCliAgentProbeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/live',
     ...options,
     headers: {
       'Content-Type': 'application/json',

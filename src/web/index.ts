@@ -566,6 +566,14 @@ export {
 // Projects-related connected components (group editor, code-info modal, editor form).
 export { default as ProjectGroupsEditor } from './compound/projects/ProjectGroupsEditor'
 export {
+  default as ProjectGithubRepoField,
+  type ProjectGithubRepoFieldProps,
+} from './compound/projects/ProjectGithubRepoField'
+export {
+  default as GithubConnectModal,
+  type GithubConnectModalProps,
+} from './compound/projects/GithubConnectModal'
+export {
   default as ProjectCodeInfoModal,
   type CodeInfoValue,
 } from './compound/projects/ProjectCodeInfoModal'

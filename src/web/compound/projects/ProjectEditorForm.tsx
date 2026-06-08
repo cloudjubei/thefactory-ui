@@ -7,6 +7,7 @@ import {
   Input,
   Modal,
   PROJECT_ICONS,
+  ProjectGithubRepoField,
   Select,
   SelectContent,
   SelectItem,
@@ -17,7 +18,7 @@ import {
   renderProjectIcon,
 } from "../.."
 import type { GetProjectResponse, UpdateProjectData } from "../../../headless/api"
-import { useGitCredentials } from "../../../headless"
+import { useGitCredentials, type UseProjectGithubRepoResult } from "../../../headless"
 import { useProjectsGroups } from "../../../headless"
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 
@@ -77,6 +78,8 @@ export type ProjectEditorFormProps = {
   formErrors: string[]
   formId: string
   onSubmit: (e: FormEvent) => void
+  /** Create-mode only: the GitHub-repo option state (from `useProjectGithubRepo`). */
+  github?: UseProjectGithubRepoResult
 }
 
 export function ProjectEditorForm({
@@ -86,6 +89,7 @@ export function ProjectEditorForm({
   formErrors,
   formId,
   onSubmit,
+  github,
 }: ProjectEditorFormProps) {
   const { credentials } = useGitCredentials()
   const { groups } = useProjectsGroups()
@@ -191,14 +195,22 @@ export function ProjectEditorForm({
         />
       </Field>
 
-      <Field label="Repository URL">
-        <Input
-          value={form.repo_url}
-          onChange={(e) => setForm((s) => ({ ...s, repo_url: e.target.value }))}
-          placeholder="https://github.com/owner/repo"
-          spellCheck={false}
-        />
-      </Field>
+      {mode === 'create' && github ? <ProjectGithubRepoField github={github} /> : null}
+
+      {mode !== 'create' || !github?.enabled ? (
+        <Field
+          label={
+            mode === 'create' ? 'Repository URL (optional — paste an existing repo)' : 'Repository URL'
+          }
+        >
+          <Input
+            value={form.repo_url}
+            onChange={(e) => setForm((s) => ({ ...s, repo_url: e.target.value }))}
+            placeholder="https://github.com/owner/repo"
+            spellCheck={false}
+          />
+        </Field>
+      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">Active Project</span>
