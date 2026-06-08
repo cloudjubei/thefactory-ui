@@ -35,7 +35,9 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
 export function formatActionLabel(kind: string): string {
   const words = kind.split(/[-_\s]+/).filter(Boolean)
   if (words.length === 0) return kind
-  return words.map((word, i) => (i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word)).join(' ')
+  return words
+    .map((word, i) => (i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+    .join(' ')
 }
 
 /** Route a UI decision to the CLI broker `decideCliAgentAction` outcome. */

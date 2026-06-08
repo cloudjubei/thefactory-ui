@@ -9,6 +9,8 @@ export type CostChipProps = {
     outputPerMTokensUSD: number
   }
   costUSD?: number
+  /** Executor that produced this cost — renders a small API/CLI pill when set. */
+  source?: 'api' | 'cli'
 }
 
 function formatUSD(n?: number) {
@@ -16,11 +18,12 @@ function formatUSD(n?: number) {
   return `$${n.toFixed(4)}`
 }
 
-export default function CostChip({ provider, model, price, costUSD }: CostChipProps) {
+export default function CostChip({ provider, model, price, costUSD, source }: CostChipProps) {
   const content = (
     <div className="text-xs">
       <div className="font-semibold mb-1">
         {provider || 'Unknown'} · {model || 'Unknown'}
+        {source ? ` · ${source.toUpperCase()}` : ''}
       </div>
       {price ? (
         <div className="space-y-0.5">
@@ -44,6 +47,13 @@ export default function CostChip({ provider, model, price, costUSD }: CostChipPr
       <span className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}>
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
         <span>{formatUSD(costUSD)}</span>
+        {source ? (
+          <span
+            className={`text-[9px] font-semibold uppercase ${source === 'cli' ? 'text-violet-500' : 'text-neutral-400'}`}
+          >
+            {source}
+          </span>
+        ) : null}
       </span>
     </Tooltip>
   )

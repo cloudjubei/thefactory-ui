@@ -12,6 +12,8 @@ export interface CostChipProps {
     outputPerMTokensUSD: number
   }
   costUSD?: number
+  /** Executor that produced this cost — renders a small API/CLI pill when set. */
+  source?: 'api' | 'cli'
 }
 
 function formatUSD(n?: number): string {
@@ -19,7 +21,7 @@ function formatUSD(n?: number): string {
   return `$${n.toFixed(4)}`
 }
 
-export default function CostChip({ provider, model, price, costUSD }: CostChipProps) {
+export default function CostChip({ provider, model, price, costUSD, source }: CostChipProps) {
   const { theme } = useNativeTheme()
   const tooltipBody = (
     <View>
@@ -61,6 +63,18 @@ export default function CostChip({ provider, model, price, costUSD }: CostChipPr
           }}
         />
         <Text style={chipPillTextStyle(theme)}>{formatUSD(costUSD)}</Text>
+        {source ? (
+          <Text
+            style={{
+              fontSize: 9,
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              color: source === 'cli' ? nativePalette.purple[500] : theme.text.muted,
+            }}
+          >
+            {source}
+          </Text>
+        ) : null}
       </View>
     </Tooltip>
   )

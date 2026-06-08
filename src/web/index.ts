@@ -240,23 +240,15 @@ export {
   type DependencyCardShape,
   type ResolvedDependency,
 } from './compound/stories'
-export {
-  default as BlockersField,
-  type BlockersFieldProps,
-} from './compound/stories/BlockersField'
-export {
-  default as ScreenErrorBoundary,
-} from './compound/shell/ScreenErrorBoundary'
+export { default as BlockersField, type BlockersFieldProps } from './compound/stories/BlockersField'
+export { default as ScreenErrorBoundary } from './compound/shell/ScreenErrorBoundary'
 export {
   default as ShellTabs,
   type ShellTabsProps,
   type TabDef as ShellTabsTabDef,
   type TabKey as ShellTabsTabKey,
 } from './compound/shell/ShellTabs'
-export {
-  default as LoadingScreen,
-  type LoadingScreenProps,
-} from './compound/shell/LoadingScreen'
+export { default as LoadingScreen, type LoadingScreenProps } from './compound/shell/LoadingScreen'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
 
 // Project timeline (Gantt) — shared types, date / item utils, grid row,
@@ -632,10 +624,7 @@ export {
 // Overseer Git surface — read-only view + settings-panel entry point.
 // Both shipped from `thefactory-ui/web` so web and desktop render the
 // same screen; the host only owns the route + back-nav wiring (`onBack`).
-export {
-  default as OverseerGitView,
-  type OverseerGitViewProps,
-} from './screens/OverseerGitView'
+export { default as OverseerGitView, type OverseerGitViewProps } from './screens/OverseerGitView'
 export {
   default as OverseerGitPanel,
   type OverseerGitPanelProps,

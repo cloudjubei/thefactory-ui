@@ -109,11 +109,7 @@ export default function ToolConfirmationModal({
                 >
                   Deny
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => void grant.decide('once')}
-                  disabled={busy}
-                >
+                <Button size="sm" onClick={() => void grant.decide('once')} disabled={busy}>
                   Allow
                 </Button>
                 {grant.source === 'cli' && (

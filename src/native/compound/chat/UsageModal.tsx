@@ -102,10 +102,7 @@ export default function UsageModal({
         {hasCurrent ? (
           <>
             <DividerWithLabel label="CURRENT" />
-            <UsageSection
-              rows={currentRows!}
-              totalCostUSD={currentTotalCostUSD ?? 0}
-            />
+            <UsageSection rows={currentRows!} totalCostUSD={currentTotalCostUSD ?? 0} />
           </>
         ) : null}
 
@@ -217,9 +214,7 @@ function DividerWithLabel({ label }: { label: string }) {
         paddingTop: nativeSpace[6],
       }}
     >
-      <View
-        style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }}
-      />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }} />
       <Text
         style={{
           fontSize: 11,
@@ -229,9 +224,7 @@ function DividerWithLabel({ label }: { label: string }) {
       >
         {label}
       </Text>
-      <View
-        style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }}
-      />
+      <View style={{ flex: 1, height: 1, backgroundColor: theme.border.subtle }} />
     </View>
   )
 }

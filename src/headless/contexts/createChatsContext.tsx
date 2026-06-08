@@ -240,7 +240,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const [chatSettings, setChatSettings] = useState<GetChatsSettingsResponse | null>(null)
     const [isLoaded, setIsLoaded] = useState(false)
     const [loadError, setLoadError] = useState<Error | null>(null)
-    const [liveStateByKey, setLiveStateByKey] = useState<Map<string, ChatLiveState>>(() => new Map())
+    const [liveStateByKey, setLiveStateByKey] = useState<Map<string, ChatLiveState>>(
+      () => new Map(),
+    )
 
     /**
      * Tracks the chat context that currently has a `sendCompletionWithTools` /
@@ -276,7 +278,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     }, [])
 
     const getChatLiveState = useCallback(
-      (ctx: ChatCtx): ChatLiveState => liveStateByKey.get(getChatContextKey(ctx)) ?? EMPTY_LIVE_STATE,
+      (ctx: ChatCtx): ChatLiveState =>
+        liveStateByKey.get(getChatContextKey(ctx)) ?? EMPTY_LIVE_STATE,
       [liveStateByKey],
     )
 

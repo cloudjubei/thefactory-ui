@@ -165,7 +165,12 @@ export default function ToolConfirmationModal({
                 </ScrollView>
               ) : null}
               <View
-                style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2], flexWrap: 'wrap' }}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  gap: nativeSpace[2],
+                  flexWrap: 'wrap',
+                }}
               >
                 <Button
                   size="sm"
@@ -243,9 +248,7 @@ export default function ToolConfirmationModal({
             <Text style={{ fontSize: 12, color: theme.accent.primary }}>Select all</Text>
           </Pressable>
           <Pressable onPress={() => setAll(false)} hitSlop={6}>
-            <Text style={{ fontSize: 12, color: theme.accent.primary }}>
-              Select none
-            </Text>
+            <Text style={{ fontSize: 12, color: theme.accent.primary }}>Select none</Text>
           </Pressable>
         </View>
 

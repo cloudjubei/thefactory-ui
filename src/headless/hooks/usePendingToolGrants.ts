@@ -8,7 +8,11 @@ import {
 import { useApi } from '../api'
 import { useChats } from '../contexts/createChatsContext'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../utils/chatTypes'
-import { apiToolCallToGrant, cliDecideOutcome, cliPendingActionToGrant } from '../utils/pendingToolGrants'
+import {
+  apiToolCallToGrant,
+  cliDecideOutcome,
+  cliPendingActionToGrant,
+} from '../utils/pendingToolGrants'
 
 export type UsePendingToolGrants = {
   /** Unified API + CLI grants awaiting a decision, in [api…, cli…] order. */
@@ -60,7 +64,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     apiToolCalls.length > 0 && apiToolCalls.every((tc) => tc.toolCallId in apiDecisions)
   useEffect(() => {
     if (!allApiDecided) return
-    const grantedIds = apiToolCalls.filter((tc) => apiDecisions[tc.toolCallId]).map((tc) => tc.toolCallId)
+    const grantedIds = apiToolCalls
+      .filter((tc) => apiDecisions[tc.toolCallId])
+      .map((tc) => tc.toolCallId)
     setApiDecisions({})
     void confirmTools(ctx, grantedIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps

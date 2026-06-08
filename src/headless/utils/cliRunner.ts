@@ -59,7 +59,9 @@ export function enabledClis(state: CliConfigsActiveState | null | undefined): st
 }
 
 /** Group CLI auth caches by their `cli` tag (caches of an unknown CLI still group under their string). */
-export function groupCachesByCli<T extends { cli: string }>(caches: readonly T[]): Record<string, T[]> {
+export function groupCachesByCli<T extends { cli: string }>(
+  caches: readonly T[],
+): Record<string, T[]> {
   const out: Record<string, T[]> = {}
   for (const cache of caches) {
     ;(out[cache.cli] ??= []).push(cache)

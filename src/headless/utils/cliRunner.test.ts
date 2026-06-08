@@ -42,7 +42,12 @@ describe('chatCliRunnerToStartRunBody', () => {
       { tool: 'codex', apiKeyCredentialId: 'llm-1' },
       { projectId: 'p1', prompt: 'go' },
     )
-    expect(body).toEqual({ projectId: 'p1', cli: 'codex', prompt: 'go', apiKeyCredentialId: 'llm-1' })
+    expect(body).toEqual({
+      projectId: 'p1',
+      cli: 'codex',
+      prompt: 'go',
+      apiKeyCredentialId: 'llm-1',
+    })
     expect('chatContextId' in body).toBe(false)
     expect('authCredentialId' in body).toBe(false)
   })

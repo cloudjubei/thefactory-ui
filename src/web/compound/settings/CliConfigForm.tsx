@@ -329,10 +329,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
         <span className="text-sm font-semibold text-(--text-primary)">Add credential</span>
         {addError && <Alert>{addError}</Alert>}
         <Field label="CLI">
-          <Select
-            value={addCli}
-            onValueChange={(v) => setAddCli(v as CliTool)}
-          >
+          <Select value={addCli} onValueChange={(v) => setAddCli(v as CliTool)}>
             <SelectTrigger>
               <SelectValue placeholder="Select CLI" />
             </SelectTrigger>

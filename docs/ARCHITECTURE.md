@@ -54,6 +54,19 @@ src/index.ts           ─── root barrel re-exports `./web` + `./headless` +
 
 The direct-`thefactory-tools` exception is deliberately narrow: pure functions, no node dependencies, and a hard "must match the backend exactly" justification. Everything else an app needs from `thefactory-tools` is routed through `thefactory-ui`'s re-export.
 
+## CLI agents: runner-aware chat dispatch
+
+A chat is **API-backed** by default and **CLI-backed** when it carries a `cliRunner` binding. The binding is persisted on the chat (`Chat.cliRunner = { tool, credentialId?, apiKeyCredentialId? }`) via `useChatCliRunner(ctx).attach/detach` → `attachChatCliRunner` / `detachChatCliRunner`.
+
+`createChatsContext.sendMessage` forks on that binding:
+
+- **API** (no `cliRunner`): append the user message, then `sendCompletionWithTools` — unchanged.
+- **CLI** (`cliRunner` set): `sendChatCompletionWithTools` with `runner: 'cli'` (the runner-aware backend route appends the message and runs the turn on the sandboxed CLI agent, persisting the reply back into the chat; progress streams on the `cli:run-update` WS topic). The composer does **not** pre-append — the route owns it.
+
+There is **no** `sendChatWithCli` route — that earlier plan name was dropped; CLI dispatch is the `runner: 'cli'` path. Two distinct runner shapes exist and must be mapped at the dispatch boundary: the chat-persisted `ChatCliRunner { tool, credentialId }` vs the dispatch `CliRunnerDispatchOptions { cli, authCredentialId }` (`tool → cli`, `credentialId → authCredentialId`) — see `headless/utils/cliRunner.ts`.
+
+The unified `usePendingToolGrants(ctx, runId?)` merges API `require_confirmation` tool-calls (resolved as a batch via `confirmTools`) and CLI gated `PendingAction`s (resolved individually via `decideCliAgentAction`) into one `PendingToolGrant[]`; only CLI grants expose `decide('permanent')` (→ `approved-permanent`). CLI configs (auth-cache CRUD, default CLI, enabled set, login streaming, probes) live in `CliConfigsContext`/`useCliConfigs`, mirroring `LLMConfigsContext`.
+
 ## Resolved decisions
 
 - **Package name:** `thefactory-ui`. Published to the public npm registry.

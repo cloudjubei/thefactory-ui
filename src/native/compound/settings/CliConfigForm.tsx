@@ -179,7 +179,9 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
 
   if (!isLoaded) {
     return (
-      <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: nativeSpace[10] }}>
+      <View
+        style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: nativeSpace[10] }}
+      >
         <Spinner label="Loading CLI agents…" />
       </View>
     )

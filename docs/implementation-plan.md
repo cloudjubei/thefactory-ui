@@ -23,6 +23,9 @@ Pieces waiting on a real second consumer or an external trigger. Don't preemptiv
 - **`DiffViewer` / `MergeConflictResolver` native peers** — stay web-only until a real RN consumer asks. The web conflict-safe-editing flow is the natural pull-forward trigger.
 - **`ToolCallCard` / `ToolCallHoverCard` native peers** — the native chat shell ships a `renderToolCall` host slot instead. Lift when a real RN consumer hits the limitation.
 - **`HistorySummarizationSettings` / `MessageSanitizationSettings` native peers** — no RN consumer yet. Write the native peers when a mobile chat-settings surface needs them; promote any logic the web + native peers would duplicate into `src/headless/` first.
+- **CLI model selection persistence (Feature 4 follow-up)** — `ModelChip`'s CLI sub-selector picks a model into local state only; `ChatCliRunner` has no `model` field, so the choice isn't durable. Add `model` to `ChatCliRunner` (thefactory-tools) → `CliRunnerDispatchOptions` → `startCliAgentRun.modelId`, regenerate, then thread it through `useChatCliRunner.attach`. Until then the CLI agent uses its own default model.
+- **Native `ModelChipConnected` CLI wiring (Feature 4 follow-up)** — the native `ModelChip` presentational peer has the CLI props, but there is no native `ModelChipConnected` in this package (native apps wire their own). The mobile app must wire the 7 CLI props via `useCliConfigs` + `useChatCliRunner`, mirroring web's `ModelChipConnected`.
+- **Per-message `CostChip` source pill (Feature 4 follow-up)** — the aggregate `bySource` split ships in `UsageModal` ("By executor"); a per-message API/CLI pill on `CostChip` needs `source` threaded onto the per-message usage shape. Add when a consumer wants per-message source attribution.
 
 ---
 
@@ -33,6 +36,7 @@ Backed by the cross-repo plan at `/Users/cloud/.claude/plans/splendid-hopping-su
 ### B.1 `GitCredentialsForm` — add "Authorize with GitHub" (Feature 1)
 
 Extend [src/web/compound/settings/GitCredentialsForm.tsx](../src/web/compound/settings/GitCredentialsForm.tsx) (and native peer) with two OAuth buttons next to the existing paste field:
+
 - **Authorize with GitHub (redirect)** — `startGitCredentialGithubRedirect` then `window.location.assign(authUrl)`. Disabled when the host can't redirect.
 - **Authorize with GitHub (device)** — `startGitCredentialGithubDevice`, show `user_code`, "Copy & open GitHub" button, poll `pollGitCredentialGithubDevice` until `authorized`.
 
@@ -44,34 +48,7 @@ New [src/headless/hooks/useSpeechToText.ts](../src/headless/hooks/useSpeechToTex
 
 Tests at `src/headless/hooks/useSpeechToText.test.ts` — stub engine drives partial/final/error paths.
 
-### B.3 CLI surface — hooks + ModelChip + settings form + permission UI (Feature 4)
-
-Headless additions:
-- [src/headless/hooks/useCliConfig.ts](../src/headless/hooks/useCliConfig.ts) + [src/headless/contexts/CliConfigsContext.tsx](../src/headless/contexts/CliConfigsContext.tsx) (mirrors `LLMConfigsContext`). Wires WS `cli:auth-login` chunks into per-loginId streams.
-- [src/headless/hooks/useChatCliRunner.ts](../src/headless/hooks/useChatCliRunner.ts) — `cliRunner?: ChatCliRunner` (undefined = API-backed); `attach` / `detach`.
-- [src/headless/contexts/createChatsContext.tsx](../src/headless/contexts/createChatsContext.tsx) — in the `sendCompletionWithTools` call site, branch on `chat.cliRunner`: present → `sendChatWithCli`; absent → existing path.
-- `usePendingToolGrants(chatKey, runId?)` — unified hook surfacing both API `require_confirmation` calls and CLI `PendingAction`s into a single `PendingToolGrant[]` shape:
-  ```ts
-  interface PendingToolGrant {
-    id: string                          // toolCallId | actionId
-    source: 'api' | 'cli'
-    label: string
-    detail?: ReactNode
-    decide(outcome: 'once' | 'permanent' | 'deny'): Promise<void>  // 'permanent' only exposed for cli
-  }
-  ```
-
-Components:
-- New [src/web/compound/settings/CliConfigForm.tsx](../src/web/compound/settings/CliConfigForm.tsx) (+ native peer): list caches grouped by CLI; per-row "Test (models)" (instant) + "Test (live)" (sandbox-boot, spinner + "may take 10–30s" banner); per-row "Default" radio; "Add credential" picker triggers `startAuthLogin` with chunked WS output; per-CLI "Enable in chip" toggle.
-- Modify [src/web/compound/ModelChip.tsx](../src/web/compound/ModelChip.tsx) (+ native): top "Use CLI" switch; sub-selector of enabled CLIs + model-list dropdown from `probeModels`; persists via `useChatCliRunner.attach`. Small "API" / "CLI" pill on the chip itself.
-- Modify [src/web/compound/chat/ToolConfirmationModal.tsx](../src/web/compound/chat/ToolConfirmationModal.tsx) (+ native): consume the new `PendingToolGrant[]` shape. Per row, when `grant.source === 'cli'`, render a third button **"Allow permanently"** alongside the existing Allow / Deny. Footer Cancel / Deny all / Allow all stays. **No new `CliPermissionModal`** — the existing surface owns both pools.
-- Modify [src/web/compound/chips/CostChip.tsx](../src/web/compound/chips/CostChip.tsx) and `UsageModal` (+ native peers): add an "API" / "CLI" pill from `LLMCostLedgerEntryContent.source`. Aggregate breakdowns per source.
-
-Re-exports: append new symbols to `src/web/index.ts`, `src/native/index.ts`, `src/headless/index.ts`.
-
-Doc updates: [ARCHITECTURE.md](./ARCHITECTURE.md) — diagrams for the `SpeechToTextEngine` injection seam and the runner-aware `createChatsContext` branching.
-
-### B.4 Template-creation UI journey (major)
+### B.3 Template-creation UI journey (major)
 
 The template platform works end to end at the data layer (one shipped template — the Investment Planner — forks a real repo, seeds `.factory/`, and renders in the App tab), but the **create-from-template UX has never been built out properly**. Today the entry point is a single rocket icon in the per-client `ProjectManagerModal` (`startFromTemplate` → `from-template` mode → `TemplatePicker`), and the journey from there is thin and unverified.
 
