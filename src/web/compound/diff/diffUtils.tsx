@@ -63,7 +63,9 @@ export type StructuredUnifiedDiffProps = {
    *  indices are into the hunk's full `lines` array. */
   lineSelection?: { hunkIndex: number; start: number; end: number } | null
   onLinePointerDown?: (hunkIndex: number, lineIndex: number) => void
-  onLinePointerEnter?: (hunkIndex: number, lineIndex: number) => void
+  /** `buttons` is the pointer's pressed-button bitmask so the host can disarm
+   *  a drag that lost its pointerup (released off-window). */
+  onLinePointerEnter?: (hunkIndex: number, lineIndex: number, buttons: number) => void
   /** Drag mode: act on the selected lines of a hunk (the morphed buttons). */
   onStageLines?: (hunkIndex: number) => void
   onUnstageLines?: (hunkIndex: number) => void
@@ -448,7 +450,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                               }
                             : undefined
                         }
-                        onPointerEnter={dragMode ? () => onLinePointerEnter?.(i, j) : undefined}
+                        onPointerEnter={
+                          dragMode ? (e) => onLinePointerEnter?.(i, j, e.buttons) : undefined
+                        }
                       >
                         {/* Row highlight — a translucent tint over the whole
                             row (gutter included) plus a left accent bar.
