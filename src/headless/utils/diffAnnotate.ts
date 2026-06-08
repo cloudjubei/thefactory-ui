@@ -53,8 +53,7 @@ export function parseUnifiedDiffAnnotated(patch: string | undefined | null): Par
     newStart: h.newStart,
     newLines: h.newLines,
     lines: h.lines.map((l) => ({
-      type:
-        l.type === 'context' ? (l.text.startsWith('\\ ') ? 'meta' : 'ctx') : l.type,
+      type: l.type === 'context' ? (l.text.startsWith('\\ ') ? 'meta' : 'ctx') : l.type,
       text: l.text,
       oldLine: l.oldLine,
       newLine: l.newLine,
@@ -272,6 +271,39 @@ export function generateSelectedPatch(
     }
   }
   return out.trimEnd() + '\n'
+}
+
+/**
+ * Build the `generateSelectedPatch` keys for a contiguous range of line rows
+ * within a single hunk — the add/del lines whose index falls in
+ * `[start, end]` (inclusive, order-independent). Context and meta lines in the
+ * range are skipped; only stageable `+`/`-` lines produce keys.
+ *
+ * Lines marked `_hidden` (whitespace-only pairs collapsed by `ignoreWhitespace`)
+ * are also skipped: they render no row, so a drag spanning the surrounding
+ * visible rows must not silently sweep them into the patch. Pass an
+ * `annotateHunks`-annotated hunk for this to take effect.
+ *
+ * Used by the web diff's drag-to-select-rows mode: the user drags across whole
+ * rows, and this turns that visual range into the line keys
+ * `generateSelectedPatch` consumes.
+ */
+export function selectionKeysForLineRange(
+  hunk: ParsedDiffHunk,
+  hunkIndex: number,
+  start: number,
+  end: number,
+): Set<string> {
+  const lo = Math.min(start, end)
+  const hi = Math.max(start, end)
+  const keys = new Set<string>()
+  for (let i = lo; i <= hi; i++) {
+    const line = hunk.lines[i]
+    if (line && !line._hidden && (line.type === 'add' || line.type === 'del')) {
+      keys.add(`${hunkIndex}:${i}`)
+    }
+  }
+  return keys
 }
 
 /** Compute the line range covered by a hunk — first to last actual line

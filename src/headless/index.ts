@@ -200,11 +200,21 @@ export {
   generateSelectedPatch,
   hunkLineRange,
   parseUnifiedDiffAnnotated,
+  selectionKeysForLineRange,
   type DiffLineMarkupSegment,
   type IntraMode,
   type ParsedDiffHunk,
   type ParsedDiffLine,
 } from './utils/diffAnnotate'
+
+// Working-tree "Local Changes" pane selection bookkeeping — shared by web +
+// desktop so fully staging/unstaging a file advances to the next file 1:1.
+export {
+  localChangesKey,
+  nextLocalChangesSelection,
+  type ChangesArea,
+  type ChangesAreaKey,
+} from './utils/localChangesSelection'
 
 // Timeline / Gantt math — buckets, column math, story+feature event reducer.
 export {
@@ -398,6 +408,10 @@ export type {
   ChatMessageLike,
   MessageUsageLike,
   PendingToolConfirmationLike,
+  PendingToolGrant,
+  PendingToolGrantData,
+  PendingToolGrantDecision,
+  PendingToolGrantSource,
   ToolCallLike,
   ToolResultLike,
   ToolResultTypeLike,
@@ -480,6 +494,21 @@ export {
   type LLMConfigsContextValue,
   type LLMConfigsProviderProps,
 } from './contexts/LLMConfigsContext'
+
+// CLI agent configs (auth-cache CRUD + active CLI/credential + per-CLI enabled
+// set + login lifecycle + model/live probes), the CLI analogue of LLMConfigs.
+export {
+  CliConfigsProvider,
+  useCliConfigs,
+  type CliConfigsContextValue,
+  type CliConfigsProviderProps,
+  type CliLiveProbeResult,
+} from './contexts/CliConfigsContext'
+
+// Per-chat CLI-runner binding (attach / detach) + the unified tool-grant queue
+// (API require_confirmation + CLI gated PendingActions) the confirmation UI renders.
+export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunner'
+export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 
 // Git credentials (HTTPS PATs / SSH keys) CRUD.
 export {

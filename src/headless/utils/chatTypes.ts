@@ -80,6 +80,25 @@ export type PendingToolConfirmationLike = {
   toolCalls: ToolCallLike[]
 }
 
+// A unified tool-grant the confirmation UI renders, sourced from either the
+// API `require_confirmation` queue (`source: 'api'`) or a CLI agent's gated
+// `PendingAction` (`source: 'cli'`). `permanent` is only valid for `'cli'`
+// grants (maps to the broker's `approved-permanent`); the API path has no
+// notion of a remembered grant.
+export type PendingToolGrantSource = 'api' | 'cli'
+export type PendingToolGrantDecision = 'once' | 'permanent' | 'deny'
+
+export type PendingToolGrantData = {
+  id: string
+  source: PendingToolGrantSource
+  label: string
+  detail?: unknown
+}
+
+export type PendingToolGrant = PendingToolGrantData & {
+  decide: (decision: PendingToolGrantDecision) => Promise<void>
+}
+
 // Per-context live state the chat shell consumes — tracks the in-flight
 // send, the partial assistant turn currently streaming, the queue of tool
 // calls awaiting confirmation, and any send error.

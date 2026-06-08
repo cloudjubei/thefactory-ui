@@ -9718,6 +9718,156 @@ export type SendCompletionWithToolsResponses = {
 export type SendCompletionWithToolsResponse =
   SendCompletionWithToolsResponses[keyof SendCompletionWithToolsResponses]
 
+export type SendChatCompletionWithToolsData = {
+  body: {
+    chatContext: ChatContext
+    llmConfig: LlmConfig
+    message: {
+      role: 'system' | 'user' | 'assistant' | 'tool'
+      content: string
+      startedAt?: string
+      completedAt?: string
+      durationMs?: number
+      files?: Array<string>
+      usage?: {
+        promptTokens: number
+        completionTokens: number
+        inputTokens?: number
+        totalTokens?: number
+        cachedReadInputTokens?: number
+        reasoningTokens?: number
+        cost?: number
+        costInput?: number
+        costOutput?: number
+      }
+      model?: {
+        model: string
+        provider: LlmProvider
+      }
+      suggestedActions?: Array<string>
+      thinking?: string
+      toolCall?: {
+        toolCallId: string
+        name: string
+        arguments?: unknown
+        providerState?: unknown
+      }
+      toolResult?: {
+        type: string
+        result: JsonValue
+        durationMs?: number
+      }
+      error?: string
+      providerState?: unknown
+    }
+    settings: CompletionSettings
+    systemPrompt?: string
+    runner?: 'api' | 'cli'
+    cliRunner?: {
+      cli: 'claude-code' | 'cursor-agent' | 'codex'
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+      workspaceHostPath?: string
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/completions/send-chat-with-tools'
+}
+
+export type SendChatCompletionWithToolsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SendChatCompletionWithToolsError =
+  SendChatCompletionWithToolsErrors[keyof SendChatCompletionWithToolsErrors]
+
+export type SendChatCompletionWithToolsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    resultType: AgentToolsResultType
+    results: Array<
+      {
+        assistantMessage: {
+          role: 'system' | 'user' | 'assistant' | 'tool'
+          content: string
+          startedAt?: string
+          completedAt?: string
+          durationMs?: number
+          files?: Array<string>
+          usage?: {
+            promptTokens: number
+            completionTokens: number
+            inputTokens?: number
+            totalTokens?: number
+            cachedReadInputTokens?: number
+            reasoningTokens?: number
+            cost?: number
+            costInput?: number
+            costOutput?: number
+          }
+          model?: {
+            model: string
+            provider: LlmProvider
+          }
+          suggestedActions?: Array<string>
+          thinking?: string
+          toolCall?: {
+            toolCallId: string
+            name: string
+            arguments?: unknown
+            providerState?: unknown
+          }
+          toolResult?: {
+            type: string
+            result: JsonValue
+            durationMs?: number
+          }
+          error?: string
+          providerState?: unknown
+        }
+        toolCalls: Array<{
+          toolCallId: string
+          name: string
+          arguments?: unknown
+          providerState?: unknown
+        }>
+      } & {
+        toolResults: {
+          resultType: AgentToolsResultType
+          results: Array<JsonValue>
+          durationMs: number
+          startedAt: string
+          completedAt: string
+        }
+        agentResponse?: unknown
+        systemPrompt?: string
+      }
+    >
+    error?: string
+  }
+}
+
+export type SendChatCompletionWithToolsResponse =
+  SendChatCompletionWithToolsResponses[keyof SendChatCompletionWithToolsResponses]
+
 export type ResumeCompletionData = {
   body: {
     request: {
@@ -10728,6 +10878,84 @@ export type PutProjectDataResponses = {
 }
 
 export type PutProjectDataResponse = PutProjectDataResponses[keyof PutProjectDataResponses]
+
+export type GetUserSettingData = {
+  body?: never
+  path: {
+    key: string
+  }
+  query?: never
+  url: '/api/v1/settings/{key}'
+}
+
+export type GetUserSettingErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetUserSettingError = GetUserSettingErrors[keyof GetUserSettingErrors]
+
+export type GetUserSettingResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value:
+      | {
+          [key: string]: JsonValue
+        }
+      | unknown
+  }
+}
+
+export type GetUserSettingResponse = GetUserSettingResponses[keyof GetUserSettingResponses]
+
+export type PutUserSettingData = {
+  body: {
+    value: {
+      [key: string]: JsonValue
+    }
+  }
+  path: {
+    key: string
+  }
+  query?: never
+  url: '/api/v1/settings/{key}'
+}
+
+export type PutUserSettingErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PutUserSettingError = PutUserSettingErrors[keyof PutUserSettingErrors]
+
+export type PutUserSettingResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value:
+      | {
+          [key: string]: JsonValue
+        }
+      | unknown
+  }
+}
+
+export type PutUserSettingResponse = PutUserSettingResponses[keyof PutUserSettingResponses]
 
 export type ListWebSearchKeysData = {
   body?: never

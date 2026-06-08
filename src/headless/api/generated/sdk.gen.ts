@@ -274,6 +274,9 @@ import type {
   GetStoryData,
   GetStoryErrors,
   GetStoryResponses,
+  GetUserSettingData,
+  GetUserSettingErrors,
+  GetUserSettingResponses,
   GitApplyPatchData,
   GitApplyPatchErrors,
   GitApplyPatchResponses,
@@ -436,6 +439,9 @@ import type {
   PutProjectDataData,
   PutProjectDataErrors,
   PutProjectDataResponses,
+  PutUserSettingData,
+  PutUserSettingErrors,
+  PutUserSettingResponses,
   RateChatData,
   RateChatErrors,
   RateChatResponses,
@@ -519,6 +525,9 @@ import type {
   SearchFilesData,
   SearchFilesErrors,
   SearchFilesResponses,
+  SendChatCompletionWithToolsData,
+  SendChatCompletionWithToolsErrors,
+  SendChatCompletionWithToolsResponses,
   SendCompletionData,
   SendCompletionErrors,
   SendCompletionResponses,
@@ -2512,6 +2521,24 @@ export const sendCompletionWithTools = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const sendChatCompletionWithTools = <ThrowOnError extends boolean = false>(
+  options: Options<SendChatCompletionWithToolsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendChatCompletionWithToolsResponses,
+    SendChatCompletionWithToolsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completions/send-chat-with-tools',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const resumeCompletion = <ThrowOnError extends boolean = false>(
   options: Options<ResumeCompletionData, ThrowOnError>,
 ) =>
@@ -2794,6 +2821,30 @@ export const putProjectData = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/data',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getUserSetting = <ThrowOnError extends boolean = false>(
+  options: Options<GetUserSettingData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetUserSettingResponses, GetUserSettingErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/settings/{key}',
+    ...options,
+  })
+
+export const putUserSetting = <ThrowOnError extends boolean = false>(
+  options: Options<PutUserSettingData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<PutUserSettingResponses, PutUserSettingErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/settings/{key}',
     ...options,
     headers: {
       'Content-Type': 'application/json',

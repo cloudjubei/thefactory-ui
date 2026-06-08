@@ -10,6 +10,7 @@ import {
   getChatsSettings,
   listChats,
   resumeCompletion,
+  sendChatCompletionWithTools,
   sendCompletionWithTools,
   updateChat,
 } from '../api'
@@ -25,6 +26,7 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
+import { chatCliRunnerToDispatchOptions } from '../utils/cliRunner'
 import { useLLMConfigs } from './LLMConfigsContext'
 import { useActiveProject } from './ProjectsContext'
 
@@ -426,12 +428,35 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         inFlightCtxRef.current = ctx
         try {
           const userMessage = buildUserMessage(trimmed, attachments)
+          const { settings, systemPrompt } = buildToolSettings(ctx)
+
+          // CLI-backed chat: the runner-aware route appends the user message and
+          // runs the turn on the sandboxed CLI agent (reply persisted back into
+          // the chat); progress streams on `cli:run-update`. Do NOT pre-append
+          // here — the route owns the append.
+          const cliRunner = getChat(ctx)?.cliRunner
+          if (cliRunner) {
+            await sendChatCompletionWithTools({
+              body: {
+                chatContext: ctx,
+                llmConfig: activeLLMConfig,
+                message: userMessage,
+                settings,
+                ...(systemPrompt ? { systemPrompt } : {}),
+                runner: 'cli',
+                cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
+              },
+              throwOnError: true,
+            })
+            await refresh()
+            return
+          }
+
           await addChatMessages({
             body: { context: ctx, messages: [userMessage] },
             throwOnError: true,
           })
 
-          const { settings, systemPrompt } = buildToolSettings(ctx)
           const priorMessages = getChat(ctx)?.messages ?? []
           const { data: result } = await sendCompletionWithTools({
             body: {

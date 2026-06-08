@@ -5,6 +5,7 @@ import {
   generateSelectedPatch,
   hunkLineRange,
   parseUnifiedDiffAnnotated,
+  selectionKeysForLineRange,
   type ParsedDiffHunk,
 } from './diffAnnotate'
 
@@ -321,5 +322,101 @@ describe('generateSelectedPatch', () => {
     // 3 old lines (alpha + bravo + charlie) / 2 new lines (alpha + charlie).
     const out = generateSelectedPatch(TWO_HUNK_PATCH, new Set(['0:1']))
     expect(out).toMatch(/@@ -1,3 \+1,2 @@/)
+  })
+})
+
+describe('selectionKeysForLineRange', () => {
+  // SAMPLE_PATCH hunk lines map to: ['ctx','ctx','del','add','ctx','ctx'] —
+  // del at index 2, add at index 3.
+  const hunk = parseUnifiedDiffAnnotated(SAMPLE_PATCH)[0]
+
+  it('returns the add/del keys inside the range, keyed by hunk index', () => {
+    expect(selectionKeysForLineRange(hunk, 0, 2, 3)).toEqual(new Set(['0:2', '0:3']))
+  })
+
+  it('uses the supplied hunk index in the keys', () => {
+    expect(selectionKeysForLineRange(hunk, 4, 2, 3)).toEqual(new Set(['4:2', '4:3']))
+  })
+
+  it('excludes context lines that fall within the range', () => {
+    // Whole-hunk range [0,5] still only yields the two changed lines.
+    expect(selectionKeysForLineRange(hunk, 0, 0, 5)).toEqual(new Set(['0:2', '0:3']))
+  })
+
+  it('returns an empty set for a context-only range', () => {
+    expect(selectionKeysForLineRange(hunk, 0, 0, 1)).toEqual(new Set())
+  })
+
+  it('selects a single changed line', () => {
+    expect(selectionKeysForLineRange(hunk, 0, 2, 2)).toEqual(new Set(['0:2']))
+  })
+
+  it('normalises a reversed range (end before start)', () => {
+    expect(selectionKeysForLineRange(hunk, 0, 3, 2)).toEqual(new Set(['0:2', '0:3']))
+  })
+
+  it('excludes the `\\ No newline` meta line from the range', () => {
+    const metaHunk = parseUnifiedDiffAnnotated(
+      [
+        '--- a/x',
+        '+++ b/x',
+        '@@ -1,1 +1,1 @@',
+        '-old',
+        '+new',
+        '\\ No newline at end of file',
+        '',
+      ].join('\n'),
+    )[0]
+    // Range covers del(0), add(1), meta(2) — only the add/del survive.
+    expect(selectionKeysForLineRange(metaHunk, 0, 0, 2)).toEqual(new Set(['0:0', '0:1']))
+  })
+
+  it('round-trips through generateSelectedPatch into a valid partial patch', () => {
+    const keys = selectionKeysForLineRange(hunk, 0, 2, 3)
+    const out = generateSelectedPatch(SAMPLE_PATCH, keys, false)
+    expect(out).toContain('@@ -1,')
+    expect(out).toContain('-const greet = "hello"')
+    expect(out).toContain('+const greet = "Hello, world"')
+  })
+
+  it('excludes lines hidden by ignoreWhitespace from a dragged range', () => {
+    // A whitespace-only del/add pair gets `_hidden` under ignoreWhitespace and
+    // renders no row — so a drag spanning the surrounding visible rows must NOT
+    // sweep those invisible lines into the patch.
+    const wsHunk = annotateHunks(
+      parseUnifiedDiffAnnotated(
+        ['--- a/x', '+++ b/x', '@@ -1,1 +1,1 @@', '-const b =  2', '+const b = 2', ''].join('\n'),
+      ),
+      { ignoreWhitespace: true },
+    )[0]
+    expect(wsHunk.lines[0]._hidden).toBe(true)
+    expect(wsHunk.lines[1]._hidden).toBe(true)
+    // Whole-range drag over both hidden lines yields nothing.
+    expect(selectionKeysForLineRange(wsHunk, 0, 0, 1)).toEqual(new Set())
+  })
+
+  it('keeps non-whitespace changes that sit beside hidden lines in range', () => {
+    // ctx(0), ws-only del(1)+add(2) hidden, real del(3)+add(4). A drag from the
+    // ctx to the real change spans the hidden pair but only the real change
+    // should be keyed.
+    const mixed = annotateHunks(
+      parseUnifiedDiffAnnotated(
+        [
+          '--- a/x',
+          '+++ b/x',
+          '@@ -1,3 +1,3 @@',
+          ' ctx',
+          '-const b =  2',
+          '+const b = 2',
+          '-const a = 1',
+          '+const a = 11',
+          '',
+        ].join('\n'),
+      ),
+      { ignoreWhitespace: true },
+    )[0]
+    expect(mixed.lines[1]._hidden).toBe(true)
+    expect(mixed.lines[2]._hidden).toBe(true)
+    expect(selectionKeysForLineRange(mixed, 0, 0, 4)).toEqual(new Set(['0:3', '0:4']))
   })
 })

@@ -384,6 +384,16 @@ export type {
   TestsResultLike,
 } from './compound/tests/types'
 
+// Project compounds
+export {
+  default as ProjectGithubRepoField,
+  type ProjectGithubRepoFieldProps,
+} from './compound/projects/ProjectGithubRepoField'
+export {
+  default as GithubConnectModal,
+  type GithubConnectModalProps,
+} from './compound/projects/GithubConnectModal'
+
 // Settings compounds
 export {
   default as GitCredentialsForm,

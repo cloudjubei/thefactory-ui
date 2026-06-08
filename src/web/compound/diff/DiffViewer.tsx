@@ -3,8 +3,10 @@ import {
   StructuredUnifiedDiff,
   type IntraMode,
   parseUnifiedDiff,
+  annotateHunks,
   generateSelectedPatch,
   generateHunkPatch,
+  selectionKeysForLineRange,
 } from './diffUtils'
 import { OptionPicker } from '../OptionPicker'
 import { PathDisplay } from '../PathDisplay'
@@ -31,6 +33,13 @@ export interface DiffViewerProps {
   /** Opens the merge-conflict resolver for this file. */
   onResolveConflict?: () => void
   /**
+   * Line-selection UX. `'checkbox'` (default) keeps the touch-friendly
+   * Select-Lines toggle + per-line checkboxes (web small-screen + mobile).
+   * `'drag'` selects whole line rows by pointer drag with the hunk buttons
+   * morphing to "Stage/Discard/Unstage Lines" (web big-screen + desktop).
+   */
+  selectionMode?: 'drag' | 'checkbox'
+  /**
    * Caller-rendered file-changes summary (e.g. `+12 -4` pills). Library doesn't
    * know about git statuses; the consumer renders whatever pill/badge fits.
    * Desktop's `GitFileChangesPills` slots in here directly.
@@ -55,17 +64,106 @@ export function DiffViewer({
   isStaged,
   isConflicted,
   onResolveConflict,
+  selectionMode = 'checkbox',
   stats,
 }: DiffViewerProps) {
   const isEditable = !!onApplyPatch
+  const dragMode = selectionMode === 'drag'
 
   const [selectable, setSelectable] = useState(false)
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
 
+  // Drag mode (pointer): a contiguous row selection within a single hunk.
+  // `anchor` is where the drag started; `focus` follows the pointer.
+  const [drag, setDrag] = useState<{ hunkIndex: number; anchor: number; focus: number } | null>(
+    null,
+  )
+  const draggingRef = useRef(false)
+
   useEffect(() => {
     setSelectedLines(new Set())
     setSelectable(false)
+    setDrag(null)
+    // A patch swap mid-drag must not leave the drag "armed" — otherwise a bare
+    // hover over the new file's rows would keep extending a phantom selection.
+    draggingRef.current = false
   }, [patch, path])
+
+  // End-of-drag is owned by a single component-lifetime listener so it can't
+  // leak on unmount and always fires — including `pointercancel` (touch/stylus
+  // interruption) and a pointer released outside the window, both of which a
+  // per-row `pointerup` would miss.
+  useEffect(() => {
+    const stop = () => {
+      draggingRef.current = false
+    }
+    window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', stop)
+    return () => {
+      window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', stop)
+    }
+  }, [])
+
+  const lineSelection = drag
+    ? {
+        hunkIndex: drag.hunkIndex,
+        start: Math.min(drag.anchor, drag.focus),
+        end: Math.max(drag.anchor, drag.focus),
+      }
+    : null
+
+  const onLinePointerDown = (hunkIndex: number, lineIndex: number) => {
+    draggingRef.current = true
+    setDrag({ hunkIndex, anchor: lineIndex, focus: lineIndex })
+  }
+
+  // Extend the selection while dragging — but only within the hunk the drag
+  // started in, so a selection is always contiguous (no cross-hunk gaps that
+  // would make a partial patch ambiguous). `buttons === 0` means the press was
+  // released without us seeing the pointerup (e.g. off-window): disarm so a
+  // subsequent bare hover doesn't keep extending.
+  const onLinePointerEnter = (hunkIndex: number, lineIndex: number, buttons: number) => {
+    if (!draggingRef.current) return
+    if (buttons === 0) {
+      draggingRef.current = false
+      return
+    }
+    setDrag((prev) => (prev && prev.hunkIndex === hunkIndex ? { ...prev, focus: lineIndex } : prev))
+  }
+
+  const lineKeysFor = (hunkIndex: number): Set<string> => {
+    if (!patch || !lineSelection || lineSelection.hunkIndex !== hunkIndex) return new Set()
+    // Annotate with the active `ignoreWS` so whitespace-only `_hidden` lines a
+    // drag visually skipped over are excluded from the generated patch.
+    const hunk = annotateHunks(parseUnifiedDiff(patch), { ignoreWhitespace: ignoreWS })[hunkIndex]
+    if (!hunk) return new Set()
+    return selectionKeysForLineRange(hunk, hunkIndex, lineSelection.start, lineSelection.end)
+  }
+
+  const handleStageLines = (hunkIndex: number) => {
+    if (!patch || !onApplyPatch) return
+    const keys = lineKeysFor(hunkIndex)
+    if (keys.size === 0) return
+    onApplyPatch(generateSelectedPatch(patch, keys, false), false)
+    setDrag(null)
+  }
+
+  const handleUnstageLines = (hunkIndex: number) => {
+    if (!patch || !onApplyPatch) return
+    const keys = lineKeysFor(hunkIndex)
+    if (keys.size === 0) return
+    onApplyPatch(generateSelectedPatch(patch, keys, true), true)
+    setDrag(null)
+  }
+
+  const handleDiscardLines = (hunkIndex: number) => {
+    if (!patch || !onDiscardPatch) return
+    const keys = lineKeysFor(hunkIndex)
+    if (keys.size === 0) return
+    onDiscardPatch(generateSelectedPatch(patch, keys, true))
+    setDrag(null)
+  }
 
   const toggleLineSelection = (hunkIndex: number, lineIndex: number) => {
     setSelectedLines((prev) => {
@@ -183,11 +281,14 @@ export function DiffViewer({
           </div>
         )}
 
-        {/* Row 3 — selection actions + Resolve Conflicts + Select Lines (only in edit mode) */}
-        {path && isEditable && (
+        {/* Row 3 — checkbox-mode selection actions + Select Lines toggle, and
+            the Resolve Conflicts button. In drag mode the line actions live on
+            the hunk headers (they morph to "Stage/Discard Lines"), so this row
+            only renders when a conflict needs resolving. */}
+        {path && isEditable && (!dragMode || isConflicted) && (
           <div className="px-2 border-t flex items-center gap-2 h-[50px] border-(--border-subtle)">
             <div className="flex items-center gap-2 flex-1">
-              {selectable && (
+              {!dragMode && selectable && (
                 <>
                   <button
                     onClick={handleApplySelection}
@@ -225,21 +326,23 @@ export function DiffViewer({
                   Resolve Conflicts
                 </button>
               )}
-              <button
-                className={`px-3 py-1 rounded text-[11px] font-medium border transition-colors ${
-                  selectable
-                    ? 'bg-(--surface-raised) border-(--border-strong) text-(--text-primary) hover:bg-(--surface-muted)'
-                    : 'bg-(--surface-raised) hover:bg-(--surface-hover) border-(--border-default) text-(--text-secondary)'
-                }`}
-                onClick={() =>
-                  setSelectable((s) => {
-                    if (s) setSelectedLines(new Set())
-                    return !s
-                  })
-                }
-              >
-                {selectable ? 'Exit Selection' : 'Select Lines'}
-              </button>
+              {!dragMode && (
+                <button
+                  className={`px-3 py-1 rounded text-[11px] font-medium border transition-colors ${
+                    selectable
+                      ? 'bg-(--surface-raised) border-(--border-strong) text-(--text-primary) hover:bg-(--surface-muted)'
+                      : 'bg-(--surface-raised) hover:bg-(--surface-hover) border-(--border-default) text-(--text-secondary)'
+                  }`}
+                  onClick={() =>
+                    setSelectable((s) => {
+                      if (s) setSelectedLines(new Set())
+                      return !s
+                    })
+                  }
+                >
+                  {selectable ? 'Exit Selection' : 'Select Lines'}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -254,7 +357,7 @@ export function DiffViewer({
               wrap={wrap}
               ignoreWhitespace={ignoreWS}
               intraline={intra}
-              selectable={selectable}
+              selectable={!dragMode && selectable}
               selectedLines={selectedLines}
               onToggleLineSelection={toggleLineSelection}
               onToggleHunkSelection={toggleHunkSelection}
@@ -263,6 +366,13 @@ export function DiffViewer({
               onStageHunk={handleStageHunk}
               onUnstageHunk={handleUnstageHunk}
               onDiscardHunk={handleDiscardHunk}
+              selectionMode={selectionMode}
+              lineSelection={lineSelection}
+              onLinePointerDown={onLinePointerDown}
+              onLinePointerEnter={onLinePointerEnter}
+              onStageLines={handleStageLines}
+              onUnstageLines={handleUnstageLines}
+              onDiscardLines={handleDiscardLines}
             />
           ) : (
             <div className="text-xs text-(--text-muted) flex items-center justify-center h-full p-4">

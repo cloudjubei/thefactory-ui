@@ -9,11 +9,12 @@ import {
   generateSelectedPatch,
   hunkLineRange as hunkLineRangeShared,
   parseUnifiedDiffAnnotated,
+  selectionKeysForLineRange,
   type IntraMode,
   type ParsedDiffHunk,
 } from '../../../headless/utils/diffAnnotate'
 
-export { generateHunkPatch, generateSelectedPatch }
+export { generateHunkPatch, generateSelectedPatch, selectionKeysForLineRange }
 export type { IntraMode }
 
 /** Local alias preserved for callers that already import `ParsedHunk` from
@@ -27,7 +28,7 @@ export function parseUnifiedDiff(patch: string): ParsedHunk[] {
 // Local aliases — the real implementations are in `headless/utils/diffAnnotate`.
 // Keep these one-liners so the rest of this file's references (and any
 // downstream importer) don't need to change at the same time.
-const annotateHunks = annotateHunksShared
+export const annotateHunks = annotateHunksShared
 const hunkLineRange = hunkLineRangeShared
 
 export type StructuredUnifiedDiffProps = {
@@ -51,6 +52,22 @@ export type StructuredUnifiedDiffProps = {
   onStageHunk?: (hunkIndex: number) => void
   onUnstageHunk?: (hunkIndex: number) => void
   onDiscardHunk?: (hunkIndex: number) => void
+  /**
+   * Line-selection UX. `'checkbox'` (default) shows per-line / per-hunk
+   * checkboxes — the touch-friendly mode used on web small-screen + mobile.
+   * `'drag'` makes each line **row** the selection unit (pointer drag across
+   * rows, single hunk, always contiguous) used on web big-screen + desktop.
+   */
+  selectionMode?: 'drag' | 'checkbox'
+  /** Drag mode: the active contiguous row selection (within one hunk). Line
+   *  indices are into the hunk's full `lines` array. */
+  lineSelection?: { hunkIndex: number; start: number; end: number } | null
+  onLinePointerDown?: (hunkIndex: number, lineIndex: number) => void
+  onLinePointerEnter?: (hunkIndex: number, lineIndex: number) => void
+  /** Drag mode: act on the selected lines of a hunk (the morphed buttons). */
+  onStageLines?: (hunkIndex: number) => void
+  onUnstageLines?: (hunkIndex: number) => void
+  onDiscardLines?: (hunkIndex: number) => void
 }
 
 type DiffLineMarkup = NonNullable<ParsedHunk['lines'][number]['_markup']>
@@ -222,7 +239,15 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onStageHunk,
     onUnstageHunk,
     onDiscardHunk,
+    selectionMode = 'checkbox',
+    lineSelection,
+    onLinePointerDown,
+    onLinePointerEnter,
+    onStageLines,
+    onUnstageLines,
+    onDiscardLines,
   } = props
+  const dragMode = selectionMode === 'drag'
 
   const hunksRaw = useMemo<ParsedHunk[]>(() => parseUnifiedDiff(patch), [patch])
   const totalRenderableLines = useMemo(
@@ -291,6 +316,28 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
           modLines.some((l) => selectedLines?.has(`${i}:${h.lines.indexOf(l)}`))
         const { start, end } = hunkLineRange(h)
 
+        // Drag mode: does this hunk own a row selection that covers at least
+        // one stageable (+/-) line? Drives the Stage/Discard "Lines" morph and
+        // the per-row highlight below. Range bounds are clamped here so the
+        // row loop can test membership cheaply.
+        const dragSelLo =
+          dragMode && lineSelection?.hunkIndex === i
+            ? Math.min(lineSelection.start, lineSelection.end)
+            : -1
+        const dragSelHi =
+          dragMode && lineSelection?.hunkIndex === i
+            ? Math.max(lineSelection.start, lineSelection.end)
+            : -1
+        const hunkHasLineSel =
+          dragSelLo >= 0 &&
+          h.lines.some(
+            (l, idx) =>
+              !l._hidden &&
+              (l.type === 'add' || l.type === 'del') &&
+              idx >= dragSelLo &&
+              idx <= dragSelHi,
+          )
+
         return (
           <div
             key={i}
@@ -317,7 +364,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
               </span>
               {/* Spacer pushes buttons to the right */}
               <div className="flex-1 min-w-0" />
-              {/* Per-hunk action buttons — always visible when isEditable, regardless of selectable */}
+              {/* Per-hunk action buttons — always visible when isEditable. In
+                  drag mode, when this hunk owns a row selection the buttons
+                  morph to operate on just the selected lines. */}
               {isEditable && (
                 <div className="flex items-center gap-1 flex-none">
                   <button
@@ -328,23 +377,33 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                     }`}
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (isStaged) {
+                      if (hunkHasLineSel) {
+                        if (isStaged) onUnstageLines?.(i)
+                        else onStageLines?.(i)
+                      } else if (isStaged) {
                         onUnstageHunk?.(i)
                       } else {
                         onStageHunk?.(i)
                       }
                     }}
                   >
-                    {isStaged ? 'Unstage Hunk' : 'Stage Hunk'}
+                    {hunkHasLineSel
+                      ? isStaged
+                        ? 'Unstage Lines'
+                        : 'Stage Lines'
+                      : isStaged
+                        ? 'Unstage Hunk'
+                        : 'Stage Hunk'}
                   </button>
                   <button
                     className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
-                      onDiscardHunk?.(i)
+                      if (hunkHasLineSel) onDiscardLines?.(i)
+                      else onDiscardHunk?.(i)
                     }}
                   >
-                    Discard Hunk
+                    {hunkHasLineSel ? 'Discard Lines' : 'Discard Hunk'}
                   </button>
                 </div>
               )}
@@ -353,90 +412,117 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
             {/* Lines body — scrolls horizontally; vertical scroll is owned by parent */}
             <div className="overflow-x-auto relative">
               <div className={wrap ? 'min-w-0' : 'min-w-max'}>
-                <div className="text-[10px] leading-relaxed divide-y divide-neutral-100 dark:divide-neutral-800/50">
-                  {h.lines
-                    .filter((l) => !l._hidden)
-                    .map((ln, j) => {
-                      if (ln.type === 'meta') return null
-                      let bgCls = ''
-                      let marker = ' '
-                      if (ln.type === 'add') {
-                        bgCls =
-                          'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                        marker = '+'
-                      } else if (ln.type === 'del') {
-                        bgCls = 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
-                        marker = '-'
-                      }
+                {/* In drag mode the whole body is `select-none` so a pointer
+                    drag highlights line rows instead of selecting text. The
+                    row index `j` is the UNFILTERED index into `h.lines` so it
+                    matches `generateSelectedPatch`'s line keys exactly. */}
+                <div
+                  className={`text-[10px] leading-relaxed divide-y divide-neutral-100 dark:divide-neutral-800/50 ${
+                    dragMode ? 'select-none' : ''
+                  }`}
+                >
+                  {h.lines.map((ln, j) => {
+                    if (ln._hidden || ln.type === 'meta') return null
+                    let bgCls = ''
+                    let marker = ' '
+                    if (ln.type === 'add') {
+                      bgCls = 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                      marker = '+'
+                    } else if (ln.type === 'del') {
+                      bgCls = 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                      marker = '-'
+                    }
 
-                      const isSelectableLine = ln.type === 'add' || ln.type === 'del'
+                    const isSelectableLine = ln.type === 'add' || ln.type === 'del'
+                    const rowSelected = dragMode && j >= dragSelLo && j <= dragSelHi
 
-                      return (
-                        <div key={j} className={`flex relative ${bgCls}`}>
-                          {/* STICKY LEFT SECTION: Checkbox (if any) + Line numbers + Marker */}
-                          <div className="sticky left-0 z-10 flex flex-none bg-inherit border-r border-neutral-200 dark:border-neutral-800 shadow-[1px_0_0_0_transparent] dark:shadow-[1px_0_0_0_transparent]">
-                            {/* Force the sticky container to match the background of the row */}
-                            <div className="absolute inset-0 bg-neutral-50/95 dark:bg-[#1a1a1a]/95 pointer-events-none -z-10" />
-                            {selectable && (
-                              <div className="w-[24px] flex-none flex items-center justify-center border-r border-neutral-200/50 dark:border-neutral-800/50">
-                                {isSelectableLine && (
-                                  <input
-                                    type="checkbox"
-                                    className="cursor-pointer"
-                                    checked={selectedLines?.has(`${i}:${j}`)}
-                                    onChange={() => onToggleLineSelection?.(i, j)}
-                                  />
-                                )}
-                              </div>
-                            )}
-                            {/* Line numbers */}
-                            <div className="w-[60px] flex-none flex text-right select-none text-neutral-400 dark:text-neutral-600 border-r border-neutral-200/50 dark:border-neutral-800/50 text-[10px]">
-                              <span className="w-1/2 pr-1">
-                                {ln.oldLine !== undefined ? ln.oldLine : ''}
-                              </span>
-                              <span className="w-1/2 pr-1">
-                                {ln.newLine !== undefined ? ln.newLine : ''}
-                              </span>
+                    return (
+                      <div
+                        key={j}
+                        className={`flex relative ${bgCls}`}
+                        onPointerDown={
+                          dragMode
+                            ? (e) => {
+                                e.preventDefault()
+                                onLinePointerDown?.(i, j)
+                              }
+                            : undefined
+                        }
+                        onPointerEnter={dragMode ? () => onLinePointerEnter?.(i, j) : undefined}
+                      >
+                        {/* Row highlight — a translucent tint over the whole
+                            row (gutter included) plus a left accent bar.
+                            `pointer-events-none` so the drag keeps working. */}
+                        {rowSelected && (
+                          <>
+                            <div className="pointer-events-none absolute inset-0 z-20 bg-sky-500/20 dark:bg-sky-400/15" />
+                            <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-0.5 bg-sky-500 dark:bg-sky-400" />
+                          </>
+                        )}
+                        {/* STICKY LEFT SECTION: Checkbox (if any) + Line numbers + Marker */}
+                        <div className="sticky left-0 z-10 flex flex-none bg-inherit border-r border-neutral-200 dark:border-neutral-800 shadow-[1px_0_0_0_transparent] dark:shadow-[1px_0_0_0_transparent]">
+                          {/* Force the sticky container to match the background of the row */}
+                          <div className="absolute inset-0 bg-neutral-50/95 dark:bg-[#1a1a1a]/95 pointer-events-none -z-10" />
+                          {selectable && (
+                            <div className="w-[24px] flex-none flex items-center justify-center border-r border-neutral-200/50 dark:border-neutral-800/50">
+                              {isSelectableLine && (
+                                <input
+                                  type="checkbox"
+                                  className="cursor-pointer"
+                                  checked={selectedLines?.has(`${i}:${j}`)}
+                                  onChange={() => onToggleLineSelection?.(i, j)}
+                                />
+                              )}
                             </div>
-
-                            <div className="w-4 flex-none text-center select-none opacity-50 text-[10px]">
-                              {marker}
-                            </div>
+                          )}
+                          {/* Line numbers */}
+                          <div className="w-[60px] flex-none flex text-right select-none text-neutral-400 dark:text-neutral-600 border-r border-neutral-200/50 dark:border-neutral-800/50 text-[10px]">
+                            <span className="w-1/2 pr-1">
+                              {ln.oldLine !== undefined ? ln.oldLine : ''}
+                            </span>
+                            <span className="w-1/2 pr-1">
+                              {ln.newLine !== undefined ? ln.newLine : ''}
+                            </span>
                           </div>
 
-                          {/* Line content */}
-                          <div
-                            className={`flex-1 min-w-0 py-0.5 pr-2 pl-2 ${wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
-                          >
-                            {ln._markup ? (
-                              <>
-                                {ln._markup.map((seg, si) =>
-                                  seg.t === 'text' ? (
-                                    <span key={si}>{seg.v}</span>
-                                  ) : seg.t === 'ins' ? (
-                                    <span
-                                      key={si}
-                                      className="bg-green-300/60 dark:bg-green-700/45 rounded-[2px] px-[1px]"
-                                    >
-                                      {seg.v}
-                                    </span>
-                                  ) : (
-                                    <span
-                                      key={si}
-                                      className="bg-red-300/55 dark:bg-red-700/45 rounded-[2px] px-[1px] line-through decoration-red-600/70 decoration-[1px]"
-                                    >
-                                      {seg.v}
-                                    </span>
-                                  ),
-                                )}
-                              </>
-                            ) : (
-                              <>{ln.text?.length ? ln.text : ' '}</>
-                            )}
+                          <div className="w-4 flex-none text-center select-none opacity-50 text-[10px]">
+                            {marker}
                           </div>
                         </div>
-                      )
-                    })}
+
+                        {/* Line content */}
+                        <div
+                          className={`flex-1 min-w-0 py-0.5 pr-2 pl-2 ${wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
+                        >
+                          {ln._markup ? (
+                            <>
+                              {ln._markup.map((seg, si) =>
+                                seg.t === 'text' ? (
+                                  <span key={si}>{seg.v}</span>
+                                ) : seg.t === 'ins' ? (
+                                  <span
+                                    key={si}
+                                    className="bg-green-300/60 dark:bg-green-700/45 rounded-[2px] px-[1px]"
+                                  >
+                                    {seg.v}
+                                  </span>
+                                ) : (
+                                  <span
+                                    key={si}
+                                    className="bg-red-300/55 dark:bg-red-700/45 rounded-[2px] px-[1px] line-through decoration-red-600/70 decoration-[1px]"
+                                  >
+                                    {seg.v}
+                                  </span>
+                                ),
+                              )}
+                            </>
+                          ) : (
+                            <>{ln.text?.length ? ln.text : ' '}</>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -446,4 +532,3 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     </div>
   )
 }
-
