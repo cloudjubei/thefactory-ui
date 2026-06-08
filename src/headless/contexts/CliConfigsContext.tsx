@@ -19,11 +19,20 @@ import {
   type ModelInfo,
 } from '../api/generated'
 import { useApi, useAuth } from '../api'
-import { enabledClis as deriveEnabledClis, groupCachesByCli } from '../utils/cliRunner'
+import {
+  enabledClis as deriveEnabledClis,
+  groupCachesByCli,
+  parseCliAuthLoginEvent,
+} from '../utils/cliRunner'
 
 export type CliLiveProbeResult =
   | { ok: true; durationMs: number; transcriptHead: string }
   | { ok: false; error: string; durationMs: number }
+
+/** Terminal outcome of an auth-login, keyed by loginId — lets a form leave the streaming pane. */
+export type CliAuthLoginResult =
+  | { status: 'completed'; credentialId: string }
+  | { status: 'error'; error: string }
 
 export type CliConfigsContextValue = {
   isLoaded: boolean
@@ -45,25 +54,12 @@ export type CliConfigsContextValue = {
   cancelAuthLogin: (loginId: string) => Promise<void>
   /** Accumulated login-subprocess output keyed by loginId (fed by the `cli:auth-login` WS). */
   loginOutput: Record<string, string>
+  /** Terminal login outcomes keyed by loginId — present once a login completes or errors. */
+  loginResults: Record<string, CliAuthLoginResult>
   refresh: () => Promise<void>
 }
 
 const CliConfigsContext = createContext<CliConfigsContextValue | null>(null)
-
-function extractLoginChunk(data: unknown): { loginId: string; text: string } | null {
-  if (!data || typeof data !== 'object') return null
-  const record = data as Record<string, unknown>
-  const loginId = typeof record.loginId === 'string' ? record.loginId : null
-  if (!loginId) return null
-  const event = record.event
-  const text =
-    typeof event === 'string'
-      ? event
-      : event && typeof event === 'object'
-        ? JSON.stringify(event)
-        : ''
-  return { loginId, text }
-}
 
 export type CliConfigsProviderProps = {
   children: ReactNode
@@ -77,6 +73,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [loginOutput, setLoginOutput] = useState<Record<string, string>>({})
+  const [loginResults, setLoginResults] = useState<Record<string, CliAuthLoginResult>>({})
 
   const refresh = useCallback(async () => {
     try {
@@ -102,14 +99,34 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   useEffect(
     () =>
       ws.on('cli:auth-login', (data) => {
-        const chunk = extractLoginChunk(data)
-        if (!chunk) return
+        const parsed = parseCliAuthLoginEvent(data)
+        if (!parsed) return
+        if (parsed.kind === 'chunk') {
+          // The chunk already carries the subprocess's own newlines — append verbatim.
+          setLoginOutput((prev) => ({
+            ...prev,
+            [parsed.loginId]: (prev[parsed.loginId] ?? '') + parsed.text,
+          }))
+          return
+        }
+        if (parsed.kind === 'completed') {
+          setLoginResults((prev) => ({
+            ...prev,
+            [parsed.loginId]: { status: 'completed', credentialId: parsed.credentialId },
+          }))
+          void refresh()
+          return
+        }
         setLoginOutput((prev) => ({
           ...prev,
-          [chunk.loginId]: (prev[chunk.loginId] ?? '') + chunk.text + '\n',
+          [parsed.loginId]: (prev[parsed.loginId] ?? '') + parsed.error + '\n',
+        }))
+        setLoginResults((prev) => ({
+          ...prev,
+          [parsed.loginId]: { status: 'error', error: parsed.error },
         }))
       }),
-    [ws],
+    [ws, refresh],
   )
 
   const createCache = useCallback(
@@ -196,6 +213,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       startAuthLogin,
       cancelAuthLogin,
       loginOutput,
+      loginResults,
       refresh,
     }),
     [
@@ -215,6 +233,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       startAuthLogin,
       cancelAuthLogin,
       loginOutput,
+      loginResults,
       refresh,
     ],
   )

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
@@ -79,6 +79,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     startAuthLogin,
     cancelAuthLogin,
     loginOutput,
+    loginResults,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
@@ -91,6 +92,22 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
   const [authStarting, setAuthStarting] = useState(false)
   const [loginId, setLoginId] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
+  const [addSuccess, setAddSuccess] = useState<string | null>(null)
+
+  // Leave the streaming pane as soon as the active login reaches a terminal
+  // outcome: success closes it (the new credential is already refreshed in),
+  // an error surfaces inline and returns to the Authorize button.
+  const activeResult = loginId ? loginResults[loginId] : undefined
+  useEffect(() => {
+    if (!loginId || !activeResult) return
+    if (activeResult.status === 'completed') {
+      setAddSuccess(`Authorized ${cliLabel(addCli)}.`)
+      setAddLabel('')
+    } else {
+      setAddError(activeResult.error)
+    }
+    setLoginId(null)
+  }, [loginId, activeResult, addCli])
 
   const cliGroups = useMemo(
     () => Object.entries(cachesByCli).sort(([a], [b]) => a.localeCompare(b)),
@@ -144,6 +161,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     if (authStarting || loginId) return
     setAuthStarting(true)
     setAddError(null)
+    setAddSuccess(null)
     try {
       const id = await startAuthLogin(addCli, addLabel.trim() || cliLabel(addCli))
       setLoginId(id)
@@ -328,6 +346,12 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
       <div className="flex flex-col gap-3 rounded-md border border-(--border-default) p-3">
         <span className="text-sm font-semibold text-(--text-primary)">Add credential</span>
         {addError && <Alert>{addError}</Alert>}
+        {addSuccess && (
+          <div className="flex items-center gap-2 rounded bg-(--surface-muted) px-2 py-1.5 text-xs text-(--text-primary)">
+            <IconCheck className="w-3.5 h-3.5" />
+            {addSuccess}
+          </div>
+        )}
         <Field label="CLI">
           <Select value={addCli} onValueChange={(v) => setAddCli(v as CliTool)}>
             <SelectTrigger>

@@ -58,6 +58,48 @@ export function enabledClis(state: CliConfigsActiveState | null | undefined): st
   return Object.keys(enabled).filter((key) => enabled[key])
 }
 
+/** A `cli:auth-login` WS payload parsed into a UI-ready, typed shape. */
+export type CliAuthLoginParsed =
+  | { loginId: string; kind: 'chunk'; text: string }
+  | { loginId: string; kind: 'completed'; credentialId: string }
+  | { loginId: string; kind: 'error'; error: string }
+
+/**
+ * Parse a `cli:auth-login` WS payload (`{ loginId, type, event }`) into a typed
+ * result, or null for unrelated/malformed traffic. The inner `event` is the
+ * typed body — `{ chunk }`, `{ credentialId }`, or `{ error }` — NOT something
+ * to stringify: doing so surfaced raw JSON (`{"loginId":...,"chunk":...}`) in
+ * the login pane instead of the chunk text.
+ */
+export function parseCliAuthLoginEvent(data: unknown): CliAuthLoginParsed | null {
+  if (!data || typeof data !== 'object') return null
+  const record = data as Record<string, unknown>
+  const loginId = typeof record.loginId === 'string' ? record.loginId : null
+  if (!loginId) return null
+  const event = (typeof record.event === 'object' && record.event ? record.event : {}) as Record<
+    string,
+    unknown
+  >
+  switch (record.type) {
+    case 'chunk':
+      return { loginId, kind: 'chunk', text: typeof event.chunk === 'string' ? event.chunk : '' }
+    case 'completed':
+      return {
+        loginId,
+        kind: 'completed',
+        credentialId: typeof event.credentialId === 'string' ? event.credentialId : '',
+      }
+    case 'error':
+      return {
+        loginId,
+        kind: 'error',
+        error: typeof event.error === 'string' ? event.error : 'Login failed',
+      }
+    default:
+      return null
+  }
+}
+
 /** Group CLI auth caches by their `cli` tag (caches of an unknown CLI still group under their string). */
 export function groupCachesByCli<T extends { cli: string }>(
   caches: readonly T[],

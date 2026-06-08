@@ -509,6 +509,7 @@ export {
   type CliConfigsContextValue,
   type CliConfigsProviderProps,
   type CliLiveProbeResult,
+  type CliAuthLoginResult,
 } from './contexts/CliConfigsContext'
 
 // Per-chat CLI-runner binding (attach / detach) + the unified tool-grant queue

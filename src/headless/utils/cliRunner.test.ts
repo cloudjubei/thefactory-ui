@@ -4,6 +4,7 @@ import {
   chatCliRunnerToStartRunBody,
   enabledClis,
   groupCachesByCli,
+  parseCliAuthLoginEvent,
 } from './cliRunner'
 
 describe('chatCliRunnerToDispatchOptions', () => {
@@ -94,5 +95,44 @@ describe('groupCachesByCli', () => {
 
   it('returns {} for no caches', () => {
     expect(groupCachesByCli([])).toEqual({})
+  })
+})
+
+describe('parseCliAuthLoginEvent', () => {
+  it('extracts the chunk text from a chunk event (not the raw JSON envelope)', () => {
+    expect(
+      parseCliAuthLoginEvent({
+        loginId: 'login_1',
+        type: 'chunk',
+        event: { loginId: 'login_1', chunk: 'Starting login process...\n' },
+      }),
+    ).toEqual({ loginId: 'login_1', kind: 'chunk', text: 'Starting login process...\n' })
+  })
+
+  it('extracts the credentialId from a completed event', () => {
+    expect(
+      parseCliAuthLoginEvent({
+        loginId: 'login_1',
+        type: 'completed',
+        event: { loginId: 'login_1', credentialId: 'cred-9' },
+      }),
+    ).toEqual({ loginId: 'login_1', kind: 'completed', credentialId: 'cred-9' })
+  })
+
+  it('extracts the error message from an error event', () => {
+    expect(
+      parseCliAuthLoginEvent({
+        loginId: 'login_1',
+        type: 'error',
+        event: { loginId: 'login_1', error: "cursor-agent login exited with code 1" },
+      }),
+    ).toEqual({ loginId: 'login_1', kind: 'error', error: 'cursor-agent login exited with code 1' })
+  })
+
+  it('returns null for a payload without a loginId, an unknown type, or a non-object', () => {
+    expect(parseCliAuthLoginEvent({ type: 'chunk', event: { chunk: 'x' } })).toBeNull()
+    expect(parseCliAuthLoginEvent({ loginId: 'l', type: 'mystery', event: {} })).toBeNull()
+    expect(parseCliAuthLoginEvent('nope')).toBeNull()
+    expect(parseCliAuthLoginEvent(null)).toBeNull()
   })
 })

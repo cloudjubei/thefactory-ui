@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliTool, ModelInfo } from '../../../headless/api'
@@ -86,6 +86,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     startAuthLogin,
     cancelAuthLogin,
     loginOutput,
+    loginResults,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
@@ -98,6 +99,22 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
   const [authStarting, setAuthStarting] = useState(false)
   const [loginId, setLoginId] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
+  const [addSuccess, setAddSuccess] = useState<string | null>(null)
+
+  // Leave the streaming pane as soon as the active login reaches a terminal
+  // outcome: success closes it (the new credential is already refreshed in),
+  // an error surfaces inline and returns to the Authorize button.
+  const activeResult = loginId ? loginResults[loginId] : undefined
+  useEffect(() => {
+    if (!loginId || !activeResult) return
+    if (activeResult.status === 'completed') {
+      setAddSuccess(`Authorized ${cliLabel(addCli)}.`)
+      setAddLabel('')
+    } else {
+      setAddError(activeResult.error)
+    }
+    setLoginId(null)
+  }, [loginId, activeResult, addCli])
 
   const cliGroups = useMemo(
     () => Object.entries(cachesByCli).sort(([a], [b]) => a.localeCompare(b)),
@@ -151,6 +168,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     if (authStarting || loginId) return
     setAuthStarting(true)
     setAddError(null)
+    setAddSuccess(null)
     try {
       const id = await startAuthLogin(addCli, addLabel.trim() || cliLabel(addCli))
       setLoginId(id)
@@ -444,6 +462,19 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
           Add credential
         </Text>
         {addError ? <Alert variant="error">{addError}</Alert> : null}
+        {addSuccess ? (
+          <View
+            style={{
+              ...mutedBlock,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: nativeSpace[3],
+            }}
+          >
+            <IconCheck size={14} color={theme.text.primary} />
+            <Text style={{ fontSize: 12, color: theme.text.primary }}>{addSuccess}</Text>
+          </View>
+        ) : null}
         <Field label="CLI">
           <Select value={addCli} onValueChange={(v) => setAddCli(v as CliTool)}>
             <SelectTrigger>
