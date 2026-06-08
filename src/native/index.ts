@@ -406,6 +406,10 @@ export {
   type LLMConfigFormProps,
 } from './compound/settings/LLMConfigForm'
 export {
+  default as CliConfigForm,
+  type CliConfigFormProps,
+} from './compound/settings/CliConfigForm'
+export {
   default as LLMProviderIcon,
   LLM_PROVIDER_STYLES,
   type LLMProviderIconProps,

@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import type { ModelInfo } from '../../headless/api'
 import type { UsageModalModelPrice } from './UsageModal'
 
 export type ModelChipConfig = {
@@ -24,6 +25,20 @@ export type ModelChipProps = {
   onPick: (id: string) => void
   onOpenSettings: () => void
   getPrice: (provider: string, model: string) => Promise<UsageModalModelPrice | undefined>
+  /** When defined, surfaces the API/CLI toggle in the picker. `true` ⇒ chat is CLI-backed. */
+  useCli?: boolean
+  /** Flip the chat between API-backed (`false`) and CLI-backed (`true`). */
+  onToggleUseCli?: (next: boolean) => void
+  /** CLI tools the host has enabled; rendered as the CLI sub-selector. */
+  enabledClis?: string[]
+  /** The currently-selected CLI tool when `useCli` is true. */
+  activeCli?: string | null
+  /** Select which enabled CLI backs the chat. */
+  onPickCli?: (cli: string) => void
+  /** Models reported by the active CLI; rendered as the CLI model dropdown. */
+  cliModels?: ModelInfo[]
+  /** Select which CLI model backs the chat. */
+  onPickCliModel?: (modelId: string) => void
 }
 
 function providerLabel(p?: string) {
@@ -71,6 +86,16 @@ function providerDotClasses(p?: string) {
     default:
       return 'bg-pink-500'
   }
+}
+
+function cliLabel(cli?: string | null) {
+  if (!cli) return ''
+  const map: Record<string, string> = {
+    'claude-code': 'Claude Code',
+    'cursor-agent': 'Cursor',
+    codex: 'Codex',
+  }
+  return map[cli] || cli
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -154,6 +179,14 @@ function Picker({
   recents,
   onOpenSettings,
   getPrice,
+  useCli,
+  onToggleUseCli,
+  enabledClis,
+  activeCli,
+  onPickCli,
+  cliModels,
+  selectedCliModelId,
+  onPickCliModel,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -162,6 +195,14 @@ function Picker({
   recents: ModelChipConfig[]
   onOpenSettings: () => void
   getPrice: (provider: string, model: string) => Promise<UsageModalModelPrice | undefined>
+  useCli?: boolean
+  onToggleUseCli?: (next: boolean) => void
+  enabledClis?: string[]
+  activeCli?: string | null
+  onPickCli?: (cli: string) => void
+  cliModels?: ModelInfo[]
+  selectedCliModelId?: string
+  onPickCliModel?: (modelId: string) => void
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -249,6 +290,7 @@ function Picker({
         onClose()
         return
       }
+      if (useCli) return
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault()
         setActiveIndex((i) => (i + 1) % Math.max(1, recents.length + 1))
@@ -273,7 +315,7 @@ function Picker({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [activeIndex, onClose, recents, onPickConfigId, onOpenSettings])
+  }, [activeIndex, onClose, recents, onPickConfigId, onOpenSettings, useCli])
 
   if (!coords) return null
 
@@ -297,59 +339,171 @@ function Picker({
         e.preventDefault()
       }}
     >
-      {recents.map((cfg, i) => {
-        const isActive = cfg.id === selectedConfigId
-        const dot = providerDotClasses(cfg.provider)
-        const priceKey = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : undefined
-        const p = priceKey ? pricesByKey[priceKey] : undefined
-        const inStr = p ? formatUSD(p.inputPerMTokensUSD) : '?'
-        const outStr = p ? formatUSD(p.outputPerMTokensUSD) : '?'
-        const cacheStr =
-          p && p.cacheReadInputPerMTokensUSD != null
-            ? formatUSD(p.cacheReadInputPerMTokensUSD)
-            : '?'
-
-        return (
+      {onToggleUseCli && (
+        <div className="flex items-center gap-1 px-2 pt-1 pb-2" role="group" aria-label="Backend">
           <button
-            key={cfg.id}
-            role="menuitemradio"
-            aria-checked={isActive}
+            type="button"
+            role="radio"
+            aria-checked={!useCli}
+            className={[
+              'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
+              !useCli
+                ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
+            ].join(' ')}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (useCli) onToggleUseCli(false)
+            }}
+          >
+            API
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!!useCli}
+            className={[
+              'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
+              useCli
+                ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
+            ].join(' ')}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!useCli) onToggleUseCli(true)
+            }}
+          >
+            CLI
+          </button>
+        </div>
+      )}
+      {useCli && (
+        <div className="flex flex-col">
+          {(enabledClis ?? []).map((cli) => {
+            const isActive = cli === activeCli
+            return (
+              <button
+                key={cli}
+                type="button"
+                role="menuitemradio"
+                aria-checked={isActive}
+                className="standard-picker__item"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onPickCli?.(cli)
+                }}
+              >
+                <span
+                  className={[
+                    'inline-block w-1.5 h-1.5 rounded-full mr-2',
+                    isActive ? 'bg-teal-500' : 'bg-neutral-400',
+                  ].join(' ')}
+                  aria-hidden
+                />
+                <span className="standard-picker__label truncate text-[12px] font-medium">
+                  {cliLabel(cli)}
+                </span>
+              </button>
+            )
+          })}
+          {(enabledClis ?? []).length === 0 && (
+            <div className="px-3 py-2 text-[11px] text-[var(--text-secondary)]">
+              No CLI agents enabled.
+            </div>
+          )}
+          <div className="px-2 pt-2 pb-1">
+            <label className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
+              Model
+            </label>
+            <select
+              className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-overlay)] px-2 py-1 text-[12px] text-[var(--text-primary)]"
+              value={selectedCliModelId ?? ''}
+              disabled={!cliModels || cliModels.length === 0}
+              onChange={(e) => {
+                e.stopPropagation()
+                if (e.target.value) onPickCliModel?.(e.target.value)
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="" disabled>
+                {cliModels && cliModels.length > 0 ? 'Select a model…' : 'No models reported'}
+              </option>
+              {(cliModels ?? []).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            role="menuitem"
             className="standard-picker__item"
             onClick={(e) => {
               e.stopPropagation()
-              onPickConfigId(cfg.id)
+              onOpenSettings()
               onClose()
             }}
-            onMouseEnter={() => setActiveIndex(i)}
           >
-            <span
-              className={['inline-block w-1.5 h-1.5 rounded-full mr-2', dot].join(' ')}
-              aria-hidden
-            />
-            <span className="standard-picker__label flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-[12px] font-medium">{cfg.name || 'Untitled'}</span>
-              <span className="truncate text-[11px] text-[var(--text-secondary)]">
-                {cfg.model || '—'}
-              </span>
-              <span className="truncate text-[10px] text-[var(--text-secondary)]">
-                In {inStr} · Out {outStr} · Cache {cacheStr}
-              </span>
-            </span>
+            <span className="standard-picker__label">Manage CLI agents…</span>
           </button>
-        )
-      })}
-      <button
-        role="menuitem"
-        className="standard-picker__item"
-        onClick={(e) => {
-          e.stopPropagation()
-          onOpenSettings()
-          onClose()
-        }}
-        onMouseEnter={() => setActiveIndex(recents.length)}
-      >
-        <span className="standard-picker__label">Manage LLM Configurations…</span>
-      </button>
+        </div>
+      )}
+      {!useCli &&
+        recents.map((cfg, i) => {
+          const isActive = cfg.id === selectedConfigId
+          const dot = providerDotClasses(cfg.provider)
+          const priceKey = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : undefined
+          const p = priceKey ? pricesByKey[priceKey] : undefined
+          const inStr = p ? formatUSD(p.inputPerMTokensUSD) : '?'
+          const outStr = p ? formatUSD(p.outputPerMTokensUSD) : '?'
+          const cacheStr =
+            p && p.cacheReadInputPerMTokensUSD != null
+              ? formatUSD(p.cacheReadInputPerMTokensUSD)
+              : '?'
+
+          return (
+            <button
+              key={cfg.id}
+              role="menuitemradio"
+              aria-checked={isActive}
+              className="standard-picker__item"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPickConfigId(cfg.id)
+                onClose()
+              }}
+              onMouseEnter={() => setActiveIndex(i)}
+            >
+              <span
+                className={['inline-block w-1.5 h-1.5 rounded-full mr-2', dot].join(' ')}
+                aria-hidden
+              />
+              <span className="standard-picker__label flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-[12px] font-medium">{cfg.name || 'Untitled'}</span>
+                <span className="truncate text-[11px] text-[var(--text-secondary)]">
+                  {cfg.model || '—'}
+                </span>
+                <span className="truncate text-[10px] text-[var(--text-secondary)]">
+                  In {inStr} · Out {outStr} · Cache {cacheStr}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      {!useCli && (
+        <button
+          role="menuitem"
+          className="standard-picker__item"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpenSettings()
+            onClose()
+          }}
+          onMouseEnter={() => setActiveIndex(recents.length)}
+        >
+          <span className="standard-picker__label">Manage LLM Configurations…</span>
+        </button>
+      )}
     </div>,
     document.body,
   )
@@ -367,9 +521,18 @@ export function ModelChip({
   onPick,
   onOpenSettings,
   getPrice,
+  useCli,
+  onToggleUseCli,
+  enabledClis,
+  activeCli,
+  onPickCli,
+  cliModels,
+  onPickCliModel,
 }: ModelChipProps) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
+
+  const cliEnabled = onToggleUseCli != null
 
   let prov = providerLabel(provider)
   let displayModel = model
@@ -377,6 +540,12 @@ export function ModelChip({
   if ((!prov || !displayModel) && activeConfig) {
     prov = providerLabel(activeConfig.provider)
     displayModel = activeConfig.model
+  }
+
+  if (useCli) {
+    prov = cliLabel(activeCli)
+    const activeModel = cliModels?.find((m) => m.id === model)
+    displayModel = activeModel?.label ?? model
   }
 
   const parts = useMemo(
@@ -426,11 +595,23 @@ export function ModelChip({
         e.stopPropagation()
       }}
     >
+      {cliEnabled && (
+        <span
+          className={[
+            'shrink-0 rounded-sm px-1 text-[9px] font-semibold uppercase tracking-wide',
+            useCli
+              ? 'bg-violet-500/20 text-violet-700 dark:text-violet-300'
+              : 'bg-neutral-500/15 text-neutral-600 dark:text-neutral-300',
+          ].join(' ')}
+        >
+          {useCli ? 'CLI' : 'API'}
+        </span>
+      )}
       <span
         aria-hidden
         className={[
           'inline-block w-1.5 h-1.5 shrink-0 rounded-full',
-          providerDotClasses(activeConfig?.provider),
+          useCli ? 'bg-violet-500' : providerDotClasses(activeConfig?.provider),
         ].join(' ')}
       />
       <span className="flex flex-col leading-tight max-w-[60px] items-center pr-1 pl-1 overflow-hidden text-ellipsis">
@@ -458,6 +639,14 @@ export function ModelChip({
           recents={recents}
           onOpenSettings={onOpenSettings}
           getPrice={getPrice}
+          useCli={useCli}
+          onToggleUseCli={onToggleUseCli}
+          enabledClis={enabledClis}
+          activeCli={activeCli}
+          onPickCli={onPickCli}
+          cliModels={cliModels}
+          selectedCliModelId={model}
+          onPickCliModel={onPickCliModel}
         />
       )}
     </>

@@ -93,3 +93,11 @@ Tracking note: only the Investment Planner template exists; a second (car-buyer 
 Vitest here runs in `environment: 'node'` with no React renderer, so context providers and hooks (e.g. `OverseerGitContext`, `GitContext`) have no co-located tests — consumers carry the only coverage. Add `jsdom` + `@testing-library/react` (+ `@testing-library/jest-dom`) as dev deps, switch the relevant tests to a jsdom environment (per-file `// @vitest-environment jsdom` or a second vitest project), then add provider/hook tests starting with `src/headless/contexts/OverseerGitContext.tsx` (mount → asserts the `overseer:git-status-changed` WS subscription drives a refresh, and `fetchCommitDiff` delegates with body+signal) and backfill `GitContext`.
 
 Deferred because it's test-infra setup, not a feature blocker — the contexts are exercised through the client apps today. No external trigger; pick up when touching this area or when a context regression slips through.
+
+### C.2 Template-app localisation (translation)
+
+The layered app-settings primitive already stores a `language` per user (the `settings.*` bridge → user-global default + per-app override; see the Car Finder `locale.js`). Currency, number, date/time and measurement-unit formatting all honour the resolved locale today, but **`language` is stored and never used to translate UI strings** — every template app stays English regardless.
+
+The deferred task is the actual i18n pass: give template apps a string catalogue keyed by `language`, fall back to English for missing keys, and re-render on a settings change. Decide the mechanism (a tiny per-template `i18n.js` dictionary vs. a shared catalogue format) when picking it up; it should compose with the existing `resolveLayers` output so a per-app language override Just Works.
+
+Deferred deliberately — the user asked to ship the locale/region machinery now and keep all in-app text English. No trigger yet; pick up when a template needs to ship in a non-English market.

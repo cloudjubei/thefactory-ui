@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import type { ModelInfo } from '../../headless/api'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -32,6 +33,20 @@ export interface ModelChipProps {
   onPick: (id: string) => void
   onOpenSettings: () => void
   getPrice: (provider: string, model: string) => Promise<ModelPriceRecord | undefined>
+  /** When defined, surfaces the API/CLI toggle in the picker. `true` ⇒ chat is CLI-backed. */
+  useCli?: boolean
+  /** Flip the chat between API-backed (`false`) and CLI-backed (`true`). */
+  onToggleUseCli?: (next: boolean) => void
+  /** CLI tools the host has enabled; rendered as the CLI sub-selector. */
+  enabledClis?: string[]
+  /** The currently-selected CLI tool when `useCli` is true. */
+  activeCli?: string | null
+  /** Select which enabled CLI backs the chat. */
+  onPickCli?: (cli: string) => void
+  /** Models reported by the active CLI; rendered as the CLI model dropdown. */
+  cliModels?: ModelInfo[]
+  /** Select which CLI model backs the chat. */
+  onPickCliModel?: (modelId: string) => void
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -62,9 +77,20 @@ const PROVIDER_DOTS: Record<string, string> = {
   custom: nativePalette.purple[500],
 }
 
+const CLI_LABELS: Record<string, string> = {
+  'claude-code': 'Claude Code',
+  'cursor-agent': 'Cursor',
+  codex: 'Codex',
+}
+
 function providerLabel(p?: string): string {
   if (!p) return ''
   return PROVIDER_LABELS[p.toLowerCase()] ?? p
+}
+
+function cliLabel(cli?: string | null): string {
+  if (!cli) return ''
+  return CLI_LABELS[cli] ?? cli
 }
 
 function providerDot(p?: string): string {
@@ -155,6 +181,13 @@ export function ModelChip({
   onPick,
   onOpenSettings,
   getPrice,
+  useCli,
+  onToggleUseCli,
+  enabledClis,
+  activeCli,
+  onPickCli,
+  cliModels,
+  onPickCliModel,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -162,11 +195,17 @@ export function ModelChip({
     Record<string, ModelPriceRecord | null | undefined>
   >({})
 
+  const cliEnabled = onToggleUseCli != null
+
   let prov = providerLabel(provider)
   let displayModel = model
   if ((!prov || !displayModel) && activeConfig) {
     prov = providerLabel(activeConfig.provider)
     displayModel = activeConfig.model
+  }
+  if (useCli) {
+    prov = cliLabel(activeCli)
+    displayModel = cliModels?.find((m) => m.id === model)?.label ?? model
   }
 
   const label = useMemo(
@@ -243,7 +282,35 @@ export function ModelChip({
         backgroundColor: isChatMode ? nativePalette.teal[100] : theme.surface.muted,
       }}
     >
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor }} />
+      {cliEnabled && (
+        <View
+          style={{
+            paddingHorizontal: nativeSpace[2],
+            paddingVertical: 1,
+            borderRadius: nativeRadii[1],
+            backgroundColor: useCli ? `${nativePalette.purple[500]}33` : theme.surface.hover,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 8,
+              fontWeight: '700',
+              letterSpacing: 0.5,
+              color: useCli ? nativePalette.purple[500] : theme.text.secondary,
+            }}
+          >
+            {useCli ? 'CLI' : 'API'}
+          </Text>
+        </View>
+      )}
+      <View
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: useCli ? nativePalette.purple[500] : dotColor,
+        }}
+      />
       <View style={{ alignItems: 'center' }}>
         <Text
           numberOfLines={1}
@@ -291,46 +358,243 @@ export function ModelChip({
       {chip}
       <BottomSheet isOpen={open} onClose={() => setOpen(false)} title="Select model">
         <View style={{ paddingBottom: nativeSpace[3] }}>
-          {recents.map((cfg) => {
-            const key = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : ''
-            return (
-              <PickerItem
-                key={cfg.id}
-                cfg={cfg}
-                selected={cfg.id === activeConfig?.id}
-                price={key ? pricesByKey[key] : undefined}
-                onPress={() => {
-                  onPick(cfg.id)
-                  setOpen(false)
+          {onToggleUseCli && (
+            <View
+              accessibilityRole="radiogroup"
+              style={{
+                flexDirection: 'row',
+                gap: nativeSpace[2],
+                padding: nativeSpace[2],
+                marginBottom: nativeSpace[2],
+                borderRadius: nativeRadii[3],
+                backgroundColor: theme.surface.muted,
+              }}
+            >
+              {(['API', 'CLI'] as const).map((segment) => {
+                const segUseCli = segment === 'CLI'
+                const segActive = segUseCli === !!useCli
+                return (
+                  <Pressable
+                    key={segment}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: segActive }}
+                    onPress={() => {
+                      if (segActive) return
+                      onToggleUseCli(segUseCli)
+                    }}
+                    style={{
+                      flex: 1,
+                      minHeight: 36,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: nativeRadii[2],
+                      backgroundColor: segActive ? theme.surface.raised : 'transparent',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: segActive ? '600' : '400',
+                        color: segActive ? theme.text.primary : theme.text.secondary,
+                      }}
+                    >
+                      {segment}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          )}
+
+          {useCli ? (
+            <>
+              {(enabledClis ?? []).map((cli) => {
+                const isActive = cli === activeCli
+                return (
+                  <Pressable
+                    key={cli}
+                    accessibilityRole="menuitem"
+                    accessibilityState={{ selected: isActive }}
+                    onPress={() => onPickCli?.(cli)}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: nativeSpace[4],
+                      minHeight: 48,
+                      paddingVertical: nativeSpace[3],
+                      paddingHorizontal: nativeSpace[3],
+                      borderRadius: nativeRadii[3],
+                      backgroundColor: pressed
+                        ? theme.surface.hover
+                        : isActive
+                          ? theme.surface.muted
+                          : 'transparent',
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: isActive ? nativePalette.purple[500] : theme.text.muted,
+                      }}
+                    />
+                    <Text style={{ flex: 1, fontSize: 14, color: theme.text.primary }}>
+                      {cliLabel(cli)}
+                    </Text>
+                    {isActive && (
+                      <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>
+                    )}
+                  </Pressable>
+                )
+              })}
+              {(enabledClis ?? []).length === 0 && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.text.muted,
+                    paddingHorizontal: nativeSpace[3],
+                    paddingVertical: nativeSpace[2],
+                  }}
+                >
+                  No CLI agents enabled.
+                </Text>
+              )}
+
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.border.subtle,
+                  marginVertical: nativeSpace[2],
                 }}
               />
-            )
-          })}
-          <View
-            style={{
-              height: 1,
-              backgroundColor: theme.border.subtle,
-              marginVertical: nativeSpace[2],
-            }}
-          />
-          <Pressable
-            accessibilityRole="menuitem"
-            onPress={() => {
-              onOpenSettings()
-              setOpen(false)
-            }}
-            style={({ pressed }) => ({
-              minHeight: 48,
-              justifyContent: 'center',
-              paddingHorizontal: nativeSpace[3],
-              borderRadius: nativeRadii[3],
-              backgroundColor: pressed ? theme.surface.hover : 'transparent',
-            })}
-          >
-            <Text style={{ fontSize: 14, color: theme.text.secondary }}>
-              Manage LLM Configurations…
-            </Text>
-          </Pressable>
+              <Text
+                style={{
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  color: theme.text.secondary,
+                  paddingHorizontal: nativeSpace[3],
+                  paddingBottom: nativeSpace[1],
+                }}
+              >
+                Model
+              </Text>
+              {(cliModels ?? []).map((m) => {
+                const isActive = m.id === model
+                return (
+                  <Pressable
+                    key={m.id}
+                    accessibilityRole="menuitem"
+                    accessibilityState={{ selected: isActive }}
+                    onPress={() => onPickCliModel?.(m.id)}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: nativeSpace[4],
+                      minHeight: 44,
+                      paddingVertical: nativeSpace[2],
+                      paddingHorizontal: nativeSpace[3],
+                      borderRadius: nativeRadii[3],
+                      backgroundColor: pressed
+                        ? theme.surface.hover
+                        : isActive
+                          ? theme.surface.muted
+                          : 'transparent',
+                    })}
+                  >
+                    <Text style={{ flex: 1, fontSize: 13, color: theme.text.primary }}>
+                      {m.label}
+                    </Text>
+                    {isActive && (
+                      <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>
+                    )}
+                  </Pressable>
+                )
+              })}
+              {(cliModels ?? []).length === 0 && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.text.muted,
+                    paddingHorizontal: nativeSpace[3],
+                    paddingVertical: nativeSpace[2],
+                  }}
+                >
+                  No models reported.
+                </Text>
+              )}
+
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.border.subtle,
+                  marginVertical: nativeSpace[2],
+                }}
+              />
+              <Pressable
+                accessibilityRole="menuitem"
+                onPress={() => {
+                  onOpenSettings()
+                  setOpen(false)
+                }}
+                style={({ pressed }) => ({
+                  minHeight: 48,
+                  justifyContent: 'center',
+                  paddingHorizontal: nativeSpace[3],
+                  borderRadius: nativeRadii[3],
+                  backgroundColor: pressed ? theme.surface.hover : 'transparent',
+                })}
+              >
+                <Text style={{ fontSize: 14, color: theme.text.secondary }}>
+                  Manage CLI agents…
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {recents.map((cfg) => {
+                const key = cfg.provider && cfg.model ? `${cfg.provider}::${cfg.model}` : ''
+                return (
+                  <PickerItem
+                    key={cfg.id}
+                    cfg={cfg}
+                    selected={cfg.id === activeConfig?.id}
+                    price={key ? pricesByKey[key] : undefined}
+                    onPress={() => {
+                      onPick(cfg.id)
+                      setOpen(false)
+                    }}
+                  />
+                )
+              })}
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.border.subtle,
+                  marginVertical: nativeSpace[2],
+                }}
+              />
+              <Pressable
+                accessibilityRole="menuitem"
+                onPress={() => {
+                  onOpenSettings()
+                  setOpen(false)
+                }}
+                style={({ pressed }) => ({
+                  minHeight: 48,
+                  justifyContent: 'center',
+                  paddingHorizontal: nativeSpace[3],
+                  borderRadius: nativeRadii[3],
+                  backgroundColor: pressed ? theme.surface.hover : 'transparent',
+                })}
+              >
+                <Text style={{ fontSize: 14, color: theme.text.secondary }}>
+                  Manage LLM Configurations…
+                </Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </BottomSheet>
     </>

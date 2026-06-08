@@ -1,9 +1,9 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { getPrice } from '../../headless/api'
+import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
-import { useLLMConfigs } from '../../headless'
+import { useCliConfigs, useChatCliRunner, useLLMConfigs } from '../../headless'
 
 export type ModelChipConnectedProps = {
   provider?: string
@@ -11,12 +11,123 @@ export type ModelChipConnectedProps = {
   className?: string
   editable?: boolean
   mode?: ModelChipMode
+  /**
+   * The chat this chip controls. Required to surface the API/CLI toggle: the
+   * CLI runner is a per-chat binding. When omitted, the chip stays LLM-only.
+   */
+  chatContext?: ChatContext
+}
+
+type ModelChipLlmWiring = {
+  provider?: string
+  model?: string
+  className?: string
+  editable: boolean
+  mode: ModelChipMode
+  activeConfig: { id: string; name?: string; provider?: string; model?: string } | null
+  recents: Array<{ id: string; name?: string; provider?: string; model?: string }>
+  configs: Array<{ id: string; name?: string; provider?: string; model?: string }>
+  onPick: (id: string) => void
+  onOpenSettings: () => void
+}
+
+/**
+ * CLI-aware leaf: mounted only when a `chatContext` is present, so the
+ * `useChatCliRunner` hook (which requires a context) is never called
+ * conditionally. Wires the per-chat CLI runner binding + CLI model probing on
+ * top of the shared LLM wiring.
+ */
+function ModelChipWithCli({
+  chatContext,
+  llm,
+}: {
+  chatContext: ChatContext
+  llm: ModelChipLlmWiring
+}) {
+  const { enabledClis, activeCli, activeCliCredentialId, probeModels } = useCliConfigs()
+  const { cliRunner, attach, detach } = useChatCliRunner(chatContext)
+
+  const [cliModels, setCliModels] = useState<ModelInfo[]>([])
+  const [selectedCliModelId, setSelectedCliModelId] = useState<string | undefined>(undefined)
+
+  const useCli = !!cliRunner
+  const selectedCli = cliRunner?.tool ?? activeCli ?? null
+
+  useEffect(() => {
+    if (!useCli || !selectedCli) {
+      setCliModels([])
+      return
+    }
+    let cancelled = false
+    void probeModels(selectedCli as Parameters<typeof probeModels>[0])
+      .then((models) => {
+        if (cancelled) return
+        setCliModels(models)
+        setSelectedCliModelId((prev) =>
+          prev && models.some((m) => m.id === prev) ? prev : models[0]?.id,
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setCliModels([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [useCli, selectedCli, probeModels])
+
+  const onToggleUseCli = useCallback(
+    (next: boolean) => {
+      if (next) {
+        const tool = activeCli ?? enabledClis[0]
+        if (!tool) return
+        void attach({ tool, credentialId: activeCliCredentialId ?? undefined })
+      } else {
+        void detach()
+      }
+    },
+    [activeCli, enabledClis, activeCliCredentialId, attach, detach],
+  )
+
+  const onPickCli = useCallback(
+    (cli: string) => {
+      void attach({ tool: cli, credentialId: activeCliCredentialId ?? undefined })
+    },
+    [activeCliCredentialId, attach],
+  )
+
+  const onPickCliModel = useCallback((modelId: string) => {
+    setSelectedCliModelId(modelId)
+  }, [])
+
+  return (
+    <ModelChipBase
+      provider={llm.provider}
+      model={useCli ? selectedCliModelId : llm.model}
+      className={llm.className}
+      editable={llm.editable}
+      mode={llm.mode}
+      activeConfig={llm.activeConfig}
+      recents={llm.recents}
+      configs={llm.configs}
+      onPick={llm.onPick}
+      onOpenSettings={llm.onOpenSettings}
+      getPrice={getPrice}
+      useCli={useCli}
+      onToggleUseCli={onToggleUseCli}
+      enabledClis={enabledClis}
+      activeCli={selectedCli}
+      onPickCli={onPickCli}
+      cliModels={cliModels}
+      onPickCliModel={onPickCliModel}
+    />
+  )
 }
 
 /**
  * Connected `ModelChip` for browser clients: wires the LLM-config selection
  * (active / recents / configs) from `useLLMConfigs` and the "open LLM
- * settings" navigation into the presentational `ModelChip`.
+ * settings" navigation into the presentational `ModelChip`. When a
+ * `chatContext` is supplied, also surfaces the per-chat API/CLI toggle.
  */
 export default function ModelChipConnected({
   provider,
@@ -24,6 +135,7 @@ export default function ModelChipConnected({
   className,
   editable = false,
   mode = 'chat',
+  chatContext,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -84,6 +196,23 @@ export default function ModelChipConnected({
       })),
     [configs],
   )
+
+  const llm: ModelChipLlmWiring = {
+    provider,
+    model,
+    className,
+    editable,
+    mode,
+    activeConfig: baseActive,
+    recents: baseRecents,
+    configs: baseConfigs,
+    onPick,
+    onOpenSettings,
+  }
+
+  if (chatContext) {
+    return <ModelChipWithCli chatContext={chatContext} llm={llm} />
+  }
 
   return (
     <ModelChipBase

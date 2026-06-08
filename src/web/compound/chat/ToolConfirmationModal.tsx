@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import Surface from '../../primitives/Surface'
+import type { PendingToolGrant } from '../../../headless'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 
 export type ToolConfirmationModalProps = {
@@ -9,6 +10,13 @@ export type ToolConfirmationModalProps = {
   busy: boolean
   onConfirm: (grantedToolCallIds: string[]) => Promise<void> | void
   onCancel: () => void
+  /**
+   * Unified tool-approval feed spanning both the API confirmation path and the
+   * CLI permission broker. When provided, the modal renders each grant as its
+   * own row with per-grant Allow / Deny actions (plus "Allow permanently" for
+   * CLI grants) and the {@link pending}/{@link onConfirm} path is ignored.
+   */
+  grants?: PendingToolGrant[]
 }
 
 function formatJson(v: unknown): string {
@@ -30,6 +38,7 @@ export default function ToolConfirmationModal({
   busy,
   onConfirm,
   onCancel,
+  grants,
 }: ToolConfirmationModalProps) {
   const [granted, setGranted] = useState<Record<string, boolean>>({})
 
@@ -49,6 +58,81 @@ export default function ToolConfirmationModal({
         .map(([k]) => k),
     [granted],
   )
+
+  if (grants) {
+    if (grants.length === 0) return null
+    return (
+      <Modal
+        isOpen
+        onClose={onCancel}
+        title="The agent wants to run tools"
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={onCancel} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => grants.forEach((g) => void g.decide('deny'))}
+              disabled={busy}
+            >
+              Deny all
+            </Button>
+            <Button
+              onClick={() => grants.forEach((g) => void g.decide('once'))}
+              loading={busy}
+              disabled={grants.length === 0}
+            >
+              Allow all
+            </Button>
+          </>
+        }
+      >
+        <ul className="flex flex-col gap-2">
+          {grants.map((grant) => (
+            <Surface as="li" key={grant.id} className="p-3 flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <code className="text-sm font-medium">{grant.label}</code>
+                {grant.detail !== undefined && (
+                  <pre className="font-mono text-xs whitespace-pre-wrap wrap-break-word max-h-48 overflow-auto opacity-90">
+                    {formatJson(grant.detail)}
+                  </pre>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void grant.decide('deny')}
+                  disabled={busy}
+                >
+                  Deny
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void grant.decide('once')}
+                  disabled={busy}
+                >
+                  Allow
+                </Button>
+                {grant.source === 'cli' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void grant.decide('permanent')}
+                    disabled={busy}
+                  >
+                    Allow permanently
+                  </Button>
+                )}
+              </div>
+            </Surface>
+          ))}
+        </ul>
+      </Modal>
+    )
+  }
 
   if (!pending) return null
 
