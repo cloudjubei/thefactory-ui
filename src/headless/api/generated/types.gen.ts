@@ -3287,6 +3287,22 @@ export type LlmCostAggregateContent = {
   breakdown: {
     [key: string]: LlmCostBreakdown
   }
+  bySource?: {
+    api?: {
+      costUSD: number
+      promptTokens: number
+      completionTokens: number
+      cachedReadInputTokens: number
+      count: number
+    }
+    cli?: {
+      costUSD: number
+      promptTokens: number
+      completionTokens: number
+      cachedReadInputTokens: number
+      count: number
+    }
+  }
 }
 
 export type LlmCostAggregateEntity = {
@@ -3830,6 +3846,8 @@ export type OpenWebUiSessionOptions = {
     height: number
   }
   connection?: 'host' | 'sandbox' | 'cdp-remote'
+  cdpEndpoint?: string
+  record?: boolean
 }
 
 export type OpenElectronUiSessionOptions = {
@@ -3845,6 +3863,22 @@ export type TypeUiOptions = {
   submit?: boolean
 }
 
+export type UiFormField = {
+  ref: string
+  value: string
+}
+
+export type ScrollUiOptions = {
+  ref?: string
+  to?: 'top' | 'bottom'
+}
+
+export type UiEvaluateResult = {
+  ok: boolean
+  value?: unknown
+  error?: string
+}
+
 export type WaitForUiOptions = {
   text?: string
   ref?: string
@@ -3856,6 +3890,7 @@ export type WaitForUiOptions = {
 export type ScreenshotUiOptions = {
   ref?: string
   fullPage?: boolean
+  marks?: boolean
 }
 
 export type UiSessionResult = {
@@ -3896,6 +3931,22 @@ export type UiScreenshotResult = {
   path?: string
   width?: number
   height?: number
+  marks?: Array<string>
+  error?: string
+}
+
+export type UiCloseResult = {
+  ok: boolean
+  videoPath?: string
+}
+
+export type UiMeasurement = {
+  ok: boolean
+  ttfb?: number
+  domInteractive?: number
+  domContentLoaded?: number
+  load?: number
+  firstContentfulPaint?: number
   error?: string
 }
 
@@ -3931,6 +3982,14 @@ export type RawNetworkInput = {
   status?: number
   resourceType?: string
   failure?: string
+}
+
+export type RawPerformanceInput = {
+  responseStart?: number
+  domInteractive?: number
+  domContentLoadedEventEnd?: number
+  loadEventEnd?: number
+  firstContentfulPaint?: number
 }
 
 export type WebReadUrlsResult = {

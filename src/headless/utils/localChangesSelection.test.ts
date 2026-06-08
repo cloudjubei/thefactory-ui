@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { nextLocalChangesSelection, type ChangesAreaKey } from './localChangesSelection'
+import {
+  localChangesRangeKeys,
+  nextLocalChangesSelection,
+  type ChangesAreaKey,
+} from './localChangesSelection'
 
 const set = (...keys: ChangesAreaKey[]) => new Set<ChangesAreaKey>(keys)
 
@@ -114,5 +118,30 @@ describe('nextLocalChangesSelection', () => {
       unstaged: ['after.ts'],
     })
     expect(next).toEqual(set('unstaged:after.ts'))
+  })
+})
+
+describe('localChangesRangeKeys', () => {
+  const list = ['a.ts', 'b.ts', 'c.ts', 'd.ts']
+
+  it('returns the inclusive range between two paths', () => {
+    expect(localChangesRangeKeys('unstaged', 'b.ts', 'd.ts', list)).toEqual(
+      set('unstaged:b.ts', 'unstaged:c.ts', 'unstaged:d.ts'),
+    )
+  })
+
+  it('is order-independent (from after to)', () => {
+    expect(localChangesRangeKeys('staged', 'd.ts', 'b.ts', list)).toEqual(
+      set('staged:b.ts', 'staged:c.ts', 'staged:d.ts'),
+    )
+  })
+
+  it('returns a single key when both endpoints are the same row', () => {
+    expect(localChangesRangeKeys('unstaged', 'c.ts', 'c.ts', list)).toEqual(set('unstaged:c.ts'))
+  })
+
+  it('returns an empty set when an endpoint is missing (caller falls back)', () => {
+    expect(localChangesRangeKeys('unstaged', 'b.ts', 'gone.ts', list)).toEqual(set())
+    expect(localChangesRangeKeys('unstaged', 'gone.ts', 'b.ts', list)).toEqual(set())
   })
 })

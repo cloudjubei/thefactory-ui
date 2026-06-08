@@ -31,6 +31,12 @@ export interface UsageModalProps {
   currentRows?: ReadonlyArray<UsageModelRow>
   /** Total across all models in the in-memory current breakdown. */
   currentTotalCostUSD?: number
+  /**
+   * Optional per-executor (API / CLI) breakdown — the caller maps the
+   * aggregate's `bySource` into rows labelled "API" / "CLI". Mirrors web's
+   * "By executor" section. Omit to hide.
+   */
+  sourceRows?: ReadonlyArray<UsageModelRow>
   title?: string
 }
 
@@ -70,10 +76,13 @@ export default function UsageModal({
   totalCostUSD,
   currentRows,
   currentTotalCostUSD,
+  sourceRows,
   title = 'Usage',
 }: UsageModalProps) {
   const { theme } = useNativeTheme()
   const hasCurrent = !!currentRows && currentRows.length > 0
+  const hasSource = !!sourceRows && sourceRows.length > 0
+  const sourceTotal = (sourceRows ?? []).reduce((sum, r) => sum + r.costUSD, 0)
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg" contentStyle={{ padding: 0 }}>
@@ -82,6 +91,13 @@ export default function UsageModal({
         contentContainerStyle={{ paddingBottom: nativeSpace[6] }}
       >
         <UsageSection label="Ledger totals (durable)" rows={rows} totalCostUSD={totalCostUSD} />
+
+        {hasSource ? (
+          <>
+            <DividerWithLabel label="BY EXECUTOR" />
+            <UsageSection rows={sourceRows!} totalCostUSD={sourceTotal} />
+          </>
+        ) : null}
 
         {hasCurrent ? (
           <>

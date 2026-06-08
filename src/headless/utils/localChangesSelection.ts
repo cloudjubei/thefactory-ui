@@ -64,3 +64,25 @@ export function nextLocalChangesSelection(params: {
   if (unstaged[0]) return new Set<ChangesAreaKey>([localChangesKey('unstaged', unstaged[0])])
   return new Set<ChangesAreaKey>()
 }
+
+/**
+ * Keys for the contiguous range of rows between two paths in one area's
+ * ordered list (inclusive, order-independent) — the shift-click range-select.
+ * Returns an empty set when either endpoint is absent so the caller can fall
+ * back to a single selection.
+ */
+export function localChangesRangeKeys(
+  area: ChangesArea,
+  fromPath: string,
+  toPath: string,
+  orderedPaths: string[],
+): Set<ChangesAreaKey> {
+  const i1 = orderedPaths.indexOf(fromPath)
+  const i2 = orderedPaths.indexOf(toPath)
+  if (i1 < 0 || i2 < 0) return new Set<ChangesAreaKey>()
+  const lo = Math.min(i1, i2)
+  const hi = Math.max(i1, i2)
+  const keys = new Set<ChangesAreaKey>()
+  for (let i = lo; i <= hi; i++) keys.add(localChangesKey(area, orderedPaths[i]))
+  return keys
+}

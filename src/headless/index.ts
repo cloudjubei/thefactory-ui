@@ -211,10 +211,16 @@ export {
 // desktop so fully staging/unstaging a file advances to the next file 1:1.
 export {
   localChangesKey,
+  localChangesRangeKeys,
   nextLocalChangesSelection,
   type ChangesArea,
   type ChangesAreaKey,
 } from './utils/localChangesSelection'
+export {
+  useLocalChangesSelection,
+  type LocalChangesPrimary,
+  type UseLocalChangesSelection,
+} from './hooks/useLocalChangesSelection'
 
 // Timeline / Gantt math — buckets, column math, story+feature event reducer.
 export {

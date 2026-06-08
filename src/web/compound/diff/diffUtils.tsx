@@ -5,16 +5,16 @@ import { useMemo, useState } from 'react'
 // `ignoreWhitespace` / `intra` semantics.
 import { generateHunkPatch } from 'thefactory-tools/utils'
 import {
-  annotateHunks as annotateHunksShared,
+  annotateHunks,
   generateSelectedPatch,
-  hunkLineRange as hunkLineRangeShared,
+  hunkLineRange,
   parseUnifiedDiffAnnotated,
   selectionKeysForLineRange,
   type IntraMode,
   type ParsedDiffHunk,
 } from '../../../headless/utils/diffAnnotate'
 
-export { generateHunkPatch, generateSelectedPatch, selectionKeysForLineRange }
+export { annotateHunks, generateHunkPatch, generateSelectedPatch, selectionKeysForLineRange }
 export type { IntraMode }
 
 /** Local alias preserved for callers that already import `ParsedHunk` from
@@ -24,12 +24,6 @@ export type ParsedHunk = ParsedDiffHunk
 export function parseUnifiedDiff(patch: string): ParsedHunk[] {
   return parseUnifiedDiffAnnotated(patch)
 }
-
-// Local aliases — the real implementations are in `headless/utils/diffAnnotate`.
-// Keep these one-liners so the rest of this file's references (and any
-// downstream importer) don't need to change at the same time.
-export const annotateHunks = annotateHunksShared
-const hunkLineRange = hunkLineRangeShared
 
 export type StructuredUnifiedDiffProps = {
   patch: string
@@ -318,10 +312,8 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
           modLines.some((l) => selectedLines?.has(`${i}:${h.lines.indexOf(l)}`))
         const { start, end } = hunkLineRange(h)
 
-        // Drag mode: does this hunk own a row selection that covers at least
-        // one stageable (+/-) line? Drives the Stage/Discard "Lines" morph and
-        // the per-row highlight below. Range bounds are clamped here so the
-        // row loop can test membership cheaply.
+        // The drag's row range within this hunk, and whether it covers any
+        // stageable (+/-) line — drives the "Lines" button morph + highlight.
         const dragSelLo =
           dragMode && lineSelection?.hunkIndex === i
             ? Math.min(lineSelection.start, lineSelection.end)
@@ -366,9 +358,8 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
               </span>
               {/* Spacer pushes buttons to the right */}
               <div className="flex-1 min-w-0" />
-              {/* Per-hunk action buttons — always visible when isEditable. In
-                  drag mode, when this hunk owns a row selection the buttons
-                  morph to operate on just the selected lines. */}
+              {/* Per-hunk actions; in drag mode they morph to operate on just
+                  the selected lines. */}
               {isEditable && (
                 <div className="flex items-center gap-1 flex-none">
                   <button
@@ -414,10 +405,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
             {/* Lines body — scrolls horizontally; vertical scroll is owned by parent */}
             <div className="overflow-x-auto relative">
               <div className={wrap ? 'min-w-0' : 'min-w-max'}>
-                {/* In drag mode the whole body is `select-none` so a pointer
-                    drag highlights line rows instead of selecting text. The
-                    row index `j` is the UNFILTERED index into `h.lines` so it
-                    matches `generateSelectedPatch`'s line keys exactly. */}
+                {/* `j` is the UNFILTERED `h.lines` index so it matches
+                    `generateSelectedPatch`'s keys; drag mode is `select-none`
+                    so a drag picks rows, not text. */}
                 <div
                   className={`text-[10px] leading-relaxed divide-y divide-neutral-100 dark:divide-neutral-800/50 ${
                     dragMode ? 'select-none' : ''
@@ -436,7 +426,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                     }
 
                     const isSelectableLine = ln.type === 'add' || ln.type === 'del'
-                    const rowSelected = dragMode && j >= dragSelLo && j <= dragSelHi
+                    // Only highlight when the drag covers stageable lines, so a
+                    // context-only selection paints nothing.
+                    const rowSelected = hunkHasLineSel && j >= dragSelLo && j <= dragSelHi
 
                     return (
                       <div
@@ -454,9 +446,8 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                           dragMode ? (e) => onLinePointerEnter?.(i, j, e.buttons) : undefined
                         }
                       >
-                        {/* Row highlight — a translucent tint over the whole
-                            row (gutter included) plus a left accent bar.
-                            `pointer-events-none` so the drag keeps working. */}
+                        {/* Selection tint + left accent; `pointer-events-none`
+                            so the drag keeps working. */}
                         {rowSelected && (
                           <>
                             <div className="pointer-events-none absolute inset-0 z-20 bg-sky-500/20 dark:bg-sky-400/15" />

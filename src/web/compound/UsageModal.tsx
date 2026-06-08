@@ -25,6 +25,8 @@ export type UsageModalCostAggregate = {
   totalCompletionTokens: number
   totalCachedReadInputTokens: number
   breakdown: Record<string, UsageModalCostBreakdown>
+  /** Optional per-executor split (API in-process vs sandboxed CLI agent). */
+  bySource?: Partial<Record<'api' | 'cli', UsageModalCostBreakdown & { count?: number }>>
 }
 
 export type UsageModalUsage = {
@@ -379,6 +381,30 @@ export function UsageModal({
       ]
     }, [durable, durableAgg])
 
+  const durableSourceRows: Array<{ key: string; label: string } & UsageAgg> | undefined =
+    useMemo(() => {
+      const bySource = durable?.bySource
+      if (!bySource) return undefined
+      const rows = (['api', 'cli'] as const)
+        .map((source) => {
+          const b = bySource[source]
+          if (!b) return undefined
+          return {
+            key: `durable:source:${source}`,
+            label: source === 'api' ? 'API' : 'CLI',
+            costUSD: b.costUSD,
+            promptTokens: b.promptTokens,
+            completionTokens: b.completionTokens,
+            cachedReadInputTokens: b.cachedReadInputTokens,
+            cachedReadInputTokensRatio:
+              b.cachedReadInputTokens / Math.max(1, b.promptTokens + b.cachedReadInputTokens),
+            totalTokens: b.promptTokens + b.completionTokens + b.cachedReadInputTokens,
+          }
+        })
+        .filter((r): r is { key: string; label: string } & UsageAgg => Boolean(r))
+      return rows.length > 0 ? rows : undefined
+    }, [durable])
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Usage" contentClassName="!p-0">
       <div className="bg-[var(--surface-base)] text-sm text-[var(--text-secondary)]">
@@ -409,6 +435,20 @@ export function UsageModal({
                   </div>
                 </div>
               </div>
+              {durableSourceRows ? (
+                <div className="px-4">
+                  <div className="text-[12px] text-[var(--text-secondary)] mb-1">By executor</div>
+                  <div className="border border-[var(--border-subtle)] rounded-md overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm table-fixed">
+                        {colGroup}
+                        {sharedHeader}
+                        {renderAggBody(durableSourceRows)}
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

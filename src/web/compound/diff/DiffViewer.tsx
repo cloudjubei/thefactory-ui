@@ -73,8 +73,8 @@ export function DiffViewer({
   const [selectable, setSelectable] = useState(false)
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
 
-  // Drag mode (pointer): a contiguous row selection within a single hunk.
-  // `anchor` is where the drag started; `focus` follows the pointer.
+  // Drag mode (pointer): a contiguous single-hunk row selection; `focus`
+  // follows the pointer from `anchor`.
   const [drag, setDrag] = useState<{ hunkIndex: number; anchor: number; focus: number } | null>(
     null,
   )
@@ -84,15 +84,11 @@ export function DiffViewer({
     setSelectedLines(new Set())
     setSelectable(false)
     setDrag(null)
-    // A patch swap mid-drag must not leave the drag "armed" — otherwise a bare
-    // hover over the new file's rows would keep extending a phantom selection.
     draggingRef.current = false
   }, [patch, path])
 
-  // End-of-drag is owned by a single component-lifetime listener so it can't
-  // leak on unmount and always fires — including `pointercancel` (touch/stylus
-  // interruption) and a pointer released outside the window, both of which a
-  // per-row `pointerup` would miss.
+  // End-of-drag: one window listener for the component's lifetime, so it can't
+  // leak and still catches `pointercancel` / a release outside the window.
   useEffect(() => {
     const stop = () => {
       draggingRef.current = false
@@ -118,11 +114,8 @@ export function DiffViewer({
     setDrag({ hunkIndex, anchor: lineIndex, focus: lineIndex })
   }
 
-  // Extend the selection while dragging — but only within the hunk the drag
-  // started in, so a selection is always contiguous (no cross-hunk gaps that
-  // would make a partial patch ambiguous). `buttons === 0` means the press was
-  // released without us seeing the pointerup (e.g. off-window): disarm so a
-  // subsequent bare hover doesn't keep extending.
+  // Extend within the drag's own hunk only (keeps the range contiguous).
+  // `buttons === 0` ⇒ the button was released off-window: disarm.
   const onLinePointerEnter = (hunkIndex: number, lineIndex: number, buttons: number) => {
     if (!draggingRef.current) return
     if (buttons === 0) {
@@ -134,8 +127,8 @@ export function DiffViewer({
 
   const lineKeysFor = (hunkIndex: number): Set<string> => {
     if (!patch || !lineSelection || lineSelection.hunkIndex !== hunkIndex) return new Set()
-    // Annotate with the active `ignoreWS` so whitespace-only `_hidden` lines a
-    // drag visually skipped over are excluded from the generated patch.
+    // Annotate with the active `ignoreWS` so whitespace-only `_hidden` lines the
+    // drag skipped over are excluded from the patch.
     const hunk = annotateHunks(parseUnifiedDiff(patch), { ignoreWhitespace: ignoreWS })[hunkIndex]
     if (!hunk) return new Set()
     return selectionKeysForLineRange(hunk, hunkIndex, lineSelection.start, lineSelection.end)
