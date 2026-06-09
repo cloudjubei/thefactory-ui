@@ -6,6 +6,12 @@ import Tooltip from '../../primitives/Tooltip'
 import { IconDelete, IconRefresh, IconToolbox } from '../../icons'
 import { ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import {
+  cliDotColor,
+  cliLabel,
+  parseCliAgentModelTag,
+  shortCliModelLabel,
+} from '../../../headless/utils/cliRunner'
 
 const USD = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -245,7 +251,23 @@ function MessageRow({
   const iso = messageIso(msg)
   const ts = iso ? formatFriendlyTimestamp(iso) : ''
   const rawModel = msg.usage?.model ?? msg.model
-  const modelLabel = typeof rawModel === 'string' ? rawModel : rawModel?.model
+  const rawModelStr = typeof rawModel === 'string' ? rawModel : rawModel?.model
+  // CLI-agent messages persist their model as `cli-agent/<cli>/<modelId>`; show
+  // the CLI brand dot + the model name (matching the model chip) rather than the
+  // raw tag. API messages keep the accent dot + raw model id.
+  const cliTag = parseCliAgentModelTag(rawModelStr)
+  // Legacy tags (pre-model-id) put the auth mode in the last segment; treat
+  // those as "no model" so old messages show the CLI label, not "auth-cache".
+  const cliModelId =
+    cliTag?.modelId && cliTag.modelId !== 'auth-cache' && cliTag.modelId !== 'api-key'
+      ? cliTag.modelId
+      : undefined
+  const modelLabel = cliTag
+    ? cliModelId
+      ? shortCliModelLabel(cliModelId)
+      : cliLabel(cliTag.cli)
+    : rawModelStr
+  const modelDotColor = cliTag ? cliDotColor(cliTag.cli) : undefined
 
   return (
     <div
@@ -297,7 +319,10 @@ function MessageRow({
               <div className="inline-flex items-center gap-1 min-w-0">
                 {msg.showModel && modelLabel ? (
                   <div className="text-[11px] text-(--text-secondary) inline-flex items-center gap-1 border border-(--border-subtle) bg-(--surface-overlay) rounded-full px-2 py-[2px] min-w-0">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-(--accent-primary)" />
+                    <span
+                      className={`inline-block w-1.5 h-1.5 rounded-full${modelDotColor ? '' : ' bg-(--accent-primary)'}`}
+                      style={modelDotColor ? { backgroundColor: modelDotColor } : undefined}
+                    />
                     <span className="truncate">{modelLabel}</span>
                   </div>
                 ) : null}

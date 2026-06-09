@@ -2,12 +2,26 @@ import { describe, it, expect } from 'vitest'
 import {
   chatCliRunnerToDispatchOptions,
   chatCliRunnerToStartRunBody,
+  cliAssistantTextFromEntry,
+  cliDotColor,
+  cliLabel,
+  parseCliAgentModelTag,
+  shortCliModelLabel,
   enabledClis,
   groupCachesByCli,
   loginAwaitsCode,
   parseCliAuthLoginEvent,
+  parseCliRunUpdateEvent,
   parseLoginUrl,
 } from './cliRunner'
+import type { CliRunTranscriptEntry } from '../api/generated'
+
+const entry = (over: Partial<CliRunTranscriptEntry>): CliRunTranscriptEntry => ({
+  at: 1,
+  kind: 'assistant',
+  payload: undefined,
+  ...over,
+})
 
 describe('chatCliRunnerToDispatchOptions', () => {
   it('maps tool→cli and credentialId→authCredentialId', () => {
@@ -184,5 +198,126 @@ describe('loginAwaitsCode', () => {
     expect(loginAwaitsCode('Paste code here if prompted >')).toBe(true)
     expect(loginAwaitsCode('Waiting for browser authentication...')).toBe(false)
     expect(loginAwaitsCode('Opening browser to sign in…')).toBe(false)
+  })
+})
+
+describe('cliAssistantTextFromEntry', () => {
+  it('joins the text blocks of an assistant entry', () => {
+    expect(
+      cliAssistantTextFromEntry(
+        entry({
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'text', text: 'Hello ' }, { type: 'text', text: 'world' }] } },
+        }),
+      ),
+    ).toBe('Hello world')
+  })
+
+  it("extracts Codex's agent_message item text", () => {
+    expect(
+      cliAssistantTextFromEntry(
+        entry({
+          kind: 'assistant',
+          payload: { type: 'item.completed', item: { id: 'i0', type: 'agent_message', text: 'codex says hi' } },
+        }),
+      ),
+    ).toBe('codex says hi')
+  })
+
+  it('ignores non-text blocks and non-assistant entries', () => {
+    expect(
+      cliAssistantTextFromEntry(
+        entry({
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'tool_use', id: 't1' }, { type: 'text', text: 'kept' }] } },
+        }),
+      ),
+    ).toBe('kept')
+    expect(cliAssistantTextFromEntry(entry({ kind: 'result', payload: { result: 'final' } }))).toBe('')
+    expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: undefined }))).toBe('')
+    expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: { message: {} } }))).toBe('')
+  })
+})
+
+describe('shortCliModelLabel', () => {
+  it('shortens the documented cases', () => {
+    expect(shortCliModelLabel('Auto (Cursor picks per turn)')).toBe('Auto')
+    expect(shortCliModelLabel('Claude Opus (alias for latest)')).toBe('Opus latest')
+    expect(shortCliModelLabel('Claude Sonnet (alias for latest)')).toBe('Sonnet latest')
+    expect(shortCliModelLabel('Claude Sonnet 4.6')).toBe('Sonnet 4.6')
+    expect(shortCliModelLabel('Claude Opus 4.8')).toBe('Opus 4.8')
+    expect(shortCliModelLabel('Composer 2.5 Fast — account default')).toBe('Composer 2.5 Fast')
+    expect(shortCliModelLabel('Composer 2.5 Fast - account default')).toBe('Composer 2.5 Fast')
+  })
+
+  it('leaves already-short labels untouched', () => {
+    expect(shortCliModelLabel('Composer 2.5 Fast')).toBe('Composer 2.5 Fast')
+    expect(shortCliModelLabel('GPT-5.5 1M')).toBe('GPT-5.5 1M')
+    expect(shortCliModelLabel('auto')).toBe('auto')
+  })
+})
+
+describe('cliLabel / cliDotColor', () => {
+  it('labels and colours each CLI by brand', () => {
+    expect(cliLabel('claude-code')).toBe('Claude Code')
+    expect(cliLabel('cursor-agent')).toBe('Cursor')
+    expect(cliLabel('codex')).toBe('Codex')
+    expect(cliLabel('')).toBe('')
+    expect(cliDotColor('claude-code')).toBe('#D97757')
+    expect(cliDotColor('codex')).toBe('#8E8E93')
+    expect(cliDotColor('cursor-agent')).toBe('#000000')
+    expect(cliDotColor(undefined)).toBe('#8E8E93')
+  })
+})
+
+describe('parseCliAgentModelTag', () => {
+  it('parses cli + modelId from a cli-agent tag', () => {
+    expect(parseCliAgentModelTag('cli-agent/codex/gpt-5.5')).toEqual({ cli: 'codex', modelId: 'gpt-5.5' })
+    expect(parseCliAgentModelTag('cli-agent/claude-code/claude-opus-4-8-high')).toEqual({
+      cli: 'claude-code',
+      modelId: 'claude-opus-4-8-high',
+    })
+  })
+
+  it('returns cli with no modelId when the trailing segment is empty', () => {
+    expect(parseCliAgentModelTag('cli-agent/cursor-agent/')).toEqual({ cli: 'cursor-agent' })
+  })
+
+  it('returns null for non-CLI model strings', () => {
+    expect(parseCliAgentModelTag('claude-sonnet-4-6')).toBeNull()
+    expect(parseCliAgentModelTag('')).toBeNull()
+    expect(parseCliAgentModelTag(undefined)).toBeNull()
+  })
+})
+
+describe('parseCliRunUpdateEvent', () => {
+  it('extracts assistant text from a transcriptAppend event', () => {
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'transcriptAppend',
+        event: { entry: { at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'transcript', text: 'hi' })
+  })
+
+  it('marks finished and error events as terminal', () => {
+    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'finished', event: {} })).toEqual({
+      runId: 'r1',
+      kind: 'terminal',
+    })
+    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'error', event: {} })).toEqual({
+      runId: 'r1',
+      kind: 'terminal',
+    })
+  })
+
+  it('returns kind:other for unrelated run events and null for malformed payloads', () => {
+    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'statusChanged', event: {} })).toMatchObject({
+      kind: 'other',
+    })
+    expect(parseCliRunUpdateEvent(null)).toBeNull()
+    expect(parseCliRunUpdateEvent({ type: 'finished' })).toBeNull()
+    expect(parseCliRunUpdateEvent({ runId: 'r1' })).toBeNull()
   })
 })

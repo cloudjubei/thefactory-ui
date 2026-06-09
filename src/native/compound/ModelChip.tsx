@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ModelInfo } from '../../headless/api'
+import { cliDotColor, cliLabel } from '../../headless/utils/cliRunner'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -77,30 +78,9 @@ const PROVIDER_DOTS: Record<string, string> = {
   custom: nativePalette.purple[500],
 }
 
-const CLI_LABELS: Record<string, string> = {
-  'claude-code': 'Claude Code',
-  'cursor-agent': 'Cursor',
-  codex: 'Codex',
-}
-
 function providerLabel(p?: string): string {
   if (!p) return ''
   return PROVIDER_LABELS[p.toLowerCase()] ?? p
-}
-
-function cliLabel(cli?: string | null): string {
-  if (!cli) return ''
-  return CLI_LABELS[cli] ?? cli
-}
-
-/** Per-CLI brand dot colour: Claude orange, Codex gray, Cursor black. */
-const CLI_DOT_COLORS: Record<string, string> = {
-  'claude-code': '#D97757',
-  codex: '#8E8E93',
-  'cursor-agent': '#000000',
-}
-function cliDotColor(cli?: string | null): string {
-  return (cli && CLI_DOT_COLORS[cli]) || '#8E8E93'
 }
 
 function providerDot(p?: string): string {

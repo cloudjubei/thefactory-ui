@@ -48,12 +48,25 @@ function ModelChipWithCli({
     enabledClis,
     activeCli,
     activeCliCredentialId,
+    cachesByCli,
     defaultModel,
     effort,
     probeModels,
     cachedLiveModels,
   } = useCliConfigs()
   const { cliRunner, attach, detach } = useChatCliRunner(chatContext)
+
+  // The credential that belongs to `cli` — the global active one when it's for
+  // this CLI, else this CLI's first cached credential. Using the global active
+  // credential for a different CLI attaches a mismatched auth cache and the run
+  // errors out immediately.
+  const credentialForCli = useCallback(
+    (cli: string): string | undefined => {
+      if (cli === activeCli && activeCliCredentialId) return activeCliCredentialId
+      return cachesByCli[cli]?.[0]?.id
+    },
+    [activeCli, activeCliCredentialId, cachesByCli],
+  )
 
   const [cliModels, setCliModels] = useState<ModelInfo[]>([])
 
@@ -95,7 +108,7 @@ function ModelChipWithCli({
         if (!tool) return
         void attach({
           tool,
-          credentialId: activeCliCredentialId ?? undefined,
+          credentialId: credentialForCli(tool),
           model: defaultModel[tool],
           effort: effort[tool],
         })
@@ -103,19 +116,19 @@ function ModelChipWithCli({
         void detach()
       }
     },
-    [activeCli, enabledClis, activeCliCredentialId, defaultModel, effort, attach, detach],
+    [activeCli, enabledClis, credentialForCli, defaultModel, effort, attach, detach],
   )
 
   const onPickCli = useCallback(
     (cli: string) => {
       void attach({
         tool: cli,
-        credentialId: activeCliCredentialId ?? undefined,
+        credentialId: credentialForCli(cli),
         model: defaultModel[cli],
         effort: effort[cli],
       })
     },
-    [activeCliCredentialId, defaultModel, effort, attach],
+    [credentialForCli, defaultModel, effort, attach],
   )
 
   const onPickCliModel = useCallback(
@@ -123,13 +136,13 @@ function ModelChipWithCli({
       if (!selectedCli) return
       void attach({
         tool: selectedCli,
-        credentialId: cliRunner?.credentialId ?? activeCliCredentialId ?? undefined,
+        credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
         apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
         model: modelId,
         effort: cliRunner?.effort ?? effort[selectedCli],
       })
     },
-    [selectedCli, cliRunner, activeCliCredentialId, effort, attach],
+    [selectedCli, cliRunner, credentialForCli, effort, attach],
   )
 
   return (

@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom'
 
 import type { ModelInfo } from '../../headless/api'
+import { cliDotColor, cliLabel, shortCliModelLabel } from '../../headless/utils/cliRunner'
 import type { UsageModalModelPrice } from './UsageModal'
 
 export type ModelChipConfig = {
@@ -88,25 +89,6 @@ function providerDotClasses(p?: string) {
   }
 }
 
-function cliLabel(cli?: string | null) {
-  if (!cli) return ''
-  const map: Record<string, string> = {
-    'claude-code': 'Claude Code',
-    'cursor-agent': 'Cursor',
-    codex: 'Codex',
-  }
-  return map[cli] || cli
-}
-
-/** Per-CLI brand dot colour: Claude orange, Codex gray, Cursor black. */
-function cliDotColor(cli?: string | null): string {
-  const map: Record<string, string> = {
-    'claude-code': '#D97757',
-    codex: '#8E8E93',
-    'cursor-agent': '#000000',
-  }
-  return (cli && map[cli]) || '#8E8E93'
-}
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -432,6 +414,10 @@ function Picker({
                 if (e.target.value) onPickCliModel?.(e.target.value)
               }}
               onClick={(e) => e.stopPropagation()}
+              // The panel's onMouseDown calls preventDefault() (keeps focus for
+              // the button items); that also blocks a native <select> from
+              // opening. Stop the event before it reaches the panel handler.
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <option value="" disabled>
                 {cliModels && cliModels.length > 0 ? 'Select a model…' : 'No models reported'}
@@ -553,7 +539,7 @@ export function ModelChip({
   if (useCli) {
     prov = cliLabel(activeCli)
     const activeModel = cliModels?.find((m) => m.id === model)
-    displayModel = activeModel?.label ?? model
+    displayModel = shortCliModelLabel(activeModel?.label ?? model ?? '')
   }
 
   const parts = useMemo(
@@ -603,26 +589,28 @@ export function ModelChip({
         e.stopPropagation()
       }}
     >
-      {cliEnabled && (
+      <span className="flex flex-col items-center gap-0.5 shrink-0">
+        {cliEnabled && (
+          <span
+            className={[
+              'rounded-sm px-1 text-[9px] font-semibold uppercase tracking-wide',
+              useCli
+                ? 'bg-violet-500/20 text-violet-700 dark:text-violet-300'
+                : 'bg-neutral-500/15 text-neutral-600 dark:text-neutral-300',
+            ].join(' ')}
+          >
+            {useCli ? 'CLI' : 'API'}
+          </span>
+        )}
         <span
+          aria-hidden
           className={[
-            'shrink-0 rounded-sm px-1 text-[9px] font-semibold uppercase tracking-wide',
-            useCli
-              ? 'bg-violet-500/20 text-violet-700 dark:text-violet-300'
-              : 'bg-neutral-500/15 text-neutral-600 dark:text-neutral-300',
+            'inline-block w-1.5 h-1.5 rounded-full',
+            useCli ? '' : providerDotClasses(activeConfig?.provider),
           ].join(' ')}
-        >
-          {useCli ? 'CLI' : 'API'}
-        </span>
-      )}
-      <span
-        aria-hidden
-        className={[
-          'inline-block w-1.5 h-1.5 shrink-0 rounded-full',
-          useCli ? '' : providerDotClasses(activeConfig?.provider),
-        ].join(' ')}
-        style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
-      />
+          style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
+        />
+      </span>
       <span className="flex flex-col leading-tight max-w-[60px] items-center pr-1 pl-1 overflow-hidden text-ellipsis">
         <span className="truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
           {prov || (editable ? 'Select' : '—')}

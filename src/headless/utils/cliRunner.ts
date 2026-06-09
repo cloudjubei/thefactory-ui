@@ -5,6 +5,7 @@ import type {
   ChatCliRunner,
   CliConfigsActiveState,
   CliRunnerDispatchOptions,
+  CliRunTranscriptEntry,
   CliTool,
   StartCliAgentRunData,
 } from '../api/generated'
@@ -53,6 +54,125 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.model ? { model: runner.model } : {}),
     ...(runner.effort ? { effort: runner.effort } : {}),
   }
+}
+
+/**
+ * Displayable assistant text from a single CLI transcript entry, for the live
+ * streaming preview. Mirrors the runner's `assistantTextBlocks`: only
+ * `assistant` entries contribute (their `payload.message.content[]` text
+ * blocks, joined); every other kind yields `''`. The final, authoritative
+ * message is the one the run persists — this is just the in-flight preview.
+ */
+export function cliAssistantTextFromEntry(entry: CliRunTranscriptEntry): string {
+  if (entry.kind !== 'assistant') return ''
+  const payload = entry.payload
+  if (!payload || typeof payload !== 'object') return ''
+  // Codex: an `agent_message` item carries the text on `payload.item.text`.
+  const item = (payload as { item?: { type?: unknown; text?: unknown } }).item
+  if (
+    item &&
+    typeof item === 'object' &&
+    item.type === 'agent_message' &&
+    typeof item.text === 'string'
+  ) {
+    return item.text
+  }
+  const message = (payload as { message?: { content?: unknown } }).message
+  const content = message && typeof message === 'object' ? message.content : undefined
+  if (!Array.isArray(content)) return ''
+  return content
+    .filter(
+      (b): b is { type: 'text'; text: string } =>
+        typeof b === 'object' &&
+        b !== null &&
+        (b as { type?: unknown }).type === 'text' &&
+        typeof (b as { text?: unknown }).text === 'string',
+    )
+    .map((b) => b.text)
+    .join('')
+}
+
+/** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */
+export type CliRunUpdateParsed =
+  | { runId: string; kind: 'transcript'; text: string }
+  | { runId: string; kind: 'terminal' }
+  | { runId: string; kind: 'other' }
+
+/**
+ * Parse a `cli:run-update` WS payload (`{ runId, type, event }`) into a typed
+ * shape for the chat streaming preview: `transcript` carries the entry's
+ * assistant text (possibly empty), `terminal` marks `finished`/`error`. Returns
+ * `null` when the payload isn't a recognisable run-update envelope.
+ */
+export function parseCliRunUpdateEvent(data: unknown): CliRunUpdateParsed | null {
+  if (typeof data !== 'object' || data === null) return null
+  const { runId, type, event } = data as { runId?: unknown; type?: unknown; event?: unknown }
+  if (typeof runId !== 'string' || typeof type !== 'string') return null
+  if (type === 'finished' || type === 'error') return { runId, kind: 'terminal' }
+  if (type === 'transcriptAppend') {
+    const entry = (event as { entry?: CliRunTranscriptEntry } | undefined)?.entry
+    return { runId, kind: 'transcript', text: entry ? cliAssistantTextFromEntry(entry) : '' }
+  }
+  return { runId, kind: 'other' }
+}
+
+/**
+ * Compact a model label for the (narrow) model chip while the dropdown keeps
+ * the full text. Drops a trailing parenthetical descriptor and a redundant
+ * `Claude ` vendor prefix, turns the `(alias for latest)` aliases into
+ * `<Name> latest`, and strips an `— account default` annotation:
+ *
+ *   "Auto (Cursor picks per turn)"      → "Auto"
+ *   "Claude Opus (alias for latest)"    → "Opus latest"
+ *   "Claude Sonnet 4.6"                 → "Sonnet 4.6"
+ *   "Composer 2.5 Fast — account default" → "Composer 2.5 Fast"
+ */
+export function shortCliModelLabel(label: string): string {
+  let s = label.trim()
+  s = s.replace(/\s*[—-]\s*account default\s*$/i, '').trim()
+  const isAlias = /\(\s*alias for latest\s*\)/i.test(s)
+  s = s.replace(/\s*\([^)]*\)\s*$/, '').trim()
+  s = s.replace(/^claude\s+/i, '').trim()
+  if (isAlias) s = `${s} latest`
+  return s
+}
+
+/** Human label for a CLI tool key. */
+export function cliLabel(cli?: string | null): string {
+  if (!cli) return ''
+  const map: Record<string, string> = {
+    'claude-code': 'Claude Code',
+    'cursor-agent': 'Cursor',
+    codex: 'Codex',
+  }
+  return map[cli] ?? cli
+}
+
+/** Per-CLI brand dot colour: Claude orange, Codex gray, Cursor black. */
+export function cliDotColor(cli?: string | null): string {
+  const map: Record<string, string> = {
+    'claude-code': '#D97757',
+    codex: '#8E8E93',
+    'cursor-agent': '#000000',
+  }
+  return (cli && map[cli]) || '#8E8E93'
+}
+
+/**
+ * Parse a persisted CLI-agent message-model tag (`cli-agent/<cli>/<modelId>`,
+ * the form `dispatchChatToolsViaCli` writes) into its parts, or `null` when the
+ * string isn't a CLI tag. `modelId` is undefined when the run used the CLI's own
+ * default (the tag's trailing segment is empty).
+ */
+export function parseCliAgentModelTag(
+  model: string | null | undefined,
+): { cli: string; modelId?: string } | null {
+  if (typeof model !== 'string' || !model.startsWith('cli-agent/')) return null
+  const parts = model.split('/')
+  const cli = parts[1]
+  if (!cli) return null
+  const modelId = parts.slice(2).join('/').trim()
+  return modelId.length > 0 ? { cli, modelId } : { cli }
 }
 
 /** CLI keys the user has switched on in the chip selector, in stable insertion order. */

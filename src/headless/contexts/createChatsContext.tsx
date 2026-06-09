@@ -26,7 +26,7 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
-import { chatCliRunnerToDispatchOptions } from '../utils/cliRunner'
+import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { useLLMConfigs } from './LLMConfigsContext'
 import { useActiveProject } from './ProjectsContext'
 
@@ -252,6 +252,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
      * ref is the only way to disambiguate when multiple chats are visible.
      */
     const inFlightCtxRef = useRef<ChatCtx | null>(null)
+    // Accumulates the in-flight CLI run's assistant text for the live preview
+    // (the `cli:run-update` stream arrives entry-by-entry). Reset per send; the
+    // final persisted message replaces it on `refresh()`.
+    const cliStreamAccumRef = useRef('')
 
     // Per-chat draft text. Ref-based (no re-render on draft change) so a
     // sibling that doesn't read this chat's draft doesn't churn. Matches
@@ -373,6 +377,28 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       })
     }, [ws, updateLiveState])
 
+    // Stream a CLI-backed run's transcript into the same `pendingAssistant`
+    // live preview (the API path uses `completion:progress`; CLI runs broadcast
+    // on `cli:run-update`). Routed to the in-flight chat via `inFlightCtxRef`.
+    useEffect(() => {
+      return ws.on('cli:run-update', (data) => {
+        const target = inFlightCtxRef.current
+        if (!target) return
+        const parsed = parseCliRunUpdateEvent(data)
+        if (!parsed) return
+        if (parsed.kind === 'terminal') {
+          updateLiveState(target, { pendingAssistant: null })
+          return
+        }
+        if (parsed.kind === 'transcript' && parsed.text) {
+          cliStreamAccumRef.current += parsed.text
+          updateLiveState(target, {
+            pendingAssistant: { turn: 0, content: cliStreamAccumRef.current },
+          })
+        }
+      })
+    }, [ws, updateLiveState])
+
     // The project-level chat is the one scoped directly to the active project
     // (no story / feature / topic). It's what the chat sidebar pins at the top.
     const projectChat = useMemo<GetChatResponse | null>(() => {
@@ -439,7 +465,19 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // here — the route owns the append.
           const cliRunner = getChat(ctx)?.cliRunner
           if (cliRunner) {
-            await sendChatCompletionWithTools({
+            cliStreamAccumRef.current = ''
+            // Optimistically show the user's message right away. The runner-aware
+            // route persists it server-side inside the (long) run, so unlike the
+            // API path there's no early `chats:updated` to pull it in; `refresh()`
+            // reconciles on completion (the persisted copy replaces this one).
+            setChats((prev) =>
+              prev.map((c) =>
+                sameContext(c.context, ctx)
+                  ? { ...c, messages: [...(c.messages ?? []), userMessage] }
+                  : c,
+              ),
+            )
+            const { data: cliResult } = await sendChatCompletionWithTools({
               body: {
                 chatContext: ctx,
                 llmConfig: activeLLMConfig,
@@ -451,6 +489,22 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               },
               throwOnError: true,
             })
+            // A CLI run that ends without producing a reply (auth/model error,
+            // immediate exit) comes back errored/aborted — surface it instead of
+            // a silent blank turn.
+            if (cliResult?.resultType === 'errored' || cliResult?.resultType === 'aborted') {
+              const detail =
+                typeof cliResult.error === 'string' && cliResult.error.length > 0
+                  ? cliResult.error
+                  : `The ${cliRunner.tool} run ${cliResult.resultType} without a reply.`
+              // eslint-disable-next-line no-console
+              console.error(
+                `[cli-chat] ${cliRunner.tool} run ${cliResult.resultType}:`,
+                detail,
+                cliResult,
+              )
+              updateLiveState(ctx, { sendError: new Error(detail) })
+            }
             await refresh()
             return
           }
@@ -489,6 +543,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           }
           await refresh()
         } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[chat] send failed:', err)
           updateLiveState(ctx, {
             sendError: err instanceof Error ? err : new Error(String(err)),
           })
@@ -552,6 +608,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           }
           await refresh()
         } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[chat] send failed:', err)
           updateLiveState(ctx, {
             sendError: err instanceof Error ? err : new Error(String(err)),
           })
