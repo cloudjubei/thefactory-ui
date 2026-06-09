@@ -579,6 +579,9 @@ import type {
   StartTestsRunData,
   StartTestsRunErrors,
   StartTestsRunResponses,
+  SubmitCliAuthLoginInputData,
+  SubmitCliAuthLoginInputErrors,
+  SubmitCliAuthLoginInputResponses,
   SubscribeProjectDataSourceData,
   SubscribeProjectDataSourceErrors,
   SubscribeProjectDataSourceResponses,
@@ -3164,6 +3167,24 @@ export const cancelCliAuthLogin = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-auth/login/{loginId}/cancel',
     ...options,
+  })
+
+export const submitCliAuthLoginInput = <ThrowOnError extends boolean = false>(
+  options: Options<SubmitCliAuthLoginInputData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SubmitCliAuthLoginInputResponses,
+    SubmitCliAuthLoginInputErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-auth/login/{loginId}/input',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const ingestAll = <ThrowOnError extends boolean = false>(

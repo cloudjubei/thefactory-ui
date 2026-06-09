@@ -11,6 +11,8 @@ export interface IconButtonProps {
   disabled?: boolean
   size?: IconButtonSize
   accessibilityLabel?: string
+  /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
+  testID?: string
   className?: string
   style?: StyleProp<ViewStyle>
 }
@@ -31,6 +33,7 @@ export default function IconButton({
   disabled = false,
   size = 'md',
   accessibilityLabel,
+  testID,
   className,
   style,
 }: IconButtonProps) {
@@ -40,6 +43,7 @@ export default function IconButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      testID={testID}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}

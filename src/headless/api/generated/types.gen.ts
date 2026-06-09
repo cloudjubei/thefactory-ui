@@ -11859,6 +11859,43 @@ export type CancelCliAuthLoginResponses = {
 export type CancelCliAuthLoginResponse =
   CancelCliAuthLoginResponses[keyof CancelCliAuthLoginResponses]
 
+export type SubmitCliAuthLoginInputData = {
+  body: {
+    text: string
+  }
+  path: {
+    loginId: string
+  }
+  query?: never
+  url: '/api/v1/cli-auth/login/{loginId}/input'
+}
+
+export type SubmitCliAuthLoginInputErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SubmitCliAuthLoginInputError =
+  SubmitCliAuthLoginInputErrors[keyof SubmitCliAuthLoginInputErrors]
+
+export type SubmitCliAuthLoginInputResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type SubmitCliAuthLoginInputResponse =
+  SubmitCliAuthLoginInputResponses[keyof SubmitCliAuthLoginInputResponses]
+
 export type IngestAllData = {
   body?: never
   path?: never

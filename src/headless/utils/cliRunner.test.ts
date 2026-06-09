@@ -4,7 +4,9 @@ import {
   chatCliRunnerToStartRunBody,
   enabledClis,
   groupCachesByCli,
+  loginAwaitsCode,
   parseCliAuthLoginEvent,
+  parseLoginUrl,
 } from './cliRunner'
 
 describe('chatCliRunnerToDispatchOptions', () => {
@@ -134,5 +136,28 @@ describe('parseCliAuthLoginEvent', () => {
     expect(parseCliAuthLoginEvent({ loginId: 'l', type: 'mystery', event: {} })).toBeNull()
     expect(parseCliAuthLoginEvent('nope')).toBeNull()
     expect(parseCliAuthLoginEvent(null)).toBeNull()
+  })
+})
+
+describe('parseLoginUrl', () => {
+  it('extracts the first sign-in URL from streamed output', () => {
+    const out =
+      'Opening browser to sign in…\nIf the browser didn\'t open, visit: https://claude.com/cai/oauth/authorize?code=true&x=1\n'
+    expect(parseLoginUrl(out)).toBe('https://claude.com/cai/oauth/authorize?code=true&x=1')
+  })
+
+  it('strips trailing punctuation and returns null when no URL is present yet', () => {
+    expect(parseLoginUrl('Open this link: https://cursor.com/loginDeepControl?c=abc).')).toBe(
+      'https://cursor.com/loginDeepControl?c=abc',
+    )
+    expect(parseLoginUrl('Starting login…')).toBeNull()
+  })
+})
+
+describe('loginAwaitsCode', () => {
+  it('is true only when the output prompts for a pasted code', () => {
+    expect(loginAwaitsCode('Paste code here if prompted >')).toBe(true)
+    expect(loginAwaitsCode('Waiting for browser authentication...')).toBe(false)
+    expect(loginAwaitsCode('Opening browser to sign in…')).toBe(false)
   })
 })

@@ -100,6 +100,34 @@ export function parseCliAuthLoginEvent(data: unknown): CliAuthLoginParsed | null
   }
 }
 
+/**
+ * CLIs whose login runs in the sandbox container and therefore can't open the
+ * host's browser itself — the client auto-opens the printed sign-in URL for
+ * these. Host logins (claude-code, codex) open the browser themselves, so the
+ * client must NOT, or it would open a duplicate tab.
+ */
+export const CLI_CLIENT_OPENS_LOGIN_URL: ReadonlySet<string> = new Set(['cursor-agent'])
+
+/**
+ * Extract the first sign-in URL from a CLI login's streamed output, so the UI
+ * can surface it as a clickable link instead of raw terminal text. Returns null
+ * until a URL has been printed.
+ */
+export function parseLoginUrl(output: string): string | null {
+  const match = output.match(/https?:\/\/[^\s'"]+/)
+  return match ? match[0].replace(/[.,)]+$/, '') : null
+}
+
+/**
+ * True when the login is waiting for the user to paste a code (e.g. claude's
+ * container fallback prints a "Paste code here" prompt). Host logins that
+ * auto-complete via a localhost callback never show this, so the UI's paste box
+ * stays hidden for them.
+ */
+export function loginAwaitsCode(output: string): boolean {
+  return /\bpaste\b/i.test(output) && /\bcode\b/i.test(output)
+}
+
 /** Group CLI auth caches by their `cli` tag (caches of an unknown CLI still group under their string). */
 export function groupCachesByCli<T extends { cli: string }>(
   caches: readonly T[],

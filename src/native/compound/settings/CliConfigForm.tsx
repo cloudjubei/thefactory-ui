@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Linking, ScrollView, Text, View } from 'react-native'
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult } from '../../../headless'
+import {
+  CLI_CLIENT_OPENS_LOGIN_URL,
+  loginAwaitsCode,
+  parseLoginUrl,
+} from '../../../headless/utils/cliRunner'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { ConfirmDialog } from '../../primitives/Modal'
@@ -85,6 +90,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     probeLive,
     startAuthLogin,
     cancelAuthLogin,
+    submitLoginInput,
     loginOutput,
     loginResults,
   } = useCliConfigs()
@@ -100,6 +106,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
   const [loginId, setLoginId] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
+  const [loginInput, setLoginInput] = useState('')
 
   // Leave the streaming pane as soon as the active login reaches a terminal
   // outcome: success closes it (the new credential is already refreshed in),
@@ -120,6 +127,21 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     () => Object.entries(cachesByCli).sort(([a], [b]) => a.localeCompare(b)),
     [cachesByCli],
   )
+
+  const currentLoginOutput = loginId ? (loginOutput[loginId] ?? '') : ''
+  const loginUrl = parseLoginUrl(currentLoginOutput)
+  const needsCode = loginAwaitsCode(currentLoginOutput)
+
+  // Container logins (cursor) can't open the host browser themselves — open the
+  // printed sign-in link for the user, once per login. Host logins open it
+  // themselves, so they're excluded to avoid a duplicate tab.
+  const autoOpenedLoginRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!loginId || !loginUrl || !CLI_CLIENT_OPENS_LOGIN_URL.has(addCli)) return
+    if (autoOpenedLoginRef.current === loginId) return
+    autoOpenedLoginRef.current = loginId
+    void Linking.openURL(loginUrl)
+  }, [loginId, loginUrl, addCli])
 
   const runModelsProbe = async (cli: CliTool) => {
     setModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
@@ -185,7 +207,15 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
       await cancelAuthLogin(loginId)
     } finally {
       setLoginId(null)
+      setLoginInput('')
     }
+  }
+
+  const submitCode = async () => {
+    const text = loginInput.trim()
+    if (!loginId || !text) return
+    await submitLoginInput(loginId, text)
+    setLoginInput('')
   }
 
   const mutedBlock = {
@@ -501,15 +531,44 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
 
         {loginId ? (
           <View style={{ gap: nativeSpace[3] }}>
-            <ScrollView
-              style={{ ...mutedBlock, maxHeight: 256 }}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-            >
-              <Text style={{ fontFamily: 'Courier', fontSize: 11, color: theme.text.primary }}>
-                {loginOutput[loginId] ?? 'Starting login…'}
+            <View style={{ ...mutedBlock, gap: nativeSpace[2] }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
+                Sign in to {cliLabel(addCli)}
               </Text>
-            </ScrollView>
+              {loginUrl ? (
+                <>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[3] }}>
+                    <Button size="sm" onPress={() => void Linking.openURL(loginUrl)}>
+                      Open the sign-in page
+                    </Button>
+                  </View>
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    Authorize in your browser, then return here — this updates automatically.
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>Starting login…</Text>
+              )}
+            </View>
+
+            {needsCode ? (
+              <Field label="Paste the code shown after you authorize">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      value={loginInput}
+                      onChangeText={setLoginInput}
+                      placeholder="Paste code"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onSubmitEditing={() => void submitCode()}
+                    />
+                  </View>
+                  <Button onPress={() => void submitCode()}>Submit</Button>
+                </View>
+              </Field>
+            ) : null}
+
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
               <Button variant="secondary" onPress={() => void cancelAuthorize()}>
                 Cancel

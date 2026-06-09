@@ -7,6 +7,9 @@ export interface SwitchProps {
   onCheckedChange: (checked: boolean) => void
   label?: string
   disabled?: boolean
+  /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
+  testID?: string
+  accessibilityLabel?: string
   className?: string
 }
 
@@ -15,6 +18,8 @@ export function Switch({
   onCheckedChange,
   label,
   disabled = false,
+  testID,
+  accessibilityLabel,
   className,
 }: SwitchProps) {
   const { theme } = useNativeTheme()
@@ -26,6 +31,8 @@ export function Switch({
       <RNSwitch
         value={checked}
         disabled={disabled}
+        testID={testID}
+        accessibilityLabel={accessibilityLabel ?? label}
         onValueChange={onCheckedChange}
         trackColor={{
           false: theme.border.default,

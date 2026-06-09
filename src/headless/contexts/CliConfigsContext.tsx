@@ -11,6 +11,7 @@ import {
   setActiveCli as apiSetActiveCli,
   setCliEnabled as apiSetCliEnabled,
   startCliAuthLogin,
+  submitCliAuthLoginInput,
   updateCliAuthCache,
   type CliAuthCacheCreateInput,
   type CliAuthCacheEntry,
@@ -52,6 +53,8 @@ export type CliConfigsContextValue = {
   probeLive: (cli: CliTool, credentialId: string) => Promise<CliLiveProbeResult>
   startAuthLogin: (cli: CliTool, label: string) => Promise<string>
   cancelAuthLogin: (loginId: string) => Promise<void>
+  /** Feed a line (e.g. a pasted OAuth code) to a login subprocess's stdin. */
+  submitLoginInput: (loginId: string, text: string) => Promise<void>
   /** Accumulated login-subprocess output keyed by loginId (fed by the `cli:auth-login` WS). */
   loginOutput: Record<string, string>
   /** Terminal login outcomes keyed by loginId — present once a login completes or errors. */
@@ -190,6 +193,10 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     await cancelCliAuthLogin({ path: { loginId }, throwOnError: true })
   }, [])
 
+  const submitLoginInput = useCallback(async (loginId: string, text: string) => {
+    await submitCliAuthLoginInput({ path: { loginId }, body: { text }, throwOnError: true })
+  }, [])
+
   const cachesByCli = useMemo(() => groupCachesByCli(caches), [caches])
   const enabledClis = useMemo(() => deriveEnabledClis(activeState), [activeState])
 
@@ -212,6 +219,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeLive,
       startAuthLogin,
       cancelAuthLogin,
+      submitLoginInput,
       loginOutput,
       loginResults,
       refresh,
@@ -232,6 +240,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeLive,
       startAuthLogin,
       cancelAuthLogin,
+      submitLoginInput,
       loginOutput,
       loginResults,
       refresh,

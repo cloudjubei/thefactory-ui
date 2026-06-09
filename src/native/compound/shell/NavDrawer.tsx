@@ -41,6 +41,8 @@ export interface NavDrawerItem {
   /** Renders a spinner (with a dot) — the chat "thinking" affordance. Takes
    *  precedence over `showDot`; a numeric `badgeCount` still wins over both. */
   thinking?: boolean
+  /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
+  testID?: string
   onPress: () => void
 }
 
@@ -337,6 +339,7 @@ function Row({
   return (
     <Pressable
       onPress={item.onPress}
+      testID={item.testID}
       accessibilityRole="button"
       accessibilityState={{ selected: !!item.active }}
       style={({ pressed }) => ({

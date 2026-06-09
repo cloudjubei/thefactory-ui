@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult } from '../../../headless'
+import {
+  CLI_CLIENT_OPENS_LOGIN_URL,
+  loginAwaitsCode,
+  parseLoginUrl,
+} from '../../../headless/utils/cliRunner'
 import {
   Alert,
   Button,
@@ -78,6 +83,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     probeLive,
     startAuthLogin,
     cancelAuthLogin,
+    submitLoginInput,
     loginOutput,
     loginResults,
   } = useCliConfigs()
@@ -93,6 +99,7 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
   const [loginId, setLoginId] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
   const [addSuccess, setAddSuccess] = useState<string | null>(null)
+  const [loginInput, setLoginInput] = useState('')
 
   // Leave the streaming pane as soon as the active login reaches a terminal
   // outcome: success closes it (the new credential is already refreshed in),
@@ -113,6 +120,27 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     () => Object.entries(cachesByCli).sort(([a], [b]) => a.localeCompare(b)),
     [cachesByCli],
   )
+
+  const currentLoginOutput = loginId ? (loginOutput[loginId] ?? '') : ''
+  const loginUrl = parseLoginUrl(currentLoginOutput)
+  const needsCode = loginAwaitsCode(currentLoginOutput)
+
+  // Container logins (cursor) can't open the host browser themselves — open the
+  // printed sign-in link for the user. Host logins (claude / codex) open it
+  // themselves, so they're excluded to avoid a duplicate tab. The blank tab is
+  // opened during the Authorize click (see startAuthorize) so it isn't popup-
+  // blocked, then navigated here once the URL streams in.
+  const pendingLoginTabRef = useRef<Window | null>(null)
+  const autoOpenedLoginRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!loginId || !loginUrl || !CLI_CLIENT_OPENS_LOGIN_URL.has(addCli)) return
+    if (autoOpenedLoginRef.current === loginId) return
+    autoOpenedLoginRef.current = loginId
+    const tab = pendingLoginTabRef.current
+    pendingLoginTabRef.current = null
+    if (tab && !tab.closed) tab.location.href = loginUrl
+    else window.open(loginUrl, '_blank', 'noopener,noreferrer')
+  }, [loginId, loginUrl, addCli])
 
   const runModelsProbe = async (cli: CliTool) => {
     setModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
@@ -162,10 +190,17 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
     setAuthStarting(true)
     setAddError(null)
     setAddSuccess(null)
+    // Open the tab synchronously inside the click gesture (not popup-blocked)
+    // for CLIs the client opens (cursor); the effect navigates it to the URL.
+    if (CLI_CLIENT_OPENS_LOGIN_URL.has(addCli)) {
+      pendingLoginTabRef.current = window.open('about:blank', '_blank')
+    }
     try {
       const id = await startAuthLogin(addCli, addLabel.trim() || cliLabel(addCli))
       setLoginId(id)
     } catch (err) {
+      pendingLoginTabRef.current?.close()
+      pendingLoginTabRef.current = null
       setAddError(extractErrorMessage(err, 'Failed to start the CLI login.'))
     } finally {
       setAuthStarting(false)
@@ -174,11 +209,23 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
 
   const cancelAuthorize = async () => {
     if (!loginId) return
+    if (pendingLoginTabRef.current && !pendingLoginTabRef.current.closed) {
+      pendingLoginTabRef.current.close()
+    }
+    pendingLoginTabRef.current = null
     try {
       await cancelAuthLogin(loginId)
     } finally {
       setLoginId(null)
+      setLoginInput('')
     }
+  }
+
+  const submitCode = async () => {
+    const text = loginInput.trim()
+    if (!loginId || !text) return
+    await submitLoginInput(loginId, text)
+    setLoginInput('')
   }
 
   if (!isLoaded) {
@@ -375,10 +422,61 @@ export function CliConfigForm({ onClose }: CliConfigFormProps) {
         </Field>
 
         {loginId ? (
-          <div className="flex flex-col gap-2">
-            <pre className="m-0 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-(--surface-muted) px-2 py-1.5 font-mono text-[11px] text-(--text-primary)">
-              {loginOutput[loginId] ?? 'Starting login…'}
-            </pre>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 rounded-md border border-(--border-default) bg-(--surface-muted) p-3">
+              <span className="text-sm font-medium text-(--text-primary)">
+                Sign in to {cliLabel(addCli)}
+              </span>
+              {loginUrl ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={loginUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-(--accent-primary) underline"
+                    >
+                      Open the sign-in page ↗
+                    </a>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void navigator.clipboard?.writeText(loginUrl)}
+                    >
+                      Copy link
+                    </Button>
+                  </div>
+                  <span className="text-xs text-(--text-secondary)">
+                    Authorize in your browser, then return here — this updates automatically.
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs text-(--text-secondary)">Starting login…</span>
+              )}
+            </div>
+
+            {needsCode && (
+              <Field label="Paste the code shown after you authorize">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void submitCode()
+                      }
+                    }}
+                    placeholder="Paste code"
+                  />
+                  <Button type="button" onClick={() => void submitCode()}>
+                    Submit
+                  </Button>
+                </div>
+              </Field>
+            )}
+
             <div className="flex justify-end">
               <Button type="button" variant="secondary" onClick={() => void cancelAuthorize()}>
                 Cancel

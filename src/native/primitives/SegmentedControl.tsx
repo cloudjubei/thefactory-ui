@@ -18,6 +18,8 @@ export interface SegmentedControlProps {
   onChange: (value: string) => void
   size?: SegmentedSize
   ariaLabel?: string
+  /** Stable handle for UI-test tooling; each option becomes `${testID}-${value}`. */
+  testID?: string
   className?: string
   /** Visually hide per-option text labels; icons stay. */
   hideLabels?: boolean
@@ -34,6 +36,7 @@ export default function SegmentedControl({
   onChange,
   size = 'md',
   ariaLabel = 'View switch',
+  testID,
   className,
   hideLabels = false,
   style,
@@ -66,6 +69,7 @@ export default function SegmentedControl({
             accessibilityRole="radio"
             accessibilityState={{ selected: active, checked: active }}
             accessibilityLabel={opt.label}
+            testID={testID ? `${testID}-${opt.value}` : undefined}
             onPress={() => onChange(opt.value)}
             style={({ pressed }) => ({
               height: HEIGHT[size],

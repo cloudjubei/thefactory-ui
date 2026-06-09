@@ -113,6 +113,9 @@ export interface SelectTriggerProps {
   children?: ReactNode
   size?: SelectTriggerSize
   disabled?: boolean
+  /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
+  testID?: string
+  accessibilityLabel?: string
   className?: string
   style?: StyleProp<ViewStyle>
 }
@@ -133,6 +136,8 @@ export function SelectTrigger({
   children,
   size = 'md',
   disabled = false,
+  testID,
+  accessibilityLabel,
   className,
   style,
 }: SelectTriggerProps) {
@@ -142,6 +147,8 @@ export function SelectTrigger({
     <Pressable
       accessibilityRole="combobox"
       accessibilityState={{ expanded: open, disabled }}
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
       disabled={disabled}
       onPress={() => setOpen(true)}
       className={className}
