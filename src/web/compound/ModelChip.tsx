@@ -98,6 +98,16 @@ function cliLabel(cli?: string | null) {
   return map[cli] || cli
 }
 
+/** Per-CLI brand dot colour: Claude orange, Codex gray, Cursor black. */
+function cliDotColor(cli?: string | null): string {
+  const map: Record<string, string> = {
+    'claude-code': '#D97757',
+    codex: '#8E8E93',
+    'cursor-agent': '#000000',
+  }
+  return (cli && map[cli]) || '#8E8E93'
+}
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
@@ -394,10 +404,8 @@ function Picker({
                 }}
               >
                 <span
-                  className={[
-                    'inline-block w-1.5 h-1.5 rounded-full mr-2',
-                    isActive ? 'bg-teal-500' : 'bg-neutral-400',
-                  ].join(' ')}
+                  className="inline-block w-1.5 h-1.5 rounded-full mr-2"
+                  style={{ backgroundColor: cliDotColor(cli) }}
                   aria-hidden
                 />
                 <span className="standard-picker__label truncate text-[12px] font-medium">
@@ -611,8 +619,9 @@ export function ModelChip({
         aria-hidden
         className={[
           'inline-block w-1.5 h-1.5 shrink-0 rounded-full',
-          useCli ? 'bg-violet-500' : providerDotClasses(activeConfig?.provider),
+          useCli ? '' : providerDotClasses(activeConfig?.provider),
         ].join(' ')}
+        style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
       />
       <span className="flex flex-col leading-tight max-w-[60px] items-center pr-1 pl-1 overflow-hidden text-ellipsis">
         <span className="truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">

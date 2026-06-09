@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   cancelCliAuthLogin,
@@ -7,8 +7,11 @@ import {
   getActiveCliState,
   listCliAgentModels,
   listCliAuthCaches,
+  liveCliAgentModels,
   liveCliAgentProbe,
   setActiveCli as apiSetActiveCli,
+  setCliDefaultModel as apiSetCliDefaultModel,
+  setCliEffort as apiSetCliEffort,
   setCliEnabled as apiSetCliEnabled,
   startCliAuthLogin,
   submitCliAuthLoginInput,
@@ -16,6 +19,7 @@ import {
   type CliAuthCacheCreateInput,
   type CliAuthCacheEntry,
   type CliConfigsActiveState,
+  type CliReasoningEffort,
   type CliTool,
   type ModelInfo,
 } from '../api/generated'
@@ -35,6 +39,14 @@ export type CliAuthLoginResult =
   | { status: 'completed'; credentialId: string }
   | { status: 'error'; error: string }
 
+/** The model catalogue plus the reasoning-effort ladder a CLI accepts, from one probe. */
+export type CliProbeResult = { models: ModelInfo[]; efforts: CliReasoningEffort[] }
+
+/** Outcome of a live (account-aware) model fetch — mirrors the backend's discriminated result. */
+export type CliLiveModelsResult =
+  | { ok: true; durationMs: number; models: ModelInfo[] }
+  | { ok: false; durationMs: number; error: string }
+
 export type CliConfigsContextValue = {
   isLoaded: boolean
   loadError: Error | null
@@ -44,12 +56,29 @@ export type CliConfigsContextValue = {
   activeCli: string | null
   activeCliCredentialId: string | null
   enabledClis: string[]
+  /** Per-CLI default model id the user picked in settings (keyed by CLI tool). */
+  defaultModel: Record<string, string>
+  /** Per-CLI default reasoning effort the user picked in settings (keyed by CLI tool). */
+  effort: Record<string, string>
   createCache: (input: CliAuthCacheCreateInput) => Promise<CliAuthCacheEntry>
   updateCache: (id: string, patch: Partial<CliAuthCacheCreateInput>) => Promise<CliAuthCacheEntry>
   deleteCache: (id: string) => Promise<void>
   setActiveCli: (cli: string, credentialId: string) => Promise<void>
   setCliEnabled: (cli: string, enabled: boolean) => Promise<void>
-  probeModels: (cli: CliTool) => Promise<ModelInfo[]>
+  /** Set (or clear, with `undefined`) the default model for `cli`. */
+  setCliDefaultModel: (cli: string, model: string | undefined) => Promise<void>
+  /** Set (or clear, with `undefined`) the default reasoning effort for `cli`. */
+  setCliEffort: (cli: string, effort: string | undefined) => Promise<void>
+  probeModels: (cli: CliTool) => Promise<CliProbeResult>
+  /**
+   * Fetch the live, account-aware model list (Cursor sandbox / Codex cache).
+   * On success the result is cached per `cli:credentialId` and exposed via
+   * {@link cachedLiveModels}; failures are returned (not thrown) so the caller
+   * can surface a retry while keeping the static list visible.
+   */
+  probeModelsLive: (cli: CliTool, credentialId: string) => Promise<CliLiveModelsResult>
+  /** The last successfully-fetched live model list for `cli:credentialId`, if any. */
+  cachedLiveModels: (cli: CliTool, credentialId: string) => ModelInfo[] | undefined
   probeLive: (cli: CliTool, credentialId: string) => Promise<CliLiveProbeResult>
   startAuthLogin: (cli: CliTool, label: string) => Promise<string>
   cancelAuthLogin: (loginId: string) => Promise<void>
@@ -77,6 +106,16 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [loginOutput, setLoginOutput] = useState<Record<string, string>>({})
   const [loginResults, setLoginResults] = useState<Record<string, CliAuthLoginResult>>({})
+  // Live model lists keyed by `${cli}:${credentialId}`, populated on a manual
+  // refresh and cleared whenever a credential changes (the list is account-aware).
+  const [liveModelsCache, setLiveModelsCache] = useState<Record<string, ModelInfo[]>>({})
+  // Bumped on every credential mutation so an in-flight live fetch started
+  // against the prior credential state can't restore a just-cleared entry.
+  const cacheGenerationRef = useRef(0)
+  const invalidateLiveModelsCache = useCallback(() => {
+    cacheGenerationRef.current += 1
+    setLiveModelsCache({})
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
@@ -135,27 +174,30 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const createCache = useCallback(
     async (input: CliAuthCacheCreateInput) => {
       const { data } = await createCliAuthCache({ body: input, throwOnError: true })
+      invalidateLiveModelsCache()
       await refresh()
       return data
     },
-    [refresh],
+    [refresh, invalidateLiveModelsCache],
   )
 
   const updateCache = useCallback(
     async (id: string, patch: Partial<CliAuthCacheCreateInput>) => {
       const { data } = await updateCliAuthCache({ path: { id }, body: patch, throwOnError: true })
+      invalidateLiveModelsCache()
       await refresh()
       return data
     },
-    [refresh],
+    [refresh, invalidateLiveModelsCache],
   )
 
   const deleteCache = useCallback(
     async (id: string) => {
       await deleteCliAuthCache({ path: { id }, throwOnError: true })
+      invalidateLiveModelsCache()
       await refresh()
     },
-    [refresh],
+    [refresh, invalidateLiveModelsCache],
   )
 
   const setActiveCli = useCallback(
@@ -174,10 +216,55 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     [refresh],
   )
 
-  const probeModels = useCallback(async (cli: CliTool) => {
+  const setCliDefaultModel = useCallback(
+    async (cli: string, model: string | undefined) => {
+      await apiSetCliDefaultModel({
+        body: { cli: cli as CliTool, model: model ?? null },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const setCliEffort = useCallback(
+    async (cli: string, effort: string | undefined) => {
+      await apiSetCliEffort({
+        body: { cli: cli as CliTool, effort: effort ?? null },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const probeModels = useCallback(async (cli: CliTool): Promise<CliProbeResult> => {
     const { data } = await listCliAgentModels({ query: { cli }, throwOnError: true })
-    return data.models
+    return { models: data.models, efforts: data.efforts }
   }, [])
+
+  const probeModelsLive = useCallback(
+    async (cli: CliTool, credentialId: string): Promise<CliLiveModelsResult> => {
+      const gen = cacheGenerationRef.current
+      const { data } = await liveCliAgentModels({ body: { cli, credentialId }, throwOnError: true })
+      // Drop the result if a credential mutation invalidated the cache while
+      // this fetch was in flight — it was resolved against stale auth state.
+      if (data.ok && cacheGenerationRef.current === gen) {
+        setLiveModelsCache((prev) => ({ ...prev, [`${cli}:${credentialId}`]: data.models }))
+      }
+      return data as CliLiveModelsResult
+    },
+    [],
+  )
+
+  const cachedLiveModels = useCallback(
+    (cli: CliTool, credentialId: string): ModelInfo[] | undefined => {
+      // Never serve an account-aware list for a credential that no longer exists.
+      if (!caches.some((c) => c.id === credentialId)) return undefined
+      return liveModelsCache[`${cli}:${credentialId}`]
+    },
+    [liveModelsCache, caches],
+  )
 
   const probeLive = useCallback(async (cli: CliTool, credentialId: string) => {
     const { data } = await liveCliAgentProbe({ body: { cli, credentialId }, throwOnError: true })
@@ -210,12 +297,18 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       activeCli: activeState.activeCli ?? null,
       activeCliCredentialId: activeState.activeCliCredentialId ?? null,
       enabledClis,
+      defaultModel: activeState.defaultModel ?? {},
+      effort: activeState.effort ?? {},
       createCache,
       updateCache,
       deleteCache,
       setActiveCli,
       setCliEnabled,
+      setCliDefaultModel,
+      setCliEffort,
       probeModels,
+      probeModelsLive,
+      cachedLiveModels,
       probeLive,
       startAuthLogin,
       cancelAuthLogin,
@@ -236,7 +329,11 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       deleteCache,
       setActiveCli,
       setCliEnabled,
+      setCliDefaultModel,
+      setCliEffort,
       probeModels,
+      probeModelsLive,
+      cachedLiveModels,
       probeLive,
       startAuthLogin,
       cancelAuthLogin,

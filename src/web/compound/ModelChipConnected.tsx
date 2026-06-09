@@ -44,14 +44,31 @@ function ModelChipWithCli({
   chatContext: ChatContext
   llm: ModelChipLlmWiring
 }) {
-  const { enabledClis, activeCli, activeCliCredentialId, probeModels } = useCliConfigs()
+  const {
+    enabledClis,
+    activeCli,
+    activeCliCredentialId,
+    defaultModel,
+    effort,
+    probeModels,
+    cachedLiveModels,
+  } = useCliConfigs()
   const { cliRunner, attach, detach } = useChatCliRunner(chatContext)
 
   const [cliModels, setCliModels] = useState<ModelInfo[]>([])
-  const [selectedCliModelId, setSelectedCliModelId] = useState<string | undefined>(undefined)
 
   const useCli = !!cliRunner
   const selectedCli = cliRunner?.tool ?? activeCli ?? null
+  const selectedCliModelId = cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
+  const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
+  // Prefer the account-aware live list the user fetched in settings; fall back
+  // to the static catalogue probed on open.
+  const liveModels =
+    selectedCli && credentialId
+      ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
+        undefined)
+      : undefined
+  const effectiveCliModels = liveModels ?? cliModels
 
   useEffect(() => {
     if (!useCli || !selectedCli) {
@@ -60,12 +77,8 @@ function ModelChipWithCli({
     }
     let cancelled = false
     void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then((models) => {
-        if (cancelled) return
-        setCliModels(models)
-        setSelectedCliModelId((prev) =>
-          prev && models.some((m) => m.id === prev) ? prev : models[0]?.id,
-        )
+      .then(({ models }) => {
+        if (!cancelled) setCliModels(models)
       })
       .catch(() => {
         if (!cancelled) setCliModels([])
@@ -80,24 +93,44 @@ function ModelChipWithCli({
       if (next) {
         const tool = activeCli ?? enabledClis[0]
         if (!tool) return
-        void attach({ tool, credentialId: activeCliCredentialId ?? undefined })
+        void attach({
+          tool,
+          credentialId: activeCliCredentialId ?? undefined,
+          model: defaultModel[tool],
+          effort: effort[tool],
+        })
       } else {
         void detach()
       }
     },
-    [activeCli, enabledClis, activeCliCredentialId, attach, detach],
+    [activeCli, enabledClis, activeCliCredentialId, defaultModel, effort, attach, detach],
   )
 
   const onPickCli = useCallback(
     (cli: string) => {
-      void attach({ tool: cli, credentialId: activeCliCredentialId ?? undefined })
+      void attach({
+        tool: cli,
+        credentialId: activeCliCredentialId ?? undefined,
+        model: defaultModel[cli],
+        effort: effort[cli],
+      })
     },
-    [activeCliCredentialId, attach],
+    [activeCliCredentialId, defaultModel, effort, attach],
   )
 
-  const onPickCliModel = useCallback((modelId: string) => {
-    setSelectedCliModelId(modelId)
-  }, [])
+  const onPickCliModel = useCallback(
+    (modelId: string) => {
+      if (!selectedCli) return
+      void attach({
+        tool: selectedCli,
+        credentialId: cliRunner?.credentialId ?? activeCliCredentialId ?? undefined,
+        apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
+        model: modelId,
+        effort: cliRunner?.effort ?? effort[selectedCli],
+      })
+    },
+    [selectedCli, cliRunner, activeCliCredentialId, effort, attach],
+  )
 
   return (
     <ModelChipBase
@@ -117,7 +150,7 @@ function ModelChipWithCli({
       enabledClis={enabledClis}
       activeCli={selectedCli}
       onPickCli={onPickCli}
-      cliModels={cliModels}
+      cliModels={effectiveCliModels}
       onPickCliModel={onPickCliModel}
     />
   )

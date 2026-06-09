@@ -437,6 +437,8 @@ export type CliRunnerDispatchOptions = {
   authCredentialId?: string
   apiKeyCredentialId?: string
   workspaceHostPath?: string
+  model?: string
+  effort?: string
 }
 
 export type ResearchSource = {
@@ -594,6 +596,8 @@ export type ChatCliRunner = {
   tool: string
   credentialId?: string
   apiKeyCredentialId?: string
+  model?: string
+  effort?: string
 }
 
 export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -770,6 +774,8 @@ export type Chat = {
     tool: string
     credentialId?: string
     apiKeyCredentialId?: string
+    model?: string
+    effort?: string
   }
   createdAt?: string
   updatedAt?: string
@@ -934,6 +940,8 @@ export type ChatUpdate = {
       tool: string
       credentialId?: string
       apiKeyCredentialId?: string
+      model?: string
+      effort?: string
     }
     createdAt: string
     updatedAt: string
@@ -1431,6 +1439,8 @@ export type ChatContextArgumentsAgentRunFeature = {
 
 export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
 
+export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
 export type CliRunStatus =
   | 'running'
   | 'awaiting-approval'
@@ -1458,6 +1468,8 @@ export type ModelInfo = {
   label: string
   cli: CliTool
   notes?: string
+  isDefault?: boolean
+  source?: 'live' | 'static'
 }
 
 export type CliAgentSubscriptionStatus = {
@@ -1554,6 +1566,7 @@ export type CliRun = {
   }
   cliSessionId?: string
   modelId?: string
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   authCredentialId?: string
   apiKeyCredentialId?: string
   prompt: string
@@ -1938,6 +1951,27 @@ export type CodeIntelCatalogue = {
   [key: string]: CodeIntelPackageEntry
 }
 
+export type CodeIntelValueFlowEdge = {
+  from: string
+  to: string
+}
+
+export type CodeIntelMemberSupersession = {
+  name: string
+  supersededCallees: Array<string>
+  valueFlowEdges: Array<CodeIntelValueFlowEdge>
+}
+
+export type CodeIntelCallGraphMember = {
+  name: string
+  targets: Array<string>
+}
+
+export type CodeIntelHandlerRegistration = {
+  name: string
+  handlers: Array<string>
+}
+
 export type CodeIntelValidationIssue = {
   level: 'warn' | 'error'
   code: string
@@ -2027,6 +2061,8 @@ export type CodeIntelMemberMatch = {
   description?: string
   dependencies: Array<string>
 }
+
+export type PackLanguages = 'javascript' | 'typescript' | 'tsx'
 
 export type SupportedLanguage = 'javascript' | 'typescript' | 'tsx' | 'python'
 
@@ -2264,6 +2300,12 @@ export type CliConfigsActiveState = {
   activeCliCredentialId?: string
   enabled?: {
     [key: string]: boolean
+  }
+  defaultModel?: {
+    [key: string]: string
+  }
+  effort?: {
+    [key: string]: string
   }
 }
 
@@ -3324,6 +3366,129 @@ export type LoggerConfig = {
   redactSecrets: boolean
 }
 
+export type MobilePlatform = 'android' | 'ios'
+
+export type MobileBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type MobileNode = {
+  ref?: string
+  type: string
+  label: string
+  id?: string
+  bounds?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  depth: number
+  clickable?: boolean
+}
+
+export type MobileDevice = {
+  id: string
+  platform: MobilePlatform
+  name?: string
+  state?: string
+}
+
+export type MobileToolCheck = {
+  name: string
+  available: boolean
+  version?: string
+  hint?: string
+}
+
+export type MobileDoctorReport = {
+  platformReady: {
+    android: boolean
+    ios: boolean
+  }
+  checks: Array<MobileToolCheck>
+  devices: Array<MobileDevice>
+  issues: Array<string>
+}
+
+export type OpenMobileSessionOptions = {
+  platform: MobilePlatform
+  appPath?: string
+  appId?: string
+  deviceId?: string
+}
+
+export type MobileSessionResult = {
+  sessionId: string
+  platform: MobilePlatform
+  deviceId: string
+  appId?: string
+}
+
+export type MobileSessionInfo = {
+  sessionId: string
+  platform: MobilePlatform
+  deviceId: string
+  createdAt: number
+}
+
+export type MobileSnapshotResult = {
+  sessionId: string
+  ok: boolean
+  snapshot: string
+  refsCount: number
+  error?: string
+}
+
+export type MobileActionResult = {
+  sessionId: string
+  ok: boolean
+  error?: string
+}
+
+export type MobileScreenshotResult = {
+  sessionId: string
+  ok: boolean
+  path?: string
+  width?: number
+  height?: number
+  error?: string
+}
+
+export type MobileShellResult = {
+  ok: boolean
+  exitCode: number
+  stdout: string
+  stderr: string
+}
+
+export type SwipeMobileOptions = {
+  direction: 'up' | 'down' | 'left' | 'right'
+}
+
+export type CreateMobileTestToolsOptions = {
+  commandTimeoutMs?: number
+}
+
+export type MobileSessionEntry = {
+  sessionId: string
+  platform: MobilePlatform
+  deviceId: string
+  appId?: string
+  lastRefs: {
+    [key: string]: MobileBounds
+  }
+  screen?: {
+    width: number
+    height: number
+  }
+  screenshotSeq: number
+  createdAt: number
+}
+
 export type CommandResult = {
   code: number
   stdout: string
@@ -3492,6 +3657,168 @@ export type ProjectsGroupUpdateType = 'change'
 export type ProjectsGroupUpdate = {
   type: ProjectsGroupUpdateType
   groups: ProjectsGroups
+}
+
+export type RecommendSource = {
+  title: string
+  url: string
+}
+
+export type ProductTypeSpec = {
+  recordType: string
+  keyFields: Array<string>
+  supplierQuery: string
+  supplierInstructions: string
+  itemQuery: string
+  itemInstructions: string
+}
+
+export type FilterRule = {
+  field: string
+  op: 'eq' | 'lte' | 'gte' | 'contains'
+  value: unknown
+}
+
+export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative'
+
+export type RequirementMatch = {
+  match: number
+  unmet: Array<string>
+}
+
+export type RankedProduct = {
+  key: string
+  content: {
+    [key: string]: unknown
+  }
+  score: number
+  why: string
+  sources: Array<RecommendSource>
+}
+
+export type TieredProduct = {
+  key: string
+  content: {
+    [key: string]: unknown
+  }
+  score: number
+  why: string
+  sources: Array<RecommendSource>
+  tier: 'perfect' | 'good' | 'ok' | 'alternative'
+  requirementMatch: number
+  unmetFilters: Array<string>
+}
+
+export type RecommendDiagnostics = {
+  recordType: string
+  retrieved: number
+  ranked: number
+  byTier: {
+    perfect: number
+    good: number
+    ok: number
+    alternative: number
+  }
+}
+
+export type TieredRecommendationsResult = {
+  products: Array<TieredProduct>
+  diagnostics: RecommendDiagnostics
+}
+
+export type CatalogItem = {
+  key: string
+  content: {
+    [key: string]: unknown
+  }
+  sources: Array<RecommendSource>
+  updatedAt: string
+}
+
+export type ScoredCatalogItem = {
+  key: string
+  content: {
+    [key: string]: unknown
+  }
+  sources: Array<RecommendSource>
+  updatedAt: string
+  score: number
+}
+
+export type CoercedRankRow = {
+  key: string
+  score: number
+  why: string
+}
+
+export type CatalogBuildCaps = {
+  maxSuppliers: number
+  maxItemsPerSupplier: number
+}
+
+export type CatalogBuildProgress = {
+  phase: 'suppliers' | 'items'
+  suppliersDone: number
+  suppliersTotal: number
+  itemsSoFar: number
+}
+
+export type BuildProductCatalogResult = {
+  recordType: string
+  count: number
+  attempted: number
+  failed: number
+  suppliers: number
+  suppliersFailed: number
+  builtAt: string
+  market: string
+}
+
+export type SearchProductCandidatesParams = {
+  scope: string
+  recordType: string
+  searchQuery: string
+  limit?: number
+}
+
+export type RecommendProductsParams = {
+  scope: string
+  recordType: string
+  searchQuery: string
+  filters?: Array<FilterRule>
+  rankInstructions: string
+  llmConfig: LlmConfig
+  searchLimit?: number
+  rankLimit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type RankProductCandidatesParams = {
+  candidates: Array<ScoredCatalogItem>
+  rankInstructions: string
+  llmConfig: LlmConfig
+  limit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
 }
 
 export type SandboxMcpBridgeOptions = {
@@ -3965,8 +4292,17 @@ export type UiNetworkRequest = {
   failure?: string
 }
 
-export type CreateUiTestToolsOptions = {
-  headless?: boolean
+export type UiActionRequest = {
+  tool: string
+  sessionId: string
+  detail?: {
+    [key: string]: unknown
+  }
+}
+
+export type UiActionDecision = {
+  allowed: boolean
+  reason?: string
 }
 
 export type RawConsoleInput = {
@@ -6227,6 +6563,45 @@ export type SetCliEnabledResponses = {
 }
 
 export type SetCliEnabledResponse = SetCliEnabledResponses[keyof SetCliEnabledResponses]
+
+export type SetCliDefaultModelData = {
+  body: {
+    cli: CliTool
+    model: string | unknown
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/default-model'
+}
+
+export type SetCliDefaultModelResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetCliDefaultModelResponse =
+  SetCliDefaultModelResponses[keyof SetCliDefaultModelResponses]
+
+export type SetCliEffortData = {
+  body: {
+    cli: CliTool
+    effort: string | unknown
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-configs/effort'
+}
+
+export type SetCliEffortResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetCliEffortResponse = SetCliEffortResponses[keyof SetCliEffortResponses]
 
 export type StartGitCredentialGithubRedirectData = {
   body: {
@@ -9827,6 +10202,8 @@ export type SendChatCompletionWithToolsData = {
       authCredentialId?: string
       apiKeyCredentialId?: string
       workspaceHostPath?: string
+      model?: string
+      effort?: string
     }
   }
   path?: never
@@ -11265,6 +11642,8 @@ export type StartAgentRunData = {
       authCredentialId?: string
       apiKeyCredentialId?: string
       workspaceHostPath?: string
+      model?: string
+      effort?: string
     }
   }
   path?: never
@@ -11346,6 +11725,8 @@ export type StartCliAgentRunData = {
     }
     authCredentialId?: string
     apiKeyCredentialId?: string
+    modelId?: string
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     workspaceHostPath?: string
     subscription?: {
       plan?: string
@@ -11617,6 +11998,7 @@ export type ListCliAgentModelsResponses = {
    */
   200: {
     models: Array<ModelInfo>
+    efforts: Array<'low' | 'medium' | 'high' | 'xhigh' | 'max'>
   }
 }
 
@@ -11664,6 +12046,49 @@ export type LiveCliAgentProbeResponses = {
 }
 
 export type LiveCliAgentProbeResponse = LiveCliAgentProbeResponses[keyof LiveCliAgentProbeResponses]
+
+export type LiveCliAgentModelsData = {
+  body: {
+    cli: CliTool
+    credentialId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/probe/models/live'
+}
+
+export type LiveCliAgentModelsErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type LiveCliAgentModelsError = LiveCliAgentModelsErrors[keyof LiveCliAgentModelsErrors]
+
+export type LiveCliAgentModelsResponses = {
+  /**
+   * Default Response
+   */
+  200:
+    | {
+        ok: true
+        durationMs: number
+        models: Array<ModelInfo>
+      }
+    | {
+        ok: false
+        error: string
+        durationMs: number
+      }
+}
+
+export type LiveCliAgentModelsResponse =
+  LiveCliAgentModelsResponses[keyof LiveCliAgentModelsResponses]
 
 export type GetCliAgentRunData = {
   body?: never

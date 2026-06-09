@@ -93,6 +93,16 @@ function cliLabel(cli?: string | null): string {
   return CLI_LABELS[cli] ?? cli
 }
 
+/** Per-CLI brand dot colour: Claude orange, Codex gray, Cursor black. */
+const CLI_DOT_COLORS: Record<string, string> = {
+  'claude-code': '#D97757',
+  codex: '#8E8E93',
+  'cursor-agent': '#000000',
+}
+function cliDotColor(cli?: string | null): string {
+  return (cli && CLI_DOT_COLORS[cli]) || '#8E8E93'
+}
+
 function providerDot(p?: string): string {
   return PROVIDER_DOTS[(p ?? '').toLowerCase()] ?? nativePalette.pink[500]
 }
@@ -308,7 +318,7 @@ export function ModelChip({
           width: 8,
           height: 8,
           borderRadius: 4,
-          backgroundColor: useCli ? nativePalette.purple[500] : dotColor,
+          backgroundColor: useCli ? cliDotColor(activeCli) : dotColor,
         }}
       />
       <View style={{ alignItems: 'center' }}>
@@ -436,7 +446,7 @@ export function ModelChip({
                         width: 8,
                         height: 8,
                         borderRadius: 4,
-                        backgroundColor: isActive ? nativePalette.purple[500] : theme.text.muted,
+                        backgroundColor: cliDotColor(cli),
                       }}
                     />
                     <Text style={{ flex: 1, fontSize: 14, color: theme.text.primary }}>

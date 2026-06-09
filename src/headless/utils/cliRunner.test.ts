@@ -23,6 +23,22 @@ describe('chatCliRunnerToDispatchOptions', () => {
       apiKeyCredentialId: 'llm-1',
     })
   })
+
+  it('forwards the per-chat model + effort so the picked model reaches the run', () => {
+    expect(
+      chatCliRunnerToDispatchOptions({
+        tool: 'claude-code',
+        credentialId: 'cli-1',
+        model: 'opus',
+        effort: 'high',
+      }),
+    ).toEqual({
+      cli: 'claude-code',
+      authCredentialId: 'cli-1',
+      model: 'opus',
+      effort: 'high',
+    })
+  })
 })
 
 describe('chatCliRunnerToStartRunBody', () => {
@@ -61,6 +77,15 @@ describe('chatCliRunnerToStartRunBody', () => {
       { projectId: 'p1', prompt: 'x', storyId: 's1' },
     )
     expect(body.storyId).toBe('s1')
+  })
+
+  it('forwards model→modelId and effort onto the run body', () => {
+    const body = chatCliRunnerToStartRunBody(
+      { tool: 'claude-code', credentialId: 'cli-1', model: 'opus', effort: 'high' },
+      { projectId: 'p1', prompt: 'go' },
+    )
+    expect(body.modelId).toBe('opus')
+    expect(body.effort).toBe('high')
   })
 })
 

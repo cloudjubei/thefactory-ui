@@ -35,6 +35,8 @@ export function chatCliRunnerToStartRunBody(
     ...(input.storyId ? { storyId: input.storyId } : {}),
     ...(runner.credentialId ? { authCredentialId: runner.credentialId } : {}),
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
+    ...(runner.model ? { modelId: runner.model } : {}),
+    ...(runner.effort ? { effort: runner.effort as StartCliAgentRunData['body']['effort'] } : {}),
   }
 }
 
@@ -48,6 +50,8 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     cli: runner.tool as CliTool,
     ...(runner.credentialId ? { authCredentialId: runner.credentialId } : {}),
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
+    ...(runner.model ? { model: runner.model } : {}),
+    ...(runner.effort ? { effort: runner.effort } : {}),
   }
 }
 

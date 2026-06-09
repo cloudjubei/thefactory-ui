@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { extractErrorMessage } from '../../../headless/api'
-import type { CliAuthCacheEntry, CliTool, ModelInfo } from '../../../headless/api'
+import type { CliAuthCacheEntry, CliReasoningEffort, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { ConfirmDialog } from '../../primitives/Modal'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../primitives/Select'
 import Spinner from '../../primitives/Spinner'
 import { IconCheck } from '../../icons/IconCheck'
 import { IconDelete } from '../../icons/IconDelete'
@@ -28,7 +35,7 @@ function cliLabel(cli: string): string {
 type ModelsProbeState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'ok'; models: ModelInfo[] }
+  | { kind: 'ok'; models: ModelInfo[]; efforts: CliReasoningEffort[] }
   | { kind: 'error'; message: string }
 
 type LiveProbeState =
@@ -36,6 +43,8 @@ type LiveProbeState =
   | { kind: 'loading' }
   | { kind: 'result'; result: CliLiveProbeResult }
   | { kind: 'error'; message: string }
+
+type LiveModelsProbeState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string }
 
 /**
  * Native peer of web's `CliConfigForm` — the CLI credential LIST. Shows every
@@ -51,14 +60,21 @@ export function CliConfigForm() {
     cachesByCli,
     activeCliCredentialId,
     enabledClis,
+    defaultModel,
+    effort,
     setActiveCli,
     setCliEnabled,
+    setCliDefaultModel,
+    setCliEffort,
     deleteCache,
     probeModels,
+    probeModelsLive,
+    cachedLiveModels,
     probeLive,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
+  const [liveModelsProbe, setLiveModelsProbe] = useState<Record<string, LiveModelsProbeState>>({})
   const [liveProbe, setLiveProbe] = useState<Record<string, LiveProbeState>>({})
   const [pendingDelete, setPendingDelete] = useState<CliAuthCacheEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -71,8 +87,8 @@ export function CliConfigForm() {
   const runModelsProbe = async (cli: CliTool) => {
     setModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
     try {
-      const models = await probeModels(cli)
-      setModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'ok', models } }))
+      const { models, efforts } = await probeModels(cli)
+      setModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'ok', models, efforts } }))
     } catch (err) {
       setModelsProbe((prev) => ({
         ...prev,
@@ -80,6 +96,29 @@ export function CliConfigForm() {
           kind: 'error',
           message: extractErrorMessage(err, 'Could not list models for this CLI.'),
         },
+      }))
+    }
+  }
+
+  const cliKeys = useMemo(() => cliGroups.map(([cli]) => cli).join(','), [cliGroups])
+  useEffect(() => {
+    if (!cliKeys) return
+    for (const cli of cliKeys.split(',')) void runModelsProbe(cli as CliTool)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliKeys])
+
+  const runLiveModelsProbe = async (cli: CliTool, credentialId: string) => {
+    setLiveModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
+    try {
+      const result = await probeModelsLive(cli, credentialId)
+      setLiveModelsProbe((prev) => ({
+        ...prev,
+        [cli]: result.ok ? { kind: 'idle' } : { kind: 'error', message: result.error },
+      }))
+    } catch (err) {
+      setLiveModelsProbe((prev) => ({
+        ...prev,
+        [cli]: { kind: 'error', message: extractErrorMessage(err, 'Could not fetch live models.') },
       }))
     }
   }
@@ -150,6 +189,11 @@ export function CliConfigForm() {
         const cli = cliKey as CliTool
         const enabled = enabledClis.includes(cli)
         const modelsState = modelsProbe[cli] ?? { kind: 'idle' }
+        const liveModelsState = liveModelsProbe[cli] ?? { kind: 'idle' }
+        const groupCredId = caches.find((c) => c.id === activeCliCredentialId)?.id ?? caches[0]?.id
+        const liveModels = groupCredId ? cachedLiveModels(cli, groupCredId) : undefined
+        const modelOptions = liveModels ?? (modelsState.kind === 'ok' ? modelsState.models : [])
+        const canRefreshLive = (cli === 'cursor-agent' || cli === 'codex') && !!groupCredId
         return (
           <View
             key={cli}
@@ -187,6 +231,76 @@ export function CliConfigForm() {
                 {enabled ? 'Enabled' : 'Enable in chip'}
               </Button>
             </View>
+
+            {modelOptions.length > 0 ? (
+              <View style={{ gap: nativeSpace[3] }}>
+                <View style={{ gap: nativeSpace[1] }}>
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>Default model</Text>
+                  <Select
+                    value={defaultModel[cli] ?? ''}
+                    onValueChange={(v) => void setCliDefaultModel(cli, v || undefined)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auto (CLI default)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Auto (CLI default)</SelectItem>
+                      {modelOptions.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {`${m.label ?? m.id}${m.isDefault ? ' — account default' : ''}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </View>
+                {modelsState.kind === 'ok' && modelsState.efforts.length > 0 ? (
+                  <View style={{ gap: nativeSpace[1] }}>
+                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                      Reasoning effort
+                    </Text>
+                    <Select
+                      value={effort[cli] ?? ''}
+                      onValueChange={(v) => void setCliEffort(cli, v || undefined)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Default" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Default</SelectItem>
+                        {modelsState.efforts.map((lvl) => (
+                          <SelectItem key={lvl} value={lvl}>
+                            {lvl}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </View>
+                ) : null}
+                {canRefreshLive ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={liveModelsState.kind === 'loading'}
+                    onPress={() => void runLiveModelsProbe(cli, groupCredId)}
+                    accessibilityLabel="Fetch the live, account-specific model list"
+                  >
+                    {liveModels ? 'Refresh models' : 'Load live models'}
+                  </Button>
+                ) : null}
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                  {liveModels
+                    ? `Live list — ${liveModels.length} model${liveModels.length === 1 ? '' : 's'} for this account.`
+                    : canRefreshLive
+                      ? 'Showing the default list. Load live models for this account.'
+                      : 'Showing the default list.'}
+                </Text>
+                {liveModelsState.kind === 'error' ? (
+                  <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                    {liveModelsState.message}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {caches.map((cache) => {
               const isDefault = activeCliCredentialId === cache.id

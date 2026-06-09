@@ -416,6 +416,9 @@ import type {
   ListWebSearchKeysData,
   ListWebSearchKeysErrors,
   ListWebSearchKeysResponses,
+  LiveCliAgentModelsData,
+  LiveCliAgentModelsErrors,
+  LiveCliAgentModelsResponses,
   LiveCliAgentProbeData,
   LiveCliAgentProbeErrors,
   LiveCliAgentProbeResponses,
@@ -536,6 +539,10 @@ import type {
   SendCompletionWithToolsResponses,
   SetActiveCliData,
   SetActiveCliResponses,
+  SetCliDefaultModelData,
+  SetCliDefaultModelResponses,
+  SetCliEffortData,
+  SetCliEffortResponses,
   SetCliEnabledData,
   SetCliEnabledResponses,
   SetOverseerRemoteData,
@@ -1344,6 +1351,32 @@ export const setCliEnabled = <ThrowOnError extends boolean = false>(
   (options.client ?? client).post<SetCliEnabledResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/enabled',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setCliDefaultModel = <ThrowOnError extends boolean = false>(
+  options: Options<SetCliDefaultModelData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SetCliDefaultModelResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/default-model',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setCliEffort = <ThrowOnError extends boolean = false>(
+  options: Options<SetCliEffortData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SetCliEffortResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-configs/effort',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3088,6 +3121,24 @@ export const liveCliAgentProbe = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/probe/live',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const liveCliAgentModels = <ThrowOnError extends boolean = false>(
+  options: Options<LiveCliAgentModelsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    LiveCliAgentModelsResponses,
+    LiveCliAgentModelsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/models/live',
     ...options,
     headers: {
       'Content-Type': 'application/json',

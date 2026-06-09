@@ -509,6 +509,8 @@ export {
   type CliConfigsContextValue,
   type CliConfigsProviderProps,
   type CliLiveProbeResult,
+  type CliLiveModelsResult,
+  type CliProbeResult,
   type CliAuthLoginResult,
 } from './contexts/CliConfigsContext'
 
