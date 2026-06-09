@@ -405,10 +405,11 @@ export {
   type LLMConfigFormMode,
   type LLMConfigFormProps,
 } from './compound/settings/LLMConfigForm'
+export { default as CliConfigForm } from './compound/settings/CliConfigForm'
 export {
-  default as CliConfigForm,
-  type CliConfigFormProps,
-} from './compound/settings/CliConfigForm'
+  default as CliAddCredentialForm,
+  type CliAddCredentialFormProps,
+} from './compound/settings/CliAddCredentialForm'
 export {
   default as LLMProviderIcon,
   LLM_PROVIDER_STYLES,

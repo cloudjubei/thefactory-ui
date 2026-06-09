@@ -599,10 +599,11 @@ export {
   type LLMConfigFormHandle,
   type LLMConfigFormProps,
 } from './compound/settings/LLMConfigForm'
+export { default as CliConfigForm } from './compound/settings/CliConfigForm'
 export {
-  default as CliConfigForm,
-  type CliConfigFormProps,
-} from './compound/settings/CliConfigForm'
+  default as CliAddCredentialForm,
+  type CliAddCredentialFormProps,
+} from './compound/settings/CliAddCredentialForm'
 
 // Shell-level overlay
 export { default as DiagnosticsOverlay } from './compound/shell/DiagnosticsOverlay'
