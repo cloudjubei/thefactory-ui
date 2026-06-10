@@ -730,6 +730,7 @@ export type CompletionAssistantMessage = {
   }
   suggestedActions?: Array<string>
   thinking?: string
+  cliRunId?: string
 }
 
 export type CompletionToolMessage = {

@@ -363,6 +363,7 @@ export {
 // Chat view (lifted from web + desktop's ChatView)
 export {
   ChatBody,
+  CliRunArtifactPanel,
   ChatDynamicContextModal,
   ChatHeader,
   ChatInput,

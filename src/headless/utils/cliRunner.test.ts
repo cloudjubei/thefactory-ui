@@ -8,6 +8,7 @@ import {
   parseCliAgentModelTag,
   shortCliModelLabel,
   enabledClis,
+  filesEmittedArtifactOf,
   groupCachesByCli,
   loginAwaitsCode,
   parseCliAuthLoginEvent,
@@ -319,5 +320,20 @@ describe('parseCliRunUpdateEvent', () => {
     expect(parseCliRunUpdateEvent(null)).toBeNull()
     expect(parseCliRunUpdateEvent({ type: 'finished' })).toBeNull()
     expect(parseCliRunUpdateEvent({ runId: 'r1' })).toBeNull()
+  })
+})
+
+describe('filesEmittedArtifactOf', () => {
+  it('finds the files-emitted artifact among others', () => {
+    const artifacts = [
+      { id: 'c1', kind: 'proposed-commit', at: 1, payload: { paths: [], message: 'm' } },
+      { id: 'f1', kind: 'files-emitted', at: 2, payload: { files: [] } },
+    ] as never
+    expect(filesEmittedArtifactOf(artifacts)?.id).toBe('f1')
+  })
+
+  it('returns undefined for runs with no files-emitted artifact', () => {
+    expect(filesEmittedArtifactOf([])).toBeUndefined()
+    expect(filesEmittedArtifactOf(undefined)).toBeUndefined()
   })
 })

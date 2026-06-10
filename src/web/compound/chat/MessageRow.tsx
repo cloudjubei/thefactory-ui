@@ -169,6 +169,9 @@ export type MessageRowProps = {
   /** Render an inline `#<id>` reference. Host wires this against its
    * StoriesContext-equivalent. */
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`).
+   * Host binds it to the chat's project (e.g. `CliRunArtifactPanel`). */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
@@ -198,6 +201,7 @@ function MessageRow({
   onRetry,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -370,6 +374,10 @@ function MessageRow({
                 </CollapsibleContent>
               )}
             </div>
+          ) : null}
+
+          {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
+            <div className="w-full">{renderCliRunArtifact(msg.cliRunId)}</div>
           ) : null}
 
           {isTool && msg.toolCall ? (

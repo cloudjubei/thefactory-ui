@@ -1,4 +1,8 @@
 export { default as ChatBody, type ChatBodyProps } from './ChatBody'
+export {
+  default as CliRunArtifactPanel,
+  type CliRunArtifactPanelProps,
+} from './CliRunArtifactPanel'
 export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
 export {

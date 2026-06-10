@@ -74,6 +74,8 @@ export type ChatMessageLike = {
   // either a plain name (`"gpt-4o"`) or a record (`{ model, provider }`)
   // since the desktop and web shapes diverge here.
   model?: string | { model?: string; provider?: string }
+  /** CLI-agent replies carry the run id that produced them (the artifact anchor). */
+  cliRunId?: string
 }
 
 export type PendingToolConfirmationLike = {

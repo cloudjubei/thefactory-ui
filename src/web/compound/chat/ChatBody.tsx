@@ -43,6 +43,8 @@ export type ChatBodyProps = {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render `#<id>` inline references. Forwarded to MessageList. */
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   // Send / abort / confirm — wired to the host's ChatsContext.
   onSend: (content: string, attachments?: string[]) => Promise<void> | void
@@ -115,6 +117,7 @@ export default function ChatBody({
   getToolHeaderPath,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   onSend,
   onAbort,
   onConfirmTools,
@@ -158,6 +161,7 @@ export default function ChatBody({
           getToolHeaderPath={getToolHeaderPath}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}
+          renderCliRunArtifact={renderCliRunArtifact}
           numberMessagesToSend={numberMessagesToSend}
           lastReadIso={lastReadIso}
           onAtBottomChange={onAtBottomChange}

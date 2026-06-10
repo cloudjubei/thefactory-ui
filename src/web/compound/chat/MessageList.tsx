@@ -85,6 +85,8 @@ export type MessageListProps = {
   /** Render an inline `#<id>` reference (story / feature). Forwarded to
    * MessageRow's RichText. */
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (desktop parity) -----
   /** Host-supplied tool-preview fetcher — called for each
@@ -122,6 +124,7 @@ export default function MessageList({
   getToolHeaderPath,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   previewTool,
   onResumeTools,
   emptyStateContent,
@@ -597,6 +600,7 @@ export default function MessageList({
                 getToolHeaderPath={getToolHeaderPath}
                 onResolveFile={onResolveFile}
                 renderDependency={renderDependency}
+                renderCliRunArtifact={renderCliRunArtifact}
                 toolPreview={
                   msg.role === 'tool' && msg.toolCall?.toolCallId
                     ? toolPreviewById[String(msg.toolCall.toolCallId)]

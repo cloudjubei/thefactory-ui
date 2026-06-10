@@ -4,9 +4,11 @@
 import type {
   ChatCliRunner,
   CliConfigsActiveState,
+  CliRunArtifact,
   CliRunnerDispatchOptions,
   CliRunTranscriptEntry,
   CliTool,
+  FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
 
@@ -250,6 +252,17 @@ export function parseLoginUrl(output: string): string | null {
  */
 export function loginAwaitsCode(output: string): boolean {
   return /\bpaste\b/i.test(output) && /\bcode\b/i.test(output)
+}
+
+/**
+ * The run's `files-emitted` artifact (the agent's workspace diff), or undefined
+ * when the run produced none. Runs auto-emit at most one, so first-match is
+ * unambiguous.
+ */
+export function filesEmittedArtifactOf(
+  artifacts: readonly CliRunArtifact[] | undefined,
+): FilesEmittedArtifact | undefined {
+  return artifacts?.find((a): a is FilesEmittedArtifact => a.kind === 'files-emitted')
 }
 
 /** Group CLI auth caches by their `cli` tag (caches of an unknown CLI still group under their string). */
