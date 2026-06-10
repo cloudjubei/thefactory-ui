@@ -12,6 +12,7 @@ function makeState(over: Partial<BadgeState> = {}): BadgeState {
     chat_messages: { unread: 0, thinking: false },
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
+    activity: { running: 0, paused: 0 },
     ...over,
   }
 }
@@ -22,6 +23,7 @@ describe('EMPTY_BADGE_STATE', () => {
       chat_messages: { unread: 0, thinking: false },
       git: { incoming: 0, uncommitted: 0 },
       tests: { failing: 0 },
+      activity: { running: 0, paused: 0 },
     })
     expect(hasAnyBadge(EMPTY_BADGE_STATE)).toBe(false)
   })
@@ -34,6 +36,8 @@ describe('hasAnyBadge', () => {
     expect(hasAnyBadge(makeState({ git: { incoming: 1, uncommitted: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ git: { incoming: 0, uncommitted: 3 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ tests: { failing: 1 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ activity: { running: 1, paused: 0 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 1 } }))).toBe(true)
   })
 })
 
@@ -66,7 +70,18 @@ describe('aggregateGroupBadgeState', () => {
       chat_messages: { unread: 8, thinking: true },
       git: { incoming: 3, uncommitted: 10 },
       tests: { failing: 3 },
+      activity: { running: 0, paused: 0 },
     })
+  })
+
+  it('sums running + paused activities across members', () => {
+    const byProject: Record<string, BadgeState> = {
+      a: makeState({ activity: { running: 1, paused: 1 } }),
+      b: makeState({ activity: { running: 2, paused: 0 } }),
+    }
+    const agg = aggregateGroupBadgeState(['a', 'b'], byProject)
+    expect(agg.activity.running).toBe(3)
+    expect(agg.activity.paused).toBe(1)
   })
 
   it('skips member ids with no state and returns empty for no members', () => {

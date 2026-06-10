@@ -63,7 +63,7 @@ export type UserPreferences = {
   codeBlockTheme: CodeBlockTheme
 }
 
-export type NotificationCategory = 'chat' | 'tests' | 'git'
+export type NotificationCategory = 'chat' | 'tests' | 'git' | 'activity'
 
 /** Subset of `NotificationCategory` whose badge colour the user can pick. */
 export type BadgeColorCategory = NotificationCategory
@@ -72,6 +72,7 @@ export const BADGE_COLOR_CATEGORIES: readonly BadgeColorCategory[] = [
   'chat',
   'tests',
   'git',
+  'activity',
 ] as const
 
 /** Type-guard: narrows a `NotificationCategory` to one that carries a badge colour. */
@@ -104,9 +105,9 @@ export type NotificationPrefs = {
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   osNotificationsEnabled: false,
-  categories: { chat: true, tests: true, git: true },
-  badgesEnabled: { chat: true, tests: true, git: true },
-  badgeColors: { chat: 'red', tests: 'green', git: 'orange' },
+  categories: { chat: true, tests: true, git: true, activity: true },
+  badgesEnabled: { chat: true, tests: true, git: true, activity: true },
+  badgeColors: { chat: 'red', tests: 'green', git: 'orange', activity: 'red' },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },
   displayDurationSeconds: 5,

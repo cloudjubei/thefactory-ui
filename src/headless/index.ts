@@ -53,6 +53,7 @@ export {
 } from './hooks/useBadgeCountsCore'
 export {
   useProjectActivities,
+  useSeedActivities,
   type ProjectActivitiesState,
 } from './hooks/useProjectActivities'
 export {

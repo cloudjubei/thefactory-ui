@@ -28,6 +28,7 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   chat: 'Chat messages',
   tests: 'Test runs',
   git: 'Git changes',
+  activity: 'App activity',
 }
 
 const BADGE_COLOR_HEX: Record<BadgeColor, string> = {

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
+
 import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
 import { useCliConfigs, useChatCliRunner, useLLMConfigs } from '../../headless'
@@ -74,14 +76,24 @@ function ModelChipWithCli({
   const selectedCli = cliRunner?.tool ?? activeCli ?? null
   const selectedCliModelId = cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
   const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
-  // Prefer the account-aware live list the user fetched in settings; fall back
-  // to the static catalogue probed on open.
+  // No UI path binds an `apiKeyCredentialId` to a CLI runner yet, so this is
+  // 'subscription' in practice — the 'api-key' arm is latent forward-compat.
+  const isApiKeyChat = !!cliRunner?.apiKeyCredentialId
+  // Prefer the account-aware live list the user fetched in settings; fall back to
+  // the static catalogue. An API-key chat must NOT reuse the live list (it's keyed
+  // by + already filtered for the subscription credential) or it could never
+  // re-offer api-key-only models — fall back to the auth-blind static list.
   const liveModels =
-    selectedCli && credentialId
+    !isApiKeyChat && selectedCli && credentialId
       ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
         undefined)
       : undefined
-  const effectiveCliModels = liveModels ?? cliModels
+  // Hide models this chat's credential can't drive (e.g. codex's API-key-only
+  // `gpt-5-codex` on a subscription chat, which the CLI rejects with HTTP 400).
+  const effectiveCliModels = visibleCliModelsForAuth(
+    liveModels ?? cliModels,
+    isApiKeyChat ? 'api-key' : 'subscription',
+  )
 
   useEffect(() => {
     if (!useCli || !selectedCli) {

@@ -1,4 +1,4 @@
-import { abortActivity, getActivity, listActivities, runActivity } from './generated'
+import { abortActivity, getActivity, listActivities, resumeActivity, runActivity } from './generated'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
 /**
@@ -54,6 +54,12 @@ export async function dispatchActivitiesBridge(
       const payload = (req.payload ?? {}) as { activityId?: string }
       if (!payload.activityId) throw new Error('activities.abort requires an activityId')
       const res = await abortActivity({ path: { projectId, activityId: payload.activityId }, throwOnError: true })
+      return res.data
+    }
+    case 'activities.resume': {
+      const payload = (req.payload ?? {}) as { activityId?: string }
+      if (!payload.activityId) throw new Error('activities.resume requires an activityId')
+      const res = await resumeActivity({ path: { projectId, activityId: payload.activityId }, throwOnError: true })
       return res.data
     }
     default:

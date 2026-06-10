@@ -22,10 +22,12 @@ export type BadgeCounts = {
   git: number
   /** Number of failing tests in the last run. */
   tests: number
-  /** Number of background activities currently running for the scope. */
+  /** Number of background activities live-running for the scope. */
   activity: number
-  /** True while any background activity is running (drives the nav spinner). */
+  /** True while any background activity is live-running (drives the nav spinner). */
   activityWorking: boolean
+  /** True while a `running` activity isn't live (resumable; drives the paused icon). */
+  activityPaused: boolean
 }
 
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
@@ -35,6 +37,7 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   tests: 0,
   activity: 0,
   activityWorking: false,
+  activityPaused: false,
 }
 
 export type BadgeChannelToggles = {
@@ -45,10 +48,12 @@ export type BadgeChannelToggles = {
 }
 
 export type BadgeActivityInput = {
-  /** How many background activities are running. */
+  /** How many background activities are live-running. */
   runningCount: number
-  /** True while any is running. */
+  /** True while any is live-running. */
   isWorking: boolean
+  /** True while a `running` activity isn't live (resumable). */
+  isPaused?: boolean
 }
 
 export type GitBadgeSubToggles = {
@@ -132,6 +137,7 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
     if (enabled.activity && input.activity) {
       out.activity = input.activity.runningCount
       out.activityWorking = input.activity.isWorking
+      out.activityPaused = input.activity.isPaused ?? false
     }
 
     return out

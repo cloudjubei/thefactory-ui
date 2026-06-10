@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
+
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliReasoningEffort, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
@@ -192,7 +194,13 @@ export function CliConfigForm() {
         const liveModelsState = liveModelsProbe[cli] ?? { kind: 'idle' }
         const groupCredId = caches.find((c) => c.id === activeCliCredentialId)?.id ?? caches[0]?.id
         const liveModels = groupCredId ? cachedLiveModels(cli, groupCredId) : undefined
-        const modelOptions = liveModels ?? (modelsState.kind === 'ok' ? modelsState.models : [])
+        // These are CLI auth-cache (subscription) logins, so hide API-key-only
+        // models (e.g. codex's `gpt-5-codex`) from the default-model picker — a
+        // subscription default that can't run would HTTP-400 every chat turn.
+        const modelOptions = visibleCliModelsForAuth(
+          liveModels ?? (modelsState.kind === 'ok' ? modelsState.models : []),
+          'subscription',
+        )
         const canRefreshLive = (cli === 'cursor-agent' || cli === 'codex') && !!groupCredId
         return (
           <View

@@ -11,14 +11,17 @@ import { computeRefreshDelayMs } from '../utils/viewTokenSchedule'
  *     loads, so a query-param token is the transport — see the App-view
  *     auth decision in the financial-planner plan §A).
  *   - Builds the absolute URL the iframe / WebView points at.
- *   - Auto-refreshes the token `REFRESH_LEAD_MS` before expiry so the
- *     surface never serves a 401.
- *   - Increments `key` whenever the consumer should remount its iframe /
- *     WebView — on token rotation AND on `files:changed` for this project
- *     (the agent edited a file; the App view should reflect it). The
- *     `files:changed` path is debounced to a single bump per burst so a
- *     fast cascade of agent writes doesn't thrash the iframe (a quality
- *     improvement over the un-debounced pattern in `FilesContext`).
+ *   - Auto-rotates the token `REFRESH_LEAD_MS` before expiry so the
+ *     surface never serves a 401. Rotation only stores the fresh URL in a
+ *     ref — it must never touch `url`/`key`, otherwise every scheduled
+ *     rotation would remount the surface and reset the embedded app.
+ *   - Increments `key` (publishing the freshest minted URL alongside it)
+ *     whenever the consumer should remount its iframe / WebView — on
+ *     `files:changed` for this project (the agent edited a file; the App
+ *     view should reflect it). The `files:changed` path is debounced to a
+ *     single bump per burst so a fast cascade of agent writes doesn't
+ *     thrash the iframe (a quality improvement over the un-debounced
+ *     pattern in `FilesContext`).
  */
 export interface UseProjectAppView {
   /** URL the consumer should point an iframe / WebView at. `undefined` until the first token is granted. */
@@ -44,6 +47,7 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
   const [key, setKey] = useState(0)
   const [error, setError] = useState<Error | null>(null)
 
+  const latestUrlRef = useRef<string | undefined>(undefined)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -61,44 +65,55 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
     }
   }, [])
 
-  const refresh = useCallback(async () => {
-    if (!projectId || !apiBaseUrl) return
+  const mint = useCallback(async (): Promise<boolean> => {
+    if (!projectId || !apiBaseUrl) return false
     try {
       const { data } = await grantProjectAppViewToken({
         path: { projectId },
         throwOnError: true,
       })
-      const next = `${apiBaseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/view/index.html?viewToken=${encodeURIComponent(data.token)}`
-      setUrl(next)
-      setKey((k) => k + 1)
+      latestUrlRef.current = `${apiBaseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/view/index.html?viewToken=${encodeURIComponent(data.token)}`
       setError(null)
 
       // Schedule the next mint just before the token expires.
       clearRefreshTimer()
       const delay = computeRefreshDelayMs({ expiresAt: data.expiresAt, leadMs: REFRESH_LEAD_MS })
       if (delay !== null) {
-        refreshTimerRef.current = setTimeout(() => void refresh(), delay)
+        refreshTimerRef.current = setTimeout(() => void mint(), delay)
       }
+      return true
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
+      return false
     }
   }, [projectId, apiBaseUrl, clearRefreshTimer])
 
-  // Initial mint when projectId + auth + baseUrl are all ready.
+  const applyLatest = useCallback(() => {
+    if (latestUrlRef.current === undefined) return
+    setUrl(latestUrlRef.current)
+    setKey((k) => k + 1)
+  }, [])
+
+  const refresh = useCallback(async () => {
+    if (await mint()) applyLatest()
+  }, [mint, applyLatest])
+
+  // Initial mint + mount when projectId + auth + baseUrl are all ready.
   useEffect(() => {
     if (!token || !projectId || !apiBaseUrl) return
     void refresh()
     return clearRefreshTimer
   }, [token, projectId, apiBaseUrl, refresh, clearRefreshTimer])
 
-  // Debounced key bump on this project's file changes.
+  // Debounced remount on this project's file changes, on the freshest
+  // minted URL so a late remount doesn't load an already-expired token.
   useEffect(() => {
     if (!projectId) return
     const unsub = ws.on<{ projectId?: string }>('files:changed', (event) => {
       if (event.projectId !== projectId) return
       clearDebounceTimer()
       debounceTimerRef.current = setTimeout(() => {
-        setKey((k) => k + 1)
+        applyLatest()
         debounceTimerRef.current = null
       }, FILES_CHANGED_DEBOUNCE_MS)
     })
@@ -106,7 +121,7 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
       unsub()
       clearDebounceTimer()
     }
-  }, [ws, projectId, clearDebounceTimer])
+  }, [ws, projectId, clearDebounceTimer, applyLatest])
 
   return { url, key, refresh, error }
 }

@@ -1504,7 +1504,66 @@ export type ChatContextArgumentsAgentRunFeature = {
   }
 }
 
+export type CliChatSessionPolicy = {
+  warmFloor: number
+  idleTtlMs: number
+  hardCap: number
+  sweepIntervalMs: number
+}
+
 export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
+
+export type CliChatSessionIdentity = {
+  chatContextId: string
+  cli: CliTool
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+}
+
+export type DirSnapshot = unknown
+
+export type CliChatSessionEntry = {
+  key: string
+  identity: CliChatSessionIdentity
+  authDir: string
+  workspaceDir: string
+  workspaceBaseline?: unknown
+  cliSessionId?: string
+  lastUsedAt: number
+  createdAt: number
+}
+
+export type CliChatSessionEvictionCandidate = {
+  key: string
+  lastUsedAt: number
+}
+
+export type CliChatSessionLease = {
+  key: string
+  authDir: string
+  workspaceDir: string
+  workspaceBaseline?: unknown
+  resumeSessionId?: string
+  isNew: boolean
+}
+
+export type CliChatSessionTurnResult = {
+  cliSessionId?: string
+  workspaceBaseline?: unknown
+}
+
+export type ProviderPersistentSession = {
+  authDir: string
+  workspaceDir: string
+  workspaceBaseline?: unknown
+}
+
+export type PreparedChatSession = {
+  key: string
+  isNew: boolean
+  provider: ProviderPersistentSession
+  resumeSessionId?: string
+}
 
 export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
@@ -1530,12 +1589,15 @@ export type CliRunUsage = {
   cacheCreationTokens?: number
 }
 
+export type CliModelAuthMode = 'subscription' | 'api-key'
+
 export type ModelInfo = {
   id: string
   label: string
   cli: CliTool
   notes?: string
   isDefault?: boolean
+  authModes?: Array<CliModelAuthMode>
   source?: 'live' | 'static'
 }
 
@@ -1751,25 +1813,6 @@ export type CliAgentPendingActionFilter = {
   runId?: string
 }
 
-export type PerCliRunnerExtra = {
-  resumeSessionId?: string
-  seed?: {
-    parent?: {
-      runId: string
-      via: 'resume' | 'fork'
-      notes?: string
-    }
-    transcript?: Array<CliRunTranscriptEntry>
-    artifacts?: Array<CliRunArtifact>
-    retryState?: {
-      attempts: number
-      history: Array<CliRunRetryHistoryEntry>
-    }
-  }
-}
-
-export type DirSnapshot = unknown
-
 export type ClaudeCodeInitMetadata = {
   sessionId?: string
   version?: string
@@ -1794,6 +1837,19 @@ export type ApplyFilesEmittedResult = {
     path: string
     reason: string
   }>
+}
+
+export type FilesEmittedFilePreview = {
+  path: string
+  status: 'added' | 'modified' | 'deleted'
+  patch?: string
+  contentUnavailable?: boolean
+  unsafePath?: boolean
+  conflict?: boolean
+}
+
+export type FilesEmittedPreview = {
+  files: Array<FilesEmittedFilePreview>
 }
 
 export type CreatePullRequestInput = {
@@ -2035,9 +2091,14 @@ export type CodeIntelCallGraphMember = {
   targets: Array<string>
 }
 
+export type CodeIntelHandlerWiringKind = 'route' | 'middleware' | 'event'
+
 export type CodeIntelHandlerRegistration = {
   name: string
-  handlers: Array<string>
+  handlers: Array<{
+    name: string
+    kind: CodeIntelHandlerWiringKind
+  }>
 }
 
 export type CodeIntelValidationIssue = {
@@ -3840,11 +3901,19 @@ export type FilterRule = {
   value: unknown
 }
 
-export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative'
+export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest'
+
+export type RequirementRuleMatch = {
+  field: string
+  op: 'eq' | 'lte' | 'gte' | 'contains'
+  value: unknown
+  satisfaction: number
+}
 
 export type RequirementMatch = {
   match: number
   unmet: Array<string>
+  rules: Array<RequirementRuleMatch>
 }
 
 export type RankedProduct = {
@@ -3865,9 +3934,10 @@ export type TieredProduct = {
   score: number
   why: string
   sources: Array<RecommendSource>
-  tier: 'perfect' | 'good' | 'ok' | 'alternative'
+  tier: 'perfect' | 'good' | 'ok' | 'alternative' | 'rest'
   requirementMatch: number
   unmetFilters: Array<string>
+  requirementBreakdown: Array<RequirementRuleMatch>
 }
 
 export type RecommendDiagnostics = {
@@ -3879,6 +3949,7 @@ export type RecommendDiagnostics = {
     good: number
     ok: number
     alternative: number
+    rest: number
   }
 }
 
@@ -3893,6 +3964,7 @@ export type CatalogItem = {
     [key: string]: unknown
   }
   sources: Array<RecommendSource>
+  suppliers?: Array<string>
   updatedAt: string
 }
 
@@ -3902,6 +3974,7 @@ export type ScoredCatalogItem = {
     [key: string]: unknown
   }
   sources: Array<RecommendSource>
+  suppliers?: Array<string>
   updatedAt: string
   score: number
 }
@@ -3922,6 +3995,10 @@ export type CatalogBuildProgress = {
   suppliersDone: number
   suppliersTotal: number
   itemsSoFar: number
+  suppliers: Array<string>
+  supplierStates: {
+    [key: string]: 'gathering' | 'done' | 'skipped' | 'failed'
+  }
 }
 
 export type DiscoveredSupplier = {
@@ -12354,7 +12431,6 @@ export type GetCliAgentRunSubscriptionStatusResponse =
 export type ApplyCliAgentArtifactData = {
   body: {
     projectId: string
-    targetDir?: string
     gitCredentialId?: string
   }
   path: {
@@ -12412,6 +12488,58 @@ export type ApplyCliAgentArtifactResponses = {
 
 export type ApplyCliAgentArtifactResponse =
   ApplyCliAgentArtifactResponses[keyof ApplyCliAgentArtifactResponses]
+
+export type PreviewCliAgentArtifactData = {
+  body: {
+    projectId: string
+  }
+  path: {
+    runId: string
+    artifactId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/preview'
+}
+
+export type PreviewCliAgentArtifactErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewCliAgentArtifactError =
+  PreviewCliAgentArtifactErrors[keyof PreviewCliAgentArtifactErrors]
+
+export type PreviewCliAgentArtifactResponses = {
+  /**
+   * Default Response
+   */
+  200: FilesEmittedPreview
+}
+
+export type PreviewCliAgentArtifactResponse =
+  PreviewCliAgentArtifactResponses[keyof PreviewCliAgentArtifactResponses]
 
 export type StartCliAuthLoginData = {
   body: {
@@ -13465,6 +13593,7 @@ export type ListActivitiesResponses = {
       error?: string
       startedAt: string
       updatedAt: string
+      isLive?: boolean
     }>
   }
 }
@@ -13526,6 +13655,7 @@ export type GetActivityResponses = {
     error?: string
     startedAt: string
     updatedAt: string
+    isLive?: boolean
   }
 }
 

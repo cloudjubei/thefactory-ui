@@ -1,54 +1,82 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { listActivities, type ListActivitiesResponses } from '../api/generated'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { listActivities } from '../api/generated'
 import { useApi } from '../api/ApiContext'
-
-/** One activity run as returned by the list endpoint (status/steps + provenance). */
-export type ActivityRunSummary = ListActivitiesResponses[200]['activities'][number]
+import {
+  activitiesSnapshot,
+  liveRunningForScope,
+  pausedForScope,
+  replaceActivityScope,
+  subscribeActivities,
+  upsertActivityRun,
+} from './activitiesStore'
 
 export interface ProjectActivitiesState {
-  /** Every activity run for the project, most-recently-updated first. */
-  activities: ActivityRunSummary[]
-  /** How many are currently `running` — feeds the nav badge count. */
+  /** Live-running activities for `projectId` — feeds its App-tab badge count. */
   runningCount: number
-  /** True while any activity is running — drives the nav spinner. */
+  /** True while an activity is live-running for `projectId` — drives the spinner. */
   working: boolean
+  /** True while an activity is `running` but not live (resumable) for `projectId`. */
+  paused: boolean
+  /** Live-running count for ANY scope (for sidebar project rows). */
+  liveForScope: (scope: string | undefined) => number
+  /** Paused (running-but-not-live) count for ANY scope. */
+  pausedForScope: (scope: string | undefined) => number
+}
+
+/** Seed one project's activities into the store (carrying the server's `isLive`). */
+async function seedProjectActivities(projectId: string): Promise<void> {
+  try {
+    const res = await listActivities({ path: { projectId }, throwOnError: true })
+    replaceActivityScope(projectId, res.data.activities ?? [])
+  } catch {
+    // Best-effort: leave the store as-is on a transient failure.
+  }
 }
 
 /**
- * Live view of a project's background activities. Fetches the list once, then
- * refetches whenever an `activity:updated` WS event for this project arrives — so
- * the nav badge/spinner reflects detached runs that survive navigating away or a
- * server restart. Best-effort: a failed list read just leaves the last list.
+ * Live view of background activities. Subscribes to `activity:updated` for EVERY
+ * project (so the sidebar can spin a non-active project's row), seeds the given
+ * `projectId` from the list endpoint, and exposes per-scope live/paused readers.
+ * A run that emits is `live`; a `running` run the server reports `isLive:false`
+ * (orphaned after a restart) is *paused* — shown with the paused icon, resumable.
  */
 export function useProjectActivities(projectId: string | undefined): ProjectActivitiesState {
   const { ws } = useApi()
-  const [activities, setActivities] = useState<ActivityRunSummary[]>([])
+  const snapshot = useSyncExternalStore(subscribeActivities, activitiesSnapshot)
 
-  const refresh = useCallback(async () => {
-    if (!projectId) {
-      setActivities([])
-      return
-    }
-    try {
-      const res = await listActivities({ path: { projectId }, throwOnError: true })
-      setActivities(res.data.activities ?? [])
-    } catch {
-      // Best-effort: leave the last-known list in place on a transient failure.
-    }
-  }, [projectId])
+  useEffect(() => ws.on('activity:updated', (run) => upsertActivityRun(run as object)), [ws])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    if (projectId) void seedProjectActivities(projectId)
+  }, [projectId])
 
-  useEffect(
-    () =>
-      ws.on<{ scope?: string }>('activity:updated', (run) => {
-        if (!projectId || run?.scope === projectId) void refresh()
-      }),
-    [ws, refresh, projectId],
+  const liveForScope = useCallback(
+    (scope: string | undefined) => liveRunningForScope(snapshot, scope),
+    [snapshot],
   )
+  const pausedForScopeFn = useCallback(
+    (scope: string | undefined) => pausedForScope(snapshot, scope),
+    [snapshot],
+  )
+  const runningCount = liveForScope(projectId)
+  return {
+    runningCount,
+    working: runningCount > 0,
+    paused: pausedForScopeFn(projectId) > 0,
+    liveForScope,
+    pausedForScope: pausedForScopeFn,
+  }
+}
 
-  const running = useMemo(() => activities.filter((a) => a.status === 'running'), [activities])
-  return { activities, runningCount: running.length, working: running.length > 0 }
+/**
+ * Seed activities for a set of projects (so the sidebar shows live spinners +
+ * paused icons on EVERY project's row, not just the active one). Call once with
+ * the full project list; re-seeds when the set changes.
+ */
+export function useSeedActivities(projectIds: ReadonlyArray<string>): void {
+  const key = projectIds.join(',')
+  useEffect(() => {
+    for (const pid of projectIds) void seedProjectActivities(pid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
 }

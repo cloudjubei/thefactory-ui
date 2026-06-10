@@ -442,6 +442,9 @@ import type {
   PollOverseerGithubDeviceFlowData,
   PollOverseerGithubDeviceFlowErrors,
   PollOverseerGithubDeviceFlowResponses,
+  PreviewCliAgentArtifactData,
+  PreviewCliAgentArtifactErrors,
+  PreviewCliAgentArtifactResponses,
   PreviewToolData,
   PreviewToolErrors,
   PreviewToolResponses,
@@ -3196,6 +3199,24 @@ export const applyCliAgentArtifact = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/apply',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const previewCliAgentArtifact = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewCliAgentArtifactData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PreviewCliAgentArtifactResponses,
+    PreviewCliAgentArtifactErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/preview',
     ...options,
     headers: {
       'Content-Type': 'application/json',
