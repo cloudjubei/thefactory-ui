@@ -9,6 +9,7 @@ import type {
   ChatLiveStateLike,
   ChatMessageLike,
   PendingToolConfirmationLike,
+  PendingToolGrant,
 } from '../../../headless/utils/chatTypes'
 
 export type ChatBodyProps = {
@@ -48,6 +49,13 @@ export type ChatBodyProps = {
   onAbort?: () => Promise<void> | void
   onConfirmTools: (grantedToolCallIds: string[]) => Promise<void> | void
   onCancelToolConfirmation: () => void
+  /**
+   * Unified tool-approval grants (API + CLI). When provided, the confirmation
+   * modal renders these per-grant (with the CLI-only "allow permanently"
+   * option) instead of the {@link onConfirmTools} batch path. Host computes them
+   * via `usePendingToolGrants`.
+   */
+  grants?: PendingToolGrant[]
 
   onDeleteLastMessage?: () => Promise<void> | void
   onRetry?: () => Promise<void> | void
@@ -122,6 +130,7 @@ export default function ChatBody({
   emptyStateContent,
   previewTool,
   onResumeTools,
+  grants,
   inputProps,
   inputValue,
   onInputChange,
@@ -185,6 +194,7 @@ export default function ChatBody({
 
       <ToolConfirmationModal
         pending={pendingToolConfirmation as PendingToolConfirmationLike | null}
+        grants={grants}
         busy={isSending}
         onConfirm={onConfirmTools}
         onCancel={onCancelToolConfirmation}

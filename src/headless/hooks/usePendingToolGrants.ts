@@ -35,7 +35,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const [apiDecisions, setApiDecisions] = useState<Record<string, boolean>>({})
   const [cliActions, setCliActions] = useState<PendingAction[]>([])
 
-  // CLI gated actions for this run — initial fetch + refresh on each run update.
+  // CLI gated actions for this run — initial fetch + refresh only when an action
+  // is raised or decided (not on every transcript/status tick, which would spam
+  // the endpoint during a verbose run).
   useEffect(() => {
     if (!runId) {
       setCliActions([])
@@ -51,7 +53,10 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       }
     }
     void load()
-    const off = ws.on('cli:run-update', () => void load())
+    const off = ws.on('cli:run-update', (data) => {
+      const type = (data as { type?: unknown })?.type
+      if (type === 'actionRequest' || type === 'actionDecided') void load()
+    })
     return () => {
       cancelled = true
       off()

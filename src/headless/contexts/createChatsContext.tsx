@@ -60,6 +60,8 @@ export type ChatLiveState = {
   pendingAssistant: { content: string; turn: number } | null
   pendingToolConfirmation: PendingToolConfirmation | null
   sendError: Error | null
+  /** Active CLI run id for this chat (from the `cli:run-update` stream); null when idle. Drives gated-action grants. */
+  cliRunId: string | null
 }
 
 const EMPTY_LIVE_STATE: ChatLiveState = {
@@ -67,6 +69,7 @@ const EMPTY_LIVE_STATE: ChatLiveState = {
   pendingAssistant: null,
   pendingToolConfirmation: null,
   sendError: null,
+  cliRunId: null,
 }
 
 const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
@@ -387,9 +390,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         const parsed = parseCliRunUpdateEvent(data)
         if (!parsed) return
         if (parsed.kind === 'terminal') {
-          updateLiveState(target, { pendingAssistant: null })
+          updateLiveState(target, { pendingAssistant: null, cliRunId: null })
           return
         }
+        // Surface the run id so gated-action grants (usePendingToolGrants) can
+        // query this run's pending approvals while it streams.
+        updateLiveState(target, { cliRunId: parsed.runId })
         if (parsed.kind === 'transcript' && parsed.text) {
           cliStreamAccumRef.current += parsed.text
           updateLiveState(target, {

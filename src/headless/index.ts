@@ -46,10 +46,15 @@ export {
   type BadgeCounts,
   type BadgeChatInput,
   type BadgeGitInput,
+  type BadgeActivityInput,
   type ChatBadgeCountMode,
   type GitBadgeSubToggles,
   type UseBadgeCountsCoreInput,
 } from './hooks/useBadgeCountsCore'
+export {
+  useProjectActivities,
+  type ProjectActivitiesState,
+} from './hooks/useProjectActivities'
 export {
   useResolvedTheme,
   type ResolvedTheme,

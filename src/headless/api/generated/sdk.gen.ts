@@ -3,6 +3,9 @@
 import type { Client, Options as Options2, TDataShape } from './client'
 import { client } from './client.gen'
 import type {
+  AbortActivityData,
+  AbortActivityErrors,
+  AbortActivityResponses,
   AbortChatCompletionData,
   AbortChatCompletionErrors,
   AbortChatCompletionResponses,
@@ -165,6 +168,9 @@ import type {
   ForkCliAgentRunResponses,
   GetActiveCliStateData,
   GetActiveCliStateResponses,
+  GetActivityData,
+  GetActivityErrors,
+  GetActivityResponses,
   GetAllFileStatsData,
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
@@ -342,6 +348,9 @@ import type {
   InitializeRepoData,
   InitializeRepoErrors,
   InitializeRepoResponses,
+  ListActivitiesData,
+  ListActivitiesErrors,
+  ListActivitiesResponses,
   ListChatsData,
   ListChatsResponses,
   ListCliAgentModelsData,
@@ -489,6 +498,9 @@ import type {
   ReorderStoriesResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResumeActivityData,
+  ResumeActivityErrors,
+  ResumeActivityResponses,
   ResumeCliAgentRunData,
   ResumeCliAgentRunErrors,
   ResumeCliAgentRunResponses,
@@ -498,6 +510,9 @@ import type {
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
+  RunActivityData,
+  RunActivityErrors,
+  RunActivityResponses,
   RunAllCoverageData,
   RunAllCoverageErrors,
   RunAllCoverageResponses,
@@ -3485,6 +3500,60 @@ export const runAnalysisJob = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const runActivity = <ThrowOnError extends boolean = false>(
+  options: Options<RunActivityData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<RunActivityResponses, RunActivityErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities/run',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listActivities = <ThrowOnError extends boolean = false>(
+  options: Options<ListActivitiesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities',
+    ...options,
+  })
+
+export const getActivity = <ThrowOnError extends boolean = false>(
+  options: Options<GetActivityData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities/{activityId}',
+    ...options,
+  })
+
+export const abortActivity = <ThrowOnError extends boolean = false>(
+  options: Options<AbortActivityData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<AbortActivityResponses, AbortActivityErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities/{activityId}/abort',
+    ...options,
+  })
+
+export const resumeActivity = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeActivityData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ResumeActivityResponses, ResumeActivityErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/activities/{activityId}/resume',
+    ...options,
   })
 
 export const resetOverseer = <ThrowOnError extends boolean = false>(

@@ -22,6 +22,10 @@ export type BadgeCounts = {
   git: number
   /** Number of failing tests in the last run. */
   tests: number
+  /** Number of background activities currently running for the scope. */
+  activity: number
+  /** True while any background activity is running (drives the nav spinner). */
+  activityWorking: boolean
 }
 
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
@@ -29,12 +33,22 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   chatThinking: false,
   git: 0,
   tests: 0,
+  activity: 0,
+  activityWorking: false,
 }
 
 export type BadgeChannelToggles = {
   chat?: boolean
   git?: boolean
   tests?: boolean
+  activity?: boolean
+}
+
+export type BadgeActivityInput = {
+  /** How many background activities are running. */
+  runningCount: number
+  /** True while any is running. */
+  isWorking: boolean
 }
 
 export type GitBadgeSubToggles = {
@@ -67,6 +81,8 @@ export type UseBadgeCountsCoreInput = {
   git?: BadgeGitInput
   /** Failing tests in the most recent test run. */
   failingTests?: number
+  /** Background activities running in scope (count + working flag). */
+  activity?: BadgeActivityInput
   /** Per-channel master toggles. Defaults to "enabled". */
   enabled?: BadgeChannelToggles
   /** Git sub-toggles. */
@@ -81,6 +97,7 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       chat: input.enabled?.chat !== false,
       git: input.enabled?.git !== false,
       tests: input.enabled?.tests !== false,
+      activity: input.enabled?.activity !== false,
     }
 
     const out: BadgeCounts = { ...ZERO_BADGE_COUNTS }
@@ -112,11 +129,17 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       out.tests = input.failingTests ?? 0
     }
 
+    if (enabled.activity && input.activity) {
+      out.activity = input.activity.runningCount
+      out.activityWorking = input.activity.isWorking
+    }
+
     return out
   }, [
     input.chats,
     input.git,
     input.failingTests,
+    input.activity,
     input.enabled,
     input.gitSubToggles,
     input.chatBadgeCountMode,

@@ -97,28 +97,7 @@ export type ActionChangeEvent =
       action: PendingAction
     }
 
-export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
-
-export type ChatContextAgentRun = {
-  projectId: string
-  storyId: string
-  agentRunId: string
-}
-
-export type ChatContextAgentRunStory = {
-  projectId: string
-  storyId: string
-  agentRunId: string
-  type: 'AGENT_RUN_STORY'
-}
-
-export type ChatContextAgentRunFeature = {
-  projectId: string
-  storyId: string
-  agentRunId: string
-  type: 'AGENT_RUN_FEATURE'
-  featureId: string
-}
+export type ActivityStatus = 'running' | 'completed' | 'failed' | 'aborted'
 
 export type LlmProvider =
   | 'openai'
@@ -145,6 +124,94 @@ export type LlmConfig = {
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
+}
+
+export type ModelSelection = {
+  kind: 'api'
+  llmConfig: LlmConfig
+}
+
+export type ModelRef = {
+  kind: 'api'
+  label: string
+}
+
+export type ItemFreshnessOpts = {
+  now: string
+  ttlMs: number
+  sourceHash?: string
+}
+
+export type ActivityStepState = {
+  key: string
+  status: ActivityStatus
+  done: number
+  total: number
+}
+
+export type ActivityRun = {
+  activityId: string
+  scope: string
+  recordType: string
+  status: ActivityStatus
+  steps: Array<ActivityStepState>
+  modelRef?: {
+    kind: 'api'
+    label: string
+  }
+  market?: string
+  resumeToken?: {
+    [key: string]: unknown
+  }
+  error?: string
+  startedAt: string
+  updatedAt: string
+}
+
+export type ActivityRunInput = {
+  activityId: string
+  scope: string
+  recordType: string
+  steps: Array<{
+    key: string
+  }>
+  modelRef?: {
+    kind: 'api'
+    label: string
+  }
+  market?: string
+  resumeToken?: {
+    [key: string]: unknown
+  }
+}
+
+export type ActivityRunPatch = {
+  status?: 'running' | 'completed' | 'failed' | 'aborted'
+  steps?: Array<ActivityStepState>
+  error?: string
+}
+
+export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
+
+export type ChatContextAgentRun = {
+  projectId: string
+  storyId: string
+  agentRunId: string
+}
+
+export type ChatContextAgentRunStory = {
+  projectId: string
+  storyId: string
+  agentRunId: string
+  type: 'AGENT_RUN_STORY'
+}
+
+export type ChatContextAgentRunFeature = {
+  projectId: string
+  storyId: string
+  agentRunId: string
+  type: 'AGENT_RUN_FEATURE'
+  featureId: string
 }
 
 export type GithubCredentials = {
@@ -1865,6 +1932,7 @@ export type CliAgentRunFilter = {
   projectId?: string
   storyId?: string
   status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+  chatContextId?: string
 }
 
 export type AstOutlineNode = {
@@ -2454,6 +2522,57 @@ export type StructuredDiff = {
     line: number
     text: string
   }>
+}
+
+export type FlowStatus = 'running' | 'completed' | 'failed' | 'aborted'
+
+export type FlowStepState = {
+  key: string
+  status: FlowStatus
+  done: number
+  total: number
+}
+
+export type FlowRun = {
+  flowId: string
+  scope: string
+  recordType: string
+  status: FlowStatus
+  steps: Array<FlowStepState>
+  modelRef?: {
+    kind: 'api'
+    label: string
+  }
+  market?: string
+  resumeToken?: {
+    [key: string]: unknown
+  }
+  error?: string
+  startedAt: string
+  updatedAt: string
+}
+
+export type FlowRunInput = {
+  flowId: string
+  scope: string
+  recordType: string
+  steps: Array<{
+    key: string
+  }>
+  modelRef?: {
+    kind: 'api'
+    label: string
+  }
+  market?: string
+  resumeToken?: {
+    [key: string]: unknown
+  }
+}
+
+export type FlowRunPatch = {
+  status?: 'running' | 'completed' | 'failed' | 'aborted'
+  steps?: Array<FlowStepState>
+  error?: string
 }
 
 export type GitExecResult = {
@@ -3096,6 +3215,27 @@ export type GitMonitorRegistryMetrics = {
   lastColdSweepAt?: string
 }
 
+export type InferenceRequest = {
+  systemPrompt: string
+  userContent: string
+  model: ModelSelection
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type InferenceResult = {
+  text: string
+}
+
 export type IngestionResult = {
   projectId: string
   scanned: number
@@ -3359,6 +3499,27 @@ export type LlmCostAggregateEntity = {
   metadata?: {
     [key: string]: unknown
   }
+}
+
+export type StepRequest = {
+  systemPrompt: string
+  userContent: string
+  model: ModelSelection
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type StepResult = {
+  text: string
 }
 
 export type LoggerConfig = {
@@ -3763,6 +3924,36 @@ export type CatalogBuildProgress = {
   itemsSoFar: number
 }
 
+export type DiscoveredSupplier = {
+  name: string
+  tags: Array<string>
+}
+
+export type DiscoverSuppliersParams = {
+  scope: string
+  spec: ProductTypeSpec
+  market: string
+  llmConfig: LlmConfig
+  maxSuppliers?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type DiscoverSuppliersResult = {
+  recordType: string
+  suppliers: Array<string>
+  count: number
+}
+
 export type BuildProductCatalogResult = {
   recordType: string
   count: number
@@ -3770,6 +3961,7 @@ export type BuildProductCatalogResult = {
   failed: number
   suppliers: number
   suppliersFailed: number
+  suppliersSkipped: number
   builtAt: string
   market: string
 }
@@ -3866,6 +4058,7 @@ export type CliRunFilter = {
   projectId?: string
   storyId?: string
   status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+  chatContextId?: string
 }
 
 export type FeatureCreateInput = {
@@ -10143,6 +10336,7 @@ export type SendCompletionWithToolsResponses = {
         }
         agentResponse?: unknown
         systemPrompt?: string
+        mode?: 'api' | 'cli'
       }
     >
     error?: string
@@ -10295,6 +10489,7 @@ export type SendChatCompletionWithToolsResponses = {
         }
         agentResponse?: unknown
         systemPrompt?: string
+        mode?: 'api' | 'cli'
       }
     >
     error?: string
@@ -10455,6 +10650,7 @@ export type ResumeCompletionResponses = {
         }
         agentResponse?: unknown
         systemPrompt?: string
+        mode?: 'api' | 'cli'
       }
     >
     error?: string
@@ -11903,6 +12099,7 @@ export type ListCliAgentRunsData = {
     projectId?: string
     storyId?: string
     status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+    chatContextId?: string
   }
   url: '/api/v1/cli-runs'
 }
@@ -13151,6 +13348,276 @@ export type RunAnalysisJobResponses = {
 }
 
 export type RunAnalysisJobResponse = RunAnalysisJobResponses[keyof RunAnalysisJobResponses]
+
+export type RunActivityData = {
+  body: {
+    /**
+     * Registered activity type, e.g. "build-catalog".
+     */
+    activityType: string
+    /**
+     * LLM config to run on; falls back to the active agent config.
+     */
+    llmConfigId?: string
+    params?: {
+      [key: string]: unknown
+    }
+  }
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities/run'
+}
+
+export type RunActivityErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RunActivityError = RunActivityErrors[keyof RunActivityErrors]
+
+export type RunActivityResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    activityId: string
+  }
+}
+
+export type RunActivityResponse = RunActivityResponses[keyof RunActivityResponses]
+
+export type ListActivitiesData = {
+  body?: never
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities'
+}
+
+export type ListActivitiesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListActivitiesError = ListActivitiesErrors[keyof ListActivitiesErrors]
+
+export type ListActivitiesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    activities: Array<{
+      activityId: string
+      scope: string
+      recordType: string
+      status: string
+      steps: Array<{
+        key: string
+        status: string
+        done: number
+        total: number
+      }>
+      modelRef?: {
+        kind: string
+        label: string
+      }
+      market?: string
+      resumeToken?: {
+        [key: string]: unknown
+      }
+      error?: string
+      startedAt: string
+      updatedAt: string
+    }>
+  }
+}
+
+export type ListActivitiesResponse = ListActivitiesResponses[keyof ListActivitiesResponses]
+
+export type GetActivityData = {
+  body?: never
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+    /**
+     * Activity run id.
+     */
+    activityId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities/{activityId}'
+}
+
+export type GetActivityErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetActivityError = GetActivityErrors[keyof GetActivityErrors]
+
+export type GetActivityResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    activityId: string
+    scope: string
+    recordType: string
+    status: string
+    steps: Array<{
+      key: string
+      status: string
+      done: number
+      total: number
+    }>
+    modelRef?: {
+      kind: string
+      label: string
+    }
+    market?: string
+    resumeToken?: {
+      [key: string]: unknown
+    }
+    error?: string
+    startedAt: string
+    updatedAt: string
+  }
+}
+
+export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses]
+
+export type AbortActivityData = {
+  body?: never
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+    /**
+     * Activity run id.
+     */
+    activityId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities/{activityId}/abort'
+}
+
+export type AbortActivityErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AbortActivityError = AbortActivityErrors[keyof AbortActivityErrors]
+
+export type AbortActivityResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: string
+  }
+}
+
+export type AbortActivityResponse = AbortActivityResponses[keyof AbortActivityResponses]
+
+export type ResumeActivityData = {
+  body?: never
+  path: {
+    /**
+     * Project id.
+     */
+    projectId: string
+    /**
+     * Activity run id.
+     */
+    activityId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/activities/{activityId}/resume'
+}
+
+export type ResumeActivityErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ResumeActivityError = ResumeActivityErrors[keyof ResumeActivityErrors]
+
+export type ResumeActivityResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    activityId: string
+  }
+}
+
+export type ResumeActivityResponse = ResumeActivityResponses[keyof ResumeActivityResponses]
 
 export type ResetOverseerData = {
   body?: never
