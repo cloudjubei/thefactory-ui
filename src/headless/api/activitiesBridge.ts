@@ -1,4 +1,11 @@
-import { abortActivity, getActivity, listActivities, resumeActivity, runActivity } from './generated'
+import {
+  abortActivity,
+  getActivity,
+  listActivities,
+  resumeActivity,
+  runActivity,
+  type RunActivityData,
+} from './generated'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
 /**
@@ -7,12 +14,15 @@ import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
  * compose other handlers). The bearer credential never leaves the host. Starting
  * an activity is fire-and-forget: the backend runs it detached and returns an
  * `activityId` immediately, so the app survives navigating away; the app observes
- * progress + results by re-reading project records via `data.*`.
+ * progress + results by re-reading project records via `data.*`. `cliModel` and
+ * `llmConfigId` are mutually exclusive on the wire — when a CLI selection is
+ * given it wins and the config id is omitted.
  */
 export async function dispatchActivitiesBridge(
   projectId: string | undefined,
   req: BridgeRequest,
   llmConfigId?: string,
+  cliModel?: RunActivityData['body']['cliModel'],
 ): Promise<unknown> {
   const name = bridgeMessageName(req.type)
   if (!name.startsWith('activities.')) return undefined
@@ -32,7 +42,9 @@ export async function dispatchActivitiesBridge(
       try {
         const res = await runActivity({
           path: { projectId },
-          body: { activityType: payload.activityType, llmConfigId, params: payload.params },
+          body: cliModel
+            ? { activityType: payload.activityType, cliModel, params: payload.params }
+            : { activityType: payload.activityType, llmConfigId, params: payload.params },
           throwOnError: true,
         })
         return res.data

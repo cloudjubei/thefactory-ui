@@ -90,6 +90,8 @@ import type {
   CreateProjectsGroupData,
   CreateProjectsGroupErrors,
   CreateProjectsGroupResponses,
+  CreateRunnerPairingData,
+  CreateRunnerPairingResponses,
   CreateStoryData,
   CreateStoryErrors,
   CreateStoryResponses,
@@ -402,6 +404,8 @@ import type {
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
   ListProjectsResponses,
+  ListRunnersData,
+  ListRunnersResponses,
   ListSourceRecordsData,
   ListSourceRecordsErrors,
   ListSourceRecordsResponses,
@@ -436,12 +440,24 @@ import type {
   MatchDocumentsResponses,
   MetricsData,
   MetricsResponses,
+  PairRunnerData,
+  PairRunnerErrors,
+  PairRunnerResponses,
   PollGitCredentialGithubDeviceData,
   PollGitCredentialGithubDeviceErrors,
   PollGitCredentialGithubDeviceResponses,
   PollOverseerGithubDeviceFlowData,
   PollOverseerGithubDeviceFlowErrors,
   PollOverseerGithubDeviceFlowResponses,
+  PollRunnerJobData,
+  PollRunnerJobErrors,
+  PollRunnerJobResponses,
+  PostRunnerJobEventsData,
+  PostRunnerJobEventsErrors,
+  PostRunnerJobEventsResponses,
+  PostRunnerJobResultData,
+  PostRunnerJobResultErrors,
+  PostRunnerJobResultResponses,
   PreviewCliAgentArtifactData,
   PreviewCliAgentArtifactErrors,
   PreviewCliAgentArtifactResponses,
@@ -482,6 +498,8 @@ import type {
   RefreshPricingResponses,
   RemoveOverseerRemoteData,
   RemoveOverseerRemoteResponses,
+  RemoveRunnerData,
+  RemoveRunnerResponses,
   RenameFilesData,
   RenameFilesErrors,
   RenameFilesResponses,
@@ -3502,6 +3520,100 @@ export const webSearch = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/web/search',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const createRunnerPairing = <ThrowOnError extends boolean = false>(
+  options?: Options<CreateRunnerPairingData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<CreateRunnerPairingResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/pairings',
+    ...options,
+  })
+
+export const pairRunner = <ThrowOnError extends boolean = false>(
+  options: Options<PairRunnerData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PairRunnerResponses, PairRunnerErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/pair',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listRunners = <ThrowOnError extends boolean = false>(
+  options?: Options<ListRunnersData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListRunnersResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners',
+    ...options,
+  })
+
+export const removeRunner = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveRunnerData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<RemoveRunnerResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/{runnerId}',
+    ...options,
+  })
+
+export const pollRunnerJob = <ThrowOnError extends boolean = false>(
+  options: Options<PollRunnerJobData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PollRunnerJobResponses, PollRunnerJobErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/channel/poll',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const postRunnerJobEvents = <ThrowOnError extends boolean = false>(
+  options: Options<PostRunnerJobEventsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PostRunnerJobEventsResponses,
+    PostRunnerJobEventsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/channel/jobs/{jobId}/events',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const postRunnerJobResult = <ThrowOnError extends boolean = false>(
+  options: Options<PostRunnerJobResultData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PostRunnerJobResultResponses,
+    PostRunnerJobResultErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/runners/channel/jobs/{jobId}/result',
     ...options,
     headers: {
       'Content-Type': 'application/json',

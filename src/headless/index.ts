@@ -503,6 +503,7 @@ export { CostsProvider, useCosts, type CostsContextValue } from './contexts/Cost
 export {
   LLMConfigsProvider,
   useLLMConfigs,
+  type ActivityCliModel,
   type LLMConfigsContextValue,
   type LLMConfigsProviderProps,
 } from './contexts/LLMConfigsContext'

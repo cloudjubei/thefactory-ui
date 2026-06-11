@@ -549,7 +549,7 @@ export function ModelChip({
   const label = parts.join(' · ')
   const title = label || (editable ? 'Select model' : 'Unknown model')
 
-  if (editable && (!configs || configs.length === 0)) {
+  if (editable && !cliEnabled && !useCli && (!configs || configs.length === 0)) {
     return (
       <button
         type="button"

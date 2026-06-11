@@ -301,7 +301,7 @@ export function ModelChip({
           backgroundColor: useCli ? cliDotColor(activeCli) : dotColor,
         }}
       />
-      <View style={{ alignItems: 'center' }}>
+      <View style={{ alignItems: 'center', maxWidth: 60 }}>
         <Text
           numberOfLines={1}
           style={{

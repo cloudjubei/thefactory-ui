@@ -126,13 +126,26 @@ export type LlmConfig = {
   costCacheReadInputPerMTokensUSD?: number
 }
 
-export type ModelSelection = {
-  kind: 'api'
-  llmConfig: LlmConfig
-}
+export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
+
+export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+export type ModelSelection =
+  | {
+      kind: 'api'
+      llmConfig: LlmConfig
+    }
+  | {
+      kind: 'cli'
+      cli: CliTool
+      modelId?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+    }
 
 export type ModelRef = {
-  kind: 'api'
+  kind: 'api' | 'cli'
   label: string
 }
 
@@ -156,7 +169,7 @@ export type ActivityRun = {
   status: ActivityStatus
   steps: Array<ActivityStepState>
   modelRef?: {
-    kind: 'api'
+    kind: 'api' | 'cli'
     label: string
   }
   market?: string
@@ -176,7 +189,7 @@ export type ActivityRunInput = {
     key: string
   }>
   modelRef?: {
-    kind: 'api'
+    kind: 'api' | 'cli'
     label: string
   }
   market?: string
@@ -189,6 +202,13 @@ export type ActivityRunPatch = {
   status?: 'running' | 'completed' | 'failed' | 'aborted'
   steps?: Array<ActivityStepState>
   error?: string
+}
+
+export type WorkItemProgress = {
+  done: number
+  total: number
+  skipped: number
+  failed: number
 }
 
 export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
@@ -389,6 +409,7 @@ export type AgentPersona = {
   spawnablePersonas?: Array<string>
   defaultMaxTurns?: number
   workspaceMode?: 'shared' | 'worktree'
+  structuredOutput?: boolean
 }
 
 export type SpawnBudgetState = {
@@ -404,6 +425,7 @@ export type MakeBudgetStateOptions = {
 export type SpawnRefusalReason =
   | 'unknown_persona'
   | 'missing_task'
+  | 'missing_items'
   | 'depth_exceeded'
   | 'budget_exhausted'
   | 'worktree_unsupported'
@@ -479,6 +501,81 @@ export type SpawnPanelResult =
         error?: string
       }
       candidates: Array<PanelCandidate>
+      totalCostUSD: number
+    }
+  | {
+      status: 'refused'
+      reason: SpawnRefusalReason
+      message: string
+    }
+  | {
+      status: 'errored'
+      message: string
+    }
+
+export type TriageItem = {
+  id: string
+  text: string
+}
+
+export type TriageAction =
+  | 'none'
+  | 'attach_context'
+  | 'propose_spec_change'
+  | 'reprioritize'
+  | 'flag_human'
+
+export type TriageFact = {
+  claim: string
+  source: string
+}
+
+export type TriageJudgment = {
+  itemId: string
+  relevant: boolean
+  targets: Array<string>
+  facts: Array<TriageFact>
+  action: TriageAction
+  note?: string
+}
+
+export type TriageReaderResult = {
+  index: number
+  status: 'ok' | 'errored'
+  costUSD: number
+  judgments?: Array<TriageJudgment>
+  error?: string
+}
+
+export type TriageTargetVote = {
+  id: string
+  support: number
+}
+
+export type TriageFactVote = {
+  claim: string
+  sources: Array<string>
+  support: number
+}
+
+export type TriageItemVerdict = {
+  itemId: string
+  readers: number
+  judgedBy: number
+  relevant?: boolean
+  relevantAgreement: number
+  action?: 'none' | 'attach_context' | 'propose_spec_change' | 'reprioritize' | 'flag_human'
+  actionAgreement: number
+  targets: Array<TriageTargetVote>
+  facts: Array<TriageFactVote>
+  status: 'consensus' | 'contested' | 'unjudged'
+}
+
+export type SpawnTriagePanelResult =
+  | {
+      status: 'ok'
+      verdicts: Array<TriageItemVerdict>
+      readers: Array<TriageReaderResult>
       totalCostUSD: number
     }
   | {
@@ -811,6 +908,7 @@ export type Chat = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    cliRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -876,6 +974,7 @@ export type ChatCreateInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    cliRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -939,6 +1038,7 @@ export type ChatEditInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    cliRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1512,8 +1612,6 @@ export type CliChatSessionPolicy = {
   sweepIntervalMs: number
 }
 
-export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
-
 export type CliChatSessionIdentity = {
   chatContextId: string
   cli: CliTool
@@ -1530,6 +1628,10 @@ export type CliChatSessionEntry = {
   workspaceDir: string
   workspaceBaseline?: unknown
   cliSessionId?: string
+  authFilesBaseline?: {
+    [key: string]: string
+  }
+  inUse: number
   lastUsedAt: number
   createdAt: number
 }
@@ -1544,6 +1646,9 @@ export type CliChatSessionLease = {
   authDir: string
   workspaceDir: string
   workspaceBaseline?: unknown
+  authFilesBaseline?: {
+    [key: string]: string
+  }
   resumeSessionId?: string
   isNew: boolean
 }
@@ -1551,6 +1656,9 @@ export type CliChatSessionLease = {
 export type CliChatSessionTurnResult = {
   cliSessionId?: string
   workspaceBaseline?: unknown
+  authFilesBaseline?: {
+    [key: string]: string
+  }
 }
 
 export type ProviderPersistentSession = {
@@ -1563,10 +1671,11 @@ export type PreparedChatSession = {
   key: string
   isNew: boolean
   provider: ProviderPersistentSession
+  authFilesBaseline?: {
+    [key: string]: string
+  }
   resumeSessionId?: string
 }
-
-export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 export type CliRunStatus =
   | 'running'
@@ -2328,6 +2437,65 @@ export type StructuredOutputSchema = {
   [key: string]: unknown
 }
 
+export type ComputeRepoRef =
+  | {
+      kind: 'local'
+      localPath: string
+    }
+  | {
+      kind: 'git'
+      gitUrl: string
+      commit: string
+    }
+
+export type ComputeJob = {
+  jobId: string
+  repoRef: ComputeRepoRef
+  commandTemplate: string
+  config: unknown
+  env?: {
+    [key: string]: string
+  }
+  timeoutMs?: number
+  abortSignal?: unknown
+}
+
+export type ComputeJobResult = {
+  jobId: string
+  status: 'completed' | 'failed' | 'aborted'
+  exitCode: number | unknown
+  summary?: unknown
+  logTail: Array<string>
+  durationMs: number
+  error?: string
+}
+
+export type CalibrationProbe = {
+  repoRef: ComputeRepoRef
+  commandTemplate: string
+  env?: {
+    [key: string]: string
+  }
+  timeoutMs?: number
+  abortSignal?: unknown
+}
+
+export type CalibrationResult = {
+  secondsObserved: number
+  unitsPerSecond?: number
+  summary?: unknown
+}
+
+export type SpawnStreamingCommandExit = {
+  exitCode: number | unknown
+  aborted: boolean
+  timedOut: boolean
+}
+
+export type LocalComputeRunnerOptions = {
+  tempRootDir?: string
+}
+
 export type InMemoryEntity = unknown
 
 export type IdentifiedEntity = {
@@ -2602,7 +2770,7 @@ export type FlowRun = {
   status: FlowStatus
   steps: Array<FlowStepState>
   modelRef?: {
-    kind: 'api'
+    kind: 'api' | 'cli'
     label: string
   }
   market?: string
@@ -2622,7 +2790,7 @@ export type FlowRunInput = {
     key: string
   }>
   modelRef?: {
-    kind: 'api'
+    kind: 'api' | 'cli'
     label: string
   }
   market?: string
@@ -4011,7 +4179,7 @@ export type DiscoverSuppliersParams = {
   scope: string
   spec: ProductTypeSpec
   market: string
-  llmConfig: LlmConfig
+  model: ModelSelection
   maxSuppliers?: number
   chatContext?: {
     type: ChatContextType
@@ -4057,7 +4225,7 @@ export type RecommendProductsParams = {
   searchQuery: string
   filters?: Array<FilterRule>
   rankInstructions: string
-  llmConfig: LlmConfig
+  model: ModelSelection
   searchLimit?: number
   rankLimit?: number
   chatContext?: {
@@ -4076,7 +4244,7 @@ export type RecommendProductsParams = {
 export type RankProductCandidatesParams = {
   candidates: Array<ScoredCatalogItem>
   rankInstructions: string
-  llmConfig: LlmConfig
+  model: ModelSelection
   limit?: number
   chatContext?: {
     type: ChatContextType
@@ -4866,6 +5034,7 @@ export type AddMessagesInput = {
     }
     suggestedActions?: Array<string>
     thinking?: string
+    cliRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -10152,6 +10321,7 @@ export type SendCompletionData = {
         }
         suggestedActions?: Array<string>
         thinking?: string
+        cliRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -10238,6 +10408,7 @@ export type SendCompletionResponses = {
       }
       suggestedActions?: Array<string>
       thinking?: string
+      cliRunId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -10293,6 +10464,7 @@ export type SendCompletionWithToolsData = {
         }
         suggestedActions?: Array<string>
         thinking?: string
+        cliRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -10384,6 +10556,7 @@ export type SendCompletionWithToolsResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          cliRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -10452,6 +10625,7 @@ export type SendChatCompletionWithToolsData = {
       }
       suggestedActions?: Array<string>
       thinking?: string
+      cliRunId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -10537,6 +10711,7 @@ export type SendChatCompletionWithToolsResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          cliRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -10607,6 +10782,7 @@ export type ResumeCompletionData = {
         }
         suggestedActions?: Array<string>
         thinking?: string
+        cliRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -10698,6 +10874,7 @@ export type ResumeCompletionResponses = {
           }
           suggestedActions?: Array<string>
           thinking?: string
+          cliRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -13413,6 +13590,229 @@ export type WebSearchResponses = {
 
 export type WebSearchResponse2 = WebSearchResponses[keyof WebSearchResponses]
 
+export type CreateRunnerPairingData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/runners/pairings'
+}
+
+export type CreateRunnerPairingResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    pairingId: string
+    /**
+     * 6-digit code to enter on the runner.
+     */
+    pin: string
+    expiresAt: string
+  }
+}
+
+export type CreateRunnerPairingResponse =
+  CreateRunnerPairingResponses[keyof CreateRunnerPairingResponses]
+
+export type PairRunnerData = {
+  body: {
+    pin: string
+    /**
+     * Self-reported runner name shown in the Overseer.
+     */
+    name: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/runners/pair'
+}
+
+export type PairRunnerErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PairRunnerError = PairRunnerErrors[keyof PairRunnerErrors]
+
+export type PairRunnerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runnerId: string
+    name: string
+    token: string
+    createdAt: string
+  }
+}
+
+export type PairRunnerResponse = PairRunnerResponses[keyof PairRunnerResponses]
+
+export type ListRunnersData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/runners'
+}
+
+export type ListRunnersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    runners: Array<{
+      id: string
+      name: string
+      createdAt: string
+      lastSeenAt?: string
+      online: boolean
+      busy: boolean
+      queued: number
+    }>
+  }
+}
+
+export type ListRunnersResponse = ListRunnersResponses[keyof ListRunnersResponses]
+
+export type RemoveRunnerData = {
+  body?: never
+  path: {
+    runnerId: string
+  }
+  query?: never
+  url: '/api/v1/runners/{runnerId}'
+}
+
+export type RemoveRunnerResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    removed: boolean
+  }
+}
+
+export type RemoveRunnerResponse = RemoveRunnerResponses[keyof RemoveRunnerResponses]
+
+export type PollRunnerJobData = {
+  body: {
+    waitMs?: number
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/runners/channel/poll'
+}
+
+export type PollRunnerJobErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PollRunnerJobError = PollRunnerJobErrors[keyof PollRunnerJobErrors]
+
+export type PollRunnerJobResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    job?: {
+      [key: string]: unknown
+    }
+    abort?: Array<string>
+  }
+}
+
+export type PollRunnerJobResponse = PollRunnerJobResponses[keyof PollRunnerJobResponses]
+
+export type PostRunnerJobEventsData = {
+  body: {
+    logs?: Array<string>
+  }
+  path: {
+    jobId: string
+  }
+  query?: never
+  url: '/api/v1/runners/channel/jobs/{jobId}/events'
+}
+
+export type PostRunnerJobEventsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PostRunnerJobEventsError = PostRunnerJobEventsErrors[keyof PostRunnerJobEventsErrors]
+
+export type PostRunnerJobEventsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type PostRunnerJobEventsResponse =
+  PostRunnerJobEventsResponses[keyof PostRunnerJobEventsResponses]
+
+export type PostRunnerJobResultData = {
+  body: {
+    status: 'completed' | 'failed' | 'aborted'
+    exitCode: number | unknown
+    summary?: unknown
+    error?: string
+    durationMs?: number
+    logTail?: Array<string>
+  }
+  path: {
+    jobId: string
+  }
+  query?: never
+  url: '/api/v1/runners/channel/jobs/{jobId}/result'
+}
+
+export type PostRunnerJobResultErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PostRunnerJobResultError = PostRunnerJobResultErrors[keyof PostRunnerJobResultErrors]
+
+export type PostRunnerJobResultResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type PostRunnerJobResultResponse =
+  PostRunnerJobResultResponses[keyof PostRunnerJobResultResponses]
+
 export type RunAnalysisJobData = {
   body: {
     llmConfigId?: string
@@ -13488,6 +13888,18 @@ export type RunActivityData = {
      * LLM config to run on; falls back to the active agent config.
      */
     llmConfigId?: string
+    cliModel?: {
+      cli: 'claude-code' | 'cursor-agent' | 'codex'
+      /**
+       * CLI model id; omitted = the CLI default.
+       */
+      modelId?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      /**
+       * Stored CLI auth-cache id; omitted = the active login for the CLI.
+       */
+      credentialId?: string
+    }
     params?: {
       [key: string]: unknown
     }

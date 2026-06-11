@@ -18,6 +18,13 @@ export type ProjectAppViewProps = {
    * fire-and-forget. Omit to ignore the bridge.
    */
   onBridgeMessage?: (req: BridgeRequest) => unknown | Promise<unknown>
+  /**
+   * Host chrome floated over the top-right of the surface, aligned with the
+   * app's own tab row (the App tab passes its activity-model chip here). Apps
+   * reserve a matching right-side gutter on their tab bar so tabs never slide
+   * under it. Only its own children capture pointer events.
+   */
+  topRightOverlay?: ReactNode
   className?: string
   style?: CSSProperties
   title?: string
@@ -29,6 +36,7 @@ export default function ProjectAppView({
   remountKey = 0,
   fallback,
   onBridgeMessage,
+  topRightOverlay,
   className,
   style,
   title = 'Project app view',
@@ -67,23 +75,32 @@ export default function ProjectAppView({
     return () => window.removeEventListener('message', onMessage)
   }, [expectedOrigin])
 
+  const overlay = topRightOverlay ? (
+    <div className="pointer-events-none absolute right-3 top-2 z-10 *:pointer-events-auto">
+      {topRightOverlay}
+    </div>
+  ) : null
+
   if (!url) {
     return (
-      <div className={className} style={style}>
+      <div className={className} style={{ position: 'relative', ...style }}>
         {fallback ?? null}
+        {overlay}
       </div>
     )
   }
   return (
-    <iframe
-      ref={iframeRef}
-      key={remountKey}
-      src={url}
-      sandbox="allow-scripts allow-same-origin allow-forms"
-      className={className}
-      style={{ border: 0, width: '100%', height: '100%', ...style }}
-      title={title}
-    />
+    <div className={className} style={{ position: 'relative', ...style }}>
+      <iframe
+        ref={iframeRef}
+        key={remountKey}
+        src={url}
+        sandbox="allow-scripts allow-same-origin allow-forms"
+        style={{ border: 0, width: '100%', height: '100%' }}
+        title={title}
+      />
+      {overlay}
+    </div>
   )
 }
 

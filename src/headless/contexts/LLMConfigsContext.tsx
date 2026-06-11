@@ -5,12 +5,26 @@ import {
   deleteLlmConfig,
   listLlmConfigs,
   updateLlmConfig,
+  type CliReasoningEffort,
+  type CliTool,
   type GetLlmConfigResponse,
   type LlmConfigCreateInput,
   type LlmConfigEditInput,
 } from '../api/generated'
 import { useAuth } from '../api/AuthContext'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
+
+/** CLI-agent selection for background activities — mirrors the `runActivity` `cliModel` body. */
+export type ActivityCliModel = {
+  /** CLI tool that runs the activity. */
+  cli: CliTool
+  /** CLI model id; omitted = the CLI default. */
+  modelId?: string
+  /** Reasoning effort; omitted = the CLI default. */
+  effort?: CliReasoningEffort
+  /** Stored CLI auth-cache id; omitted = the active login for the CLI. */
+  credentialId?: string
+}
 
 export type LLMConfigsContextValue = {
   isLoaded: boolean
@@ -26,8 +40,13 @@ export type LLMConfigsContextValue = {
   recentAgentRunConfigs: GetLlmConfigResponse[]
   activeActivityConfigId: string | null
   activeActivityConfig: GetLlmConfigResponse | null
+  /** Make `id` the active activity config; clears any activity CLI selection. */
   setActiveActivity: (id: string) => void
   recentActivityConfigs: GetLlmConfigResponse[]
+  /** CLI-agent selection for activities; non-null = activities run on the CLI, not the active config. */
+  activeActivityCliModel: ActivityCliModel | null
+  /** Set (or clear, with `null`) the activity CLI selection; the active config is left untouched. */
+  setActiveActivityCliModel: (model: ActivityCliModel | null) => void
   createConfig: (input: LlmConfigCreateInput) => Promise<GetLlmConfigResponse>
   updateConfig: (id: string, patch: LlmConfigEditInput) => Promise<GetLlmConfigResponse>
   deleteConfig: (id: string) => Promise<void>
@@ -37,6 +56,7 @@ export type LLMConfigsContextValue = {
 const ACTIVE_CHAT_LS_KEY = 'thefactory-overseer-web:activeChatConfigId'
 const ACTIVE_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:activeAgentRunConfigId'
 const ACTIVE_ACTIVITY_LS_KEY = 'thefactory-overseer-web:activeActivityConfigId'
+const ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeActivityCliModel'
 const RECENT_CHAT_LS_KEY = 'thefactory-overseer-web:recentChatConfigIds'
 const RECENT_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:recentAgentRunConfigIds'
 const RECENT_ACTIVITY_LS_KEY = 'thefactory-overseer-web:recentActivityConfigIds'
@@ -67,6 +87,29 @@ function pushRecent(prev: string[], id: string): string[] {
   return next.slice(0, RECENTS_LIMIT)
 }
 
+const CLI_TOOLS: readonly CliTool[] = ['claude-code', 'cursor-agent', 'codex']
+
+function readActivityCliModel(storage: SyncKVStorage): ActivityCliModel | null {
+  try {
+    const raw = storage.get(ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as ActivityCliModel | null
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.cli !== 'string') return null
+    if (!CLI_TOOLS.includes(parsed.cli)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeActivityCliModel(storage: SyncKVStorage, model: ActivityCliModel | null) {
+  try {
+    storage.set(ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY, JSON.stringify(model))
+  } catch {
+    // ignore storage errors (private mode, etc.)
+  }
+}
+
 const LLMConfigsContext = createContext<LLMConfigsContextValue | null>(null)
 
 export type LLMConfigsProviderProps = {
@@ -89,6 +132,8 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const [activeActivityConfigId, setActiveActivityConfigIdState] = useState<string | null>(() =>
     storage.get(ACTIVE_ACTIVITY_LS_KEY),
   )
+  const [activeActivityCliModel, setActiveActivityCliModelState] =
+    useState<ActivityCliModel | null>(() => readActivityCliModel(storage))
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_CHAT_LS_KEY),
   )
@@ -141,11 +186,21 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       } catch {
         // ignore storage errors (private mode, etc.)
       }
+      setActiveActivityCliModelState(null)
+      writeActivityCliModel(storage, null)
       setRecentActivityIds((prev) => {
         const next = pushRecent(prev, id)
         writeRecents(storage, RECENT_ACTIVITY_LS_KEY, next)
         return next
       })
+    },
+    [storage],
+  )
+
+  const setActiveActivityCliModel = useCallback(
+    (model: ActivityCliModel | null) => {
+      setActiveActivityCliModelState(model)
+      writeActivityCliModel(storage, model)
     },
     [storage],
   )
@@ -248,6 +303,8 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityConfig,
       setActiveActivity,
       recentActivityConfigs,
+      activeActivityCliModel,
+      setActiveActivityCliModel,
       createConfig,
       updateConfig,
       deleteConfig,
@@ -269,6 +326,8 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityConfig,
       setActiveActivity,
       recentActivityConfigs,
+      activeActivityCliModel,
+      setActiveActivityCliModel,
       createConfig,
       updateConfig,
       deleteConfig,

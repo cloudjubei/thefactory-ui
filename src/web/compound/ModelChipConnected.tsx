@@ -5,7 +5,12 @@ import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
 import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
-import { useCliConfigs, useChatCliRunner, useLLMConfigs } from '../../headless'
+import {
+  useCliConfigs,
+  useChatCliRunner,
+  useLLMConfigs,
+  type ActivityCliModel,
+} from '../../headless'
 
 export type ModelChipConnectedProps = {
   provider?: string
@@ -182,10 +187,146 @@ function ModelChipWithCli({
 }
 
 /**
+ * CLI-aware leaf for the activity chip: same enabled-CLI / model-catalogue /
+ * live-model wiring as the chat leaf, but the selection is the persisted
+ * `activeActivityCliModel` (sent verbatim as the `runActivity` `cliModel`
+ * body) instead of a per-chat runner binding. Activities always run on a
+ * subscription credential — the backend resolves it, falling back to the
+ * CLI's active login.
+ */
+function ModelChipActivityCli({
+  llm,
+  cliModel,
+  setCliModel,
+}: {
+  llm: ModelChipLlmWiring
+  cliModel: ActivityCliModel | null
+  setCliModel: (model: ActivityCliModel | null) => void
+}) {
+  const {
+    enabledClis,
+    activeCli,
+    activeCliCredentialId,
+    cachesByCli,
+    defaultModel,
+    effort,
+    probeModels,
+    cachedLiveModels,
+  } = useCliConfigs()
+
+  const credentialForCli = useCallback(
+    (cli: string): string | undefined => {
+      if (cli === activeCli && activeCliCredentialId) return activeCliCredentialId
+      return cachesByCli[cli]?.[0]?.id
+    },
+    [activeCli, activeCliCredentialId, cachesByCli],
+  )
+
+  const [cliModels, setCliModels] = useState<ModelInfo[]>([])
+
+  const useCli = !!cliModel
+  const selectedCli = cliModel?.cli ?? activeCli ?? null
+  const selectedCliModelId = cliModel?.modelId
+  const credentialId = cliModel?.credentialId ?? activeCliCredentialId ?? undefined
+  const liveModels =
+    selectedCli && credentialId
+      ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
+        undefined)
+      : undefined
+  const effectiveCliModels = visibleCliModelsForAuth(liveModels ?? cliModels, 'subscription')
+
+  useEffect(() => {
+    if (!useCli || !selectedCli) {
+      setCliModels([])
+      return
+    }
+    let cancelled = false
+    void probeModels(selectedCli as Parameters<typeof probeModels>[0])
+      .then(({ models }) => {
+        if (!cancelled) setCliModels(models)
+      })
+      .catch(() => {
+        if (!cancelled) setCliModels([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [useCli, selectedCli, probeModels])
+
+  const selectionForCli = useCallback(
+    (cli: string): ActivityCliModel => ({
+      cli: cli as ActivityCliModel['cli'],
+      modelId: defaultModel[cli],
+      effort: effort[cli] as ActivityCliModel['effort'],
+      credentialId: credentialForCli(cli),
+    }),
+    [defaultModel, effort, credentialForCli],
+  )
+
+  const onToggleUseCli = useCallback(
+    (next: boolean) => {
+      if (next) {
+        const tool = activeCli ?? enabledClis[0]
+        if (!tool) return
+        setCliModel(selectionForCli(tool))
+      } else {
+        setCliModel(null)
+      }
+    },
+    [activeCli, enabledClis, selectionForCli, setCliModel],
+  )
+
+  const onPickCli = useCallback(
+    (cli: string) => {
+      setCliModel(selectionForCli(cli))
+    },
+    [selectionForCli, setCliModel],
+  )
+
+  const onPickCliModel = useCallback(
+    (modelId: string) => {
+      if (!selectedCli) return
+      setCliModel({
+        cli: selectedCli as ActivityCliModel['cli'],
+        modelId,
+        effort: (cliModel?.effort ?? effort[selectedCli]) as ActivityCliModel['effort'],
+        credentialId: cliModel?.credentialId ?? credentialForCli(selectedCli),
+      })
+    },
+    [selectedCli, cliModel, effort, credentialForCli, setCliModel],
+  )
+
+  return (
+    <ModelChipBase
+      provider={llm.provider}
+      model={useCli ? selectedCliModelId : llm.model}
+      className={llm.className}
+      editable={llm.editable}
+      mode={llm.mode}
+      activeConfig={llm.activeConfig}
+      recents={llm.recents}
+      configs={llm.configs}
+      onPick={llm.onPick}
+      onOpenSettings={llm.onOpenSettings}
+      getPrice={getPrice}
+      useCli={useCli}
+      onToggleUseCli={onToggleUseCli}
+      enabledClis={enabledClis}
+      activeCli={selectedCli}
+      onPickCli={onPickCli}
+      cliModels={effectiveCliModels}
+      onPickCliModel={onPickCliModel}
+    />
+  )
+}
+
+/**
  * Connected `ModelChip` for browser clients: wires the LLM-config selection
  * (active / recents / configs) from `useLLMConfigs` and the "open LLM
  * settings" navigation into the presentational `ModelChip`. When a
- * `chatContext` is supplied, also surfaces the per-chat API/CLI toggle.
+ * `chatContext` is supplied, also surfaces the per-chat API/CLI toggle; in
+ * `activity` mode the toggle is backed by the persisted activity CLI selection
+ * instead.
  */
 export default function ModelChipConnected({
   provider,
@@ -208,6 +349,8 @@ export default function ModelChipConnected({
     setActiveChat,
     setActiveAgentRun,
     setActiveActivity,
+    activeActivityCliModel,
+    setActiveActivityCliModel,
   } = useLLMConfigs()
 
   const activeConfig =
@@ -288,6 +431,16 @@ export default function ModelChipConnected({
 
   if (chatContext) {
     return <ModelChipWithCli chatContext={chatContext} llm={llm} />
+  }
+
+  if (mode === 'activity') {
+    return (
+      <ModelChipActivityCli
+        llm={llm}
+        cliModel={activeActivityCliModel}
+        setCliModel={setActiveActivityCliModel}
+      />
+    )
   }
 
   return (
