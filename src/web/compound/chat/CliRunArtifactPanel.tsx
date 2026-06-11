@@ -13,20 +13,26 @@ export type CliRunArtifactPanelProps = {
 
 function statusBadge(file: FilesEmittedFilePreview) {
   const map: Record<FilesEmittedFilePreview['status'], { label: string; cls: string }> = {
-    added: { label: 'added', cls: 'text-(--accent-success)' },
-    modified: { label: 'modified', cls: 'text-(--accent-warning)' },
-    deleted: { label: 'deleted', cls: 'text-(--accent-danger)' },
+    added: { label: 'added', cls: 'text-(--color-green-700) dark:text-(--color-green-300)' },
+    modified: {
+      label: 'modified',
+      cls: 'text-(--color-orange-700) dark:text-(--color-orange-300)',
+    },
+    deleted: { label: 'deleted', cls: 'text-(--color-red-700) dark:text-(--color-red-300)' },
   }
   const m = map[file.status]
   return <span className={`text-[11px] font-medium ${m.cls}`}>{m.label}</span>
 }
+
+const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 
 /**
  * The chat-side surface for a CLI agent's workspace diff: a collapsible panel
  * under the agent's reply listing every file the run changed, each rendered as a
  * real unified diff against the project's CURRENT checkout (with a conflict
  * badge when the file diverged since the run), and an Apply button that
- * materialises the changes onto the checkout.
+ * materialises the changes onto the checkout. Apply stays disabled until the
+ * preview has loaded — applying sight-unseen would bypass the conflict check.
  */
 export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifactPanelProps) {
   const {
@@ -35,6 +41,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     preview,
     previewLoading,
     loadPreview,
+    reload,
     apply,
     applying,
     applyResult,
@@ -43,10 +50,23 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
-    if (expanded && !preview && !previewLoading) void loadPreview()
-  }, [expanded, preview, previewLoading, loadPreview])
+    // `error` gates the retry: without it a failing preview refires forever
+    // (each failure resets previewLoading with preview still unset).
+    if (expanded && !preview && !previewLoading && !error) void loadPreview()
+  }, [expanded, preview, previewLoading, error, loadPreview])
 
-  if (loading || !artifact) return null
+  if (loading) return null
+  if (!artifact) {
+    // A failed run-fetch must be distinguishable from "the run changed no files".
+    return error ? (
+      <div className={`mt-2 text-[12px] ${DANGER_TEXT}`}>
+        Failed to load agent changes: {error}{' '}
+        <button type="button" className="underline" onClick={reload}>
+          Retry
+        </button>
+      </div>
+    ) : null
+  }
 
   const files = artifact.payload.files
   const counts = {
@@ -78,7 +98,16 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
 
       {expanded ? (
         <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
-          {error ? <div className="text-[12px] text-(--accent-danger)">{error}</div> : null}
+          {error ? (
+            <div className={`text-[12px] ${DANGER_TEXT}`}>
+              {error}{' '}
+              {!preview && !previewLoading ? (
+                <button type="button" className="underline" onClick={() => void loadPreview()}>
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {previewLoading ? (
             <div className="text-[12px] text-(--text-secondary)">Computing diff…</div>
           ) : null}
@@ -90,7 +119,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 {statusBadge(file)}
                 {file.conflict ? (
                   <span
-                    className="text-[11px] font-medium text-(--accent-danger)"
+                    className={`text-[11px] font-medium ${DANGER_TEXT}`}
                     title="This file changed in the project after the agent ran — applying overwrites that edit."
                   >
                     conflict
@@ -116,12 +145,12 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               type="button"
               className="px-3 py-1.5 rounded-md text-[13px] font-medium bg-(--accent-primary) text-(--text-inverted) hover:opacity-90 disabled:opacity-50"
               onClick={() => void apply()}
-              disabled={applying || !!applied}
+              disabled={applying || !!applied || !preview}
             >
               {applying ? 'Applying…' : applied ? 'Applied' : 'Apply to project'}
             </button>
             {conflictCount > 0 && !applied ? (
-              <span className="text-[12px] text-(--accent-danger)">
+              <span className={`text-[12px] ${DANGER_TEXT}`}>
                 {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
                 local edits
               </span>
@@ -135,7 +164,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
             ) : null}
           </div>
           {applied && applied.errors.length > 0 ? (
-            <div className="text-[12px] text-(--accent-danger)">
+            <div className={`text-[12px] ${DANGER_TEXT}`}>
               {applied.errors.map((e) => (
                 <div key={e.path}>
                   {e.path}: {e.reason}

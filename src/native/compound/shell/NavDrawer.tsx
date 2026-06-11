@@ -23,7 +23,7 @@ import NotificationBadge, {
   type NotificationBadgeColor,
 } from '../NotificationBadge'
 import { formatBadgeCount } from '../../../headless/utils/badgeAggregation'
-import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
+import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen, IconPause } from '../../icons'
 
 export interface NavDrawerItem {
   key: string
@@ -41,6 +41,9 @@ export interface NavDrawerItem {
   /** Renders a spinner (with a dot) — the chat "thinking" affordance. Takes
    *  precedence over `showDot`; a numeric `badgeCount` still wins over both. */
   thinking?: boolean
+  /** Renders a pause icon — an orphaned activity that resumes when opened.
+   *  `thinking` and a numeric `badgeCount` both win over it. */
+  paused?: boolean
   /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
   testID?: string
   onPress: () => void
@@ -61,6 +64,8 @@ export interface NavDrawerGroup {
   badgeColor?: NotificationBadgeColor
   /** Spinner affordance when the collapsed/flat badge is streaming. */
   thinking?: boolean
+  /** Pause affordance when a collapsed member's activity is orphaned (resumes when opened). */
+  paused?: boolean
   /** Chat unread shown when an expandable folder is OPEN — typically the
    *  group's OWN chats only (member projects show their own rows). */
   openBadgeCount?: number
@@ -382,6 +387,8 @@ function Row({
           showDot
           dotColor={getNotificationBadgeColor(item.badgeColor)}
         />
+      ) : item.paused ? (
+        <IconPause size={14} color={nativePalette.brand[500]} />
       ) : item.showDot ? (
         <View
           style={{
@@ -425,7 +432,8 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
   // aggregate. The parent supplies both; we pick by the current open state.
   const headerBadgeCount = open ? (group.openBadgeCount ?? 0) : (group.badgeCount ?? 0)
   const headerThinking = open ? !!group.openThinking : !!group.thinking
-  const showHeaderBadge = headerBadgeCount > 0 || headerThinking
+  const headerPaused = !open && !!group.paused
+  const showHeaderBadge = headerBadgeCount > 0 || headerThinking || headerPaused
   return (
     <View>
       {/* The folder icon and the right-hand chevron both toggle open/closed;
@@ -481,8 +489,10 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
                 color={group.badgeColor}
                 tooltipLabel={group.label}
               />
-            ) : (
+            ) : headerThinking ? (
               <SpinnerWithDot size={14} showDot dotColor={getNotificationBadgeColor(group.badgeColor)} />
+            ) : (
+              <IconPause size={14} color={nativePalette.brand[500]} />
             )}
           </View>
         ) : null}

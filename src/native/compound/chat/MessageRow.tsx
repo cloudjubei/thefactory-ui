@@ -163,6 +163,8 @@ export interface MessageRowProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render an inline `#<id>` reference. */
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   /**
    * Fired when the user taps the per-message usage `$` chip. The host
@@ -220,6 +222,7 @@ function MessageRow({
   onRetry,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
@@ -448,6 +451,10 @@ function MessageRow({
             </CollapsibleContent>
           </View>
         )}
+
+        {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
+          <View style={{ width: '100%' }}>{renderCliRunArtifact(msg.cliRunId)}</View>
+        ) : null}
 
         {isTool && msg.toolCall && (
           <View style={{ width: '100%' }}>

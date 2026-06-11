@@ -16,10 +16,10 @@ import {
   Switch,
   Textarea,
   renderProjectIcon,
-} from "../.."
-import type { GetProjectResponse, UpdateProjectData } from "../../../headless/api"
-import { useGitCredentials, type UseProjectGithubRepoResult } from "../../../headless"
-import { useProjectsGroups } from "../../../headless"
+} from '../..'
+import type { GetProjectResponse, UpdateProjectData } from '../../../headless/api'
+import { useGitCredentials, type UseProjectGithubRepoResult } from '../../../headless'
+import { useProjectsGroups } from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 
 export type ProjectFormState = {
@@ -28,7 +28,7 @@ export type ProjectFormState = {
   description: string
   repo_url: string
   active: boolean
-  metadata: { icon: string; githubCredentialsId?: string; hasApp?: boolean }
+  metadata: { icon: string; githubCredentialsId?: string; hasApp?: boolean; appDir?: string }
   codeInfo?: NonNullable<UpdateProjectData['body']['codeInfo']>
   /**
    * `null` is the explicit "no main group" choice — must round-trip to
@@ -57,6 +57,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const iconKey = typeof md.icon === 'string' && md.icon in PROJECT_ICONS ? md.icon : 'folder'
   const credsId = typeof md.githubCredentialsId === 'string' ? md.githubCredentialsId : undefined
   const hasApp = md.hasApp === true
+  const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -64,7 +65,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
     description: p.description ?? '',
     repo_url: p.repo_url ?? '',
     active: p.active !== false,
-    metadata: { icon: iconKey, githubCredentialsId: credsId, hasApp },
+    metadata: { icon: iconKey, githubCredentialsId: credsId, hasApp, appDir },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
     scopeGroupIds: Array.isArray(anyP.scopeGroupIds) ? (anyP.scopeGroupIds as string[]) : [],
@@ -200,7 +201,9 @@ export function ProjectEditorForm({
       {mode !== 'create' || !github?.enabled ? (
         <Field
           label={
-            mode === 'create' ? 'Repository URL (optional — paste an existing repo)' : 'Repository URL'
+            mode === 'create'
+              ? 'Repository URL (optional — paste an existing repo)'
+              : 'Repository URL'
           }
         >
           <Input
@@ -224,7 +227,8 @@ export function ProjectEditorForm({
         <div>
           <div className="text-sm font-medium">Has App surface</div>
           <div className="text-xs text-(--text-secondary)">
-            Show the App tab — toggle off for projects that don&apos;t ship an embedded app (db, backend, etc.).
+            Show the App tab — toggle off for projects that don&apos;t ship an embedded app (db,
+            backend, etc.).
           </div>
         </div>
         <Switch
@@ -234,6 +238,21 @@ export function ProjectEditorForm({
           }
         />
       </div>
+
+      {form.metadata.hasApp === true && (
+        <Field label="App directory (optional)">
+          <Input
+            value={form.metadata.appDir ?? ''}
+            placeholder="Repo subdir the App view serves from — blank = repo root"
+            onChange={(e) =>
+              setForm((s) => ({
+                ...s,
+                metadata: { ...s.metadata, appDir: e.target.value.trim() || undefined },
+              }))
+            }
+          />
+        </Field>
+      )}
 
       <Field label="GitHub Credentials (optional)">
         <Select

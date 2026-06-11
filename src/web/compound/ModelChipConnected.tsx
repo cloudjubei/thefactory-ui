@@ -201,18 +201,36 @@ export default function ModelChipConnected({
     configs,
     activeChatConfig,
     activeAgentRunConfig,
+    activeActivityConfig,
     recentChatConfigs,
     recentAgentRunConfigs,
+    recentActivityConfigs,
     setActiveChat,
     setActiveAgentRun,
+    setActiveActivity,
   } = useLLMConfigs()
 
-  const activeConfig = mode === 'chat' ? activeChatConfig : activeAgentRunConfig
-  const recents = mode === 'chat' ? recentChatConfigs : recentAgentRunConfigs
+  const activeConfig =
+    mode === 'chat'
+      ? activeChatConfig
+      : mode === 'activity'
+        ? activeActivityConfig
+        : activeAgentRunConfig
+  const recents =
+    mode === 'chat'
+      ? recentChatConfigs
+      : mode === 'activity'
+        ? recentActivityConfigs
+        : recentAgentRunConfigs
 
   const onPick = useCallback(
-    (id: string) => (mode === 'chat' ? setActiveChat(id) : setActiveAgentRun(id)),
-    [mode, setActiveChat, setActiveAgentRun],
+    (id: string) =>
+      mode === 'chat'
+        ? setActiveChat(id)
+        : mode === 'activity'
+          ? setActiveActivity(id)
+          : setActiveAgentRun(id),
+    [mode, setActiveChat, setActiveAgentRun, setActiveActivity],
   )
 
   const onOpenSettings = useCallback(() => {

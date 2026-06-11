@@ -14,13 +14,15 @@ import type { BridgeRequest } from '../utils/appBridge'
  * (start/observe a detached background activity), and `settings.*` (read/write
  * layered user-global + per-app settings) requests against the active project.
  * Each dispatcher returns `undefined` for messages it doesn't own; an unhandled
- * message resolves to `undefined`. Analysis jobs + activities run on the user's
- * active **agent-run** LLM config (selected client-side).
+ * message resolves to `undefined`. Analysis jobs run on the user's active
+ * **agent-run** LLM config; activities run on the active **activity** config,
+ * falling back to the agent-run one until the user picks an activity model
+ * (both selected client-side).
  */
 export function useProjectDataBridge(
   projectId: string | undefined,
 ): (req: BridgeRequest) => Promise<unknown> {
-  const { activeAgentRunConfigId } = useLLMConfigs()
+  const { activeAgentRunConfigId, activeActivityConfigId } = useLLMConfigs()
   return useCallback(
     async (req: BridgeRequest) => {
       const data = await dispatchProjectDataBridge(projectId, req)
@@ -29,10 +31,14 @@ export function useProjectDataBridge(
       if (live !== undefined) return live
       const settings = await dispatchAppSettingsBridge(projectId, req)
       if (settings !== undefined) return settings
-      const activities = await dispatchActivitiesBridge(projectId, req, activeAgentRunConfigId ?? undefined)
+      const activities = await dispatchActivitiesBridge(
+        projectId,
+        req,
+        activeActivityConfigId ?? activeAgentRunConfigId ?? undefined,
+      )
       if (activities !== undefined) return activities
       return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
     },
-    [projectId, activeAgentRunConfigId],
+    [projectId, activeAgentRunConfigId, activeActivityConfigId],
   )
 }

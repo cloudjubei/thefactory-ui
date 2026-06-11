@@ -13,7 +13,7 @@ export interface ModelChipConfig {
   model?: string
 }
 
-export type ModelChipMode = 'agentRun' | 'chat'
+export type ModelChipMode = 'agentRun' | 'chat' | 'activity'
 
 /** Minimal price record shape — full `UsageModalModelPrice` is web-only. */
 export interface ModelPriceRecord {

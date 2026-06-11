@@ -189,6 +189,10 @@ export {
 } from './compound/GroupHome'
 export { default as BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
 export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBody'
+export {
+  default as CliRunArtifactPanel,
+  type CliRunArtifactPanelProps,
+} from './compound/chat/CliRunArtifactPanel'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
   default as ChatSettingsDropdown,

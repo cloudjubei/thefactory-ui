@@ -12,7 +12,7 @@ export type ModelChipConfig = {
   model?: string
 }
 
-export type ModelChipMode = 'agentRun' | 'chat'
+export type ModelChipMode = 'agentRun' | 'chat' | 'activity'
 
 export type ModelChipProps = {
   provider?: string

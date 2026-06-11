@@ -79,6 +79,8 @@ export interface MessageListProps {
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   /** Forwards to `MessageRow.onShowUsage`. */
   onShowUsage?: (msg: ChatMessageLike) => void
@@ -103,6 +105,7 @@ export default function MessageList({
   renderToolCall,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   onShowUsage,
   thinkingLabel,
 }: MessageListProps) {
@@ -307,6 +310,7 @@ export default function MessageList({
                 onRetry={onRetry}
                 onResolveFile={onResolveFile}
                 renderDependency={renderDependency}
+                renderCliRunArtifact={renderCliRunArtifact}
                 onShowUsage={onShowUsage}
                 thinkingLabel={perMsgThinking}
               />

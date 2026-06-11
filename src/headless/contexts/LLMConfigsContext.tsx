@@ -24,6 +24,10 @@ export type LLMConfigsContextValue = {
   activeAgentRunConfig: GetLlmConfigResponse | null
   setActiveAgentRun: (id: string) => void
   recentAgentRunConfigs: GetLlmConfigResponse[]
+  activeActivityConfigId: string | null
+  activeActivityConfig: GetLlmConfigResponse | null
+  setActiveActivity: (id: string) => void
+  recentActivityConfigs: GetLlmConfigResponse[]
   createConfig: (input: LlmConfigCreateInput) => Promise<GetLlmConfigResponse>
   updateConfig: (id: string, patch: LlmConfigEditInput) => Promise<GetLlmConfigResponse>
   deleteConfig: (id: string) => Promise<void>
@@ -32,8 +36,10 @@ export type LLMConfigsContextValue = {
 
 const ACTIVE_CHAT_LS_KEY = 'thefactory-overseer-web:activeChatConfigId'
 const ACTIVE_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:activeAgentRunConfigId'
+const ACTIVE_ACTIVITY_LS_KEY = 'thefactory-overseer-web:activeActivityConfigId'
 const RECENT_CHAT_LS_KEY = 'thefactory-overseer-web:recentChatConfigIds'
 const RECENT_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:recentAgentRunConfigIds'
+const RECENT_ACTIVITY_LS_KEY = 'thefactory-overseer-web:recentActivityConfigIds'
 const RECENTS_LIMIT = 6
 
 function readRecents(storage: SyncKVStorage, key: string): string[] {
@@ -80,11 +86,17 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const [activeAgentRunConfigId, setActiveAgentRunConfigIdState] = useState<string | null>(() =>
     storage.get(ACTIVE_AGENT_RUN_LS_KEY),
   )
+  const [activeActivityConfigId, setActiveActivityConfigIdState] = useState<string | null>(() =>
+    storage.get(ACTIVE_ACTIVITY_LS_KEY),
+  )
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_CHAT_LS_KEY),
   )
   const [recentAgentRunIds, setRecentAgentRunIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_AGENT_RUN_LS_KEY),
+  )
+  const [recentActivityIds, setRecentActivityIds] = useState<string[]>(() =>
+    readRecents(storage, RECENT_ACTIVITY_LS_KEY),
   )
 
   const setActiveChat = useCallback(
@@ -115,6 +127,23 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       setRecentAgentRunIds((prev) => {
         const next = pushRecent(prev, id)
         writeRecents(storage, RECENT_AGENT_RUN_LS_KEY, next)
+        return next
+      })
+    },
+    [storage],
+  )
+
+  const setActiveActivity = useCallback(
+    (id: string) => {
+      setActiveActivityConfigIdState(id)
+      try {
+        storage.set(ACTIVE_ACTIVITY_LS_KEY, id)
+      } catch {
+        // ignore storage errors (private mode, etc.)
+      }
+      setRecentActivityIds((prev) => {
+        const next = pushRecent(prev, id)
+        writeRecents(storage, RECENT_ACTIVITY_LS_KEY, next)
         return next
       })
     },
@@ -172,6 +201,8 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     (activeChatConfigId && configs.find((c) => c.id === activeChatConfigId)) || null
   const activeAgentRunConfig =
     (activeAgentRunConfigId && configs.find((c) => c.id === activeAgentRunConfigId)) || null
+  const activeActivityConfig =
+    (activeActivityConfigId && configs.find((c) => c.id === activeActivityConfigId)) || null
 
   const recentChatConfigs = useMemo<GetLlmConfigResponse[]>(() => {
     const map = new Map(configs.map((c) => [c.id, c] as const))
@@ -191,6 +222,15 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     return base.slice(0, RECENTS_LIMIT)
   }, [configs, recentAgentRunIds])
 
+  const recentActivityConfigs = useMemo<GetLlmConfigResponse[]>(() => {
+    const map = new Map(configs.map((c) => [c.id, c] as const))
+    const items = recentActivityIds
+      .map((id) => map.get(id))
+      .filter((c): c is GetLlmConfigResponse => Boolean(c))
+    const base = items.length > 0 ? items : configs
+    return base.slice(0, RECENTS_LIMIT)
+  }, [configs, recentActivityIds])
+
   const value = useMemo<LLMConfigsContextValue>(
     () => ({
       isLoaded,
@@ -204,6 +244,10 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeAgentRunConfig,
       setActiveAgentRun,
       recentAgentRunConfigs,
+      activeActivityConfigId,
+      activeActivityConfig,
+      setActiveActivity,
+      recentActivityConfigs,
       createConfig,
       updateConfig,
       deleteConfig,
@@ -221,6 +265,10 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeAgentRunConfig,
       setActiveAgentRun,
       recentAgentRunConfigs,
+      activeActivityConfigId,
+      activeActivityConfig,
+      setActiveActivity,
+      recentActivityConfigs,
       createConfig,
       updateConfig,
       deleteConfig,

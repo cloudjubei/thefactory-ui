@@ -49,6 +49,8 @@ export interface ChatBodyProps {
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
+  /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
+  renderCliRunArtifact?: (runId: string) => ReactNode
 
   /** Fired when the user taps the per-message `$` usage chip. Host opens
    *  a `MessageUsageSheet` with the full breakdown. */
@@ -95,6 +97,7 @@ export default function ChatBody({
   renderToolCall,
   onResolveFile,
   renderDependency,
+  renderCliRunArtifact,
   onShowUsage,
   onSend,
   onAbort,
@@ -138,6 +141,7 @@ export default function ChatBody({
           renderToolCall={renderToolCall}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}
+          renderCliRunArtifact={renderCliRunArtifact}
           onShowUsage={onShowUsage}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
