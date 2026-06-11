@@ -1999,6 +1999,7 @@ export type FilesEmittedFilePreview = {
   patch?: string
   contentUnavailable?: boolean
   unsafePath?: boolean
+  unchanged?: boolean
   conflict?: boolean
 }
 
@@ -3641,6 +3642,66 @@ export type IngestionProgressEvent =
       projectId: string
       path?: string
       error: string
+    }
+
+export type JobStatus = 'running' | 'completed' | 'failed' | 'aborted' | 'paused' | 'awaiting-input'
+
+export type JobStepKind = 'implement' | 'verify' | 'review' | 'evidence'
+
+export type JobStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'aborted'
+
+export type JobStep = {
+  kind: JobStepKind
+  status: JobStepStatus
+  costUSD?: number
+  estimatedMs?: number
+  startedAt?: string
+  endedAt?: string
+  artifactRef?: string
+  error?: string
+}
+
+export type JobRun = {
+  id: string
+  projectId?: string
+  decisionId: string
+  selectedOptionId?: string
+  title: string
+  status: JobStatus
+  steps: Array<JobStep>
+  budgetUsd?: number
+  costUSD: number
+  estimatedMs?: number
+  durationMs?: number
+  error?: string
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  endedAt?: string
+}
+
+export type JobLaunchInput = {
+  decisionId: string
+  budgetUsd?: number
+}
+
+export type JobStepOutcome = {
+  status: 'completed' | 'failed'
+  costUSD?: number
+  artifactRef?: string
+  error?: string
+}
+
+export type LaunchJobResult =
+  | {
+      status: 'ok'
+      job: JobRun
+    }
+  | {
+      status: 'decision_not_found'
+    }
+  | {
+      status: 'decision_not_signed_off'
     }
 
 export type HistoryPoint = {

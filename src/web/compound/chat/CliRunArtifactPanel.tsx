@@ -74,10 +74,16 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     modified: files.filter((f) => f.status === 'modified').length,
     deleted: files.filter((f) => f.status === 'deleted').length,
   }
-  const applied = applyResult?.kind === 'files-emitted' ? applyResult : undefined
-  // Applied-state is durable: the run record stamps `appliedAt`, so a reopened
-  // chat shows "Applied" rather than reverting to a live Apply button.
-  const isApplied = !!applied || artifact.appliedAt != null
+  const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
+  // "Applied" means the change actually landed: a fresh apply with no errors that
+  // materialised ≥1 file, OR the durable `appliedAt` stamped on the run record
+  // (so a reopened chat rehydrates it). A failed apply leaves it retryable.
+  const appliedOk =
+    !!applyResultData &&
+    applyResultData.errors.length === 0 &&
+    applyResultData.added.length + applyResultData.modified.length + applyResultData.deleted.length >
+      0
+  const isApplied = appliedOk || artifact.appliedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   return (
@@ -120,7 +126,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-mono text-(--text-primary)">{file.path}</span>
                 {statusBadge(file)}
-                {file.conflict ? (
+                {file.conflict && !isApplied ? (
                   <span
                     className={`text-[11px] font-medium ${DANGER_TEXT}`}
                     title="This file changed in the project after the agent ran — applying overwrites that edit."
@@ -137,7 +143,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                     ? 'Unsafe path — will not be applied.'
                     : file.contentUnavailable
                       ? 'Binary or oversized content — cannot be applied from the artifact.'
-                      : null}
+                      : file.unchanged
+                        ? 'No changes — already applied.'
+                        : null}
                 </div>
               )}
             </div>
@@ -158,19 +166,19 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 local edits
               </span>
             ) : null}
-            {applied ? (
+            {applyResultData ? (
               <span className="text-[12px] text-(--text-secondary)">
-                {applied.added.length} added, {applied.modified.length} modified,{' '}
-                {applied.deleted.length} deleted
-                {applied.errors.length > 0 ? `, ${applied.errors.length} failed` : ''}
+                {applyResultData.added.length} added, {applyResultData.modified.length} modified,{' '}
+                {applyResultData.deleted.length} deleted
+                {applyResultData.errors.length > 0 ? `, ${applyResultData.errors.length} failed` : ''}
               </span>
             ) : isApplied ? (
               <span className="text-[12px] text-(--text-secondary)">Applied to project</span>
             ) : null}
           </div>
-          {applied && applied.errors.length > 0 ? (
+          {applyResultData && applyResultData.errors.length > 0 ? (
             <div className={`text-[12px] ${DANGER_TEXT}`}>
-              {applied.errors.map((e) => (
+              {applyResultData.errors.map((e) => (
                 <div key={e.path}>
                   {e.path}: {e.reason}
                 </div>

@@ -63,10 +63,16 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     modified: files.filter((f) => f.status === 'modified').length,
     deleted: files.filter((f) => f.status === 'deleted').length,
   }
-  const applied = applyResult?.kind === 'files-emitted' ? applyResult : undefined
-  // Durable applied-state from the run record (mirrors web): a reopened chat
-  // shows "Applied" rather than a live Apply button.
-  const isApplied = !!applied || artifact.appliedAt != null
+  const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
+  // "Applied" means the change actually landed (mirrors web): a fresh apply with
+  // no errors that materialised ≥1 file, OR the durable `appliedAt` from the run
+  // record. A failed apply stays retryable.
+  const appliedOk =
+    !!applyResultData &&
+    applyResultData.errors.length === 0 &&
+    applyResultData.added.length + applyResultData.modified.length + applyResultData.deleted.length >
+      0
+  const isApplied = appliedOk || artifact.appliedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   const statusColor = (file: FilesEmittedFilePreview): string =>
@@ -149,7 +155,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 <Text style={{ fontSize: 11, fontWeight: '500', color: statusColor(file) }}>
                   {file.status}
                 </Text>
-                {file.conflict ? (
+                {file.conflict && !isApplied ? (
                   <Text style={{ fontSize: 11, fontWeight: '500', color: nativePalette.red[700] }}>
                     conflict
                   </Text>
@@ -163,7 +169,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                     ? 'Unsafe path — will not be applied.'
                     : file.contentUnavailable
                       ? 'Binary or oversized content — cannot be applied from the artifact.'
-                      : ''}
+                      : file.unchanged
+                        ? 'No changes — already applied.'
+                        : ''}
                 </Text>
               )}
             </View>
@@ -193,11 +201,11 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 local edits
               </Text>
             ) : null}
-            {applied ? (
+            {applyResultData ? (
               <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
-                {applied.added.length} added, {applied.modified.length} modified,{' '}
-                {applied.deleted.length} deleted
-                {applied.errors.length > 0 ? `, ${applied.errors.length} failed` : ''}
+                {applyResultData.added.length} added, {applyResultData.modified.length} modified,{' '}
+                {applyResultData.deleted.length} deleted
+                {applyResultData.errors.length > 0 ? `, ${applyResultData.errors.length} failed` : ''}
               </Text>
             ) : isApplied ? (
               <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
@@ -205,8 +213,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               </Text>
             ) : null}
           </View>
-          {applied && applied.errors.length > 0
-            ? applied.errors.map((e) => (
+          {applyResultData && applyResultData.errors.length > 0
+            ? applyResultData.errors.map((e) => (
                 <Text key={e.path} style={{ fontSize: 12, color: nativePalette.red[700] }}>
                   {e.path}: {e.reason}
                 </Text>
