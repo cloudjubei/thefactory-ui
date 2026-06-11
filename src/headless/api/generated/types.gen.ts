@@ -588,6 +588,47 @@ export type SpawnTriagePanelResult =
       message: string
     }
 
+export type ApproachOption = {
+  index: number
+  title: string
+  summary: string
+  tradeoffs: Array<string>
+  risks: Array<string>
+  openQuestions: Array<string>
+}
+
+export type ApproachProposerResult = {
+  index: number
+  status: 'ok' | 'errored'
+  costUSD: number
+  option?: {
+    index: number
+    title: string
+    summary: string
+    tradeoffs: Array<string>
+    risks: Array<string>
+    openQuestions: Array<string>
+  }
+  error?: string
+}
+
+export type SpawnApproachPanelResult =
+  | {
+      status: 'ok'
+      options: Array<ApproachOption>
+      proposers: Array<ApproachProposerResult>
+      totalCostUSD: number
+    }
+  | {
+      status: 'refused'
+      reason: SpawnRefusalReason
+      message: string
+    }
+  | {
+      status: 'errored'
+      message: string
+    }
+
 export type AgentTaskResult = {
   resultType: AgentToolsResultType
   finalMessage: string
@@ -1722,6 +1763,7 @@ export type FilesEmittedArtifact = {
   id: string
   kind: 'files-emitted'
   at: number
+  appliedAt?: number
   payload: {
     files: Array<DirSnapshotChange>
   }
@@ -1731,6 +1773,7 @@ export type ProposedCommitArtifact = {
   id: string
   kind: 'proposed-commit'
   at: number
+  appliedAt?: number
   payload: {
     paths: Array<string>
     message: string
@@ -1742,6 +1785,7 @@ export type ProposedPrArtifact = {
   id: string
   kind: 'proposed-pr'
   at: number
+  appliedAt?: number
   payload: {
     branchName: string
     title: string
@@ -2448,11 +2492,18 @@ export type ComputeRepoRef =
       commit: string
     }
 
+export type ComputeDataFile = {
+  relPath: string
+  url: string
+  sha256?: string
+}
+
 export type ComputeJob = {
   jobId: string
   repoRef: ComputeRepoRef
   commandTemplate: string
   config: unknown
+  dataFiles?: Array<ComputeDataFile>
   env?: {
     [key: string]: string
   }
@@ -2473,6 +2524,7 @@ export type ComputeJobResult = {
 export type CalibrationProbe = {
   repoRef: ComputeRepoRef
   commandTemplate: string
+  dataFiles?: Array<ComputeDataFile>
   env?: {
     [key: string]: string
   }
@@ -2490,10 +2542,6 @@ export type SpawnStreamingCommandExit = {
   exitCode: number | unknown
   aborted: boolean
   timedOut: boolean
-}
-
-export type LocalComputeRunnerOptions = {
-  tempRootDir?: string
 }
 
 export type InMemoryEntity = unknown
@@ -2607,6 +2655,33 @@ export type CliConfigsActiveState = {
   }
 }
 
+export type EnsureDataFilesResult = {
+  reused: number
+  linked: number
+  fetched: number
+  bytesFetched: number
+}
+
+export type ContentAddressedDataCacheOptions = {
+  cacheRoot: string
+  fetchFn?: unknown
+}
+
+export type DataCacheIndexEntry = {
+  sha256: string
+  size: number
+  fetchedAt: string
+}
+
+export type DataCacheIndex = {
+  [key: string]: DataCacheIndexEntry
+}
+
+export type HashedFileWriteResult = {
+  sha256: string
+  size: number
+}
+
 export type DataRecord = {
   scope: string
   type: string
@@ -2648,6 +2723,69 @@ export type DataQuery = {
   type?: string
   key?: string
 }
+
+export type OpenQuestion = {
+  id: string
+  prompt: string
+  answer?: string
+  status: 'open' | 'answered'
+  createdAt: string
+  answeredAt?: string
+}
+
+export type DecisionOption = {
+  id: string
+  title: string
+  summary: string
+  tradeoffs: Array<string>
+  risks: Array<string>
+}
+
+export type Decision = {
+  id: string
+  projectId?: string
+  title: string
+  brief: string
+  options: Array<DecisionOption>
+  selectedOptionId?: string
+  questions: Array<OpenQuestion>
+  signedOff: boolean
+  signedOffAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type DecisionCreateInput = {
+  title: string
+  brief: string
+  projectId?: string
+}
+
+export type DecisionOptionInput = {
+  title: string
+  summary: string
+  tradeoffs?: Array<string>
+  risks?: Array<string>
+}
+
+export type DecisionReadiness = {
+  ready: boolean
+  unansweredQuestionIds: Array<string>
+  needsOptionSelection: boolean
+}
+
+export type SignOffDecisionResult =
+  | {
+      status: 'signed_off'
+      decision: Decision
+    }
+  | {
+      status: 'not_ready'
+      readiness: DecisionReadiness
+    }
+  | {
+      status: 'not_found'
+    }
 
 export type FilesResult = {
   [key: string]: string | Array<string>

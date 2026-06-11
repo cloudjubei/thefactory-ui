@@ -64,6 +64,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     deleted: files.filter((f) => f.status === 'deleted').length,
   }
   const applied = applyResult?.kind === 'files-emitted' ? applyResult : undefined
+  // Durable applied-state from the run record (mirrors web): a reopened chat
+  // shows "Applied" rather than a live Apply button.
+  const isApplied = !!applied || artifact.appliedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   const statusColor = (file: FilesEmittedFilePreview): string =>
@@ -169,22 +172,22 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 4 }}>
             <Pressable
               onPress={() => void apply()}
-              disabled={applying || !!applied || !preview}
+              disabled={applying || isApplied || !preview}
               accessibilityRole="button"
-              accessibilityState={{ disabled: applying || !!applied || !preview, busy: applying }}
+              accessibilityState={{ disabled: applying || isApplied || !preview, busy: applying }}
               style={{
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 8,
                 backgroundColor: theme.accent.primary,
-                opacity: applying || applied || !preview ? 0.5 : 1,
+                opacity: applying || isApplied || !preview ? 0.5 : 1,
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.inverted }}>
-                {applying ? 'Applying…' : applied ? 'Applied' : 'Apply to project'}
+                {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
               </Text>
             </Pressable>
-            {conflictCount > 0 && !applied ? (
+            {conflictCount > 0 && !isApplied ? (
               <Text style={{ fontSize: 12, color: nativePalette.red[700], flexShrink: 1 }}>
                 {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
                 local edits
@@ -195,6 +198,10 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 {applied.added.length} added, {applied.modified.length} modified,{' '}
                 {applied.deleted.length} deleted
                 {applied.errors.length > 0 ? `, ${applied.errors.length} failed` : ''}
+              </Text>
+            ) : isApplied ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
+                Applied to project
               </Text>
             ) : null}
           </View>

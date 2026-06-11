@@ -6,6 +6,7 @@ import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
 import {
+  useActivityChipCli,
   useCliConfigs,
   useChatCliRunner,
   useLLMConfigs,
@@ -203,103 +204,12 @@ function ModelChipActivityCli({
   cliModel: ActivityCliModel | null
   setCliModel: (model: ActivityCliModel | null) => void
 }) {
-  const {
-    enabledClis,
-    activeCli,
-    activeCliCredentialId,
-    cachesByCli,
-    defaultModel,
-    effort,
-    probeModels,
-    cachedLiveModels,
-  } = useCliConfigs()
-
-  const credentialForCli = useCallback(
-    (cli: string): string | undefined => {
-      if (cli === activeCli && activeCliCredentialId) return activeCliCredentialId
-      return cachesByCli[cli]?.[0]?.id
-    },
-    [activeCli, activeCliCredentialId, cachesByCli],
-  )
-
-  const [cliModels, setCliModels] = useState<ModelInfo[]>([])
-
-  const useCli = !!cliModel
-  const selectedCli = cliModel?.cli ?? activeCli ?? null
-  const selectedCliModelId = cliModel?.modelId
-  const credentialId = cliModel?.credentialId ?? activeCliCredentialId ?? undefined
-  const liveModels =
-    selectedCli && credentialId
-      ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
-        undefined)
-      : undefined
-  const effectiveCliModels = visibleCliModelsForAuth(liveModels ?? cliModels, 'subscription')
-
-  useEffect(() => {
-    if (!useCli || !selectedCli) {
-      setCliModels([])
-      return
-    }
-    let cancelled = false
-    void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then(({ models }) => {
-        if (!cancelled) setCliModels(models)
-      })
-      .catch(() => {
-        if (!cancelled) setCliModels([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [useCli, selectedCli, probeModels])
-
-  const selectionForCli = useCallback(
-    (cli: string): ActivityCliModel => ({
-      cli: cli as ActivityCliModel['cli'],
-      modelId: defaultModel[cli],
-      effort: effort[cli] as ActivityCliModel['effort'],
-      credentialId: credentialForCli(cli),
-    }),
-    [defaultModel, effort, credentialForCli],
-  )
-
-  const onToggleUseCli = useCallback(
-    (next: boolean) => {
-      if (next) {
-        const tool = activeCli ?? enabledClis[0]
-        if (!tool) return
-        setCliModel(selectionForCli(tool))
-      } else {
-        setCliModel(null)
-      }
-    },
-    [activeCli, enabledClis, selectionForCli, setCliModel],
-  )
-
-  const onPickCli = useCallback(
-    (cli: string) => {
-      setCliModel(selectionForCli(cli))
-    },
-    [selectionForCli, setCliModel],
-  )
-
-  const onPickCliModel = useCallback(
-    (modelId: string) => {
-      if (!selectedCli) return
-      setCliModel({
-        cli: selectedCli as ActivityCliModel['cli'],
-        modelId,
-        effort: (cliModel?.effort ?? effort[selectedCli]) as ActivityCliModel['effort'],
-        credentialId: cliModel?.credentialId ?? credentialForCli(selectedCli),
-      })
-    },
-    [selectedCli, cliModel, effort, credentialForCli, setCliModel],
-  )
+  const cli = useActivityChipCli(cliModel, setCliModel)
 
   return (
     <ModelChipBase
       provider={llm.provider}
-      model={useCli ? selectedCliModelId : llm.model}
+      model={cli.useCli ? cli.selectedCliModelId : llm.model}
       className={llm.className}
       editable={llm.editable}
       mode={llm.mode}
@@ -309,13 +219,13 @@ function ModelChipActivityCli({
       onPick={llm.onPick}
       onOpenSettings={llm.onOpenSettings}
       getPrice={getPrice}
-      useCli={useCli}
-      onToggleUseCli={onToggleUseCli}
-      enabledClis={enabledClis}
-      activeCli={selectedCli}
-      onPickCli={onPickCli}
-      cliModels={effectiveCliModels}
-      onPickCliModel={onPickCliModel}
+      useCli={cli.useCli}
+      onToggleUseCli={cli.onToggleUseCli}
+      enabledClis={cli.enabledClis}
+      activeCli={cli.selectedCli}
+      onPickCli={cli.onPickCli}
+      cliModels={cli.cliModels}
+      onPickCliModel={cli.onPickCliModel}
     />
   )
 }

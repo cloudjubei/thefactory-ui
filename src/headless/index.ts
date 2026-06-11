@@ -524,6 +524,7 @@ export {
 // Per-chat CLI-runner binding (attach / detach) + the unified tool-grant queue
 // (API require_confirmation + CLI gated PendingActions) the confirmation UI renders.
 export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunner'
+export { useActivityChipCli, type ActivityChipCliWiring } from './hooks/useActivityChipCli'
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
 export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 

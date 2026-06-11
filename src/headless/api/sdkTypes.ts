@@ -43,6 +43,8 @@ import type {
   GitStashData,
   // Pricing
   GetPricingResponses,
+  // Runners
+  ListRunnersResponses,
   // Tools
   ExecuteToolResponses,
   ListToolsResponses,
@@ -177,6 +179,12 @@ export type ToolPreviewResult = PreviewToolResponses[200]
 // --- Pricing ---
 export type PricingSnapshot = GetPricingResponses[200]
 export type PricingEntry = PricingSnapshot['prices'][number]
+
+// --- Compute runners ---
+//
+// `CreateRunnerPairingResponse` is promoted in the generated SDK — import it
+// directly. The runner item only exists inline inside the list envelope.
+export type ComputeRunner = ListRunnersResponses[200]['runners'][number]
 
 // --- Code intel ---
 export type DetectEnvironmentInput = DetectEnvironmentData['body']

@@ -75,6 +75,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     deleted: files.filter((f) => f.status === 'deleted').length,
   }
   const applied = applyResult?.kind === 'files-emitted' ? applyResult : undefined
+  // Applied-state is durable: the run record stamps `appliedAt`, so a reopened
+  // chat shows "Applied" rather than reverting to a live Apply button.
+  const isApplied = !!applied || artifact.appliedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   return (
@@ -145,11 +148,11 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               type="button"
               className="px-3 py-1.5 rounded-md text-[13px] font-medium bg-(--accent-primary) text-(--text-inverted) hover:opacity-90 disabled:opacity-50"
               onClick={() => void apply()}
-              disabled={applying || !!applied || !preview}
+              disabled={applying || isApplied || !preview}
             >
-              {applying ? 'Applying…' : applied ? 'Applied' : 'Apply to project'}
+              {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
             </button>
-            {conflictCount > 0 && !applied ? (
+            {conflictCount > 0 && !isApplied ? (
               <span className={`text-[12px] ${DANGER_TEXT}`}>
                 {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
                 local edits
@@ -161,6 +164,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
                 {applied.deleted.length} deleted
                 {applied.errors.length > 0 ? `, ${applied.errors.length} failed` : ''}
               </span>
+            ) : isApplied ? (
+              <span className="text-[12px] text-(--text-secondary)">Applied to project</span>
             ) : null}
           </div>
           {applied && applied.errors.length > 0 ? (

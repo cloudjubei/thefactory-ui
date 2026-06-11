@@ -4,6 +4,7 @@ import { dispatchLiveDataBridge } from '../api/liveDataBridge'
 import { dispatchAnalysisBridge } from '../api/analysisBridge'
 import { dispatchActivitiesBridge } from '../api/activitiesBridge'
 import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
+import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
 import type { BridgeRequest } from '../utils/appBridge'
 
@@ -39,6 +40,8 @@ export function useProjectDataBridge(
         activeActivityCliModel ?? undefined,
       )
       if (activities !== undefined) return activities
+      const runners = await dispatchRunnersBridge(req)
+      if (runners !== undefined) return runners
       return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
     },
     [projectId, activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel],
