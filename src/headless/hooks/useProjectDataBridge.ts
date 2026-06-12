@@ -4,6 +4,7 @@ import { dispatchLiveDataBridge } from '../api/liveDataBridge'
 import { dispatchAnalysisBridge } from '../api/analysisBridge'
 import { dispatchActivitiesBridge } from '../api/activitiesBridge'
 import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
+import { dispatchChatBridge } from '../api/chatBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
 import type { BridgeRequest } from '../utils/appBridge'
@@ -12,8 +13,9 @@ import type { BridgeRequest } from '../utils/appBridge'
  * Build the `onBridgeMessage` handler that services an embedded app's
  * `overseer:data.*` (read/write the project's own records), `live-data.read`
  * (its subscribed live data), `analysis.*` (run an analysis job), `activities.*`
- * (start/observe a detached background activity), and `settings.*` (read/write
- * layered user-global + per-app settings) requests against the active project.
+ * (start/observe a detached background activity), `settings.*` (read/write
+ * layered user-global + per-app settings), and `chat.*` (open a seeded
+ * project-topic chat) requests against the active project.
  * Each dispatcher returns `undefined` for messages it doesn't own; an unhandled
  * message resolves to `undefined`. Analysis jobs run on the user's active
  * **agent-run** LLM config; activities run on the active **activity** CLI
@@ -42,6 +44,8 @@ export function useProjectDataBridge(
       if (activities !== undefined) return activities
       const runners = await dispatchRunnersBridge(req)
       if (runners !== undefined) return runners
+      const chat = await dispatchChatBridge(projectId, req)
+      if (chat !== undefined) return chat
       return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
     },
     [projectId, activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel],
