@@ -14,6 +14,10 @@ export type ChatSidebarPanelProps = {
   initialWidth?: number
   onWidthChange?: (width: number, isFinal: boolean) => void
   defaultCollapsed?: boolean
+  /** Controlled collapsed state. When provided, the panel is controlled and `onCollapsedChange` reports requests. */
+  collapsed?: boolean
+  /** Called whenever the panel requests a collapsed-state change (expand button, header collapse). */
+  onCollapsedChange?: (next: boolean) => void
   collapsedTitle?: string
   collapsedAriaLabel?: string
   expandedAriaLabel?: string
@@ -35,12 +39,19 @@ export function ChatSidebarPanel({
   initialWidth = 380,
   onWidthChange,
   defaultCollapsed = true,
+  collapsed: controlledCollapsed,
+  onCollapsedChange,
   collapsedTitle,
   collapsedAriaLabel = 'Open chat',
   expandedAriaLabel = 'Chat sidebar',
   children,
 }: ChatSidebarPanelProps) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
+  const collapsed = controlledCollapsed ?? internalCollapsed
+  const setCollapsed = (next: boolean) => {
+    setInternalCollapsed(next)
+    onCollapsedChange?.(next)
+  }
 
   if (!isOpen) return null
 

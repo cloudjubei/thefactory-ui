@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Code from '../../Code'
 import { PathDisplay } from '../../PathDisplay'
 import { BottomSheet } from '../../../primitives/BottomSheet'
+import { Switch } from '../../../primitives/Switch'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
 import { isFilePathTool } from '../../../../headless/utils/toolPreview'
@@ -131,20 +132,13 @@ function ToolCallCardInner({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {selectable || disabled ? (
-            <label
-              className={`inline-flex items-center gap-1 text-[11px] ${
-                disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={() => onToggleSelect?.()}
+            <span onClick={(e) => e.stopPropagation()}>
+              <Switch
+                checked={!!selected}
+                onCheckedChange={() => onToggleSelect?.()}
                 disabled={disabled}
-                aria-label="Select this tool"
               />
-            </label>
+            </span>
           ) : null}
           {hasArgs ? (
             <button

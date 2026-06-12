@@ -8,7 +8,6 @@ import type { ToolCall, ToolResultType } from './ToolCall'
 import type {
   ChatLiveStateLike,
   ChatMessageLike,
-  PendingToolConfirmationLike,
   PendingToolGrant,
 } from '../../../headless/utils/chatTypes'
 
@@ -138,7 +137,7 @@ export default function ChatBody({
   inputValue,
   onInputChange,
 }: ChatBodyProps) {
-  const { isSending, pendingAssistant, pendingToolConfirmation } = liveState
+  const { isSending, pendingAssistant } = liveState
   const pendingForList = useMemo(
     () =>
       pendingAssistant
@@ -170,7 +169,7 @@ export default function ChatBody({
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           previewTool={previewTool}
-          onResumeTools={onResumeTools}
+          onResumeTools={onResumeTools ?? onConfirmTools}
           emptyStateContent={emptyStateContent}
         />
       </div>
@@ -196,13 +195,7 @@ export default function ChatBody({
         />
       )}
 
-      <ToolConfirmationModal
-        pending={pendingToolConfirmation as PendingToolConfirmationLike | null}
-        grants={grants}
-        busy={isSending}
-        onConfirm={onConfirmTools}
-        onCancel={onCancelToolConfirmation}
-      />
+      <ToolConfirmationModal grants={grants} busy={isSending} onCancel={onCancelToolConfirmation} />
     </div>
   )
 }
