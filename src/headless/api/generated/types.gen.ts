@@ -160,6 +160,8 @@ export type ActivityStepState = {
   status: ActivityStatus
   done: number
   total: number
+  startedAt?: string
+  endedAt?: string
 }
 
 export type ActivityRun = {
@@ -177,6 +179,7 @@ export type ActivityRun = {
     [key: string]: unknown
   }
   error?: string
+  costUSD?: number
   startedAt: string
   updatedAt: string
 }
@@ -202,6 +205,7 @@ export type ActivityRunPatch = {
   status?: 'running' | 'completed' | 'failed' | 'aborted'
   steps?: Array<ActivityStepState>
   error?: string
+  costUSD?: number
 }
 
 export type WorkItemProgress = {
@@ -703,6 +707,92 @@ export type ResearchParams = {
 export type ResearchResult = {
   items: Array<unknown>
   sources: Array<ResearchSource>
+}
+
+export type VoterPopulation = {
+  size: number
+  competence: number
+  correlation: number
+}
+
+export type CondorcetResult = {
+  panelAccuracy: number
+  expertAccuracy: number
+  panelWins: boolean
+  effectiveSize: number
+}
+
+export type CondorcetSetup = {
+  population: VoterPopulation
+  expertCompetence: number
+  sweepSizes: Array<number>
+}
+
+export type CondorcetSweepPoint = {
+  size: number
+  panelAccuracy: number
+}
+
+export type NumericAggregation = 'mean' | 'median' | 'trimmed'
+
+export type DiversityDecomposition = {
+  crowdError: number
+  avgIndividualError: number
+  diversity: number
+}
+
+export type RankedBallot = Array<string>
+
+export type VotingOutcome = {
+  plurality: string
+  borda: string
+  condorcet: string | unknown
+  irv: string
+  rulesAgree: boolean
+}
+
+export type DepthCount = {
+  depth: number
+  count: number
+}
+
+export type BeautyContestResult = {
+  guesses: Array<{
+    depth: number
+    guess: number
+    count: number
+  }>
+  meanGuess: number
+  target: number
+  winningDepth: number
+}
+
+export type CascadeResult = {
+  independentCorrect: boolean
+  cascadeCorrect: boolean
+  publicDecisions: Array<boolean>
+}
+
+export type ForecastAggregation = 'mean' | 'extremized'
+
+export type ArenaPanelQuestion = {
+  statement: string
+  correctAnswer?: boolean
+}
+
+export type ArenaPanelReaderVote = {
+  index: number
+  vote?: boolean
+}
+
+export type ArenaPanelResult = {
+  panelAnswer?: boolean
+  agreement: number
+  readers: number
+  votes: Array<ArenaPanelReaderVote>
+  correct?: boolean
+  status: 'consensus' | 'contested' | 'unjudged'
+  costUSD: number
 }
 
 export type ChatContextGeneral = {
@@ -1837,6 +1927,13 @@ export type CliRunRetryHistoryEntry = {
   delayMs: number
 }
 
+export type CliRunReview = {
+  branch: string
+  baseSha: string
+  headSha?: string
+  landedAt?: number
+}
+
 export type CliRun = {
   id: string
   projectId: string
@@ -1887,6 +1984,12 @@ export type CliRun = {
   updatedAt: number
   exitCode?: number
   abortReason?: string
+  review?: {
+    branch: string
+    baseSha: string
+    headSha?: string
+    landedAt?: number
+  }
 }
 
 export type CliRunFailure = {
@@ -2787,6 +2890,348 @@ export type SignOffDecisionResult =
   | {
       status: 'not_found'
     }
+
+export type ResearchVerdictStatus = 'confirmed' | 'implied' | 'unverifiable' | 'refuted'
+
+export type RawReaderVerdict = {
+  status: ResearchVerdictStatus
+  confidence: number
+  evidence?: Array<{
+    quote: string
+    url: string
+  }>
+  derivation?: string
+}
+
+export type EvidencePassage = {
+  source: ResearchSource
+  text: string
+}
+
+export type ClaimVerdict = {
+  status: ResearchVerdictStatus
+  confidence: number
+  evidence: Array<{
+    quote: string
+    url: string
+  }>
+  derivation?: string
+  methodology: string
+  sourcesAttempted: Array<string>
+}
+
+export type VerifyEvalCase = {
+  name: string
+  claim: string
+  evidence: Array<EvidencePassage>
+  perSourceVerdict: {
+    [key: string]: RawReaderVerdict
+  }
+  wholeEvidenceVerdict: RawReaderVerdict
+  golden: ClaimVerdict
+}
+
+export type VerifyEvalFixture = {
+  name: string
+  cases: Array<VerifyEvalCase>
+}
+
+export type VerifyScoreReport = {
+  verdictMatch: number
+  derivationMatch: number
+}
+
+export type ResearchCallBase = {
+  scope?: string
+  model: ModelSelection
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type PlanResearchParams = {
+  scope?: string
+  model:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal: unknown
+  goal: string
+  instructions?: string
+}
+
+export type ResearchSubQuestion = {
+  question: string
+}
+
+export type ResearchPlan = {
+  goal: string
+  subQuestions: Array<ResearchSubQuestion>
+}
+
+export type DiscoverSourcesParams = {
+  scope?: string
+  model:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal: unknown
+  query: string
+  limit?: number
+}
+
+export type DiscoveredSource = {
+  name: string
+  url: string
+  hints?: Array<string>
+}
+
+export type GatherParams = {
+  scope?: string
+  model:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal: unknown
+  query: string
+  limit?: number
+  maxCharsPerSource?: number
+}
+
+export type ExtractParams = {
+  scope?: string
+  model:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal: unknown
+  instructions: string
+  evidence: Array<EvidencePassage>
+}
+
+export type ExtractionResult = {
+  items: Array<unknown>
+  sources: Array<ResearchSource>
+}
+
+export type VerifyClaimParams = {
+  scope?: string
+  model:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal: unknown
+  claim: string
+  evidence: Array<EvidencePassage>
+}
+
+export type ResearchBudget = {
+  maxPlanDepth: number
+  maxSubQuestions: number
+  verifyReaders: number
+  gatherBreadth: number
+  maxHops: number
+  maxPagesPerHop: number
+  maxExtractClusters: number
+  discoverThinThreshold: number
+  maxInferenceCalls: number
+}
+
+export type RememberedSource = {
+  source: DiscoveredSource
+  fetchedAt: string
+}
+
+export type RememberedEvidence = {
+  passages: Array<EvidencePassage>
+  fetchedAt: string
+}
+
+export type FieldCorroboration = {
+  field: string
+  values: Array<{
+    value: unknown
+    sources: Array<string>
+  }>
+  conflict: boolean
+}
+
+export type CorroboratedItem = {
+  key: string
+  fields: Array<FieldCorroboration>
+  sources: Array<string>
+}
+
+export type BuildStepKind = 'implement' | 'verify' | 'review' | 'evidence'
+
+export type BuildStepOutcome = {
+  status: 'completed' | 'failed'
+  costUSD?: number
+  artifactRef?: string
+  error?: string
+}
+
+export type BuildStepResult = {
+  kind: BuildStepKind
+  status: 'completed' | 'failed' | 'aborted'
+  costUSD?: number
+  artifactRef?: string
+  error?: string
+  startedAt?: string
+  endedAt?: string
+}
+
+export type BuildStepPatch = {
+  status?: 'running' | 'completed' | 'failed' | 'aborted'
+  startedAt?: string
+  endedAt?: string
+  costUSD?: number
+}
+
+export type DecisionBuildSummary = {
+  status: 'completed' | 'failed' | 'aborted'
+  totalCostUSD: number
+  steps: Array<BuildStepResult>
+  error?: string
+}
+
+export type DecisionBuildReport = {
+  decisionId: string
+  selectedOptionId?: string
+  changedFiles: Array<DirSnapshotChange>
+  verdict?: {
+    compiles: boolean
+    compileErrorCount: number
+    testsRun: boolean
+    testsPassed: boolean
+    verified: boolean
+  }
+  reviewVerdicts?: Array<TriageItemVerdict>
+}
+
+export type DecisionBuildEvidence = {
+  decisionId: string
+  decisionTitle: string
+  selectedOptionId?: string
+  status: 'completed' | 'failed' | 'aborted'
+  summary: string
+  totalCostUSD: number
+  generatedAt: string
+  steps: Array<BuildStepResult>
+  changedFiles: Array<DirSnapshotChange>
+  verdict?: {
+    compiles: boolean
+    compileErrorCount: number
+    testsRun: boolean
+    testsPassed: boolean
+    verified: boolean
+  }
+  reviewVerdicts?: Array<TriageItemVerdict>
+  error?: string
+}
 
 export type FilesResult = {
   [key: string]: string | Array<string>
@@ -4249,9 +4694,107 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
+export type EvalGoal = {
+  query: string
+  categoryPath?: Array<string>
+}
+
+export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest' | 'excluded'
+
+export type CriterionStatus = 'confirmed' | 'implied' | 'unverifiable' | 'refuted'
+
+export type EvalResultItem = {
+  key: string
+  tier: RecommendationTier | 'excluded'
+  criteria?: {
+    [key: string]: CriterionStatus
+  }
+  rejectedBy?: string
+}
+
+export type EvalOutcome = {
+  items: Array<EvalResultItem>
+}
+
+export type EvalCase = {
+  name: string
+  goal: EvalGoal
+  relevantKeys: Array<string>
+  k?: number
+  expected: EvalOutcome
+}
+
+export type Offer = {
+  sourceId: string
+  seller: string
+  price?: number
+  currency?: string
+  promo?: string
+  url: string
+  asOf: string
+}
+
+export type CriterionEvidence = {
+  quote: string
+  url: string
+}
+
+export type CriterionVerdict = {
+  criterionId: string
+  status: CriterionStatus
+  confidence: number
+  evidence: Array<CriterionEvidence>
+  derivation?: string
+  methodology: string
+  sourcesAttempted: Array<string>
+  asOf: string
+}
+
 export type RecommendSource = {
   title: string
   url: string
+}
+
+export type FieldCitation = {
+  field: string
+  quote: string
+  url: string
+}
+
+export type CatalogItem = {
+  key: string
+  categoryPaths: Array<Array<string>>
+  identity: {
+    [key: string]: unknown
+  }
+  summary: string
+  description: string
+  composition: {
+    [key: string]: unknown
+  }
+  offers: Array<Offer>
+  criteria: {
+    [key: string]: CriterionVerdict
+  }
+  sources: Array<RecommendSource>
+  fieldCitations?: Array<FieldCitation>
+  freshness: {
+    [key: string]: string
+  }
+}
+
+export type EvalFixture = {
+  name: string
+  catalog: Array<CatalogItem>
+  cases: Array<EvalCase>
+}
+
+export type ScoreReport = {
+  recallAtK: number
+  k: number
+  tierAccuracy: number
+  verdictAccuracy: number
+  rejectionAccuracy: number
 }
 
 export type ProductTypeSpec = {
@@ -4265,15 +4808,15 @@ export type ProductTypeSpec = {
 
 export type FilterRule = {
   field: string
-  op: 'eq' | 'lte' | 'gte' | 'contains'
+  op: 'eq' | 'lte' | 'gte' | 'contains' | 'within' | 'anyOf' | 'noneOf' | 'absent'
   value: unknown
+  mode?: 'gate' | 'grade'
+  onAbsent?: 'pass' | 'fail' | 'unknown'
 }
-
-export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest'
 
 export type RequirementRuleMatch = {
   field: string
-  op: 'eq' | 'lte' | 'gte' | 'contains'
+  op: 'eq' | 'lte' | 'gte' | 'contains' | 'within' | 'anyOf' | 'noneOf' | 'absent'
   value: unknown
   satisfaction: number
 }
@@ -4282,6 +4825,7 @@ export type RequirementMatch = {
   match: number
   unmet: Array<string>
   rules: Array<RequirementRuleMatch>
+  excludedBy?: string
 }
 
 export type RankedProduct = {
@@ -4302,10 +4846,11 @@ export type TieredProduct = {
   score: number
   why: string
   sources: Array<RecommendSource>
-  tier: 'perfect' | 'good' | 'ok' | 'alternative' | 'rest'
+  tier: 'perfect' | 'good' | 'ok' | 'alternative' | 'rest' | 'excluded'
   requirementMatch: number
   unmetFilters: Array<string>
   requirementBreakdown: Array<RequirementRuleMatch>
+  rejectedBy?: string
 }
 
 export type RecommendDiagnostics = {
@@ -4318,6 +4863,7 @@ export type RecommendDiagnostics = {
     ok: number
     alternative: number
     rest: number
+    excluded: number
   }
 }
 
@@ -4326,7 +4872,7 @@ export type TieredRecommendationsResult = {
   diagnostics: RecommendDiagnostics
 }
 
-export type CatalogItem = {
+export type GatheredItem = {
   key: string
   content: {
     [key: string]: unknown
@@ -4345,6 +4891,51 @@ export type ScoredCatalogItem = {
   suppliers?: Array<string>
   updatedAt: string
   score: number
+}
+
+export type SourceRecord = {
+  id: string
+  name: string
+  kind: 'retailer' | 'manufacturer' | 'database' | 'review' | 'marketplace' | 'other'
+  url?: string
+  qualityTags: Array<string>
+  categories?: Array<Array<string>>
+  updatedAt: string
+}
+
+export type BrandRecord = {
+  name: string
+  tags: Array<string>
+  categories?: Array<Array<string>>
+  url?: string
+  updatedAt: string
+}
+
+export type CriterionSpec = {
+  id: string
+  claim: string
+  mode: 'gate' | 'grade'
+  positiveProxies?: Array<string>
+  updatedAt: string
+}
+
+export type VerifyProductCriterionParams = {
+  item: CatalogItem
+  criterion: CriterionSpec
+  model: ModelSelection
+  now: string
+  mode?: 'cheap' | 'deep'
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
 }
 
 export type CoercedRankRow = {
@@ -4415,6 +5006,8 @@ export type SearchProductCandidatesParams = {
   scope: string
   recordType: string
   searchQuery: string
+  queries?: Array<string>
+  textWeight?: number
   limit?: number
 }
 
@@ -4422,6 +5015,8 @@ export type RecommendProductsParams = {
   scope: string
   recordType: string
   searchQuery: string
+  queries?: Array<string>
+  textWeight?: number
   filters?: Array<FilterRule>
   rankInstructions: string
   model: ModelSelection

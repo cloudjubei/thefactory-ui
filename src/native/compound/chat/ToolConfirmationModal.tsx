@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
+import { Switch } from '../../primitives/Switch'
 import type { PendingToolGrant } from '../../../headless'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -28,32 +29,6 @@ function formatJson(v: unknown): string {
   } catch {
     return String(v)
   }
-}
-
-function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
-  const { theme } = useNativeTheme()
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onToggle}
-      hitSlop={6}
-      style={{
-        width: 20,
-        height: 20,
-        borderRadius: nativeRadii[1],
-        borderWidth: 1.5,
-        borderColor: checked ? theme.accent.primary : theme.border.strong,
-        backgroundColor: checked ? theme.accent.primary : 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {checked ? (
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>✓</Text>
-      ) : null}
-    </Pressable>
-  )
 }
 
 /**
@@ -265,15 +240,12 @@ export default function ToolConfirmationModal({
                 gap: nativeSpace[2],
               }}
             >
-              <Pressable
-                onPress={() =>
-                  setGranted((prev) => ({ ...prev, [tc.toolCallId]: !prev[tc.toolCallId] }))
-                }
+              <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
               >
-                <Checkbox
+                <Switch
                   checked={granted[tc.toolCallId] ?? false}
-                  onToggle={() =>
+                  onCheckedChange={() =>
                     setGranted((prev) => ({ ...prev, [tc.toolCallId]: !prev[tc.toolCallId] }))
                   }
                 />
@@ -287,7 +259,7 @@ export default function ToolConfirmationModal({
                 >
                   {tc.name}
                 </Text>
-              </Pressable>
+              </View>
               {tc.arguments !== undefined ? (
                 <ScrollView
                   style={{ maxHeight: 160 }}
