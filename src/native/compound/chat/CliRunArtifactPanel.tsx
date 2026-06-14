@@ -26,6 +26,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const { theme } = useNativeTheme()
   const {
     artifact,
+    review,
     loading,
     preview,
     previewLoading,
@@ -34,15 +35,24 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     apply,
     applying,
     applyResult,
+    reviewDiff,
+    reviewLoading,
+    loadReviewDiff,
+    merge,
+    merging,
+    mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
-    // `error` gates the retry: without it a failing preview refires forever
-    // (each failure resets previewLoading with preview still unset).
-    if (expanded && !preview && !previewLoading && !error) void loadPreview()
-  }, [expanded, preview, previewLoading, error, loadPreview])
+    if (!expanded || error) return
+    if (review) {
+      if (!reviewDiff && !reviewLoading) void loadReviewDiff()
+    } else if (!preview && !previewLoading) {
+      void loadPreview()
+    }
+  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, preview, previewLoading, error, loadPreview])
 
   if (loading) return null
   if (!artifact) {
@@ -116,7 +126,93 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </Text>
       </Pressable>
 
-      {expanded ? (
+      {expanded && review ? (
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            gap: 12,
+          }}
+        >
+          <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+            {review.branch} ← {review.baseSha.slice(0, 8)}
+          </Text>
+          {error ? (
+            <Text style={{ fontSize: 12, color: nativePalette.red[700] }}>
+              {error}{' '}
+              {!reviewDiff && !reviewLoading ? (
+                <Text style={{ textDecorationLine: 'underline' }} onPress={() => void loadReviewDiff()}>
+                  Retry
+                </Text>
+              ) : null}
+            </Text>
+          ) : null}
+          {reviewLoading ? (
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>Loading diff…</Text>
+          ) : null}
+
+          {(reviewDiff?.files ?? []).map((file) => (
+            <View key={file.path} style={{ gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text
+                  style={{ fontSize: 12, color: theme.text.primary, flexShrink: 1 }}
+                  numberOfLines={1}
+                >
+                  {file.path}
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
+                  {file.status}
+                </Text>
+              </View>
+              {file.patch ? (
+                <UnifiedDiff patch={file.patch} />
+              ) : (
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                  {file.binary ? 'Binary file.' : 'No textual diff.'}
+                </Text>
+              )}
+            </View>
+          ))}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+            <Pressable
+              onPress={() => void merge()}
+              disabled={merging || mergeResult?.ok === true || !reviewDiff}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: merging || mergeResult?.ok === true || !reviewDiff, busy: merging }}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: theme.accent.primary,
+                opacity: merging || mergeResult?.ok || !reviewDiff ? 0.5 : 1,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.inverted }}>
+                {merging ? 'Merging…' : mergeResult?.ok ? 'Merged ✓' : 'Sign off & merge'}
+              </Text>
+            </Pressable>
+            {mergeResult?.conflicts && mergeResult.conflicts.length > 0 ? (
+              <Text style={{ fontSize: 12, color: nativePalette.red[700], flexShrink: 1 }}>
+                {mergeResult.conflicts.length} conflict
+                {mergeResult.conflicts.length === 1 ? '' : 's'} — resolve in the Git tab
+              </Text>
+            ) : mergeResult && !mergeResult.ok ? (
+              <Text style={{ fontSize: 12, color: nativePalette.red[700], flexShrink: 1 }}>
+                {mergeResult.message ?? 'Merge failed'}
+              </Text>
+            ) : mergeResult?.ok ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
+                Merged into your branch
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {expanded && !review ? (
         <View
           style={{
             borderTopWidth: 1,

@@ -37,6 +37,7 @@ const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifactPanelProps) {
   const {
     artifact,
+    review,
     loading,
     preview,
     previewLoading,
@@ -45,15 +46,27 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     apply,
     applying,
     applyResult,
+    reviewDiff,
+    reviewLoading,
+    loadReviewDiff,
+    merge,
+    merging,
+    mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
-    // `error` gates the retry: without it a failing preview refires forever
-    // (each failure resets previewLoading with preview still unset).
-    if (expanded && !preview && !previewLoading && !error) void loadPreview()
-  }, [expanded, preview, previewLoading, error, loadPreview])
+    if (!expanded || error) return
+    // Review mode (run landed on a branch) loads the branch diff; otherwise the
+    // no-git path loads the files-emitted preview. `error` gates the retry so a
+    // failing load doesn't refire forever.
+    if (review) {
+      if (!reviewDiff && !reviewLoading) void loadReviewDiff()
+    } else if (!preview && !previewLoading) {
+      void loadPreview()
+    }
+  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, preview, previewLoading, error, loadPreview])
 
   if (loading) return null
   if (!artifact) {
@@ -105,7 +118,69 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </span>
       </button>
 
-      {expanded ? (
+      {expanded && review ? (
+        <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
+          <div className="text-[11px] text-(--text-secondary) font-mono">
+            {review.branch} ← {review.baseSha.slice(0, 8)}
+          </div>
+          {error ? (
+            <div className={`text-[12px] ${DANGER_TEXT}`}>
+              {error}{' '}
+              {!reviewDiff && !reviewLoading ? (
+                <button type="button" className="underline" onClick={() => void loadReviewDiff()}>
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {reviewLoading ? (
+            <div className="text-[12px] text-(--text-secondary)">Loading diff…</div>
+          ) : null}
+
+          {(reviewDiff?.files ?? []).map((file) => (
+            <div key={file.path} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-mono text-(--text-primary)">{file.path}</span>
+                <span className="text-[11px] font-medium text-(--text-secondary)">{file.status}</span>
+              </div>
+              {file.patch ? (
+                <StructuredUnifiedDiff patch={file.patch} />
+              ) : (
+                <div className="text-[12px] text-(--text-secondary)">
+                  {file.binary ? 'Binary file.' : 'No textual diff.'}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded-md text-[13px] font-medium bg-(--accent-primary) text-(--text-inverted) hover:opacity-90 disabled:opacity-50"
+              onClick={() => void merge()}
+              disabled={merging || mergeResult?.ok === true || !reviewDiff}
+            >
+              {merging ? 'Merging…' : mergeResult?.ok ? 'Merged ✓' : 'Sign off & merge'}
+            </button>
+            {mergeResult?.conflicts && mergeResult.conflicts.length > 0 ? (
+              <span className={`text-[12px] ${DANGER_TEXT}`}>
+                {mergeResult.conflicts.length} conflict
+                {mergeResult.conflicts.length === 1 ? '' : 's'} — resolve in the Git tab
+              </span>
+            ) : mergeResult && !mergeResult.ok ? (
+              <span className={`text-[12px] ${DANGER_TEXT}`}>
+                {mergeResult.message ?? 'Merge failed'}
+              </span>
+            ) : mergeResult?.ok ? (
+              <span className="text-[12px] text-(--text-secondary)">
+                Merged into your branch{mergeResult.mergeCommit ? ` (${mergeResult.mergeCommit.slice(0, 8)})` : ''}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {expanded && !review ? (
         <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
           {error ? (
             <div className={`text-[12px] ${DANGER_TEXT}`}>

@@ -2,19 +2,30 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   applyCliAgentArtifact,
   getCliAgentRun,
+  getGitBranchDiffSummary,
+  gitMergeApply,
   previewCliAgentArtifact,
   type ApplyCliAgentArtifactResult,
+  type CliRunReview,
   type FilesEmittedArtifact,
   type FilesEmittedPreview,
+  type GitDiffSummary,
+  type GitMergeResult,
 } from '../api/generated'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
 
 export type UseCliRunArtifact = {
   /** The run's files-emitted artifact (the agent's workspace diff), once loaded. */
   artifact: FilesEmittedArtifact | undefined
+  /**
+   * Branch-landing state when the run was committed to a per-run branch (git
+   * projects). When present the panel is in PR-review mode (review the branch
+   * diff + Sign off & merge); when absent it's the no-git direct-apply path.
+   */
+  review: CliRunReview | undefined
   /** True while the run record is being fetched. */
   loading: boolean
-  /** Per-file diff preview against the project's current checkout, once loaded. */
+  /** Per-file diff preview against the project's current checkout (no-git path), once loaded. */
   preview: FilesEmittedPreview | undefined
   /** True while the preview is being computed server-side. */
   previewLoading: boolean
@@ -22,45 +33,66 @@ export type UseCliRunArtifact = {
   loadPreview: () => Promise<void>
   /** Re-fetch the run record (retry after a failed load). */
   reload: () => void
-  /** Apply the artifact onto the project checkout. */
+  /** Apply the artifact onto the project checkout (no-git path). */
   apply: () => Promise<void>
   /** True while an apply is in flight. */
   applying: boolean
   /** Result of the last apply (added/modified/deleted/errors), once applied. */
   applyResult: ApplyCliAgentArtifactResult | undefined
-  /** Last fetch/preview/apply failure, for inline display. */
+  /** The run branch's diff vs its base (review mode), once loaded. */
+  reviewDiff: GitDiffSummary | undefined
+  /** True while the branch diff is being fetched. */
+  reviewLoading: boolean
+  /** Fetch (or refresh) the run-branch diff. */
+  loadReviewDiff: () => Promise<void>
+  /** Sign off: merge the run branch into the current working branch. */
+  merge: () => Promise<void>
+  /** True while a merge is in flight. */
+  merging: boolean
+  /** Result of the last merge (ok / conflicts / mergeCommit), once attempted. */
+  mergeResult: GitMergeResult | undefined
+  /** Last fetch/preview/apply/merge failure, for inline display. */
   error: string | undefined
 }
 
 /**
- * The chat-side surface for a CLI run's workspace diff: loads the run's
- * `files-emitted` artifact (anchored by the assistant message's `cliRunId`),
- * fetches the per-file diff preview against the project's current checkout, and
- * applies it on demand. Platform-agnostic — the web + native artifact panels
- * are thin renderings of this state.
+ * The chat-side surface for a CLI run's changes. Two modes off the loaded run:
+ * - **Review (git projects):** the run was landed on a per-run branch
+ *   (`run.review`); render the branch-vs-base diff and Sign off & merge.
+ * - **Direct apply (no-git fallback):** no branch; render the files-emitted
+ *   artifact preview and Apply onto the working tree.
+ * Platform-agnostic — the web + native panels are thin renderings of this state.
  */
 export function useCliRunArtifact(
   runId: string | undefined,
   projectId: string | undefined,
 ): UseCliRunArtifact {
   const [artifact, setArtifact] = useState<FilesEmittedArtifact | undefined>(undefined)
+  const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<FilesEmittedPreview | undefined>(undefined)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState<ApplyCliAgentArtifactResult | undefined>(undefined)
+  const [reviewDiff, setReviewDiff] = useState<GitDiffSummary | undefined>(undefined)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [merging, setMerging] = useState(false)
+  const [mergeResult, setMergeResult] = useState<GitMergeResult | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [fetchNonce, setFetchNonce] = useState(0)
   // Bumped whenever the target run changes; in-flight responses from a prior
-  // epoch are discarded so a remounted-in-place panel (keyed rows can reuse the
-  // component for a different run) never shows another run's diff or result.
+  // epoch are discarded so a remounted-in-place panel never shows another run's
+  // diff or result.
   const epochRef = useRef(0)
 
   useEffect(() => {
     epochRef.current += 1
     setArtifact(undefined)
+    setReview(undefined)
     setPreview(undefined)
     setApplyResult(undefined)
+    setReviewDiff(undefined)
+    setMergeResult(undefined)
     setError(undefined)
     setLoading(false)
     if (!runId) return
@@ -68,7 +100,9 @@ export function useCliRunArtifact(
     setLoading(true)
     void getCliAgentRun({ path: { runId }, throwOnError: true })
       .then(({ data }) => {
-        if (epoch === epochRef.current) setArtifact(filesEmittedArtifactOf(data.artifacts))
+        if (epoch !== epochRef.current) return
+        setArtifact(filesEmittedArtifactOf(data.artifacts))
+        setReview(data.review ?? undefined)
       })
       .catch((err: unknown) => {
         if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
@@ -118,8 +152,48 @@ export function useCliRunArtifact(
     }
   }, [runId, projectId, artifact])
 
+  const loadReviewDiff = useCallback(async () => {
+    if (!projectId || !review) return
+    const epoch = epochRef.current
+    setReviewLoading(true)
+    setError(undefined)
+    try {
+      const { data } = await getGitBranchDiffSummary({
+        path: { projectId },
+        body: { baseRef: review.baseSha, headRef: review.headSha ?? review.branch, includePatch: true },
+        throwOnError: true,
+      })
+      if (epoch === epochRef.current) setReviewDiff(data)
+    } catch (err: unknown) {
+      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReviewLoading(false)
+    }
+  }, [projectId, review])
+
+  const merge = useCallback(async () => {
+    if (!projectId || !review) return
+    const epoch = epochRef.current
+    setMerging(true)
+    setError(undefined)
+    try {
+      // Omit baseRef → merges the run branch into the current working branch (HEAD).
+      const { data } = await gitMergeApply({
+        path: { projectId },
+        body: { sources: [review.branch], autoStash: true },
+        throwOnError: true,
+      })
+      if (epoch === epochRef.current) setMergeResult(data)
+    } catch (err: unknown) {
+      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setMerging(false)
+    }
+  }, [projectId, review])
+
   return {
     artifact,
+    review,
     loading,
     preview,
     previewLoading,
@@ -128,6 +202,12 @@ export function useCliRunArtifact(
     apply,
     applying,
     applyResult,
+    reviewDiff,
+    reviewLoading,
+    loadReviewDiff,
+    merge,
+    merging,
+    mergeResult,
     error,
   }
 }
