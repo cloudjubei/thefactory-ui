@@ -535,6 +535,15 @@ export {
   type GitCredentialsContextValue,
 } from './contexts/GitCredentialsContext'
 
+// Provider connections (Jira / GitHub Issues / … ticket providers) CRUD + the
+// B3 connectors: list assigned items + import a ticket into a project as a Story.
+export {
+  ProviderConnectionsProvider,
+  useProviderConnections,
+  type ProviderConnectionsContextValue,
+  type ProviderConnectionEditInput,
+} from './contexts/ProviderConnectionsContext'
+
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
 export {

@@ -90,6 +90,8 @@ import type {
   CreateProjectsGroupData,
   CreateProjectsGroupErrors,
   CreateProjectsGroupResponses,
+  CreateProviderConnectionData,
+  CreateProviderConnectionResponses,
   CreateRunnerPairingData,
   CreateRunnerPairingResponses,
   CreateStoryData,
@@ -148,6 +150,9 @@ import type {
   DeleteProjectResponses,
   DeleteProjectsGroupData,
   DeleteProjectsGroupResponses,
+  DeleteProviderConnectionData,
+  DeleteProviderConnectionErrors,
+  DeleteProviderConnectionResponses,
   DeleteStoryData,
   DeleteStoryResponses,
   DeleteWebSearchKeyData,
@@ -277,6 +282,9 @@ import type {
   GetProjectsGroupData,
   GetProjectsGroupErrors,
   GetProjectsGroupResponses,
+  GetProviderConnectionData,
+  GetProviderConnectionErrors,
+  GetProviderConnectionResponses,
   GetStoriesOrderData,
   GetStoriesOrderResponses,
   GetStoryData,
@@ -341,6 +349,9 @@ import type {
   GrepFilesResponses,
   HealthData,
   HealthResponses,
+  ImportConnectionItemData,
+  ImportConnectionItemErrors,
+  ImportConnectionItemResponses,
   IngestAllData,
   IngestAllErrors,
   IngestAllResponses,
@@ -362,6 +373,9 @@ import type {
   ListCliAgentRunsResponses,
   ListCliAuthCachesData,
   ListCliAuthCachesResponses,
+  ListConnectionAssignedItemsData,
+  ListConnectionAssignedItemsErrors,
+  ListConnectionAssignedItemsResponses,
   ListDatabasesData,
   ListDatabasesErrors,
   ListDatabasesResponses,
@@ -404,6 +418,8 @@ import type {
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
   ListProjectsResponses,
+  ListProviderConnectionsData,
+  ListProviderConnectionsResponses,
   ListRunnersData,
   ListRunnersResponses,
   ListSourceRecordsData,
@@ -667,6 +683,9 @@ import type {
   UpdateProjectsGroupData,
   UpdateProjectsGroupErrors,
   UpdateProjectsGroupResponses,
+  UpdateProviderConnectionData,
+  UpdateProviderConnectionErrors,
+  UpdateProviderConnectionResponses,
   UpdateStoryData,
   UpdateStoryErrors,
   UpdateStoryResponses,
@@ -1293,6 +1312,75 @@ export const updateGitCredential = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const listProviderConnections = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProviderConnectionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListProviderConnectionsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections',
+    ...options,
+  })
+
+export const createProviderConnection = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProviderConnectionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateProviderConnectionResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteProviderConnection = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProviderConnectionData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProviderConnectionResponses,
+    DeleteProviderConnectionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}',
+    ...options,
+  })
+
+export const getProviderConnection = <ThrowOnError extends boolean = false>(
+  options: Options<GetProviderConnectionData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProviderConnectionResponses,
+    GetProviderConnectionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}',
+    ...options,
+  })
+
+export const updateProviderConnection = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProviderConnectionData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateProviderConnectionResponses,
+    UpdateProviderConnectionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listCliAuthCaches = <ThrowOnError extends boolean = false>(
   options?: Options<ListCliAuthCachesData, ThrowOnError>,
 ) =>
@@ -1481,6 +1569,38 @@ export const pollGitCredentialGithubDevice = <ThrowOnError extends boolean = fal
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/git-credentials/github/device/poll',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listConnectionAssignedItems = <ThrowOnError extends boolean = false>(
+  options: Options<ListConnectionAssignedItemsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListConnectionAssignedItemsResponses,
+    ListConnectionAssignedItemsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/provider-connections/{id}/assigned-items',
+    ...options,
+  })
+
+export const importConnectionItem = <ThrowOnError extends boolean = false>(
+  options: Options<ImportConnectionItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ImportConnectionItemResponses,
+    ImportConnectionItemErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/provider-connections/{connectionId}/import',
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -633,6 +633,30 @@ export type SpawnApproachPanelResult =
       message: string
     }
 
+export type AnswerReaderResult = {
+  index: number
+  status: 'ok' | 'errored'
+  costUSD: number
+  answer?: unknown
+  error?: string
+}
+
+export type SpawnAnswerPanelResult =
+  | {
+      status: 'ok'
+      answers: Array<AnswerReaderResult>
+      totalCostUSD: number
+    }
+  | {
+      status: 'refused'
+      reason: SpawnRefusalReason
+      message: string
+    }
+  | {
+      status: 'errored'
+      message: string
+    }
+
 export type AgentTaskResult = {
   resultType: AgentToolsResultType
   finalMessage: string
@@ -1476,12 +1500,25 @@ export type ProjectConfigOverrides = {
 
 export type ProjectDataLocation = 'central' | 'inProject'
 
+export type ProjectDataRoot =
+  | 'central'
+  | 'inProject'
+  | {
+      repoPath: string
+    }
+
 export type ProjectRegistryEntry = {
   id: string
   path: string
   active: boolean
   overrides: ProjectConfigOverrides
   dataLocation?: 'central' | 'inProject'
+  dataRoot?:
+    | 'central'
+    | 'inProject'
+    | {
+        repoPath: string
+      }
   metadata?: {
     [key: string]: unknown
   }
@@ -1492,6 +1529,13 @@ export type ProjectRegistryEntry = {
 export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
 export type Status = '+' | '-' | '~' | '?' | '='
+
+export type ExternalRef = {
+  provider: string
+  externalId: string
+  url?: string
+  title?: string
+}
 
 export type Feature = {
   id: string
@@ -1504,6 +1548,7 @@ export type Feature = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
   completedAt?: string
@@ -1517,6 +1562,7 @@ export type Story = {
   features: Array<Feature>
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
   completedAt?: string
@@ -1558,6 +1604,7 @@ export type ChatContextArguments = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1573,6 +1620,7 @@ export type ChatContextArguments = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1640,6 +1688,7 @@ export type ChatContextArgumentsStory = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1660,6 +1709,7 @@ export type ChatContextArgumentsFeature = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1675,6 +1725,7 @@ export type ChatContextArgumentsFeature = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1694,6 +1745,7 @@ export type ChatContextArgumentsAgentRun = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1715,6 +1767,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -1730,6 +1783,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -2650,6 +2704,33 @@ export type SpawnStreamingCommandExit = {
 
 export type InMemoryEntity = unknown
 
+export type ExternalItem = {
+  provider: string
+  externalId: string
+  title: string
+  description: string
+  url?: string
+  status?: string
+  assignee?: string
+}
+
+export type ConnectorHttpRequest = {
+  method: string
+  url: string
+  headers?: {
+    [key: string]: string
+  }
+  body?: string
+}
+
+export type ConnectorHttpResponse = {
+  status: number
+  body: string
+  headers?: {
+    [key: string]: string
+  }
+}
+
 export type IdentifiedEntity = {
   id: string
   createdAt: string
@@ -2713,6 +2794,41 @@ export type GitCredentialCreateInput = {
   refreshToken?: string
   expiresAt?: string
   scopes?: Array<string>
+}
+
+export type ProviderConnectionTokenSource = 'api-key' | 'oauth'
+
+export type ProviderConnectionEntry = {
+  id: string
+  name: string
+  provider: string
+  username?: string
+  token: string
+  tokenSource?: 'api-key' | 'oauth'
+  refreshToken?: string
+  expiresAt?: string
+  scopes?: Array<string>
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type ProviderConnectionCreateInput = {
+  name: string
+  provider: string
+  username?: string
+  token: string
+  tokenSource?: 'api-key' | 'oauth'
+  refreshToken?: string
+  expiresAt?: string
+  scopes?: Array<string>
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
 }
 
 export type CliAuthCacheEntry = {
@@ -3163,6 +3279,119 @@ export type CorroboratedItem = {
   key: string
   fields: Array<FieldCorroboration>
   sources: Array<string>
+}
+
+export type ArenaEstimateQuestion = {
+  question: string
+  truth?: number
+  aggregation?: 'mean' | 'median' | 'trimmed'
+}
+
+export type ArenaEstimateReaderAnswer = {
+  index: number
+  estimate?: number
+}
+
+export type ArenaEstimateResult = {
+  estimates: Array<ArenaEstimateReaderAnswer>
+  crowdEstimate?: number
+  aggregation: NumericAggregation
+  decomposition?: {
+    crowdError: number
+    avgIndividualError: number
+    diversity: number
+  }
+  truth?: number
+  readers: number
+  costUSD: number
+}
+
+export type ArenaRankingQuestion = {
+  question: string
+  candidates: Array<string>
+}
+
+export type ArenaRankingReaderAnswer = {
+  index: number
+  ranking?: Array<string>
+}
+
+export type ArenaRankingResult = {
+  ballots: Array<ArenaRankingReaderAnswer>
+  candidates: Array<string>
+  outcome?: {
+    plurality: string
+    borda: string
+    condorcet: string | unknown
+    irv: string
+    rulesAgree: boolean
+  }
+  readers: number
+  costUSD: number
+}
+
+export type ArenaBeautyContestQuestion = {
+  multiplier?: number
+  max?: number
+}
+
+export type ArenaGuessReaderAnswer = {
+  index: number
+  guess?: number
+}
+
+export type ArenaGuessResult = {
+  guesses: Array<ArenaGuessReaderAnswer>
+  multiplier: number
+  meanGuess?: number
+  target?: number
+  winningIndex?: number
+  readers: number
+  costUSD: number
+}
+
+export type ArenaForecastQuestion = {
+  statement: string
+  outcome?: boolean
+  aggregation?: 'mean' | 'extremized'
+}
+
+export type ArenaForecastReaderAnswer = {
+  index: number
+  probability?: number
+}
+
+export type ArenaForecastResult = {
+  forecasts: Array<ArenaForecastReaderAnswer>
+  aggregation: ForecastAggregation
+  pooled?: number
+  outcome?: boolean
+  individualMeanBrier?: number
+  pooledBrier?: number
+  readers: number
+  costUSD: number
+}
+
+export type ArenaCascadeQuestion = {
+  statement: string
+  correctAnswer?: boolean
+}
+
+export type ArenaCascadeTurn = {
+  index: number
+  private?: boolean
+  public?: boolean
+}
+
+export type ArenaCascadeResult = {
+  turns: Array<ArenaCascadeTurn>
+  blindAnswer?: boolean
+  cascadeAnswer?: boolean
+  blindCorrect?: boolean
+  cascadeCorrect?: boolean
+  herded: number
+  readers: number
+  costUSD: number
 }
 
 export type BuildStepKind = 'implement' | 'verify' | 'review' | 'evidence'
@@ -4575,6 +4804,12 @@ export type ProjectSpecCreateInput = {
     description?: string
   }
   dataLocation?: 'central' | 'inProject'
+  dataRoot?:
+    | 'central'
+    | 'inProject'
+    | {
+        repoPath: string
+      }
 } & {
   codeInfo?: {
     language: ProgrammingLanguage
@@ -4624,6 +4859,12 @@ export type ProjectSpecEditInput = {
     description?: string
   }
   dataLocation?: 'central' | 'inProject'
+  dataRoot?:
+    | 'central'
+    | 'inProject'
+    | {
+        repoPath: string
+      }
 } & {
   scopeGroupIds?: Array<string>
 } & {
@@ -4797,6 +5038,11 @@ export type ScoreReport = {
   rejectionAccuracy: number
 }
 
+export type CategoryNode = {
+  path: Array<string>
+  synonyms?: Array<string>
+}
+
 export type ProductTypeSpec = {
   recordType: string
   keyFields: Array<string>
@@ -4804,6 +5050,7 @@ export type ProductTypeSpec = {
   supplierInstructions: string
   itemQuery: string
   itemInstructions: string
+  categoryAxis?: Array<CategoryNode>
 }
 
 export type FilterRule = {
@@ -4851,6 +5098,9 @@ export type TieredProduct = {
   unmetFilters: Array<string>
   requirementBreakdown: Array<RequirementRuleMatch>
   rejectedBy?: string
+  criteria?: {
+    [key: string]: CriterionVerdict
+  }
 }
 
 export type RecommendDiagnostics = {
@@ -4878,8 +5128,10 @@ export type GatheredItem = {
     [key: string]: unknown
   }
   sources: Array<RecommendSource>
-  suppliers?: Array<string>
   updatedAt: string
+  criteria?: {
+    [key: string]: CriterionVerdict
+  }
 }
 
 export type ScoredCatalogItem = {
@@ -4888,8 +5140,10 @@ export type ScoredCatalogItem = {
     [key: string]: unknown
   }
   sources: Array<RecommendSource>
-  suppliers?: Array<string>
   updatedAt: string
+  criteria?: {
+    [key: string]: CriterionVerdict
+  }
   score: number
 }
 
@@ -4925,6 +5179,7 @@ export type VerifyProductCriterionParams = {
   model: ModelSelection
   now: string
   mode?: 'cheap' | 'deep'
+  scope?: string
   chatContext?: {
     type: ChatContextType
     groupId?: string
@@ -5018,6 +5273,7 @@ export type RecommendProductsParams = {
   queries?: Array<string>
   textWeight?: number
   filters?: Array<FilterRule>
+  criterionGates?: Array<string>
   rankInstructions: string
   model: ModelSelection
   searchLimit?: number
@@ -5033,6 +5289,51 @@ export type RecommendProductsParams = {
     timestamp?: string
   }
   abortSignal?: unknown
+}
+
+export type RegisterProductCriterionParams = {
+  scope: string
+  recordType: string
+  id: string
+  claim: string
+  mode: 'gate' | 'grade'
+  positiveProxies?: Array<string>
+}
+
+export type ListProductCriteriaParams = {
+  scope: string
+  recordType: string
+}
+
+export type RemoveProductCriterionParams = {
+  scope: string
+  recordType: string
+  id: string
+}
+
+export type ResolveProductGoalParams = {
+  scope: string
+  recordType: string
+  goal: string
+  categoryAxis: Array<CategoryNode>
+  model: ModelSelection
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type ResolvedProductGoal = {
+  categoryPath?: Array<string>
+  criterionIds: Array<string>
+  filters: Array<FilterRule>
 }
 
 export type RankProductCandidatesParams = {
@@ -5111,6 +5412,7 @@ export type FeatureCreateInput = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
 }
 
 export type FeatureEditInput = {
@@ -5123,6 +5425,7 @@ export type FeatureEditInput = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
 }
 
 export type StoryCreateInput = {
@@ -5131,6 +5434,7 @@ export type StoryCreateInput = {
 } & {
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
 }
 
 export type StoryEditInput = {
@@ -5139,6 +5443,7 @@ export type StoryEditInput = {
   status?: '+' | '-' | '~' | '?' | '='
   blockers?: Array<string>
   rejection?: string
+  externalIds?: Array<ExternalRef>
   completedAt?: string
 }
 
@@ -5156,6 +5461,7 @@ export type StoryUpdate = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
@@ -7610,6 +7916,152 @@ export type UpdateGitCredentialResponses = {
 export type UpdateGitCredentialResponse =
   UpdateGitCredentialResponses[keyof UpdateGitCredentialResponses]
 
+export type ListProviderConnectionsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/provider-connections'
+}
+
+export type ListProviderConnectionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ProviderConnectionEntry>
+}
+
+export type ListProviderConnectionsResponse =
+  ListProviderConnectionsResponses[keyof ListProviderConnectionsResponses]
+
+export type CreateProviderConnectionData = {
+  body: ProviderConnectionCreateInput
+  path?: never
+  query?: never
+  url: '/api/v1/provider-connections'
+}
+
+export type CreateProviderConnectionResponses = {
+  /**
+   * Default Response
+   */
+  201: ProviderConnectionEntry
+}
+
+export type CreateProviderConnectionResponse =
+  CreateProviderConnectionResponses[keyof CreateProviderConnectionResponses]
+
+export type DeleteProviderConnectionData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/{id}'
+}
+
+export type DeleteProviderConnectionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProviderConnectionError =
+  DeleteProviderConnectionErrors[keyof DeleteProviderConnectionErrors]
+
+export type DeleteProviderConnectionResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteProviderConnectionResponse =
+  DeleteProviderConnectionResponses[keyof DeleteProviderConnectionResponses]
+
+export type GetProviderConnectionData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/{id}'
+}
+
+export type GetProviderConnectionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProviderConnectionError =
+  GetProviderConnectionErrors[keyof GetProviderConnectionErrors]
+
+export type GetProviderConnectionResponses = {
+  /**
+   * Default Response
+   */
+  200: ProviderConnectionEntry
+}
+
+export type GetProviderConnectionResponse =
+  GetProviderConnectionResponses[keyof GetProviderConnectionResponses]
+
+export type UpdateProviderConnectionData = {
+  body: {
+    name?: string
+    provider?: string
+    username?: string
+    token?: string
+    tokenSource?: 'api-key' | 'oauth'
+    refreshToken?: string
+    expiresAt?: string
+    scopes?: Array<string>
+    baseUrl?: string
+    config?: {
+      [key: string]: string
+    }
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/{id}'
+}
+
+export type UpdateProviderConnectionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateProviderConnectionError =
+  UpdateProviderConnectionErrors[keyof UpdateProviderConnectionErrors]
+
+export type UpdateProviderConnectionResponses = {
+  /**
+   * Default Response
+   */
+  200: ProviderConnectionEntry
+}
+
+export type UpdateProviderConnectionResponse =
+  UpdateProviderConnectionResponses[keyof UpdateProviderConnectionResponses]
+
 export type ListCliAuthCachesData = {
   body?: never
   path?: never
@@ -8023,6 +8475,90 @@ export type PollGitCredentialGithubDeviceResponses = {
 
 export type PollGitCredentialGithubDeviceResponse =
   PollGitCredentialGithubDeviceResponses[keyof PollGitCredentialGithubDeviceResponses]
+
+export type ListConnectionAssignedItemsData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/provider-connections/{id}/assigned-items'
+}
+
+export type ListConnectionAssignedItemsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListConnectionAssignedItemsError =
+  ListConnectionAssignedItemsErrors[keyof ListConnectionAssignedItemsErrors]
+
+export type ListConnectionAssignedItemsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ExternalItem>
+}
+
+export type ListConnectionAssignedItemsResponse =
+  ListConnectionAssignedItemsResponses[keyof ListConnectionAssignedItemsResponses]
+
+export type ImportConnectionItemData = {
+  body: {
+    externalId: string
+  }
+  path: {
+    projectId: string
+    connectionId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/provider-connections/{connectionId}/import'
+}
+
+export type ImportConnectionItemErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  502: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ImportConnectionItemError = ImportConnectionItemErrors[keyof ImportConnectionItemErrors]
+
+export type ImportConnectionItemResponses = {
+  /**
+   * Default Response
+   */
+  201: Story
+}
+
+export type ImportConnectionItemResponse =
+  ImportConnectionItemResponses[keyof ImportConnectionItemResponses]
 
 export type DeleteChatData = {
   body: ChatContextBody
