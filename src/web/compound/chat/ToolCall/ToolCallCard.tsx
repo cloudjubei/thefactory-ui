@@ -5,7 +5,7 @@ import { BottomSheet } from '../../../primitives/BottomSheet'
 import { Switch } from '../../../primitives/Switch'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
-import { isFilePathTool } from '../../../../headless/utils/toolPreview'
+import { isFilePathTool, safePreviewString } from '../../../../headless/utils/toolPreview'
 import StatusIcon, { StatusPill } from './StatusIcon'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import type { ToolCall, ToolResultType } from './types'
@@ -74,11 +74,7 @@ export type ToolCallCardProps = {
 }
 
 function jsonString(v: unknown): string {
-  try {
-    return JSON.stringify(v ?? null, null, 2)
-  } catch {
-    return String(v)
-  }
+  return safePreviewString(v).text
 }
 
 function ToolCallCardInner({

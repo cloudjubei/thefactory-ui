@@ -65,3 +65,17 @@ export function interpolatePrompt(template: string, vars: PromptVariables): stri
   }
   return out
 }
+
+/**
+ * Interpolate a chat system-prompt template for the SEND path, so the agent receives the same resolved
+ * text the prompt viewer shows — never raw `{{...}}` tokens. Returns `undefined` when no template is
+ * configured; unknown placeholders collapse to ''. The single producer (`buildToolSettings`) calls this so
+ * every client + send path (API, CLI, resume) emits a filled prompt.
+ */
+export function interpolateChatSystemPrompt(
+  template: string | undefined,
+  vars: PromptVariables,
+): string | undefined {
+  if (!template) return template
+  return interpolatePrompt(template, vars)
+}

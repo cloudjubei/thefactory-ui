@@ -54,6 +54,60 @@ src/index.ts           ─── root barrel re-exports `./web` + `./headless` +
 
 The direct-`thefactory-tools` exception is deliberately narrow: pure functions, no node dependencies, and a hard "must match the backend exactly" justification. Everything else an app needs from `thefactory-tools` is routed through `thefactory-ui`'s re-export.
 
+## Embedded project apps (the App view)
+
+A project can ship its own **app surface** — a self-contained web app the Overseer embeds in its
+**App** tab. `ProjectAppView` (`web/` = an `<iframe>`, `native/` = a `<WebView>`) renders it; the URL
+comes from `useProjectAppView`, which mints a short-lived **view token** and points the frame at the
+host route `…/projects/<id>/view/<file>?viewToken=…`. The host serves the project's `metadata.appDir`
+(falling back to the checkout root) with `Cache-Control: no-store`. The app talks back to the host only
+through the **`OverseerBridge` postMessage protocol** (`headless/utils/appBridge.ts`) — `data.*`,
+`activities.*`, `settings.*`, `chat.discuss`/`chat.requestSidebar`, `story.create`, etc.; the host holds
+every credential, the app never does.
+
+### Asset-freshness convention (REQUIRED for every app)
+
+`index.html` is always fetched fresh — its URL carries a one-time `viewToken`, so it never caches. But
+**external subresources referenced at stable names** (`app.js`, `style.css`) can be held **stale by the
+embedding iframe/WebView across reloads even under `no-store`**, so app edits appear "not to deploy."
+Every app surface MUST therefore guarantee fresh assets, one of three ways:
+
+0. **Built apps are already fine** — a bundler (Vite/esbuild) emits **content-hashed** filenames
+   (`app-a1b2c3.js`), which `index.html` references; a rebuild changes the name, so the frame can't serve a
+   stale one. No extra work needed. The hazard below is specific to **hand-rolled / raw viewers served as-is**
+   with stable filenames.
+1. **Self-contained `index.html`** — inline the CSS (and ideally the app logic) into `index.html`, so there
+   are no cacheable external files. `thefactory-knowledge`'s viewer inlines its CSS and the bulk of its app
+   logic this way, but keeps two shared bridge scripts (`bridge.js`, `overseer-transport.js`) external and
+   cache-busts them per option 2 below — so it is a **hybrid** of 1 + 2, not purely self-contained.
+2. **Per-load cache-bust** — when external `app.js`/`style.css` are kept (e.g. a large hand-rolled viewer with
+   no build step), load them with a per-load query so the URL changes every time. The canonical snippet (drop
+   it in `<head>`, replacing the static `<link>`/`<script>` tags):
+
+   ```html
+   <script>
+     ;(function () {
+       var v = '?v=' + Date.now() // index.html is always fresh; bust the stable-named subresources too
+       document.write(
+         '<link rel="stylesheet" href="style.css' +
+           v +
+           '">' +
+           '<scr' +
+           'ipt src="app.js' +
+           v +
+           '" defer></scr' +
+           'ipt>',
+       )
+     })()
+   </script>
+   ```
+
+   (`thefactory-modeltrainer`'s viewer uses this.) `thefactory-knowledge`'s viewer uses a **synchronous
+   variant** — same `document.write` cache-bust but *without* `defer` — because its inline bootstrap consumes
+   the bridge globals during parse, so the busted scripts must execute before it (defer would leave them
+   undefined). Without one of these, a developer editing the app sees no change on reload and wrongly
+   concludes the host didn't rebuild — it did; the iframe served a stale asset.
+
 ## CLI agents: runner-aware chat dispatch
 
 A chat is **API-backed** by default and **CLI-backed** when it carries a `cliRunner` binding. The binding is persisted on the chat (`Chat.cliRunner = { tool, credentialId?, apiKeyCredentialId? }`) via `useChatCliRunner(ctx).attach/detach` → `attachChatCliRunner` / `detachChatCliRunner`.

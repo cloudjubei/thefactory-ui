@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
 import { PathDisplay } from '../../PathDisplay'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
-import { isFilePathTool } from '../../../../headless/utils/toolPreview'
+import { isFilePathTool, safePreviewString } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import {
   nativePalette,
@@ -46,11 +46,7 @@ export type ToolCallCardProps = {
 }
 
 function jsonString(v: unknown): string {
-  try {
-    return JSON.stringify(v ?? null, null, 2)
-  } catch {
-    return String(v)
-  }
+  return safePreviewString(v).text
 }
 
 /**

@@ -1,5 +1,12 @@
 // Protocol for the App↔Overseer `postMessage` bridge between an embedded
 // project app (iframe / `<WebView>`) and the `ProjectAppView` wrapper.
+//
+// Building an app surface? See docs/ARCHITECTURE.md "Embedded project apps (the
+// App view)" — note the REQUIRED asset-freshness convention: `index.html` is
+// always fresh (one-time viewToken URL) but stable-named external `app.js`/
+// `style.css` can be held STALE by the embedding frame across reloads, so either
+// inline them or load them with a per-load cache-bust (the canonical snippet is
+// in that doc).
 
 export const BRIDGE_PREFIX = 'overseer:'
 

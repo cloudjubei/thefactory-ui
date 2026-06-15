@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { interpolatePrompt, type PromptVariables } from './promptInterpolate'
+import {
+  interpolateChatSystemPrompt,
+  interpolatePrompt,
+  type PromptVariables,
+} from './promptInterpolate'
 
 describe('interpolatePrompt', () => {
   it('returns the template unchanged when it is empty', () => {
@@ -53,5 +57,27 @@ describe('interpolatePrompt', () => {
     expect(interpolatePrompt('{{agent_run_type}}', { agentRunType: 'developer' })).toBe(
       'developer',
     )
+  })
+})
+
+describe('interpolateChatSystemPrompt', () => {
+  it('returns undefined for an absent template (no prompt configured)', () => {
+    expect(interpolateChatSystemPrompt(undefined, { project: { id: 'p1' } })).toBeUndefined()
+  })
+
+  it('fills project placeholders for the send path, leaving no raw braces', () => {
+    const out = interpolateChatSystemPrompt('## {{project_title}}\n{{project_description}}', {
+      project: { id: 'p1', title: 'Overseer', description: 'Ships features' },
+    })
+    expect(out).toBe('## Overseer\nShips features')
+    expect(out).not.toMatch(/\{\{/)
+  })
+
+  it('collapses placeholders that have no matching variable (never leaks {{...}})', () => {
+    const out = interpolateChatSystemPrompt('{{project_title}} [{{story_title}}]', {
+      project: { title: 'P' },
+    })
+    expect(out).toBe('P []')
+    expect(out).not.toMatch(/\{\{/)
   })
 })

@@ -47,6 +47,8 @@ export type LLMConfigsContextValue = {
   activeActivityCliModel: ActivityCliModel | null
   /** Set (or clear, with `null`) the activity CLI selection; the active config is left untouched. */
   setActiveActivityCliModel: (model: ActivityCliModel | null) => void
+  /** Recently-selected activity CLI agent+model picks, most-recent first (max {@link RECENTS_LIMIT}). */
+  recentActivityCliModels: ActivityCliModel[]
   createConfig: (input: LlmConfigCreateInput) => Promise<GetLlmConfigResponse>
   updateConfig: (id: string, patch: LlmConfigEditInput) => Promise<GetLlmConfigResponse>
   deleteConfig: (id: string) => Promise<void>
@@ -57,6 +59,7 @@ const ACTIVE_CHAT_LS_KEY = 'thefactory-overseer-web:activeChatConfigId'
 const ACTIVE_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:activeAgentRunConfigId'
 const ACTIVE_ACTIVITY_LS_KEY = 'thefactory-overseer-web:activeActivityConfigId'
 const ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeActivityCliModel'
+const RECENT_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentActivityCliModels'
 const RECENT_CHAT_LS_KEY = 'thefactory-overseer-web:recentChatConfigIds'
 const RECENT_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:recentAgentRunConfigIds'
 const RECENT_ACTIVITY_LS_KEY = 'thefactory-overseer-web:recentActivityConfigIds'
@@ -110,6 +113,40 @@ function writeActivityCliModel(storage: SyncKVStorage, model: ActivityCliModel |
   }
 }
 
+/** Identity of a CLI pick for recents dedup: a CLI tool + its model (effort/credential are incidental). */
+function cliModelKey(model: ActivityCliModel): string {
+  return `${model.cli}:${model.modelId ?? ''}`
+}
+
+function readRecentCliModels(storage: SyncKVStorage): ActivityCliModel[] {
+  try {
+    const raw = storage.get(RECENT_ACTIVITY_CLI_MODEL_LS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (m): m is ActivityCliModel =>
+        !!m && typeof m === 'object' && typeof m.cli === 'string' && CLI_TOOLS.includes(m.cli),
+    )
+  } catch {
+    return []
+  }
+}
+
+function writeRecentCliModels(storage: SyncKVStorage, models: ActivityCliModel[]) {
+  try {
+    storage.set(RECENT_ACTIVITY_CLI_MODEL_LS_KEY, JSON.stringify(models))
+  } catch {
+    // ignore storage errors (private mode, etc.)
+  }
+}
+
+function pushRecentCliModel(prev: ActivityCliModel[], model: ActivityCliModel): ActivityCliModel[] {
+  const key = cliModelKey(model)
+  const next = [model, ...prev.filter((m) => cliModelKey(m) !== key)]
+  return next.slice(0, RECENTS_LIMIT)
+}
+
 const LLMConfigsContext = createContext<LLMConfigsContextValue | null>(null)
 
 export type LLMConfigsProviderProps = {
@@ -134,6 +171,9 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   )
   const [activeActivityCliModel, setActiveActivityCliModelState] =
     useState<ActivityCliModel | null>(() => readActivityCliModel(storage))
+  const [recentActivityCliModels, setRecentActivityCliModels] = useState<ActivityCliModel[]>(() =>
+    readRecentCliModels(storage),
+  )
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_CHAT_LS_KEY),
   )
@@ -201,6 +241,13 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     (model: ActivityCliModel | null) => {
       setActiveActivityCliModelState(model)
       writeActivityCliModel(storage, model)
+      if (model) {
+        setRecentActivityCliModels((prev) => {
+          const next = pushRecentCliModel(prev, model)
+          writeRecentCliModels(storage, next)
+          return next
+        })
+      }
     },
     [storage],
   )
@@ -305,6 +352,7 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       recentActivityConfigs,
       activeActivityCliModel,
       setActiveActivityCliModel,
+      recentActivityCliModels,
       createConfig,
       updateConfig,
       deleteConfig,
@@ -328,6 +376,7 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       recentActivityConfigs,
       activeActivityCliModel,
       setActiveActivityCliModel,
+      recentActivityCliModels,
       createConfig,
       updateConfig,
       deleteConfig,

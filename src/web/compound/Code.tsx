@@ -19,6 +19,8 @@ const SUPPORTED: Record<string, true> = {
   typescript: true,
 }
 
+const MAX_HIGHLIGHT_CHARS = 50000
+
 export type CodeProps = {
   code: string
   language: 'bash' | 'diff' | 'json' | 'python' | 'text' | 'typescript' | (string & {})
@@ -43,6 +45,9 @@ export default function Code({ code, language, theme }: CodeProps) {
 
   const html = useMemo(() => {
     if (lang === 'text') return null
+    // Prism tokenises synchronously on the main thread; skip it for pathologically large strings (a huge
+    // tool result) and render a plain <pre> instead, so highlighting can never freeze the UI.
+    if (code.length > MAX_HIGHLIGHT_CHARS) return null
     const grammar = languages[lang]
     if (!grammar) return null
     return highlight(code, grammar, lang)

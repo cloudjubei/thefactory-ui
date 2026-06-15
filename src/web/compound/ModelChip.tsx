@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom'
 
 import type { ModelInfo } from '../../headless/api'
+import type { ActivityCliModel } from '../../headless/contexts/LLMConfigsContext'
 import { cliDotColor, cliLabel, shortCliModelLabel } from '../../headless/utils/cliRunner'
 import type { UsageModalModelPrice } from './UsageModal'
 
@@ -40,6 +41,10 @@ export type ModelChipProps = {
   cliModels?: ModelInfo[]
   /** Select which CLI model backs the chat. */
   onPickCliModel?: (modelId: string) => void
+  /** Recently-selected CLI agent+model picks; rendered as a quick-pick list in the CLI panel. */
+  recentCliModels?: ActivityCliModel[]
+  /** Apply a recents entry as the CLI selection. */
+  onPickRecentCli?: (model: ActivityCliModel) => void
 }
 
 function providerLabel(p?: string) {
@@ -179,6 +184,8 @@ function Picker({
   cliModels,
   selectedCliModelId,
   onPickCliModel,
+  recentCliModels,
+  onPickRecentCli,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -195,6 +202,8 @@ function Picker({
   cliModels?: ModelInfo[]
   selectedCliModelId?: string
   onPickCliModel?: (modelId: string) => void
+  recentCliModels?: ActivityCliModel[]
+  onPickRecentCli?: (model: ActivityCliModel) => void
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -371,6 +380,40 @@ function Picker({
       )}
       {useCli && (
         <div className="flex flex-col">
+          {(recentCliModels ?? []).length > 0 && (
+            <>
+              <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
+                Recent
+              </div>
+              {(recentCliModels ?? []).map((rm) => {
+                const isActive = rm.cli === activeCli && rm.modelId === selectedCliModelId
+                return (
+                  <button
+                    key={`${rm.cli}:${rm.modelId ?? ''}`}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={isActive}
+                    className="standard-picker__item"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPickRecentCli?.(rm)
+                    }}
+                  >
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full mr-2"
+                      style={{ backgroundColor: cliDotColor(rm.cli) }}
+                      aria-hidden
+                    />
+                    <span className="standard-picker__label truncate text-[12px]">
+                      {cliLabel(rm.cli)}
+                      {rm.modelId ? ` · ${shortCliModelLabel(rm.modelId)}` : ''}
+                    </span>
+                  </button>
+                )
+              })}
+              <div className="my-1 border-t border-[var(--border-default)]" />
+            </>
+          )}
           {(enabledClis ?? []).map((cli) => {
             const isActive = cli === activeCli
             return (
@@ -522,6 +565,8 @@ export function ModelChip({
   onPickCli,
   cliModels,
   onPickCliModel,
+  recentCliModels,
+  onPickRecentCli,
 }: ModelChipProps) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
@@ -644,6 +689,8 @@ export function ModelChip({
           cliModels={cliModels}
           selectedCliModelId={model}
           onPickCliModel={onPickCliModel}
+          recentCliModels={recentCliModels}
+          onPickRecentCli={onPickRecentCli}
         />
       )}
     </>

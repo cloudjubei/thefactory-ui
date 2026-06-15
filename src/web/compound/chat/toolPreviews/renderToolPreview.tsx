@@ -12,7 +12,7 @@ import {
 import { PatchPreview, SmallBadge } from './FieldDiff'
 import { WriteMultiToolsPreview } from './WriteMultiToolsPreview'
 import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
-import { extract, tryString } from '../../../../headless/utils/toolPreview'
+import { extract, safePreviewString, tryString } from '../../../../headless/utils/toolPreview'
 
 export type StoryShape = {
   id: string
@@ -1090,15 +1090,8 @@ export function renderToolPreview({
     )
   }
 
-  // Fallback: dump result or arguments as JSON.
-  const str = (() => {
-    if (result != null) {
-      const s = tryString(result)
-      if (s) return s
-    }
-    const a = tryString(args)
-    return a || ''
-  })()
+  // Fallback: dump result (or arguments) as JSON, capped so a huge unrecognised result can't freeze the UI.
+  const str = result != null ? safePreviewString(result).text : safePreviewString(args).text
   return <Code language="json" code={str} />
 }
 

@@ -16,6 +16,38 @@ export function tryString(v: unknown): string | undefined {
   }
 }
 
+/** Default character cap for a rendered tool preview — big enough to be useful, small enough that
+ *  serialising + syntax-highlighting it can never block the UI thread. */
+export const MAX_TOOL_PREVIEW_CHARS = 20000
+
+/**
+ * Serialise a tool value to a display string and CAP it, so a multi-MB result can never freeze the chat UI
+ * (a giant DOM node or a synchronous syntax-highlight pass). Strings pass through; everything else becomes
+ * pretty JSON. When capped, a truncation marker is appended and `truncated` is set so callers can surface it.
+ */
+export function safePreviewString(
+  v: unknown,
+  maxChars: number = MAX_TOOL_PREVIEW_CHARS,
+): { text: string; truncated: boolean; omittedChars: number } {
+  let full: string
+  if (typeof v === 'string') full = v
+  else if (v == null) full = ''
+  else {
+    try {
+      full = JSON.stringify(v, null, 2)
+    } catch {
+      full = String(v)
+    }
+  }
+  if (full.length <= maxChars) return { text: full, truncated: false, omittedChars: 0 }
+  const omittedChars = full.length - maxChars
+  return {
+    text: `${full.slice(0, maxChars)}\n… [${omittedChars.toLocaleString()} more characters truncated]`,
+    truncated: true,
+    omittedChars,
+  }
+}
+
 export function extract(obj: unknown, keys: string[]): unknown {
   if (!obj || typeof obj !== 'object') return undefined
   for (const k of keys) {

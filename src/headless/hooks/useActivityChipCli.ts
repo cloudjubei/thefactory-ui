@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
@@ -13,9 +13,13 @@ export type ActivityChipCliWiring = {
   selectedCliModelId: string | undefined
   enabledClis: string[]
   cliModels: ModelInfo[]
+  /** Recently-selected CLI agent+model picks, most-recent first, for the chip's recents list. */
+  recentCliModels: ActivityCliModel[]
   onToggleUseCli: (next: boolean) => void
   onPickCli: (cli: string) => void
   onPickCliModel: (modelId: string) => void
+  /** Apply a recents entry as the activity CLI selection. */
+  onPickRecentCli: (model: ActivityCliModel) => void
 }
 
 /**
@@ -30,6 +34,7 @@ export type ActivityChipCliWiring = {
 export function useActivityChipCli(
   cliModel: ActivityCliModel | null,
   setCliModel: (model: ActivityCliModel | null) => void,
+  recentCliModels: ActivityCliModel[] = [],
 ): ActivityChipCliWiring {
   const {
     enabledClis,
@@ -91,6 +96,31 @@ export function useActivityChipCli(
     [defaultModel, effort, credentialForCli],
   )
 
+  // Follow the active CLI agent: when it CHANGES during the session while the chip
+  // is in CLI mode, retarget the activity selection to the new agent (preferring its
+  // most-recent model pick, else its default). Read recents via a ref so the effect
+  // depends ONLY on a real `activeCli` change — not on every recents update (which
+  // would churn the effect) — and anchor on the first non-null `activeCli` so the
+  // initial async load of CliConfigs does NOT override the persisted selection.
+  const recentRef = useRef(recentCliModels)
+  recentRef.current = recentCliModels
+  const anchoredCli = useRef<string | null>(null)
+  const anchored = useRef(false)
+  useEffect(() => {
+    if (!anchored.current) {
+      if (activeCli) {
+        anchored.current = true
+        anchoredCli.current = activeCli
+      }
+      return
+    }
+    if (anchoredCli.current === activeCli) return
+    anchoredCli.current = activeCli
+    if (!cliModel || !activeCli || cliModel.cli === activeCli) return
+    const recalled = recentRef.current.find((m) => m.cli === activeCli)
+    setCliModel(recalled ?? selectionForCli(activeCli))
+  }, [activeCli, cliModel, selectionForCli, setCliModel])
+
   const onToggleUseCli = useCallback(
     (next: boolean) => {
       if (next) {
@@ -124,14 +154,23 @@ export function useActivityChipCli(
     [selectedCli, cliModel, effort, credentialForCli, setCliModel],
   )
 
+  const onPickRecentCli = useCallback(
+    (model: ActivityCliModel) => {
+      setCliModel({ ...model, credentialId: model.credentialId ?? credentialForCli(model.cli) })
+    },
+    [credentialForCli, setCliModel],
+  )
+
   return {
     useCli,
     selectedCli,
     selectedCliModelId,
     enabledClis,
     cliModels: effectiveCliModels,
+    recentCliModels,
     onToggleUseCli,
     onPickCli,
     onPickCliModel,
+    onPickRecentCli,
   }
 }

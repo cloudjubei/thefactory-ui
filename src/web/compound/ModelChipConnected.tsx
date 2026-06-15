@@ -199,12 +199,14 @@ function ModelChipActivityCli({
   llm,
   cliModel,
   setCliModel,
+  recentCliModels,
 }: {
   llm: ModelChipLlmWiring
   cliModel: ActivityCliModel | null
   setCliModel: (model: ActivityCliModel | null) => void
+  recentCliModels: ActivityCliModel[]
 }) {
-  const cli = useActivityChipCli(cliModel, setCliModel)
+  const cli = useActivityChipCli(cliModel, setCliModel, recentCliModels)
 
   return (
     <ModelChipBase
@@ -226,6 +228,8 @@ function ModelChipActivityCli({
       onPickCli={cli.onPickCli}
       cliModels={cli.cliModels}
       onPickCliModel={cli.onPickCliModel}
+      recentCliModels={cli.recentCliModels}
+      onPickRecentCli={cli.onPickRecentCli}
     />
   )
 }
@@ -252,38 +256,26 @@ export default function ModelChipConnected({
     configs,
     activeChatConfig,
     activeAgentRunConfig,
-    activeActivityConfig,
     recentChatConfigs,
     recentAgentRunConfigs,
-    recentActivityConfigs,
     setActiveChat,
     setActiveAgentRun,
-    setActiveActivity,
     activeActivityCliModel,
     setActiveActivityCliModel,
+    recentActivityCliModels,
   } = useLLMConfigs()
 
-  const activeConfig =
-    mode === 'chat'
-      ? activeChatConfig
-      : mode === 'activity'
-        ? activeActivityConfig
-        : activeAgentRunConfig
-  const recents =
-    mode === 'chat'
-      ? recentChatConfigs
-      : mode === 'activity'
-        ? recentActivityConfigs
-        : recentAgentRunConfigs
+  // The activity chip (background jobs) mirrors the "active agent" — the agent-run config
+  // the user picks in Settings ("Activate Agent") — so it shows that model + its recents,
+  // not a separate, sparse activity-only track with no Settings UI. (Activities already
+  // resolve to the agent-run config via useProjectDataBridge's
+  // `activeActivityConfigId ?? activeAgentRunConfigId` fallback.)
+  const activeConfig = mode === 'chat' ? activeChatConfig : activeAgentRunConfig
+  const recents = mode === 'chat' ? recentChatConfigs : recentAgentRunConfigs
 
   const onPick = useCallback(
-    (id: string) =>
-      mode === 'chat'
-        ? setActiveChat(id)
-        : mode === 'activity'
-          ? setActiveActivity(id)
-          : setActiveAgentRun(id),
-    [mode, setActiveChat, setActiveAgentRun, setActiveActivity],
+    (id: string) => (mode === 'chat' ? setActiveChat(id) : setActiveAgentRun(id)),
+    [mode, setActiveChat, setActiveAgentRun],
   )
 
   const onOpenSettings = useCallback(() => {
@@ -349,6 +341,7 @@ export default function ModelChipConnected({
         llm={llm}
         cliModel={activeActivityCliModel}
         setCliModel={setActiveActivityCliModel}
+        recentCliModels={recentActivityCliModels}
       />
     )
   }

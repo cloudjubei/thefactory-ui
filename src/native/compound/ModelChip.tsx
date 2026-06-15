@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ModelInfo } from '../../headless/api'
-import { cliDotColor, cliLabel } from '../../headless/utils/cliRunner'
+import type { ActivityCliModel } from '../../headless/contexts/LLMConfigsContext'
+import { cliDotColor, cliLabel, shortCliModelLabel } from '../../headless/utils/cliRunner'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -48,6 +49,10 @@ export interface ModelChipProps {
   cliModels?: ModelInfo[]
   /** Select which CLI model backs the chat. */
   onPickCliModel?: (modelId: string) => void
+  /** Recently-selected CLI agent+model picks; rendered as a quick-pick list in the CLI panel. */
+  recentCliModels?: ActivityCliModel[]
+  /** Apply a recents entry as the CLI selection. */
+  onPickRecentCli?: (model: ActivityCliModel) => void
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -178,6 +183,8 @@ export function ModelChip({
   onPickCli,
   cliModels,
   onPickCliModel,
+  recentCliModels,
+  onPickRecentCli,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -398,6 +405,70 @@ export function ModelChip({
 
           {useCli ? (
             <>
+              {(recentCliModels ?? []).length > 0 && (
+                <>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      color: theme.text.secondary,
+                      paddingHorizontal: nativeSpace[3],
+                      paddingBottom: nativeSpace[1],
+                    }}
+                  >
+                    Recent
+                  </Text>
+                  {(recentCliModels ?? []).map((rm) => {
+                    const isActive = rm.cli === activeCli && rm.modelId === model
+                    return (
+                      <Pressable
+                        key={`${rm.cli}:${rm.modelId ?? ''}`}
+                        accessibilityRole="menuitem"
+                        accessibilityState={{ selected: isActive }}
+                        onPress={() => onPickRecentCli?.(rm)}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: nativeSpace[4],
+                          minHeight: 44,
+                          paddingVertical: nativeSpace[2],
+                          paddingHorizontal: nativeSpace[3],
+                          borderRadius: nativeRadii[3],
+                          backgroundColor: pressed
+                            ? theme.surface.hover
+                            : isActive
+                              ? theme.surface.muted
+                              : 'transparent',
+                        })}
+                      >
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: cliDotColor(rm.cli),
+                          }}
+                        />
+                        <Text style={{ flex: 1, fontSize: 13, color: theme.text.primary }}>
+                          {cliLabel(rm.cli)}
+                          {rm.modelId ? ` · ${shortCliModelLabel(rm.modelId)}` : ''}
+                        </Text>
+                        {isActive && (
+                          <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>
+                        )}
+                      </Pressable>
+                    )
+                  })}
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: theme.border.subtle,
+                      marginVertical: nativeSpace[2],
+                    }}
+                  />
+                </>
+              )}
               {(enabledClis ?? []).map((cli) => {
                 const isActive = cli === activeCli
                 return (

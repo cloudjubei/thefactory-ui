@@ -33,6 +33,9 @@ const PALETTE = {
 
 const DARK_BG = '#2d2d2d'
 const LIGHT_BG = '#ffffff'
+// Skip the synchronous regex tokeniser for pathologically large strings (a huge tool result) — it would
+// emit one <Text> per token and block the JS thread. Above this it renders as plain monospace.
+const MAX_HIGHLIGHT_CHARS = 50000
 // Plain (non-highlightable) language fallback needs a readable text colour
 // against the surface — light surface gets dark text, dark surface keeps
 // prism-tomorrow's `#ccc`.
@@ -109,11 +112,13 @@ export default function Code({ code, language, theme }: CodeProps) {
   const bg = isDark ? DARK_BG : LIGHT_BG
   const plainColor = isDark ? PALETTE.text : LIGHT_PLAIN_TEXT
   const segs: Seg[] | null =
-    language === 'json'
-      ? highlightJson(code)
-      : language === 'diff'
-        ? highlightDiff(code)
-        : null
+    code.length > MAX_HIGHLIGHT_CHARS
+      ? null
+      : language === 'json'
+        ? highlightJson(code)
+        : language === 'diff'
+          ? highlightDiff(code)
+          : null
 
   return (
     <View

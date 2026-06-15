@@ -27,6 +27,7 @@ import type {
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
+import { interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { useLLMConfigs } from './LLMConfigsContext'
 import { useActiveProject } from './ProjectsContext'
 
@@ -182,7 +183,10 @@ export type CreateChatsContextDeps = {
     configs: GetLlmConfigResponse[]
     activeChatConfig: GetLlmConfigResponse | null
   }
-  useActiveProject: () => { projectId: string | null | undefined }
+  useActiveProject: () => {
+    projectId: string | null | undefined
+    project?: { id?: string; title?: string; description?: string }
+  }
 }
 
 function nowIso(): string {
@@ -236,7 +240,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
   function ChatsProvider({ children }: { children: ReactNode }) {
     const { ws } = useApi()
     const { token } = useAuth()
-    const { projectId } = useActiveProject()
+    const { projectId, project } = useActiveProject()
     const { configs: llmConfigs, activeChatConfig } = useLLMConfigs()
 
     const [chats, setChats] = useState<GetChatResponse[]>([])
@@ -440,12 +444,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
         const entry = chatSettings?.[context.type]
         const base = entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
+        // Interpolate `{{project_*}}` (etc.) BEFORE the prompt goes on the wire — the model must receive
+        // the resolved project context, not the raw template the viewer renders separately.
+        const systemPrompt = interpolateChatSystemPrompt(entry?.systemPrompt, { project })
         return {
           settings: { ...base, autoCallTools: [] },
-          systemPrompt: entry?.systemPrompt,
+          systemPrompt,
         }
       },
-      [chatSettings],
+      [chatSettings, project],
     )
 
     const sendMessage = useCallback(

@@ -2,7 +2,7 @@ import { type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import BottomSheet from '../../../primitives/BottomSheet'
 import Code from '../../Code'
-import { isFilePathTool } from '../../../../headless/utils/toolPreview'
+import { isFilePathTool, safePreviewString } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import { nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
@@ -42,11 +42,7 @@ export interface ToolPreviewSheetProps {
 }
 
 function jsonString(v: unknown): string {
-  try {
-    return JSON.stringify(v ?? null, null, 2)
-  } catch {
-    return String(v)
-  }
+  return safePreviewString(v).text
 }
 
 /**
