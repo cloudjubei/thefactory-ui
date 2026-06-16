@@ -3,6 +3,8 @@ import {
   chatCliRunnerToDispatchOptions,
   chatCliRunnerToStartRunBody,
   cliAssistantTextFromEntry,
+  cliToolNameFromEntry,
+  cliTranscriptEntryView,
   cliDotColor,
   cliLabel,
   parseCliAgentModelTag,
@@ -237,6 +239,62 @@ describe('cliAssistantTextFromEntry', () => {
     expect(cliAssistantTextFromEntry(entry({ kind: 'result', payload: { result: 'final' } }))).toBe('')
     expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: undefined }))).toBe('')
     expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: { message: {} } }))).toBe('')
+  })
+})
+
+describe('cliToolNameFromEntry', () => {
+  it('reads a top-level name', () => {
+    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { name: 'Bash' } }))).toBe('Bash')
+  })
+
+  it("reads Claude's nested tool_use block name", () => {
+    expect(
+      cliToolNameFromEntry(
+        entry({
+          kind: 'tool-call',
+          payload: { message: { content: [{ type: 'text', text: 'x' }, { type: 'tool_use', name: 'Edit' }] } },
+        }),
+      ),
+    ).toBe('Edit')
+  })
+
+  it("reads Codex's item type (but not agent_message)", () => {
+    expect(
+      cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { item: { type: 'command_execution' } } })),
+    ).toBe('command_execution')
+    expect(
+      cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { item: { type: 'agent_message' } } })),
+    ).toBeUndefined()
+  })
+
+  it('returns undefined when no name is discoverable', () => {
+    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: undefined }))).toBeUndefined()
+    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { message: {} } }))).toBeUndefined()
+  })
+})
+
+describe('cliTranscriptEntryView', () => {
+  it('renders assistant prose as the detail and labels it', () => {
+    const view = cliTranscriptEntryView(
+      entry({ kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi there' }] } } }),
+    )
+    expect(view.label).toBe('Assistant')
+    expect(view.detail).toBe('hi there')
+  })
+
+  it('labels a tool call with its tool name and falls back to raw JSON detail', () => {
+    const view = cliTranscriptEntryView(
+      entry({ kind: 'tool-call', payload: { name: 'Bash', input: { command: 'ls' } } }),
+    )
+    expect(view.label).toBe('Tool call · Bash')
+    expect(view.detail).toBe(view.raw)
+    expect(view.raw).toContain('"command": "ls"')
+  })
+
+  it('falls back to pretty JSON for entries without extractable prose', () => {
+    const view = cliTranscriptEntryView(entry({ kind: 'result', payload: { result: 'final' } }))
+    expect(view.label).toBe('Result')
+    expect(view.detail).toContain('"result": "final"')
   })
 })
 

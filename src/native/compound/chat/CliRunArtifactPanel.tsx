@@ -6,6 +6,7 @@ import { useCliRunArtifact } from '../../../headless'
 import { nativePalette } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import UnifiedDiff from '../git/UnifiedDiff'
+import CliRunTranscript from './CliRunTranscript'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -26,6 +27,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const { theme } = useNativeTheme()
   const {
     artifact,
+    transcript,
     review,
     loading,
     preview,
@@ -49,25 +51,28 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     if (!expanded || error) return
     if (review) {
       if (!reviewDiff && !reviewLoading) void loadReviewDiff()
-    } else if (!preview && !previewLoading) {
+    } else if (artifact && !preview && !previewLoading) {
       void loadPreview()
     }
-  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, preview, previewLoading, error, loadPreview])
+  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, artifact, preview, previewLoading, error, loadPreview])
 
   if (loading) return null
-  if (!artifact) {
-    // A failed run-fetch must be distinguishable from "the run changed no files".
-    return error ? (
+  // A failed run-fetch must be distinguishable from "the run changed no files".
+  if (!artifact && error) {
+    return (
       <Text style={{ marginTop: 8, fontSize: 12, color: nativePalette.red[700] }}>
         Failed to load agent changes: {error}{' '}
         <Text style={{ textDecorationLine: 'underline' }} onPress={reload}>
           Retry
         </Text>
       </Text>
-    ) : null
+    )
   }
+  // A run that changed no files still has a transcript worth inspecting; only
+  // bail when there's nothing at all to show.
+  if (!artifact && transcript.length === 0) return null
 
-  const files = artifact.payload.files
+  const files = artifact?.payload.files ?? []
   const counts = {
     added: files.filter((f) => f.status === 'added').length,
     modified: files.filter((f) => f.status === 'modified').length,
@@ -82,7 +87,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     applyResultData.errors.length === 0 &&
     applyResultData.added.length + applyResultData.modified.length + applyResultData.deleted.length >
       0
-  const isApplied = appliedOk || artifact.appliedAt != null
+  const isApplied = appliedOk || artifact?.appliedAt != null
+  // Durable merge state (mirrors web): a fresh merge OR the persisted review.mergedAt.
+  const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   const statusColor = (file: FilesEmittedFilePreview): string =>
@@ -116,7 +123,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         }}
       >
         <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary }}>
-          Agent changed {files.length} file{files.length === 1 ? '' : 's'}
+          {artifact
+            ? `Agent changed ${files.length} file${files.length === 1 ? '' : 's'}`
+            : 'Agent run'}
         </Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>
           {counts.added > 0 ? `+${counts.added} ` : ''}
@@ -126,7 +135,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </Text>
       </Pressable>
 
-      {expanded && review ? (
+      {expanded && artifact && review ? (
         <View
           style={{
             borderTopWidth: 1,
@@ -179,19 +188,19 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 4 }}>
             <Pressable
               onPress={() => void merge()}
-              disabled={merging || mergeResult?.ok === true || !reviewDiff}
+              disabled={merging || isMerged || !reviewDiff}
               accessibilityRole="button"
-              accessibilityState={{ disabled: merging || mergeResult?.ok === true || !reviewDiff, busy: merging }}
+              accessibilityState={{ disabled: merging || isMerged || !reviewDiff, busy: merging }}
               style={{
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 8,
                 backgroundColor: theme.accent.primary,
-                opacity: merging || mergeResult?.ok || !reviewDiff ? 0.5 : 1,
+                opacity: merging || isMerged || !reviewDiff ? 0.5 : 1,
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.inverted }}>
-                {merging ? 'Merging…' : mergeResult?.ok ? 'Merged ✓' : 'Sign off & merge'}
+                {merging ? 'Merging…' : isMerged ? 'Merged ✓' : 'Sign off & merge'}
               </Text>
             </Pressable>
             {mergeResult?.conflicts && mergeResult.conflicts.length > 0 ? (
@@ -203,7 +212,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               <Text style={{ fontSize: 12, color: nativePalette.red[700], flexShrink: 1 }}>
                 {mergeResult.message ?? 'Merge failed'}
               </Text>
-            ) : mergeResult?.ok ? (
+            ) : isMerged ? (
               <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
                 Merged into your branch
               </Text>
@@ -212,7 +221,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </View>
       ) : null}
 
-      {expanded && !review ? (
+      {expanded && artifact && !review ? (
         <View
           style={{
             borderTopWidth: 1,
@@ -318,6 +327,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
             : null}
         </View>
       ) : null}
+
+      {expanded ? <CliRunTranscript entries={transcript} /> : null}
     </View>
   )
 }

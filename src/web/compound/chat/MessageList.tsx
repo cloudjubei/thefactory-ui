@@ -153,8 +153,12 @@ export default function MessageList({
     return out
   }, [messages])
 
+  // A leading synthetic `system` message is the interpolated system-prompt
+  // preview (real chat history never starts with a system role). Pin it as the
+  // collapsible SystemPromptBubble whenever present — not only when the chat is
+  // empty — so it doesn't unmount on the first send and shift the whole canvas.
   const systemPromptMessage =
-    enhancedMessages.length === 1 && enhancedMessages[0].role === 'system'
+    enhancedMessages.length > 0 && enhancedMessages[0].role === 'system'
       ? enhancedMessages[0]
       : undefined
 
@@ -173,10 +177,11 @@ export default function MessageList({
   )
   const hiddenCountAbove = startIndex
 
-  // User-bubble pop animation tracker.
-  const prevUserMessagesLenRef = useRef<number>(messages.length)
+  // User-bubble pop animation tracker. Tracked in display-space (the pinned
+  // leading system bubble is excluded) so it stays aligned with `globalIndex`.
+  const prevUserMessagesLenRef = useRef<number>(messagesToDisplay.length)
   useEffect(() => {
-    prevUserMessagesLenRef.current = messages.length
+    prevUserMessagesLenRef.current = messagesToDisplay.length
   }, [messages])
 
   // At-bottom tracking.
@@ -525,7 +530,7 @@ export default function MessageList({
         />
       ) : null}
 
-      {(enhancedMessages.length === 0 || systemPromptMessage !== undefined) && !isThinking
+      {messagesToDisplay.length === 0 && !isThinking
         ? (emptyStateContent ?? (
             <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
               <div className="text-[18px] font-medium">Start chatting about the project</div>
@@ -593,7 +598,7 @@ export default function MessageList({
                 isThinking={isThinking}
                 isLast={isLast}
                 prevUserMessagesLen={prevUserMessagesLenRef.current}
-                enhancedTotalLength={enhancedMessages.length}
+                enhancedTotalLength={messagesToDisplay.length}
                 onDeleteLastMessage={onDeleteLastMessage}
                 onRetry={onRetry}
                 renderToolResult={renderToolResult}
@@ -673,7 +678,7 @@ export default function MessageList({
             isThinking={isThinking}
             isLast
             prevUserMessagesLen={prevUserMessagesLenRef.current}
-            enhancedTotalLength={enhancedMessages.length + 1}
+            enhancedTotalLength={messagesToDisplay.length + 1}
             renderToolResult={renderToolResult}
             getToolHeaderPath={getToolHeaderPath}
             onResolveFile={onResolveFile}

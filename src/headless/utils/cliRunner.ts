@@ -94,6 +94,79 @@ export function cliAssistantTextFromEntry(entry: CliRunTranscriptEntry): string 
     .join('')
 }
 
+const TRANSCRIPT_KIND_LABEL: Record<CliRunTranscriptEntry['kind'], string> = {
+  assistant: 'Assistant',
+  'tool-call': 'Tool call',
+  'tool-result': 'Tool result',
+  system: 'System',
+  result: 'Result',
+  other: 'Step',
+}
+
+function asTranscriptRecord(v: unknown): Record<string, unknown> | undefined {
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
+}
+
+function safeTranscriptJson(v: unknown): string {
+  try {
+    return JSON.stringify(v, null, 2) ?? String(v)
+  } catch {
+    return String(v)
+  }
+}
+
+/**
+ * Best-effort tool name for a `tool-call` transcript entry. The CLIs differ:
+ * Claude Code nests `message.content[]` blocks of `type: 'tool_use'` carrying a
+ * `name`; Codex emits a top-level `item` whose `type` names the operation
+ * (`command_execution`, `file_change`, …); some payloads carry a plain
+ * top-level `name`. Returns undefined when none is discoverable.
+ */
+export function cliToolNameFromEntry(entry: CliRunTranscriptEntry): string | undefined {
+  const root = asTranscriptRecord(entry.payload)
+  if (!root) return undefined
+  if (typeof root.name === 'string') return root.name
+  const item = asTranscriptRecord(root.item)
+  if (item && typeof item.type === 'string' && item.type !== 'agent_message') return item.type
+  const message = asTranscriptRecord(root.message)
+  const content = message?.content
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      const b = asTranscriptRecord(block)
+      if (b && (b.type === 'tool_use' || b.type === 'tool_call') && typeof b.name === 'string') {
+        return b.name
+      }
+    }
+  }
+  return undefined
+}
+
+/** A transcript entry reduced to what the inspector panel renders. */
+export type CliTranscriptEntryView = {
+  /** Short heading: the kind (e.g. "Tool call") plus the tool name when known. */
+  label: string
+  /** Most human-readable rendering — assistant prose where extractable, else the raw JSON. */
+  detail: string
+  /** The full pretty-printed payload, always available for thorough inspection. */
+  raw: string
+}
+
+/**
+ * Reduce one CLI transcript entry to a readable {@link CliTranscriptEntryView}.
+ * `detail` prefers extracted prose (assistant text) and otherwise falls back to
+ * the pretty-printed payload; `raw` is always the pretty payload so the panel
+ * can offer a "show raw" toggle only when it differs from `detail`.
+ */
+export function cliTranscriptEntryView(entry: CliRunTranscriptEntry): CliTranscriptEntryView {
+  const base = TRANSCRIPT_KIND_LABEL[entry.kind] ?? 'Step'
+  const toolName = entry.kind === 'tool-call' ? cliToolNameFromEntry(entry) : undefined
+  const label = toolName ? `${base} · ${toolName}` : base
+  const raw = safeTranscriptJson(entry.payload)
+  const prose = entry.kind === 'assistant' ? cliAssistantTextFromEntry(entry) : ''
+  const detail = prose.trim() ? prose : raw
+  return { label, detail, raw }
+}
+
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */
 export type CliRunUpdateParsed =
   | { runId: string; kind: 'transcript'; text: string }

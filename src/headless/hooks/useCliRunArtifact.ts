@@ -3,10 +3,11 @@ import {
   applyCliAgentArtifact,
   getCliAgentRun,
   getGitBranchDiffSummary,
-  gitMergeApply,
+  mergeCliRunReview,
   previewCliAgentArtifact,
   type ApplyCliAgentArtifactResult,
   type CliRunReview,
+  type CliRunTranscriptEntry,
   type FilesEmittedArtifact,
   type FilesEmittedPreview,
   type GitDiffSummary,
@@ -17,6 +18,12 @@ import { filesEmittedArtifactOf } from '../utils/cliRunner'
 export type UseCliRunArtifact = {
   /** The run's files-emitted artifact (the agent's workspace diff), once loaded. */
   artifact: FilesEmittedArtifact | undefined
+  /**
+   * The run's full step-by-step transcript (assistant text, tool calls, tool
+   * results, protocol events) for inspecting exactly what the agent did between
+   * the prompt and the final diff. Empty until the run record loads.
+   */
+  transcript: CliRunTranscriptEntry[]
   /**
    * Branch-landing state when the run was committed to a per-run branch (git
    * projects). When present the panel is in PR-review mode (review the branch
@@ -68,6 +75,7 @@ export function useCliRunArtifact(
   projectId: string | undefined,
 ): UseCliRunArtifact {
   const [artifact, setArtifact] = useState<FilesEmittedArtifact | undefined>(undefined)
+  const [transcript, setTranscript] = useState<CliRunTranscriptEntry[]>([])
   const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<FilesEmittedPreview | undefined>(undefined)
@@ -88,6 +96,7 @@ export function useCliRunArtifact(
   useEffect(() => {
     epochRef.current += 1
     setArtifact(undefined)
+    setTranscript([])
     setReview(undefined)
     setPreview(undefined)
     setApplyResult(undefined)
@@ -102,6 +111,7 @@ export function useCliRunArtifact(
       .then(({ data }) => {
         if (epoch !== epochRef.current) return
         setArtifact(filesEmittedArtifactOf(data.artifacts))
+        setTranscript(data.transcript ?? [])
         setReview(data.review ?? undefined)
       })
       .catch((err: unknown) => {
@@ -172,15 +182,16 @@ export function useCliRunArtifact(
   }, [projectId, review])
 
   const merge = useCallback(async () => {
-    if (!projectId || !review) return
+    if (!runId || !projectId || !review) return
     const epoch = epochRef.current
     setMerging(true)
     setError(undefined)
     try {
-      // Omit baseRef → merges the run branch into the current working branch (HEAD).
-      const { data } = await gitMergeApply({
-        path: { projectId },
-        body: { sources: [review.branch], autoStash: true },
+      // Dedicated route: merges the run branch into the working branch, stamps
+      // review.mergedAt durably, and broadcasts a git+files refresh.
+      const { data } = await mergeCliRunReview({
+        path: { runId },
+        body: { projectId },
         throwOnError: true,
       })
       if (epoch === epochRef.current) setMergeResult(data)
@@ -189,10 +200,11 @@ export function useCliRunArtifact(
     } finally {
       setMerging(false)
     }
-  }, [projectId, review])
+  }, [runId, projectId, review])
 
   return {
     artifact,
+    transcript,
     review,
     loading,
     preview,

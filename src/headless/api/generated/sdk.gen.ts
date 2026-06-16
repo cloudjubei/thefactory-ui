@@ -454,6 +454,9 @@ import type {
   MatchDocumentsData,
   MatchDocumentsErrors,
   MatchDocumentsResponses,
+  MergeCliRunReviewData,
+  MergeCliRunReviewErrors,
+  MergeCliRunReviewResponses,
   MetricsData,
   MetricsResponses,
   PairRunnerData,
@@ -3355,6 +3358,24 @@ export const previewCliAgentArtifact = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/preview',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const mergeCliRunReview = <ThrowOnError extends boolean = false>(
+  options: Options<MergeCliRunReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MergeCliRunReviewResponses,
+    MergeCliRunReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/merge-review',
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -456,12 +456,13 @@
 }
 
 /* Mobile mode (<768px): the dense desktop row adapts for touch. There is no
-   hover on touch, so row actions are always visible; the blockers row wraps
-   tightly instead of relying on horizontal room. */
+   hover on touch and the row opens its editor on tap, so the inline row
+   actions are hidden entirely; the blockers row wraps tightly instead of
+   relying on horizontal room. */
 @media (max-width: 767.98px) {
   .story-grid .col-actions {
-    opacity: 1;
-    pointer-events: auto;
+    opacity: 0;
+    pointer-events: none;
   }
   .story-grid .col-blockers {
     flex-wrap: wrap;

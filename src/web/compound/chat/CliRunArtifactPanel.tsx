@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { FilesEmittedFilePreview } from '../../../headless/api'
 import { useCliRunArtifact } from '../../../headless'
 import { StructuredUnifiedDiff } from '../diff'
+import CliRunTranscript from './CliRunTranscript'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -37,6 +38,7 @@ const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifactPanelProps) {
   const {
     artifact,
+    transcript,
     review,
     loading,
     preview,
@@ -63,25 +65,28 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     // failing load doesn't refire forever.
     if (review) {
       if (!reviewDiff && !reviewLoading) void loadReviewDiff()
-    } else if (!preview && !previewLoading) {
+    } else if (artifact && !preview && !previewLoading) {
       void loadPreview()
     }
-  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, preview, previewLoading, error, loadPreview])
+  }, [expanded, review, reviewDiff, reviewLoading, loadReviewDiff, artifact, preview, previewLoading, error, loadPreview])
 
   if (loading) return null
-  if (!artifact) {
-    // A failed run-fetch must be distinguishable from "the run changed no files".
-    return error ? (
+  // A failed run-fetch must be distinguishable from "the run changed no files".
+  if (!artifact && error) {
+    return (
       <div className={`mt-2 text-[12px] ${DANGER_TEXT}`}>
         Failed to load agent changes: {error}{' '}
         <button type="button" className="underline" onClick={reload}>
           Retry
         </button>
       </div>
-    ) : null
+    )
   }
+  // A run that changed no files still has a transcript worth inspecting; only
+  // bail when there's nothing at all to show.
+  if (!artifact && transcript.length === 0) return null
 
-  const files = artifact.payload.files
+  const files = artifact?.payload.files ?? []
   const counts = {
     added: files.filter((f) => f.status === 'added').length,
     modified: files.filter((f) => f.status === 'modified').length,
@@ -96,7 +101,10 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     applyResultData.errors.length === 0 &&
     applyResultData.added.length + applyResultData.modified.length + applyResultData.deleted.length >
       0
-  const isApplied = appliedOk || artifact.appliedAt != null
+  const isApplied = appliedOk || artifact?.appliedAt != null
+  // Merge sign-off is durable: a fresh merge OR the persisted review.mergedAt
+  // (so a reopened panel shows "Merged" instead of an active Sign-off button).
+  const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
   return (
@@ -108,7 +116,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         aria-expanded={expanded}
       >
         <span className="text-[13px] font-medium text-(--text-primary)">
-          Agent changed {files.length} file{files.length === 1 ? '' : 's'}
+          {artifact
+            ? `Agent changed ${files.length} file${files.length === 1 ? '' : 's'}`
+            : 'Agent run'}
         </span>
         <span className="text-[12px] text-(--text-secondary)">
           {counts.added > 0 ? `+${counts.added} ` : ''}
@@ -118,7 +128,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </span>
       </button>
 
-      {expanded && review ? (
+      {expanded && artifact && review ? (
         <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
           <div className="text-[11px] text-(--text-secondary) font-mono">
             {review.branch} ← {review.baseSha.slice(0, 8)}
@@ -158,9 +168,9 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               type="button"
               className="px-3 py-1.5 rounded-md text-[13px] font-medium bg-(--accent-primary) text-(--text-inverted) hover:opacity-90 disabled:opacity-50"
               onClick={() => void merge()}
-              disabled={merging || mergeResult?.ok === true || !reviewDiff}
+              disabled={merging || isMerged || !reviewDiff}
             >
-              {merging ? 'Merging…' : mergeResult?.ok ? 'Merged ✓' : 'Sign off & merge'}
+              {merging ? 'Merging…' : isMerged ? 'Merged ✓' : 'Sign off & merge'}
             </button>
             {mergeResult?.conflicts && mergeResult.conflicts.length > 0 ? (
               <span className={`text-[12px] ${DANGER_TEXT}`}>
@@ -171,16 +181,14 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               <span className={`text-[12px] ${DANGER_TEXT}`}>
                 {mergeResult.message ?? 'Merge failed'}
               </span>
-            ) : mergeResult?.ok ? (
-              <span className="text-[12px] text-(--text-secondary)">
-                Merged into your branch{mergeResult.mergeCommit ? ` (${mergeResult.mergeCommit.slice(0, 8)})` : ''}
-              </span>
+            ) : isMerged ? (
+              <span className="text-[12px] text-(--text-secondary)">Merged into your branch</span>
             ) : null}
           </div>
         </div>
       ) : null}
 
-      {expanded && !review ? (
+      {expanded && artifact && !review ? (
         <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
           {error ? (
             <div className={`text-[12px] ${DANGER_TEXT}`}>
@@ -262,6 +270,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
           ) : null}
         </div>
       ) : null}
+
+      {expanded ? <CliRunTranscript entries={transcript} /> : null}
     </div>
   )
 }

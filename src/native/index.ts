@@ -193,6 +193,10 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './compound/chat/CliRunArtifactPanel'
+export {
+  default as CliRunTranscript,
+  type CliRunTranscriptProps,
+} from './compound/chat/CliRunTranscript'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
   default as ChatSettingsDropdown,

@@ -141,9 +141,14 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
         throwOnError: true,
       })
 
+      // Surface the run's chat in the list right away. The run persists its chat
+      // asynchronously, so this is best-effort for the immediate navigation; the
+      // backend also broadcasts `chats:updated` as the run streams.
+      await refreshChats()
+
       return { agentRunId, chatContext }
     },
-    [llmConfigs, credentials, webSearchKeys],
+    [llmConfigs, credentials, webSearchKeys, refreshChats],
   )
 
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(

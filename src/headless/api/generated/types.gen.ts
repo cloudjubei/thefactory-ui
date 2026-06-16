@@ -1986,6 +1986,8 @@ export type CliRunReview = {
   baseSha: string
   headSha?: string
   landedAt?: number
+  mergedAt?: number
+  mergeCommit?: string
 }
 
 export type CliRun = {
@@ -2043,6 +2045,8 @@ export type CliRun = {
     baseSha: string
     headSha?: string
     landedAt?: number
+    mergedAt?: number
+    mergeCommit?: string
   }
 }
 
@@ -2597,6 +2601,18 @@ export type ExternalFilesResult = {
   }
 }
 
+export type JsonSchema = unknown
+
+export type AgentToolSchema = {
+  category?: string
+  name: string
+  description: string
+  examples?: Array<string>
+  parameters: JsonValue
+  returns?: unknown
+  source?: string
+}
+
 export type CompletionRequest = {
   chatContext: ChatContext
   llmConfig: LlmConfig
@@ -2604,6 +2620,7 @@ export type CompletionRequest = {
   messages: Array<CompletionMessage>
   abortSignal?: unknown
   availableTools?: Array<string>
+  extraToolSchemas?: Array<AgentToolSchema>
   numberMessagesToSend?: number
   structuredOutput?: boolean
   historySummarization?: {
@@ -3059,6 +3076,8 @@ export type VerifyScoreReport = {
 
 export type ResearchCallBase = {
   scope?: string
+  region?: string
+  language?: string
   model: ModelSelection
   chatContext?: {
     type: ChatContextType
@@ -3075,6 +3094,8 @@ export type ResearchCallBase = {
 
 export type PlanResearchParams = {
   scope?: string
+  region?: string
+  language?: string
   model:
     | {
         kind: 'api'
@@ -3114,6 +3135,8 @@ export type ResearchPlan = {
 
 export type DiscoverSourcesParams = {
   scope?: string
+  region?: string
+  language?: string
   model:
     | {
         kind: 'api'
@@ -3150,6 +3173,8 @@ export type DiscoveredSource = {
 
 export type GatherParams = {
   scope?: string
+  region?: string
+  language?: string
   model:
     | {
         kind: 'api'
@@ -3181,6 +3206,8 @@ export type GatherParams = {
 
 export type ExtractParams = {
   scope?: string
+  region?: string
+  language?: string
   model:
     | {
         kind: 'api'
@@ -3216,6 +3243,8 @@ export type ExtractionResult = {
 
 export type VerifyClaimParams = {
   scope?: string
+  region?: string
+  language?: string
   model:
     | {
         kind: 'api'
@@ -5051,6 +5080,8 @@ export type ProductTypeSpec = {
   itemQuery: string
   itemInstructions: string
   categoryAxis?: Array<CategoryNode>
+  brandQuery?: string
+  brandInstructions?: string
 }
 
 export type FilterRule = {
@@ -5180,6 +5211,8 @@ export type VerifyProductCriterionParams = {
   now: string
   mode?: 'cheap' | 'deep'
   scope?: string
+  region?: string
+  language?: string
   chatContext?: {
     type: ChatContextType
     groupId?: string
@@ -5224,6 +5257,8 @@ export type DiscoverSuppliersParams = {
   scope: string
   spec: ProductTypeSpec
   market: string
+  region?: string
+  language?: string
   model: ModelSelection
   maxSuppliers?: number
   chatContext?: {
@@ -5278,6 +5313,54 @@ export type RecommendProductsParams = {
   model: ModelSelection
   searchLimit?: number
   rankLimit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type DiscoverProductBrandsParams = {
+  scope: string
+  spec: ProductTypeSpec
+  market: string
+  region?: string
+  language?: string
+  model: ModelSelection
+  maxBrands?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type ListProductBrandsParams = {
+  scope: string
+  recordType: string
+}
+
+export type ReverifyProductCriterionParams = {
+  scope: string
+  recordType: string
+  key: string
+  criterionId: string
+  model: ModelSelection
+  mode?: 'cheap' | 'deep'
+  region?: string
+  language?: string
   chatContext?: {
     type: ChatContextType
     groupId?: string
@@ -5674,18 +5757,6 @@ export type TestConfigDeclaration = {
   env?: Array<TestConfigEnvVar>
 }
 
-export type JsonSchema = unknown
-
-export type AgentToolSchema = {
-  category?: string
-  name: string
-  description: string
-  examples?: Array<string>
-  parameters: JsonValue
-  returns?: unknown
-  source?: string
-}
-
 export type ValidationResult = {
   valid: boolean
   errors: Array<string>
@@ -5873,12 +5944,28 @@ export type WebReadUrlsResult = {
 
 export type WebSearchProvider = 'exa' | 'tavily' | 'serpapi'
 
+export type WebSearchLocale = {
+  region?: string
+  language?: string
+}
+
+export type RegionLocale = {
+  country: string
+  endonym: string
+  language: string
+  googleDomain: string
+}
+
 export type WebSearchQueryOptions = {
+  region?: string
+  language?: string
   query: string
   limit?: number
 }
 
 export type WebSearchOptions = {
+  region?: string
+  language?: string
   query: string
   limit?: number
   providers?: Array<WebSearchProvider>
@@ -14048,6 +14135,55 @@ export type PreviewCliAgentArtifactResponses = {
 
 export type PreviewCliAgentArtifactResponse =
   PreviewCliAgentArtifactResponses[keyof PreviewCliAgentArtifactResponses]
+
+export type MergeCliRunReviewData = {
+  body: {
+    projectId: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/merge-review'
+}
+
+export type MergeCliRunReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type MergeCliRunReviewError = MergeCliRunReviewErrors[keyof MergeCliRunReviewErrors]
+
+export type MergeCliRunReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: GitMergeResult
+}
+
+export type MergeCliRunReviewResponse = MergeCliRunReviewResponses[keyof MergeCliRunReviewResponses]
 
 export type StartCliAuthLoginData = {
   body: {

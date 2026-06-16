@@ -3,6 +3,7 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './CliRunArtifactPanel'
+export { default as CliRunTranscript, type CliRunTranscriptProps } from './CliRunTranscript'
 export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
 export {

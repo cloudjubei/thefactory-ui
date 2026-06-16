@@ -44,6 +44,14 @@ export type ModalProps = {
    * specificity / source-order.
    */
   panelClassName?: string
+  /**
+   * Optional panel docked to the right edge of the dialog (e.g. a chat
+   * sidebar). When provided, the dialog and this panel are laid out as a
+   * single horizontally-centred group, so expanding/collapsing the panel
+   * re-centres the pair. The dialog takes a fixed `size` width (rather than
+   * the responsive `w-full`) so the side panel always sits flush beside it.
+   */
+  sidePanel?: ReactNode
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
@@ -51,6 +59,16 @@ const SIZE_CLASS: Record<ModalSize, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-2xl',
+}
+
+/** Fixed dialog widths used when a `sidePanel` is present — a flex row can't
+ *  resolve the default responsive `w-full` against a shrink-to-fit group, so
+ *  the dialog needs a definite width. Mirrors `SIZE_CLASS`'s max-widths. */
+const SIZE_WIDTH: Record<ModalSize, string> = {
+  sm: 'w-[24rem]',
+  md: 'w-[28rem]',
+  lg: 'w-[32rem]',
+  xl: 'w-[42rem]',
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -84,6 +102,7 @@ export function Modal({
   hideHeader = false,
   contentClassName,
   panelClassName,
+  sidePanel,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -151,6 +170,62 @@ export function Modal({
 
   if (!isOpen) return null
 
+  const dialog = (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={describedById}
+      onKeyDown={onPanelKeyDown}
+      className={[
+        'relative',
+        sidePanel ? `${SIZE_WIDTH[size]} shrink-0` : `z-10 w-full ${SIZE_CLASS[size]}`,
+        'max-h-[90vh] flex flex-col rounded-lg border shadow-xl outline-none',
+        panelClassName,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border-subtle)' }}
+    >
+      {!hideHeader && (title || headerActions || !hideCloseButton) && (
+        <div
+          className="flex items-center justify-between gap-4 px-4 py-2 border-b shrink-0"
+          style={{ borderColor: 'var(--border-subtle)' }}
+        >
+          {title && (
+            <div id={titleId} className="text-base font-semibold">
+              {title}
+            </div>
+          )}
+          <div className="flex items-center gap-2 ml-auto">
+            {headerActions}
+            {!hideCloseButton && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md opacity-70 hover:opacity-100"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div
+        className={['flex-grow overflow-y-auto p-4', contentClassName].filter(Boolean).join(' ')}
+      >
+        {children}
+      </div>
+      {footer && (
+        <div className="shrink-0 border-t p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+          {footer}
+        </div>
+      )}
+    </div>
+  )
+
   // Portal to <body> so the overlay is never clipped or re-anchored by an
   // ancestor's `overflow`/`transform` (e.g. the sidebar, which is the
   // containing block for fixed descendants while it's a drawer).
@@ -161,59 +236,14 @@ export function Modal({
         className="absolute inset-0 bg-black/40"
         onMouseDown={onOverlayMouseDown}
       />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={describedById}
-        onKeyDown={onPanelKeyDown}
-        className={[
-          'relative z-10 w-full',
-          SIZE_CLASS[size],
-          'max-h-[90vh] flex flex-col rounded-lg border shadow-xl outline-none',
-          panelClassName,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border-subtle)' }}
-      >
-        {!hideHeader && (title || headerActions || !hideCloseButton) && (
-          <div
-            className="flex items-center justify-between gap-4 px-4 py-2 border-b shrink-0"
-            style={{ borderColor: 'var(--border-subtle)' }}
-          >
-            {title && (
-              <div id={titleId} className="text-base font-semibold">
-                {title}
-              </div>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              {headerActions}
-              {!hideCloseButton && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md opacity-70 hover:opacity-100"
-                >
-                  <CloseIcon />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-        <div
-          className={['flex-grow overflow-y-auto p-4', contentClassName].filter(Boolean).join(' ')}
-        >
-          {children}
+      {sidePanel ? (
+        <div className="relative z-10 flex items-stretch max-w-[96vw] max-h-[90vh]">
+          {dialog}
+          {sidePanel}
         </div>
-        {footer && (
-          <div className="shrink-0 border-t p-3" style={{ borderColor: 'var(--border-subtle)' }}>
-            {footer}
-          </div>
-        )}
-      </div>
+      ) : (
+        dialog
+      )}
     </div>,
     document.body,
   )
