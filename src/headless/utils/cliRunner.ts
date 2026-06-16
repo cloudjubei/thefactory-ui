@@ -132,10 +132,15 @@ export function cliToolNameFromEntry(entry: CliRunTranscriptEntry): string | und
   return undefined
 }
 
-/** Strip an MCP server prefix (`mcp__<server>__name` → `name`) so a CLI's
- * call to one of our MCP tools matches our internal tool-preview names. */
+/** Normalize a CLI tool name to our internal tool name so a CLI's call to one
+ * of our MCP tools matches our tool-preview drawers. Handles the MCP transport
+ * prefix (`mcp__thefactory__readPaths`) and the bare server-namespaced forms a
+ * CLI may surface (`thefactory-readPaths`, `thefactory__grepFiles`); plain CLI
+ * tool names (`Bash`, `command_execution`) pass through untouched. */
 export function cleanCliToolName(name: string): string {
-  return name.replace(/^mcp__.+?__/, '')
+  const mcp = name.match(/^mcp__.+?__(.+)$/)
+  const base = mcp ? mcp[1] : name
+  return base.replace(/^thefactory[-_]+/i, '')
 }
 
 /** Outcome class for a finished CLI tool step. */
@@ -147,12 +152,14 @@ export type CliToolStepResultType = 'success' | 'errored' | 'pending'
  * a consumer can render one drawer per logical operation — VS Code style.
  */
 export type CliTranscriptStep =
-  | { kind: 'thinking'; at: number; text: string }
-  | { kind: 'assistant'; at: number; text: string }
-  | { kind: 'system'; at: number; summary: string; raw: string }
+  | { kind: 'thinking'; at: number; durationMs?: number; text: string }
+  | { kind: 'assistant'; at: number; durationMs?: number; text: string }
+  | { kind: 'system'; at: number; durationMs?: number; summary: string; raw: string }
   | {
       kind: 'tool'
       at: number
+      /** Time from the tool call to its result (or to the next step while in flight). */
+      durationMs?: number
       /** Tool name with any MCP prefix stripped (matches our preview names when recognized). */
       toolName: string
       /** The id used to pair the call with its result (`tool_use.id` / `call_id` / `item.id`). */
@@ -163,8 +170,8 @@ export type CliTranscriptStep =
       result?: unknown
       resultType: CliToolStepResultType
     }
-  | { kind: 'result'; at: number; summary: string; raw: string }
-  | { kind: 'raw'; at: number; raw: string }
+  | { kind: 'result'; at: number; durationMs?: number; summary: string; raw: string }
+  | { kind: 'raw'; at: number; durationMs?: number; raw: string }
 
 type CliToolStep = Extract<CliTranscriptStep, { kind: 'tool' }>
 
@@ -195,12 +202,20 @@ type ExtractedCall = { toolName: string; toolCallId?: string; input?: unknown }
 
 function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const p = asTranscriptRecord(entry.payload)
-  // Cursor: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }
+  // Cursor: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }.
+  // MCP tools surface under a generic wrapper key (e.g. `mcpToolCall`) whose
+  // inner object names the real tool on `toolName`/`name` — prefer that over the
+  // wrapper key (which would otherwise read as "mcp").
   const cursorTc = asTranscriptRecord(p?.tool_call)
   if (cursorTc) {
     const key = firstKey(cursorTc) ?? 'tool'
     const inner = asTranscriptRecord(cursorTc[key])
-    return { toolName: cleanCliToolName(key.replace(/ToolCall$/, '')), toolCallId: asString(p?.call_id), input: inner?.args }
+    const rawName = asString(inner?.toolName) ?? asString(inner?.name)
+    return {
+      toolName: rawName ? cleanCliToolName(rawName) : cleanCliToolName(key.replace(/ToolCall$/, '')),
+      toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
+      input: inner?.args,
+    }
   }
   // Codex: { type:'item.started', item: { type:'command_execution', command, id } }
   const item = asTranscriptRecord(p?.item)
@@ -218,11 +233,11 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
       }
     }
   }
-  // Generic.
+  // Generic / flat MCP envelope: { name, args, toolCallId, providerIdentifier, toolName }.
   return {
-    toolName: cleanCliToolName(asString(p?.name) ?? 'tool'),
-    toolCallId: asString(p?.id),
-    input: p?.input,
+    toolName: cleanCliToolName(asString(p?.toolName) ?? asString(p?.name) ?? 'tool'),
+    toolCallId: asString(p?.toolCallId) ?? asString(p?.id) ?? asString(p?.call_id),
+    input: p?.args ?? p?.input,
   }
 }
 
@@ -240,13 +255,13 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   if (cursorTc) {
     const key = firstKey(cursorTc) ?? 'tool'
     const inner = asTranscriptRecord(cursorTc[key])
-    const r = asTranscriptRecord(inner?.result)
-    const errored = !!r && ('error' in r || 'failure' in r)
+    const rawName = asString(inner?.toolName) ?? asString(inner?.name)
+    const unwrapped = unwrapCursorResult(inner?.result)
     return {
-      toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
-      toolCallId: asString(p?.call_id),
-      result: inner?.result,
-      resultType: errored ? 'errored' : 'success',
+      toolName: rawName ? cleanCliToolName(rawName) : cleanCliToolName(key.replace(/ToolCall$/, '')),
+      toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
+      result: unwrapped.result,
+      resultType: unwrapped.isError ? 'errored' : 'success',
     }
   }
   // Codex completed: item: { type:'command_execution', aggregated_output, exit_code, id }
@@ -276,8 +291,14 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       }
     }
   }
-  // Generic.
-  return { toolCallId: asString(p?.id), result: p?.result ?? entry.payload, resultType: 'success' }
+  // Generic / flat MCP envelope: a `{ success|error: { content } }` block (with
+  // an optional top-level id) that we unwrap to the tool's structured result.
+  const unwrapped = unwrapCursorResult(p?.result ?? entry.payload)
+  return {
+    toolCallId: asString(p?.toolCallId) ?? asString(p?.id) ?? asString(p?.call_id),
+    result: unwrapped.result,
+    resultType: unwrapped.isError ? 'errored' : 'success',
+  }
 }
 
 /** Our MCP tools return their result as a JSON string; parse it so recognized
@@ -291,6 +312,38 @@ function maybeParseJson(v: unknown): unknown {
   } catch {
     return v
   }
+}
+
+/**
+ * Unwrap a Cursor tool result. Cursor wraps results as `{ success | error |
+ * failure: { content, isError } }`; for MCP tools `content` is an array of
+ * `{ text: { text } }` blocks whose text is the tool's JSON output, while native
+ * Cursor tools put a plain string on `content`. Returns the inner result
+ * (JSON-parsed when it is a JSON string) so our drawers get the structured value
+ * they expect, plus whether the call errored. Non-wrapped values pass through.
+ */
+function unwrapCursorResult(raw: unknown): { result: unknown; isError: boolean } {
+  const r = asTranscriptRecord(raw)
+  if (!r) return { result: raw, isError: false }
+  const errBlock = asTranscriptRecord(r.error) ?? asTranscriptRecord(r.failure)
+  const block = asTranscriptRecord(r.success) ?? errBlock
+  if (!block) return { result: raw, isError: false }
+  const isError = !!errBlock || block.isError === true
+  const content = block.content
+  if (typeof content === 'string') return { result: maybeParseJson(content), isError }
+  if (Array.isArray(content)) {
+    const text = content
+      .map((c) => {
+        const cr = asTranscriptRecord(c)
+        if (typeof cr?.text === 'string') return cr.text
+        const inner = asTranscriptRecord(cr?.text)
+        return typeof inner?.text === 'string' ? inner.text : ''
+      })
+      .filter(Boolean)
+      .join('\n')
+    return { result: maybeParseJson(text), isError }
+  }
+  return { result: block, isError }
 }
 
 function summarizeCliSystem(entry: CliRunTranscriptEntry): string {
@@ -355,6 +408,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         if (existing && existing.kind === 'tool') {
           existing.result = res.result
           existing.resultType = res.resultType
+          if (entry.at > existing.at) existing.durationMs = entry.at - existing.at
         } else {
           steps.push({
             kind: 'tool',
@@ -376,6 +430,17 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         break
       default:
         steps.push({ kind: 'raw', at: entry.at, raw: safeTranscriptJson(entry.payload) })
+    }
+  }
+  // Fill in elapsed time for steps that didn't get an intrinsic duration (tool
+  // steps already carry call→result time): the gap until the next step began is
+  // the best "this took ~X" signal. The trailing step is left open — the live
+  // view shows a running timer for it instead.
+  for (let i = 0; i < steps.length - 1; i++) {
+    const s = steps[i]
+    if (s.durationMs == null) {
+      const gap = steps[i + 1].at - s.at
+      if (gap > 0) s.durationMs = gap
     }
   }
   return steps

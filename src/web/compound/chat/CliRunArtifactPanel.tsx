@@ -39,6 +39,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const {
     artifact,
     transcript,
+    status,
     review,
     loading,
     preview,
@@ -56,7 +57,14 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
+  // Active = the run is still working; the transcript then shows the current
+  // step live (expanded + running timer) and the panel auto-opens to surface it.
+  const streaming =
+    status === 'running' || status === 'awaiting-approval' || status === 'paused'
   const [expanded, setExpanded] = useState(false)
+  useEffect(() => {
+    if (streaming) setExpanded(true)
+  }, [streaming])
 
   useEffect(() => {
     if (!expanded || error) return
@@ -271,7 +279,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </div>
       ) : null}
 
-      {expanded ? <CliRunTranscript entries={transcript} /> : null}
+      {expanded ? <CliRunTranscript entries={transcript} streaming={streaming} /> : null}
     </div>
   )
 }

@@ -138,12 +138,17 @@ export default function ChatBody({
   onInputChange,
 }: ChatBodyProps) {
   const { isSending, pendingAssistant } = liveState
+  // While a CLI run streams, show the live Agent-run panel for its runId rather
+  // than the raw-text pending bubble (which popped in blocks and then flashed
+  // into the final message). The panel renders the streaming transcript with the
+  // current operation expanded.
+  const cliRunId = liveState.cliRunId ?? undefined
   const pendingForList = useMemo(
     () =>
-      pendingAssistant
+      !cliRunId && pendingAssistant
         ? { role: 'assistant' as const, content: pendingAssistant.content || '…' }
         : null,
-    [pendingAssistant],
+    [cliRunId, pendingAssistant],
   )
 
   return (
@@ -154,8 +159,9 @@ export default function ChatBody({
         <MessageList
           chatId={chatId}
           messages={messages}
-          isThinking={isSending && !pendingAssistant}
+          isThinking={isSending && !pendingAssistant && !cliRunId}
           pending={pendingForList}
+          pendingCliRunId={cliRunId}
           renderToolResult={renderToolResult}
           getToolHeaderPath={getToolHeaderPath}
           onResolveFile={onResolveFile}

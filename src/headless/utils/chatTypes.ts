@@ -109,4 +109,7 @@ export type ChatLiveStateLike = {
   pendingAssistant: { turn: number; content: string } | null
   pendingToolConfirmation: PendingToolConfirmationLike | null
   sendError: Error | null
+  /** Active CLI run id while it streams. When set, the chat shows the live
+   * Agent-run panel (streaming transcript) instead of a raw-text pending bubble. */
+  cliRunId?: string | null
 }

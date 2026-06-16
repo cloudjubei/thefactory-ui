@@ -281,6 +281,13 @@ describe('cleanCliToolName', () => {
     expect(cleanCliToolName('Bash')).toBe('Bash')
     expect(cleanCliToolName('readPaths')).toBe('readPaths')
   })
+
+  it('strips the bare server-namespaced forms a CLI may surface', () => {
+    expect(cleanCliToolName('thefactory-readPaths')).toBe('readPaths')
+    expect(cleanCliToolName('thefactory__grepFiles')).toBe('grepFiles')
+    expect(cleanCliToolName('mcp__thefactory__write_file')).toBe('write_file')
+    expect(cleanCliToolName('command_execution')).toBe('command_execution')
+  })
 })
 
 describe('cliThinkingTextFromEntry', () => {
@@ -385,6 +392,96 @@ describe('normalizeCliTranscript', () => {
     if (pending.kind !== 'tool' || orphan.kind !== 'tool') throw new Error('expected tool steps')
     expect(pending.resultType).toBe('pending')
     expect(orphan.result).toEqual({ z: 9 })
+  })
+
+  it('records per-step durations: tool call→result time, and gap-to-next for others', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } }),
+      entry({ at: 1500, kind: 'tool-call', payload: { name: 'doThing', id: 'x1', input: {} } }),
+      entry({ at: 4000, kind: 'tool-result', payload: { id: 'x1', result: { ok: true } } }),
+    ])
+    // assistant: gap to the next step (1500 - 1000).
+    expect(steps[0].durationMs).toBe(500)
+    // tool: precise call→result time (4000 - 1500), not a gap.
+    expect(steps[1].durationMs).toBe(2500)
+  })
+
+  it('leaves the trailing step open (no duration) so the live view can run a timer', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { name: 'doThing', id: 'x1', input: {} } }),
+    ])
+    expect(steps[0].durationMs).toBeUndefined()
+  })
+
+  it('Cursor MCP tool: reads the real tool name/args from the inner object, not the "mcp" wrapper, and unwraps the result envelope', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          type: 'tool_call',
+          subtype: 'started',
+          call_id: 'tool_e8',
+          tool_call: {
+            mcpToolCall: {
+              name: 'thefactory-listContents',
+              toolName: 'listContents',
+              args: { path: '.' },
+              providerIdentifier: 'thefactory',
+            },
+          },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          type: 'tool_call',
+          subtype: 'completed',
+          call_id: 'tool_e8',
+          tool_call: {
+            mcpToolCall: {
+              toolName: 'listContents',
+              result: { success: { content: [{ text: { text: '["a","b"]' } }], isError: false } },
+            },
+          },
+        },
+      }),
+    ])
+    expect(steps.length).toBe(1)
+    const tool = steps[0]
+    if (tool.kind !== 'tool') throw new Error('expected tool step')
+    expect(tool.toolName).toBe('listContents')
+    expect(tool.input).toEqual({ path: '.' })
+    expect(tool.resultType).toBe('success')
+    expect(tool.result).toEqual(['a', 'b'])
+  })
+
+  it('flat MCP envelope: reads toolName/args/toolCallId and unwraps a success/content result', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          name: 'thefactory-listContents',
+          toolName: 'listContents',
+          args: { path: '.' },
+          toolCallId: 'tc1',
+          providerIdentifier: 'thefactory',
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: { toolCallId: 'tc1', success: { content: [{ text: { text: '["x"]' } }], isError: false } },
+      }),
+    ])
+    expect(steps.length).toBe(1)
+    const tool = steps[0]
+    if (tool.kind !== 'tool') throw new Error('expected tool step')
+    expect(tool.toolName).toBe('listContents')
+    expect(tool.input).toEqual({ path: '.' })
+    expect(tool.result).toEqual(['x'])
   })
 
   it('summarizes system + result entries and falls back to raw for other', () => {

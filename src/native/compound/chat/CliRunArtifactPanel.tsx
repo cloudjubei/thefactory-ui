@@ -28,6 +28,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const {
     artifact,
     transcript,
+    status,
     review,
     loading,
     preview,
@@ -45,7 +46,12 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
+  const streaming =
+    status === 'running' || status === 'awaiting-approval' || status === 'paused'
   const [expanded, setExpanded] = useState(false)
+  useEffect(() => {
+    if (streaming) setExpanded(true)
+  }, [streaming])
 
   useEffect(() => {
     if (!expanded || error) return
@@ -328,7 +334,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </View>
       ) : null}
 
-      {expanded ? <CliRunTranscript entries={transcript} /> : null}
+      {expanded ? <CliRunTranscript entries={transcript} streaming={streaming} /> : null}
     </View>
   )
 }

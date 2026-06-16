@@ -7,6 +7,7 @@ import {
   previewCliAgentArtifact,
   type ApplyCliAgentArtifactResult,
   type CliRunReview,
+  type CliRunStatus,
   type CliRunTranscriptEntry,
   type FilesEmittedArtifact,
   type FilesEmittedPreview,
@@ -25,6 +26,12 @@ export type UseCliRunArtifact = {
    * the prompt and the final diff. Empty until the run record loads.
    */
   transcript: CliRunTranscriptEntry[]
+  /**
+   * The run's lifecycle status, kept live off `statusChanged` events. Drives the
+   * transcript's "streaming" affordances (current step expanded + running timer)
+   * while the run is active (`running` / `awaiting-approval` / `paused`).
+   */
+  status: CliRunStatus | undefined
   /**
    * Branch-landing state when the run was committed to a per-run branch (git
    * projects). When present the panel is in PR-review mode (review the branch
@@ -77,6 +84,7 @@ export function useCliRunArtifact(
 ): UseCliRunArtifact {
   const [artifact, setArtifact] = useState<FilesEmittedArtifact | undefined>(undefined)
   const [transcript, setTranscript] = useState<CliRunTranscriptEntry[]>([])
+  const [status, setStatus] = useState<CliRunStatus | undefined>(undefined)
   const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<FilesEmittedPreview | undefined>(undefined)
@@ -103,6 +111,7 @@ export function useCliRunArtifact(
     lastAtRef.current = 0
     setArtifact(undefined)
     setTranscript([])
+    setStatus(undefined)
     setReview(undefined)
     setPreview(undefined)
     setApplyResult(undefined)
@@ -120,6 +129,7 @@ export function useCliRunArtifact(
         const entries = data.transcript ?? []
         setTranscript(entries)
         lastAtRef.current = entries.reduce((m, e) => Math.max(m, e.at), lastAtRef.current)
+        setStatus(data.status)
         setReview(data.review ?? undefined)
       })
       .catch((err: unknown) => {
@@ -140,7 +150,7 @@ export function useCliRunArtifact(
       const d = data as {
         runId?: string
         type?: string
-        event?: { entry?: CliRunTranscriptEntry }
+        event?: { entry?: CliRunTranscriptEntry; to?: CliRunStatus }
       }
       if (d.runId !== runId) return
       if (d.type === 'transcriptAppend' && d.event?.entry) {
@@ -148,6 +158,8 @@ export function useCliRunArtifact(
         if (entry.at < lastAtRef.current) return
         lastAtRef.current = entry.at
         setTranscript((prev) => [...prev, entry])
+      } else if (d.type === 'statusChanged' && d.event?.to) {
+        setStatus(d.event.to)
       } else if (d.type === 'finished' || d.type === 'error') {
         void getCliAgentRun({ path: { runId }, throwOnError: true })
           .then(({ data: run }) => {
@@ -155,6 +167,7 @@ export function useCliRunArtifact(
             const entries = run.transcript ?? []
             setTranscript(entries)
             lastAtRef.current = entries.reduce((m, e) => Math.max(m, e.at), 0)
+            setStatus(run.status)
             setReview(run.review ?? undefined)
           })
           .catch(() => {})
@@ -246,6 +259,7 @@ export function useCliRunArtifact(
   return {
     artifact,
     transcript,
+    status,
     review,
     loading,
     preview,

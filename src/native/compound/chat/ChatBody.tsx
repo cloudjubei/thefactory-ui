@@ -112,9 +112,13 @@ export default function ChatBody({
   onInputChange,
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
-  const pending = liveState.pendingAssistant
-    ? { role: 'assistant' as const, content: liveState.pendingAssistant.content }
-    : null
+  // While a CLI run streams, show the live Agent-run panel for its runId instead
+  // of the raw-text pending bubble (which flashed into the final message).
+  const cliRunId = liveState.cliRunId ?? undefined
+  const pending =
+    !cliRunId && liveState.pendingAssistant
+      ? { role: 'assistant' as const, content: liveState.pendingAssistant.content }
+      : null
 
   const handleSend: ChatInputProps['onSend'] = async (text, attachments) => {
     await onSend(text, attachments)
@@ -132,8 +136,9 @@ export default function ChatBody({
         <MessageList
           chatId={chatId}
           messages={messages}
-          isThinking={liveState.isSending}
+          isThinking={liveState.isSending && !cliRunId}
           pending={pending}
+          pendingCliRunId={cliRunId}
           systemPrompt={systemPrompt}
           systemPromptTimestamp={systemPromptTimestamp}
           numberMessagesToSend={numberMessagesToSend}

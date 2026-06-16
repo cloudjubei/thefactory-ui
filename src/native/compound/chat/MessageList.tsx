@@ -42,6 +42,9 @@ export interface MessageListProps {
   isThinking?: boolean
   /** Streaming-pending assistant turn rendered as the last bubble. */
   pending?: { role: 'user' | 'assistant'; content: string } | null
+  /** Active CLI run id while it streams: renders the live Agent-run panel as the
+   * trailing element (in place of the raw-text pending bubble). */
+  pendingCliRunId?: string
   /** Optional system prompt rendered above the message list. */
   systemPrompt?: string
   systemPromptTimestamp?: string
@@ -93,6 +96,7 @@ export default function MessageList({
   messages,
   isThinking = false,
   pending,
+  pendingCliRunId,
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
@@ -342,7 +346,10 @@ export default function MessageList({
             thinkingLabel={thinkingLabel}
           />
         )}
-        {isThinking && (!pending || !pending.content) && (
+        {/* Live CLI run: show the Agent-run panel (streaming transcript) the
+            whole time instead of a raw-text bubble that flashes into the message. */}
+        {pendingCliRunId ? renderCliRunArtifact?.(pendingCliRunId) : null}
+        {isThinking && (!pending || !pending.content) && !pendingCliRunId && (
           <ThinkingRow label={thinkingLabel ?? 'Thinking'} />
         )}
       </ScrollView>

@@ -53,6 +53,9 @@ export type MessageListProps = {
   isThinking?: boolean
   /** Stub for a streaming-pending assistant turn rendered as the last bubble. */
   pending?: { role: 'user' | 'assistant'; content: string } | null
+  /** Active CLI run id while it streams: renders the live Agent-run panel as the
+   * trailing element (in place of the raw-text pending bubble). */
+  pendingCliRunId?: string
   /** When the last user message exceeds this offset from the top, the list
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */
@@ -113,6 +116,7 @@ export default function MessageList({
   messages,
   isThinking = false,
   pending = null,
+  pendingCliRunId,
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
@@ -686,7 +690,11 @@ export default function MessageList({
             renderDependency={renderDependency}
           />
         ) : null}
-        {isThinking && !pending ? <ThinkingRow /> : null}
+        {/* Live CLI run: show the Agent-run panel (streaming transcript with the
+            current operation expanded) the whole time, instead of a raw-text
+            bubble that pops in blocks and then flashes into the final message. */}
+        {pendingCliRunId ? renderCliRunArtifact?.(pendingCliRunId) : null}
+        {isThinking && !pending && !pendingCliRunId ? <ThinkingRow /> : null}
       </div>
     </div>
   )
