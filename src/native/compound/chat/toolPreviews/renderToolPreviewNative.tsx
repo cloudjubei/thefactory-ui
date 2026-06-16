@@ -84,7 +84,7 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  */
 export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
-  'readPaths', 'readFileRanges', 'grepFiles', 'renamePath', 'deletePath', 'listStories',
+  'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
   'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
   'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
   'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
@@ -280,6 +280,36 @@ export function renderToolPreviewNative({
   }
 
   // ---- file / shell tools ----
+  if (name === 'readFile') {
+    const path = tryString(extract(args, ['path'])) || '(unknown)'
+    const content = typeof result === 'string' ? result : ''
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          <MonoText>{path}</MonoText>
+        </Row>
+        {resultType === 'success' && content ? (
+          <PreLimited lines={content.split('\n')} maxLines={12} />
+        ) : null}
+      </View>
+    )
+  }
+  if (name === 'grepFile') {
+    const path = tryString(extract(args, ['path'])) || '(unknown)'
+    const pattern = tryString(extract(args, ['pattern'])) || ''
+    const matches = typeof result === 'string' ? result : ''
+    return (
+      <View style={{ gap: 4 }}>
+        <Row>
+          {pattern ? <MonoText>/{pattern}/</MonoText> : null}
+          <SecondaryText>{path}</SecondaryText>
+        </Row>
+        {resultType === 'success' && matches ? (
+          <PreLimited lines={matches.split('\n')} maxLines={12} />
+        ) : null}
+      </View>
+    )
+  }
   if (name === 'readPaths') {
     const files: string[] = Array.isArray(extract(args, ['paths']))
       ? (extract(args, ['paths']) as string[])

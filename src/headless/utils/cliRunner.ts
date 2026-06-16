@@ -185,9 +185,10 @@ function asString(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined
 }
 
-/** Best-effort thinking text (Claude extended-thinking `thinking` content blocks). */
+/** Best-effort thinking text (Claude extended-thinking `thinking` content
+ * blocks). Works for any entry — thinking can precede a tool call in the same
+ * `assistant` message, which the runner then classifies as `tool-call`. */
 export function cliThinkingTextFromEntry(entry: CliRunTranscriptEntry): string {
-  if (entry.kind !== 'assistant') return ''
   const content = asTranscriptRecord(asTranscriptRecord(entry.payload)?.message)?.content
   if (!Array.isArray(content)) return ''
   return content
@@ -202,17 +203,23 @@ type ExtractedCall = { toolName: string; toolCallId?: string; input?: unknown }
 
 function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const p = asTranscriptRecord(entry.payload)
-  // Cursor: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }.
-  // MCP tools surface under a generic wrapper key (e.g. `mcpToolCall`) whose
-  // inner object names the real tool on `toolName`/`name` — prefer that over the
-  // wrapper key (which would otherwise read as "mcp").
+  // MCP tool call (any CLI): the envelope names the real tool — read it wherever
+  // it's nested, so the step is our tool (e.g. `grepFile`) not the wrapper.
+  const mcp = findMcpEnvelope(entry.payload)
+  if (mcp) {
+    return {
+      toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
+      toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
+      input: mcp.args ?? mcp.input,
+    }
+  }
+  // Cursor native: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }.
   const cursorTc = asTranscriptRecord(p?.tool_call)
   if (cursorTc) {
     const key = firstKey(cursorTc) ?? 'tool'
     const inner = asTranscriptRecord(cursorTc[key])
-    const rawName = asString(inner?.toolName) ?? asString(inner?.name)
     return {
-      toolName: rawName ? cleanCliToolName(rawName) : cleanCliToolName(key.replace(/ToolCall$/, '')),
+      toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
       toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
       input: inner?.args,
     }
@@ -250,15 +257,26 @@ type ExtractedResult = {
 
 function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   const p = asTranscriptRecord(entry.payload)
-  // Cursor completed: tool_call: { <name>ToolCall: { args, result: { success | error | failure } } }
+  // MCP tool result (any CLI): read the real tool name from the envelope and
+  // unwrap its `{ success|error: { content } }` block to the structured result.
+  const mcp = findMcpEnvelope(entry.payload)
+  if (mcp) {
+    const unwrapped = unwrapCursorResult(mcp.result ?? mcp)
+    return {
+      toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
+      toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
+      result: unwrapped.result,
+      resultType: unwrapped.isError ? 'errored' : 'success',
+    }
+  }
+  // Cursor native completed: tool_call: { <name>ToolCall: { args, result: { success | error | failure } } }
   const cursorTc = asTranscriptRecord(p?.tool_call)
   if (cursorTc) {
     const key = firstKey(cursorTc) ?? 'tool'
     const inner = asTranscriptRecord(cursorTc[key])
-    const rawName = asString(inner?.toolName) ?? asString(inner?.name)
     const unwrapped = unwrapCursorResult(inner?.result)
     return {
-      toolName: rawName ? cleanCliToolName(rawName) : cleanCliToolName(key.replace(/ToolCall$/, '')),
+      toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
       toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
       result: unwrapped.result,
       resultType: unwrapped.isError ? 'errored' : 'success',
@@ -346,6 +364,36 @@ function unwrapCursorResult(raw: unknown): { result: unknown; isError: boolean }
   return { result: block, isError }
 }
 
+/**
+ * Locate the MCP tool-call envelope inside a transcript payload, wherever a CLI
+ * nests it. Cursor wraps MCP calls in `tool_call` under a generic key
+ * (`mcpToolCall`) and may nest the real fields a level or two down; the object
+ * carrying `providerIdentifier` + a `toolName`/`name` is the envelope. A bounded
+ * breadth-first walk finds it regardless of the exact nesting so the tool reads
+ * as our real tool (e.g. `grepFile`) rather than the wrapper ("mcp").
+ */
+function findMcpEnvelope(payload: unknown): Record<string, unknown> | undefined {
+  const seen = new Set<unknown>()
+  const queue: unknown[] = [payload]
+  let visited = 0
+  while (queue.length > 0 && visited < 64) {
+    const r = asTranscriptRecord(queue.shift())
+    visited++
+    if (!r || seen.has(r)) continue
+    seen.add(r)
+    if (
+      r.providerIdentifier !== undefined &&
+      (typeof r.toolName === 'string' || typeof r.name === 'string')
+    ) {
+      return r
+    }
+    for (const v of Object.values(r)) {
+      if (v && typeof v === 'object') queue.push(v)
+    }
+  }
+  return undefined
+}
+
 function summarizeCliSystem(entry: CliRunTranscriptEntry): string {
   const p = asTranscriptRecord(entry.payload)
   const subtype = asString(p?.subtype)
@@ -387,6 +435,10 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         break
       }
       case 'tool-call': {
+        // Claude can emit a thinking block in the same message as a tool call
+        // (classified `tool-call`); surface it as its own step first.
+        const toolThinking = cliThinkingTextFromEntry(entry)
+        if (toolThinking) steps.push({ kind: 'thinking', at: entry.at, text: toolThinking })
         const call = extractCliToolCall(entry)
         const step: CliToolStep = {
           kind: 'tool',

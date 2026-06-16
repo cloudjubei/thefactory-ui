@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
-import { useCliRunArtifact } from '../../../headless'
+import { useAppSettings, useCliRunArtifact } from '../../../headless'
 import { nativePalette } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import UnifiedDiff from '../git/UnifiedDiff'
@@ -48,6 +48,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   } = useCliRunArtifact(runId, projectId)
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  const { settings } = useAppSettings()
+  const prefs = settings.userPreferences
   const [expanded, setExpanded] = useState(false)
   useEffect(() => {
     if (streaming) setExpanded(true)
@@ -334,7 +336,14 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </View>
       ) : null}
 
-      {expanded ? <CliRunTranscript entries={transcript} streaming={streaming} /> : null}
+      {expanded ? (
+        <CliRunTranscript
+          entries={transcript}
+          streaming={streaming}
+          showProtocol={prefs.cliShowProtocol ?? false}
+          showThinking={prefs.cliShowThinking ?? true}
+        />
+      ) : null}
     </View>
   )
 }

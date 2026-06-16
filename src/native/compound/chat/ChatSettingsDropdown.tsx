@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Dimensions, ScrollView, Text, View } from 'react-native'
 import BottomSheet from '../../primitives/BottomSheet'
+import { useAppSettings } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
@@ -74,6 +75,8 @@ export default function ChatSettingsDropdown({
   title = 'Chat settings',
 }: ChatSettingsDropdownProps) {
   const { theme } = useNativeTheme()
+  const { settings, setUserPreferences } = useAppSettings()
+  const prefs = settings.userPreferences
   // Sheet takes ~80% of viewport (user-requested) and the inner scroller
   // takes ~70% — leaves room for the sheet handle, title bar, and a bit of
   // bottom safe-area inset before the scroll content kicks in.
@@ -152,6 +155,39 @@ export default function ChatSettingsDropdown({
         ) : null}
 
         {extraContent}
+
+        {/* Agent runs — CLI transcript display prefs (global). */}
+        <View style={{ gap: nativeSpace[3] }}>
+          <SectionLabel>Agent runs</SectionLabel>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: nativeSpace[3] }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
+                Show thinking
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+                Show the model's reasoning steps in an agent run's transcript.
+              </Text>
+            </View>
+            <Switch
+              checked={prefs.cliShowThinking ?? true}
+              onCheckedChange={(c) => setUserPreferences({ cliShowThinking: c })}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: nativeSpace[3] }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
+                Show protocol steps
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+                Show session/turn-started and completed notices. Off by default.
+              </Text>
+            </View>
+            <Switch
+              checked={prefs.cliShowProtocol ?? false}
+              onCheckedChange={(c) => setUserPreferences({ cliShowProtocol: c })}
+            />
+          </View>
+        </View>
 
         {/* Tools */}
         <View style={{ gap: nativeSpace[2] }}>

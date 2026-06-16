@@ -105,7 +105,7 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  */
 export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
-  'readPaths', 'readFileRanges', 'grepFiles', 'renamePath', 'deletePath', 'listStories',
+  'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
   'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
   'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
   'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
@@ -296,6 +296,36 @@ export function renderToolPreview({
   }
 
   // ---- file / shell tools ----
+  if (name === 'readFile') {
+    const path = tryString(extract(args, ['path'])) || '(unknown)'
+    const content = typeof result === 'string' ? result : safePreviewString(result).text
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5">
+          <span className="font-mono text-[11px]">{path}</span>
+        </Row>
+        {resultType === 'success' && content ? (
+          <PreLimited lines={content.split('\n')} maxLines={12} />
+        ) : null}
+      </div>
+    )
+  }
+  if (name === 'grepFile') {
+    const path = tryString(extract(args, ['path'])) || '(unknown)'
+    const pattern = tryString(extract(args, ['pattern'])) || ''
+    const matches = typeof result === 'string' ? result : safePreviewString(result).text
+    return (
+      <div className="text-xs space-y-1">
+        <Row className="flex items-center gap-1.5 flex-wrap">
+          {pattern ? <span className="font-mono text-[11px]">/{pattern}/</span> : null}
+          <span className="font-mono text-[11px] text-(--text-secondary)">{path}</span>
+        </Row>
+        {resultType === 'success' && matches ? (
+          <PreLimited lines={matches.split('\n')} maxLines={12} />
+        ) : null}
+      </div>
+    )
+  }
   if (name === 'readPaths') {
     const files: string[] = Array.isArray(extract(args, ['paths']))
       ? (extract(args, ['paths']) as string[])

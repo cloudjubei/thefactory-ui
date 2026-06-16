@@ -61,6 +61,16 @@ export type UserPreferences = {
    * default light app theme.
    */
   codeBlockTheme: CodeBlockTheme
+  /**
+   * Show protocol notes (Session/Turn started, Completed) in a CLI agent run's
+   * transcript. Off by default — they add little; on for debugging the runner.
+   */
+  cliShowProtocol?: boolean
+  /**
+   * Show the model's extended-thinking steps in a CLI agent run's transcript.
+   * On by default.
+   */
+  cliShowThinking?: boolean
 }
 
 export type NotificationCategory = 'chat' | 'tests' | 'git' | 'activity'
@@ -135,6 +145,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     storiesListViewSorting: 'index_asc',
     storiesListViewStatusFilter: 'all',
     codeBlockTheme: 'light',
+    cliShowProtocol: false,
+    cliShowThinking: true,
   },
   notifications: DEFAULT_NOTIFICATION_PREFS,
 }

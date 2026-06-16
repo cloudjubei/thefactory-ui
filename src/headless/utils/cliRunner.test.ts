@@ -484,6 +484,25 @@ describe('normalizeCliTranscript', () => {
     expect(tool.result).toEqual(['x'])
   })
 
+  it('surfaces a thinking block that precedes a tool call in the same message', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [
+              { type: 'thinking', thinking: 'plan it' },
+              { type: 'tool_use', id: 't1', name: 'readPaths', input: { paths: ['a'] } },
+            ],
+          },
+        },
+      }),
+    ])
+    expect(steps.map((s) => s.kind)).toEqual(['thinking', 'tool'])
+    expect(steps[0]).toMatchObject({ kind: 'thinking', text: 'plan it' })
+  })
+
   it('summarizes system + result entries and falls back to raw for other', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'system', payload: { type: 'system', subtype: 'init', model: 'Composer 2' } }),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
-import { useCliRunArtifact } from '../../../headless'
+import { useAppSettings, useCliRunArtifact } from '../../../headless'
 import { StructuredUnifiedDiff } from '../diff'
 import CliRunTranscript from './CliRunTranscript'
 
@@ -61,6 +61,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   // step live (expanded + running timer) and the panel auto-opens to surface it.
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  const { settings } = useAppSettings()
+  const prefs = settings.userPreferences
   const [expanded, setExpanded] = useState(false)
   useEffect(() => {
     if (streaming) setExpanded(true)
@@ -279,7 +281,14 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
         </div>
       ) : null}
 
-      {expanded ? <CliRunTranscript entries={transcript} streaming={streaming} /> : null}
+      {expanded ? (
+        <CliRunTranscript
+          entries={transcript}
+          streaming={streaming}
+          showProtocol={prefs.cliShowProtocol ?? false}
+          showThinking={prefs.cliShowThinking ?? true}
+        />
+      ) : null}
     </div>
   )
 }

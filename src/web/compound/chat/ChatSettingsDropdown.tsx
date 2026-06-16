@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
+import { useAppSettings } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
@@ -67,6 +68,8 @@ export default function ChatSettingsDropdown({
   asModal = false,
 }: ChatSettingsDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const { settings, setUserPreferences } = useAppSettings()
+  const prefs = settings.userPreferences
 
   useEffect(() => {
     if (!isOpen || asModal) return
@@ -184,6 +187,38 @@ export default function ChatSettingsDropdown({
       ) : null}
 
       {extraContent}
+
+      <div className="space-y-2">
+        <div className="text-xs font-medium text-(--text-secondary)">Agent runs</div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-(--text-secondary)">Show thinking</span>
+              <span className="text-[10px] text-(--text-tertiary)">
+                Show the model's reasoning steps in an agent run's transcript.
+              </span>
+            </div>
+            <Switch
+              checked={prefs.cliShowThinking ?? true}
+              onCheckedChange={(checked) => setUserPreferences({ cliShowThinking: !!checked })}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-(--text-secondary)">
+                Show protocol steps
+              </span>
+              <span className="text-[10px] text-(--text-tertiary)">
+                Show session/turn-started and completed notices. Off by default.
+              </span>
+            </div>
+            <Switch
+              checked={prefs.cliShowProtocol ?? false}
+              onCheckedChange={(checked) => setUserPreferences({ cliShowProtocol: !!checked })}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-2">
         <div className="text-xs font-medium text-(--text-secondary)">Tools</div>

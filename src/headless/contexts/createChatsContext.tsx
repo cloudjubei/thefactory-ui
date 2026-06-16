@@ -153,9 +153,17 @@ export type ChatsContextValue = {
 
   /**
    * Create a new `PROJECT_TOPIC` chat under the given project. Returns the
-   * fresh chat shape; the chat list is refreshed in the background.
+   * fresh chat shape; the chat list is refreshed in the background. An optional
+   * `systemPrompt` is persisted as the topic's per-chat system prompt (via
+   * {@link updateChatSettings}) so an embedded app can brief the agent about
+   * THIS project + the item under discussion, overriding the generic per-type
+   * template for that topic only.
    */
-  createProjectTopic: (projectId: string, title: string) => Promise<GetChatResponse>
+  createProjectTopic: (
+    projectId: string,
+    title: string,
+    systemPrompt?: string,
+  ) => Promise<GetChatResponse>
   createGroupTopic: (groupId: string, title: string) => Promise<GetChatResponse>
 
   /**
@@ -448,7 +456,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
      */
     const buildToolSettings = useCallback(
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
-        const entry = chatSettings?.[context.type]
+        // A topic carrying its own system prompt (e.g. set by an embedded app via createProjectTopic)
+        // overrides the generic per-type template; otherwise fall back to it unchanged.
+        const perChat = chats.find((c) => sameContext(c.context, context))?.settings
+        const entry = perChat?.systemPrompt ? perChat : chatSettings?.[context.type]
         const base = entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
         // Interpolate `{{project_*}}` / `{{story_*}}` / `{{feature_*}}` / `{{group_*}}` BEFORE the prompt
         // goes on the wire — the model must receive the resolved context, not the raw template the viewer
@@ -460,7 +471,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           systemPrompt,
         }
       },
-      [chatSettings, project, getStory, getFeature, getGroupById],
+      [chats, chatSettings, project, getStory, getFeature, getGroupById],
     )
 
     const sendMessage = useCallback(
@@ -718,7 +729,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     )
 
     const createProjectTopic = useCallback(
-      async (entityProjectId: string, title: string) => {
+      async (entityProjectId: string, title: string, systemPrompt?: string) => {
         const trimmed = title.trim()
         if (trimmed.length === 0) throw new Error('Title required')
         const { data } = await createTopicChat({
@@ -728,9 +739,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // The backend broadcasts `chats:updated`, but we refresh inline so
         // the caller can navigate to the new chat without waiting for the WS.
         await refresh()
+        if (systemPrompt && systemPrompt.trim() && data?.context) {
+          await updateChatSettings(data.context, { systemPrompt: systemPrompt.trim() })
+        }
         return data
       },
-      [refresh],
+      [refresh, updateChatSettings],
     )
 
     const createGroupTopic = useCallback(
