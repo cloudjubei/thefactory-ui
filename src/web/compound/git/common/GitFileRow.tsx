@@ -99,19 +99,21 @@ export default function GitFileRow({
                 <IconRevert className="w-4 h-4" />
               </button>
             </Tooltip>
-            <Tooltip content="Remove (delete file)" placement="bottom">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted)"
-                aria-label="Remove file"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRemove(file)
-                }}
-              >
-                <IconDelete className="w-4 h-4" />
-              </button>
-            </Tooltip>
+            {file.status !== 'D' && (
+              <Tooltip content="Remove (delete file)" placement="bottom">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded p-1 hover:bg-(--surface-muted)"
+                  aria-label="Remove file"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRemove(file)
+                  }}
+                >
+                  <IconDelete className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            )}
           </div>
         </div>
         {/* Touch overflow menu — only on narrow viewports. Controlled
@@ -221,11 +223,13 @@ function RowOverflowMenu({
                   tone="danger"
                   onClick={() => run(() => onReset(file))}
                 />
-                <MenuItem
-                  icon={<IconDelete className="w-4 h-4" />}
-                  label="Delete file"
-                  onClick={() => run(() => onRemove(file))}
-                />
+                {file.status !== 'D' ? (
+                  <MenuItem
+                    icon={<IconDelete className="w-4 h-4" />}
+                    label="Delete file"
+                    onClick={() => run(() => onRemove(file))}
+                  />
+                ) : null}
               </div>
             </>,
             document.body,

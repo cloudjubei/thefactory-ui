@@ -10,6 +10,7 @@ import {
   getGitLocalDiff,
   getGitLog,
   gitApplyPatch,
+  gitDiscardStaged,
   gitDiscardUnstaged,
   gitResetAll,
   gitCheckout,
@@ -138,10 +139,15 @@ export type GitContextValue = {
   reset: (paths: string[]) => Promise<void>
   /**
    * Discard only the unstaged changes for paths (restore the working tree to
-   * the index), leaving staged changes intact. The counterpart to `unstage`,
-   * which discards only the staged changes.
+   * the index), leaving staged changes intact.
    */
   discardUnstaged: (paths: string[]) => Promise<void>
+  /**
+   * Destructively discard only the staged changes for paths: reverse the staged
+   * hunks out of the working tree and reset the index to HEAD, while preserving
+   * any unstaged edits to the same file. The counterpart to `discardUnstaged`.
+   */
+  discardStaged: (paths: string[]) => Promise<void>
   /** `git rm` equivalent — drops working-tree files via the files API. */
   removeFiles: (paths: string[]) => Promise<void>
   /**
@@ -208,10 +214,7 @@ const DEFAULT_MERGE_PREFS: MergePreferences = {
 
 const MERGE_PREFS_KEY_PREFIX = 'git.mergePrefs:'
 
-function readMergePrefs(
-  storage: SyncKVStorage,
-  projectId: string | undefined,
-): MergePreferences {
+function readMergePrefs(storage: SyncKVStorage, projectId: string | undefined): MergePreferences {
   if (!projectId) return DEFAULT_MERGE_PREFS
   try {
     const raw = storage.get(`${MERGE_PREFS_KEY_PREFIX}${projectId}`)
@@ -368,11 +371,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       )
         return
       const nextStatus = unwrapGitEnvelope(bundleRes.data.status, 'status', EMPTY_STATUS)
-      const nextBranches = unwrapGitEnvelope(
-        bundleRes.data.branches,
-        'branches',
-        EMPTY_BRANCHES,
-      )
+      const nextBranches = unwrapGitEnvelope(bundleRes.data.branches, 'branches', EMPTY_BRANCHES)
       const commits = bundleRes.data.log.commits
       const nextHasMore = commits.length >= LOG_PAGE_SIZE
       const nextStashes = unwrapGitEnvelope(bundleRes.data.stashes, 'stashes', EMPTY_STASHES)
@@ -396,11 +395,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     } catch (err) {
       // Stale renders (project switched, or a newer refresh started)
       // discard their error — the live request will surface its own.
-      if (
-        gen !== refreshGenRef.current ||
-        latestProjectIdRef.current !== reqProjectId
-      )
-        return
+      if (gen !== refreshGenRef.current || latestProjectIdRef.current !== reqProjectId) return
       // Aborts on the LIVE project (i.e. nobody switched away) come from
       // our own revalidate timeout firing — surface them as a real error
       // so the screen exits the loading state. Previously this `catch`
@@ -573,6 +568,33 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     [ws, refresh, loadLocalDiff],
   )
 
+  // Working-tree file mutations (delete / rename / write / upload) change git
+  // status without touching `.git`, so the `git:status-changed` watcher above
+  // never fires for them — the status would otherwise go stale until a manual
+  // refresh. React to `files:changed` too, debounced to coalesce bursts (e.g.
+  // an agent writing many files into a single refresh).
+  const filesChangedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const unsub = ws.on<{ projectId?: string }>('files:changed', (event) => {
+      // Ignore mutations in a background project — `refresh()` only ever
+      // operates on the active project, so a stray refresh would be wasted.
+      if (event.projectId && event.projectId !== latestProjectIdRef.current) return
+      if (filesChangedDebounceRef.current) clearTimeout(filesChangedDebounceRef.current)
+      filesChangedDebounceRef.current = setTimeout(() => {
+        filesChangedDebounceRef.current = null
+        void refresh()
+        if (localDiffLoadedRef.current) void loadLocalDiff()
+      }, 250)
+    })
+    return () => {
+      unsub()
+      if (filesChangedDebounceRef.current) {
+        clearTimeout(filesChangedDebounceRef.current)
+        filesChangedDebounceRef.current = null
+      }
+    }
+  }, [ws, refresh, loadLocalDiff])
+
   const commit = useCallback(
     async (input: CommitInput) => {
       const id = requireProject()
@@ -725,6 +747,15 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     async (paths: string[]) => {
       const id = requireProject()
       await gitDiscardUnstaged({ path: { projectId: id }, body: { paths }, throwOnError: true })
+      await refresh()
+    },
+    [requireProject, refresh],
+  )
+
+  const discardStaged = useCallback(
+    async (paths: string[]) => {
+      const id = requireProject()
+      await gitDiscardStaged({ path: { projectId: id }, body: { paths }, throwOnError: true })
       await refresh()
     },
     [requireProject, refresh],
@@ -883,6 +914,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       unstage,
       reset,
       discardUnstaged,
+      discardStaged,
       removeFiles,
       applyPatch,
       checkout,
@@ -926,6 +958,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       unstage,
       reset,
       discardUnstaged,
+      discardStaged,
       removeFiles,
       applyPatch,
       checkout,

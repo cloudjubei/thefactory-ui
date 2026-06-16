@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 
-import { IconChevron, IconFolder, IconFolderOpen } from '../../icons'
+import Alert from '../../primitives/Alert'
+import { Button } from '../../primitives/Button'
+import Field from '../../primitives/Field'
+import { Input } from '../../primitives/Input'
+import { Modal } from '../../primitives/Modal'
+import { IconChevron, IconDelete, IconEdit, IconFolder, IconFolderOpen } from '../../icons'
 import { FileTypeIcon } from './FileTypeIcon'
 
 function countLeafFiles(node: DirNode): number {
@@ -34,6 +39,18 @@ export type FileTreeProps = {
    * the caller render a live "N files" status that tracks the active filter.
    */
   onVisibleCountChange?: (count: number) => void
+  /**
+   * When provided, folder rows reveal a "rename" action on hover (left of the
+   * child-count badge). The tree owns the rename dialog and calls this with
+   * the folder's old and new project-relative paths on confirm.
+   */
+  onRenameFolder?: (fromDir: string, toDir: string) => Promise<void> | void
+  /**
+   * When provided, folder rows reveal a "delete" action on hover (left of the
+   * child-count badge). The tree owns the confirmation dialog and calls this
+   * with the folder's project-relative path once the user confirms.
+   */
+  onDeleteFolder?: (dir: string) => Promise<void> | void
 }
 
 type DirNode = {
@@ -112,6 +129,8 @@ export function FileTree({
   defaultExpandedDepth = 0,
   className,
   onVisibleCountChange,
+  onRenameFolder,
+  onDeleteFolder,
 }: FileTreeProps) {
   const tree = useMemo(() => buildTree(files), [files])
 
@@ -184,22 +203,53 @@ export function FileTree({
       return next
     })
 
+  // Folder rename/delete dialogs are owned here (mirroring `FilePane`) so both
+  // host apps only wire the mutations, not duplicate dialog chrome.
+  const [folderAction, setFolderAction] = useState<{
+    kind: 'rename' | 'delete'
+    relPath: string
+  } | null>(null)
+
   if (displayTree.dirs.length === 0 && displayTree.files.length === 0) {
     return <div className="text-sm opacity-60 p-3">No files.</div>
   }
 
   return (
-    <ul role="tree" className={className ?? 'text-sm'}>
-      <DirChildren
-        node={displayTree}
-        level={0}
-        openSet={openSet}
-        force={Boolean(q)}
-        selectedPath={selectedPath ?? null}
-        onSelectFile={onSelectFile}
-        onToggle={toggleOpen}
-      />
-    </ul>
+    <>
+      <ul role="tree" className={className ?? 'text-sm'}>
+        <DirChildren
+          node={displayTree}
+          level={0}
+          openSet={openSet}
+          force={Boolean(q)}
+          selectedPath={selectedPath ?? null}
+          onSelectFile={onSelectFile}
+          onToggle={toggleOpen}
+          onRenameFolder={
+            onRenameFolder ? (relPath) => setFolderAction({ kind: 'rename', relPath }) : undefined
+          }
+          onDeleteFolder={
+            onDeleteFolder ? (relPath) => setFolderAction({ kind: 'delete', relPath }) : undefined
+          }
+        />
+      </ul>
+
+      {folderAction?.kind === 'rename' && onRenameFolder && (
+        <FolderRenameDialog
+          fromDir={folderAction.relPath}
+          onClose={() => setFolderAction(null)}
+          onRename={onRenameFolder}
+        />
+      )}
+
+      {folderAction?.kind === 'delete' && onDeleteFolder && (
+        <FolderDeleteDialog
+          dir={folderAction.relPath}
+          onClose={() => setFolderAction(null)}
+          onDelete={onDeleteFolder}
+        />
+      )}
+    </>
   )
 }
 
@@ -211,6 +261,8 @@ function DirChildren({
   selectedPath,
   onSelectFile,
   onToggle,
+  onRenameFolder,
+  onDeleteFolder,
 }: {
   node: DirNode
   level: number
@@ -219,6 +271,8 @@ function DirChildren({
   selectedPath: string | null
   onSelectFile: (path: string) => void
   onToggle: (relPath: string) => void
+  onRenameFolder?: (relPath: string) => void
+  onDeleteFolder?: (relPath: string) => void
 }) {
   return (
     <>
@@ -232,6 +286,8 @@ function DirChildren({
           selectedPath={selectedPath}
           onSelectFile={onSelectFile}
           onToggle={onToggle}
+          onRenameFolder={onRenameFolder}
+          onDeleteFolder={onDeleteFolder}
         />
       ))}
       {node.files.map((f) => (
@@ -255,6 +311,8 @@ function DirRow({
   selectedPath,
   onSelectFile,
   onToggle,
+  onRenameFolder,
+  onDeleteFolder,
 }: {
   node: DirNode
   level: number
@@ -263,31 +321,69 @@ function DirRow({
   selectedPath: string | null
   onSelectFile: (path: string) => void
   onToggle: (relPath: string) => void
+  onRenameFolder?: (relPath: string) => void
+  onDeleteFolder?: (relPath: string) => void
 }) {
   const open = force || openSet.has(node.relPath)
   const directChildren = node.dirs.length + node.files.length
 
   return (
     <li role="treeitem" aria-expanded={open}>
-      <button
-        type="button"
-        onClick={() => onToggle(node.relPath)}
-        className="w-full flex items-center gap-1.5 py-1 px-1 rounded-md text-left hover:bg-(--surface-hover)"
+      <div
+        className="group w-full flex items-center gap-1.5 py-1 px-1 rounded-md hover:bg-(--surface-hover)"
         style={{ paddingLeft: indent(level) }}
-        title={node.name}
       >
-        <IconChevron
-          className="w-3 h-3 shrink-0 opacity-70"
-          style={{ transform: open ? 'rotate(90deg)' : undefined }}
-        />
-        {open ? (
-          <IconFolderOpen className="w-4 h-4 shrink-0" />
-        ) : (
-          <IconFolder className="w-4 h-4 shrink-0" />
+        <button
+          type="button"
+          onClick={() => onToggle(node.relPath)}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={node.name}
+        >
+          <IconChevron
+            className="w-3 h-3 shrink-0 opacity-70"
+            style={{ transform: open ? 'rotate(90deg)' : undefined }}
+          />
+          {open ? (
+            <IconFolderOpen className="w-4 h-4 shrink-0" />
+          ) : (
+            <IconFolder className="w-4 h-4 shrink-0" />
+          )}
+          <span className="truncate font-medium">{node.name}</span>
+        </button>
+        {(onRenameFolder || onDeleteFolder) && (
+          <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+            {onRenameFolder && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRenameFolder(node.relPath)
+                }}
+                className="inline-flex items-center justify-center rounded p-1 text-(--text-muted) hover:bg-(--surface-muted) hover:text-(--text-primary)"
+                aria-label={`Rename folder ${node.name}`}
+                title="Rename folder"
+              >
+                <IconEdit className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onDeleteFolder && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDeleteFolder(node.relPath)
+                }}
+                className="inline-flex items-center justify-center rounded p-1 text-red-600 hover:bg-(--surface-muted) hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                aria-label={`Delete folder ${node.name}`}
+                title="Delete folder"
+              >
+                <IconDelete className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </span>
         )}
-        <span className="truncate font-medium">{node.name}</span>
         <span
-          className="ml-auto rounded-full border px-1.5 py-[1px] text-[10px] tabular-nums"
+          className="ml-auto rounded-full border px-1.5 py-px text-[10px] tabular-nums"
           style={{
             borderColor: 'var(--border-subtle)',
             color: 'var(--text-muted)',
@@ -296,7 +392,7 @@ function DirRow({
         >
           {directChildren}
         </span>
-      </button>
+      </div>
       {open && (
         <ul role="group">
           <DirChildren
@@ -307,6 +403,8 @@ function DirRow({
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
             onToggle={onToggle}
+            onRenameFolder={onRenameFolder}
+            onDeleteFolder={onDeleteFolder}
           />
         </ul>
       )}
@@ -349,6 +447,107 @@ function FileRow({
         <span className="truncate">{node.name}</span>
       </button>
     </li>
+  )
+}
+
+function FolderRenameDialog({
+  fromDir,
+  onClose,
+  onRename,
+}: {
+  fromDir: string
+  onClose: () => void
+  onRename: (fromDir: string, toDir: string) => Promise<void> | void
+}) {
+  const [to, setTo] = useState(fromDir)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const normalized = to.trim().replace(/\/+$/, '')
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (normalized.length === 0 || normalized === fromDir || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onRename(fromDir, normalized)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename folder')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal isOpen onClose={onClose} title="Rename folder">
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        {error && <Alert>{error}</Alert>}
+        <Field label="New path" hint="Relative to the project root">
+          <Input autoFocus value={to} onChange={(e) => setTo(e.target.value)} />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            loading={submitting}
+            disabled={normalized.length === 0 || normalized === fromDir}
+          >
+            Rename
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function FolderDeleteDialog({
+  dir,
+  onClose,
+  onDelete,
+}: {
+  dir: string
+  onClose: () => void
+  onDelete: (dir: string) => Promise<void> | void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onConfirm = async () => {
+    if (submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onDelete(dir)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete folder')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal isOpen onClose={onClose} title="Delete folder" size="sm">
+      <div className="flex flex-col gap-4">
+        {error && <Alert>{error}</Alert>}
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Delete <span className="font-medium">&quot;{dir}&quot;</span> and everything inside it?
+          This cannot be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button variant="danger" type="button" onClick={onConfirm} loading={submitting}>
+            Delete
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

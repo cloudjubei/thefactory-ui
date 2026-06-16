@@ -66,7 +66,9 @@ function StatusIcon({ status, isConflicted }: { status?: string; isConflicted?: 
   }
   if (status === 'A') return <IconFileAdded size={16} color={ICON_TINT.A} />
   if (status === 'D') return <IconFileDeleted size={16} color={ICON_TINT.D} />
-  return <IconFileModified size={16} color={status ? (ICON_TINT[status] ?? ICON_TINT.X) : ICON_TINT.X} />
+  return (
+    <IconFileModified size={16} color={status ? (ICON_TINT[status] ?? ICON_TINT.X) : ICON_TINT.X} />
+  )
 }
 
 function ChangesPills({ file }: { file: GitFileEntryLike }) {
@@ -157,7 +159,7 @@ export default function GitFileRow({
       },
     })
   }
-  if (onRemove) {
+  if (onRemove && file.status !== 'D') {
     actions.push({
       key: 'remove',
       label: 'Delete file',
@@ -182,9 +184,7 @@ export default function GitFileRow({
           paddingVertical: nativeSpace[2],
           borderBottomWidth: 1,
           borderBottomColor: theme.border.subtle,
-          backgroundColor: file.isConflicted
-            ? 'rgba(220,38,38,0.06)'
-            : theme.surface.raised,
+          backgroundColor: file.isConflicted ? 'rgba(220,38,38,0.06)' : theme.surface.raised,
         }}
       >
         {onToggle ? (
@@ -199,9 +199,7 @@ export default function GitFileRow({
               height: 20,
               borderRadius: 4,
               borderWidth: 1.5,
-              borderColor: checked
-                ? theme.accent.primary
-                : theme.border.strong,
+              borderColor: checked ? theme.accent.primary : theme.border.strong,
               backgroundColor: checked ? theme.accent.primary : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',

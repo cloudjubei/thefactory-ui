@@ -302,6 +302,9 @@ import type {
   GitCommitData,
   GitCommitErrors,
   GitCommitResponses,
+  GitDiscardStagedData,
+  GitDiscardStagedErrors,
+  GitDiscardStagedResponses,
   GitDiscardUnstagedData,
   GitDiscardUnstagedErrors,
   GitDiscardUnstagedResponses,
@@ -2282,6 +2285,20 @@ export const gitDiscardUnstaged = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/git/discard-unstaged',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const gitDiscardStaged = <ThrowOnError extends boolean = false>(
+  options: Options<GitDiscardStagedData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<GitDiscardStagedResponses, GitDiscardStagedErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/discard-staged',
     ...options,
     headers: {
       'Content-Type': 'application/json',

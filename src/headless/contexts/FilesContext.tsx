@@ -59,6 +59,10 @@ export type FilesContextValue = {
   ) => Promise<string>
   deleteFiles: (paths: string[]) => Promise<void>
   renameFile: (from: string, to: string) => Promise<void>
+  /** Rename/move a folder — moves every file under `fromDir` to `toDir`. */
+  renameFolder: (fromDir: string, toDir: string) => Promise<void>
+  /** Delete a folder — removes every file nested under `dir`. */
+  deleteFolder: (dir: string) => Promise<void>
 
   /**
    * Read several files in one request. Returns a `FilesResult` keyed by
@@ -290,6 +294,42 @@ export function FilesProvider({ children }: { children: ReactNode }) {
     [requireProject, refresh, selectedPath],
   )
 
+  // Folder ops are synthesised from the file list: the backend speaks in
+  // files, so a folder rename moves every nested file and a folder delete
+  // removes them all. (Empty directories carry no files and so aren't
+  // affected — they aren't part of the file-list model.)
+  const deleteFolderImpl = useCallback(
+    async (dir: string) => {
+      const prefix = `${dir.replace(/\/+$/, '')}/`
+      const underFolder = paths.filter((p) => p.startsWith(prefix))
+      if (underFolder.length === 0) return
+      await deleteFilesImpl(underFolder)
+    },
+    [paths, deleteFilesImpl],
+  )
+
+  const renameFolderImpl = useCallback(
+    async (fromDir: string, toDir: string) => {
+      const id = requireProject()
+      const fromPrefix = `${fromDir.replace(/\/+$/, '')}/`
+      const toBase = toDir.replace(/\/+$/, '')
+      const moves = paths
+        .filter((p) => p.startsWith(fromPrefix))
+        .map((p) => ({ src: p, dst: `${toBase}/${p.slice(fromPrefix.length)}` }))
+      if (moves.length === 0) return
+      await renameFiles({
+        path: { projectId: id },
+        body: { moves },
+        throwOnError: true,
+      })
+      if (selectedPath?.startsWith(fromPrefix)) {
+        setSelectedPath(`${toBase}/${selectedPath.slice(fromPrefix.length)}`)
+      }
+      await refresh()
+    },
+    [paths, requireProject, refresh, selectedPath],
+  )
+
   const readPathsImpl = useCallback<FilesContextValue['readPaths']>(
     async (pathsToRead, opts) => {
       const id = requireProject()
@@ -321,6 +361,8 @@ export function FilesProvider({ children }: { children: ReactNode }) {
       uploadFile: uploadFileImpl,
       deleteFiles: deleteFilesImpl,
       renameFile: renameFileImpl,
+      renameFolder: renameFolderImpl,
+      deleteFolder: deleteFolderImpl,
       readPaths: readPathsImpl,
       refresh,
     }),
@@ -337,6 +379,8 @@ export function FilesProvider({ children }: { children: ReactNode }) {
       uploadFileImpl,
       deleteFilesImpl,
       renameFileImpl,
+      renameFolderImpl,
+      deleteFolderImpl,
       readPathsImpl,
       refresh,
     ],

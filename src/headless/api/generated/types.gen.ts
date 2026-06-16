@@ -5978,10 +5978,24 @@ export type WebSearchResultItem = {
   [key: string]: unknown
 }
 
+export type WebSearchProviderFailure = {
+  provider: string
+  status?: number
+  reason: string
+}
+
+export type WebSearchProviderHealth = {
+  provider: WebSearchProvider
+  ok: boolean
+  status?: number
+  reason?: string
+}
+
 export type WebSearchResponse = {
   provider: WebSearchProvider
   query: string
   items: Array<WebSearchResultItem>
+  degraded?: Array<WebSearchProviderFailure>
   raw?: unknown
 }
 
@@ -10372,6 +10386,51 @@ export type GitDiscardUnstagedResponses = {
 
 export type GitDiscardUnstagedResponse =
   GitDiscardUnstagedResponses[keyof GitDiscardUnstagedResponses]
+
+export type GitDiscardStagedData = {
+  body: {
+    paths: Array<string>
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/git/discard-staged'
+}
+
+export type GitDiscardStagedErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GitDiscardStagedError = GitDiscardStagedErrors[keyof GitDiscardStagedErrors]
+
+export type GitDiscardStagedResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    success: boolean
+    message?: string
+    output?: string
+  }
+}
+
+export type GitDiscardStagedResponse = GitDiscardStagedResponses[keyof GitDiscardStagedResponses]
 
 export type GetGitDiffData = {
   body?: never
