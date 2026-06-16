@@ -21,6 +21,12 @@ export type ChatSidebarPanelProps = {
   collapsedTitle?: string
   collapsedAriaLabel?: string
   expandedAriaLabel?: string
+  /**
+   * Render the panel as attached to a dialog/modal (vs docked to the screen
+   * edge): rounds the outer (right) corners to match the dialog, and shows
+   * only the single chat-icon button when collapsed.
+   */
+  attached?: boolean
   children: ReactNode | ((args: ChatSidebarPanelChildrenArgs) => ReactNode)
 }
 
@@ -44,6 +50,7 @@ export function ChatSidebarPanel({
   collapsedTitle,
   collapsedAriaLabel = 'Open chat',
   expandedAriaLabel = 'Chat sidebar',
+  attached = false,
   children,
 }: ChatSidebarPanelProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
@@ -105,18 +112,24 @@ export function ChatSidebarPanel({
   if (collapsed) {
     return (
       <aside
-        className="chat-collapsed-panel z-30 h-full bg-white dark:bg-neutral-900 border-l dark:border-neutral-800 collapsed"
+        className={`chat-collapsed-panel z-30 h-full bg-white dark:bg-neutral-900 border-l dark:border-neutral-800 collapsed${
+          attached ? ' rounded-r-lg' : ''
+        }`}
         style={{ width: COLLAPSED_W }}
       >
-        <button
-          type="button"
-          onClick={() => setCollapsed(false)}
-          className="btn-secondary btn-icon top"
-          aria-label="Expand chat sidebar"
-          title="Expand chat sidebar"
-        >
-          <IconChevron className="w-4 h-4" style={{ transform: 'rotate(180deg)' }} />
-        </button>
+        {attached ? (
+          <div className="top" />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            className="btn-secondary btn-icon top"
+            aria-label="Expand chat sidebar"
+            title="Expand chat sidebar"
+          >
+            <IconChevron className="w-4 h-4" style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        )}
         <button
           type="button"
           className="btn-secondary btn-icon center"
@@ -155,7 +168,7 @@ export function ChatSidebarPanel({
 
   return (
     <div
-      className="h-full border-l dark:border-neutral-800"
+      className={`h-full border-l dark:border-neutral-800${attached ? ' rounded-r-lg' : ''}`}
       style={outerStyle}
       role="complementary"
       aria-label={expandedAriaLabel}

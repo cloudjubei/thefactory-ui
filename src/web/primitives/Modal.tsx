@@ -172,16 +172,20 @@ export function Modal({
 
   const dialog = (
     <div
-      ref={panelRef}
+      // With a side panel, the focus trap + ref move to the group wrapper below
+      // so Tab also reaches the panel; the dialog keeps its dialog semantics.
+      ref={sidePanel ? undefined : panelRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={describedById}
-      onKeyDown={onPanelKeyDown}
+      onKeyDown={sidePanel ? undefined : onPanelKeyDown}
       className={[
         'relative',
-        sidePanel ? `${SIZE_WIDTH[size]} shrink-0` : `z-10 w-full ${SIZE_CLASS[size]}`,
-        'max-h-[90vh] flex flex-col rounded-lg border shadow-xl outline-none',
+        sidePanel
+          ? `${SIZE_WIDTH[size]} shrink-0 rounded-l-lg border`
+          : `z-10 w-full ${SIZE_CLASS[size]} rounded-lg border shadow-xl`,
+        'max-h-[90vh] flex flex-col outline-none',
         panelClassName,
       ]
         .filter(Boolean)
@@ -237,9 +241,15 @@ export function Modal({
         onMouseDown={onOverlayMouseDown}
       />
       {sidePanel ? (
-        <div className="relative z-10 flex items-stretch max-w-[96vw] max-h-[90vh]">
+        <div
+          ref={panelRef}
+          onKeyDown={onPanelKeyDown}
+          className="relative z-10 flex items-stretch max-w-[96vw] max-h-[90vh] rounded-lg shadow-xl"
+        >
           {dialog}
-          {sidePanel}
+          {/* Flex wrapper gives the side panel a definite, stretched height so
+              its `h-full` resolves (otherwise it collapses to its content). */}
+          <div className="flex">{sidePanel}</div>
         </div>
       ) : (
         dialog
