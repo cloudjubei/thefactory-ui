@@ -20,6 +20,8 @@ export { WriteMultiToolsPreview, type WriteMultiToolsPreviewProps } from './Writ
 
 export {
   renderToolPreviewNative,
+  hasToolPreview,
+  RECOGNIZED_TOOL_PREVIEW_NAMES,
   type FeatureShape,
   type RenderToolPreviewArgs,
   type StoryShape,

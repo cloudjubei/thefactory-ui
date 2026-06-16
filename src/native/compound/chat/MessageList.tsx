@@ -253,7 +253,7 @@ export default function MessageList({
           gap: nativeSpace[6],
         }}
       >
-        {systemPrompt && (
+        {systemPrompt && messages.length === 0 && (
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
         {startIndex > 0 && (
@@ -270,9 +270,7 @@ export default function MessageList({
               borderRadius: nativeRadii.round,
               borderWidth: 1,
               borderColor: theme.border.default,
-              backgroundColor: pressed
-                ? theme.surface.muted
-                : theme.surface.overlay,
+              backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
             })}
           >
             <Text style={{ fontSize: 12, color: theme.text.secondary }}>
@@ -367,9 +365,7 @@ export default function MessageList({
             ...nativeShadows[2],
           })}
         >
-          <Text style={{ fontSize: 12, color: theme.text.primary }}>
-            ↓ Scroll to latest
-          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>↓ Scroll to latest</Text>
         </Pressable>
       )}
     </View>

@@ -77,6 +77,29 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
 }
 
 /**
+ * Tool names {@link renderToolPreviewNative} renders with a dedicated drawer.
+ * Mirrors web's `RECOGNIZED_TOOL_PREVIEW_NAMES` (the dispatchers are parallel);
+ * the CLI transcript uses {@link hasToolPreview} to decide whether to delegate
+ * here or render its own generic drawer instead of the JSON fallback.
+ */
+export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
+  'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
+  'readPaths', 'readFileRanges', 'grepFiles', 'renamePath', 'deletePath', 'listStories',
+  'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
+  'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
+  'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
+  'gitDeleteBranch', 'gitListBranches', 'gitCreateMergePlan', 'gitApplyMerge', 'gitListStashes',
+  'gitAddStash', 'gitApplyStash', 'gitRemoveStash', 'webReadURLs', 'getAstOutline', 'getCode',
+  'getInterface', 'listContents', 'webSearch', 'runTests', 'runAllTests', 'runTestsCoverage',
+  'bash', 'runShellCommand', 'shell',
+])
+
+/** True when {@link renderToolPreviewNative} has a dedicated drawer for `name`. */
+export function hasToolPreview(name: string): boolean {
+  return RECOGNIZED_TOOL_PREVIEW_NAMES.has(name)
+}
+
+/**
  * Native peer of web's `renderToolPreview`. Returns the rich per-tool
  * preview React tree (View / Text / Code / UnifiedDiff) — the wrapper sheet
  * just hosts it. Same dispatch order as web so a chat rendered on both

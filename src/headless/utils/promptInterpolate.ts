@@ -79,3 +79,42 @@ export function interpolateChatSystemPrompt(
   if (!template) return template
   return interpolatePrompt(template, vars)
 }
+
+/**
+ * Resolve {@link PromptVariables} for a chat context from the available lookups, so a chat in ANY context
+ * type fills its placeholders: `project` always, plus `story` / `feature` / `group` when the context carries
+ * the matching id. A lookup returning undefined just leaves that group of placeholders to collapse to ''
+ * (interpolatePrompt never leaks raw braces). The single producer (`buildToolSettings`) calls this so the
+ * send path matches what the prompt viewer shows, for every context type.
+ */
+export function buildChatPromptVariables(
+  context: { storyId?: string; featureId?: string; groupId?: string },
+  lookups: {
+    project?: { id?: string; title?: string; description?: string }
+    getStory?: (
+      storyId: string,
+    ) => { id: string; title?: string; description?: string; features?: Array<{ id: string }> } | undefined
+    getFeature?: (
+      storyId: string,
+      featureId: string,
+    ) => { id: string; title?: string; description?: string } | undefined
+    getGroupById?: (groupId: string) => { id: string; title?: string; projects?: string[] } | undefined
+  },
+): PromptVariables {
+  const story = context.storyId && lookups.getStory ? lookups.getStory(context.storyId) : undefined
+  const feature =
+    context.storyId && context.featureId && lookups.getFeature
+      ? lookups.getFeature(context.storyId, context.featureId)
+      : undefined
+  const group = context.groupId && lookups.getGroupById ? lookups.getGroupById(context.groupId) : undefined
+  return {
+    ...(lookups.project ? { project: lookups.project } : {}),
+    ...(story
+      ? { story: { id: story.id, title: story.title, description: story.description, features: story.features } }
+      : {}),
+    ...(feature ? { feature: { id: feature.id, title: feature.title, description: feature.description } } : {}),
+    ...(group
+      ? { group: { id: group.id, title: group.title, projects: (group.projects ?? []).map((id) => ({ id })) } }
+      : {}),
+  }
+}

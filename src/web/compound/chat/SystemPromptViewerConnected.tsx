@@ -2,8 +2,10 @@ import { useMemo } from 'react'
 import { useChats } from "../../../headless"
 import { useStories } from "../../../headless"
 import { useActiveProject } from "../../../headless"
+import { useProjectsGroups } from "../../../headless"
+import { buildChatPromptVariables, interpolatePrompt } from "../../../headless"
 import type { ChatContext } from "../../../headless/api"
-import { interpolatePrompt, SystemPromptViewerModal, type PromptVariables } from "../.."
+import { SystemPromptViewerModal } from "../.."
 
 export type SystemPromptViewerConnectedProps = {
   isOpen: boolean
@@ -26,34 +28,17 @@ export default function SystemPromptViewerConnected({
   const { getEffectiveChatSettings } = useChats()
   const { project } = useActiveProject()
   const { getStory, getFeature } = useStories()
+  const { getGroupById } = useProjectsGroups()
 
   const prompt = useMemo(() => {
     if (!isOpen) return ''
     const template = getEffectiveChatSettings(context).systemPrompt ?? ''
     if (!template) return ''
-    const story = context.storyId ? getStory(context.storyId) : undefined
-    const feature =
-      context.storyId && context.featureId
-        ? getFeature(context.storyId, context.featureId)
-        : undefined
-    const vars: PromptVariables = {
-      project: project
-        ? { id: project.id, title: project.title, description: project.description }
-        : undefined,
-      story: story
-        ? {
-            id: story.id,
-            title: story.title,
-            description: story.description,
-            features: story.features,
-          }
-        : undefined,
-      feature: feature
-        ? { id: feature.id, title: feature.title, description: feature.description }
-        : undefined,
-    }
+    // Share the exact variable resolution the send path (`buildToolSettings`) uses, so the viewer can
+    // never drift from what the agent actually receives.
+    const vars = buildChatPromptVariables(context, { project, getStory, getFeature, getGroupById })
     return interpolatePrompt(template, vars)
-  }, [isOpen, context, getEffectiveChatSettings, project, getStory, getFeature])
+  }, [isOpen, context, getEffectiveChatSettings, project, getStory, getFeature, getGroupById])
 
   if (!isOpen) return null
   return <SystemPromptViewerModal isOpen onClose={onClose} title="System Prompt" prompt={prompt} />

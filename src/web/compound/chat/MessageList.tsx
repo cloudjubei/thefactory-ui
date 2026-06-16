@@ -154,9 +154,9 @@ export default function MessageList({
   }, [messages])
 
   // A leading synthetic `system` message is the interpolated system-prompt
-  // preview (real chat history never starts with a system role). Pin it as the
-  // collapsible SystemPromptBubble whenever present — not only when the chat is
-  // empty — so it doesn't unmount on the first send and shift the whole canvas.
+  // preview (real chat history never starts with a system role). It's always
+  // sliced off the displayed list; the collapsible SystemPromptBubble only
+  // renders while the chat has no other messages (see the render below).
   const systemPromptMessage =
     enhancedMessages.length > 0 && enhancedMessages[0].role === 'system'
       ? enhancedMessages[0]
@@ -522,7 +522,7 @@ export default function MessageList({
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
       onScroll={handleScroll}
     >
-      {systemPromptMessage ? (
+      {systemPromptMessage && messagesToDisplay.length === 0 ? (
         <SystemPromptBubble
           content={systemPromptMessage.content}
           timestamp={systemPromptMessage.startedAt}
@@ -555,7 +555,8 @@ export default function MessageList({
               onClick={() => setVisibleCount((c) => Math.min(totalMessages, c + BATCH_SIZE))}
               className="text-xs text-(--text-secondary) hover:text-(--text-primary) bg-(--surface-overlay) hover:bg-(--surface-raised) border border-(--border-subtle) rounded-full px-3 py-1 shadow transition-colors"
             >
-              {hiddenCountAbove} older message{hiddenCountAbove === 1 ? '' : 's'} hidden — click to load
+              {hiddenCountAbove} older message{hiddenCountAbove === 1 ? '' : 's'} hidden — click to
+              load
             </button>
           </div>
         )}

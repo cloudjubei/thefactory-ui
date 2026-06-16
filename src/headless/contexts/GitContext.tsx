@@ -164,7 +164,8 @@ export type GitContextValue = {
 
   checkout: (branch: string) => Promise<void>
   createBranch: (input: CreateBranchInput) => Promise<void>
-  deleteBranch: (name: string) => Promise<void>
+  /** Delete a local branch. `opts.force` maps to `git branch -D`. */
+  deleteBranch: (name: string, opts?: { force?: boolean }) => Promise<void>
 
   stash: (input?: StashInput) => Promise<GitStashResponse>
   applyStash: (input: StashApplyInput) => Promise<void>
@@ -805,11 +806,11 @@ export function GitProvider({ children, storage }: GitProviderProps) {
   )
 
   const deleteBranch = useCallback(
-    async (name: string) => {
+    async (name: string, opts?: { force?: boolean }) => {
       const id = requireProject()
       await deleteGitBranch({
         path: { projectId: id },
-        body: { name },
+        body: { name, ...(opts?.force ? { force: true } : {}) },
         throwOnError: true,
       })
       await refresh()

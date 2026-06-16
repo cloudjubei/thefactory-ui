@@ -27,8 +27,10 @@ import type {
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
-import { interpolateChatSystemPrompt } from '../utils/promptInterpolate'
+import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { useLLMConfigs } from './LLMConfigsContext'
+import { useStories } from './StoriesContext'
+import { useProjectsGroups } from './ProjectsGroupsContext'
 import { useActiveProject } from './ProjectsContext'
 
 type CompletionSettings = SendCompletionWithToolsData['body']['settings']
@@ -242,6 +244,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const { token } = useAuth()
     const { projectId, project } = useActiveProject()
     const { configs: llmConfigs, activeChatConfig } = useLLMConfigs()
+    // Resolve the chat's story / feature / group so their prompt placeholders fill on the send path
+    // (StoriesProvider + ProjectsGroupsProvider both wrap ChatsProvider in every app).
+    const { getStory, getFeature } = useStories()
+    const { getGroupById } = useProjectsGroups()
 
     const [chats, setChats] = useState<GetChatResponse[]>([])
     const [chatSettings, setChatSettings] = useState<GetChatsSettingsResponse | null>(null)
@@ -444,15 +450,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
         const entry = chatSettings?.[context.type]
         const base = entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
-        // Interpolate `{{project_*}}` (etc.) BEFORE the prompt goes on the wire — the model must receive
-        // the resolved project context, not the raw template the viewer renders separately.
-        const systemPrompt = interpolateChatSystemPrompt(entry?.systemPrompt, { project })
+        // Interpolate `{{project_*}}` / `{{story_*}}` / `{{feature_*}}` / `{{group_*}}` BEFORE the prompt
+        // goes on the wire — the model must receive the resolved context, not the raw template the viewer
+        // renders separately.
+        const vars = buildChatPromptVariables(context, { project, getStory, getFeature, getGroupById })
+        const systemPrompt = interpolateChatSystemPrompt(entry?.systemPrompt, vars)
         return {
           settings: { ...base, autoCallTools: [] },
           systemPrompt,
         }
       },
-      [chatSettings, project],
+      [chatSettings, project, getStory, getFeature, getGroupById],
     )
 
     const sendMessage = useCallback(

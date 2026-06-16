@@ -365,7 +365,12 @@ export {
 export { tokenizeRichText, type RichTextSegment } from './utils/richTextTokenize'
 
 // Chat system-prompt `{{placeholder}}` interpolation
-export { interpolatePrompt, type PromptVariables } from './utils/promptInterpolate'
+export {
+  interpolatePrompt,
+  interpolateChatSystemPrompt,
+  buildChatPromptVariables,
+  type PromptVariables,
+} from './utils/promptInterpolate'
 
 // Pure git/diff helpers single-sourced in `thefactory-tools/utils`, re-exported
 // here so apps consume them through `thefactory-ui` rather than importing

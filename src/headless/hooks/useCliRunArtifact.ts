@@ -13,6 +13,7 @@ import {
   type GitDiffSummary,
   type GitMergeResult,
 } from '../api/generated'
+import { useApi } from '../api/ApiContext'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
 
 export type UseCliRunArtifact = {
@@ -88,13 +89,18 @@ export function useCliRunArtifact(
   const [mergeResult, setMergeResult] = useState<GitMergeResult | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [fetchNonce, setFetchNonce] = useState(0)
+  const { ws } = useApi()
   // Bumped whenever the target run changes; in-flight responses from a prior
   // epoch are discarded so a remounted-in-place panel never shows another run's
   // diff or result.
   const epochRef = useRef(0)
+  // Highest transcript-entry timestamp surfaced so far; live appends older than
+  // this (e.g. re-sent during the initial load race) are skipped.
+  const lastAtRef = useRef(0)
 
   useEffect(() => {
     epochRef.current += 1
+    lastAtRef.current = 0
     setArtifact(undefined)
     setTranscript([])
     setReview(undefined)
@@ -111,7 +117,9 @@ export function useCliRunArtifact(
       .then(({ data }) => {
         if (epoch !== epochRef.current) return
         setArtifact(filesEmittedArtifactOf(data.artifacts))
-        setTranscript(data.transcript ?? [])
+        const entries = data.transcript ?? []
+        setTranscript(entries)
+        lastAtRef.current = entries.reduce((m, e) => Math.max(m, e.at), lastAtRef.current)
         setReview(data.review ?? undefined)
       })
       .catch((err: unknown) => {
@@ -121,6 +129,39 @@ export function useCliRunArtifact(
         if (epoch === epochRef.current) setLoading(false)
       })
   }, [runId, fetchNonce])
+
+  // Live transcript: append entries as the run streams them. Filtered by runId
+  // (the effect re-subscribes when runId changes), monotonic on `at` to drop
+  // load-race re-sends. On terminal, refetch once to reconcile to the canonical
+  // record (and surface the final artifact + review).
+  useEffect(() => {
+    if (!runId) return
+    const off = ws.on('cli:run-update', (data: unknown) => {
+      const d = data as {
+        runId?: string
+        type?: string
+        event?: { entry?: CliRunTranscriptEntry }
+      }
+      if (d.runId !== runId) return
+      if (d.type === 'transcriptAppend' && d.event?.entry) {
+        const entry = d.event.entry
+        if (entry.at < lastAtRef.current) return
+        lastAtRef.current = entry.at
+        setTranscript((prev) => [...prev, entry])
+      } else if (d.type === 'finished' || d.type === 'error') {
+        void getCliAgentRun({ path: { runId }, throwOnError: true })
+          .then(({ data: run }) => {
+            setArtifact(filesEmittedArtifactOf(run.artifacts))
+            const entries = run.transcript ?? []
+            setTranscript(entries)
+            lastAtRef.current = entries.reduce((m, e) => Math.max(m, e.at), 0)
+            setReview(run.review ?? undefined)
+          })
+          .catch(() => {})
+      }
+    })
+    return () => off()
+  }, [runId, ws])
 
   const reload = useCallback(() => setFetchNonce((n) => n + 1), [])
 

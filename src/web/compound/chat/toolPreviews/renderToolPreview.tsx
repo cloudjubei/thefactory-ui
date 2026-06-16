@@ -96,6 +96,30 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  * resultType}) => renderToolPreview({toolCall, result, resultType,
  * hooks})}>`. Tool-call hover cards then show the rich body.
  */
+/**
+ * Tool names that {@link renderToolPreview} renders with a dedicated drawer
+ * (everything else falls through to the raw-JSON fallback). Kept in sync with
+ * the `name === '…'` branches below — callers (e.g. the CLI run transcript) use
+ * {@link hasToolPreview} to decide whether to delegate here or render their own
+ * generic drawer instead of the JSON fallback.
+ */
+export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
+  'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
+  'readPaths', 'readFileRanges', 'grepFiles', 'renamePath', 'deletePath', 'listStories',
+  'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
+  'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
+  'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
+  'gitDeleteBranch', 'gitListBranches', 'gitCreateMergePlan', 'gitApplyMerge', 'gitListStashes',
+  'gitAddStash', 'gitApplyStash', 'gitRemoveStash', 'webReadURLs', 'getAstOutline', 'getCode',
+  'getInterface', 'listContents', 'webSearch', 'runTests', 'runAllTests', 'runTestsCoverage',
+  'bash', 'runShellCommand', 'shell',
+])
+
+/** True when {@link renderToolPreview} has a dedicated drawer for `name`. */
+export function hasToolPreview(name: string): boolean {
+  return RECOGNIZED_TOOL_PREVIEW_NAMES.has(name)
+}
+
 export function renderToolPreview({
   toolCall,
   result,

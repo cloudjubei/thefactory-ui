@@ -94,15 +94,6 @@ export function cliAssistantTextFromEntry(entry: CliRunTranscriptEntry): string 
     .join('')
 }
 
-const TRANSCRIPT_KIND_LABEL: Record<CliRunTranscriptEntry['kind'], string> = {
-  assistant: 'Assistant',
-  'tool-call': 'Tool call',
-  'tool-result': 'Tool result',
-  system: 'System',
-  result: 'Result',
-  other: 'Step',
-}
-
 function asTranscriptRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
@@ -141,30 +132,253 @@ export function cliToolNameFromEntry(entry: CliRunTranscriptEntry): string | und
   return undefined
 }
 
-/** A transcript entry reduced to what the inspector panel renders. */
-export type CliTranscriptEntryView = {
-  /** Short heading: the kind (e.g. "Tool call") plus the tool name when known. */
-  label: string
-  /** Most human-readable rendering — assistant prose where extractable, else the raw JSON. */
-  detail: string
-  /** The full pretty-printed payload, always available for thorough inspection. */
-  raw: string
+/** Strip an MCP server prefix (`mcp__<server>__name` → `name`) so a CLI's
+ * call to one of our MCP tools matches our internal tool-preview names. */
+export function cleanCliToolName(name: string): string {
+  return name.replace(/^mcp__.+?__/, '')
+}
+
+/** Outcome class for a finished CLI tool step. */
+export type CliToolStepResultType = 'success' | 'errored' | 'pending'
+
+/**
+ * A CLI transcript reduced to readable, render-ready steps. Tool calls and
+ * their later results are merged into a single `tool` step (paired by id), so
+ * a consumer can render one drawer per logical operation — VS Code style.
+ */
+export type CliTranscriptStep =
+  | { kind: 'thinking'; at: number; text: string }
+  | { kind: 'assistant'; at: number; text: string }
+  | { kind: 'system'; at: number; summary: string; raw: string }
+  | {
+      kind: 'tool'
+      at: number
+      /** Tool name with any MCP prefix stripped (matches our preview names when recognized). */
+      toolName: string
+      /** The id used to pair the call with its result (`tool_use.id` / `call_id` / `item.id`). */
+      toolCallId?: string
+      /** Parsed call arguments, when extractable. */
+      input?: unknown
+      /** The tool's result once it arrives; undefined while the call is in flight. */
+      result?: unknown
+      resultType: CliToolStepResultType
+    }
+  | { kind: 'result'; at: number; summary: string; raw: string }
+  | { kind: 'raw'; at: number; raw: string }
+
+type CliToolStep = Extract<CliTranscriptStep, { kind: 'tool' }>
+
+function firstKey(obj: Record<string, unknown> | undefined): string | undefined {
+  if (!obj) return undefined
+  for (const k of Object.keys(obj)) return k
+  return undefined
+}
+
+function asString(v: unknown): string | undefined {
+  return typeof v === 'string' ? v : undefined
+}
+
+/** Best-effort thinking text (Claude extended-thinking `thinking` content blocks). */
+export function cliThinkingTextFromEntry(entry: CliRunTranscriptEntry): string {
+  if (entry.kind !== 'assistant') return ''
+  const content = asTranscriptRecord(asTranscriptRecord(entry.payload)?.message)?.content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((b) => asTranscriptRecord(b))
+    .filter((b): b is Record<string, unknown> => !!b && b.type === 'thinking' && typeof b.thinking === 'string')
+    .map((b) => b.thinking as string)
+    .join('\n')
+    .trim()
+}
+
+type ExtractedCall = { toolName: string; toolCallId?: string; input?: unknown }
+
+function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
+  const p = asTranscriptRecord(entry.payload)
+  // Cursor: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }
+  const cursorTc = asTranscriptRecord(p?.tool_call)
+  if (cursorTc) {
+    const key = firstKey(cursorTc) ?? 'tool'
+    const inner = asTranscriptRecord(cursorTc[key])
+    return { toolName: cleanCliToolName(key.replace(/ToolCall$/, '')), toolCallId: asString(p?.call_id), input: inner?.args }
+  }
+  // Codex: { type:'item.started', item: { type:'command_execution', command, id } }
+  const item = asTranscriptRecord(p?.item)
+  if (item && typeof item.type === 'string') {
+    const input = item.command != null ? { command: item.command } : item
+    return { toolName: cleanCliToolName(item.type), toolCallId: asString(item.id), input }
+  }
+  // Claude Code: { type:'assistant', message:{ content:[{type:'tool_use', id, name, input}] } }
+  const content = asTranscriptRecord(p?.message)?.content
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      const b = asTranscriptRecord(block)
+      if (b && (b.type === 'tool_use' || b.type === 'tool_call') && typeof b.name === 'string') {
+        return { toolName: cleanCliToolName(b.name), toolCallId: asString(b.id), input: b.input }
+      }
+    }
+  }
+  // Generic.
+  return {
+    toolName: cleanCliToolName(asString(p?.name) ?? 'tool'),
+    toolCallId: asString(p?.id),
+    input: p?.input,
+  }
+}
+
+type ExtractedResult = {
+  toolName?: string
+  toolCallId?: string
+  result: unknown
+  resultType: CliToolStepResultType
+}
+
+function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
+  const p = asTranscriptRecord(entry.payload)
+  // Cursor completed: tool_call: { <name>ToolCall: { args, result: { success | error | failure } } }
+  const cursorTc = asTranscriptRecord(p?.tool_call)
+  if (cursorTc) {
+    const key = firstKey(cursorTc) ?? 'tool'
+    const inner = asTranscriptRecord(cursorTc[key])
+    const r = asTranscriptRecord(inner?.result)
+    const errored = !!r && ('error' in r || 'failure' in r)
+    return {
+      toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
+      toolCallId: asString(p?.call_id),
+      result: inner?.result,
+      resultType: errored ? 'errored' : 'success',
+    }
+  }
+  // Codex completed: item: { type:'command_execution', aggregated_output, exit_code, id }
+  const item = asTranscriptRecord(p?.item)
+  if (item && 'aggregated_output' in item) {
+    const exit = item.exit_code
+    const resultType: CliToolStepResultType =
+      exit == null ? 'success' : exit === 0 ? 'success' : 'errored'
+    return {
+      toolName: typeof item.type === 'string' ? cleanCliToolName(item.type) : undefined,
+      toolCallId: asString(item.id),
+      result: { output: item.aggregated_output, exitCode: exit },
+      resultType,
+    }
+  }
+  // Claude Code: { type:'user', message:{ content:[{type:'tool_result', tool_use_id, content, is_error?}] } }
+  const content = asTranscriptRecord(p?.message)?.content
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      const b = asTranscriptRecord(block)
+      if (b && b.type === 'tool_result') {
+        return {
+          toolCallId: asString(b.tool_use_id),
+          result: maybeParseJson(b.content),
+          resultType: b.is_error ? 'errored' : 'success',
+        }
+      }
+    }
+  }
+  // Generic.
+  return { toolCallId: asString(p?.id), result: p?.result ?? entry.payload, resultType: 'success' }
+}
+
+/** Our MCP tools return their result as a JSON string; parse it so recognized
+ * tool-preview drawers receive the structured object they expect. */
+function maybeParseJson(v: unknown): unknown {
+  if (typeof v !== 'string') return v
+  const t = v.trim()
+  if (!t || (t[0] !== '{' && t[0] !== '[')) return v
+  try {
+    return JSON.parse(t)
+  } catch {
+    return v
+  }
+}
+
+function summarizeCliSystem(entry: CliRunTranscriptEntry): string {
+  const p = asTranscriptRecord(entry.payload)
+  const subtype = asString(p?.subtype)
+  const type = asString(p?.type)
+  if (subtype === 'init' || type === 'thread.started') {
+    const model = asString(p?.model)
+    return model ? `Session started · ${model}` : 'Session started'
+  }
+  if (type === 'turn.started') return 'Turn started'
+  return subtype ? `${type ?? 'system'} · ${subtype}` : (type ?? 'System')
+}
+
+function summarizeCliResult(entry: CliRunTranscriptEntry): string {
+  const p = asTranscriptRecord(entry.payload)
+  const type = asString(p?.type)
+  if (type === 'turn.failed' || p?.is_error === true || asString(p?.subtype) === 'error') return 'Failed'
+  const ms = p?.duration_ms
+  return typeof ms === 'number' ? `Completed in ${(ms / 1000).toFixed(1)}s` : 'Completed'
 }
 
 /**
- * Reduce one CLI transcript entry to a readable {@link CliTranscriptEntryView}.
- * `detail` prefers extracted prose (assistant text) and otherwise falls back to
- * the pretty-printed payload; `raw` is always the pretty payload so the panel
- * can offer a "show raw" toggle only when it differs from `detail`.
+ * Reduce a CLI run's flat transcript into readable, render-ready steps: prose
+ * (assistant), extended-thinking (Claude), protocol notes (system), final
+ * status (result), and one merged `tool` step per logical operation — the
+ * `tool-call` entry paired with its later `tool-result` by id. Pure; the live
+ * panel re-runs it on every append.
  */
-export function cliTranscriptEntryView(entry: CliRunTranscriptEntry): CliTranscriptEntryView {
-  const base = TRANSCRIPT_KIND_LABEL[entry.kind] ?? 'Step'
-  const toolName = entry.kind === 'tool-call' ? cliToolNameFromEntry(entry) : undefined
-  const label = toolName ? `${base} · ${toolName}` : base
-  const raw = safeTranscriptJson(entry.payload)
-  const prose = entry.kind === 'assistant' ? cliAssistantTextFromEntry(entry) : ''
-  const detail = prose.trim() ? prose : raw
-  return { label, detail, raw }
+export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTranscriptStep[] {
+  const steps: CliTranscriptStep[] = []
+  const toolIndexById = new Map<string, number>()
+
+  for (const entry of entries) {
+    switch (entry.kind) {
+      case 'assistant': {
+        const thinking = cliThinkingTextFromEntry(entry)
+        if (thinking) steps.push({ kind: 'thinking', at: entry.at, text: thinking })
+        const text = cliAssistantTextFromEntry(entry)
+        if (text.trim()) steps.push({ kind: 'assistant', at: entry.at, text })
+        break
+      }
+      case 'tool-call': {
+        const call = extractCliToolCall(entry)
+        const step: CliToolStep = {
+          kind: 'tool',
+          at: entry.at,
+          toolName: call.toolName,
+          toolCallId: call.toolCallId,
+          input: call.input,
+          result: undefined,
+          resultType: 'pending',
+        }
+        steps.push(step)
+        if (call.toolCallId) toolIndexById.set(call.toolCallId, steps.length - 1)
+        break
+      }
+      case 'tool-result': {
+        const res = extractCliToolResult(entry)
+        const idx = res.toolCallId ? toolIndexById.get(res.toolCallId) : undefined
+        const existing = idx != null ? steps[idx] : undefined
+        if (existing && existing.kind === 'tool') {
+          existing.result = res.result
+          existing.resultType = res.resultType
+        } else {
+          steps.push({
+            kind: 'tool',
+            at: entry.at,
+            toolName: res.toolName ?? 'tool',
+            toolCallId: res.toolCallId,
+            input: undefined,
+            result: res.result,
+            resultType: res.resultType,
+          })
+        }
+        break
+      }
+      case 'system':
+        steps.push({ kind: 'system', at: entry.at, summary: summarizeCliSystem(entry), raw: safeTranscriptJson(entry.payload) })
+        break
+      case 'result':
+        steps.push({ kind: 'result', at: entry.at, summary: summarizeCliResult(entry), raw: safeTranscriptJson(entry.payload) })
+        break
+      default:
+        steps.push({ kind: 'raw', at: entry.at, raw: safeTranscriptJson(entry.payload) })
+    }
+  }
+  return steps
 }
 
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */

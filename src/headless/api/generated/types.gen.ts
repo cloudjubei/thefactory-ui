@@ -9621,6 +9621,7 @@ export type GetGitStatusResponse = GetGitStatusResponses[keyof GetGitStatusRespo
 export type DeleteGitBranchData = {
   body: {
     name: string
+    force?: boolean
   }
   path: {
     projectId: string
