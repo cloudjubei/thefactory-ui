@@ -77,3 +77,16 @@ The layered app-settings primitive already stores a `language` per user (the `se
 The deferred task is the actual i18n pass: give template apps a string catalogue keyed by `language`, fall back to English for missing keys, and re-render on a settings change. Decide the mechanism (a tiny per-template `i18n.js` dictionary vs. a shared catalogue format) when picking it up; it should compose with the existing `resolveLayers` output so a per-app language override Just Works.
 
 Deferred deliberately — the user asked to ship the locale/region machinery now and keep all in-app text English. No trigger yet; pick up when a template needs to ship in a non-English market.
+
+### C.3 Files tree: show empty folders
+
+The Files tree never renders an empty directory. The data source is files-only: thefactory-tools `getAllFileStats` (`listAllFileStats`/`walk` in `src/git/GitTools.ts`) recurses into directories but emits an entry only for each file, and `FileMeta` (`src/file/fileTypes.ts`) has no directory marker. So an empty folder produces no path segment and `FileTree.buildTree` (web + native) — which infers dirs purely from file path prefixes — never creates a node for it.
+
+The fix is a cross-repo data-model change:
+
+- **thefactory-tools** — add a directory marker to `FileMeta` (e.g. `isDir?: boolean` / `kind`) and emit directory entries (including empty ones) from `getAllFileStats` + the `FilesWatcherWithIndex` listing. Rebuild dist with `tsc -p tsconfig.json`.
+- **thefactory-backend** — extend `FileMetaSchema` with the marker; regenerate swagger.
+- **thefactory-ui (generated client)** — regenerate types via `generate:backend` so `FileMeta` carries the marker.
+- **`FileTree` (web + native)** — `buildTree` consumes explicit dir entries (create empty `DirNode`s), and `countLeafFiles` / the `onVisibleCountChange` count exclude directory rows. Host `FilesView`/`FilesListView` map the marker into `FileTreeEntry`.
+
+Deferred because it can't be done client-side (the client never receives empty-dir info) and needs codegen + a runtime check across four repos. No trigger; pick up when empty folders need to be visible (e.g. a scaffolded-but-empty directory in a template repo).
