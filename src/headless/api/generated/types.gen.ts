@@ -10327,6 +10327,52 @@ export type GitResetResponses = {
 
 export type GitResetResponse = GitResetResponses[keyof GitResetResponses]
 
+export type GitDiscardUnstagedData = {
+  body: {
+    paths: Array<string>
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/git/discard-unstaged'
+}
+
+export type GitDiscardUnstagedErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GitDiscardUnstagedError = GitDiscardUnstagedErrors[keyof GitDiscardUnstagedErrors]
+
+export type GitDiscardUnstagedResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    success: boolean
+    message?: string
+    output?: string
+  }
+}
+
+export type GitDiscardUnstagedResponse =
+  GitDiscardUnstagedResponses[keyof GitDiscardUnstagedResponses]
+
 export type GetGitDiffData = {
   body?: never
   path: {

@@ -302,6 +302,9 @@ import type {
   GitCommitData,
   GitCommitErrors,
   GitCommitResponses,
+  GitDiscardUnstagedData,
+  GitDiscardUnstagedErrors,
+  GitDiscardUnstagedResponses,
   GitFetchData,
   GitFetchErrors,
   GitFetchResponses,
@@ -2261,6 +2264,24 @@ export const gitReset = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/git/reset',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const gitDiscardUnstaged = <ThrowOnError extends boolean = false>(
+  options: Options<GitDiscardUnstagedData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GitDiscardUnstagedResponses,
+    GitDiscardUnstagedErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/discard-unstaged',
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -10,6 +10,7 @@ import {
   getGitLocalDiff,
   getGitLog,
   gitApplyPatch,
+  gitDiscardUnstaged,
   gitResetAll,
   gitCheckout,
   gitCommit,
@@ -133,7 +134,14 @@ export type GitContextValue = {
 
   stage: (paths: string[]) => Promise<void>
   unstage: (paths: string[]) => Promise<void>
+  /** Discard both staged and unstaged changes for paths (restore to HEAD). */
   reset: (paths: string[]) => Promise<void>
+  /**
+   * Discard only the unstaged changes for paths (restore the working tree to
+   * the index), leaving staged changes intact. The counterpart to `unstage`,
+   * which discards only the staged changes.
+   */
+  discardUnstaged: (paths: string[]) => Promise<void>
   /** `git rm` equivalent — drops working-tree files via the files API. */
   removeFiles: (paths: string[]) => Promise<void>
   /**
@@ -713,6 +721,15 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     [requireProject, refresh],
   )
 
+  const discardUnstaged = useCallback(
+    async (paths: string[]) => {
+      const id = requireProject()
+      await gitDiscardUnstaged({ path: { projectId: id }, body: { paths }, throwOnError: true })
+      await refresh()
+    },
+    [requireProject, refresh],
+  )
+
   const removeFiles = useCallback(
     async (paths: string[]) => {
       const id = requireProject()
@@ -865,6 +882,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       stage,
       unstage,
       reset,
+      discardUnstaged,
       removeFiles,
       applyPatch,
       checkout,
@@ -907,6 +925,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       stage,
       unstage,
       reset,
+      discardUnstaged,
       removeFiles,
       applyPatch,
       checkout,
