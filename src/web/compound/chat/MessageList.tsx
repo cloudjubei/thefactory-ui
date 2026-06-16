@@ -53,9 +53,14 @@ export type MessageListProps = {
   isThinking?: boolean
   /** Stub for a streaming-pending assistant turn rendered as the last bubble. */
   pending?: { role: 'user' | 'assistant'; content: string } | null
-  /** Active CLI run id while it streams: renders the live Agent-run panel as the
-   * trailing element (in place of the raw-text pending bubble). */
+  /** Active CLI run id while it streams: renders the live run as a trailing
+   * assistant message (model chip + transcript + final reply) in place of the
+   * raw-text pending bubble. */
   pendingCliRunId?: string
+  /** Model tag for the live CLI run — drives the live message's model chip. */
+  pendingCliModel?: string
+  /** ISO start time of the live CLI run — the live message's timestamp. */
+  pendingCliStartedAt?: string
   /** When the last user message exceeds this offset from the top, the list
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */
@@ -117,6 +122,8 @@ export default function MessageList({
   isThinking = false,
   pending = null,
   pendingCliRunId,
+  pendingCliModel,
+  pendingCliStartedAt,
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
@@ -675,7 +682,34 @@ export default function MessageList({
           </div>
         ) : null}
 
-        {pending?.role === 'assistant' ? (
+        {/* Live CLI run: render it AS an assistant message (model chip + start
+            time + the streaming transcript, final reply at the end) so it reads
+            like the eventual persisted reply and the transition is seamless —
+            instead of a bare panel that flashes into the final message. */}
+        {pendingCliRunId ? (
+          <MessageRow
+            msg={{
+              role: 'assistant',
+              content: '',
+              cliRunId: pendingCliRunId,
+              model: pendingCliModel,
+              showModel: !!pendingCliModel,
+              startedAt: pendingCliStartedAt,
+              isFirstInGroup: true,
+            }}
+            globalIndex={messagesToDisplay.length}
+            totalMessages={totalMessages + 1}
+            isThinking={isThinking}
+            isLast
+            prevUserMessagesLen={prevUserMessagesLenRef.current}
+            enhancedTotalLength={messagesToDisplay.length + 1}
+            renderToolResult={renderToolResult}
+            getToolHeaderPath={getToolHeaderPath}
+            onResolveFile={onResolveFile}
+            renderDependency={renderDependency}
+            renderCliRunArtifact={renderCliRunArtifact}
+          />
+        ) : pending?.role === 'assistant' ? (
           <MessageRow
             msg={{ role: 'assistant', content: pending.content }}
             globalIndex={messagesToDisplay.length}
@@ -690,10 +724,6 @@ export default function MessageList({
             renderDependency={renderDependency}
           />
         ) : null}
-        {/* Live CLI run: show the Agent-run panel (streaming transcript with the
-            current operation expanded) the whole time, instead of a raw-text
-            bubble that pops in blocks and then flashes into the final message. */}
-        {pendingCliRunId ? renderCliRunArtifact?.(pendingCliRunId) : null}
         {isThinking && !pending && !pendingCliRunId ? <ThinkingRow /> : null}
       </div>
     </div>

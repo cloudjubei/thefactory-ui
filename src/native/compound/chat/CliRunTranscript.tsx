@@ -143,10 +143,40 @@ function CommandBody({ input, result }: { input?: unknown; result?: unknown }) {
 }
 
 function GenericToolBody({ input, result }: { input?: unknown; result?: unknown }) {
+  const { theme } = useNativeTheme()
+  const label = { fontSize: 10, fontWeight: '600' as const, color: theme.text.secondary, marginBottom: 2 }
+  const resultText = typeof result === 'string' ? result : result != null ? safeJson(result) : ''
+  const argEntries =
+    input && typeof input === 'object' && !Array.isArray(input)
+      ? Object.entries(input as Record<string, unknown>)
+      : null
   return (
     <View style={{ gap: 6 }}>
-      {input != null ? <PreLimited lines={safeJson(input).split('\n')} maxLines={8} /> : null}
-      {result != null ? <PreLimited lines={safeJson(result).split('\n')} maxLines={14} /> : null}
+      {input != null ? (
+        <View>
+          <Text style={label}>INPUT</Text>
+          {argEntries && argEntries.length > 0 ? (
+            <View style={{ gap: 2 }}>
+              {argEntries.map(([k, v]) => (
+                <View key={k} style={{ flexDirection: 'row', gap: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>{k}</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Courier', color: theme.text.primary, flexShrink: 1 }}>
+                    {typeof v === 'string' ? v : safeJson(v)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <PreLimited lines={safeJson(input).split('\n')} maxLines={8} />
+          )}
+        </View>
+      ) : null}
+      {resultText ? (
+        <View>
+          <Text style={label}>RESULT</Text>
+          <PreLimited lines={resultText.split('\n')} maxLines={14} />
+        </View>
+      ) : null}
     </View>
   )
 }

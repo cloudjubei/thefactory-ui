@@ -346,6 +346,13 @@ function MessageRow({
             </div>
           ) : null}
 
+          {/* For a CLI agent message the run transcript renders ABOVE the prose:
+              the tool steps are the work, and the assistant's reply is the
+              conclusion at the end of the agent-run view. */}
+          {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
+            <div className="w-full">{renderCliRunArtifact(msg.cliRunId)}</div>
+          ) : null}
+
           {msg.content && !isTool ? (
             <div
               className={[
@@ -358,6 +365,7 @@ function MessageRow({
                     : 'bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle) rounded-bl-md',
                 msg.isFirstInGroup ? '' : isUser ? 'rounded-tr-md' : 'rounded-tl-md',
                 isNewUserBubble ? 'animate-fade-in' : '',
+                msg.cliRunId ? 'mt-2' : '',
               ].join(' ')}
             >
               {isUser ? (
@@ -374,10 +382,6 @@ function MessageRow({
                 </CollapsibleContent>
               )}
             </div>
-          ) : null}
-
-          {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
-            <div className="w-full">{renderCliRunArtifact(msg.cliRunId)}</div>
           ) : null}
 
           {isTool && msg.toolCall ? (

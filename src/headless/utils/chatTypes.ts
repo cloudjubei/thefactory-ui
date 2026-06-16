@@ -110,6 +110,11 @@ export type ChatLiveStateLike = {
   pendingToolConfirmation: PendingToolConfirmationLike | null
   sendError: Error | null
   /** Active CLI run id while it streams. When set, the chat shows the live
-   * Agent-run panel (streaming transcript) instead of a raw-text pending bubble. */
+   * Agent-run message (framed like the persisted reply) instead of a raw-text bubble. */
   cliRunId?: string | null
+  /** Model tag (`cli-agent/<tool>/<modelId>`) for the active CLI run — drives the
+   * live Agent-run message's model chip. */
+  cliModel?: string | null
+  /** ISO start time of the active CLI run — the live Agent-run message's timestamp. */
+  cliStartedAt?: string | null
 }

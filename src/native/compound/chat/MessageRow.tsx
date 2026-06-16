@@ -406,6 +406,12 @@ function MessageRow({
           </Text>
         )}
 
+        {/* CLI agent message: the run transcript renders ABOVE the prose — tool
+            steps are the work, the reply is the conclusion at the end. */}
+        {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
+          <View style={{ width: '100%' }}>{renderCliRunArtifact(msg.cliRunId)}</View>
+        ) : null}
+
         {msg.content && !isTool && (
           <View
             style={[
@@ -451,10 +457,6 @@ function MessageRow({
             </CollapsibleContent>
           </View>
         )}
-
-        {isAssistant && msg.cliRunId && renderCliRunArtifact ? (
-          <View style={{ width: '100%' }}>{renderCliRunArtifact(msg.cliRunId)}</View>
-        ) : null}
 
         {isTool && msg.toolCall && (
           <View style={{ width: '100%' }}>

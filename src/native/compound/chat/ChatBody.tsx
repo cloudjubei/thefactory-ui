@@ -139,6 +139,8 @@ export default function ChatBody({
           isThinking={liveState.isSending && !cliRunId}
           pending={pending}
           pendingCliRunId={cliRunId}
+          pendingCliModel={liveState.cliModel ?? undefined}
+          pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           systemPrompt={systemPrompt}
           systemPromptTimestamp={systemPromptTimestamp}
           numberMessagesToSend={numberMessagesToSend}

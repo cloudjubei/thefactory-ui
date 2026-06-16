@@ -162,6 +162,8 @@ export default function ChatBody({
           isThinking={isSending && !pendingAssistant && !cliRunId}
           pending={pendingForList}
           pendingCliRunId={cliRunId}
+          pendingCliModel={liveState.cliModel ?? undefined}
+          pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           renderToolResult={renderToolResult}
           getToolHeaderPath={getToolHeaderPath}
           onResolveFile={onResolveFile}

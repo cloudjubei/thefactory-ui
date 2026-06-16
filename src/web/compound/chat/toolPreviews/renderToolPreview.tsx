@@ -105,6 +105,7 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  */
 export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
+  'getStory', 'proposePr', 'proposeCommitToRealRepo',
   'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
   'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
   'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
@@ -295,6 +296,54 @@ export function renderToolPreview({
     )
   }
 
+  if (name === 'getStory') {
+    const storyId = tryString(extract(args, ['storyId'])) || '(unknown)'
+    const title = tryString(extract(result, ['title']))
+    const status = tryString(extract(result, ['status']))
+    return (
+      <Row className="flex items-center gap-1.5 flex-wrap text-xs">
+        <span className="font-mono text-[11px]">{storyId}</span>
+        {title ? <span className="text-[11px] text-(--text-primary)">{title}</span> : null}
+        {status ? <SmallBadge>{status}</SmallBadge> : null}
+      </Row>
+    )
+  }
+  if (name === 'proposePr') {
+    const title = tryString(extract(args, ['title'])) || '(untitled)'
+    const branch = tryString(extract(args, ['branchName']))
+    const baseRef = tryString(extract(args, ['baseRef']))
+    const body = tryString(extract(args, ['body']))
+    return (
+      <div className="text-xs space-y-1">
+        <SectionTitle>Proposed PR</SectionTitle>
+        <div className="text-[12px] font-medium text-(--text-primary)">{title}</div>
+        {branch ? (
+          <Row className="font-mono text-[11px] text-(--text-secondary)">
+            {branch}
+            {baseRef ? ` ← ${baseRef}` : ''}
+          </Row>
+        ) : null}
+        {body ? <PreLimited lines={body.split('\n')} maxLines={10} /> : null}
+      </div>
+    )
+  }
+  if (name === 'proposeCommitToRealRepo') {
+    const message = tryString(extract(args, ['message'])) || '(no message)'
+    const paths = Array.isArray(extract(args, ['paths'])) ? (extract(args, ['paths']) as string[]) : []
+    const notes = tryString(extract(args, ['notes']))
+    return (
+      <div className="text-xs space-y-1">
+        <SectionTitle>Proposed commit</SectionTitle>
+        <div className="text-[12px] text-(--text-primary)">{message}</div>
+        {paths.map((p, i) => (
+          <Row key={p || i}>
+            <span className="font-mono text-[11px]">{p}</span>
+          </Row>
+        ))}
+        {notes ? <PreLimited lines={notes.split('\n')} maxLines={6} /> : null}
+      </div>
+    )
+  }
   // ---- file / shell tools ----
   if (name === 'readFile') {
     const path = tryString(extract(args, ['path'])) || '(unknown)'

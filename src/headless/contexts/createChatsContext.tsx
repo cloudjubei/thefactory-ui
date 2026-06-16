@@ -65,6 +65,11 @@ export type ChatLiveState = {
   sendError: Error | null
   /** Active CLI run id for this chat (from the `cli:run-update` stream); null when idle. Drives gated-action grants. */
   cliRunId: string | null
+  /** Model tag (`cli-agent/<tool>/<modelId>`) for the active CLI run, so the live
+   * Agent-run message shows the same model chip as the persisted reply. */
+  cliModel: string | null
+  /** ISO start time of the active CLI run, for the live message's timestamp. */
+  cliStartedAt: string | null
 }
 
 const EMPTY_LIVE_STATE: ChatLiveState = {
@@ -73,6 +78,8 @@ const EMPTY_LIVE_STATE: ChatLiveState = {
   pendingToolConfirmation: null,
   sendError: null,
   cliRunId: null,
+  cliModel: null,
+  cliStartedAt: null,
 }
 
 const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
@@ -408,7 +415,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         const parsed = parseCliRunUpdateEvent(data)
         if (!parsed) return
         if (parsed.kind === 'terminal') {
-          updateLiveState(target, { pendingAssistant: null, cliRunId: null })
+          updateLiveState(target, {
+            pendingAssistant: null,
+            cliRunId: null,
+            cliModel: null,
+            cliStartedAt: null,
+          })
           return
         }
         // Surface the run id so gated-action grants (usePendingToolGrants) can
@@ -498,6 +510,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           const cliRunner = getChat(ctx)?.cliRunner
           if (cliRunner) {
             cliStreamAccumRef.current = ''
+            // Surface the model + start time so the live Agent-run message frames
+            // itself like the persisted reply (same model chip + timestamp).
+            updateLiveState(ctx, {
+              cliModel: `cli-agent/${cliRunner.tool}/${cliRunner.model ?? ''}`,
+              cliStartedAt: new Date().toISOString(),
+            })
             // Optimistically show the user's message right away. The runner-aware
             // route persists it server-side inside the (long) run, so unlike the
             // API path there's no early `chats:updated` to pull it in; `refresh()`

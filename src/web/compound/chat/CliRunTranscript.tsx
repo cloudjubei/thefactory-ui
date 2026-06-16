@@ -114,12 +114,48 @@ function CommandBody({ input, result }: { input?: unknown; result?: unknown }) {
   )
 }
 
-/** Fallback drawer for a tool we have no bespoke preview for: input then result. */
+const SECTION_LABEL = 'text-[10px] font-semibold uppercase tracking-wide text-(--text-secondary) mb-0.5'
+
+/** Render a tool's args as a compact key/value list (scalars inline, objects as
+ * JSON) rather than one raw JSON blob; falls back to JSON for non-objects. */
+function ArgList({ value }: { value: unknown }) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return <PreLimited lines={safeJson(value).split('\n')} maxLines={8} />
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+  if (entries.length === 0) return null
+  return (
+    <div className="flex flex-col gap-0.5">
+      {entries.map(([k, v]) => (
+        <div key={k} className="flex gap-1.5 text-[11px] leading-relaxed">
+          <span className="font-medium text-(--text-secondary) shrink-0">{k}</span>
+          <span className="font-mono text-(--text-primary) break-words min-w-0">
+            {typeof v === 'string' ? v : safeJson(v)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Fallback drawer for a tool we have no bespoke preview for: labeled args, then
+ * the result (text as-is, structured values pretty-printed). */
 function GenericToolBody({ input, result }: { input?: unknown; result?: unknown }) {
+  const resultText = typeof result === 'string' ? result : result != null ? safeJson(result) : ''
   return (
     <div className="flex flex-col gap-1.5">
-      {input != null ? <PreLimited lines={safeJson(input).split('\n')} maxLines={8} /> : null}
-      {result != null ? <PreLimited lines={safeJson(result).split('\n')} maxLines={14} /> : null}
+      {input != null ? (
+        <div>
+          <div className={SECTION_LABEL}>Input</div>
+          <ArgList value={input} />
+        </div>
+      ) : null}
+      {resultText ? (
+        <div>
+          <div className={SECTION_LABEL}>Result</div>
+          <PreLimited lines={resultText.split('\n')} maxLines={14} />
+        </div>
+      ) : null}
     </div>
   )
 }

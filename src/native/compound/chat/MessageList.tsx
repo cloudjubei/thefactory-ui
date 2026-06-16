@@ -42,9 +42,13 @@ export interface MessageListProps {
   isThinking?: boolean
   /** Streaming-pending assistant turn rendered as the last bubble. */
   pending?: { role: 'user' | 'assistant'; content: string } | null
-  /** Active CLI run id while it streams: renders the live Agent-run panel as the
-   * trailing element (in place of the raw-text pending bubble). */
+  /** Active CLI run id while it streams: renders the live run as a trailing
+   * assistant message (model chip + transcript + final reply). */
   pendingCliRunId?: string
+  /** Model tag for the live CLI run — drives the live message's model chip. */
+  pendingCliModel?: string
+  /** ISO start time of the live CLI run — the live message's timestamp. */
+  pendingCliStartedAt?: string
   /** Optional system prompt rendered above the message list. */
   systemPrompt?: string
   systemPromptTimestamp?: string
@@ -97,6 +101,8 @@ export default function MessageList({
   isThinking = false,
   pending,
   pendingCliRunId,
+  pendingCliModel,
+  pendingCliStartedAt,
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
@@ -346,9 +352,31 @@ export default function MessageList({
             thinkingLabel={thinkingLabel}
           />
         )}
-        {/* Live CLI run: show the Agent-run panel (streaming transcript) the
-            whole time instead of a raw-text bubble that flashes into the message. */}
-        {pendingCliRunId ? renderCliRunArtifact?.(pendingCliRunId) : null}
+        {/* Live CLI run: render it AS an assistant message (model chip + start
+            time + streaming transcript, final reply at the end) so it reads like
+            the persisted reply and the transition is seamless. */}
+        {pendingCliRunId ? (
+          <MessageRow
+            msg={{
+              role: 'assistant',
+              content: '',
+              cliRunId: pendingCliRunId,
+              model: pendingCliModel,
+              showModel: !!pendingCliModel,
+              startedAt: pendingCliStartedAt,
+              isFirstInGroup: true,
+            }}
+            globalIndex={windowed.length}
+            totalMessages={windowed.length + 1}
+            isThinking={isThinking}
+            isLast
+            prevUserMessagesLen={prevUserCount}
+            enhancedTotalLength={windowed.length + 1}
+            onResolveFile={onResolveFile}
+            renderDependency={renderDependency}
+            renderCliRunArtifact={renderCliRunArtifact}
+          />
+        ) : null}
         {isThinking && (!pending || !pending.content) && !pendingCliRunId && (
           <ThinkingRow label={thinkingLabel ?? 'Thinking'} />
         )}
