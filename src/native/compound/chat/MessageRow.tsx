@@ -16,6 +16,12 @@ import {
   nativeSpace,
 } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import {
+  cliDotColor,
+  cliLabel,
+  parseCliAgentModelTag,
+  shortCliModelLabel,
+} from '../../../headless/utils/cliRunner'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -276,7 +282,20 @@ function MessageRow({
   const iso = messageIso(msg)
   const ts = iso ? formatFriendlyTimestamp(iso) : ''
   const rawModel = msg.usage?.model ?? msg.model
-  const modelLabel = typeof rawModel === 'string' ? rawModel : rawModel?.model
+  const rawModelStr = typeof rawModel === 'string' ? rawModel : rawModel?.model
+  // CLI-agent messages persist their model as `cli-agent/<cli>/<modelId>`; show
+  // the CLI brand dot + the model name (mirrors web) rather than the raw tag.
+  const cliTag = parseCliAgentModelTag(rawModelStr)
+  const cliModelId =
+    cliTag?.modelId && cliTag.modelId !== 'auth-cache' && cliTag.modelId !== 'api-key'
+      ? cliTag.modelId
+      : undefined
+  const modelLabel = cliTag
+    ? cliModelId
+      ? shortCliModelLabel(cliModelId)
+      : cliLabel(cliTag.cli)
+    : rawModelStr
+  const modelDotColor = cliTag ? cliDotColor(cliTag.cli) : theme.accent.primary
   const files = (msg as { files?: string[] }).files
 
   return (
@@ -370,7 +389,7 @@ function MessageRow({
                       width: 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: theme.accent.primary,
+                      backgroundColor: modelDotColor,
                     }}
                   />
                   <Text
@@ -378,6 +397,24 @@ function MessageRow({
                     style={{ fontSize: 11, color: theme.text.secondary }}
                   >
                     {modelLabel}
+                  </Text>
+                </View>
+              ) : null}
+              {modelLabel ? (
+                <View
+                  style={{
+                    paddingHorizontal: nativeSpace[3],
+                    paddingVertical: 2,
+                    borderRadius: nativeRadii.round,
+                    borderWidth: 1,
+                    borderColor: theme.border.subtle,
+                    backgroundColor: theme.surface.overlay,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.4, color: theme.text.secondary }}
+                  >
+                    {cliTag ? 'CLI' : 'API'}
                   </Text>
                 </View>
               ) : null}

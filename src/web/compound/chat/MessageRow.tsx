@@ -330,6 +330,11 @@ function MessageRow({
                     <span className="truncate">{modelLabel}</span>
                   </div>
                 ) : null}
+                {msg.showModel && modelLabel ? (
+                  <span className="text-[10px] leading-tight font-semibold tracking-wide rounded-full px-1.5 py-[2px] border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) shrink-0">
+                    {cliTag ? 'CLI' : 'API'}
+                  </span>
+                ) : null}
                 {msg.usage ? <UsageChip message={msg} /> : null}
               </div>
               {ts || thinkingLabel ? (

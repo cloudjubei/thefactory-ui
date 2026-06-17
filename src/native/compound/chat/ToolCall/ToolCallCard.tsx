@@ -2,7 +2,7 @@ import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
-import { safePreviewString } from '../../../../headless/utils/toolPreview'
+import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import {
   nativePalette,
@@ -11,6 +11,8 @@ import {
 } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusIcon, statusVisual } from './StatusIcon'
+import ToolArgInline from './ToolArgInline'
+import ToolOriginBadge from './ToolOriginBadge'
 
 function formatDurationLabel(ms?: number): string | undefined {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return undefined
@@ -72,12 +74,14 @@ function ToolCallCardInner({
     return Object.keys(a as object).length > 0
   }, [toolCall.arguments])
 
-  // Compact one-line args shown inline next to the name (always truncated to a
-  // single line); the full args expand under the chevron.
-  const argsSnippet = useMemo(
-    () => (hasArgs ? jsonString(toolCall.arguments).replace(/\s+/g, ' ').trim() : ''),
-    [hasArgs, toolCall.arguments],
-  )
+  // Compact one-line args shown inline next to the name (paths render with the
+  // nice dir+filename display, a command/pattern as a monospace snippet); the
+  // full args expand under the chevron. Falls back to a JSON one-liner when no
+  // single field stands in for the call.
+  const argDisplay = useMemo(() => {
+    if (!hasArgs) return null
+    return toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+  }, [hasArgs, toolCall])
   const timeLabel = formatDurationLabel(durationMs)
 
   const status = statusVisual(resultType)
@@ -135,26 +139,8 @@ function ToolCallCardInner({
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }} numberOfLines={1}>
           {toolCall.name}
         </Text>
-        {argsSnippet ? (
-          <Text
-            numberOfLines={1}
-            style={{
-              flex: 1,
-              fontFamily: 'Menlo',
-              fontSize: 11,
-              color: theme.text.secondary,
-              backgroundColor: theme.surface.base,
-              borderRadius: nativeRadii[1],
-              paddingHorizontal: 4,
-              paddingVertical: 1,
-              overflow: 'hidden',
-            }}
-          >
-            {argsSnippet}
-          </Text>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
+        <ToolOriginBadge origin={toolCall.origin} />
+        <ToolArgInline display={argDisplay} />
         {timeLabel ? (
           <View
             style={{

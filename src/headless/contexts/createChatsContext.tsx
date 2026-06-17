@@ -473,28 +473,30 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     /**
      * Build the per-context settings + system prompt forwarded to
-     * send-with-tools. Override `autoCallTools` to `[]` so every proposed tool
-     * surfaces as `require_confirmation` to the user — the backend will mark
-     * each tool message accordingly and bubble up `resultType:
-     * require_confirmation`.
+     * send-with-tools (and reused for the resume request). The chat's own
+     * `completionSettings` — including the user's `autoCallTools` selection from
+     * the settings dropdown — always wins when present. Tools listed in
+     * `autoCallTools` execute without prompting; every other proposed tool still
+     * surfaces as `require_confirmation`.
      */
     const buildToolSettings = useCallback(
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
-        // A topic carrying its own system prompt (e.g. set by an embedded app via createProjectTopic)
-        // overrides the generic per-type template; otherwise fall back to it unchanged. Read the REF,
-        // not `chats` state, so a prompt persisted moments before this send is already visible.
+        // Read the REF, not `chats` state, so settings persisted moments before this send are visible.
         const perChat = chatsRef.current.find((c) => sameContext(c.context, context))?.settings
-        const entry = perChat?.systemPrompt ? perChat : chatSettings?.[context.type]
-        const base = entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
+        const typeEntry = chatSettings?.[context.type]
+        // Per-chat completionSettings (the user's tool selection) take precedence over the per-type
+        // template regardless of whether the chat also carries a custom system prompt.
+        const base =
+          perChat?.completionSettings ?? typeEntry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
+        // A chat carrying its own system prompt (e.g. set by an embedded app via createProjectTopic)
+        // overrides the generic per-type template; otherwise fall back to it.
+        const rawSystemPrompt = perChat?.systemPrompt || typeEntry?.systemPrompt
         // Interpolate `{{project_*}}` / `{{story_*}}` / `{{feature_*}}` / `{{group_*}}` BEFORE the prompt
         // goes on the wire — the model must receive the resolved context, not the raw template the viewer
         // renders separately.
         const vars = buildChatPromptVariables(context, { project, getStory, getFeature, getGroupById })
-        const systemPrompt = interpolateChatSystemPrompt(entry?.systemPrompt, vars)
-        return {
-          settings: { ...base, autoCallTools: [] },
-          systemPrompt,
-        }
+        const systemPrompt = interpolateChatSystemPrompt(rawSystemPrompt, vars)
+        return { settings: { ...base }, systemPrompt }
       },
       [chatSettings, project, getStory, getFeature, getGroupById],
     )

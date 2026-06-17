@@ -25,10 +25,22 @@ export type ChatContextLike = {
   projectTopic?: string
 }
 
+/**
+ * Where a tool call originates, used to badge the tool card:
+ * - `internal` — one of our (thefactory) tools, whether called by an API agent
+ *   or surfaced through a CLI's MCP transport,
+ * - `native` — a CLI agent's own built-in tool (`Bash`, `command_execution`, …),
+ * - `external-mcp` — a third-party MCP tool (reserved for future MCP servers).
+ */
+export type ToolOrigin = 'internal' | 'native' | 'external-mcp'
+
 export type ToolCallLike = {
   toolCallId: string
   name: string
   arguments?: unknown
+  /** Provenance of the tool (drives the origin badge). Defaults to `internal`
+   * when unset — every API-agent tool is one of ours. */
+  origin?: ToolOrigin
 }
 
 // Web's backend currently emits a free-form string; desktop's agent loop has

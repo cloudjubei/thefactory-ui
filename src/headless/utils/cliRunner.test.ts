@@ -5,7 +5,9 @@ import {
   cliAssistantTextFromEntry,
   cliToolNameFromEntry,
   cleanCliToolName,
+  classifyToolOrigin,
   cliThinkingTextFromEntry,
+  messageModelTag,
   normalizeCliTranscript,
   cliTranscriptToMessages,
   cliDotColor,
@@ -291,6 +293,26 @@ describe('cleanCliToolName', () => {
   })
 })
 
+describe('classifyToolOrigin', () => {
+  it('classifies thefactory MCP / namespaced names as internal', () => {
+    expect(classifyToolOrigin('mcp__thefactory__readPaths')).toBe('internal')
+    expect(classifyToolOrigin('thefactory-listContents')).toBe('internal')
+    expect(classifyToolOrigin('thefactory__grepFiles')).toBe('internal')
+  })
+
+  it('classifies a non-thefactory MCP server as external-mcp', () => {
+    expect(classifyToolOrigin('mcp__github__create_issue')).toBe('external-mcp')
+    expect(classifyToolOrigin('mcp__linear__searchIssues')).toBe('external-mcp')
+  })
+
+  it('classifies plain CLI built-in tools as native', () => {
+    expect(classifyToolOrigin('Bash')).toBe('native')
+    expect(classifyToolOrigin('command_execution')).toBe('native')
+    expect(classifyToolOrigin('Read')).toBe('native')
+    expect(classifyToolOrigin(undefined)).toBe('native')
+  })
+})
+
 describe('cliThinkingTextFromEntry', () => {
   it("extracts Claude 'thinking' content blocks, ignores plain assistants", () => {
     expect(
@@ -393,6 +415,25 @@ describe('normalizeCliTranscript', () => {
     if (pending.kind !== 'tool' || orphan.kind !== 'tool') throw new Error('expected tool steps')
     expect(pending.resultType).toBe('pending')
     expect(orphan.result).toEqual({ z: 9 })
+  })
+
+  it('tags each tool step with its origin (internal MCP / native CLI / external MCP)', () => {
+    const steps = normalizeCliTranscript([
+      // Claude: our MCP tool → internal.
+      entry({ at: 1, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 'a', name: 'mcp__thefactory__readPaths', input: {} }] } } }),
+      // Claude: native built-in → native.
+      entry({ at: 2, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 'b', name: 'Bash', input: { command: 'ls' } }] } } }),
+      // Codex command_execution → native.
+      entry({ at: 3, kind: 'tool-call', payload: { item: { id: 'c', type: 'command_execution', command: 'ls' } } }),
+      // Cursor wraps a non-thefactory MCP server → external-mcp.
+      entry({
+        at: 4,
+        kind: 'tool-call',
+        payload: { type: 'tool_call', call_id: 'd', tool_call: { mcpToolCall: { toolName: 'create_issue', args: {}, providerIdentifier: 'github' } } },
+      }),
+    ])
+    const origins = steps.map((s) => (s.kind === 'tool' ? s.origin : null))
+    expect(origins).toEqual(['internal', 'native', 'native', 'external-mcp'])
   })
 
   it('records per-step durations: tool call→result time, and gap-to-next for others', () => {
@@ -533,6 +574,30 @@ describe('normalizeCliTranscript', () => {
     })
   })
 
+  it('propagates the tool origin onto the derived tool message', () => {
+    const messages = cliTranscriptToMessages([
+      entry({ at: 1, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }] } } }),
+    ])
+    expect(messages[0]).toMatchObject({ role: 'tool', toolCall: { name: 'Bash', origin: 'native' } })
+  })
+
+  it('aggregates per-entry cost onto the first assistant message as usage', () => {
+    const messages = cliTranscriptToMessages([
+      entry({ at: 1000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } }, costUSD: 0.02 }),
+      entry({ at: 2000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'bye' }] } }, costUSD: 0.03 }),
+    ])
+    // Only the first assistant message carries the run total (the chip anchor).
+    expect(messages[0].usage).toEqual({ cost: 0.05 })
+    expect(messages[1].usage).toBeUndefined()
+  })
+
+  it('attaches no usage when the run reported no cost', () => {
+    const messages = cliTranscriptToMessages([
+      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } }),
+    ])
+    expect(messages[0].usage).toBeUndefined()
+  })
+
   it('maps a thinking step to an assistant message carrying `thinking`', () => {
     const messages = cliTranscriptToMessages([
       entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'thinking', thinking: 'hmm' }] } } }),
@@ -601,6 +666,21 @@ describe('parseCliAgentModelTag', () => {
     expect(parseCliAgentModelTag('claude-sonnet-4-6')).toBeNull()
     expect(parseCliAgentModelTag('')).toBeNull()
     expect(parseCliAgentModelTag(undefined)).toBeNull()
+  })
+})
+
+describe('messageModelTag', () => {
+  it('returns a string tag as-is and unwraps the object form', () => {
+    expect(messageModelTag('cli-agent/cursor/composer')).toBe('cli-agent/cursor/composer')
+    expect(messageModelTag({ provider: 'custom', model: 'cli-agent/codex/gpt-5.5' } as never)).toBe(
+      'cli-agent/codex/gpt-5.5',
+    )
+  })
+
+  it('returns undefined for missing / malformed model', () => {
+    expect(messageModelTag(undefined)).toBeUndefined()
+    expect(messageModelTag(null)).toBeUndefined()
+    expect(messageModelTag({} as never)).toBeUndefined()
   })
 })
 

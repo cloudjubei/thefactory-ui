@@ -11,7 +11,7 @@ import type {
   FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
-import type { ChatMessageLike } from './chatTypes'
+import type { ChatMessageLike, ToolOrigin } from './chatTypes'
 
 export type StartCliRunBodyInput = {
   projectId: string
@@ -144,6 +144,20 @@ export function cleanCliToolName(name: string): string {
   return base.replace(/^thefactory[-_]+/i, '')
 }
 
+/**
+ * Classify a CLI tool's provenance from its raw (un-cleaned) name so the card
+ * can badge it. `mcp__<server>__<tool>` and `thefactory-<tool>` forms are ours
+ * (`internal`); a non-thefactory MCP server is `external-mcp`; everything else
+ * is the CLI's own built-in tool (`native`, e.g. `Bash`, `command_execution`).
+ */
+export function classifyToolOrigin(rawName: string | undefined): ToolOrigin {
+  if (!rawName) return 'native'
+  const mcp = rawName.match(/^mcp__(.+?)__/)
+  if (mcp) return /thefactory/i.test(mcp[1]) ? 'internal' : 'external-mcp'
+  if (/^thefactory[-_]/i.test(rawName)) return 'internal'
+  return 'native'
+}
+
 /** Outcome class for a finished CLI tool step. */
 export type CliToolStepResultType = 'success' | 'errored' | 'pending'
 
@@ -163,6 +177,8 @@ export type CliTranscriptStep =
       durationMs?: number
       /** Tool name with any MCP prefix stripped (matches our preview names when recognized). */
       toolName: string
+      /** Provenance of the tool (internal / native / external-mcp) for the origin badge. */
+      origin: ToolOrigin
       /** The id used to pair the call with its result (`tool_use.id` / `call_id` / `item.id`). */
       toolCallId?: string
       /** Parsed call arguments, when extractable. */
@@ -200,7 +216,16 @@ export function cliThinkingTextFromEntry(entry: CliRunTranscriptEntry): string {
     .trim()
 }
 
-type ExtractedCall = { toolName: string; toolCallId?: string; input?: unknown }
+type ExtractedCall = { toolName: string; origin: ToolOrigin; toolCallId?: string; input?: unknown }
+
+/** Origin for a tool surfaced through an MCP envelope: ours when the server
+ * (provider) or the raw tool name is thefactory-namespaced, else a third-party
+ * MCP server. An MCP envelope is never a CLI-native tool. */
+function mcpEnvelopeOrigin(envelope: Record<string, unknown>): ToolOrigin {
+  const provider = asString(envelope.providerIdentifier) ?? ''
+  const rawName = asString(envelope.toolName) ?? asString(envelope.name) ?? ''
+  return /thefactory/i.test(provider) || /thefactory/i.test(rawName) ? 'internal' : 'external-mcp'
+}
 
 function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const p = asTranscriptRecord(entry.payload)
@@ -210,6 +235,7 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   if (mcp) {
     return {
       toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
+      origin: mcpEnvelopeOrigin(mcp),
       toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
       input: mcp.args ?? mcp.input,
     }
@@ -221,6 +247,7 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
     const inner = asTranscriptRecord(cursorTc[key])
     return {
       toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
+      origin: 'native',
       toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
       input: inner?.args,
     }
@@ -229,7 +256,7 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const item = asTranscriptRecord(p?.item)
   if (item && typeof item.type === 'string') {
     const input = item.command != null ? { command: item.command } : item
-    return { toolName: cleanCliToolName(item.type), toolCallId: asString(item.id), input }
+    return { toolName: cleanCliToolName(item.type), origin: 'native', toolCallId: asString(item.id), input }
   }
   // Claude Code: { type:'assistant', message:{ content:[{type:'tool_use', id, name, input}] } }
   const content = asTranscriptRecord(p?.message)?.content
@@ -237,13 +264,20 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
     for (const block of content) {
       const b = asTranscriptRecord(block)
       if (b && (b.type === 'tool_use' || b.type === 'tool_call') && typeof b.name === 'string') {
-        return { toolName: cleanCliToolName(b.name), toolCallId: asString(b.id), input: b.input }
+        return {
+          toolName: cleanCliToolName(b.name),
+          origin: classifyToolOrigin(b.name),
+          toolCallId: asString(b.id),
+          input: b.input,
+        }
       }
     }
   }
   // Generic / flat MCP envelope: { name, args, toolCallId, providerIdentifier, toolName }.
+  const flatName = asString(p?.toolName) ?? asString(p?.name)
   return {
-    toolName: cleanCliToolName(asString(p?.toolName) ?? asString(p?.name) ?? 'tool'),
+    toolName: cleanCliToolName(flatName ?? 'tool'),
+    origin: classifyToolOrigin(flatName),
     toolCallId: asString(p?.toolCallId) ?? asString(p?.id) ?? asString(p?.call_id),
     input: p?.args ?? p?.input,
   }
@@ -251,6 +285,7 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
 
 type ExtractedResult = {
   toolName?: string
+  origin: ToolOrigin
   toolCallId?: string
   result: unknown
   resultType: CliToolStepResultType
@@ -265,6 +300,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
     const unwrapped = unwrapCursorResult(mcp.result ?? mcp)
     return {
       toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
+      origin: mcpEnvelopeOrigin(mcp),
       toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
       result: unwrapped.result,
       resultType: unwrapped.isError ? 'errored' : 'success',
@@ -278,6 +314,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
     const unwrapped = unwrapCursorResult(inner?.result)
     return {
       toolName: cleanCliToolName(key.replace(/ToolCall$/, '')),
+      origin: 'native',
       toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
       result: unwrapped.result,
       resultType: unwrapped.isError ? 'errored' : 'success',
@@ -291,6 +328,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       exit == null ? 'success' : exit === 0 ? 'success' : 'errored'
     return {
       toolName: typeof item.type === 'string' ? cleanCliToolName(item.type) : undefined,
+      origin: 'native',
       toolCallId: asString(item.id),
       result: { output: item.aggregated_output, exitCode: exit },
       resultType,
@@ -303,6 +341,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       const b = asTranscriptRecord(block)
       if (b && b.type === 'tool_result') {
         return {
+          origin: 'native',
           toolCallId: asString(b.tool_use_id),
           result: maybeParseJson(b.content),
           resultType: b.is_error ? 'errored' : 'success',
@@ -314,6 +353,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   // an optional top-level id) that we unwrap to the tool's structured result.
   const unwrapped = unwrapCursorResult(p?.result ?? entry.payload)
   return {
+    origin: classifyToolOrigin(asString(p?.toolName) ?? asString(p?.name)),
     toolCallId: asString(p?.toolCallId) ?? asString(p?.id) ?? asString(p?.call_id),
     result: unwrapped.result,
     resultType: unwrapped.isError ? 'errored' : 'success',
@@ -445,6 +485,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
           kind: 'tool',
           at: entry.at,
           toolName: call.toolName,
+          origin: call.origin,
           toolCallId: call.toolCallId,
           input: call.input,
           result: undefined,
@@ -467,6 +508,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
             kind: 'tool',
             at: entry.at,
             toolName: res.toolName ?? 'tool',
+            origin: res.origin,
             toolCallId: res.toolCallId,
             input: undefined,
             result: res.result,
@@ -508,7 +550,10 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  * - tool step → a `tool` message (`toolCall` + `toolResult`), exactly like the
  *   API path's tool messages.
  * Protocol steps (system/result/raw) are dropped — they have no API analogue.
- * `opts.model` stamps the assistant messages so they show the model chip.
+ * `opts.model` stamps the assistant messages so they show the model chip, and
+ * the run's aggregate cost/tokens are attached as `usage` to the first assistant
+ * message (the one that shows the model chip) so a CLI run surfaces a cost chip
+ * just like an API turn — but only when the CLI reported usage.
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
@@ -551,6 +596,7 @@ export function cliTranscriptToMessages(
           toolCallId: step.toolCallId ?? `cli-${step.at}`,
           name: step.toolName,
           arguments: step.input,
+          origin: step.origin,
         },
         toolResult: {
           result: step.result,
@@ -560,7 +606,25 @@ export function cliTranscriptToMessages(
       })
     }
   }
+  const usage = aggregateCliRunUsage(entries)
+  if (usage) {
+    const firstAssistant = messages.find((m) => m.role === 'assistant')
+    if (firstAssistant) firstAssistant.usage = usage
+  }
   return messages
+}
+
+/**
+ * Sum a CLI run's per-entry `costUSD` into a single {@link MessageUsageLike}, or
+ * `undefined` when the run reported no cost (some CLIs don't emit it). Token
+ * counts aren't carried per transcript entry, so the chip surfaces cost only.
+ */
+function aggregateCliRunUsage(entries: CliRunTranscriptEntry[]): ChatMessageLike['usage'] {
+  let cost = 0
+  for (const e of entries) {
+    if (typeof e.costUSD === 'number' && Number.isFinite(e.costUSD)) cost += e.costUSD
+  }
+  return cost > 0 ? { cost } : undefined
 }
 
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */
@@ -644,6 +708,20 @@ export function parseCliAgentModelTag(
   if (!cli) return null
   const modelId = parts.slice(2).join('/').trim()
   return modelId.length > 0 ? { cli, modelId } : { cli }
+}
+
+/**
+ * The model tag string from a chat message's `model` field, which a host may
+ * persist either as a plain string (`"cli-agent/cursor/composer"`) or wrapped
+ * as `{ provider, model }`. Returns the inner string (or undefined). Used where
+ * the tag must be a string — e.g. threading it into the CLI-run message view so
+ * the model chip resolves — mirroring the unwrap `MessageRow` already does.
+ */
+export function messageModelTag(
+  model: string | { model?: string } | null | undefined,
+): string | undefined {
+  if (typeof model === 'string') return model
+  return typeof model?.model === 'string' ? model.model : undefined
 }
 
 /** CLI keys the user has switched on in the chip selector, in stable insertion order. */

@@ -4,10 +4,12 @@ import { BottomSheet } from '../../../primitives/BottomSheet'
 import { Switch } from '../../../primitives/Switch'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
-import { safePreviewString } from '../../../../headless/utils/toolPreview'
+import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
 import StatusIcon from './StatusIcon'
+import ToolArgInline from './ToolArgInline'
 import ToolCallHoverCard from './ToolCallHoverCard'
+import ToolOriginBadge from './ToolOriginBadge'
 import type { ToolCall, ToolResultType } from './types'
 
 // Web small-screen breakpoint mirrors the rest of the package
@@ -102,12 +104,14 @@ function ToolCallCardInner({
     return Object.keys(a as object).length > 0
   }, [toolCall.arguments])
 
-  // Compact single-line view of the args, shown inline next to the tool name
-  // (CSS-truncated to one line); the full args expand under the chevron.
-  const argsSnippet = useMemo(
-    () => (hasArgs ? jsonString(toolCall.arguments).replace(/\s+/g, ' ').trim() : ''),
-    [hasArgs, toolCall.arguments],
-  )
+  // Compact one-line view of the args, shown inline next to the tool name (paths
+  // render with the nice dir+filename display, a command/pattern as a code
+  // snippet); the full args expand under the chevron. Falls back to a JSON
+  // one-liner when no single field stands in for the call.
+  const argDisplay = useMemo(() => {
+    if (!hasArgs) return null
+    return toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+  }, [hasArgs, toolCall])
   const timeLabel = durationMs ? formatDurationMs(durationMs) : ''
 
   const hasPopup = resultType !== 'aborted'
@@ -134,13 +138,8 @@ function ToolCallCardInner({
       <div className="flex items-center gap-2 px-3 py-2 min-w-0">
         <StatusIcon resultType={resultType} />
         <span className="font-semibold shrink-0">{toolCall.name}</span>
-        {argsSnippet ? (
-          <code className="font-mono text-[11px] text-(--text-secondary) bg-(--surface-base) border border-(--border-subtle) rounded px-1.5 py-0.5 truncate min-w-0 flex-1">
-            {argsSnippet}
-          </code>
-        ) : (
-          <span className="flex-1" />
-        )}
+        <ToolOriginBadge origin={toolCall.origin} />
+        <ToolArgInline display={argDisplay} />
         {resultType === 'pending' ? (
           <span className="text-[11px] text-blue-600 dark:text-blue-400 shrink-0">Queued</span>
         ) : null}

@@ -178,6 +178,7 @@ export default function ChatBody({
           onRetry={onRetry ? () => void onRetry() : undefined}
           previewTool={previewTool}
           onResumeTools={onResumeTools ?? onConfirmTools}
+          isSending={isSending}
           emptyStateContent={emptyStateContent}
         />
       </div>

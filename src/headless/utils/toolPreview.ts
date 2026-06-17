@@ -185,3 +185,77 @@ export function isCompletelyNewFile(result: unknown, diff?: string): boolean {
   }
   return false
 }
+
+/**
+ * The salient input for a tool call's collapsed one-line preview, so the card
+ * shows the meaningful argument instead of a `{…}` JSON wrapper:
+ * - `command` — a shell command/script (rendered as a code snippet),
+ * - `path` — a single file path (rendered with the nice dir+filename display),
+ * - `paths` — several file paths (rendered one after another),
+ * - `text` — a single salient string (search pattern / query / prompt).
+ * Returns `null` when no single field stands in for the call (JSON fallback).
+ */
+export type ToolArgDisplay =
+  | { kind: 'command'; text: string }
+  | { kind: 'text'; text: string }
+  | { kind: 'path'; path: string }
+  | { kind: 'paths'; paths: string[] }
+
+const COMMAND_ARG_FIELDS = ['command', 'cmd', 'script']
+const PATH_ARG_FIELDS = ['path', 'file_path', 'filePath', 'filename', 'file']
+const PATTERN_ARG_FIELDS = ['globPattern', 'pattern', 'glob']
+const TEXT_ARG_FIELDS = ['query', 'search', 'q', 'prompt', ...PATTERN_ARG_FIELDS]
+// Native search tools whose headline is the pattern, not a path (our `grepFile`,
+// which also carries a `path`, is intentionally NOT here — it shows its path).
+const PATTERN_FIRST_TOOLS = new Set(['glob', 'grep', 'ripgrep', 'search'])
+
+function firstStringField(record: Record<string, unknown>, fields: string[]): string | undefined {
+  for (const field of fields) {
+    const v = record[field]
+    if (typeof v === 'string' && v.trim()) return v
+  }
+  return undefined
+}
+
+function nonEmptyStringArray(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null
+  const out = v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+  return out.length > 0 ? out : null
+}
+
+/** Paths pulled from a `queries: [{ path, … }]` batch (grepFiles, readFileRanges). */
+function pathsFromQueries(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null
+  const out: string[] = []
+  for (const q of v) {
+    const p = q && typeof q === 'object' ? (q as { path?: unknown }).path : undefined
+    if (typeof p === 'string' && p.trim()) out.push(p)
+  }
+  return out.length > 0 ? out : null
+}
+
+export function toolArgDisplay(toolCall: { name?: string; arguments?: unknown }): ToolArgDisplay | null {
+  const args = toolCall.arguments
+  if (typeof args === 'string') return args.trim() ? { kind: 'text', text: args } : null
+  if (!args || typeof args !== 'object') return null
+  const record = args as Record<string, unknown>
+
+  const command = firstStringField(record, COMMAND_ARG_FIELDS)
+  if (command) return { kind: 'command', text: command }
+
+  const paths = nonEmptyStringArray(record.paths) ?? pathsFromQueries(record.queries)
+  if (paths) return { kind: 'paths', paths }
+
+  if (PATTERN_FIRST_TOOLS.has((toolCall.name ?? '').toLowerCase())) {
+    const pattern = firstStringField(record, PATTERN_ARG_FIELDS)
+    if (pattern) return { kind: 'text', text: pattern }
+  }
+
+  const path = firstStringField(record, PATH_ARG_FIELDS)
+  if (path) return { kind: 'path', path }
+
+  const text = firstStringField(record, TEXT_ARG_FIELDS)
+  if (text) return { kind: 'text', text }
+
+  return null
+}

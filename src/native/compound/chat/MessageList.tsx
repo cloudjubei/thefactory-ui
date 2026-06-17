@@ -16,6 +16,7 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
+import { messageModelTag } from '../../../headless/utils/cliRunner'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -308,7 +309,7 @@ export default function MessageList({
               {msg.cliRunId ? (
                 <CliRunMessages
                   runId={msg.cliRunId}
-                  model={typeof msg.model === 'string' ? msg.model : undefined}
+                  model={messageModelTag(msg.model)}
                   baseIndex={i}
                   renderToolCall={renderToolCall}
                   onResolveFile={onResolveFile}

@@ -16,6 +16,7 @@ import { Switch } from '../../primitives/Switch'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import { messageModelTag } from '../../../headless/utils/cliRunner'
 
 function isToolMessage(msg: ChatMessageLike): boolean {
   return msg.role === 'tool' || !!msg.toolCall
@@ -107,6 +108,9 @@ export type MessageListProps = {
    * `toolCallId`s the user approved. Host wires it to the chats
    * resume-completion call. */
   onResumeTools?: (toolCallIds: string[]) => Promise<void> | void
+  /** True while a send/resume is in flight — drives the inline "Resume" button's
+   * spinner + disabled state so the user sees the tools are running. */
+  isSending?: boolean
 
   /** Caller-rendered empty-state. When omitted the list shows the default
    * "Start chatting" hint matching desktop. */
@@ -138,6 +142,7 @@ export default function MessageList({
   renderCliRunArtifact,
   previewTool,
   onResumeTools,
+  isSending = false,
   emptyStateContent,
 }: MessageListProps) {
   const messageListRef = useRef<HTMLDivElement>(null)
@@ -609,7 +614,7 @@ export default function MessageList({
                 // to an API run, no bespoke transcript view.
                 <CliRunMessages
                   runId={msg.cliRunId}
-                  model={typeof msg.model === 'string' ? msg.model : undefined}
+                  model={messageModelTag(msg.model)}
                   baseIndex={globalIndex}
                   renderToolResult={renderToolResult}
                   getToolHeaderPath={getToolHeaderPath}
@@ -683,17 +688,24 @@ export default function MessageList({
             <button
               type="button"
               className={
-                selectedCount > 0
-                  ? 'inline-flex items-center rounded-md px-3 py-1.5 text-[12px] font-medium bg-green-600 hover:bg-green-700 text-white'
-                  : 'inline-flex items-center rounded-md px-3 py-1.5 text-[12px] font-medium border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) cursor-not-allowed opacity-70'
+                selectedCount > 0 && !isSending
+                  ? 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium bg-green-600 hover:bg-green-700 text-white'
+                  : 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) cursor-not-allowed opacity-70'
               }
-              disabled={selectedCount === 0}
+              disabled={selectedCount === 0 || isSending}
               onClick={() => {
                 const ok = selectedToolIds.filter((id) => confirmableIds.has(id))
                 void onResumeTools(ok)
               }}
             >
-              {`Resume ${selectedCount}/${confirmableIds.size} Tools`}
+              {isSending ? (
+                <>
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  Resuming…
+                </>
+              ) : (
+                `Resume ${selectedCount}/${confirmableIds.size} Tools`
+              )}
             </button>
           </div>
         ) : null}
