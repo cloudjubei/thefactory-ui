@@ -7,6 +7,7 @@ import {
   cleanCliToolName,
   cliThinkingTextFromEntry,
   normalizeCliTranscript,
+  cliTranscriptToMessages,
   cliDotColor,
   cliLabel,
   parseCliAgentModelTag,
@@ -501,6 +502,43 @@ describe('normalizeCliTranscript', () => {
     ])
     expect(steps.map((s) => s.kind)).toEqual(['thinking', 'tool'])
     expect(steps[0]).toMatchObject({ kind: 'thinking', text: 'plan it' })
+  })
+
+  it('converts a transcript to API-shaped chat messages (assistant + tool), skipping protocol', () => {
+    const messages = cliTranscriptToMessages(
+      [
+        entry({ at: 1000, kind: 'system', payload: { type: 'system', subtype: 'init' } }),
+        entry({ at: 1500, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'reading' }] } } }),
+        entry({
+          at: 2000,
+          kind: 'tool-call',
+          payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'mcp__thefactory__readPaths', input: { paths: ['a'] } }] } },
+        }),
+        entry({
+          at: 3000,
+          kind: 'tool-result',
+          payload: { message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: '{"ok":true}' }] } },
+        }),
+        entry({ at: 3500, kind: 'result', payload: { type: 'result', subtype: 'success' } }),
+      ],
+      { model: 'cli-agent/cursor/composer' },
+    )
+    // system + result dropped; assistant + one merged tool message remain.
+    expect(messages.map((m) => m.role)).toEqual(['assistant', 'tool'])
+    expect(messages[0]).toMatchObject({ role: 'assistant', content: 'reading', model: 'cli-agent/cursor/composer' })
+    expect(messages[1]).toMatchObject({
+      role: 'tool',
+      toolCall: { toolCallId: 't1', name: 'readPaths', arguments: { paths: ['a'] } },
+      toolResult: { type: 'success', result: { ok: true } },
+    })
+  })
+
+  it('maps a thinking step to an assistant message carrying `thinking`', () => {
+    const messages = cliTranscriptToMessages([
+      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'thinking', thinking: 'hmm' }] } } }),
+    ])
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toMatchObject({ role: 'assistant', content: 'hmm', thinking: 'hmm' })
   })
 
   it('summarizes system + result entries and falls back to raw for other', () => {

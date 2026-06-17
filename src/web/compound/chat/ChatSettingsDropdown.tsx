@@ -203,20 +203,6 @@ export default function ChatSettingsDropdown({
               onCheckedChange={(checked) => setUserPreferences({ cliShowThinking: !!checked })}
             />
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-(--text-secondary)">
-                Show protocol steps
-              </span>
-              <span className="text-[10px] text-(--text-tertiary)">
-                Show session/turn-started and completed notices. Off by default.
-              </span>
-            </div>
-            <Switch
-              checked={prefs.cliShowProtocol ?? false}
-              onCheckedChange={(checked) => setUserPreferences({ cliShowProtocol: !!checked })}
-            />
-          </div>
         </div>
       </div>
 

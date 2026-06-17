@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
-import { useAppSettings, useCliRunArtifact } from '../../../headless'
+import { useCliRunArtifact } from '../../../headless'
 import { nativePalette } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import UnifiedDiff from '../git/UnifiedDiff'
-import CliRunTranscript from './CliRunTranscript'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -27,8 +26,6 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
   const { theme } = useNativeTheme()
   const {
     artifact,
-    transcript,
-    status,
     review,
     loading,
     preview,
@@ -46,14 +43,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
-  const streaming =
-    status === 'running' || status === 'awaiting-approval' || status === 'paused'
-  const { settings } = useAppSettings()
-  const prefs = settings.userPreferences
   const [expanded, setExpanded] = useState(false)
-  useEffect(() => {
-    if (streaming) setExpanded(true)
-  }, [streaming])
 
   useEffect(() => {
     if (!expanded || error) return
@@ -76,9 +66,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
       </Text>
     )
   }
-  // A run that changed no files still has a transcript worth inspecting; only
-  // bail when there's nothing at all to show.
-  if (!artifact && transcript.length === 0) return null
+  // The panel surfaces the run's workspace changes; nothing to show without an artifact.
+  if (!artifact) return null
 
   const files = artifact?.payload.files ?? []
   const counts = {
@@ -334,15 +323,6 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
               ))
             : null}
         </View>
-      ) : null}
-
-      {expanded ? (
-        <CliRunTranscript
-          entries={transcript}
-          streaming={streaming}
-          showProtocol={prefs.cliShowProtocol ?? false}
-          showThinking={prefs.cliShowThinking ?? true}
-        />
       ) : null}
     </View>
   )

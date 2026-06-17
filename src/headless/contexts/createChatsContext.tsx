@@ -265,6 +265,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const { getGroupById } = useProjectsGroups()
 
     const [chats, setChats] = useState<GetChatResponse[]>([])
+    // Mirror of `chats` kept in sync SYNCHRONOUSLY (in `refresh`), so code that `await`s a refresh
+    // — e.g. createProjectTopic → updateChatSettings → refresh, then sends — reads the just-persisted
+    // per-chat system prompt immediately, instead of the stale render-state (which lagged the prompt
+    // to the SECOND message).
+    const chatsRef = useRef<GetChatResponse[]>([])
     const [chatSettings, setChatSettings] = useState<GetChatsSettingsResponse | null>(null)
     const [isLoaded, setIsLoaded] = useState(false)
     const [loadError, setLoadError] = useState<Error | null>(null)
@@ -336,6 +341,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // and never settle for non-active projects.
         const { data } = await listChats({ signal: controller.signal, throwOnError: true })
         if (controller.signal.aborted) return
+        chatsRef.current = data
         setChats(data)
         setLoadError(null)
       } catch (err) {
@@ -345,6 +351,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         if (!controller.signal.aborted) setIsLoaded(true)
       }
     }, [token])
+
+    // Keep the ref synced for the optimistic setChats paths (message sends, deletes) too, so reads
+    // never see a chat the state has since dropped/added.
+    useEffect(() => {
+      chatsRef.current = chats
+    }, [chats])
 
     useEffect(() => {
       if (!token) {
@@ -469,8 +481,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const buildToolSettings = useCallback(
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
         // A topic carrying its own system prompt (e.g. set by an embedded app via createProjectTopic)
-        // overrides the generic per-type template; otherwise fall back to it unchanged.
-        const perChat = chats.find((c) => sameContext(c.context, context))?.settings
+        // overrides the generic per-type template; otherwise fall back to it unchanged. Read the REF,
+        // not `chats` state, so a prompt persisted moments before this send is already visible.
+        const perChat = chatsRef.current.find((c) => sameContext(c.context, context))?.settings
         const entry = perChat?.systemPrompt ? perChat : chatSettings?.[context.type]
         const base = entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
         // Interpolate `{{project_*}}` / `{{story_*}}` / `{{feature_*}}` / `{{group_*}}` BEFORE the prompt
@@ -483,7 +496,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           systemPrompt,
         }
       },
-      [chats, chatSettings, project, getStory, getFeature, getGroupById],
+      [chatSettings, project, getStory, getFeature, getGroupById],
     )
 
     const sendMessage = useCallback(

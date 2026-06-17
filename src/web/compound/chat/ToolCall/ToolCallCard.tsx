@@ -1,12 +1,12 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Code from '../../Code'
-import { PathDisplay } from '../../PathDisplay'
 import { BottomSheet } from '../../../primitives/BottomSheet'
 import { Switch } from '../../../primitives/Switch'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
-import { isFilePathTool, safePreviewString } from '../../../../headless/utils/toolPreview'
-import StatusIcon, { StatusPill } from './StatusIcon'
+import { safePreviewString } from '../../../../headless/utils/toolPreview'
+import { formatDurationMs } from '../../../../headless/utils/time'
+import StatusIcon from './StatusIcon'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import type { ToolCall, ToolResultType } from './types'
 
@@ -102,6 +102,14 @@ function ToolCallCardInner({
     return Object.keys(a as object).length > 0
   }, [toolCall.arguments])
 
+  // Compact single-line view of the args, shown inline next to the tool name
+  // (CSS-truncated to one line); the full args expand under the chevron.
+  const argsSnippet = useMemo(
+    () => (hasArgs ? jsonString(toolCall.arguments).replace(/\s+/g, ' ').trim() : ''),
+    [hasArgs, toolCall.arguments],
+  )
+  const timeLabel = durationMs ? formatDurationMs(durationMs) : ''
+
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'
   const detail =
@@ -121,69 +129,53 @@ function ToolCallCardInner({
 
   const body = (
     <>
-      <div className="flex items-center justify-between px-3 pt-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <StatusIcon resultType={resultType} />
-          <span className="font-semibold truncate">{toolCall.name}</span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {selectable || disabled ? (
-            <span onClick={(e) => e.stopPropagation()}>
-              <Switch
-                checked={!!selected}
-                onCheckedChange={() => onToggleSelect?.()}
-                disabled={disabled}
-              />
-            </span>
-          ) : null}
-          {hasArgs ? (
-            <button
-              type="button"
-              className="p-1 rounded hover:bg-(--surface-raised)"
-              onClick={(e) => {
-                e.stopPropagation()
-                setArgsOpen((v) => !v)
-              }}
-              aria-expanded={argsOpen}
-              aria-label="Toggle arguments"
-            >
-              <IconChevron
-                className="w-4 h-4 transition-transform"
-                style={{ transform: `rotate(${argsOpen ? 90 : 0}deg)` }}
-              />
-            </button>
-          ) : null}
-        </div>
+      {/* Row 1: status icon · tool name · compact input · time chip · chevron.
+          The status icon (left) conveys outcome, so no separate status pill. */}
+      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
+        <StatusIcon resultType={resultType} />
+        <span className="font-semibold shrink-0">{toolCall.name}</span>
+        {argsSnippet ? (
+          <code className="font-mono text-[11px] text-(--text-secondary) bg-(--surface-base) border border-(--border-subtle) rounded px-1.5 py-0.5 truncate min-w-0 flex-1">
+            {argsSnippet}
+          </code>
+        ) : (
+          <span className="flex-1" />
+        )}
+        {resultType === 'pending' ? (
+          <span className="text-[11px] text-blue-600 dark:text-blue-400 shrink-0">Queued</span>
+        ) : null}
+        {timeLabel ? (
+          <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-full px-1.5 py-0.5 shrink-0 tabular-nums">
+            {timeLabel}
+          </span>
+        ) : null}
+        {selectable || disabled ? (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Switch
+              checked={!!selected}
+              onCheckedChange={() => onToggleSelect?.()}
+              disabled={disabled}
+            />
+          </span>
+        ) : null}
+        {hasArgs ? (
+          <button
+            type="button"
+            className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
+            onClick={(e) => {
+              e.stopPropagation()
+              setArgsOpen((v) => !v)
+            }}
+            aria-expanded={argsOpen}
+            aria-label="Toggle arguments"
+          >
+            <IconChevron
+              className="w-4 h-4 transition-transform"
+              style={{ transform: `rotate(${argsOpen ? 90 : 0}deg)` }}
+            />
+          </button>
+        ) : null}
       </div>
-
-      {headerPath ? (
-        <div className="px-3 mt-0.5" title={headerPath}>
-          {isFilePathTool(toolCall.name) ? (
-            <PathDisplay path={headerPath} />
-          ) : (
-            <div className="font-mono text-[11px] text-(--text-secondary) truncate">
-              {headerPath}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {resultType || durationMs ? (
-        // Status pill on the left, time-taken on the right — mirrors the
-        // mobile `ToolCallCard` layout so both clients render status +
-        // duration on the same line.
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {resultType ? <StatusPill resultType={resultType} /> : null}
-            {resultType === 'pending' ? (
-              <span className="text-[11px] text-blue-600 dark:text-blue-400">Queued</span>
-            ) : null}
-          </div>
-          {durationMs ? (
-            <span className="text-[11px] text-(--text-secondary) shrink-0">{durationMs}ms</span>
-          ) : null}
-        </div>
-      ) : null}
 
       {argsOpen && hasArgs ? (
         <div className="px-3 pb-2">

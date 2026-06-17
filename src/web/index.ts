@@ -364,7 +364,6 @@ export {
 export {
   ChatBody,
   CliRunArtifactPanel,
-  CliRunTranscript,
   ChatDynamicContextModal,
   ChatHeader,
   ChatInput,
@@ -402,7 +401,6 @@ export {
   type SystemPromptViewerConnectedProps,
   type UsageModalConnectedProps,
   type CompletionSettingsLike,
-  type CliRunTranscriptProps,
   type MessageListProps,
   type MessageRowProps,
   type MessageUsageLike,

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
-import { useAppSettings, useCliRunArtifact } from '../../../headless'
+import { useCliRunArtifact } from '../../../headless'
 import { StructuredUnifiedDiff } from '../diff'
-import CliRunTranscript from './CliRunTranscript'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -38,8 +37,6 @@ const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifactPanelProps) {
   const {
     artifact,
-    transcript,
-    status,
     review,
     loading,
     preview,
@@ -57,16 +54,7 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
     mergeResult,
     error,
   } = useCliRunArtifact(runId, projectId)
-  // Active = the run is still working; the transcript then shows the current
-  // step live (expanded + running timer) and the panel auto-opens to surface it.
-  const streaming =
-    status === 'running' || status === 'awaiting-approval' || status === 'paused'
-  const { settings } = useAppSettings()
-  const prefs = settings.userPreferences
   const [expanded, setExpanded] = useState(false)
-  useEffect(() => {
-    if (streaming) setExpanded(true)
-  }, [streaming])
 
   useEffect(() => {
     if (!expanded || error) return
@@ -92,9 +80,8 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
       </div>
     )
   }
-  // A run that changed no files still has a transcript worth inspecting; only
-  // bail when there's nothing at all to show.
-  if (!artifact && transcript.length === 0) return null
+  // The panel surfaces the run's workspace changes; nothing to show without an artifact.
+  if (!artifact) return null
 
   const files = artifact?.payload.files ?? []
   const counts = {
@@ -279,15 +266,6 @@ export default function CliRunArtifactPanel({ runId, projectId }: CliRunArtifact
             </div>
           ) : null}
         </div>
-      ) : null}
-
-      {expanded ? (
-        <CliRunTranscript
-          entries={transcript}
-          streaming={streaming}
-          showProtocol={prefs.cliShowProtocol ?? false}
-          showThinking={prefs.cliShowThinking ?? true}
-        />
       ) : null}
     </div>
   )

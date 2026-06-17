@@ -173,20 +173,6 @@ export default function ChatSettingsDropdown({
               onCheckedChange={(c) => setUserPreferences({ cliShowThinking: c })}
             />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: nativeSpace[3] }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
-                Show protocol steps
-              </Text>
-              <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
-                Show session/turn-started and completed notices. Off by default.
-              </Text>
-            </View>
-            <Switch
-              checked={prefs.cliShowProtocol ?? false}
-              onCheckedChange={(c) => setUserPreferences({ cliShowProtocol: c })}
-            />
-          </View>
         </View>
 
         {/* Tools */}

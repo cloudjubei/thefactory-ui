@@ -8,6 +8,7 @@ import type {
 import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
+import CliRunMessages from './CliRunMessages'
 import { formatDurationMs } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type {
@@ -102,7 +103,6 @@ export default function MessageList({
   pending,
   pendingCliRunId,
   pendingCliModel,
-  pendingCliStartedAt,
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
@@ -305,23 +305,35 @@ export default function MessageList({
               {cutoffIndexInWindow === i ? (
                 <CutoffDivider numberMessagesToSend={numberMessagesToSend} />
               ) : null}
-              <MessageRow
-                msg={msg}
-                globalIndex={i}
-                totalMessages={windowed.length}
-                isThinking={isThinking}
-                isLast={i === lastIndex}
-                prevUserMessagesLen={prevUserCount}
-                enhancedTotalLength={windowed.length}
-                renderToolCall={renderToolCall}
-                onDeleteLastMessage={onDeleteLastMessage}
-                onRetry={onRetry}
-                onResolveFile={onResolveFile}
-                renderDependency={renderDependency}
-                renderCliRunArtifact={renderCliRunArtifact}
-                onShowUsage={onShowUsage}
-                thinkingLabel={perMsgThinking}
-              />
+              {msg.cliRunId ? (
+                <CliRunMessages
+                  runId={msg.cliRunId}
+                  model={typeof msg.model === 'string' ? msg.model : undefined}
+                  baseIndex={i}
+                  renderToolCall={renderToolCall}
+                  onResolveFile={onResolveFile}
+                  renderDependency={renderDependency}
+                  renderCliRunArtifact={renderCliRunArtifact}
+                />
+              ) : (
+                <MessageRow
+                  msg={msg}
+                  globalIndex={i}
+                  totalMessages={windowed.length}
+                  isThinking={isThinking}
+                  isLast={i === lastIndex}
+                  prevUserMessagesLen={prevUserCount}
+                  enhancedTotalLength={windowed.length}
+                  renderToolCall={renderToolCall}
+                  onDeleteLastMessage={onDeleteLastMessage}
+                  onRetry={onRetry}
+                  onResolveFile={onResolveFile}
+                  renderDependency={renderDependency}
+                  renderCliRunArtifact={renderCliRunArtifact}
+                  onShowUsage={onShowUsage}
+                  thinkingLabel={perMsgThinking}
+                />
+              )}
             </View>
           )
           if (i !== firstUnreadInWindow) return row
@@ -352,26 +364,14 @@ export default function MessageList({
             thinkingLabel={thinkingLabel}
           />
         )}
-        {/* Live CLI run: render it AS an assistant message (model chip + start
-            time + streaming transcript, final reply at the end) so it reads like
-            the persisted reply and the transition is seamless. */}
+        {/* Live CLI run: stream it AS normal chat messages (assistant + tool
+            cards) exactly like an API run — no bespoke transcript view. */}
         {pendingCliRunId ? (
-          <MessageRow
-            msg={{
-              role: 'assistant',
-              content: '',
-              cliRunId: pendingCliRunId,
-              model: pendingCliModel,
-              showModel: !!pendingCliModel,
-              startedAt: pendingCliStartedAt,
-              isFirstInGroup: true,
-            }}
-            globalIndex={windowed.length}
-            totalMessages={windowed.length + 1}
-            isThinking={isThinking}
-            isLast
-            prevUserMessagesLen={prevUserCount}
-            enhancedTotalLength={windowed.length + 1}
+          <CliRunMessages
+            runId={pendingCliRunId}
+            model={pendingCliModel}
+            baseIndex={windowed.length}
+            renderToolCall={renderToolCall}
             onResolveFile={onResolveFile}
             renderDependency={renderDependency}
             renderCliRunArtifact={renderCliRunArtifact}

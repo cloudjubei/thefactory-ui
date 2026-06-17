@@ -1,9 +1,8 @@
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
-import { PathDisplay } from '../../PathDisplay'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
-import { isFilePathTool, safePreviewString } from '../../../../headless/utils/toolPreview'
+import { safePreviewString } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import {
   nativePalette,
@@ -60,7 +59,6 @@ function ToolCallCardInner({
   resultType,
   durationMs,
   renderResult,
-  headerPath,
   onPreview,
 }: ToolCallCardProps) {
   const { theme } = useNativeTheme()
@@ -73,6 +71,14 @@ function ToolCallCardInner({
     if (typeof a !== 'object') return true
     return Object.keys(a as object).length > 0
   }, [toolCall.arguments])
+
+  // Compact one-line args shown inline next to the name (always truncated to a
+  // single line); the full args expand under the chevron.
+  const argsSnippet = useMemo(
+    () => (hasArgs ? jsonString(toolCall.arguments).replace(/\s+/g, ' ').trim() : ''),
+    [hasArgs, toolCall.arguments],
+  )
+  const timeLabel = formatDurationLabel(durationMs)
 
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'
@@ -112,9 +118,9 @@ function ToolCallCardInner({
           : theme.surface.overlay,
       }}
     >
-      {/* Header — status icon + name. The chevron lives in its own
-          Pressable on the right so tapping it ONLY toggles args (doesn't
-          open the preview). */}
+      {/* Row 1: status icon · name · compact input · time chip · chevron. The
+          icon (left) conveys outcome, so no separate status pill. The chevron
+          has its own Pressable so tapping it only toggles args. */}
       <View
         style={{
           flexDirection: 'row',
@@ -126,17 +132,43 @@ function ToolCallCardInner({
         }}
       >
         {status ? <StatusIcon kind={status.kind} color={status.iconColor} /> : null}
-        <Text
-          style={{
-            flex: 1,
-            fontSize: 13,
-            fontWeight: '600',
-            color: theme.text.primary,
-          }}
-          numberOfLines={1}
-        >
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }} numberOfLines={1}>
           {toolCall.name}
         </Text>
+        {argsSnippet ? (
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontFamily: 'Menlo',
+              fontSize: 11,
+              color: theme.text.secondary,
+              backgroundColor: theme.surface.base,
+              borderRadius: nativeRadii[1],
+              paddingHorizontal: 4,
+              paddingVertical: 1,
+              overflow: 'hidden',
+            }}
+          >
+            {argsSnippet}
+          </Text>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+        {timeLabel ? (
+          <View
+            style={{
+              backgroundColor: 'rgba(59,130,246,0.12)',
+              borderRadius: nativeRadii.round,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '600', color: nativePalette.blue[600] }}>
+              {timeLabel}
+            </Text>
+          </View>
+        ) : null}
         {hasArgs ? (
           <Pressable
             onPress={() => setArgsOpen((v) => !v)}
@@ -153,67 +185,6 @@ function ToolCallCardInner({
           </Pressable>
         ) : null}
       </View>
-
-      {headerPath ? (
-        <View style={{ paddingHorizontal: PAD, paddingBottom: PAD }}>
-          {isFilePathTool(toolCall.name) ? (
-            <PathDisplay path={headerPath} />
-          ) : (
-            <Text
-              numberOfLines={1}
-              style={{
-                fontFamily: 'Menlo',
-                fontSize: 11,
-                color: theme.text.secondary,
-              }}
-            >
-              {headerPath}
-            </Text>
-          )}
-        </View>
-      ) : null}
-
-      {(status || durationMs) ? (
-        // Status pill on the left, time-taken on the right. Mirrors web's
-        // `<StatusPill>` row 1:1.
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: PAD,
-            paddingBottom: PAD,
-          }}
-        >
-          {status ? (
-            <View
-              style={{
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderRadius: nativeRadii.round,
-                backgroundColor: status.pillBg,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: '600',
-                  letterSpacing: 0.6,
-                  textTransform: 'uppercase',
-                  color: status.pillText,
-                }}
-              >
-                {status.label}
-              </Text>
-            </View>
-          ) : <View />}
-          {durationMs ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-              {formatDurationLabel(durationMs)}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
 
       {argsOpen && hasArgs ? (
         <View

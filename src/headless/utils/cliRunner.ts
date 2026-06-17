@@ -11,6 +11,7 @@ import type {
   FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
+import type { ChatMessageLike } from './chatTypes'
 
 export type StartCliRunBodyInput = {
   projectId: string
@@ -496,6 +497,70 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
     }
   }
   return steps
+}
+
+/**
+ * Convert a CLI run's transcript into the SAME chat-message shape an API agent
+ * produces, so a CLI run renders through the normal message list (assistant
+ * bubbles + tool cards) with no bespoke transcript view:
+ * - assistant step → an `assistant` message (its prose),
+ * - thinking step → an `assistant` message carrying `thinking`,
+ * - tool step → a `tool` message (`toolCall` + `toolResult`), exactly like the
+ *   API path's tool messages.
+ * Protocol steps (system/result/raw) are dropped — they have no API analogue.
+ * `opts.model` stamps the assistant messages so they show the model chip.
+ */
+export function cliTranscriptToMessages(
+  entries: CliRunTranscriptEntry[],
+  opts?: { model?: string; showThinking?: boolean },
+): ChatMessageLike[] {
+  const showThinking = opts?.showThinking ?? true
+  const steps = normalizeCliTranscript(entries)
+  const messages: ChatMessageLike[] = []
+  for (const step of steps) {
+    const startedAt = new Date(step.at).toISOString()
+    const model = opts?.model
+    if (step.kind === 'thinking' && !showThinking) continue
+    if (step.kind === 'assistant') {
+      messages.push({
+        role: 'assistant',
+        content: step.text,
+        startedAt,
+        ...(step.durationMs != null ? { durationMs: step.durationMs } : {}),
+        ...(model ? { model } : {}),
+      })
+    } else if (step.kind === 'thinking') {
+      // MessageRow renders message `content`, not a `thinking` field, so put the
+      // reasoning in content (kept on `thinking` too) — otherwise it'd be a blank
+      // bubble.
+      messages.push({
+        role: 'assistant',
+        content: step.text,
+        thinking: step.text,
+        startedAt,
+        ...(step.durationMs != null ? { durationMs: step.durationMs } : {}),
+        ...(model ? { model } : {}),
+      })
+    } else if (step.kind === 'tool') {
+      messages.push({
+        role: 'tool',
+        content: '',
+        startedAt,
+        ...(step.durationMs != null ? { durationMs: step.durationMs } : {}),
+        toolCall: {
+          toolCallId: step.toolCallId ?? `cli-${step.at}`,
+          name: step.toolName,
+          arguments: step.input,
+        },
+        toolResult: {
+          result: step.result,
+          type: step.resultType,
+          durationMs: step.durationMs ?? 0,
+        },
+      })
+    }
+  }
+  return messages
 }
 
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */

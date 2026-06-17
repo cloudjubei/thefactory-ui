@@ -11,6 +11,7 @@ import {
 import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
+import CliRunMessages from './CliRunMessages'
 import { Switch } from '../../primitives/Switch'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -123,7 +124,6 @@ export default function MessageList({
   pending = null,
   pendingCliRunId,
   pendingCliModel,
-  pendingCliStartedAt,
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
@@ -603,15 +603,30 @@ export default function MessageList({
                 </div>
               ) : null}
 
-              <MessageRow
-                msg={msg}
-                globalIndex={globalIndex}
-                totalMessages={totalMessages}
-                isThinking={isThinking}
-                isLast={isLast}
-                prevUserMessagesLen={prevUserMessagesLenRef.current}
-                enhancedTotalLength={messagesToDisplay.length}
-                onDeleteLastMessage={onDeleteLastMessage}
+              {msg.cliRunId ? (
+                // A CLI agent reply: render the whole run as normal chat messages
+                // (assistant + tool cards) plus the diff/apply panel — identical
+                // to an API run, no bespoke transcript view.
+                <CliRunMessages
+                  runId={msg.cliRunId}
+                  model={typeof msg.model === 'string' ? msg.model : undefined}
+                  baseIndex={globalIndex}
+                  renderToolResult={renderToolResult}
+                  getToolHeaderPath={getToolHeaderPath}
+                  onResolveFile={onResolveFile}
+                  renderDependency={renderDependency}
+                  renderCliRunArtifact={renderCliRunArtifact}
+                />
+              ) : (
+                <MessageRow
+                  msg={msg}
+                  globalIndex={globalIndex}
+                  totalMessages={totalMessages}
+                  isThinking={isThinking}
+                  isLast={isLast}
+                  prevUserMessagesLen={prevUserMessagesLenRef.current}
+                  enhancedTotalLength={messagesToDisplay.length}
+                  onDeleteLastMessage={onDeleteLastMessage}
                 onRetry={onRetry}
                 renderToolResult={renderToolResult}
                 getToolHeaderPath={getToolHeaderPath}
@@ -648,7 +663,8 @@ export default function MessageList({
                 setLastMessageRef={(el) => {
                   lastMessageRef.current = el
                 }}
-              />
+                />
+              )}
             </div>
           )
         })}
@@ -682,27 +698,13 @@ export default function MessageList({
           </div>
         ) : null}
 
-        {/* Live CLI run: render it AS an assistant message (model chip + start
-            time + the streaming transcript, final reply at the end) so it reads
-            like the eventual persisted reply and the transition is seamless —
-            instead of a bare panel that flashes into the final message. */}
+        {/* Live CLI run: stream it AS normal chat messages (assistant + tool
+            cards) exactly like an API run — no bespoke transcript view. */}
         {pendingCliRunId ? (
-          <MessageRow
-            msg={{
-              role: 'assistant',
-              content: '',
-              cliRunId: pendingCliRunId,
-              model: pendingCliModel,
-              showModel: !!pendingCliModel,
-              startedAt: pendingCliStartedAt,
-              isFirstInGroup: true,
-            }}
-            globalIndex={messagesToDisplay.length}
-            totalMessages={totalMessages + 1}
-            isThinking={isThinking}
-            isLast
-            prevUserMessagesLen={prevUserMessagesLenRef.current}
-            enhancedTotalLength={messagesToDisplay.length + 1}
+          <CliRunMessages
+            runId={pendingCliRunId}
+            model={pendingCliModel}
+            baseIndex={messagesToDisplay.length}
             renderToolResult={renderToolResult}
             getToolHeaderPath={getToolHeaderPath}
             onResolveFile={onResolveFile}
