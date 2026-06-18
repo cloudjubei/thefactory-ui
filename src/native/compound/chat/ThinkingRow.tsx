@@ -13,9 +13,12 @@ export interface ThinkingRowProps {
   thinking?: string
   defaultOpen?: boolean
   label?: string
+  /** Optional text shown beside the spinner in the no-reasoning state — used for
+   * a transient status (e.g. "Starting the agent…" while a CLI sandbox boots). */
+  spinnerLabel?: string
 }
 
-function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: ThinkingRowProps) {
+function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning', spinnerLabel }: ThinkingRowProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(defaultOpen)
   const reasoning = thinking?.trim()
@@ -109,10 +112,16 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
               borderColor: theme.border.subtle,
               backgroundColor: theme.surface.raised,
               alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: nativeSpace[2],
               ...nativeShadows[1],
             }}
           >
             <Spinner />
+            {spinnerLabel ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>{spinnerLabel}</Text>
+            ) : null}
           </View>
         )}
       </View>

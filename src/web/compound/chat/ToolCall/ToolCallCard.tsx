@@ -6,7 +6,7 @@ import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
 import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
-import StatusIcon from './StatusIcon'
+import StatusIcon, { StatusChip } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import ToolOriginBadge from './ToolOriginBadge'
@@ -70,9 +70,6 @@ export type ToolCallCardProps = {
   /** Whether the checkbox is checked. */
   selected?: boolean
   onToggleSelect?: () => void
-  /** When true (typically for non-confirmable tools in a confirmation
-   * batch), the checkbox is shown but disabled. */
-  disabled?: boolean
 }
 
 function jsonString(v: unknown): string {
@@ -90,7 +87,6 @@ function ToolCallCardInner({
   selectable = false,
   selected = false,
   onToggleSelect,
-  disabled = false,
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -140,21 +136,12 @@ function ToolCallCardInner({
         <span className="font-semibold shrink-0">{toolCall.name}</span>
         <ToolOriginBadge origin={toolCall.origin} />
         <ToolArgInline display={argDisplay} />
-        {resultType === 'pending' ? (
-          <span className="text-[11px] text-blue-600 dark:text-blue-400 shrink-0">Queued</span>
-        ) : null}
-        {timeLabel ? (
-          <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-full px-1.5 py-0.5 shrink-0 tabular-nums">
-            {timeLabel}
-          </span>
-        ) : null}
-        {selectable || disabled ? (
+        <StatusChip resultType={resultType} timeLabel={timeLabel} />
+        {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
+            the user's approval — never for auto-call / already-running tools. */}
+        {selectable ? (
           <span onClick={(e) => e.stopPropagation()}>
-            <Switch
-              checked={!!selected}
-              onCheckedChange={() => onToggleSelect?.()}
-              disabled={disabled}
-            />
+            <Switch checked={!!selected} onCheckedChange={() => onToggleSelect?.()} />
           </span>
         ) : null}
         {hasArgs ? (

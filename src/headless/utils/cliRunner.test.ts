@@ -394,6 +394,46 @@ describe('normalizeCliTranscript', () => {
     expect(tool.result).toEqual({ output: 'a\nb', exitCode: 0 })
   })
 
+  it('Codex MCP tool: pairs mcp_tool_call by item.id, names it from item.tool, internal origin, unwraps result content', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { type: 'item.started', item: { id: 'item_3', type: 'mcp_tool_call', server: 'thefactory', tool: 'searchKnowledgeMap', arguments: { query: 'slug' }, status: 'in_progress' } } }),
+      entry({ at: 2, kind: 'tool-result', payload: { type: 'item.completed', item: { id: 'item_3', type: 'mcp_tool_call', server: 'thefactory', tool: 'searchKnowledgeMap', result: { content: [{ type: 'text', text: '[{"itemId":"l2_x"}]' }] }, status: 'completed' } } }),
+    ])
+    expect(steps.length).toBe(1)
+    const tool = steps[0]
+    if (tool.kind !== 'tool') throw new Error('expected tool step')
+    expect(tool.toolName).toBe('searchKnowledgeMap')
+    expect(tool.origin).toBe('internal')
+    expect(tool.toolCallId).toBe('item_3')
+    expect(tool.input).toEqual({ query: 'slug' })
+    expect(tool.resultType).toBe('success')
+    expect(tool.result).toEqual([{ itemId: 'l2_x' }])
+  })
+
+  it('Codex MCP tool: a non-thefactory server is external-mcp, and failed status marks errored', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'i9', type: 'mcp_tool_call', server: 'github', tool: 'create_issue', arguments: {} } } }),
+      entry({ at: 2, kind: 'tool-result', payload: { item: { id: 'i9', type: 'mcp_tool_call', server: 'github', tool: 'create_issue', result: { content: [{ type: 'text', text: 'boom' }] }, status: 'failed' } } }),
+    ])
+    const tool = steps[0]
+    if (tool.kind !== 'tool') throw new Error('expected tool step')
+    expect(tool.origin).toBe('external-mcp')
+    expect(tool.resultType).toBe('errored')
+  })
+
+  it('Codex file_change: renders as a file_change tool step paired by item.id', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'fc1', type: 'file_change', changes: [{ path: '/workspace/a.ts', kind: 'update' }], status: 'in_progress' } } }),
+      entry({ at: 2, kind: 'tool-result', payload: { item: { id: 'fc1', type: 'file_change', changes: [{ path: '/workspace/a.ts', kind: 'update' }], status: 'completed' } } }),
+    ])
+    expect(steps.length).toBe(1)
+    const tool = steps[0]
+    if (tool.kind !== 'tool') throw new Error('expected tool step')
+    expect(tool.toolName).toBe('file_change')
+    expect(tool.origin).toBe('native')
+    expect(tool.input).toEqual({ changes: [{ path: '/workspace/a.ts', kind: 'update' }] })
+  })
+
   it('Codex: non-zero exit_code marks the tool step errored', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'i9', type: 'command_execution', command: 'false' } } }),
@@ -404,16 +444,17 @@ describe('normalizeCliTranscript', () => {
     expect(tool.resultType).toBe('errored')
   })
 
-  it('emits a standalone tool step for an orphan result, and a pending step for an unmatched call', () => {
+  it('emits a standalone tool step for an orphan result, and a running step for an unmatched call', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'tool-call', payload: { name: 'doThing', id: 'x1', input: { a: 1 } } }),
       entry({ at: 2, kind: 'tool-result', payload: { id: 'other', result: { z: 9 } } }),
     ])
     expect(steps.length).toBe(2)
-    const pending = steps[0]
+    const running = steps[0]
     const orphan = steps[1]
-    if (pending.kind !== 'tool' || orphan.kind !== 'tool') throw new Error('expected tool steps')
-    expect(pending.resultType).toBe('pending')
+    if (running.kind !== 'tool' || orphan.kind !== 'tool') throw new Error('expected tool steps')
+    // An unmatched call is in-flight → running (CLI tools run when called).
+    expect(running.resultType).toBe('running')
     expect(orphan.result).toEqual({ z: 9 })
   })
 

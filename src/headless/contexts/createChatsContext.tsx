@@ -427,9 +427,13 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         const parsed = parseCliRunUpdateEvent(data)
         if (!parsed) return
         if (parsed.kind === 'terminal') {
+          // Keep `cliRunId` set across the terminal boundary so the live run view
+          // stays mounted until the persisted reply (carrying the same runId)
+          // lands on the next refresh — the shared key then lets React move the
+          // instance in place (no finish flash). `sendMessage`'s finally clears
+          // cliRunId after that refresh.
           updateLiveState(target, {
             pendingAssistant: null,
-            cliRunId: null,
             cliModel: null,
             cliStartedAt: null,
           })
@@ -472,18 +476,23 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     // The project-level chat is the one scoped directly to the active project
     // (no story / feature / topic). It's what the chat sidebar pins at the top.
+    // A project ALWAYS has a Project chat to land on: the backend creates the
+    // persisted PROJECT chat lazily (on first message), so when none exists yet
+    // we return a synthetic, sendable one (empty messages) rather than null —
+    // every client then renders a tappable Project-chat row, and post-delete
+    // navigation always has a concrete target.
     const projectChat = useMemo<GetChatResponse | null>(() => {
       if (!projectId) return null
-      return (
-        chats.find(
-          (c) =>
-            c.context.type === 'PROJECT' &&
-            c.context.projectId === projectId &&
-            !c.context.topicId &&
-            !c.context.storyId &&
-            !c.context.featureId,
-        ) ?? null
+      const existing = chats.find(
+        (c) =>
+          c.context.type === 'PROJECT' &&
+          c.context.projectId === projectId &&
+          !c.context.topicId &&
+          !c.context.storyId &&
+          !c.context.featureId,
       )
+      if (existing) return existing
+      return { context: { type: 'PROJECT', projectId }, messages: [] } as GetChatResponse
     }, [chats, projectId])
 
     const activeLLMConfig = activeChatConfig ?? llmConfigs[0] ?? null
@@ -651,7 +660,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
             inFlightCtxRef.current = null
           }
-          updateLiveState(ctx, { isSending: false, pendingAssistant: null })
+          // Clear the live CLI-run marker now the run is done AND `refresh()` has
+          // pulled the persisted reply: the inline (persisted) block owns the run
+          // from here, so dropping the trailing live block is invisible. (No-op
+          // for API sends, where cliRunId was never set.)
+          updateLiveState(ctx, { isSending: false, pendingAssistant: null, cliRunId: null })
         }
       },
       [activeLLMConfig, buildToolSettings, getChat, refresh, updateLiveState],

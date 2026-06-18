@@ -10,7 +10,7 @@ import {
   nativeSpace,
 } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
-import { StatusIcon, statusVisual } from './StatusIcon'
+import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolOriginBadge from './ToolOriginBadge'
 
@@ -141,20 +141,7 @@ function ToolCallCardInner({
         </Text>
         <ToolOriginBadge origin={toolCall.origin} />
         <ToolArgInline display={argDisplay} />
-        {timeLabel ? (
-          <View
-            style={{
-              backgroundColor: 'rgba(59,130,246,0.12)',
-              borderRadius: nativeRadii.round,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: '600', color: nativePalette.blue[600] }}>
-              {timeLabel}
-            </Text>
-          </View>
-        ) : null}
+        <StatusChip resultType={resultType} timeLabel={timeLabel} />
         {hasArgs ? (
           <Pressable
             onPress={() => setArgsOpen((v) => !v)}

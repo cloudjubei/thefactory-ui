@@ -7,6 +7,36 @@ import {
 } from '../../../icons'
 import type { ToolResultType } from './types'
 
+/**
+ * The single lifecycle status chip shown at the right of a tool card's first
+ * row — identical for CLI and API tools. Exactly one of: "Queued" (pending, not
+ * yet executing), a spinner (running), or the elapsed time (terminal). Nothing
+ * for require_confirmation/aborted/not_allowed (the left icon / Switch convey
+ * those). The blue pill style is shared so the three states read the same.
+ */
+export function StatusChip({
+  resultType,
+  timeLabel,
+}: {
+  resultType?: ToolResultType
+  timeLabel?: string
+}) {
+  const chip =
+    'inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-full px-1.5 py-0.5 shrink-0 tabular-nums'
+  if (resultType === 'pending') return <span className={chip}>Queued</span>
+  if (resultType === 'running') {
+    return (
+      <span className={`${chip} px-2`} aria-label="Running">
+        <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+      </span>
+    )
+  }
+  if ((resultType === 'success' || resultType === 'errored') && timeLabel) {
+    return <span className={chip}>{timeLabel}</span>
+  }
+  return null
+}
+
 export default function StatusIcon({ resultType }: { resultType?: ToolResultType }) {
   const cls = 'w-4 h-4'
   switch (resultType) {

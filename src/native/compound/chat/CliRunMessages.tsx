@@ -1,12 +1,12 @@
 import { useMemo, type ReactNode } from 'react'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
-import { cliTranscriptToMessages } from '../../../headless/utils/cliRunner'
+import { cliLabel, cliTranscriptToMessages, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../headless/utils/chatTypes'
-import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
+import ThinkingRow from './ThinkingRow'
 
 export type CliRunMessagesProps = {
   /** The CLI run whose transcript to render as normal chat messages. */
@@ -43,11 +43,12 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
 }: CliRunMessagesProps) {
-  const { theme } = useNativeTheme()
   const { transcript, status } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  const booting = streaming && transcript.length === 0
+  const cli = parseCliAgentModelTag(model)?.cli
   const messages = useMemo(
     () => cliTranscriptToMessages(transcript, { ...(model ? { model } : {}), showThinking }),
     [transcript, model, showThinking],
@@ -76,10 +77,9 @@ export default function CliRunMessages({
         )
       })}
       {streaming ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
-          <ActivityIndicator size="small" color={theme.text.secondary} />
-          <Text style={{ fontSize: 11, color: theme.text.secondary }}>Working…</Text>
-        </View>
+        <ThinkingRow
+          {...(booting ? { spinnerLabel: `Starting ${cli ? cliLabel(cli) : 'the agent'}…` } : {})}
+        />
       ) : null}
       {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
     </View>

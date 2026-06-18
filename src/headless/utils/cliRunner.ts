@@ -119,6 +119,10 @@ export function cliToolNameFromEntry(entry: CliRunTranscriptEntry): string | und
   if (!root) return undefined
   if (typeof root.name === 'string') return root.name
   const item = asTranscriptRecord(root.item)
+  // Codex MCP tool: the real tool name is `item.tool`, not the `mcp_tool_call` type.
+  if (item && item.type === 'mcp_tool_call' && typeof item.tool === 'string') {
+    return cleanCliToolName(item.tool)
+  }
   if (item && typeof item.type === 'string' && item.type !== 'agent_message') return item.type
   const message = asTranscriptRecord(root.message)
   const content = message?.content
@@ -158,8 +162,10 @@ export function classifyToolOrigin(rawName: string | undefined): ToolOrigin {
   return 'native'
 }
 
-/** Outcome class for a finished CLI tool step. */
-export type CliToolStepResultType = 'success' | 'errored' | 'pending'
+/** Lifecycle/outcome class for a CLI tool step. A CLI tool is `running` from the
+ * moment its call is seen until its result arrives (CLI tools execute when
+ * called — they're never "queued"); then `success` / `errored`. */
+export type CliToolStepResultType = 'success' | 'errored' | 'running'
 
 /**
  * A CLI transcript reduced to readable, render-ready steps. Tool calls and
@@ -277,6 +283,29 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
       input: inner?.args,
     }
   }
+  // Codex MCP tool call: item: { type:'mcp_tool_call', server, tool, arguments, id }.
+  // Codex carries the server/tool flat on the item (no providerIdentifier echo),
+  // so findMcpEnvelope misses it — handle it explicitly here, before the generic
+  // codex `item` fallback that would surface the raw `mcp_tool_call` type.
+  const codexCall = asTranscriptRecord(p?.item)
+  if (codexCall && codexCall.type === 'mcp_tool_call') {
+    const server = asString(codexCall.server) ?? ''
+    return {
+      toolName: cleanCliToolName(asString(codexCall.tool) ?? 'tool'),
+      origin: /thefactory/i.test(server) ? 'internal' : 'external-mcp',
+      toolCallId: asString(codexCall.id),
+      input: codexCall.arguments,
+    }
+  }
+  // Codex workspace edit: item: { type:'file_change', changes:[{path,kind}], id }.
+  if (codexCall && codexCall.type === 'file_change') {
+    return {
+      toolName: 'file_change',
+      origin: 'native',
+      toolCallId: asString(codexCall.id),
+      input: { changes: codexCall.changes },
+    }
+  }
   // Codex: { type:'item.started', item: { type:'command_execution', command, id } }
   const item = asTranscriptRecord(p?.item)
   if (item && typeof item.type === 'string') {
@@ -346,6 +375,32 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       toolCallId: asString(p?.call_id) ?? asString(inner?.toolCallId),
       result: unwrapped.result,
       resultType: unwrapped.isError ? 'errored' : 'success',
+    }
+  }
+  // Codex MCP tool result: item: { type:'mcp_tool_call', server, tool, result:{content:[{text}]}, error, status }.
+  const codexRes = asTranscriptRecord(p?.item)
+  if (codexRes && codexRes.type === 'mcp_tool_call') {
+    const server = asString(codexRes.server) ?? ''
+    const isError = codexRes.status === 'failed' || codexRes.error != null
+    // result.content is [{ type:'text', text:'<json>' }] — wrap as a success
+    // block so the shared unwrapper joins + JSON-parses it like our other tools.
+    const unwrapped = codexRes.result != null ? unwrapCursorResult({ success: codexRes.result }) : undefined
+    return {
+      toolName: cleanCliToolName(asString(codexRes.tool) ?? 'tool'),
+      origin: /thefactory/i.test(server) ? 'internal' : 'external-mcp',
+      toolCallId: asString(codexRes.id),
+      result: unwrapped ? unwrapped.result : (codexRes.error ?? null),
+      resultType: isError ? 'errored' : 'success',
+    }
+  }
+  // Codex workspace edit result: item: { type:'file_change', changes, status }.
+  if (codexRes && codexRes.type === 'file_change') {
+    return {
+      toolName: 'file_change',
+      origin: 'native',
+      toolCallId: asString(codexRes.id),
+      result: { changes: codexRes.changes },
+      resultType: codexRes.status === 'failed' ? 'errored' : 'success',
     }
   }
   // Codex completed: item: { type:'command_execution', aggregated_output, exit_code, id }
@@ -520,7 +575,8 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
           toolCallId: call.toolCallId,
           input: call.input,
           result: undefined,
-          resultType: 'pending',
+          // In-flight until the matching result entry arrives (running spinner).
+          resultType: 'running',
         }
         steps.push(step)
         if (call.toolCallId) toolIndexById.set(call.toolCallId, steps.length - 1)

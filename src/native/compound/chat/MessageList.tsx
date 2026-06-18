@@ -302,7 +302,13 @@ export default function MessageList({
               ? formatDurationMs(new Date(curIso).getTime() - new Date(prevIso).getTime())
               : undefined
           const row = (
-            <View key={msg.id ?? `msg-${startIndex + i}`} style={{ gap: nativeSpace[6] }}>
+            // A CLI-run message keys on its runId so the live (trailing) and
+            // persisted (inline) blocks share ONE key — React moves the mounted
+            // CliRunMessages in place across the handoff (no finish flash).
+            <View
+              key={msg.cliRunId ? `cli-${msg.cliRunId}` : (msg.id ?? `msg-${startIndex + i}`)}
+              style={{ gap: nativeSpace[6] }}
+            >
               {cutoffIndexInWindow === i ? (
                 <CutoffDivider numberMessagesToSend={numberMessagesToSend} />
               ) : null}
@@ -365,18 +371,22 @@ export default function MessageList({
             thinkingLabel={thinkingLabel}
           />
         )}
-        {/* Live CLI run: stream it AS normal chat messages (assistant + tool
-            cards) exactly like an API run — no bespoke transcript view. */}
-        {pendingCliRunId ? (
-          <CliRunMessages
-            runId={pendingCliRunId}
-            model={pendingCliModel}
-            baseIndex={windowed.length}
-            renderToolCall={renderToolCall}
-            onResolveFile={onResolveFile}
-            renderDependency={renderDependency}
-            renderCliRunArtifact={renderCliRunArtifact}
-          />
+        {/* Live CLI run: streamed as normal chat messages. Skipped once a
+            persisted message carries this runId (the inline block owns it then);
+            the shared `cli-${runId}` key lets React move the instance across the
+            handoff with no finish flash. */}
+        {pendingCliRunId && !renderable.some((m) => m.cliRunId === pendingCliRunId) ? (
+          <View key={`cli-${pendingCliRunId}`}>
+            <CliRunMessages
+              runId={pendingCliRunId}
+              model={pendingCliModel}
+              baseIndex={windowed.length}
+              renderToolCall={renderToolCall}
+              onResolveFile={onResolveFile}
+              renderDependency={renderDependency}
+              renderCliRunArtifact={renderCliRunArtifact}
+            />
+          </View>
         ) : null}
         {isThinking && (!pending || !pending.content) && !pendingCliRunId && (
           <ThinkingRow label={thinkingLabel ?? 'Thinking'} />

@@ -180,8 +180,6 @@ export type MessageRowProps = {
   toolSelectable?: boolean
   /** When true, the checkbox is checked. */
   toolSelected?: boolean
-  /** When true, the checkbox is shown but disabled. */
-  toolDisabled?: boolean
   onToggleToolSelect?: () => void
 
   thinkingLabel?: string
@@ -205,7 +203,6 @@ function MessageRow({
   toolPreview,
   toolSelectable,
   toolSelected,
-  toolDisabled,
   onToggleToolSelect,
   thinkingLabel,
   setLastMessageRef,
@@ -402,7 +399,6 @@ function MessageRow({
                 selectable={toolSelectable}
                 selected={toolSelected}
                 onToggleSelect={onToggleToolSelect}
-                disabled={toolDisabled}
               />
             </div>
           ) : null}

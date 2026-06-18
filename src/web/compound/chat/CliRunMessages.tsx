@@ -1,9 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
-import { cliTranscriptToMessages } from '../../../headless/utils/cliRunner'
+import { cliLabel, cliTranscriptToMessages, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
+import ThinkingRow from './ThinkingRow'
 import type { ToolCall, ToolResultType } from './ToolCall'
 
 export type CliRunMessagesProps = {
@@ -48,6 +49,12 @@ export default function CliRunMessages({
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  // Before the sandbox is up + the first transcript byte lands, show a one-off
+  // startup label beside the standard spinner so the user knows the agent is
+  // booting (rather than a bare spinner). Once any step streams in, it's the
+  // plain assistant spinner like the API path.
+  const booting = streaming && transcript.length === 0
+  const cli = parseCliAgentModelTag(model)?.cli
   const messages = useMemo(
     () => cliTranscriptToMessages(transcript, { ...(model ? { model } : {}), showThinking }),
     [transcript, model, showThinking],
@@ -82,10 +89,11 @@ export default function CliRunMessages({
         )
       })}
       {streaming ? (
-        <div className="flex items-center gap-2 px-1 text-[11px] text-(--text-secondary)">
-          <span className="inline-block w-3 h-3 rounded-full border-2 border-(--border-default) border-t-transparent animate-spin" />
-          Working…
-        </div>
+        <ThinkingRow
+          {...(booting
+            ? { spinnerLabel: `Starting ${cli ? cliLabel(cli) : 'the agent'}…` }
+            : {})}
+        />
       ) : null}
       {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
     </div>

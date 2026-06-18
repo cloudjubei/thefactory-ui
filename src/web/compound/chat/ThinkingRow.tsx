@@ -7,9 +7,12 @@ export type ThinkingRowProps = {
   thinking?: string
   defaultOpen?: boolean
   label?: string
+  /** Optional text shown beside the spinner in the no-reasoning state — used for
+   * a transient status (e.g. "Starting the agent…" while a CLI sandbox boots). */
+  spinnerLabel?: string
 }
 
-function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: ThinkingRowProps) {
+function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning', spinnerLabel }: ThinkingRowProps) {
   const [open, setOpen] = useState(defaultOpen)
   const reasoning = thinking?.trim()
 
@@ -45,7 +48,12 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning' }: Thi
           </div>
         ) : (
           <div className="overflow-x-auto max-w-full px-3 py-2 rounded-2xl rounded-bl-md whitespace-pre-wrap wrap-break-word shadow bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle)">
-            <Spinner />
+            <span className="inline-flex items-center gap-2">
+              <Spinner />
+              {spinnerLabel ? (
+                <span className="text-xs text-(--text-secondary)">{spinnerLabel}</span>
+              ) : null}
+            </span>
           </div>
         )}
       </div>

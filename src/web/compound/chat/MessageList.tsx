@@ -591,7 +591,11 @@ export default function MessageList({
               : undefined
 
           return (
-            <div key={globalIndex}>
+            // A CLI-run message keys on its runId (not the position) so the
+            // live (trailing) block and the persisted (inline) block share ONE
+            // key — React moves the mounted CliRunMessages in place across the
+            // live→persisted handoff instead of unmounting it (no finish flash).
+            <div key={msg.cliRunId ? `cli-${msg.cliRunId}` : globalIndex}>
               {showCutoff ? (
                 <div
                   className="relative text-center my-4 group"
@@ -653,12 +657,6 @@ export default function MessageList({
                   !!msg.toolCall?.toolCallId &&
                   selectedToolIds.includes(String(msg.toolCall.toolCallId))
                 }
-                toolDisabled={
-                  msg.role === 'tool' &&
-                  !!msg.toolCall?.toolCallId &&
-                  !confirmableIds.has(String(msg.toolCall.toolCallId)) &&
-                  pendingTail.ids.includes(String(msg.toolCall.toolCallId))
-                }
                 onToggleToolSelect={
                   msg.role === 'tool' && msg.toolCall?.toolCallId
                     ? () => toggleToolSelected(String(msg.toolCall!.toolCallId))
@@ -711,18 +709,24 @@ export default function MessageList({
         ) : null}
 
         {/* Live CLI run: stream it AS normal chat messages (assistant + tool
-            cards) exactly like an API run — no bespoke transcript view. */}
-        {pendingCliRunId ? (
-          <CliRunMessages
-            runId={pendingCliRunId}
-            model={pendingCliModel}
-            baseIndex={messagesToDisplay.length}
-            renderToolResult={renderToolResult}
-            getToolHeaderPath={getToolHeaderPath}
-            onResolveFile={onResolveFile}
-            renderDependency={renderDependency}
-            renderCliRunArtifact={renderCliRunArtifact}
-          />
+            cards) exactly like an API run — no bespoke transcript view. Skipped
+            once a persisted message carries this runId (the inline block owns it
+            then) so the run is never mounted twice; the shared `cli-${runId}` key
+            lets React move the instance across the handoff with no flash. */}
+        {pendingCliRunId &&
+        !messagesToDisplay.some((m) => m.cliRunId === pendingCliRunId) ? (
+          <div key={`cli-${pendingCliRunId}`}>
+            <CliRunMessages
+              runId={pendingCliRunId}
+              model={pendingCliModel}
+              baseIndex={messagesToDisplay.length}
+              renderToolResult={renderToolResult}
+              getToolHeaderPath={getToolHeaderPath}
+              onResolveFile={onResolveFile}
+              renderDependency={renderDependency}
+              renderCliRunArtifact={renderCliRunArtifact}
+            />
+          </div>
         ) : pending?.role === 'assistant' ? (
           <MessageRow
             msg={{ role: 'assistant', content: pending.content }}

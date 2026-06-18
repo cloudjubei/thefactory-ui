@@ -1,3 +1,4 @@
+import { ActivityIndicator, Text, View } from 'react-native'
 import {
   IconCheckmarkCircle,
   IconError,
@@ -6,7 +7,53 @@ import {
   IconXCircle,
 } from '../../../icons'
 import type { ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
-import { nativePalette } from '../../../../tokens/native'
+import { nativePalette, nativeRadii } from '../../../../tokens/native'
+
+/**
+ * Native peer of web's `StatusChip`: the single lifecycle status chip at the
+ * right of a tool card's first row — "Queued" (pending), a spinner (running), or
+ * the elapsed time (terminal). Same blue pill for CLI + API; nothing for
+ * confirm/aborted/not_allowed. Keep in lockstep with the web `StatusChip`.
+ */
+export function StatusChip({
+  resultType,
+  timeLabel,
+}: {
+  resultType?: ToolResultTypeLike
+  timeLabel?: string
+}) {
+  const wrap = {
+    backgroundColor: 'rgba(59,130,246,0.12)',
+    borderRadius: nativeRadii.round,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  }
+  const txt = { fontSize: 10, fontWeight: '600' as const, color: nativePalette.blue[600] }
+  if (resultType === 'pending') {
+    return (
+      <View style={wrap}>
+        <Text style={txt}>Queued</Text>
+      </View>
+    )
+  }
+  if (resultType === 'running') {
+    return (
+      <View style={[wrap, { paddingHorizontal: 8, minHeight: 18 }]}>
+        <ActivityIndicator size="small" color={nativePalette.blue[600]} style={{ transform: [{ scale: 0.7 }] }} />
+      </View>
+    )
+  }
+  if ((resultType === 'success' || resultType === 'errored') && timeLabel) {
+    return (
+      <View style={wrap}>
+        <Text style={txt}>{timeLabel}</Text>
+      </View>
+    )
+  }
+  return null
+}
 
 /**
  * Shared status visual + icon for the native `ToolCallCard` and
