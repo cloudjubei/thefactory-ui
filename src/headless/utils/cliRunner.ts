@@ -227,17 +227,42 @@ function mcpEnvelopeOrigin(envelope: Record<string, unknown>): ToolOrigin {
   return /thefactory/i.test(provider) || /thefactory/i.test(rawName) ? 'internal' : 'external-mcp'
 }
 
+/** True when a record is the MCP call "echo" — the object carrying the call
+ * metadata (`providerIdentifier` + a `toolName`/`name`). */
+function isMcpEcho(o: Record<string, unknown> | undefined): boolean {
+  return (
+    !!o &&
+    o.providerIdentifier !== undefined &&
+    (typeof o.toolName === 'string' || typeof o.name === 'string')
+  )
+}
+
+/**
+ * The call-metadata object inside an MCP envelope. Cursor nests it under `.args`
+ * (i.e. `mcpToolCall.args` is the echo carrying `providerIdentifier`/`toolName`
+ * and, one level deeper, the real call args at `.args`); other CLIs put the
+ * metadata flat on the envelope itself. The envelope passed in is the object
+ * that owns `.result`, so the metadata and the result are reachable together.
+ */
+function mcpEnvelopeEcho(envelope: Record<string, unknown>): Record<string, unknown> {
+  const nested = asTranscriptRecord(envelope.args)
+  return isMcpEcho(nested) ? (nested as Record<string, unknown>) : envelope
+}
+
 function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const p = asTranscriptRecord(entry.payload)
   // MCP tool call (any CLI): the envelope names the real tool — read it wherever
   // it's nested, so the step is our tool (e.g. `grepFile`) not the wrapper.
   const mcp = findMcpEnvelope(entry.payload)
   if (mcp) {
+    const echo = mcpEnvelopeEcho(mcp)
     return {
-      toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
-      origin: mcpEnvelopeOrigin(mcp),
-      toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
-      input: mcp.args ?? mcp.input,
+      toolName: cleanCliToolName(asString(echo.toolName) ?? asString(echo.name) ?? 'tool'),
+      origin: mcpEnvelopeOrigin(echo),
+      toolCallId: asString(p?.call_id) ?? asString(echo.toolCallId),
+      // The real call args live under the echo's `.args` (cursor) / on the flat
+      // envelope's `.args` — `echo.args` covers both; never the echo itself.
+      input: echo.args ?? echo.input,
     }
   }
   // Cursor native: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }.
@@ -297,11 +322,14 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   // unwrap its `{ success|error: { content } }` block to the structured result.
   const mcp = findMcpEnvelope(entry.payload)
   if (mcp) {
+    const echo = mcpEnvelopeEcho(mcp)
+    // The envelope owns `.result` (cursor: `mcpToolCall.result`, a sibling of the
+    // `.args` echo); unwrap its `{ success|error: { content } }` block.
     const unwrapped = unwrapCursorResult(mcp.result ?? mcp)
     return {
-      toolName: cleanCliToolName(asString(mcp.toolName) ?? asString(mcp.name) ?? 'tool'),
-      origin: mcpEnvelopeOrigin(mcp),
-      toolCallId: asString(p?.call_id) ?? asString(mcp.toolCallId),
+      toolName: cleanCliToolName(asString(echo.toolName) ?? asString(echo.name) ?? 'tool'),
+      origin: mcpEnvelopeOrigin(echo),
+      toolCallId: asString(p?.call_id) ?? asString(echo.toolCallId),
       result: unwrapped.result,
       resultType: unwrapped.isError ? 'errored' : 'success',
     }
@@ -408,8 +436,11 @@ function unwrapCursorResult(raw: unknown): { result: unknown; isError: boolean }
 /**
  * Locate the MCP tool-call envelope inside a transcript payload, wherever a CLI
  * nests it. Cursor wraps MCP calls in `tool_call` under a generic key
- * (`mcpToolCall`) and may nest the real fields a level or two down; the object
- * carrying `providerIdentifier` + a `toolName`/`name` is the envelope. A bounded
+ * (`mcpToolCall`) whose call metadata sits in a `.args` ECHO
+ * (`providerIdentifier` + `toolName`) and whose real result is a SIBLING at
+ * `.result` — so we return the OUTER object that owns `.result`, NOT the echo
+ * (returning the echo loses the result, which is the cursor result-rendering
+ * bug). Other CLIs put the metadata flat on the envelope itself. A bounded
  * breadth-first walk finds it regardless of the exact nesting so the tool reads
  * as our real tool (e.g. `grepFile`) rather than the wrapper ("mcp").
  */
@@ -422,12 +453,12 @@ function findMcpEnvelope(payload: unknown): Record<string, unknown> | undefined 
     visited++
     if (!r || seen.has(r)) continue
     seen.add(r)
-    if (
-      r.providerIdentifier !== undefined &&
-      (typeof r.toolName === 'string' || typeof r.name === 'string')
-    ) {
-      return r
-    }
+    // Cursor's nested envelope: the echo is a child at `.args`; return the
+    // parent (it owns `.result`). Checked first so we don't descend into and
+    // return the echo, which has no result.
+    if (isMcpEcho(asTranscriptRecord(r.args))) return r
+    // Flat envelope: the metadata lives directly on this record.
+    if (isMcpEcho(r)) return r
     for (const v of Object.values(r)) {
       if (v && typeof v === 'object') queue.push(v)
     }

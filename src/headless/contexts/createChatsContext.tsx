@@ -447,6 +447,29 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       })
     }, [ws, updateLiveState])
 
+    // Reconcile the optimistic `pendingAssistant` bubble against the persisted
+    // messages: once the in-flight turn's assistant message is persisted (it now
+    // renders as a normal row — pulled in by a mid-loop `chats:updated` refresh),
+    // drop the trailing pending bubble so the same text doesn't double-render.
+    useEffect(() => {
+      const ctx = inFlightCtxRef.current
+      if (!ctx) return
+      const key = getChatContextKey(ctx)
+      const pending = liveStateByKey.get(key)?.pendingAssistant
+      if (!pending) return
+      const messages = chats.find((c) => sameContext(c.context, ctx))?.messages ?? []
+      let lastAssistant: string | undefined
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'assistant') {
+          lastAssistant = messages[i].content ?? ''
+          break
+        }
+      }
+      if (lastAssistant !== undefined && lastAssistant === pending.content) {
+        updateLiveState(ctx, { pendingAssistant: null })
+      }
+    }, [chats, liveStateByKey, updateLiveState])
+
     // The project-level chat is the one scoped directly to the active project
     // (no story / feature / topic). It's what the chat sidebar pins at the top.
     const projectChat = useMemo<GetChatResponse | null>(() => {
@@ -574,12 +597,23 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             return
           }
 
+          // Optimistically show the user's message immediately (mirrors the CLI
+          // path) so the list never flashes empty / the system-prompt bubble in
+          // the window before the persisted copy is pulled in by refresh().
+          const priorMessages = getChat(ctx)?.messages ?? []
+          setChats((prev) =>
+            prev.map((c) =>
+              sameContext(c.context, ctx)
+                ? { ...c, messages: [...(c.messages ?? []), userMessage] }
+                : c,
+            ),
+          )
+
           await addChatMessages({
             body: { context: ctx, messages: [userMessage] },
             throwOnError: true,
           })
 
-          const priorMessages = getChat(ctx)?.messages ?? []
           const { data: result } = await sendCompletionWithTools({
             body: {
               request: {

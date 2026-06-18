@@ -455,7 +455,20 @@ describe('normalizeCliTranscript', () => {
     expect(steps[0].durationMs).toBeUndefined()
   })
 
-  it('Cursor MCP tool: reads the real tool name/args from the inner object, not the "mcp" wrapper, and unwraps the result envelope', () => {
+  it("Cursor MCP tool: reads the call echo nested under mcpToolCall.args and the result from its sibling .result (the real cursor stream-json shape)", () => {
+    // Cursor's real shape: the call metadata is a `.args` ECHO (carrying
+    // providerIdentifier/toolName and, deeper, the real call args at `.args`)
+    // and the result is a SIBLING at `mcpToolCall.result`. The previous fixture
+    // modelled a flat shape that never occurs, hiding the result-rendering bug.
+    const echo = {
+      name: 'thefactory-listContents',
+      args: { path: '.' },
+      toolCallId: 'tool_e8',
+      providerIdentifier: 'thefactory',
+      toolName: 'listContents',
+      smartModeApprovalOnly: false,
+      skipApproval: false,
+    }
     const steps = normalizeCliTranscript([
       entry({
         at: 1,
@@ -464,14 +477,7 @@ describe('normalizeCliTranscript', () => {
           type: 'tool_call',
           subtype: 'started',
           call_id: 'tool_e8',
-          tool_call: {
-            mcpToolCall: {
-              name: 'thefactory-listContents',
-              toolName: 'listContents',
-              args: { path: '.' },
-              providerIdentifier: 'thefactory',
-            },
-          },
+          tool_call: { mcpToolCall: { args: echo } },
         },
       }),
       entry({
@@ -483,7 +489,7 @@ describe('normalizeCliTranscript', () => {
           call_id: 'tool_e8',
           tool_call: {
             mcpToolCall: {
-              toolName: 'listContents',
+              args: echo,
               result: { success: { content: [{ text: { text: '["a","b"]' } }], isError: false } },
             },
           },
@@ -494,9 +500,13 @@ describe('normalizeCliTranscript', () => {
     const tool = steps[0]
     if (tool.kind !== 'tool') throw new Error('expected tool step')
     expect(tool.toolName).toBe('listContents')
+    expect(tool.origin).toBe('internal')
+    // The real call args are the echo's `.args`, not the echo itself.
     expect(tool.input).toEqual({ path: '.' })
     expect(tool.resultType).toBe('success')
+    // Regression: the result is the unwrapped tool output, NOT the call echo.
     expect(tool.result).toEqual(['a', 'b'])
+    expect(tool.result).not.toMatchObject({ providerIdentifier: 'thefactory' })
   })
 
   it('flat MCP envelope: reads toolName/args/toolCallId and unwraps a success/content result', () => {
