@@ -185,6 +185,12 @@ export type ChatsContextValue = {
    * must already exist server-side (typically true after the first message).
    */
   updateChatSettings: (ctx: ChatCtx, patch: Partial<ChatSettingsPatch>) => Promise<void>
+  /**
+   * True when a settings write failed and is being retried. The settings UI
+   * greys itself out while blocked; it clears automatically once the backend
+   * write succeeds on retry.
+   */
+  settingsBlocked: boolean
 
   refresh: () => Promise<void>
 }
@@ -205,6 +211,12 @@ export type CreateChatsContextDeps = {
     project?: { id?: string; title?: string; description?: string }
   }
 }
+
+// Coalesce a burst of settings toggles into one backend write.
+const SETTINGS_PERSIST_DEBOUNCE_MS = 300
+// While the settings surface is blocked (a persist failed), retry on this cadence
+// so it unblocks the moment the backend comes back.
+const SETTINGS_PERSIST_RETRY_MS = 2000
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -276,6 +288,24 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const [liveStateByKey, setLiveStateByKey] = useState<Map<string, ChatLiveState>>(
       () => new Map(),
     )
+
+    // Optimistic settings overlay: a settings change shows INSTANTLY (overlay)
+    // while the backend write resolves in the background, coalesced so a flurry
+    // of toggles persists once. `getEffectiveChatSettings` reads the overlay
+    // first; a successful persist (after the inline refresh lands the stored
+    // copy) clears the key, so there's no flash of the pre-write value.
+    const [pendingSettingsByKey, setPendingSettingsByKey] = useState<
+      Record<string, ChatSettingsPatch>
+    >({})
+    const pendingSettingsRef = useRef<Record<string, ChatSettingsPatch>>({})
+    const settingsPersistTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+    // Monotonic per-key edit counter — a flush only clears / stops retrying its
+    // own key when no newer edit has superseded it.
+    const settingsPersistSeqRef = useRef<Record<string, number>>({})
+    // Keys whose last persist attempt failed. Non-empty ⇒ the settings surface
+    // is blocked (greyed) until the backend write succeeds on retry.
+    const settingsFailedKeysRef = useRef<Set<string>>(new Set())
+    const [settingsBlocked, setSettingsBlocked] = useState(false)
 
     /**
      * Tracks the chat context that currently has a `sendCompletionWithTools` /
@@ -391,6 +421,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         cancelled = true
       }
     }, [token])
+
+    // Cancel any in-flight settings-persist debounce/retry timers on unmount so
+    // a flush doesn't fire against a torn-down provider.
+    useEffect(() => {
+      const timers = settingsPersistTimersRef.current
+      return () => {
+        for (const t of Object.values(timers)) clearTimeout(t)
+      }
+    }, [])
 
     // Subscribe to completion progress: per-turn partial messages and a final
     // `done` envelope. The backend's payload is loosely typed so we narrow
@@ -513,8 +552,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
      */
     const buildToolSettings = useCallback(
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
-        // Read the REF, not `chats` state, so settings persisted moments before this send are visible.
-        const perChat = chatsRef.current.find((c) => sameContext(c.context, context))?.settings
+        // Prefer the optimistic overlay (a toggle the user flipped this instant,
+        // not yet persisted), then the REF (settings persisted moments ago,
+        // before `chats` state caught up), then nothing.
+        const perChat =
+          pendingSettingsRef.current[getChatContextKey(context)] ??
+          chatsRef.current.find((c) => sameContext(c.context, context))?.settings
         const typeEntry = chatSettings?.[context.type]
         // Per-chat completionSettings (the user's tool selection) take precedence over the per-type
         // template regardless of whether the chat also carries a custom system prompt.
@@ -778,6 +821,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const getEffectiveChatSettings = useCallback(
       (ctx: ChatCtx): ChatSettingsPatch => {
+        const key = getChatContextKey(ctx)
+        const pending = pendingSettingsByKey[key]
+        if (pending) return pending
         const chat = chats.find((c) => sameContext(c.context, ctx))
         if (chat?.settings) return chat.settings
         const entry = chatSettings?.[ctx.type]
@@ -786,7 +832,43 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           completionSettings: entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS,
         }
       },
-      [chats, chatSettings],
+      [chats, chatSettings, pendingSettingsByKey],
+    )
+
+    // Persist the latest overlay value for one key. Runs in the background (never
+    // awaited by the caller): on success the inline refresh lands the stored copy
+    // and we drop the overlay; on failure we mark the surface blocked and retry,
+    // so a flaky backend can never strand the user on a stale toggle.
+    const flushSettingsPersist = useCallback(
+      async (ctx: ChatCtx, key: string) => {
+        const seq = settingsPersistSeqRef.current[key]
+        const merged = pendingSettingsRef.current[key]
+        if (!merged) return
+        try {
+          await updateChat({
+            body: { context: ctx, patch: { settings: merged } },
+            throwOnError: true,
+          })
+          await refresh()
+          // A newer edit landed mid-flight — its own flush owns the key now.
+          if (settingsPersistSeqRef.current[key] !== seq) return
+          delete pendingSettingsRef.current[key]
+          setPendingSettingsByKey((prev) => {
+            const { [key]: _dropped, ...rest } = prev
+            return rest
+          })
+          settingsFailedKeysRef.current.delete(key)
+          setSettingsBlocked(settingsFailedKeysRef.current.size > 0)
+        } catch {
+          if (settingsPersistSeqRef.current[key] !== seq) return
+          settingsFailedKeysRef.current.add(key)
+          setSettingsBlocked(true)
+          settingsPersistTimersRef.current[key] = setTimeout(() => {
+            void flushSettingsPersist(ctx, key)
+          }, SETTINGS_PERSIST_RETRY_MS)
+        }
+      },
+      [refresh],
     )
 
     const updateChatSettings = useCallback(
@@ -799,13 +881,20 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             ...(patch.completionSettings ?? {}),
           },
         }
-        await updateChat({
-          body: { context: ctx, patch: { settings: merged } },
-          throwOnError: true,
-        })
-        await refresh()
+        const key = getChatContextKey(ctx)
+        // Flip the overlay synchronously so the control reflects the change with
+        // zero latency.
+        pendingSettingsRef.current[key] = merged
+        setPendingSettingsByKey((prev) => ({ ...prev, [key]: merged }))
+        settingsPersistSeqRef.current[key] = (settingsPersistSeqRef.current[key] ?? 0) + 1
+        // Debounce the backend write — coalesce a burst of toggles into one.
+        const existing = settingsPersistTimersRef.current[key]
+        if (existing) clearTimeout(existing)
+        settingsPersistTimersRef.current[key] = setTimeout(() => {
+          void flushSettingsPersist(ctx, key)
+        }, SETTINGS_PERSIST_DEBOUNCE_MS)
       },
-      [getEffectiveChatSettings, refresh],
+      [getEffectiveChatSettings, flushSettingsPersist],
     )
 
     const createProjectTopic = useCallback(
@@ -864,6 +953,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         createGroupTopic,
         getEffectiveChatSettings,
         updateChatSettings,
+        settingsBlocked,
         refresh,
       }),
       [
@@ -888,6 +978,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         createGroupTopic,
         getEffectiveChatSettings,
         updateChatSettings,
+        settingsBlocked,
         refresh,
       ],
     )

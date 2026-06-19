@@ -78,7 +78,7 @@ export default function CliRunMessages({
       })}
       {streaming ? (
         <ThinkingRow
-          {...(booting ? { spinnerLabel: `Starting ${cli ? cliLabel(cli) : 'the agent'}…` } : {})}
+          {...(booting ? { spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…` } : {})}
         />
       ) : null}
       {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}

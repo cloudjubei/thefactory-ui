@@ -49,6 +49,9 @@ export interface ChatSettingsDropdownProps {
    *  message-sanitization sub-controls here. */
   extraContent?: ReactNode
   title?: string
+  /** When true a settings write failed and is retrying — the body greys out and
+   * input is blocked until the backend reconnects. */
+  blocked?: boolean
 }
 
 /**
@@ -73,6 +76,7 @@ export default function ChatSettingsDropdown({
   canDelete = true,
   extraContent,
   title = 'Chat settings',
+  blocked = false,
 }: ChatSettingsDropdownProps) {
   const { theme } = useNativeTheme()
   const { settings, setUserPreferences } = useAppSettings()
@@ -84,8 +88,40 @@ export default function ChatSettingsDropdown({
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title={title} maxHeightFraction={0.8}>
+      {blocked ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+            alignItems: 'center',
+            paddingTop: nativeSpace[4],
+            backgroundColor: theme.surface.raised + 'aa',
+          }}
+        >
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+              borderRadius: nativeRadii[3],
+              backgroundColor: theme.surface.overlay,
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: nativeSpace[2],
+            }}
+          >
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              Reconnecting to save your settings…
+            </Text>
+          </View>
+        </View>
+      ) : null}
       <ScrollView
-        style={{ maxHeight: maxBodyHeight }}
+        pointerEvents={blocked ? 'none' : 'auto'}
+        style={{ maxHeight: maxBodyHeight, opacity: blocked ? 0.5 : 1 }}
         contentContainerStyle={{ gap: nativeSpace[5], paddingBottom: nativeSpace[4] }}
         keyboardShouldPersistTaps="handled"
       >

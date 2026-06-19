@@ -48,6 +48,9 @@ export type ChatSettingsDropdownProps = {
   /** Render as a centered modal (X + tappable backdrop) instead of an
    * absolute dropdown — used on small screens. */
   asModal?: boolean
+  /** When true a settings write failed and is retrying — the body greys out and
+   * input is blocked until the backend reconnects. */
+  blocked?: boolean
 }
 
 export default function ChatSettingsDropdown({
@@ -66,6 +69,7 @@ export default function ChatSettingsDropdown({
   onDeleteChat,
   extraContent,
   asModal = false,
+  blocked = false,
 }: ChatSettingsDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const { settings, setUserPreferences } = useAppSettings()
@@ -93,7 +97,20 @@ export default function ChatSettingsDropdown({
   if (!isOpen) return null
 
   const body = (
-    <div className={asModal ? 'p-3 space-y-4' : 'p-3 space-y-4 max-h-[70vh] overflow-auto'}>
+    <div
+      className={
+        'relative ' +
+        (asModal ? 'p-3 space-y-4' : 'p-3 space-y-4 max-h-[70vh] overflow-auto') +
+        (blocked ? ' pointer-events-none opacity-50' : '')
+      }
+    >
+      {blocked ? (
+        <div className="absolute inset-0 z-10 flex items-start justify-center bg-(--surface-raised)/60 backdrop-blur-[1px]">
+          <div className="mt-4 rounded-md border border-(--border-subtle) bg-(--surface-overlay) px-3 py-2 text-xs text-(--text-secondary) shadow">
+            Reconnecting to save your settings…
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-2">
         <div className="text-xs font-medium text-(--text-secondary)">System Prompt</div>
         <textarea
