@@ -53,6 +53,15 @@ export type StructuredUnifiedDiffProps = {
    * rows, single hunk, always contiguous) used on web big-screen + desktop.
    */
   selectionMode?: 'drag' | 'checkbox'
+  /**
+   * Drag mode only: when true, suspend row-drag selection (drop `select-none`
+   * + the pointer handlers) so the user can select diff text natively and copy
+   * it. Markers + line numbers stay `select-none`, so a copy yields the line
+   * text without the leading `+`/`-`. Entered via a double-click on a line.
+   */
+  textSelect?: boolean
+  /** Drag mode: a double-click on a line requests text-selection mode. */
+  onRequestTextSelect?: () => void
   /** Drag mode: the active contiguous row selection (within one hunk). Line
    *  indices are into the hunk's full `lines` array. */
   lineSelection?: { hunkIndex: number; start: number; end: number } | null
@@ -218,6 +227,17 @@ function SideBySideContent({ hunks, wrap }: { hunks: ParsedHunk[]; wrap: boolean
   )
 }
 
+/** Select the full text content of an element (used to grab a diff line on
+ *  double-click, excluding the `select-none` marker/line-number columns). */
+function selectElementText(el: HTMLElement) {
+  const sel = typeof window !== 'undefined' ? window.getSelection?.() : null
+  if (!sel) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  sel.removeAllRanges()
+  sel.addRange(range)
+}
+
 export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
   const {
     patch,
@@ -236,6 +256,8 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onUnstageHunk,
     onDiscardHunk,
     selectionMode = 'checkbox',
+    textSelect = false,
+    onRequestTextSelect,
     lineSelection,
     onLinePointerDown,
     onLinePointerEnter,
@@ -244,6 +266,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onDiscardLines,
   } = props
   const dragMode = selectionMode === 'drag'
+  // While in text-select mode, suspend the row-drag affordance so the browser's
+  // native text selection takes over (and copy yields marker-free line text).
+  const dragActive = dragMode && !textSelect
 
   const hunksRaw = useMemo<ParsedHunk[]>(() => parseUnifiedDiff(patch), [patch])
   const totalRenderableLines = useMemo(
@@ -406,11 +431,12 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
             <div className="overflow-x-auto relative">
               <div className={wrap ? 'min-w-0' : 'min-w-max'}>
                 {/* `j` is the UNFILTERED `h.lines` index so it matches
-                    `generateSelectedPatch`'s keys; drag mode is `select-none`
-                    so a drag picks rows, not text. */}
+                    `generateSelectedPatch`'s keys; an armed drag is
+                    `select-none` so a drag picks rows, not text. Double-clicking
+                    a line drops into text-select mode (drag suspended). */}
                 <div
                   className={`text-[10px] leading-relaxed divide-y divide-neutral-100 dark:divide-neutral-800/50 ${
-                    dragMode ? 'select-none' : ''
+                    dragActive ? 'select-none' : ''
                   }`}
                 >
                   {h.lines.map((ln, j) => {
@@ -435,7 +461,7 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                         key={j}
                         className={`flex relative ${bgCls}`}
                         onPointerDown={
-                          dragMode
+                          dragActive
                             ? (e) => {
                                 e.preventDefault()
                                 onLinePointerDown?.(i, j)
@@ -443,7 +469,21 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                             : undefined
                         }
                         onPointerEnter={
-                          dragMode ? (e) => onLinePointerEnter?.(i, j, e.buttons) : undefined
+                          dragActive ? (e) => onLinePointerEnter?.(i, j, e.buttons) : undefined
+                        }
+                        onDoubleClick={
+                          dragMode
+                            ? (e) => {
+                                const el = e.currentTarget.querySelector<HTMLElement>(
+                                  '[data-diff-line-text]',
+                                )
+                                if (!textSelect) onRequestTextSelect?.()
+                                // Once the re-render drops `select-none`, select the
+                                // line's text (markers/numbers are excluded) so a copy
+                                // yields the line without the +/- prefix.
+                                if (el) setTimeout(() => selectElementText(el), 0)
+                              }
+                            : undefined
                         }
                       >
                         {/* Selection tint + left accent; `pointer-events-none`
@@ -487,6 +527,7 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
 
                         {/* Line content */}
                         <div
+                          data-diff-line-text
                           className={`flex-1 min-w-0 py-0.5 pr-2 pl-2 ${wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
                         >
                           {ln._markup ? (

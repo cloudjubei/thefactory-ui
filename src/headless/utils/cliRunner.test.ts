@@ -746,15 +746,33 @@ describe('parseCliRunUpdateEvent', () => {
     ).toEqual({ runId: 'r1', kind: 'transcript', text: 'hi' })
   })
 
-  it('marks finished and error events as terminal', () => {
+  it('marks finished and error events as terminal with status (+ error detail)', () => {
+    // A finished event with no result defaults to succeeded.
     expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'finished', event: {} })).toEqual({
       runId: 'r1',
       kind: 'terminal',
+      status: 'succeeded',
     })
-    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'error', event: {} })).toEqual({
-      runId: 'r1',
-      kind: 'terminal',
-    })
+    // A finished event carries the run's terminal status + humanizable failure.
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'finished',
+        event: { result: { status: 'errored', failure: { message: 'boom' } } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'errored', error: 'boom' })
+    // An aborted run surfaces its abortReason when there's no classified failure.
+    expect(
+      parseCliRunUpdateEvent({
+        runId: 'r1',
+        type: 'finished',
+        event: { result: { status: 'aborted', abortReason: 'user aborted' } },
+      }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'aborted', error: 'user aborted' })
+    // An `error` event is always errored, carrying its message.
+    expect(
+      parseCliRunUpdateEvent({ runId: 'r1', type: 'error', event: { error: 'kaboom' } }),
+    ).toEqual({ runId: 'r1', kind: 'terminal', status: 'errored', error: 'kaboom' })
   })
 
   it('returns kind:other for unrelated run events and null for malformed payloads', () => {

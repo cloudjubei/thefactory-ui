@@ -717,20 +717,48 @@ function aggregateCliRunUsage(entries: CliRunTranscriptEntry[]): ChatMessageLike
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */
 export type CliRunUpdateParsed =
   | { runId: string; kind: 'transcript'; text: string }
-  | { runId: string; kind: 'terminal' }
+  | { runId: string; kind: 'terminal'; status: CliRunTerminalStatus; error?: string }
   | { runId: string; kind: 'other' }
+
+/** Terminal status a `cli:run-update` `finished`/`error` event resolves to. */
+export type CliRunTerminalStatus = 'succeeded' | 'errored' | 'aborted'
 
 /**
  * Parse a `cli:run-update` WS payload (`{ runId, type, event }`) into a typed
  * shape for the chat streaming preview: `transcript` carries the entry's
- * assistant text (possibly empty), `terminal` marks `finished`/`error`. Returns
- * `null` when the payload isn't a recognisable run-update envelope.
+ * assistant text (possibly empty), `terminal` marks `finished`/`error` and
+ * carries the run's terminal `status` + optional `error` message (so a detached
+ * run can surface failures the HTTP response no longer returns). Returns `null`
+ * when the payload isn't a recognisable run-update envelope.
  */
 export function parseCliRunUpdateEvent(data: unknown): CliRunUpdateParsed | null {
   if (typeof data !== 'object' || data === null) return null
   const { runId, type, event } = data as { runId?: unknown; type?: unknown; event?: unknown }
   if (typeof runId !== 'string' || typeof type !== 'string') return null
-  if (type === 'finished' || type === 'error') return { runId, kind: 'terminal' }
+  if (type === 'finished' || type === 'error') {
+    const ev = event as
+      | {
+          error?: unknown
+          result?: { status?: unknown; abortReason?: unknown; failure?: { message?: unknown } }
+        }
+      | undefined
+    if (type === 'error') {
+      const error = typeof ev?.error === 'string' && ev.error.length > 0 ? ev.error : undefined
+      return { runId, kind: 'terminal', status: 'errored', ...(error ? { error } : {}) }
+    }
+    const rawStatus = ev?.result?.status
+    const status: CliRunTerminalStatus =
+      rawStatus === 'errored' || rawStatus === 'aborted' ? rawStatus : 'succeeded'
+    const failure = ev?.result?.failure?.message
+    const abortReason = ev?.result?.abortReason
+    const error =
+      typeof failure === 'string' && failure.length > 0
+        ? failure
+        : typeof abortReason === 'string' && abortReason.length > 0
+          ? abortReason
+          : undefined
+    return { runId, kind: 'terminal', status, ...(error ? { error } : {}) }
+  }
   if (type === 'transcriptAppend') {
     const entry = (event as { entry?: CliRunTranscriptEntry } | undefined)?.entry
     return { runId, kind: 'transcript', text: entry ? cliAssistantTextFromEntry(entry) : '' }

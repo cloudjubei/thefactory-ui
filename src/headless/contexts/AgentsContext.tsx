@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import {
   abortChatCompletion,
+  abortCliAgentRun,
   deleteChat,
   rateChat,
   startAgentRun,
@@ -84,7 +85,7 @@ const isAgentRunChat = (c: GetChatResponse): c is RunChat =>
   c.context.type === 'AGENT_RUN_STORY' || c.context.type === 'AGENT_RUN_FEATURE'
 
 export function AgentsProvider({ children }: { children: ReactNode }) {
-  const { chats, refresh: refreshChats } = useChats()
+  const { chats, refresh: refreshChats, getChatLiveState } = useChats()
   const { configs: llmConfigs } = useLLMConfigs()
   const { credentials } = useGitCredentials()
   const { keys } = useWebSearchKeys()
@@ -153,6 +154,20 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
 
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(
     async (run) => {
+      // A CLI-backed run lives in a sandbox; abort it directly (SIGKILLs the
+      // container mid-turn). The API abort below is a no-op for it but harmless.
+      const runId = getChatLiveState(run.context).cliRunId
+      if (runId) {
+        try {
+          await abortCliAgentRun({
+            path: { runId },
+            body: { reason: 'aborted by user' },
+            throwOnError: true,
+          })
+        } catch {
+          // Run already finished / not found — harmless.
+        }
+      }
       try {
         await abortChatCompletion({ body: { context: run.context }, throwOnError: true })
       } catch {
@@ -161,7 +176,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       }
       await refreshChats()
     },
-    [refreshChats],
+    [refreshChats, getChatLiveState],
   )
 
   const deleteRun = useCallback<AgentsContextValue['deleteRun']>(

@@ -338,6 +338,11 @@ export {
 // Git screen compounds
 export { default as UnifiedDiff, type UnifiedDiffProps } from './compound/git/UnifiedDiff'
 export {
+  default as BinaryDiffView,
+  type BinaryDiffViewProps,
+  type BinaryDiffRecovery,
+} from './compound/git/BinaryDiffView'
+export {
   default as GitFileRow,
   type GitFileEntryLike,
   type GitFileRowProps,

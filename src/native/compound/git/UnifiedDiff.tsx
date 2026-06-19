@@ -10,12 +10,27 @@ import {
 } from '../../../headless/utils/diffAnnotate'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import BinaryDiffView, { type BinaryDiffRecovery } from './BinaryDiffView'
 
 export interface UnifiedDiffProps {
   /** Unified-diff patch body. */
   patch?: string
-  /** When true, renders a "binary file" placeholder instead of the diff. */
+  /** Project-relative path — used only in the binary-diff view's copy. */
+  path?: string
+  /** When true, renders the binary-diff view (Before → After bytes) instead of the diff. */
   binary?: boolean
+  /** Byte size of the before side — shown in the binary-diff view. */
+  beforeSize?: number
+  /** Byte size of the after side — shown in the binary-diff view. */
+  afterSize?: number
+  /**
+   * On-demand recovery for a binary / unparseable file (the "quick fix"):
+   * sanitize both sides in memory and return a text diff. Absent ⇒ no recovery
+   * affordance, just the Before → After byte summary.
+   */
+  onRecoverText?: () => Promise<BinaryDiffRecovery>
+  /** Persist the recovery — write the sanitized content back to the working tree. */
+  onApplyTextRecovery?: () => void | Promise<void>
   /** Max height before the diff body scrolls vertically. Default 360. */
   maxHeight?: number
   /**
@@ -92,7 +107,12 @@ const CHECKBOX_COL_W = 22
  */
 export default function UnifiedDiff({
   patch,
+  path,
   binary,
+  beforeSize,
+  afterSize,
+  onRecoverText,
+  onApplyTextRecovery,
   maxHeight = 360,
   largeGuardLines = 5000,
   wrap = false,
@@ -130,7 +150,19 @@ export default function UnifiedDiff({
   const [guardBypass, setGuardBypass] = useState(false)
 
   if (binary) {
-    return <Placeholder text="Binary file — diff not shown" />
+    return (
+      <BinaryDiffView
+        path={path ?? ''}
+        reason="binary"
+        beforeSize={beforeSize}
+        afterSize={afterSize}
+        onRecover={onRecoverText}
+        onApplyRecovery={onApplyTextRecovery}
+        wrap={wrap}
+        ignoreWhitespace={ignoreWhitespace}
+        intra={intra}
+      />
+    )
   }
   if (!patch) {
     // Empty / missing patch — the consumer's surrounding chrome already
@@ -139,11 +171,22 @@ export default function UnifiedDiff({
     return <Placeholder text="No changes to display." />
   }
   if (hunks.length === 0) {
-    // Non-empty patch that didn't parse into any hunks — typically a
-    // server-side payload that isn't a real unified diff. Show the same
-    // "Invalid hunk — couldn't parse." copy on every surface (Git pane,
-    // chat preview, etc.) so the user has consistent language.
-    return <Placeholder text="Invalid hunk — couldn't parse." />
+    // Non-empty patch that didn't parse into any hunks — not a real unified
+    // diff (often a binary/corrupted file). Offer the same recovery view as a
+    // genuine binary so the user can quick-fix a text file with stray bytes.
+    return (
+      <BinaryDiffView
+        path={path ?? ''}
+        reason="unparseable"
+        beforeSize={beforeSize}
+        afterSize={afterSize}
+        onRecover={onRecoverText}
+        onApplyRecovery={onApplyTextRecovery}
+        wrap={wrap}
+        ignoreWhitespace={ignoreWhitespace}
+        intra={intra}
+      />
+    )
   }
   if (!guardBypass && totalRenderableLines > largeGuardLines) {
     return (

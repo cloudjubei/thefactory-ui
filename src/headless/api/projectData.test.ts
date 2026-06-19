@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('./generated', () => ({
   listProjectData: vi.fn(),
+  countProjectData: vi.fn(),
   putProjectData: vi.fn(),
   deleteProjectData: vi.fn(),
 }))
 
-import { listProjectData, putProjectData, deleteProjectData } from './generated'
+import { listProjectData, countProjectData, putProjectData, deleteProjectData } from './generated'
 import {
   queryProjectData,
+  countProjectDataRecords,
   putProjectDataRecord,
   deleteProjectDataRecord,
   dispatchProjectDataBridge,
@@ -39,6 +41,49 @@ describe('queryProjectData', () => {
   it('returns an empty array when the response data is nullish', async () => {
     asMock(listProjectData).mockResolvedValue({ data: undefined })
     expect(await queryProjectData('p1')).toEqual([])
+  })
+
+  it('serialises where/orderBy to JSON and forwards limit/offset', async () => {
+    asMock(listProjectData).mockResolvedValue({ data: [] })
+    await queryProjectData('p1', {
+      type: 'run',
+      where: { field: 'objective', op: '>', value: 0 },
+      orderBy: [{ field: 'objective', direction: 'desc', numeric: true }],
+      limit: 50,
+      offset: 100,
+    })
+    expect(listProjectData).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      query: {
+        type: 'run',
+        where: JSON.stringify({ field: 'objective', op: '>', value: 0 }),
+        orderBy: JSON.stringify([{ field: 'objective', direction: 'desc', numeric: true }]),
+        limit: 50,
+        offset: 100,
+      },
+      throwOnError: true,
+    })
+  })
+})
+
+describe('countProjectDataRecords', () => {
+  it('serialises the where filter and returns the count', async () => {
+    asMock(countProjectData).mockResolvedValue({ data: { count: 12 } })
+    const n = await countProjectDataRecords('p1', {
+      type: 'run',
+      where: { field: 'objective', op: '>', value: 0 },
+    })
+    expect(countProjectData).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      query: { type: 'run', where: JSON.stringify({ field: 'objective', op: '>', value: 0 }) },
+      throwOnError: true,
+    })
+    expect(n).toBe(12)
+  })
+
+  it('returns 0 when the response count is nullish', async () => {
+    asMock(countProjectData).mockResolvedValue({ data: undefined })
+    expect(await countProjectDataRecords('p1')).toBe(0)
   })
 })
 
@@ -81,6 +126,40 @@ describe('dispatchProjectDataBridge', () => {
     })
     expect(res).toEqual([])
     expect(listProjectData).toHaveBeenCalled()
+  })
+
+  it('routes data.query with where/orderBy/limit/offset through to listProjectData', async () => {
+    asMock(listProjectData).mockResolvedValue({ data: [] })
+    await dispatchProjectDataBridge('p1', {
+      type: 'overseer:data.query',
+      payload: {
+        type: 'run',
+        where: { field: 'objective', op: '>', value: 0 },
+        orderBy: [{ field: 'objective', direction: 'desc' }],
+        limit: 50,
+        offset: 0,
+      },
+    })
+    expect(listProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          where: JSON.stringify({ field: 'objective', op: '>', value: 0 }),
+          orderBy: JSON.stringify([{ field: 'objective', direction: 'desc' }]),
+          limit: 50,
+          offset: 0,
+        }),
+      }),
+    )
+  })
+
+  it('routes data.count to countProjectData and returns { count }', async () => {
+    asMock(countProjectData).mockResolvedValue({ data: { count: 4 } })
+    const res = await dispatchProjectDataBridge('p1', {
+      type: 'overseer:data.count',
+      payload: { type: 'run', where: { field: 'objective', op: '>', value: 0 } },
+    })
+    expect(res).toEqual({ count: 4 })
+    expect(countProjectData).toHaveBeenCalled()
   })
 
   it('routes data.put to putProjectData and returns the record', async () => {
@@ -159,10 +238,21 @@ describe('createProjectDataApi', () => {
     )
   })
 
-  it('query resolves to [] when no project is active', async () => {
+  it('binds count to the project id', async () => {
+    asMock(countProjectData).mockResolvedValue({ data: { count: 3 } })
+    const api = createProjectDataApi('p1')
+    expect(await api.count({ type: 'run' })).toBe(3)
+    expect(countProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: 'p1' } }),
+    )
+  })
+
+  it('query resolves to [] and count to 0 when no project is active', async () => {
     const api = createProjectDataApi(undefined)
     expect(await api.query()).toEqual([])
+    expect(await api.count()).toBe(0)
     expect(listProjectData).not.toHaveBeenCalled()
+    expect(countProjectData).not.toHaveBeenCalled()
   })
 
   it('put rejects when no project is active', async () => {

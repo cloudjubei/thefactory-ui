@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { JSX, ReactNode } from 'react'
 import {
   abortChatCompletion,
+  abortCliAgentRun,
   addChatMessages,
   clearChat as clearChatApi,
   createTopicChat,
@@ -10,7 +11,7 @@ import {
   getChatsSettings,
   listChats,
   resumeCompletion,
-  sendChatCompletionWithTools,
+  sendChatWithCli,
   sendCompletionWithTools,
   updateChat,
 } from '../api'
@@ -319,6 +320,23 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // (the `cli:run-update` stream arrives entry-by-entry). Reset per send; the
     // final persisted message replaces it on `refresh()`.
     const cliStreamAccumRef = useRef('')
+    // CLI runs are dispatched fast (the route returns the runId and detaches),
+    // so a run keeps streaming `cli:run-update` after `sendMessage` resolves —
+    // past the lifetime of the single `inFlightCtxRef`. Map each live runId to
+    // its chat so the stream routes correctly even for concurrent detached runs;
+    // entries are removed on the run's terminal event.
+    const cliRunCtxByRunIdRef = useRef<Map<string, ChatCtx>>(new Map())
+    // Run ids the user explicitly Stopped — so the terminal handler treats the
+    // resulting `aborted` status as a clean stop (no error Alert) rather than a
+    // failure.
+    const userAbortedRunIdsRef = useRef<Set<string>>(new Set())
+    // Chats whose Stop was clicked before the CLI run's id was known — abort the
+    // run as soon as its id arrives (the abort would otherwise be a no-op).
+    const pendingCliAbortKeysRef = useRef<Set<string>>(new Set())
+    // Run ids whose terminal event has already been handled — guards the
+    // post-202 registration from re-adding an entry (leak) / re-setting a stale
+    // cliRunId when the terminal event wins the race against the 202 response.
+    const finalizedCliRunIdsRef = useRef<Set<string>>(new Set())
 
     // Per-chat draft text. Ref-based (no re-render on draft change) so a
     // sibling that doesn't read this chat's draft doesn't churn. Matches
@@ -461,21 +479,50 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // on `cli:run-update`). Routed to the in-flight chat via `inFlightCtxRef`.
     useEffect(() => {
       return ws.on('cli:run-update', (data) => {
-        const target = inFlightCtxRef.current
-        if (!target) return
         const parsed = parseCliRunUpdateEvent(data)
         if (!parsed) return
+        // Route by runId (the run may be detached, past `inFlightCtxRef`'s
+        // lifetime). Only fall back to the in-flight chat for a runId we have
+        // never mapped — and never stamp an error through that fallback, since
+        // it may resolve to a different chat (a second send in the race window).
+        const mapped = cliRunCtxByRunIdRef.current.get(parsed.runId)
+        const target = mapped ?? inFlightCtxRef.current
+        if (!target) return
         if (parsed.kind === 'terminal') {
-          // Keep `cliRunId` set across the terminal boundary so the live run view
-          // stays mounted until the persisted reply (carrying the same runId)
-          // lands on the next refresh — the shared key then lets React move the
-          // instance in place (no finish flash). `sendMessage`'s finally clears
-          // cliRunId after that refresh.
+          // Mark the run finalized so the post-202 registration doesn't re-add a
+          // map entry / re-set a stale cliRunId if the terminal event beat it.
+          finalizedCliRunIdsRef.current.add(parsed.runId)
+          const userAborted = userAbortedRunIdsRef.current.delete(parsed.runId)
+          // The run is over: stop the sending spinner and clear the live preview
+          // state. Keep `cliRunId` set so the live run view stays mounted until
+          // the persisted reply (carrying the same runId) lands on the next
+          // refresh — the shared key then lets React move the instance in place
+          // (no finish flash); `MessageList` drops the trailing live block once a
+          // displayed message owns the runId.
+          //
+          // Surface a failure only for a GENUINE error/abort that we mapped to
+          // this chat: a user-initiated Stop (userAborted) is a clean stop, not
+          // an error, and a fallback-routed event isn't reliably this chat's.
+          const surfaceError =
+            !!mapped &&
+            !userAborted &&
+            (parsed.status === 'errored' || parsed.status === 'aborted')
           updateLiveState(target, {
+            isSending: false,
             pendingAssistant: null,
             cliModel: null,
             cliStartedAt: null,
+            ...(surfaceError
+              ? {
+                  sendError: new Error(
+                    parsed.error && parsed.error.length > 0
+                      ? parsed.error
+                      : `The agent run ${parsed.status} without a reply.`,
+                  ),
+                }
+              : {}),
           })
+          cliRunCtxByRunIdRef.current.delete(parsed.runId)
           return
         }
         // Surface the run id so gated-action grants (usePendingToolGrants) can
@@ -510,6 +557,26 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       }
       if (lastAssistant !== undefined && lastAssistant === pending.content) {
         updateLiveState(ctx, { pendingAssistant: null })
+      }
+    }, [chats, liveStateByKey, updateLiveState])
+
+    // Recover a detached CLI run whose terminal `cli:run-update` was lost (WS
+    // drop/reconnect): a detached run keeps `isSending` true until that event
+    // clears it. When the run's persisted reply (carrying its `cliRunId`) lands
+    // on a refresh, the run is provably done — clear the stuck spinner even
+    // though the terminal event never arrived. (No-op in the normal flow, where
+    // the terminal event already cleared `isSending` before the reply lands.)
+    useEffect(() => {
+      for (const chat of chats) {
+        const live = liveStateByKey.get(getChatContextKey(chat.context))
+        if (!live?.isSending || !live.cliRunId) continue
+        const replyLanded = (chat.messages ?? []).some(
+          (m) => (m as { cliRunId?: string }).cliRunId === live.cliRunId,
+        )
+        if (!replyLanded) continue
+        finalizedCliRunIdsRef.current.add(live.cliRunId)
+        cliRunCtxByRunIdRef.current.delete(live.cliRunId)
+        updateLiveState(chat.context, { isSending: false, pendingAssistant: null })
       }
     }, [chats, liveStateByKey, updateLiveState])
 
@@ -589,14 +656,20 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           pendingToolConfirmation: null,
         })
         inFlightCtxRef.current = ctx
+        // Set when the send dispatches a CLI run that keeps streaming after this
+        // call resolves — the finally then leaves the live state (isSending /
+        // cliRunId) for the run's terminal `cli:run-update` to clear.
+        let detachedCli = false
         try {
           const userMessage = buildUserMessage(trimmed, attachments)
           const { settings, systemPrompt } = buildToolSettings(ctx)
 
-          // CLI-backed chat: the runner-aware route appends the user message and
-          // runs the turn on the sandboxed CLI agent (reply persisted back into
-          // the chat); progress streams on `cli:run-update`. Do NOT pre-append
-          // here — the route owns the append.
+          // CLI-backed chat: the fast route persists the user message, STARTS the
+          // sandboxed CLI run, and returns its runId immediately (it does NOT
+          // hold the connection open for the whole run). Progress streams on
+          // `cli:run-update`; the assistant reply is persisted + a `chats:updated`
+          // broadcast fires when the detached run completes. Stopping goes
+          // through `abortChat` → the CLI abort route.
           const cliRunner = getChat(ctx)?.cliRunner
           if (cliRunner) {
             cliStreamAccumRef.current = ''
@@ -606,10 +679,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               cliModel: `cli-agent/${cliRunner.tool}/${cliRunner.model ?? ''}`,
               cliStartedAt: new Date().toISOString(),
             })
-            // Optimistically show the user's message right away. The runner-aware
-            // route persists it server-side inside the (long) run, so unlike the
-            // API path there's no early `chats:updated` to pull it in; `refresh()`
-            // reconciles on completion (the persisted copy replaces this one).
+            // Optimistically show the user's message right away (the route also
+            // persists it; `refresh()` reconciles the copy).
             setChats((prev) =>
               prev.map((c) =>
                 sameContext(c.context, ctx)
@@ -617,7 +688,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
                   : c,
               ),
             )
-            const { data: cliResult } = await sendChatCompletionWithTools({
+            const { data } = await sendChatWithCli({
               body: {
                 chatContext: ctx,
                 llmConfig: activeLLMConfig,
@@ -629,22 +700,32 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               },
               throwOnError: true,
             })
-            // A CLI run that ends without producing a reply (auth/model error,
-            // immediate exit) comes back errored/aborted — surface it instead of
-            // a silent blank turn.
-            if (cliResult?.resultType === 'errored' || cliResult?.resultType === 'aborted') {
-              const detail =
-                typeof cliResult.error === 'string' && cliResult.error.length > 0
-                  ? cliResult.error
-                  : `The ${cliRunner.tool} run ${cliResult.resultType} without a reply.`
-              // eslint-disable-next-line no-console
-              console.error(
-                `[cli-chat] ${cliRunner.tool} run ${cliResult.resultType}:`,
-                detail,
-                cliResult,
-              )
-              updateLiveState(ctx, { sendError: new Error(detail) })
+            // The run is now detached server-side: route its `cli:run-update`
+            // stream to this chat by runId, and mount the live run view. The run
+            // keeps `isSending` true (the spinner / Stop button stay) until its
+            // terminal event clears it — `detachedCli` keeps the finally below
+            // from prematurely clearing the live state.
+            detachedCli = true
+            const runId = data?.runId
+            // Stop may have been clicked before the runId was known; consume the
+            // intent now (regardless of whether we still mount the run below).
+            const wasPendingAbort = pendingCliAbortKeysRef.current.delete(getChatContextKey(ctx))
+            // If the run's terminal event already arrived (it can win the race
+            // against this 202 response for a fast-failing run), don't re-mount a
+            // dead run: the terminal handler has finalized it.
+            if (runId && !finalizedCliRunIdsRef.current.has(runId)) {
+              cliRunCtxByRunIdRef.current.set(runId, ctx)
+              updateLiveState(ctx, { cliRunId: runId })
+              if (wasPendingAbort) {
+                userAbortedRunIdsRef.current.add(runId)
+                void abortCliAgentRun({
+                  path: { runId },
+                  body: { reason: 'aborted by user' },
+                  throwOnError: false,
+                }).catch(() => {})
+              }
             }
+            // Reconcile the optimistic user message with the persisted copy.
             await refresh()
             return
           }
@@ -703,11 +784,13 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
             inFlightCtxRef.current = null
           }
-          // Clear the live CLI-run marker now the run is done AND `refresh()` has
-          // pulled the persisted reply: the inline (persisted) block owns the run
-          // from here, so dropping the trailing live block is invisible. (No-op
-          // for API sends, where cliRunId was never set.)
-          updateLiveState(ctx, { isSending: false, pendingAssistant: null, cliRunId: null })
+          // A detached CLI run is still streaming — leave isSending / cliRunId /
+          // pendingAssistant for its terminal `cli:run-update` to clear (routing
+          // now goes through the runId map, not inFlightCtxRef). For the API path
+          // (and CLI start failures) the turn is done: clear the live markers.
+          if (!detachedCli) {
+            updateLiveState(ctx, { isSending: false, pendingAssistant: null, cliRunId: null })
+          }
         }
       },
       [activeLLMConfig, buildToolSettings, getChat, refresh, updateLiveState],
@@ -785,15 +868,46 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [updateLiveState],
     )
 
-    const abortChat = useCallback(async (ctx: ChatCtx) => {
-      try {
-        await abortChatCompletion({ body: { context: ctx }, throwOnError: true })
-      } catch {
-        // 404 means no completion was in flight — harmless. Other errors
-        // are intentionally swallowed: the user already chose to abort,
-        // and the in-flight call (if any) will surface its own outcome.
-      }
-    }, [])
+    const abortChat = useCallback(
+      async (ctx: ChatCtx) => {
+        // A CLI-backed chat runs in a sandbox: aborting the API completion does
+        // nothing to it. Kill the run directly via its abort route — that fires
+        // the run's AbortController, which SIGKILLs the workload container
+        // mid-turn (so it stops immediately, not after the current tool burst).
+        const live = getChatLiveState(ctx)
+        const runId = live.cliRunId
+        if (runId) {
+          // Mark this as a user stop so the terminal event treats the resulting
+          // `aborted` status as a clean stop (no error Alert).
+          userAbortedRunIdsRef.current.add(runId)
+          try {
+            await abortCliAgentRun({
+              path: { runId },
+              body: { reason: 'aborted by user' },
+              throwOnError: true,
+            })
+          } catch {
+            // Run already finished / not found — harmless.
+          }
+          // Clear the spinner now. The terminal event normally also clears it,
+          // but if that event was lost (WS drop) or the run already finished,
+          // this is the only in-app recovery — otherwise the spinner sticks.
+          updateLiveState(ctx, { isSending: false, pendingAssistant: null })
+        } else if (live.isSending && getChat(ctx)?.cliRunner) {
+          // The CLI run is starting but its id isn't known yet (pre-202) — record
+          // the intent so `sendMessage` aborts it the instant the runId arrives.
+          pendingCliAbortKeysRef.current.add(getChatContextKey(ctx))
+        }
+        try {
+          await abortChatCompletion({ body: { context: ctx }, throwOnError: true })
+        } catch {
+          // 404 means no completion was in flight — harmless. Other errors
+          // are intentionally swallowed: the user already chose to abort,
+          // and the in-flight call (if any) will surface its own outcome.
+        }
+      },
+      [getChatLiveState, getChat, updateLiveState],
+    )
 
     const clearChat = useCallback(
       async (ctx: ChatCtx) => {

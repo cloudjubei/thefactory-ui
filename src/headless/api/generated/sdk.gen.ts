@@ -53,6 +53,9 @@ import type {
   CompleteOverseerGithubAuthResponses,
   ConfirmOverseerLocalOnlyData,
   ConfirmOverseerLocalOnlyResponses,
+  CountProjectDataData,
+  CountProjectDataErrors,
+  CountProjectDataResponses,
   CreateChatData,
   CreateChatResponses,
   CreateCliAuthCacheData,
@@ -241,6 +244,9 @@ import type {
   GetGitStatusData,
   GetGitStatusErrors,
   GetGitStatusResponses,
+  GetGitTextRecoveryData,
+  GetGitTextRecoveryErrors,
+  GetGitTextRecoveryResponses,
   GetLastCoverageData,
   GetLastCoverageErrors,
   GetLastCoverageResponses,
@@ -296,6 +302,9 @@ import type {
   GitApplyPatchData,
   GitApplyPatchErrors,
   GitApplyPatchResponses,
+  GitApplyTextRecoveryData,
+  GitApplyTextRecoveryErrors,
+  GitApplyTextRecoveryResponses,
   GitCheckoutData,
   GitCheckoutErrors,
   GitCheckoutResponses,
@@ -592,6 +601,9 @@ import type {
   SendChatCompletionWithToolsData,
   SendChatCompletionWithToolsErrors,
   SendChatCompletionWithToolsResponses,
+  SendChatWithCliData,
+  SendChatWithCliErrors,
+  SendChatWithCliResponses,
   SendCompletionData,
   SendCompletionErrors,
   SendCompletionResponses,
@@ -2176,6 +2188,42 @@ export const getGitFileContent = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const getGitTextRecovery = <ThrowOnError extends boolean = false>(
+  options: Options<GetGitTextRecoveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GetGitTextRecoveryResponses,
+    GetGitTextRecoveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/text-recovery',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const gitApplyTextRecovery = <ThrowOnError extends boolean = false>(
+  options: Options<GitApplyTextRecoveryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    GitApplyTextRecoveryResponses,
+    GitApplyTextRecoveryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/apply-text-recovery',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const gitResetAll = <ThrowOnError extends boolean = false>(
   options: Options<GitResetAllData, ThrowOnError>,
 ) =>
@@ -2772,6 +2820,20 @@ export const sendChatCompletionWithTools = <ThrowOnError extends boolean = false
     },
   })
 
+export const sendChatWithCli = <ThrowOnError extends boolean = false>(
+  options: Options<SendChatWithCliData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SendChatWithCliResponses, SendChatWithCliErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completions/send-chat-with-cli',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const resumeCompletion = <ThrowOnError extends boolean = false>(
   options: Options<ResumeCompletionData, ThrowOnError>,
 ) =>
@@ -3059,6 +3121,16 @@ export const putProjectData = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const countProjectData = <ThrowOnError extends boolean = false>(
+  options: Options<CountProjectDataData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<CountProjectDataResponses, CountProjectDataErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/data/count',
+    ...options,
   })
 
 export const getUserSetting = <ThrowOnError extends boolean = false>(

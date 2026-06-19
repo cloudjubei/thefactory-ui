@@ -52,6 +52,10 @@ export interface ChatSettingsDropdownProps {
   /** When true a settings write failed and is retrying — the body greys out and
    * input is blocked until the backend reconnects. */
   blocked?: boolean
+  /** When true this chat runs a CLI agent, so the API-completion-only controls
+   * (turn/history/sanitization tuning) are greyed out — they have no effect on
+   * a CLI run. */
+  cliBacked?: boolean
 }
 
 /**
@@ -77,6 +81,7 @@ export default function ChatSettingsDropdown({
   extraContent,
   title = 'Chat settings',
   blocked = false,
+  cliBacked = false,
 }: ChatSettingsDropdownProps) {
   const { theme } = useNativeTheme()
   const { settings, setUserPreferences } = useAppSettings()
@@ -144,8 +149,17 @@ export default function ChatSettingsDropdown({
           </View>
         </View>
 
+        {cliBacked ? (
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>
+            Completion settings apply to API agents — this chat runs a CLI agent.
+          </Text>
+        ) : null}
+
         {completion ? (
-          <View style={{ gap: nativeSpace[4] }}>
+          <View
+            pointerEvents={cliBacked ? 'none' : 'auto'}
+            style={{ gap: nativeSpace[4], opacity: cliBacked ? 0.5 : 1 }}
+          >
             <SliderRow
               label="Max turns per run"
               value={completion.maxTurns ?? 1}
@@ -190,7 +204,13 @@ export default function ChatSettingsDropdown({
           </View>
         ) : null}
 
-        {extraContent}
+        {cliBacked ? (
+          <View pointerEvents="none" style={{ opacity: 0.5 }}>
+            {extraContent}
+          </View>
+        ) : (
+          extraContent
+        )}
 
         {/* Agent runs — CLI transcript display prefs (global). */}
         <View style={{ gap: nativeSpace[3] }}>

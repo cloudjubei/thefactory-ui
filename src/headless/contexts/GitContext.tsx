@@ -7,6 +7,8 @@ import {
   getGitBranchDiffSummary,
   getGitBundle,
   getGitFileContent,
+  getGitTextRecovery,
+  gitApplyTextRecovery,
   getGitLocalDiff,
   getGitLog,
   gitApplyPatch,
@@ -35,6 +37,8 @@ import type {
   GitDiffSummary,
   GitFetchResponse,
   GitFileChange,
+  GitTextRecovery,
+  GitApplyTextRecoveryResult,
   GitMergeApplyInput,
   GitMergePlan,
   GitMergePlanInput,
@@ -129,6 +133,17 @@ export type GitContextValue = {
   pull: (input?: PullInput) => Promise<GitPullResponse>
   fetch: (input?: FetchInput) => Promise<GitFetchResponse>
   getFileContent: (path: string, ref: string) => Promise<string>
+  /**
+   * Recover a binary / unparseable file's diff as readable text by sanitizing
+   * both sides in memory (NUL + invalid-UTF-8 stripped) and diffing the result.
+   * Nothing is written to disk — see {@link applyTextRecovery}.
+   */
+  recoverTextDiff: (path: string, staged: boolean) => Promise<GitTextRecovery>
+  /**
+   * Sanitize a corrupted working-tree file in place — writing valid UTF-8 text
+   * back to disk so it's no longer treated as binary. Refreshes local diff.
+   */
+  applyTextRecovery: (path: string) => Promise<GitApplyTextRecoveryResult>
   /** Per-commit (or arbitrary ref-range) file-level diff with patches. */
   getCommitDiff: (baseRef: string, headRef: string) => Promise<GitDiffSummary>
   resetAll: () => Promise<void>
@@ -711,6 +726,34 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     [requireProject],
   )
 
+  const recoverTextDiff = useCallback(
+    async (path: string, staged: boolean): Promise<GitTextRecovery> => {
+      const id = requireProject()
+      const { data } = await getGitTextRecovery({
+        path: { projectId: id },
+        body: { path, staged },
+        throwOnError: true,
+      })
+      return data
+    },
+    [requireProject],
+  )
+
+  const applyTextRecovery = useCallback(
+    async (path: string): Promise<GitApplyTextRecoveryResult> => {
+      const id = requireProject()
+      const { data } = await gitApplyTextRecovery({
+        path: { projectId: id },
+        body: { path },
+        throwOnError: true,
+      })
+      await refresh()
+      if (localDiffLoadedRef.current) await loadLocalDiff()
+      return data
+    },
+    [requireProject, refresh, loadLocalDiff],
+  )
+
   const resetAll = useCallback(async () => {
     const id = requireProject()
     await gitResetAll({ path: { projectId: id }, throwOnError: true })
@@ -909,6 +952,8 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       pull,
       fetch: fetchOp,
       getFileContent,
+      recoverTextDiff,
+      applyTextRecovery,
       getCommitDiff,
       resetAll,
       stage,
@@ -953,6 +998,8 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       pull,
       fetchOp,
       getFileContent,
+      recoverTextDiff,
+      applyTextRecovery,
       getCommitDiff,
       resetAll,
       stage,

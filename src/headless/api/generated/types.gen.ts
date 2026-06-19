@@ -1072,7 +1072,7 @@ export type Chat = {
     }
     toolResult?: {
       type: string
-      result: JsonValue
+      result?: unknown
       durationMs?: number
     }
     error?: string
@@ -1138,7 +1138,7 @@ export type ChatCreateInput = {
     }
     toolResult?: {
       type: string
-      result: JsonValue
+      result?: unknown
       durationMs?: number
     }
     error?: string
@@ -1202,7 +1202,7 @@ export type ChatEditInput = {
     }
     toolResult?: {
       type: string
-      result: JsonValue
+      result?: unknown
       durationMs?: number
     }
     error?: string
@@ -3756,6 +3756,8 @@ export type GitFileChange = {
   patchHunks?: Array<GitPatchHunk>
   patchTruncated?: boolean
   binary?: boolean
+  beforeSize?: number
+  afterSize?: number
   submodule?: boolean
 }
 
@@ -3809,6 +3811,8 @@ export type GitMergePlan = {
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
     binary?: boolean
+    beforeSize?: number
+    afterSize?: number
     submodule?: boolean
   }>
   totals: {
@@ -6244,7 +6248,7 @@ export type AddMessagesInput = {
     }
     toolResult?: {
       type: string
-      result: JsonValue
+      result?: unknown
       durationMs?: number
     }
     error?: string
@@ -10028,6 +10032,113 @@ export type GetGitFileContentResponses = {
 
 export type GetGitFileContentResponse = GetGitFileContentResponses[keyof GetGitFileContentResponses]
 
+export type GetGitTextRecoveryData = {
+  body: {
+    path: string
+    staged?: boolean
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/git/text-recovery'
+}
+
+export type GetGitTextRecoveryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetGitTextRecoveryError = GetGitTextRecoveryErrors[keyof GetGitTextRecoveryErrors]
+
+export type GetGitTextRecoveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    path: string
+    before: {
+      size: number
+      sanitizedSize: number
+      isText: boolean
+      wasBinary: boolean
+      reason?: 'nul-bytes' | 'invalid-utf8' | 'unknown'
+    }
+    after: {
+      size: number
+      sanitizedSize: number
+      isText: boolean
+      wasBinary: boolean
+      reason?: 'nul-bytes' | 'invalid-utf8' | 'unknown'
+    }
+    recovered: boolean
+    patch?: string
+  }
+}
+
+export type GetGitTextRecoveryResponse =
+  GetGitTextRecoveryResponses[keyof GetGitTextRecoveryResponses]
+
+export type GitApplyTextRecoveryData = {
+  body: {
+    path: string
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/git/apply-text-recovery'
+}
+
+export type GitApplyTextRecoveryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GitApplyTextRecoveryError = GitApplyTextRecoveryErrors[keyof GitApplyTextRecoveryErrors]
+
+export type GitApplyTextRecoveryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    ok: boolean
+    error?: string
+    removedBytes?: number
+  }
+}
+
+export type GitApplyTextRecoveryResponse =
+  GitApplyTextRecoveryResponses[keyof GitApplyTextRecoveryResponses]
+
 export type GitResetAllData = {
   body?: never
   path: {
@@ -10479,6 +10590,8 @@ export type GetGitDiffResponses = {
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
     binary?: boolean
+    beforeSize?: number
+    afterSize?: number
     submodule?: boolean
   }>
 }
@@ -10531,6 +10644,8 @@ export type GetGitLocalDiffResponses = {
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
     binary?: boolean
+    beforeSize?: number
+    afterSize?: number
     submodule?: boolean
   }>
 }
@@ -11853,7 +11968,7 @@ export type SendCompletionData = {
         }
         toolResult?: {
           type: string
-          result: JsonValue
+          result?: unknown
           durationMs?: number
         }
         error?: string
@@ -11940,7 +12055,7 @@ export type SendCompletionResponses = {
       }
       toolResult?: {
         type: string
-        result: JsonValue
+        result?: unknown
         durationMs?: number
       }
       error?: string
@@ -11996,7 +12111,7 @@ export type SendCompletionWithToolsData = {
         }
         toolResult?: {
           type: string
-          result: JsonValue
+          result?: unknown
           durationMs?: number
         }
         error?: string
@@ -12088,7 +12203,7 @@ export type SendCompletionWithToolsResponses = {
           }
           toolResult?: {
             type: string
-            result: JsonValue
+            result?: unknown
             durationMs?: number
           }
           error?: string
@@ -12157,7 +12272,7 @@ export type SendChatCompletionWithToolsData = {
       }
       toolResult?: {
         type: string
-        result: JsonValue
+        result?: unknown
         durationMs?: number
       }
       error?: string
@@ -12243,7 +12358,7 @@ export type SendChatCompletionWithToolsResponses = {
           }
           toolResult?: {
             type: string
-            result: JsonValue
+            result?: unknown
             durationMs?: number
           }
           error?: string
@@ -12274,6 +12389,98 @@ export type SendChatCompletionWithToolsResponses = {
 
 export type SendChatCompletionWithToolsResponse =
   SendChatCompletionWithToolsResponses[keyof SendChatCompletionWithToolsResponses]
+
+export type SendChatWithCliData = {
+  body: {
+    chatContext: ChatContext
+    llmConfig: LlmConfig
+    message: {
+      role: 'system' | 'user' | 'assistant' | 'tool'
+      content: string
+      startedAt?: string
+      completedAt?: string
+      durationMs?: number
+      files?: Array<string>
+      usage?: {
+        promptTokens: number
+        completionTokens: number
+        inputTokens?: number
+        totalTokens?: number
+        cachedReadInputTokens?: number
+        reasoningTokens?: number
+        cost?: number
+        costInput?: number
+        costOutput?: number
+      }
+      model?: {
+        model: string
+        provider: LlmProvider
+      }
+      suggestedActions?: Array<string>
+      thinking?: string
+      cliRunId?: string
+      toolCall?: {
+        toolCallId: string
+        name: string
+        arguments?: unknown
+        providerState?: unknown
+      }
+      toolResult?: {
+        type: string
+        result?: unknown
+        durationMs?: number
+      }
+      error?: string
+      providerState?: unknown
+    }
+    settings: CompletionSettings
+    systemPrompt?: string
+    runner?: 'api' | 'cli'
+    cliRunner?: {
+      cli: 'claude-code' | 'cursor-agent' | 'codex'
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+      workspaceHostPath?: string
+      model?: string
+      effort?: string
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/completions/send-chat-with-cli'
+}
+
+export type SendChatWithCliErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SendChatWithCliError = SendChatWithCliErrors[keyof SendChatWithCliErrors]
+
+export type SendChatWithCliResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    runId: string
+  }
+}
+
+export type SendChatWithCliResponse = SendChatWithCliResponses[keyof SendChatWithCliResponses]
 
 export type ResumeCompletionData = {
   body: {
@@ -12314,7 +12521,7 @@ export type ResumeCompletionData = {
         }
         toolResult?: {
           type: string
-          result: JsonValue
+          result?: unknown
           durationMs?: number
         }
         error?: string
@@ -12406,7 +12613,7 @@ export type ResumeCompletionResponses = {
           }
           toolResult?: {
             type: string
-            result: JsonValue
+            result?: unknown
             durationMs?: number
           }
           error?: string
@@ -13205,6 +13412,16 @@ export type ListProjectDataData = {
   query?: {
     type?: string
     key?: string
+    /**
+     * JSON-encoded composable content-field filter (DataFilter: and/or/not + predicates).
+     */
+    where?: string
+    /**
+     * JSON-encoded content-field ordering terms (DataSort[]).
+     */
+    orderBy?: string
+    limit?: number
+    offset?: number
   }
   url: '/api/v1/projects/{projectId}/data'
 }
@@ -13288,6 +13505,54 @@ export type PutProjectDataResponses = {
 }
 
 export type PutProjectDataResponse = PutProjectDataResponses[keyof PutProjectDataResponses]
+
+export type CountProjectDataData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    type?: string
+    key?: string
+    /**
+     * JSON-encoded composable content-field filter (DataFilter).
+     */
+    where?: string
+  }
+  url: '/api/v1/projects/{projectId}/data/count'
+}
+
+export type CountProjectDataErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CountProjectDataError = CountProjectDataErrors[keyof CountProjectDataErrors]
+
+export type CountProjectDataResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    count: number
+  }
+}
+
+export type CountProjectDataResponse = CountProjectDataResponses[keyof CountProjectDataResponses]
 
 export type GetUserSettingData = {
   body?: never
@@ -16285,6 +16550,8 @@ export type GetOverseerGitDiffResponses = {
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
     binary?: boolean
+    beforeSize?: number
+    afterSize?: number
     submodule?: boolean
   }>
 }

@@ -51,6 +51,10 @@ export type ChatSettingsDropdownProps = {
   /** When true a settings write failed and is retrying — the body greys out and
    * input is blocked until the backend reconnects. */
   blocked?: boolean
+  /** When true this chat runs a CLI agent, so the API-completion-only controls
+   * (turn/history/sanitization tuning) are greyed out — they have no effect on
+   * a CLI run. */
+  cliBacked?: boolean
 }
 
 export default function ChatSettingsDropdown({
@@ -70,7 +74,10 @@ export default function ChatSettingsDropdown({
   extraContent,
   asModal = false,
   blocked = false,
+  cliBacked = false,
 }: ChatSettingsDropdownProps) {
+  // API-completion-only controls are inert for a CLI agent; grey them out.
+  const apiOnlyClass = cliBacked ? ' opacity-50 pointer-events-none select-none' : ''
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const { settings, setUserPreferences } = useAppSettings()
   const prefs = settings.userPreferences
@@ -127,8 +134,14 @@ export default function ChatSettingsDropdown({
         </div>
       </div>
 
+      {cliBacked ? (
+        <div className="text-[11px] text-(--text-tertiary)">
+          Completion settings apply to API agents — this chat runs a CLI agent.
+        </div>
+      ) : null}
+
       {completion ? (
-        <div className="space-y-3">
+        <div className={'space-y-3' + apiOnlyClass}>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-(--text-secondary)" htmlFor="maxTurns">
@@ -203,7 +216,7 @@ export default function ChatSettingsDropdown({
         </div>
       ) : null}
 
-      {extraContent}
+      {cliBacked ? <div className={apiOnlyClass}>{extraContent}</div> : extraContent}
 
       <div className="space-y-2">
         <div className="text-xs font-medium text-(--text-secondary)">Agent runs</div>

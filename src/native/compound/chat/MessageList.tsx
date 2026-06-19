@@ -16,7 +16,7 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
-import { messageModelTag } from '../../../headless/utils/cliRunner'
+import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -389,7 +389,21 @@ export default function MessageList({
           </View>
         ) : null}
         {isThinking && (!pending || !pending.content) && !pendingCliRunId && (
-          <ThinkingRow label={thinkingLabel ?? 'Thinking'} />
+          // A CLI turn boots its container before the first transcript byte
+          // (and before pendingCliRunId is set). Show "Preparing <agent>" for
+          // that window — driven by the model tag set synchronously on send.
+          <ThinkingRow
+            label={thinkingLabel ?? 'Thinking'}
+            {...(pendingCliModel
+              ? {
+                  spinnerLabel: `Preparing ${
+                    parseCliAgentModelTag(pendingCliModel)?.cli
+                      ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
+                      : 'the agent'
+                  }…`,
+                }
+              : {})}
+          />
         )}
       </ScrollView>
       {!atBottom && (

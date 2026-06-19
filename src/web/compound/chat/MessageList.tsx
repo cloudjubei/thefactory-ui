@@ -16,7 +16,7 @@ import { Switch } from '../../primitives/Switch'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
-import { messageModelTag } from '../../../headless/utils/cliRunner'
+import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 
 function isToolMessage(msg: ChatMessageLike): boolean {
   return msg.role === 'tool' || !!msg.toolCall
@@ -742,7 +742,23 @@ export default function MessageList({
             renderDependency={renderDependency}
           />
         ) : null}
-        {isThinking && !pending && !pendingCliRunId ? <ThinkingRow /> : null}
+        {isThinking && !pending && !pendingCliRunId ? (
+          // A CLI turn boots its container before the first transcript byte
+          // arrives (and before the run-update sets pendingCliRunId). Show
+          // "Preparing <agent>" for that whole window — driven by the model tag
+          // set synchronously on send — rather than a bare spinner.
+          <ThinkingRow
+            {...(pendingCliModel
+              ? {
+                  spinnerLabel: `Preparing ${
+                    parseCliAgentModelTag(pendingCliModel)?.cli
+                      ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
+                      : 'the agent'
+                  }…`,
+                }
+              : {})}
+          />
+        ) : null}
       </div>
     </div>
   )

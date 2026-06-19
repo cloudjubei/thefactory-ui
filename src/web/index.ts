@@ -67,12 +67,15 @@ export {
 // `parseUnifiedDiff` / `generateHunkPatch` / `ParsedHunk` are owned by
 // `thefactory-ui/headless` — import them from there, not the web barrel.
 export {
+  BinaryDiffView,
   DiffViewer,
   generateSelectedPatch,
   InlineTextDiff,
   SimpleSplitText,
   SimpleUnifiedDiff,
   StructuredUnifiedDiff,
+  type BinaryDiffRecovery,
+  type BinaryDiffViewProps,
   type DiffViewerProps,
   type IntraMode,
   type StructuredUnifiedDiffProps,

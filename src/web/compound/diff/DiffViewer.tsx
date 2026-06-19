@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   StructuredUnifiedDiff,
   type IntraMode,
@@ -11,6 +11,7 @@ import {
 import { OptionPicker } from '../OptionPicker'
 import { PathDisplay } from '../PathDisplay'
 import { IconChevron, IconWarningTriangle } from '../../icons'
+import { BinaryDiffView, type BinaryDiffRecovery } from './BinaryDiffView'
 
 export type { IntraMode } from './diffUtils'
 
@@ -45,6 +46,19 @@ export interface DiffViewerProps {
    * Desktop's `GitFileChangesPills` slots in here directly.
    */
   stats?: ReactNode
+  /** Git flagged this file binary — render the binary-diff view, not the patch. */
+  binary?: boolean
+  /** Byte size of the before side (drives the binary-diff Before → After view). */
+  beforeSize?: number
+  /** Byte size of the after side. */
+  afterSize?: number
+  /**
+   * On-demand recovery for a binary / unparseable file: sanitize both sides in
+   * memory and return a text diff. Wiring this in enables the "quick fix" button.
+   */
+  onRecoverText?: () => Promise<BinaryDiffRecovery>
+  /** Persist the recovery — write the sanitized content back to the working tree. */
+  onApplyTextRecovery?: () => void | Promise<void>
 }
 
 // Single-file diff widget with selectable hunks, intra-line modes, and
@@ -66,12 +80,19 @@ export function DiffViewer({
   onResolveConflict,
   selectionMode = 'checkbox',
   stats,
+  binary,
+  beforeSize,
+  afterSize,
+  onRecoverText,
+  onApplyTextRecovery,
 }: DiffViewerProps) {
   const isEditable = !!onApplyPatch
   const dragMode = selectionMode === 'drag'
 
   const [selectable, setSelectable] = useState(false)
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
+  // Drag mode only: double-click drops into native text-selection (see #E.5).
+  const [textSelect, setTextSelect] = useState(false)
 
   // Drag mode (pointer): a contiguous single-hunk row selection; `focus`
   // follows the pointer from `anchor`.
@@ -84,6 +105,7 @@ export function DiffViewer({
     setSelectedLines(new Set())
     setSelectable(false)
     setDrag(null)
+    setTextSelect(false)
     draggingRef.current = false
   }, [patch, path])
 
@@ -100,6 +122,32 @@ export function DiffViewer({
       window.removeEventListener('pointercancel', stop)
     }
   }, [])
+
+  // Esc leaves text-select mode and resumes drag-to-stage.
+  useEffect(() => {
+    if (!textSelect) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTextSelect(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [textSelect])
+
+  // Double-click on a line requests text-select mode; clear any stray 1-row
+  // drag the double-click's clicks armed so no row stays highlighted.
+  const onRequestTextSelect = () => {
+    setDrag(null)
+    draggingRef.current = false
+    setTextSelect(true)
+  }
+
+  // A non-empty patch that parses to zero hunks isn't a real unified diff —
+  // treat it like a binary file so the recovery view can offer a quick fix.
+  const isUnparseable = useMemo(
+    () => !binary && !!patch && parseUnifiedDiff(patch).length === 0,
+    [binary, patch],
+  )
+  const showBinaryView = !!path && (!!binary || isUnparseable)
 
   const lineSelection = drag
     ? {
@@ -278,7 +326,7 @@ export function DiffViewer({
             the Resolve Conflicts button. In drag mode the line actions live on
             the hunk headers (they morph to "Stage/Discard Lines"), so this row
             only renders when a conflict needs resolving. */}
-        {path && isEditable && (!dragMode || isConflicted) && (
+        {path && isEditable && !showBinaryView && (!dragMode || isConflicted) && (
           <div className="px-2 border-t flex items-center gap-2 h-[50px] border-(--border-subtle)">
             <div className="flex items-center gap-2 flex-1">
               {!dragMode && selectable && (
@@ -342,9 +390,19 @@ export function DiffViewer({
       </div>
 
       {/* Diff area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
+      <div className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
         {path ? (
-          patch ? (
+          showBinaryView ? (
+            <BinaryDiffView
+              path={path}
+              reason={binary ? 'binary' : 'unparseable'}
+              beforeSize={beforeSize}
+              afterSize={afterSize}
+              onRecover={onRecoverText}
+              onApplyRecovery={onApplyTextRecovery}
+              diffOpts={{ wrap, ignoreWS, intra }}
+            />
+          ) : patch ? (
             <StructuredUnifiedDiff
               patch={patch}
               wrap={wrap}
@@ -360,6 +418,8 @@ export function DiffViewer({
               onUnstageHunk={handleUnstageHunk}
               onDiscardHunk={handleDiscardHunk}
               selectionMode={selectionMode}
+              textSelect={textSelect}
+              onRequestTextSelect={onRequestTextSelect}
               lineSelection={lineSelection}
               onLinePointerDown={onLinePointerDown}
               onLinePointerEnter={onLinePointerEnter}
@@ -375,6 +435,20 @@ export function DiffViewer({
         ) : (
           <div className="text-xs text-(--text-muted) flex items-center justify-center h-full p-4">
             Select a file to view its diff.
+          </div>
+        )}
+
+        {/* Text-select mode banner — drag-to-stage is suspended; Esc resumes. */}
+        {dragMode && textSelect && !showBinaryView && (
+          <div className="sticky bottom-0 left-0 right-0 z-30 flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] bg-(--surface-overlay) border-t border-(--border-subtle) text-(--text-secondary)">
+            <span>Text-select mode — select &amp; copy lines; row staging paused.</span>
+            <button
+              type="button"
+              onClick={() => setTextSelect(false)}
+              className="px-2 py-0.5 rounded border border-(--border-default) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary)"
+            >
+              Resume staging (Esc)
+            </button>
           </div>
         )}
       </div>
