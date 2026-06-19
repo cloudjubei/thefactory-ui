@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react'
 import {
   StructuredUnifiedDiff,
   type IntraMode,
@@ -123,14 +130,34 @@ export function DiffViewer({
     }
   }, [])
 
-  // Esc leaves text-select mode and resumes drag-to-stage.
+  // Leave text-select mode on Esc, or a pointer-down outside the selection box
+  // (so clicking the selected text — e.g. to right-click → Copy — keeps it).
   useEffect(() => {
     if (!textSelect) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setTextSelect(false)
     }
+    const onPointerDown = (e: PointerEvent) => {
+      const sel = typeof window !== 'undefined' ? window.getSelection?.() : null
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setTextSelect(false)
+        return
+      }
+      const rects = sel.getRangeAt(0).getClientRects()
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i]
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+          return
+        }
+      }
+      setTextSelect(false)
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('pointerdown', onPointerDown, true)
+    }
   }, [textSelect])
 
   // Double-click on a line requests text-select mode; clear any stray 1-row
@@ -180,6 +207,77 @@ export function DiffViewer({
     const hunk = annotateHunks(parseUnifiedDiff(patch), { ignoreWhitespace: ignoreWS })[hunkIndex]
     if (!hunk) return new Set()
     return selectionKeysForLineRange(hunk, hunkIndex, lineSelection.start, lineSelection.end)
+  }
+
+  // Text of the active row (drag) selection — every visible line in the range,
+  // marker-free, newline-joined. Drives Ctrl/Cmd+C + the right-click Copy menu
+  // when the selection was made by row-drag (which has no native text selection).
+  const getRowSelectionText = (): string | null => {
+    if (!patch || !lineSelection) return null
+    const hunk = annotateHunks(parseUnifiedDiff(patch), { ignoreWhitespace: ignoreWS })[
+      lineSelection.hunkIndex
+    ]
+    if (!hunk) return null
+    const lo = Math.min(lineSelection.start, lineSelection.end)
+    const hi = Math.max(lineSelection.start, lineSelection.end)
+    const text = hunk.lines
+      .filter((l, idx) => idx >= lo && idx <= hi && !l._hidden && l.type !== 'meta')
+      .map((l) => l.text)
+      .join('\n')
+    return text || null
+  }
+
+  // Ctrl/Cmd+C copies the row selection's text (no native selection exists in
+  // drag mode). A real text selection (text-select mode) is left to the browser.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || (e.key !== 'c' && e.key !== 'C')) return
+      const native = typeof window !== 'undefined' ? window.getSelection?.() : null
+      if (native && !native.isCollapsed) return
+      const text = getRowSelectionText()
+      if (text) {
+        void navigator.clipboard?.writeText(text)
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patch, ignoreWS, drag])
+
+  // Right-click Copy for the row selection — a tiny custom menu, since with no
+  // native selection the browser's own context menu has no Copy entry.
+  const [copyMenu, setCopyMenu] = useState<{ x: number; y: number } | null>(null)
+  useEffect(() => {
+    if (!copyMenu) return
+    // Bubble phase so the menu's own `stopPropagation` keeps a click on "Copy"
+    // from closing it before the button's onClick fires.
+    const close = () => setCopyMenu(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCopyMenu(null)
+    }
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [copyMenu])
+
+  const onDiffContextMenu = (e: ReactMouseEvent) => {
+    const native = typeof window !== 'undefined' ? window.getSelection?.() : null
+    if (native && !native.isCollapsed) return // real text selection → native menu
+    if (!getRowSelectionText()) return
+    e.preventDefault()
+    setCopyMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  const copyRowSelection = () => {
+    const text = getRowSelectionText()
+    if (text) void navigator.clipboard?.writeText(text)
+    setCopyMenu(null)
   }
 
   const handleStageLines = (hunkIndex: number) => {
@@ -390,7 +488,10 @@ export function DiffViewer({
       </div>
 
       {/* Diff area */}
-      <div className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
+      <div
+        className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full"
+        onContextMenu={onDiffContextMenu}
+      >
         {path ? (
           showBinaryView ? (
             <BinaryDiffView
@@ -437,21 +538,24 @@ export function DiffViewer({
             Select a file to view its diff.
           </div>
         )}
-
-        {/* Text-select mode banner — drag-to-stage is suspended; Esc resumes. */}
-        {dragMode && textSelect && !showBinaryView && (
-          <div className="sticky bottom-0 left-0 right-0 z-30 flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] bg-(--surface-overlay) border-t border-(--border-subtle) text-(--text-secondary)">
-            <span>Text-select mode — select &amp; copy lines; row staging paused.</span>
-            <button
-              type="button"
-              onClick={() => setTextSelect(false)}
-              className="px-2 py-0.5 rounded border border-(--border-default) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary)"
-            >
-              Resume staging (Esc)
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Right-click Copy menu for a row (drag) selection. */}
+      {copyMenu && (
+        <div
+          className="fixed z-50 rounded border border-(--border-default) bg-(--surface-raised) shadow-lg py-1 text-xs"
+          style={{ top: copyMenu.y, left: copyMenu.x }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={copyRowSelection}
+            className="block w-full text-left px-3 py-1 hover:bg-(--surface-hover) text-(--text-primary)"
+          >
+            Copy
+          </button>
+        </div>
+      )}
     </div>
   )
 }

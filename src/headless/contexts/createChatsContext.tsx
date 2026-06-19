@@ -9,6 +9,7 @@ import {
   deleteChat as deleteChatApi,
   deleteLastChatMessage,
   getChatsSettings,
+  getCliAgentRun,
   listChats,
   resumeCompletion,
   sendChatWithCli,
@@ -268,7 +269,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
   const ChatsContext = createContext<ChatsContextValue | null>(null)
 
   function ChatsProvider({ children }: { children: ReactNode }) {
-    const { ws } = useApi()
+    const { ws, wsState } = useApi()
     const { token } = useAuth()
     const { projectId, project } = useActiveProject()
     const { configs: llmConfigs, activeChatConfig } = useLLMConfigs()
@@ -337,6 +338,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // post-202 registration from re-adding an entry (leak) / re-setting a stale
     // cliRunId when the terminal event wins the race against the 202 response.
     const finalizedCliRunIdsRef = useRef<Set<string>>(new Set())
+    // Tracks the prior WS connection state so we can detect a (re)connect and
+    // resync any run whose terminal event was lost while the socket was down.
+    const prevWsStateRef = useRef(wsState)
 
     // Per-chat draft text. Ref-based (no re-render on draft change) so a
     // sibling that doesn't read this chat's draft doesn't churn. Matches
@@ -579,6 +583,53 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         updateLiveState(chat.context, { isSending: false, pendingAssistant: null })
       }
     }, [chats, liveStateByKey, updateLiveState])
+
+    // On a WS (re)connect, resync any chat still mid-CLI-run: a terminal
+    // `cli:run-update` that fired while the socket was down is lost (the
+    // transport has no replay), which would otherwise strand `isSending`
+    // forever. Fetch the authoritative run record and, if it has terminated,
+    // clear the spinner + surface a genuine failure. This is the backstop for a
+    // run that errored/aborted with no persisted reply (the reply-landed
+    // reconcile above can't catch that case).
+    useEffect(() => {
+      const prev = prevWsStateRef.current
+      prevWsStateRef.current = wsState
+      if (wsState !== 'open' || prev === 'open') return
+      for (const [runId, ctx] of cliRunCtxByRunIdRef.current) {
+        const live = liveStateByKey.get(getChatContextKey(ctx))
+        if (!live?.isSending) continue
+        void getCliAgentRun({ path: { runId }, throwOnError: true })
+          .then(({ data }) => {
+            const run = data as {
+              status?: string
+              failure?: { message?: string }
+              abortReason?: string
+            }
+            const status = run.status
+            if (status !== 'succeeded' && status !== 'errored' && status !== 'aborted') return
+            finalizedCliRunIdsRef.current.add(runId)
+            cliRunCtxByRunIdRef.current.delete(runId)
+            const userAborted = userAbortedRunIdsRef.current.delete(runId)
+            const surfaceError = status === 'errored' || (status === 'aborted' && !userAborted)
+            updateLiveState(ctx, {
+              isSending: false,
+              pendingAssistant: null,
+              cliModel: null,
+              cliStartedAt: null,
+              ...(surfaceError
+                ? {
+                    sendError: new Error(
+                      run.failure?.message ??
+                        run.abortReason ??
+                        `The agent run ${status} without a reply.`,
+                    ),
+                  }
+                : {}),
+            })
+          })
+          .catch(() => {})
+      }
+    }, [wsState, liveStateByKey, updateLiveState])
 
     // The project-level chat is the one scoped directly to the active project
     // (no story / feature / topic). It's what the chat sidebar pins at the top.

@@ -227,8 +227,8 @@ function SideBySideContent({ hunks, wrap }: { hunks: ParsedHunk[]; wrap: boolean
   )
 }
 
-/** Select the full text content of an element (used to grab a diff line on
- *  double-click, excluding the `select-none` marker/line-number columns). */
+/** Select the full text content of an element (used to grab a diff line,
+ *  excluding the `select-none` marker/line-number columns). */
 function selectElementText(el: HTMLElement) {
   const sel = typeof window !== 'undefined' ? window.getSelection?.() : null
   if (!sel) return
@@ -236,6 +236,13 @@ function selectElementText(el: HTMLElement) {
   range.selectNodeContents(el)
   sel.removeAllRanges()
   sel.addRange(range)
+}
+
+/** Select a diff row's line text (the `[data-diff-line-text]` content cell),
+ *  excluding the `select-none` marker / line-number columns. */
+function selectLineInRow(rowEl: HTMLElement) {
+  const el = rowEl.querySelector<HTMLElement>('[data-diff-line-text]')
+  if (el) selectElementText(el)
 }
 
 export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
@@ -474,14 +481,12 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                         onDoubleClick={
                           dragMode
                             ? (e) => {
-                                const el = e.currentTarget.querySelector<HTMLElement>(
-                                  '[data-diff-line-text]',
-                                )
+                                const row = e.currentTarget
                                 if (!textSelect) onRequestTextSelect?.()
                                 // Once the re-render drops `select-none`, select the
                                 // line's text (markers/numbers are excluded) so a copy
                                 // yields the line without the +/- prefix.
-                                if (el) setTimeout(() => selectElementText(el), 0)
+                                setTimeout(() => selectLineInRow(row), 0)
                               }
                             : undefined
                         }
