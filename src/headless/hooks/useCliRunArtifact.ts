@@ -17,6 +17,23 @@ import {
 import { useApi } from '../api/ApiContext'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
 
+// How long to keep retrying a 404 while a just-started run's record is still
+// being written (≈ container auth/workspace prep before the first writeRun).
+const CLI_RUN_NOT_READY_RETRY_MS = 800
+const CLI_RUN_NOT_READY_MAX_RETRIES = 10
+
+/**
+ * Whether an API error is a 404 — i.e. the run record doesn't exist YET (a
+ * fast-return run whose record hasn't been written to disk), as opposed to a
+ * genuine failure. Handles the axios-shaped error the generated client throws
+ * (`response.status` / `status`) plus a message fallback.
+ */
+function isNotReadyError(err: unknown): boolean {
+  const e = err as { status?: number; response?: { status?: number }; message?: unknown }
+  if (e?.response?.status === 404 || e?.status === 404) return true
+  return typeof e?.message === 'string' && /\b404\b/.test(e.message)
+}
+
 export type UseCliRunArtifact = {
   /** The run's files-emitted artifact (the agent's workspace diff), once loaded. */
   artifact: FilesEmittedArtifact | undefined
@@ -105,10 +122,16 @@ export function useCliRunArtifact(
   // Highest transcript-entry timestamp surfaced so far; live appends older than
   // this (e.g. re-sent during the initial load race) are skipped.
   const lastAtRef = useRef(0)
+  // A just-started run returns its runId (fast-return 202) BEFORE the run record
+  // is written to disk, so the first `getCliAgentRun` can 404. That's "not ready
+  // yet", not a failure — retry a few times instead of surfacing an error. The
+  // live transcript still streams over the WS in the meantime.
+  const notReadyRetriesRef = useRef(0)
 
   useEffect(() => {
     epochRef.current += 1
     lastAtRef.current = 0
+    notReadyRetriesRef.current = 0
     setArtifact(undefined)
     setTranscript([])
     setStatus(undefined)
@@ -122,6 +145,7 @@ export function useCliRunArtifact(
     if (!runId) return
     const epoch = epochRef.current
     setLoading(true)
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     void getCliAgentRun({ path: { runId }, throwOnError: true })
       .then(({ data }) => {
         if (epoch !== epochRef.current) return
@@ -133,11 +157,22 @@ export function useCliRunArtifact(
         setReview(data.review ?? undefined)
       })
       .catch((err: unknown) => {
-        if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+        if (epoch !== epochRef.current) return
+        // The run record may not be on disk yet (fast-return start race). Treat
+        // a 404 as transient and retry quietly; only surface other failures.
+        if (isNotReadyError(err) && notReadyRetriesRef.current < CLI_RUN_NOT_READY_MAX_RETRIES) {
+          notReadyRetriesRef.current += 1
+          retryTimer = setTimeout(() => setFetchNonce((n) => n + 1), CLI_RUN_NOT_READY_RETRY_MS)
+          return
+        }
+        setError(err instanceof Error ? err.message : String(err))
       })
       .finally(() => {
         if (epoch === epochRef.current) setLoading(false)
       })
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [runId, fetchNonce])
 
   // Live transcript: append entries as the run streams them. Filtered by runId

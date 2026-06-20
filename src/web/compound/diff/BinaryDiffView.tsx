@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { StructuredUnifiedDiff, type IntraMode } from './diffUtils'
 import { IconWarningTriangle } from '../../icons'
 
@@ -75,6 +75,14 @@ export function BinaryDiffView({
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Switching files must drop a previous file's recovered preview / error.
+  useEffect(() => {
+    setRecovery(null)
+    setError(null)
+    setLoading(false)
+    setApplying(false)
+  }, [path])
 
   const runRecover = useCallback(async () => {
     if (!onRecover) return

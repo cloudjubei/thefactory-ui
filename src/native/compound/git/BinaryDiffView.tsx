@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -66,6 +66,14 @@ export default function BinaryDiffView({
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Switching files must drop a previous file's recovered preview / error.
+  useEffect(() => {
+    setRecovery(null)
+    setError(null)
+    setLoading(false)
+    setApplying(false)
+  }, [path])
 
   const runRecover = useCallback(async () => {
     if (!onRecover) return

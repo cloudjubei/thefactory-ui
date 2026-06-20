@@ -574,10 +574,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       for (const chat of chats) {
         const live = liveStateByKey.get(getChatContextKey(chat.context))
         if (!live?.isSending || !live.cliRunId) continue
-        const replyLanded = (chat.messages ?? []).some(
-          (m) => (m as { cliRunId?: string }).cliRunId === live.cliRunId,
+        // The run's assistant message is persisted EMPTY at start (its runId
+        // anchors the live run view); a non-empty content means the run finished
+        // and its reply was finalized. Only the latter is a "done" signal — the
+        // empty start-anchor must NOT clear the spinner mid-run.
+        const replyFinalized = (chat.messages ?? []).some(
+          (m) =>
+            (m as { cliRunId?: string }).cliRunId === live.cliRunId &&
+            typeof m.content === 'string' &&
+            m.content.trim().length > 0,
         )
-        if (!replyLanded) continue
+        if (!replyFinalized) continue
         finalizedCliRunIdsRef.current.add(live.cliRunId)
         cliRunCtxByRunIdRef.current.delete(live.cliRunId)
         updateLiveState(chat.context, { isSending: false, pendingAssistant: null })
