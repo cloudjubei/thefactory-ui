@@ -45,15 +45,17 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
 }: CliRunMessagesProps) {
-  const { transcript, status } = useCliRunArtifact(runId, undefined)
+  const { transcript, status, notReady } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
-  // Before the sandbox is up + the first transcript byte lands, show a one-off
-  // startup label beside the standard spinner so the user knows the agent is
-  // booting (rather than a bare spinner). Once any step streams in, it's the
-  // plain assistant spinner like the API path.
-  const booting = streaming && transcript.length === 0
+  // The run is "active" (show a spinner) while it's booting (record not written
+  // yet → `notReady`, the long container spin-up) or streaming. `booting` shows
+  // the "Preparing <agent>…" label until the first transcript byte lands — so
+  // there's never a blank gap while the sandbox starts; after that it's the
+  // plain working spinner like the API path. A loaded terminal run shows neither.
+  const active = notReady || streaming
+  const booting = active && transcript.length === 0
   const cli = parseCliAgentModelTag(model)?.cli
   const messages = useMemo(
     () => cliTranscriptToMessages(transcript, { ...(model ? { model } : {}), showThinking }),
@@ -88,7 +90,7 @@ export default function CliRunMessages({
           </div>
         )
       })}
-      {streaming ? (
+      {active ? (
         <ThinkingRow
           {...(booting
             ? { spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…` }

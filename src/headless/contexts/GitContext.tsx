@@ -809,10 +809,20 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     async (paths: string[]) => {
       const id = requireProject()
       if (paths.length === 0) return
+      // Drop any index entry first so a brand-new file (staged add, never
+      // committed) is removed entirely instead of lingering as a phantom
+      // "deleted (unstaged)" row after its working-tree copy is gone. Best-effort:
+      // untracked paths / no-HEAD repos have nothing to unstage.
+      try {
+        await gitUnstage({ path: { projectId: id }, body: { paths }, throwOnError: true })
+      } catch {
+        // ignore — proceed to delete the working-tree files regardless
+      }
       await deleteFiles({ path: { projectId: id }, body: { paths }, throwOnError: true })
       await refresh()
+      if (localDiffLoadedRef.current) await loadLocalDiff()
     },
-    [requireProject, refresh],
+    [requireProject, refresh, loadLocalDiff],
   )
 
   const applyPatch = useCallback(

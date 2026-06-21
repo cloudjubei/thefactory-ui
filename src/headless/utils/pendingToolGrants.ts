@@ -11,6 +11,20 @@ export type CliPendingActionLike = {
   payload?: unknown
 }
 
+/**
+ * Broker action kinds that are NOTIFICATIONS, not approvable tool grants —
+ * they must never surface in the tool-confirmation UI as a popup. `auth-expired`
+ * is raised when host-side OAuth refresh fails; there's nothing to approve (the
+ * run already errors with a "re-login required" message, surfaced inline), so a
+ * permission popup is both useless and confusing.
+ */
+const NON_GRANT_ACTION_KINDS: ReadonlySet<string> = new Set(['auth-expired'])
+
+/** True when an action represents an approvable grant (gated tool / cap-raise / network-unlock). */
+export function isToolGrantAction(action: CliPendingActionLike): boolean {
+  return !NON_GRANT_ACTION_KINDS.has(action.kind)
+}
+
 /** Map an API `require_confirmation` tool-call to a grant (id = toolCallId). */
 export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData {
   return {

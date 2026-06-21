@@ -485,6 +485,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       return ws.on('cli:run-update', (data) => {
         const parsed = parseCliRunUpdateEvent(data)
         if (!parsed) return
+        // Ignore any event for a run we've already finalized (terminal handled,
+        // or the chat was cleared/aborted) — a late stray event must not
+        // re-mount a dead/cleared run.
+        if (finalizedCliRunIdsRef.current.has(parsed.runId)) return
         // Route by runId (the run may be detached, past `inFlightCtxRef`'s
         // lifetime). Only fall back to the in-flight chat for a runId we have
         // never mapped — and never stamp an error through that fallback, since
@@ -969,10 +973,33 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const clearChat = useCallback(
       async (ctx: ChatCtx) => {
+        // Drop ALL live/spoofed state for this chat (and abort an in-flight CLI
+        // run) before clearing — otherwise the streaming run's messages and
+        // spinner linger over the freshly-cleared chat until the next send.
+        const live = getChatLiveState(ctx)
+        if (live.cliRunId) {
+          finalizedCliRunIdsRef.current.add(live.cliRunId)
+          cliRunCtxByRunIdRef.current.delete(live.cliRunId)
+          void abortCliAgentRun({
+            path: { runId: live.cliRunId },
+            body: { reason: 'chat cleared' },
+            throwOnError: false,
+          }).catch(() => {})
+        }
+        cliStreamAccumRef.current = ''
+        updateLiveState(ctx, {
+          isSending: false,
+          pendingAssistant: null,
+          cliRunId: null,
+          cliModel: null,
+          cliStartedAt: null,
+          sendError: null,
+          pendingToolConfirmation: null,
+        })
         await clearChatApi({ body: { context: ctx }, throwOnError: true })
         await refresh()
       },
-      [refresh],
+      [refresh, getChatLiveState, updateLiveState],
     )
 
     const deleteChat = useCallback(

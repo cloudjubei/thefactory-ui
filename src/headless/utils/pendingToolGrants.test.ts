@@ -4,6 +4,7 @@ import {
   cliDecideOutcome,
   cliPendingActionToGrant,
   formatActionLabel,
+  isToolGrantAction,
 } from './pendingToolGrants'
 
 describe('apiToolCallToGrant', () => {
@@ -19,6 +20,18 @@ describe('cliPendingActionToGrant', () => {
     expect(
       cliPendingActionToGrant({ id: 'a-1', kind: 'network-unlock', payload: { host: 'x' } }),
     ).toEqual({ id: 'a-1', source: 'cli', label: 'Network unlock', detail: { host: 'x' } })
+  })
+})
+
+describe('isToolGrantAction', () => {
+  it('treats gated tool / cap-raise / network-unlock as approvable grants', () => {
+    expect(isToolGrantAction({ id: 'a', kind: 'network-unlock' })).toBe(true)
+    expect(isToolGrantAction({ id: 'b', kind: 'workspace-limit-raise' })).toBe(true)
+    expect(isToolGrantAction({ id: 'c', kind: 'tool' })).toBe(true)
+  })
+
+  it('treats auth-expired as a notification, not an approvable grant', () => {
+    expect(isToolGrantAction({ id: 'd', kind: 'auth-expired' })).toBe(false)
   })
 })
 

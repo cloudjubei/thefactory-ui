@@ -35,9 +35,10 @@ export interface BinaryDiffViewProps {
   onRecover?: () => Promise<BinaryDiffRecovery>
   /**
    * Persist the fix — write the sanitized content back to the working-tree
-   * file. Absent ⇒ preview only.
+   * file. Absent ⇒ preview only. May return the result so the view can confirm
+   * how many bytes were removed.
    */
-  onApplyRecovery?: () => void | Promise<void>
+  onApplyRecovery?: () => void | Promise<{ removedBytes?: number } | void>
   /** Render options for the recovered preview diff. */
   diffOpts?: { wrap: boolean; ignoreWS: boolean; intra: IntraMode }
 }
@@ -74,6 +75,7 @@ export function BinaryDiffView({
   const [recovery, setRecovery] = useState<BinaryDiffRecovery | null>(null)
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [applied, setApplied] = useState<{ removedBytes: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Switching files must drop a previous file's recovered preview / error.
@@ -82,12 +84,14 @@ export function BinaryDiffView({
     setError(null)
     setLoading(false)
     setApplying(false)
+    setApplied(null)
   }, [path])
 
   const runRecover = useCallback(async () => {
     if (!onRecover) return
     setLoading(true)
     setError(null)
+    setApplied(null)
     try {
       setRecovery(await onRecover())
     } catch (err) {
@@ -102,7 +106,8 @@ export function BinaryDiffView({
     setApplying(true)
     setError(null)
     try {
-      await onApplyRecovery()
+      const res = await onApplyRecovery()
+      setApplied({ removedBytes: res && typeof res === 'object' ? (res.removedBytes ?? 0) : 0 })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -156,6 +161,16 @@ export function BinaryDiffView({
         )}
 
         {error && <div className="mt-2 text-(--color-red-600)">{error}</div>}
+
+        {applied && (
+          <div className="mt-2 text-(--text-secondary)">
+            {applied.removedBytes > 0
+              ? `✓ Removed ${applied.removedBytes} bytes — the working file is now valid text.`
+              : '✓ The working file is already valid text — nothing to rewrite on disk.'}{' '}
+            If this still shows as binary, the corrupted version is the committed/staged one —
+            commit your changes to replace it.
+          </div>
+        )}
       </div>
 
       {recovery && !recovery.recovered && (

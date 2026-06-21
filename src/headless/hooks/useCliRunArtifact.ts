@@ -57,6 +57,13 @@ export type UseCliRunArtifact = {
   review: CliRunReview | undefined
   /** True while the run record is being fetched. */
   loading: boolean
+  /**
+   * True when the run record doesn't exist on disk yet — a just-started run
+   * still booting its sandbox (the record is written after auth/workspace prep).
+   * The run view shows a "Preparing…" indicator while this holds, so the long
+   * container spin-up isn't a blank gap before any status exists.
+   */
+  notReady: boolean
   /** Per-file diff preview against the project's current checkout (no-git path), once loaded. */
   preview: FilesEmittedPreview | undefined
   /** True while the preview is being computed server-side. */
@@ -113,6 +120,11 @@ export function useCliRunArtifact(
   const [merging, setMerging] = useState(false)
   const [mergeResult, setMergeResult] = useState<GitMergeResult | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
+  // True while the run record doesn't exist on disk yet (a just-started run
+  // whose record is being written): the run is booting. Distinct from a loaded
+  // `running` status and from a terminal status — lets the run view show
+  // "Preparing…" during the container spin-up window before any status exists.
+  const [notReady, setNotReady] = useState(false)
   const [fetchNonce, setFetchNonce] = useState(0)
   const { ws } = useApi()
   // Bumped whenever the target run changes; in-flight responses from a prior
@@ -141,6 +153,7 @@ export function useCliRunArtifact(
     setReviewDiff(undefined)
     setMergeResult(undefined)
     setError(undefined)
+    setNotReady(false)
     setLoading(false)
     if (!runId) return
     const epoch = epochRef.current
@@ -149,6 +162,7 @@ export function useCliRunArtifact(
     void getCliAgentRun({ path: { runId }, throwOnError: true })
       .then(({ data }) => {
         if (epoch !== epochRef.current) return
+        setNotReady(false)
         setArtifact(filesEmittedArtifactOf(data.artifacts))
         const entries = data.transcript ?? []
         setTranscript(entries)
@@ -162,6 +176,7 @@ export function useCliRunArtifact(
         // a 404 as transient and retry quietly; only surface other failures.
         if (isNotReadyError(err) && notReadyRetriesRef.current < CLI_RUN_NOT_READY_MAX_RETRIES) {
           notReadyRetriesRef.current += 1
+          setNotReady(true)
           retryTimer = setTimeout(() => setFetchNonce((n) => n + 1), CLI_RUN_NOT_READY_RETRY_MS)
           return
         }
@@ -297,6 +312,7 @@ export function useCliRunArtifact(
     status,
     review,
     loading,
+    notReady,
     preview,
     previewLoading,
     loadPreview,

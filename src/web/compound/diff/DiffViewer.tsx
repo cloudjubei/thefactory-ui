@@ -65,7 +65,7 @@ export interface DiffViewerProps {
    */
   onRecoverText?: () => Promise<BinaryDiffRecovery>
   /** Persist the recovery — write the sanitized content back to the working tree. */
-  onApplyTextRecovery?: () => void | Promise<void>
+  onApplyTextRecovery?: () => void | Promise<{ removedBytes?: number } | void>
 }
 
 // Single-file diff widget with selectable hunks, intra-line modes, and
@@ -100,6 +100,9 @@ export function DiffViewer({
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
   // Drag mode only: double-click drops into native text-selection (see #E.5).
   const [textSelect, setTextSelect] = useState(false)
+  // The scrollable diff body — used to scope text-select-mode exit (a click
+  // inside it makes/extends a selection; only a click outside it exits).
+  const diffAreaRef = useRef<HTMLDivElement>(null)
 
   // Drag mode (pointer): a contiguous single-hunk row selection; `focus`
   // follows the pointer from `anchor`.
@@ -130,27 +133,17 @@ export function DiffViewer({
     }
   }, [])
 
-  // Leave text-select mode on Esc, or a pointer-down outside the selection box
-  // (so clicking the selected text — e.g. to right-click → Copy — keeps it).
+  // Leave text-select mode on Esc, or a pointer-down outside the diff body.
+  // Clicks *inside* the diff keep the mode so the user can freely select /
+  // extend / multi-line-select any rows (context, add, del) and copy them.
   useEffect(() => {
     if (!textSelect) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setTextSelect(false)
     }
     const onPointerDown = (e: PointerEvent) => {
-      const sel = typeof window !== 'undefined' ? window.getSelection?.() : null
-      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        setTextSelect(false)
-        return
-      }
-      const rects = sel.getRangeAt(0).getClientRects()
-      for (let i = 0; i < rects.length; i++) {
-        const r = rects[i]
-        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
-          return
-        }
-      }
-      setTextSelect(false)
+      const target = e.target as Node | null
+      if (!target || !diffAreaRef.current?.contains(target)) setTextSelect(false)
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('pointerdown', onPointerDown, true)
@@ -489,6 +482,7 @@ export function DiffViewer({
 
       {/* Diff area */}
       <div
+        ref={diffAreaRef}
         className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full"
         onContextMenu={onDiffContextMenu}
       >

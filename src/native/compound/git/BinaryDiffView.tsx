@@ -26,7 +26,7 @@ export interface BinaryDiffViewProps {
   /** On-demand recovery (quick fix). Absent ⇒ no recovery affordance. */
   onRecover?: () => Promise<BinaryDiffRecovery>
   /** Persist the fix back to the working tree. Absent ⇒ preview only. */
-  onApplyRecovery?: () => void | Promise<void>
+  onApplyRecovery?: () => void | Promise<{ removedBytes?: number } | void>
   wrap?: boolean
   ignoreWhitespace?: boolean
   intra?: IntraMode
@@ -65,6 +65,7 @@ export default function BinaryDiffView({
   const [recovery, setRecovery] = useState<BinaryDiffRecovery | null>(null)
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [applied, setApplied] = useState<{ removedBytes: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Switching files must drop a previous file's recovered preview / error.
@@ -73,12 +74,14 @@ export default function BinaryDiffView({
     setError(null)
     setLoading(false)
     setApplying(false)
+    setApplied(null)
   }, [path])
 
   const runRecover = useCallback(async () => {
     if (!onRecover) return
     setLoading(true)
     setError(null)
+    setApplied(null)
     try {
       setRecovery(await onRecover())
     } catch (err) {
@@ -93,7 +96,8 @@ export default function BinaryDiffView({
     setApplying(true)
     setError(null)
     try {
-      await onApplyRecovery()
+      const res = await onApplyRecovery()
+      setApplied({ removedBytes: res && typeof res === 'object' ? (res.removedBytes ?? 0) : 0 })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -162,6 +166,16 @@ export default function BinaryDiffView({
         ) : null}
 
         {error ? <Text style={{ fontSize: 12, color: '#dc2626' }}>{error}</Text> : null}
+
+        {applied ? (
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {applied.removedBytes > 0
+              ? `✓ Removed ${applied.removedBytes} bytes — the working file is now valid text.`
+              : '✓ The working file is already valid text — nothing to rewrite on disk.'}{' '}
+            If this still shows as binary, the corrupted version is the committed/staged one — commit
+            your changes to replace it.
+          </Text>
+        ) : null}
       </View>
 
       {recovery && !recovery.recovered ? (

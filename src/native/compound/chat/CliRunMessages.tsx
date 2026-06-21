@@ -43,11 +43,15 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
 }: CliRunMessagesProps) {
-  const { transcript, status } = useCliRunArtifact(runId, undefined)
+  const { transcript, status, notReady } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming =
     status === 'running' || status === 'awaiting-approval' || status === 'paused'
-  const booting = streaming && transcript.length === 0
+  // Active = booting (record not written yet, the container spin-up) or
+  // streaming; show "Preparing <agent>…" until the first transcript byte so the
+  // long boot isn't a blank gap. Mirrors web.
+  const active = notReady || streaming
+  const booting = active && transcript.length === 0
   const cli = parseCliAgentModelTag(model)?.cli
   const messages = useMemo(
     () => cliTranscriptToMessages(transcript, { ...(model ? { model } : {}), showThinking }),
@@ -76,7 +80,7 @@ export default function CliRunMessages({
           />
         )
       })}
-      {streaming ? (
+      {active ? (
         <ThinkingRow
           {...(booting ? { spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…` } : {})}
         />

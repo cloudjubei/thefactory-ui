@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import {
-  abortChatCompletion,
+  abortCompletion,
   abortCliAgentRun,
   deleteChat,
   rateChat,
@@ -168,11 +168,18 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
           // Run already finished / not found — harmless.
         }
       }
-      try {
-        await abortChatCompletion({ body: { context: run.context }, throwOnError: true })
-      } catch {
-        // 404 → nothing in flight; safe to ignore. The chat list refresh
-        // below will reflect the latest state regardless.
+      // An orchestrator (API) agent run is registered server-side by its stable
+      // `agentRunId` (the random internal runId is never sent to the client).
+      // Abort by that id — `chat-abort` (keyed by chat context) never reaches
+      // the orchestrator's job registry, which is why cancel did nothing.
+      const agentRunId = 'agentRunId' in run.context ? run.context.agentRunId : undefined
+      if (agentRunId) {
+        try {
+          await abortCompletion({ body: { runId: agentRunId }, throwOnError: true })
+        } catch {
+          // 404 → nothing in flight; safe to ignore. The chat list refresh
+          // below will reflect the latest state regardless.
+        }
       }
       await refreshChats()
     },

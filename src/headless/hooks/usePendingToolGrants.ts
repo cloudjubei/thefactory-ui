@@ -12,6 +12,7 @@ import {
   apiToolCallToGrant,
   cliDecideOutcome,
   cliPendingActionToGrant,
+  isToolGrantAction,
 } from '../utils/pendingToolGrants'
 
 export type UsePendingToolGrants = {
@@ -47,7 +48,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     const load = async () => {
       try {
         const { data } = await listPendingCliAgentActions({ query: { runId }, throwOnError: true })
-        if (!cancelled) setCliActions(data)
+        // Drop notification-only kinds (e.g. auth-expired) — they're not
+        // approvable grants and must never surface as a permission popup.
+        if (!cancelled) setCliActions(data.filter(isToolGrantAction))
       } catch {
         if (!cancelled) setCliActions([])
       }

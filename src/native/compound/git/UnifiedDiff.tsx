@@ -30,7 +30,7 @@ export interface UnifiedDiffProps {
    */
   onRecoverText?: () => Promise<BinaryDiffRecovery>
   /** Persist the recovery — write the sanitized content back to the working tree. */
-  onApplyTextRecovery?: () => void | Promise<void>
+  onApplyTextRecovery?: () => void | Promise<{ removedBytes?: number } | void>
   /** Max height before the diff body scrolls vertically. Default 360. */
   maxHeight?: number
   /**
