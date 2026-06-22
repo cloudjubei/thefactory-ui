@@ -98,11 +98,13 @@ export function DiffViewer({
 
   const [selectable, setSelectable] = useState(false)
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
-  // Drag mode only: double-click drops into native text-selection (see #E.5).
-  const [textSelect, setTextSelect] = useState(false)
-  // The scrollable diff body — used to scope text-select-mode exit (a click
-  // inside it makes/extends a selection; only a click outside it exits).
-  const diffAreaRef = useRef<HTMLDivElement>(null)
+  // Drag mode only: the single line in "in-line text-select" mode — double-click
+  // boxes a line's text so it can be selected/copied; a click outside the box
+  // exits (SourceTree-style). `null` when not in that mode (see #E.5).
+  const [textSelectLine, setTextSelectLine] = useState<{
+    hunkIndex: number
+    lineIndex: number
+  } | null>(null)
 
   // Drag mode (pointer): a contiguous single-hunk row selection; `focus`
   // follows the pointer from `anchor`.
@@ -115,7 +117,7 @@ export function DiffViewer({
     setSelectedLines(new Set())
     setSelectable(false)
     setDrag(null)
-    setTextSelect(false)
+    setTextSelectLine(null)
     draggingRef.current = false
   }, [patch, path])
 
@@ -133,17 +135,21 @@ export function DiffViewer({
     }
   }, [])
 
-  // Leave text-select mode on Esc, or a pointer-down outside the diff body.
-  // Clicks *inside* the diff keep the mode so the user can freely select /
-  // extend / multi-line-select any rows (context, add, del) and copy them.
+  // Exit in-line text-select on Esc, or a pointer-down anywhere outside the
+  // boxed line's text (SourceTree-style — clicking off the box stops it). Clear
+  // the lingering native selection so the highlight doesn't persist after exit.
   useEffect(() => {
-    if (!textSelect) return
+    if (!textSelectLine) return
+    const exit = () => {
+      setTextSelectLine(null)
+      if (typeof window !== 'undefined') window.getSelection?.()?.removeAllRanges()
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setTextSelect(false)
+      if (e.key === 'Escape') exit()
     }
     const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node | null
-      if (!target || !diffAreaRef.current?.contains(target)) setTextSelect(false)
+      const el = e.target as HTMLElement | null
+      if (!el || !el.closest?.('[data-diff-textselect-active]')) exit()
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('pointerdown', onPointerDown, true)
@@ -151,14 +157,14 @@ export function DiffViewer({
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [textSelect])
+  }, [textSelectLine])
 
-  // Double-click on a line requests text-select mode; clear any stray 1-row
-  // drag the double-click's clicks armed so no row stays highlighted.
-  const onRequestTextSelect = () => {
+  // Double-click on a line boxes it for in-line text-select; clear any stray
+  // 1-row drag the double-click's clicks armed so no row stays highlighted.
+  const onRequestTextSelectLine = (hunkIndex: number, lineIndex: number) => {
     setDrag(null)
     draggingRef.current = false
-    setTextSelect(true)
+    setTextSelectLine({ hunkIndex, lineIndex })
   }
 
   // A non-empty patch that parses to zero hunks isn't a real unified diff —
@@ -482,7 +488,6 @@ export function DiffViewer({
 
       {/* Diff area */}
       <div
-        ref={diffAreaRef}
         className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full"
         onContextMenu={onDiffContextMenu}
       >
@@ -513,8 +518,8 @@ export function DiffViewer({
               onUnstageHunk={handleUnstageHunk}
               onDiscardHunk={handleDiscardHunk}
               selectionMode={selectionMode}
-              textSelect={textSelect}
-              onRequestTextSelect={onRequestTextSelect}
+              textSelectLine={textSelectLine}
+              onRequestTextSelectLine={onRequestTextSelectLine}
               lineSelection={lineSelection}
               onLinePointerDown={onLinePointerDown}
               onLinePointerEnter={onLinePointerEnter}

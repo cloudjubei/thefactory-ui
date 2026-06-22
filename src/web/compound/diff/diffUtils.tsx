@@ -54,14 +54,14 @@ export type StructuredUnifiedDiffProps = {
    */
   selectionMode?: 'drag' | 'checkbox'
   /**
-   * Drag mode only: when true, suspend row-drag selection (drop `select-none`
-   * + the pointer handlers) so the user can select diff text natively and copy
-   * it. Markers + line numbers stay `select-none`, so a copy yields the line
-   * text without the leading `+`/`-`. Entered via a double-click on a line.
+   * Drag mode only: the single line currently in "in-line text-select" mode
+   * (entered by double-clicking it). That line's text gets a box + becomes
+   * natively selectable (the rest of the diff stays `select-none` so row-drag
+   * keeps working); clicking outside the box exits — wired by the host.
    */
-  textSelect?: boolean
-  /** Drag mode: a double-click on a line requests text-selection mode. */
-  onRequestTextSelect?: () => void
+  textSelectLine?: { hunkIndex: number; lineIndex: number } | null
+  /** Drag mode: a double-click on a line requests in-line text-select for it. */
+  onRequestTextSelectLine?: (hunkIndex: number, lineIndex: number) => void
   /** Drag mode: the active contiguous row selection (within one hunk). Line
    *  indices are into the hunk's full `lines` array. */
   lineSelection?: { hunkIndex: number; start: number; end: number } | null
@@ -263,8 +263,8 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onUnstageHunk,
     onDiscardHunk,
     selectionMode = 'checkbox',
-    textSelect = false,
-    onRequestTextSelect,
+    textSelectLine = null,
+    onRequestTextSelectLine,
     lineSelection,
     onLinePointerDown,
     onLinePointerEnter,
@@ -273,9 +273,9 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
     onDiscardLines,
   } = props
   const dragMode = selectionMode === 'drag'
-  // While in text-select mode, suspend the row-drag affordance so the browser's
-  // native text selection takes over (and copy yields marker-free line text).
-  const dragActive = dragMode && !textSelect
+  // While a line is in in-line text-select mode, suspend row-drag so the click
+  // that lands in that line edits the native selection rather than dragging rows.
+  const dragActive = dragMode && !textSelectLine
 
   const hunksRaw = useMemo<ParsedHunk[]>(() => parseUnifiedDiff(patch), [patch])
   const totalRenderableLines = useMemo(
@@ -438,12 +438,12 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
             <div className="overflow-x-auto relative">
               <div className={wrap ? 'min-w-0' : 'min-w-max'}>
                 {/* `j` is the UNFILTERED `h.lines` index so it matches
-                    `generateSelectedPatch`'s keys; an armed drag is
-                    `select-none` so a drag picks rows, not text. Double-clicking
-                    a line drops into text-select mode (drag suspended). */}
+                    `generateSelectedPatch`'s keys; the body is `select-none` in
+                    drag mode so a drag picks rows, not text. Double-clicking a
+                    line boxes it and overrides to `select-text` for that one row. */}
                 <div
                   className={`text-[10px] leading-relaxed divide-y divide-neutral-100 dark:divide-neutral-800/50 ${
-                    dragActive ? 'select-none' : ''
+                    dragMode ? 'select-none' : ''
                   }`}
                 >
                   {h.lines.map((ln, j) => {
@@ -459,17 +459,24 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                     }
 
                     const isSelectableLine = ln.type === 'add' || ln.type === 'del'
-                    // Only highlight when the drag covers stageable lines, so a
-                    // context-only selection paints nothing.
-                    const rowSelected = hunkHasLineSel && j >= dragSelLo && j <= dragSelHi
+                    // Highlight every row the drag covers — including context
+                    // lines — so the user gets immediate feedback when selecting
+                    // for copy (the "Stage Lines" morph still gates on +/-).
+                    const rowSelected = dragSelLo >= 0 && j >= dragSelLo && j <= dragSelHi
+                    const isTextSelectLine =
+                      textSelectLine?.hunkIndex === i && textSelectLine?.lineIndex === j
 
                     return (
                       <div
                         key={j}
+                        data-diff-line-row
                         className={`flex relative ${bgCls}`}
                         onPointerDown={
                           dragActive
                             ? (e) => {
+                                // Left-click only — a right-click must not reset the
+                                // selection (it opens the Copy menu for the whole range).
+                                if (e.button !== 0) return
                                 e.preventDefault()
                                 onLinePointerDown?.(i, j)
                               }
@@ -482,10 +489,10 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                           dragMode
                             ? (e) => {
                                 const row = e.currentTarget
-                                if (!textSelect) onRequestTextSelect?.()
-                                // Once the re-render drops `select-none`, select the
-                                // line's text (markers/numbers are excluded) so a copy
-                                // yields the line without the +/- prefix.
+                                onRequestTextSelectLine?.(i, j)
+                                // Once the re-render boxes the line + drops its
+                                // `select-none`, select the line's text (markers /
+                                // numbers excluded) so a copy omits the +/- prefix.
                                 setTimeout(() => selectLineInRow(row), 0)
                               }
                             : undefined
@@ -530,10 +537,18 @@ export function StructuredUnifiedDiff(props: StructuredUnifiedDiffProps) {
                           </div>
                         </div>
 
-                        {/* Line content */}
+                        {/* Line content. When this line is the in-line text-select
+                            target it gets a box + `select-text` (overriding the
+                            body's `select-none`), so only this line is selectable
+                            and a click outside the box exits the mode. */}
                         <div
                           data-diff-line-text
-                          className={`flex-1 min-w-0 py-0.5 pr-2 pl-2 ${wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
+                          {...(isTextSelectLine ? { 'data-diff-textselect-active': '' } : {})}
+                          className={`flex-1 min-w-0 py-0.5 pr-2 pl-2 ${wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} ${
+                            isTextSelectLine
+                              ? 'select-text cursor-text ring-1 ring-sky-500 ring-inset rounded-[2px] bg-(--surface-base)'
+                              : ''
+                          }`}
                         >
                           {ln._markup ? (
                             <>

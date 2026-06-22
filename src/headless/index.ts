@@ -530,6 +530,7 @@ export {
 // (API require_confirmation + CLI gated PendingActions) the confirmation UI renders.
 export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunner'
 export { useActivityChipCli, type ActivityChipCliWiring } from './hooks/useActivityChipCli'
+export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgentRunChipCli'
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
 export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 

@@ -8394,6 +8394,44 @@ export type SetCliEffortResponses = {
 
 export type SetCliEffortResponse = SetCliEffortResponses[keyof SetCliEffortResponses]
 
+export type GetActiveRunnerKindData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/agent-runner/active'
+}
+
+export type GetActiveRunnerKindResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    activeRunnerKind?: 'api' | 'cli'
+  }
+}
+
+export type GetActiveRunnerKindResponse =
+  GetActiveRunnerKindResponses[keyof GetActiveRunnerKindResponses]
+
+export type SetActiveRunnerKindData = {
+  body: {
+    kind: 'api' | 'cli'
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/agent-runner/active'
+}
+
+export type SetActiveRunnerKindResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetActiveRunnerKindResponse =
+  SetActiveRunnerKindResponses[keyof SetActiveRunnerKindResponses]
+
 export type StartGitCredentialGithubRedirectData = {
   body: {
     scopeLabel?: string

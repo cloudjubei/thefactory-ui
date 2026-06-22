@@ -105,11 +105,23 @@ export default function BinaryDiffView({
     }
   }, [onApplyRecovery])
 
+  // Auto-recover small files so the text diff shows immediately (see web peer).
+  useEffect(() => {
+    if (!onRecover) return
+    if ((beforeSize ?? 0) > 2_000_000 || (afterSize ?? 0) > 2_000_000) return
+    void runRecover()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path])
+
   const headline =
     reason === 'binary' ? 'Binary file — no text diff' : "Couldn't parse this diff as text"
   const corruptionNote = reasonLabel(recovery?.after.reason) || reasonLabel(recovery?.before.reason)
   const delta =
     typeof beforeSize === 'number' && typeof afterSize === 'number' ? afterSize - beforeSize : undefined
+  // "Apply" only helps when the on-disk side is corrupt; when only the
+  // committed/staged side is binary, the working copy is already clean → commit.
+  const workingFileCorrupt = !!recovery?.after.wasBinary
+  const onlyCommittedCorrupt = !!recovery?.recovered && !workingFileCorrupt
 
   return (
     <View style={{ padding: nativeSpace[3], gap: nativeSpace[3] }}>
@@ -218,7 +230,7 @@ export default function BinaryDiffView({
             <Text style={{ fontSize: 12, color: theme.text.secondary, flexShrink: 1 }}>
               Recovered preview (in-memory){corruptionNote ? ` — ${corruptionNote}` : ''}
             </Text>
-            {onApplyRecovery ? (
+            {onApplyRecovery && workingFileCorrupt ? (
               <Pressable
                 onPress={runApply}
                 disabled={applying}
@@ -238,6 +250,21 @@ export default function BinaryDiffView({
               </Pressable>
             ) : null}
           </View>
+          {onlyCommittedCorrupt ? (
+            <Text
+              style={{
+                fontSize: 12,
+                color: theme.text.secondary,
+                paddingHorizontal: nativeSpace[3],
+                paddingVertical: nativeSpace[2],
+                borderBottomWidth: 1,
+                borderBottomColor: theme.border.subtle,
+              }}
+            >
+              Your working copy is already valid text — the binary is in the committed/staged
+              version. Commit your changes to replace it.
+            </Text>
+          ) : null}
           {recovery.patch && recovery.patch.trim() ? (
             <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled>
               <UnifiedDiff

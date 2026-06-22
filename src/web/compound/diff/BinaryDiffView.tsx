@@ -115,11 +115,26 @@ export function BinaryDiffView({
     }
   }, [onApplyRecovery])
 
+  // Auto-recover small files so the text diff (and whether it's the committed
+  // vs working side that's corrupt) shows immediately, without a manual click.
+  // Large blobs stay behind the button to avoid reading/sanitizing megabytes.
+  useEffect(() => {
+    if (!onRecover) return
+    if ((beforeSize ?? 0) > 2_000_000 || (afterSize ?? 0) > 2_000_000) return
+    void runRecover()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path])
+
   const headline =
     reason === 'binary' ? 'Binary file — no text diff' : "Couldn't parse this diff as text"
   // The side most likely to carry the corruption drives the inline note.
   const corruptionNote =
     reasonLabel(recovery?.after.reason) || reasonLabel(recovery?.before.reason)
+  // "Apply" only helps when the on-disk (working-tree) side is the corrupt one.
+  // When only the committed/staged side is binary (the working copy is already
+  // clean text), a working-tree write is a no-op — the user must commit.
+  const workingFileCorrupt = !!recovery?.after.wasBinary
+  const onlyCommittedCorrupt = !!recovery?.recovered && !workingFileCorrupt
   const delta = typeof beforeSize === 'number' && typeof afterSize === 'number'
     ? afterSize - beforeSize
     : undefined
@@ -186,7 +201,7 @@ export function BinaryDiffView({
               Recovered preview (in-memory)
               {corruptionNote ? ` — ${corruptionNote}` : ''}
             </span>
-            {onApplyRecovery && (
+            {onApplyRecovery && workingFileCorrupt && (
               <button
                 type="button"
                 onClick={runApply}
@@ -197,6 +212,12 @@ export function BinaryDiffView({
               </button>
             )}
           </div>
+          {onlyCommittedCorrupt && (
+            <div className="px-3 py-2 text-(--text-secondary) border-b border-(--border-subtle)">
+              Your working copy is already valid text — the binary is in the committed/staged
+              version. Commit your changes to replace it and this will diff normally.
+            </div>
+          )}
           <div className="max-h-80 overflow-auto">
             {recovery.patch && recovery.patch.trim() ? (
               <StructuredUnifiedDiff

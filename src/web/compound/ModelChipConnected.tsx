@@ -7,6 +7,7 @@ import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
 import {
   useActivityChipCli,
+  useAgentRunChipCli,
   useCliConfigs,
   useChatCliRunner,
   useLLMConfigs,
@@ -235,6 +236,47 @@ function ModelChipActivityCli({
 }
 
 /**
+ * CLI-aware leaf for the agent-run (Run button) chip: the API/CLI toggle is
+ * backed by the per-user-global `activeRunnerKind` + the persisted agent-run CLI
+ * pick. Picking an API config (`onPickApi`) also flips the runner back to API —
+ * this chip is the explicit selector, unlike Settings → LLM which never flips it.
+ */
+function ModelChipAgentRunCli({
+  llm,
+  onPickApi,
+}: {
+  llm: ModelChipLlmWiring
+  onPickApi: (id: string) => void
+}) {
+  const cli = useAgentRunChipCli()
+
+  return (
+    <ModelChipBase
+      provider={llm.provider}
+      model={cli.useCli ? cli.selectedCliModelId : llm.model}
+      className={llm.className}
+      editable={llm.editable}
+      mode={llm.mode}
+      activeConfig={llm.activeConfig}
+      recents={llm.recents}
+      configs={llm.configs}
+      onPick={onPickApi}
+      onOpenSettings={llm.onOpenSettings}
+      getPrice={getPrice}
+      useCli={cli.useCli}
+      onToggleUseCli={cli.onToggleUseCli}
+      enabledClis={cli.enabledClis}
+      activeCli={cli.selectedCli}
+      onPickCli={cli.onPickCli}
+      cliModels={cli.cliModels}
+      onPickCliModel={cli.onPickCliModel}
+      recentCliModels={cli.recentCliModels}
+      onPickRecentCli={cli.onPickRecentCli}
+    />
+  )
+}
+
+/**
  * Connected `ModelChip` for browser clients: wires the LLM-config selection
  * (active / recents / configs) from `useLLMConfigs` and the "open LLM
  * settings" navigation into the presentational `ModelChip`. When a
@@ -260,6 +302,7 @@ export default function ModelChipConnected({
     recentAgentRunConfigs,
     setActiveChat,
     setActiveAgentRun,
+    setActiveRunnerKind,
     activeActivityCliModel,
     setActiveActivityCliModel,
     recentActivityCliModels,
@@ -276,6 +319,17 @@ export default function ModelChipConnected({
   const onPick = useCallback(
     (id: string) => (mode === 'chat' ? setActiveChat(id) : setActiveAgentRun(id)),
     [mode, setActiveChat, setActiveAgentRun],
+  )
+
+  // Picking an API config in the agent-run chip also makes API the active runner
+  // (the chip is the explicit selector). Settings → LLM uses `setActiveAgentRun`
+  // alone, so it never flips a CLI-active Run button.
+  const onPickAgentRunApi = useCallback(
+    (id: string) => {
+      setActiveAgentRun(id)
+      setActiveRunnerKind('api')
+    },
+    [setActiveAgentRun, setActiveRunnerKind],
   )
 
   const onOpenSettings = useCallback(() => {
@@ -344,6 +398,10 @@ export default function ModelChipConnected({
         recentCliModels={recentActivityCliModels}
       />
     )
+  }
+
+  if (mode === 'agentRun') {
+    return <ModelChipAgentRunCli llm={llm} onPickApi={onPickAgentRunApi} />
   }
 
   return (

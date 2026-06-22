@@ -86,7 +86,8 @@ const isAgentRunChat = (c: GetChatResponse): c is RunChat =>
 
 export function AgentsProvider({ children }: { children: ReactNode }) {
   const { chats, refresh: refreshChats, getChatLiveState } = useChats()
-  const { configs: llmConfigs } = useLLMConfigs()
+  const { configs: llmConfigs, activeAgentRunConfig, activeRunnerKind, activeAgentRunCliModel } =
+    useLLMConfigs()
   const { credentials } = useGitCredentials()
   const { keys } = useWebSearchKeys()
   const webSearchKeys = keys
@@ -102,8 +103,25 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
 
   const startAgent = useCallback<AgentsContextValue['startAgent']>(
     async ({ agentType, projectId, storyId, featureId }) => {
-      const llmConfig = llmConfigs[0]
+      // The Run button uses the per-user-global active agent: API (an LLM
+      // config) or CLI (a CLI agent). `llmConfig` is always sent (the backend
+      // contract requires it) but is ignored when runner==='cli'.
+      const runCli = activeRunnerKind === 'cli'
+      const llmConfig = activeAgentRunConfig ?? llmConfigs[0]
       if (!llmConfig) throw new Error('Configure an LLM before starting an agent run.')
+      if (runCli) {
+        if (!activeAgentRunCliModel) {
+          throw new Error('Select a CLI agent before starting a CLI agent run.')
+        }
+        // A CLI run needs a resolved auth credential; the orchestrator rejects a
+        // runner with neither auth nor api-key credential. Catch it here with a
+        // clear message instead of failing late mid-run.
+        if (!activeAgentRunCliModel.credentialId) {
+          throw new Error(
+            `Sign in to ${activeAgentRunCliModel.cli} (Settings → CLI agents) before starting a CLI agent run.`,
+          )
+        }
+      }
       const cred = credentials[0]
       if (!cred) throw new Error('Add git credentials before starting an agent run.')
 
@@ -138,7 +156,28 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       }
 
       await startAgentRun({
-        body: { params, settings: DEFAULT_AGENT_SETTINGS, isolated: true },
+        body: {
+          params,
+          settings: DEFAULT_AGENT_SETTINGS,
+          isolated: true,
+          runner: runCli ? 'cli' : 'api',
+          ...(runCli && activeAgentRunCliModel
+            ? {
+                cliRunner: {
+                  cli: activeAgentRunCliModel.cli,
+                  ...(activeAgentRunCliModel.credentialId
+                    ? { authCredentialId: activeAgentRunCliModel.credentialId }
+                    : {}),
+                  ...(activeAgentRunCliModel.modelId
+                    ? { model: activeAgentRunCliModel.modelId }
+                    : {}),
+                  ...(activeAgentRunCliModel.effort
+                    ? { effort: activeAgentRunCliModel.effort }
+                    : {}),
+                },
+              }
+            : {}),
+        },
         throwOnError: true,
       })
 
@@ -149,7 +188,15 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
 
       return { agentRunId, chatContext }
     },
-    [llmConfigs, credentials, webSearchKeys, refreshChats],
+    [
+      llmConfigs,
+      activeAgentRunConfig,
+      activeRunnerKind,
+      activeAgentRunCliModel,
+      credentials,
+      webSearchKeys,
+      refreshChats,
+    ],
   )
 
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(

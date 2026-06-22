@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   createLlmConfig,
   deleteLlmConfig,
+  getActiveRunnerKind as apiGetActiveRunnerKind,
   listLlmConfigs,
+  setActiveRunnerKind as apiSetActiveRunnerKind,
   updateLlmConfig,
   type CliReasoningEffort,
   type CliTool,
@@ -38,6 +40,22 @@ export type LLMConfigsContextValue = {
   activeAgentRunConfig: GetLlmConfigResponse | null
   setActiveAgentRun: (id: string) => void
   recentAgentRunConfigs: GetLlmConfigResponse[]
+  /**
+   * Which runner the Run button (feature/story agents) uses: `'api'` (an LLM
+   * config) or `'cli'` (a CLI agent). Per-user-global, backend-persisted via
+   * {@link apiGetActiveRunnerKind}. The API + CLI picks are remembered SEPARATELY
+   * ({@link activeAgentRunConfig} + {@link activeAgentRunCliModel}); this only
+   * records which is active. Defaults to `'api'`.
+   */
+  activeRunnerKind: 'api' | 'cli'
+  /** Switch the Run button between API and CLI — the ONLY thing that flips it (settings never do). */
+  setActiveRunnerKind: (kind: 'api' | 'cli') => void
+  /** CLI pick for agent runs when {@link activeRunnerKind} is `'cli'`; null = none chosen yet. */
+  activeAgentRunCliModel: ActivityCliModel | null
+  /** Set (or clear) the agent-run CLI pick; does NOT touch the API config selection. */
+  setActiveAgentRunCliModel: (model: ActivityCliModel | null) => void
+  /** Recently-used agent-run CLI picks, most-recent first. */
+  recentAgentRunCliModels: ActivityCliModel[]
   activeActivityConfigId: string | null
   activeActivityConfig: GetLlmConfigResponse | null
   /** Make `id` the active activity config; clears any activity CLI selection. */
@@ -60,6 +78,8 @@ const ACTIVE_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:activeAgentRunConfigId'
 const ACTIVE_ACTIVITY_LS_KEY = 'thefactory-overseer-web:activeActivityConfigId'
 const ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeActivityCliModel'
 const RECENT_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentActivityCliModels'
+const ACTIVE_AGENT_RUN_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeAgentRunCliModel'
+const RECENT_AGENT_RUN_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentAgentRunCliModels'
 const RECENT_CHAT_LS_KEY = 'thefactory-overseer-web:recentChatConfigIds'
 const RECENT_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:recentAgentRunConfigIds'
 const RECENT_ACTIVITY_LS_KEY = 'thefactory-overseer-web:recentActivityConfigIds'
@@ -92,9 +112,9 @@ function pushRecent(prev: string[], id: string): string[] {
 
 const CLI_TOOLS: readonly CliTool[] = ['claude-code', 'cursor-agent', 'codex']
 
-function readActivityCliModel(storage: SyncKVStorage): ActivityCliModel | null {
+function readCliModel(storage: SyncKVStorage, key: string): ActivityCliModel | null {
   try {
-    const raw = storage.get(ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY)
+    const raw = storage.get(key)
     if (!raw) return null
     const parsed = JSON.parse(raw) as ActivityCliModel | null
     if (!parsed || typeof parsed !== 'object' || typeof parsed.cli !== 'string') return null
@@ -105,9 +125,9 @@ function readActivityCliModel(storage: SyncKVStorage): ActivityCliModel | null {
   }
 }
 
-function writeActivityCliModel(storage: SyncKVStorage, model: ActivityCliModel | null) {
+function writeCliModel(storage: SyncKVStorage, key: string, model: ActivityCliModel | null) {
   try {
-    storage.set(ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY, JSON.stringify(model))
+    storage.set(key, JSON.stringify(model))
   } catch {
     // ignore storage errors (private mode, etc.)
   }
@@ -118,9 +138,9 @@ function cliModelKey(model: ActivityCliModel): string {
   return `${model.cli}:${model.modelId ?? ''}`
 }
 
-function readRecentCliModels(storage: SyncKVStorage): ActivityCliModel[] {
+function readRecentCliModels(storage: SyncKVStorage, key: string): ActivityCliModel[] {
   try {
-    const raw = storage.get(RECENT_ACTIVITY_CLI_MODEL_LS_KEY)
+    const raw = storage.get(key)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -133,9 +153,9 @@ function readRecentCliModels(storage: SyncKVStorage): ActivityCliModel[] {
   }
 }
 
-function writeRecentCliModels(storage: SyncKVStorage, models: ActivityCliModel[]) {
+function writeRecentCliModels(storage: SyncKVStorage, key: string, models: ActivityCliModel[]) {
   try {
-    storage.set(RECENT_ACTIVITY_CLI_MODEL_LS_KEY, JSON.stringify(models))
+    storage.set(key, JSON.stringify(models))
   } catch {
     // ignore storage errors (private mode, etc.)
   }
@@ -170,9 +190,23 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     storage.get(ACTIVE_ACTIVITY_LS_KEY),
   )
   const [activeActivityCliModel, setActiveActivityCliModelState] =
-    useState<ActivityCliModel | null>(() => readActivityCliModel(storage))
+    useState<ActivityCliModel | null>(() => readCliModel(storage, ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY))
   const [recentActivityCliModels, setRecentActivityCliModels] = useState<ActivityCliModel[]>(() =>
-    readRecentCliModels(storage),
+    readRecentCliModels(storage, RECENT_ACTIVITY_CLI_MODEL_LS_KEY),
+  )
+  // Agent-run (Run button) runner selection. `activeRunnerKind` is backend-
+  // persisted (hydrated below); the API config + CLI pick are remembered
+  // separately, both client-side, like the activity selection above.
+  const [activeRunnerKind, setActiveRunnerKindState] = useState<'api' | 'cli'>('api')
+  // Once the user explicitly flips the runner kind, the (async, fire-and-forget)
+  // backend hydration below must not clobber their choice if it resolves later.
+  const runnerKindTouchedRef = useRef(false)
+  const [activeAgentRunCliModel, setActiveAgentRunCliModelState] =
+    useState<ActivityCliModel | null>(() =>
+      readCliModel(storage, ACTIVE_AGENT_RUN_CLI_MODEL_LS_KEY),
+    )
+  const [recentAgentRunCliModels, setRecentAgentRunCliModels] = useState<ActivityCliModel[]>(() =>
+    readRecentCliModels(storage, RECENT_AGENT_RUN_CLI_MODEL_LS_KEY),
   )
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() =>
     readRecents(storage, RECENT_CHAT_LS_KEY),
@@ -227,7 +261,7 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
         // ignore storage errors (private mode, etc.)
       }
       setActiveActivityCliModelState(null)
-      writeActivityCliModel(storage, null)
+      writeCliModel(storage, ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY, null)
       setRecentActivityIds((prev) => {
         const next = pushRecent(prev, id)
         writeRecents(storage, RECENT_ACTIVITY_LS_KEY, next)
@@ -240,11 +274,36 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const setActiveActivityCliModel = useCallback(
     (model: ActivityCliModel | null) => {
       setActiveActivityCliModelState(model)
-      writeActivityCliModel(storage, model)
+      writeCliModel(storage, ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY, model)
       if (model) {
         setRecentActivityCliModels((prev) => {
           const next = pushRecentCliModel(prev, model)
-          writeRecentCliModels(storage, next)
+          writeRecentCliModels(storage, RECENT_ACTIVITY_CLI_MODEL_LS_KEY, next)
+          return next
+        })
+      }
+    },
+    [storage],
+  )
+
+  // Flip the Run button between API and CLI — the ONLY place activeRunnerKind
+  // changes (optimistic local update + fire-and-forget backend persist).
+  // Settings → LLM intentionally never calls this, so changing the API agent
+  // there never knocks a CLI-active Run button back to API.
+  const setActiveRunnerKind = useCallback((kind: 'api' | 'cli') => {
+    runnerKindTouchedRef.current = true
+    setActiveRunnerKindState(kind)
+    void apiSetActiveRunnerKind({ body: { kind }, throwOnError: false }).catch(() => {})
+  }, [])
+
+  const setActiveAgentRunCliModel = useCallback(
+    (model: ActivityCliModel | null) => {
+      setActiveAgentRunCliModelState(model)
+      writeCliModel(storage, ACTIVE_AGENT_RUN_CLI_MODEL_LS_KEY, model)
+      if (model) {
+        setRecentAgentRunCliModels((prev) => {
+          const next = pushRecentCliModel(prev, model)
+          writeRecentCliModels(storage, RECENT_AGENT_RUN_CLI_MODEL_LS_KEY, next)
           return next
         })
       }
@@ -267,6 +326,17 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   useEffect(() => {
     if (!token) return
     void refresh()
+    // Hydrate the per-user-global runner kind (api|cli) from the backend;
+    // undefined means never chosen → keep the 'api' default.
+    void apiGetActiveRunnerKind({ throwOnError: false })
+      .then((res) => {
+        const kind = res.data?.activeRunnerKind
+        // Don't overwrite a choice the user already made while this was in flight.
+        if (!runnerKindTouchedRef.current && (kind === 'api' || kind === 'cli')) {
+          setActiveRunnerKindState(kind)
+        }
+      })
+      .catch(() => {})
   }, [token, refresh])
 
   const createConfig = useCallback(
@@ -353,6 +423,11 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityCliModel,
       setActiveActivityCliModel,
       recentActivityCliModels,
+      activeRunnerKind,
+      setActiveRunnerKind,
+      activeAgentRunCliModel,
+      setActiveAgentRunCliModel,
+      recentAgentRunCliModels,
       createConfig,
       updateConfig,
       deleteConfig,
@@ -377,6 +452,11 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       activeActivityCliModel,
       setActiveActivityCliModel,
       recentActivityCliModels,
+      activeRunnerKind,
+      setActiveRunnerKind,
+      activeAgentRunCliModel,
+      setActiveAgentRunCliModel,
+      recentAgentRunCliModels,
       createConfig,
       updateConfig,
       deleteConfig,

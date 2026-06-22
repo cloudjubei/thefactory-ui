@@ -178,6 +178,8 @@ import type {
   ForkCliAgentRunResponses,
   GetActiveCliStateData,
   GetActiveCliStateResponses,
+  GetActiveRunnerKindData,
+  GetActiveRunnerKindResponses,
   GetActivityData,
   GetActivityErrors,
   GetActivityResponses,
@@ -612,6 +614,8 @@ import type {
   SendCompletionWithToolsResponses,
   SetActiveCliData,
   SetActiveCliResponses,
+  SetActiveRunnerKindData,
+  SetActiveRunnerKindResponses,
   SetCliDefaultModelData,
   SetCliDefaultModelResponses,
   SetCliEffortData,
@@ -1522,6 +1526,29 @@ export const setCliEffort = <ThrowOnError extends boolean = false>(
   (options.client ?? client).post<SetCliEffortResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-configs/effort',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getActiveRunnerKind = <ThrowOnError extends boolean = false>(
+  options?: Options<GetActiveRunnerKindData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetActiveRunnerKindResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/agent-runner/active',
+    ...options,
+  })
+
+export const setActiveRunnerKind = <ThrowOnError extends boolean = false>(
+  options: Options<SetActiveRunnerKindData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<SetActiveRunnerKindResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/agent-runner/active',
     ...options,
     headers: {
       'Content-Type': 'application/json',
