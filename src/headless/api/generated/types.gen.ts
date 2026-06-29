@@ -1996,7 +1996,7 @@ export type CliRun = {
   chatContextId?: string
   storyId?: string
   status: CliRunStatus
-  cli: {
+  cli?: {
     tool: CliTool
     version: string
   }
