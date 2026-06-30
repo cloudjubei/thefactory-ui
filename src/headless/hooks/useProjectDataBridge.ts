@@ -20,11 +20,15 @@ import type { BridgeRequest } from '../utils/appBridge'
  * **agent-run** LLM config; activities run on the active **activity** CLI
  * selection when one is set, else the active **activity** config, falling back
  * to the agent-run one until the user picks an activity model (all selected
- * client-side).
+ * client-side). When `opts.activitiesApiOnly` is set (the embedded app declared
+ * its activities are API-only, e.g. knowledge-analyze), the activity CLI model is
+ * never sent — those activities run on the API config, matching the chip UI.
  */
 export function useProjectDataBridge(
   projectId: string | undefined,
+  opts?: { activitiesApiOnly?: boolean },
 ): (req: BridgeRequest) => Promise<unknown> {
+  const activitiesApiOnly = opts?.activitiesApiOnly ?? false
   const { activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel } = useLLMConfigs()
   return useCallback(
     async (req: BridgeRequest) => {
@@ -38,7 +42,7 @@ export function useProjectDataBridge(
         projectId,
         req,
         activeActivityConfigId ?? activeAgentRunConfigId ?? undefined,
-        activeActivityCliModel ?? undefined,
+        activitiesApiOnly ? undefined : (activeActivityCliModel ?? undefined),
       )
       if (activities !== undefined) return activities
       const runners = await dispatchRunnersBridge(req)
@@ -47,6 +51,6 @@ export function useProjectDataBridge(
       if (projects !== undefined) return projects
       return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
     },
-    [projectId, activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel],
+    [projectId, activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel, activitiesApiOnly],
   )
 }

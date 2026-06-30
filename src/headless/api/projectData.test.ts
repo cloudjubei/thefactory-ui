@@ -64,6 +64,24 @@ describe('queryProjectData', () => {
       throwOnError: true,
     })
   })
+
+  it('serialises select/omit projection to JSON', async () => {
+    asMock(listProjectData).mockResolvedValue({ data: [] })
+    await queryProjectData('p1', {
+      type: 'run',
+      omit: ['series', 'artifacts.runChart'],
+      select: ['objective'],
+    })
+    expect(listProjectData).toHaveBeenCalledWith({
+      path: { projectId: 'p1' },
+      query: {
+        type: 'run',
+        select: JSON.stringify(['objective']),
+        omit: JSON.stringify(['series', 'artifacts.runChart']),
+      },
+      throwOnError: true,
+    })
+  })
 })
 
 describe('countProjectDataRecords', () => {
@@ -147,6 +165,21 @@ describe('dispatchProjectDataBridge', () => {
           orderBy: JSON.stringify([{ field: 'objective', direction: 'desc' }]),
           limit: 50,
           offset: 0,
+        }),
+      }),
+    )
+  })
+
+  it('routes data.query with select/omit projection through to listProjectData', async () => {
+    asMock(listProjectData).mockResolvedValue({ data: [] })
+    await dispatchProjectDataBridge('p1', {
+      type: 'overseer:data.query',
+      payload: { type: 'run', omit: ['series', 'artifacts.runChart'] },
+    })
+    expect(listProjectData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          omit: JSON.stringify(['series', 'artifacts.runChart']),
         }),
       }),
     )

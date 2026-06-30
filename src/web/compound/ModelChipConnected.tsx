@@ -25,7 +25,17 @@ export type ModelChipConnectedProps = {
    * CLI runner is a per-chat binding. When omitted, the chip stays LLM-only.
    */
   chatContext?: ChatContext
+  /**
+   * `activity` mode only: the embedded app's background jobs run only on an API model (a
+   * `requiresApi` activity, e.g. knowledge-analyze). Disables the CLI segment + forces API display.
+   */
+  apiOnly?: boolean
+  /** Hover callout for the disabled CLI segment when {@link apiOnly}; falls back to a default. */
+  apiOnlyReason?: string
 }
+
+const ACTIVITY_API_ONLY_REASON =
+  'This app’s background jobs run only on an API model — CLI agents aren’t supported here. Pick an API config.'
 
 type ModelChipLlmWiring = {
   provider?: string
@@ -201,18 +211,25 @@ function ModelChipActivityCli({
   cliModel,
   setCliModel,
   recentCliModels,
+  apiOnly,
+  apiOnlyReason,
 }: {
   llm: ModelChipLlmWiring
   cliModel: ActivityCliModel | null
   setCliModel: (model: ActivityCliModel | null) => void
   recentCliModels: ActivityCliModel[]
+  apiOnly?: boolean
+  apiOnlyReason?: string
 }) {
   const cli = useActivityChipCli(cliModel, setCliModel, recentCliModels)
+  // For an API-only app, ignore any (global) CLI selection: the chip shows + uses the API config,
+  // matching useProjectDataBridge, which omits the CLI model for these apps.
+  const useCli = apiOnly ? false : cli.useCli
 
   return (
     <ModelChipBase
       provider={llm.provider}
-      model={cli.useCli ? cli.selectedCliModelId : llm.model}
+      model={useCli ? cli.selectedCliModelId : llm.model}
       className={llm.className}
       editable={llm.editable}
       mode={llm.mode}
@@ -222,7 +239,7 @@ function ModelChipActivityCli({
       onPick={llm.onPick}
       onOpenSettings={llm.onOpenSettings}
       getPrice={getPrice}
-      useCli={cli.useCli}
+      useCli={useCli}
       onToggleUseCli={cli.onToggleUseCli}
       enabledClis={cli.enabledClis}
       activeCli={cli.selectedCli}
@@ -231,6 +248,8 @@ function ModelChipActivityCli({
       onPickCliModel={cli.onPickCliModel}
       recentCliModels={cli.recentCliModels}
       onPickRecentCli={cli.onPickRecentCli}
+      cliDisabled={apiOnly}
+      cliDisabledReason={apiOnly ? (apiOnlyReason ?? ACTIVITY_API_ONLY_REASON) : undefined}
     />
   )
 }
@@ -291,6 +310,8 @@ export default function ModelChipConnected({
   editable = false,
   mode = 'chat',
   chatContext,
+  apiOnly,
+  apiOnlyReason,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -298,27 +319,39 @@ export default function ModelChipConnected({
     configs,
     activeChatConfig,
     activeAgentRunConfig,
+    activeActivityConfig,
     recentChatConfigs,
     recentAgentRunConfigs,
+    recentActivityConfigs,
     setActiveChat,
     setActiveAgentRun,
+    setActiveActivity,
     setActiveRunnerKind,
     activeActivityCliModel,
     setActiveActivityCliModel,
     recentActivityCliModels,
   } = useLLMConfigs()
 
-  // The activity chip (background jobs) mirrors the "active agent" — the agent-run config
-  // the user picks in Settings ("Activate Agent") — so it shows that model + its recents,
-  // not a separate, sparse activity-only track with no Settings UI. (Activities already
-  // resolve to the agent-run config via useProjectDataBridge's
-  // `activeActivityConfigId ?? activeAgentRunConfigId` fallback.)
-  const activeConfig = mode === 'chat' ? activeChatConfig : activeAgentRunConfig
-  const recents = mode === 'chat' ? recentChatConfigs : recentAgentRunConfigs
+  // Each mode drives its OWN persisted selection: chat → activeChatConfig, activity → activeActivityConfig
+  // (the model background jobs run on; `useProjectDataBridge` sends it as the activity `llmConfigId`),
+  // agent-run → activeAgentRunConfig (the Run button). The activity chip falls back to DISPLAY the
+  // agent-run config until one is picked — mirroring the bridge's `activeActivityConfigId ?? activeAgentRunConfigId`.
+  const activeConfig =
+    mode === 'chat'
+      ? activeChatConfig
+      : mode === 'activity'
+        ? (activeActivityConfig ?? activeAgentRunConfig)
+        : activeAgentRunConfig
+  const recents =
+    mode === 'chat' ? recentChatConfigs : mode === 'activity' ? recentActivityConfigs : recentAgentRunConfigs
 
   const onPick = useCallback(
-    (id: string) => (mode === 'chat' ? setActiveChat(id) : setActiveAgentRun(id)),
-    [mode, setActiveChat, setActiveAgentRun],
+    (id: string) => {
+      if (mode === 'chat') return setActiveChat(id)
+      if (mode === 'activity') return setActiveActivity(id)
+      return setActiveAgentRun(id)
+    },
+    [mode, setActiveChat, setActiveActivity, setActiveAgentRun],
   )
 
   // Picking an API config in the agent-run chip also makes API the active runner
@@ -396,6 +429,8 @@ export default function ModelChipConnected({
         cliModel={activeActivityCliModel}
         setCliModel={setActiveActivityCliModel}
         recentCliModels={recentActivityCliModels}
+        apiOnly={apiOnly}
+        apiOnlyReason={apiOnlyReason}
       />
     )
   }

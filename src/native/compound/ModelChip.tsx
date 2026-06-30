@@ -53,6 +53,10 @@ export interface ModelChipProps {
   recentCliModels?: ActivityCliModel[]
   /** Apply a recents entry as the CLI selection. */
   onPickRecentCli?: (model: ActivityCliModel) => void
+  /** Disable the CLI segment — e.g. an app whose activities run only on an API model. */
+  cliDisabled?: boolean
+  /** Caption explaining why CLI is unavailable; shown under the toggle when {@link cliDisabled}. */
+  cliDisabledReason?: string
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -185,6 +189,8 @@ export function ModelChip({
   onPickCliModel,
   recentCliModels,
   onPickRecentCli,
+  cliDisabled,
+  cliDisabledReason,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -275,8 +281,18 @@ export function ModelChip({
         paddingVertical: nativeSpace[3],
         borderRadius: nativeRadii.round,
         borderWidth: 1,
-        borderColor: isChatMode ? nativePalette.teal[600] : theme.border.default,
-        backgroundColor: isChatMode ? nativePalette.teal[100] : theme.surface.muted,
+        borderColor:
+          mode === 'activity'
+            ? nativePalette.blue[600]
+            : isChatMode
+              ? nativePalette.teal[600]
+              : theme.border.default,
+        backgroundColor:
+          mode === 'activity'
+            ? nativePalette.blue[100]
+            : isChatMode
+              ? nativePalette.teal[100]
+              : theme.surface.muted,
       }}
     >
       {cliEnabled && (
@@ -370,13 +386,15 @@ export function ModelChip({
               {(['API', 'CLI'] as const).map((segment) => {
                 const segUseCli = segment === 'CLI'
                 const segActive = segUseCli === !!useCli
+                const segDisabled = segUseCli && !!cliDisabled
                 return (
                   <Pressable
                     key={segment}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected: segActive }}
+                    accessibilityState={{ selected: segActive, disabled: segDisabled }}
+                    disabled={segDisabled}
                     onPress={() => {
-                      if (segActive) return
+                      if (segActive || segDisabled) return
                       onToggleUseCli(segUseCli)
                     }}
                     style={{
@@ -386,6 +404,7 @@ export function ModelChip({
                       justifyContent: 'center',
                       borderRadius: nativeRadii[2],
                       backgroundColor: segActive ? theme.surface.raised : 'transparent',
+                      opacity: segDisabled ? 0.5 : 1,
                     }}
                   >
                     <Text
@@ -401,6 +420,19 @@ export function ModelChip({
                 )
               })}
             </View>
+          )}
+          {onToggleUseCli && cliDisabled && cliDisabledReason && (
+            <Text
+              style={{
+                fontSize: 10,
+                lineHeight: 14,
+                color: theme.text.secondary,
+                marginBottom: nativeSpace[2],
+                paddingHorizontal: nativeSpace[1],
+              }}
+            >
+              {cliDisabledReason}
+            </Text>
           )}
 
           {useCli ? (

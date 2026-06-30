@@ -20,6 +20,10 @@ export interface ProjectDataQuery {
   limit?: number
   /** Records to skip before `limit` — for paging a sorted result set. */
   offset?: number
+  /** Allowlist of content dot-paths to KEEP; everything else is dropped. Applied before `omit`. */
+  select?: string[]
+  /** Denylist of content dot-paths to DROP while keeping siblings — sheds heavy per-record fields. */
+  omit?: string[]
 }
 
 /** Structured `where`/`orderBy` cross the wire as JSON-encoded query-string params. */
@@ -31,6 +35,8 @@ function toListQuery(query: ProjectDataQuery): NonNullable<ListProjectDataData['
   if (query.orderBy !== undefined) q.orderBy = JSON.stringify(query.orderBy)
   if (query.limit !== undefined) q.limit = query.limit
   if (query.offset !== undefined) q.offset = query.offset
+  if (query.select !== undefined) q.select = JSON.stringify(query.select)
+  if (query.omit !== undefined) q.omit = JSON.stringify(query.omit)
   return q
 }
 
@@ -136,6 +142,8 @@ export async function dispatchProjectDataBridge(
         orderBy: p.orderBy,
         limit: p.limit,
         offset: p.offset,
+        select: p.select,
+        omit: p.omit,
       })
     }
     case 'data.count': {

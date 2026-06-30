@@ -45,6 +45,10 @@ export type ModelChipProps = {
   recentCliModels?: ActivityCliModel[]
   /** Apply a recents entry as the CLI selection. */
   onPickRecentCli?: (model: ActivityCliModel) => void
+  /** Disable the CLI option (greys out the CLI segment) — e.g. an app whose activities run only on an API model. */
+  cliDisabled?: boolean
+  /** Hover callout explaining why CLI is unavailable; shown on the disabled CLI segment. */
+  cliDisabledReason?: string
 }
 
 function providerLabel(p?: string) {
@@ -186,6 +190,8 @@ function Picker({
   onPickCliModel,
   recentCliModels,
   onPickRecentCli,
+  cliDisabled,
+  cliDisabledReason,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -204,6 +210,8 @@ function Picker({
   onPickCliModel?: (modelId: string) => void
   recentCliModels?: ActivityCliModel[]
   onPickRecentCli?: (model: ActivityCliModel) => void
+  cliDisabled?: boolean
+  cliDisabledReason?: string
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -363,19 +371,29 @@ function Picker({
             type="button"
             role="radio"
             aria-checked={!!useCli}
+            disabled={cliDisabled}
+            title={cliDisabled ? cliDisabledReason : undefined}
             className={[
               'flex-1 rounded-md px-2 py-1 text-[11px] font-medium',
-              useCli
-                ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
+              cliDisabled
+                ? 'cursor-not-allowed text-[var(--text-tertiary)] opacity-50'
+                : useCli
+                  ? 'bg-[color-mix(in_srgb,var(--accent-primary)_16%,transparent)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--accent-primary)_8%,transparent)]',
             ].join(' ')}
             onClick={(e) => {
               e.stopPropagation()
+              if (cliDisabled) return
               if (!useCli) onToggleUseCli(true)
             }}
           >
             CLI
           </button>
+        </div>
+      )}
+      {cliDisabled && cliDisabledReason && (
+        <div className="px-3 pb-2 -mt-1 text-[10px] leading-snug text-[var(--text-tertiary)]">
+          {cliDisabledReason}
         </div>
       )}
       {useCli && (
@@ -614,9 +632,11 @@ export function ModelChip({
       className={[
         'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs',
         ' text-neutral-800  dark:text-neutral-200',
-        mode === 'chat'
-          ? 'bg-teal-500/20 border-teal-600 dark:border-teal-700  dark:bg-teal-800/60 '
-          : 'bg-neutral-100 border-neutral-200 dark:border-neutral-700  dark:bg-neutral-800/60 ',
+        mode === 'activity'
+          ? 'bg-blue-500/20 border-blue-600 dark:border-blue-700  dark:bg-blue-800/60 '
+          : mode === 'chat'
+            ? 'bg-teal-500/20 border-teal-600 dark:border-teal-700  dark:bg-teal-800/60 '
+            : 'bg-neutral-100 border-neutral-200 dark:border-neutral-700  dark:bg-neutral-800/60 ',
         editable ? 'cursor-pointer hover:bg-neutral-100/80 dark:hover:bg-neutral-800' : '',
         'no-drag',
         className || '',

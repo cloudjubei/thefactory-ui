@@ -13460,6 +13460,14 @@ export type ListProjectDataData = {
     orderBy?: string
     limit?: number
     offset?: number
+    /**
+     * JSON-encoded allowlist of content dot-paths to KEEP (string[]); everything else is dropped. Applied before `omit`.
+     */
+    select?: string
+    /**
+     * JSON-encoded denylist of content dot-paths to DROP (string[]) while keeping siblings — sheds heavy per-record arrays a list view never reads. Applied after `select`.
+     */
+    omit?: string
   }
   url: '/api/v1/projects/{projectId}/data'
 }

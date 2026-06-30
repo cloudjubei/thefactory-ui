@@ -29,6 +29,7 @@ import {
 } from '../../primitives/Select'
 import { IconChat } from '../../icons/IconChat'
 import { IconRobot } from '../../icons/IconRobot'
+import { IconRocket } from '../../icons/IconRocket'
 import { IconSave } from '../../icons/IconSave'
 import { nativeLightStatus, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -81,8 +82,10 @@ export type LLMConfigFormMode =
       onSubmit: (patch: LlmConfigEditInput) => Promise<unknown>
       isChatActive: boolean
       isAgentActive: boolean
+      isActivityActive: boolean
       onActivateChat: () => void
       onActivateAgent: () => void
+      onActivateActivity: () => void
     }
 
 export interface LLMConfigFormProps {
@@ -355,6 +358,30 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
               }}
             >
               {mode.isChatActive ? 'Chat Active' : 'Activate Chat'}
+            </Text>
+          </Button>
+          <Button
+            variant={mode.isActivityActive ? 'success' : 'outline'}
+            size="sm"
+            onPress={() => {
+              if (!mode.isActivityActive) mode.onActivateActivity()
+            }}
+            accessibilityLabel={
+              mode.isActivityActive ? 'Active for background activities' : 'Use for background activities'
+            }
+          >
+            <IconRocket
+              size={14}
+              color={mode.isActivityActive ? nativeLightStatus.done.bg : theme.accent.primary}
+            />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '500',
+                color: mode.isActivityActive ? nativeLightStatus.done.bg : theme.accent.primary,
+              }}
+            >
+              {mode.isActivityActive ? 'Activity Active' : 'Activate Activity'}
             </Text>
           </Button>
         </View>

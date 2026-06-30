@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../.."
-import { IconChat, IconRobot, IconSave } from "../../icons"
+import { IconChat, IconRobot, IconRocket, IconSave } from "../../icons"
 
 type Provider = GetLlmConfigResponse['provider']
 
@@ -89,10 +89,17 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   ref,
 ) {
   const initial = mode.kind === 'edit' ? mode.config : null
-  const { activeChatConfigId, setActiveChat, activeAgentRunConfigId, setActiveAgentRun } =
-    useLLMConfigs()
+  const {
+    activeChatConfigId,
+    setActiveChat,
+    activeAgentRunConfigId,
+    setActiveAgentRun,
+    activeActivityConfigId,
+    setActiveActivity,
+  } = useLLMConfigs()
   const isChatActive = !!initial && activeChatConfigId === initial.id
   const isAgentActive = !!initial && activeAgentRunConfigId === initial.id
+  const isActivityActive = !!initial && activeActivityConfigId === initial.id
   const [name, setName] = useState(initial?.name ?? '')
   const [provider, setProvider] = useState<Provider>(initial?.provider ?? 'openai')
   const [model, setModel] = useState(initial?.model ?? '')
@@ -292,6 +299,18 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           >
             <IconChat className="w-4 h-4 mr-1" />
             {isChatActive ? 'Chat Active' : 'Activate Chat'}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (!isActivityActive) setActiveActivity(initial.id)
+            }}
+            variant={isActivityActive ? 'success' : 'outline'}
+            size="sm"
+            title={isActivityActive ? 'Active for background activities' : 'Use for background activities'}
+          >
+            <IconRocket className="w-4 h-4 mr-1" />
+            {isActivityActive ? 'Activity Active' : 'Activate Activity'}
           </Button>
         </div>
       )}
