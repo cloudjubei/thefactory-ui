@@ -18,6 +18,9 @@ import type {
   AbortTestsRunData,
   AbortTestsRunErrors,
   AbortTestsRunResponses,
+  AcceptFeatureRequestData,
+  AcceptFeatureRequestErrors,
+  AcceptFeatureRequestResponses,
   ActivateDatabaseData,
   ActivateDatabaseErrors,
   ActivateDatabaseResponses,
@@ -71,6 +74,9 @@ import type {
   CreateEntityResponses,
   CreateFeatureData,
   CreateFeatureErrors,
+  CreateFeatureRequestData,
+  CreateFeatureRequestErrors,
+  CreateFeatureRequestResponses,
   CreateFeatureResponses,
   CreateGitBranchData,
   CreateGitBranchErrors,
@@ -222,6 +228,9 @@ import type {
   GetEntityData,
   GetEntityErrors,
   GetEntityResponses,
+  GetFeatureRequestData,
+  GetFeatureRequestErrors,
+  GetFeatureRequestResponses,
   GetGitBranchDiffSummaryData,
   GetGitBranchDiffSummaryErrors,
   GetGitBranchDiffSummaryResponses,
@@ -405,6 +414,8 @@ import type {
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
+  ListFeatureRequestsData,
+  ListFeatureRequestsResponses,
   ListFilesData,
   ListFilesErrors,
   ListFilesResponses,
@@ -532,6 +543,9 @@ import type {
   RefreshPricingData,
   RefreshPricingErrors,
   RefreshPricingResponses,
+  RejectFeatureRequestData,
+  RejectFeatureRequestErrors,
+  RejectFeatureRequestResponses,
   RemoveOverseerRemoteData,
   RemoveOverseerRemoteResponses,
   RemoveRunnerData,
@@ -3293,6 +3307,74 @@ export const abortCompletion = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const listFeatureRequests = <ThrowOnError extends boolean = false>(
+  options?: Options<ListFeatureRequestsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListFeatureRequestsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests',
+    ...options,
+  })
+
+export const createFeatureRequest = <ThrowOnError extends boolean = false>(
+  options: Options<CreateFeatureRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateFeatureRequestResponses,
+    CreateFeatureRequestErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getFeatureRequest = <ThrowOnError extends boolean = false>(
+  options: Options<GetFeatureRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetFeatureRequestResponses, GetFeatureRequestErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/feature-requests/{id}',
+      ...options,
+    },
+  )
+
+export const acceptFeatureRequest = <ThrowOnError extends boolean = false>(
+  options: Options<AcceptFeatureRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AcceptFeatureRequestResponses,
+    AcceptFeatureRequestErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/accept',
+    ...options,
+  })
+
+export const rejectFeatureRequest = <ThrowOnError extends boolean = false>(
+  options: Options<RejectFeatureRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RejectFeatureRequestResponses,
+    RejectFeatureRequestErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/reject',
+    ...options,
   })
 
 export const startCliAgentRun = <ThrowOnError extends boolean = false>(

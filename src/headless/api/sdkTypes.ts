@@ -41,8 +41,6 @@ import type {
   GitStashDropData,
   GitFetchData,
   GitStashData,
-  GetGitTextRecoveryResponse,
-  GitApplyTextRecoveryResponse,
   // Pricing
   GetPricingResponses,
   // Runners
@@ -110,13 +108,9 @@ export type StashApplyInput = GitStashApplyData['body']
 export type StashDropInput = GitStashDropData['body']
 export type FetchInput = GitFetchData['body']
 
-// The text-recovery response is inlined in the spec (no named component), and
-// its `before`/`after` side shape is reused by the binary-diff view, the diff
-// viewer, and both host panes — name it once here rather than re-deriving the
-// inline shape at every consumer.
-export type GitTextRecovery = GetGitTextRecoveryResponse
-export type GitTextRecoverySide = GitTextRecovery['before']
-export type GitApplyTextRecoveryResult = GitApplyTextRecoveryResponse
+// `GitTextRecovery`, `GitTextRecoverySide`, and `GitApplyTextRecoveryResult` are now
+// first-class named schema components — re-exported from `./generated` directly, so the
+// aliases that used to name the once-inline response shape are gone (they collided).
 
 // --- Live data ---
 //

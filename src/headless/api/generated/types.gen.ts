@@ -665,15 +665,6 @@ export type AgentTaskResult = {
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
 
-export type CliRunnerDispatchOptions = {
-  cli: 'claude-code' | 'cursor-agent' | 'codex'
-  authCredentialId?: string
-  apiKeyCredentialId?: string
-  workspaceHostPath?: string
-  model?: string
-  effort?: string
-}
-
 export type ResearchSource = {
   title: string
   url: string
@@ -689,6 +680,7 @@ export type ChatContextType =
   | 'AGENT_RUN_STORY'
   | 'AGENT_RUN_FEATURE'
   | 'PROJECT_TOPIC'
+  | 'FEATURE_REQUEST'
 
 export type ChatContext = {
   type:
@@ -723,6 +715,7 @@ export type ResearchParams = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -857,6 +850,12 @@ export type ChatContextProjectTopic = {
   type: 'PROJECT_TOPIC'
   projectId: string
   topicId: string
+}
+
+export type ChatContextFeatureRequest = {
+  type: 'FEATURE_REQUEST'
+  projectId: string
+  featureRequestId: string
 }
 
 export type CompletionHistorySummarization = {
@@ -1064,6 +1063,7 @@ export type Chat = {
     suggestedActions?: Array<string>
     thinking?: string
     cliRunId?: string
+    featureRequestId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1130,6 +1130,7 @@ export type ChatCreateInput = {
     suggestedActions?: Array<string>
     thinking?: string
     cliRunId?: string
+    featureRequestId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1194,6 +1195,7 @@ export type ChatEditInput = {
     suggestedActions?: Array<string>
     thinking?: string
     cliRunId?: string
+    featureRequestId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1579,12 +1581,14 @@ export type ChatContextArguments = {
     | 'AGENT_RUN_STORY'
     | 'AGENT_RUN_FEATURE'
     | 'PROJECT_TOPIC'
+    | 'FEATURE_REQUEST'
   groupId?: string
   projectId?: string
   storyId?: string
   featureId?: string
   agentRunId?: string
   topicId?: string
+  featureRequestId?: string
   timestamp?: string
   projectsGroup?: {
     id: string
@@ -1788,6 +1792,11 @@ export type ChatContextArgumentsAgentRunFeature = {
     updatedAt: string
     completedAt?: string
   }
+}
+
+export type SecurityRunResult = {
+  status: number | unknown
+  stdout: string
 }
 
 export type CliChatSessionPolicy = {
@@ -2128,6 +2137,23 @@ export type CliAgentPendingActionFilter = {
   runId?: string
 }
 
+export type PrepareIsolatedChatWorkspaceInput = {
+  sourceDir: string
+  workspaceDir: string
+  chatContextId: string
+}
+
+export type FinalizeIsolatedChatTurnInput = {
+  workspaceDir: string
+  baseline: DirSnapshot
+  seeded: DirSnapshot
+  runId: string
+  projectId: string
+  repoPath: string
+  chatContextId: string
+  prompt?: string
+}
+
 export type ClaudeCodeInitMetadata = {
   sessionId?: string
   version?: string
@@ -2142,6 +2168,14 @@ export type CursorInitMetadata = {
 
 export type CodexInitMetadata = {
   sessionId: string
+}
+
+export type CodexMcpToolCall = {
+  server: string
+  tool: string
+  status?: string
+  arguments?: unknown
+  result?: unknown
 }
 
 export type ApplyFilesEmittedResult = {
@@ -2892,6 +2926,12 @@ export type CliConfigsActiveState = {
   }
 }
 
+export type AgentRunnerKind = 'api' | 'cli'
+
+export type AgentRunnerSelectionState = {
+  activeRunnerKind?: 'api' | 'cli'
+}
+
 export type EnsureDataFilesResult = {
   reused: number
   linked: number
@@ -2955,10 +2995,18 @@ export type DataRecordRef = {
   key: string
 }
 
-export type DataQuery = {
-  scope: string
-  type?: string
-  key?: string
+export type DataFilterOp = '<' | '<=' | '=' | '!=' | '>=' | '>' | 'contains' | 'exists'
+
+export type DataFieldPredicate = {
+  field: string
+  op: DataFilterOp
+  value?: string | number | boolean
+}
+
+export type DataSort = {
+  field: string
+  direction?: 'asc' | 'desc'
+  numeric?: boolean
 }
 
 export type OpenQuestion = {
@@ -3074,54 +3122,22 @@ export type VerifyScoreReport = {
   derivationMatch: number
 }
 
-export type ResearchCallBase = {
-  scope?: string
-  region?: string
-  language?: string
-  model: ModelSelection
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
+export type ResearchTraceEvent = {
+  op: 'search' | 'read'
+  message: string
+  query?: string
+  results?: Array<{
+    title: string
+    url: string
+  }>
+  reads?: Array<{
+    url: string
+    chars: number
+    ok: boolean
+  }>
+  detail?: {
+    [key: string]: unknown
   }
-  abortSignal?: unknown
-}
-
-export type PlanResearchParams = {
-  scope?: string
-  region?: string
-  language?: string
-  model:
-    | {
-        kind: 'api'
-        llmConfig: LlmConfig
-      }
-    | {
-        kind: 'cli'
-        cli: CliTool
-        modelId?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        authCredentialId?: string
-        apiKeyCredentialId?: string
-      }
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal: unknown
-  goal: string
-  instructions?: string
 }
 
 export type ResearchSubQuestion = {
@@ -3133,144 +3149,15 @@ export type ResearchPlan = {
   subQuestions: Array<ResearchSubQuestion>
 }
 
-export type DiscoverSourcesParams = {
-  scope?: string
-  region?: string
-  language?: string
-  model:
-    | {
-        kind: 'api'
-        llmConfig: LlmConfig
-      }
-    | {
-        kind: 'cli'
-        cli: CliTool
-        modelId?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        authCredentialId?: string
-        apiKeyCredentialId?: string
-      }
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal: unknown
-  query: string
-  limit?: number
-}
-
 export type DiscoveredSource = {
   name: string
   url: string
   hints?: Array<string>
 }
 
-export type GatherParams = {
-  scope?: string
-  region?: string
-  language?: string
-  model:
-    | {
-        kind: 'api'
-        llmConfig: LlmConfig
-      }
-    | {
-        kind: 'cli'
-        cli: CliTool
-        modelId?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        authCredentialId?: string
-        apiKeyCredentialId?: string
-      }
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal: unknown
-  query: string
-  limit?: number
-  maxCharsPerSource?: number
-}
-
-export type ExtractParams = {
-  scope?: string
-  region?: string
-  language?: string
-  model:
-    | {
-        kind: 'api'
-        llmConfig: LlmConfig
-      }
-    | {
-        kind: 'cli'
-        cli: CliTool
-        modelId?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        authCredentialId?: string
-        apiKeyCredentialId?: string
-      }
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal: unknown
-  instructions: string
-  evidence: Array<EvidencePassage>
-}
-
 export type ExtractionResult = {
   items: Array<unknown>
   sources: Array<ResearchSource>
-}
-
-export type VerifyClaimParams = {
-  scope?: string
-  region?: string
-  language?: string
-  model:
-    | {
-        kind: 'api'
-        llmConfig: LlmConfig
-      }
-    | {
-        kind: 'cli'
-        cli: CliTool
-        modelId?: string
-        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-        authCredentialId?: string
-        apiKeyCredentialId?: string
-      }
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal: unknown
-  claim: string
-  evidence: Array<EvidencePassage>
 }
 
 export type ResearchBudget = {
@@ -3489,6 +3376,157 @@ export type DecisionBuildEvidence = {
   }
   reviewVerdicts?: Array<TriageItemVerdict>
   error?: string
+}
+
+export type FeatureRequestStatus =
+  | 'pending'
+  | 'rejected'
+  | 'accepted'
+  | 'in_progress'
+  | 'in_review'
+  | 'completed'
+  | 'failed'
+
+export type FeatureRequestAcceptance = 'off' | 'manual' | 'autonomous'
+
+export type FeatureRequestRequestedBy = {
+  fromProjectId: string
+  fromChatContext: ChatContext
+  fromRunId?: string
+  parentRequestId?: string
+}
+
+export type FeatureRequestHandling = {
+  receiverChatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  storyId?: string
+  featureIds?: Array<string>
+  bRunId?: string
+}
+
+export type FeatureRequestCycleFlag = {
+  detected: boolean
+  path: Array<string>
+}
+
+export type FeatureRequestResult = {
+  summary: string
+  storyId?: string
+  featureIds?: Array<string>
+  reviewBranch?: string
+  mergeCommit?: string
+}
+
+export type FeatureRequest = {
+  id: string
+  title: string
+  description: string
+  context?: Array<ExternalRef>
+  targetProjectId: string
+  requestedBy: FeatureRequestRequestedBy
+  acceptance: FeatureRequestAcceptance
+  status: FeatureRequestStatus
+  handling?: {
+    receiverChatContext?: {
+      type: ChatContextType
+      groupId?: string
+      projectId?: string
+      storyId?: string
+      featureId?: string
+      agentRunId?: string
+      topicId?: string
+      featureRequestId?: string
+      timestamp?: string
+    }
+    storyId?: string
+    featureIds?: Array<string>
+    bRunId?: string
+  }
+  result?: {
+    summary: string
+    storyId?: string
+    featureIds?: Array<string>
+    reviewBranch?: string
+    mergeCommit?: string
+  }
+  cycleFlag?: {
+    detected: boolean
+    path: Array<string>
+  }
+  resumeToken?: {
+    [key: string]: unknown
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type FeatureRequestInput = {
+  id: string
+  title: string
+  description: string
+  context?: Array<ExternalRef>
+  targetProjectId: string
+  requestedBy: FeatureRequestRequestedBy
+  acceptance: FeatureRequestAcceptance
+  cycleFlag?: {
+    detected: boolean
+    path: Array<string>
+  }
+}
+
+export type FeatureRequestPatch = {
+  status?:
+    | 'pending'
+    | 'rejected'
+    | 'accepted'
+    | 'in_progress'
+    | 'in_review'
+    | 'completed'
+    | 'failed'
+  handling?: {
+    receiverChatContext?: {
+      type: ChatContextType
+      groupId?: string
+      projectId?: string
+      storyId?: string
+      featureId?: string
+      agentRunId?: string
+      topicId?: string
+      featureRequestId?: string
+      timestamp?: string
+    }
+    storyId?: string
+    featureIds?: Array<string>
+    bRunId?: string
+  }
+  result?: {
+    summary: string
+    storyId?: string
+    featureIds?: Array<string>
+    reviewBranch?: string
+    mergeCommit?: string
+  }
+  cycleFlag?: {
+    detected: boolean
+    path: Array<string>
+  }
+  resumeToken?: {
+    [key: string]: unknown
+  }
+}
+
+export type FeatureRequestCandidate = {
+  fromProjectId: string
+  targetProjectId: string
 }
 
 export type FilesResult = {
@@ -4058,6 +4096,39 @@ export type GitLocalDiffOptions = {
   maxPatchBytes?: number
 }
 
+export type GitTextRecoveryReason = 'nul-bytes' | 'invalid-utf8' | 'unknown'
+
+export type GitTextRecoverySide = {
+  size: number
+  sanitizedSize: number
+  isText: boolean
+  wasBinary: boolean
+  reason?: 'nul-bytes' | 'invalid-utf8' | 'unknown'
+}
+
+export type GitTextRecovery = {
+  path: string
+  before: GitTextRecoverySide
+  after: GitTextRecoverySide
+  recovered: boolean
+  patch?: string
+}
+
+export type GitTextRecoveryOptions = {
+  path: string
+  staged?: boolean
+}
+
+export type GitApplyTextRecoveryOptions = {
+  path: string
+}
+
+export type GitApplyTextRecoveryResult = {
+  ok: boolean
+  error?: string
+  removedBytes?: number
+}
+
 export type GitDiffSummary = {
   baseRef: string
   headRef: string
@@ -4303,6 +4374,7 @@ export type InferenceRequest = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -4649,6 +4721,7 @@ export type StepRequest = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -4813,6 +4886,14 @@ export type RunCommandTelemetry = {
   firstTransientErrorAt: string | unknown
   firstTransientErrorCode: string | unknown
   firstTransientErrorMessage: string | unknown
+}
+
+export type StreamingStdio = 'pipe' | 'ignore'
+
+export type SessionLaneTelemetry = {
+  liveChildren: number
+  peakLiveChildren: number
+  totalSpawned: number
 }
 
 export type ProjectDataPaths = {
@@ -5002,15 +5083,85 @@ export type Offer = {
   sourceId: string
   seller: string
   price?: number
+  regularPrice?: number
   currency?: string
   promo?: string
+  kind?: 'official' | 'retailer' | 'marketplace'
   url: string
+  unavailable?: boolean
   asOf: string
+}
+
+export type SupportDocType =
+  | 'manual'
+  | 'user-guide'
+  | 'spec-sheet'
+  | 'datasheet'
+  | 'tds'
+  | 'sds'
+  | 'care'
+  | 'ingredient-list'
+  | 'other'
+
+export type SupportDocumentRef = {
+  url: string
+  docType: SupportDocType
+}
+
+export type ProvenancedField = {
+  value: string
+  sourceUrl?: string
+  sourceKind: 'manufacturer' | 'document' | 'open-db' | 'retailer'
+  confidence: number
+}
+
+export type SupportInfo = {
+  manufacturer?: {
+    name?: string
+    officialHost: string
+    resolvedVia: 'official-offer' | 'verified-search'
+    hostConfidence: number
+  }
+  documents: Array<SupportDocumentRef>
+  materials: Array<ProvenancedField>
+  ingredients?: Array<ProvenancedField>
+  specs?: {
+    [key: string]: string
+  }
+  certifications?: Array<string>
+  confidence: number
+  status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+  resolvedAt: string
 }
 
 export type CriterionEvidence = {
   quote: string
   url: string
+}
+
+export type ReviewAspect = {
+  theme: string
+  polarity: 'pro' | 'con' | 'complaint'
+  supportingReviewerCount: number
+  sentimentFraction?: number
+  evidence: Array<CriterionEvidence>
+}
+
+export type ReviewSynthesis = {
+  headlineRating: number | unknown
+  confidence: number
+  reviewCount: number
+  sourceCount: number
+  perSourceRatings: Array<{
+    sourceUrl?: string
+    host?: string
+    rating: number
+    trustWeight: number
+  }>
+  aspects: Array<ReviewAspect>
+  caveats: Array<string>
+  provisional: boolean
+  asOf: string
 }
 
 export type CriterionVerdict = {
@@ -5047,6 +5198,40 @@ export type CatalogItem = {
     [key: string]: unknown
   }
   offers: Array<Offer>
+  supportInfo?: {
+    manufacturer?: {
+      name?: string
+      officialHost: string
+      resolvedVia: 'official-offer' | 'verified-search'
+      hostConfidence: number
+    }
+    documents: Array<SupportDocumentRef>
+    materials: Array<ProvenancedField>
+    ingredients?: Array<ProvenancedField>
+    specs?: {
+      [key: string]: string
+    }
+    certifications?: Array<string>
+    confidence: number
+    status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+    resolvedAt: string
+  }
+  reviews?: {
+    headlineRating: number | unknown
+    confidence: number
+    reviewCount: number
+    sourceCount: number
+    perSourceRatings: Array<{
+      sourceUrl?: string
+      host?: string
+      rating: number
+      trustWeight: number
+    }>
+    aspects: Array<ReviewAspect>
+    caveats: Array<string>
+    provisional: boolean
+    asOf: string
+  }
   criteria: {
     [key: string]: CriterionVerdict
   }
@@ -5182,14 +5367,112 @@ export type ScoredCatalogItem = {
   score: number
 }
 
+export type RawReview = {
+  text?: string
+  rating?: number
+  author?: string
+  date?: string
+  verifiedPurchase?: boolean
+  incentivized?: boolean
+  helpfulVotes?: number
+  sourceUrl?: string
+  host?: string
+}
+
+export type ReviewVetResult = {
+  trustScore: number
+  firedSignals: Array<string>
+  vetStatus: CriterionStatus
+}
+
+export type ReviewLead = {
+  sourceUrl?: string
+  host?: string
+  rating?: number
+  excerpt?: string
+  vetStatus: CriterionStatus
+  trustScore: number
+  firedSignals: Array<string>
+  date?: string
+  sampleWeight?: number
+}
+
+export type AuditCheck = {
+  status: 'pass' | 'fail' | 'na'
+  detail: string
+}
+
+export type ProductAuditReport = {
+  key: string
+  name: string
+  checks: {
+    imageReal: AuditCheck
+    offersLive: AuditCheck
+    priceOnPage: AuditCheck
+    sourcesProductSpecific: AuditCheck
+    materialsGrounded: AuditCheck
+    offerDiversity: AuditCheck
+    currencyConsistent: AuditCheck
+    offerIsProductPage: AuditCheck
+    compositionConsistency: AuditCheck
+  }
+}
+
+export type AuditCheckRollup = {
+  pass: number
+  fail: number
+  na: number
+  passRate: number | unknown
+}
+
+export type CatalogAuditScorecard = {
+  total: number
+  perCheck: {
+    [key: string]: AuditCheckRollup
+  }
+  products: Array<ProductAuditReport>
+}
+
+export type SourceClass =
+  | 'aggregator'
+  | 'multi-shop'
+  | 'shop'
+  | 'review'
+  | 'marketplace'
+  | 'reference'
+  | 'other'
+
 export type SourceRecord = {
   id: string
+  host: string
+  country: string
   name: string
-  kind: 'retailer' | 'manufacturer' | 'database' | 'review' | 'marketplace' | 'other'
+  kind: SourceClass
+  qualityScore: number
+  outboundShopHostCount: number
+  engine?: string
   url?: string
   qualityTags: Array<string>
   categories?: Array<Array<string>>
-  updatedAt: string
+  seenCount: number
+  productYieldCount: number
+  firstSeen: string
+  lastSeen: string
+}
+
+export type AggregatorSeed = {
+  host: string
+  engine?: string
+}
+
+export type ObservedSource = {
+  url: string
+  country: string
+  title?: string
+  outboundShopHostCount?: number
+  hasAggregateOffer?: boolean
+  categories?: Array<Array<string>>
+  productYield?: number
 }
 
 export type BrandRecord = {
@@ -5197,6 +5480,8 @@ export type BrandRecord = {
   tags: Array<string>
   categories?: Array<Array<string>>
   url?: string
+  imageUrl?: string
+  summary?: string
   updatedAt: string
 }
 
@@ -5208,26 +5493,18 @@ export type CriterionSpec = {
   updatedAt: string
 }
 
-export type VerifyProductCriterionParams = {
-  item: CatalogItem
-  criterion: CriterionSpec
-  model: ModelSelection
-  now: string
-  mode?: 'cheap' | 'deep'
-  scope?: string
-  region?: string
-  language?: string
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
+export type CriterionKnowledgeEntry = {
+  subject: string
+  disposition: 'allowed' | 'disallowed'
+  reason?: string
+  source?: string
+  addedAt: string
+}
+
+export type CriterionKnowledge = {
+  criterionId: string
+  entries: Array<CriterionKnowledgeEntry>
+  updatedAt: string
 }
 
 export type CoercedRankRow = {
@@ -5239,6 +5516,108 @@ export type CoercedRankRow = {
 export type CatalogBuildCaps = {
   maxSuppliers: number
   maxItemsPerSupplier: number
+  maxOfferBackfills: number
+  maxSeededQueries?: number
+  prunePersistedLowValue?: boolean
+  maxDocBackfills?: number
+  maxReviewBackfills?: number
+}
+
+export type BackfillRecordOffersOptions = {
+  query: string
+  model: ModelSelection
+  scope?: string
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  region?: string
+  language?: string
+  abortSignal?: unknown
+  researchBudget?: {
+    maxPlanDepth?: number
+    maxSubQuestions?: number
+    verifyReaders?: number
+    gatherBreadth?: number
+    maxHops?: number
+    maxPagesPerHop?: number
+    maxExtractClusters?: number
+    discoverThinThreshold?: number
+    maxInferenceCalls?: number
+  }
+  gatherSources?: number
+}
+
+export type BackfillRecordSupportOptions = {
+  query: string
+  model: ModelSelection
+  scope?: string
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  region?: string
+  language?: string
+  abortSignal?: unknown
+  researchBudget?: {
+    maxPlanDepth?: number
+    maxSubQuestions?: number
+    verifyReaders?: number
+    gatherBreadth?: number
+    maxHops?: number
+    maxPagesPerHop?: number
+    maxExtractClusters?: number
+    discoverThinThreshold?: number
+    maxInferenceCalls?: number
+  }
+  officialHost?: string
+  now: string
+}
+
+export type BackfillRecordReviewsOptions = {
+  query: string
+  model: ModelSelection
+  scope?: string
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  region?: string
+  language?: string
+  abortSignal?: unknown
+  researchBudget?: {
+    maxPlanDepth?: number
+    maxSubQuestions?: number
+    verifyReaders?: number
+    gatherBreadth?: number
+    maxHops?: number
+    maxPagesPerHop?: number
+    maxExtractClusters?: number
+    discoverThinThreshold?: number
+    maxInferenceCalls?: number
+  }
+  now: string
 }
 
 export type CatalogBuildProgress = {
@@ -5249,6 +5628,30 @@ export type CatalogBuildProgress = {
   suppliers: Array<string>
   supplierStates: {
     [key: string]: 'gathering' | 'done' | 'skipped' | 'failed'
+  }
+}
+
+export type RecommendTraceEvent = {
+  at: string
+  phase: 'gather' | 'search' | 'read' | 'extract' | 'verify'
+  level: 'info' | 'warn' | 'error'
+  message: string
+  unit?: string
+  item?: string
+  criterion?: string
+  query?: string
+  results?: Array<{
+    title: string
+    url: string
+  }>
+  reads?: Array<{
+    url: string
+    chars: number
+    ok: boolean
+  }>
+  sources?: Array<string>
+  detail?: {
+    [key: string]: unknown
   }
 }
 
@@ -5273,6 +5676,7 @@ export type DiscoverSuppliersParams = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -5282,6 +5686,51 @@ export type DiscoverSuppliersResult = {
   recordType: string
   suppliers: Array<string>
   count: number
+}
+
+export type FindMoreOffersParams = {
+  scope: string
+  recordType: string
+  key: string
+  market: string
+  region?: string
+  language?: string
+  model: ModelSelection
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+  researchBudget?: {
+    maxPlanDepth?: number
+    maxSubQuestions?: number
+    verifyReaders?: number
+    gatherBreadth?: number
+    maxHops?: number
+    maxPagesPerHop?: number
+    maxExtractClusters?: number
+    discoverThinThreshold?: number
+    maxInferenceCalls?: number
+  }
+}
+
+export type FindMoreOffersResult = {
+  key: string
+  added: number
+  offers: Array<Offer>
+}
+
+export type FindMoreProductsResult = {
+  recordType: string
+  added: number
+  products: Array<CatalogItem>
 }
 
 export type BuildProductCatalogResult = {
@@ -5313,6 +5762,7 @@ export type RecommendProductsParams = {
   textWeight?: number
   filters?: Array<FilterRule>
   criterionGates?: Array<string>
+  criterionGrades?: Array<string>
   rankInstructions: string
   model: ModelSelection
   searchLimit?: number
@@ -5325,27 +5775,7 @@ export type RecommendProductsParams = {
     featureId?: string
     agentRunId?: string
     topicId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
-}
-
-export type DiscoverProductBrandsParams = {
-  scope: string
-  spec: ProductTypeSpec
-  market: string
-  region?: string
-  language?: string
-  model: ModelSelection
-  maxBrands?: number
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -5356,28 +5786,6 @@ export type ListProductBrandsParams = {
   recordType: string
 }
 
-export type ReverifyProductCriterionParams = {
-  scope: string
-  recordType: string
-  key: string
-  criterionId: string
-  model: ModelSelection
-  mode?: 'cheap' | 'deep'
-  region?: string
-  language?: string
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
-}
-
 export type RegisterProductCriterionParams = {
   scope: string
   recordType: string
@@ -5385,6 +5793,30 @@ export type RegisterProductCriterionParams = {
   claim: string
   mode: 'gate' | 'grade'
   positiveProxies?: Array<string>
+}
+
+export type RegisterCriterionKnowledgeParams = {
+  scope: string
+  recordType: string
+  criterionId: string
+  entries: Array<{
+    subject: string
+    disposition: 'allowed' | 'disallowed'
+    reason?: string
+    source?: string
+  }>
+}
+
+export type GetCriterionKnowledgeParams = {
+  scope: string
+  recordType: string
+  criterionId: string
+}
+
+export type ListProductSourcesParams = {
+  scope: string
+  recordType: string
+  country?: string
 }
 
 export type ListProductCriteriaParams = {
@@ -5412,6 +5844,7 @@ export type ResolveProductGoalParams = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -5436,6 +5869,7 @@ export type RankProductCandidatesParams = {
     featureId?: string
     agentRunId?: string
     topicId?: string
+    featureRequestId?: string
     timestamp?: string
   }
   abortSignal?: unknown
@@ -5458,6 +5892,15 @@ export type NetworkSpec =
       mode: 'custom'
       name: string
     }
+
+export type CliBringupTiming = {
+  runId: string
+  sessionPrepMs?: number
+  sessionNew?: number
+  proxyMs?: number
+  firstStdoutMs?: number
+  bridgeStartMs?: number
+}
 
 export type SandboxBindMount = {
   hostPath: string
@@ -5946,11 +6389,64 @@ export type WebReadUrlsResult = {
   [key: string]: string
 }
 
-export type WebSearchProvider = 'exa' | 'tavily' | 'serpapi'
+export type DocumentLink = {
+  url: string
+  docType: SupportDocType
+}
+
+export type StructuredRating = {
+  ratingValue: number
+  bestRating: number
+  worstRating: number
+  ratingCount?: number
+  reviewCount?: number
+  via: 'json-ld'
+}
+
+export type StructuredProduct = {
+  name?: string
+  price?: number
+  priceCurrency?: string
+  image?: string
+  availability?: string
+  via: 'json-ld' | 'microdata' | 'open-graph'
+}
+
+export type ParsedPrice = {
+  amount: number
+  currency?: string
+}
+
+export type HeroImageCandidate = {
+  url: string
+  width: number
+  height: number
+  top: number
+  alt?: string
+}
+
+export type WebSearchProvider =
+  | 'exa'
+  | 'tavily'
+  | 'serpapi'
+  | 'duckduckgo'
+  | 'bing'
+  | 'google'
+  | 'cli'
+
+export type WebSearchProviderKind = 'api' | 'cli' | 'playwright'
+
+export type SearchEngine = 'duckduckgo' | 'bing' | 'google'
 
 export type WebSearchLocale = {
   region?: string
   language?: string
+  route?: Array<WebSearchProviderKind>
+  signal?: unknown
+}
+
+export type WebReadOptions = {
+  signal?: unknown
 }
 
 export type RegionLocale = {
@@ -5963,6 +6459,8 @@ export type RegionLocale = {
 export type WebSearchQueryOptions = {
   region?: string
   language?: string
+  route?: Array<WebSearchProviderKind>
+  signal: unknown
   query: string
   limit?: number
 }
@@ -5970,6 +6468,8 @@ export type WebSearchQueryOptions = {
 export type WebSearchOptions = {
   region?: string
   language?: string
+  route?: Array<WebSearchProviderKind>
+  signal: unknown
   query: string
   limit?: number
   providers?: Array<WebSearchProvider>
@@ -5979,6 +6479,8 @@ export type WebSearchResultItem = {
   title: string
   url: string
   snippet?: string
+  content?: string
+  score?: number
   [key: string]: unknown
 }
 
@@ -6001,6 +6503,29 @@ export type WebSearchResponse = {
   items: Array<WebSearchResultItem>
   degraded?: Array<WebSearchProviderFailure>
   raw?: unknown
+}
+
+export type SearchContextGeo = {
+  locale?: string
+  acceptLanguage?: string
+}
+
+export type SearchPageContent = {
+  html: string
+  axSnapshot?: string
+  heroImageUrl?: string
+  renderedText?: string
+}
+
+export type PageAction = {
+  kind: 'click' | 'fill' | 'scroll'
+  selector?: string
+  value?: string
+}
+
+export type BuiltQuery = {
+  text: string
+  params: Array<unknown>
 }
 
 export type ProbeResult =
@@ -6146,16 +6671,18 @@ export type EntityWithScore = {
   totalScore: number
 }
 
-export type MatchParams = {
-  limit?: number
-  types?: Array<string>
-  ids?: Array<string>
-  projectIds?: Array<string>
+export type EntityFilterOp = '<' | '<=' | '=' | '!=' | '>=' | '>' | 'contains' | 'exists'
+
+export type EntityFieldPredicate = {
+  field: string
+  op: EntityFilterOp
+  value?: string | number | boolean
 }
 
-export type SearchParams = MatchParams & {
-  query: string
-  textWeight?: number
+export type EntitySort = {
+  field: string
+  direction?: 'asc' | 'desc'
+  numeric?: boolean
 }
 
 export type DocumentSearchMatchMode = 'any' | 'all'
@@ -6240,6 +6767,7 @@ export type AddMessagesInput = {
     suggestedActions?: Array<string>
     thinking?: string
     cliRunId?: string
+    featureRequestId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -6331,6 +6859,30 @@ export type Entity = {
   metadata?: {
     [key: string]: JsonValue
   }
+}
+
+export type MatchParams = {
+  limit?: number
+  offset?: number
+  types?: Array<string>
+  ids?: Array<string>
+  projectIds?: Array<string>
+  where?: unknown
+  orderBy?: Array<EntitySort>
+}
+
+export type SearchParams = MatchParams & {
+  query: string
+  textWeight?: number
+}
+
+export type CliRunnerDispatchOptions = {
+  cli: 'claude-code' | 'cursor-agent' | 'codex'
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+  workspaceHostPath?: string
+  model?: string
+  effort?: string
 }
 
 export type Database = {
@@ -6513,6 +7065,19 @@ export type HealthResponses = {
       firstTransientErrorAt?: string
       firstTransientErrorCode?: string
       firstTransientErrorMessage?: string
+    }
+    sessionLane: {
+      liveChildren: number
+      peakLiveChildren: number
+      totalSpawned: number
+      maxLiveChildren: number
+      ceilingRejections: number
+      liveByLabel: {
+        [key: string]: number
+      }
+      peakByLabel: {
+        [key: string]: number
+      }
     }
   }
 }
@@ -11998,6 +12563,7 @@ export type SendCompletionData = {
         suggestedActions?: Array<string>
         thinking?: string
         cliRunId?: string
+        featureRequestId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -12085,6 +12651,7 @@ export type SendCompletionResponses = {
       suggestedActions?: Array<string>
       thinking?: string
       cliRunId?: string
+      featureRequestId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -12141,6 +12708,7 @@ export type SendCompletionWithToolsData = {
         suggestedActions?: Array<string>
         thinking?: string
         cliRunId?: string
+        featureRequestId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -12233,6 +12801,7 @@ export type SendCompletionWithToolsResponses = {
           suggestedActions?: Array<string>
           thinking?: string
           cliRunId?: string
+          featureRequestId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -12302,6 +12871,7 @@ export type SendChatCompletionWithToolsData = {
       suggestedActions?: Array<string>
       thinking?: string
       cliRunId?: string
+      featureRequestId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -12388,6 +12958,7 @@ export type SendChatCompletionWithToolsResponses = {
           suggestedActions?: Array<string>
           thinking?: string
           cliRunId?: string
+          featureRequestId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -12457,6 +13028,7 @@ export type SendChatWithCliData = {
       suggestedActions?: Array<string>
       thinking?: string
       cliRunId?: string
+      featureRequestId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -12551,6 +13123,7 @@ export type ResumeCompletionData = {
         suggestedActions?: Array<string>
         thinking?: string
         cliRunId?: string
+        featureRequestId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -12643,6 +13216,7 @@ export type ResumeCompletionResponses = {
           suggestedActions?: Array<string>
           thinking?: string
           cliRunId?: string
+          featureRequestId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -13992,6 +14566,181 @@ export type AbortCompletionResponses = {
 }
 
 export type AbortCompletionResponse = AbortCompletionResponses[keyof AbortCompletionResponses]
+
+export type ListFeatureRequestsData = {
+  body?: never
+  path?: never
+  query?: {
+    targetProjectId?: string
+    fromProjectId?: string
+  }
+  url: '/api/v1/feature-requests'
+}
+
+export type ListFeatureRequestsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<FeatureRequest>
+}
+
+export type ListFeatureRequestsResponse =
+  ListFeatureRequestsResponses[keyof ListFeatureRequestsResponses]
+
+export type CreateFeatureRequestData = {
+  body: {
+    targetProjectId: string
+    title: string
+    description: string
+    context?: Array<ExternalRef>
+    fromProjectId?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/feature-requests'
+}
+
+export type CreateFeatureRequestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateFeatureRequestError = CreateFeatureRequestErrors[keyof CreateFeatureRequestErrors]
+
+export type CreateFeatureRequestResponses = {
+  /**
+   * Default Response
+   */
+  201: FeatureRequest
+}
+
+export type CreateFeatureRequestResponse =
+  CreateFeatureRequestResponses[keyof CreateFeatureRequestResponses]
+
+export type GetFeatureRequestData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/feature-requests/{id}'
+}
+
+export type GetFeatureRequestErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetFeatureRequestError = GetFeatureRequestErrors[keyof GetFeatureRequestErrors]
+
+export type GetFeatureRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: FeatureRequest
+}
+
+export type GetFeatureRequestResponse = GetFeatureRequestResponses[keyof GetFeatureRequestResponses]
+
+export type AcceptFeatureRequestData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/feature-requests/{id}/accept'
+}
+
+export type AcceptFeatureRequestErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AcceptFeatureRequestError = AcceptFeatureRequestErrors[keyof AcceptFeatureRequestErrors]
+
+export type AcceptFeatureRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: FeatureRequest
+}
+
+export type AcceptFeatureRequestResponse =
+  AcceptFeatureRequestResponses[keyof AcceptFeatureRequestResponses]
+
+export type RejectFeatureRequestData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/feature-requests/{id}/reject'
+}
+
+export type RejectFeatureRequestErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RejectFeatureRequestError = RejectFeatureRequestErrors[keyof RejectFeatureRequestErrors]
+
+export type RejectFeatureRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: FeatureRequest
+}
+
+export type RejectFeatureRequestResponse =
+  RejectFeatureRequestResponses[keyof RejectFeatureRequestResponses]
 
 export type StartCliAgentRunData = {
   body: {

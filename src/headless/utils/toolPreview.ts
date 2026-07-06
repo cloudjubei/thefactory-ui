@@ -160,7 +160,7 @@ export function getToolHeaderPath(toolCall: {
     case 'updateStory':
     case 'updateFeature':
     case 'reorderFeature':
-    case 'finishFeature':
+    case 'completeAssignment':
     case 'blockFeature': {
       const storyId = tryString(args.storyId)
       const featureId = tryString(args.featureId)

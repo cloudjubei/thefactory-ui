@@ -86,7 +86,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
   'getStory', 'proposePr', 'proposeCommitToRealRepo',
   'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
-  'reorderFeature', 'finishFeature', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
+  'reorderFeature', 'completeAssignment', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
   'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
   'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
   'gitDeleteBranch', 'gitListBranches', 'gitCreateMergePlan', 'gitApplyMerge', 'gitListStashes',
@@ -531,7 +531,7 @@ export function renderToolPreviewNative({
     if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
     return <SecondaryText>No reorder data</SecondaryText>
   }
-  if (name === 'finishFeature' || name === 'blockFeature') {
+  if (name === 'completeAssignment' || name === 'blockFeature') {
     const storyId = tryString(extract(args, ['storyId']))
     const featureId = tryString(extract(args, ['featureId']))
     if (hooks?.renderStoryAndFeatureCallout) {
@@ -539,7 +539,7 @@ export function renderToolPreviewNative({
     }
     return (
       <View>
-        <SectionTitle>{name === 'finishFeature' ? 'Finished' : 'Blocked'}</SectionTitle>
+        <SectionTitle>{name === 'completeAssignment' ? 'Finished' : 'Blocked'}</SectionTitle>
         <Row>
           <Text style={{ fontSize: 12, color: theme.text.primary }}>
             story <Text style={{ fontFamily: nativeFontFamilies.mono }}>{storyId}</Text> / feature{' '}

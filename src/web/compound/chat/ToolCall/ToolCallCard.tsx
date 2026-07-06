@@ -202,7 +202,7 @@ function ToolCallCardInner({
   // render the proposed diff/patch.
   const hoverResult = previewResult ?? result
 
-  const isSmall = toolCall.name === 'finishFeature' || toolCall.name === 'blockFeature'
+  const isSmall = toolCall.name === 'completeAssignment' || toolCall.name === 'blockFeature'
   const canShowSplitToggle =
     (toolCall.name === 'writeFile' && resultType !== undefined && resultType !== 'errored') ||
     ((toolCall.name === 'updateStory' || toolCall.name === 'updateFeature') &&

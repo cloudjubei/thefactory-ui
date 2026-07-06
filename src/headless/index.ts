@@ -57,6 +57,10 @@ export {
   type ProjectActivitiesState,
 } from './hooks/useProjectActivities'
 export {
+  useCrossProjectRequests,
+  type CrossProjectRequestsState,
+} from './hooks/useCrossProjectRequests'
+export {
   useResolvedTheme,
   type ResolvedTheme,
   type SystemThemeSource,

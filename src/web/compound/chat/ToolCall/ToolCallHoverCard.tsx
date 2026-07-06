@@ -30,7 +30,7 @@ export type ToolCallHoverCardProps = {
   splitToggle?: boolean
   /** Optional headline path (e.g. file path) shown under the tool name. */
   headerPath?: string
-  /** Render a small popup variant (used by `finishFeature` / `blockFeature`
+  /** Render a small popup variant (used by `completeAssignment` / `blockFeature`
    * callouts that don't need the wide 480px frame). */
   variant?: 'default' | 'small'
   /** Width / framing mode. `fixed` (default) draws the rounded popup chrome

@@ -7,7 +7,7 @@ import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
-import type { BridgeRequest } from '../utils/appBridge'
+import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
 /**
  * Build the `onBridgeMessage` handler that services an embedded app's
@@ -26,9 +26,10 @@ import type { BridgeRequest } from '../utils/appBridge'
  */
 export function useProjectDataBridge(
   projectId: string | undefined,
-  opts?: { activitiesApiOnly?: boolean },
+  opts?: { activitiesApiOnly?: boolean; cliActivities?: string[] },
 ): (req: BridgeRequest) => Promise<unknown> {
   const activitiesApiOnly = opts?.activitiesApiOnly ?? false
+  const cliActivities = opts?.cliActivities
   const { activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel } = useLLMConfigs()
   return useCallback(
     async (req: BridgeRequest) => {
@@ -38,11 +39,20 @@ export function useProjectDataBridge(
       if (live !== undefined) return live
       const settings = await dispatchAppSettingsBridge(projectId, req)
       if (settings !== undefined) return settings
+      // An app can be API-only overall yet allow CLI for SPECIFIC activities (declared via
+      // `cliActivities`, e.g. the trainer's `research-training-papers` deep-research). Send the CLI model
+      // only when the launched activity permits it; otherwise those activities run on the API config.
+      const startType =
+        bridgeMessageName(req.type) === 'activities.start'
+          ? ((req.payload as { activityType?: string } | undefined)?.activityType ?? undefined)
+          : undefined
+      const cliAllowed =
+        !activitiesApiOnly || (!!startType && !!cliActivities && cliActivities.includes(startType))
       const activities = await dispatchActivitiesBridge(
         projectId,
         req,
         activeActivityConfigId ?? activeAgentRunConfigId ?? undefined,
-        activitiesApiOnly ? undefined : (activeActivityCliModel ?? undefined),
+        cliAllowed ? (activeActivityCliModel ?? undefined) : undefined,
       )
       if (activities !== undefined) return activities
       const runners = await dispatchRunnersBridge(req)
@@ -51,6 +61,13 @@ export function useProjectDataBridge(
       if (projects !== undefined) return projects
       return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
     },
-    [projectId, activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel, activitiesApiOnly],
+    [
+      projectId,
+      activeAgentRunConfigId,
+      activeActivityConfigId,
+      activeActivityCliModel,
+      activitiesApiOnly,
+      cliActivities,
+    ],
   )
 }
