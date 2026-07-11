@@ -9,12 +9,7 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
-import {
-  nativePalette,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../../tokens/native'
+import { nativePalette, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
   cliDotColor,
@@ -86,9 +81,7 @@ function CollapsibleContent({
             borderRadius: nativeRadii[2],
             borderWidth: 1,
             borderColor: theme.border.subtle,
-            backgroundColor: pressed
-              ? theme.surface.muted
-              : theme.surface.overlay,
+            backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
           })}
         >
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
@@ -186,11 +179,7 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
   const { theme } = useNativeTheme()
   const isUser = kind === 'user'
   const isTool = kind === 'tool'
-  const bg = isUser
-    ? theme.accent.primary
-    : isTool
-      ? theme.surface.overlay
-      : nativePalette.blue[50]
+  const bg = isUser ? theme.accent.primary : isTool ? theme.surface.overlay : nativePalette.blue[50]
   const fg = isUser ? theme.text.inverted : theme.text.primary
   return (
     <View
@@ -211,9 +200,7 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
         // previous emoji placeholder + later `IconHammer` swap.
         <IconToolbox size={14} color={fg} />
       ) : (
-        <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>
-          {isUser ? 'You' : 'AI'}
-        </Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>{isUser ? 'You' : 'AI'}</Text>
       )}
     </View>
   )
@@ -323,9 +310,7 @@ function MessageRow({
               borderRadius: nativeRadii[1],
               borderWidth: 1,
               borderColor: theme.border.subtle,
-              backgroundColor: pressed
-                ? theme.surface.muted
-                : theme.surface.raised,
+              backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
               opacity: isThinking ? 0.4 : 1,
             })}
           >
@@ -392,10 +377,7 @@ function MessageRow({
                       backgroundColor: modelDotColor,
                     }}
                   />
-                  <Text
-                    numberOfLines={1}
-                    style={{ fontSize: 11, color: theme.text.secondary }}
-                  >
+                  <Text numberOfLines={1} style={{ fontSize: 11, color: theme.text.secondary }}>
                     {modelLabel}
                   </Text>
                 </View>
@@ -412,7 +394,12 @@ function MessageRow({
                   }}
                 >
                   <Text
-                    style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.4, color: theme.text.secondary }}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '600',
+                      letterSpacing: 0.4,
+                      color: theme.text.secondary,
+                    }}
                   >
                     {cliTag ? 'CLI' : 'API'}
                   </Text>
@@ -420,6 +407,22 @@ function MessageRow({
               ) : null}
               {msg.usage ? (
                 <UsageChip msg={msg} onPress={onShowUsage ? () => onShowUsage(msg) : undefined} />
+              ) : null}
+              {msg.featureRequestId ? (
+                <View
+                  style={{
+                    paddingHorizontal: nativeSpace[3],
+                    paddingVertical: 2,
+                    borderRadius: nativeRadii.round,
+                    borderWidth: 1,
+                    borderColor: theme.border.subtle,
+                    backgroundColor: theme.surface.overlay,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '500', color: theme.text.secondary }}>
+                    ↩ Resumed by request
+                  </Text>
+                </View>
               ) : null}
             </View>
             {(ts || thinkingLabel) && (

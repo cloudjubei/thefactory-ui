@@ -49,6 +49,15 @@ export type ToolPreviewHooks = {
    * Host typically caches these per toolCallId (see desktop's
    * `toolPreviewById` map). */
   getToolPreview?: (toolCallId: string) => ToolPreview | undefined
+  /** Render the live cross-project feature-request card for a `requestProjectFeature` result.
+   * The host looks the LIVE record up by `requestId` (via `useCrossProjectRequests`) and owns
+   * accept/reject + navigation; `status`/`cycleDetected` from the frozen tool result are a
+   * fallback for the window before the store has seen the record. */
+  renderFeatureRequestWidget?: (args: {
+    requestId: string
+    status?: string
+    cycleDetected?: boolean
+  }) => ReactNode
 }
 
 export type RenderToolPreviewArgs = {
@@ -104,16 +113,61 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  * generic drawer instead of the JSON fallback.
  */
 export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
-  'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
-  'getStory', 'proposePr', 'proposeCommitToRealRepo',
-  'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
-  'reorderFeature', 'completeAssignment', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
-  'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
-  'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
-  'gitDeleteBranch', 'gitListBranches', 'gitCreateMergePlan', 'gitApplyMerge', 'gitListStashes',
-  'gitAddStash', 'gitApplyStash', 'gitRemoveStash', 'webReadURLs', 'getAstOutline', 'getCode',
-  'getInterface', 'listContents', 'webSearch', 'runTests', 'runAllTests', 'runTestsCoverage',
-  'bash', 'runShellCommand', 'shell',
+  'writeExactReplaces',
+  'writeFile',
+  'updateStory',
+  'updateFeature',
+  'addStory',
+  'addFeature',
+  'getStory',
+  'proposePr',
+  'proposeCommitToRealRepo',
+  'readPaths',
+  'readFile',
+  'readFileRanges',
+  'grepFiles',
+  'grepFile',
+  'renamePath',
+  'deletePath',
+  'listStories',
+  'reorderFeature',
+  'completeAssignment',
+  'blockFeature',
+  'searchFilesByExact',
+  'searchFilesByKeywords',
+  'searchFiles',
+  'searchFilePaths',
+  'searchFilesAndRead',
+  'compileCheck',
+  'gitResetFiles',
+  'gitDiff',
+  'gitFetch',
+  'gitPull',
+  'gitPush',
+  'gitCommit',
+  'gitCreateBranch',
+  'gitCheckoutBranch',
+  'gitDeleteBranch',
+  'gitListBranches',
+  'gitCreateMergePlan',
+  'gitApplyMerge',
+  'gitListStashes',
+  'gitAddStash',
+  'gitApplyStash',
+  'gitRemoveStash',
+  'webReadURLs',
+  'getAstOutline',
+  'getCode',
+  'getInterface',
+  'listContents',
+  'webSearch',
+  'runTests',
+  'runAllTests',
+  'runTestsCoverage',
+  'bash',
+  'runShellCommand',
+  'shell',
+  'requestProjectFeature',
 ])
 
 /** True when {@link renderToolPreview} has a dedicated drawer for `name`. */
@@ -296,6 +350,24 @@ export function renderToolPreview({
     )
   }
 
+  // ---- cross-project feature request (live status card) ----
+  if (name === 'requestProjectFeature') {
+    const requestId = tryString(extract(result, ['requestId']))
+    if (requestId && hooks?.renderFeatureRequestWidget) {
+      const cycle = extract(result, ['cycleFlag']) as { detected?: unknown } | undefined
+      return (
+        <>
+          {hooks.renderFeatureRequestWidget({
+            requestId,
+            status: tryString(extract(result, ['status'])),
+            cycleDetected: cycle?.detected === true,
+          })}
+        </>
+      )
+    }
+    // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+  }
+
   if (name === 'getStory') {
     const storyId = tryString(extract(args, ['storyId'])) || '(unknown)'
     const title = tryString(extract(result, ['title']))
@@ -329,7 +401,9 @@ export function renderToolPreview({
   }
   if (name === 'proposeCommitToRealRepo') {
     const message = tryString(extract(args, ['message'])) || '(no message)'
-    const paths = Array.isArray(extract(args, ['paths'])) ? (extract(args, ['paths']) as string[]) : []
+    const paths = Array.isArray(extract(args, ['paths']))
+      ? (extract(args, ['paths']) as string[])
+      : []
     const notes = tryString(extract(args, ['notes']))
     return (
       <div className="text-xs space-y-1">
@@ -766,13 +840,9 @@ export function renderToolPreview({
               <span className="font-mono text-[11px]">{branch}</span>
             </>
           ) : null}
-          {resultType === 'success' ? (
-            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
-          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
         </Row>
-        {errMsg ? (
-          <div className="text-[11px] text-(--text-secondary)">{errMsg}</div>
-        ) : null}
+        {errMsg ? <div className="text-[11px] text-(--text-secondary)">{errMsg}</div> : null}
       </div>
     )
   }
@@ -797,20 +867,14 @@ export function renderToolPreview({
         <Row className="flex items-center gap-1.5 flex-wrap">
           {amend ? <SmallBadge>amend</SmallBadge> : null}
           {pushToOrigin ? <SmallBadge>push to origin</SmallBadge> : null}
-          {resultType === 'success' ? (
-            <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge>
-          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge> : null}
         </Row>
       </div>
     )
   }
 
   // ---- gitCreateBranch / gitCheckoutBranch / gitDeleteBranch ----
-  if (
-    name === 'gitCreateBranch' ||
-    name === 'gitCheckoutBranch' ||
-    name === 'gitDeleteBranch'
-  ) {
+  if (name === 'gitCreateBranch' || name === 'gitCheckoutBranch' || name === 'gitDeleteBranch') {
     const branchName = tryString(extract(args, ['name']))
     const checkoutAfter = !!extract(args, ['checkoutAfter'])
     const create = !!extract(args, ['create'])
@@ -827,10 +891,10 @@ export function renderToolPreview({
           <span className="text-(--text-secondary)">branch:</span>
           <span className="font-mono text-[11px]">{branchName || '(unknown)'}</span>
           {name === 'gitCreateBranch' && checkoutAfter ? <SmallBadge>+checkout</SmallBadge> : null}
-          {name === 'gitCheckoutBranch' && create ? <SmallBadge>create if missing</SmallBadge> : null}
-          {resultType === 'success' ? (
-            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
+          {name === 'gitCheckoutBranch' && create ? (
+            <SmallBadge>create if missing</SmallBadge>
           ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
         </Row>
       </div>
     )
@@ -899,7 +963,9 @@ export function renderToolPreview({
             </>
           ) : null}
           {resultType === 'success' ? (
-            <SmallBadge>{ok ? (name === 'gitCreateMergePlan' ? 'planned' : 'merged') : 'failed'}</SmallBadge>
+            <SmallBadge>
+              {ok ? (name === 'gitCreateMergePlan' ? 'planned' : 'merged') : 'failed'}
+            </SmallBadge>
           ) : null}
         </Row>
         {conflicts.length > 0 ? (
@@ -915,9 +981,7 @@ export function renderToolPreview({
   // ---- gitListStashes / gitAddStash / gitApplyStash / gitRemoveStash ----
   if (name === 'gitListStashes') {
     const stashesRaw = extract(result, ['stashes'])
-    const stashes = Array.isArray(stashesRaw)
-      ? (stashesRaw as Array<Record<string, unknown>>)
-      : []
+    const stashes = Array.isArray(stashesRaw) ? (stashesRaw as Array<Record<string, unknown>>) : []
     return (
       <div className="text-xs space-y-1">
         {resultType === 'success' ? (
@@ -927,7 +991,8 @@ export function renderToolPreview({
               <PreLimited
                 lines={stashes.map((s) => {
                   const ref = tryString(extract(s, ['ref'])) ?? '?'
-                  const msg = tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
+                  const msg =
+                    tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
                   return `${ref}  ${msg}`
                 })}
                 maxLines={10}
@@ -966,13 +1031,9 @@ export function renderToolPreview({
             </>
           ) : null}
           {name === 'gitAddStash' && keepStaged ? <SmallBadge>keep staged</SmallBadge> : null}
-          {name === 'gitAddStash' && includeUntracked ? (
-            <SmallBadge>+untracked</SmallBadge>
-          ) : null}
+          {name === 'gitAddStash' && includeUntracked ? <SmallBadge>+untracked</SmallBadge> : null}
           {name === 'gitApplyStash' && deleteAfterApply ? <SmallBadge>+drop</SmallBadge> : null}
-          {resultType === 'success' ? (
-            <SmallBadge>{ok ? action : 'failed'}</SmallBadge>
-          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? action : 'failed'}</SmallBadge> : null}
         </Row>
       </div>
     )

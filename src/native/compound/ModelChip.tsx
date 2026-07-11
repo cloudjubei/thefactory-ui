@@ -57,6 +57,10 @@ export interface ModelChipProps {
   cliDisabled?: boolean
   /** Caption explaining why CLI is unavailable; shown under the toggle when {@link cliDisabled}. */
   cliDisabledReason?: string
+  /** When defined, surfaces the "Resident mode" switch in the CLI panel. `true` ⇒ this chat runs on a long-lived per-chat CLI process. */
+  residentMode?: boolean
+  /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
+  onToggleResident?: (next: boolean) => void
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -191,6 +195,8 @@ export function ModelChip({
   onPickRecentCli,
   cliDisabled,
   cliDisabledReason,
+  residentMode,
+  onToggleResident,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -616,6 +622,43 @@ export function ModelChip({
                 >
                   No models reported.
                 </Text>
+              )}
+
+              {onToggleResident && (
+                <>
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: theme.border.subtle,
+                      marginVertical: nativeSpace[2],
+                    }}
+                  />
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: !!residentMode }}
+                    onPress={() => onToggleResident(!residentMode)}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: nativeSpace[4],
+                      minHeight: 44,
+                      paddingVertical: nativeSpace[2],
+                      paddingHorizontal: nativeSpace[3],
+                      borderRadius: nativeRadii[3],
+                      backgroundColor: pressed ? theme.surface.hover : 'transparent',
+                    })}
+                  >
+                    <Text style={{ fontSize: 14, color: theme.accent.primary, width: 16 }}>
+                      {residentMode ? '☑' : '☐'}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, color: theme.text.primary }}>Resident mode</Text>
+                      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                        Keep one process warm per chat — faster follow-up turns.
+                      </Text>
+                    </View>
+                  </Pressable>
+                </>
               )}
 
               <View

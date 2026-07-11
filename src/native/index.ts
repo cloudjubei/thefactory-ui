@@ -82,6 +82,20 @@ export {
 } from './compound/DependencyChip'
 export { FeatureCard, type FeatureCardData, type FeatureCardProps } from './compound/FeatureCard'
 export {
+  FeatureRequestCard,
+  type FeatureRequestCardData,
+  type FeatureRequestCardProps,
+  type FeatureRequestCardStatus,
+} from './compound/FeatureRequestCard'
+export {
+  BackgroundTasksPanel,
+  type BackgroundTasksPanelProps,
+} from './compound/BackgroundTasksPanel'
+export {
+  CrossProjectWaitingBar,
+  type CrossProjectWaitingBarProps,
+} from './compound/CrossProjectWaitingBar'
+export {
   default as NotificationBadge,
   getNotificationBadgeColor,
   type NotificationBadgeColor,

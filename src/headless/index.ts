@@ -60,6 +60,23 @@ export {
   useCrossProjectRequests,
   type CrossProjectRequestsState,
 } from './hooks/useCrossProjectRequests'
+export { crossProjectNotification, type CrossProjectNotification } from './utils/crossProjectNotify'
+export {
+  summarizeCrossProjectWaiting,
+  type CrossProjectWaitingRequest,
+  type CrossProjectWaitingItem,
+  type CrossProjectWaitingTone,
+  type CrossProjectWaitingView,
+} from './utils/crossProjectWaiting'
+export {
+  useCrossProjectSettings,
+  type CrossProjectSettingsState,
+} from './hooks/useCrossProjectSettings'
+export {
+  isAcceptanceMode,
+  readAcceptanceLayer,
+  resolveAcceptance,
+} from './utils/crossProjectSettings'
 export {
   useResolvedTheme,
   type ResolvedTheme,
@@ -74,6 +91,11 @@ export {
   type UseChatLastReadApi,
   type UseChatLastReadOptions,
 } from './hooks/useChatLastRead'
+export {
+  useAppLastOpened,
+  type AppLastOpenedStore,
+  type UseAppLastOpenedApi,
+} from './hooks/useAppLastOpened'
 export {
   useTooltipState,
   type UseTooltipState,

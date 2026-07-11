@@ -193,6 +193,20 @@ export {
   type StoryStatus,
 } from './compound/StoryCard'
 export {
+  FeatureRequestCard,
+  type FeatureRequestCardData,
+  type FeatureRequestCardProps,
+  type FeatureRequestCardStatus,
+} from './compound/FeatureRequestCard'
+export {
+  BackgroundTasksPanel,
+  type BackgroundTasksPanelProps,
+} from './compound/BackgroundTasksPanel'
+export {
+  CrossProjectWaitingBar,
+  type CrossProjectWaitingBarProps,
+} from './compound/CrossProjectWaitingBar'
+export {
   default as StatusControl,
   StatusPicker,
   STATUS_LABELS,
@@ -297,6 +311,7 @@ export { TimelineHoverCard } from './compound/projectTimeline/TimelineHoverCard'
 // Settings panels (connected to the lifted contexts).
 export { default as VisualSettings } from './compound/settings/VisualSettings'
 export { default as NotificationSettings } from './compound/settings/NotificationSettings'
+export { default as CrossProjectSettings } from './compound/settings/CrossProjectSettings'
 
 // Shell-level connected components: command menu + shortcuts help overlay.
 export { default as CommandMenu } from './compound/shell/CommandMenu'
@@ -550,6 +565,7 @@ export {
   useChatContextLastRead,
   type UseChatContextLastReadApi,
 } from './compound/notifications/chatLastRead'
+export { useAppTabLastOpened } from './compound/notifications/appLastOpened'
 
 // Utils
 export { cn } from './utils/cn'

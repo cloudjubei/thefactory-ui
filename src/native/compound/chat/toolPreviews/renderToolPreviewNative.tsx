@@ -42,6 +42,14 @@ export type ToolPreviewHooks = {
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
   renderStoryBullet?: (storyId: string) => ReactNode
   getToolPreview?: (toolCallId: string) => ToolPreview | undefined
+  /** Render the live cross-project feature-request card for a `requestProjectFeature` result.
+   * The host looks the LIVE record up by `requestId` (via `useCrossProjectRequests`) and owns
+   * accept/reject; `status`/`cycleDetected` from the frozen tool result are a fallback. */
+  renderFeatureRequestWidget?: (args: {
+    requestId: string
+    status?: string
+    cycleDetected?: boolean
+  }) => ReactNode
 }
 
 export type RenderToolPreviewArgs = {
@@ -83,16 +91,61 @@ function changedKeys(patch: Record<string, unknown>, allowed: readonly string[])
  * here or render its own generic drawer instead of the JSON fallback.
  */
 export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
-  'writeExactReplaces', 'writeFile', 'updateStory', 'updateFeature', 'addStory', 'addFeature',
-  'getStory', 'proposePr', 'proposeCommitToRealRepo',
-  'readPaths', 'readFile', 'readFileRanges', 'grepFiles', 'grepFile', 'renamePath', 'deletePath', 'listStories',
-  'reorderFeature', 'completeAssignment', 'blockFeature', 'searchFilesByExact', 'searchFilesByKeywords',
-  'searchFiles', 'searchFilePaths', 'searchFilesAndRead', 'compileCheck', 'gitResetFiles', 'gitDiff',
-  'gitFetch', 'gitPull', 'gitPush', 'gitCommit', 'gitCreateBranch', 'gitCheckoutBranch',
-  'gitDeleteBranch', 'gitListBranches', 'gitCreateMergePlan', 'gitApplyMerge', 'gitListStashes',
-  'gitAddStash', 'gitApplyStash', 'gitRemoveStash', 'webReadURLs', 'getAstOutline', 'getCode',
-  'getInterface', 'listContents', 'webSearch', 'runTests', 'runAllTests', 'runTestsCoverage',
-  'bash', 'runShellCommand', 'shell',
+  'writeExactReplaces',
+  'writeFile',
+  'updateStory',
+  'updateFeature',
+  'addStory',
+  'addFeature',
+  'getStory',
+  'proposePr',
+  'proposeCommitToRealRepo',
+  'readPaths',
+  'readFile',
+  'readFileRanges',
+  'grepFiles',
+  'grepFile',
+  'renamePath',
+  'deletePath',
+  'listStories',
+  'reorderFeature',
+  'completeAssignment',
+  'blockFeature',
+  'searchFilesByExact',
+  'searchFilesByKeywords',
+  'searchFiles',
+  'searchFilePaths',
+  'searchFilesAndRead',
+  'compileCheck',
+  'gitResetFiles',
+  'gitDiff',
+  'gitFetch',
+  'gitPull',
+  'gitPush',
+  'gitCommit',
+  'gitCreateBranch',
+  'gitCheckoutBranch',
+  'gitDeleteBranch',
+  'gitListBranches',
+  'gitCreateMergePlan',
+  'gitApplyMerge',
+  'gitListStashes',
+  'gitAddStash',
+  'gitApplyStash',
+  'gitRemoveStash',
+  'webReadURLs',
+  'getAstOutline',
+  'getCode',
+  'getInterface',
+  'listContents',
+  'webSearch',
+  'runTests',
+  'runAllTests',
+  'runTestsCoverage',
+  'bash',
+  'runShellCommand',
+  'shell',
+  'requestProjectFeature',
 ])
 
 /** True when {@link renderToolPreviewNative} has a dedicated drawer for `name`. */
@@ -266,8 +319,7 @@ export function renderToolPreviewNative({
         headerSub={
           story?.id ? (
             <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-              Story:{' '}
-              <Text style={{ fontFamily: nativeFontFamilies.mono }}>{story.id}</Text>
+              Story: <Text style={{ fontFamily: nativeFontFamilies.mono }}>{story.id}</Text>
             </Text>
           ) : undefined
         }
@@ -309,7 +361,9 @@ export function renderToolPreviewNative({
   }
   if (name === 'proposeCommitToRealRepo') {
     const message = tryString(extract(args, ['message'])) || '(no message)'
-    const paths = Array.isArray(extract(args, ['paths'])) ? (extract(args, ['paths']) as string[]) : []
+    const paths = Array.isArray(extract(args, ['paths']))
+      ? (extract(args, ['paths']) as string[])
+      : []
     const notes = tryString(extract(args, ['notes']))
     return (
       <View style={{ gap: 4 }}>
@@ -508,10 +562,7 @@ export function renderToolPreviewNative({
             <SmallBadge>story</SmallBadge>
             <MonoText>{s.id}</MonoText>
             {s.title ? (
-              <Text
-                style={{ fontSize: 12, color: theme.text.primary }}
-                numberOfLines={1}
-              >
+              <Text style={{ fontSize: 12, color: theme.text.primary }} numberOfLines={1}>
                 — {s.title}
               </Text>
             ) : null}
@@ -531,6 +582,23 @@ export function renderToolPreviewNative({
     if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
     return <SecondaryText>No reorder data</SecondaryText>
   }
+  if (name === 'requestProjectFeature') {
+    const requestId = tryString(extract(result, ['requestId']))
+    if (requestId && hooks?.renderFeatureRequestWidget) {
+      const cycle = extract(result, ['cycleFlag']) as { detected?: unknown } | undefined
+      return (
+        <View>
+          {hooks.renderFeatureRequestWidget({
+            requestId,
+            status: tryString(extract(result, ['status'])),
+            cycleDetected: cycle?.detected === true,
+          })}
+        </View>
+      )
+    }
+    // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+  }
+
   if (name === 'completeAssignment' || name === 'blockFeature') {
     const storyId = tryString(extract(args, ['storyId']))
     const featureId = tryString(extract(args, ['featureId']))
@@ -795,20 +863,14 @@ export function renderToolPreviewNative({
         <Row>
           {amend ? <SmallBadge>amend</SmallBadge> : null}
           {pushToOrigin ? <SmallBadge>push to origin</SmallBadge> : null}
-          {resultType === 'success' ? (
-            <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge>
-          ) : null}
+          {resultType === 'success' ? <SmallBadge>{ok ? 'committed' : 'failed'}</SmallBadge> : null}
         </Row>
       </View>
     )
   }
 
   // ---- gitCreateBranch / gitCheckoutBranch / gitDeleteBranch ----
-  if (
-    name === 'gitCreateBranch' ||
-    name === 'gitCheckoutBranch' ||
-    name === 'gitDeleteBranch'
-  ) {
+  if (name === 'gitCreateBranch' || name === 'gitCheckoutBranch' || name === 'gitDeleteBranch') {
     const branchName = tryString(extract(args, ['name']))
     const checkoutAfter = !!extract(args, ['checkoutAfter'])
     const create = !!extract(args, ['create'])
@@ -915,9 +977,7 @@ export function renderToolPreviewNative({
   // ---- gitListStashes / gitAddStash / gitApplyStash / gitRemoveStash ----
   if (name === 'gitListStashes') {
     const stashesRaw = extract(result, ['stashes'])
-    const stashes = Array.isArray(stashesRaw)
-      ? (stashesRaw as Array<Record<string, unknown>>)
-      : []
+    const stashes = Array.isArray(stashesRaw) ? (stashesRaw as Array<Record<string, unknown>>) : []
     return (
       <View style={{ gap: 4 }}>
         {resultType === 'success' ? (
@@ -927,7 +987,8 @@ export function renderToolPreviewNative({
               <PreLimited
                 lines={stashes.map((s) => {
                   const ref = tryString(extract(s, ['ref'])) ?? '?'
-                  const msg = tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
+                  const msg =
+                    tryString(extract(s, ['name'])) ?? tryString(extract(s, ['message'])) ?? ''
                   return `${ref}  ${msg}`
                 })}
                 maxLines={10}

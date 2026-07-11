@@ -7,6 +7,7 @@ import {
   pausedForScope,
   replaceActivityScope,
   subscribeActivities,
+  unseenFinishedForScope,
   upsertActivityRun,
 } from './activitiesStore'
 
@@ -21,6 +22,8 @@ export interface ProjectActivitiesState {
   liveForScope: (scope: string | undefined) => number
   /** Paused (running-but-not-live) count for ANY scope. */
   pausedForScope: (scope: string | undefined) => number
+  /** Runs in a scope that finished after `sinceIso` — the unseen-results badge count. */
+  unseenForScope: (scope: string | undefined, sinceIso: string | undefined) => number
 }
 
 /** Seed one project's activities into the store (carrying the server's `isLive`). */
@@ -58,6 +61,11 @@ export function useProjectActivities(projectId: string | undefined): ProjectActi
     (scope: string | undefined) => pausedForScope(snapshot, scope),
     [snapshot],
   )
+  const unseenForScope = useCallback(
+    (scope: string | undefined, sinceIso: string | undefined) =>
+      unseenFinishedForScope(snapshot, scope, sinceIso),
+    [snapshot],
+  )
   const runningCount = liveForScope(projectId)
   return {
     runningCount,
@@ -65,6 +73,7 @@ export function useProjectActivities(projectId: string | undefined): ProjectActi
     paused: pausedForScopeFn(projectId) > 0,
     liveForScope,
     pausedForScope: pausedForScopeFn,
+    unseenForScope,
   }
 }
 

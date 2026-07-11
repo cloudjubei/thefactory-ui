@@ -169,9 +169,28 @@ function ModelChipWithCli({
         apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
         model: modelId,
         effort: cliRunner?.effort ?? effort[selectedCli],
+        execMode: cliRunner?.execMode,
       })
     },
     [selectedCli, cliRunner, credentialForCli, effort, attach],
+  )
+
+  // Resident mode keeps one long-lived CLI process per chat (fast multi-turn,
+  // no per-turn container/CLI boot). Persisted on the chat's runner.
+  const residentMode = cliRunner?.execMode === 'resident'
+  const onToggleResident = useCallback(
+    (next: boolean) => {
+      if (!selectedCli) return
+      void attach({
+        tool: selectedCli,
+        credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
+        apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
+        model: cliRunner?.model ?? defaultModel[selectedCli],
+        effort: cliRunner?.effort ?? effort[selectedCli],
+        execMode: next ? 'resident' : 'per-turn',
+      })
+    },
+    [selectedCli, cliRunner, credentialForCli, defaultModel, effort, attach],
   )
 
   return (
@@ -194,6 +213,8 @@ function ModelChipWithCli({
       onPickCli={onPickCli}
       cliModels={effectiveCliModels}
       onPickCliModel={onPickCliModel}
+      residentMode={residentMode}
+      onToggleResident={onToggleResident}
     />
   )
 }

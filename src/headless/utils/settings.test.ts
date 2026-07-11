@@ -22,7 +22,9 @@ describe('mergeSettings', () => {
         shortcuts: DEFAULT_APP_SETTINGS.userPreferences.shortcuts,
         storiesListViewSorting: 'index_desc',
         storiesListViewStatusFilter: 'not-done',
-      } as Partial<typeof DEFAULT_APP_SETTINGS.userPreferences> as typeof DEFAULT_APP_SETTINGS.userPreferences,
+      } as Partial<
+        typeof DEFAULT_APP_SETTINGS.userPreferences
+      > as typeof DEFAULT_APP_SETTINGS.userPreferences,
     })
     expect(out.userPreferences.storiesViewMode).toBe('board')
     expect(out.userPreferences.storiesListViewSorting).toBe('index_desc')
@@ -64,6 +66,10 @@ describe('mergeSettings', () => {
     expect(out.notifications.categories.chat).toBe(false)
     // missing categories fall back to default
     expect(out.notifications.categories.tests).toBe(true)
+    // a blob predating a category back-fills the new key from the defaults
+    expect(out.notifications.categories['cross-project']).toBe(true)
+    expect(out.notifications.badgesEnabled['cross-project']).toBe(true)
+    expect(out.notifications.badgeColors['cross-project']).toBe('blue')
     expect(out.notifications.gitBadgeSubToggles.incoming_commits).toBe(false)
     // missing sub-toggle falls back
     expect(out.notifications.gitBadgeSubToggles.uncommitted_changes).toBe(true)

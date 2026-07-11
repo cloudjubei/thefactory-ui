@@ -333,6 +333,14 @@ function MessageRow({
                   </span>
                 ) : null}
                 {msg.usage ? <UsageChip message={msg} /> : null}
+                {msg.featureRequestId ? (
+                  <span
+                    className="text-[10px] leading-tight font-medium rounded-full px-1.5 py-[2px] border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) shrink-0"
+                    title="Resumed after a cross-project feature request completed"
+                  >
+                    ↩ Resumed by request
+                  </span>
+                ) : null}
               </div>
               {ts || thinkingLabel ? (
                 <div className="text-[10px] leading-4 text-(--text-secondary) opacity-80 select-none flex items-baseline gap-1 whitespace-nowrap">

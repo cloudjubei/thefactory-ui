@@ -56,6 +56,7 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { model: runner.model } : {}),
     ...(runner.effort ? { effort: runner.effort } : {}),
+    ...(runner.execMode ? { execMode: runner.execMode } : {}),
   }
 }
 

@@ -29,7 +29,12 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   tests: 'Test runs',
   git: 'Git changes',
   activity: 'App activity',
+  'cross-project': 'Cross-project requests',
 }
+
+/** Cross-project requests are account-global, so a per-project override is meaningless. */
+const PROJECT_SCOPED_CATEGORIES = (cs: NotificationCategory[]): NotificationCategory[] =>
+  cs.filter((c) => c !== 'cross-project')
 
 const BADGE_COLOR_HEX: Record<BadgeColor, string> = {
   red: '#ef4444',
@@ -47,8 +52,9 @@ export default function NotificationSettings() {
   const prefs = settings.notifications
 
   const categories = Object.keys(prefs.categories) as NotificationCategory[]
+  const projectCategories = PROJECT_SCOPED_CATEGORIES(categories)
 
-  const allProjectNotificationsEnabled = categories.every((c) => {
+  const allProjectNotificationsEnabled = projectCategories.every((c) => {
     const override = projectSettings.notifications.categories[c]
     return override === undefined ? prefs.categories[c] : override
   })
@@ -260,12 +266,12 @@ export default function NotificationSettings() {
               <Switch
                 checked={allProjectNotificationsEnabled}
                 onCheckedChange={(checked) => {
-                  for (const c of categories) setNotificationCategory(c, checked)
+                  for (const c of projectCategories) setNotificationCategory(c, checked)
                 }}
                 label="Enable all notifications for this project"
               />
               <div className="space-y-2 mt-4 ml-6 border-l-2 border-(--border-subtle) pl-4">
-                {categories.map((c) => {
+                {projectCategories.map((c) => {
                   const override = projectSettings.notifications.categories[c]
                   const effective = override === undefined ? prefs.categories[c] : override
                   return (

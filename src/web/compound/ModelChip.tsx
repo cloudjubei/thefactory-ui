@@ -49,6 +49,10 @@ export type ModelChipProps = {
   cliDisabled?: boolean
   /** Hover callout explaining why CLI is unavailable; shown on the disabled CLI segment. */
   cliDisabledReason?: string
+  /** When defined, surfaces the "Resident mode" switch in the CLI panel. `true` ⇒ this chat runs on a long-lived per-chat CLI process. */
+  residentMode?: boolean
+  /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
+  onToggleResident?: (next: boolean) => void
 }
 
 function providerLabel(p?: string) {
@@ -192,6 +196,8 @@ function Picker({
   onPickRecentCli,
   cliDisabled,
   cliDisabledReason,
+  residentMode,
+  onToggleResident,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -212,6 +218,8 @@ function Picker({
   onPickRecentCli?: (model: ActivityCliModel) => void
   cliDisabled?: boolean
   cliDisabledReason?: string
+  residentMode?: boolean
+  onToggleResident?: (next: boolean) => void
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -490,6 +498,29 @@ function Picker({
               ))}
             </select>
           </div>
+          {onToggleResident && (
+            <label
+              className="flex cursor-pointer items-start gap-2 px-3 py-2"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={!!residentMode}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  onToggleResident(e.target.checked)
+                }}
+              />
+              <span className="flex flex-col">
+                <span className="text-[12px] text-[var(--text-primary)]">Resident mode</span>
+                <span className="text-[10px] text-[var(--text-secondary)]">
+                  Keep one process warm per chat — faster follow-up turns.
+                </span>
+              </span>
+            </label>
+          )}
           <button
             role="menuitem"
             className="standard-picker__item"
@@ -585,6 +616,8 @@ export function ModelChip({
   onPickCliModel,
   recentCliModels,
   onPickRecentCli,
+  residentMode,
+  onToggleResident,
 }: ModelChipProps) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
@@ -711,6 +744,8 @@ export function ModelChip({
           onPickCliModel={onPickCliModel}
           recentCliModels={recentCliModels}
           onPickRecentCli={onPickRecentCli}
+          residentMode={residentMode}
+          onToggleResident={onToggleResident}
         />
       )}
     </>

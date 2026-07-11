@@ -28,6 +28,8 @@ export type BadgeCounts = {
   activityWorking: boolean
   /** True while a `running` activity isn't live (resumable; drives the paused icon). */
   activityPaused: boolean
+  /** Runs that finished since the user last opened this scope's app tab (unseen-results badge). */
+  activityUnseen: number
 }
 
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
@@ -38,6 +40,7 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   activity: 0,
   activityWorking: false,
   activityPaused: false,
+  activityUnseen: 0,
 }
 
 export type BadgeChannelToggles = {
@@ -54,6 +57,8 @@ export type BadgeActivityInput = {
   isWorking: boolean
   /** True while a `running` activity isn't live (resumable). */
   isPaused?: boolean
+  /** Runs finished since the app tab was last opened (the unseen-results count). */
+  unseenCount?: number
 }
 
 export type GitBadgeSubToggles = {
@@ -138,6 +143,7 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       out.activity = input.activity.runningCount
       out.activityWorking = input.activity.isWorking
       out.activityPaused = input.activity.isPaused ?? false
+      out.activityUnseen = input.activity.unseenCount ?? 0
     }
 
     return out

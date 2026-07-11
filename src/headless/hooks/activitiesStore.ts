@@ -7,7 +7,16 @@
  * as *paused* (resumable), not as a live spinner. Read via {@link useProjectActivities}.
  */
 
-export type ActivityLite = { activityId: string; scope: string; status: string; live: boolean }
+import { countUnseenFinished } from 'thefactory-tools/utils'
+
+export type ActivityLite = {
+  activityId: string
+  scope: string
+  status: string
+  live: boolean
+  /** When the run first reached a terminal status (feeds the unseen-results badge). */
+  finishedAt?: string
+}
 
 let byScope: Record<string, ActivityLite[]> = {}
 const listeners = new Set<() => void>()
@@ -22,13 +31,25 @@ function emit(): void {
  * server's `isLive` so orphaned runs land as paused.
  */
 export function upsertActivityRun(
-  run: { activityId?: unknown; scope?: unknown; status?: unknown; isLive?: unknown },
+  run: {
+    activityId?: unknown
+    scope?: unknown
+    status?: unknown
+    isLive?: unknown
+    finishedAt?: unknown
+  },
   live = true,
 ): void {
   if (!run || typeof run.activityId !== 'string' || typeof run.scope !== 'string') return
   const scope = run.scope
   const isLive = typeof run.isLive === 'boolean' ? run.isLive : live
-  const lite: ActivityLite = { activityId: run.activityId, scope, status: String(run.status ?? ''), live: isLive }
+  const lite: ActivityLite = {
+    activityId: run.activityId,
+    scope,
+    status: String(run.status ?? ''),
+    live: isLive,
+    finishedAt: typeof run.finishedAt === 'string' ? run.finishedAt : undefined,
+  }
   const prev = byScope[scope] ?? []
   byScope = { ...byScope, [scope]: prev.filter((a) => a.activityId !== lite.activityId).concat(lite) }
   emit()
@@ -37,11 +58,17 @@ export function upsertActivityRun(
 /** Replace a scope's full list (from a `listActivities` seed, carrying `isLive`). */
 export function replaceActivityScope(
   scope: string,
-  runs: ReadonlyArray<{ activityId: string; status: string; isLive?: boolean }>,
+  runs: ReadonlyArray<{ activityId: string; status: string; isLive?: boolean; finishedAt?: string }>,
 ): void {
   byScope = {
     ...byScope,
-    [scope]: runs.map((r) => ({ activityId: r.activityId, scope, status: r.status, live: r.isLive !== false })),
+    [scope]: runs.map((r) => ({
+      activityId: r.activityId,
+      scope,
+      status: r.status,
+      live: r.isLive !== false,
+      finishedAt: r.finishedAt,
+    })),
   }
   emit()
 }
@@ -74,4 +101,14 @@ export function pausedForScope(
 ): number {
   if (!scope) return 0
   return (snapshot[scope] ?? []).filter((a) => a.status === 'running' && !a.live).length
+}
+
+/** Runs in a scope that finished after `sinceIso` — the unseen-results badge count. */
+export function unseenFinishedForScope(
+  snapshot: Record<string, ActivityLite[]>,
+  scope: string | undefined,
+  sinceIso: string | undefined,
+): number {
+  if (!scope) return 0
+  return countUnseenFinished(snapshot[scope] ?? [], sinceIso)
 }

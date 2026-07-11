@@ -61,6 +61,15 @@ describe('chatCliRunnerToDispatchOptions', () => {
       effort: 'high',
     })
   })
+
+  it('forwards execMode so resident mode reaches the dispatch, and omits it when absent', () => {
+    expect(
+      chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1', execMode: 'resident' }),
+    ).toEqual({ cli: 'claude-code', authCredentialId: 'cli-1', execMode: 'resident' })
+    expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).not.toHaveProperty(
+      'execMode',
+    )
+  })
 })
 
 describe('chatCliRunnerToStartRunBody', () => {

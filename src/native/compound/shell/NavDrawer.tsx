@@ -23,7 +23,13 @@ import NotificationBadge, {
   type NotificationBadgeColor,
 } from '../NotificationBadge'
 import { formatBadgeCount } from '../../../headless/utils/badgeAggregation'
-import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen, IconPause } from '../../icons'
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconFolder,
+  IconFolderOpen,
+  IconPause,
+} from '../../icons'
 
 export interface NavDrawerItem {
   key: string
@@ -93,6 +99,8 @@ export interface NavDrawerProps {
   projectsEmptyLabel?: string
   /** Pinned bottom row — typically Settings. */
   footerItem?: NavDrawerItem
+  /** Extra pinned rows rendered above {@link footerItem} (e.g. an account-global Background Tasks entry). */
+  footerItemsExtra?: NavDrawerItem[]
   /** Safe-area insets supplied by the host (avoids a safe-area dependency here). */
   topInset?: number
   bottomInset?: number
@@ -119,6 +127,7 @@ export default function NavDrawer({
   projectsHeaderAction,
   projectsEmptyLabel = 'No projects yet.',
   footerItem,
+  footerItemsExtra,
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
@@ -299,7 +308,7 @@ export default function NavDrawer({
           ))}
         </ScrollView>
 
-        {footerItem ? (
+        {footerItem || (footerItemsExtra?.length ?? 0) > 0 ? (
           <View
             style={{
               paddingHorizontal: nativeSpace[2],
@@ -309,7 +318,10 @@ export default function NavDrawer({
               borderTopColor: theme.border.subtle,
             }}
           >
-            <Row item={footerItem} />
+            {footerItemsExtra?.map((item) => (
+              <Row key={item.key} item={item} />
+            ))}
+            {footerItem ? <Row item={footerItem} /> : null}
           </View>
         ) : null}
       </Animated.View>
@@ -382,11 +394,7 @@ function Row({
           tooltipLabel={item.label}
         />
       ) : item.thinking ? (
-        <SpinnerWithDot
-          size={14}
-          showDot
-          dotColor={getNotificationBadgeColor(item.badgeColor)}
-        />
+        <SpinnerWithDot size={14} showDot dotColor={getNotificationBadgeColor(item.badgeColor)} />
       ) : item.paused ? (
         <IconPause size={14} color={nativePalette.brand[500]} />
       ) : item.showDot ? (
@@ -490,7 +498,11 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
                 tooltipLabel={group.label}
               />
             ) : headerThinking ? (
-              <SpinnerWithDot size={14} showDot dotColor={getNotificationBadgeColor(group.badgeColor)} />
+              <SpinnerWithDot
+                size={14}
+                showDot
+                dotColor={getNotificationBadgeColor(group.badgeColor)}
+              />
             ) : (
               <IconPause size={14} color={nativePalette.brand[500]} />
             )}
@@ -516,4 +528,3 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
     </View>
   )
 }
-

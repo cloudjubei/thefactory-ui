@@ -14,16 +14,17 @@ export type BadgeState = {
   tests: { failing: number }
   /**
    * Background activities for the scope: `running` = live (spinner), `paused` =
-   * a `running` run that isn't live in the server process (resumable; paused icon).
+   * a `running` run that isn't live in the server process (resumable; paused icon),
+   * `unseen` = runs that finished since the user last opened this project's app tab.
    */
-  activity: { running: number; paused: number }
+  activity: { running: number; paused: number; unseen: number }
 }
 
 export const EMPTY_BADGE_STATE: BadgeState = {
   chat_messages: { unread: 0, thinking: false },
   git: { incoming: 0, uncommitted: 0 },
   tests: { failing: 0 },
-  activity: { running: 0, paused: 0 },
+  activity: { running: 0, paused: 0, unseen: 0 },
 }
 
 /** Roll member-project states up into a single group badge state. */
@@ -35,7 +36,7 @@ export function aggregateGroupBadgeState(
     chat_messages: { unread: 0, thinking: false },
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
-    activity: { running: 0, paused: 0 },
+    activity: { running: 0, paused: 0, unseen: 0 },
   }
   for (const pid of memberProjectIds) {
     const st = badgeStateByProject[pid]
@@ -47,6 +48,7 @@ export function aggregateGroupBadgeState(
     agg.tests.failing += st.tests.failing
     agg.activity.running += st.activity.running
     agg.activity.paused += st.activity.paused
+    agg.activity.unseen += st.activity.unseen
   }
   return agg
 }
@@ -60,7 +62,8 @@ export function hasAnyBadge(s: BadgeState): boolean {
     s.git.uncommitted > 0 ||
     s.tests.failing > 0 ||
     s.activity.running > 0 ||
-    s.activity.paused > 0
+    s.activity.paused > 0 ||
+    s.activity.unseen > 0
   )
 }
 

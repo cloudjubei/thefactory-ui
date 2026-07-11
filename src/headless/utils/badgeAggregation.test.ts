@@ -7,13 +7,12 @@ import {
   type BadgeState,
 } from './badgeAggregation.js'
 
-function makeState(over: Partial<BadgeState> = {}): BadgeState {
+function makeState(over: Record<string, any> = {}): BadgeState {
   return {
-    chat_messages: { unread: 0, thinking: false },
-    git: { incoming: 0, uncommitted: 0 },
-    tests: { failing: 0 },
-    activity: { running: 0, paused: 0 },
-    ...over,
+    chat_messages: { unread: 0, thinking: false, ...(over.chat_messages || {}) },
+    git: { incoming: 0, uncommitted: 0, ...(over.git || {}) },
+    tests: { failing: 0, ...(over.tests || {}) },
+    activity: { running: 0, paused: 0, unseen: 0, ...(over.activity || {}) },
   }
 }
 
@@ -23,7 +22,7 @@ describe('EMPTY_BADGE_STATE', () => {
       chat_messages: { unread: 0, thinking: false },
       git: { incoming: 0, uncommitted: 0 },
       tests: { failing: 0 },
-      activity: { running: 0, paused: 0 },
+      activity: { running: 0, paused: 0, unseen: 0 },
     })
     expect(hasAnyBadge(EMPTY_BADGE_STATE)).toBe(false)
   })
@@ -38,6 +37,7 @@ describe('hasAnyBadge', () => {
     expect(hasAnyBadge(makeState({ tests: { failing: 1 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 1, paused: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 1 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 0, unseen: 2 } }))).toBe(true)
   })
 })
 
@@ -70,18 +70,19 @@ describe('aggregateGroupBadgeState', () => {
       chat_messages: { unread: 8, thinking: true },
       git: { incoming: 3, uncommitted: 10 },
       tests: { failing: 3 },
-      activity: { running: 0, paused: 0 },
+      activity: { running: 0, paused: 0, unseen: 0 },
     })
   })
 
-  it('sums running + paused activities across members', () => {
+  it('sums running + paused + unseen activities across members', () => {
     const byProject: Record<string, BadgeState> = {
-      a: makeState({ activity: { running: 1, paused: 1 } }),
-      b: makeState({ activity: { running: 2, paused: 0 } }),
+      a: makeState({ activity: { running: 1, paused: 1, unseen: 2 } }),
+      b: makeState({ activity: { running: 2, paused: 0, unseen: 3 } }),
     }
     const agg = aggregateGroupBadgeState(['a', 'b'], byProject)
     expect(agg.activity.running).toBe(3)
     expect(agg.activity.paused).toBe(1)
+    expect(agg.activity.unseen).toBe(5)
   })
 
   it('skips member ids with no state and returns empty for no members', () => {
