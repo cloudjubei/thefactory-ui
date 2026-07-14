@@ -4,6 +4,7 @@ import Alert from '../../primitives/Alert'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import MessageList from './MessageList'
 import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type {
   ChatLiveStateLike,
   ChatMessageLike,
@@ -49,6 +50,8 @@ export interface ChatBodyProps {
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
+  /** Route an in-app `overseer://…` resource link. Forwarded to MessageList (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
   renderCliRunArtifact?: (runId: string) => ReactNode
 
@@ -97,6 +100,7 @@ export default function ChatBody({
   renderToolCall,
   onResolveFile,
   renderDependency,
+  onResourceLink,
   renderCliRunArtifact,
   onShowUsage,
   onSend,
@@ -148,6 +152,7 @@ export default function ChatBody({
           renderToolCall={renderToolCall}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}
+          onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
           onShowUsage={onShowUsage}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}

@@ -4,6 +4,8 @@ import rehypeExternalLinks from 'rehype-external-links'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
+import { parseResourceLink } from 'thefactory-tools/utils'
+import type { ResourceLink } from 'thefactory-tools/types'
 
 // Markdown renderer for chat / story content.
 //
@@ -208,9 +210,15 @@ export type MarkdownProps = {
    * doesn't, but `.md` file preview / editor surfaces do.
    */
   allowHtml?: boolean
+  /**
+   * Called when the user activates an in-app resource link (an `overseer://…` href the LLM emitted).
+   * When set, such links render as an in-app chip (no `target="_blank"`) and route here instead of
+   * opening externally; ordinary links are unaffected. Omitted ⇒ every link opens externally.
+   */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
-export default function Markdown({ text, allowHtml = false }: MarkdownProps) {
+export default function Markdown({ text, allowHtml = false, onResourceLink }: MarkdownProps) {
   const rehypePlugins = useMemo(() => {
     const plugins: NonNullable<Options['rehypePlugins']> = []
     if (allowHtml) {
@@ -221,12 +229,49 @@ export default function Markdown({ text, allowHtml = false }: MarkdownProps) {
     return plugins
   }, [allowHtml])
 
+  const activeComponents = useMemo<Partial<Components>>(() => {
+    if (!onResourceLink) return components
+    return {
+      ...components,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      a: ({ children, href, target: _target, rel: _rel, ...props }) => {
+        const link = typeof href === 'string' ? parseResourceLink(href) : undefined
+        if (link) {
+          return (
+            <a
+              className="text-(--accent-primary) hover:underline cursor-pointer"
+              href={href}
+              onClick={(e) => {
+                e.preventDefault()
+                onResourceLink(link)
+              }}
+              {...props}
+            >
+              {children}
+            </a>
+          )
+        }
+        return (
+          <a
+            className="text-(--accent-primary) hover:underline"
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            {...props}
+          >
+            {children}
+          </a>
+        )
+      },
+    }
+  }, [onResourceLink])
+
   return (
     <div className="markdown-content">
       <MemoizedReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={rehypePlugins}
-        components={components}
+        components={activeComponents}
       >
         {text}
       </MemoizedReactMarkdown>

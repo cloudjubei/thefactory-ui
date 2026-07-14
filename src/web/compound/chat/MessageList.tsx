@@ -14,6 +14,7 @@ import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import { Switch } from '../../primitives/Switch'
 import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
@@ -95,6 +96,8 @@ export type MessageListProps = {
   /** Render an inline `#<id>` reference (story / feature). Forwarded to
    * MessageRow's RichText. */
   renderDependency?: (dep: string) => ReactNode
+  /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
 
@@ -139,6 +142,7 @@ export default function MessageList({
   getToolHeaderPath,
   onResolveFile,
   renderDependency,
+  onResourceLink,
   renderCliRunArtifact,
   previewTool,
   onResumeTools,
@@ -641,6 +645,7 @@ export default function MessageList({
                 getToolHeaderPath={getToolHeaderPath}
                 onResolveFile={onResolveFile}
                 renderDependency={renderDependency}
+                onResourceLink={onResourceLink}
                 renderCliRunArtifact={renderCliRunArtifact}
                 toolPreview={
                   msg.role === 'tool' && msg.toolCall?.toolCallId

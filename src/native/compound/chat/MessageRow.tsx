@@ -2,6 +2,7 @@ import { memo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
 import Markdown from '../Markdown'
+import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { IconDelete, IconToolbox } from '../../icons'
 import type {
@@ -162,6 +163,8 @@ export interface MessageRowProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render an inline `#<id>` reference. */
   renderDependency?: (dep: string) => ReactNode
+  /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
 
@@ -215,6 +218,7 @@ function MessageRow({
   onRetry,
   onResolveFile,
   renderDependency,
+  onResourceLink,
   renderCliRunArtifact,
   onShowUsage,
   thinkingLabel,
@@ -492,7 +496,7 @@ function MessageRow({
                   textColor={theme.text.inverted}
                 />
               ) : (
-                <Markdown text={msg.content} />
+                <Markdown text={msg.content} onResourceLink={onResourceLink} />
               )}
             </CollapsibleContent>
           </View>

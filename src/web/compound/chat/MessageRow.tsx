@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import Markdown from '../Markdown'
+import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import Tooltip from '../../primitives/Tooltip'
@@ -169,6 +170,9 @@ export type MessageRowProps = {
   /** Render an inline `#<id>` reference. Host wires this against its
    * StoriesContext-equivalent. */
   renderDependency?: (dep: string) => ReactNode
+  /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). Host wires this to
+   * its `navigateToResource`; omitted ⇒ such links open externally like any other. */
+  onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`).
    * Host binds it to the chat's project (e.g. `CliRunArtifactPanel`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -199,6 +203,7 @@ function MessageRow({
   onRetry,
   onResolveFile,
   renderDependency,
+  onResourceLink,
   renderCliRunArtifact,
   toolPreview,
   toolSelectable,
@@ -388,7 +393,7 @@ function MessageRow({
                 </CollapsibleContent>
               ) : (
                 <CollapsibleContent maxHeight={600}>
-                  <Markdown text={msg.content} />
+                  <Markdown text={msg.content} onResourceLink={onResourceLink} />
                 </CollapsibleContent>
               )}
             </div>

@@ -4,6 +4,7 @@ import ChatInput, { type ChatInputProps } from './ChatInput'
 import MessageList from './MessageList'
 import ToolConfirmationModal from './ToolConfirmationModal'
 import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type {
   ChatLiveStateLike,
@@ -42,6 +43,8 @@ export type ChatBodyProps = {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render `#<id>` inline references. Forwarded to MessageList. */
   renderDependency?: (dep: string) => ReactNode
+  /** Route an in-app `overseer://…` resource link the assistant emitted. Forwarded to MessageList (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
   renderCliRunArtifact?: (runId: string) => ReactNode
 
@@ -116,6 +119,7 @@ export default function ChatBody({
   getToolHeaderPath,
   onResolveFile,
   renderDependency,
+  onResourceLink,
   renderCliRunArtifact,
   onSend,
   onAbort,
@@ -168,6 +172,7 @@ export default function ChatBody({
           getToolHeaderPath={getToolHeaderPath}
           onResolveFile={onResolveFile}
           renderDependency={renderDependency}
+          onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
           numberMessagesToSend={numberMessagesToSend}
           lastReadIso={lastReadIso}

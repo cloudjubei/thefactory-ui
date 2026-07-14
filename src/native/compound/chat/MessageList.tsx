@@ -11,6 +11,7 @@ import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import { formatDurationMs } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type {
   ChatMessageLike,
   ToolCallLike,
@@ -87,6 +88,8 @@ export interface MessageListProps {
   }) => ReactNode
 
   onResolveFile?: (token: string) => UikitFileMeta | null
+  /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
   renderDependency?: (dep: string) => ReactNode
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -115,6 +118,7 @@ export default function MessageList({
   onRetry,
   renderToolCall,
   onResolveFile,
+  onResourceLink,
   renderDependency,
   renderCliRunArtifact,
   onShowUsage,
@@ -336,6 +340,7 @@ export default function MessageList({
                   onRetry={onRetry}
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
+                  onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
                   onShowUsage={onShowUsage}
                   thinkingLabel={perMsgThinking}
@@ -368,6 +373,7 @@ export default function MessageList({
             enhancedTotalLength={windowed.length + 1}
             onResolveFile={onResolveFile}
             renderDependency={renderDependency}
+            onResourceLink={onResourceLink}
             thinkingLabel={thinkingLabel}
           />
         )}

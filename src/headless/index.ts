@@ -413,6 +413,9 @@ export {
 
 // Raw project-file bytes endpoint (image / PDF / binary viewers)
 export { rawFileUrl } from './utils/rawFileUrl'
+export { persistAppDataCapabilities } from './utils/dataCapabilities'
+export { resolveResourceNav, type ResourceNav } from './utils/resourceNav'
+export type { ResourceLink } from 'thefactory-tools/types'
 
 // Tools screen — JSON-Schema accessors, value coercion, category grouping
 export {

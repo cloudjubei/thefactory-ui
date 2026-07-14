@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Linking, StyleSheet, View } from 'react-native'
 import MarkdownDisplay, { type MarkdownProps as DisplayProps } from 'react-native-markdown-display'
+import { parseResourceLink } from 'thefactory-tools/utils'
+import type { ResourceLink } from 'thefactory-tools/types'
 
 import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
@@ -10,6 +12,8 @@ export type MarkdownProps = {
   /** Allow raw HTML in the source. Matches the web peer's prop surface;
    *  ignored on native (react-native-markdown-display strips HTML by default). */
   allowHtml?: boolean
+  /** Route an in-app `overseer://…` resource link here instead of opening it externally (F.2). */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 /**
@@ -23,16 +27,21 @@ export type MarkdownProps = {
  * `#<dep>` mentions are not interpreted here — render the source through
  * [`RichText`](./files/RichText.tsx) for the mention-aware variant.
  */
-export default function Markdown({ text }: MarkdownProps) {
+export default function Markdown({ text, onResourceLink }: MarkdownProps) {
   const { theme } = useNativeTheme()
   const styles = useMemo(() => makeStyles(theme), [theme])
 
   const onLinkPress = useMemo<DisplayProps['onLinkPress']>(
     () => (url) => {
+      const link = onResourceLink ? parseResourceLink(url) : undefined
+      if (link) {
+        onResourceLink!(link)
+        return false
+      }
       void Linking.openURL(url).catch(() => undefined)
       return false
     },
-    [],
+    [onResourceLink],
   )
 
   return (
