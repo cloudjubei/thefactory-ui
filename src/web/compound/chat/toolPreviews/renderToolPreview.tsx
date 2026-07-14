@@ -168,7 +168,34 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'runShellCommand',
   'shell',
   'requestProjectFeature',
+  'recommendTrainingExperiments',
 ])
+
+/** Compact one-line summary of a training experiment spec ({sweep?, fixed?, seeds?, environments?,
+ * datasets?}) for the recommendTrainingExperiments preview — no manifest needed, just the shape. */
+function summarizeExperimentSpec(spec: unknown): string {
+  const parts: string[] = []
+  const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
+  if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
+    const keys = Object.entries(sweep).map(([k, v]) => `${k}[${Array.isArray(v) ? v.length : 1}]`)
+    if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
+  }
+  const fixed = extract(spec, ['fixed']) as Record<string, unknown> | undefined
+  if (fixed && typeof fixed === 'object' && !Array.isArray(fixed)) {
+    const keys = Object.entries(fixed).map(([k, v]) => `${k}=${String(v)}`)
+    if (keys.length) parts.push(`fixed ${keys.join(', ')}`)
+  }
+  const seeds = extract(spec, ['seeds'])
+  if (Array.isArray(seeds) && seeds.length)
+    parts.push(`${seeds.length} seed${seeds.length === 1 ? '' : 's'}`)
+  const envs = extract(spec, ['environments'])
+  if (Array.isArray(envs) && envs.length)
+    parts.push(`${envs.length} env${envs.length === 1 ? '' : 's'}`)
+  const datasets = extract(spec, ['datasets'])
+  if (Array.isArray(datasets) && datasets.length)
+    parts.push(`${datasets.length} dataset${datasets.length === 1 ? '' : 's'}`)
+  return parts.join(' · ') || 'default config'
+}
 
 /** True when {@link renderToolPreview} has a dedicated drawer for `name`. */
 export function hasToolPreview(name: string): boolean {
@@ -1248,6 +1275,80 @@ export function renderToolPreview({
           <div>
             <SectionTitle>stderr</SectionTitle>
             <PreLimited lines={stderr.split(/\r?\n/)} maxLines={20} />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (name === 'recommendTrainingExperiments') {
+    // The tool's own return, whether stored raw or wrapped one level under `result`.
+    const payload =
+      extract(result, ['suggestions']) !== undefined || extract(result, ['accepted']) !== undefined
+        ? result
+        : (extract(result, ['result']) ?? result)
+    const suggestions = (extract(payload, ['suggestions']) as unknown[] | undefined) ?? []
+    const accepted = (extract(payload, ['accepted']) as number | undefined) ?? suggestions.length
+    const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
+    const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
+    if (isInFlight && !suggestions.length) {
+      return <div className="text-[11px] text-(--text-secondary)">Preparing experiments…</div>
+    }
+    return (
+      <div className="text-xs space-y-2">
+        <Row>
+          <span className="font-mono text-[11px]">{accepted} queued</span>
+          {skipped ? (
+            <>
+              <span className="mx-1">·</span>
+              <span className="font-mono text-[11px]">{skipped} already known</span>
+            </>
+          ) : null}
+          {rejected.length ? (
+            <>
+              <span className="mx-1">·</span>
+              <span className="font-mono text-[11px]">{rejected.length} rejected</span>
+            </>
+          ) : null}
+        </Row>
+        {suggestions.length ? (
+          <div className="space-y-1.5">
+            {suggestions.slice(0, 12).map((s, i) => {
+              const title = tryString(extract(s, ['title'])) || `experiment ${i + 1}`
+              const rationale = tryString(extract(s, ['rationale'])) || ''
+              return (
+                <div key={i} className="rounded border border-(--border) px-2 py-1.5">
+                  <div className="font-medium">{title}</div>
+                  {rationale ? <div className="text-(--text-secondary)">{rationale}</div> : null}
+                  <div className="font-mono text-[11px] text-(--text-secondary)">
+                    {summarizeExperimentSpec(extract(s, ['spec']))}
+                  </div>
+                </div>
+              )
+            })}
+            {suggestions.length > 12 ? (
+              <div className="text-[11px] text-(--text-secondary)">
+                + {suggestions.length - 12} more
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {rejected.length ? (
+          <div>
+            <SectionTitle>Not queued</SectionTitle>
+            <PreLimited
+              lines={rejected.map(
+                (r) =>
+                  `${tryString(extract(r, ['title'])) || '—'}: ${tryString(extract(r, ['reason'])) || 'rejected'}`,
+              )}
+              maxLines={6}
+            />
+          </div>
+        ) : null}
+        {suggestions.length ? (
+          <div className="text-[11px] text-(--text-secondary)">
+            Queued as ✦ AI suggestions in this project’s xAI → Suggested view, where you can launch
+            them.
           </div>
         ) : null}
       </div>

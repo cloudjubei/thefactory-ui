@@ -146,7 +146,33 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'runShellCommand',
   'shell',
   'requestProjectFeature',
+  'recommendTrainingExperiments',
 ])
+
+/** Compact one-line summary of a training experiment spec — mirrors web's `summarizeExperimentSpec`. */
+function summarizeExperimentSpec(spec: unknown): string {
+  const parts: string[] = []
+  const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
+  if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
+    const keys = Object.entries(sweep).map(([k, v]) => `${k}[${Array.isArray(v) ? v.length : 1}]`)
+    if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
+  }
+  const fixed = extract(spec, ['fixed']) as Record<string, unknown> | undefined
+  if (fixed && typeof fixed === 'object' && !Array.isArray(fixed)) {
+    const keys = Object.entries(fixed).map(([k, v]) => `${k}=${String(v)}`)
+    if (keys.length) parts.push(`fixed ${keys.join(', ')}`)
+  }
+  const seeds = extract(spec, ['seeds'])
+  if (Array.isArray(seeds) && seeds.length)
+    parts.push(`${seeds.length} seed${seeds.length === 1 ? '' : 's'}`)
+  const envs = extract(spec, ['environments'])
+  if (Array.isArray(envs) && envs.length)
+    parts.push(`${envs.length} env${envs.length === 1 ? '' : 's'}`)
+  const datasets = extract(spec, ['datasets'])
+  if (Array.isArray(datasets) && datasets.length)
+    parts.push(`${datasets.length} dataset${datasets.length === 1 ? '' : 's'}`)
+  return parts.join(' · ') || 'default config'
+}
 
 /** True when {@link renderToolPreviewNative} has a dedicated drawer for `name`. */
 export function hasToolPreview(name: string): boolean {
@@ -1243,6 +1269,61 @@ export function renderToolPreviewNative({
             <SectionTitle>stderr</SectionTitle>
             <PreLimited lines={stderr.split(/\r?\n/)} maxLines={20} />
           </View>
+        ) : null}
+      </View>
+    )
+  }
+
+  if (name === 'recommendTrainingExperiments') {
+    const payload =
+      extract(result, ['suggestions']) !== undefined || extract(result, ['accepted']) !== undefined
+        ? result
+        : (extract(result, ['result']) ?? result)
+    const suggestions = (extract(payload, ['suggestions']) as unknown[] | undefined) ?? []
+    const accepted = (extract(payload, ['accepted']) as number | undefined) ?? suggestions.length
+    const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
+    const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
+    if (isInFlight && !suggestions.length) {
+      return <SecondaryText>Preparing experiments…</SecondaryText>
+    }
+    return (
+      <View style={{ gap: nativeSpace[2] }}>
+        <Row>
+          <MonoText>{accepted} queued</MonoText>
+          {skipped ? <MonoText>· {skipped} already known</MonoText> : null}
+          {rejected.length ? <MonoText>· {rejected.length} rejected</MonoText> : null}
+        </Row>
+        {suggestions.slice(0, 12).map((s, i) => {
+          const title = tryString(extract(s, ['title'])) || `experiment ${i + 1}`
+          const rationale = tryString(extract(s, ['rationale'])) || ''
+          return (
+            <View key={i} style={{ gap: 2 }}>
+              <Text style={{ fontWeight: '600', color: theme.text.primary }}>{title}</Text>
+              {rationale ? <SecondaryText>{rationale}</SecondaryText> : null}
+              <MonoText>{summarizeExperimentSpec(extract(s, ['spec']))}</MonoText>
+            </View>
+          )
+        })}
+        {suggestions.length > 12 ? (
+          <SecondaryText>+ {suggestions.length - 12} more</SecondaryText>
+        ) : null}
+        {rejected.length ? (
+          <View>
+            <SectionTitle>Not queued</SectionTitle>
+            <PreLimited
+              lines={rejected.map(
+                (r) =>
+                  `${tryString(extract(r, ['title'])) || '—'}: ${tryString(extract(r, ['reason'])) || 'rejected'}`,
+              )}
+              maxLines={6}
+            />
+          </View>
+        ) : null}
+        {suggestions.length ? (
+          <SecondaryText>
+            Queued as ✦ AI suggestions in this project’s xAI → Suggested view, where you can launch
+            them.
+          </SecondaryText>
         ) : null}
       </View>
     )
