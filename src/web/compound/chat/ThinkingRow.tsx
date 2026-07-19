@@ -10,9 +10,18 @@ export type ThinkingRowProps = {
   /** Optional text shown beside the spinner in the no-reasoning state — used for
    * a transient status (e.g. "Starting the agent…" while a CLI sandbox boots). */
   spinnerLabel?: string
+  /** Optional secondary line under {@link spinnerLabel} (e.g. a reassuring note
+   * that the first CLI turn is the slow one while the sandbox warms up). */
+  spinnerSubLabel?: string
 }
 
-function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning', spinnerLabel }: ThinkingRowProps) {
+function ThinkingRow({
+  thinking,
+  defaultOpen = false,
+  label = 'Reasoning',
+  spinnerLabel,
+  spinnerSubLabel,
+}: ThinkingRowProps) {
   const [open, setOpen] = useState(defaultOpen)
   const reasoning = thinking?.trim()
 
@@ -48,10 +57,17 @@ function ThinkingRow({ thinking, defaultOpen = false, label = 'Reasoning', spinn
           </div>
         ) : (
           <div className="overflow-x-auto max-w-full px-3 py-2 rounded-2xl rounded-bl-md whitespace-pre-wrap wrap-break-word shadow bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle)">
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-2.5">
               <Spinner />
-              {spinnerLabel ? (
-                <span className="text-xs text-(--text-secondary)">{spinnerLabel}</span>
+              {spinnerLabel || spinnerSubLabel ? (
+                <span className="flex flex-col leading-tight">
+                  {spinnerLabel ? (
+                    <span className="text-xs text-(--text-secondary)">{spinnerLabel}</span>
+                  ) : null}
+                  {spinnerSubLabel ? (
+                    <span className="text-[11px] text-(--text-muted)">{spinnerSubLabel}</span>
+                  ) : null}
+                </span>
               ) : null}
             </span>
           </div>

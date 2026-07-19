@@ -695,12 +695,14 @@ export type ChatContext = {
     | 'AGENT_RUN_STORY'
     | 'AGENT_RUN_FEATURE'
     | 'PROJECT_TOPIC'
+    | 'FEATURE_REQUEST'
   groupId?: string
   projectId?: string
   storyId?: string
   featureId?: string
   agentRunId?: string
   topicId?: string
+  featureRequestId?: string
   timestamp?: string
 }
 

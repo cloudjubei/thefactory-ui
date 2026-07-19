@@ -1,15 +1,28 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import {
   buildBridgeResponse,
+  buildNavOpenMessage,
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import {
+  serializeAppDeepLink,
+  shouldPushDeepLink,
+  type AppDeepLink,
+} from '../../headless/utils/appDeepLink'
 
 export type ProjectAppViewProps = {
   /** Absolute URL to the project's App view (with the signed `viewToken`). `undefined` while loading. */
   url: string | undefined
   /** Bump to force a remount of the underlying iframe — typically the `key` returned by `useProjectAppView`. */
   remountKey?: number
+  /**
+   * The App tab's current deep-link ({@link AppDeepLink} from the route query). When it CHANGES while the app
+   * stays mounted (a resource-link chip click), it is PUSHED to the running app via `nav.open` — the iframe
+   * doesn't remount, so a boot-time `nav.current` pull alone would miss it. A fresh mount/remount does NOT
+   * push (the app re-pulls at boot). `undefined`/`null` ⇒ no deep-link.
+   */
+  deepLink?: AppDeepLink | null
   /** Rendered when `url` is `undefined` (e.g. token still being granted, or project has no preview yet). */
   fallback?: ReactNode
   /**
@@ -36,6 +49,7 @@ export default function ProjectAppView({
   remountKey = 0,
   fallback,
   onBridgeMessage,
+  deepLink,
   topRightOverlay,
   className,
   style,
@@ -46,6 +60,24 @@ export default function ProjectAppView({
   handlerRef.current = onBridgeMessage
 
   const expectedOrigin = url ? safeOrigin(url) : null
+
+  // Host→app deep-link PUSH: when the route's deep-link changes while the iframe stays mounted, notify the
+  // running app via `nav.open`. A (re)mount resets the baseline and does NOT push (the app pulls nav.current
+  // at boot) — see shouldPushDeepLink.
+  const serializedDeepLink = serializeAppDeepLink(deepLink)
+  const lastSerializedRef = useRef<string | null>(null)
+  const lastRemountRef = useRef(remountKey)
+  useEffect(() => {
+    if (lastRemountRef.current !== remountKey) {
+      lastRemountRef.current = remountKey
+      lastSerializedRef.current = null // fresh mount/remount baseline
+    }
+    const prev = lastSerializedRef.current
+    lastSerializedRef.current = serializedDeepLink
+    if (!expectedOrigin || !deepLink) return
+    if (!shouldPushDeepLink(prev, serializedDeepLink)) return
+    iframeRef.current?.contentWindow?.postMessage(buildNavOpenMessage(deepLink), expectedOrigin)
+  }, [serializedDeepLink, expectedOrigin, remountKey, deepLink])
 
   useEffect(() => {
     if (!expectedOrigin) return

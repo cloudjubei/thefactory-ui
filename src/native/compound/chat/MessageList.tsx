@@ -407,6 +407,7 @@ export default function MessageList({
                       ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
                       : 'the agent'
                   }…`,
+                  spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
                 }
               : {})}
           />

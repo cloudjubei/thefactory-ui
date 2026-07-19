@@ -1,5 +1,5 @@
 import { memo, useMemo, type FC } from 'react'
-import ReactMarkdown, { type Components, type Options } from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform, type Components, type Options } from 'react-markdown'
 import rehypeExternalLinks from 'rehype-external-links'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
@@ -229,6 +229,18 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
     return plugins
   }, [allowHtml])
 
+  // react-markdown sanitises hrefs through `urlTransform` BEFORE components render; its default
+  // allowlist (http/https/mailto/…) rewrites our custom `overseer://` scheme to '', which would kill
+  // the interception below. Preserve `overseer://` when a handler is present; keep the safe default
+  // (XSS protection) for every other scheme.
+  const urlTransform = useMemo<NonNullable<Options['urlTransform']>>(
+    () =>
+      onResourceLink
+        ? (url) => (url.startsWith('overseer://') ? url : defaultUrlTransform(url))
+        : defaultUrlTransform,
+    [onResourceLink],
+  )
+
   const activeComponents = useMemo<Partial<Components>>(() => {
     if (!onResourceLink) return components
     return {
@@ -271,6 +283,7 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
       <MemoizedReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={rehypePlugins}
+        urlTransform={urlTransform}
         components={activeComponents}
       >
         {text}

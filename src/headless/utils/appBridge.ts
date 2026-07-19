@@ -8,6 +8,8 @@
 // inline them or load them with a per-load cache-bust (the canonical snippet is
 // in that doc).
 
+import type { AppDeepLink } from './appDeepLink'
+
 export const BRIDGE_PREFIX = 'overseer:'
 
 export interface BridgeRequest {
@@ -51,6 +53,16 @@ export function parseBridgeMessage(raw: unknown): BridgeRequest | null {
   if (typeof rec.id === 'string') req.id = rec.id
   if ('payload' in rec) req.payload = rec.payload
   return req
+}
+
+/**
+ * A host→app PUSH notifying an ALREADY-MOUNTED embedded app of a new deep-link. Fire-and-forget (no `id`) —
+ * the app routes it by name and does not reply. Complements the boot-time `nav.current` PULL: that covers a
+ * fresh mount, this covers a route change while the app stays mounted (the iframe/WebView does not remount).
+ * Same `{view, params}` payload, so the app applies both through one path.
+ */
+export function buildNavOpenMessage(deepLink: AppDeepLink): BridgeRequest {
+  return { type: BRIDGE_PREFIX + 'nav.open', payload: deepLink }
 }
 
 export function buildBridgeResponse(

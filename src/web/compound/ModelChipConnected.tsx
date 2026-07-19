@@ -176,7 +176,11 @@ function ModelChipWithCli({
   )
 
   // Resident mode keeps one long-lived CLI process per chat (fast multi-turn,
-  // no per-turn container/CLI boot). Persisted on the chat's runner.
+  // no per-turn container/CLI boot). Persisted on the chat's runner. Each CLI
+  // runs resident via its own persistent-server protocol — claude-code
+  // (stream-json), codex (`codex mcp-server`), cursor-agent (`cursor-agent acp`).
+  const residentEligible =
+    selectedCli === 'claude-code' || selectedCli === 'codex' || selectedCli === 'cursor-agent'
   const residentMode = cliRunner?.execMode === 'resident'
   const onToggleResident = useCallback(
     (next: boolean) => {
@@ -214,7 +218,7 @@ function ModelChipWithCli({
       cliModels={effectiveCliModels}
       onPickCliModel={onPickCliModel}
       residentMode={residentMode}
-      onToggleResident={onToggleResident}
+      {...(residentEligible ? { onToggleResident } : {})}
     />
   )
 }

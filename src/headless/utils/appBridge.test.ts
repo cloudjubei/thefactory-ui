@@ -3,6 +3,7 @@ import {
   BRIDGE_PREFIX,
   bridgeMessageName,
   buildBridgeResponse,
+  buildNavOpenMessage,
   parseBridgeMessage,
 } from './appBridge'
 
@@ -66,5 +67,16 @@ describe('buildBridgeResponse', () => {
 
   it('exposes the prefix constant', () => {
     expect(BRIDGE_PREFIX).toBe('overseer:')
+  })
+
+  it('builds a fire-and-forget nav.open PUSH (typed message, no id) that round-trips as a request', () => {
+    const dl = { view: 'runs', params: { run: 'r1' } }
+    const msg = buildNavOpenMessage(dl)
+    expect(msg).toEqual({ type: 'overseer:nav.open', payload: dl })
+    expect(msg.id).toBeUndefined()
+    // A pushed request is still a valid bridge REQUEST (the app routes it by name) and NOT a response.
+    expect(parseBridgeMessage(msg)).toEqual({ type: 'overseer:nav.open', payload: dl })
+    expect((msg as { overseerBridgeResponse?: unknown }).overseerBridgeResponse).toBeUndefined()
+    expect(bridgeMessageName(msg.type)).toBe('nav.open')
   })
 })

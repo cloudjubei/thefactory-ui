@@ -1,7 +1,10 @@
 import { type ReactNode } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import { extract, tryString } from '../../../../headless/utils/toolPreview'
+import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
+import { parseResourceLink } from 'thefactory-tools/utils'
+import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import { nativeFontFamilies, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
@@ -50,6 +53,9 @@ export type ToolPreviewHooks = {
     status?: string
     cycleDetected?: boolean
   }) => ReactNode
+  /** Route an in-app `overseer://…` resource link tapped in a tool result (F.3). Host wires its
+   * `navigateToResource`; omitted ⇒ result links render as inert labels. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 export type RenderToolPreviewArgs = {
@@ -147,6 +153,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'shell',
   'requestProjectFeature',
   'recommendTrainingExperiments',
+  'queryProjectData',
+  'updateProjectRecord',
 ])
 
 /** Compact one-line summary of a training experiment spec — mirrors web's `summarizeExperimentSpec`. */
@@ -154,7 +162,9 @@ function summarizeExperimentSpec(spec: unknown): string {
   const parts: string[] = []
   const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
   if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
-    const keys = Object.entries(sweep).map(([k, v]) => `${k}[${Array.isArray(v) ? v.length : 1}]`)
+    const keys = Object.entries(sweep).map(
+      ([k, v]) => `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
+    )
     if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
   }
   const fixed = extract(spec, ['fixed']) as Record<string, unknown> | undefined
@@ -623,6 +633,48 @@ export function renderToolPreviewNative({
       )
     }
     // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+  }
+
+  // ---- generic project-data reads/writes (F.1) → tappable resource-link chips (F.3) ----
+  if (name === 'queryProjectData' || name === 'updateProjectRecord') {
+    const links = toolResultResourceLinks(result)
+    if (links.length > 0) {
+      const total = extract(result, ['total'])
+      const onLink = hooks?.onResourceLink
+      const label =
+        typeof total === 'number'
+          ? `${total} record${total === 1 ? '' : 's'}`
+          : `${links.length} record${links.length === 1 ? '' : 's'}`
+      return (
+        <View style={{ gap: nativeSpace[2] }}>
+          <Text style={{ color: theme.text.secondary, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
+            {links.map((l) => (
+              <Pressable
+                key={l.link}
+                disabled={!onLink}
+                onPress={() => {
+                  const parsed = parseResourceLink(l.link)
+                  if (parsed && onLink) onLink(parsed)
+                }}
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.border.subtle,
+                  borderRadius: 999,
+                  paddingHorizontal: nativeSpace[3],
+                  paddingVertical: nativeSpace[1],
+                }}
+              >
+                <Text style={{ color: onLink ? theme.accent.primary : theme.text.secondary, fontSize: 13 }}>
+                  {l.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )
+    }
+    // No resource links — fall through to the JSON fallback.
   }
 
   if (name === 'completeAssignment' || name === 'blockFeature') {
@@ -1283,6 +1335,8 @@ export function renderToolPreviewNative({
     const accepted = (extract(payload, ['accepted']) as number | undefined) ?? suggestions.length
     const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
     const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
+    const viewLink = tryString(extract(payload, ['viewLink']))
+    const onLink = hooks?.onResourceLink
     if (isInFlight && !suggestions.length) {
       return <SecondaryText>Preparing experiments…</SecondaryText>
     }
@@ -1319,10 +1373,35 @@ export function renderToolPreviewNative({
             />
           </View>
         ) : null}
-        {suggestions.length ? (
+        {suggestions.length && viewLink && onLink ? (
+          <Pressable
+            onPress={() => {
+              const parsed = parseResourceLink(viewLink)
+              if (parsed && onLink) onLink(parsed)
+            }}
+            style={{
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+              borderRadius: 999,
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: nativeSpace[1],
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Text style={{ color: theme.accent.primary, fontSize: 13 }}>
+              Open in xAI → Suggested to launch
+            </Text>
+          </Pressable>
+        ) : suggestions.length ? (
           <SecondaryText>
-            Queued as ✦ AI suggestions in this project’s xAI → Suggested view, where you can launch
-            them.
+            Queued as ✦ AI suggestions in this project’s xAI (model-insights) tab → Suggested, where
+            you can launch them.
+          </SecondaryText>
+        ) : null}
+        {!suggestions.length && !rejected.length && skipped > 0 ? (
+          <SecondaryText>
+            No new experiments to queue — all {skipped} proposal{skipped === 1 ? '' : 's'} already
+            exist in this project.
           </SecondaryText>
         ) : null}
       </View>

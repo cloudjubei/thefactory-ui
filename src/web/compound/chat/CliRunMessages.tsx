@@ -27,6 +27,10 @@ export type CliRunMessagesProps = {
   renderCliRunArtifact?: (runId: string) => ReactNode
 }
 
+/** Reassurance shown under "Preparing <agent>…" — the container/CLI cold-start is
+ * paid up-front, so the first turn is the slow one. */
+const CLI_BOOT_SUBLABEL = 'The first message is slowest while the sandbox starts up.'
+
 /**
  * Renders a CLI agent run as ordinary chat messages — the run's transcript is
  * converted to the SAME `assistant` + `tool` message shape an API agent
@@ -93,7 +97,10 @@ export default function CliRunMessages({
       {active ? (
         <ThinkingRow
           {...(booting
-            ? { spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…` }
+            ? {
+                spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…`,
+                spinnerSubLabel: CLI_BOOT_SUBLABEL,
+              }
             : {})}
         />
       ) : null}

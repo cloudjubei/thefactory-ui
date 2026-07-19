@@ -1,17 +1,29 @@
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import {
   buildBridgeResponse,
+  buildNavOpenMessage,
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import {
+  serializeAppDeepLink,
+  shouldPushDeepLink,
+  type AppDeepLink,
+} from '../../headless/utils/appDeepLink'
 
 export type ProjectAppViewProps = {
   /** Absolute URL to the project's App view (with the signed `viewToken`). `undefined` while loading. */
   url: string | undefined
   /** Bump to force a remount of the underlying WebView — typically the `key` returned by `useProjectAppView`. */
   remountKey?: number
+  /**
+   * The App tab's current deep-link. When it CHANGES while the WebView stays mounted, it is PUSHED to the
+   * running app via `nav.open` (a boot-time `nav.current` pull would miss a change without a remount). A
+   * fresh mount/remount does NOT push. `undefined`/`null` ⇒ no deep-link.
+   */
+  deepLink?: AppDeepLink | null
   /** Rendered when `url` is `undefined` (e.g. token still being granted). */
   fallback?: ReactNode
   /**
@@ -38,10 +50,28 @@ export default function ProjectAppView({
   remountKey = 0,
   fallback,
   onBridgeMessage,
+  deepLink,
   topRightOverlay,
   style,
 }: ProjectAppViewProps) {
   const webviewRef = useRef<WebView | null>(null)
+
+  // Host→app deep-link PUSH (mirror of web ProjectAppView) — see shouldPushDeepLink. Emits via the existing
+  // `deliver` (injects a MessageEvent), so no new native plumbing.
+  const serializedDeepLink = serializeAppDeepLink(deepLink)
+  const lastSerializedRef = useRef<string | null>(null)
+  const lastRemountRef = useRef(remountKey)
+  useEffect(() => {
+    if (lastRemountRef.current !== remountKey) {
+      lastRemountRef.current = remountKey
+      lastSerializedRef.current = null
+    }
+    const prev = lastSerializedRef.current
+    lastSerializedRef.current = serializedDeepLink
+    if (!url || !deepLink) return
+    if (!shouldPushDeepLink(prev, serializedDeepLink)) return
+    deliver(webviewRef.current, buildNavOpenMessage(deepLink))
+  }, [serializedDeepLink, url, remountKey, deepLink])
 
   const handleMessage = async (event: WebViewMessageEvent) => {
     if (!onBridgeMessage) return

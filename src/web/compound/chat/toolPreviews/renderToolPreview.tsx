@@ -13,6 +13,9 @@ import { PatchPreview, SmallBadge } from './FieldDiff'
 import { WriteMultiToolsPreview } from './WriteMultiToolsPreview'
 import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
 import { extract, safePreviewString, tryString } from '../../../../headless/utils/toolPreview'
+import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
+import { parseResourceLink } from 'thefactory-tools/utils'
+import type { ResourceLink } from 'thefactory-tools/types'
 
 export type StoryShape = {
   id: string
@@ -58,6 +61,9 @@ export type ToolPreviewHooks = {
     status?: string
     cycleDetected?: boolean
   }) => ReactNode
+  /** Route an in-app `overseer://…` resource link the user clicked in a tool result (F.3). Host wires
+   * its `navigateToResource`; omitted ⇒ result links render as inert labels. */
+  onResourceLink?: (link: ResourceLink) => void
 }
 
 export type RenderToolPreviewArgs = {
@@ -169,6 +175,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'shell',
   'requestProjectFeature',
   'recommendTrainingExperiments',
+  'queryProjectData',
+  'updateProjectRecord',
 ])
 
 /** Compact one-line summary of a training experiment spec ({sweep?, fixed?, seeds?, environments?,
@@ -177,7 +185,9 @@ function summarizeExperimentSpec(spec: unknown): string {
   const parts: string[] = []
   const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
   if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
-    const keys = Object.entries(sweep).map(([k, v]) => `${k}[${Array.isArray(v) ? v.length : 1}]`)
+    const keys = Object.entries(sweep).map(
+      ([k, v]) => `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
+    )
     if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
   }
   const fixed = extract(spec, ['fixed']) as Record<string, unknown> | undefined
@@ -393,6 +403,43 @@ export function renderToolPreview({
       )
     }
     // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+  }
+
+  // ---- generic project-data reads/writes (F.1) → clickable resource-link chips (F.3) ----
+  if (name === 'queryProjectData' || name === 'updateProjectRecord') {
+    const links = toolResultResourceLinks(result)
+    if (links.length > 0) {
+      const total = extract(result, ['total'])
+      const onLink = hooks?.onResourceLink
+      const openLink = (raw: string) => {
+        const parsed = parseResourceLink(raw)
+        if (parsed && onLink) onLink(parsed)
+      }
+      return (
+        <div className="flex flex-col gap-2">
+          <SectionTitle>
+            {typeof total === 'number'
+              ? `${total} record${total === 1 ? '' : 's'}`
+              : `${links.length} record${links.length === 1 ? '' : 's'}`}
+          </SectionTitle>
+          <div className="flex flex-wrap gap-2">
+            {links.map((l) => (
+              <button
+                key={l.link}
+                type="button"
+                disabled={!onLink}
+                onClick={() => openLink(l.link)}
+                className="rounded-full border border-(--border-subtle) px-3 py-1 text-sm text-(--accent-primary) hover:bg-(--surface-muted) disabled:cursor-default disabled:text-(--text-secondary) disabled:hover:bg-transparent"
+                title={l.link}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    // No resource links (e.g. a manifest-less type or an error result) — fall through to the fallback.
   }
 
   if (name === 'getStory') {
@@ -1291,6 +1338,12 @@ export function renderToolPreview({
     const accepted = (extract(payload, ['accepted']) as number | undefined) ?? suggestions.length
     const skipped = (extract(payload, ['skippedExisting']) as number | undefined) ?? 0
     const rejected = (extract(payload, ['rejected']) as unknown[] | undefined) ?? []
+    const viewLink = tryString(extract(payload, ['viewLink']))
+    const onLink = hooks?.onResourceLink
+    const openViewLink = () => {
+      const parsed = viewLink ? parseResourceLink(viewLink) : undefined
+      if (parsed && onLink) onLink(parsed)
+    }
     if (isInFlight && !suggestions.length) {
       return <div className="text-[11px] text-(--text-secondary)">Preparing experiments…</div>
     }
@@ -1345,10 +1398,25 @@ export function renderToolPreview({
             />
           </div>
         ) : null}
-        {suggestions.length ? (
+        {suggestions.length && viewLink && onLink ? (
+          <button
+            type="button"
+            onClick={openViewLink}
+            className="rounded-full border border-(--border-subtle) px-3 py-1 text-sm text-(--accent-primary) hover:bg-(--surface-muted)"
+            title={viewLink}
+          >
+            Open in xAI → Suggested to launch
+          </button>
+        ) : suggestions.length ? (
           <div className="text-[11px] text-(--text-secondary)">
-            Queued as ✦ AI suggestions in this project’s xAI → Suggested view, where you can launch
-            them.
+            Queued as ✦ AI suggestions in this project’s xAI (model-insights) tab → Suggested,
+            where you can launch them.
+          </div>
+        ) : null}
+        {!suggestions.length && !rejected.length && skipped > 0 ? (
+          <div className="text-[11px] text-(--text-secondary)">
+            No new experiments to queue — all {skipped} proposal{skipped === 1 ? '' : 's'} already
+            exist in this project.
           </div>
         ) : null}
       </div>
