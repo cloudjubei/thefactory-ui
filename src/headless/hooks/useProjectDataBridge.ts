@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { dispatchProjectDataBridge } from '../api/projectData'
 import { dispatchLiveDataBridge } from '../api/liveDataBridge'
-import { dispatchAnalysisBridge } from '../api/analysisBridge'
 import { dispatchActivitiesBridge } from '../api/activitiesBridge'
 import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
@@ -59,7 +58,7 @@ export function useProjectDataBridge(
       if (runners !== undefined) return runners
       const projects = await dispatchProjectsBridge(req)
       if (projects !== undefined) return projects
-      return dispatchAnalysisBridge(projectId, req, activeAgentRunConfigId ?? undefined)
+      return undefined
     },
     [
       projectId,

@@ -590,9 +590,6 @@ import type {
   RunAllTestsData,
   RunAllTestsErrors,
   RunAllTestsResponses,
-  RunAnalysisJobData,
-  RunAnalysisJobErrors,
-  RunAnalysisJobResponses,
   RunCoverageData,
   RunCoverageErrors,
   RunCoverageResponses,
@@ -3974,20 +3971,6 @@ export const postRunnerJobResult = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/runners/channel/jobs/{jobId}/result',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const runAnalysisJob = <ThrowOnError extends boolean = false>(
-  options: Options<RunAnalysisJobData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<RunAnalysisJobResponses, RunAnalysisJobErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/projects/{projectId}/analysis/jobs/{jobName}/run',
     ...options,
     headers: {
       'Content-Type': 'application/json',

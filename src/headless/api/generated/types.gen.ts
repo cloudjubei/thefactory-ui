@@ -25,6 +25,10 @@ export type FilesWatcher = unknown
 
 export type Buffer = unknown
 
+export type ExtraMcpToolSet = unknown
+
+export type EntityFilter = unknown
+
 export type PendingActionStatus = 'pending' | 'approved' | 'denied' | 'expired'
 
 export type ActionPayload = unknown
@@ -667,6 +671,16 @@ export type AgentTaskResult = {
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
 
+export type CliRunnerDispatchOptions = {
+  cli: 'claude-code' | 'cursor-agent' | 'codex'
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+  workspaceHostPath?: string
+  model?: string
+  effort?: string
+  execMode?: 'per-turn' | 'resident'
+}
+
 export type ResearchSource = {
   title: string
   url: string
@@ -861,6 +875,35 @@ export type ChatContextFeatureRequest = {
   projectId: string
   featureRequestId: string
 }
+
+export type ResourceLink =
+  | {
+      kind: 'project'
+      projectId: string
+    }
+  | {
+      kind: 'story'
+      projectId: string
+      storyId: string
+    }
+  | {
+      kind: 'feature'
+      projectId: string
+      storyId: string
+      featureId: string
+    }
+  | {
+      kind: 'chat'
+      context: ChatContext
+    }
+  | {
+      kind: 'app'
+      projectId: string
+      view?: string
+      params?: {
+        [key: string]: string
+      }
+    }
 
 export type CompletionHistorySummarization = {
   enabled: boolean
@@ -2115,6 +2158,13 @@ export type CliRunResult = {
     retryable: boolean
     retryAfterSec?: number
   }
+  usage?: {
+    tokensIn: number
+    tokensOut: number
+    cacheReadTokens?: number
+    cacheCreationTokens?: number
+  }
+  costUSD?: number
 }
 
 export type WorkspaceCapState = 'under' | 'warn' | 'over'
@@ -2347,6 +2397,46 @@ export type CliAgentRunFilter = {
   storyId?: string
   status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
   chatContextId?: string
+}
+
+export type CodexResidentProtocolOptions = {
+  cwd: string
+  modelId?: string
+}
+
+export type CursorResidentProtocolOptions = {
+  cwd: string
+  mcpServers?: Array<unknown>
+}
+
+export type JsonRpcMessage = {
+  jsonrpc: '2.0'
+  id?: number | string
+  method?: string
+  params?: unknown
+  result?: unknown
+  error?: {
+    code: number
+    message: string
+    data?: unknown
+  }
+}
+
+export type BridgeDelivery = {
+  bridgeMcpName: string
+  bridgeCommand: string
+  bridgeArgs: Array<string>
+}
+
+export type ResidentProfileInput = {
+  bridgeMcpName: string
+  bridgeCommand: string
+  bridgeArgs: Array<string>
+  cli: 'claude-code' | 'cursor-agent' | 'codex'
+  cwd: string
+  allowedToolNames: Array<string>
+  modelId?: string
+  effort?: string
 }
 
 export type ResidentTurnResult = {
@@ -3092,6 +3182,7 @@ export type ResearchVerdictStatus =
   | 'unverifiable'
   | 'refuted'
   | 'conflicting'
+  | 'alternative'
 
 export type RawReaderVerdict = {
   status: ResearchVerdictStatus
@@ -3145,8 +3236,19 @@ export type VerifyScoreReport = {
 }
 
 export type ResearchTraceEvent = {
-  op: 'search' | 'read'
+  op: 'search' | 'read' | 'infer'
   message: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    inputTokens?: number
+    totalTokens?: number
+    cachedReadInputTokens?: number
+    reasoningTokens?: number
+    cost?: number
+    costInput?: number
+    costOutput?: number
+  }
   query?: string
   results?: Array<{
     title: string
@@ -4406,10 +4508,6 @@ export type InferenceRequest = {
   abortSignal?: unknown
 }
 
-export type InferenceResult = {
-  text: string
-}
-
 export type IngestionResult = {
   projectId: string
   scanned: number
@@ -4762,6 +4860,18 @@ export type LoggerConfig = {
   redactSecrets: boolean
 }
 
+export type MemorySample = {
+  heapUsedBytes: number
+  heapLimitBytes: number
+}
+
+export type MemoryPressureSnapshot = {
+  heapUsedBytes: number
+  heapLimitBytes: number
+  ratio: number
+  pressured: boolean
+}
+
 export type MobilePlatform = 'android' | 'ios'
 
 export type MobileBounds = {
@@ -4940,6 +5050,80 @@ export type SessionCeilingEvent = {
   }
 }
 
+export type DataCapabilityView = {
+  view: string
+  params?: {
+    [key: string]: string
+  }
+  keyParam?: string
+}
+
+export type DataCapabilityType = {
+  type: string
+  label?: string
+  description?: string
+  editable?: boolean
+  editableFields?: Array<string>
+  creatable?: boolean
+  creatableFields?: Array<string>
+  createDefaults?: {
+    [key: string]: unknown
+  }
+  view?: {
+    view: string
+    params?: {
+      [key: string]: string
+    }
+    keyParam?: string
+  }
+}
+
+export type DataCapabilityManifest = {
+  types: Array<DataCapabilityType>
+  activities?: Array<string>
+}
+
+export type UpdateProjectRecordArgs = {
+  type: string
+  key: string
+  set: {
+    [key: string]: unknown
+  }
+}
+
+export type CreateProjectRecordArgs = {
+  type: string
+  content: {
+    [key: string]: unknown
+  }
+  key?: string
+}
+
+export type StartProjectActivityArgs = {
+  activityType: string
+  params?: {
+    [key: string]: unknown
+  }
+}
+
+export type ProjectDataRecordView = DataRecord & {
+  resourceLink?: string
+}
+
+export type QueryProjectDataResult = {
+  records: Array<ProjectDataRecordView>
+  total: number
+}
+
+export type ProjectDataDispatchResult =
+  | {
+      matched: true
+      result: unknown
+    }
+  | {
+      matched: false
+    }
+
 export type ProjectDataPaths = {
   location: ProjectDataLocation
   storiesRoot: string
@@ -5114,7 +5298,13 @@ export type EvalGoal = {
 
 export type RecommendationTier = 'perfect' | 'good' | 'ok' | 'alternative' | 'rest' | 'excluded'
 
-export type CriterionStatus = 'confirmed' | 'implied' | 'unverifiable' | 'refuted' | 'conflicting'
+export type CriterionStatus =
+  | 'confirmed'
+  | 'implied'
+  | 'unverifiable'
+  | 'refuted'
+  | 'conflicting'
+  | 'alternative'
 
 export type EvalResultItem = {
   key: string
@@ -5314,6 +5504,7 @@ export type CatalogItem = {
     [key: string]: CriterionVerdict
   }
   sources: Array<RecommendSource>
+  note?: string
   fieldCitations?: Array<FieldCitation>
   provenance?: {
     [key: string]: ExtractionTier
@@ -5359,7 +5550,9 @@ export type ProductTypeSpec = {
   supplierQuery: string
   supplierInstructions: string
   itemQuery: string
+  seedItemQuery?: string
   itemInstructions: string
+  requiredKeyFields?: Array<string>
   categoryAxis?: Array<CategoryNode>
   brandQuery?: string
   brandInstructions?: string
@@ -5608,6 +5801,23 @@ export type CriterionKnowledge = {
   updatedAt: string
 }
 
+export type MaterialRecyclability = 'high' | 'medium' | 'low' | 'none' | 'unknown'
+
+export type MaterialKnowledge = {
+  slug: string
+  name: string
+  aliases: Array<string>
+  isPlastic?: boolean
+  recyclability?: 'high' | 'medium' | 'low' | 'none' | 'unknown'
+  ecoNotes?: string
+  summary?: string
+  evidence: Array<{
+    quote: string
+    url: string
+  }>
+  updatedAt: string
+}
+
 export type CoercedRankRow = {
   key: string
   score: number
@@ -5622,109 +5832,7 @@ export type CatalogBuildCaps = {
   prunePersistedLowValue?: boolean
   maxDocBackfills?: number
   maxReviewBackfills?: number
-}
-
-export type BackfillRecordOffersOptions = {
-  query: string
-  model: ModelSelection
-  scope?: string
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  region?: string
-  language?: string
-  abortSignal?: unknown
-  researchBudget?: {
-    maxPlanDepth?: number
-    maxSubQuestions?: number
-    verifyReaders?: number
-    gatherBreadth?: number
-    maxHops?: number
-    maxPagesPerHop?: number
-    maxExtractClusters?: number
-    discoverThinThreshold?: number
-    maxInferenceCalls?: number
-    resampleFields?: Array<string>
-    resampleReads?: number
-  }
-  gatherSources?: number
-}
-
-export type BackfillRecordSupportOptions = {
-  query: string
-  model: ModelSelection
-  scope?: string
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  region?: string
-  language?: string
-  abortSignal?: unknown
-  researchBudget?: {
-    maxPlanDepth?: number
-    maxSubQuestions?: number
-    verifyReaders?: number
-    gatherBreadth?: number
-    maxHops?: number
-    maxPagesPerHop?: number
-    maxExtractClusters?: number
-    discoverThinThreshold?: number
-    maxInferenceCalls?: number
-    resampleFields?: Array<string>
-    resampleReads?: number
-  }
-  officialHost?: string
-  now: string
-}
-
-export type BackfillRecordReviewsOptions = {
-  query: string
-  model: ModelSelection
-  scope?: string
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  region?: string
-  language?: string
-  abortSignal?: unknown
-  researchBudget?: {
-    maxPlanDepth?: number
-    maxSubQuestions?: number
-    verifyReaders?: number
-    gatherBreadth?: number
-    maxHops?: number
-    maxPagesPerHop?: number
-    maxExtractClusters?: number
-    discoverThinThreshold?: number
-    maxInferenceCalls?: number
-    resampleFields?: Array<string>
-    resampleReads?: number
-  }
-  now: string
+  maxCriterionQueries?: number
 }
 
 export type CatalogBuildProgress = {
@@ -5740,9 +5848,20 @@ export type CatalogBuildProgress = {
 
 export type RecommendTraceEvent = {
   at: string
-  phase: 'gather' | 'search' | 'read' | 'extract' | 'verify'
+  phase: 'gather' | 'search' | 'read' | 'extract' | 'verify' | 'infer'
   level: 'info' | 'warn' | 'error'
   message: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    inputTokens?: number
+    totalTokens?: number
+    cachedReadInputTokens?: number
+    reasoningTokens?: number
+    cost?: number
+    costInput?: number
+    costOutput?: number
+  }
   unit?: string
   item?: string
   criterion?: string
@@ -5793,41 +5912,6 @@ export type DiscoverSuppliersResult = {
   recordType: string
   suppliers: Array<string>
   count: number
-}
-
-export type FindMoreOffersParams = {
-  scope: string
-  recordType: string
-  key: string
-  market: string
-  region?: string
-  language?: string
-  model: ModelSelection
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
-  researchBudget?: {
-    maxPlanDepth?: number
-    maxSubQuestions?: number
-    verifyReaders?: number
-    gatherBreadth?: number
-    maxHops?: number
-    maxPagesPerHop?: number
-    maxExtractClusters?: number
-    discoverThinThreshold?: number
-    maxInferenceCalls?: number
-    resampleFields?: Array<string>
-    resampleReads?: number
-  }
 }
 
 export type FindMoreOffersResult = {
@@ -5963,10 +6047,48 @@ export type GetCriterionKnowledgeParams = {
   criterionId: string
 }
 
+export type MaterialKnowledgeSeed = {
+  name: string
+  slug?: string
+  aliases?: Array<string>
+  isPlastic?: boolean
+  recyclability?: 'high' | 'medium' | 'low' | 'none' | 'unknown'
+  ecoNotes?: string
+  summary?: string
+  evidence?: Array<{
+    quote: string
+    url: string
+  }>
+}
+
+export type SeedMaterialsParams = {
+  scope: string
+  recordType: string
+  materials: Array<MaterialKnowledgeSeed>
+}
+
+export type ListMaterialsParams = {
+  scope: string
+  recordType: string
+}
+
+export type GetMaterialParams = {
+  scope: string
+  recordType: string
+  material: string
+}
+
 export type ListProductSourcesParams = {
   scope: string
   recordType: string
   country?: string
+}
+
+export type SetProductNoteParams = {
+  scope: string
+  recordType: string
+  key: string
+  note: string
 }
 
 export type ListProductCriteriaParams = {
@@ -6023,66 +6145,6 @@ export type RankProductCandidatesParams = {
     timestamp?: string
   }
   abortSignal?: unknown
-}
-
-export type WebSearchProvider =
-  | 'exa'
-  | 'tavily'
-  | 'serpapi'
-  | 'duckduckgo'
-  | 'bing'
-  | 'google'
-  | 'cli'
-
-export type WebSearchResultItem = {
-  title: string
-  url: string
-  snippet?: string
-  content?: string
-  score?: number
-  [key: string]: unknown
-}
-
-export type WebSearchProviderFailure = {
-  provider: string
-  status?: number
-  reason: string
-}
-
-export type WebSearchResponse = {
-  provider: WebSearchProvider
-  query: string
-  items: Array<WebSearchResultItem>
-  degraded?: Array<WebSearchProviderFailure>
-  raw?: unknown
-}
-
-export type WebReadUrlsResult = {
-  [key: string]: string
-}
-
-export type SearchPageContent = {
-  html: string
-  axSnapshot?: string
-  heroImageUrl?: string
-  renderedText?: string
-}
-
-export type ReplayLog = {
-  inference: {
-    [key: string]: InferenceResult
-  }
-  webSearch: {
-    [key: string]: WebSearchResponse
-  }
-  webRead: {
-    [key: string]: WebReadUrlsResult
-  }
-  webPages: {
-    [key: string]: {
-      [key: string]: SearchPageContent
-    }
-  }
 }
 
 export type SandboxMcpBridgeOptions = {
@@ -6601,6 +6663,10 @@ export type RawPerformanceInput = {
   firstContentfulPaint?: number
 }
 
+export type WebReadUrlsResult = {
+  [key: string]: string
+}
+
 export type DocumentLink = {
   url: string
   docType: SupportDocType
@@ -6623,6 +6689,13 @@ export type StructuredRating = {
   ratingCount?: number
   reviewCount?: number
   via: 'json-ld'
+}
+
+export type SellerOffer = {
+  url?: string
+  sellerName?: string
+  price?: number
+  currency?: string
 }
 
 export type StructuredProduct = {
@@ -6648,6 +6721,15 @@ export type HeroImageCandidate = {
   top: number
   alt?: string
 }
+
+export type WebSearchProvider =
+  | 'exa'
+  | 'tavily'
+  | 'serpapi'
+  | 'duckduckgo'
+  | 'bing'
+  | 'google'
+  | 'cli'
 
 export type WebSearchProviderKind = 'api' | 'cli' | 'playwright'
 
@@ -6690,6 +6772,21 @@ export type WebSearchOptions = {
   providers?: Array<WebSearchProvider>
 }
 
+export type WebSearchResultItem = {
+  title: string
+  url: string
+  snippet?: string
+  content?: string
+  score?: number
+  [key: string]: unknown
+}
+
+export type WebSearchProviderFailure = {
+  provider: string
+  status?: number
+  reason: string
+}
+
 export type WebSearchProviderHealth = {
   provider: WebSearchProvider
   ok: boolean
@@ -6697,9 +6794,24 @@ export type WebSearchProviderHealth = {
   reason?: string
 }
 
+export type WebSearchResponse = {
+  provider: WebSearchProvider
+  query: string
+  items: Array<WebSearchResultItem>
+  degraded?: Array<WebSearchProviderFailure>
+  raw?: unknown
+}
+
 export type SearchContextGeo = {
   locale?: string
   acceptLanguage?: string
+}
+
+export type SearchPageContent = {
+  html: string
+  axSnapshot?: string
+  heroImageUrl?: string
+  renderedText?: string
 }
 
 export type PageAction = {
@@ -6868,6 +6980,21 @@ export type EntitySort = {
   field: string
   direction?: 'asc' | 'desc'
   numeric?: boolean
+}
+
+export type MatchParams = {
+  limit?: number
+  offset?: number
+  types?: Array<string>
+  ids?: Array<string>
+  projectIds?: Array<string>
+  where?: unknown
+  orderBy?: Array<EntitySort>
+}
+
+export type SearchParams = MatchParams & {
+  query: string
+  textWeight?: number
 }
 
 export type DocumentSearchMatchMode = 'any' | 'all'
@@ -7044,31 +7171,6 @@ export type Entity = {
   metadata?: {
     [key: string]: JsonValue
   }
-}
-
-export type MatchParams = {
-  limit?: number
-  offset?: number
-  types?: Array<string>
-  ids?: Array<string>
-  projectIds?: Array<string>
-  where?: unknown
-  orderBy?: Array<EntitySort>
-}
-
-export type SearchParams = MatchParams & {
-  query: string
-  textWeight?: number
-}
-
-export type CliRunnerDispatchOptions = {
-  cli: 'claude-code' | 'cursor-agent' | 'codex'
-  authCredentialId?: string
-  apiKeyCredentialId?: string
-  workspaceHostPath?: string
-  model?: string
-  effort?: string
-  execMode?: 'per-turn' | 'resident'
 }
 
 export type Database = {
@@ -7264,6 +7366,12 @@ export type HealthResponses = {
       peakByLabel: {
         [key: string]: number
       }
+    }
+    memory?: {
+      heapUsedBytes: number
+      heapLimitBytes: number
+      ratio: number
+      pressured: boolean
     }
   }
 }
@@ -16633,71 +16741,6 @@ export type PostRunnerJobResultResponses = {
 
 export type PostRunnerJobResultResponse =
   PostRunnerJobResultResponses[keyof PostRunnerJobResultResponses]
-
-export type RunAnalysisJobData = {
-  body: {
-    llmConfigId?: string
-    params?: {
-      [key: string]: unknown
-    }
-  }
-  path: {
-    /**
-     * Project id.
-     */
-    projectId: string
-    /**
-     * Registered analysis job name (e.g. "opportunities").
-     */
-    jobName: string
-  }
-  query?: never
-  url: '/api/v1/projects/{projectId}/analysis/jobs/{jobName}/run'
-}
-
-export type RunAnalysisJobErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  409: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-  /**
-   * Default Response
-   */
-  500: {
-    error: string
-    code?: string
-    requestId?: string
-  }
-}
-
-export type RunAnalysisJobError = RunAnalysisJobErrors[keyof RunAnalysisJobErrors]
-
-export type RunAnalysisJobResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    records: Array<{
-      type: string
-      key: string
-      content: unknown
-    }>
-  }
-}
-
-export type RunAnalysisJobResponse = RunAnalysisJobResponses[keyof RunAnalysisJobResponses]
 
 export type RunActivityData = {
   body: {
