@@ -97,6 +97,9 @@ export interface MessageListProps {
   /** Forwards to `MessageRow.onShowUsage`. */
   onShowUsage?: (msg: ChatMessageLike) => void
 
+  /** Caller-rendered content shown when the message list is empty (e.g. a call-to-action panel). */
+  emptyStateContent?: ReactNode
+
   thinkingLabel?: string
 }
 
@@ -122,6 +125,7 @@ export default function MessageList({
   renderDependency,
   renderCliRunArtifact,
   onShowUsage,
+  emptyStateContent,
   thinkingLabel,
 }: MessageListProps) {
   const { theme } = useNativeTheme()
@@ -185,6 +189,9 @@ export default function MessageList({
   // tool calls. The mobile previously dropped these for "noise"; the user
   // explicitly wants parity here.
   const renderable = useMemo(() => messages, [messages])
+  // Cold-start signal: only the chat's FIRST cli run (turn 1) pays the boot;
+  // resident turns 2..N are warm. Keyed by cliRunId so it survives windowing.
+  const firstCliRunId = useMemo(() => renderable.find((m) => m.cliRunId)?.cliRunId, [renderable])
 
   // Latest message iso (excluding empty-assistant filler) — drives the
   // `onReadLatest` callback. Recompute whenever the message list changes.
@@ -271,6 +278,7 @@ export default function MessageList({
         {systemPrompt && messages.length === 0 && (
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
+        {messages.length === 0 && !isThinking && emptyStateContent ? emptyStateContent : null}
         {startIndex > 0 && (
           // Single tappable chip — label + load action in one affordance.
           // Mirrors web's `MessageList` older-messages pill.
@@ -325,6 +333,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  coldStart={msg.cliRunId === firstCliRunId}
                 />
               ) : (
                 <MessageRow
@@ -391,6 +400,7 @@ export default function MessageList({
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
+              coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
             />
           </View>
         ) : null}
@@ -401,14 +411,16 @@ export default function MessageList({
           <ThinkingRow
             label={thinkingLabel ?? 'Thinking'}
             {...(pendingCliModel
-              ? {
-                  spinnerLabel: `Preparing ${
-                    parseCliAgentModelTag(pendingCliModel)?.cli
-                      ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
-                      : 'the agent'
-                  }…`,
-                  spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
-                }
+              ? firstCliRunId === undefined
+                ? {
+                    spinnerLabel: `Preparing ${
+                      parseCliAgentModelTag(pendingCliModel)?.cli
+                        ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
+                        : 'the agent'
+                    }…`,
+                    spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
+                  }
+                : { spinnerLabel: 'Working…' }
               : {})}
           />
         )}

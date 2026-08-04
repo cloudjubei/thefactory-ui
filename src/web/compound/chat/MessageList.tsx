@@ -250,6 +250,15 @@ export default function MessageList({
     updateAtBottomState()
   }
 
+  // Cold-start signal for CLI runs: only the chat's FIRST cli run (turn 1) pays
+  // the container + CLI boot; resident turns 2..N are warm. Keyed by cliRunId so
+  // it survives list windowing. Drives the "Preparing …/first message slowest"
+  // copy gate in CliRunMessages (warm turns show a plain "Working…" spinner).
+  const firstCliRunId = useMemo(
+    () => messagesToDisplay.find((m) => m.cliRunId)?.cliRunId,
+    [messagesToDisplay],
+  )
+
   // Last-unread positioning on chat open.
   const lastMessageIsoMemo = useMemo(() => lastMessageIso(messagesToDisplay), [messagesToDisplay])
   const hasUnreadOnOpen = useMemo(() => {
@@ -629,6 +638,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  coldStart={msg.cliRunId === firstCliRunId}
                 />
               ) : (
                 <MessageRow
@@ -730,6 +740,7 @@ export default function MessageList({
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
+              coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
             />
           </div>
         ) : pending?.role === 'assistant' ? (
@@ -754,14 +765,16 @@ export default function MessageList({
           // set synchronously on send — rather than a bare spinner.
           <ThinkingRow
             {...(pendingCliModel
-              ? {
-                  spinnerLabel: `Preparing ${
-                    parseCliAgentModelTag(pendingCliModel)?.cli
-                      ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
-                      : 'the agent'
-                  }…`,
-                  spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
-                }
+              ? firstCliRunId === undefined
+                ? {
+                    spinnerLabel: `Preparing ${
+                      parseCliAgentModelTag(pendingCliModel)?.cli
+                        ? cliLabel(parseCliAgentModelTag(pendingCliModel)!.cli)
+                        : 'the agent'
+                    }…`,
+                    spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
+                  }
+                : { spinnerLabel: 'Working…' }
               : {})}
           />
         ) : null}

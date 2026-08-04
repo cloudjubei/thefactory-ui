@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
@@ -25,11 +25,20 @@ export type CliRunMessagesProps = {
   renderDependency?: (dep: string) => ReactNode
   /** Renders the workspace diff/apply panel for the run (host-wired, carries projectId). */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** True only for the chat's first CLI run (turn 1, cold boot). Gates the
+   * "Preparing …/first message slowest" copy; warm turns show plain "Working…". */
+  coldStart?: boolean
 }
 
 /** Reassurance shown under "Preparing <agent>…" — the container/CLI cold-start is
  * paid up-front, so the first turn is the slow one. */
 const CLI_BOOT_SUBLABEL = 'The first message is slowest while the sandbox starts up.'
+
+/** "12s" under a minute, "1m 05s" beyond — the live elapsed readout in the spinner. */
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
+}
 
 /**
  * Native mirror of web's `CliRunMessages`: renders a CLI agent run as ordinary
@@ -46,6 +55,7 @@ export default function CliRunMessages({
   onResolveFile,
   renderDependency,
   renderCliRunArtifact,
+  coldStart = false,
 }: CliRunMessagesProps) {
   const { transcript, status, notReady } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
@@ -63,6 +73,33 @@ export default function CliRunMessages({
   )
   const total = baseIndex + messages.length + 1
   let shownModel = false
+
+  // Live activity readout in the working spinner (mirrors web): ticking elapsed +
+  // a running output-token estimate from the streamed assistant text.
+  const startRef = useRef<number | undefined>(undefined)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (!active) {
+      startRef.current = undefined
+      return
+    }
+    if (startRef.current === undefined) startRef.current = Date.now()
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [active])
+  const approxTokens = useMemo(() => {
+    let chars = 0
+    for (const m of messages) if (m.role === 'assistant' && typeof m.content === 'string') chars += m.content.length
+    return Math.floor(chars / 4)
+  }, [messages])
+  const elapsedS = active && startRef.current !== undefined ? Math.floor((Date.now() - startRef.current) / 1000) : 0
+  void tick
+  const activitySuffix =
+    elapsedS > 0 ? ` (${formatElapsed(elapsedS)}${approxTokens > 0 ? ` · ~${approxTokens} tokens` : ''})` : ''
+  const spinnerLabel = booting && coldStart
+    ? `Preparing ${cli ? cliLabel(cli) : 'the agent'}…${activitySuffix}`
+    : `Working…${activitySuffix}`
+
   return (
     <View style={{ gap: 6 }}>
       {messages.map((m, i) => {
@@ -86,12 +123,8 @@ export default function CliRunMessages({
       })}
       {active ? (
         <ThinkingRow
-          {...(booting
-            ? {
-                spinnerLabel: `Preparing ${cli ? cliLabel(cli) : 'the agent'}…`,
-                spinnerSubLabel: CLI_BOOT_SUBLABEL,
-              }
-            : {})}
+          spinnerLabel={spinnerLabel}
+          {...(booting && coldStart ? { spinnerSubLabel: CLI_BOOT_SUBLABEL } : {})}
         />
       ) : null}
       {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}

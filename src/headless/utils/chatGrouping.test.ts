@@ -35,9 +35,7 @@ describe('groupChats', () => {
     expect(s1.storyChats.map((c) => c.id)).toEqual(['c-s1'])
     expect(s1.agentRuns.map((c) => c.id)).toEqual(['c-ar'])
     expect(s1.featureGroups).toHaveLength(1)
-    expect(s1.featureGroups[0]).toEqual(
-      expect.objectContaining({ featureId: 'F1' }),
-    )
+    expect(s1.featureGroups[0]).toEqual(expect.objectContaining({ featureId: 'F1' }))
     expect(s1.featureGroups[0].chats.map((c) => c.id)).toEqual(['c-f1'])
 
     const s2 = byStory.find((g) => g.storyId === 'S2')!
@@ -46,7 +44,19 @@ describe('groupChats', () => {
     expect(s2.featureGroups).toHaveLength(0)
   })
 
+  it('buckets FEATURE_REQUEST chats off the story tree, newest first', () => {
+    const frChats: TestChat[] = [
+      { id: 'c-fr1', context: { type: 'FEATURE_REQUEST' }, updatedAt: '2026-01-01' },
+      { id: 'c-fr2', context: { type: 'FEATURE_REQUEST' }, updatedAt: '2026-05-01' },
+      { id: 'c-s', context: { type: 'STORY', storyId: 'S1' } },
+    ]
+    const { featureRequests, byStory, topics } = groupChats(frChats, [])
+    expect(featureRequests.map((c) => c.id)).toEqual(['c-fr2', 'c-fr1'])
+    expect(topics).toHaveLength(0)
+    expect(byStory.map((g) => g.storyId)).toEqual(['S1'])
+  })
+
   it('returns empty groups for no chats', () => {
-    expect(groupChats([], [{ id: 'S1' }])).toEqual({ topics: [], byStory: [] })
+    expect(groupChats([], [{ id: 'S1' }])).toEqual({ topics: [], byStory: [], featureRequests: [] })
   })
 })

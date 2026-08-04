@@ -5,7 +5,6 @@ import {
   featureRequestsSnapshot,
   inFlightCount,
   inboxFor,
-  openRequestsFromChat,
   outboxFor,
   pendingCount,
   replaceFeatureRequests,
@@ -159,37 +158,6 @@ describe('featureRequestsStore', () => {
       replaceFeatureRequests([fr({ id: 'a', status: 'in_review' })])
       expect(requestById(featureRequestsSnapshot(), 'a')?.status).toBe('in_review')
       expect(requestById(featureRequestsSnapshot(), 'missing')).toBeUndefined()
-    })
-
-    describe('openRequestsFromChat', () => {
-      // Match on the sender project id as a stand-in context key.
-      const keyOf = (ctx: { projectId?: string }) => ctx.projectId ?? ''
-      const fromChat = (id: string, projectId: string, status: FeatureRequestStatus) =>
-        fr({
-          id,
-          status,
-          requestedBy: {
-            fromProjectId: projectId,
-            fromChatContext: { type: 'PROJECT', projectId },
-          },
-        })
-
-      it('returns only OPEN requests emitted from the matching chat', () => {
-        replaceFeatureRequests([
-          fromChat('a', 'projA', 'pending'),
-          fromChat('b', 'projA', 'in_review'),
-          fromChat('done', 'projA', 'completed'),
-          fromChat('other', 'projX', 'pending'),
-        ])
-        expect(
-          openRequestsFromChat(featureRequestsSnapshot(), 'projA', keyOf).map((r) => r.id),
-        ).toEqual(['a', 'b'])
-      })
-
-      it('returns [] when no open request was emitted from the chat', () => {
-        replaceFeatureRequests([fromChat('done', 'projA', 'completed')])
-        expect(openRequestsFromChat(featureRequestsSnapshot(), 'projA', keyOf)).toEqual([])
-      })
     })
   })
 })

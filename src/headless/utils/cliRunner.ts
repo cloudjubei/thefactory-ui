@@ -56,7 +56,13 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { model: runner.model } : {}),
     ...(runner.effort ? { effort: runner.effort } : {}),
-    ...(runner.execMode ? { execMode: runner.execMode } : {}),
+    // Default to resident (the session-warm process — no per-turn container/CLI
+    // boot). An unset execMode means the user never touched the toggle; resident
+    // is the better default and `isResidentEligible` degrades to per-turn when
+    // the chat can't run resident (no manager / no chatContextId / no credential).
+    // Explicit 'per-turn' still forces the cold path. Server-side default so
+    // mobile (no toggle) inherits it too.
+    execMode: runner.execMode ?? 'resident',
   }
 }
 
@@ -559,7 +565,18 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         const thinking = cliThinkingTextFromEntry(entry)
         if (thinking) steps.push({ kind: 'thinking', at: entry.at, text: thinking })
         const text = cliAssistantTextFromEntry(entry)
-        if (text.trim()) steps.push({ kind: 'assistant', at: entry.at, text })
+        // Coalesce consecutive assistant entries into one growing message:
+        // streaming CLIs (resident cursor/codex) emit the reply as many small
+        // per-chunk `assistant` deltas, which must render as ONE bubble that
+        // fills in live — not a fragmented run of tiny messages. A delta is
+        // appended verbatim (whitespace preserved) when the previous step is
+        // already an assistant bubble; otherwise a non-blank delta starts one.
+        const last = steps[steps.length - 1]
+        if (last && last.kind === 'assistant') {
+          last.text += text
+        } else if (text.trim()) {
+          steps.push({ kind: 'assistant', at: entry.at, text })
+        }
         break
       }
       case 'tool-call': {

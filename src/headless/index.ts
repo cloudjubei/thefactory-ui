@@ -62,13 +62,6 @@ export {
 } from './hooks/useCrossProjectRequests'
 export { crossProjectNotification, type CrossProjectNotification } from './utils/crossProjectNotify'
 export {
-  summarizeCrossProjectWaiting,
-  type CrossProjectWaitingRequest,
-  type CrossProjectWaitingItem,
-  type CrossProjectWaitingTone,
-  type CrossProjectWaitingView,
-} from './utils/crossProjectWaiting'
-export {
   useCrossProjectSettings,
   type CrossProjectSettingsState,
 } from './hooks/useCrossProjectSettings'

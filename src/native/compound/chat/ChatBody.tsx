@@ -27,6 +27,11 @@ export interface ChatBodyProps {
    * agent-run chats). */
   inputOverride?: ReactNode
 
+  /** When true, the composer (and any `inputOverride`) is not rendered at all —
+   * the canvas is action-only (e.g. a pending feature-request chat whose only
+   * actions live in the centered `emptyStateContent`). */
+  hideInput?: boolean
+
   messages: ChatMessageLike[]
   liveState: ChatLiveStateLike
 
@@ -73,8 +78,7 @@ export interface ChatBodyProps {
   onReadLatest?: (iso?: string) => void
   scrollToBottomSignal?: number
 
-  /** Caller-rendered empty-state — currently unused on RN (MessageList is
-   * always present); accepted for API parity. */
+  /** Caller-rendered content shown when the message list is empty (e.g. a call-to-action panel). */
   emptyStateContent?: ReactNode
 
   /** Forwarded to the inner `ChatInput`. */
@@ -91,6 +95,7 @@ export default function ChatBody({
   header,
   sendError,
   inputOverride,
+  hideInput,
   messages,
   liveState,
   systemPrompt,
@@ -103,6 +108,7 @@ export default function ChatBody({
   onResourceLink,
   renderCliRunArtifact,
   onShowUsage,
+  emptyStateContent,
   onSend,
   onAbort,
   onDeleteLastMessage,
@@ -155,6 +161,7 @@ export default function ChatBody({
           onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
           onShowUsage={onShowUsage}
+          emptyStateContent={emptyStateContent}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           onAtBottomChange={onAtBottomChange}
@@ -167,17 +174,19 @@ export default function ChatBody({
           <Alert variant="error">{sendError.message}</Alert>
         </View>
       )}
-      {inputOverride ?? (
-        <ChatInput
-          {...(inputProps ?? {})}
-          value={inputValue}
-          onChange={onInputChange}
-          onSend={handleSend}
-          onAbort={handleAbort}
-          isThinking={liveState.isSending}
-          isConfigured={canSend}
-        />
-      )}
+      {hideInput
+        ? null
+        : (inputOverride ?? (
+            <ChatInput
+              {...(inputProps ?? {})}
+              value={inputValue}
+              onChange={onInputChange}
+              onSend={handleSend}
+              onAbort={handleAbort}
+              isThinking={liveState.isSending}
+              isConfigured={canSend}
+            />
+          ))}
     </View>
   )
 }

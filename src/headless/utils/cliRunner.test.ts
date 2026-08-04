@@ -36,6 +36,7 @@ describe('chatCliRunnerToDispatchOptions', () => {
     expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).toEqual({
       cli: 'claude-code',
       authCredentialId: 'cli-1',
+      execMode: 'resident',
     })
   })
 
@@ -43,6 +44,7 @@ describe('chatCliRunnerToDispatchOptions', () => {
     expect(chatCliRunnerToDispatchOptions({ tool: 'codex', apiKeyCredentialId: 'llm-1' })).toEqual({
       cli: 'codex',
       apiKeyCredentialId: 'llm-1',
+      execMode: 'resident',
     })
   })
 
@@ -59,16 +61,21 @@ describe('chatCliRunnerToDispatchOptions', () => {
       authCredentialId: 'cli-1',
       model: 'opus',
       effort: 'high',
+      execMode: 'resident',
     })
   })
 
-  it('forwards execMode so resident mode reaches the dispatch, and omits it when absent', () => {
+  it('forwards an explicit execMode and defaults to resident when unset', () => {
+    // Explicit per-turn is honored (user forced the cold path).
     expect(
-      chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1', execMode: 'resident' }),
-    ).toEqual({ cli: 'claude-code', authCredentialId: 'cli-1', execMode: 'resident' })
-    expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).not.toHaveProperty(
-      'execMode',
-    )
+      chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1', execMode: 'per-turn' }),
+    ).toEqual({ cli: 'claude-code', authCredentialId: 'cli-1', execMode: 'per-turn' })
+    // Unset → resident by default (the runner degrades to per-turn if ineligible).
+    expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).toEqual({
+      cli: 'claude-code',
+      authCredentialId: 'cli-1',
+      execMode: 'resident',
+    })
   })
 })
 
@@ -341,6 +348,29 @@ describe('cliThinkingTextFromEntry', () => {
 })
 
 describe('normalizeCliTranscript', () => {
+  it('coalesces consecutive assistant deltas (streaming CLIs) into one growing message', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'The ' }] } } }),
+      entry({ at: 2, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'answer ' }] } } }),
+      entry({ at: 3, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'is 4.' }] } } }),
+    ])
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({ kind: 'assistant', text: 'The answer is 4.' })
+  })
+
+  it('keeps assistant segments split by a tool step distinct (no over-merge)', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'let me check' }] } } }),
+      entry({
+        at: 2,
+        kind: 'tool-call',
+        payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] } },
+      }),
+      entry({ at: 3, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'done' }] } } }),
+    ])
+    expect(steps.map((s) => s.kind)).toEqual(['assistant', 'tool', 'assistant'])
+  })
+
   it('Claude: pairs tool_use with its later tool_result by id, keeps assistant prose', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'reading' }] } } }),
@@ -641,14 +671,16 @@ describe('normalizeCliTranscript', () => {
     expect(messages[0]).toMatchObject({ role: 'tool', toolCall: { name: 'Bash', origin: 'native' } })
   })
 
-  it('aggregates per-entry cost onto the first assistant message as usage', () => {
+  it('aggregates per-entry cost onto the (coalesced) assistant message as usage', () => {
     const messages = cliTranscriptToMessages([
       entry({ at: 1000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } }, costUSD: 0.02 }),
       entry({ at: 2000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'bye' }] } }, costUSD: 0.03 }),
     ])
-    // Only the first assistant message carries the run total (the chip anchor).
+    // Consecutive assistant deltas coalesce into ONE bubble; the run total (summed
+    // across every entry's cost, not just the merged ones) lands on it as the chip anchor.
+    expect(messages).toHaveLength(1)
+    expect(messages[0].content).toBe('hibye')
     expect(messages[0].usage).toEqual({ cost: 0.05 })
-    expect(messages[1].usage).toBeUndefined()
   })
 
   it('attaches no usage when the run reported no cost', () => {

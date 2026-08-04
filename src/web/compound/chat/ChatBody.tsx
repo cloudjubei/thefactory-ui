@@ -26,6 +26,11 @@ export type ChatBodyProps = {
    * agent-run chats). */
   inputOverride?: ReactNode
 
+  /** When true, the composer (and any `inputOverride`) is not rendered at all —
+   * the canvas is action-only (e.g. a pending feature-request chat whose only
+   * actions live in the centered `emptyStateContent`). */
+  hideInput?: boolean
+
   messages: ChatMessageLike[]
   liveState: ChatLiveStateLike
 
@@ -113,6 +118,7 @@ export default function ChatBody({
   header,
   sendError,
   inputOverride,
+  hideInput,
   messages,
   liveState,
   renderToolResult,
@@ -194,7 +200,7 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {inputOverride ? (
+      {hideInput ? null : inputOverride ? (
         inputOverride
       ) : (
         <ChatInput

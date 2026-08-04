@@ -181,7 +181,9 @@ function ModelChipWithCli({
   // (stream-json), codex (`codex mcp-server`), cursor-agent (`cursor-agent acp`).
   const residentEligible =
     selectedCli === 'claude-code' || selectedCli === 'codex' || selectedCli === 'cursor-agent'
-  const residentMode = cliRunner?.execMode === 'resident'
+  // Resident is the DEFAULT (unset execMode → resident at dispatch), so the
+  // toggle reflects on unless the user explicitly forced 'per-turn'.
+  const residentMode = (cliRunner?.execMode ?? 'resident') === 'resident'
   const onToggleResident = useCallback(
     (next: boolean) => {
       if (!selectedCli) return

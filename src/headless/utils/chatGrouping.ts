@@ -18,6 +18,8 @@ export interface ChatStoryGroup<C> {
 export interface GroupedChats<C> {
   topics: C[]
   byStory: ChatStoryGroup<C>[]
+  /** Cross-project inbox chats (`FEATURE_REQUEST`) — project-level, off the story tree. */
+  featureRequests: C[]
 }
 
 /**
@@ -34,6 +36,7 @@ export function groupChats<
   },
 >(chats: readonly C[], storyOrder: readonly { id: string }[]): GroupedChats<C> {
   const topics: C[] = []
+  const featureRequests: C[] = []
   const storyMap = new Map<string, ChatStoryGroup<C>>()
 
   const ensure = (storyId: string): ChatStoryGroup<C> => {
@@ -70,6 +73,9 @@ export function groupChats<
       case 'AGENT_RUN_FEATURE':
         if (ctx.storyId) ensure(ctx.storyId).agentRuns.push(chat)
         break
+      case 'FEATURE_REQUEST':
+        featureRequests.push(chat)
+        break
       default:
         break
     }
@@ -84,6 +90,7 @@ export function groupChats<
   })
 
   topics.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+  featureRequests.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 
-  return { topics, byStory }
+  return { topics, byStory, featureRequests }
 }

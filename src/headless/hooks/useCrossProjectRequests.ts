@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
-import type { ChatContext, FeatureRequest } from 'thefactory-tools/types'
-// Chat-key derivation is the narrowly-scoped sanctioned exception to the no-`thefactory-tools`
-// direct-import rule (see the client `chatKey` shims) — it must stay in lock-step with the backend.
-import { getChatContextKey } from 'thefactory-tools/utils'
-import {
-  summarizeCrossProjectWaiting,
-  type CrossProjectWaitingView,
-} from '../utils/crossProjectWaiting'
+import type { FeatureRequest } from 'thefactory-tools/types'
 import { acceptFeatureRequest, listFeatureRequests, rejectFeatureRequest } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import {
@@ -14,7 +7,6 @@ import {
   featureRequestsSnapshot,
   inboxFor,
   inFlightCount,
-  openRequestsFromChat,
   outboxFor,
   pendingCount,
   replaceFeatureRequests,
@@ -43,15 +35,6 @@ export interface CrossProjectRequestsState {
   accept: (id: string) => Promise<FeatureRequest | undefined>
   /** Reject a pending request. */
   reject: (id: string) => Promise<FeatureRequest | undefined>
-  /** Open requests emitted from a chat — drives its "Waiting on «B»…" banner. */
-  waitingForChat: (context: ChatContext) => FeatureRequest[]
-  /** True when an open request emitted from a chat flagged a deadlock cycle (D.5). */
-  hasCycleForChat: (context: ChatContext) => boolean
-  /**
-   * The view-model for a chat's "Waiting on «B»…" bar, or `null` when it has nothing in flight —
-   * the composer stays. Drives the `inputOverride` that replaces the input area while blocked.
-   */
-  waitingViewForChat: (context: ChatContext) => CrossProjectWaitingView | null
 }
 
 /** Accept, optimistically upserting the returned record so the widget/inspector update at once. */
@@ -101,19 +84,6 @@ export function useCrossProjectRequests(): CrossProjectRequestsState {
   const outboxForFn = useCallback((id: string) => outboxFor(snapshot, id), [snapshot])
   const inboxForFn = useCallback((id: string) => inboxFor(snapshot, id), [snapshot])
   const requestByIdFn = useCallback((id: string) => requestById(snapshot, id), [snapshot])
-  const waitingForChat = useCallback(
-    (context: ChatContext) =>
-      openRequestsFromChat(snapshot, getChatContextKey(context), getChatContextKey),
-    [snapshot],
-  )
-  const hasCycleForChat = useCallback(
-    (context: ChatContext) => waitingForChat(context).some((r) => r.cycleFlag?.detected),
-    [waitingForChat],
-  )
-  const waitingViewForChat = useCallback(
-    (context: ChatContext) => summarizeCrossProjectWaiting(waitingForChat(context)),
-    [waitingForChat],
-  )
 
   return {
     requests: sortedRequests(snapshot),
@@ -125,8 +95,5 @@ export function useCrossProjectRequests(): CrossProjectRequestsState {
     requestById: requestByIdFn,
     accept: acceptRequest,
     reject: rejectRequest,
-    waitingForChat,
-    hasCycleForChat,
-    waitingViewForChat,
   }
 }

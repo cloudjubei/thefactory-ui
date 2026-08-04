@@ -99,8 +99,6 @@ export interface NavDrawerProps {
   projectsEmptyLabel?: string
   /** Pinned bottom row — typically Settings. */
   footerItem?: NavDrawerItem
-  /** Extra pinned rows rendered above {@link footerItem} (e.g. an account-global Background Tasks entry). */
-  footerItemsExtra?: NavDrawerItem[]
   /** Safe-area insets supplied by the host (avoids a safe-area dependency here). */
   topInset?: number
   bottomInset?: number
@@ -127,7 +125,6 @@ export default function NavDrawer({
   projectsHeaderAction,
   projectsEmptyLabel = 'No projects yet.',
   footerItem,
-  footerItemsExtra,
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
@@ -308,7 +305,7 @@ export default function NavDrawer({
           ))}
         </ScrollView>
 
-        {footerItem || (footerItemsExtra?.length ?? 0) > 0 ? (
+        {footerItem ? (
           <View
             style={{
               paddingHorizontal: nativeSpace[2],
@@ -318,10 +315,7 @@ export default function NavDrawer({
               borderTopColor: theme.border.subtle,
             }}
           >
-            {footerItemsExtra?.map((item) => (
-              <Row key={item.key} item={item} />
-            ))}
-            {footerItem ? <Row item={footerItem} /> : null}
+            <Row item={footerItem} />
           </View>
         ) : null}
       </Animated.View>

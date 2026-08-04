@@ -199,13 +199,9 @@ export {
   type FeatureRequestCardStatus,
 } from './compound/FeatureRequestCard'
 export {
-  BackgroundTasksPanel,
-  type BackgroundTasksPanelProps,
-} from './compound/BackgroundTasksPanel'
-export {
-  CrossProjectWaitingBar,
-  type CrossProjectWaitingBarProps,
-} from './compound/CrossProjectWaitingBar'
+  FeatureRequestIntroPanel,
+  type FeatureRequestIntroPanelProps,
+} from './compound/FeatureRequestIntroPanel'
 export {
   default as StatusControl,
   StatusPicker,

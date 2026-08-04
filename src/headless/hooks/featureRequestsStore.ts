@@ -6,15 +6,10 @@
  * {@link ../hooks/useCrossProjectRequests}.
  */
 
-import type { ChatContext, FeatureRequest, FeatureRequestStatus } from 'thefactory-tools/types'
+import type { FeatureRequest, FeatureRequestStatus } from 'thefactory-tools/types'
 
 /** Non-pending, non-terminal statuses — a request whose B-side work is under way. */
 const IN_FLIGHT_STATUSES: readonly FeatureRequestStatus[] = ['accepted', 'in_progress', 'in_review']
-
-/** A request is "open" while it still waits on its target — pending or in-flight (not terminal). */
-function isOpenStatus(status: FeatureRequestStatus): boolean {
-  return status === 'pending' || IN_FLIGHT_STATUSES.includes(status)
-}
 
 let byId: Record<string, FeatureRequest> = {}
 const listeners = new Set<() => void>()
@@ -90,20 +85,4 @@ export function inboxFor(
   targetProjectId: string,
 ): FeatureRequest[] {
   return sortedRequests(snapshot).filter((r) => r.targetProjectId === targetProjectId)
-}
-
-/**
- * Open requests EMITTED from a chat, matched by its context key — drives the "Waiting on «B»…"
- * banner (and, when any carry `cycleFlag.detected`, the D.5 cycle warning) on the sender's chat.
- * `keyOf` maps a `ChatContext` to its key (the host passes thefactory-tools `getChatContextKey`),
- * keeping this selector node-free + unit-testable.
- */
-export function openRequestsFromChat(
-  snapshot: Record<string, FeatureRequest>,
-  contextKey: string,
-  keyOf: (ctx: ChatContext) => string,
-): FeatureRequest[] {
-  return sortedRequests(snapshot).filter(
-    (r) => isOpenStatus(r.status) && keyOf(r.requestedBy.fromChatContext) === contextKey,
-  )
 }
