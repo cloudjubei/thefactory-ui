@@ -15,6 +15,7 @@ import {
   parseCliAgentModelTag,
   shortCliModelLabel,
   enabledClis,
+  deriveCliAuthWarning,
   filesEmittedArtifactOf,
   groupCachesByCli,
   loginAwaitsCode,
@@ -838,5 +839,47 @@ describe('filesEmittedArtifactOf', () => {
   it('returns undefined for runs with no files-emitted artifact', () => {
     expect(filesEmittedArtifactOf([])).toBeUndefined()
     expect(filesEmittedArtifactOf(undefined)).toBeUndefined()
+  })
+})
+
+describe('deriveCliAuthWarning', () => {
+  it('no warning when no credential is selected', () => {
+    expect(deriveCliAuthWarning(null, [])).toEqual({ needsReauth: false })
+    expect(deriveCliAuthWarning(undefined, [])).toEqual({ needsReauth: false })
+  })
+
+  it('no warning when the credential is not in the list (unknown)', () => {
+    expect(deriveCliAuthWarning('c1', [{ id: 'c2' }])).toEqual({ needsReauth: false })
+  })
+
+  it('no warning when the credential has never been checked (authStatus absent)', () => {
+    expect(deriveCliAuthWarning('c1', [{ id: 'c1' }])).toEqual({ needsReauth: false })
+  })
+
+  it('no warning when the credential is authenticated', () => {
+    expect(
+      deriveCliAuthWarning('c1', [{ id: 'c1', authStatus: { authenticated: true } }]),
+    ).toEqual({ needsReauth: false })
+  })
+
+  it('warns (with reason + message) when the credential is explicitly unauthenticated', () => {
+    expect(
+      deriveCliAuthWarning('c1', [
+        {
+          id: 'c1',
+          authStatus: {
+            authenticated: false,
+            reason: 'auth-expired',
+            message: 'Authentication required.',
+          },
+        },
+      ]),
+    ).toEqual({ needsReauth: true, reason: 'auth-expired', message: 'Authentication required.' })
+  })
+
+  it('warns without optional fields when they are absent', () => {
+    expect(
+      deriveCliAuthWarning('c1', [{ id: 'c1', authStatus: { authenticated: false } }]),
+    ).toEqual({ needsReauth: true })
   })
 })

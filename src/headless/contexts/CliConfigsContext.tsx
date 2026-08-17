@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import {
   cancelCliAuthLogin,
+  checkCliAuthStatus,
   createCliAuthCache,
   deleteCliAuthCache,
   getActiveCliState,
@@ -16,6 +17,7 @@ import {
   startCliAuthLogin,
   submitCliAuthLoginInput,
   updateCliAuthCache,
+  type CheckCliAuthStatusResponse,
   type CliAuthCacheCreateInput,
   type CliAuthCacheEntry,
   type CliConfigsActiveState,
@@ -80,7 +82,18 @@ export type CliConfigsContextValue = {
   /** The last successfully-fetched live model list for `cli:credentialId`, if any. */
   cachedLiveModels: (cli: CliTool, credentialId: string) => ModelInfo[] | undefined
   probeLive: (cli: CliTool, credentialId: string) => Promise<CliLiveProbeResult>
-  startAuthLogin: (cli: CliTool, label: string) => Promise<string>
+  /**
+   * Actively check whether a stored credential is authenticated (the "Check now"
+   * action / cursor sandbox probe). Records the result on the credential and
+   * refreshes the cache list so the chip + settings reflect it. Returns the status.
+   */
+  checkAuth: (credentialId: string) => Promise<CheckCliAuthStatusResponse>
+  /**
+   * Start a CLI login. Pass `credentialId` to RE-AUTHENTICATE that credential in
+   * place (same id, so every binding to it keeps working); omit it to create a new
+   * credential. Returns the `loginId` to correlate streamed output + the result.
+   */
+  startAuthLogin: (cli: CliTool, label: string, credentialId?: string) => Promise<string>
   cancelAuthLogin: (loginId: string) => Promise<void>
   /** Feed a line (e.g. a pasted OAuth code) to a login subprocess's stdin. */
   submitLoginInput: (loginId: string, text: string) => Promise<void>
@@ -271,8 +284,22 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     return data as CliLiveProbeResult
   }, [])
 
-  const startAuthLogin = useCallback(async (cli: CliTool, label: string) => {
-    const { data } = await startCliAuthLogin({ body: { cli, label }, throwOnError: true })
+  const checkAuth = useCallback(
+    async (credentialId: string): Promise<CheckCliAuthStatusResponse> => {
+      const { data } = await checkCliAuthStatus({ body: { credentialId }, throwOnError: true })
+      // The probe persisted the status on the credential — reload so the chip +
+      // settings badge reflect it immediately.
+      await refresh()
+      return data
+    },
+    [refresh],
+  )
+
+  const startAuthLogin = useCallback(async (cli: CliTool, label: string, credentialId?: string) => {
+    const { data } = await startCliAuthLogin({
+      body: { cli, label, ...(credentialId ? { credentialId } : {}) },
+      throwOnError: true,
+    })
     return data.loginId
   }, [])
 
@@ -310,6 +337,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeModelsLive,
       cachedLiveModels,
       probeLive,
+      checkAuth,
       startAuthLogin,
       cancelAuthLogin,
       submitLoginInput,
@@ -335,6 +363,7 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeModelsLive,
       cachedLiveModels,
       probeLive,
+      checkAuth,
       startAuthLogin,
       cancelAuthLogin,
       submitLoginInput,

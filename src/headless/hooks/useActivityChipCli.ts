@@ -5,6 +5,7 @@ import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 import type { ModelInfo } from '../api'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
 import type { ActivityCliModel } from '../contexts/LLMConfigsContext'
+import { deriveCliAuthWarning, type CliAuthWarning } from '../utils/cliRunner'
 
 /** The `ModelChip` CLI props derived from the persisted activity CLI selection. */
 export type ActivityChipCliWiring = {
@@ -15,6 +16,8 @@ export type ActivityChipCliWiring = {
   cliModels: ModelInfo[]
   /** Recently-selected CLI agent+model picks, most-recent first, for the chip's recents list. */
   recentCliModels: ActivityCliModel[]
+  /** Whether the selected CLI credential needs re-auth (for the chip's warning badge). */
+  authWarning: CliAuthWarning
   onToggleUseCli: (next: boolean) => void
   onPickCli: (cli: string) => void
   onPickCliModel: (modelId: string) => void
@@ -40,6 +43,7 @@ export function useActivityChipCli(
     enabledClis,
     activeCli,
     activeCliCredentialId,
+    caches,
     cachesByCli,
     defaultModel,
     effort,
@@ -67,6 +71,7 @@ export function useActivityChipCli(
         undefined)
       : undefined
   const effectiveCliModels = visibleCliModelsForAuth(liveModels ?? cliModels, 'subscription')
+  const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
 
   useEffect(() => {
     if (!useCli || !selectedCli) {
@@ -168,6 +173,7 @@ export function useActivityChipCli(
     enabledClis,
     cliModels: effectiveCliModels,
     recentCliModels,
+    authWarning,
     onToggleUseCli,
     onPickCli,
     onPickCliModel,

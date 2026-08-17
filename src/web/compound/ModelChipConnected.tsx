@@ -13,6 +13,7 @@ import {
   useLLMConfigs,
   type ActivityCliModel,
 } from '../../headless'
+import { deriveCliAuthWarning } from '../../headless/utils/cliRunner'
 
 export type ModelChipConnectedProps = {
   provider?: string
@@ -67,6 +68,7 @@ function ModelChipWithCli({
     enabledClis,
     activeCli,
     activeCliCredentialId,
+    caches,
     cachesByCli,
     defaultModel,
     effort,
@@ -93,6 +95,7 @@ function ModelChipWithCli({
   const selectedCli = cliRunner?.tool ?? activeCli ?? null
   const selectedCliModelId = cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
   const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
+  const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
   // No UI path binds an `apiKeyCredentialId` to a CLI runner yet, so this is
   // 'subscription' in practice — the 'api-key' arm is latent forward-compat.
   const isApiKeyChat = !!cliRunner?.apiKeyCredentialId
@@ -219,6 +222,7 @@ function ModelChipWithCli({
       onPickCli={onPickCli}
       cliModels={effectiveCliModels}
       onPickCliModel={onPickCliModel}
+      authWarning={authWarning}
       residentMode={residentMode}
       {...(residentEligible ? { onToggleResident } : {})}
     />
@@ -275,6 +279,7 @@ function ModelChipActivityCli({
       onPickCliModel={cli.onPickCliModel}
       recentCliModels={cli.recentCliModels}
       onPickRecentCli={cli.onPickRecentCli}
+      authWarning={useCli ? cli.authWarning : undefined}
       cliDisabled={apiOnly}
       cliDisabledReason={apiOnly ? (apiOnlyReason ?? ACTIVITY_API_ONLY_REASON) : undefined}
     />
@@ -318,6 +323,7 @@ function ModelChipAgentRunCli({
       onPickCliModel={cli.onPickCliModel}
       recentCliModels={cli.recentCliModels}
       onPickRecentCli={cli.onPickRecentCli}
+      authWarning={cli.authWarning}
     />
   )
 }

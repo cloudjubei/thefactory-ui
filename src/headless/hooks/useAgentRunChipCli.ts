@@ -5,6 +5,7 @@ import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 import type { ModelInfo } from '../api'
 import { useCliConfigs } from '../contexts/CliConfigsContext'
 import { useLLMConfigs, type ActivityCliModel } from '../contexts/LLMConfigsContext'
+import { deriveCliAuthWarning, type CliAuthWarning } from '../utils/cliRunner'
 
 /** The `ModelChip` CLI props derived from the agent-run (Run button) selection. */
 export type AgentRunChipCliWiring = {
@@ -14,6 +15,8 @@ export type AgentRunChipCliWiring = {
   enabledClis: string[]
   cliModels: ModelInfo[]
   recentCliModels: ActivityCliModel[]
+  /** Whether the selected CLI credential needs re-auth (for the chip's warning badge). */
+  authWarning: CliAuthWarning
   onToggleUseCli: (next: boolean) => void
   onPickCli: (cli: string) => void
   onPickCliModel: (modelId: string) => void
@@ -45,6 +48,7 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     enabledClis,
     activeCli,
     activeCliCredentialId,
+    caches,
     cachesByCli,
     defaultModel,
     effort,
@@ -66,6 +70,7 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
   const selectedCli = cliModel?.cli ?? activeCli ?? null
   const selectedCliModelId = cliModel?.modelId
   const credentialId = cliModel?.credentialId ?? activeCliCredentialId ?? undefined
+  const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
   const liveModels =
     selectedCli && credentialId
       ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
@@ -158,6 +163,7 @@ export function useAgentRunChipCli(): AgentRunChipCliWiring {
     enabledClis,
     cliModels: effectiveCliModels,
     recentCliModels,
+    authWarning,
     onToggleUseCli,
     onPickCli,
     onPickCliModel,

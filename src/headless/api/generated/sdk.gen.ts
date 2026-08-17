@@ -39,6 +39,8 @@ import type {
   CancelCliAuthLoginData,
   CancelCliAuthLoginErrors,
   CancelCliAuthLoginResponses,
+  CheckCliAuthStatusData,
+  CheckCliAuthStatusResponses,
   CheckProjectGithubNameData,
   CheckProjectGithubNameErrors,
   CheckProjectGithubNameResponses,
@@ -596,6 +598,8 @@ import type {
   RunTestsData,
   RunTestsErrors,
   RunTestsResponses,
+  RunTrainerToolData,
+  RunTrainerToolResponses,
   ScanCodeIntelData,
   ScanCodeIntelErrors,
   ScanCodeIntelResponses,
@@ -3521,6 +3525,20 @@ export const liveCliAgentModels = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const checkCliAuthStatus = <ThrowOnError extends boolean = false>(
+  options: Options<CheckCliAuthStatusData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CheckCliAuthStatusResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/auth',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const getCliAgentRun = <ThrowOnError extends boolean = false>(
   options: Options<GetCliAgentRunData, ThrowOnError>,
 ) =>
@@ -4029,6 +4047,15 @@ export const resumeActivity = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/activities/{activityId}/resume',
+    ...options,
+  })
+
+export const runTrainerTool = <ThrowOnError extends boolean = false>(
+  options: Options<RunTrainerToolData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<RunTrainerToolResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/trainer-tools/{toolName}',
     ...options,
   })
 

@@ -153,6 +153,30 @@ export type ModelRef = {
   label: string
 }
 
+export type ActivityStepSpec = {
+  key: string
+  tool: string
+  method: string
+  params?: {
+    [key: string]: unknown
+  }
+}
+
+export type RecordTypeMapping =
+  | string
+  | {
+      fromParam: string
+      fallback?: string
+    }
+
+export type AppActivityDefinition = {
+  activityType: string
+  recordType: RecordTypeMapping
+  steps: Array<ActivityStepSpec>
+  lane?: string
+  requiresApi?: boolean
+}
+
 export type ItemFreshnessOpts = {
   now: string
   ttlMs: number
@@ -670,16 +694,6 @@ export type AgentTaskResult = {
 }
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
-
-export type CliRunnerDispatchOptions = {
-  cli: 'claude-code' | 'cursor-agent' | 'codex'
-  authCredentialId?: string
-  apiKeyCredentialId?: string
-  workspaceHostPath?: string
-  model?: string
-  effort?: string
-  execMode?: 'per-turn' | 'resident'
-}
 
 export type ResearchSource = {
   title: string
@@ -1845,6 +1859,24 @@ export type ChatContextArgumentsAgentRunFeature = {
   }
 }
 
+export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
+
+export type CliAuthStatusSource = 'run-failure' | 'probe' | 'login'
+
+export type CliAuthStatus = {
+  authenticated: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
+  checkedAt: string
+  source: CliAuthStatusSource
+}
+
+export type CliAuthVerdict = {
+  authenticated: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
+}
+
 export type SecurityRunResult = {
   status: number | unknown
   stdout: string
@@ -2303,6 +2335,20 @@ export type ApplyCliAgentArtifactResult =
     } & ApplyFilesEmittedResult)
   | ApplyProposedCommitResult
   | ApplyProposedPrResult
+
+export type CheckCliAuthStatusParams = {
+  credentialId: string
+}
+
+export type StartCliReauthParams = {
+  credentialId: string
+}
+
+export type CliReauthStartResult = {
+  loginId: string
+  cli: CliTool
+  signInUrl?: string
+}
 
 export type CliAgentAuthExpiredPayload = {
   cli: CliTool
@@ -2993,6 +3039,13 @@ export type CliAuthCacheEntry = {
   files: {
     [key: string]: string
   }
+  authStatus?: {
+    authenticated: boolean
+    reason?: 'auth-expired' | 'missing' | 'unknown'
+    message?: string
+    checkedAt: string
+    source: CliAuthStatusSource
+  }
   createdAt: string
   updatedAt: string
 }
@@ -3002,6 +3055,13 @@ export type CliAuthCacheCreateInput = {
   cli: string
   files: {
     [key: string]: string
+  }
+  authStatus?: {
+    authenticated: boolean
+    reason?: 'auth-expired' | 'missing' | 'unknown'
+    message?: string
+    checkedAt: string
+    source: CliAuthStatusSource
   }
 }
 
@@ -3199,7 +3259,7 @@ export type EvidencePassage = {
   text: string
 }
 
-export type AbstainReason = 'no-source' | 'sub-quorum' | 'thin-evidence'
+export type AbstainReason = 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
 
 export type ClaimVerdict = {
   status: ResearchVerdictStatus
@@ -3209,7 +3269,7 @@ export type ClaimVerdict = {
     url: string
   }>
   derivation?: string
-  abstainReason?: 'no-source' | 'sub-quorum' | 'thin-evidence'
+  abstainReason?: 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
   methodology: string
   sourcesAttempted: Array<string>
 }
@@ -3259,6 +3319,7 @@ export type ResearchTraceEvent = {
     chars: number
     ok: boolean
   }>
+  durationMs?: number
   detail?: {
     [key: string]: unknown
   }
@@ -5081,6 +5142,7 @@ export type DataCapabilityType = {
 export type DataCapabilityManifest = {
   types: Array<DataCapabilityType>
   activities?: Array<string>
+  activityDefinitions?: Array<AppActivityDefinition>
 }
 
 export type UpdateProjectRecordArgs = {
@@ -5277,6 +5339,18 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
+export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist'
+
+export type KnownShop = {
+  host: string
+  markets?: Array<string>
+  class: ShopClass
+  discoveryOnly?: boolean
+  gridHeavy?: boolean
+  notASeed?: boolean
+  note?: string
+}
+
 export type ProvenancedField = {
   value: string
   sourceUrl?: string
@@ -5327,6 +5401,67 @@ export type EvalCase = {
   expected: EvalOutcome
 }
 
+export type IdentityReliability = 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
+
+export type ProductVariant = {
+  key: string
+  label: string
+  axes: {
+    [key: string]: string
+  }
+  axesLabels?: {
+    [key: string]: string
+  }
+  gtin?: string
+  asin?: string
+  imageUrl?: string
+  availability?: string
+  composition?: {
+    [key: string]: unknown
+  }
+}
+
+export type AccessoryRelation = 'refill' | 'part' | 'accessory' | 'case' | 'works-with'
+
+export type CriterionEvidence = {
+  quote: string
+  url: string
+}
+
+export type AccessoryLink = {
+  relation: AccessoryRelation
+  status: 'resolved' | 'unresolved'
+  key?: string
+  targetName: string
+  targetBrand?: string
+  label?: string
+  confidence?: number
+  evidence?: Array<CriterionEvidence>
+}
+
+export type CriterionVerdict = {
+  criterionId: string
+  variantKey?: string
+  status: CriterionStatus
+  confidence: number
+  evidence: Array<CriterionEvidence>
+  derivation?: string
+  abstainReason?: 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
+  methodology: string
+  sourcesAttempted: Array<string>
+  asOf: string
+}
+
+export type ProductProperty = {
+  key: string
+  label?: string
+  value: string
+  magnitude?: number
+  unit?: string
+  defining?: boolean
+  source?: string
+}
+
 export type PricePoint = {
   price: number
   currency?: string
@@ -5337,6 +5472,12 @@ export type PriceTrend = 'dropped' | 'historical-low' | 'stable' | 'suspicious-s
 
 export type Offer = {
   sourceId: string
+  variantLabel?: string
+  variantKey?: string
+  gtin?: string
+  asin?: string
+  packCount?: number
+  unitPrice?: number
   seller: string
   price?: number
   regularPrice?: number
@@ -5354,6 +5495,7 @@ export type Offer = {
     capturedAt: string
   }
   priceTrend?: 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
+  market?: string
 }
 
 export type SupportDocType =
@@ -5391,11 +5533,6 @@ export type SupportInfo = {
   resolvedAt: string
 }
 
-export type CriterionEvidence = {
-  quote: string
-  url: string
-}
-
 export type ReviewAspect = {
   theme: string
   polarity: 'pro' | 'con' | 'complaint'
@@ -5425,18 +5562,6 @@ export type ReviewSynthesis = {
   asOf: string
 }
 
-export type CriterionVerdict = {
-  criterionId: string
-  status: CriterionStatus
-  confidence: number
-  evidence: Array<CriterionEvidence>
-  derivation?: string
-  abstainReason?: 'no-source' | 'sub-quorum' | 'thin-evidence'
-  methodology: string
-  sourcesAttempted: Array<string>
-  asOf: string
-}
-
 export type RecommendSource = {
   title: string
   url: string
@@ -5452,15 +5577,25 @@ export type ExtractionTier = 'structured' | 'grounded-llm'
 
 export type CatalogItem = {
   key: string
+  identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
   categoryPaths: Array<Array<string>>
   identity: {
     [key: string]: unknown
+  }
+  variants?: Array<ProductVariant>
+  gallery?: Array<string>
+  accessories?: Array<AccessoryLink>
+  variantCriteria?: {
+    [key: string]: {
+      [key: string]: CriterionVerdict
+    }
   }
   summary: string
   description: string
   composition: {
     [key: string]: unknown
   }
+  properties?: Array<ProductProperty>
   offers: Array<Offer>
   supportInfo?: {
     manufacturer?: {
@@ -5531,6 +5666,37 @@ export type AggregateScoreReport = {
   }
 }
 
+export type ProductTypeRule = {
+  label: string
+  hard?: boolean
+  terms: Array<string>
+}
+
+export type ProductTypeCheck = {
+  onTypeForms: Array<string>
+  onTypeTerms: Array<string>
+  offTypeRules: Array<ProductTypeRule>
+}
+
+export type ProductTypeVerdict = {
+  type: 'on-type' | 'off-type' | 'uncertain'
+  label?: string
+  matched?: string
+}
+
+export type CatalogNoiseReport = {
+  total: number
+  onType: Array<string>
+  uncertain: Array<string>
+  offType: Array<{
+    key: string
+    name: string
+    label: string
+    matched: string
+  }>
+  noiseRate: number
+}
+
 export type ScoreReport = {
   recallAtK: number
   k: number
@@ -5542,20 +5708,6 @@ export type ScoreReport = {
 export type CategoryNode = {
   path: Array<string>
   synonyms?: Array<string>
-}
-
-export type ProductTypeSpec = {
-  recordType: string
-  keyFields: Array<string>
-  supplierQuery: string
-  supplierInstructions: string
-  itemQuery: string
-  seedItemQuery?: string
-  itemInstructions: string
-  requiredKeyFields?: Array<string>
-  categoryAxis?: Array<CategoryNode>
-  brandQuery?: string
-  brandInstructions?: string
 }
 
 export type FilterRule = {
@@ -5683,9 +5835,21 @@ export type ReviewLead = {
   sampleWeight?: number
 }
 
+export type AccessoryCard = {
+  relation: AccessoryRelation
+  resolved: boolean
+  name: string
+  key?: string
+  imageUrl?: string
+  verdictBadge?: string
+  buyUrl?: string
+}
+
 export type AuditCheck = {
   status: 'pass' | 'fail' | 'na'
   detail: string
+  good?: number
+  total?: number
 }
 
 export type ProductAuditReport = {
@@ -5709,6 +5873,8 @@ export type AuditCheckRollup = {
   fail: number
   na: number
   passRate: number | unknown
+  itemRate: number | unknown
+  coverage: number
 }
 
 export type CatalogAuditScorecard = {
@@ -5722,7 +5888,164 @@ export type CatalogAuditScorecard = {
     total: number
     structuredPct: number
   }
+  offerCoverage: {
+    offers: number
+    priced: number
+    pricedPct: number
+    blocked: number
+    withBuyLinkNoPrice: number
+  }
   products: Array<ProductAuditReport>
+}
+
+export type IdentityAttr = {
+  slot: string
+  kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
+  source: string
+  required: boolean
+  fallback?: string
+  canonicalUnit?: string
+  synonyms?: {
+    [key: string]: string
+  }
+}
+
+export type IdentitySchema = {
+  version: number
+  attrs: Array<IdentityAttr>
+}
+
+export type ComposedProductId = {
+  id: string
+  reliability: IdentityReliability
+  missing: Array<string>
+  inferred: Array<string>
+  fallbackSlots: Array<string>
+}
+
+export type ResolvedIdentity = {
+  key: string
+  id: string
+  reliability: IdentityReliability
+  brandInferred: boolean
+}
+
+export type Product = {
+  key: string
+  categoryPaths: Array<Array<string>>
+  identity: {
+    [key: string]: unknown
+  }
+  summary: string
+  description: string
+  composition: {
+    [key: string]: unknown
+  }
+  properties?: Array<ProductProperty>
+  supportInfo?: {
+    manufacturer?: {
+      name?: string
+      officialHost: string
+      resolvedVia: 'official-offer' | 'verified-search'
+      hostConfidence: number
+    }
+    documents: Array<SupportDocumentRef>
+    materials: Array<ProvenancedField>
+    ingredients?: Array<ProvenancedField>
+    specs?: {
+      [key: string]: string
+    }
+    certifications?: Array<string>
+    confidence: number
+    status: 'authoritative' | 'partial' | 'no-authoritative-maker' | 'unresolved'
+    resolvedAt: string
+  }
+  reviews?: {
+    headlineRating: number | unknown
+    confidence: number
+    reviewCount: number
+    sourceCount: number
+    perSourceRatings: Array<{
+      sourceUrl?: string
+      host?: string
+      rating: number
+      trustWeight: number
+    }>
+    dispersion?: number
+    sourceGap?: number
+    recentHeadlineRating?: number
+    recentSampleSize?: number
+    aspects: Array<ReviewAspect>
+    caveats: Array<string>
+    provisional: boolean
+    asOf: string
+  }
+  sources: Array<RecommendSource>
+  fieldCitations?: Array<FieldCitation>
+  provenance?: {
+    [key: string]: ExtractionTier
+  }
+  fieldAgreement?: {
+    [key: string]: number
+  }
+  freshness: {
+    [key: string]: string
+  }
+}
+
+export type ProductOffer = {
+  sourceId: string
+  variantLabel?: string
+  variantKey?: string
+  gtin?: string
+  asin?: string
+  packCount?: number
+  unitPrice?: number
+  seller: string
+  price?: number
+  regularPrice?: number
+  currency?: string
+  promo?: string
+  kind?: 'official' | 'retailer' | 'marketplace'
+  url: string
+  unavailable?: boolean
+  asOf: string
+  contentHash?: string
+  priceHistory?: Array<PricePoint>
+  pendingPrice?: {
+    price: number
+    currency?: string
+    capturedAt: string
+  }
+  priceTrend?: 'dropped' | 'historical-low' | 'stable' | 'suspicious-spike'
+  market: string
+  productKey: string
+}
+
+export type ProductVerdict = {
+  productKey: string
+  verdict: CriterionVerdict
+}
+
+export type ProductUserOverlay = {
+  productKey: string
+  note?: string
+  criteria?: {
+    [key: string]: CriterionVerdict
+  }
+}
+
+export type DecomposedItem = {
+  product: Product
+  offers: Array<ProductOffer>
+  verdicts: Array<ProductVerdict>
+  overlay?: {
+    productKey: string
+    note?: string
+    criteria?: {
+      [key: string]: CriterionVerdict
+    }
+  }
 }
 
 export type SourceClass =
@@ -5733,6 +6056,13 @@ export type SourceClass =
   | 'marketplace'
   | 'reference'
   | 'other'
+
+export type SeedSource = {
+  host: string
+  engine?: string
+  vertical?: string
+  kind?: 'aggregator' | 'multi-shop' | 'shop' | 'review' | 'marketplace' | 'reference' | 'other'
+}
 
 export type SourceRecord = {
   id: string
@@ -5769,6 +6099,14 @@ export type ObservedSource = {
   productYield?: number
 }
 
+export type BrandCriterionLedger = {
+  pass: number
+  fail: number
+  abstain: number
+  material?: string
+  updatedAt: string
+}
+
 export type BrandRecord = {
   name: string
   tags: Array<string>
@@ -5776,6 +6114,9 @@ export type BrandRecord = {
   url?: string
   imageUrl?: string
   summary?: string
+  ledger?: {
+    [key: string]: BrandCriterionLedger
+  }
   updatedAt: string
 }
 
@@ -5828,11 +6169,18 @@ export type CatalogBuildCaps = {
   maxSuppliers: number
   maxItemsPerSupplier: number
   maxOfferBackfills: number
+  maxOfferBackfillEmpties?: number
   maxSeededQueries?: number
   prunePersistedLowValue?: boolean
   maxDocBackfills?: number
   maxReviewBackfills?: number
+  maxDiversityBackfills?: number
+  knownSellersOnly?: boolean
   maxCriterionQueries?: number
+  enforceProductType?: boolean
+  autoDiscoverSeeds?: boolean
+  deadlineMs?: number
+  minProducts?: number
 }
 
 export type CatalogBuildProgress = {
@@ -5848,7 +6196,7 @@ export type CatalogBuildProgress = {
 
 export type RecommendTraceEvent = {
   at: string
-  phase: 'gather' | 'search' | 'read' | 'extract' | 'verify' | 'infer'
+  phase: 'gather' | 'search' | 'read' | 'extract' | 'enrich' | 'backfill' | 'verify' | 'infer'
   level: 'info' | 'warn' | 'error'
   message: string
   usage?: {
@@ -5876,36 +6224,31 @@ export type RecommendTraceEvent = {
     ok: boolean
   }>
   sources?: Array<string>
+  durationMs?: number
   detail?: {
     [key: string]: unknown
   }
 }
 
+export type TracePhaseStat = {
+  phase: string
+  count: number
+  occupancyMs: number
+  totalMs: number
+  p50Ms: number
+  p95Ms: number
+}
+
+export type TracePhaseReport = {
+  phases: Array<TracePhaseStat>
+  spanMs: number
+  accountedMs: number
+  coverage: number
+}
+
 export type DiscoveredSupplier = {
   name: string
   tags: Array<string>
-}
-
-export type DiscoverSuppliersParams = {
-  scope: string
-  spec: ProductTypeSpec
-  market: string
-  region?: string
-  language?: string
-  model: ModelSelection
-  maxSuppliers?: number
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
 }
 
 export type DiscoverSuppliersResult = {
@@ -5960,10 +6303,53 @@ export type FindMoreReviewsResult = {
   reviews: ReviewSynthesis | unknown
 }
 
+export type CollisionMember = {
+  key: string
+  label?: string
+  form?: string
+  categoryPaths?: Array<Array<string>>
+  gtins?: Array<string>
+  prices?: Array<number>
+}
+
+export type CollisionSignal = {
+  kind: 'type-divergence' | 'price-fanout'
+  detail: string
+  values: Array<string>
+}
+
+export type CollisionReport = {
+  key: string
+  memberCount: number
+  members: Array<string>
+  signals: Array<CollisionSignal>
+}
+
+export type EnrichProductResult = {
+  oldKey: string
+  newKey: string
+  changed: boolean
+  merged: boolean
+  reliabilityBefore: IdentityReliability
+  reliabilityAfter: IdentityReliability
+  recovered: {
+    model: string | unknown
+    properties: Array<string>
+    offersAdded: number
+  }
+  item: CatalogItem | unknown
+}
+
 export type FindMoreProductsResult = {
   recordType: string
   added: number
   products: Array<CatalogItem>
+}
+
+export type DegradationEvent = {
+  seam: 'offers' | 'support' | 'reviews'
+  item?: string
+  reason: string
 }
 
 export type BuildProductCatalogResult = {
@@ -5971,11 +6357,27 @@ export type BuildProductCatalogResult = {
   count: number
   attempted: number
   failed: number
+  unverified?: number
   suppliers: number
   suppliersFailed: number
   suppliersSkipped: number
   builtAt: string
   market: string
+  degradations?: Array<DegradationEvent>
+  offerBackfill?: {
+    attempted: number
+    found: number
+    empty: number
+    ceilingHit: boolean
+  }
+}
+
+export type BuildProductCatalogToTargetResult = {
+  recordType: string
+  count: number
+  firstPassCount: number
+  topUps: number
+  reachedTarget: boolean
 }
 
 export type SearchProductCandidatesParams = {
@@ -6001,6 +6403,7 @@ export type RecommendProductsParams = {
   searchLimit?: number
   rankLimit?: number
   refreshShortlist?: boolean
+  region?: string
   chatContext?: {
     type: ChatContextType
     groupId?: string
@@ -6102,6 +6505,19 @@ export type RemoveProductCriterionParams = {
   id: string
 }
 
+export type ClearCatalogParams = {
+  scope: string
+  recordType: string
+  includeKnowledge?: boolean
+  extraTypes?: Array<string>
+}
+
+export type DeleteProductParams = {
+  scope: string
+  recordType: string
+  key: string
+}
+
 export type ResolveProductGoalParams = {
   scope: string
   recordType: string
@@ -6146,6 +6562,8 @@ export type RankProductCandidatesParams = {
   }
   abortSignal?: unknown
 }
+
+export type VariantVerdict = 'pass' | 'fail' | 'unknown'
 
 export type SandboxMcpBridgeOptions = {
   runId: string
@@ -6709,6 +7127,18 @@ export type StructuredProduct = {
   via: 'json-ld' | 'microdata' | 'open-graph'
 }
 
+export type StructuredVariant = {
+  axes: {
+    [key: string]: string
+  }
+  name?: string
+  gtin?: string
+  image?: string
+  price?: number
+  priceCurrency?: string
+  availability?: string
+}
+
 export type ParsedPrice = {
   amount: number
   currency?: string
@@ -6720,6 +7150,8 @@ export type HeroImageCandidate = {
   height: number
   top: number
   alt?: string
+  isMain?: boolean
+  inReview?: boolean
 }
 
 export type WebSearchProvider =
@@ -6744,6 +7176,12 @@ export type WebSearchLocale = {
 
 export type WebReadOptions = {
   signal?: unknown
+  locale?: {
+    region?: string
+    language?: string
+    route?: Array<WebSearchProviderKind>
+    signal?: unknown
+  }
 }
 
 export type RegionLocale = {
@@ -6807,10 +7245,19 @@ export type SearchContextGeo = {
   acceptLanguage?: string
 }
 
+export type PageCapture = {
+  ax?: boolean
+  hero?: boolean
+  text?: boolean
+}
+
+export type RenderMode = 'default' | 'hardened'
+
 export type SearchPageContent = {
   html: string
   axSnapshot?: string
   heroImageUrl?: string
+  galleryImageUrls?: Array<string>
   renderedText?: string
 }
 
@@ -6819,6 +7266,8 @@ export type PageAction = {
   selector?: string
   value?: string
 }
+
+export type FetchStrategy = 'direct' | 'hardened-browser' | 'discovery-only'
 
 export type BuiltQuery = {
   text: string
@@ -7171,6 +7620,16 @@ export type Entity = {
   metadata?: {
     [key: string]: JsonValue
   }
+}
+
+export type CliRunnerDispatchOptions = {
+  cli: 'claude-code' | 'cursor-agent' | 'codex'
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+  workspaceHostPath?: string
+  model?: string
+  effort?: string
+  execMode?: 'per-turn' | 'resident'
 }
 
 export type Database = {
@@ -9128,6 +9587,13 @@ export type UpdateCliAuthCacheData = {
     cli?: string
     files?: {
       [key: string]: string
+    }
+    authStatus?: {
+      authenticated: boolean
+      reason?: 'auth-expired' | 'missing' | 'unknown'
+      message?: string
+      checkedAt: string
+      source: CliAuthStatusSource
     }
   }
   path: {
@@ -15422,6 +15888,25 @@ export type LiveCliAgentModelsResponses = {
 export type LiveCliAgentModelsResponse =
   LiveCliAgentModelsResponses[keyof LiveCliAgentModelsResponses]
 
+export type CheckCliAuthStatusData = {
+  body: {
+    credentialId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/probe/auth'
+}
+
+export type CheckCliAuthStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: CliAuthStatus
+}
+
+export type CheckCliAuthStatusResponse =
+  CheckCliAuthStatusResponses[keyof CheckCliAuthStatusResponses]
+
 export type GetCliAgentRunData = {
   body?: never
   path: {
@@ -15652,6 +16137,7 @@ export type StartCliAuthLoginData = {
   body: {
     cli: CliTool
     label: string
+    credentialId?: string
   }
   path?: never
   query?: never
@@ -17027,6 +17513,29 @@ export type ResumeActivityResponses = {
 }
 
 export type ResumeActivityResponse = ResumeActivityResponses[keyof ResumeActivityResponses]
+
+export type RunTrainerToolData = {
+  body?: never
+  path: {
+    /**
+     * Project id (the scope the run records live in).
+     */
+    projectId: string
+    /**
+     * The trainer tool to run (a safe read / interactive-RPC tool).
+     */
+    toolName: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/trainer-tools/{toolName}'
+}
+
+export type RunTrainerToolResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
 
 export type ResetOverseerData = {
   body?: never

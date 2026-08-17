@@ -955,3 +955,39 @@ export function groupCachesByCli<T extends { cli: string }>(
   }
   return out
 }
+
+/** The advisory auth-health of a credential, as carried on a `CliAuthCacheEntry`. */
+export type CliAuthStatusLike = {
+  authenticated: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
+}
+
+/** A warning to surface on the model chip / settings when the selected CLI credential needs re-auth. */
+export type CliAuthWarning = {
+  needsReauth: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
+}
+
+/**
+ * Decide whether the model chip should flag the selected CLI credential for
+ * re-authentication. Advisory + fail-open: no credential, an unknown credential,
+ * a credential never checked (`authStatus` absent), or an authenticated one all
+ * yield NO warning — we only warn when a stored status explicitly says
+ * `authenticated: false` (a real run/inference failure or an explicit probe). This
+ * avoids crying wolf on a freshly-added, not-yet-exercised credential.
+ */
+export function deriveCliAuthWarning(
+  credentialId: string | null | undefined,
+  caches: readonly { id: string; authStatus?: CliAuthStatusLike }[],
+): CliAuthWarning {
+  if (!credentialId) return { needsReauth: false }
+  const status = caches.find((c) => c.id === credentialId)?.authStatus
+  if (!status || status.authenticated) return { needsReauth: false }
+  return {
+    needsReauth: true,
+    ...(status.reason ? { reason: status.reason } : {}),
+    ...(status.message ? { message: status.message } : {}),
+  }
+}

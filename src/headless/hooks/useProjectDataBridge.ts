@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { dispatchProjectDataBridge } from '../api/projectData'
 import { dispatchLiveDataBridge } from '../api/liveDataBridge'
 import { dispatchActivitiesBridge } from '../api/activitiesBridge'
+import { dispatchTrainerToolsBridge } from '../api/trainerToolsBridge'
 import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
@@ -38,6 +39,8 @@ export function useProjectDataBridge(
       if (live !== undefined) return live
       const settings = await dispatchAppSettingsBridge(projectId, req)
       if (settings !== undefined) return settings
+      const trainerTool = await dispatchTrainerToolsBridge(projectId, req)
+      if (trainerTool !== undefined) return trainerTool
       // An app can be API-only overall yet allow CLI for SPECIFIC activities (declared via
       // `cliActivities`, e.g. the trainer's `research-training-papers` deep-research). Send the CLI model
       // only when the launched activity permits it; otherwise those activities run on the API config.

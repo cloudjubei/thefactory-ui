@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ModelInfo } from '../../headless/api'
 import type { ActivityCliModel } from '../../headless/contexts/LLMConfigsContext'
-import { cliDotColor, cliLabel, shortCliModelLabel } from '../../headless/utils/cliRunner'
+import {
+  cliDotColor,
+  cliLabel,
+  shortCliModelLabel,
+  type CliAuthWarning,
+} from '../../headless/utils/cliRunner'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -61,6 +66,8 @@ export interface ModelChipProps {
   residentMode?: boolean
   /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
   onToggleResident?: (next: boolean) => void
+  /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" picker row). */
+  authWarning?: CliAuthWarning
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -197,6 +204,7 @@ export function ModelChip({
   cliDisabledReason,
   residentMode,
   onToggleResident,
+  authWarning,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -205,6 +213,7 @@ export function ModelChip({
   >({})
 
   const cliEnabled = onToggleUseCli != null
+  const needsReauth = !!useCli && !!authWarning?.needsReauth
 
   let prov = providerLabel(provider)
   let displayModel = model
@@ -221,7 +230,10 @@ export function ModelChip({
     () => [prov || undefined, displayModel || undefined].filter(Boolean).join(' · '),
     [prov, displayModel],
   )
-  const title = label || (editable ? 'Select model' : 'Unknown model')
+  const baseTitle = label || (editable ? 'Select model' : 'Unknown model')
+  const title = needsReauth
+    ? `${baseTitle} — ${authWarning?.message ?? 'sign-in expired'}; re-authenticate in Settings`
+    : baseTitle
   const dotColor = providerDot(provider ?? activeConfig?.provider)
   const isChatMode = mode === 'chat'
 
@@ -287,8 +299,9 @@ export function ModelChip({
         paddingVertical: nativeSpace[3],
         borderRadius: nativeRadii.round,
         borderWidth: 1,
-        borderColor:
-          mode === 'activity'
+        borderColor: needsReauth
+          ? nativePalette.red[500]
+          : mode === 'activity'
             ? nativePalette.blue[600]
             : isChatMode
               ? nativePalette.teal[600]
@@ -330,6 +343,20 @@ export function ModelChip({
           backgroundColor: useCli ? cliDotColor(activeCli) : dotColor,
         }}
       />
+      {needsReauth && (
+        <View
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: nativePalette.red[500],
+          }}
+        >
+          <Text style={{ fontSize: 8, fontWeight: '700', lineHeight: 10, color: '#ffffff' }}>!</Text>
+        </View>
+      )}
       <View style={{ alignItems: 'center', maxWidth: 60 }}>
         <Text
           numberOfLines={1}
@@ -668,6 +695,26 @@ export function ModelChip({
                   marginVertical: nativeSpace[2],
                 }}
               />
+              {needsReauth && (
+                <Pressable
+                  accessibilityRole="menuitem"
+                  onPress={() => {
+                    onOpenSettings()
+                    setOpen(false)
+                  }}
+                  style={({ pressed }) => ({
+                    minHeight: 48,
+                    justifyContent: 'center',
+                    paddingHorizontal: nativeSpace[3],
+                    borderRadius: nativeRadii[3],
+                    backgroundColor: pressed ? theme.surface.hover : 'transparent',
+                  })}
+                >
+                  <Text style={{ fontSize: 14, color: nativePalette.red[500] }}>
+                    ⚠ Re-authenticate in Settings…
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 accessibilityRole="menuitem"
                 onPress={() => {

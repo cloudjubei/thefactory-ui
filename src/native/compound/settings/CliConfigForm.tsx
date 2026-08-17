@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Linking, ScrollView, Text, View } from 'react-native'
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
 import { extractErrorMessage } from '../../../headless/api'
 import type { CliAuthCacheEntry, CliReasoningEffort, CliTool, ModelInfo } from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult } from '../../../headless'
+import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
+import { Input } from '../../primitives/Input'
 import { ConfirmDialog } from '../../primitives/Modal'
 import {
   Select,
@@ -73,6 +75,12 @@ export function CliConfigForm() {
     probeModelsLive,
     cachedLiveModels,
     probeLive,
+    checkAuth,
+    startAuthLogin,
+    cancelAuthLogin,
+    submitLoginInput,
+    loginOutput,
+    loginResults,
   } = useCliConfigs()
 
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
@@ -80,6 +88,59 @@ export function CliConfigForm() {
   const [liveProbe, setLiveProbe] = useState<Record<string, LiveProbeState>>({})
   const [pendingDelete, setPendingDelete] = useState<CliAuthCacheEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Per-credential "Check now" auth probe in flight.
+  const [checking, setChecking] = useState<Record<string, boolean>>({})
+  // The credential currently being re-authenticated in place + its login stream id.
+  const [reauth, setReauth] = useState<{ credentialId: string; loginId: string } | null>(null)
+  const [pasteCode, setPasteCode] = useState('')
+
+  // A completed re-auth clears the inline pane (the context already refreshed the
+  // cache list, so the row's status badge flips to authenticated on its own).
+  useEffect(() => {
+    if (reauth && loginResults[reauth.loginId]?.status === 'completed') {
+      setReauth(null)
+      setPasteCode('')
+    }
+  }, [reauth, loginResults])
+
+  const runCheckAuth = async (credentialId: string) => {
+    setChecking((prev) => ({ ...prev, [credentialId]: true }))
+    try {
+      await checkAuth(credentialId)
+    } catch {
+      // The failure is advisory; the credential badge reflects the last known state.
+    } finally {
+      setChecking((prev) => ({ ...prev, [credentialId]: false }))
+    }
+  }
+
+  const startReauth = async (cli: CliTool, cache: CliAuthCacheEntry) => {
+    try {
+      const loginId = await startAuthLogin(cli, cache.name, cache.id)
+      setReauth({ credentialId: cache.id, loginId })
+      setPasteCode('')
+    } catch {
+      // startAuthLogin rejects synchronously only on a transport error; ignore.
+    }
+  }
+
+  const cancelReauth = async () => {
+    if (!reauth) return
+    try {
+      await cancelAuthLogin(reauth.loginId)
+    } catch {
+      // best-effort cancel
+    }
+    setReauth(null)
+    setPasteCode('')
+  }
+
+  const submitReauthCode = () => {
+    const code = pasteCode.trim()
+    if (!reauth || !code) return
+    void submitLoginInput(reauth.loginId, code)
+    setPasteCode('')
+  }
 
   const cliGroups = useMemo(
     () => Object.entries(cachesByCli).sort(([a], [b]) => a.localeCompare(b)),
@@ -313,6 +374,12 @@ export function CliConfigForm() {
             {caches.map((cache) => {
               const isDefault = activeCliCredentialId === cache.id
               const liveState = liveProbe[cache.id] ?? { kind: 'idle' }
+              const status = cache.authStatus
+              const isReauthing = reauth?.credentialId === cache.id
+              const reauthOut = isReauthing ? (loginOutput[reauth.loginId] ?? '') : ''
+              const reauthSignInUrl = isReauthing ? parseLoginUrl(reauthOut) : null
+              const reauthAwaitsCode = isReauthing ? loginAwaitsCode(reauthOut) : false
+              const reauthResult = isReauthing ? loginResults[reauth.loginId] : undefined
               return (
                 <View key={cache.id} style={{ gap: nativeSpace[3] }}>
                   <View
@@ -343,6 +410,35 @@ export function CliConfigForm() {
                         {cliLabel(cache.cli)}
                       </Text>
                     </View>
+                    {status ? (
+                      status.authenticated ? (
+                        <View
+                          style={{
+                            borderRadius: nativeRadii[1],
+                            backgroundColor: theme.surface.muted,
+                            paddingHorizontal: nativeSpace[3],
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                            Authenticated
+                          </Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            borderRadius: nativeRadii[1],
+                            backgroundColor: `${nativeLightStatus.stuck.bg}1A`,
+                            paddingHorizontal: nativeSpace[3],
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, color: nativeLightStatus.stuck.bg }}>
+                            Needs re-auth
+                          </Text>
+                        </View>
+                      )
+                    ) : null}
                   </View>
 
                   <View
@@ -390,6 +486,24 @@ export function CliConfigForm() {
                       <Text style={{ fontSize: 13, fontWeight: '500', color: theme.accent.primary }}>
                         Test (live)
                       </Text>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={checking[cache.id]}
+                      onPress={() => void runCheckAuth(cache.id)}
+                      accessibilityLabel="Check whether this credential is still authenticated"
+                    >
+                      Check now
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={status && !status.authenticated ? 'success' : 'outline'}
+                      disabled={isReauthing}
+                      onPress={() => void startReauth(cli, cache)}
+                      accessibilityLabel="Re-authenticate this credential in place"
+                    >
+                      Re-authenticate
                     </Button>
                     <Button
                       size="icon"
@@ -469,6 +583,105 @@ export function CliConfigForm() {
                     <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
                       {liveState.message}
                     </Text>
+                  ) : null}
+
+                  {isReauthing ? (
+                    <View
+                      style={{
+                        gap: nativeSpace[3],
+                        borderRadius: nativeRadii[1],
+                        borderWidth: 1,
+                        borderColor: theme.border.default,
+                        backgroundColor: theme.surface.muted,
+                        paddingHorizontal: nativeSpace[5],
+                        paddingVertical: nativeSpace[4],
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: nativeSpace[3],
+                        }}
+                      >
+                        <Text
+                          style={{
+                            flex: 1,
+                            fontSize: 13,
+                            fontWeight: '500',
+                            color: theme.text.primary,
+                          }}
+                        >
+                          Re-authenticating {cliLabel(cache.cli)}…
+                        </Text>
+                        <Button size="sm" variant="outline" onPress={() => void cancelReauth()}>
+                          Cancel
+                        </Button>
+                      </View>
+                      {reauthSignInUrl ? (
+                        <Button
+                          size="sm"
+                          onPress={() => void Linking.openURL(reauthSignInUrl)}
+                        >
+                          Open the sign-in page to finish
+                        </Button>
+                      ) : (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: nativeSpace[3],
+                          }}
+                        >
+                          <Spinner size={12} />
+                          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                            Starting login…
+                          </Text>
+                        </View>
+                      )}
+                      {reauthAwaitsCode ? (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: nativeSpace[3],
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Input
+                              value={pasteCode}
+                              onChangeText={setPasteCode}
+                              placeholder="Paste the code from the browser"
+                              autoCapitalize="none"
+                              autoCorrect={false}
+                              onSubmitEditing={submitReauthCode}
+                            />
+                          </View>
+                          <Button size="sm" variant="outline" onPress={submitReauthCode}>
+                            Submit
+                          </Button>
+                        </View>
+                      ) : null}
+                      {reauthResult?.status === 'error' ? (
+                        <Text style={{ fontSize: 12, color: nativeLightStatus.stuck.bg }}>
+                          {reauthResult.error}
+                        </Text>
+                      ) : null}
+                      {reauthOut ? (
+                        <ScrollView
+                          style={{ maxHeight: 128 }}
+                          nestedScrollEnabled
+                          keyboardShouldPersistTaps="handled"
+                        >
+                          <Text
+                            style={{ fontFamily: 'Courier', fontSize: 11, color: theme.text.secondary }}
+                          >
+                            {reauthOut}
+                          </Text>
+                        </ScrollView>
+                      ) : null}
+                    </View>
                   ) : null}
                 </View>
               )

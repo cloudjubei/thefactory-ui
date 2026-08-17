@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom'
 
 import type { ModelInfo } from '../../headless/api'
 import type { ActivityCliModel } from '../../headless/contexts/LLMConfigsContext'
-import { cliDotColor, cliLabel, shortCliModelLabel } from '../../headless/utils/cliRunner'
+import {
+  cliDotColor,
+  cliLabel,
+  shortCliModelLabel,
+  type CliAuthWarning,
+} from '../../headless/utils/cliRunner'
 import type { UsageModalModelPrice } from './UsageModal'
 
 export type ModelChipConfig = {
@@ -53,6 +58,8 @@ export type ModelChipProps = {
   residentMode?: boolean
   /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
   onToggleResident?: (next: boolean) => void
+  /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" menu entry). */
+  authWarning?: CliAuthWarning
 }
 
 function providerLabel(p?: string) {
@@ -198,6 +205,7 @@ function Picker({
   cliDisabledReason,
   residentMode,
   onToggleResident,
+  authWarning,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -220,6 +228,7 @@ function Picker({
   cliDisabledReason?: string
   residentMode?: boolean
   onToggleResident?: (next: boolean) => void
+  authWarning?: CliAuthWarning
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -521,6 +530,22 @@ function Picker({
               </span>
             </label>
           )}
+          {authWarning?.needsReauth && (
+            <button
+              role="menuitem"
+              className="standard-picker__item"
+              title={authWarning.message ?? 'This CLI credential needs re-authentication.'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenSettings()
+                onClose()
+              }}
+            >
+              <span className="standard-picker__label text-red-500">
+                ⚠ Re-authenticate in Settings…
+              </span>
+            </button>
+          )}
           <button
             role="menuitem"
             className="standard-picker__item"
@@ -618,9 +643,11 @@ export function ModelChip({
   onPickRecentCli,
   residentMode,
   onToggleResident,
+  authWarning,
 }: ModelChipProps) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [open, setOpen] = useState(false)
+  const needsReauth = !!useCli && !!authWarning?.needsReauth
 
   const cliEnabled = onToggleUseCli != null
 
@@ -643,7 +670,10 @@ export function ModelChip({
     [prov, displayModel],
   )
   const label = parts.join(' · ')
-  const title = label || (editable ? 'Select model' : 'Unknown model')
+  const baseTitle = label || (editable ? 'Select model' : 'Unknown model')
+  const title = needsReauth
+    ? `${baseTitle} — ${authWarning?.message ?? 'sign-in expired'}; re-authenticate in Settings`
+    : baseTitle
 
   if (editable && !cliEnabled && !useCli && (!configs || configs.length === 0)) {
     return (
@@ -671,6 +701,7 @@ export function ModelChip({
             ? 'bg-teal-500/20 border-teal-600 dark:border-teal-700  dark:bg-teal-800/60 '
             : 'bg-neutral-100 border-neutral-200 dark:border-neutral-700  dark:bg-neutral-800/60 ',
         editable ? 'cursor-pointer hover:bg-neutral-100/80 dark:hover:bg-neutral-800' : '',
+        needsReauth ? 'ring-1 ring-red-500' : '',
         'no-drag',
         className || '',
       ].join(' ')}
@@ -708,6 +739,14 @@ export function ModelChip({
           ].join(' ')}
           style={useCli ? { backgroundColor: cliDotColor(activeCli) } : undefined}
         />
+        {needsReauth && (
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none"
+          >
+            !
+          </span>
+        )}
       </span>
       <span className="flex flex-col leading-tight max-w-[60px] items-center pr-1 pl-1 overflow-hidden text-ellipsis">
         <span className="truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
@@ -746,6 +785,7 @@ export function ModelChip({
           onPickRecentCli={onPickRecentCli}
           residentMode={residentMode}
           onToggleResident={onToggleResident}
+          authWarning={authWarning}
         />
       )}
     </>
