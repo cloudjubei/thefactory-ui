@@ -184,6 +184,11 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     [ws, refresh],
   )
 
+  // A CLI credential's auth health changed server-side (a run/inference just failed auth → stale, or a
+  // re-login cleared it). Refresh the caches so the model chip's re-auth badge appears/clears at once —
+  // this is what makes a broken CLI login visible immediately, without a page reload.
+  useEffect(() => ws.on('cli:auth-status-changed', () => void refresh()), [ws, refresh])
+
   const createCache = useCallback(
     async (input: CliAuthCacheCreateInput) => {
       const { data } = await createCliAuthCache({ body: input, throwOnError: true })
