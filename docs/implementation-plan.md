@@ -60,6 +60,24 @@ Build the journey as a first-class flow, shared here and surfaced per client:
 
 Tracking note: only the Investment Planner template exists; a second (car-buyer helper) is planned, which is the real second consumer that will shake out the picker + journey.
 
+### B.4 In-app capture for agent debugging (`captureCurrentAppHtml`)
+
+Motivation: when an embedded app renders wrong, the fastest fix loop is to let an agent **see the actual app**. But "Save Page As" only captures the outer Overseer shell — the app runs in a **cross-origin** iframe/WebView (overseer-web `:5173`, app served from the backend `:7001`), so overseer-web cannot read the iframe DOM directly.
+
+**MVP shipped (a script):** [`thefactory-backend/scripts/capture-app-view.mjs`](../../thefactory-backend/scripts/capture-app-view.mjs) mints a view token, headlessly renders `…/view/index.html` (the exact bytes the iframe loads), and writes the rendered DOM + a screenshot. It renders **standalone** (no `OverseerBridge`) so it shows the shell + empty states — enough to judge layout/design against the mockups, and it proves what the backend actually serves vs. a stale client. Any agent can run it via a shell.
+
+**To productize:**
+- A backend chat tool `captureCurrentAppHtml(projectId)` wrapping the same headless render — reuse the backend's existing Playwright access (via `webTools`) instead of spawning the script — returning the HTML + a screenshot artifact the agent can read.
+- **v2 — LIVE capture of the user's real iframe DOM** (their data + current view), not a fresh render. Cross-origin means the app must serialise itself: add a **host→app request/response** to the bridge — overseer-web posts `overseer:capture-html`; the shared template `bridge.js` replies with `document.documentElement.outerHTML`; `ProjectAppView` (web + native) exposes `captureHtml()` awaiting the reply. The agent-invocable path signals the client over ws (mirror `pendingToolGrants`), the client captures + uploads, and the tool returns it.
+
+### B.5 "Show app" select-and-annotate mode → current chat (scope later)
+
+From a chat, the user enters a **"Show app"** mode over the running app: they click elements in the app, each selection gets a comment box, and the set of `{ element (stable selector + outerHTML snippet), comment, optional bounding-box screenshot }` is fed back into the **launching chat** as structured context for the agent. Open questions to scope: element identification across the cross-origin boundary (the app exposes a lightweight **pick mode** via the bridge that returns a stable selector + the clicked node's `outerHTML`); how selections render in the chat composer; multi-select / edit / remove. Shares the "annotation → chat context" plumbing with B.6.
+
+### B.6 Arbitrary screenshot + comment → current chat (scope later)
+
+Same delivery as B.5 but for freeform screenshots: the user grabs a screenshot (of the app surface or a selected region), adds a comment, and it's attached to the launching chat. Shares the annotation→chat plumbing with B.5; differs only in the capture source (image vs. element pick).
+
 ---
 
 ## C. Deferred
