@@ -51,6 +51,12 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
 
   const latestUrlRef = useRef<string | undefined>(undefined)
   const latestExpiresAtRef = useRef<string | undefined>(undefined)
+  // Monotonic per-remount nonce appended to the iframe URL. Some embedding WebViews hold the TOP-FRAME index.html
+  // stale across reloads even under `Cache-Control: no-store`, and a `files:changed` remount reuses the same
+  // viewToken URL (the token is still fresh) — so without this the iframe re-mounts on an identical `src` and the
+  // WebView serves its cached copy, and an on-disk app edit never appears. A unique `_r` per (re)mount makes every
+  // load a URL the cache has never seen (the same trick the viewer already uses to bust its own sub-resources).
+  const remountNonceRef = useRef(0)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Bumped on every projectId change / unmount; an in-flight mint compares the
@@ -104,7 +110,9 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
 
   const applyToConsumer = useCallback(() => {
     if (latestUrlRef.current === undefined) return
-    setUrl(latestUrlRef.current)
+    remountNonceRef.current += 1
+    const sep = latestUrlRef.current.includes('?') ? '&' : '?'
+    setUrl(`${latestUrlRef.current}${sep}_r=${remountNonceRef.current}`)
     setKey((k) => k + 1)
   }, [])
 
