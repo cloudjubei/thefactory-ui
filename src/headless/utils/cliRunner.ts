@@ -175,6 +175,22 @@ export function classifyToolOrigin(rawName: string | undefined): ToolOrigin {
 export type CliToolStepResultType = 'success' | 'errored' | 'running'
 
 /**
+ * True when a tool result is the host's "raised with the user, not yet answered"
+ * reply rather than the tool's own output. The call has NOT run.
+ */
+export function isAwaitingApprovalResult(result: unknown): boolean {
+  const record = asTranscriptRecord(result)
+  if (record?.outcome === 'pending') return true
+  const text = typeof result === 'string' ? result : undefined
+  if (text === undefined) return false
+  try {
+    return asTranscriptRecord(JSON.parse(text))?.outcome === 'pending'
+  } catch {
+    return false
+  }
+}
+
+/**
  * A CLI transcript reduced to readable, render-ready steps. Tool calls and
  * their later results are merged into a single `tool` step (paired by id), so
  * a consumer can render one drawer per logical operation — VS Code style.
@@ -199,6 +215,11 @@ export type CliTranscriptStep =
       /** The tool's result once it arrives; undefined while the call is in flight. */
       result?: unknown
       resultType: CliToolStepResultType
+      /**
+       * The host raised this call with the user and is waiting on them. The tool
+       * has NOT run, so the step is neither finished nor merely in flight.
+       */
+      awaitingApproval?: boolean
     }
   | { kind: 'result'; at: number; durationMs?: number; summary: string; raw: string }
   | { kind: 'raw'; at: number; durationMs?: number; raw: string }
@@ -217,16 +238,22 @@ function asString(v: unknown): string | undefined {
 
 /** Best-effort thinking text (Claude extended-thinking `thinking` content
  * blocks). Works for any entry — thinking can precede a tool call in the same
- * `assistant` message, which the runner then classifies as `tool-call`. */
+ * `assistant` message, which the runner then classifies as `tool-call`.
+ *
+ * Whitespace is preserved verbatim: streaming CLIs split one thought across many
+ * chunks, and trimming each would weld the last word of one to the first of the
+ * next. Callers decide whether a blank result is worth rendering. */
 export function cliThinkingTextFromEntry(entry: CliRunTranscriptEntry): string {
   const content = asTranscriptRecord(asTranscriptRecord(entry.payload)?.message)?.content
   if (!Array.isArray(content)) return ''
   return content
     .map((b) => asTranscriptRecord(b))
-    .filter((b): b is Record<string, unknown> => !!b && b.type === 'thinking' && typeof b.thinking === 'string')
+    .filter(
+      (b): b is Record<string, unknown> =>
+        !!b && b.type === 'thinking' && typeof b.thinking === 'string',
+    )
     .map((b) => b.thinking as string)
     .join('\n')
-    .trim()
 }
 
 type ExtractedCall = { toolName: string; origin: ToolOrigin; toolCallId?: string; input?: unknown }
@@ -278,6 +305,28 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
       input: echo.args ?? echo.input,
     }
   }
+  // Cursor over ACP (the resident transport): the protocol carries the raw
+  // `session/update` under `.acp`. Field names are read defensively — a row that
+  // names the call imprecisely is still an account of what happened, whereas
+  // requiring an exact shape is how these went missing in the first place.
+  const acp = asTranscriptRecord(p?.acp)
+  if (acp) {
+    const rawInput = asTranscriptRecord(acp.rawInput)
+    const name =
+      asString(rawInput?.name) ??
+      asString(acp.title) ??
+      asString(acp.kind) ??
+      asString(acp.sessionUpdate) ??
+      'tool'
+    return {
+      toolName: cleanCliToolName(name),
+      origin: /thefactory/i.test(name) ? 'internal' : 'native',
+      ...(asString(acp.toolCallId) !== undefined
+        ? { toolCallId: asString(acp.toolCallId) as string }
+        : {}),
+      input: acp.rawInput ?? acp.content ?? undefined,
+    }
+  }
   // Cursor native: { type:'tool_call', call_id, tool_call: { <name>ToolCall: { args } } }.
   const cursorTc = asTranscriptRecord(p?.tool_call)
   if (cursorTc) {
@@ -317,7 +366,12 @@ function extractCliToolCall(entry: CliRunTranscriptEntry): ExtractedCall {
   const item = asTranscriptRecord(p?.item)
   if (item && typeof item.type === 'string') {
     const input = item.command != null ? { command: item.command } : item
-    return { toolName: cleanCliToolName(item.type), origin: 'native', toolCallId: asString(item.id), input }
+    return {
+      toolName: cleanCliToolName(item.type),
+      origin: 'native',
+      toolCallId: asString(item.id),
+      input,
+    }
   }
   // Claude Code: { type:'assistant', message:{ content:[{type:'tool_use', id, name, input}] } }
   const content = asTranscriptRecord(p?.message)?.content
@@ -348,12 +402,93 @@ type ExtractedResult = {
   toolName?: string
   origin: ToolOrigin
   toolCallId?: string
+  /** Present only when the update carried arguments the opening call lacked. */
+  input?: unknown
   result: unknown
   resultType: CliToolStepResultType
 }
 
+/**
+ * Placeholder names cursor opens an ACP tool call with, before it knows (or
+ * before it says) which tool ran. A step wearing one of these is still
+ * unidentified, so a later update naming the tool must be allowed to replace it.
+ */
+const ACP_PLACEHOLDER_TOOL_NAMES = new Set(['tool', 'mcp: tool', 'other'])
+
+/** Whether `name` still fails to identify the tool that ran. */
+export function isPlaceholderCliToolName(name: string | undefined): boolean {
+  return name === undefined || ACP_PLACEHOLDER_TOOL_NAMES.has(name.trim().toLowerCase())
+}
+
+/**
+ * Whether an update's name tells the reader more than the one already on the row.
+ *
+ * A cursor tool call opens generic — `Read File`, `grep`, `MCP: tool` — and the
+ * useful name only arrives in the update that follows: `Read
+ * app/src/main/java/.../CommonUI.kt (1121 - 1370)`, `grep "fontFamily|..."`, or
+ * the verbatim shell command. Keeping the opening name is what made a live run
+ * unreadable — you could see THAT it was reading a file, never WHICH.
+ *
+ * An update may only make a row more specific, never less: a placeholder always
+ * yields, and otherwise the longer name wins. That way a later, vaguer update
+ * cannot take detail away once it is on screen.
+ */
+export function isMoreSpecificToolName(existing: string | undefined, incoming: string): boolean {
+  if (isPlaceholderCliToolName(existing)) return true
+  return incoming.length > (existing?.length ?? 0)
+}
+
+/** Whether a tool step is still carrying no arguments worth showing. */
+export function isEmptyToolInput(input: unknown): boolean {
+  if (input === undefined || input === null) return true
+  if (typeof input === 'string') return input.trim().length === 0
+  if (Array.isArray(input)) return input.length === 0
+  if (typeof input === 'object') return Object.keys(input as Record<string, unknown>).length === 0
+  return false
+}
+
+/**
+ * Provenance of an ACP tool call. Cursor names the MCP server in
+ * `rawInput.providerIdentifier` (`'thefactory'`) rather than in the tool name,
+ * so classifying on the name alone reports every one of our own tools as one of
+ * the CLI's built-ins.
+ */
+export function acpToolOrigin(provider: string | undefined, name: string | undefined): ToolOrigin {
+  if (provider !== undefined) return /thefactory/i.test(provider) ? 'internal' : 'external-mcp'
+  if (name !== undefined && /thefactory/i.test(name)) return 'internal'
+  return classifyToolOrigin(name)
+}
+
 function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   const p = asTranscriptRecord(entry.payload)
+  // Cursor over ACP: `tool_call_update` carries the id of the call it belongs to
+  // and a status. Without this the update never pairs with its call, so every
+  // tool sits on the running spinner for the rest of the turn.
+  const acp = asTranscriptRecord(p?.acp)
+  if (acp) {
+    const status = asString(acp.status)
+    // The update is also where a cursor call first says WHAT it is: the opening
+    // `tool_call` announces `title: "MCP: tool"` with an empty `rawInput`, and
+    // only `tool_call_update` carries `rawInput.toolName` and a real title. Read
+    // the identity here so the merge can replace the placeholder.
+    const rawInput = asTranscriptRecord(acp.rawInput)
+    const name = asString(rawInput?.toolName) ?? asString(rawInput?.name) ?? asString(acp.title)
+    const provider = asString(rawInput?.providerIdentifier)
+    return {
+      ...(name !== undefined ? { toolName: cleanCliToolName(name) } : {}),
+      origin: acpToolOrigin(provider, name),
+      ...(asString(acp.toolCallId) !== undefined
+        ? { toolCallId: asString(acp.toolCallId) as string }
+        : {}),
+      ...(rawInput !== undefined && Object.keys(rawInput).length > 0
+        ? { input: rawInput.args ?? acp.rawInput }
+        : {}),
+      result: acp.rawOutput ?? acp.content,
+      // Only a terminal status ends the call; `pending` / `in_progress` are
+      // progress reports and must leave the spinner alone.
+      resultType: acpResultType(status),
+    }
+  }
   // MCP tool result (any CLI): read the real tool name from the envelope and
   // unwrap its `{ success|error: { content } }` block to the structured result.
   const mcp = findMcpEnvelope(entry.payload)
@@ -391,7 +526,8 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
     const isError = codexRes.status === 'failed' || codexRes.error != null
     // result.content is [{ type:'text', text:'<json>' }] — wrap as a success
     // block so the shared unwrapper joins + JSON-parses it like our other tools.
-    const unwrapped = codexRes.result != null ? unwrapCursorResult({ success: codexRes.result }) : undefined
+    const unwrapped =
+      codexRes.result != null ? unwrapCursorResult({ success: codexRes.result }) : undefined
     return {
       toolName: cleanCliToolName(asString(codexRes.tool) ?? 'tool'),
       origin: /thefactory/i.test(server) ? 'internal' : 'external-mcp',
@@ -543,7 +679,8 @@ function summarizeCliSystem(entry: CliRunTranscriptEntry): string {
 function summarizeCliResult(entry: CliRunTranscriptEntry): string {
   const p = asTranscriptRecord(entry.payload)
   const type = asString(p?.type)
-  if (type === 'turn.failed' || p?.is_error === true || asString(p?.subtype) === 'error') return 'Failed'
+  if (type === 'turn.failed' || p?.is_error === true || asString(p?.subtype) === 'error')
+    return 'Failed'
   const ms = p?.duration_ms
   return typeof ms === 'number' ? `Completed in ${(ms / 1000).toFixed(1)}s` : 'Completed'
 }
@@ -555,6 +692,23 @@ function summarizeCliResult(entry: CliRunTranscriptEntry): string {
  * `tool-call` entry paired with its later `tool-result` by id. Pure; the live
  * panel re-runs it on every append.
  */
+/** ACP tool status → step result type; non-terminal statuses stay `running`. */
+function acpResultType(status: string | undefined): CliToolStepResultType {
+  if (status === 'failed' || status === 'error') return 'errored'
+  if (status === 'completed') return 'success'
+  return 'running'
+}
+
+/** Append reasoning, growing the previous thinking step rather than adding one. */
+function appendThinking(steps: CliTranscriptStep[], at: number, text: string): void {
+  const last = steps[steps.length - 1]
+  if (last && last.kind === 'thinking') {
+    last.text += text
+    return
+  }
+  if (text.trim()) steps.push({ kind: 'thinking', at, text })
+}
+
 export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTranscriptStep[] {
   const steps: CliTranscriptStep[] = []
   const toolIndexById = new Map<string, number>()
@@ -562,8 +716,11 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
   for (const entry of entries) {
     switch (entry.kind) {
       case 'assistant': {
+        // Reasoning streams in chunks exactly like prose does, so it is coalesced
+        // the same way — otherwise one thought renders as a column of a dozen
+        // separate bubbles, each a few words long.
         const thinking = cliThinkingTextFromEntry(entry)
-        if (thinking) steps.push({ kind: 'thinking', at: entry.at, text: thinking })
+        if (thinking) appendThinking(steps, entry.at, thinking)
         const text = cliAssistantTextFromEntry(entry)
         // Coalesce consecutive assistant entries into one growing message:
         // streaming CLIs (resident cursor/codex) emit the reply as many small
@@ -583,7 +740,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         // Claude can emit a thinking block in the same message as a tool call
         // (classified `tool-call`); surface it as its own step first.
         const toolThinking = cliThinkingTextFromEntry(entry)
-        if (toolThinking) steps.push({ kind: 'thinking', at: entry.at, text: toolThinking })
+        if (toolThinking) appendThinking(steps, entry.at, toolThinking)
         const call = extractCliToolCall(entry)
         const step: CliToolStep = {
           kind: 'tool',
@@ -602,13 +759,37 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
       }
       case 'tool-result': {
         const res = extractCliToolResult(entry)
+        // A gated call that returned "pending" is NOT finished: the host asked
+        // the user and the tool did not run. Reading this off the transcript
+        // means the chat shows the wait even when the approval never reached
+        // the client any other way — the failure mode where an agent announces
+        // "waiting for your approval" over a spinner and nothing is on screen.
+        if (isAwaitingApprovalResult(res.result)) {
+          const idx = res.toolCallId ? toolIndexById.get(res.toolCallId) : undefined
+          const step = idx != null ? steps[idx] : undefined
+          if (step && step.kind === 'tool') step.awaitingApproval = true
+          break
+        }
         const idx = res.toolCallId ? toolIndexById.get(res.toolCallId) : undefined
         const existing = idx != null ? steps[idx] : undefined
         if (existing && existing.kind === 'tool') {
-          existing.result = res.result
-          existing.resultType = res.resultType
-          if (entry.at > existing.at) existing.durationMs = entry.at - existing.at
-        } else {
+          // Cursor opens a call as an unnamed placeholder and only names the
+          // tool in a later update, so identity is adopted on EVERY update —
+          // including the non-terminal ones, or a still-running row stays
+          // labelled "MCP: tool" for as long as it runs.
+          if (res.toolName !== undefined && isMoreSpecificToolName(existing.toolName, res.toolName)) {
+            existing.toolName = res.toolName
+            existing.origin = res.origin
+          }
+          if (res.input !== undefined && isEmptyToolInput(existing.input)) existing.input = res.input
+          // A progress update leaves the call in flight; only a terminal one
+          // resolves it.
+          if (res.resultType !== 'running') {
+            existing.result = res.result
+            existing.resultType = res.resultType
+            if (entry.at > existing.at) existing.durationMs = entry.at - existing.at
+          }
+        } else if (res.resultType !== 'running') {
           steps.push({
             kind: 'tool',
             at: entry.at,
@@ -623,10 +804,20 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         break
       }
       case 'system':
-        steps.push({ kind: 'system', at: entry.at, summary: summarizeCliSystem(entry), raw: safeTranscriptJson(entry.payload) })
+        steps.push({
+          kind: 'system',
+          at: entry.at,
+          summary: summarizeCliSystem(entry),
+          raw: safeTranscriptJson(entry.payload),
+        })
         break
       case 'result':
-        steps.push({ kind: 'result', at: entry.at, summary: summarizeCliResult(entry), raw: safeTranscriptJson(entry.payload) })
+        steps.push({
+          kind: 'result',
+          at: entry.at,
+          summary: summarizeCliResult(entry),
+          raw: safeTranscriptJson(entry.payload),
+        })
         break
       default:
         steps.push({ kind: 'raw', at: entry.at, raw: safeTranscriptJson(entry.payload) })
@@ -659,12 +850,18 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  * the run's aggregate cost/tokens are attached as `usage` to the first assistant
  * message (the one that shows the model chip) so a CLI run surfaces a cost chip
  * just like an API turn — but only when the CLI reported usage.
+ *
+ * `opts.awaitingApprovalToolNames` re-types an in-flight tool step the run is
+ * BLOCKED on from `running` to `require_confirmation`, so it borrows the API
+ * path's existing "needs confirmation" vocabulary (teal hourglass + pill)
+ * instead of spinning as though the agent were working on it.
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
-  opts?: { model?: string; showThinking?: boolean },
+  opts?: { model?: string; showThinking?: boolean; awaitingApprovalToolNames?: readonly string[] },
 ): ChatMessageLike[] {
   const showThinking = opts?.showThinking ?? true
+  const awaitingApproval = new Set(opts?.awaitingApprovalToolNames ?? [])
   const steps = normalizeCliTranscript(entries)
   const messages: ChatMessageLike[] = []
   for (const step of steps) {
@@ -692,6 +889,9 @@ export function cliTranscriptToMessages(
         ...(model ? { model } : {}),
       })
     } else if (step.kind === 'tool') {
+      const blocked =
+        step.awaitingApproval === true ||
+        (step.resultType === 'running' && awaitingApproval.has(step.toolName))
       messages.push({
         role: 'tool',
         content: '',
@@ -705,7 +905,7 @@ export function cliTranscriptToMessages(
         },
         toolResult: {
           result: step.result,
-          type: step.resultType,
+          type: blocked ? 'require_confirmation' : step.resultType,
           durationMs: step.durationMs ?? 0,
         },
       })

@@ -1,9 +1,15 @@
+export { default as AgentQuestionCard, type AgentQuestionCardProps } from './AgentQuestionCard'
 export { default as ChatBody, type ChatBodyProps } from './ChatBody'
 export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './CliRunArtifactPanel'
+export {
+  default as CredentialCaptureCard,
+  type CredentialCaptureCardProps,
+} from './CredentialCaptureCard'
 export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
+export { default as GlobalChatOverlay, type GlobalChatOverlayProps } from './GlobalChatOverlay'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
 export {
   default as ChatSettingsDropdown,
@@ -33,6 +39,7 @@ export {
   default as ChatDynamicContextModal,
   type ChatDynamicContextModalProps,
 } from './ChatDynamicContextModal'
+export { default as ChatDebugModal, type ChatDebugModalProps } from './ChatDebugModal'
 export {
   default as SystemPromptViewerConnected,
   type SystemPromptViewerConnectedProps,

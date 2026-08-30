@@ -1,7 +1,7 @@
 import { memo, useState } from 'react'
 import Spinner from '../../primitives/Spinner'
 import Markdown from '../Markdown'
-import { IconChevron } from '../../icons'
+import { IconChevron, IconHourglass } from '../../icons'
 
 export type ThinkingRowProps = {
   thinking?: string
@@ -13,6 +13,12 @@ export type ThinkingRowProps = {
   /** Optional secondary line under {@link spinnerLabel} (e.g. a reassuring note
    * that the first CLI turn is the slow one while the sandbox warms up). */
   spinnerSubLabel?: string
+  /**
+   * `'blocked'` swaps the spinner for the teal hourglass the tool cards already
+   * use for `require_confirmation` — a run parked on a human decision must not
+   * animate as though it were working.
+   */
+  tone?: 'working' | 'blocked'
 }
 
 function ThinkingRow({
@@ -21,6 +27,7 @@ function ThinkingRow({
   label = 'Reasoning',
   spinnerLabel,
   spinnerSubLabel,
+  tone = 'working',
 }: ThinkingRowProps) {
   const [open, setOpen] = useState(defaultOpen)
   const reasoning = thinking?.trim()
@@ -56,9 +63,17 @@ function ThinkingRow({
             ) : null}
           </div>
         ) : (
-          <div className="overflow-x-auto max-w-full px-3 py-2 rounded-2xl rounded-bl-md whitespace-pre-wrap wrap-break-word shadow bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle)">
+          <div
+            className={`overflow-x-auto max-w-full px-3 py-2 rounded-2xl rounded-bl-md whitespace-pre-wrap wrap-break-word shadow bg-(--surface-raised) text-(--text-primary) border ${
+              tone === 'blocked' ? 'border-teal-500/60' : 'border-(--border-subtle)'
+            }`}
+          >
             <span className="inline-flex items-center gap-2.5">
-              <Spinner />
+              {tone === 'blocked' ? (
+                <IconHourglass className="w-4 h-4 text-teal-500" />
+              ) : (
+                <Spinner />
+              )}
               {spinnerLabel || spinnerSubLabel ? (
                 <span className="flex flex-col leading-tight">
                   {spinnerLabel ? (

@@ -133,8 +133,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'readFileRanges',
   'grepFiles',
   'grepFile',
-  'renamePath',
-  'deletePath',
+  'renamePaths',
+  'deletePaths',
   'listStories',
   'reorderFeature',
   'completeAssignment',
@@ -162,9 +162,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'gitApplyStash',
   'gitRemoveStash',
   'webReadURLs',
-  'getAstOutline',
+  'astGetOutline',
   'getCode',
-  'getInterface',
   'listContents',
   'webSearch',
   'runTests',
@@ -186,7 +185,8 @@ function summarizeExperimentSpec(spec: unknown): string {
   const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
   if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
     const keys = Object.entries(sweep).map(
-      ([k, v]) => `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
+      ([k, v]) =>
+        `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
     )
     if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
   }
@@ -627,14 +627,43 @@ export function renderToolPreview({
       </div>
     )
   }
-  if (name === 'renamePath') {
-    const srcPath = tryString(extract(args, ['src'])) || tryString(extract(result, ['src']))
-    const dstPath = tryString(extract(args, ['dst'])) || tryString(extract(result, ['dst']))
-    return <InlineOldNew oldVal={srcPath} newVal={dstPath} />
+  if (name === 'renamePaths') {
+    const moves = Array.isArray(extract(args, ['moves']))
+      ? (extract(args, ['moves']) as Array<Record<string, unknown>>)
+      : []
+    if (moves.length === 0) {
+      return <div className="text-[11px] text-(--text-secondary)">No renames</div>
+    }
+    return (
+      <div className="space-y-1">
+        {moves.map((move, i) => (
+          <InlineOldNew
+            key={`${tryString(move.src) ?? i}`}
+            oldVal={tryString(move.src)}
+            newVal={tryString(move.dst)}
+          />
+        ))}
+      </div>
+    )
   }
-  if (name === 'deletePath') {
-    const delPath = tryString(extract(args, ['path']))
-    return <InlineOldNew oldVal={delPath} newVal="(deleted)" />
+  if (name === 'deletePaths') {
+    const paths = Array.isArray(extract(args, ['paths']))
+      ? (extract(args, ['paths']) as unknown[])
+      : []
+    if (paths.length === 0) {
+      return <div className="text-[11px] text-(--text-secondary)">No paths</div>
+    }
+    return (
+      <div className="space-y-1">
+        {paths.map((path, i) => (
+          <InlineOldNew
+            key={`${tryString(path) ?? i}`}
+            oldVal={tryString(path)}
+            newVal="(deleted)"
+          />
+        ))}
+      </div>
+    )
   }
 
   // ---- listStories / reorderFeature / callouts ----
@@ -1133,7 +1162,7 @@ export function renderToolPreview({
   }
 
   // ---- AST outline / code intel ----
-  if (name === 'getAstOutline') {
+  if (name === 'astGetOutline') {
     const raw = extract(result, ['result']) ?? extract(result, ['nodes']) ?? result
     const items: Array<Record<string, unknown>> = Array.isArray(raw)
       ? (raw as Array<Record<string, unknown>>)
@@ -1192,7 +1221,7 @@ export function renderToolPreview({
       </div>
     )
   }
-  if (name === 'listContents' || name === 'getInterface') {
+  if (name === 'listContents') {
     const raw =
       extract(result, ['result']) ??
       extract(result, ['results']) ??
@@ -1409,8 +1438,8 @@ export function renderToolPreview({
           </button>
         ) : suggestions.length ? (
           <div className="text-[11px] text-(--text-secondary)">
-            Queued as ✦ AI suggestions in this project’s xAI (model-insights) tab → Suggested,
-            where you can launch them.
+            Queued as ✦ AI suggestions in this project’s xAI (model-insights) tab → Suggested, where
+            you can launch them.
           </div>
         ) : null}
         {!suggestions.length && !rejected.length && skipped > 0 ? (

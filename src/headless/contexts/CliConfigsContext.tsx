@@ -9,7 +9,10 @@ import {
   listCliAgentModels,
   listCliAuthCaches,
   liveCliAgentModels,
+  listCliCapabilityScorecards,
   liveCliAgentProbe,
+  type RunCliCapabilityCheckResponse,
+  runCliCapabilityCheck,
   setActiveCli as apiSetActiveCli,
   setCliDefaultModel as apiSetCliDefaultModel,
   setCliEffort as apiSetCliEffort,
@@ -24,8 +27,27 @@ import {
   type CliReasoningEffort,
   type CliTool,
   type ModelInfo,
+  listCliImageVersions,
+  checkCliImageUpdates,
+  startCliImageUpdate,
 } from '../api/generated'
+import type { ListCliImageVersionsResponse } from '../api/generated'
 import { useApi, useAuth } from '../api'
+
+export type CliImageVersion = ListCliImageVersionsResponse['images'][number]
+
+/** `cli:image-update` WS payload. Mirrors the backend's CliImageUpdateData union. */
+export type CliImageUpdateEvent =
+  | { updateId: string; cli: string; type: 'chunk'; event: { updateId: string; chunk: string } }
+  | {
+      updateId: string
+      cli: string
+      type: 'completed'
+      event: { updateId: string; installedVersion: string }
+    }
+  | { updateId: string; cli: string; type: 'error'; event: { updateId: string; error: string } }
+
+const CLI_IMAGE_UPSTREAM_TTL_MS = 6 * 60 * 60 * 1000
 import {
   enabledClis as deriveEnabledClis,
   groupCachesByCli,
@@ -82,6 +104,28 @@ export type CliConfigsContextValue = {
   /** The last successfully-fetched live model list for `cli:credentialId`, if any. */
   cachedLiveModels: (cli: CliTool, credentialId: string) => ModelInfo[] | undefined
   probeLive: (cli: CliTool, credentialId: string) => Promise<CliLiveProbeResult>
+  /**
+   * Run the CLI capability BATTERY against a credential — deterministic probes for structured output,
+   * grounding, off-topic refusal, canonicalization, latency and web search. Returns a comparable scorecard.
+   */
+  /** Per-CLI image version state: installed vs newest published. Read from the image label; no container is started. */
+  cliImageVersions: CliImageVersion[]
+  /** Whether Docker answered. 'missing' means every version is unknowable, NOT that they are up to date. */
+  cliImageDocker: 'ok' | 'missing'
+  /** Re-check the newest published version for one CLI (or all) and persist it server-side. */
+  checkCliImages: (cli?: CliTool) => Promise<void>
+  /** Start a rebuild. Progress arrives on `cli:image-update`; resolves with the updateId. */
+  startCliImageBuild: (cli: CliTool, version?: string) => Promise<string>
+  /** Streamed docker build output keyed by updateId. */
+  cliImageBuildOutput: Record<string, string>
+  cliImagesLoading: boolean
+  probeCapability: (
+    cli: CliTool,
+    credentialId: string,
+    modelId?: string,
+  ) => Promise<RunCliCapabilityCheckResponse>
+  /** The last persisted capability scorecard per CLI, keyed `cli:modelId` — survives a page refresh. */
+  capabilityScorecards: RunCliCapabilityCheckResponse[]
   /**
    * Actively check whether a stored credential is authenticated (the "Check now"
    * action / cursor sandbox probe). Records the result on the credential and
@@ -289,6 +333,36 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     return data as CliLiveProbeResult
   }, [])
 
+  const [capabilityScorecards, setCapabilityScorecards] = useState<RunCliCapabilityCheckResponse[]>(
+    [],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    void listCliCapabilityScorecards({ throwOnError: false }).then(({ data }) => {
+      if (!cancelled && Array.isArray(data)) setCapabilityScorecards(data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const probeCapability = useCallback(
+    async (cli: CliTool, credentialId: string, modelId?: string) => {
+      const { data } = await runCliCapabilityCheck({
+        body: { cli, credentialId, ...(modelId ? { modelId } : {}) },
+        throwOnError: true,
+      })
+      const card = data as RunCliCapabilityCheckResponse
+      setCapabilityScorecards((prev) => [
+        card,
+        ...prev.filter((c) => !(c.cli === card.cli && c.modelId === card.modelId)),
+      ])
+      return card
+    },
+    [],
+  )
+
   const checkAuth = useCallback(
     async (credentialId: string): Promise<CheckCliAuthStatusResponse> => {
       const { data } = await checkCliAuthStatus({ body: { credentialId }, throwOnError: true })
@@ -319,6 +393,117 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const cachesByCli = useMemo(() => groupCachesByCli(caches), [caches])
   const enabledClis = useMemo(() => deriveEnabledClis(activeState), [activeState])
 
+  const [cliImageVersions, setCliImageVersions] = useState<CliImageVersion[]>([])
+  const [cliImageDocker, setCliImageDocker] = useState<'ok' | 'missing'>('ok')
+  const [cliImageBuildOutput, setCliImageBuildOutput] = useState<Record<string, string>>({})
+  const [cliImagesLoading, setCliImagesLoading] = useState(true)
+  const upstreamCheckedRef = useRef(false)
+
+  const refreshCliImages = useCallback(async () => {
+    const { data } = await listCliImageVersions({ throwOnError: false })
+    if (!data) return undefined
+    setCliImageVersions(data.images)
+    setCliImageDocker(data.docker)
+    return data
+  }, [])
+
+  const checkCliImages = useCallback(async (cli?: CliTool) => {
+    const { data } = await checkCliImageUpdates({
+      body: cli ? { cli } : {},
+      throwOnError: false,
+    })
+    if (!data) return
+    setCliImageVersions(data.images)
+    setCliImageDocker(data.docker)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      let data: Awaited<ReturnType<typeof refreshCliImages>>
+      try {
+        data = await refreshCliImages()
+      } finally {
+        if (!cancelled) setCliImagesLoading(false)
+      }
+      if (cancelled || !data || data.docker !== 'ok' || upstreamCheckedRef.current) return
+      const stale = data.images.some(
+        (row) =>
+          !row.latestCheckedAt ||
+          Date.now() - Date.parse(row.latestCheckedAt) > CLI_IMAGE_UPSTREAM_TTL_MS,
+      )
+      if (!stale) return
+      upstreamCheckedRef.current = true
+      await checkCliImages()
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [refreshCliImages, checkCliImages])
+
+  // While any image is building, poll — a silent build (e.g. codex's npm install emits nothing early)
+  // produces no `cli:image-update` chunks, so without this the chip never leaves its pre-build state.
+  useEffect(() => {
+    if (!cliImageVersions.some((row) => row.state === 'updating')) return
+    const id = setInterval(() => void refreshCliImages(), 3000)
+    return () => clearInterval(id)
+  }, [cliImageVersions, refreshCliImages])
+
+  const startCliImageBuild = useCallback(
+    async (cli: CliTool, version?: string) => {
+      const { data } = await startCliImageUpdate({
+        body: { cli, ...(version ? { version } : {}) },
+        throwOnError: true,
+      })
+      const updateId = (data as { updateId: string }).updateId
+      // Optimistically reflect the build so the chip flips to "Building…" immediately, even before
+      // the first refresh lands; the poll above then keeps it current until the build finishes.
+      setCliImageVersions((prev) =>
+        prev.map((row) =>
+          row.cli === cli
+            ? {
+                ...row,
+                state: 'updating',
+                update: {
+                  updateId,
+                  cli,
+                  targetVersion: version ?? row.latest ?? '',
+                  status: 'building',
+                  startedAt: new Date().toISOString(),
+                  logTail: '',
+                },
+              }
+            : row,
+        ),
+      )
+      await refreshCliImages()
+      return updateId
+    },
+    [refreshCliImages],
+  )
+
+  const seenBuildIdsRef = useRef<Set<string>>(new Set())
+  useEffect(
+    () =>
+      ws.on<CliImageUpdateEvent>('cli:image-update', (data) => {
+        if (data.type === 'chunk') {
+          setCliImageBuildOutput((prev) => ({
+            ...prev,
+            [data.updateId]: (prev[data.updateId] ?? '') + data.event.chunk,
+          }))
+          // First output for a build (possibly started in another tab/session): pull the state
+          // so the chip flips to "Building…" even if the local optimistic path never ran.
+          if (!seenBuildIdsRef.current.has(data.updateId)) {
+            seenBuildIdsRef.current.add(data.updateId)
+            void refreshCliImages()
+          }
+          return
+        }
+        void refreshCliImages()
+      }),
+    [ws, refreshCliImages],
+  )
+
   const value = useMemo<CliConfigsContextValue>(
     () => ({
       isLoaded,
@@ -342,6 +527,14 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeModelsLive,
       cachedLiveModels,
       probeLive,
+      probeCapability,
+      cliImageVersions,
+      cliImageDocker,
+      checkCliImages,
+      startCliImageBuild,
+      cliImageBuildOutput,
+      cliImagesLoading,
+      capabilityScorecards,
       checkAuth,
       startAuthLogin,
       cancelAuthLogin,
@@ -368,6 +561,8 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
       probeModelsLive,
       cachedLiveModels,
       probeLive,
+      probeCapability,
+      capabilityScorecards,
       checkAuth,
       startAuthLogin,
       cancelAuthLogin,

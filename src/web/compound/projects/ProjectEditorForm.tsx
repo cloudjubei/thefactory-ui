@@ -254,7 +254,7 @@ export function ProjectEditorForm({
         </Field>
       )}
 
-      <Field label="GitHub Credentials (optional)">
+      <Field label="Git credentials (optional)">
         <Select
           value={form.metadata.githubCredentialsId ?? '__none__'}
           onValueChange={(v) =>

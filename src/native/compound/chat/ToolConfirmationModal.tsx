@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
+import { partitionGrants } from '../../../headless/utils/agentQuestions'
 import type { PendingToolGrant } from '../../../headless'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -19,6 +20,8 @@ export interface ToolConfirmationModalProps {
    * CLI permission broker. When provided, the modal renders each grant as its
    * own row with per-grant Allow / Deny actions (plus "Allow permanently" for
    * CLI grants) and the {@link pending}/{@link onConfirm} path is ignored.
+   * `askUser` question grants are filtered out: they render inline as an
+   * `AgentQuestionCard`, never as a permission prompt.
    */
   grants?: PendingToolGrant[]
 }
@@ -44,10 +47,11 @@ export default function ToolConfirmationModal({
   busy,
   onConfirm,
   onCancel,
-  grants,
+  grants: allGrants,
 }: ToolConfirmationModalProps) {
   const { theme } = useNativeTheme()
   const [granted, setGranted] = useState<Record<string, boolean>>({})
+  const grants = allGrants ? partitionGrants(allGrants).permissions : undefined
 
   // Reset selection whenever a new wave of tools arrives — the toolCallIds
   // change between waves, so prior choices are meaningless.
@@ -158,7 +162,7 @@ export default function ToolConfirmationModal({
                 <Button size="sm" onPress={() => void grant.decide('once')} disabled={busy}>
                   Allow
                 </Button>
-                {grant.source === 'cli' ? (
+                {grant.source === 'cli' && grant.canGrantPermanently !== false ? (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -240,9 +244,7 @@ export default function ToolConfirmationModal({
                 gap: nativeSpace[2],
               }}
             >
-              <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
                 <Switch
                   checked={granted[tc.toolCallId] ?? false}
                   onCheckedChange={() =>

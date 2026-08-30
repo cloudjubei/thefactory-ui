@@ -195,7 +195,7 @@ export type GitContextValue = {
   /**
    * Set by every remote git op (push / pull / fetch / commit-with-push)
    * when it fails with a `GIT_CREDENTIAL_ERROR` — drives the global
-   * "GitHub credentials don't have access" modal mounted in `App.tsx`.
+   * "git credentials don't have access" modal mounted in `App.tsx`.
    * Null while clean. `clearCredentialError()` dismisses the modal.
    */
   credentialError: GitCredentialError | null

@@ -9,7 +9,9 @@ import {
   type GitCredentialCreateInput,
   type GitCredentialEditInput,
 } from '../api/generated'
+import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
+import { GIT_CREDENTIALS_EVENT } from '../utils/gitCredentialConstants'
 
 export type GitCredentialsContextValue = {
   isLoaded: boolean
@@ -28,6 +30,7 @@ const GitCredentialsContext = createContext<GitCredentialsContextValue | null>(n
 
 export function GitCredentialsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
+  const { ws } = useApi()
   const [credentials, setCredentials] = useState<GetGitCredentialResponse[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -48,6 +51,11 @@ export function GitCredentialsProvider({ children }: { children: ReactNode }) {
     if (!token) return
     void refresh()
   }, [token, refresh])
+
+  // Without this the list is a snapshot taken at login: a credential written by
+  // an in-chat capture, a GitHub OAuth flow, or another window stays invisible
+  // until a full reload. The event carries identity only, so refetch is the read.
+  useEffect(() => ws.on(GIT_CREDENTIALS_EVENT, () => void refresh()), [ws, refresh])
 
   const createCredentials = useCallback(
     async (input: GitCredentialCreateInput) => {

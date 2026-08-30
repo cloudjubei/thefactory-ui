@@ -4,14 +4,24 @@ import type {
   GetGitCredentialResponse,
   GitCredentialCreateInput,
   GitCredentialEditInput,
-} from "../../../headless/api"
+} from '../../../headless/api'
 import {
   pollGitCredentialGithubDevice,
   startGitCredentialGithubDevice,
   startGitCredentialGithubRedirect,
-} from "../../../headless/api"
-import { Alert, Button, Field, Input, SecretInput } from "../.."
-import { IconSave } from "../../icons"
+} from '../../../headless/api'
+import { normalizeGitCredentialHost } from '../../../headless/utils/gitCredentials'
+import {
+  GIT_CREDENTIAL_HOST_HINT,
+  GIT_CREDENTIAL_HOST_LABEL,
+  GIT_CREDENTIAL_HOST_PLACEHOLDER,
+  GIT_CREDENTIAL_NAME_HINT,
+  GIT_CREDENTIAL_PAT_NOTE,
+  GIT_CREDENTIAL_TOKEN_PLACEHOLDER,
+  GIT_CREDENTIAL_USERNAME_PLACEHOLDER,
+} from '../../../headless/utils/gitCredentialConstants'
+import { Alert, Button, Field, Input, SecretInput } from '../..'
+import { IconSave } from '../../icons'
 
 type GitCredentialsFormMode =
   | { kind: 'create'; onSubmit: (input: GitCredentialCreateInput) => Promise<unknown> }
@@ -94,6 +104,7 @@ export default function GitCredentialsForm({
   const [username, setUsername] = useState(initial?.username ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [token, setToken] = useState(initial?.token ?? '')
+  const [host, setHost] = useState(initial?.host ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,11 +151,13 @@ export default function GitCredentialsForm({
     setSubmitting(true)
     setError(null)
     try {
+      const normalizedHost = normalizeGitCredentialHost(host)
       await mode.onSubmit({
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
         token: token.trim(),
+        ...(normalizedHost ? { host: normalizedHost } : {}),
       })
       onCancel()
     } catch (err) {
@@ -267,7 +280,7 @@ export default function GitCredentialsForm({
     return (
       <form onSubmit={onSubmitPat} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
-        <Field label="Name" hint="Label for these credentials, e.g. “GitHub — personal”">
+        <Field label="Name" hint={GIT_CREDENTIAL_NAME_HINT}>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -275,11 +288,20 @@ export default function GitCredentialsForm({
             autoFocus
           />
         </Field>
+        <Field label={GIT_CREDENTIAL_HOST_LABEL} hint={GIT_CREDENTIAL_HOST_HINT}>
+          <Input
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            placeholder={GIT_CREDENTIAL_HOST_PLACEHOLDER}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
         <Field label="Username">
           <Input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="your-github-username"
+            placeholder={GIT_CREDENTIAL_USERNAME_PLACEHOLDER}
           />
         </Field>
         <Field label="Email">
@@ -295,7 +317,7 @@ export default function GitCredentialsForm({
           <SecretInput
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="ghp_..."
+            placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
             autoComplete="off"
             spellCheck={false}
             revealConfirmDescription="The token will be visible until you leave this page."
@@ -351,7 +373,10 @@ export default function GitCredentialsForm({
     <div className="flex flex-col gap-4">
       {error && <Alert>{error}</Alert>}
 
-      <Field label="Label (optional)" hint="Shown in the credentials list. Defaults to “GitHub OAuth (<login>)”.">
+      <Field
+        label="Label (optional)"
+        hint="Shown in the credentials list. Defaults to “GitHub OAuth (<login>)”."
+      >
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -364,9 +389,7 @@ export default function GitCredentialsForm({
         <Button
           type="button"
           loading={primaryOauthIsRedirect ? redirectBusy : deviceStarting}
-          onClick={() =>
-            void (primaryOauthIsRedirect ? startRedirect() : startDevice())
-          }
+          onClick={() => void (primaryOauthIsRedirect ? startRedirect() : startDevice())}
         >
           Sign in with GitHub
         </Button>
@@ -400,9 +423,7 @@ export default function GitCredentialsForm({
             </button>
           ) : (
             <form onSubmit={onSubmitPat} className="flex flex-col gap-3">
-              <div className="text-[11px] text-(--text-secondary)">
-                Use this when you already have a PAT (e.g. fine-grained scope, CI token).
-              </div>
+              <div className="text-[11px] text-(--text-secondary)">{GIT_CREDENTIAL_PAT_NOTE}</div>
               <Field label="Name">
                 <Input
                   value={name}
@@ -410,11 +431,20 @@ export default function GitCredentialsForm({
                   placeholder="Personal / Work / Org"
                 />
               </Field>
+              <Field label={GIT_CREDENTIAL_HOST_LABEL} hint={GIT_CREDENTIAL_HOST_HINT}>
+                <Input
+                  value={host}
+                  onChange={(e) => setHost(e.target.value)}
+                  placeholder={GIT_CREDENTIAL_HOST_PLACEHOLDER}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </Field>
               <Field label="Username">
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="your-github-username"
+                  placeholder={GIT_CREDENTIAL_USERNAME_PLACEHOLDER}
                 />
               </Field>
               <Field label="Email">
@@ -430,18 +460,14 @@ export default function GitCredentialsForm({
                 <SecretInput
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
-                  placeholder="ghp_..."
+                  placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
                   autoComplete="off"
                   spellCheck={false}
                   revealConfirmDescription="The token will be visible until you leave this page."
                 />
               </Field>
               <div className="flex justify-end gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowPatForm(false)}
-                >
+                <Button type="button" variant="secondary" onClick={() => setShowPatForm(false)}>
                   Cancel
                 </Button>
                 <Button type="submit" loading={submitting} disabled={!patCanSubmit}>

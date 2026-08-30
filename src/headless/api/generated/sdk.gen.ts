@@ -33,14 +33,22 @@ import type {
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
+  ArchiveChatData,
+  ArchiveChatErrors,
+  ArchiveChatResponses,
   AttachChatCliRunnerData,
   AttachChatCliRunnerErrors,
   AttachChatCliRunnerResponses,
   CancelCliAuthLoginData,
   CancelCliAuthLoginErrors,
   CancelCliAuthLoginResponses,
+  CancelCredentialCaptureData,
+  CancelCredentialCaptureErrors,
+  CancelCredentialCaptureResponses,
   CheckCliAuthStatusData,
   CheckCliAuthStatusResponses,
+  CheckCliImageUpdatesData,
+  CheckCliImageUpdatesResponses,
   CheckProjectGithubNameData,
   CheckProjectGithubNameErrors,
   CheckProjectGithubNameResponses,
@@ -97,6 +105,9 @@ import type {
   CreateProjectGithubRepoData,
   CreateProjectGithubRepoErrors,
   CreateProjectGithubRepoResponses,
+  CreateProjectNoteData,
+  CreateProjectNoteErrors,
+  CreateProjectNoteResponses,
   CreateProjectResponses,
   CreateProjectsGroupData,
   CreateProjectsGroupErrors,
@@ -158,6 +169,9 @@ import type {
   DeleteProjectDataData,
   DeleteProjectDataErrors,
   DeleteProjectDataResponses,
+  DeleteProjectNoteData,
+  DeleteProjectNoteErrors,
+  DeleteProjectNoteResponses,
   DeleteProjectResponses,
   DeleteProjectsGroupData,
   DeleteProjectsGroupResponses,
@@ -207,6 +221,9 @@ import type {
   GetCliAuthCacheData,
   GetCliAuthCacheErrors,
   GetCliAuthCacheResponses,
+  GetCliRunVerificationPlanData,
+  GetCliRunVerificationPlanErrors,
+  GetCliRunVerificationPlanResponses,
   GetCodeIntelCatalogueData,
   GetCodeIntelCatalogueErrors,
   GetCodeIntelCatalogueResponses,
@@ -219,6 +236,9 @@ import type {
   GetCostsByChatData,
   GetCostsByChatErrors,
   GetCostsByChatResponses,
+  GetCredentialCaptureData,
+  GetCredentialCaptureErrors,
+  GetCredentialCaptureResponses,
   GetDataSourceData,
   GetDataSourceErrors,
   GetDataSourceResponses,
@@ -394,6 +414,9 @@ import type {
   ListActivitiesResponses,
   ListChatsData,
   ListChatsResponses,
+  ListChatToolCatalogData,
+  ListChatToolCatalogErrors,
+  ListChatToolCatalogResponses,
   ListCliAgentModelsData,
   ListCliAgentModelsErrors,
   ListCliAgentModelsResponses,
@@ -401,9 +424,16 @@ import type {
   ListCliAgentRunsResponses,
   ListCliAuthCachesData,
   ListCliAuthCachesResponses,
+  ListCliCapabilityScorecardsData,
+  ListCliCapabilityScorecardsResponses,
+  ListCliImageVersionsData,
+  ListCliImageVersionsResponses,
   ListConnectionAssignedItemsData,
   ListConnectionAssignedItemsErrors,
   ListConnectionAssignedItemsResponses,
+  ListCredentialCapturesData,
+  ListCredentialCapturesErrors,
+  ListCredentialCapturesResponses,
   ListDatabasesData,
   ListDatabasesErrors,
   ListDatabasesResponses,
@@ -444,6 +474,9 @@ import type {
   ListProjectDataSubscriptionsData,
   ListProjectDataSubscriptionsErrors,
   ListProjectDataSubscriptionsResponses,
+  ListProjectNotesData,
+  ListProjectNotesErrors,
+  ListProjectNotesResponses,
   ListProjectsData,
   ListProjectsGroupsData,
   ListProjectsGroupsResponses,
@@ -489,6 +522,9 @@ import type {
   MergeCliRunReviewResponses,
   MetricsData,
   MetricsResponses,
+  OpenCredentialCaptureData,
+  OpenCredentialCaptureErrors,
+  OpenCredentialCaptureResponses,
   PairRunnerData,
   PairRunnerErrors,
   PairRunnerResponses,
@@ -513,6 +549,8 @@ import type {
   PreviewToolData,
   PreviewToolErrors,
   PreviewToolResponses,
+  ProxyProjectViewImageData,
+  ProxyProjectViewImageResponses,
   PushOverseerData,
   PushOverseerErrors,
   PushOverseerResponses,
@@ -545,6 +583,9 @@ import type {
   RefreshPricingData,
   RefreshPricingErrors,
   RefreshPricingResponses,
+  RejectCliRunReviewData,
+  RejectCliRunReviewErrors,
+  RejectCliRunReviewResponses,
   RejectFeatureRequestData,
   RejectFeatureRequestErrors,
   RejectFeatureRequestResponses,
@@ -571,6 +612,9 @@ import type {
   ReorderStoriesResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  RestartChatWithCliData,
+  RestartChatWithCliErrors,
+  RestartChatWithCliResponses,
   ResumeActivityData,
   ResumeActivityErrors,
   ResumeActivityResponses,
@@ -583,6 +627,9 @@ import type {
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
+  RevealProjectNoteData,
+  RevealProjectNoteErrors,
+  RevealProjectNoteResponses,
   RunActivityData,
   RunActivityErrors,
   RunActivityResponses,
@@ -592,6 +639,9 @@ import type {
   RunAllTestsData,
   RunAllTestsErrors,
   RunAllTestsResponses,
+  RunCliCapabilityCheckData,
+  RunCliCapabilityCheckErrors,
+  RunCliCapabilityCheckResponses,
   RunCoverageData,
   RunCoverageErrors,
   RunCoverageResponses,
@@ -654,6 +704,9 @@ import type {
   StartCliAuthLoginData,
   StartCliAuthLoginErrors,
   StartCliAuthLoginResponses,
+  StartCliImageUpdateData,
+  StartCliImageUpdateErrors,
+  StartCliImageUpdateResponses,
   StartCoverageAllRunData,
   StartCoverageAllRunErrors,
   StartCoverageAllRunResponses,
@@ -681,6 +734,9 @@ import type {
   SubmitCliAuthLoginInputData,
   SubmitCliAuthLoginInputErrors,
   SubmitCliAuthLoginInputResponses,
+  SubmitCredentialCaptureData,
+  SubmitCredentialCaptureErrors,
+  SubmitCredentialCaptureResponses,
   SubscribeProjectDataSourceData,
   SubscribeProjectDataSourceErrors,
   SubscribeProjectDataSourceResponses,
@@ -719,6 +775,9 @@ import type {
   UpdateProjectCodeInfoResponses,
   UpdateProjectData,
   UpdateProjectErrors,
+  UpdateProjectNoteData,
+  UpdateProjectNoteErrors,
+  UpdateProjectNoteResponses,
   UpdateProjectResponses,
   UpdateProjectsGroupData,
   UpdateProjectsGroupErrors,
@@ -735,6 +794,9 @@ import type {
   UploadFileData,
   UploadFileErrors,
   UploadFileResponses,
+  VerifyCliRunReviewData,
+  VerifyCliRunReviewErrors,
+  VerifyCliRunReviewResponses,
   ViewProjectFileData,
   ViewProjectFileResponses,
   WebSearchData,
@@ -1639,6 +1701,84 @@ export const pollGitCredentialGithubDevice = <ThrowOnError extends boolean = fal
     },
   })
 
+export const listCredentialCaptures = <ThrowOnError extends boolean = false>(
+  options: Options<ListCredentialCapturesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListCredentialCapturesResponses,
+    ListCredentialCapturesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/credential-captures',
+    ...options,
+  })
+
+export const openCredentialCapture = <ThrowOnError extends boolean = false>(
+  options: Options<OpenCredentialCaptureData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    OpenCredentialCaptureResponses,
+    OpenCredentialCaptureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/credential-captures',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getCredentialCapture = <ThrowOnError extends boolean = false>(
+  options: Options<GetCredentialCaptureData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetCredentialCaptureResponses,
+    GetCredentialCaptureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/credential-captures/{id}',
+    ...options,
+  })
+
+export const submitCredentialCapture = <ThrowOnError extends boolean = false>(
+  options: Options<SubmitCredentialCaptureData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SubmitCredentialCaptureResponses,
+    SubmitCredentialCaptureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/credential-captures/{id}/submit',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const cancelCredentialCapture = <ThrowOnError extends boolean = false>(
+  options: Options<CancelCredentialCaptureData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CancelCredentialCaptureResponses,
+    CancelCredentialCaptureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/credential-captures/{id}/cancel',
+    ...options,
+  })
+
 export const listConnectionAssignedItems = <ThrowOnError extends boolean = false>(
   options: Options<ListConnectionAssignedItemsData, ThrowOnError>,
 ) =>
@@ -1825,6 +1965,20 @@ export const clearChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/clear',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const archiveChat = <ThrowOnError extends boolean = false>(
+  options: Options<ArchiveChatData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ArchiveChatResponses, ArchiveChatErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/archive',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2086,6 +2240,15 @@ export const grantProjectAppViewToken = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/view/grant',
+    ...options,
+  })
+
+export const proxyProjectViewImage = <ThrowOnError extends boolean = false>(
+  options: Options<ProxyProjectViewImageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ProxyProjectViewImageResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/_img',
     ...options,
   })
 
@@ -2876,6 +3039,24 @@ export const sendChatWithCli = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const restartChatWithCli = <ThrowOnError extends boolean = false>(
+  options: Options<RestartChatWithCliData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RestartChatWithCliResponses,
+    RestartChatWithCliErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completions/restart-chat-with-cli',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const resumeCompletion = <ThrowOnError extends boolean = false>(
   options: Options<ResumeCompletionData, ThrowOnError>,
 ) =>
@@ -3254,6 +3435,20 @@ export const listTools = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const listChatToolCatalog = <ThrowOnError extends boolean = false>(
+  options?: Options<ListChatToolCatalogData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListChatToolCatalogResponses,
+    ListChatToolCatalogErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/tools/chat-catalog',
+    ...options,
+  })
+
 export const executeTool = <ThrowOnError extends boolean = false>(
   options: Options<ExecuteToolData, ThrowOnError>,
 ) =>
@@ -3489,6 +3684,76 @@ export const listCliAgentModels = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const listCliCapabilityScorecards = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliCapabilityScorecardsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliCapabilityScorecardsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/capability',
+    ...options,
+  })
+
+export const runCliCapabilityCheck = <ThrowOnError extends boolean = false>(
+  options: Options<RunCliCapabilityCheckData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RunCliCapabilityCheckResponses,
+    RunCliCapabilityCheckErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/probe/capability',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listCliImageVersions = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliImageVersionsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliImageVersionsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-images',
+    ...options,
+  })
+
+export const checkCliImageUpdates = <ThrowOnError extends boolean = false>(
+  options: Options<CheckCliImageUpdatesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CheckCliImageUpdatesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-images/check',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startCliImageUpdate = <ThrowOnError extends boolean = false>(
+  options: Options<StartCliImageUpdateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartCliImageUpdateResponses,
+    StartCliImageUpdateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-images/update',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const liveCliAgentProbe = <ThrowOnError extends boolean = false>(
   options: Options<LiveCliAgentProbeData, ThrowOnError>,
 ) =>
@@ -3599,6 +3864,56 @@ export const previewCliAgentArtifact = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const verifyCliRunReview = <ThrowOnError extends boolean = false>(
+  options: Options<VerifyCliRunReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    VerifyCliRunReviewResponses,
+    VerifyCliRunReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/verify',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getCliRunVerificationPlan = <ThrowOnError extends boolean = false>(
+  options: Options<GetCliRunVerificationPlanData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetCliRunVerificationPlanResponses,
+    GetCliRunVerificationPlanErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/verification-plan',
+    ...options,
+  })
+
+export const rejectCliRunReview = <ThrowOnError extends boolean = false>(
+  options: Options<RejectCliRunReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RejectCliRunReviewResponses,
+    RejectCliRunReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/reject-review',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const mergeCliRunReview = <ThrowOnError extends boolean = false>(
   options: Options<MergeCliRunReviewData, ThrowOnError>,
 ) =>
@@ -3666,6 +3981,77 @@ export const submitCliAuthLoginInput = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   })
+
+export const listProjectNotes = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectNotesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListProjectNotesResponses, ListProjectNotesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/notes',
+    ...options,
+  })
+
+export const createProjectNote = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateProjectNoteResponses,
+    CreateProjectNoteErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/notes',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteProjectNote = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProjectNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProjectNoteResponses,
+    DeleteProjectNoteErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/notes/{noteId}',
+    ...options,
+  })
+
+export const updateProjectNote = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProjectNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateProjectNoteResponses,
+    UpdateProjectNoteErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/notes/{noteId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const revealProjectNote = <ThrowOnError extends boolean = false>(
+  options: Options<RevealProjectNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<RevealProjectNoteResponses, RevealProjectNoteErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/projects/{projectId}/notes/{noteId}/reveal',
+      ...options,
+    },
+  )
 
 export const ingestAll = <ThrowOnError extends boolean = false>(
   options?: Options<IngestAllData, ThrowOnError>,

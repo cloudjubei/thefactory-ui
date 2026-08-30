@@ -4,6 +4,8 @@
 // dep on the tools package — both web and desktop already produce data in
 // this shape.
 
+import type { AgentQuestion } from './agentQuestionTypes'
+
 export type ChatContextLike = {
   type:
     | 'PROJECT'
@@ -113,10 +115,39 @@ export type PendingToolGrantData = {
   source: PendingToolGrantSource
   label: string
   detail?: unknown
+  /**
+   * The tool the agent is blocked on, when the request names one. A CLI action's
+   * `kind` groups permanent grants (`inspect-host-path`) and does not identify
+   * the call, so the live transcript and the approval prompt both need this to
+   * say WHICH tool is waiting.
+   */
+  toolName?: string
+  /**
+   * Set when the CLI action is an `askUser` question rather than a permission
+   * request. Such a grant is answered with text (`answer`), not approved — the
+   * confirmation modal must never render it as an Allow/Deny prompt.
+   */
+  question?: AgentQuestion
+  /**
+   * Whether "allow permanently" is genuinely on offer. Some gated tools — a
+   * per-path filesystem read, a per-use secret — refuse standing grants server
+   * side, where a permanent decision is silently downgraded to a single use.
+   * Offering the button anyway would tell the user they had made a lasting
+   * choice that was never recorded.
+   */
+  canGrantPermanently?: boolean
 }
 
 export type PendingToolGrant = PendingToolGrantData & {
   decide: (decision: PendingToolGrantDecision) => Promise<void>
+  /** Resolve a question grant with the user's typed answer. Question grants only. */
+  answer?: (answer: string) => Promise<void>
+}
+
+/** A grant the question card can render: a parsed question plus a text answer channel. */
+export type PendingQuestionGrant = PendingToolGrant & {
+  question: AgentQuestion
+  answer: (answer: string) => Promise<void>
 }
 
 // Per-context live state the chat shell consumes — tracks the in-flight

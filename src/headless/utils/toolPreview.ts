@@ -115,15 +115,18 @@ export function buildUnifiedDiffIfPresent(result: unknown): string | undefined {
 
 /** Tools whose `getToolHeaderPath` value is a single file path string.
  *  Used by native renderers to pick the dir-truncated `PathDisplay` chrome
- *  instead of plain monospace text. `renamePath` is intentionally absent:
- *  its header is a `src → dst` string, not a single path. Story / feature
- *  refs fall through to text. */
+ *  instead of plain monospace text. `renamePaths` is intentionally absent:
+ *  its header is a `src → dst` string, not a single path — and so is
+ *  `deletePaths`, which takes a list. Story / feature refs fall through to
+ *  text. Every name here is a `*Tools` interface method name as the agent
+ *  calls it; `toolPreview.test.ts` pins them against the generated registry,
+ *  because a name that has drifted renders no header at all rather than
+ *  failing. */
 const FILE_PATH_TOOL_NAMES: ReadonlySet<string> = new Set([
   'writeFile',
-  'readFileStructure',
+  'readFile',
   'listContents',
-  'getAstOutline',
-  'deletePath',
+  'astGetOutline',
 ])
 
 export function isFilePathTool(name?: string): boolean {
@@ -144,17 +147,26 @@ export function getToolHeaderPath(toolCall: {
   const args = asRecord(toolCall.arguments)
   switch (toolCall.name) {
     case 'writeFile':
-    case 'readFileStructure':
+    case 'readFile':
     case 'listContents':
-    case 'getAstOutline':
+    case 'astGetOutline':
       return tryString(args.path)
-    case 'deletePath':
-      return tryString(args.path)
-    case 'renamePath': {
-      const src = tryString(args.src)
-      const dst = tryString(args.dst)
-      if (src && dst) return `${src} → ${dst}`
-      return src ?? dst
+    case 'deletePaths': {
+      const paths = Array.isArray(args.paths) ? args.paths.map(tryString).filter(Boolean) : []
+      return paths.length > 0 ? paths.join(', ') : undefined
+    }
+    case 'renamePaths': {
+      const moves = Array.isArray(args.moves) ? args.moves : []
+      const rendered = moves
+        .map((move) => {
+          const record = asRecord(move)
+          const src = tryString(record.src)
+          const dst = tryString(record.dst)
+          if (src && dst) return `${src} → ${dst}`
+          return src ?? dst
+        })
+        .filter(Boolean)
+      return rendered.length > 0 ? rendered.join(', ') : undefined
     }
     case 'addFeature':
     case 'updateStory':
@@ -234,7 +246,10 @@ function pathsFromQueries(v: unknown): string[] | null {
   return out.length > 0 ? out : null
 }
 
-export function toolArgDisplay(toolCall: { name?: string; arguments?: unknown }): ToolArgDisplay | null {
+export function toolArgDisplay(toolCall: {
+  name?: string
+  arguments?: unknown
+}): ToolArgDisplay | null {
   const args = toolCall.arguments
   if (typeof args === 'string') return args.trim() ? { kind: 'text', text: args } : null
   if (!args || typeof args !== 'object') return null

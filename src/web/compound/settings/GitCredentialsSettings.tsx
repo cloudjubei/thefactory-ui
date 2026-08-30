@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import { useGitCredentials } from "../../../headless"
-import type { GetGitCredentialResponse } from "../../../headless/api"
-import { Alert, Button, ConfirmDialog, Modal } from "../.."
-import { IconDelete, IconEdit, IconPlus } from "../../icons"
-import GitCredentialsForm, {
-  type GitCredentialsFormHostCapabilities,
-} from './GitCredentialsForm'
+import { useGitCredentials } from '../../../headless'
+import type { GetGitCredentialResponse } from '../../../headless/api'
+import { formatGitCredentialHost } from '../../../headless/utils/gitCredentials'
+import {
+  GIT_CREDENTIALS_EMPTY,
+  GIT_CREDENTIALS_TIP,
+  GIT_CREDENTIALS_TITLE,
+} from '../../../headless/utils/gitCredentialConstants'
+import { Alert, Button, ConfirmDialog, Modal } from '../..'
+import { IconDelete, IconEdit, IconPlus } from '../../icons'
+import GitCredentialsForm, { type GitCredentialsFormHostCapabilities } from './GitCredentialsForm'
 
 type ModalRoute =
   | { kind: 'create' }
   | { kind: 'edit'; credentials: GetGitCredentialResponse }
   | { kind: 'delete'; credentials: GetGitCredentialResponse }
 
-export interface GitHubSettingsProps {
+export interface GitCredentialsSettingsProps {
   /**
    * Host capabilities forwarded to the create-mode `GitCredentialsForm`
    * so the right OAuth method renders on each surface. Defaults to web
@@ -28,10 +32,10 @@ export interface GitHubSettingsProps {
   openExternalUrl?: (url: string) => void | Promise<void>
 }
 
-export default function GitHubSettings({
+export default function GitCredentialsSettings({
   hostCapabilities,
   openExternalUrl,
-}: GitHubSettingsProps = {}) {
+}: GitCredentialsSettingsProps = {}) {
   const {
     isLoaded,
     loadError,
@@ -45,7 +49,7 @@ export default function GitHubSettings({
   return (
     <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-semibold">GitHub Credentials</h2>
+        <h2 className="text-xl font-semibold">{GIT_CREDENTIALS_TITLE}</h2>
         <Button
           onClick={() => setModal({ kind: 'create' })}
           title="Add credentials"
@@ -61,17 +65,15 @@ export default function GitHubSettings({
         {!isLoaded ? (
           <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
         ) : credentials.length === 0 ? (
-          <div className="p-4 text-sm text-(--text-secondary)">
-            No credentials yet. Click the + button to create one.
-          </div>
+          <div className="p-4 text-sm text-(--text-secondary)">{GIT_CREDENTIALS_EMPTY}</div>
         ) : (
           credentials.map((c) => (
-            <div
-              key={c.id}
-              className="p-3 flex flex-row items-center gap-2 justify-between"
-            >
+            <div key={c.id} className="p-3 flex flex-row items-center gap-2 justify-between">
               <div className="min-w-0 flex-1">
                 <div className="font-medium truncate">{c.name}</div>
+                <div className="text-sm text-(--text-secondary) truncate">
+                  {formatGitCredentialHost(c.host)}
+                </div>
                 <div className="text-sm text-(--text-secondary) truncate">{c.username}</div>
                 <div className="text-sm text-(--text-secondary) truncate">{c.email}</div>
               </div>
@@ -100,12 +102,10 @@ export default function GitHubSettings({
         )}
       </div>
 
-      <div className="text-[12px] text-(--text-secondary) mt-2">
-        Tip: Use separate credentials for personal and work accounts.
-      </div>
+      <div className="text-[12px] text-(--text-secondary) mt-2">{GIT_CREDENTIALS_TIP}</div>
 
       {modal?.kind === 'create' && (
-        <Modal isOpen onClose={() => setModal(null)} title="New Git credentials">
+        <Modal isOpen onClose={() => setModal(null)} title="New git credentials">
           <GitCredentialsForm
             mode={{ kind: 'create', onSubmit: createCredentials }}
             onCancel={() => setModal(null)}
@@ -130,7 +130,7 @@ export default function GitHubSettings({
         <ConfirmDialog
           isOpen
           onClose={() => setModal(null)}
-          title="Delete Git credentials"
+          title="Delete git credentials"
           description={`This removes "${modal.credentials.name}" from the backend. Existing git operations may fail without another credential set.`}
           confirmLabel="Delete"
           destructive

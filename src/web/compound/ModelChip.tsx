@@ -54,6 +54,8 @@ export type ModelChipProps = {
   cliDisabled?: boolean
   /** Hover callout explaining why CLI is unavailable; shown on the disabled CLI segment. */
   cliDisabledReason?: string
+  /** Why the last API/CLI switch failed — rendered under the toggle so a dead-looking click explains itself. */
+  cliSwitchError?: string | null
   /** When defined, surfaces the "Resident mode" switch in the CLI panel. `true` ⇒ this chat runs on a long-lived per-chat CLI process. */
   residentMode?: boolean
   /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
@@ -108,7 +110,6 @@ function providerDotClasses(p?: string) {
       return 'bg-pink-500'
   }
 }
-
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -203,6 +204,7 @@ function Picker({
   onPickRecentCli,
   cliDisabled,
   cliDisabledReason,
+  cliSwitchError,
   residentMode,
   onToggleResident,
   authWarning,
@@ -226,6 +228,7 @@ function Picker({
   onPickRecentCli?: (model: ActivityCliModel) => void
   cliDisabled?: boolean
   cliDisabledReason?: string
+  cliSwitchError?: string | null
   residentMode?: boolean
   onToggleResident?: (next: boolean) => void
   authWarning?: CliAuthWarning
@@ -411,6 +414,11 @@ function Picker({
       {cliDisabled && cliDisabledReason && (
         <div className="px-3 pb-2 -mt-1 text-[10px] leading-snug text-[var(--text-tertiary)]">
           {cliDisabledReason}
+        </div>
+      )}
+      {cliSwitchError && (
+        <div className="px-3 pb-2 -mt-1 text-[10px] leading-snug text-[var(--status-danger)]">
+          {cliSwitchError}
         </div>
       )}
       {useCli && (
@@ -641,6 +649,9 @@ export function ModelChip({
   onPickCliModel,
   recentCliModels,
   onPickRecentCli,
+  cliDisabled,
+  cliDisabledReason,
+  cliSwitchError,
   residentMode,
   onToggleResident,
   authWarning,
@@ -783,6 +794,9 @@ export function ModelChip({
           onPickCliModel={onPickCliModel}
           recentCliModels={recentCliModels}
           onPickRecentCli={onPickRecentCli}
+          cliDisabled={cliDisabled}
+          cliDisabledReason={cliDisabledReason}
+          cliSwitchError={cliSwitchError}
           residentMode={residentMode}
           onToggleResident={onToggleResident}
           authWarning={authWarning}

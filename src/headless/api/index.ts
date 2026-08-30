@@ -45,6 +45,8 @@ export { configureBackendClient } from './bootstrap'
 export * from './generated'
 export * from './sdkTypes'
 
+// Chat archival — hand-written until the route lands in the generated SDK.
+
 // Process-singleton cache + lookup helpers for backend pricing snapshots.
 // Single source of truth for chat usage modals, model chips, and the
 // pricing settings panel across web / desktop / mobile.

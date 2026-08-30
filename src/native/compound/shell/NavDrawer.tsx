@@ -99,6 +99,12 @@ export interface NavDrawerProps {
   projectsEmptyLabel?: string
   /** Pinned bottom row — typically Settings. */
   footerItem?: NavDrawerItem
+  /**
+   * Icon-only actions pinned to the RIGHT of {@link footerItem} on the same
+   * row — e.g. the app-level assistant chat. Each item's `icon` and `label`
+   * are used; `label` becomes the accessibility name.
+   */
+  footerActions?: NavDrawerItem[]
   /** Safe-area insets supplied by the host (avoids a safe-area dependency here). */
   topInset?: number
   bottomInset?: number
@@ -125,6 +131,7 @@ export default function NavDrawer({
   projectsHeaderAction,
   projectsEmptyLabel = 'No projects yet.',
   footerItem,
+  footerActions,
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
@@ -305,9 +312,11 @@ export default function NavDrawer({
           ))}
         </ScrollView>
 
-        {footerItem ? (
+        {footerItem || (footerActions?.length ?? 0) > 0 ? (
           <View
             style={{
+              flexDirection: 'row',
+              alignItems: 'center',
               paddingHorizontal: nativeSpace[2],
               paddingTop: nativeSpace[1],
               paddingBottom: bottomInset + nativeSpace[1],
@@ -315,11 +324,40 @@ export default function NavDrawer({
               borderTopColor: theme.border.subtle,
             }}
           >
-            <Row item={footerItem} />
+            <View style={{ flex: 1 }}>{footerItem ? <Row item={footerItem} /> : null}</View>
+            {footerActions?.map((action) => <FooterAction key={action.key} item={action} />)}
           </View>
         ) : null}
       </Animated.View>
     </View>
+  )
+}
+
+/** Icon-only footer control — the trailing half of the pinned bottom row. */
+function FooterAction({ item }: { item: NavDrawerItem }) {
+  const { theme } = useNativeTheme()
+  return (
+    <Pressable
+      onPress={item.onPress}
+      testID={item.testID}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      accessibilityState={{ selected: !!item.active }}
+      style={({ pressed }) => ({
+        height: 44,
+        width: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: nativeRadii[2],
+        backgroundColor: item.active
+          ? nativePalette.brand[50]
+          : pressed
+            ? theme.surface.hover
+            : 'transparent',
+      })}
+    >
+      {item.icon}
+    </Pressable>
   )
 }
 

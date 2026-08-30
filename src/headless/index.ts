@@ -18,6 +18,10 @@ export {
 export { useDebouncedSetExit } from './hooks/useDebouncedSetExit'
 export { useDurationTimer } from './hooks/useDurationTimer'
 export {
+  useWebSearchBrowserSetting,
+  type WebSearchBrowserSetting,
+} from './hooks/useWebSearchBrowserSetting'
+export {
   useDependencySelector,
   type FeatureLike,
   type StoryLike,
@@ -70,6 +74,25 @@ export {
   readAcceptanceLayer,
   resolveAcceptance,
 } from './utils/crossProjectSettings'
+export { useChatToolCatalog } from './hooks/useChatToolCatalog'
+export {
+  applyChatToolApprovalMode,
+  applyChatToolToggle,
+  buildChatToolApprovalToggle,
+  buildChatToolToggles,
+  filterChatToolToggles,
+  groupChatToolToggles,
+  resetChatToolToggles,
+} from './utils/chatToolToggles'
+export type {
+  ChatToolApprovalToggle,
+  ChatToolAxis,
+  ChatToolCatalogEntry,
+  ChatToolRunner,
+  ChatToolSettings,
+  ChatToolToggle,
+  ChatToolToggleGroup,
+} from './utils/chatToolTogglesTypes'
 export {
   useResolvedTheme,
   type ResolvedTheme,
@@ -281,6 +304,52 @@ export {
   type LLMPriceLike,
 } from './utils/agentRun'
 
+// CLI-run review evidence bundle — verification chip / check rows / verdict /
+// land-failure / merge-outcome derivations shared by the web + native
+// `CliRunArtifactPanel`.
+export {
+  asRunVerification,
+  checkTone,
+  formatCostUSD,
+  isReviewReasonValid,
+  landFailureSummary,
+  mergeNotice,
+  reviewActionMode,
+  reviewChangeCounts,
+  runReviewFacts,
+  verdictSummary,
+  verificationCheckRows,
+  verificationHeadline,
+  formatChangeRequestMessage,
+} from './utils/runReview'
+export {
+  CHECK_STATUS_TONES,
+  LAND_FAILURE_REASON_LABELS,
+  LAND_FAILURE_TITLE,
+  MERGE_BLOCKED_FALLBACK,
+  MERGE_FAILED_FALLBACK,
+  NO_CHECKS_DETAIL,
+  NOT_VERIFIED_DETAIL,
+  VERDICT_AUTHOR_LABELS,
+  VERDICT_LABELS,
+  VERDICT_TONES,
+  VERIFICATION_STATUS_LABELS,
+  VERIFICATION_STATUS_TONES,
+} from './utils/runReviewConstants'
+export type {
+  ReviewActionInput,
+  ReviewActionMode,
+  ReviewChangeCounts,
+  ReviewCheckRow,
+  ReviewLandFailureSummary,
+  ReviewMergeNotice,
+  ReviewTone,
+  ReviewVerdictSummary,
+  RunReviewFacts,
+  VerificationHeadline,
+  VerificationHeadlineStatus,
+} from './utils/runReviewTypes'
+
 // Story / feature status
 export {
   STATUS_LABELS,
@@ -453,6 +522,7 @@ export type {
   ChatLiveStateLike,
   ChatMessageLike,
   MessageUsageLike,
+  PendingQuestionGrant,
   PendingToolConfirmationLike,
   PendingToolGrant,
   PendingToolGrantData,
@@ -466,6 +536,28 @@ export type {
 // Shared chat-title formatter — used by web / mobile / desktop chat-session
 // headers so the title reads identically across all clients.
 export { formatChatTitle, type ChatTitleInputs } from './utils/chatTitle'
+
+// The app-level assistant chat (`GENERAL` context — scoped to neither a project
+// nor a group): which generation is open, its overlay's open/close state, and
+// the reset that archives one generation and starts the next. The pure
+// selectors below are the same rules the provider runs on, exported so a
+// future "past conversations" list can read them directly.
+export {
+  GlobalChatProvider,
+  useGlobalChat,
+  type GlobalChatContextValue,
+} from './contexts/GlobalChatContext'
+export {
+  activeGlobalChat,
+  globalChatHistory,
+  isGlobalChat,
+  newGlobalChatContext,
+} from 'thefactory-tools/utils'
+export {
+  GLOBAL_CHAT_CONTEXT_TYPE,
+  GLOBAL_CHAT_RESET_LABEL,
+  GLOBAL_CHAT_TITLE,
+} from './utils/globalChatConstants'
 
 // Backend API client (WsClient + SDK-independent error/helper utilities +
 // auth / api context providers with adapter hooks for storage / SDK
@@ -563,12 +655,180 @@ export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgent
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
 export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 
-// Git credentials (HTTPS PATs / SSH keys) CRUD.
+// The chat-rendering diagnostic: one bounded JSON document pairing the chat's
+// stored messages and each CLI run's RAW transcript with the steps + messages
+// those entries render as.
+export { useChatDebugDump, type UseChatDebugDump } from './hooks/useChatDebugDump'
+export {
+  buildChatDebugDump,
+  chatDebugText,
+  fitsChatDebugBudget,
+  serializeChatDebugDump,
+  utf8ByteLength,
+} from './utils/chatDebugDump'
+export {
+  CHAT_DEBUG_DUMP_VERSION,
+  CHAT_DEBUG_INTERPRETED_BUDGET_CHARS,
+  CHAT_DEBUG_MESSAGES_BUDGET_CHARS,
+  CHAT_DEBUG_RAW_TRANSCRIPT_BUDGET_CHARS,
+  CHAT_DEBUG_TEXT_PREFIX_CHARS,
+} from './utils/chatDebugDumpConstants'
+export type {
+  ChatDebugCliRun,
+  ChatDebugCliRunner,
+  ChatDebugCounts,
+  ChatDebugDump,
+  ChatDebugDumpInput,
+  ChatDebugDumpSerialized,
+  ChatDebugLimits,
+  ChatDebugMessage,
+  ChatDebugStep,
+  ChatDebugText,
+  ChatDebugToolCall,
+  ChatDebugToolResult,
+} from './utils/chatDebugDumpTypes'
+
+// What a CLI run is doing right now: transcript accumulation for the live view
+// plus the single activity line (booting / running <tool> / waiting on you).
+export {
+  appendCliRunTranscript,
+  approxCliOutputTokens,
+  blockedOnFromGrants,
+  blockedToolNames,
+  describeCliRunActivity,
+  formatCliElapsed,
+  mergeCliRunTranscript,
+  runningCliToolNames,
+} from './utils/cliRunActivity'
+export type {
+  CliRunActivity,
+  CliRunActivityInput,
+  CliRunActivityTone,
+  CliRunBlockedOn,
+} from './utils/cliRunActivityTypes'
+export {
+  CLI_BLOCKED_SUBLABEL,
+  CLI_BOOT_SUBLABEL,
+  CLI_CHARS_PER_TOKEN,
+  CLI_ELAPSED_TICK_MS,
+  CLI_QUESTION_SUBLABEL,
+  CLI_TRANSCRIPT_CACHE_MAX_RUNS,
+  CLI_TRANSCRIPT_FLUSH_MS,
+} from './utils/cliRunActivityConstants'
+export { CliRunTranscriptCache, cliRunTranscripts } from './utils/cliRunTranscriptCache'
+export { applyChatLiveStatePatch, mergeChatLiveState } from './utils/chatLiveState'
+
+// Message deletion. `deleteLastChatMessage` is the only delete the API offers,
+// so the control is last-only — and on a CLI turn one stored message owns the
+// whole run, which the label has to admit.
+export { describeLastMessageDelete, refuseWhileRunActive } from './utils/chatMessageDelete'
+export {
+  CLI_TURN_DELETE_ACTION_LABEL,
+  CLI_TURN_DELETE_LABEL,
+  CLI_TURN_DELETE_RUNNING_LABEL,
+  MESSAGE_DELETE_BUSY_LABEL,
+  MESSAGE_DELETE_LABEL,
+} from './utils/chatMessageDeleteConstants'
+export type { MessageDeleteControl, MessageDeleteInput } from './utils/chatMessageDeleteTypes'
+
+// Turn restart. Offered only on a chat whose LAST message is the user's — the
+// shape a turn leaves behind when the agent never answered it.
+export { describeLastUserMessageRestart, isRestartableChatTail } from './utils/chatMessageRestart'
+export {
+  MESSAGE_RESTART_ACTION_LABEL,
+  MESSAGE_RESTART_BUSY_LABEL,
+  MESSAGE_RESTART_LABEL,
+} from './utils/chatMessageRestartConstants'
+export type { MessageRestartControl, MessageRestartInput } from './utils/chatMessageRestartTypes'
+
+// Mid-run `askUser` questions — a broker action answered with text rather than
+// approved. Pure parsing / decision mappers behind the question card.
+export {
+  answerDecision,
+  canSubmitAnswer,
+  declineDecision,
+  isQuestionAction,
+  isQuestionGrant,
+  parseQuestionPayload,
+  partitionGrants,
+} from './utils/agentQuestions'
+export {
+  QUESTION_ACTION_KIND,
+  QUESTION_ANSWER_PLACEHOLDER,
+  QUESTION_CARD_SUBTITLE,
+  QUESTION_CARD_TITLE,
+  QUESTION_DECLINE_LABEL,
+  QUESTION_DECLINED_ANSWER,
+  QUESTION_FALLBACK_PROMPT,
+  QUESTION_SUBMIT_LABEL,
+} from './utils/agentQuestionConstants'
+export type { AgentQuestion, AgentQuestionDecision } from './utils/agentQuestionTypes'
+
+// In-chat credential capture — an agent asks for credentials, the chat renders
+// the form, and the client posts the fields straight to the credentials API.
+// Only `captureSubmitBody` ever touches the secret, and only to build that
+// request; the capture record the hook holds is secret-free by construction.
+export { useCredentialCaptures, type UseCredentialCaptures } from './hooks/useCredentialCaptures'
+export {
+  awaitingCaptures,
+  belongsToChat,
+  bindCapturesToToolCalls,
+  captureFields,
+  captureFormErrors,
+  captureStatusDisplay,
+  captureSubmitBody,
+  captureToolCallPurpose,
+  emptyCaptureForm,
+  isAwaitingUser,
+  isCaptureFormValid,
+  isCaptureSecretField,
+  isCredentialCapture,
+  upsertCapture,
+} from './utils/credentialCaptures'
+export {
+  CAPTURE_CANCEL_ERROR,
+  CAPTURE_CANCEL_LABEL,
+  CAPTURE_CARD_PRIVACY_NOTE,
+  CAPTURE_CARD_TITLE,
+  CAPTURE_CREDENTIAL_NAME_PREFIX,
+  CAPTURE_FIELD_REQUIRED,
+  CAPTURE_PURPOSE_LABEL,
+  CAPTURE_SUBMIT_ERROR,
+  CAPTURE_SUBMIT_LABEL,
+  CREDENTIAL_CAPTURE_EVENT,
+  CREDENTIAL_CAPTURE_FIELDS,
+  CREDENTIAL_CAPTURE_PURPOSE_ARG,
+  CREDENTIAL_CAPTURE_STATUS_DISPLAY,
+  CREDENTIAL_CAPTURE_TOOL_NAME,
+  EMPTY_CREDENTIAL_CAPTURE_FORM,
+} from './utils/credentialCaptureConstants'
+export type {
+  CredentialCapture,
+  CredentialCaptureFieldName,
+  CredentialCaptureFields,
+  CredentialCaptureFieldSpec,
+  CredentialCaptureFieldType,
+  CredentialCaptureFormErrors,
+  CredentialCaptureFormValues,
+  CredentialCaptureStatus,
+  CredentialCaptureStatusDisplay,
+  CredentialCaptureTone,
+} from './utils/credentialCaptureTypes'
+
+// Git credentials (HTTPS PATs / SSH keys) CRUD — any host, not just GitHub.
 export {
   GitCredentialsProvider,
   useGitCredentials,
   type GitCredentialsContextValue,
 } from './contexts/GitCredentialsContext'
+export { formatGitCredentialHost } from './utils/gitCredentials'
+export {
+  GIT_CREDENTIALS_EMPTY,
+  GIT_CREDENTIALS_EVENT,
+  GIT_CREDENTIALS_TIP,
+  GIT_CREDENTIALS_TITLE,
+  GIT_CREDENTIAL_HOST_UNKNOWN,
+} from './utils/gitCredentialConstants'
 
 // Provider connections (Jira / GitHub Issues / … ticket providers) CRUD + the
 // B3 connectors: list assigned items + import a ticket into a project as a Story.
@@ -624,6 +884,46 @@ export {
 // `ProjectsContext` would couple the catalog to a per-project transport.
 export { useProjectAppView, type UseProjectAppView } from './hooks/useProjectAppView'
 export { useProjectData, type UseProjectData } from './hooks/useProjectData'
+
+// Per-project encrypted store of standing context (logins, API keys,
+// conventions) an agent can reach for, plus the deliberate one-at-a-time
+// reveal of a stored value.
+export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+export { useProjectNoteReveal, type UseProjectNoteReveal } from './hooks/useProjectNoteReveal'
+export {
+  canRevealNote,
+  emptyNoteForm,
+  isEmptyNotePatch,
+  isNoteFormValid,
+  noteAccessHelp,
+  noteAccessLabel,
+  noteCreateBody,
+  noteFormErrors,
+  noteFormValues,
+  noteKindLabel,
+  notePatchBody,
+  sortNotes,
+} from './utils/projectNotes'
+export {
+  EMPTY_NOTE_FORM,
+  NOTE_ACCESS_HELP,
+  NOTE_ACCESS_LABELS,
+  NOTE_ACCESS_NOTE,
+  NOTE_KIND_HELP,
+  NOTE_KIND_LABELS,
+  NOTE_LABEL_REQUIRED,
+  NOTE_REVEAL_TIMEOUT_MS,
+  NOTE_VALUE_MASK,
+  NOTE_VALUE_REQUIRED,
+  NOTE_VALUE_UNCHANGED_HINT,
+} from './utils/projectNotesConstants'
+export type {
+  ProjectNoteCreateBody,
+  ProjectNoteFormErrors,
+  ProjectNoteFormMode,
+  ProjectNoteFormValues,
+  ProjectNotePatchBody,
+} from './utils/projectNotesTypes'
 export { useProjectDataBridge } from './hooks/useProjectDataBridge'
 export {
   useProjectGithubRepo,
@@ -770,3 +1070,5 @@ export {
 // thefactory-ui/src/headless/utils/projectResourceCache.ts for the
 // LRU + ETag semantics.
 export { ProjectResourceCache, type CacheEntry } from './utils/projectResourceCache'
+
+export type { RunCliCapabilityCheckResponse } from './api/generated/types.gen.js'

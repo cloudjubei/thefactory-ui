@@ -14,7 +14,7 @@ type ModalRoute =
 
 /**
  * Manage ticket-provider connections (GitHub Issues / Jira) and import items
- * assigned to you into a project as Stories. Mirrors `GitHubSettings`.
+ * assigned to you into a project as Stories. Mirrors `GitCredentialsSettings`.
  */
 export default function ProviderConnectionsSettings() {
   const { isLoaded, loadError, connections, createConnection, updateConnection, deleteConnection } =

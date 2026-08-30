@@ -2,6 +2,7 @@
 // PendingActions into the unified PendingToolGrantData shape, and route a
 // decision to the right CLI broker outcome. No React, no I/O.
 
+import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
@@ -9,6 +10,15 @@ export type CliPendingActionLike = {
   id: string
   kind: string
   payload?: unknown
+  /** Server-side refusal of standing grants; every call asks again. */
+  noPermanentGrant?: boolean
+}
+
+/** Subset of a `CliRun` needed to pick the run a chat's approvals belong to. */
+export type CliRunLike = {
+  id: string
+  chatContextId?: string
+  createdAt?: number
 }
 
 /**
@@ -25,6 +35,58 @@ export function isToolGrantAction(action: CliPendingActionLike): boolean {
   return !NON_GRANT_ACTION_KINDS.has(action.kind)
 }
 
+/** `cli:run-update` types that change a run's set of pending actions. */
+const ACTION_UPDATE_EVENT_TYPES: ReadonlySet<string> = new Set(['actionRequest', 'actionDecided'])
+
+/**
+ * `cli:run-update` types that can change WHICH run a chat has active. `started`
+ * / `finished` / `error` / `statusChanged` bracket a run's life; `actionRequest`
+ * is included because an approval raised on a run this client never observed
+ * starting is exactly the case run discovery exists to rescue.
+ */
+const RUN_LIFECYCLE_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'started',
+  'statusChanged',
+  'finished',
+  'error',
+  'actionRequest',
+])
+
+function cliRunUpdateType(data: unknown): string {
+  const type = (data as { type?: unknown } | null | undefined)?.type
+  return typeof type === 'string' ? type : ''
+}
+
+/** True when a `cli:run-update` payload means the run's pending actions should be re-read. */
+export function isCliActionUpdateEvent(data: unknown): boolean {
+  return ACTION_UPDATE_EVENT_TYPES.has(cliRunUpdateType(data))
+}
+
+/** True when a `cli:run-update` payload means the chat's active run should be re-resolved. */
+export function isCliRunLifecycleEvent(data: unknown): boolean {
+  return RUN_LIFECYCLE_EVENT_TYPES.has(cliRunUpdateType(data))
+}
+
+/**
+ * The run whose gated actions a chat should surface: the most recently created
+ * one bound to this chat. The chat binding is re-checked here rather than
+ * trusted from the query that produced `runs`, so a dropped or ignored filter
+ * can never raise another chat's approval prompt on this one.
+ */
+export function pickActiveCliRunId(
+  runs: readonly CliRunLike[] | undefined,
+  chatContextId: string,
+): string | undefined {
+  if (!chatContextId) return undefined
+  let best: CliRunLike | undefined
+  for (const run of runs ?? []) {
+    if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
+    if (run.chatContextId !== chatContextId) continue
+    if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
+  }
+  return best?.id
+}
+
 /** Map an API `require_confirmation` tool-call to a grant (id = toolCallId). */
 export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData {
   return {
@@ -32,17 +94,42 @@ export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData
     source: 'api',
     label: toolCall.name,
     detail: toolCall.arguments,
+    toolName: toolCall.name,
   }
 }
 
-/** Map a CLI gated `PendingAction` to a grant (id = actionId), labelling from its kind. */
+/**
+ * The tool a CLI gated action is blocked on. `registerGatedExecutableMcpTools`
+ * builds the broker payload as `{ tool, args }`, so the name is there for a
+ * host-dispatched tool; a broker-only action (a sandbox-boundary request with a
+ * hand-built payload) names none and falls back to its kind label.
+ */
+export function pendingActionToolName(action: CliPendingActionLike): string | undefined {
+  const payload = action.payload
+  if (typeof payload !== 'object' || payload === null) return undefined
+  const tool = (payload as { tool?: unknown }).tool
+  return typeof tool === 'string' && tool.length > 0 ? tool : undefined
+}
+
+/**
+ * Map a CLI gated `PendingAction` to a grant (id = actionId), labelling from the
+ * tool it names — the kind (`inspect-host-path`) groups permanent grants and is
+ * only the fallback. An `askUser` question additionally carries its parsed
+ * payload, which is what routes it to the question card instead of the
+ * permission modal.
+ */
 export function cliPendingActionToGrant(action: CliPendingActionLike): PendingToolGrantData {
-  return {
+  const toolName = pendingActionToolName(action)
+  const grant: PendingToolGrantData = {
     id: action.id,
     source: 'cli',
-    label: formatActionLabel(action.kind),
+    label: toolName ?? formatActionLabel(action.kind),
     detail: action.payload,
+    canGrantPermanently: action.noPermanentGrant !== true,
+    ...(toolName ? { toolName } : {}),
   }
+  if (isQuestionAction(action)) grant.question = parseQuestionPayload(action.payload)
+  return grant
 }
 
 /** Humanise an action `kind` discriminator: `'network-unlock'` → `'Network unlock'`. */

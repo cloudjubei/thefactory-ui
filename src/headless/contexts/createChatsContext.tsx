@@ -4,6 +4,7 @@ import {
   abortChatCompletion,
   abortCliAgentRun,
   addChatMessages,
+  archiveChat as archiveChatApi,
   clearChat as clearChatApi,
   createTopicChat,
   deleteChat as deleteChatApi,
@@ -11,6 +12,7 @@ import {
   getChatsSettings,
   getCliAgentRun,
   listChats,
+  restartChatWithCli,
   resumeCompletion,
   sendChatWithCli,
   sendCompletionWithTools,
@@ -28,6 +30,8 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { getChatContextKey } from 'thefactory-tools/utils'
+import { applyChatLiveStatePatch } from '../utils/chatLiveState'
+import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { useLLMConfigs } from './LLMConfigsContext'
@@ -136,6 +140,20 @@ export type ChatsContextValue = {
    */
   sendMessage: (ctx: ChatCtx, content: string, attachments?: string[]) => Promise<void>
   /**
+   * Re-trigger the agent on the chat as it already stands, WITHOUT appending a
+   * copy of the user's message. Offered when a turn ended without a reply and
+   * the conversation's last message is the user's own. No-op when the chat's
+   * tail is anything else — the caller trims that tail with
+   * {@link deleteLastMessage} first.
+   *
+   * Both transports re-run the same turn without duplicating it, by opposite
+   * means: the API transport is the one that appends client-side, so this path
+   * simply skips that step and re-sends the stored messages; the CLI transport
+   * appends server-side, so this path calls the restart route instead of the
+   * send route.
+   */
+  restartLastTurn: (ctx: ChatCtx) => Promise<void>
+  /**
    * Resume the in-flight completion for `ctx`, granting the listed
    * tool-call ids. Tools not in `grantedToolCallIds` come back as
    * `not_allowed`. Pass `[]` to deny everything.
@@ -146,6 +164,12 @@ export type ChatsContextValue = {
   /** Clear all messages in the chat — keeps the chat record itself. Mirrors
    * desktop's `restartChat`. */
   clearChat: (ctx: ChatCtx) => Promise<void>
+  /**
+   * Retire the chat without destroying it: stamps `archivedAt` and keeps every
+   * message, so the conversation stays browsable. This is what a global-chat
+   * reset does — `clearChat` would empty it in place.
+   */
+  archiveChat: (ctx: ChatCtx) => Promise<void>
   /** Delete the chat entirely. Backend rejects deletion of the canonical
    * `PROJECT` chat — callers should guard against that case. */
   deleteChat: (ctx: ChatCtx) => Promise<void>
@@ -158,7 +182,12 @@ export type ChatsContextValue = {
    * than throwing — the upstream loop checks `abortSignal.aborted` between
    * turns and tool calls.
    */
-  abortChat: (ctx: ChatCtx) => Promise<void>
+  /**
+   * Stop the chat's in-flight turn. Pass `serverRunId` — the run the backend
+   * reports for this chat — so a stop still reaches the sandbox when live state
+   * has no run id, which is every case after a reload or on a second client.
+   */
+  abortChat: (ctx: ChatCtx, serverRunId?: string) => Promise<void>
 
   /**
    * Create a new `PROJECT_TOPIC` chat under the given project. Returns the
@@ -317,10 +346,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
      * ref is the only way to disambiguate when multiple chats are visible.
      */
     const inFlightCtxRef = useRef<ChatCtx | null>(null)
-    // Accumulates the in-flight CLI run's assistant text for the live preview
-    // (the `cli:run-update` stream arrives entry-by-entry). Reset per send; the
-    // final persisted message replaces it on `refresh()`.
-    const cliStreamAccumRef = useRef('')
     // CLI runs are dispatched fast (the route returns the runId and detaches),
     // so a run keeps streaming `cli:run-update` after `sendMessage` resolves —
     // past the lifetime of the single `inFlightCtxRef`. Map each live runId to
@@ -358,12 +383,13 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const updateLiveState = useCallback((ctx: ChatCtx, patch: Partial<ChatLiveState>) => {
       const key = getChatContextKey(ctx)
-      setLiveStateByKey((prev) => {
-        const next = new Map(prev)
-        const cur = next.get(key) ?? EMPTY_LIVE_STATE
-        next.set(key, { ...cur, ...patch })
-        return next
-      })
+      // A no-op patch keeps the map identity: a streaming CLI turn re-asserts the
+      // same `cliRunId` on every transcript entry, and minting a fresh Map for
+      // each one re-rendered every chats-context consumer in the app.
+      setLiveStateByKey(
+        (prev) =>
+          applyChatLiveStatePatch(prev, key, EMPTY_LIVE_STATE, patch) as Map<string, ChatLiveState>,
+      )
     }, [])
 
     const getChatLiveState = useCallback(
@@ -512,9 +538,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // this chat: a user-initiated Stop (userAborted) is a clean stop, not
           // an error, and a fallback-routed event isn't reliably this chat's.
           const surfaceError =
-            !!mapped &&
-            !userAborted &&
-            (parsed.status === 'errored' || parsed.status === 'aborted')
+            !!mapped && !userAborted && (parsed.status === 'errored' || parsed.status === 'aborted')
           updateLiveState(target, {
             isSending: false,
             pendingAssistant: null,
@@ -534,14 +558,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           return
         }
         // Surface the run id so gated-action grants (usePendingToolGrants) can
-        // query this run's pending approvals while it streams.
-        updateLiveState(target, { cliRunId: parsed.runId })
-        if (parsed.kind === 'transcript' && parsed.text) {
-          cliStreamAccumRef.current += parsed.text
-          updateLiveState(target, {
-            pendingAssistant: { turn: 0, content: cliStreamAccumRef.current },
-          })
-        }
+        // query this run's pending approvals while it streams, and so the live
+        // run view mounts. The transcript itself is NOT accumulated here: the run
+        // view reads it from `useCliRunArtifact` (batched, and carrying tool rows
+        // as well as prose), and a per-entry live-state write re-rendered every
+        // chats-context consumer for text nothing rendered.
+        updateLiveState(target, { cliRunId: parsed.runId, pendingAssistant: null })
       })
     }, [ws, updateLiveState])
 
@@ -691,18 +713,50 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // Per-chat completionSettings (the user's tool selection) take precedence over the per-type
         // template regardless of whether the chat also carries a custom system prompt.
         const base =
-          perChat?.completionSettings ?? typeEntry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS
+          perChat?.completionSettings ??
+          typeEntry?.completionSettings ??
+          FALLBACK_COMPLETION_SETTINGS
         // A chat carrying its own system prompt (e.g. set by an embedded app via createProjectTopic)
         // overrides the generic per-type template; otherwise fall back to it.
         const rawSystemPrompt = perChat?.systemPrompt || typeEntry?.systemPrompt
         // Interpolate `{{project_*}}` / `{{story_*}}` / `{{feature_*}}` / `{{group_*}}` BEFORE the prompt
         // goes on the wire — the model must receive the resolved context, not the raw template the viewer
         // renders separately.
-        const vars = buildChatPromptVariables(context, { project, getStory, getFeature, getGroupById })
+        const vars = buildChatPromptVariables(context, {
+          project,
+          getStory,
+          getFeature,
+          getGroupById,
+        })
         const systemPrompt = interpolateChatSystemPrompt(rawSystemPrompt, vars)
         return { settings: { ...base }, systemPrompt }
       },
       [chatSettings, project, getStory, getFeature, getGroupById],
+    )
+
+    // A CLI turn keeps streaming server-side after its 202 lands: route the run's
+    // `cli:run-update` events to this chat by runId and mount the live run view.
+    // Shared by the send and the restart paths, which detach identically.
+    const registerDetachedCliRun = useCallback(
+      (ctx: ChatCtx, runId: string | undefined) => {
+        // Stop may have been clicked before the runId was known; consume the
+        // intent now, whether or not the run below is still worth mounting.
+        const wasPendingAbort = pendingCliAbortKeysRef.current.delete(getChatContextKey(ctx))
+        // If the run's terminal event already arrived (it can win the race
+        // against the 202 response for a fast-failing run), don't re-mount a dead
+        // run: the terminal handler has finalized it.
+        if (!runId || finalizedCliRunIdsRef.current.has(runId)) return
+        cliRunCtxByRunIdRef.current.set(runId, ctx)
+        updateLiveState(ctx, { cliRunId: runId })
+        if (!wasPendingAbort) return
+        userAbortedRunIdsRef.current.add(runId)
+        void abortCliAgentRun({
+          path: { runId },
+          body: { reason: 'aborted by user' },
+          throwOnError: false,
+        }).catch(() => {})
+      },
+      [updateLiveState],
     )
 
     const sendMessage = useCallback(
@@ -734,7 +788,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // through `abortChat` → the CLI abort route.
           const cliRunner = getChat(ctx)?.cliRunner
           if (cliRunner) {
-            cliStreamAccumRef.current = ''
             // Surface the model + start time so the live Agent-run message frames
             // itself like the persisted reply (same model chip + timestamp).
             updateLiveState(ctx, {
@@ -768,25 +821,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             // terminal event clears it — `detachedCli` keeps the finally below
             // from prematurely clearing the live state.
             detachedCli = true
-            const runId = data?.runId
-            // Stop may have been clicked before the runId was known; consume the
-            // intent now (regardless of whether we still mount the run below).
-            const wasPendingAbort = pendingCliAbortKeysRef.current.delete(getChatContextKey(ctx))
-            // If the run's terminal event already arrived (it can win the race
-            // against this 202 response for a fast-failing run), don't re-mount a
-            // dead run: the terminal handler has finalized it.
-            if (runId && !finalizedCliRunIdsRef.current.has(runId)) {
-              cliRunCtxByRunIdRef.current.set(runId, ctx)
-              updateLiveState(ctx, { cliRunId: runId })
-              if (wasPendingAbort) {
-                userAbortedRunIdsRef.current.add(runId)
-                void abortCliAgentRun({
-                  path: { runId },
-                  body: { reason: 'aborted by user' },
-                  throwOnError: false,
-                }).catch(() => {})
-              }
-            }
+            registerDetachedCliRun(ctx, data?.runId)
             // Reconcile the optimistic user message with the persisted copy.
             await refresh()
             return
@@ -850,12 +885,137 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // pendingAssistant for its terminal `cli:run-update` to clear (routing
           // now goes through the runId map, not inFlightCtxRef). For the API path
           // (and CLI start failures) the turn is done: clear the live markers.
+          //
+          // `cliModel` is cleared here too. It is set optimistically BEFORE the CLI
+          // request, so a start failure would otherwise strand the tag on the chat
+          // — and every later API turn would render "Preparing <that CLI>…" while
+          // no CLI is involved at all.
           if (!detachedCli) {
-            updateLiveState(ctx, { isSending: false, pendingAssistant: null, cliRunId: null })
+            updateLiveState(ctx, {
+              isSending: false,
+              pendingAssistant: null,
+              cliRunId: null,
+              cliModel: null,
+              cliStartedAt: null,
+            })
           }
         }
       },
-      [activeLLMConfig, buildToolSettings, getChat, refresh, updateLiveState],
+      [
+        activeLLMConfig,
+        buildToolSettings,
+        getChat,
+        refresh,
+        registerDetachedCliRun,
+        updateLiveState,
+      ],
+    )
+
+    const restartLastTurn = useCallback(
+      async (ctx: ChatCtx) => {
+        if (!activeLLMConfig) throw new Error('Configure an LLM before restarting a turn')
+        // The turn being re-run is the one already stored. Nothing is appended
+        // here and nothing is appended server-side, so the user's message stays
+        // single — that is the whole difference from `sendMessage`.
+        // Refuse a second restart while one is already going: two runs on one
+        // chat means two placeholders and two transcripts racing into the same
+        // view, and on the API path the second request aborts the first.
+        if (getChatLiveState(ctx).isSending) return
+        const messages = getChat(ctx)?.messages ?? []
+        if (!isRestartableChatTail(messages)) return
+
+        updateLiveState(ctx, {
+          isSending: true,
+          sendError: null,
+          pendingAssistant: null,
+          pendingToolConfirmation: null,
+        })
+        inFlightCtxRef.current = ctx
+        let detachedCli = false
+        try {
+          const { settings, systemPrompt } = buildToolSettings(ctx)
+
+          const cliRunner = getChat(ctx)?.cliRunner
+          if (cliRunner) {
+            updateLiveState(ctx, {
+              cliModel: `cli-agent/${cliRunner.tool}/${cliRunner.model ?? ''}`,
+              cliStartedAt: new Date().toISOString(),
+            })
+            // The CLI route appends the message on a normal send, so a restart
+            // needs its own entry point rather than a second POST to that one.
+            const { data } = await restartChatWithCli({
+              body: {
+                chatContext: ctx,
+                llmConfig: activeLLMConfig,
+                settings,
+                ...(systemPrompt ? { systemPrompt } : {}),
+                runner: 'cli',
+                cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
+              },
+              throwOnError: true,
+            })
+            detachedCli = true
+            registerDetachedCliRun(ctx, data?.runId)
+            await refresh()
+            return
+          }
+
+          const { data: result } = await sendCompletionWithTools({
+            body: {
+              request: {
+                chatContext: ctx,
+                llmConfig: activeLLMConfig,
+                messages,
+                ...(systemPrompt ? { systemPrompt } : {}),
+              },
+              settings,
+            },
+            throwOnError: true,
+          })
+
+          if (result.resultType === 'require_confirmation') {
+            const proposed = collectProposedToolCalls(result)
+            if (proposed.length > 0) {
+              updateLiveState(ctx, {
+                pendingToolConfirmation: {
+                  toolCalls: proposed,
+                  settings,
+                  systemPrompt,
+                  context: ctx,
+                },
+              })
+            }
+          }
+          await refresh()
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[chat] restart failed:', err)
+          updateLiveState(ctx, {
+            sendError: err instanceof Error ? err : new Error(String(err)),
+          })
+        } finally {
+          if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
+            inFlightCtxRef.current = null
+          }
+          if (!detachedCli) {
+            updateLiveState(ctx, {
+              isSending: false,
+              pendingAssistant: null,
+              cliRunId: null,
+              cliModel: null,
+              cliStartedAt: null,
+            })
+          }
+        }
+      },
+      [
+        activeLLMConfig,
+        buildToolSettings,
+        getChat,
+        refresh,
+        registerDetachedCliRun,
+        updateLiveState,
+      ],
     )
 
     const confirmTools = useCallback(
@@ -931,13 +1091,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     )
 
     const abortChat = useCallback(
-      async (ctx: ChatCtx) => {
+      async (ctx: ChatCtx, serverRunId?: string) => {
         // A CLI-backed chat runs in a sandbox: aborting the API completion does
         // nothing to it. Kill the run directly via its abort route — that fires
         // the run's AbortController, which SIGKILLs the workload container
         // mid-turn (so it stops immediately, not after the current tool burst).
         const live = getChatLiveState(ctx)
-        const runId = live.cliRunId
+        // `serverRunId` is the run the BACKEND says this chat is running. Live
+        // state only knows about a send this page made, so after a reload it is
+        // empty while the agent is still going — without the fallback the stop
+        // would silently degrade to the completion-only abort.
+        const runId = live.cliRunId ?? serverRunId
         if (runId) {
           // Mark this as a user stop so the terminal event treats the resulting
           // `aborted` status as a clean stop (no error Alert).
@@ -986,7 +1150,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             throwOnError: false,
           }).catch(() => {})
         }
-        cliStreamAccumRef.current = ''
         updateLiveState(ctx, {
           isSending: false,
           pendingAssistant: null,
@@ -1002,6 +1165,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [refresh, getChatLiveState, updateLiveState],
     )
 
+    const archiveChat = useCallback(
+      async (ctx: ChatCtx) => {
+        await archiveChatApi({ body: { context: ctx }, throwOnError: true })
+        await refresh()
+      },
+      [refresh],
+    )
+
     const deleteChat = useCallback(
       async (ctx: ChatCtx) => {
         await deleteChatApi({ body: { context: ctx }, throwOnError: true })
@@ -1012,10 +1183,16 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const deleteLastMessage = useCallback(
       async (ctx: ChatCtx) => {
+        // A finished CLI run keeps its id in live state so the run view stays
+        // mounted until the persisted reply lands. Deleting that reply removes
+        // the message the view was handed over to, and the trailing live block
+        // would remount the very turn the user just deleted — so drop the id
+        // with it. A run still streaming re-asserts its id on the next update.
+        updateLiveState(ctx, { cliRunId: null, cliModel: null, cliStartedAt: null })
         await deleteLastChatMessage({ body: { context: ctx }, throwOnError: true })
         await refresh()
       },
-      [refresh],
+      [refresh, updateLiveState],
     )
 
     const getEffectiveChatSettings = useCallback(
@@ -1142,10 +1319,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         setDraft,
         clearDraft,
         sendMessage,
+        restartLastTurn,
         confirmTools,
         cancelToolConfirmation,
         abortChat,
         clearChat,
+        archiveChat,
         deleteChat,
         deleteLastMessage,
         createProjectTopic,
@@ -1167,10 +1346,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         setDraft,
         clearDraft,
         sendMessage,
+        restartLastTurn,
         confirmTools,
         cancelToolConfirmation,
         abortChat,
         clearChat,
+        archiveChat,
         deleteChat,
         deleteLastMessage,
         createProjectTopic,

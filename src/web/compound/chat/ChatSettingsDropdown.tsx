@@ -1,5 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react'
-import { useAppSettings } from '../../../headless'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import {
+  filterChatToolToggles,
+  groupChatToolToggles,
+  useAppSettings,
+  type ChatToolToggle,
+} from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
@@ -9,6 +14,25 @@ export type ToolToggle = {
   description: string
   available: boolean
   autoCall: boolean
+  /** Groups the row under a heading. Rows without one land under "other". */
+  category?: string
+  /** False for a tool the transport never lets the user switch off. */
+  toggleable?: boolean
+  /** False on a transport with no per-tool auto-call axis. */
+  supportsAutoCall?: boolean
+}
+
+/** Fill the optional grouping fields so the headless filter/group helpers apply. */
+function normalizeToolToggle(tool: ToolToggle): ChatToolToggle {
+  return {
+    name: tool.name,
+    description: tool.description,
+    category: tool.category ?? 'other',
+    available: tool.available,
+    autoCall: tool.autoCall,
+    toggleable: tool.toggleable ?? true,
+    supportsAutoCall: tool.supportsAutoCall ?? true,
+  }
 }
 
 export type CompletionSettingsLike = {
@@ -37,6 +61,13 @@ export type ChatSettingsDropdownProps = {
   tools: ToolToggle[]
   toggleAvailable: (tool: ToolToggle) => Promise<void> | void
   toggleAutoCall: (tool: ToolToggle) => Promise<void> | void
+  /** Clears the chat's own tool allowlist back to the defaults. Hidden when absent. */
+  onResetTools?: () => Promise<void> | void
+  /** One line under the Tools heading explaining what this chat's list governs. */
+  toolsHint?: string
+  /** The chat-wide "run tools without asking" switch. Hidden on a transport that reports it unsupported. */
+  toolApproval?: { auto: boolean; supported: boolean }
+  onToolApprovalChange?: (auto: boolean) => Promise<void> | void
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -69,6 +100,10 @@ export default function ChatSettingsDropdown({
   tools,
   toggleAvailable,
   toggleAutoCall,
+  onResetTools,
+  toolsHint,
+  toolApproval,
+  onToolApprovalChange,
   persistSettings,
   onDeleteChat,
   extraContent,
@@ -81,6 +116,11 @@ export default function ChatSettingsDropdown({
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const { settings, setUserPreferences } = useAppSettings()
   const prefs = settings.userPreferences
+  const [toolFilter, setToolFilter] = useState('')
+  const visibleToolGroups = useMemo(
+    () => groupChatToolToggles(filterChatToolToggles(tools.map(normalizeToolToggle), toolFilter)),
+    [tools, toolFilter],
+  )
 
   useEffect(() => {
     if (!isOpen || asModal) return
@@ -237,42 +277,102 @@ export default function ChatSettingsDropdown({
       </div>
 
       <div className="space-y-2">
-        <div className="text-xs font-medium text-(--text-secondary)">Tools</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-medium text-(--text-secondary)">Tools</div>
+          {onResetTools ? (
+            <button
+              type="button"
+              className="text-[11px] text-(--text-tertiary) underline"
+              onClick={() => void onResetTools()}
+            >
+              Reset to defaults
+            </button>
+          ) : null}
+        </div>
+        {toolsHint ? <div className="text-[11px] text-(--text-tertiary)">{toolsHint}</div> : null}
+        {toolApproval?.supported && onToolApprovalChange ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-(--border-subtle) px-2 py-2">
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-(--text-secondary)">
+                Run tools without asking
+              </span>
+              <span className="text-[10px] text-(--text-tertiary)">
+                Off, the agent stops for your approval before anything that acts. On, it runs
+                everything in the list above straight away — a tool switched off stays off.
+              </span>
+            </div>
+            <Switch
+              checked={toolApproval.auto}
+              onCheckedChange={(checked) => void onToolApprovalChange(!!checked)}
+            />
+          </div>
+        ) : null}
+        <input
+          value={toolFilter}
+          onChange={(e) => setToolFilter(e.target.value)}
+          placeholder="Filter tools…"
+          aria-label="Filter tools"
+          className="w-full px-2 py-1 border border-(--border-subtle) bg-(--surface-overlay) rounded-md text-xs"
+        />
         <div className="rounded-md border border-(--border-subtle) divide-y divide-(--border-subtle)">
-          {tools.length === 0 ? (
+          {visibleToolGroups.length === 0 ? (
             <div className="text-xs text-(--text-secondary) px-2 py-3">
-              No tools available for this context.
+              {tools.length === 0
+                ? 'No tools available for this context.'
+                : 'No tools match that filter.'}
             </div>
           ) : (
-            tools.map((tool) => (
-              <div key={tool.name} className="px-2 py-2 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0 pr-2">
-                    <div className="text-sm text-(--text-primary) truncate">{tool.name}</div>
-                    <div className="text-xs text-neutral-500 font-light truncate">
-                      {tool.description}
+            visibleToolGroups.map(({ category, tools: groupTools }) => (
+              <div key={category}>
+                <div className="px-2 py-1 bg-(--surface-raised) text-[10px] uppercase tracking-wide text-(--text-tertiary)">
+                  {category} · {groupTools.filter((t) => t.available).length} of {groupTools.length}{' '}
+                  on
+                </div>
+                <div className="divide-y divide-(--border-subtle)">
+                  {groupTools.map((tool) => (
+                    <div key={tool.name} className="px-2 py-2 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="text-sm font-mono text-(--text-primary) truncate">
+                            {tool.name}
+                          </div>
+                          <div className="text-xs text-neutral-500 font-light line-clamp-2">
+                            {tool.description}
+                          </div>
+                        </div>
+                        {/* Two label-above-switch toggles side by side. Mirrors
+                            the native peer 1:1 — Available on the left, Auto-call
+                            on the right, each with its caption above. */}
+                        <div className="flex flex-row items-center gap-3">
+                          <div
+                            className="flex flex-col items-center space-y-px"
+                            title={
+                              tool.toggleable === false
+                                ? 'Always available in this chat'
+                                : undefined
+                            }
+                          >
+                            <span className="text-[10px] text-(--text-secondary)">Available</span>
+                            <Switch
+                              checked={tool.available}
+                              onCheckedChange={() => void toggleAvailable(tool)}
+                              disabled={tool.toggleable === false}
+                            />
+                          </div>
+                          {tool.supportsAutoCall === false ? null : (
+                            <div className="flex flex-col items-center space-y-px">
+                              <span className="text-[10px] text-(--text-secondary)">Auto-call</span>
+                              <Switch
+                                checked={tool.available ? tool.autoCall : false}
+                                onCheckedChange={() => void toggleAutoCall(tool)}
+                                disabled={!tool.available}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  {/* Two label-above-switch toggles side by side. Mirrors
-                      the native peer 1:1 — Available on the left, Auto-call
-                      on the right, each with its caption above. */}
-                  <div className="flex flex-row items-center gap-3">
-                    <div className="flex flex-col items-center space-y-px">
-                      <span className="text-[10px] text-(--text-secondary)">Available</span>
-                      <Switch
-                        checked={tool.available}
-                        onCheckedChange={() => void toggleAvailable(tool)}
-                      />
-                    </div>
-                    <div className="flex flex-col items-center space-y-px">
-                      <span className="text-[10px] text-(--text-secondary)">Auto-call</span>
-                      <Switch
-                        checked={tool.available ? tool.autoCall : false}
-                        onCheckedChange={() => void toggleAutoCall(tool)}
-                        disabled={!tool.available}
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             ))

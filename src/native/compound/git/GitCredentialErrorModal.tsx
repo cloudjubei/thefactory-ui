@@ -10,7 +10,7 @@ export type GitCredentialErrorOp = 'push' | 'pull' | 'fetch' | 'commit'
 export interface GitCredentialErrorModalProps {
   isOpen: boolean
   onClose: () => void
-  /** Navigate to GitHub credentials settings (mobile route:
+  /** Navigate to git credentials settings (mobile route:
    *  `/settings/github`). Called instead of `onClose` so the host can
    *  navigate AND dismiss in one go. */
   onOpenSettings: () => void
@@ -45,7 +45,7 @@ export default function GitCredentialErrorModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="GitHub credentials needed"
+      title="Git credentials needed"
       size="md"
       footer={
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
@@ -58,14 +58,12 @@ export default function GitCredentialErrorModal({
     >
       <View style={{ gap: nativeSpace[3] }}>
         <Alert variant="error">
-          {`Couldn't ${verb} — the GitHub credentials configured for this project don't have access to its repository.`}
+          {`Couldn't ${verb} — the git credentials configured for this project don't have access to its repository.`}
         </Alert>
         {repoUrl ? (
           <Text style={{ fontSize: 12, color: theme.text.muted }}>
             Repository:{' '}
-            <Text style={{ fontFamily: 'Menlo', color: theme.text.secondary }}>
-              {repoUrl}
-            </Text>
+            <Text style={{ fontFamily: 'Menlo', color: theme.text.secondary }}>{repoUrl}</Text>
           </Text>
         ) : null}
         {message ? (
@@ -90,8 +88,8 @@ export default function GitCredentialErrorModal({
           </View>
         ) : null}
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-          Update your GitHub Personal Access Token in Settings → GitHub, or pick a
-          credential set that has access to this repository.
+          Update the access token in Settings → Git, or pick a credential set that has access to
+          this repository.
         </Text>
       </View>
     </Modal>

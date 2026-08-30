@@ -7,7 +7,7 @@ export type GitCredentialErrorOp = 'push' | 'pull' | 'fetch' | 'commit'
 export type GitCredentialErrorModalProps = {
   isOpen: boolean
   onClose: () => void
-  /** Navigate the user to wherever the host renders the GitHub credentials
+  /** Navigate the user to wherever the host renders the git credentials
    *  settings (web: `/settings?tab=github`, desktop: same, mobile:
    *  `/settings/github`). Called instead of `onClose` so the host can
    *  navigate AND dismiss in one go if it wants. */
@@ -44,15 +44,14 @@ export default function GitCredentialErrorModal({
 }: GitCredentialErrorModalProps) {
   const verb = op ? OP_LABEL[op] : 'access'
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="GitHub credentials needed" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Git credentials needed" size="md">
       <div className="flex flex-col gap-3">
         <Alert variant="error">
-          {`Couldn't ${verb} — the GitHub credentials configured for this project don't have access to its repository.`}
+          {`Couldn't ${verb} — the git credentials configured for this project don't have access to its repository.`}
         </Alert>
         {repoUrl ? (
           <div className="text-xs text-(--text-muted)">
-            Repository:{' '}
-            <code className="font-mono text-(--text-secondary)">{repoUrl}</code>
+            Repository: <code className="font-mono text-(--text-secondary)">{repoUrl}</code>
           </div>
         ) : null}
         {message ? (
@@ -66,8 +65,8 @@ export default function GitCredentialErrorModal({
           </details>
         ) : null}
         <p className="text-sm text-(--text-secondary)">
-          Update your GitHub Personal Access Token in Settings → GitHub, or pick a
-          credential set that has access to this repository.
+          Update the access token in Settings → Git, or pick a credential set that has access to
+          this repository.
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>

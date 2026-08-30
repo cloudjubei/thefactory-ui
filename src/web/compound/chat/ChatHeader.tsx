@@ -1,6 +1,7 @@
 import { type ReactNode, type RefObject } from 'react'
 import { Button } from '../../primitives/Button'
 import {
+  IconBug,
   IconCalculator,
   IconChevron,
   IconCode,
@@ -35,6 +36,9 @@ export type ChatHeaderProps = {
   onOpenPrompt: () => void
   onOpenCosts: () => void
   onOpenDynamicContext?: () => void
+  /** When set, shows a bug button beside the dynamic-context one that opens
+   * the chat's rendering diagnostic (`ChatDebugModal`). */
+  onOpenDebug?: () => void
   /** Clear / refresh chat. When set, a red refresh button sits to the left
    * of the model chip. */
   onRefresh?: () => void
@@ -86,6 +90,7 @@ export default function ChatHeader({
   onOpenPrompt,
   onOpenCosts,
   onOpenDynamicContext,
+  onOpenDebug,
   onRefresh,
   onOpenSettings,
   settingsBtnRef,
@@ -154,6 +159,18 @@ export default function ChatHeader({
             title="Dynamic context"
           >
             <IconCode className="w-4 h-4" />
+          </button>
+        ) : null}
+
+        {onOpenDebug ? (
+          <button
+            type="button"
+            onClick={onOpenDebug}
+            className="inline-flex items-center justify-center w-8 h-8 rounded border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) hover:bg-(--surface-hover)"
+            aria-label="View chat debug dump"
+            title="Debug — dump how this chat renders"
+          >
+            <IconBug className="w-4 h-4" />
           </button>
         ) : null}
       </div>

@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
-import { cliLabel, cliTranscriptToMessages, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
+import {
+  approxCliOutputTokens,
+  blockedToolNames,
+  describeCliRunActivity,
+  runningCliToolNames,
+} from '../../../headless/utils/cliRunActivity'
+import { CLI_ELAPSED_TICK_MS } from '../../../headless/utils/cliRunActivityConstants'
+import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
+import {
+  cliLabel,
+  cliTranscriptToMessages,
+  parseCliAgentModelTag,
+} from '../../../headless/utils/cliRunner'
+import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
+import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
+import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
+import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
 import ThinkingRow from './ThinkingRow'
@@ -29,19 +45,23 @@ export type CliRunMessagesProps = {
    * True only for a genuine COLD start — the chat's first CLI run (turn 1), which
    * pays the container + CLI boot. Gates the "Preparing <agent>… / first message
    * is slowest" copy: on warm resident turns (≥2) the pre-output spinner is a
-   * plain "Working…" instead of the misleading cold-start framing.
+   * plain "Starting the turn…" instead of the misleading cold-start framing.
    */
   coldStart?: boolean
-}
-
-/** Reassurance shown under "Preparing <agent>…" — the container/CLI cold-start is
- * paid up-front, so the first turn is the slow one. */
-const CLI_BOOT_SUBLABEL = 'The first message is slowest while the sandbox starts up.'
-
-/** "12s" under a minute, "1m 05s" beyond — the live elapsed readout in the spinner. */
-function formatElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`
-  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
+  /**
+   * What THIS run is waiting on the human for, from the chat's unified grant
+   * feed. Drives the blocked activity line and re-types the tool row the run is
+   * parked on, so "waiting for you" never renders identically to "working".
+   */
+  blockedOn?: readonly CliRunBlockedOn[]
+  /**
+   * Removes the whole turn — the stored assistant message that owns this run.
+   * The rows above are derived from the run record and have no message of their
+   * own, so the turn is the only honest unit of deletion here.
+   */
+  onDeleteTurn?: () => void
+  /** Label + refusal for {@link onDeleteTurn}, from `describeLastMessageDelete`. */
+  deleteControl?: MessageDeleteControl
 }
 
 /**
@@ -49,8 +69,9 @@ function formatElapsed(seconds: number): string {
  * converted to the SAME `assistant` + `tool` message shape an API agent
  * produces and rendered through the standard {@link MessageRow}, so a CLI run
  * looks identical to an API run (no bespoke transcript view). Streams live off
- * the run's transcript; a "Working…" line shows while the run is active; and the
- * workspace diff/apply panel renders at the end as the one CLI-specific extra.
+ * the run's transcript; an activity line reports what the agent is doing right
+ * now (booting / running a named tool / blocked on you); and the workspace
+ * diff/apply panel renders at the end as the one CLI-specific extra.
  */
 export default function CliRunMessages({
   runId,
@@ -62,60 +83,71 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
   coldStart = false,
+  blockedOn,
+  onDeleteTurn,
+  deleteControl,
 }: CliRunMessagesProps) {
-  const { transcript, status, notReady } = useCliRunArtifact(runId, undefined)
+  const { transcript, status, notReady, startedAtMs, error } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
-  const streaming =
-    status === 'running' || status === 'awaiting-approval' || status === 'paused'
-  // The run is "active" (show a spinner) while it's booting (record not written
-  // yet → `notReady`, the long container spin-up) or streaming. `booting` shows
-  // the "Preparing <agent>…" label until the first transcript byte lands — so
-  // there's never a blank gap while the sandbox starts; after that it's the
-  // plain working spinner like the API path. A loaded terminal run shows neither.
+  const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
+  // The run is "active" (show the activity line) while it's booting (record not
+  // written yet → `notReady`, the long container spin-up) or streaming.
+  // `booting` holds until the first transcript byte lands, so there's never a
+  // blank gap while the sandbox starts. A loaded terminal run shows neither.
   const active = notReady || streaming
   const booting = active && transcript.length === 0
   const cli = parseCliAgentModelTag(model)?.cli
+  const awaitingApprovalToolNames = useMemo(() => blockedToolNames(blockedOn ?? []), [blockedOn])
   const messages = useMemo(
-    () => cliTranscriptToMessages(transcript, { ...(model ? { model } : {}), showThinking }),
-    [transcript, model, showThinking],
+    () =>
+      cliTranscriptToMessages(transcript, {
+        ...(model ? { model } : {}),
+        showThinking,
+        awaitingApprovalToolNames,
+      }),
+    [transcript, model, showThinking, awaitingApprovalToolNames],
   )
   const total = baseIndex + messages.length + 1
   let shownModel = false
 
-  // Live activity readout in the working spinner — "not idling" proof, like VS
-  // Code / Cursor: a ticking elapsed timer plus a running output-token estimate
-  // derived from the streamed assistant text (~4 chars/token). The timer re-ticks
-  // once per second only while active.
-  const startRef = useRef<number | undefined>(undefined)
-  const [tick, setTick] = useState(0)
+  // "Not idling" proof, like VS Code / Cursor: the elapsed readout ticks once a
+  // second while the run is active. It measures from the RUN's own start when
+  // the record has loaded, so a page opened mid-turn reports the real age of the
+  // turn rather than restarting from zero.
+  const mountedAtRef = useRef<number | undefined>(undefined)
+  const [, setTick] = useState(0)
   useEffect(() => {
     if (!active) {
-      startRef.current = undefined
+      mountedAtRef.current = undefined
       return
     }
-    if (startRef.current === undefined) startRef.current = Date.now()
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    if (mountedAtRef.current === undefined) mountedAtRef.current = Date.now()
+    const id = setInterval(() => setTick((t) => t + 1), CLI_ELAPSED_TICK_MS)
     return () => clearInterval(id)
   }, [active])
-  const approxTokens = useMemo(() => {
-    let chars = 0
-    for (const m of messages) if (m.role === 'assistant' && typeof m.content === 'string') chars += m.content.length
-    return Math.floor(chars / 4)
-  }, [messages])
-  const elapsedS = active && startRef.current !== undefined ? Math.floor((Date.now() - startRef.current) / 1000) : 0
-  void tick // re-render dependency for the elapsed readout
-  const activitySuffix =
-    elapsedS > 0 ? ` (${formatElapsed(elapsedS)}${approxTokens > 0 ? ` · ~${approxTokens} tokens` : ''})` : ''
-  const spinnerLabel = booting
-    ? coldStart
-      ? `Preparing ${cli ? cliLabel(cli) : 'the agent'}…${activitySuffix}`
-      : `Working…${activitySuffix}`
-    : `Working…${activitySuffix}`
+  const startedAt = startedAtMs ?? mountedAtRef.current
+  const elapsedMs = active && startedAt !== undefined ? Date.now() - startedAt : 0
+  const activity = describeCliRunActivity({
+    runningToolNames: runningCliToolNames(messages),
+    booting,
+    coldStart,
+    ...(cli ? { agentLabel: cliLabel(cli) } : {}),
+    elapsedMs,
+    approxTokens: approxCliOutputTokens(messages),
+    blocked: blockedOn ?? [],
+  })
+
+  // The record's own verdict on whether the run is still going, so a turn
+  // started before a reload still refuses deletion. `notReady` only counts while
+  // the record fetch is still being retried — once it gives up it stays set, and
+  // trusting it then would make the message permanently undeletable.
+  const runActive = streaming || (notReady && error === undefined)
+  const deleteAffordance = onDeleteTurn ? refuseWhileRunActive(deleteControl, runActive) : undefined
 
   // Half the regular message gap (the list uses space-y-3 = 12px) so a run's
   // tool/assistant steps read as a tight series rather than spread-out messages.
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="group/cli-turn flex flex-col gap-1.5">
       {messages.map((m, i) => {
         // Show the model chip once, on the run's first assistant message —
         // matches API grouping (chip on the first assistant, not repeated).
@@ -141,11 +173,27 @@ export default function CliRunMessages({
       })}
       {active ? (
         <ThinkingRow
-          spinnerLabel={spinnerLabel}
-          {...(booting && coldStart ? { spinnerSubLabel: CLI_BOOT_SUBLABEL } : {})}
+          spinnerLabel={activity.label}
+          tone={activity.tone === 'blocked' ? 'blocked' : 'working'}
+          {...(activity.sublabel ? { spinnerSubLabel: activity.sublabel } : {})}
         />
       ) : null}
       {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
+      {deleteAffordance ? (
+        <div className="transition-opacity opacity-0 group-hover/cli-turn:opacity-100 focus-within:opacity-100">
+          <button
+            type="button"
+            title={deleteAffordance.label}
+            aria-label={deleteAffordance.label}
+            className="inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
+            onClick={() => onDeleteTurn?.()}
+            disabled={deleteAffordance.disabled}
+          >
+            <IconDelete className="w-3.5 h-3.5" />
+            <span>{CLI_TURN_DELETE_ACTION_LABEL}</span>
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

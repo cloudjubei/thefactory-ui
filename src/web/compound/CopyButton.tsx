@@ -13,6 +13,9 @@ export type CopyButtonProps = {
   /** How long the "copied" checkmark stays visible. Defaults to 1500ms. */
   feedbackMs?: number
   title?: string
+  /** When set, the button widens to show this text beside the icon and swaps
+   *  it for "Copied" on success. Omit for the icon-only form. */
+  label?: string
 }
 
 /**
@@ -26,6 +29,7 @@ export function CopyButton({
   className,
   feedbackMs = 1500,
   title = 'Copy to clipboard',
+  label,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -55,7 +59,8 @@ export function CopyButton({
       aria-label={copied ? 'Copied' : title}
       title={copied ? 'Copied' : title}
       className={cn(
-        'inline-flex items-center justify-center h-7 w-7 rounded border',
+        'inline-flex items-center justify-center h-7 rounded border',
+        label ? 'gap-1.5 px-2 text-[12px]' : 'w-7',
         'border-(--border-subtle) bg-(--surface-raised) text-(--text-muted)',
         'hover:text-(--text-primary) hover:bg-(--surface-muted)',
         'focus:outline-none focus-visible:ring-2',
@@ -63,6 +68,7 @@ export function CopyButton({
       )}
     >
       {copied ? <IconCheck className="w-4 h-4" /> : <IconCopy className="w-4 h-4" />}
+      {label ? <span>{copied ? 'Copied' : label}</span> : null}
     </button>
   )
 }

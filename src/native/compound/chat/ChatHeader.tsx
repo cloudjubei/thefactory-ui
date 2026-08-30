@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View, type LayoutChangeEvent } from 'react-native'
 import {
+  IconBug,
   IconCalculator,
   IconChevron,
   IconCode,
@@ -34,6 +35,9 @@ export interface ChatHeaderProps {
   onOpenPrompt: () => void
   onOpenCosts: () => void
   onOpenDynamicContext?: () => void
+  /** When set, shows a bug button beside the dynamic-context one that opens
+   *  the chat's rendering diagnostic (`ChatDebugModal`). */
+  onOpenDebug?: () => void
   onRefresh?: () => void
   onOpenSettings: () => void
 
@@ -90,9 +94,7 @@ function IconBtn({
         justifyContent: 'center',
         borderRadius: nativeRadii[2],
         borderWidth: 1,
-        borderColor: isDanger
-          ? red[500]
-          : theme.border.subtle,
+        borderColor: isDanger ? red[500] : theme.border.subtle,
         backgroundColor: isDanger
           ? pressed
             ? `${red[500]}33`
@@ -131,6 +133,7 @@ export default function ChatHeader({
   onOpenPrompt,
   onOpenCosts,
   onOpenDynamicContext,
+  onOpenDebug,
   onRefresh,
   onOpenSettings,
   isRunningAgent,
@@ -220,6 +223,11 @@ export default function ChatHeader({
         {onOpenDynamicContext && (
           <IconBtn label="Dynamic context" onPress={onOpenDynamicContext}>
             <IconCode size={16} color={iconColor} />
+          </IconBtn>
+        )}
+        {onOpenDebug && (
+          <IconBtn label="Chat debug dump" onPress={onOpenDebug}>
+            <IconBug size={16} color={iconColor} />
           </IconBtn>
         )}
         {!title && <View style={{ flex: 1 }} />}

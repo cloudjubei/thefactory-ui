@@ -1,9 +1,15 @@
-import { type ReactNode } from 'react'
-import { Dimensions, ScrollView, Text, View } from 'react-native'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Dimensions, Pressable, ScrollView, Text, View } from 'react-native'
 import BottomSheet from '../../primitives/BottomSheet'
-import { useAppSettings } from '../../../headless'
+import {
+  filterChatToolToggles,
+  groupChatToolToggles,
+  useAppSettings,
+  type ChatToolToggle,
+} from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { Switch } from '../../primitives/Switch'
+import { Input } from '../../primitives/Input'
 import { Textarea } from '../../primitives/Textarea'
 import { Slider } from '../../primitives/Slider'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -14,6 +20,25 @@ export type ToolToggle = {
   description: string
   available: boolean
   autoCall: boolean
+  /** Groups the row under a heading. Rows without one land under "other". */
+  category?: string
+  /** False for a tool the transport never lets the user switch off. */
+  toggleable?: boolean
+  /** False on a transport with no per-tool auto-call axis. */
+  supportsAutoCall?: boolean
+}
+
+/** Fill the optional grouping fields so the headless filter/group helpers apply. */
+function normalizeToolToggle(tool: ToolToggle): ChatToolToggle {
+  return {
+    name: tool.name,
+    description: tool.description,
+    category: tool.category ?? 'other',
+    available: tool.available,
+    autoCall: tool.autoCall,
+    toggleable: tool.toggleable ?? true,
+    supportsAutoCall: tool.supportsAutoCall ?? true,
+  }
 }
 
 export type CompletionSettingsLike = {
@@ -38,6 +63,13 @@ export interface ChatSettingsDropdownProps {
   tools: ToolToggle[]
   toggleAvailable: (tool: ToolToggle) => Promise<void> | void
   toggleAutoCall: (tool: ToolToggle) => Promise<void> | void
+  /** Clears the chat's own tool allowlist back to the defaults. Hidden when absent. */
+  onResetTools?: () => Promise<void> | void
+  /** One line under the Tools heading explaining what this chat's list governs. */
+  toolsHint?: string
+  /** The chat-wide "run tools without asking" switch. Hidden on a transport that reports it unsupported. */
+  toolApproval?: { auto: boolean; supported: boolean }
+  onToolApprovalChange?: (auto: boolean) => Promise<void> | void
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -75,6 +107,10 @@ export default function ChatSettingsDropdown({
   tools,
   toggleAvailable,
   toggleAutoCall,
+  onResetTools,
+  toolsHint,
+  toolApproval,
+  onToolApprovalChange,
   persistSettings,
   onDeleteChat,
   canDelete = true,
@@ -86,6 +122,11 @@ export default function ChatSettingsDropdown({
   const { theme } = useNativeTheme()
   const { settings, setUserPreferences } = useAppSettings()
   const prefs = settings.userPreferences
+  const [toolFilter, setToolFilter] = useState('')
+  const visibleToolGroups = useMemo(
+    () => groupChatToolToggles(filterChatToolToggles(tools.map(normalizeToolToggle), toolFilter)),
+    [tools, toolFilter],
+  )
   // Sheet takes ~80% of viewport (user-requested) and the inner scroller
   // takes ~70% — leaves room for the sheet handle, title bar, and a bit of
   // bottom safe-area inset before the scroll content kicks in.
@@ -215,7 +256,14 @@ export default function ChatSettingsDropdown({
         {/* Agent runs — CLI transcript display prefs (global). */}
         <View style={{ gap: nativeSpace[3] }}>
           <SectionLabel>Agent runs</SectionLabel>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: nativeSpace[3] }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: nativeSpace[3],
+            }}
+          >
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
                 Show thinking
@@ -233,7 +281,53 @@ export default function ChatSettingsDropdown({
 
         {/* Tools */}
         <View style={{ gap: nativeSpace[2] }}>
-          <SectionLabel>Tools</SectionLabel>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <SectionLabel>Tools</SectionLabel>
+            {onResetTools ? (
+              <Pressable onPress={() => void onResetTools()}>
+                <Text style={{ fontSize: 11, color: theme.text.muted }}>Reset to defaults</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {toolsHint ? (
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>{toolsHint}</Text>
+          ) : null}
+          {toolApproval?.supported && onToolApprovalChange ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: nativeSpace[3],
+                borderWidth: 1,
+                borderColor: theme.border.subtle,
+                borderRadius: nativeRadii[2],
+                paddingHorizontal: nativeSpace[2],
+                paddingVertical: nativeSpace[2],
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
+                  Run tools without asking
+                </Text>
+                <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+                  Off, the agent stops for your approval before anything that acts. On, it runs
+                  everything in the list below straight away — a tool switched off stays off.
+                </Text>
+              </View>
+              <Switch
+                checked={toolApproval.auto}
+                onCheckedChange={(c) => void onToolApprovalChange(c)}
+              />
+            </View>
+          ) : null}
+          <Input value={toolFilter} onChangeText={setToolFilter} placeholder="Filter tools…" />
           <View
             style={{
               borderWidth: 1,
@@ -241,7 +335,7 @@ export default function ChatSettingsDropdown({
               borderRadius: nativeRadii[3],
             }}
           >
-            {tools.length === 0 ? (
+            {visibleToolGroups.length === 0 ? (
               <Text
                 style={{
                   fontSize: 12,
@@ -250,62 +344,83 @@ export default function ChatSettingsDropdown({
                   paddingVertical: nativeSpace[4],
                 }}
               >
-                No tools available for this context.
+                {tools.length === 0
+                  ? 'No tools available for this context.'
+                  : 'No tools match that filter.'}
               </Text>
             ) : (
-              tools.map((tool, i) => (
-                <View
-                  key={tool.name}
-                  // Name + description on the left, two stacked
-                  // (label-above-switch) toggles on the right. Labels above
-                  // give the switches enough breathing room to be tappable
-                  // on touch without truncating the captions; matches web's
-                  // settings dropdown layout 1:1.
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: nativeSpace[3],
-                    paddingHorizontal: nativeSpace[3],
-                    paddingVertical: nativeSpace[3],
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: theme.border.subtle,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
+              visibleToolGroups.map((group, gi) => (
+                <View key={group.category}>
+                  <View
+                    style={{
+                      paddingHorizontal: nativeSpace[3],
+                      paddingVertical: nativeSpace[2],
+                      backgroundColor: theme.surface.raised,
+                      borderTopWidth: gi === 0 ? 0 : 1,
+                      borderTopColor: theme.border.subtle,
+                    }}
+                  >
                     <Text
-                      style={{ fontSize: 13, color: theme.text.primary }}
-                      numberOfLines={1}
+                      style={{
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        color: theme.text.muted,
+                      }}
                     >
-                      {tool.name}
+                      {group.category} · {group.tools.filter((t) => t.available).length} of{' '}
+                      {group.tools.length} on
                     </Text>
-                    {tool.description ? (
-                      <Text
-                        style={{ fontSize: 11, color: theme.text.muted }}
-                        numberOfLines={1}
-                      >
-                        {tool.description}
-                      </Text>
-                    ) : null}
                   </View>
-                  <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 10, color: theme.text.secondary }}>
-                      Available
-                    </Text>
-                    <Switch
-                      checked={tool.available}
-                      onCheckedChange={() => void toggleAvailable(tool)}
-                    />
-                  </View>
-                  <View style={{ alignItems: 'center', gap: 2 }}>
-                    <Text style={{ fontSize: 10, color: theme.text.secondary }}>
-                      Auto-call
-                    </Text>
-                    <Switch
-                      checked={tool.available ? tool.autoCall : false}
-                      onCheckedChange={() => void toggleAutoCall(tool)}
-                      disabled={!tool.available}
-                    />
-                  </View>
+                  {group.tools.map((tool) => (
+                    <View
+                      key={tool.name}
+                      // Name + description on the left, two stacked
+                      // (label-above-switch) toggles on the right. Labels above
+                      // give the switches enough breathing room to be tappable
+                      // on touch without truncating the captions; matches web's
+                      // settings dropdown layout 1:1.
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: nativeSpace[3],
+                        paddingHorizontal: nativeSpace[3],
+                        paddingVertical: nativeSpace[3],
+                        borderTopWidth: 1,
+                        borderTopColor: theme.border.subtle,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, color: theme.text.primary }} numberOfLines={1}>
+                          {tool.name}
+                        </Text>
+                        {tool.description ? (
+                          <Text style={{ fontSize: 11, color: theme.text.muted }} numberOfLines={2}>
+                            {tool.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={{ alignItems: 'center', gap: 2 }}>
+                        <Text style={{ fontSize: 10, color: theme.text.secondary }}>Available</Text>
+                        <Switch
+                          checked={tool.available}
+                          onCheckedChange={() => void toggleAvailable(tool)}
+                          disabled={!tool.toggleable}
+                        />
+                      </View>
+                      {tool.supportsAutoCall ? (
+                        <View style={{ alignItems: 'center', gap: 2 }}>
+                          <Text style={{ fontSize: 10, color: theme.text.secondary }}>
+                            Auto-call
+                          </Text>
+                          <Switch
+                            checked={tool.available ? tool.autoCall : false}
+                            onCheckedChange={() => void toggleAutoCall(tool)}
+                            disabled={!tool.available}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
                 </View>
               ))
             )}
@@ -338,9 +453,7 @@ export default function ChatSettingsDropdown({
 function SectionLabel({ children }: { children: ReactNode }) {
   const { theme } = useNativeTheme()
   return (
-    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>
-      {children}
-    </Text>
+    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>{children}</Text>
   )
 }
 

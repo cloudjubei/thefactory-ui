@@ -12,6 +12,7 @@
 export { default as Alert, type AlertProps, type AlertVariant } from './primitives/Alert'
 export { Button, type ButtonProps } from './primitives/Button'
 export { BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
+export { FullScreenOverlay, type FullScreenOverlayProps } from './primitives/FullScreenOverlay'
 export { Chip, type ChipProps } from './primitives/Chip'
 export { DotBadge, type DotBadgeProps } from './primitives/DotBadge'
 export { default as Field, type FieldProps } from './primitives/Field'
@@ -376,14 +377,18 @@ export {
 
 // Chat view (lifted from web + desktop's ChatView)
 export {
+  AgentQuestionCard,
   ChatBody,
   CliRunArtifactPanel,
+  ChatDebugModal,
   ChatDynamicContextModal,
   ChatHeader,
   ChatInput,
   ChatSettingsDropdown,
   ChatTopicCreateModal,
   ChatTopicCreateModalConnected,
+  CredentialCaptureCard,
+  GlobalChatOverlay,
   HistorySummarizationSettings,
   SystemPromptViewerConnected,
   UsageModalConnected,
@@ -402,6 +407,7 @@ export {
   ToolCallCard,
   ToolCallHoverCard,
   ToolConfirmationModal,
+  type AgentQuestionCardProps,
   type ChatBodyProps,
   type ChatContextLike,
   type ChatHeaderProps,
@@ -411,7 +417,10 @@ export {
   type ChatSettingsDropdownProps,
   type ChatTopicCreateModalProps,
   type ChatTopicCreateModalConnectedProps,
+  type ChatDebugModalProps,
   type ChatDynamicContextModalProps,
+  type CredentialCaptureCardProps,
+  type GlobalChatOverlayProps,
   type SystemPromptViewerConnectedProps,
   type UsageModalConnectedProps,
   type CompletionSettingsLike,
@@ -605,8 +614,15 @@ export type {
   GitCredentialsFormProps,
   GitCredentialsFormHostCapabilities,
 } from './compound/settings/GitCredentialsForm'
-export { default as GitHubSettings } from './compound/settings/GitHubSettings'
-export type { GitHubSettingsProps } from './compound/settings/GitHubSettings'
+export { default as GitCredentialsSettings } from './compound/settings/GitCredentialsSettings'
+export type { GitCredentialsSettingsProps } from './compound/settings/GitCredentialsSettings'
+export { default as ProjectNotesSettings } from './compound/settings/ProjectNotesSettings'
+export type { ProjectNotesSettingsProps } from './compound/settings/ProjectNotesSettings'
+export { default as ProjectNotesForm } from './compound/settings/ProjectNotesForm'
+export type {
+  ProjectNotesFormProps,
+  ProjectNotesFormMode,
+} from './compound/settings/ProjectNotesForm'
 export { default as ProviderConnectionsSettings } from './compound/settings/ProviderConnectionsSettings'
 export { default as ProviderConnectionsForm } from './compound/settings/ProviderConnectionsForm'
 export type { ProviderConnectionsFormProps } from './compound/settings/ProviderConnectionsForm'

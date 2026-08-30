@@ -9,6 +9,16 @@ import {
   pollGitCredentialGithubDevice,
   startGitCredentialGithubDevice,
 } from '../../../headless/api'
+import { normalizeGitCredentialHost } from '../../../headless/utils/gitCredentials'
+import {
+  GIT_CREDENTIAL_HOST_HINT,
+  GIT_CREDENTIAL_HOST_LABEL,
+  GIT_CREDENTIAL_HOST_PLACEHOLDER,
+  GIT_CREDENTIAL_NAME_HINT,
+  GIT_CREDENTIAL_PAT_NOTE,
+  GIT_CREDENTIAL_TOKEN_PLACEHOLDER,
+  GIT_CREDENTIAL_USERNAME_PLACEHOLDER,
+} from '../../../headless/utils/gitCredentialConstants'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import Field from '../../primitives/Field'
@@ -80,6 +90,7 @@ export default function GitCredentialsForm({
   const [username, setUsername] = useState(initial?.username ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [token, setToken] = useState(initial?.token ?? '')
+  const [host, setHost] = useState(initial?.host ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -113,11 +124,13 @@ export default function GitCredentialsForm({
     setSubmitting(true)
     setError(null)
     try {
+      const normalizedHost = normalizeGitCredentialHost(host)
       await mode.onSubmit({
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
         token: token.trim(),
+        ...(normalizedHost ? { host: normalizedHost } : {}),
       })
       onCancel()
     } catch (err) {
@@ -125,7 +138,7 @@ export default function GitCredentialsForm({
     } finally {
       setSubmitting(false)
     }
-  }, [mode, name, username, email, token, patCanSubmit, submitting, onCancel])
+  }, [mode, name, username, email, token, host, patCanSubmit, submitting, onCancel])
 
   // ── device flow ─────────────────────────────────────────────────────────
 
@@ -219,14 +232,23 @@ export default function GitCredentialsForm({
     return (
       <View style={{ gap: 12 }}>
         {error && <Alert variant="error">{error}</Alert>}
-        <Field label="Name" hint="Label for these credentials, e.g. “GitHub — personal”">
+        <Field label="Name" hint={GIT_CREDENTIAL_NAME_HINT}>
           <Input value={name} onChangeText={setName} placeholder="Personal / Work / Org" />
+        </Field>
+        <Field label={GIT_CREDENTIAL_HOST_LABEL} hint={GIT_CREDENTIAL_HOST_HINT}>
+          <Input
+            value={host}
+            onChangeText={setHost}
+            placeholder={GIT_CREDENTIAL_HOST_PLACEHOLDER}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
         </Field>
         <Field label="Username">
           <Input
             value={username}
             onChangeText={setUsername}
-            placeholder="your-github-username"
+            placeholder={GIT_CREDENTIAL_USERNAME_PLACEHOLDER}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -242,7 +264,11 @@ export default function GitCredentialsForm({
           />
         </Field>
         <Field label="Personal access token">
-          <SecretInput value={token} onChangeText={setToken} placeholder="ghp_..." />
+          <SecretInput
+            value={token}
+            onChangeText={setToken}
+            placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
+          />
         </Field>
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 4 }}>
           <Button
@@ -312,10 +338,7 @@ export default function GitCredentialsForm({
         </Button>
       </View>
 
-      <View
-        className="border-t border-[var(--border-subtle)]"
-        style={{ paddingTop: 12, gap: 8 }}
-      >
+      <View className="border-t border-[var(--border-subtle)]" style={{ paddingTop: 12, gap: 8 }}>
         {!showPatForm ? (
           <Pressable onPress={() => setShowPatForm(true)} style={{ alignSelf: 'flex-start' }}>
             <Text
@@ -328,16 +351,25 @@ export default function GitCredentialsForm({
         ) : (
           <View style={{ gap: 12 }}>
             <Text className="text-[11px] text-[var(--text-secondary)]">
-              Use this when you already have a PAT (e.g. fine-grained scope, CI token).
+              {GIT_CREDENTIAL_PAT_NOTE}
             </Text>
             <Field label="Name">
               <Input value={name} onChangeText={setName} placeholder="Personal / Work / Org" />
+            </Field>
+            <Field label={GIT_CREDENTIAL_HOST_LABEL} hint={GIT_CREDENTIAL_HOST_HINT}>
+              <Input
+                value={host}
+                onChangeText={setHost}
+                placeholder={GIT_CREDENTIAL_HOST_PLACEHOLDER}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </Field>
             <Field label="Username">
               <Input
                 value={username}
                 onChangeText={setUsername}
-                placeholder="your-github-username"
+                placeholder={GIT_CREDENTIAL_USERNAME_PLACEHOLDER}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -353,9 +385,15 @@ export default function GitCredentialsForm({
               />
             </Field>
             <Field label="Personal access token">
-              <SecretInput value={token} onChangeText={setToken} placeholder="ghp_..." />
+              <SecretInput
+                value={token}
+                onChangeText={setToken}
+                placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
+              />
             </Field>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <View
+              style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}
+            >
               <Button variant="secondary" onPress={() => setShowPatForm(false)}>
                 Cancel
               </Button>

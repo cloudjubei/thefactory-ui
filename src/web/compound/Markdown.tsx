@@ -4,7 +4,7 @@ import rehypeExternalLinks from 'rehype-external-links'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
-import { parseResourceLink } from 'thefactory-tools/utils'
+import { parseAppUrlAsResourceLink, parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 
 // Markdown renderer for chat / story content.
@@ -211,9 +211,12 @@ export type MarkdownProps = {
    */
   allowHtml?: boolean
   /**
-   * Called when the user activates an in-app resource link (an `overseer://…` href the LLM emitted).
-   * When set, such links render as an in-app chip (no `target="_blank"`) and route here instead of
-   * opening externally; ordinary links are unaffected. Omitted ⇒ every link opens externally.
+   * Called when the user activates an in-app resource link — an `overseer://…` href the LLM emitted,
+   * or a link back into this app's own origin (`http://localhost:5173/projects/…`), which models
+   * write often enough that treating it as external would open a second tab of the app the user is
+   * already in. When set, such links render as an in-app chip (no `target="_blank"`) and route here
+   * instead of opening externally; ordinary links are unaffected. Omitted ⇒ every link opens
+   * externally.
    */
   onResourceLink?: (link: ResourceLink) => void
 }
@@ -241,13 +244,21 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
     [onResourceLink],
   )
 
+  // A model that has seen the app's own URLs writes `http://localhost:5173/projects/x`
+  // rather than the `overseer://` form; same-origin links must navigate in place
+  // instead of opening a second tab of the app the user is already in.
+  const appOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+
   const activeComponents = useMemo<Partial<Components>>(() => {
     if (!onResourceLink) return components
     return {
       ...components,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       a: ({ children, href, target: _target, rel: _rel, ...props }) => {
-        const link = typeof href === 'string' ? parseResourceLink(href) : undefined
+        const link =
+          typeof href === 'string'
+            ? (parseResourceLink(href) ?? parseAppUrlAsResourceLink(href, appOrigin))
+            : undefined
         if (link) {
           return (
             <a
@@ -276,7 +287,7 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
         )
       },
     }
-  }, [onResourceLink])
+  }, [onResourceLink, appOrigin])
 
   return (
     <div className="markdown-content">

@@ -629,14 +629,10 @@ export default function ChatInput({
                     <Tooltip content="Stop">
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!onAbort) return
-                          const ok = window.confirm(
-                            'Stop the assistant? This will cancel the current response.',
-                          )
-                          if (!ok) return
-                          onAbort()
-                        }}
+                        // No confirmation: a stop button is pressed precisely
+                        // when the user wants the agent to stop NOW, and a
+                        // dialog adds friction at the worst possible moment.
+                        onClick={() => onAbort?.()}
                         className="relative inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-(--surface-hover) focus:outline-none focus:ring-2 focus:ring-(--focus-ring)"
                         aria-label="Stop response"
                       >

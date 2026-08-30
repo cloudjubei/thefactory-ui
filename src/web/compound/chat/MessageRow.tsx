@@ -4,9 +4,12 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import Tooltip from '../../primitives/Tooltip'
-import { IconDelete, IconRefresh, IconToolbox } from '../../icons'
+import { IconDelete, IconRefresh, IconRefreshChat, IconToolbox } from '../../icons'
 import { ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
+import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
+import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
 import {
   cliDotColor,
   cliLabel,
@@ -161,6 +164,19 @@ export type MessageRowProps = {
   getToolHeaderPath?: (toolCall: ToolCall) => string | undefined
 
   onDeleteLastMessage?: () => void
+  /**
+   * Describes the delete affordance for this row (label + refusal), computed by
+   * the list via `describeLastMessageDelete`. Absent ⇒ the row offers no delete.
+   */
+  deleteControl?: MessageDeleteControl
+
+  onRestartTurn?: () => void
+  /**
+   * Describes the restart affordance for this row (label + refusal), computed by
+   * the list via `describeLastUserMessageRestart`. Absent ⇒ the row offers no
+   * restart.
+   */
+  restartControl?: MessageRestartControl
   onRetry?: () => void
 
   /** Resolve an `@<path>` inline file mention to file metadata. Host wires
@@ -185,6 +201,13 @@ export type MessageRowProps = {
   /** When true, the checkbox is checked. */
   toolSelected?: boolean
   onToggleToolSelect?: () => void
+  /**
+   * Replaces the whole tool card for this row. Used by a tool the user has to
+   * answer in place (the in-chat credential form), which must read as the tool
+   * call it is rather than as a second panel elsewhere in the chat. Row-level
+   * rather than routed through `renderToolResult`, which only reaches the
+   * hover/sheet preview and so can never host an input. */
+  toolRowOverride?: ReactNode
 
   thinkingLabel?: string
   setLastMessageRef?: (el: HTMLDivElement | null) => void
@@ -200,6 +223,9 @@ function MessageRow({
   renderToolResult,
   getToolHeaderPath,
   onDeleteLastMessage,
+  deleteControl,
+  onRestartTurn,
+  restartControl,
   onRetry,
   onResolveFile,
   renderDependency,
@@ -209,6 +235,7 @@ function MessageRow({
   toolSelectable,
   toolSelected,
   onToggleToolSelect,
+  toolRowOverride,
   thinkingLabel,
   setLastMessageRef,
 }: MessageRowProps) {
@@ -253,7 +280,8 @@ function MessageRow({
   const isNewUserBubble =
     isUser && globalIndex === enhancedTotalLength - 1 && globalIndex >= prevUserMessagesLen
 
-  const shouldShowDelete = !!onDeleteLastMessage && isLast
+  const deleteAffordance = onDeleteLastMessage ? deleteControl : undefined
+  const restartAffordance = onRestartTurn ? restartControl : undefined
   const iso = messageIso(msg)
   const ts = iso ? formatFriendlyTimestamp(iso) : ''
   const rawModel = msg.usage?.model ?? msg.model
@@ -300,17 +328,19 @@ function MessageRow({
             {isUser ? 'You' : isSystem || isTool ? <IconToolbox className="w-3.5 h-3.5" /> : 'AI'}
           </div>
 
-          {shouldShowDelete ? (
-            <button
-              type="button"
-              title="Delete last message"
-              aria-label="Delete last message"
-              className="mt-1 transition-opacity opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-6 h-6 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover)"
-              onClick={() => onDeleteLastMessage?.()}
-              disabled={isThinking}
-            >
-              <IconDelete className="w-3.5 h-3.5" />
-            </button>
+          {deleteAffordance ? (
+            <span className="mt-1 transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+              <button
+                type="button"
+                title={deleteAffordance.label}
+                aria-label={deleteAffordance.label}
+                className="inline-flex items-center justify-center w-6 h-6 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary) disabled:cursor-not-allowed disabled:text-(--text-secondary) disabled:hover:bg-(--surface-raised)"
+                onClick={() => onDeleteLastMessage?.()}
+                disabled={deleteAffordance.disabled}
+              >
+                <IconDelete className="w-3.5 h-3.5" />
+              </button>
+            </span>
           ) : null}
         </div>
 
@@ -399,7 +429,9 @@ function MessageRow({
             </div>
           ) : null}
 
-          {isTool && msg.toolCall ? (
+          {isTool && msg.toolCall && toolRowOverride ? (
+            <div className="w-full">{toolRowOverride}</div>
+          ) : isTool && msg.toolCall ? (
             <div className="w-full">
               <ToolCallCard
                 toolCall={msg.toolCall}
@@ -436,6 +468,20 @@ function MessageRow({
                 )
               })}
             </div>
+          ) : null}
+
+          {restartAffordance ? (
+            <button
+              type="button"
+              title={restartAffordance.label}
+              aria-label={restartAffordance.label}
+              className="mt-1.5 inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
+              onClick={() => onRestartTurn?.()}
+              disabled={restartAffordance.disabled}
+            >
+              <IconRefreshChat className="w-3.5 h-3.5" />
+              <span>{MESSAGE_RESTART_ACTION_LABEL}</span>
+            </button>
           ) : null}
         </div>
       </div>

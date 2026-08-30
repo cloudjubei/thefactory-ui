@@ -1,6 +1,7 @@
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import Surface from '../../primitives/Surface'
+import { partitionGrants } from '../../../headless/utils/agentQuestions'
 import type { PendingToolGrant } from '../../../headless'
 
 export type ToolConfirmationModalProps = {
@@ -11,6 +12,8 @@ export type ToolConfirmationModalProps = {
    * actions: network unlock, package install, external fetch, workspace-cap).
    * API tool-call confirmation is NOT handled here — it renders inline in the
    * message list (the tool cards carry per-tool toggles + a Toggle-all footer).
+   * `askUser` question grants are filtered out: they render inline as an
+   * `AgentQuestionCard`, never as a permission prompt.
    */
   grants?: PendingToolGrant[]
 }
@@ -32,9 +35,10 @@ function formatJson(v: unknown): string {
 export default function ToolConfirmationModal({
   busy,
   onCancel,
-  grants,
+  grants: allGrants,
 }: ToolConfirmationModalProps) {
-  if (!grants || grants.length === 0) return null
+  const grants = partitionGrants(allGrants).permissions
+  if (grants.length === 0) return null
   return (
     <Modal
       isOpen
@@ -86,7 +90,7 @@ export default function ToolConfirmationModal({
               <Button size="sm" onClick={() => void grant.decide('once')} disabled={busy}>
                 Allow
               </Button>
-              {grant.source === 'cli' && (
+              {grant.source === 'cli' && grant.canGrantPermanently !== false && (
                 <Button
                   size="sm"
                   variant="ghost"

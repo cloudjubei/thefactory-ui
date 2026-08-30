@@ -1,12 +1,8 @@
 import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Spinner from '../../primitives/Spinner'
-import {
-  nativePalette,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../../tokens/native'
+import { IconHourglass } from '../../icons'
+import { nativePalette, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ThinkingRowProps {
@@ -19,6 +15,12 @@ export interface ThinkingRowProps {
   /** Optional secondary line under {@link spinnerLabel} (e.g. a reassuring note
    * that the first CLI turn is the slow one while the sandbox warms up). */
   spinnerSubLabel?: string
+  /**
+   * `'blocked'` swaps the spinner for the teal hourglass the tool cards already
+   * use for `require_confirmation` — a run parked on a human decision must not
+   * animate as though it were working.
+   */
+  tone?: 'working' | 'blocked'
 }
 
 function ThinkingRow({
@@ -27,6 +29,7 @@ function ThinkingRow({
   label = 'Reasoning',
   spinnerLabel,
   spinnerSubLabel,
+  tone = 'working',
 }: ThinkingRowProps) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(defaultOpen)
@@ -47,9 +50,7 @@ function ThinkingRow({
           backgroundColor: nativePalette.blue[50],
         }}
       >
-        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}>
-          AI
-        </Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}>AI</Text>
       </View>
       <View style={{ flex: 1, maxWidth: '72%', minWidth: 80, gap: nativeSpace[2] }}>
         {reasoning ? (
@@ -79,9 +80,7 @@ function ThinkingRow({
                 backgroundColor: pressed ? theme.surface.overlay : 'transparent',
               })}
             >
-              <Text
-                style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}
-              >
+              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
                 {label}
               </Text>
               <Text
@@ -103,9 +102,7 @@ function ThinkingRow({
                   paddingVertical: nativeSpace[4],
                 }}
               >
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                  {reasoning}
-                </Text>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>{reasoning}</Text>
               </View>
             )}
           </View>
@@ -118,7 +115,7 @@ function ThinkingRow({
               borderTopLeftRadius: nativeRadii[5],
               borderBottomLeftRadius: nativeRadii[1],
               borderWidth: 1,
-              borderColor: theme.border.subtle,
+              borderColor: tone === 'blocked' ? nativePalette.teal[600] : theme.border.subtle,
               backgroundColor: theme.surface.raised,
               alignSelf: 'flex-start',
               flexDirection: 'row',
@@ -127,7 +124,11 @@ function ThinkingRow({
               ...nativeShadows[1],
             }}
           >
-            <Spinner />
+            {tone === 'blocked' ? (
+              <IconHourglass size={16} color={nativePalette.teal[600]} />
+            ) : (
+              <Spinner />
+            )}
             {spinnerLabel || spinnerSubLabel ? (
               <View style={{ gap: 1 }}>
                 {spinnerLabel ? (

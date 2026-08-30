@@ -4,12 +4,15 @@ import RichText from '../files/RichText'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
-import { IconDelete, IconToolbox } from '../../icons'
+import { IconDelete, IconRefreshChat, IconToolbox } from '../../icons'
 import type {
   ChatMessageLike,
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
+import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
+import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
+import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
 import { nativePalette, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
@@ -155,8 +158,27 @@ export interface MessageRowProps {
     resultType?: ToolResultTypeLike
     durationMs?: number
   }) => ReactNode
+  /**
+   * Replaces the whole tool card for this row. Used by a tool the user has to
+   * answer in place (the in-chat credential form), which must read as the tool
+   * call it is rather than as a second panel elsewhere in the chat.
+   */
+  toolRowOverride?: ReactNode
 
   onDeleteLastMessage?: () => void
+  /**
+   * Describes the delete affordance for this row (label + refusal), computed by
+   * the list via `describeLastMessageDelete`. Absent ⇒ the row offers no delete.
+   */
+  deleteControl?: MessageDeleteControl
+
+  onRestartTurn?: () => void
+  /**
+   * Describes the restart affordance for this row (label + refusal), computed by
+   * the list via `describeLastUserMessageRestart`. Absent ⇒ the row offers no
+   * restart.
+   */
+  restartControl?: MessageRestartControl
   onRetry?: () => void
 
   /** Resolve an `@<path>` inline file mention to file metadata. */
@@ -214,7 +236,11 @@ function MessageRow({
   isLast,
   isThinking,
   renderToolCall,
+  toolRowOverride,
   onDeleteLastMessage,
+  deleteControl,
+  onRestartTurn,
+  restartControl,
   onRetry,
   onResolveFile,
   renderDependency,
@@ -299,12 +325,12 @@ function MessageRow({
     >
       <View style={{ alignItems: 'center', gap: nativeSpace[2] }}>
         <Avatar kind={isUser ? 'user' : isTool ? 'tool' : 'ai'} />
-        {onDeleteLastMessage && isLast && (
+        {onDeleteLastMessage && deleteControl && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Delete last message"
+            accessibilityLabel={deleteControl.label}
             onPress={onDeleteLastMessage}
-            disabled={isThinking}
+            disabled={deleteControl.disabled}
             hitSlop={4}
             style={({ pressed }) => ({
               width: 24,
@@ -315,7 +341,7 @@ function MessageRow({
               borderWidth: 1,
               borderColor: theme.border.subtle,
               backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
-              opacity: isThinking ? 0.4 : 1,
+              opacity: deleteControl.disabled ? 0.4 : 1,
             })}
           >
             <IconDelete size={12} color={theme.text.secondary} />
@@ -502,7 +528,11 @@ function MessageRow({
           </View>
         )}
 
-        {isTool && msg.toolCall && (
+        {isTool && msg.toolCall && toolRowOverride ? (
+          <View style={{ width: '100%' }}>{toolRowOverride}</View>
+        ) : null}
+
+        {isTool && msg.toolCall && !toolRowOverride && (
           <View style={{ width: '100%' }}>
             {renderToolCall ? (
               renderToolCall({
@@ -557,6 +587,35 @@ function MessageRow({
               )
             })}
           </View>
+        )}
+
+        {onRestartTurn && restartControl && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={restartControl.label}
+            onPress={onRestartTurn}
+            disabled={restartControl.disabled}
+            hitSlop={4}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: nativeSpace[2],
+              alignSelf: isUser ? 'flex-end' : 'flex-start',
+              marginTop: nativeSpace[2],
+              height: 24,
+              paddingHorizontal: nativeSpace[4],
+              borderRadius: nativeRadii[1],
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+              backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
+              opacity: restartControl.disabled ? 0.4 : 1,
+            })}
+          >
+            <IconRefreshChat size={12} color={theme.text.secondary} />
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+              {MESSAGE_RESTART_ACTION_LABEL}
+            </Text>
+          </Pressable>
         )}
       </View>
     </View>

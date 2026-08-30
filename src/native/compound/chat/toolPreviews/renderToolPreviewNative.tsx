@@ -111,8 +111,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'readFileRanges',
   'grepFiles',
   'grepFile',
-  'renamePath',
-  'deletePath',
+  'renamePaths',
+  'deletePaths',
   'listStories',
   'reorderFeature',
   'completeAssignment',
@@ -140,9 +140,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'gitApplyStash',
   'gitRemoveStash',
   'webReadURLs',
-  'getAstOutline',
+  'astGetOutline',
   'getCode',
-  'getInterface',
   'listContents',
   'webSearch',
   'runTests',
@@ -163,7 +162,8 @@ function summarizeExperimentSpec(spec: unknown): string {
   const sweep = extract(spec, ['sweep']) as Record<string, unknown> | undefined
   if (sweep && typeof sweep === 'object' && !Array.isArray(sweep)) {
     const keys = Object.entries(sweep).map(
-      ([k, v]) => `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
+      ([k, v]) =>
+        `${k} (${Array.isArray(v) ? v.length : 1} value${Array.isArray(v) && v.length !== 1 ? 's' : ''})`,
     )
     if (keys.length) parts.push(`sweep ${keys.join(', ')}`)
   }
@@ -568,14 +568,39 @@ export function renderToolPreviewNative({
       </View>
     )
   }
-  if (name === 'renamePath') {
-    const srcPath = tryString(extract(args, ['src'])) || tryString(extract(result, ['src']))
-    const dstPath = tryString(extract(args, ['dst'])) || tryString(extract(result, ['dst']))
-    return <InlineOldNew oldVal={srcPath} newVal={dstPath} />
+  if (name === 'renamePaths') {
+    const moves = Array.isArray(extract(args, ['moves']))
+      ? (extract(args, ['moves']) as Array<Record<string, unknown>>)
+      : []
+    if (moves.length === 0) return <SecondaryText>No renames</SecondaryText>
+    return (
+      <View style={{ gap: 4 }}>
+        {moves.map((move, i) => (
+          <InlineOldNew
+            key={`${tryString(move.src) ?? i}`}
+            oldVal={tryString(move.src)}
+            newVal={tryString(move.dst)}
+          />
+        ))}
+      </View>
+    )
   }
-  if (name === 'deletePath') {
-    const delPath = tryString(extract(args, ['path']))
-    return <InlineOldNew oldVal={delPath} newVal="(deleted)" />
+  if (name === 'deletePaths') {
+    const paths = Array.isArray(extract(args, ['paths']))
+      ? (extract(args, ['paths']) as unknown[])
+      : []
+    if (paths.length === 0) return <SecondaryText>No paths</SecondaryText>
+    return (
+      <View style={{ gap: 4 }}>
+        {paths.map((path, i) => (
+          <InlineOldNew
+            key={`${tryString(path) ?? i}`}
+            oldVal={tryString(path)}
+            newVal="(deleted)"
+          />
+        ))}
+      </View>
+    )
   }
 
   // ---- listStories / reorderFeature / callouts ----
@@ -647,7 +672,9 @@ export function renderToolPreviewNative({
           : `${links.length} record${links.length === 1 ? '' : 's'}`
       return (
         <View style={{ gap: nativeSpace[2] }}>
-          <Text style={{ color: theme.text.secondary, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+          <Text style={{ color: theme.text.secondary, fontSize: 12, fontWeight: '600' }}>
+            {label}
+          </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
             {links.map((l) => (
               <Pressable
@@ -665,7 +692,12 @@ export function renderToolPreviewNative({
                   paddingVertical: nativeSpace[1],
                 }}
               >
-                <Text style={{ color: onLink ? theme.accent.primary : theme.text.secondary, fontSize: 13 }}>
+                <Text
+                  style={{
+                    color: onLink ? theme.accent.primary : theme.text.secondary,
+                    fontSize: 13,
+                  }}
+                >
                   {l.label}
                 </Text>
               </Pressable>
@@ -1133,7 +1165,7 @@ export function renderToolPreviewNative({
   }
 
   // ---- AST outline / code intel ----
-  if (name === 'getAstOutline') {
+  if (name === 'astGetOutline') {
     const raw = extract(result, ['result']) ?? extract(result, ['nodes']) ?? result
     const items: Array<Record<string, unknown>> = Array.isArray(raw)
       ? (raw as Array<Record<string, unknown>>)
@@ -1194,7 +1226,7 @@ export function renderToolPreviewNative({
       </View>
     )
   }
-  if (name === 'listContents' || name === 'getInterface') {
+  if (name === 'listContents') {
     const raw =
       extract(result, ['result']) ??
       extract(result, ['results']) ??

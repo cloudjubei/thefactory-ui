@@ -13,68 +13,114 @@ Cross-repo mission plan (tools → backend → ui → three clients). It lives h
 1. **Group oversight** — a group of projects (e.g. the thefactory family) is overseeable as one unit: work, status, and cross-project dependencies.
 2. **Cross-project exchange is clear, secure, and user-controlled** — every flow of data/info between projects is visible and consented.
 3. **Ultimate user control** — nothing agentic happens that the user didn't allow; bad behaviour is only possible if the user explicitly enabled it.
-4. **All project work happens in-app** — other than tasks the Overseer truly wasn't made for, the user never *wants* to leave it.
+4. **All project work happens in-app** — other than tasks the Overseer truly wasn't made for, the user never _wants_ to leave it.
 5. **The factory improves the factory** — while developing real projects, capability gaps in the thefactory tooling are noticed, filed, and closed through the same rigorous process.
 
 ### The spine: every task ends in a verified, inspectable evidence bundle
 
-Today a run's acceptance model is a single timestamp: the diff lands on a review branch and "Sign off & merge" stamps `review.mergedAt` — no verification gate, no reviewer, no reject path, no evidence. The ASAP track builds the missing layer between *"agent finished"* and *"user signs off"*:
+Every task ends in a bundle the user signs off, not a transcript they read:
 
-> **Evidence bundle** = the diff + the verification results (compile/tests per tier) + runtime proof (video, screenshots, traces) + the AI reviewer's verdict + cost/time. The user's sign-off consumes the bundle, not the raw transcript.
+> **Evidence bundle** = the diff + the verification results (compile/tests per tier) + runtime proof (video, screenshots, traces) + the AI reviewer's verdict + cost/time.
 
-Delivery is organised as an **ASAP track** (milestones M0–M4: start overseeing real tasks now, deepen the bundle level by level) followed by the **long arc** (phases 2–7). Bundle depth is deliberately incremental — **L1** = diff + verification results + cost/time · **L2** = + reviewer verdict with loop-back · **L3** = + video artifact, vision-verified. Each milestone carries binary **Done when** criteria — define the measure before the implementation.
+Bundle depth deepens level by level — **L1** = diff + verification results + cost/time (in place) · **L2** = + reviewer verdict with loop-back (M3) · **L3** = + video artifact, vision-verified (M4). Delivery is an **ASAP track** (M3–M4 plus the residue below) followed by the **long arc** (phases 1–7). Each milestone carries binary **Done when** criteria — define the measure before the implementation.
 
 ---
 
 ### The ASAP track — driving scenario: the android project
 
-The target interaction, verbatim:
+The target interaction:
 
-> 1. Drop an unstructured task into the project chat. 2. The agent recognises a task and offers to formalise it. 3. Yes. 4. The agent produces a feature proposal (existing tools). 5. Approve. 6. The agent asks whether to start the work. 7. Approve/launch. 8. Magic: isolated run → understand the codebase (knowledge map) → change code → verify via adb → critical review, looping back to code as needed. 9. A review bundle to sign off.
+> 1. Drop an unstructured task into the project chat. 2. The agent recognises a task and offers to formalise it. 3. Yes. 4. The agent produces a feature proposal. 5. Approve. 6. The agent asks whether to start the work. 7. Approve/launch. 8. Isolated run → understand the codebase (knowledge map) → change code → verify via adb → critical review, looping back to code as needed. 9. A review bundle to sign off.
 
-Step-by-step status against the codebase:
+Steps 1–7 and 9 run end to end today; the run in step 8 verifies and reports, but nobody re-reads its diff yet. What remains of the track:
 
-| Step | Status today | Closed by |
-|---|---|---|
-| 1–2 offer to formalise | chat + story/feature tools exist; no intake guidance, so the agent won't *offer* | M1.1 |
-| 3–5 feature proposal | works — story/feature creation tools are advertised in project chats | — |
-| 6–7 ask-then-launch | **gap** — no chat-callable launch tool; runs start only from UI routes or the feature-request accept path (`startAgentRun` is the raw library method, not chat-shaped) | M1.2 |
-| 8 isolated run | works — workspace copy → sandbox → review branch | — |
-| 8 knowledge-informed | **gap** — runs get zero knowledge tools (only chats do), and the android project has no map yet | M1.3 |
-| 8 adb verification | **gap** — `mobileTest` (adb/simctl+idb) exists but the CLI sandbox can't reach devices; needs host-dispatch + gating | M1.4 |
-| 8 review / hole-poking loop | **gap** — no reviewer exists; nothing re-reads a run's diff | M3 |
-| 9 bundle + sign-off | **gap** — acceptance is one timestamp (`mergedAt`); no verification results on the run, no reject path | M0 |
+**Runbook before the first task on a project** (config, no code):
 
-Mid-run interaction (stage 2) rides on rails that already exist: `CliRunStatus` has `awaiting-approval`/`paused`, the action broker has `PendingAction` + decide/resume, and CLI runs have an opt-in `spawnAgent` seam (host-side sub-agents with a USD budget) — M2/M3 add new action kinds and personas, not new infrastructure.
+1. **Declare its verification** in `package.json → factory.verification` — the checks a run must pass and whether they gate sign-off. Contract + examples in [thefactory-tools/docs/TESTING.md](../../thefactory-tools/docs/TESTING.md#run-verification--what-a-project-must-pass-before-sign-off). This is required for automatic verification: checks run agent-authored code on the host, outside the sandbox, so a project that declares nothing is never auto-verified (you can still verify it on demand from the review panel). Add `policy: 'require'` once a project's checks are trustworthy enough to block a merge.
+2. **For the android project**: run `knowledge-analyze` on it so the map exists, and enable its `mobile` + `knowledge` tool sets so runs get device automation and the map. Boot the emulator before a run (lifecycle automation is M4.5).
 
-#### M0 — Sign-off you can trust (unlocks backend/library projects immediately)
+#### M-residue — carried over from the sign-off backbone
 
-The minimal proper sign-off: verification results on the run + a real accept/reject decision. Generic machinery in `thefactory-tools`; backend composes; UI renders.
+- **One logical run = one record.** A story run started with `runner:'cli'` still produces two run records — the CLI run (no `review`, offering "Apply to project") plus the orchestrator's separate landing. Unify them so one logical run has one review surface.
+- **Feature status must follow review state.** `featureStatusOnCompletion` flips a developer feature to `+` when the loop returns success, before and independent of whether the diff was landed, verified, or merged. A feature should not read as done while its diff sits unmerged.
+- **`startFeatureWork` on the CLI transport.** It launches the API runner today (isolated workspace, lands + verifies). Driving the same flow through the sandboxed CLI runner is blocked behind the dual-record fix above.
+- **Device evidence in the report** — `mobileTest` screenshots are captured to `.factory/mobile-test/<sessionId>/` but are not yet reachable from the run report. Needs the artifact store (M4.1).
+- **Emulator lifecycle + build wrappers** — a run still needs a pre-booted device and a pre-built APK. See M4.5.
+- **Secret disclosure in transcripts.** A note an agent reads is returned as a tool result and persisted verbatim in the chat/run transcript. The store's guarantee stops at "encrypted at rest, never listed, per-use grant" — redaction at persistence time is unimplemented, and the docs say so. Build it by teaching the transcript writer which values to mask (it needs the project's secrets, which today it has no access to).
+- **`POST /git/merge-apply` bypasses the sign-off gate.** The `require` policy is enforced in `mergeCliRunReview`; merging the review branch directly from the Git panel performs the same merge with no check. Defensible (it is a deliberate user action outside the flow), but if the gate is meant to be absolute, that route needs the same check.
+- **Auto-verification is opt-in by declaration**, because it runs agent-authored code on the host outside the sandbox. A project that declares nothing gets no automatic evidence — only an on-demand verify. Revisit if the default should instead be a _sandboxed_ verification run.
 
-- **M0.1 `run.verification`** — after a run lands its review branch, execute the project's declared checks (compile + tests; start with `package.json → factory.tests` as-is) against that branch in a throwaway worktree, and persist per-check results on the run record (`CliRun`) — per-run history with sha/paths, not the current overwrite-in-place JSON blobs. Promote `verifyCandidate` (the panel's compile+test gate) into this shared runner.
-- **M0.2 Verdict + reject path** — a `verdict` block on the run (`{ decision: 'approved'|'rejected'|'changes-requested', by, notes, at }`). `reject-review` route (records why, cleans up the branch) + request-changes (feeds the reasons back as a new turn). `CliRunArtifactPanel` grows Approve / Request changes / Reject beside the diff; merge policy per project: `require-verification` blocks "Sign off & merge" until checks are green (`warn`/`off` variants).
-- **M0.3 One logical run = one record** — a story/feature run started with `runner:'cli'` currently produces two run records (one without `review`, offering the wrong action); unify. Landing failures become a surfaced state, never a silent `logger.warn`. Feature status follows *review* state — `+` on merge, not on loop-completion.
-- **M0.4 Run report head (bundle L1)** — the panel leads with: what changed (diff stats), what verified (per-check results), cost + duration (join run `costUSD` with the chat ledger). This is the L1 bundle.
+#### G — Global assistant chat + project onboarding
 
-**Done when:** a real thefactory-tools/backend task runs end-to-end: run → checks execute against the landed branch → panel shows diff + results + cost/time → Approve merges (blocked while red), Reject records why. Usable for daily backend/library work at this point.
+The app-level assistant and the tools that take a project from "it's on disk" to "set up in the
+Overseer". What remains:
 
-#### M1 — The android happy path (bundle L1)
-
-- **M1.1 Task intake guidance** — project-chat system-prompt addendum (both transports): an unstructured task message → the agent offers to formalise; on yes → feature proposal via the existing story/feature tools, presented with a one-line summary + link. Prompt-work plus a check that the story tools are advertised identically on CLI-backed chats.
-- **M1.2 Launch-from-chat tool** — a chat-facing `startFeatureWork(storyId, featureId?)` tool: the backend resolves everything the raw `startAgentRun` needs (llmConfig from the vault, runner prefs, sandbox policy) exactly as the feature-request accept path already does, binds the run to the current chat (progress + bundle land in the same conversation), and returns the runId. Approval-gated: the tool is never auto-called — the ask in step 6 *is* the tool-approval prompt.
-- **M1.3 Knowledge in runs** — pass the knowledge toolset (`extraMcpTools` + guidance) into `/cli-runs/start` and `/agent-runs/start`, not just chat turns; run prompt nudges the before-you-edit calls (`askKnowledge`, `getChangeBriefing`). Prerequisite runbook step, no code: run `knowledge-analyze` on the android repo so the map exists.
-- **M1.4 Device verification, host-dispatched** — register `mobileTest*` as host-side `extraMcpTools` handlers on android-project runs (the sandbox can't reach devices; handlers execute on the host over the MCP bridge — the proven knowledge-tools seam). Gate it: per-project capability opt-in + the raw `mobileTestAdb`/`mobileTestIdb` passthroughs behind the action broker (they are currently unrestricted host argv). Acceptable for M1: the operator pre-boots the emulator (lifecycle automation is M4).
-- **M1.5 Bundle L1 assembly** — `run.verification` carries the declared android checks (build/unit via M0.1 config + an adb smoke sequence the agent ran), and the run report lists the mobileTest screenshots the run captured (simple file list + viewer via the existing raw-file route; the full artifact store is M4).
-
-**Done when:** the 9-step scenario runs on a real android task with zero out-of-app steps besides booting the emulator: intake → proposal → approve → launch ask → isolated run that consulted the map and drove adb → L1 bundle → sign-off.
-
-#### M2 — The not-so-happy path: questions, permissions, secrets
-
-- **M2.1 Mid-run questions** — a `askUser(question, options?)` MCP tool: raises a `PendingAction` of a new `question` kind → run parks in `awaiting-approval` → the chat renders a question card → the answer resolves the action and the tool call returns it. Timeout + abort behaviour defined up front.
-- **M2.2 Permission asks that execute** — `registerGatedExecutableMcpTool`: today a gated tool can only broker + echo the decision; add the post-approval handler so "may I? → yes → do it" is real. Runtime policy grants ride the existing `PolicyChange` path (the `workspace-limit-raise` pattern): approve a proxy-allowlist addition (internet access for named hosts) or a tool enable mid-run.
-- **M2.3 Project notes & secrets vault** — a sixth credential-store entry kind (same encrypted-at-rest pattern as the existing five): `{ id, projectId, label, kind: 'note'|'secret', body|secretValue, access: 'open'|'ask' }`. Agent tools: `listProjectNotes` (labels/metadata only) + `readProjectNote(id)` — `open` returns immediately, `ask` routes through the M2.1/M2.2 approval. Chat guidance: when the user shares credentials/how-to-login context mid-chat, the agent offers to save it as a note/secret so it's never lost. Settings UI per project (web first, peers follow). **Honest guarantee** (stated in the UI): secrets are encrypted at rest, masked in persisted transcripts and UI, access-policied and audited — but a secret an agent *uses* (e.g. types into a login form via adb) necessarily transits that run's model context; `ask` mode exists so each such use is a conscious grant.
-
-**Done when:** a run that hits a question parks, asks in-chat, resumes with the answer; an off-policy tool/network need is granted mid-run without restarting; login credentials shared once are retrievable by later runs under the declared access mode and never appear in stored transcripts.
+- **Conversation history.** `globalChatHistory` and `Chat.archivedAt` are in place and reset already
+  archives, so past conversations are kept — but nothing renders them. Add a history list to the
+  overlay when the user wants to find an earlier conversation.
+- **Group membership is recorded on both sides by hand.** `importProjectFromPath` reconciles the
+  project spec AND the group's `projects[]` itself, because it calls `createProject` directly rather
+  than going through `POST /projects`, which owns the reconciliation. Two implementations of one
+  invariant will drift; lift the reconciliation into `ProjectTools` (or a shared helper both callers
+  use) so a group link cannot be half-written.
+- **Mobile shows two headers in the global chat.** `ChatSessionScreen` hard-wires `ScreenShell`, so
+  the overlay's header and the screen's header both render. Web and desktop suppress theirs via
+  `ChatPanelBody`'s `embedded` prop; mobile needs the equivalent knob on `ChatSessionScreen`, which
+  three routes share. The same duplication already ships in mobile's `ChatBottomSheet`.
+- **Credential captures do not survive a backend restart.** The store is in-process by design (a
+  capture is one half of a live handshake, and `requestGitCredentials` now blocks on it). A client
+  reload is covered by the listing route, but a server restart drops open captures — and takes the
+  blocked tool call with it, so the turn is lost rather than merely delayed. Persist them only if
+  that proves annoying in practice.
+- **`GET /tools` and the execute route now share one allow-list**, so the Tools view no longer offers
+  runs that 403. Two things surfaced while closing that hole and are still true: every git tool is
+  unreachable through `executeTool` (the route passes no `ToolCallContext.git`, so they throw), and
+  `getStoryReference` only works via a `callTool` override. Neither is new; both are worth a pass if
+  the Tools view is meant to be trustworthy.
+- **A CLI-backed story run still produces two run records** — the `CliRun` (transcript, "Apply to
+  project") plus the orchestrator's own landing. `startFeatureWork` now inherits the chat's CLI agent,
+  so this path is reachable from the intake loop; unifying the records is what makes its review
+  surface as good as the API runner's.
+- **The allowlist and the permission context are not applied on every dispatch path.**
+  `resumeCliAgentRun` / `forkCliAgentRun` rebuild options from the persisted `CliRun`, which stores
+  neither `allowedToolNames` nor `runContext` / `toolApprovalMode`, and `POST /cli-runs/start`
+  resolves none of them. Both are HTTP-reachable; they hand the run the full built-in set, and they
+  fall back to `runContext: 'unattended'` — so a chat's turn resumed through them would not ask.
+- **The chat tool catalogue is transport-wide, not context-aware** (`?runner=` only), so a global CLI
+  chat's real tools (onboarding, credential capture, discovery) are missing from the list while
+  irrelevant rows appear; and the API catalogue omits backend-injected families that remain active.
+  Toggling what is shown is therefore not yet the whole truth.
+- **A failed catalogue fetch renders "No tools available for this context."** — the opposite of the
+  truth, since an unset allowlist means the agent has every built-in. Surface the load error instead.
+- **Changing a CLI chat's allowlist orphans its resident container** rather than replacing it: the
+  allowlist fingerprint is part of the session key and `_getOrCreate` only evicts on an exact match.
+- **No UI chip for choosing the implementing agent.** `startFeatureWork` takes an optional `runner`
+  and otherwise inherits the chat's, which covers "use the agent I'm talking to" and "use the API one
+  instead" conversationally. A picker on the proposal card would make the choice visible rather than
+  something the user has to know to ask for.
+- **`startFeatureWork` is absent from the toggle catalogue**, so the tool that launches an autonomous
+  run cannot be switched OFF in advance. It now asks before every call in a chat, and is on the
+  critical list an unattended run still stops for — but the catalogue is built from the built-in MCP
+  groups only, so no backend-injected tool appears as a row.
+- **Same-origin link interception is web-only.** The web `Markdown` reads `window.location.origin`;
+  mobile has no origin and native links still route only via `overseer://`. Harmless while the model
+  is told to emit the scheme, but it means the safety net has a hole on one client.
+- **An aborted resident turn loses that turn's workspace edits.** Abort tears the session down, and
+  `_captureTurnEdits` never runs before the session workspace is removed. Acceptable while abort is
+  the escape hatch; revisit if users start stopping runs mid-edit routinely.
+- **A resident session freezes its model and effort at creation**, and the session key ignores
+  `modelId` — so switching model mid-chat keeps talking to the old one. Include `modelId`/`effort` in
+  `residentSessionKey`; safe now that a cold session is seeded with the chat history.
+- **A failed resident turn persists an empty transcript**, discarding partial assistant output, so a
+  timed-out turn leaves a blank bubble. Accumulate transcript entries into the rotating record as
+  they stream, rather than only on success.
+- **`FileStorage.read` may swallow a decrypt failure** and present an EMPTY credential store, which a
+  later write would then overwrite. Distinguish "absent" from "present but undecryptable" and fail
+  loudly. Not the cause of any observed bug — the live store decrypts fine — but it is a way for
+  "my credentials vanished" to become literally true.
+- **`AgentQuestionCard` is still pinned above the composer** in the oversized vocabulary the
+  credential card is being moved out of. Shrink it to the tool-row family so the two "agent needs
+  you" surfaces read as one.
 
 #### M3 — Agentic review with loop-back (bundle L2)
 
@@ -166,7 +212,7 @@ Read-mostly first; write-back after. All connector credentials via the provider-
 
 Prerequisite for everything below: **publish the sibling packages** — `file:../` links (tools, db, knowledge, ui…) block EAS builds and any server image. Private registry or workspace-publish pipeline; versioned releases; clients consume versions, not paths.
 
-**5.1 Backend image + host** — Dockerfile (vendoring resolved by 5.0), decide host (must run Docker for CLI sandboxes → VM-class host, e.g. EC2 — which is also the self-improvement scenario: the AWS capability gets built *through* the factory process), push sandbox images to a registry, health/readiness split, backup procedure.
+**5.1 Backend image + host** — Dockerfile (vendoring resolved by 5.0), decide host (must run Docker for CLI sandboxes → VM-class host, e.g. EC2 — which is also the self-improvement scenario: the AWS capability gets built _through_ the factory process), push sandbox images to a registry, health/readiness split, backup procedure.
 **5.2 Auth hardening before exposure** — the current single static bearer + public `/ws` (receives all broadcasts) + reflect-any-origin CORS is localhost-grade; minimum for hosting: authenticated WS, locked CORS, token rotation, rate limiting. Full multi-user waits for phase 7; an OAuth proxy fronts single-user hosting.
 **5.3 Secrets** — runtime secrets out of the git-tracked overseer repo into a host secret store; key-rotation procedure; the plaintext `.env` key sprawl in checkouts gets cleaned up.
 **5.4 Web hosting** — static host + SPA fallback + env matrix for backend URL; TLS.
@@ -205,14 +251,14 @@ Applies to every phase; any new capability ships with its control surface:
 
 ### Scenario ladder — acceptance tests for the whole plan
 
-1. **Backend task**: ticket → run → tiered tests incl. live → reviewer verdict + cost/impact → sign-off from the run report. *(M0, M3, 1.2)*
-2. **Web task with backend follow-up**: both diffs condensed, playwright trace + video inspectable in-app. *(M0, 1.1, 2.1)*
-3. **Android task, then iOS parity follow-up**: adb/simctl runs with screen recordings, chained via follow-up, group cockpit shows both. *(M1–M4, 1.3, 2.4–2.5)*
-4. **LLM-heavy change**: verdict includes usage/cost impact. *(M3)*
-5. **AWS/EC2 capability gap**: agents identify the missing factory capability, file + build it through the standard process, then the original task proceeds. *(cross-cutting loop; exercised for real by 5.1)*
-6. **Daily driver hosted**: all of the above from the desktop + mobile apps against the hosted backend. *(5)*
-7. **Template forked by an outsider, updated upstream, seamlessly pulled.** *(6)*
-8. **A second human does scenario 1 on their own account.** *(7)*
+1. **Backend task**: ticket → run → tiered tests incl. live → reviewer verdict + cost/impact → sign-off from the run report. _(M0, M3, 1.2)_
+2. **Web task with backend follow-up**: both diffs condensed, playwright trace + video inspectable in-app. _(M0, 1.1, 2.1)_
+3. **Android task, then iOS parity follow-up**: adb/simctl runs with screen recordings, chained via follow-up, group cockpit shows both. _(M1–M4, 1.3, 2.4–2.5)_
+4. **LLM-heavy change**: verdict includes usage/cost impact. _(M3)_
+5. **AWS/EC2 capability gap**: agents identify the missing factory capability, file + build it through the standard process, then the original task proceeds. _(cross-cutting loop; exercised for real by 5.1)_
+6. **Daily driver hosted**: all of the above from the desktop + mobile apps against the hosted backend. _(5)_
+7. **Template forked by an outsider, updated upstream, seamlessly pulled.** _(6)_
+8. **A second human does scenario 1 on their own account.** _(7)_
 
 ---
 
@@ -279,6 +325,7 @@ Motivation: when an embedded app renders wrong, the fastest fix loop is to let a
 **MVP shipped (a script):** [`thefactory-backend/scripts/capture-app-view.mjs`](../../thefactory-backend/scripts/capture-app-view.mjs) mints a view token, headlessly renders `…/view/index.html` (the exact bytes the iframe loads), and writes the rendered DOM + a screenshot. It renders **standalone** (no `OverseerBridge`) so it shows the shell + empty states — enough to judge layout/design against the mockups, and it proves what the backend actually serves vs. a stale client. Any agent can run it via a shell.
 
 **To productize:**
+
 - A backend chat tool `captureCurrentAppHtml(projectId)` wrapping the same headless render — reuse the backend's existing Playwright access (via `webTools`) instead of spawning the script — returning the HTML + a screenshot artifact the agent can read.
 - **v2 — LIVE capture of the user's real iframe DOM** (their data + current view), not a fresh render. Cross-origin means the app must serialise itself: add a **host→app request/response** to the bridge — overseer-web posts `overseer:capture-html`; the shared template `bridge.js` replies with `document.documentElement.outerHTML`; `ProjectAppView` (web + native) exposes `captureHtml()` awaiting the reply. The agent-invocable path signals the client over ws (mirror `pendingToolGrants`), the client captures + uploads, and the tool returns it.
 

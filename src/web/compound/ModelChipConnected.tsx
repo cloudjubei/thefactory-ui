@@ -93,7 +93,8 @@ function ModelChipWithCli({
 
   const useCli = !!cliRunner
   const selectedCli = cliRunner?.tool ?? activeCli ?? null
-  const selectedCliModelId = cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
+  const selectedCliModelId =
+    cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
   const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
   const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
   // No UI path binds an `apiKeyCredentialId` to a CLI runner yet, so this is
@@ -133,19 +134,32 @@ function ModelChipWithCli({
     }
   }, [useCli, selectedCli, probeModels])
 
+  // Attaching/detaching hits the backend, so it can fail. Surfacing the reason
+  // matters more here than anywhere else on the chip: the control is a toggle, so
+  // a swallowed rejection is indistinguishable from a button that does nothing.
+  const [cliSwitchError, setCliSwitchError] = useState<string | null>(null)
+
   const onToggleUseCli = useCallback(
     (next: boolean) => {
+      setCliSwitchError(null)
       if (next) {
         const tool = activeCli ?? enabledClis[0]
-        if (!tool) return
+        if (!tool) {
+          setCliSwitchError('No CLI agent is enabled. Enable one in Settings → CLI Agents.')
+          return
+        }
         void attach({
           tool,
           credentialId: credentialForCli(tool),
           model: defaultModel[tool],
           effort: effort[tool],
-        })
+        }).catch((err: unknown) =>
+          setCliSwitchError(err instanceof Error ? err.message : String(err)),
+        )
       } else {
-        void detach()
+        void detach().catch((err: unknown) =>
+          setCliSwitchError(err instanceof Error ? err.message : String(err)),
+        )
       }
     },
     [activeCli, enabledClis, credentialForCli, defaultModel, effort, attach, detach],
@@ -153,6 +167,7 @@ function ModelChipWithCli({
 
   const onPickCli = useCallback(
     (cli: string) => {
+      setCliSwitchError(null)
       void attach({
         tool: cli,
         credentialId: credentialForCli(cli),
@@ -223,6 +238,7 @@ function ModelChipWithCli({
       cliModels={effectiveCliModels}
       onPickCliModel={onPickCliModel}
       authWarning={authWarning}
+      cliSwitchError={cliSwitchError}
       residentMode={residentMode}
       {...(residentEligible ? { onToggleResident } : {})}
     />
@@ -376,7 +392,11 @@ export default function ModelChipConnected({
         ? (activeActivityConfig ?? activeAgentRunConfig)
         : activeAgentRunConfig
   const recents =
-    mode === 'chat' ? recentChatConfigs : mode === 'activity' ? recentActivityConfigs : recentAgentRunConfigs
+    mode === 'chat'
+      ? recentChatConfigs
+      : mode === 'activity'
+        ? recentActivityConfigs
+        : recentAgentRunConfigs
 
   const onPick = useCallback(
     (id: string) => {

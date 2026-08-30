@@ -31,6 +31,10 @@ export {
 } from './primitives/Modal'
 export { OverlayProvider, OverlayPortal, useHasOverlayProvider } from './primitives/Overlay'
 export {
+  default as FullScreenOverlay,
+  type FullScreenOverlayProps,
+} from './primitives/FullScreenOverlay'
+export {
   Select,
   SelectContent,
   SelectGroup,
@@ -205,6 +209,10 @@ export {
 } from './compound/chat/CliRunArtifactPanel'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
+  default as GlobalChatOverlay,
+  type GlobalChatOverlayProps,
+} from './compound/chat/GlobalChatOverlay'
+export {
   default as ChatSettingsDropdown,
   type ChatSettingsDropdownProps,
   type CompletionSettingsLike,
@@ -232,6 +240,14 @@ export {
   default as ToolConfirmationModal,
   type ToolConfirmationModalProps,
 } from './compound/chat/ToolConfirmationModal'
+export {
+  default as AgentQuestionCard,
+  type AgentQuestionCardProps,
+} from './compound/chat/AgentQuestionCard'
+export {
+  default as CredentialCaptureCard,
+  type CredentialCaptureCardProps,
+} from './compound/chat/CredentialCaptureCard'
 export {
   default as UsageModal,
   type UsageModalProps,
@@ -283,6 +299,7 @@ export {
   default as ChatDynamicContextModal,
   type ChatDynamicContextModalProps,
 } from './compound/chat/ChatDynamicContextModal'
+export { default as ChatDebugModal, type ChatDebugModalProps } from './compound/chat/ChatDebugModal'
 export {
   default as SystemPromptBubble,
   type SystemPromptBubbleProps,
@@ -415,6 +432,15 @@ export {
 
 // Settings compounds
 export {
+  default as ProjectNotesSettings,
+  type ProjectNotesSettingsProps,
+} from './compound/settings/ProjectNotesSettings'
+export {
+  default as ProjectNotesForm,
+  type ProjectNotesFormProps,
+  type ProjectNotesFormMode,
+} from './compound/settings/ProjectNotesForm'
+export {
   default as GitCredentialsForm,
   type GitCredentialsFormProps,
 } from './compound/settings/GitCredentialsForm'
@@ -452,7 +478,9 @@ export type {
   ChatLiveStateLike,
   ChatMessageLike,
   MessageUsageLike,
+  PendingQuestionGrant,
   PendingToolConfirmationLike,
+  PendingToolGrant,
   ToolCallLike,
   ToolResultLike,
   ToolResultTypeLike,

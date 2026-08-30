@@ -41,6 +41,8 @@ export type ActionRequest = {
   payload: ActionPayload
   credentialId?: string
   timeoutMs?: number
+  noPermanentGrant?: boolean
+  idempotencyKey?: string
 }
 
 export type ActionDecisionInput = {
@@ -79,6 +81,9 @@ export type PendingAction = {
   kind: string
   payload: ActionPayload
   credentialId?: string
+  noPermanentGrant?: boolean
+  idempotencyKey?: string
+  timeoutMs?: number
   status: PendingActionStatus
   createdAt: number
   decidedAt?: number
@@ -940,6 +945,8 @@ export type CompletionSettings = {
   availableTools: Array<string>
   autoCallTools: Array<string>
   forceFinishTools: Array<string>
+  cliAvailableTools?: Array<string>
+  toolApprovalMode?: 'ask' | 'auto'
   finishTurnOnErrors: boolean
   allowNoCallResponses: boolean
   allowErrorResponses: boolean
@@ -999,6 +1006,12 @@ export type CompletionSystemMessage = {
   error?: string
 }
 
+export type CompletionImage = {
+  base64?: string
+  mediaType?: string
+  url?: string
+}
+
 export type CompletionUserMessage = {
   role: CompletionMessageRole & 'user'
   content: string
@@ -1006,6 +1019,7 @@ export type CompletionUserMessage = {
   completedAt: string
   durationMs: number
   files?: Array<string>
+  images?: Array<CompletionImage>
 }
 
 export type CompletionUsage = {
@@ -1162,6 +1176,7 @@ export type Chat = {
     effort?: string
     execMode?: 'per-turn' | 'resident'
   }
+  archivedAt?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -1333,6 +1348,7 @@ export type ChatUpdate = {
       effort?: string
       execMode?: 'per-turn' | 'resident'
     }
+    archivedAt?: string
     createdAt: string
     updatedAt: string
   }
@@ -1403,6 +1419,7 @@ export type JavaFramework =
   | 'spark'
   | 'jakartaee'
   | 'play'
+  | 'android'
   | 'other'
 
 export type GoFramework = 'gin' | 'echo' | 'fiber' | 'chi' | 'beego' | 'revel' | 'other'
@@ -1425,9 +1442,9 @@ export type CppFramework = 'qt' | 'boost' | 'other'
 
 export type RustFramework = 'actix' | 'rocket' | 'axum' | 'yew' | 'tide' | 'other'
 
-export type KotlinFramework = 'ktor' | 'spring' | 'micronaut' | 'other'
+export type KotlinFramework = 'ktor' | 'spring' | 'micronaut' | 'android' | 'other'
 
-export type SwiftFramework = 'vapor' | 'kitura' | 'swiftui' | 'other'
+export type SwiftFramework = 'vapor' | 'kitura' | 'swiftui' | 'ios' | 'other'
 
 export type FrameworkName =
   | JavaScriptFramework
@@ -1859,6 +1876,15 @@ export type ChatContextArgumentsAgentRunFeature = {
   }
 }
 
+export type GlobalChatLike = {
+  context: {
+    type?: string
+    timestamp?: string
+  }
+  archivedAt?: string
+  createdAt?: string
+}
+
 export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
 
 export type CliAuthStatusSource = 'run-failure' | 'probe' | 'login'
@@ -1953,6 +1979,10 @@ export type PreparedChatSession = {
   }
   resumeSessionId?: string
 }
+
+export type CliRunContext = 'chat' | 'unattended'
+
+export type CliToolApprovalMode = 'ask' | 'auto'
 
 export type CliRunStatus =
   | 'running'
@@ -2080,6 +2110,50 @@ export type CliRunReview = {
   landedAt?: number
   mergedAt?: number
   mergeCommit?: string
+  rejectedAt?: number
+}
+
+export type CliRunLandFailureReason = 'not-a-git-repo' | 'detached-head' | 'commit-failed' | 'error'
+
+export type CliRunLandFailure = {
+  reason: CliRunLandFailureReason
+  message?: string
+  at: number
+}
+
+export type VerificationStatus = 'passed' | 'failed' | 'error'
+
+export type VerificationCheckKind = 'compile' | 'tests' | 'command'
+
+export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
+
+export type VerificationCheckResult = {
+  id: string
+  label: string
+  kind: VerificationCheckKind
+  status: VerificationCheckStatus
+  durationMs: number
+  summary: string
+  details?: string
+  optional?: boolean
+}
+
+export type RunVerification = {
+  status: VerificationStatus
+  checks: Array<VerificationCheckResult>
+  startedAt: number
+  finishedAt: number
+  sha?: string
+  changedPaths?: Array<string>
+}
+
+export type CliRunVerdictAuthor = 'user' | 'reviewer-agent'
+
+export type CliRunVerdict = {
+  decision: 'approved' | 'changes-requested' | 'rejected'
+  by: CliRunVerdictAuthor
+  notes?: string
+  at: number
 }
 
 export type CliRun = {
@@ -2139,6 +2213,26 @@ export type CliRun = {
     landedAt?: number
     mergedAt?: number
     mergeCommit?: string
+    rejectedAt?: number
+  }
+  landFailure?: {
+    reason: CliRunLandFailureReason
+    message?: string
+    at: number
+  }
+  verification?: {
+    status: VerificationStatus
+    checks: Array<VerificationCheckResult>
+    startedAt: number
+    finishedAt: number
+    sha?: string
+    changedPaths?: Array<string>
+  }
+  verdict?: {
+    decision: 'approved' | 'changes-requested' | 'rejected'
+    by: CliRunVerdictAuthor
+    notes?: string
+    at: number
   }
 }
 
@@ -2225,6 +2319,7 @@ export type CliAgentSpawnConfig = {
 
 export type CliAgentPendingActionFilter = {
   runId?: string
+  chatContextId?: string
 }
 
 export type PrepareIsolatedChatWorkspaceInput = {
@@ -2489,6 +2584,182 @@ export type ResidentTurnResult = {
   transcript: Array<CliRunTranscriptEntry>
   status: 'succeeded' | 'errored'
   resultSubtype?: string
+}
+
+export type CliImageReleaseSource =
+  | {
+      kind: 'npm-dist-tag'
+      packageName: string
+      distTag: string
+    }
+  | {
+      kind: 'install-script'
+      url: string
+    }
+
+export type CliImageProblem =
+  | 'image-missing'
+  | 'label-missing'
+  | 'unreachable'
+  | 'timeout'
+  | 'not-found'
+  | 'rate-limited'
+  | 'unparseable'
+
+export type CliImageInstalledVersion = {
+  cli: CliTool
+  image: string
+  version?: string
+  imageId?: string
+  problem?:
+    | 'image-missing'
+    | 'label-missing'
+    | 'unreachable'
+    | 'timeout'
+    | 'not-found'
+    | 'rate-limited'
+    | 'unparseable'
+  detail?: string
+}
+
+export type CliImageUpstreamRelease = {
+  cli: CliTool
+  checkedAt: string
+  version?: string
+  problem?:
+    | 'image-missing'
+    | 'label-missing'
+    | 'unreachable'
+    | 'timeout'
+    | 'not-found'
+    | 'rate-limited'
+    | 'unparseable'
+  detail?: string
+}
+
+export type CliImageStaleness = 'up-to-date' | 'update-available' | 'unknown'
+
+export type CliImageVersionParse =
+  | {
+      ok: true
+      version: string
+    }
+  | {
+      ok: false
+      problem: CliImageProblem
+      detail: string
+    }
+
+export type DockerImageInspect =
+  | {
+      found: true
+      imageId: string
+      labels: {
+        [key: string]: string
+      }
+    }
+  | {
+      found: false
+      timedOut: boolean
+      detail: string
+    }
+
+export type CliImageBuildOutcome =
+  | {
+      ok: true
+      version: string
+      imageId: string
+    }
+  | {
+      ok: false
+      reason: 'refused' | 'build-failed' | 'verify-failed'
+      detail: string
+      logTail: string
+    }
+
+export type CliProbeId =
+  | 'structured-output'
+  | 'grounding'
+  | 'off-topic-refusal'
+  | 'subject-attribution'
+  | 'canonicalization'
+  | 'latency'
+  | 'web-search'
+
+export type CliProbeStatus = 'pass' | 'fail' | 'unsupported'
+
+export type CliProbeCaseResult = {
+  input: string
+  expected: string
+  actual: string
+  status: CliProbeStatus
+  detail?: string
+}
+
+export type CliProbeAttributionExpectation =
+  | {
+      kind: 'no-property-import'
+      subject: unknown
+      decoy: unknown
+    }
+  | {
+      kind: 'sheet'
+      subject: unknown
+      contaminant?: unknown
+    }
+
+export type CliProbeAttributionCase = {
+  id: string
+  material: string
+  corpus: string
+  expected: string
+  expectation: CliProbeAttributionExpectation
+}
+
+export type CliProbeResult = {
+  id: CliProbeId
+  label: string
+  status: CliProbeStatus
+  score: number
+  detail: string
+  latencyMs: number
+  costUSD?: number
+  cases: Array<CliProbeCaseResult>
+}
+
+export type CliCapabilityScorecard = {
+  cli: CliTool
+  modelId?: string
+  startedAt: string
+  finishedAt: string
+  probes: Array<CliProbeResult>
+  passed: number
+  applicable: number
+  p50LatencyMs: number
+  totalCostUSD?: number
+  error?: string
+}
+
+export type RunCliCapabilityCheckParams = {
+  scope: string
+  model: ModelSelection
+  probes?: Array<CliProbeId>
+  now?: string
+  abortSignal?: unknown
+}
+
+export type WebSearchResultItem = {
+  title: string
+  url: string
+  snippet?: string
+  content?: string
+  score?: number
+  [key: string]: unknown
+}
+
+export type CliProbeSearchOutcome = {
+  query: string
+  items: Array<WebSearchResultItem>
 }
 
 export type AstOutlineNode = {
@@ -2978,6 +3249,7 @@ export type GitCredentialEntry = {
   username: string
   email: string
   token: string
+  host?: string
   tokenSource?: 'pat' | 'oauth'
   refreshToken?: string
   expiresAt?: string
@@ -2991,6 +3263,7 @@ export type GitCredentialCreateInput = {
   username: string
   email: string
   token: string
+  host?: string
   tokenSource?: 'pat' | 'oauth'
   refreshToken?: string
   expiresAt?: string
@@ -3030,6 +3303,42 @@ export type ProviderConnectionCreateInput = {
   config?: {
     [key: string]: string
   }
+}
+
+export type ProjectNoteKind = 'note' | 'secret'
+
+export type ProjectNoteAccess = 'open' | 'ask'
+
+export type ProjectNoteEntry = {
+  id: string
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  value: string
+  description?: string
+  access: ProjectNoteAccess
+  createdAt: string
+  updatedAt: string
+}
+
+export type ProjectNoteCreateInput = {
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  value: string
+  description?: string
+  access: ProjectNoteAccess
+}
+
+export type ProjectNoteSummary = {
+  id: string
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  description?: string
+  access: ProjectNoteAccess
+  createdAt: string
+  updatedAt: string
 }
 
 export type CliAuthCacheEntry = {
@@ -4531,6 +4840,24 @@ export type GitLogResult = {
   commits: Array<GitLogCommit>
 }
 
+export type CloneFailureKind = 'target-exists' | 'auth' | 'timeout' | 'aborted' | 'failed'
+
+export type CloneRepositoryOptions = {
+  repoUrl: string
+  targetPath: string
+  originUrl?: string
+  timeoutMs?: number
+  signal?: unknown
+}
+
+export type CloneRepositoryResult = {
+  ok: boolean
+  path: string
+  branch?: string
+  failure?: 'target-exists' | 'auth' | 'timeout' | 'aborted' | 'failed'
+  message?: string
+}
+
 export type GitMonitorRegistryOptions = {
   hotPollIntervalMs?: number
   coldPollIntervalMs?: number
@@ -4551,6 +4878,53 @@ export type GitMonitorRegistryMetrics = {
   lastColdSweepAt?: string
 }
 
+export type HostPathMarker = {
+  path: string
+  means: string
+}
+
+export type HostPathProblem = 'not-found' | 'not-a-directory' | 'unreadable'
+
+export type HostPathInspection = {
+  path: string
+  problem?: 'not-found' | 'not-a-directory' | 'unreadable'
+  isProject?: boolean
+  codeInfo?: {
+    language: ProgrammingLanguage
+    framework?:
+      | JavaScriptFramework
+      | PythonFramework
+      | JavaFramework
+      | GoFramework
+      | RubyFramework
+      | PhpFramework
+      | CSharpFramework
+      | CppFramework
+      | RustFramework
+      | KotlinFramework
+      | SwiftFramework
+    testFramework?:
+      | JavaScriptTestFramework
+      | PythonTestFramework
+      | JavaTestFramework
+      | GoTestFramework
+      | RubyTestFramework
+      | PhpTestFramework
+      | CSharpTestFramework
+      | CppTestFramework
+      | RustTestFramework
+      | KotlinTestFramework
+      | SwiftTestFramework
+  }
+  kind?: string
+  markers?: Array<HostPathMarker>
+  isGitRepo?: boolean
+  gitRemotes?: Array<string>
+  gitBranch?: string
+  suggestedId?: string
+  suggestedTitle?: string
+}
+
 export type InferenceRequest = {
   systemPrompt: string
   userContent: string
@@ -4567,6 +4941,8 @@ export type InferenceRequest = {
     timestamp?: string
   }
   abortSignal?: unknown
+  timeoutMs?: number
+  images?: Array<CompletionImage>
 }
 
 export type IngestionResult = {
@@ -5339,7 +5715,7 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
-export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist'
+export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist' | 'wholesale'
 
 export type KnownShop = {
   host: string
@@ -5416,6 +5792,8 @@ export type ProductVariant = {
   asin?: string
   imageUrl?: string
   availability?: string
+  price?: number
+  currency?: string
   composition?: {
     [key: string]: unknown
   }
@@ -5462,6 +5840,14 @@ export type ProductProperty = {
   source?: string
 }
 
+export type OfferAvailability =
+  | 'in-stock'
+  | 'out-of-stock'
+  | 'preorder'
+  | 'backorder'
+  | 'limited'
+  | 'discontinued'
+
 export type PricePoint = {
   price: number
   currency?: string
@@ -5486,6 +5872,7 @@ export type Offer = {
   kind?: 'official' | 'retailer' | 'marketplace'
   url: string
   unavailable?: boolean
+  availability?: 'in-stock' | 'out-of-stock' | 'preorder' | 'backorder' | 'limited' | 'discontinued'
   asOf: string
   contentHash?: string
   priceHistory?: Array<PricePoint>
@@ -5835,14 +6222,15 @@ export type ReviewLead = {
   sampleWeight?: number
 }
 
-export type AccessoryCard = {
-  relation: AccessoryRelation
-  resolved: boolean
-  name: string
-  key?: string
-  imageUrl?: string
-  verdictBadge?: string
-  buyUrl?: string
+export type ImageVerdict = {
+  images: Array<{
+    depictsProduct: boolean
+    note?: string
+  }>
+  bodyLooksPlastic: 'yes' | 'no' | 'unclear'
+  closureLooksPlastic: 'yes' | 'no' | 'unclear'
+  confidence: number
+  reason: string
 }
 
 export type AuditCheck = {
@@ -6009,6 +6397,7 @@ export type ProductOffer = {
   kind?: 'official' | 'retailer' | 'marketplace'
   url: string
   unavailable?: boolean
+  availability?: 'in-stock' | 'out-of-stock' | 'preorder' | 'backorder' | 'limited' | 'discontinued'
   asOf: string
   contentHash?: string
   priceHistory?: Array<PricePoint>
@@ -6150,6 +6539,10 @@ export type MaterialKnowledge = {
   aliases: Array<string>
   isPlastic?: boolean
   recyclability?: 'high' | 'medium' | 'low' | 'none' | 'unknown'
+  biodegradable?: boolean
+  animalOrigin?: boolean
+  concerns?: Array<string>
+  userVerdict?: 'approve' | 'reject'
   ecoNotes?: string
   summary?: string
   evidence: Array<{
@@ -6157,6 +6550,18 @@ export type MaterialKnowledge = {
     url: string
   }>
   updatedAt: string
+}
+
+export type MaterialProposal = {
+  slug: string
+  name: string
+  seenOn: Array<{
+    itemKey: string
+    criterionId: string
+  }>
+  count: number
+  firstSeen: string
+  lastSeen: string
 }
 
 export type CoercedRankRow = {
@@ -6340,6 +6745,13 @@ export type EnrichProductResult = {
   item: CatalogItem | unknown
 }
 
+export type CheckProductResult = {
+  key: string
+  added: boolean
+  matchedExisting: boolean
+  item: CatalogItem | unknown
+}
+
 export type FindMoreProductsResult = {
   recordType: string
   added: number
@@ -6456,6 +6868,9 @@ export type MaterialKnowledgeSeed = {
   aliases?: Array<string>
   isPlastic?: boolean
   recyclability?: 'high' | 'medium' | 'low' | 'none' | 'unknown'
+  biodegradable?: boolean
+  animalOrigin?: boolean
+  concerns?: Array<string>
   ecoNotes?: string
   summary?: string
   evidence?: Array<{
@@ -6479,6 +6894,24 @@ export type GetMaterialParams = {
   scope: string
   recordType: string
   material: string
+}
+
+export type ListMaterialProposalsParams = {
+  scope: string
+  recordType: string
+}
+
+export type DismissMaterialProposalParams = {
+  scope: string
+  recordType: string
+  slug: string
+}
+
+export type SetMaterialVerdictParams = {
+  scope: string
+  recordType: string
+  material: string
+  verdict: 'approve' | 'reject' | unknown
 }
 
 export type ListProductSourcesParams = {
@@ -6562,8 +6995,6 @@ export type RankProductCandidatesParams = {
   }
   abortSignal?: unknown
 }
-
-export type VariantVerdict = 'pass' | 'fail' | 'unknown'
 
 export type SandboxMcpBridgeOptions = {
   runId: string
@@ -6900,6 +7331,373 @@ export type TestConfigDeclaration = {
   env?: Array<TestConfigEnvVar>
 }
 
+export type ToolName =
+  | 'getToolNamesForAgent'
+  | 'callTool'
+  | 'previewTool'
+  | 'spawnAgent'
+  | 'spawnPanel'
+  | 'spawnTriagePanel'
+  | 'spawnApproachPanel'
+  | 'spawnAnswerPanel'
+  | 'sendChatCompletion'
+  | 'sendChatCompletionWithTools'
+  | 'startChatCompletionWithToolsCli'
+  | 'restartChatCompletionWithToolsCli'
+  | 'retryChatCompletionWithTools'
+  | 'resumeChatCompletionWithTools'
+  | 'startAgentRun'
+  | 'getChatsDir'
+  | 'listChats'
+  | 'listChatsByType'
+  | 'updateChatMetadata'
+  | 'rateChat'
+  | 'getChat'
+  | 'peekChat'
+  | 'createChat'
+  | 'createTopicChat'
+  | 'saveChat'
+  | 'updateChat'
+  | 'attachChatCliRunner'
+  | 'detachChatCliRunner'
+  | 'addChatMessages'
+  | 'deleteLastChatMessage'
+  | 'clearChat'
+  | 'archiveChat'
+  | 'updateDynamicContext'
+  | 'deleteChat'
+  | 'getChatSettings'
+  | 'resetChatSettings'
+  | 'updateCompletionSettings'
+  | 'getSettingsPrompt'
+  | 'updateSettingsPrompt'
+  | 'resetSettingsPrompt'
+  | 'startCliAgentRun'
+  | 'getCliAgentRun'
+  | 'recycleCliAgentSessions'
+  | 'listCliAgentRuns'
+  | 'getCliAgentRunSubscriptionStatus'
+  | 'listAvailableModels'
+  | 'listAvailableEfforts'
+  | 'listLiveModels'
+  | 'checkCliAuthStatus'
+  | 'startCliReauth'
+  | 'resumeCliAgentRun'
+  | 'forkCliAgentRun'
+  | 'abortCliAgentRun'
+  | 'listPendingCliAgentActions'
+  | 'decideCliAgentAction'
+  | 'applyCliAgentArtifact'
+  | 'previewCliAgentArtifact'
+  | 'landCliRunOnBranch'
+  | 'landApiAgentRun'
+  | 'prepareIsolatedChatWorkspace'
+  | 'finalizeIsolatedChatTurn'
+  | 'mergeCliRunReview'
+  | 'verifyCliRunReview'
+  | 'setCliRunVerdict'
+  | 'rejectCliRunReview'
+  | 'planCliRunVerification'
+  | 'startCliAuthLogin'
+  | 'proposePr'
+  | 'proposeCommitToRealRepo'
+  | 'getProjectChat'
+  | 'getProjectMetadata'
+  | 'listProjectsMetadata'
+  | 'requestNetworkUnlock'
+  | 'requestInstallPackage'
+  | 'requestExternalFetch'
+  | 'requestWorkspaceLimitRaise'
+  | 'askUser'
+  | 'scanDependencies'
+  | 'getCode'
+  | 'getCodeIntelCatalogue'
+  | 'astGetOutline'
+  | 'astEditNode'
+  | 'astRenameSymbol'
+  | 'detectCodeProjectEnvironment'
+  | 'compileCheck'
+  | 'sendCompletionWithTools'
+  | 'resumeCompletionTools'
+  | 'sendCompletion'
+  | 'listConnectionItems'
+  | 'getConnectionItem'
+  | 'listLLMConfigs'
+  | 'getLLMConfig'
+  | 'addLLMConfig'
+  | 'updateLLMConfig'
+  | 'removeLLMConfig'
+  | 'getActiveLLMConfig'
+  | 'setActiveLLMConfig'
+  | 'getRecentLLMConfigs'
+  | 'bumpRecentLLMConfig'
+  | 'listGitCredentials'
+  | 'getGitCredential'
+  | 'addGitCredential'
+  | 'updateGitCredential'
+  | 'removeGitCredential'
+  | 'listProviderConnections'
+  | 'getProviderConnection'
+  | 'addProviderConnection'
+  | 'updateProviderConnection'
+  | 'removeProviderConnection'
+  | 'listCliAuthCaches'
+  | 'getCliAuthCache'
+  | 'addCliAuthCache'
+  | 'updateCliAuthCache'
+  | 'removeCliAuthCache'
+  | 'getActiveCliState'
+  | 'setActiveCli'
+  | 'setCliEnabled'
+  | 'setCliDefaultModel'
+  | 'setCliEffort'
+  | 'getActiveRunnerKind'
+  | 'setActiveRunnerKind'
+  | 'listWebSearchKeys'
+  | 'getWebSearchKey'
+  | 'setWebSearchKey'
+  | 'removeWebSearchKey'
+  | 'getWebSearchApiKeys'
+  | 'listProjectNoteEntries'
+  | 'listProjectNoteSummaries'
+  | 'getProjectNote'
+  | 'addProjectNote'
+  | 'updateProjectNote'
+  | 'removeProjectNote'
+  | 'planResearch'
+  | 'discoverSources'
+  | 'gather'
+  | 'extract'
+  | 'verifyClaim'
+  | 'createDecision'
+  | 'getDecision'
+  | 'listDecisions'
+  | 'setDecisionOptions'
+  | 'selectDecisionOption'
+  | 'addDecisionQuestion'
+  | 'answerDecisionQuestion'
+  | 'signOffDecision'
+  | 'proposeDecisionOptions'
+  | 'listContents'
+  | 'readFile'
+  | 'readFileRange'
+  | 'grepFile'
+  | 'readFileRanges'
+  | 'grepFiles'
+  | 'readPaths'
+  | 'getAllFileStats'
+  | 'writeFile'
+  | 'writeStrictPatch'
+  | 'writeFuzzyPatch'
+  | 'writeExactReplaces'
+  | 'writeStructuredDiffToFile'
+  | 'renamePaths'
+  | 'deletePaths'
+  | 'searchFilesAndRead'
+  | 'searchFiles'
+  | 'searchFilePaths'
+  | 'searchFilesByKeywords'
+  | 'searchFilesByExact'
+  | 'uploadFile'
+  | 'getAbsolutePath'
+  | 'gitStatus'
+  | 'listRemotes'
+  | 'gitFetch'
+  | 'gitPull'
+  | 'gitPush'
+  | 'gitStageFiles'
+  | 'gitStageAll'
+  | 'gitUnstageFiles'
+  | 'gitUnstageAll'
+  | 'gitResetFiles'
+  | 'gitResetAll'
+  | 'gitDiscardUnstagedFiles'
+  | 'gitDiscardStagedFiles'
+  | 'gitPushAll'
+  | 'gitCreateBranch'
+  | 'gitCheckoutBranch'
+  | 'gitDeleteBranch'
+  | 'gitDeleteRemoteBranch'
+  | 'gitRenameBranch'
+  | 'setUpstream'
+  | 'gitListBranches'
+  | 'listUnifiedBranches'
+  | 'getCurrentBranch'
+  | 'getFileContent'
+  | 'getTextRecovery'
+  | 'applyTextRecovery'
+  | 'gitCommit'
+  | 'gitDiff'
+  | 'gitApplyPatch'
+  | 'gitLog'
+  | 'getBranchDiffSummary'
+  | 'resolveChangesToStories'
+  | 'buildBranchReport'
+  | 'buildWorkspaceReport'
+  | 'acceptFiles'
+  | 'rejectFiles'
+  | 'commitSelection'
+  | 'gitCreateMergePlan'
+  | 'gitApplyMerge'
+  | 'buildMergeReport'
+  | 'getLocalStatus'
+  | 'selectCommits'
+  | 'planCherryPick'
+  | 'applyCherryPick'
+  | 'fetchRefs'
+  | 'gitListStashes'
+  | 'gitAddStash'
+  | 'gitRemoveStash'
+  | 'gitApplyStash'
+  | 'ingestProject'
+  | 'ingestAll'
+  | 'startIngestProject'
+  | 'startIngestAll'
+  | 'listDataSources'
+  | 'getDataSource'
+  | 'createDataSource'
+  | 'updateDataSource'
+  | 'deleteDataSource'
+  | 'subscribeDataSource'
+  | 'unsubscribeDataSource'
+  | 'listDataSubscriptions'
+  | 'refreshDataSource'
+  | 'readSubscribedRecords'
+  | 'listSourceRecords'
+  | 'appendCost'
+  | 'getCost'
+  | 'listPrices'
+  | 'upsertPrices'
+  | 'getPrice'
+  | 'calculateCost'
+  | 'refreshPrices'
+  | 'loadPricingConfig'
+  | 'savePricingConfig'
+  | 'mobileTestDoctor'
+  | 'mobileTestListDevices'
+  | 'mobileTestOpenSession'
+  | 'mobileTestCloseSession'
+  | 'mobileTestListSessions'
+  | 'mobileTestSnapshot'
+  | 'mobileTestTap'
+  | 'mobileTestType'
+  | 'mobileTestPressKey'
+  | 'mobileTestSwipe'
+  | 'mobileTestScreenshot'
+  | 'mobileTestAdb'
+  | 'mobileTestIdb'
+  | 'getProjectDir'
+  | 'listProjects'
+  | 'getProject'
+  | 'createProject'
+  | 'updateProject'
+  | 'setProjectActive'
+  | 'updateProjectCodeInfo'
+  | 'deleteProject'
+  | 'getProjectDataPaths'
+  | 'getProjectStoriesRoot'
+  | 'getProjectDataLocation'
+  | 'setProjectDataLocation'
+  | 'guessCodeProjectInfo'
+  | 'getProjectsGroups'
+  | 'getProjectsGroup'
+  | 'createProjectsGroup'
+  | 'updateProjectsGroup'
+  | 'deleteProjectsGroup'
+  | 'getProjectIdFromIndex'
+  | 'reorderProject'
+  | 'reorderGroup'
+  | 'discoverSuppliers'
+  | 'buildProductCatalog'
+  | 'buildProductCatalogToTarget'
+  | 'findMoreOffers'
+  | 'findMoreReviews'
+  | 'findMoreProducts'
+  | 'enrichProduct'
+  | 'checkProduct'
+  | 'searchProductCandidates'
+  | 'rankProductCandidates'
+  | 'recommendProducts'
+  | 'resolveProductGoal'
+  | 'reverifyProductCriterion'
+  | 'discoverProductBrands'
+  | 'listProductBrands'
+  | 'registerProductCriterion'
+  | 'listProductCriteria'
+  | 'removeProductCriterion'
+  | 'clearCatalog'
+  | 'deleteProduct'
+  | 'registerCriterionKnowledge'
+  | 'getCriterionKnowledge'
+  | 'listProductSources'
+  | 'setProductNote'
+  | 'researchMaterial'
+  | 'seedMaterials'
+  | 'listMaterials'
+  | 'getMaterial'
+  | 'setMaterialVerdict'
+  | 'listMaterialProposals'
+  | 'dismissMaterialProposal'
+  | 'researchWeb'
+  | 'runSandbox'
+  | 'startSandboxProxy'
+  | 'killSandbox'
+  | 'pauseSandbox'
+  | 'unpauseSandbox'
+  | 'getStoriesOrder'
+  | 'getStoryIdFromIndex'
+  | 'reorderStory'
+  | 'listStories'
+  | 'getStory'
+  | 'addStory'
+  | 'deleteStory'
+  | 'updateStory'
+  | 'blockStory'
+  | 'finishSpec'
+  | 'getFeature'
+  | 'getFeatureFromIndex'
+  | 'addFeature'
+  | 'updateFeature'
+  | 'deleteFeature'
+  | 'reorderFeature'
+  | 'blockFeature'
+  | 'completeAssignment'
+  | 'listTests'
+  | 'runTests'
+  | 'runAllTests'
+  | 'runTestsCoverage'
+  | 'runAllTestsCoverage'
+  | 'getLastTestsRun'
+  | 'getLastTestsCustom'
+  | 'getLastTestsCoverage'
+  | 'uiTestOpenWebSession'
+  | 'uiTestOpenElectronSession'
+  | 'uiTestCloseSession'
+  | 'uiTestListSessions'
+  | 'uiTestNavigate'
+  | 'uiTestSnapshot'
+  | 'uiTestClick'
+  | 'uiTestType'
+  | 'uiTestPressKey'
+  | 'uiTestWaitFor'
+  | 'uiTestScreenshot'
+  | 'uiTestGetConsole'
+  | 'uiTestGetNetwork'
+  | 'uiTestMeasure'
+  | 'uiTestFillForm'
+  | 'uiTestHover'
+  | 'uiTestSelectOption'
+  | 'uiTestScroll'
+  | 'uiTestEvaluate'
+  | 'uiTestEvaluateMain'
+  | 'webSearch'
+  | 'webReadURLs'
+  | 'webCheckProviderHealth'
+  | 'webReadURLsFull'
+  | 'webReadPages'
+  | 'webInteract'
+  | 'withBrowserHeadless'
+
 export type ValidationResult = {
   valid: boolean
   errors: Array<string>
@@ -7081,6 +7879,30 @@ export type RawPerformanceInput = {
   firstContentfulPaint?: number
 }
 
+export type VerificationPolicy = 'require' | 'warn' | 'off'
+
+export type VerificationCheck = {
+  id: string
+  label: string
+  kind: VerificationCheckKind
+  command?: string
+  paths?: Array<string>
+  tier?: string
+  timeoutMs?: number
+  requiredEnv?: Array<string>
+  optional?: boolean
+}
+
+export type VerificationConfig = {
+  policy: VerificationPolicy
+  checks: Array<VerificationCheck>
+}
+
+export type SignOffDecision = {
+  allowed: boolean
+  reason?: string
+}
+
 export type WebReadUrlsResult = {
   [key: string]: string
 }
@@ -7114,6 +7936,7 @@ export type SellerOffer = {
   sellerName?: string
   price?: number
   currency?: string
+  availability?: string
 }
 
 export type StructuredProduct = {
@@ -7121,6 +7944,7 @@ export type StructuredProduct = {
   price?: number
   priceCurrency?: string
   image?: string
+  images?: Array<string>
   availability?: string
   gtin?: string
   mpn?: string
@@ -7208,15 +8032,6 @@ export type WebSearchOptions = {
   query: string
   limit?: number
   providers?: Array<WebSearchProvider>
-}
-
-export type WebSearchResultItem = {
-  title: string
-  url: string
-  snippet?: string
-  content?: string
-  score?: number
-  [key: string]: unknown
 }
 
 export type WebSearchProviderFailure = {
@@ -7579,6 +8394,8 @@ export type UpdateCompletionSettingsInput = {
       availableTools: Array<string>
       autoCallTools: Array<string>
       forceFinishTools: Array<string>
+      cliAvailableTools?: Array<string>
+      toolApprovalMode?: 'ask' | 'auto'
       finishTurnOnErrors: boolean
       allowNoCallResponses: boolean
       allowErrorResponses: boolean
@@ -7700,6 +8517,7 @@ export type GitCredentialEditInput = {
   username?: string
   email?: string
   token?: string
+  host?: string
   tokenSource?: 'pat' | 'oauth'
   refreshToken?: string
   expiresAt?: string
@@ -9944,6 +10762,273 @@ export type PollGitCredentialGithubDeviceResponses = {
 export type PollGitCredentialGithubDeviceResponse =
   PollGitCredentialGithubDeviceResponses[keyof PollGitCredentialGithubDeviceResponses]
 
+export type ListCredentialCapturesData = {
+  body?: never
+  path?: never
+  query: {
+    chatContextKey: string
+  }
+  url: '/api/v1/credential-captures'
+}
+
+export type ListCredentialCapturesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListCredentialCapturesError =
+  ListCredentialCapturesErrors[keyof ListCredentialCapturesErrors]
+
+export type ListCredentialCapturesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string
+    purpose: string
+    provider: 'git'
+    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    requestedAt: string
+    expiresAt: string
+    resolvedAt?: string
+    credentialId?: string
+    credentialName?: string
+    chatContextKey?: string
+  }>
+}
+
+export type ListCredentialCapturesResponse =
+  ListCredentialCapturesResponses[keyof ListCredentialCapturesResponses]
+
+export type OpenCredentialCaptureData = {
+  body: {
+    purpose: string
+    provider?: 'git'
+    chatContextKey?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/credential-captures'
+}
+
+export type OpenCredentialCaptureErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type OpenCredentialCaptureError =
+  OpenCredentialCaptureErrors[keyof OpenCredentialCaptureErrors]
+
+export type OpenCredentialCaptureResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string
+    purpose: string
+    provider: 'git'
+    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    requestedAt: string
+    expiresAt: string
+    resolvedAt?: string
+    credentialId?: string
+    credentialName?: string
+    chatContextKey?: string
+  }
+}
+
+export type OpenCredentialCaptureResponse =
+  OpenCredentialCaptureResponses[keyof OpenCredentialCaptureResponses]
+
+export type GetCredentialCaptureData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/credential-captures/{id}'
+}
+
+export type GetCredentialCaptureErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetCredentialCaptureError = GetCredentialCaptureErrors[keyof GetCredentialCaptureErrors]
+
+export type GetCredentialCaptureResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    purpose: string
+    provider: 'git'
+    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    requestedAt: string
+    expiresAt: string
+    resolvedAt?: string
+    credentialId?: string
+    credentialName?: string
+    chatContextKey?: string
+  }
+}
+
+export type GetCredentialCaptureResponse =
+  GetCredentialCaptureResponses[keyof GetCredentialCaptureResponses]
+
+export type SubmitCredentialCaptureData = {
+  body: {
+    name: string
+    username: string
+    email: string
+    token: string
+    host?: string
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/credential-captures/{id}/submit'
+}
+
+export type SubmitCredentialCaptureErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SubmitCredentialCaptureError =
+  SubmitCredentialCaptureErrors[keyof SubmitCredentialCaptureErrors]
+
+export type SubmitCredentialCaptureResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    purpose: string
+    provider: 'git'
+    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    requestedAt: string
+    expiresAt: string
+    resolvedAt?: string
+    credentialId?: string
+    credentialName?: string
+    chatContextKey?: string
+  }
+}
+
+export type SubmitCredentialCaptureResponse =
+  SubmitCredentialCaptureResponses[keyof SubmitCredentialCaptureResponses]
+
+export type CancelCredentialCaptureData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/credential-captures/{id}/cancel'
+}
+
+export type CancelCredentialCaptureErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CancelCredentialCaptureError =
+  CancelCredentialCaptureErrors[keyof CancelCredentialCaptureErrors]
+
+export type CancelCredentialCaptureResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string
+    purpose: string
+    provider: 'git'
+    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    requestedAt: string
+    expiresAt: string
+    resolvedAt?: string
+    credentialId?: string
+    credentialName?: string
+    chatContextKey?: string
+  }
+}
+
+export type CancelCredentialCaptureResponse =
+  CancelCredentialCaptureResponses[keyof CancelCredentialCaptureResponses]
+
 export type ListConnectionAssignedItemsData = {
   body?: never
   path: {
@@ -10293,6 +11378,35 @@ export type ClearChatResponses = {
 }
 
 export type ClearChatResponse = ClearChatResponses[keyof ClearChatResponses]
+
+export type ArchiveChatData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/archive'
+}
+
+export type ArchiveChatErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ArchiveChatError = ArchiveChatErrors[keyof ArchiveChatErrors]
+
+export type ArchiveChatResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type ArchiveChatResponse = ArchiveChatResponses[keyof ArchiveChatResponses]
 
 export type RateChatData = {
   body: RateChatInput
@@ -10922,6 +12036,26 @@ export type GrantProjectAppViewTokenResponses = {
 export type GrantProjectAppViewTokenResponse =
   GrantProjectAppViewTokenResponses[keyof GrantProjectAppViewTokenResponses]
 
+export type ProxyProjectViewImageData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query: {
+    url: string
+    v?: string
+    viewToken?: string
+  }
+  url: '/api/v1/projects/{projectId}/view/_img'
+}
+
+export type ProxyProjectViewImageResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
+
 export type ViewProjectFileData = {
   body?: never
   path: {
@@ -10929,6 +12063,7 @@ export type ViewProjectFileData = {
   }
   query?: {
     viewToken?: string
+    v?: string
   }
   url: '/api/v1/projects/{projectId}/view/{*}'
 }
@@ -13854,6 +14989,69 @@ export type SendChatWithCliResponses = {
 
 export type SendChatWithCliResponse = SendChatWithCliResponses[keyof SendChatWithCliResponses]
 
+export type RestartChatWithCliData = {
+  body: {
+    chatContext: ChatContext
+    llmConfig: LlmConfig
+    settings: CompletionSettings
+    systemPrompt?: string
+    runner?: 'api' | 'cli'
+    cliRunner?: {
+      cli: 'claude-code' | 'cursor-agent' | 'codex'
+      authCredentialId?: string
+      apiKeyCredentialId?: string
+      workspaceHostPath?: string
+      model?: string
+      effort?: string
+      execMode?: 'per-turn' | 'resident'
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/completions/restart-chat-with-cli'
+}
+
+export type RestartChatWithCliErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RestartChatWithCliError = RestartChatWithCliErrors[keyof RestartChatWithCliErrors]
+
+export type RestartChatWithCliResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    runId: string
+  }
+}
+
+export type RestartChatWithCliResponse =
+  RestartChatWithCliResponses[keyof RestartChatWithCliResponses]
+
 export type ResumeCompletionData = {
   body: {
     request: {
@@ -15137,6 +16335,46 @@ export type ListToolsResponses = {
 
 export type ListToolsResponse = ListToolsResponses[keyof ListToolsResponses]
 
+export type ListChatToolCatalogData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Which transport the chat runs on. Defaults to 'api'.
+     */
+    runner?: 'api' | 'cli'
+  }
+  url: '/api/v1/tools/chat-catalog'
+}
+
+export type ListChatToolCatalogErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListChatToolCatalogError = ListChatToolCatalogErrors[keyof ListChatToolCatalogErrors]
+
+export type ListChatToolCatalogResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    name: string
+    description: string
+    category: string
+    alwaysOn: boolean
+  }>
+}
+
+export type ListChatToolCatalogResponse =
+  ListChatToolCatalogResponses[keyof ListChatToolCatalogResponses]
+
 export type ExecuteToolData = {
   body: {
     args: JsonValue
@@ -15150,6 +16388,14 @@ export type ExecuteToolData = {
 }
 
 export type ExecuteToolErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -15192,6 +16438,14 @@ export type PreviewToolData = {
 }
 
 export type PreviewToolErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -15719,6 +16973,7 @@ export type ListPendingCliAgentActionsData = {
   path?: never
   query?: {
     runId?: string
+    chatContextId?: string
   }
   url: '/api/v1/cli-runs/actions'
 }
@@ -15802,6 +17057,275 @@ export type ListCliAgentModelsResponses = {
 
 export type ListCliAgentModelsResponse =
   ListCliAgentModelsResponses[keyof ListCliAgentModelsResponses]
+
+export type ListCliCapabilityScorecardsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/probe/capability'
+}
+
+export type ListCliCapabilityScorecardsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    cli: string
+    modelId?: string
+    startedAt: string
+    finishedAt: string
+    probes: Array<{
+      id: string
+      label: string
+      status: string
+      score: number
+      detail: string
+      latencyMs: number
+      costUSD?: number
+      cases: Array<{
+        input: string
+        expected: string
+        actual: string
+        status: string
+        detail?: string
+      }>
+    }>
+    passed: number
+    applicable: number
+    p50LatencyMs: number
+    totalCostUSD?: number
+    error?: string
+  }>
+}
+
+export type ListCliCapabilityScorecardsResponse =
+  ListCliCapabilityScorecardsResponses[keyof ListCliCapabilityScorecardsResponses]
+
+export type RunCliCapabilityCheckData = {
+  body: {
+    cli: CliTool
+    credentialId: string
+    modelId?: string
+    probes?: Array<string>
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/probe/capability'
+}
+
+export type RunCliCapabilityCheckErrors = {
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RunCliCapabilityCheckError =
+  RunCliCapabilityCheckErrors[keyof RunCliCapabilityCheckErrors]
+
+export type RunCliCapabilityCheckResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    cli: string
+    modelId?: string
+    startedAt: string
+    finishedAt: string
+    probes: Array<{
+      id: string
+      label: string
+      status: string
+      score: number
+      detail: string
+      latencyMs: number
+      costUSD?: number
+      cases: Array<{
+        input: string
+        expected: string
+        actual: string
+        status: string
+        detail?: string
+      }>
+    }>
+    passed: number
+    applicable: number
+    p50LatencyMs: number
+    totalCostUSD?: number
+    error?: string
+  }
+}
+
+export type RunCliCapabilityCheckResponse =
+  RunCliCapabilityCheckResponses[keyof RunCliCapabilityCheckResponses]
+
+export type ListCliImageVersionsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-images'
+}
+
+export type ListCliImageVersionsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    docker: 'ok' | 'missing'
+    images: Array<{
+      cli: CliTool
+      image: string
+      installed?: string
+      latest?: string
+      latestCheckedAt?: string
+      /**
+       * What the chip renders. 'unknown' means the answer is genuinely unavailable (no version label, upstream unreachable, Docker not answering) and must never be shown as up to date; read `detail` for why.
+       */
+      state: 'up-to-date' | 'update-available' | 'updating' | 'not-built' | 'unknown'
+      /**
+       * Why the state is not a plain version comparison. Rendered verbatim.
+       */
+      detail?: string
+      update?: {
+        updateId: string
+        cli: CliTool
+        targetVersion: string
+        /**
+         * A build that never finished (server restart) is reported as failed, never left building.
+         */
+        status: 'building' | 'succeeded' | 'failed'
+        startedAt: string
+        finishedAt?: string
+        /**
+         * Last lines of the docker build log — the tail is what diagnoses a failure.
+         */
+        logTail: string
+        error?: string
+        /**
+         * Version re-read from the promoted image. Present only on success.
+         */
+        installedAfter?: string
+      }
+    }>
+  }
+}
+
+export type ListCliImageVersionsResponse =
+  ListCliImageVersionsResponses[keyof ListCliImageVersionsResponses]
+
+export type CheckCliImageUpdatesData = {
+  body: {
+    cli?: 'claude-code' | 'cursor-agent' | 'codex'
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-images/check'
+}
+
+export type CheckCliImageUpdatesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    docker: 'ok' | 'missing'
+    images: Array<{
+      cli: CliTool
+      image: string
+      installed?: string
+      latest?: string
+      latestCheckedAt?: string
+      /**
+       * What the chip renders. 'unknown' means the answer is genuinely unavailable (no version label, upstream unreachable, Docker not answering) and must never be shown as up to date; read `detail` for why.
+       */
+      state: 'up-to-date' | 'update-available' | 'updating' | 'not-built' | 'unknown'
+      /**
+       * Why the state is not a plain version comparison. Rendered verbatim.
+       */
+      detail?: string
+      update?: {
+        updateId: string
+        cli: CliTool
+        targetVersion: string
+        /**
+         * A build that never finished (server restart) is reported as failed, never left building.
+         */
+        status: 'building' | 'succeeded' | 'failed'
+        startedAt: string
+        finishedAt?: string
+        /**
+         * Last lines of the docker build log — the tail is what diagnoses a failure.
+         */
+        logTail: string
+        error?: string
+        /**
+         * Version re-read from the promoted image. Present only on success.
+         */
+        installedAfter?: string
+      }
+    }>
+  }
+}
+
+export type CheckCliImageUpdatesResponse =
+  CheckCliImageUpdatesResponses[keyof CheckCliImageUpdatesResponses]
+
+export type StartCliImageUpdateData = {
+  body: {
+    cli: CliTool
+    /**
+     * Exact version to build. Omit to use the last checked upstream version.
+     */
+    version?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/cli-images/update'
+}
+
+export type StartCliImageUpdateErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  422: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  503: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type StartCliImageUpdateError = StartCliImageUpdateErrors[keyof StartCliImageUpdateErrors]
+
+export type StartCliImageUpdateResponses = {
+  /**
+   * Default Response
+   */
+  202: {
+    updateId: string
+  }
+}
+
+export type StartCliImageUpdateResponse =
+  StartCliImageUpdateResponses[keyof StartCliImageUpdateResponses]
 
 export type LiveCliAgentProbeData = {
   body: {
@@ -16084,9 +17608,157 @@ export type PreviewCliAgentArtifactResponses = {
 export type PreviewCliAgentArtifactResponse =
   PreviewCliAgentArtifactResponses[keyof PreviewCliAgentArtifactResponses]
 
+export type VerifyCliRunReviewData = {
+  body: {
+    projectId: string
+    reason?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/verify'
+}
+
+export type VerifyCliRunReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type VerifyCliRunReviewError = VerifyCliRunReviewErrors[keyof VerifyCliRunReviewErrors]
+
+export type VerifyCliRunReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: RunVerification | unknown
+}
+
+export type VerifyCliRunReviewResponse =
+  VerifyCliRunReviewResponses[keyof VerifyCliRunReviewResponses]
+
+export type GetCliRunVerificationPlanData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/verification-plan'
+}
+
+export type GetCliRunVerificationPlanErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetCliRunVerificationPlanError =
+  GetCliRunVerificationPlanErrors[keyof GetCliRunVerificationPlanErrors]
+
+export type GetCliRunVerificationPlanResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    policy: VerificationPolicy
+    checks: Array<VerificationCheck>
+  }
+}
+
+export type GetCliRunVerificationPlanResponse =
+  GetCliRunVerificationPlanResponses[keyof GetCliRunVerificationPlanResponses]
+
+export type RejectCliRunReviewData = {
+  body: {
+    projectId: string
+    reason: string
+    decision?: 'rejected' | 'changes-requested'
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/reject-review'
+}
+
+export type RejectCliRunReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RejectCliRunReviewError = RejectCliRunReviewErrors[keyof RejectCliRunReviewErrors]
+
+export type RejectCliRunReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRun
+}
+
+export type RejectCliRunReviewResponse =
+  RejectCliRunReviewResponses[keyof RejectCliRunReviewResponses]
+
 export type MergeCliRunReviewData = {
   body: {
     projectId: string
+    reason?: string
   }
   path: {
     runId: string
@@ -16238,6 +17910,210 @@ export type SubmitCliAuthLoginInputResponses = {
 
 export type SubmitCliAuthLoginInputResponse =
   SubmitCliAuthLoginInputResponses[keyof SubmitCliAuthLoginInputResponses]
+
+export type ListProjectNotesData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/notes'
+}
+
+export type ListProjectNotesErrors = {
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectNotesError = ListProjectNotesErrors[keyof ListProjectNotesErrors]
+
+export type ListProjectNotesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ProjectNoteSummary>
+}
+
+export type ListProjectNotesResponse = ListProjectNotesResponses[keyof ListProjectNotesResponses]
+
+export type CreateProjectNoteData = {
+  body: {
+    label: string
+    kind: ProjectNoteKind
+    value: string
+    description?: string
+    access: ProjectNoteAccess
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/notes'
+}
+
+export type CreateProjectNoteErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateProjectNoteError = CreateProjectNoteErrors[keyof CreateProjectNoteErrors]
+
+export type CreateProjectNoteResponses = {
+  /**
+   * Default Response
+   */
+  200: ProjectNoteSummary
+}
+
+export type CreateProjectNoteResponse = CreateProjectNoteResponses[keyof CreateProjectNoteResponses]
+
+export type DeleteProjectNoteData = {
+  body?: never
+  path: {
+    projectId: string
+    noteId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/notes/{noteId}'
+}
+
+export type DeleteProjectNoteErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProjectNoteError = DeleteProjectNoteErrors[keyof DeleteProjectNoteErrors]
+
+export type DeleteProjectNoteResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteProjectNoteResponse = DeleteProjectNoteResponses[keyof DeleteProjectNoteResponses]
+
+export type UpdateProjectNoteData = {
+  body: {
+    label?: string
+    kind?: 'note' | 'secret'
+    value?: string
+    description?: string
+    access?: 'open' | 'ask'
+  }
+  path: {
+    projectId: string
+    noteId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/notes/{noteId}'
+}
+
+export type UpdateProjectNoteErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateProjectNoteError = UpdateProjectNoteErrors[keyof UpdateProjectNoteErrors]
+
+export type UpdateProjectNoteResponses = {
+  /**
+   * Default Response
+   */
+  200: ProjectNoteSummary
+}
+
+export type UpdateProjectNoteResponse = UpdateProjectNoteResponses[keyof UpdateProjectNoteResponses]
+
+export type RevealProjectNoteData = {
+  body?: never
+  path: {
+    projectId: string
+    noteId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/notes/{noteId}/reveal'
+}
+
+export type RevealProjectNoteErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RevealProjectNoteError = RevealProjectNoteErrors[keyof RevealProjectNoteErrors]
+
+export type RevealProjectNoteResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    value: string
+  }
+}
+
+export type RevealProjectNoteResponse = RevealProjectNoteResponses[keyof RevealProjectNoteResponses]
 
 export type IngestAllData = {
   body?: never
@@ -17337,6 +19213,7 @@ export type ListActivitiesResponses = {
     activities: Array<{
       activityId: string
       scope: string
+      activityType?: string
       recordType: string
       status: string
       steps: Array<{
@@ -17400,6 +19277,7 @@ export type GetActivityResponses = {
   200: {
     activityId: string
     scope: string
+    activityType?: string
     recordType: string
     status: string
     steps: Array<{

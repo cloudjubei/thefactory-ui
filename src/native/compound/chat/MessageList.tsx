@@ -17,6 +17,9 @@ import type {
   ToolCallLike,
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
+import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
+import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -43,6 +46,20 @@ export interface MessageListProps {
   chatId?: string
   messages: ChatMessageLike[]
   isThinking?: boolean
+  /**
+   * True while a send this session made is still running — including a CLI turn,
+   * which `isThinking` deliberately excludes once its run view is mounted. Gates
+   * the delete control off the tail message while the runner may still write to
+   * it. Mirrors web's prop of the same name.
+   */
+  isSending?: boolean
+  /**
+   * Whether a turn is running according to the SERVER, not just this session.
+   * Without it a second client renders the restart control enabled over someone
+   * else's in-flight turn, and pressing it aborts that turn to start a competing
+   * one.
+   */
+  isBusy?: boolean
   /** Streaming-pending assistant turn rendered as the last bubble. */
   pending?: { role: 'user' | 'assistant'; content: string } | null
   /** Active CLI run id while it streams: renders the live run as a trailing
@@ -52,6 +69,12 @@ export interface MessageListProps {
   pendingCliModel?: string
   /** ISO start time of the live CLI run — the live message's timestamp. */
   pendingCliStartedAt?: string
+  /**
+   * What the chat's ACTIVE CLI run is waiting on the human for. Applied only to
+   * the run named by {@link pendingCliRunId} — a persisted row from an earlier
+   * turn must never claim to be blocked on today's approval.
+   */
+  cliBlockedOn?: readonly CliRunBlockedOn[]
   /** Optional system prompt rendered above the message list. */
   systemPrompt?: string
   systemPromptTimestamp?: string
@@ -78,6 +101,8 @@ export interface MessageListProps {
 
   onDeleteLastMessage?: () => void
   onRetry?: () => void
+  /** Re-run the chat's trailing user message. Absent ⇒ no row offers a restart. */
+  onRestartTurn?: () => void
 
   /** Host renderer for a tool call. */
   renderToolCall?: (args: {
@@ -86,6 +111,14 @@ export interface MessageListProps {
     resultType?: ToolResultTypeLike
     durationMs?: number
   }) => ReactNode
+  /**
+   * Replaces a tool row's card outright — see `MessageRow.toolRowOverride`.
+   * Returning nothing leaves the host renderer in place. Deliberately not
+   * forwarded to `CliRunMessages`: a CLI run's rows are not in `messages`, so
+   * the host cannot tell whether one was rendered and would show its fallback
+   * as well.
+   */
+  renderToolRowOverride?: (toolCall: ToolCallLike) => ReactNode
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
@@ -107,9 +140,12 @@ export default function MessageList({
   chatId,
   messages,
   isThinking = false,
+  isSending = false,
+  isBusy,
   pending,
   pendingCliRunId,
   pendingCliModel,
+  cliBlockedOn,
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
@@ -119,7 +155,9 @@ export default function MessageList({
   scrollToBottomSignal,
   onDeleteLastMessage,
   onRetry,
+  onRestartTurn,
   renderToolCall,
+  renderToolRowOverride,
   onResolveFile,
   onResourceLink,
   renderDependency,
@@ -263,6 +301,12 @@ export default function MessageList({
 
   const lastIndex = windowed.length - 1
   const prevUserCount = renderable.filter((m) => m.role === 'user').length
+  // A turn this session started is still streaming. `pendingCliRunId` is NOT a
+  // signal here: it stays set after a CLI run terminates so the run view keeps
+  // its mounted instance, which would leave the delete control refusing forever.
+  // A run started before a reload is caught inside `CliRunMessages` instead,
+  // off the run record's own status.
+  const turnInFlight = (isBusy ?? false) || isThinking || !!pending || isSending
 
   return (
     <View style={{ flex: 1 }}>
@@ -313,6 +357,18 @@ export default function MessageList({
             msg.role === 'assistant' && prevIso && curIso
               ? formatDurationMs(new Date(curIso).getTime() - new Date(prevIso).getTime())
               : undefined
+          const deleteControl = describeLastMessageDelete({
+            hasDeleteAction: !!onDeleteLastMessage,
+            isLast: i === lastIndex,
+            turnInFlight,
+            runId: msg.cliRunId,
+          })
+          const restartControl = describeLastUserMessageRestart({
+            hasRestartAction: !!onRestartTurn,
+            isLast: i === lastIndex,
+            role: msg.role,
+            turnInFlight,
+          })
           const row = (
             // A CLI-run message keys on its runId so the live (trailing) and
             // persisted (inline) blocks share ONE key — React moves the mounted
@@ -334,6 +390,11 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
                   coldStart={msg.cliRunId === firstCliRunId}
+                  {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
+                    ? { blockedOn: cliBlockedOn }
+                    : {})}
+                  onDeleteTurn={onDeleteLastMessage}
+                  deleteControl={deleteControl}
                 />
               ) : (
                 <MessageRow
@@ -345,7 +406,15 @@ export default function MessageList({
                   prevUserMessagesLen={prevUserCount}
                   enhancedTotalLength={windowed.length}
                   renderToolCall={renderToolCall}
+                  toolRowOverride={
+                    msg.toolCall && renderToolRowOverride
+                      ? renderToolRowOverride(msg.toolCall)
+                      : undefined
+                  }
                   onDeleteLastMessage={onDeleteLastMessage}
+                  deleteControl={deleteControl}
+                  onRestartTurn={onRestartTurn}
+                  restartControl={restartControl}
                   onRetry={onRetry}
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
@@ -401,6 +470,7 @@ export default function MessageList({
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
+              {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
             />
           </View>
         ) : null}

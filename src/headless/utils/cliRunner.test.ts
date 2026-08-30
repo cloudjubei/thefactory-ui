@@ -22,6 +22,10 @@ import {
   parseCliAuthLoginEvent,
   parseCliRunUpdateEvent,
   parseLoginUrl,
+  isAwaitingApprovalResult,
+  isPlaceholderCliToolName,
+  isEmptyToolInput,
+  acpToolOrigin,
 } from './cliRunner'
 import type { CliRunTranscriptEntry } from '../api/generated'
 
@@ -69,7 +73,11 @@ describe('chatCliRunnerToDispatchOptions', () => {
   it('forwards an explicit execMode and defaults to resident when unset', () => {
     // Explicit per-turn is honored (user forced the cold path).
     expect(
-      chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1', execMode: 'per-turn' }),
+      chatCliRunnerToDispatchOptions({
+        tool: 'claude-code',
+        credentialId: 'cli-1',
+        execMode: 'per-turn',
+      }),
     ).toEqual({ cli: 'claude-code', authCredentialId: 'cli-1', execMode: 'per-turn' })
     // Unset → resident by default (the runner degrades to per-turn if ineligible).
     expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).toEqual({
@@ -190,7 +198,7 @@ describe('parseCliAuthLoginEvent', () => {
       parseCliAuthLoginEvent({
         loginId: 'login_1',
         type: 'error',
-        event: { loginId: 'login_1', error: "cursor-agent login exited with code 1" },
+        event: { loginId: 'login_1', error: 'cursor-agent login exited with code 1' },
       }),
     ).toEqual({ loginId: 'login_1', kind: 'error', error: 'cursor-agent login exited with code 1' })
   })
@@ -206,7 +214,7 @@ describe('parseCliAuthLoginEvent', () => {
 describe('parseLoginUrl', () => {
   it('extracts the first sign-in URL from streamed output', () => {
     const out =
-      'Opening browser to sign in…\nIf the browser didn\'t open, visit: https://claude.com/cai/oauth/authorize?code=true&x=1\n'
+      "Opening browser to sign in…\nIf the browser didn't open, visit: https://claude.com/cai/oauth/authorize?code=true&x=1\n"
     expect(parseLoginUrl(out)).toBe('https://claude.com/cai/oauth/authorize?code=true&x=1')
   })
 
@@ -232,7 +240,14 @@ describe('cliAssistantTextFromEntry', () => {
       cliAssistantTextFromEntry(
         entry({
           kind: 'assistant',
-          payload: { message: { content: [{ type: 'text', text: 'Hello ' }, { type: 'text', text: 'world' }] } },
+          payload: {
+            message: {
+              content: [
+                { type: 'text', text: 'Hello ' },
+                { type: 'text', text: 'world' },
+              ],
+            },
+          },
         }),
       ),
     ).toBe('Hello world')
@@ -243,7 +258,10 @@ describe('cliAssistantTextFromEntry', () => {
       cliAssistantTextFromEntry(
         entry({
           kind: 'assistant',
-          payload: { type: 'item.completed', item: { id: 'i0', type: 'agent_message', text: 'codex says hi' } },
+          payload: {
+            type: 'item.completed',
+            item: { id: 'i0', type: 'agent_message', text: 'codex says hi' },
+          },
         }),
       ),
     ).toBe('codex says hi')
@@ -254,19 +272,32 @@ describe('cliAssistantTextFromEntry', () => {
       cliAssistantTextFromEntry(
         entry({
           kind: 'assistant',
-          payload: { message: { content: [{ type: 'tool_use', id: 't1' }, { type: 'text', text: 'kept' }] } },
+          payload: {
+            message: {
+              content: [
+                { type: 'tool_use', id: 't1' },
+                { type: 'text', text: 'kept' },
+              ],
+            },
+          },
         }),
       ),
     ).toBe('kept')
-    expect(cliAssistantTextFromEntry(entry({ kind: 'result', payload: { result: 'final' } }))).toBe('')
+    expect(cliAssistantTextFromEntry(entry({ kind: 'result', payload: { result: 'final' } }))).toBe(
+      '',
+    )
     expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: undefined }))).toBe('')
-    expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: { message: {} } }))).toBe('')
+    expect(cliAssistantTextFromEntry(entry({ kind: 'assistant', payload: { message: {} } }))).toBe(
+      '',
+    )
   })
 })
 
 describe('cliToolNameFromEntry', () => {
   it('reads a top-level name', () => {
-    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { name: 'Bash' } }))).toBe('Bash')
+    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { name: 'Bash' } }))).toBe(
+      'Bash',
+    )
   })
 
   it("reads Claude's nested tool_use block name", () => {
@@ -274,7 +305,14 @@ describe('cliToolNameFromEntry', () => {
       cliToolNameFromEntry(
         entry({
           kind: 'tool-call',
-          payload: { message: { content: [{ type: 'text', text: 'x' }, { type: 'tool_use', name: 'Edit' }] } },
+          payload: {
+            message: {
+              content: [
+                { type: 'text', text: 'x' },
+                { type: 'tool_use', name: 'Edit' },
+              ],
+            },
+          },
         }),
       ),
     ).toBe('Edit')
@@ -282,16 +320,22 @@ describe('cliToolNameFromEntry', () => {
 
   it("reads Codex's item type (but not agent_message)", () => {
     expect(
-      cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { item: { type: 'command_execution' } } })),
+      cliToolNameFromEntry(
+        entry({ kind: 'tool-call', payload: { item: { type: 'command_execution' } } }),
+      ),
     ).toBe('command_execution')
     expect(
-      cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { item: { type: 'agent_message' } } })),
+      cliToolNameFromEntry(
+        entry({ kind: 'tool-call', payload: { item: { type: 'agent_message' } } }),
+      ),
     ).toBeUndefined()
   })
 
   it('returns undefined when no name is discoverable', () => {
     expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: undefined }))).toBeUndefined()
-    expect(cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { message: {} } }))).toBeUndefined()
+    expect(
+      cliToolNameFromEntry(entry({ kind: 'tool-call', payload: { message: {} } })),
+    ).toBeUndefined()
   })
 })
 
@@ -336,13 +380,23 @@ describe('cliThinkingTextFromEntry', () => {
       cliThinkingTextFromEntry(
         entry({
           kind: 'assistant',
-          payload: { message: { content: [{ type: 'thinking', thinking: 'let me reason' }, { type: 'text', text: 'answer' }] } },
+          payload: {
+            message: {
+              content: [
+                { type: 'thinking', thinking: 'let me reason' },
+                { type: 'text', text: 'answer' },
+              ],
+            },
+          },
         }),
       ),
     ).toBe('let me reason')
     expect(
       cliThinkingTextFromEntry(
-        entry({ kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } }),
+        entry({
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
+        }),
       ),
     ).toBe('')
   })
@@ -351,9 +405,21 @@ describe('cliThinkingTextFromEntry', () => {
 describe('normalizeCliTranscript', () => {
   it('coalesces consecutive assistant deltas (streaming CLIs) into one growing message', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'The ' }] } } }),
-      entry({ at: 2, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'answer ' }] } } }),
-      entry({ at: 3, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'is 4.' }] } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'The ' }] } },
+      }),
+      entry({
+        at: 2,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'answer ' }] } },
+      }),
+      entry({
+        at: 3,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'is 4.' }] } },
+      }),
     ])
     expect(steps).toHaveLength(1)
     expect(steps[0]).toMatchObject({ kind: 'assistant', text: 'The answer is 4.' })
@@ -361,31 +427,58 @@ describe('normalizeCliTranscript', () => {
 
   it('keeps assistant segments split by a tool step distinct (no over-merge)', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'let me check' }] } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'let me check' }] } },
+      }),
       entry({
         at: 2,
         kind: 'tool-call',
-        payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] } },
+        payload: {
+          message: { content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+        },
       }),
-      entry({ at: 3, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'done' }] } } }),
+      entry({
+        at: 3,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'done' }] } },
+      }),
     ])
     expect(steps.map((s) => s.kind)).toEqual(['assistant', 'tool', 'assistant'])
   })
 
   it('Claude: pairs tool_use with its later tool_result by id, keeps assistant prose', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'reading' }] } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'reading' }] } },
+      }),
       entry({
         at: 2,
         kind: 'tool-call',
         payload: {
-          message: { content: [{ type: 'tool_use', id: 'toolu_1', name: 'mcp__thefactory__readPaths', input: { paths: ['a.ts'] } }] },
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'mcp__thefactory__readPaths',
+                input: { paths: ['a.ts'] },
+              },
+            ],
+          },
         },
       }),
       entry({
         at: 3,
         kind: 'tool-result',
-        payload: { message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: '{"ok":true}' }] } },
+        payload: {
+          message: {
+            content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: '{"ok":true}' }],
+          },
+        },
       }),
     ])
     expect(steps.map((s) => s.kind)).toEqual(['assistant', 'tool'])
@@ -400,11 +493,27 @@ describe('normalizeCliTranscript', () => {
 
   it('Cursor: merges started + completed tool_call by call_id, reads result success/error', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'tool-call', payload: { type: 'tool_call', subtype: 'started', call_id: 'c1', tool_call: { readToolCall: { args: { path: '/x' } } } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          type: 'tool_call',
+          subtype: 'started',
+          call_id: 'c1',
+          tool_call: { readToolCall: { args: { path: '/x' } } },
+        },
+      }),
       entry({
         at: 2,
         kind: 'tool-result',
-        payload: { type: 'tool_call', subtype: 'completed', call_id: 'c1', tool_call: { readToolCall: { args: { path: '/x' }, result: { success: { content: 'hi' } } } } },
+        payload: {
+          type: 'tool_call',
+          subtype: 'completed',
+          call_id: 'c1',
+          tool_call: {
+            readToolCall: { args: { path: '/x' }, result: { success: { content: 'hi' } } },
+          },
+        },
       }),
     ])
     expect(steps.length).toBe(1)
@@ -417,12 +526,32 @@ describe('normalizeCliTranscript', () => {
 
   it('Codex: command_execution started+completed merge by item.id, exit_code drives resultType', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'assistant', payload: { item: { type: 'agent_message', text: 'done' } } }),
-      entry({ at: 2, kind: 'tool-call', payload: { type: 'item.started', item: { id: 'item_1', type: 'command_execution', command: 'ls' } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { item: { type: 'agent_message', text: 'done' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-call',
+        payload: {
+          type: 'item.started',
+          item: { id: 'item_1', type: 'command_execution', command: 'ls' },
+        },
+      }),
       entry({
         at: 3,
         kind: 'tool-result',
-        payload: { type: 'item.completed', item: { id: 'item_1', type: 'command_execution', command: 'ls', aggregated_output: 'a\nb', exit_code: 0 } },
+        payload: {
+          type: 'item.completed',
+          item: {
+            id: 'item_1',
+            type: 'command_execution',
+            command: 'ls',
+            aggregated_output: 'a\nb',
+            exit_code: 0,
+          },
+        },
       }),
     ])
     expect(steps.map((s) => s.kind)).toEqual(['assistant', 'tool'])
@@ -436,8 +565,36 @@ describe('normalizeCliTranscript', () => {
 
   it('Codex MCP tool: pairs mcp_tool_call by item.id, names it from item.tool, internal origin, unwraps result content', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'tool-call', payload: { type: 'item.started', item: { id: 'item_3', type: 'mcp_tool_call', server: 'thefactory', tool: 'searchKnowledgeMap', arguments: { query: 'slug' }, status: 'in_progress' } } }),
-      entry({ at: 2, kind: 'tool-result', payload: { type: 'item.completed', item: { id: 'item_3', type: 'mcp_tool_call', server: 'thefactory', tool: 'searchKnowledgeMap', result: { content: [{ type: 'text', text: '[{"itemId":"l2_x"}]' }] }, status: 'completed' } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          type: 'item.started',
+          item: {
+            id: 'item_3',
+            type: 'mcp_tool_call',
+            server: 'thefactory',
+            tool: 'searchKnowledgeMap',
+            arguments: { query: 'slug' },
+            status: 'in_progress',
+          },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          type: 'item.completed',
+          item: {
+            id: 'item_3',
+            type: 'mcp_tool_call',
+            server: 'thefactory',
+            tool: 'searchKnowledgeMap',
+            result: { content: [{ type: 'text', text: '[{"itemId":"l2_x"}]' }] },
+            status: 'completed',
+          },
+        },
+      }),
     ])
     expect(steps.length).toBe(1)
     const tool = steps[0]
@@ -452,8 +609,33 @@ describe('normalizeCliTranscript', () => {
 
   it('Codex MCP tool: a non-thefactory server is external-mcp, and failed status marks errored', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'i9', type: 'mcp_tool_call', server: 'github', tool: 'create_issue', arguments: {} } } }),
-      entry({ at: 2, kind: 'tool-result', payload: { item: { id: 'i9', type: 'mcp_tool_call', server: 'github', tool: 'create_issue', result: { content: [{ type: 'text', text: 'boom' }] }, status: 'failed' } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          item: {
+            id: 'i9',
+            type: 'mcp_tool_call',
+            server: 'github',
+            tool: 'create_issue',
+            arguments: {},
+          },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          item: {
+            id: 'i9',
+            type: 'mcp_tool_call',
+            server: 'github',
+            tool: 'create_issue',
+            result: { content: [{ type: 'text', text: 'boom' }] },
+            status: 'failed',
+          },
+        },
+      }),
     ])
     const tool = steps[0]
     if (tool.kind !== 'tool') throw new Error('expected tool step')
@@ -463,8 +645,30 @@ describe('normalizeCliTranscript', () => {
 
   it('Codex file_change: renders as a file_change tool step paired by item.id', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'fc1', type: 'file_change', changes: [{ path: '/workspace/a.ts', kind: 'update' }], status: 'in_progress' } } }),
-      entry({ at: 2, kind: 'tool-result', payload: { item: { id: 'fc1', type: 'file_change', changes: [{ path: '/workspace/a.ts', kind: 'update' }], status: 'completed' } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          item: {
+            id: 'fc1',
+            type: 'file_change',
+            changes: [{ path: '/workspace/a.ts', kind: 'update' }],
+            status: 'in_progress',
+          },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          item: {
+            id: 'fc1',
+            type: 'file_change',
+            changes: [{ path: '/workspace/a.ts', kind: 'update' }],
+            status: 'completed',
+          },
+        },
+      }),
     ])
     expect(steps.length).toBe(1)
     const tool = steps[0]
@@ -476,8 +680,18 @@ describe('normalizeCliTranscript', () => {
 
   it('Codex: non-zero exit_code marks the tool step errored', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'tool-call', payload: { item: { id: 'i9', type: 'command_execution', command: 'false' } } }),
-      entry({ at: 2, kind: 'tool-result', payload: { item: { id: 'i9', type: 'command_execution', aggregated_output: '', exit_code: 1 } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { item: { id: 'i9', type: 'command_execution', command: 'false' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          item: { id: 'i9', type: 'command_execution', aggregated_output: '', exit_code: 1 },
+        },
+      }),
     ])
     const tool = steps[0]
     if (tool.kind !== 'tool') throw new Error('expected tool step')
@@ -501,16 +715,42 @@ describe('normalizeCliTranscript', () => {
   it('tags each tool step with its origin (internal MCP / native CLI / external MCP)', () => {
     const steps = normalizeCliTranscript([
       // Claude: our MCP tool → internal.
-      entry({ at: 1, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 'a', name: 'mcp__thefactory__readPaths', input: {} }] } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [{ type: 'tool_use', id: 'a', name: 'mcp__thefactory__readPaths', input: {} }],
+          },
+        },
+      }),
       // Claude: native built-in → native.
-      entry({ at: 2, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 'b', name: 'Bash', input: { command: 'ls' } }] } } }),
+      entry({
+        at: 2,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [{ type: 'tool_use', id: 'b', name: 'Bash', input: { command: 'ls' } }],
+          },
+        },
+      }),
       // Codex command_execution → native.
-      entry({ at: 3, kind: 'tool-call', payload: { item: { id: 'c', type: 'command_execution', command: 'ls' } } }),
+      entry({
+        at: 3,
+        kind: 'tool-call',
+        payload: { item: { id: 'c', type: 'command_execution', command: 'ls' } },
+      }),
       // Cursor wraps a non-thefactory MCP server → external-mcp.
       entry({
         at: 4,
         kind: 'tool-call',
-        payload: { type: 'tool_call', call_id: 'd', tool_call: { mcpToolCall: { toolName: 'create_issue', args: {}, providerIdentifier: 'github' } } },
+        payload: {
+          type: 'tool_call',
+          call_id: 'd',
+          tool_call: {
+            mcpToolCall: { toolName: 'create_issue', args: {}, providerIdentifier: 'github' },
+          },
+        },
       }),
     ])
     const origins = steps.map((s) => (s.kind === 'tool' ? s.origin : null))
@@ -519,7 +759,11 @@ describe('normalizeCliTranscript', () => {
 
   it('records per-step durations: tool call→result time, and gap-to-next for others', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } }),
+      entry({
+        at: 1000,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
+      }),
       entry({ at: 1500, kind: 'tool-call', payload: { name: 'doThing', id: 'x1', input: {} } }),
       entry({ at: 4000, kind: 'tool-result', payload: { id: 'x1', result: { ok: true } } }),
     ])
@@ -536,7 +780,7 @@ describe('normalizeCliTranscript', () => {
     expect(steps[0].durationMs).toBeUndefined()
   })
 
-  it("Cursor MCP tool: reads the call echo nested under mcpToolCall.args and the result from its sibling .result (the real cursor stream-json shape)", () => {
+  it('Cursor MCP tool: reads the call echo nested under mcpToolCall.args and the result from its sibling .result (the real cursor stream-json shape)', () => {
     // Cursor's real shape: the call metadata is a `.args` ECHO (carrying
     // providerIdentifier/toolName and, deeper, the real call args at `.args`)
     // and the result is a SIBLING at `mcpToolCall.result`. The previous fixture
@@ -606,7 +850,10 @@ describe('normalizeCliTranscript', () => {
       entry({
         at: 2,
         kind: 'tool-result',
-        payload: { toolCallId: 'tc1', success: { content: [{ text: { text: '["x"]' } }], isError: false } },
+        payload: {
+          toolCallId: 'tc1',
+          success: { content: [{ text: { text: '["x"]' } }], isError: false },
+        },
       }),
     ])
     expect(steps.length).toBe(1)
@@ -640,16 +887,35 @@ describe('normalizeCliTranscript', () => {
     const messages = cliTranscriptToMessages(
       [
         entry({ at: 1000, kind: 'system', payload: { type: 'system', subtype: 'init' } }),
-        entry({ at: 1500, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'reading' }] } } }),
+        entry({
+          at: 1500,
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'text', text: 'reading' }] } },
+        }),
         entry({
           at: 2000,
           kind: 'tool-call',
-          payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'mcp__thefactory__readPaths', input: { paths: ['a'] } }] } },
+          payload: {
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  id: 't1',
+                  name: 'mcp__thefactory__readPaths',
+                  input: { paths: ['a'] },
+                },
+              ],
+            },
+          },
         }),
         entry({
           at: 3000,
           kind: 'tool-result',
-          payload: { message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: '{"ok":true}' }] } },
+          payload: {
+            message: {
+              content: [{ type: 'tool_result', tool_use_id: 't1', content: '{"ok":true}' }],
+            },
+          },
         }),
         entry({ at: 3500, kind: 'result', payload: { type: 'result', subtype: 'success' } }),
       ],
@@ -657,7 +923,11 @@ describe('normalizeCliTranscript', () => {
     )
     // system + result dropped; assistant + one merged tool message remain.
     expect(messages.map((m) => m.role)).toEqual(['assistant', 'tool'])
-    expect(messages[0]).toMatchObject({ role: 'assistant', content: 'reading', model: 'cli-agent/cursor/composer' })
+    expect(messages[0]).toMatchObject({
+      role: 'assistant',
+      content: 'reading',
+      model: 'cli-agent/cursor/composer',
+    })
     expect(messages[1]).toMatchObject({
       role: 'tool',
       toolCall: { toolCallId: 't1', name: 'readPaths', arguments: { paths: ['a'] } },
@@ -665,17 +935,99 @@ describe('normalizeCliTranscript', () => {
     })
   })
 
+  it('re-types an in-flight tool the run is blocked on as require_confirmation', () => {
+    const messages = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'tool-call',
+          payload: {
+            message: {
+              content: [{ type: 'tool_use', id: 't1', name: 'inspectProjectPath', input: {} }],
+            },
+          },
+        }),
+      ],
+      { awaitingApprovalToolNames: ['inspectProjectPath'] },
+    )
+    expect(messages[0].toolResult?.type).toBe('require_confirmation')
+  })
+
+  it('leaves an in-flight tool nobody is waiting on as running', () => {
+    const messages = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'tool-call',
+          payload: {
+            message: { content: [{ type: 'tool_use', id: 't1', name: 'readPaths', input: {} }] },
+          },
+        }),
+      ],
+      { awaitingApprovalToolNames: ['inspectProjectPath'] },
+    )
+    expect(messages[0].toolResult?.type).toBe('running')
+  })
+
+  it('leaves a completed tool alone even when its name matches a pending approval', () => {
+    const messages = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'tool-call',
+          payload: {
+            message: {
+              content: [{ type: 'tool_use', id: 't1', name: 'inspectProjectPath', input: {} }],
+            },
+          },
+        }),
+        entry({
+          at: 2,
+          kind: 'tool-result',
+          payload: {
+            message: {
+              content: [{ type: 'tool_result', tool_use_id: 't1', content: '{"ok":true}' }],
+            },
+          },
+        }),
+      ],
+      { awaitingApprovalToolNames: ['inspectProjectPath'] },
+    )
+    expect(messages[0].toolResult?.type).toBe('success')
+  })
+
   it('propagates the tool origin onto the derived tool message', () => {
     const messages = cliTranscriptToMessages([
-      entry({ at: 1, kind: 'tool-call', payload: { message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }] } } }),
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }],
+          },
+        },
+      }),
     ])
-    expect(messages[0]).toMatchObject({ role: 'tool', toolCall: { name: 'Bash', origin: 'native' } })
+    expect(messages[0]).toMatchObject({
+      role: 'tool',
+      toolCall: { name: 'Bash', origin: 'native' },
+    })
   })
 
   it('aggregates per-entry cost onto the (coalesced) assistant message as usage', () => {
     const messages = cliTranscriptToMessages([
-      entry({ at: 1000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } }, costUSD: 0.02 }),
-      entry({ at: 2000, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'bye' }] } }, costUSD: 0.03 }),
+      entry({
+        at: 1000,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
+        costUSD: 0.02,
+      }),
+      entry({
+        at: 2000,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'bye' }] } },
+        costUSD: 0.03,
+      }),
     ])
     // Consecutive assistant deltas coalesce into ONE bubble; the run total (summed
     // across every entry's cost, not just the merged ones) lands on it as the chip anchor.
@@ -686,14 +1038,22 @@ describe('normalizeCliTranscript', () => {
 
   it('attaches no usage when the run reported no cost', () => {
     const messages = cliTranscriptToMessages([
-      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
+      }),
     ])
     expect(messages[0].usage).toBeUndefined()
   })
 
   it('maps a thinking step to an assistant message carrying `thinking`', () => {
     const messages = cliTranscriptToMessages([
-      entry({ at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'thinking', thinking: 'hmm' }] } } }),
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'thinking', thinking: 'hmm' }] } },
+      }),
     ])
     expect(messages).toHaveLength(1)
     expect(messages[0]).toMatchObject({ role: 'assistant', content: 'hmm', thinking: 'hmm' })
@@ -701,8 +1061,16 @@ describe('normalizeCliTranscript', () => {
 
   it('summarizes system + result entries and falls back to raw for other', () => {
     const steps = normalizeCliTranscript([
-      entry({ at: 1, kind: 'system', payload: { type: 'system', subtype: 'init', model: 'Composer 2' } }),
-      entry({ at: 2, kind: 'result', payload: { type: 'result', subtype: 'success', duration_ms: 2500 } }),
+      entry({
+        at: 1,
+        kind: 'system',
+        payload: { type: 'system', subtype: 'init', model: 'Composer 2' },
+      }),
+      entry({
+        at: 2,
+        kind: 'result',
+        payload: { type: 'result', subtype: 'success', duration_ms: 2500 },
+      }),
       entry({ at: 3, kind: 'other', payload: { weird: true } }),
     ])
     expect(steps[0]).toMatchObject({ kind: 'system', summary: 'Session started · Composer 2' })
@@ -744,7 +1112,10 @@ describe('cliLabel / cliDotColor', () => {
 
 describe('parseCliAgentModelTag', () => {
   it('parses cli + modelId from a cli-agent tag', () => {
-    expect(parseCliAgentModelTag('cli-agent/codex/gpt-5.5')).toEqual({ cli: 'codex', modelId: 'gpt-5.5' })
+    expect(parseCliAgentModelTag('cli-agent/codex/gpt-5.5')).toEqual({
+      cli: 'codex',
+      modelId: 'gpt-5.5',
+    })
     expect(parseCliAgentModelTag('cli-agent/claude-code/claude-opus-4-8-high')).toEqual({
       cli: 'claude-code',
       modelId: 'claude-opus-4-8-high',
@@ -783,7 +1154,13 @@ describe('parseCliRunUpdateEvent', () => {
       parseCliRunUpdateEvent({
         runId: 'r1',
         type: 'transcriptAppend',
-        event: { entry: { at: 1, kind: 'assistant', payload: { message: { content: [{ type: 'text', text: 'hi' }] } } } },
+        event: {
+          entry: {
+            at: 1,
+            kind: 'assistant',
+            payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
+          },
+        },
       }),
     ).toEqual({ runId: 'r1', kind: 'transcript', text: 'hi' })
   })
@@ -818,9 +1195,11 @@ describe('parseCliRunUpdateEvent', () => {
   })
 
   it('returns kind:other for unrelated run events and null for malformed payloads', () => {
-    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'statusChanged', event: {} })).toMatchObject({
-      kind: 'other',
-    })
+    expect(parseCliRunUpdateEvent({ runId: 'r1', type: 'statusChanged', event: {} })).toMatchObject(
+      {
+        kind: 'other',
+      },
+    )
     expect(parseCliRunUpdateEvent(null)).toBeNull()
     expect(parseCliRunUpdateEvent({ type: 'finished' })).toBeNull()
     expect(parseCliRunUpdateEvent({ runId: 'r1' })).toBeNull()
@@ -857,9 +1236,9 @@ describe('deriveCliAuthWarning', () => {
   })
 
   it('no warning when the credential is authenticated', () => {
-    expect(
-      deriveCliAuthWarning('c1', [{ id: 'c1', authStatus: { authenticated: true } }]),
-    ).toEqual({ needsReauth: false })
+    expect(deriveCliAuthWarning('c1', [{ id: 'c1', authStatus: { authenticated: true } }])).toEqual(
+      { needsReauth: false },
+    )
   })
 
   it('warns (with reason + message) when the credential is explicitly unauthenticated', () => {
@@ -881,5 +1260,364 @@ describe('deriveCliAuthWarning', () => {
     expect(
       deriveCliAuthWarning('c1', [{ id: 'c1', authStatus: { authenticated: false } }]),
     ).toEqual({ needsReauth: true })
+  })
+})
+
+describe('normalizeCliTranscript — cursor over ACP', () => {
+  it('interleaves text and tool calls in the order they happened', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'Reading the manifest.' }] } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-call',
+        payload: {
+          acp: {
+            sessionUpdate: 'tool_call',
+            toolCallId: 'tc-1',
+            title: 'Read file',
+            rawInput: { path: 'README.md' },
+          },
+        },
+      }),
+      entry({
+        at: 3,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'Now editing.' }] } },
+      }),
+    ])
+
+    // This ordering IS the account of what the agent did.
+    expect(steps.map((s) => s.kind)).toEqual(['assistant', 'tool', 'assistant'])
+    expect(steps[1]).toMatchObject({ toolName: 'Read file', toolCallId: 'tc-1' })
+    expect(steps[0]).toMatchObject({ text: 'Reading the manifest.' })
+    expect(steps[2]).toMatchObject({ text: 'Now editing.' })
+  })
+
+  it('names the tool from rawInput when the ACP update carries one', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          acp: { toolCallId: 't', title: 'MCP', rawInput: { name: 'inspectProjectPath' } },
+        },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({ toolName: 'inspectProjectPath' })
+  })
+
+  it('still shows a row when the update names the tool no way we expect', () => {
+    // Requiring an exact shape is how cursor's tool calls went missing entirely.
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { acp: { sessionUpdate: 'tool_call' } } }),
+    ])
+    expect(steps).toHaveLength(1)
+    expect(steps[0].kind).toBe('tool')
+  })
+
+  it('reads reasoning emitted as a thinking block', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'thinking', thinking: 'check the manifest' }] } },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({ kind: 'thinking', text: 'check the manifest' })
+  })
+})
+
+describe('normalizeCliTranscript — streamed reasoning and ACP tool results', () => {
+  const think = (at: number, text: string) =>
+    entry({
+      at,
+      kind: 'assistant',
+      payload: { message: { content: [{ type: 'thinking', thinking: text }] } },
+    })
+
+  it('coalesces streamed reasoning into ONE thought, not a column of fragments', () => {
+    const steps = normalizeCliTranscript([
+      think(1, 'I need to inspect how '),
+      think(2, 'the app handles other '),
+      think(3, 'fonts.'),
+    ])
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({
+      kind: 'thinking',
+      text: 'I need to inspect how the app handles other fonts.',
+    })
+  })
+
+  it('starts a new thought after something else happened in between', () => {
+    const steps = normalizeCliTranscript([
+      think(1, 'first thought'),
+      entry({ at: 2, kind: 'tool-call', payload: { acp: { toolCallId: 't1', title: 'Read' } } }),
+      think(3, 'second thought'),
+    ])
+    expect(steps.map((s) => s.kind)).toEqual(['thinking', 'tool', 'thinking'])
+  })
+
+  it('resolves a tool when its ACP update reports completion', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { acp: { toolCallId: 't1', title: 'Read file' } },
+      }),
+      entry({
+        at: 5,
+        kind: 'tool-result',
+        payload: { acp: { toolCallId: 't1', status: 'completed', rawOutput: 'file contents' } },
+      }),
+    ])
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({ kind: 'tool', resultType: 'success', durationMs: 4 })
+  })
+
+  it('marks a failed tool as errored', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { acp: { toolCallId: 't1', title: 'Read' } } }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: { acp: { toolCallId: 't1', status: 'failed' } },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({ resultType: 'errored' })
+  })
+
+  it('leaves the spinner alone for a progress update — in_progress is not done', () => {
+    const steps = normalizeCliTranscript([
+      entry({ at: 1, kind: 'tool-call', payload: { acp: { toolCallId: 't1', title: 'Read' } } }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: { acp: { toolCallId: 't1', status: 'in_progress' } },
+      }),
+    ])
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({ resultType: 'running' })
+    // A duration would render as "finished in 1ms" under a live spinner.
+    expect((steps[0] as { durationMs?: number }).durationMs).toBeUndefined()
+  })
+
+  it('does not invent a bare tool row from a non-terminal update with no matching call', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-result',
+        payload: { acp: { toolCallId: 'x', status: 'pending' } },
+      }),
+    ])
+    expect(steps).toHaveLength(0)
+  })
+})
+
+describe('a gated call that returned "pending" reads as waiting, not finished', () => {
+  it('marks the step awaiting approval from the tool result alone', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { acp: { toolCallId: 't1', title: 'startFeatureWork' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          acp: {
+            toolCallId: 't1',
+            status: 'completed',
+            rawOutput: { outcome: 'pending', retryAfterSec: 30 },
+          },
+        },
+      }),
+    ])
+
+    // The agent announced "waiting for your approval" while the row showed a
+    // finished call — the transcript already knew, nothing was reading it.
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({ kind: 'tool', awaitingApproval: true })
+    expect((steps[0] as { resultType: string }).resultType).not.toBe('success')
+  })
+
+  it('reads a pending result delivered as a JSON string', () => {
+    expect(isAwaitingApprovalResult(JSON.stringify({ outcome: 'pending' }))).toBe(true)
+  })
+
+  it('leaves an ordinary result alone', () => {
+    expect(isAwaitingApprovalResult({ ok: true })).toBe(false)
+    expect(isAwaitingApprovalResult('plain text')).toBe(false)
+    expect(isAwaitingApprovalResult(undefined)).toBe(false)
+  })
+})
+
+// ──────────────────────────────────────────────────────────────────────────
+// Cursor/ACP tool identity
+//
+// Fixtures are the shapes a real cursor-agent resident run recorded: the
+// opening `tool_call` is an unnamed placeholder and the tool is only named in
+// the `tool_call_update` that follows.
+// ──────────────────────────────────────────────────────────────────────────
+
+describe('isPlaceholderCliToolName', () => {
+  it('treats the opening ACP title as unidentified', () => {
+    expect(isPlaceholderCliToolName('MCP: tool')).toBe(true)
+  })
+
+  it('is case- and space-insensitive, since the title is display text', () => {
+    expect(isPlaceholderCliToolName('  mcp: TOOL ')).toBe(true)
+  })
+
+  it('treats a real tool name as identified', () => {
+    expect(isPlaceholderCliToolName('listStories')).toBe(false)
+  })
+
+  it('treats a missing name as unidentified', () => {
+    expect(isPlaceholderCliToolName(undefined)).toBe(true)
+  })
+})
+
+describe('isEmptyToolInput', () => {
+  it('calls the opening call’s `rawInput: {}` empty', () => {
+    expect(isEmptyToolInput({})).toBe(true)
+  })
+
+  it('does not call real arguments empty', () => {
+    expect(isEmptyToolInput({ a: 1 })).toBe(false)
+  })
+
+  it('treats a blank string as empty', () => {
+    expect(isEmptyToolInput('  ')).toBe(true)
+  })
+
+  it('treats 0 as a real value, not an absent one', () => {
+    expect(isEmptyToolInput(0)).toBe(false)
+  })
+})
+
+describe('acpToolOrigin', () => {
+  it('reads our own MCP server off providerIdentifier, which the name never carries', () => {
+    expect(acpToolOrigin('thefactory', 'listStories')).toBe('internal')
+  })
+
+  it('marks another MCP server as external', () => {
+    expect(acpToolOrigin('someone-else', 'doThing')).toBe('external-mcp')
+  })
+
+  it('falls back to the name when no provider is given', () => {
+    expect(acpToolOrigin(undefined, 'Bash')).toBe('native')
+  })
+})
+
+describe('normalizeCliTranscript — ACP tool identity', () => {
+  const opening = {
+    at: 1000,
+    kind: 'tool-call' as const,
+    payload: {
+      acp: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'tool_1',
+        title: 'MCP: tool',
+        kind: 'other',
+        status: 'pending',
+        rawInput: {},
+      },
+    },
+  }
+  const named = (status: string, at = 2000) => ({
+    at,
+    kind: 'tool-result' as const,
+    payload: {
+      acp: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'tool_1',
+        title: 'thefactory: listStories',
+        status,
+        rawInput: { providerIdentifier: 'thefactory', toolName: 'listStories', args: { a: 1 } },
+      },
+    },
+  })
+
+  it('replaces the placeholder name once the update says which tool ran', () => {
+    const steps = normalizeCliTranscript([opening, named('completed')])
+    const tool = steps.find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.toolName).toBe('listStories')
+  })
+
+  it('names the tool while it is still RUNNING, not only once it finishes', () => {
+    // The reported symptom: rows sat on "MCP: tool" for the whole call.
+    const steps = normalizeCliTranscript([opening, named('in_progress')])
+    const tool = steps.find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.toolName).toBe('listStories')
+    expect(tool && tool.kind === 'tool' && tool.resultType).toBe('running')
+  })
+
+  it('adopts the arguments the opening call did not have', () => {
+    const steps = normalizeCliTranscript([opening, named('completed')])
+    const tool = steps.find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.input).toEqual({ a: 1 })
+  })
+
+  it('badges it as one of ours rather than a CLI built-in', () => {
+    const steps = normalizeCliTranscript([opening, named('completed')])
+    const tool = steps.find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.origin).toBe('internal')
+  })
+
+  it('upgrades a generic native tool row to the specific title the update carries', () => {
+    // Real payloads: the call opens `Read File` with `rawInput: {}` and the
+    // update names the actual file and line range. Showing the opening name is
+    // what made a running agent unreadable.
+    const call = {
+      at: 1000,
+      kind: 'tool-call' as const,
+      payload: {
+        acp: { sessionUpdate: 'tool_call', toolCallId: 't2', title: 'Read File', rawInput: {} },
+      },
+    }
+    const update = {
+      at: 2000,
+      kind: 'tool-result' as const,
+      payload: {
+        acp: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 't2',
+          title: 'Read app/src/main/java/com/covision/ui/common/CommonUI.kt (1121 - 1370)',
+          status: 'completed',
+          rawInput: { path: '/workspace/app/src/main/java/com/covision/ui/common/CommonUI.kt' },
+        },
+      },
+    }
+    const tool = normalizeCliTranscript([call, update]).find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.toolName).toContain('CommonUI.kt')
+  })
+
+  it('never lets a later, vaguer update take detail off a row', () => {
+    const call = {
+      at: 1000,
+      kind: 'tool-call' as const,
+      payload: {
+        acp: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 't3',
+          title: 'grep "fontFamily|FontFamily"',
+          rawInput: { pattern: 'fontFamily' },
+        },
+      },
+    }
+    const vague = {
+      at: 2000,
+      kind: 'tool-result' as const,
+      payload: {
+        acp: { sessionUpdate: 'tool_call_update', toolCallId: 't3', title: 'grep', status: 'completed' },
+      },
+    }
+    const tool = normalizeCliTranscript([call, vague]).find((s) => s.kind === 'tool')
+    expect(tool && tool.kind === 'tool' && tool.toolName).toBe('grep "fontFamily|FontFamily"')
   })
 })

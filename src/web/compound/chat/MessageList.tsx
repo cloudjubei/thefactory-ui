@@ -17,6 +17,9 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
+import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 
 function isToolMessage(msg: ChatMessageLike): boolean {
@@ -64,6 +67,12 @@ export type MessageListProps = {
   pendingCliModel?: string
   /** ISO start time of the live CLI run — the live message's timestamp. */
   pendingCliStartedAt?: string
+  /**
+   * What the chat's ACTIVE CLI run is waiting on the human for. Applied only to
+   * the run named by {@link pendingCliRunId} — a persisted row from an earlier
+   * turn must never claim to be blocked on today's approval.
+   */
+  cliBlockedOn?: readonly CliRunBlockedOn[]
   /** When the last user message exceeds this offset from the top, the list
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */
@@ -81,6 +90,8 @@ export type MessageListProps = {
 
   onDeleteLastMessage?: () => void
   onRetry?: () => void
+  /** Re-run the chat's trailing user message. Absent ⇒ no row offers a restart. */
+  onRestartTurn?: () => void
 
   renderToolResult?: (args: {
     toolCall: ToolCall
@@ -89,6 +100,14 @@ export type MessageListProps = {
     sideBySide?: boolean
   }) => ReactNode
   getToolHeaderPath?: (toolCall: ToolCall) => string | undefined
+  /**
+   * Replaces a tool row's card outright — see `MessageRow.toolRowOverride`.
+   * Returning nothing leaves the standard card in place. Deliberately not
+   * forwarded to `CliRunMessages`: a CLI run's rows are not in `messages`, so
+   * the host cannot tell whether one was rendered and would show its fallback
+   * as well.
+   */
+  renderToolRowOverride?: (toolCall: ToolCall) => ReactNode
 
   /** Resolve an `@<path>` inline file mention to file metadata. Forwarded
    * to each MessageRow's RichText so user bubbles render file chips. */
@@ -114,6 +133,13 @@ export type MessageListProps = {
   /** True while a send/resume is in flight — drives the inline "Resume" button's
    * spinner + disabled state so the user sees the tools are running. */
   isSending?: boolean
+  /**
+   * Whether a turn is running according to the SERVER, not just this session.
+   * Without it a second client renders the restart control enabled over someone
+   * else's in-flight turn, and pressing it aborts that turn to start a competing
+   * one.
+   */
+  isBusy?: boolean
 
   /** Caller-rendered empty-state. When omitted the list shows the default
    * "Start chatting" hint matching desktop. */
@@ -131,6 +157,7 @@ export default function MessageList({
   pending = null,
   pendingCliRunId,
   pendingCliModel,
+  cliBlockedOn,
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
@@ -138,8 +165,10 @@ export default function MessageList({
   scrollToBottomSignal,
   onDeleteLastMessage,
   onRetry,
+  onRestartTurn,
   renderToolResult,
   getToolHeaderPath,
+  renderToolRowOverride,
   onResolveFile,
   renderDependency,
   onResourceLink,
@@ -147,6 +176,7 @@ export default function MessageList({
   previewTool,
   onResumeTools,
   isSending = false,
+  isBusy,
   emptyStateContent,
 }: MessageListProps) {
   const messageListRef = useRef<HTMLDivElement>(null)
@@ -258,6 +288,13 @@ export default function MessageList({
     () => messagesToDisplay.find((m) => m.cliRunId)?.cliRunId,
     [messagesToDisplay],
   )
+
+  // A turn this session started is still streaming. `pendingCliRunId` is NOT a
+  // signal here: it stays set after a CLI run terminates so the run view keeps
+  // its mounted instance, which would leave the delete control refusing forever.
+  // A run started before a reload is caught inside `CliRunMessages` instead,
+  // off the run record's own status.
+  const turnInFlight = (isBusy ?? false) || isThinking || pending !== null || isSending
 
   // Last-unread positioning on chat open.
   const lastMessageIsoMemo = useMemo(() => lastMessageIso(messagesToDisplay), [messagesToDisplay])
@@ -594,6 +631,18 @@ export default function MessageList({
           const globalIndex = startIndex + index
           const showCutoff = cutoffIndexInWindow !== null && index === cutoffIndexInWindow
           const isLast = globalIndex === messagesToDisplay.length - 1
+          const deleteControl = describeLastMessageDelete({
+            hasDeleteAction: !!onDeleteLastMessage,
+            isLast,
+            turnInFlight,
+            runId: msg.cliRunId,
+          })
+          const restartControl = describeLastUserMessageRestart({
+            hasRestartAction: !!onRestartTurn,
+            isLast,
+            role: msg.role,
+            turnInFlight,
+          })
 
           const prevIso =
             globalIndex > 0 ? messageIso(messagesToDisplay[globalIndex - 1]) : undefined
@@ -639,6 +688,11 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
                   coldStart={msg.cliRunId === firstCliRunId}
+                  {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
+                    ? { blockedOn: cliBlockedOn }
+                    : {})}
+                  onDeleteTurn={onDeleteLastMessage}
+                  deleteControl={deleteControl}
                 />
               ) : (
                 <MessageRow
@@ -650,37 +704,45 @@ export default function MessageList({
                   prevUserMessagesLen={prevUserMessagesLenRef.current}
                   enhancedTotalLength={messagesToDisplay.length}
                   onDeleteLastMessage={onDeleteLastMessage}
-                onRetry={onRetry}
-                renderToolResult={renderToolResult}
-                getToolHeaderPath={getToolHeaderPath}
-                onResolveFile={onResolveFile}
-                renderDependency={renderDependency}
-                onResourceLink={onResourceLink}
-                renderCliRunArtifact={renderCliRunArtifact}
-                toolPreview={
-                  msg.role === 'tool' && msg.toolCall?.toolCallId
-                    ? toolPreviewById[String(msg.toolCall.toolCallId)]
-                    : undefined
-                }
-                toolSelectable={
-                  msg.role === 'tool' &&
-                  !!msg.toolCall?.toolCallId &&
-                  confirmableIds.has(String(msg.toolCall.toolCallId))
-                }
-                toolSelected={
-                  msg.role === 'tool' &&
-                  !!msg.toolCall?.toolCallId &&
-                  selectedToolIds.includes(String(msg.toolCall.toolCallId))
-                }
-                onToggleToolSelect={
-                  msg.role === 'tool' && msg.toolCall?.toolCallId
-                    ? () => toggleToolSelected(String(msg.toolCall!.toolCallId))
-                    : undefined
-                }
-                thinkingLabel={thinkingLabel}
-                setLastMessageRef={(el) => {
-                  lastMessageRef.current = el
-                }}
+                  deleteControl={deleteControl}
+                  onRetry={onRetry}
+                  onRestartTurn={onRestartTurn}
+                  restartControl={restartControl}
+                  renderToolResult={renderToolResult}
+                  getToolHeaderPath={getToolHeaderPath}
+                  onResolveFile={onResolveFile}
+                  renderDependency={renderDependency}
+                  onResourceLink={onResourceLink}
+                  renderCliRunArtifact={renderCliRunArtifact}
+                  toolPreview={
+                    msg.role === 'tool' && msg.toolCall?.toolCallId
+                      ? toolPreviewById[String(msg.toolCall.toolCallId)]
+                      : undefined
+                  }
+                  toolSelectable={
+                    msg.role === 'tool' &&
+                    !!msg.toolCall?.toolCallId &&
+                    confirmableIds.has(String(msg.toolCall.toolCallId))
+                  }
+                  toolSelected={
+                    msg.role === 'tool' &&
+                    !!msg.toolCall?.toolCallId &&
+                    selectedToolIds.includes(String(msg.toolCall.toolCallId))
+                  }
+                  onToggleToolSelect={
+                    msg.role === 'tool' && msg.toolCall?.toolCallId
+                      ? () => toggleToolSelected(String(msg.toolCall!.toolCallId))
+                      : undefined
+                  }
+                  toolRowOverride={
+                    msg.toolCall && renderToolRowOverride
+                      ? renderToolRowOverride(msg.toolCall)
+                      : undefined
+                  }
+                  thinkingLabel={thinkingLabel}
+                  setLastMessageRef={(el) => {
+                    lastMessageRef.current = el
+                  }}
                 />
               )}
             </div>
@@ -728,8 +790,7 @@ export default function MessageList({
             once a persisted message carries this runId (the inline block owns it
             then) so the run is never mounted twice; the shared `cli-${runId}` key
             lets React move the instance across the handoff with no flash. */}
-        {pendingCliRunId &&
-        !messagesToDisplay.some((m) => m.cliRunId === pendingCliRunId) ? (
+        {pendingCliRunId && !messagesToDisplay.some((m) => m.cliRunId === pendingCliRunId) ? (
           <div key={`cli-${pendingCliRunId}`}>
             <CliRunMessages
               runId={pendingCliRunId}
@@ -741,6 +802,7 @@ export default function MessageList({
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
+              {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
             />
           </div>
         ) : pending?.role === 'assistant' ? (
