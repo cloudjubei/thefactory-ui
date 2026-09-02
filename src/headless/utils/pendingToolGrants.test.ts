@@ -4,6 +4,7 @@ import {
   cliDecideOutcome,
   cliPendingActionToGrant,
   formatActionLabel,
+  grantDecideErrorMessage,
   isCliActionUpdateEvent,
   isCliRunLifecycleEvent,
   isToolGrantAction,
@@ -248,5 +249,22 @@ describe('cliPendingActionToGrant permanent-grant offer', () => {
       noPermanentGrant: false,
     })
     expect(grant.canGrantPermanently).toBe(true)
+  })
+})
+
+describe('grantDecideErrorMessage', () => {
+  it('prefers the route refusal body ({ error }) — the 409 for an already-terminal action', () => {
+    expect(
+      grantDecideErrorMessage({
+        error: 'This approval expired before it was decided — ask the agent to raise it again.',
+      }),
+    ).toMatch(/expired/)
+  })
+
+  it('falls back to Error.message, a raw string, then a generic explanation', () => {
+    expect(grantDecideErrorMessage(new Error('boom'))).toBe('boom')
+    expect(grantDecideErrorMessage('plain refusal')).toBe('plain refusal')
+    expect(grantDecideErrorMessage(undefined)).toMatch(/could not be applied/)
+    expect(grantDecideErrorMessage({})).toMatch(/could not be applied/)
   })
 })

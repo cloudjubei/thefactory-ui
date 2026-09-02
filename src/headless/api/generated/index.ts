@@ -2085,7 +2085,6 @@ export type {
   RustTestFramework,
   SandboxBindMount,
   SandboxDockerVolume,
-  SandboxMcpBridgeOptions,
   SandboxNetworkPolicy,
   SandboxPolicy,
   SandboxProxyForRunOptions,

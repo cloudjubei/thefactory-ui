@@ -154,3 +154,21 @@ export function cliDecideOutcome(
       return 'denied'
   }
 }
+
+/**
+ * Human-readable reason a grant decision was refused. The decide route answers
+ * an already-terminal action with 409 `{ error }` (e.g. the approval expired
+ * while it was displayed) — the generated client surfaces that as the response
+ * body, a plain Error, or a string depending on the transport. Whatever the
+ * shape, the user must SEE why nothing happened; a silent no-op is what lost
+ * the launch approval in the first place.
+ */
+export function grantDecideErrorMessage(err: unknown): string {
+  if (typeof err === 'string' && err.trim().length > 0) return err
+  if (err && typeof err === 'object') {
+    const body = err as { error?: unknown; message?: unknown }
+    if (typeof body.error === 'string' && body.error.trim().length > 0) return body.error
+    if (typeof body.message === 'string' && body.message.trim().length > 0) return body.message
+  }
+  return 'The decision could not be applied — it may already be decided or expired.'
+}

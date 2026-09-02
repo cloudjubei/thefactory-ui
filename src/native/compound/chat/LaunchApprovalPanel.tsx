@@ -3,7 +3,9 @@ import { ScrollView, Text, View } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import { startFeatureWorkGrantSummary } from '../../../headless/utils/launchGrant'
+import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { PendingToolGrant } from '../../../headless'
 
@@ -22,9 +24,17 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
   const { theme } = useNativeTheme()
   const summary = startFeatureWorkGrantSummary(grant)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const decide = (decision: 'once' | 'deny') => {
     setBusy(true)
-    void grant.decide(decision).catch(() => setBusy(false))
+    setError(null)
+    // A refused decision (409: the approval already expired / was decided)
+    // must be SHOWN — a swallowed failure here looked like "approved, then
+    // nothing happened".
+    void grant.decide(decision).catch((err: unknown) => {
+      setBusy(false)
+      setError(grantDecideErrorMessage(err))
+    })
   }
   return (
     <View
@@ -69,6 +79,18 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
               {summary.note}
             </Text>
           </ScrollView>
+        </View>
+      ) : null}
+      {error !== null ? (
+        <View
+          style={{
+            padding: nativeSpace[3],
+            borderRadius: nativeRadii[3],
+            borderWidth: 1,
+            borderColor: red[500],
+          }}
+        >
+          <Text style={{ fontSize: 13, color: red[600] }}>{error}</Text>
         </View>
       ) : null}
       <View

@@ -1633,7 +1633,7 @@ export type ExternalRef = {
 
 export type Feature = {
   id: string
-  status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+  status: Status
   title: string
   description: string
   context: Array<string>
@@ -1707,7 +1707,7 @@ export type ChatContextArguments = {
   }
   feature?: {
     id: string
-    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+    status: Status
     title: string
     description: string
     context: Array<string>
@@ -1812,7 +1812,7 @@ export type ChatContextArgumentsFeature = {
   }
   feature: {
     id: string
-    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+    status: Status
     title: string
     description: string
     context: Array<string>
@@ -1870,7 +1870,7 @@ export type ChatContextArgumentsAgentRunFeature = {
   }
   feature: {
     id: string
-    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+    status: Status
     title: string
     description: string
     context: Array<string>
@@ -7210,15 +7210,6 @@ export type ReplayLog = {
   }
 }
 
-export type SandboxMcpBridgeOptions = {
-  runId: string
-  bridgeListenerHostPath: string
-  bridgeScriptHostPath?: string
-  sidecarImage?: string
-  namePrefix?: string
-  readyTimeoutMs?: number
-}
-
 export type NetworkSpec =
   | {
       mode: 'none'
@@ -7630,6 +7621,7 @@ export type ToolName =
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
   | 'decideCliAgentAction'
+  | 'subscribeCliAgentActions'
   | 'getCliAgentAction'
   | 'claimCliAgentActionExecution'
   | 'releaseCliAgentActionExecution'
@@ -17225,6 +17217,14 @@ export type DecideCliAgentActionData = {
 }
 
 export type DecideCliAgentActionErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */

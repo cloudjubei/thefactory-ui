@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '../../primitives/Button'
 import Surface from '../../primitives/Surface'
 import { startFeatureWorkGrantSummary } from '../../../headless/utils/launchGrant'
+import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import type { PendingToolGrant } from '../../../headless'
 
 export type LaunchApprovalPanelProps = {
@@ -27,9 +28,17 @@ export type LaunchApprovalPanelProps = {
 export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchApprovalPanelProps) {
   const summary = startFeatureWorkGrantSummary(grant)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const decide = (decision: 'once' | 'deny') => {
     setBusy(true)
-    void grant.decide(decision).catch(() => setBusy(false))
+    setError(null)
+    // A refused decision (409: the approval already expired / was decided)
+    // must be SHOWN — a swallowed failure here looked like "approved, then
+    // nothing happened".
+    void grant.decide(decision).catch((err: unknown) => {
+      setBusy(false)
+      setError(grantDecideErrorMessage(err))
+    })
   }
   return (
     <Surface className="m-3 p-4 flex flex-col gap-3 border border-(--border-strong)">
@@ -46,6 +55,11 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
           <p className="text-sm whitespace-pre-wrap wrap-break-word max-h-40 overflow-auto">
             {summary.note}
           </p>
+        </div>
+      )}
+      {error !== null && (
+        <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
+          {error}
         </div>
       )}
       <div className="flex items-center justify-end gap-2">

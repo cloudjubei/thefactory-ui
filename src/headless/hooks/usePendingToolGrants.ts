@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import {
   decideCliAgentAction,
@@ -114,30 +114,30 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   // while it waits, so the agent routinely ends its turn with the approval still
   // pending and retries on a later run. Reading by `runId` would hide the prompt
   // the agent just told the user about, the moment its run went terminal.
+  const loadSeqRef = useRef(0)
+  const loadCliActions = useCallback(async () => {
+    // Sequence guard: a slow response for the PREVIOUS chat (or an older
+    // refresh) must not clobber the list a newer load already applied.
+    const seq = ++loadSeqRef.current
+    try {
+      const { data } = await listPendingCliAgentActions({
+        query: { chatContextId },
+        throwOnError: true,
+      })
+      // Drop notification-only kinds (e.g. auth-expired) — they're not
+      // approvable grants and must never surface as a permission popup.
+      if (loadSeqRef.current === seq) setCliActions(data.filter(isToolGrantAction))
+    } catch {
+      if (loadSeqRef.current === seq) setCliActions([])
+    }
+  }, [chatContextId])
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const { data } = await listPendingCliAgentActions({
-          query: { chatContextId },
-          throwOnError: true,
-        })
-        // Drop notification-only kinds (e.g. auth-expired) — they're not
-        // approvable grants and must never surface as a permission popup.
-        if (!cancelled) setCliActions(data.filter(isToolGrantAction))
-      } catch {
-        if (!cancelled) setCliActions([])
-      }
-    }
-    void load()
+    void loadCliActions()
     const off = ws.on('cli:run-update', (data) => {
-      if (isCliActionUpdateEvent(data)) void load()
+      if (isCliActionUpdateEvent(data)) void loadCliActions()
     })
-    return () => {
-      cancelled = true
-      off()
-    }
-  }, [chatContextId, ws])
+    return off
+  }, [loadCliActions, ws])
 
   // API batch auto-commit: once every pending tool-call has a decision, resume
   // the completion granting the approved subset, then clear the local choices.
@@ -168,20 +168,37 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         isQuestionAction(action) && decision === 'deny'
           ? declineDecision()
           : { outcome: cliDecideOutcome(decision) }
-      await decideCliAgentAction({ path: { actionId: action.id }, body, throwOnError: true })
-      setCliActions((prev) => prev.filter((a) => a.id !== action.id))
+      try {
+        await decideCliAgentAction({ path: { actionId: action.id }, body, throwOnError: true })
+        setCliActions((prev) => prev.filter((a) => a.id !== action.id))
+      } catch (err) {
+        // The route refuses an already-terminal action with 409 (e.g. the
+        // approval expired while it was displayed). Re-read server truth so a
+        // dead grant stops rendering, then rethrow — the deciding surface must
+        // SHOW the refusal; a silent no-op is what lost the launch approval.
+        void loadCliActions()
+        throw err
+      }
     },
-    [],
+    [loadCliActions],
   )
 
-  const answerCli = useCallback(async (actionId: string, answer: string) => {
-    await decideCliAgentAction({
-      path: { actionId },
-      body: answerDecision(answer),
-      throwOnError: true,
-    })
-    setCliActions((prev) => prev.filter((a) => a.id !== actionId))
-  }, [])
+  const answerCli = useCallback(
+    async (actionId: string, answer: string) => {
+      try {
+        await decideCliAgentAction({
+          path: { actionId },
+          body: answerDecision(answer),
+          throwOnError: true,
+        })
+        setCliActions((prev) => prev.filter((a) => a.id !== actionId))
+      } catch (err) {
+        void loadCliActions()
+        throw err
+      }
+    },
+    [loadCliActions],
+  )
 
   const grants = useMemo<PendingToolGrant[]>(() => {
     const apiGrants = apiToolCalls.map<PendingToolGrant>((tc) => ({
