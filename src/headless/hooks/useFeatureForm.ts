@@ -78,7 +78,7 @@ const DEFAULTS: FeatureFormValues = {
   title: '',
   description: '',
   rejection: '',
-  status: '-',
+  status: 'pending',
   blockers: [],
   context: [],
 }

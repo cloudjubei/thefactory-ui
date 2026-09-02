@@ -722,6 +722,7 @@ export { applyChatLiveStatePatch, mergeChatLiveState } from './utils/chatLiveSta
 // so the control is last-only — and on a CLI turn one stored message owns the
 // whole run, which the label has to admit.
 export { describeLastMessageDelete, refuseWhileRunActive } from './utils/chatMessageDelete'
+export { isGeneralProjectChat, isGeneralGroupChat } from './utils/chatContextGuards'
 export {
   CLI_TURN_DELETE_ACTION_LABEL,
   CLI_TURN_DELETE_LABEL,

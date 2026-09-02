@@ -1,11 +1,13 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
+import LaunchApprovalPanel from './LaunchApprovalPanel'
 import MessageList from './MessageList'
 import ToolConfirmationModal from './ToolConfirmationModal'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
+import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -204,6 +206,13 @@ export default function ChatBody({
   // chat, so a reload keeps watching a turn this session never started.
   const cliRunId = liveState.cliRunId ?? activeCliRunId
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
+  // A lone launch approval takes the composer's place so the ask is unmissable
+  // while the conversation stays visible. `Decide later` dismisses it back to the
+  // composer WITHOUT deciding; a NEW launch (different grant id) re-shows it,
+  // because the dismissed id no longer matches.
+  const launchGrant = useMemo(() => soleLaunchGrant(grants), [grants])
+  const [launchDismissedId, setLaunchDismissedId] = useState<string | null>(null)
+  const showLaunchPanel = launchGrant !== null && launchGrant.id !== launchDismissedId
   // Everything the active run is parked on — permission grants AND questions.
   // Both stop the agent dead, so both belong on the live activity line.
   const cliBlockedOn = useMemo(() => blockedOnFromGrants(grants), [grants])
@@ -303,7 +312,12 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {hideInput ? null : inputOverride ? (
+      {hideInput ? null : showLaunchPanel ? (
+        <LaunchApprovalPanel
+          grant={launchGrant!}
+          onDecideLater={() => setLaunchDismissedId(launchGrant!.id)}
+        />
+      ) : inputOverride ? (
         inputOverride
       ) : (
         <ChatInput

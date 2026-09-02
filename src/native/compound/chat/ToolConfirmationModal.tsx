@@ -5,6 +5,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
+import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
 import type { PendingToolGrant } from '../../../headless'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -72,6 +73,9 @@ export default function ToolConfirmationModal({
 
   if (grants) {
     if (grants.length === 0) return null
+    // A lone launch approval renders inline (LaunchApprovalPanel in ChatBody);
+    // suppress it here so it is never shown twice.
+    if (soleLaunchGrant(grants)) return null
     return (
       <Modal
         isOpen

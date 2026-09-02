@@ -58,7 +58,11 @@ const SEMANTIC_COLORS: Record<StatusSemanticKey, StatusColors> = {
 
 function resolve(status: StoryStatus | string): { colors: StatusColors; label: string } {
   const isKnown =
-    status === '+' || status === '-' || status === '~' || status === '?' || status === '='
+    status === 'pending' ||
+    status === 'in_progress' ||
+    status === 'done' ||
+    status === 'blocked' ||
+    status === 'deferred'
   const key: StatusSemanticKey = isKnown ? statusKey(status as StoryStatus) : 'queued'
   return { colors: SEMANTIC_COLORS[key], label: statusLabel(status) }
 }
@@ -146,9 +150,7 @@ export default function StatusControl({ status, onChange, size = 'sm' }: StatusC
                 >
                   {optResolved.label}
                 </Text>
-                {selected && (
-                  <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>
-                )}
+                {selected && <Text style={{ fontSize: 14, color: theme.accent.primary }}>✓</Text>}
               </Pressable>
             )
           })}

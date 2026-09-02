@@ -15,6 +15,9 @@ import type {
   AbortCompletionData,
   AbortCompletionErrors,
   AbortCompletionResponses,
+  AbortIngestionData,
+  AbortIngestionErrors,
+  AbortIngestionResponses,
   AbortTestsRunData,
   AbortTestsRunErrors,
   AbortTestsRunResponses,
@@ -99,6 +102,7 @@ import type {
   CreateOverseerGithubRepoErrors,
   CreateOverseerGithubRepoResponses,
   CreateProjectData,
+  CreateProjectErrors,
   CreateProjectFromTemplateData,
   CreateProjectFromTemplateErrors,
   CreateProjectFromTemplateResponses,
@@ -883,7 +887,7 @@ export const listProjects = <ThrowOnError extends boolean = false>(
 export const createProject = <ThrowOnError extends boolean = false>(
   options: Options<CreateProjectData, ThrowOnError>,
 ) =>
-  (options.client ?? client).post<CreateProjectResponses, unknown, ThrowOnError>({
+  (options.client ?? client).post<CreateProjectResponses, CreateProjectErrors, ThrowOnError>({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects',
@@ -4073,6 +4077,20 @@ export const ingestProject = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const abortIngestion = <ThrowOnError extends boolean = false>(
+  options: Options<AbortIngestionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<AbortIngestionResponses, AbortIngestionErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/ingestion/abort',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listDatabases = <ThrowOnError extends boolean = false>(
   options?: Options<ListDatabasesData, ThrowOnError>,
 ) =>
@@ -4443,6 +4461,10 @@ export const runTrainerTool = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/trainer-tools/{toolName}',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const resetOverseer = <ThrowOnError extends boolean = false>(

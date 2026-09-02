@@ -1,13 +1,15 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
+import LaunchApprovalPanel from './LaunchApprovalPanel'
 import MessageList from './MessageList'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
+import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type {
@@ -181,6 +183,10 @@ export default function ChatBody({
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
+  // A lone launch approval takes the composer's place — see the web ChatBody.
+  const launchGrant = useMemo(() => soleLaunchGrant(grants), [grants])
+  const [launchDismissedId, setLaunchDismissedId] = useState<string | null>(null)
+  const showLaunchPanel = launchGrant !== null && launchGrant.id !== launchDismissedId
   // A capture is only actionable when the host wired both resolutions, so an
   // unwired ChatBody shows no form rather than one that cannot be answered.
   const captureBinding = useMemo(() => {
@@ -298,19 +304,24 @@ export default function ChatBody({
           {captureBinding.unbound.map(renderCaptureCard)}
         </View>
       )}
-      {hideInput
-        ? null
-        : (inputOverride ?? (
-            <ChatInput
-              {...(inputProps ?? {})}
-              value={inputValue}
-              onChange={onInputChange}
-              onSend={handleSend}
-              onAbort={handleAbort}
-              isThinking={isBusy ?? liveState.isSending}
-              isConfigured={canSend}
-            />
-          ))}
+      {hideInput ? null : showLaunchPanel ? (
+        <LaunchApprovalPanel
+          grant={launchGrant!}
+          onDecideLater={() => setLaunchDismissedId(launchGrant!.id)}
+        />
+      ) : (
+        (inputOverride ?? (
+          <ChatInput
+            {...(inputProps ?? {})}
+            value={inputValue}
+            onChange={onInputChange}
+            onSend={handleSend}
+            onAbort={handleAbort}
+            isThinking={isBusy ?? liveState.isSending}
+            isConfigured={canSend}
+          />
+        ))
+      )}
     </View>
   )
 }

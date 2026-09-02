@@ -89,6 +89,12 @@ export type PendingAction = {
   decidedAt?: number
   decisionMetadata?: unknown
   decisionReason?: string
+  executedAt?: number
+}
+
+export type DecideResult = {
+  transitioned: boolean
+  consumedByWaiter: boolean
 }
 
 export type ActionFilter = {
@@ -471,12 +477,16 @@ export type SpawnRefusalReason =
 
 export type DirSnapshotChangeStatus = 'added' | 'modified' | 'deleted'
 
+export type DirSnapshotOmittedReason = 'oversized' | 'unreadable'
+
 export type DirSnapshotChange = {
   path: string
   status: DirSnapshotChangeStatus
   hashBefore?: string
   hashAfter?: string
   contentAfter?: string
+  contentAfterBase64?: string
+  omittedReason?: 'oversized' | 'unreadable'
 }
 
 export type SpawnAgentResult =
@@ -1612,7 +1622,7 @@ export type ProjectRegistryEntry = {
 
 export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
-export type Status = '+' | '-' | '~' | '?' | '='
+export type Status = 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
 
 export type ExternalRef = {
   provider: string
@@ -1623,7 +1633,7 @@ export type ExternalRef = {
 
 export type Feature = {
   id: string
-  status: Status
+  status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
   title: string
   description: string
   context: Array<string>
@@ -1697,7 +1707,7 @@ export type ChatContextArguments = {
   }
   feature?: {
     id: string
-    status: Status
+    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
     title: string
     description: string
     context: Array<string>
@@ -1802,7 +1812,7 @@ export type ChatContextArgumentsFeature = {
   }
   feature: {
     id: string
-    status: Status
+    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
     title: string
     description: string
     context: Array<string>
@@ -1860,7 +1870,7 @@ export type ChatContextArgumentsAgentRunFeature = {
   }
   feature: {
     id: string
-    status: Status
+    status: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
     title: string
     description: string
     context: Array<string>
@@ -1883,6 +1893,56 @@ export type GlobalChatLike = {
   }
   archivedAt?: string
   createdAt?: string
+}
+
+export type VerificationCheckKind = 'compile' | 'tests' | 'command'
+
+export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
+
+export type VerificationStatus = 'passed' | 'failed' | 'error'
+
+export type VerificationPolicy = 'require' | 'warn' | 'off'
+
+export type VerificationCheck = {
+  id: string
+  label: string
+  kind: VerificationCheckKind
+  command?: string
+  paths?: Array<string>
+  tier?: string
+  timeoutMs?: number
+  requiredEnv?: Array<string>
+  optional?: boolean
+}
+
+export type VerificationCheckResult = {
+  id: string
+  label: string
+  kind: VerificationCheckKind
+  status: VerificationCheckStatus
+  durationMs: number
+  summary: string
+  details?: string
+  optional?: boolean
+}
+
+export type RunVerification = {
+  status: VerificationStatus
+  checks: Array<VerificationCheckResult>
+  startedAt: number
+  finishedAt: number
+  sha?: string
+  changedPaths?: Array<string>
+}
+
+export type VerificationConfig = {
+  policy: VerificationPolicy
+  checks: Array<VerificationCheck>
+}
+
+export type SignOffDecision = {
+  allowed: boolean
+  reason?: string
 }
 
 export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
@@ -2025,6 +2085,18 @@ export type CliAgentSubscriptionStatus = {
   [key: string]: unknown
 }
 
+export type FilesEmittedFileStatus = 'added' | 'modified' | 'deleted'
+
+export type FilesEmittedFile = {
+  path: string
+  status: 'added' | 'modified' | 'deleted'
+  hashBefore?: string
+  hashAfter?: string
+  contentAfter?: string
+  contentAfterBase64?: string
+  omittedReason?: 'oversized' | 'unreadable'
+}
+
 export type FilesEmittedArtifact = {
   id: string
   kind: 'files-emitted'
@@ -2079,6 +2151,7 @@ export type SandboxNetworkPolicy = 'none' | 'proxied'
 export type SandboxPolicy = {
   network: SandboxNetworkPolicy
   proxyAllowlist?: Array<string>
+  proxySharedGroup?: string
   cpuLimit?: string
   memoryLimit?: string
   pidsLimit?: number
@@ -2119,32 +2192,6 @@ export type CliRunLandFailure = {
   reason: CliRunLandFailureReason
   message?: string
   at: number
-}
-
-export type VerificationStatus = 'passed' | 'failed' | 'error'
-
-export type VerificationCheckKind = 'compile' | 'tests' | 'command'
-
-export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
-
-export type VerificationCheckResult = {
-  id: string
-  label: string
-  kind: VerificationCheckKind
-  status: VerificationCheckStatus
-  durationMs: number
-  summary: string
-  details?: string
-  optional?: boolean
-}
-
-export type RunVerification = {
-  status: VerificationStatus
-  checks: Array<VerificationCheckResult>
-  startedAt: number
-  finishedAt: number
-  sha?: string
-  changedPaths?: Array<string>
 }
 
 export type CliRunVerdictAuthor = 'user' | 'reviewer-agent'
@@ -2322,6 +2369,28 @@ export type CliAgentPendingActionFilter = {
   chatContextId?: string
 }
 
+export type PerCliRunnerExtra = {
+  resumeSessionId?: string
+  persistentSession?: {
+    authDir: string
+    workspaceDir: string
+    workspaceBaseline?: unknown
+  }
+  seed?: {
+    parent?: {
+      runId: string
+      via: 'resume' | 'fork'
+      notes?: string
+    }
+    transcript?: Array<CliRunTranscriptEntry>
+    artifacts?: Array<CliRunArtifact>
+    retryState?: {
+      attempts: number
+      history: Array<CliRunRetryHistoryEntry>
+    }
+  }
+}
+
 export type PrepareIsolatedChatWorkspaceInput = {
   sourceDir: string
   workspaceDir: string
@@ -2378,6 +2447,7 @@ export type FilesEmittedFilePreview = {
   status: 'added' | 'modified' | 'deleted'
   patch?: string
   contentUnavailable?: boolean
+  binary?: boolean
   unsafePath?: boolean
   unchanged?: boolean
   conflict?: boolean
@@ -4122,6 +4192,20 @@ export type ResolveRelativeWithinRootResult =
       reason: 'absolute' | 'escapes-root'
     }
 
+export type CapturedFileContent =
+  | {
+      kind: 'text'
+      text: string
+    }
+  | {
+      kind: 'binary'
+      base64: string
+    }
+  | {
+      kind: 'omitted'
+      reason: DirSnapshotOmittedReason
+    }
+
 export type StructuredDiff = {
   deletions: Array<number>
   insertions: Array<{
@@ -4249,6 +4333,11 @@ export type GitFeatureInfoResolverContext = {
   message?: string
   branch?: string
   repoRoot?: string
+}
+
+export type GitIdentity = {
+  name: string
+  email: string
 }
 
 export type GitFileStatus = 'A' | 'M' | 'D' | 'R' | 'C' | 'T' | 'U' | '?' | '!' | 'X'
@@ -4943,6 +5032,21 @@ export type InferenceRequest = {
   abortSignal?: unknown
   timeoutMs?: number
   images?: Array<CompletionImage>
+}
+
+export type InferenceResult = {
+  text: string
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    inputTokens?: number
+    totalTokens?: number
+    cachedReadInputTokens?: number
+    reasoningTokens?: number
+    cost?: number
+    costInput?: number
+    costOutput?: number
+  }
 }
 
 export type IngestionResult = {
@@ -6092,9 +6196,73 @@ export type ScoreReport = {
   rejectionAccuracy: number
 }
 
+export type IdentityAttr = {
+  slot: string
+  kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
+  source: string
+  required: boolean
+  fallback?: string
+  canonicalUnit?: string
+  synonyms?: {
+    [key: string]: string
+  }
+}
+
+export type IdentitySchema = {
+  version: number
+  attrs: Array<IdentityAttr>
+}
+
 export type CategoryNode = {
   path: Array<string>
   synonyms?: Array<string>
+}
+
+export type SourceClass =
+  | 'aggregator'
+  | 'multi-shop'
+  | 'shop'
+  | 'review'
+  | 'marketplace'
+  | 'reference'
+  | 'other'
+
+export type SeedSource = {
+  host: string
+  engine?: string
+  vertical?: string
+  kind?: 'aggregator' | 'multi-shop' | 'shop' | 'review' | 'marketplace' | 'reference' | 'other'
+}
+
+export type ProductTypeSpec = {
+  recordType: string
+  keyFields: Array<string>
+  supplierQuery: string
+  supplierInstructions: string
+  itemQuery: string
+  seedItemQuery?: string
+  itemInstructions: string
+  requiredKeyFields?: Array<string>
+  identitySchema?: {
+    version: number
+    attrs: Array<{
+      slot: string
+      kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
+      source: string
+      required: boolean
+      fallback?: string
+      canonicalUnit?: string
+      synonyms?: {
+        [key: string]: string
+      }
+    }>
+  }
+  categoryAxis?: Array<CategoryNode>
+  brandQuery?: string
+  brandInstructions?: string
+  sourceSeedsByCountry?: {
+    [key: string]: Array<SeedSource>
+  }
 }
 
 export type FilterRule = {
@@ -6286,23 +6454,6 @@ export type CatalogAuditScorecard = {
   products: Array<ProductAuditReport>
 }
 
-export type IdentityAttr = {
-  slot: string
-  kind: 'brand' | 'name' | 'form' | 'measure' | 'enum'
-  source: string
-  required: boolean
-  fallback?: string
-  canonicalUnit?: string
-  synonyms?: {
-    [key: string]: string
-  }
-}
-
-export type IdentitySchema = {
-  version: number
-  attrs: Array<IdentityAttr>
-}
-
 export type ComposedProductId = {
   id: string
   reliability: IdentityReliability
@@ -6320,6 +6471,7 @@ export type ResolvedIdentity = {
 
 export type Product = {
   key: string
+  identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
   categoryPaths: Array<Array<string>>
   identity: {
     [key: string]: unknown
@@ -6330,6 +6482,9 @@ export type Product = {
     [key: string]: unknown
   }
   properties?: Array<ProductProperty>
+  variants?: Array<ProductVariant>
+  gallery?: Array<string>
+  accessories?: Array<AccessoryLink>
   supportInfo?: {
     manufacturer?: {
       name?: string
@@ -6413,6 +6568,7 @@ export type ProductOffer = {
 
 export type ProductVerdict = {
   productKey: string
+  variantKey?: string
   verdict: CriterionVerdict
 }
 
@@ -6435,22 +6591,6 @@ export type DecomposedItem = {
       [key: string]: CriterionVerdict
     }
   }
-}
-
-export type SourceClass =
-  | 'aggregator'
-  | 'multi-shop'
-  | 'shop'
-  | 'review'
-  | 'marketplace'
-  | 'reference'
-  | 'other'
-
-export type SeedSource = {
-  host: string
-  engine?: string
-  vertical?: string
-  kind?: 'aggregator' | 'multi-shop' | 'shop' | 'review' | 'marketplace' | 'reference' | 'other'
 }
 
 export type SourceRecord = {
@@ -6654,6 +6794,28 @@ export type TracePhaseReport = {
 export type DiscoveredSupplier = {
   name: string
   tags: Array<string>
+}
+
+export type DiscoverSuppliersParams = {
+  scope: string
+  spec: ProductTypeSpec
+  market: string
+  region?: string
+  language?: string
+  model: ModelSelection
+  maxSuppliers?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
 }
 
 export type DiscoverSuppliersResult = {
@@ -6996,6 +7158,58 @@ export type RankProductCandidatesParams = {
   abortSignal?: unknown
 }
 
+export type WebSearchProvider =
+  | 'exa'
+  | 'tavily'
+  | 'serpapi'
+  | 'duckduckgo'
+  | 'bing'
+  | 'google'
+  | 'cli'
+
+export type WebSearchProviderFailure = {
+  provider: string
+  status?: number
+  reason: string
+}
+
+export type WebSearchResponse = {
+  provider: WebSearchProvider
+  query: string
+  items: Array<WebSearchResultItem>
+  degraded?: Array<WebSearchProviderFailure>
+  raw?: unknown
+}
+
+export type WebReadUrlsResult = {
+  [key: string]: string
+}
+
+export type SearchPageContent = {
+  html: string
+  axSnapshot?: string
+  heroImageUrl?: string
+  galleryImageUrls?: Array<string>
+  renderedText?: string
+}
+
+export type ReplayLog = {
+  inference: {
+    [key: string]: InferenceResult
+  }
+  webSearch: {
+    [key: string]: WebSearchResponse
+  }
+  webRead: {
+    [key: string]: WebReadUrlsResult
+  }
+  webPages: {
+    [key: string]: {
+      [key: string]: SearchPageContent
+    }
+  }
+}
+
 export type SandboxMcpBridgeOptions = {
   runId: string
   bridgeListenerHostPath: string
@@ -7059,12 +7273,41 @@ export type CliRunFilter = {
   chatContextId?: string
 }
 
+export type CliRunFilterable = {
+  projectId: string
+  storyId?: string
+  status: CliRunStatus
+  chatContextId?: string
+}
+
+export type CliRunIndexEntry = {
+  id: string
+  projectId: string
+  storyId?: string
+  status: CliRunStatus
+  chatContextId?: string
+  createdAt: number
+  rel: string
+  mtimeMs: number
+  size: number
+}
+
+export type CliRunIndexFile = {
+  version: number
+  entries: Array<CliRunIndexEntry>
+}
+
+export type CliRunFileStat = {
+  mtimeMs: number
+  size: number
+}
+
 export type FeatureCreateInput = {
-  status: Status
   title: string
   description: string
   context: Array<string>
 } & {
+  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
   blockers?: Array<string>
@@ -7073,11 +7316,11 @@ export type FeatureCreateInput = {
 }
 
 export type FeatureEditInput = {
-  status?: '+' | '-' | '~' | '?' | '='
   title?: string
   description?: string
   context?: Array<string>
 } & {
+  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
   blockers?: Array<string>
@@ -7097,7 +7340,7 @@ export type StoryCreateInput = {
 export type StoryEditInput = {
   title?: string
   description?: string
-  status?: '+' | '-' | '~' | '?' | '='
+  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
   blockers?: Array<string>
   rejection?: string
   externalIds?: Array<ExternalRef>
@@ -7387,6 +7630,9 @@ export type ToolName =
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
   | 'decideCliAgentAction'
+  | 'getCliAgentAction'
+  | 'claimCliAgentActionExecution'
+  | 'releaseCliAgentActionExecution'
   | 'applyCliAgentArtifact'
   | 'previewCliAgentArtifact'
   | 'landCliRunOnBranch'
@@ -7696,7 +7942,6 @@ export type ToolName =
   | 'webReadURLsFull'
   | 'webReadPages'
   | 'webInteract'
-  | 'withBrowserHeadless'
 
 export type ValidationResult = {
   valid: boolean
@@ -7879,34 +8124,6 @@ export type RawPerformanceInput = {
   firstContentfulPaint?: number
 }
 
-export type VerificationPolicy = 'require' | 'warn' | 'off'
-
-export type VerificationCheck = {
-  id: string
-  label: string
-  kind: VerificationCheckKind
-  command?: string
-  paths?: Array<string>
-  tier?: string
-  timeoutMs?: number
-  requiredEnv?: Array<string>
-  optional?: boolean
-}
-
-export type VerificationConfig = {
-  policy: VerificationPolicy
-  checks: Array<VerificationCheck>
-}
-
-export type SignOffDecision = {
-  allowed: boolean
-  reason?: string
-}
-
-export type WebReadUrlsResult = {
-  [key: string]: string
-}
-
 export type DocumentLink = {
   url: string
   docType: SupportDocType
@@ -7978,15 +8195,6 @@ export type HeroImageCandidate = {
   inReview?: boolean
 }
 
-export type WebSearchProvider =
-  | 'exa'
-  | 'tavily'
-  | 'serpapi'
-  | 'duckduckgo'
-  | 'bing'
-  | 'google'
-  | 'cli'
-
 export type WebSearchProviderKind = 'api' | 'cli' | 'playwright'
 
 export type SearchEngine = 'duckduckgo' | 'bing' | 'google'
@@ -8034,25 +8242,11 @@ export type WebSearchOptions = {
   providers?: Array<WebSearchProvider>
 }
 
-export type WebSearchProviderFailure = {
-  provider: string
-  status?: number
-  reason: string
-}
-
 export type WebSearchProviderHealth = {
   provider: WebSearchProvider
   ok: boolean
   status?: number
   reason?: string
-}
-
-export type WebSearchResponse = {
-  provider: WebSearchProvider
-  query: string
-  items: Array<WebSearchResultItem>
-  degraded?: Array<WebSearchProviderFailure>
-  raw?: unknown
 }
 
 export type SearchContextGeo = {
@@ -8067,14 +8261,6 @@ export type PageCapture = {
 }
 
 export type RenderMode = 'default' | 'hardened'
-
-export type SearchPageContent = {
-  html: string
-  axSnapshot?: string
-  heroImageUrl?: string
-  galleryImageUrls?: Array<string>
-  renderedText?: string
-}
 
 export type PageAction = {
   kind: 'click' | 'fill' | 'scroll'
@@ -8830,6 +9016,19 @@ export type CreateProjectData = {
   url: '/api/v1/projects'
 }
 
+export type CreateProjectErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors]
+
 export type CreateProjectResponses = {
   /**
    * Default Response
@@ -8944,6 +9143,14 @@ export type UpdateProjectErrors = {
   /**
    * Default Response
    */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
@@ -8974,6 +9181,14 @@ export type CreateProjectFromTemplateData = {
 }
 
 export type CreateProjectFromTemplateErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -9056,6 +9271,14 @@ export type UpdateProjectCodeInfoData = {
 }
 
 export type UpdateProjectCodeInfoErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -16769,6 +16992,7 @@ export type StartCliAgentRunData = {
     policy?: {
       network?: 'none' | 'proxied'
       proxyAllowlist?: Array<string>
+      proxySharedGroup?: string
       cpuLimit?: string
       memoryLimit?: string
       pidsLimit?: number
@@ -18187,6 +18411,39 @@ export type IngestProjectResponses = {
 
 export type IngestProjectResponse = IngestProjectResponses[keyof IngestProjectResponses]
 
+export type AbortIngestionData = {
+  body: {
+    jobId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/ingestion/abort'
+}
+
+export type AbortIngestionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AbortIngestionError = AbortIngestionErrors[keyof AbortIngestionErrors]
+
+export type AbortIngestionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    aborted: boolean
+  }
+}
+
+export type AbortIngestionResponse = AbortIngestionResponses[keyof AbortIngestionResponses]
+
 export type ListDatabasesData = {
   body?: never
   path?: never
@@ -19019,7 +19276,25 @@ export type PollRunnerJobResponses = {
    */
   200: {
     job?: {
-      [key: string]: unknown
+      jobId: string
+      repoRef:
+        | {
+            kind: 'local'
+            localPath: string
+          }
+        | {
+            kind: 'git'
+            gitUrl: string
+            commit: string
+          }
+      commandTemplate: string
+      config: unknown
+      dataFiles?: Array<{
+        relPath: string
+        url: string
+        sha256?: string
+      }>
+      timeoutMs?: number
     }
     abort?: Array<string>
   }
@@ -19393,7 +19668,9 @@ export type ResumeActivityResponses = {
 export type ResumeActivityResponse = ResumeActivityResponses[keyof ResumeActivityResponses]
 
 export type RunTrainerToolData = {
-  body?: never
+  body: {
+    [key: string]: unknown
+  }
   path: {
     /**
      * Project id (the scope the run records live in).

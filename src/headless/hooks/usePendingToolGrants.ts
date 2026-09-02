@@ -38,6 +38,16 @@ export type UsePendingToolGrants = {
    * a reload or remount loses while the agent stays blocked.
    */
   cliRunId?: string
+  /**
+   * Whether a run for this chat is GENUINELY executing right now (a backend run
+   * in `running` status), independent of any run id the caller is still
+   * displaying. Drive the "busy / Stop" affordance off this, NOT off
+   * {@link cliRunId}: a terminal run keeps its id set for the transcript view and
+   * for a still-pending approval, so `cliRunId !== undefined` stays true long
+   * after the agent stopped working — which left the Stop button spinning after
+   * a successful abort. This self-corrects to false the instant nothing runs.
+   */
+  isRunActive: boolean
 }
 
 /**
@@ -62,16 +72,16 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const [cliActions, setCliActions] = useState<PendingAction[]>([])
   const [discoveredRunId, setDiscoveredRunId] = useState<string>()
 
-  // A caller only knows a runId while its own live state holds one, which a
-  // reload or a remount drops — and a run blocked on an approval keeps blocking.
-  // Ask the backend which run this chat has active instead, so the prompt is
-  // reachable from a cold page. Re-resolved on run lifecycle events (not on a
-  // timer) so a run that starts, ends, or raises a prompt is picked up live.
+  // Always ask the backend which run this chat has GENUINELY executing, even
+  // when the caller passed a runId. Two reasons: a reload or remount drops the
+  // caller's live runId (so a cold page still needs discovery to reach a blocked
+  // approval), AND — the reason this no longer short-circuits on `runId` — the
+  // caller's runId outlives the run it names (kept for the transcript view and a
+  // pending approval), so it cannot answer "is a run running now". Only a
+  // `status: 'running'` probe can, and `isRunActive` is derived from it.
+  // Re-resolved on run lifecycle events (not a timer) so start/end/resume is
+  // picked up live.
   useEffect(() => {
-    if (runId) {
-      setDiscoveredRunId(undefined)
-      return
-    }
     let cancelled = false
     const discover = async () => {
       try {
@@ -92,7 +102,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       cancelled = true
       off()
     }
-  }, [runId, chatContextId, ws])
+  }, [chatContextId, ws])
 
   const activeRunId = runId ?? discoveredRunId
 
@@ -189,5 +199,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     return [...apiGrants, ...cliGrants]
   }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli])
 
-  return { grants, ...(activeRunId ? { cliRunId: activeRunId } : {}) }
+  return {
+    grants,
+    isRunActive: discoveredRunId !== undefined,
+    ...(activeRunId ? { cliRunId: activeRunId } : {}),
+  }
 }

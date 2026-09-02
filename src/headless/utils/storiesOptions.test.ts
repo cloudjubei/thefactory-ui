@@ -24,20 +24,26 @@ type TestFeature = {
 }
 
 const stories: TestStory[] = [
-  { id: 's1', title: 'Login flow', description: 'authentication', status: '+', features: [] },
+  { id: 's1', title: 'Login flow', description: 'authentication', status: 'done', features: [] },
   {
     id: 's2',
     title: 'Signup',
     description: 'register new users',
-    status: '-',
+    status: 'pending',
     features: [{ rejection: 'needs work' }],
   },
-  { id: 's3', title: 'Dashboard', description: 'home screen', status: '~', features: null },
+  {
+    id: 's3',
+    title: 'Dashboard',
+    description: 'home screen',
+    status: 'in_progress',
+    features: null,
+  },
   {
     id: 's4',
     title: 'Billing',
     description: 'payments',
-    status: '+',
+    status: 'done',
     features: [{ rejection: null }, { rejection: 'redo this' }],
   },
 ]
@@ -62,8 +68,8 @@ describe('filterStories', () => {
     expect(filterStories(stories)).toHaveLength(4)
   })
   it('filters by exact status', () => {
-    expect(filterStories(stories, { statusFilter: '+' }).map((s) => s.id)).toEqual(['s1', 's4'])
-    expect(filterStories(stories, { statusFilter: '~' }).map((s) => s.id)).toEqual(['s3'])
+    expect(filterStories(stories, { statusFilter: 'done' }).map((s) => s.id)).toEqual(['s1', 's4'])
+    expect(filterStories(stories, { statusFilter: 'in_progress' }).map((s) => s.id)).toEqual(['s3'])
   })
   it('"not-done" excludes Done stories without rejected features', () => {
     // s1 is Done with no rejections -> excluded; s4 is Done WITH a rejection -> kept.
@@ -80,7 +86,7 @@ describe('filterStories', () => {
   })
   it('combines status and query', () => {
     expect(
-      filterStories(stories, { statusFilter: '+', query: 'billing' }).map((s) => s.id),
+      filterStories(stories, { statusFilter: 'done', query: 'billing' }).map((s) => s.id),
     ).toEqual(['s4'])
   })
 })
@@ -118,9 +124,9 @@ describe('sortStories', () => {
 })
 
 const features: TestFeature[] = [
-  { id: 'f1', title: 'Form', description: 'the form', status: '+' },
-  { id: 'f2', title: 'Validation', description: 'rules', status: '-' },
-  { id: 'f3', title: 'Submit', description: 'send it', status: '+', rejection: 'broken' },
+  { id: 'f1', title: 'Form', description: 'the form', status: 'done' },
+  { id: 'f2', title: 'Validation', description: 'rules', status: 'pending' },
+  { id: 'f3', title: 'Submit', description: 'send it', status: 'done', rejection: 'broken' },
 ]
 
 const FEATURE_INDEX: Record<string, number> = { f1: 1, f2: 2, f3: 3 }
@@ -128,7 +134,10 @@ const featureIndexOf = (id: string): number | undefined => FEATURE_INDEX[id]
 
 describe('filterFeatures', () => {
   it('filters by exact status', () => {
-    expect(filterFeatures(features, { statusFilter: '+' }).map((f) => f.id)).toEqual(['f1', 'f3'])
+    expect(filterFeatures(features, { statusFilter: 'done' }).map((f) => f.id)).toEqual([
+      'f1',
+      'f3',
+    ])
   })
   it('"not-done" excludes Done features without a rejection', () => {
     expect(filterFeatures(features, { statusFilter: 'not-done' }).map((f) => f.id)).toEqual([

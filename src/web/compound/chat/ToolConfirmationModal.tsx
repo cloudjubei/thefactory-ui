@@ -2,6 +2,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import Surface from '../../primitives/Surface'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
+import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
 import type { PendingToolGrant } from '../../../headless'
 
 export type ToolConfirmationModalProps = {
@@ -39,6 +40,11 @@ export default function ToolConfirmationModal({
 }: ToolConfirmationModalProps) {
   const grants = partitionGrants(allGrants).permissions
   if (grants.length === 0) return null
+  // A lone launch approval is not a tool card — it renders inline as the
+  // `LaunchApprovalPanel` in the composer's place (see `ChatBody`). Suppress it
+  // here so it is never shown twice; a launch AMONG other grants still lists in
+  // the generic modal below.
+  if (soleLaunchGrant(allGrants)) return null
   return (
     <Modal
       isOpen

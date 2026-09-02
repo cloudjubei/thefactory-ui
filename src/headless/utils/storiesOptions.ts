@@ -95,7 +95,7 @@ export function filterStories<T extends StoryListItem>(
       statusFilter === 'all'
         ? true
         : statusFilter === 'not-done'
-          ? s.status !== '+' || storyHasRejectedFeatures(s)
+          ? s.status !== 'done' || storyHasRejectedFeatures(s)
           : s.status === statusFilter
     return byStatus && matchesQuery(displayIndexOf?.(s.id), s.title, s.description, query)
   })
@@ -148,7 +148,7 @@ export function filterFeatures<T extends FeatureListItem>(
       statusFilter === 'all'
         ? true
         : statusFilter === 'not-done'
-          ? f.status !== '+' || !!f.rejection
+          ? f.status !== 'done' || !!f.rejection
           : f.status === statusFilter
     return byStatus && matchesQuery(displayIndexOf?.(f.id), f.title, f.description, query)
   })

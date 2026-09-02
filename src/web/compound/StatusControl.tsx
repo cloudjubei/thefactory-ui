@@ -24,7 +24,13 @@ function mapStatusToSemantic(status: StoryStatus | string): {
   key: StatusSemanticKey
   label: string
 } {
-  if (status === '+' || status === '~' || status === '-' || status === '?' || status === '=') {
+  if (
+    status === 'pending' ||
+    status === 'in_progress' ||
+    status === 'done' ||
+    status === 'blocked' ||
+    status === 'deferred'
+  ) {
     return { key: statusKey(status), label: statusLabel(status) }
   }
   return { key: 'queued', label: statusLabel(status) }

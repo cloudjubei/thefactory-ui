@@ -29,7 +29,7 @@ import type {
   UpdateChatData,
 } from '../api'
 import { useApi, useAuth } from '../api'
-import { getChatContextKey } from 'thefactory-tools/utils'
+import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
 import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
@@ -281,6 +281,19 @@ function collectProposedToolCalls(result: SendCompletionWithToolsResponse): Prop
 }
 
 /**
+ * Heal each listed chat's context so its `type` agrees with its fields — chat
+ * storage paths are field-keyed, so persisted data whose stamped `type` lies
+ * (observed: an agent-run chat stamped 'PROJECT') would otherwise break every
+ * type-guarded consumer (grouping, agent-run detection, delete guards).
+ */
+function healChatContexts(chats: GetChatResponse[]): GetChatResponse[] {
+  return chats.map((c) => {
+    const healed = normalizeChatContext(c.context as Parameters<typeof normalizeChatContext>[0])
+    return healed === c.context ? c : { ...c, context: healed as GetChatResponse['context'] }
+  })
+}
+
+/**
  * Build a host-bound `{ ChatsProvider, useChats }` pair. Apps call this once
  * at module load — the returned Provider / hook share a single React context
  * identity, so a hot-reload / re-render of the consumer module does not
@@ -419,8 +432,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // and never settle for non-active projects.
         const { data } = await listChats({ signal: controller.signal, throwOnError: true })
         if (controller.signal.aborted) return
-        chatsRef.current = data
-        setChats(data)
+        const healed = healChatContexts(data)
+        chatsRef.current = healed
+        setChats(healed)
         setLoadError(null)
       } catch (err) {
         if (controller.signal.aborted) return
@@ -1039,7 +1053,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             query: projectId ? { projectId } : {},
             throwOnError: true,
           })
-          setChats(latest)
+          const healedLatest = healChatContexts(latest)
+          // The query may be project-filtered — merge over the full list rather
+          // than replacing it, or every OTHER project's rows (and their unread
+          // badges) vanish until the next full refresh.
+          setChats((prev) =>
+            projectId
+              ? [...prev.filter((c) => c.context.projectId !== projectId), ...healedLatest]
+              : healedLatest,
+          )
           const target = latest.find((c) => sameContext(c.context, pending.context))
           if (!target) throw new Error('Chat for pending confirmation no longer exists')
 
