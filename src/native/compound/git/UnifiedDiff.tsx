@@ -213,14 +213,10 @@ export default function UnifiedDiff({
             borderColor: theme.border.subtle,
             paddingHorizontal: nativeSpace[3],
             paddingVertical: nativeSpace[2],
-            backgroundColor: pressed
-              ? theme.surface.hover
-              : theme.surface.muted,
+            backgroundColor: pressed ? theme.surface.hover : theme.surface.muted,
           })}
         >
-          <Text style={{ fontSize: 12, color: theme.text.primary }}>
-            Show anyway
-          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>Show anyway</Text>
         </Pressable>
       </View>
     )
@@ -359,11 +355,7 @@ function HunkHeader({
             tone={isStaged ? 'blue' : 'green'}
             onPress={() => (isStaged ? onUnstageHunk?.(hunkIndex) : onStageHunk?.(hunkIndex))}
           />
-          <ActionPill
-            label="Discard Hunk"
-            tone="red"
-            onPress={() => onDiscardHunk?.(hunkIndex)}
-          />
+          <ActionPill label="Discard Hunk" tone="red" onPress={() => onDiscardHunk?.(hunkIndex)} />
         </View>
       ) : null}
     </View>
@@ -604,11 +596,7 @@ function SelectionCheckbox({
   )
 }
 
-function MarkupText({
-  segs,
-}: {
-  segs: NonNullable<ParsedDiffLine['_markup']>
-}) {
+function MarkupText({ segs }: { segs: NonNullable<ParsedDiffLine['_markup']> }) {
   // Render each segment as a `<Text>` child of the parent diff line —
   // intra-line highlighting (ins / del) is shown via background colour
   // matching web's `bg-green-300/40` and `bg-red-300/40` accents.

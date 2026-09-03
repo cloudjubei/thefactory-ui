@@ -10,12 +10,7 @@ export interface SpinnerProps {
   className?: string
 }
 
-export default function Spinner({
-  size = 16,
-  color,
-  label,
-  className,
-}: SpinnerProps) {
+export default function Spinner({ size = 16, color, label, className }: SpinnerProps) {
   const { theme } = useNativeTheme()
   const resolvedColor = color ?? theme.text.muted
   if (!label) {

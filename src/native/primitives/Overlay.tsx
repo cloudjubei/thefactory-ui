@@ -62,10 +62,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       {entries.length > 0 && (
         // High zIndex so portalled overlays sit above the nav drawer
         // (`nativeZIndex.modal` = 1100) and any other in-tree layered surface.
-        <View
-          style={[StyleSheet.absoluteFill, { zIndex: 10000 }]}
-          pointerEvents="box-none"
-        >
+        <View style={[StyleSheet.absoluteFill, { zIndex: 10000 }]} pointerEvents="box-none">
           {entries.map((entry) => (
             <View key={entry.id} style={StyleSheet.absoluteFill} pointerEvents="box-none">
               {entry.node}

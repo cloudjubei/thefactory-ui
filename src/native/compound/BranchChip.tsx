@@ -1,11 +1,6 @@
 import { Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import {
-  nativeLightStatus,
-  nativePalette,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeLightStatus, nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type BranchChipType = 'local' | 'remote' | 'current' | 'same' | 'updated' | 'story'

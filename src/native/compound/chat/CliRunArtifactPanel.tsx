@@ -125,7 +125,9 @@ function CheckRow({ row }: { row: ReviewCheckRow }) {
  * Expanding only reveals the per-file diffs; the diff loads eagerly so the
  * action row reflects real state while collapsed.
  */
-export default function CliRunArtifactPanel({ runId, projectId,
+export default function CliRunArtifactPanel({
+  runId,
+  projectId,
   onSendMessage,
 }: CliRunArtifactPanelProps) {
   const { theme } = useNativeTheme()

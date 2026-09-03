@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useActiveProject, useProjects } from "../../../headless"
-import { useIngestion } from "../../../headless"
-import type { IngestionJobState } from "../../../headless"
-import { Alert } from "../.."
-import { Button } from "../.."
-import { Surface } from "../.."
+import { useActiveProject, useProjects } from '../../../headless'
+import { useIngestion } from '../../../headless'
+import type { IngestionJobState } from '../../../headless'
+import { Alert } from '../..'
+import { Button } from '../..'
+import { Surface } from '../..'
 
 export default function IngestionPanel() {
   const { jobs, startProjectIngest, startGlobalIngest, dismissJob } = useIngestion()

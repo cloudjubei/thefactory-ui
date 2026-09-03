@@ -1,11 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
-import {
-  nativeFontFamilies,
-  nativeRadii,
-  nativeSpace,
-} from '../../../../tokens/native'
+import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { MonoText, SectionTitle, SecondaryText } from './components'
 
@@ -22,10 +18,7 @@ function formatValue(value: unknown): string {
 // chat-field previews — a plain `Current` / `Updated` block already lets
 // the user compare values. (Mirrors the simplification web makes when the
 // `sideBySide` flag is on.)
-function diffLines(
-  beforeText: string,
-  afterText: string,
-): { added: string[]; removed: string[] } {
+function diffLines(beforeText: string, afterText: string): { added: string[]; removed: string[] } {
   if (beforeText === afterText) return { added: [], removed: [] }
   const beforeSet = new Set(beforeText.split(/\r?\n/))
   const afterSet = new Set(afterText.split(/\r?\n/))
@@ -105,9 +98,7 @@ export function FieldDiff({
           ) : null}
         </View>
       ) : (
-        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-          No visible changes
-        </Text>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>No visible changes</Text>
       )}
     </View>
   )
@@ -196,9 +187,7 @@ export function PatchPreview({
           ))}
         </View>
       ) : (
-        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-          No changed fields
-        </Text>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>No changed fields</Text>
       )}
     </View>
   )

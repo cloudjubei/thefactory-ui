@@ -1,11 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, SectionList, Text, View } from 'react-native'
-import type {
-  SectionListData,
-  SectionListRenderItem,
-  StyleProp,
-  ViewStyle,
-} from 'react-native'
+import type { SectionListData, SectionListRenderItem, StyleProp, ViewStyle } from 'react-native'
 import Code from '../Code'
 import Spinner from '../../primitives/Spinner'
 import { IconChevronDown, IconChevronRight } from '../../icons'
@@ -66,10 +61,7 @@ export function TestResultsList({
     () => tests.filter((t) => (t.failures?.length || 0) > 0 || t.status === 'fail'),
     [tests],
   )
-  const skippedFiles = useMemo(
-    () => tests.filter((t) => (t.summary?.skipped || 0) > 0),
-    [tests],
-  )
+  const skippedFiles = useMemo(() => tests.filter((t) => (t.summary?.skipped || 0) > 0), [tests])
   const passing = useMemo(
     () => tests.filter((t) => (t.summary?.passed || 0) > 0 && t.status === 'ok'),
     [tests],
@@ -136,7 +128,10 @@ export function TestResultsList({
     open,
   ])
 
-  const keyExtractor = useCallback((item: TestResultLike, idx: number) => `${item.filePath}-${idx}`, [])
+  const keyExtractor = useCallback(
+    (item: TestResultLike, idx: number) => `${item.filePath}-${idx}`,
+    [],
+  )
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<TestResultLike, Section> }) => (
@@ -311,9 +306,7 @@ function FileHeader({ t }: { t: TestResultLike }) {
         <Text style={{ fontSize: 12, color: '#15803d' }}>{`✓ ${t.summary.passed}`}</Text>
         <Text style={{ fontSize: 12, color: '#b91c1c' }}>{`✗ ${t.summary.failed}`}</Text>
         <Text style={{ fontSize: 12, color: '#b45309' }}>{`○ ${t.summary.skipped}`}</Text>
-        {dur ? (
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>{`• ${dur}`}</Text>
-        ) : null}
+        {dur ? <Text style={{ fontSize: 12, color: theme.text.muted }}>{`• ${dur}`}</Text> : null}
       </View>
     </View>
   )

@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import {
-  nativeMotion,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeMotion, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import { Button } from './Button'
 import { OverlayPortal } from './Overlay'
@@ -185,9 +180,7 @@ export function Modal({
                         opacity: pressed ? 0.6 : 0.85,
                       })}
                     >
-                      <Text style={{ fontSize: 18, color: theme.text.secondary }}>
-                        ×
-                      </Text>
+                      <Text style={{ fontSize: 18, color: theme.text.secondary }}>×</Text>
                     </Pressable>
                   )}
                 </View>

@@ -97,9 +97,7 @@ function AddChip({
       <IconPlus size={12} color={theme.accent.primary} />
       {/* Border + leading icon stay accent.primary (blue), but the label uses
        *  text.primary so the chip reads as a neutral pill with a blue affordance. */}
-      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
-        {label}
-      </Text>
+      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>{label}</Text>
     </Pressable>
   )
 }
@@ -299,9 +297,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
                     backgroundColor: theme.surface.muted,
                   }}
                 >
-                  <Text style={{ fontSize: 12, color: theme.accent.primary }}>
-                    #{dep}
-                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.accent.primary }}>#{dep}</Text>
                   <IconClose size={12} color={theme.text.muted} />
                 </Pressable>
               ),

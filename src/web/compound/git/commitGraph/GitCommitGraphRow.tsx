@@ -1,4 +1,8 @@
-import { LANE_COLORS, type GraphNode, type GitLogRefLike } from '../../../../headless/utils/gitCommitGraph'
+import {
+  LANE_COLORS,
+  type GraphNode,
+  type GitLogRefLike,
+} from '../../../../headless/utils/gitCommitGraph'
 
 const ROW_HEIGHT = 32
 const LANE_WIDTH = 14

@@ -178,9 +178,7 @@ export function CoverageTable({ data, renderActions }: CoverageTableProps) {
       </View>
 
       {rows.length === 0 ? (
-        <Text style={{ fontSize: 13, color: theme.text.muted }}>
-          No coverage data found.
-        </Text>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>No coverage data found.</Text>
       ) : (
         rows.map((f) => {
           const uncoveredText = formatUncoveredLines(f.uncovered_lines)

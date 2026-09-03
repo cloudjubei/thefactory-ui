@@ -354,7 +354,9 @@ export function ModelChip({
             backgroundColor: nativePalette.red[500],
           }}
         >
-          <Text style={{ fontSize: 8, fontWeight: '700', lineHeight: 10, color: '#ffffff' }}>!</Text>
+          <Text style={{ fontSize: 8, fontWeight: '700', lineHeight: 10, color: '#ffffff' }}>
+            !
+          </Text>
         </View>
       )}
       <View style={{ alignItems: 'center', maxWidth: 60 }}>

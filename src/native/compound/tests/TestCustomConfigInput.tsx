@@ -112,9 +112,7 @@ export function TestCustomConfigInput({
                   style={{
                     fontFamily: 'Menlo',
                     fontSize: 11,
-                    color: isActive
-                      ? theme.accent.primary
-                      : theme.text.secondary,
+                    color: isActive ? theme.accent.primary : theme.text.secondary,
                   }}
                 >
                   {c.label ?? c.path}

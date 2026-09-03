@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { useChats } from "../../../headless"
-import { useStories } from "../../../headless"
-import { useActiveProject } from "../../../headless"
-import { useProjectsGroups } from "../../../headless"
-import { buildChatPromptVariables, interpolatePrompt } from "../../../headless"
-import type { ChatContext } from "../../../headless/api"
-import { SystemPromptViewerModal } from "../.."
+import { useChats } from '../../../headless'
+import { useStories } from '../../../headless'
+import { useActiveProject } from '../../../headless'
+import { useProjectsGroups } from '../../../headless'
+import { buildChatPromptVariables, interpolatePrompt } from '../../../headless'
+import type { ChatContext } from '../../../headless/api'
+import { SystemPromptViewerModal } from '../..'
 
 export type SystemPromptViewerConnectedProps = {
   isOpen: boolean

@@ -9,7 +9,14 @@ export interface AppDeepLink {
  * params expo-router merges into `useLocalSearchParams` (web's `useSearchParams` carries only the query,
  * so these are harmless there).
  */
-const ROUTE_PARAM_KEYS = new Set(['view', 'projectId', 'tab', 'contextPath', 'contextKey', 'groupId'])
+const ROUTE_PARAM_KEYS = new Set([
+  'view',
+  'projectId',
+  'tab',
+  'contextPath',
+  'contextKey',
+  'groupId',
+])
 
 /**
  * Extract the app deep-link ({@link AppDeepLink}) from the App tab's route params — the `?view=<v>&…`

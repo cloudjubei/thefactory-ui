@@ -1,5 +1,8 @@
 import React, { useCallback, useMemo } from 'react'
-import { FileMentionsTextarea as FileMentionsTextareaPackage, type ReferenceSuggestion } from '../..'
+import {
+  FileMentionsTextarea as FileMentionsTextareaPackage,
+  type ReferenceSuggestion,
+} from '../..'
 import { rankMentionMatches } from '../../../headless'
 import { useFiles } from '../../../headless'
 import { useStories } from '../../../headless'

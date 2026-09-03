@@ -1,6 +1,11 @@
 import { ActivityIndicator, Text, View } from 'react-native'
 import Tooltip from '../../primitives/Tooltip'
-import { nativePalette, nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../../tokens/native'
+import {
+  nativePalette,
+  nativeRadii,
+  nativeSpace,
+  type NativeSemanticTheme,
+} from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 // Library-internal status union. The original `ChatState` from `thefactory-tools`
@@ -56,9 +61,7 @@ export default function StatusChip({ state, label }: StatusChipProps) {
   const text = label ?? state
   const colors = stateColors(theme)[state]
   return (
-    <Tooltip
-      content={<Text style={{ fontSize: 12, color: theme.text.primary }}>{text}</Text>}
-    >
+    <Tooltip content={<Text style={{ fontSize: 12, color: theme.text.primary }}>{text}</Text>}>
       <View
         accessibilityLabel={text}
         accessibilityState={state === 'running' ? { busy: true } : undefined}

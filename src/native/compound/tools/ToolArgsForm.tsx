@@ -30,9 +30,7 @@ export default function ToolArgsForm({
   const entries = Object.entries(properties)
   if (entries.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: theme.text.muted }}>
-        This tool has no arguments.
-      </Text>
+      <Text style={{ fontSize: 13, color: theme.text.muted }}>This tool has no arguments.</Text>
     )
   }
   return (

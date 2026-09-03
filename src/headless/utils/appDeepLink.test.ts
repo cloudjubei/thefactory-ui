@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  appDeepLinkFromParams,
-  serializeAppDeepLink,
-  shouldPushDeepLink,
-} from './appDeepLink'
+import { appDeepLinkFromParams, serializeAppDeepLink, shouldPushDeepLink } from './appDeepLink'
 
 describe('appDeepLinkFromParams', () => {
   it('returns undefined when there is no view param', () => {
@@ -20,7 +16,13 @@ describe('appDeepLinkFromParams', () => {
 
   it('drops route/path params (projectId, tab) that mobile merges in', () => {
     expect(
-      appDeepLinkFromParams({ projectId: 'p1', tab: 'app', view: 'xai', scope: 'all', focus: 'r9' }),
+      appDeepLinkFromParams({
+        projectId: 'p1',
+        tab: 'app',
+        view: 'xai',
+        scope: 'all',
+        focus: 'r9',
+      }),
     ).toEqual({ view: 'xai', params: { scope: 'all', focus: 'r9' } })
   })
 

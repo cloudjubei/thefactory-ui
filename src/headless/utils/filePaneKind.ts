@@ -118,8 +118,7 @@ export function classifyFileByExtension(path: string | null | undefined): FilePa
   const lastDot = basename.lastIndexOf('.')
   // `lastDot === 0` is a leading-dot dotfile (`.gitignore`) — the extension
   // is the rest of the name. `lastDot < 0` means no extension at all.
-  const ext =
-    lastDot > 0 ? basename.slice(lastDot + 1) : lastDot === 0 ? basename.slice(1) : ''
+  const ext = lastDot > 0 ? basename.slice(lastDot + 1) : lastDot === 0 ? basename.slice(1) : ''
   if (MARKDOWN_EXTS.has(ext)) return 'markdown'
   if (HTML_EXTS.has(ext)) return 'html'
   if (IMAGE_EXTS.has(ext)) return 'image'

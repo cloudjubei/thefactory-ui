@@ -106,7 +106,9 @@ function ToolCallCardInner({
   // one-liner when no single field stands in for the call.
   const argDisplay = useMemo(() => {
     if (!hasArgs) return null
-    return toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+    return (
+      toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+    )
   }, [hasArgs, toolCall])
   const timeLabel = durationMs ? formatDurationMs(durationMs) : ''
 

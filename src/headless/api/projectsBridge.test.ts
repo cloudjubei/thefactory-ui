@@ -36,7 +36,9 @@ describe('dispatchProjectsBridge', () => {
   })
 
   it('throws on an unknown projects op', async () => {
-    await expect(dispatchProjectsBridge({ type: 'overseer:projects.nope' })).rejects.toThrow(/unknown/i)
+    await expect(dispatchProjectsBridge({ type: 'overseer:projects.nope' })).rejects.toThrow(
+      /unknown/i,
+    )
   })
 
   it('surfaces the real backend error message from the axios response body', async () => {

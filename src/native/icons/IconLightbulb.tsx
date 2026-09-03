@@ -2,7 +2,15 @@ import Svg, { Path } from 'react-native-svg'
 
 export function IconLightbulb({ size = 24, color }: { size?: number; color?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      color={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M9 18h6" stroke="#FB923C" strokeWidth="2" />
       <Path d="M10 22h4" stroke="#FB923C" strokeWidth="2" />
       <Path

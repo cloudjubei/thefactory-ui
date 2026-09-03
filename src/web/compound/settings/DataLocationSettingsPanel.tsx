@@ -1,5 +1,5 @@
-import { setProjectDataLocation } from "../../../headless/api"
-import { useActiveProject } from "../../../headless"
+import { setProjectDataLocation } from '../../../headless/api'
+import { useActiveProject } from '../../../headless'
 import DataLocationPanel, { type DataLocation } from './DataLocationPanel'
 
 /**

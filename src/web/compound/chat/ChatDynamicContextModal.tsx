@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { useChats } from "../../../headless"
-import type { ChatContext } from "../../../headless/api"
-import { Modal } from "../.."
+import { useChats } from '../../../headless'
+import type { ChatContext } from '../../../headless/api'
+import { Modal } from '../..'
 
 export type ChatDynamicContextModalProps = {
   isOpen: boolean

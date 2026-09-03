@@ -49,14 +49,11 @@ export default function ActionMenu({ isOpen, onClose, title, actions }: ActionMe
               paddingVertical: nativeSpace[3],
               paddingHorizontal: nativeSpace[3],
               borderRadius: nativeRadii[3],
-              backgroundColor:
-                pressed && !a.disabled ? theme.surface.hover : 'transparent',
+              backgroundColor: pressed && !a.disabled ? theme.surface.hover : 'transparent',
               opacity: a.disabled ? 0.5 : 1,
             })}
           >
-            {a.icon ? (
-              <View style={{ width: 24, alignItems: 'center' }}>{a.icon}</View>
-            ) : null}
+            {a.icon ? <View style={{ width: 24, alignItems: 'center' }}>{a.icon}</View> : null}
             <View style={{ flex: 1 }}>
               <Text
                 numberOfLines={1}

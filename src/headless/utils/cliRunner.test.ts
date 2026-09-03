@@ -1614,7 +1614,12 @@ describe('normalizeCliTranscript — ACP tool identity', () => {
       at: 2000,
       kind: 'tool-result' as const,
       payload: {
-        acp: { sessionUpdate: 'tool_call_update', toolCallId: 't3', title: 'grep', status: 'completed' },
+        acp: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 't3',
+          title: 'grep',
+          status: 'completed',
+        },
       },
     }
     const tool = normalizeCliTranscript([call, vague]).find((s) => s.kind === 'tool')

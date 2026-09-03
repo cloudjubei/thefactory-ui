@@ -117,7 +117,9 @@ export default function BinaryDiffView({
     reason === 'binary' ? 'Binary file — no text diff' : "Couldn't parse this diff as text"
   const corruptionNote = reasonLabel(recovery?.after.reason) || reasonLabel(recovery?.before.reason)
   const delta =
-    typeof beforeSize === 'number' && typeof afterSize === 'number' ? afterSize - beforeSize : undefined
+    typeof beforeSize === 'number' && typeof afterSize === 'number'
+      ? afterSize - beforeSize
+      : undefined
   // "Apply" only helps when the on-disk side is corrupt; when only the
   // committed/staged side is binary, the working copy is already clean → commit.
   const workingFileCorrupt = !!recovery?.after.wasBinary
@@ -184,8 +186,8 @@ export default function BinaryDiffView({
             {applied.removedBytes > 0
               ? `✓ Removed ${applied.removedBytes} bytes — the working file is now valid text.`
               : '✓ The working file is already valid text — nothing to rewrite on disk.'}{' '}
-            If this still shows as binary, the corrupted version is the committed/staged one — commit
-            your changes to replace it.
+            If this still shows as binary, the corrupted version is the committed/staged one —
+            commit your changes to replace it.
           </Text>
         ) : null}
       </View>

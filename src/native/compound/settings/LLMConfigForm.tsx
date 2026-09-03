@@ -1,11 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import {
   extractErrorMessage,
@@ -318,17 +311,13 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           >
             <IconRobot
               size={14}
-              color={
-                mode.isAgentActive ? nativeLightStatus.done.bg : theme.accent.primary
-              }
+              color={mode.isAgentActive ? nativeLightStatus.done.bg : theme.accent.primary}
             />
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: '500',
-                color: mode.isAgentActive
-                  ? nativeLightStatus.done.bg
-                  : theme.accent.primary,
+                color: mode.isAgentActive ? nativeLightStatus.done.bg : theme.accent.primary,
               }}
             >
               {mode.isAgentActive ? 'Agent Active' : 'Activate Agent'}
@@ -344,17 +333,13 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
           >
             <IconChat
               size={14}
-              color={
-                mode.isChatActive ? nativeLightStatus.done.bg : theme.accent.primary
-              }
+              color={mode.isChatActive ? nativeLightStatus.done.bg : theme.accent.primary}
             />
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: '500',
-                color: mode.isChatActive
-                  ? nativeLightStatus.done.bg
-                  : theme.accent.primary,
+                color: mode.isChatActive ? nativeLightStatus.done.bg : theme.accent.primary,
               }}
             >
               {mode.isChatActive ? 'Chat Active' : 'Activate Chat'}
@@ -367,7 +352,9 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
               if (!mode.isActivityActive) mode.onActivateActivity()
             }}
             accessibilityLabel={
-              mode.isActivityActive ? 'Active for background activities' : 'Use for background activities'
+              mode.isActivityActive
+                ? 'Active for background activities'
+                : 'Use for background activities'
             }
           >
             <IconRocket
@@ -447,11 +434,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             marginBottom: 4,
           }}
         >
-          <Text
-            style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}
-          >
-            Model
-          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>Model</Text>
           {providerSupportsRefresh ? (
             <Button
               variant="outline"

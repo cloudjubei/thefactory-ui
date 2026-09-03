@@ -25,7 +25,13 @@ export default function ToolArgInline({ display }: { display: ToolArgDisplay | n
   if (display.kind === 'paths') {
     return (
       <View
-        style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', overflow: 'hidden' }}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          flexDirection: 'row',
+          alignItems: 'baseline',
+          overflow: 'hidden',
+        }}
       >
         {display.paths.map((p, i) => (
           <View

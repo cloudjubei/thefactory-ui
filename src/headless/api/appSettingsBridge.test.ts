@@ -110,9 +110,7 @@ describe('dispatchAppSettingsBridge', () => {
   })
 
   it('returns undefined for non-settings messages', async () => {
-    expect(
-      await dispatchAppSettingsBridge('p1', { type: 'overseer:data.query' }),
-    ).toBeUndefined()
+    expect(await dispatchAppSettingsBridge('p1', { type: 'overseer:data.query' })).toBeUndefined()
     expect(getUserSetting).not.toHaveBeenCalled()
   })
 

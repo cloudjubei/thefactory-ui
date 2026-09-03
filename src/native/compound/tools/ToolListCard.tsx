@@ -47,10 +47,7 @@ export default function ToolListCard({
       >
         <Text style={{ fontFamily: 'Menlo' }}>{name}</Text>
       </Text>
-      <Text
-        style={{ fontSize: 12, color: theme.text.secondary, marginTop: 4 }}
-        numberOfLines={2}
-      >
+      <Text style={{ fontSize: 12, color: theme.text.secondary, marginTop: 4 }} numberOfLines={2}>
         {description || 'No description provided.'}
       </Text>
     </Pressable>

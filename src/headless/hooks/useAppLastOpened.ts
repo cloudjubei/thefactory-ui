@@ -46,10 +46,7 @@ export function useAppLastOpened(
     [store, projectId],
   )
 
-  const getLastOpenedForProject = useCallback(
-    (pid: string) => store.getLastOpened(pid),
-    [store],
-  )
+  const getLastOpenedForProject = useCallback((pid: string) => store.getLastOpened(pid), [store])
 
   return { lastOpenedIso, markOpened, getLastOpenedForProject }
 }

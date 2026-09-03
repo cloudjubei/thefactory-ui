@@ -10,7 +10,15 @@ export function IconThumbDown({
   filled?: boolean
 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      color={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path
         d="M10 15v4a3 3 0 0 0 3 3l1-5 4-5V4H9A3 3 0 0 0 6 7v6a2 2 0 0 0 2 2h2z"
         stroke="#EF4444"

@@ -67,9 +67,7 @@ export default function ToolResultPanel({
   return (
     <View style={{ gap: nativeSpace[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          Result
-        </Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>Result</Text>
         <Text
           style={{
             fontSize: 11,
@@ -97,9 +95,7 @@ export default function ToolResultPanel({
               borderRadius: nativeRadii[2],
               borderWidth: 1,
               borderColor: theme.border.subtle,
-              backgroundColor: pressed
-                ? theme.surface.muted
-                : theme.surface.overlay,
+              backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
             })}
           >
             <Text style={{ fontSize: 11, color: theme.text.secondary }}>Copy</Text>

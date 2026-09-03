@@ -777,11 +777,15 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
           // tool in a later update, so identity is adopted on EVERY update —
           // including the non-terminal ones, or a still-running row stays
           // labelled "MCP: tool" for as long as it runs.
-          if (res.toolName !== undefined && isMoreSpecificToolName(existing.toolName, res.toolName)) {
+          if (
+            res.toolName !== undefined &&
+            isMoreSpecificToolName(existing.toolName, res.toolName)
+          ) {
             existing.toolName = res.toolName
             existing.origin = res.origin
           }
-          if (res.input !== undefined && isEmptyToolInput(existing.input)) existing.input = res.input
+          if (res.input !== undefined && isEmptyToolInput(existing.input))
+            existing.input = res.input
           // A progress update leaves the call in flight; only a terminal one
           // resolves it.
           if (res.resultType !== 'running') {

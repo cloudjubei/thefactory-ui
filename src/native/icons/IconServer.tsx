@@ -2,7 +2,15 @@ import Svg, { Rect, Circle, Path } from 'react-native-svg'
 
 export function IconServer({ size = 24, color }: { size?: number; color?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      color={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Rect x="4" y="4" width="16" height="6" rx="2" stroke="#3B82F6" strokeWidth="2" />
       <Rect x="4" y="14" width="16" height="6" rx="2" stroke="#6366F1" strokeWidth="2" />
       <Circle cx="7" cy="7" r="1" fill="#10B981" />

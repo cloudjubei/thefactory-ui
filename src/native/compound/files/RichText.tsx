@@ -19,7 +19,12 @@ export interface RichTextProps {
   textColor?: string
 }
 
-export default function RichText({ text, onResolveFile, renderDependency, textColor }: RichTextProps) {
+export default function RichText({
+  text,
+  onResolveFile,
+  renderDependency,
+  textColor,
+}: RichTextProps) {
   const { theme } = useNativeTheme()
   const TOKEN_PILL_STYLE = {
     paddingHorizontal: nativeSpace[3],
@@ -61,9 +66,7 @@ export default function RichText({ text, onResolveFile, renderDependency, textCo
                 backgroundColor: 'transparent',
               }}
             >
-              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-                @{seg.value}
-              </Text>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>@{seg.value}</Text>
             </View>
           )
         }

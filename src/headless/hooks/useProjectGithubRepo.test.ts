@@ -25,7 +25,9 @@ describe('sanitizeRepoName', () => {
 
 describe('githubRepoReadiness', () => {
   it('is not ready and not blocking when the option is off', () => {
-    expect(githubRepoReadiness({ enabled: false, connected: true, repoName: 'x', status: 'available' })).toEqual({
+    expect(
+      githubRepoReadiness({ enabled: false, connected: true, repoName: 'x', status: 'available' }),
+    ).toEqual({
       ready: false,
       validationError: undefined,
     })
@@ -33,34 +35,64 @@ describe('githubRepoReadiness', () => {
 
   it('is ready only when connected with a non-empty, non-taken name', () => {
     expect(
-      githubRepoReadiness({ enabled: true, connected: true, repoName: 'carbuyer', status: 'available' }).ready,
+      githubRepoReadiness({
+        enabled: true,
+        connected: true,
+        repoName: 'carbuyer',
+        status: 'available',
+      }).ready,
     ).toBe(true)
     // an unchecked-but-present name is still submittable (backend re-validates)
     expect(
-      githubRepoReadiness({ enabled: true, connected: true, repoName: 'carbuyer', status: 'unknown' }).ready,
+      githubRepoReadiness({
+        enabled: true,
+        connected: true,
+        repoName: 'carbuyer',
+        status: 'unknown',
+      }).ready,
     ).toBe(true)
   })
 
   it('blocks when enabled but not connected', () => {
-    const r = githubRepoReadiness({ enabled: true, connected: false, repoName: 'x', status: 'unknown' })
+    const r = githubRepoReadiness({
+      enabled: true,
+      connected: false,
+      repoName: 'x',
+      status: 'unknown',
+    })
     expect(r.ready).toBe(false)
     expect(r.validationError).toMatch(/connect a github account/i)
   })
 
   it('blocks when enabled + connected but the name is empty', () => {
-    const r = githubRepoReadiness({ enabled: true, connected: true, repoName: '  ', status: 'unknown' })
+    const r = githubRepoReadiness({
+      enabled: true,
+      connected: true,
+      repoName: '  ',
+      status: 'unknown',
+    })
     expect(r.ready).toBe(false)
     expect(r.validationError).toMatch(/name is required/i)
   })
 
   it('blocks when the name is taken', () => {
-    const r = githubRepoReadiness({ enabled: true, connected: true, repoName: 'taken', status: 'taken' })
+    const r = githubRepoReadiness({
+      enabled: true,
+      connected: true,
+      repoName: 'taken',
+      status: 'taken',
+    })
     expect(r.ready).toBe(false)
     expect(r.validationError).toMatch(/already taken/i)
   })
 
   it('blocks (connect first) while the connection is still resolving', () => {
-    const r = githubRepoReadiness({ enabled: true, connected: null, repoName: 'x', status: 'checking' })
+    const r = githubRepoReadiness({
+      enabled: true,
+      connected: null,
+      repoName: 'x',
+      status: 'checking',
+    })
     expect(r.ready).toBe(false)
     expect(r.validationError).toMatch(/connect a github account/i)
   })

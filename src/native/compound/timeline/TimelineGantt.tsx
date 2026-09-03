@@ -231,9 +231,7 @@ export function TimelineGantt({
             paddingHorizontal: 8,
           }}
         >
-          <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.muted }}>
-            Stories
-          </Text>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.muted }}>Stories</Text>
         </View>
         <ScrollView
           ref={headerScrollRef}
@@ -314,9 +312,7 @@ export function TimelineGantt({
               paddingHorizontal: 8,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.text.muted }}>
-              Labels
-            </Text>
+            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.text.muted }}>Labels</Text>
           </View>
           <ScrollView
             ref={labelStripScrollRef}
@@ -384,10 +380,7 @@ export function TimelineGantt({
                   borderBottomColor: theme.border.subtle,
                 }}
               >
-                <Text
-                  numberOfLines={2}
-                  style={{ fontSize: 11, color: theme.text.primary }}
-                >
+                <Text numberOfLines={2} style={{ fontSize: 11, color: theme.text.primary }}>
                   {item.title || '(untitled)'}
                 </Text>
               </View>

@@ -3,7 +3,12 @@ import { Linking, ScrollView, Text, View } from 'react-native'
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
 import { extractErrorMessage } from '../../../headless/api'
-import type { CliAuthCacheEntry, CliReasoningEffort, CliTool, ModelInfo } from '../../../headless/api'
+import type {
+  CliAuthCacheEntry,
+  CliReasoningEffort,
+  CliTool,
+  ModelInfo,
+} from '../../../headless/api'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult } from '../../../headless'
 import { loginAwaitsCode, parseLoginUrl } from '../../../headless/utils/cliRunner'
@@ -48,7 +53,10 @@ type LiveProbeState =
   | { kind: 'result'; result: CliLiveProbeResult }
   | { kind: 'error'; message: string }
 
-type LiveModelsProbeState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string }
+type LiveModelsProbeState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
 
 /**
  * Native peer of web's `CliConfigForm` — the CLI credential LIST. Shows every
@@ -483,7 +491,9 @@ export function CliConfigForm() {
                       onPress={() => void runLiveProbe(cli, cache.id)}
                     >
                       <IconPlay size={14} color={theme.accent.primary} />
-                      <Text style={{ fontSize: 13, fontWeight: '500', color: theme.accent.primary }}>
+                      <Text
+                        style={{ fontSize: 13, fontWeight: '500', color: theme.accent.primary }}
+                      >
                         Test (live)
                       </Text>
                     </Button>
@@ -561,7 +571,11 @@ export function CliConfigForm() {
                             keyboardShouldPersistTaps="handled"
                           >
                             <Text
-                              style={{ fontFamily: 'Courier', fontSize: 11, color: theme.text.primary }}
+                              style={{
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                color: theme.text.primary,
+                              }}
                             >
                               {liveState.result.transcriptHead}
                             </Text>
@@ -620,10 +634,7 @@ export function CliConfigForm() {
                         </Button>
                       </View>
                       {reauthSignInUrl ? (
-                        <Button
-                          size="sm"
-                          onPress={() => void Linking.openURL(reauthSignInUrl)}
-                        >
+                        <Button size="sm" onPress={() => void Linking.openURL(reauthSignInUrl)}>
                           Open the sign-in page to finish
                         </Button>
                       ) : (
@@ -675,7 +686,11 @@ export function CliConfigForm() {
                           keyboardShouldPersistTaps="handled"
                         >
                           <Text
-                            style={{ fontFamily: 'Courier', fontSize: 11, color: theme.text.secondary }}
+                            style={{
+                              fontFamily: 'Courier',
+                              fontSize: 11,
+                              color: theme.text.secondary,
+                            }}
                           >
                             {reauthOut}
                           </Text>

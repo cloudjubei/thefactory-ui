@@ -59,19 +59,28 @@ export async function dispatchActivitiesBridge(
     case 'activities.get': {
       const payload = (req.payload ?? {}) as { activityId?: string }
       if (!payload.activityId) throw new Error('activities.get requires an activityId')
-      const res = await getActivity({ path: { projectId, activityId: payload.activityId }, throwOnError: true })
+      const res = await getActivity({
+        path: { projectId, activityId: payload.activityId },
+        throwOnError: true,
+      })
       return res.data
     }
     case 'activities.abort': {
       const payload = (req.payload ?? {}) as { activityId?: string }
       if (!payload.activityId) throw new Error('activities.abort requires an activityId')
-      const res = await abortActivity({ path: { projectId, activityId: payload.activityId }, throwOnError: true })
+      const res = await abortActivity({
+        path: { projectId, activityId: payload.activityId },
+        throwOnError: true,
+      })
       return res.data
     }
     case 'activities.resume': {
       const payload = (req.payload ?? {}) as { activityId?: string }
       if (!payload.activityId) throw new Error('activities.resume requires an activityId')
-      const res = await resumeActivity({ path: { projectId, activityId: payload.activityId }, throwOnError: true })
+      const res = await resumeActivity({
+        path: { projectId, activityId: payload.activityId },
+        throwOnError: true,
+      })
       return res.data
     }
     default:

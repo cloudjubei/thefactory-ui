@@ -2,11 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { tryString } from '../../../../headless/utils/toolPreview'
-import {
-  nativePalette,
-  nativeRadii,
-  nativeSpace,
-} from '../../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconChevron } from '../../../icons'
 import { PathDisplay } from '../../PathDisplay'
@@ -102,15 +98,14 @@ export function WriteMultiToolsPreview({
   }
 
   if (resultError) return <ErrorContent message={resultError} />
-  if (preview?.status === 'error') return <ErrorContent message={preview.error || 'Preview failed'} />
+  if (preview?.status === 'error')
+    return <ErrorContent message={preview.error || 'Preview failed'} />
   if (preview?.status === 'pending') return <SpinnerContent />
   if (isInFlight && !multiResults) return <SpinnerContent />
 
   const resultsToShow = multiResults ?? []
   if (resultsToShow.length === 0 && !isInFlight) {
-    return (
-      <Text style={{ fontSize: 11, color: theme.text.secondary }}>No files changed</Text>
-    )
+    return <Text style={{ fontSize: 11, color: theme.text.secondary }}>No files changed</Text>
   }
   if (resultsToShow.length === 0) return <SpinnerContent />
 
@@ -154,9 +149,7 @@ export function WriteMultiToolsPreview({
               style={({ pressed }) => ({
                 paddingHorizontal: nativeSpace[2],
                 paddingVertical: 6,
-                backgroundColor: pressed
-                  ? theme.surface.raised
-                  : theme.surface.overlay,
+                backgroundColor: pressed ? theme.surface.raised : theme.surface.overlay,
               })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>

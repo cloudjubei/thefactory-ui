@@ -2,7 +2,15 @@ import Svg, { Path, Circle } from 'react-native-svg'
 
 export function IconCementMixer({ size = 24, color }: { size?: number; color?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      color={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M3 20h18" stroke="#3B82F6" strokeWidth="2" />
       <Path d="M6 16h7l3-3" stroke="#10B981" strokeWidth="2" />
       <Circle cx="8" cy="18" r="2" stroke="#EF4444" strokeWidth="2" />

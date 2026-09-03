@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useOverseer } from "../../../headless"
-import { Alert, Button, ConfirmDialog, Field, Input, Surface } from "../.."
-import { IconSave } from "../../icons"
+import { useOverseer } from '../../../headless'
+import { Alert, Button, ConfirmDialog, Field, Input, Surface } from '../..'
+import { IconSave } from '../../icons'
 
 export default function OverseerPanel() {
   const { isLoaded, loadError, state, setRemote, removeRemote, push, reset } = useOverseer()

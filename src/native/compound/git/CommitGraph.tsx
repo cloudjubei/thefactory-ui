@@ -226,13 +226,9 @@ export function CommitGraph({
       ListFooterComponent={
         <View style={{ padding: 8, alignItems: 'center' }}>
           {loadingMore ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>
-              Loading more commits…
-            </Text>
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>Loading more commits…</Text>
           ) : !hasMore && commits.length > 0 ? (
-            <Text style={{ fontSize: 10, color: theme.text.muted }}>
-              — End of history —
-            </Text>
+            <Text style={{ fontSize: 10, color: theme.text.muted }}>— End of history —</Text>
           ) : null}
         </View>
       }

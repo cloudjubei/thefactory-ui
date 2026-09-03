@@ -89,9 +89,7 @@ export default function ImageViewer({ uri, headers }: ImageViewerProps) {
     >
       {state === 'loading' ? <ActivityIndicator /> : null}
       {state === 'error' ? (
-        <Text style={{ fontSize: 13, color: theme.text.muted }}>
-          Could not load image.
-        </Text>
+        <Text style={{ fontSize: 13, color: theme.text.muted }}>Could not load image.</Text>
       ) : null}
       <GestureDetector gesture={composed}>
         <Animated.View

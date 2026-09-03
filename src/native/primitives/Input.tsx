@@ -1,12 +1,7 @@
 import { forwardRef, useState } from 'react'
 import { TextInput } from 'react-native'
 import type { StyleProp, TextStyle, TextInput as RNTextInput, TextInputProps } from 'react-native'
-import {
-  nativeControls,
-  nativeLightStatus,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeControls, nativeLightStatus, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type InputSize = 'sm' | 'md' | 'lg'

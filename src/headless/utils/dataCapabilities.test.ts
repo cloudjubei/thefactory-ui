@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { persistAppDataCapabilities } from './dataCapabilities'
-import {
-  DATA_CAPABILITY_RECORD_KEY,
-  DATA_CAPABILITY_RECORD_TYPE,
-} from 'thefactory-tools/constants'
+import { DATA_CAPABILITY_RECORD_KEY, DATA_CAPABILITY_RECORD_TYPE } from 'thefactory-tools/constants'
 
 const MANIFEST = {
   types: [{ type: 'run', label: 'Run' }],

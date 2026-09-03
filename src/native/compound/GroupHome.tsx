@@ -128,9 +128,7 @@ export default function GroupHome({
                 borderRadius: nativeRadii[3],
                 borderWidth: 1,
                 borderColor: theme.border.subtle,
-                backgroundColor: pressed
-                  ? theme.surface.muted
-                  : theme.surface.raised,
+                backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
               })}
             >
               <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
@@ -147,10 +145,7 @@ export default function GroupHome({
                 >
                   {p.title}
                 </Text>
-                <Text
-                  numberOfLines={1}
-                  style={{ fontSize: 11, color: theme.text.muted }}
-                >
+                <Text numberOfLines={1} style={{ fontSize: 11, color: theme.text.muted }}>
                   {p.description ?? p.id}
                 </Text>
               </View>

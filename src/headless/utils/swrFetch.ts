@@ -8,8 +8,7 @@
  *      `ProjectResourceCache.set(projectId, data, etag)`.
  */
 
-export const acceptOkOr304 = (status: number) =>
-  status === 304 || (status >= 200 && status < 300)
+export const acceptOkOr304 = (status: number) => status === 304 || (status >= 200 && status < 300)
 
 export function readEtagHeader(headers: unknown): string | null {
   if (!headers || typeof headers !== 'object') return null

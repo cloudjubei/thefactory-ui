@@ -23,7 +23,10 @@ describe('dispatchActivitiesBridge', () => {
     asMock(runActivity).mockResolvedValue({ data: { activityId: 'a1' } })
     const res = await dispatchActivitiesBridge(
       'p1',
-      { type: 'overseer:activities.start', payload: { activityType: 'build-catalog', params: { a: 1 } } },
+      {
+        type: 'overseer:activities.start',
+        payload: { activityType: 'build-catalog', params: { a: 1 } },
+      },
       'cfg-activity',
     )
     expect(runActivity).toHaveBeenCalledWith({

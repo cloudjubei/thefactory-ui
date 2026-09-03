@@ -6,8 +6,16 @@ describe('toolResultResourceLinks', () => {
     const result = {
       total: 2,
       records: [
-        { key: 'r1', content: { title: 'Run one' }, resourceLink: 'overseer://projects/p/app?run=r1' },
-        { key: 'r2', content: { name: 'Run two' }, resourceLink: 'overseer://projects/p/app?run=r2' },
+        {
+          key: 'r1',
+          content: { title: 'Run one' },
+          resourceLink: 'overseer://projects/p/app?run=r1',
+        },
+        {
+          key: 'r2',
+          content: { name: 'Run two' },
+          resourceLink: 'overseer://projects/p/app?run=r2',
+        },
       ],
     }
     expect(toolResultResourceLinks(result)).toEqual([
@@ -17,7 +25,9 @@ describe('toolResultResourceLinks', () => {
   })
 
   it('falls back to the record key when content has no title/name', () => {
-    const result = { records: [{ key: 'r9', content: {}, resourceLink: 'overseer://projects/p/app' }] }
+    const result = {
+      records: [{ key: 'r9', content: {}, resourceLink: 'overseer://projects/p/app' }],
+    }
     expect(toolResultResourceLinks(result)).toEqual([
       { link: 'overseer://projects/p/app', label: 'r9' },
     ])
@@ -34,7 +44,11 @@ describe('toolResultResourceLinks', () => {
 
   it('handles a single updateProjectRecord result (record, not records)', () => {
     const result = {
-      record: { key: 'h1', content: { title: 'Hypo' }, resourceLink: 'overseer://projects/p/app?x=1' },
+      record: {
+        key: 'h1',
+        content: { title: 'Hypo' },
+        resourceLink: 'overseer://projects/p/app?x=1',
+      },
     }
     expect(toolResultResourceLinks(result)).toEqual([
       { link: 'overseer://projects/p/app?x=1', label: 'Hypo' },
@@ -60,7 +74,9 @@ describe('toolResultResourceLinks', () => {
         { key: 'r2', content: { title: 'B' }, resourceLink: 'overseer://projects/p/app' },
       ],
     }
-    expect(toolResultResourceLinks(result)).toEqual([{ link: 'overseer://projects/p/app', label: 'A' }])
+    expect(toolResultResourceLinks(result)).toEqual([
+      { link: 'overseer://projects/p/app', label: 'A' },
+    ])
   })
 
   it('returns [] for shapes with no links', () => {

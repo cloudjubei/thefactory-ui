@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useWebSearchKeys, useWebSearchBrowserSetting } from "../../../headless"
-import { Alert, SecretInput, Switch } from "../.."
+import { useWebSearchKeys, useWebSearchBrowserSetting } from '../../../headless'
+import { Alert, SecretInput, Switch } from '../..'
 
 // Three fixed providers we surface (same set as `overseer-local`'s
 // WebSearchSettings). Other provider names backed by the backend are still
@@ -97,9 +97,9 @@ export default function WebSearchSettings() {
           label="Use a headed (visible) Chrome for web search"
         />
         <p className="text-[12px] text-(--text-secondary) mt-2 max-w-md">
-          Runs the browser-backed search and page reads in a visible real Chrome instead of headless. This
-          clears more bot-walled shops (better material coverage), but a visible window can briefly steal
-          focus. Takes effect on the next search.
+          Runs the browser-backed search and page reads in a visible real Chrome instead of
+          headless. This clears more bot-walled shops (better material coverage), but a visible
+          window can briefly steal focus. Takes effect on the next search.
         </p>
         {browserError && (
           <Alert className="mt-2">Couldn’t save that setting: {browserError.message}</Alert>

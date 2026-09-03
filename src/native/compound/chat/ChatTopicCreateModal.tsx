@@ -109,9 +109,7 @@ export default function ChatTopicCreateModal({
           />
         </Field>
         {disabledReason ? (
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {disabledReason}
-          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{disabledReason}</Text>
         ) : null}
       </View>
     </Modal>

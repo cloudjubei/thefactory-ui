@@ -1,7 +1,4 @@
-import {
-  DATA_CAPABILITY_RECORD_KEY,
-  DATA_CAPABILITY_RECORD_TYPE,
-} from 'thefactory-tools/constants'
+import { DATA_CAPABILITY_RECORD_KEY, DATA_CAPABILITY_RECORD_TYPE } from 'thefactory-tools/constants'
 import { isDataCapabilityManifest } from 'thefactory-tools/validations'
 import { putProjectDataRecord, type ProjectDataPutInput } from '../api/projectData'
 

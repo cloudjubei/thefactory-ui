@@ -2,12 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { useTooltipState } from '../../headless/hooks/useTooltipState'
-import {
-  nativeMotion,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeMotion, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import { OverlayPortal } from './Overlay'
 
@@ -110,9 +105,7 @@ export default function Tooltip({
                 }}
               >
                 {typeof content === 'string' ? (
-                  <Text style={{ fontSize: 13, color: theme.text.primary }}>
-                    {content}
-                  </Text>
+                  <Text style={{ fontSize: 13, color: theme.text.primary }}>{content}</Text>
                 ) : (
                   content
                 )}

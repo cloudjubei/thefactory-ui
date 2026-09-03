@@ -80,15 +80,19 @@ export default function DbHealthPanel() {
               {starting ? 'Starting…' : 'Start DB container'}
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => void probe()} disabled={loading || starting}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void probe()}
+            disabled={loading || starting}
+          >
             {loading ? 'Checking…' : 'Re-check'}
           </Button>
         </div>
       </div>
       <p className="text-[12px] text-(--text-secondary)">
-        Three independent signals — Docker, raw connectivity, and backend
-        initialisation. Entities, ingestion, and document search all need the
-        last one to be green.
+        Three independent signals — Docker, raw connectivity, and backend initialisation. Entities,
+        ingestion, and document search all need the last one to be green.
       </p>
 
       {loading && !status && <div className="text-sm text-(--text-secondary)">Checking…</div>}
@@ -200,8 +204,8 @@ function ConnectionSection({ status }: { status: DbHealth }) {
   if (!status.configured) {
     return (
       <Indicator tone="muted" label="Not configured">
-        No <code>DATABASE_URL</code> set on the backend. DB-backed features stay
-        unavailable until one is configured and the backend is restarted.
+        No <code>DATABASE_URL</code> set on the backend. DB-backed features stay unavailable until
+        one is configured and the backend is restarted.
       </Indicator>
     )
   }
@@ -230,14 +234,13 @@ function InitialisationSection({ status }: { status: DbHealth }) {
   const label = PHASE_LABEL[phase] ?? phase
   return (
     <Indicator tone={tone} label={`Backend init: ${label}`}>
-      {phase === 'ready' &&
-        'Migrations are applied and the backend is serving DB-backed routes.'}
+      {phase === 'ready' && 'Migrations are applied and the backend is serving DB-backed routes.'}
       {phase === 'connecting' &&
-        "Backend is still bringing up its database layer. DB-backed routes will respond once this finishes."}
+        'Backend is still bringing up its database layer. DB-backed routes will respond once this finishes.'}
       {phase === 'idle' &&
         "Backend hasn't tried to open the database yet — typically only seen right after start."}
       {phase === 'error' &&
-        "Backend tried to initialise the database and failed. It will retry on the next request that needs the DB, or you can restart."}
+        'Backend tried to initialise the database and failed. It will retry on the next request that needs the DB, or you can restart.'}
       {phase === 'unconfigured' && 'No DATABASE_URL configured.'}
     </Indicator>
   )
@@ -270,39 +273,35 @@ function ErrorHint({ status }: { status: DbHealth }) {
 const CATEGORY_HINT: Record<DbErrorCategory, React.ReactNode> = {
   unreachable: (
     <>
-      The backend can't reach the Postgres host or port. Check that the DB
-      container is running and that <code>DATABASE_URL</code> points at the
-      same host+port the container exposes (default <code>localhost:55432</code>
+      The backend can't reach the Postgres host or port. Check that the DB container is running and
+      that <code>DATABASE_URL</code> points at the same host+port the container exposes (default{' '}
+      <code>localhost:55432</code>
       ).
     </>
   ),
   auth: (
     <>
-      The backend reached Postgres but the credentials were rejected. Check the
-      user / password in <code>DATABASE_URL</code> against
+      The backend reached Postgres but the credentials were rejected. Check the user / password in{' '}
+      <code>DATABASE_URL</code> against
       <code>thefactory-db/docker-compose.yml</code>.
     </>
   ),
   'database-missing': (
     <>
       Postgres is up but the named database doesn't exist. Either correct the
-      <code>DATABASE_URL</code> path or create the database
-      (<code>docker compose up -d</code> in <code>thefactory-db/</code> should
-      provision it).
+      <code>DATABASE_URL</code> path or create the database (<code>docker compose up -d</code> in{' '}
+      <code>thefactory-db/</code> should provision it).
     </>
   ),
   timeout: (
     <>
-      The probe gave up before Postgres replied. Often means the host is
-      unreachable (firewall / wrong host), or that <em>backend init</em> is
-      still running migrations — see the <em>Backend init</em> row above.
+      The probe gave up before Postgres replied. Often means the host is unreachable (firewall /
+      wrong host), or that <em>backend init</em> is still running migrations — see the{' '}
+      <em>Backend init</em> row above.
     </>
   ),
   unknown: (
-    <>
-      Unrecognised error. Read the message below and check the backend
-      terminal for stack traces.
-    </>
+    <>Unrecognised error. Read the message below and check the backend terminal for stack traces.</>
   ),
 }
 

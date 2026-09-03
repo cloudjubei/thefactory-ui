@@ -1,11 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { listLlmModels, extractErrorMessage } from "../../../headless/api"
+import { listLlmModels, extractErrorMessage } from '../../../headless/api'
 import type {
   GetLlmConfigResponse,
   LlmConfigCreateInput,
   LlmConfigEditInput,
-} from "../../../headless/api"
+} from '../../../headless/api'
 import { useLLMConfigs } from '../../../headless'
 import {
   Alert,
@@ -19,8 +19,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../.."
-import { IconChat, IconRobot, IconRocket, IconSave } from "../../icons"
+} from '../..'
+import { IconChat, IconRobot, IconRocket, IconSave } from '../../icons'
 
 type Provider = GetLlmConfigResponse['provider']
 
@@ -307,7 +307,11 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             }}
             variant={isActivityActive ? 'success' : 'outline'}
             size="sm"
-            title={isActivityActive ? 'Active for background activities' : 'Use for background activities'}
+            title={
+              isActivityActive
+                ? 'Active for background activities'
+                : 'Use for background activities'
+            }
           >
             <IconRocket className="w-4 h-4 mr-1" />
             {isActivityActive ? 'Activity Active' : 'Activate Activity'}

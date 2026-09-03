@@ -6,12 +6,7 @@ import {
   type ToastMessage,
   type ToastVariant,
 } from '../../headless/hooks/useToastQueue'
-import {
-  nativePalette,
-  nativeRadii,
-  nativeShadows,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativePalette, nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type { ToastMessage, ToastVariant }

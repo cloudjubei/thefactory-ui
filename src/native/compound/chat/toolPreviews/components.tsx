@@ -70,9 +70,7 @@ export function MonoText({ children, style }: { children: ReactNode; style?: obj
 
 export function SecondaryText({ children }: { children: ReactNode }) {
   const { theme } = useNativeTheme()
-  return (
-    <Text style={{ fontSize: 11, color: theme.text.secondary }}>{children}</Text>
-  )
+  return <Text style={{ fontSize: 11, color: theme.text.secondary }}>{children}</Text>
 }
 
 export function PreLimited({

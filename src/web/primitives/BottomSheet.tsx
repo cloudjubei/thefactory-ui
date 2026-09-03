@@ -52,8 +52,10 @@ export function BottomSheet({
   maxHeightFraction,
 }: BottomSheetProps) {
   const isDynamic = minHeightFraction !== undefined || maxHeightFraction !== undefined
-  const dynamicMin = minHeightFraction !== undefined ? `${Math.round(minHeightFraction * 100)}dvh` : undefined
-  const dynamicMax = maxHeightFraction !== undefined ? `${Math.round(maxHeightFraction * 100)}dvh` : undefined
+  const dynamicMin =
+    minHeightFraction !== undefined ? `${Math.round(minHeightFraction * 100)}dvh` : undefined
+  const dynamicMax =
+    maxHeightFraction !== undefined ? `${Math.round(maxHeightFraction * 100)}dvh` : undefined
   // Two-step open/close so the slide transition plays in both directions:
   // `render` keeps the node mounted through the exit animation, `shown`
   // drives the transform/opacity.

@@ -29,11 +29,7 @@ function readSettings(storage: SyncKVStorage, projectId: string | undefined): Pr
   }
 }
 
-function writeSettings(
-  storage: SyncKVStorage,
-  projectId: string,
-  next: ProjectSettings,
-): void {
+function writeSettings(storage: SyncKVStorage, projectId: string, next: ProjectSettings): void {
   try {
     storage.set(storageKey(projectId), JSON.stringify(next))
   } catch {

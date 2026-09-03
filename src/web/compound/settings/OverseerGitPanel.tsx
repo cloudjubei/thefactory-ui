@@ -29,8 +29,8 @@ export default function OverseerGitPanel({ onOpen }: OverseerGitPanelProps) {
 
       <Surface className="flex flex-col gap-3 p-4">
         <p className="text-sm opacity-80">
-          Inspect the overseer repo&apos;s working tree, branches, and commit log. Mutations
-          are handled automatically; this view is read-only.
+          Inspect the overseer repo&apos;s working tree, branches, and commit log. Mutations are
+          handled automatically; this view is read-only.
         </p>
         <div>
           <Button variant="primary" onClick={onOpen}>

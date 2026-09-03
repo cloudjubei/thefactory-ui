@@ -85,13 +85,7 @@ function highlightDiff(code: string): Seg[] {
   lines.forEach((line, i) => {
     const ch = line.charAt(0)
     const color =
-      ch === '+'
-        ? PALETTE.add
-        : ch === '-'
-          ? PALETTE.del
-          : ch === '@'
-            ? PALETTE.hunk
-            : PALETTE.text
+      ch === '+' ? PALETTE.add : ch === '-' ? PALETTE.del : ch === '@' ? PALETTE.hunk : PALETTE.text
     out.push({ v: line, c: color })
     if (i < lines.length - 1) out.push({ v: '\n', c: PALETTE.text })
   })

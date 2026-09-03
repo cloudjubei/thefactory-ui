@@ -137,26 +137,30 @@ function activitySuffix(elapsedMs: number, approxTokens: number): string {
  */
 export function describeCliRunActivity(input: CliRunActivityInput): CliRunActivity {
   const suffix = activitySuffix(input.elapsedMs, input.approxTokens)
+  // Blocked lines carry NO elapsed/token readout: the suffix is evidence the
+  // agent is working against a clock, and a run parked on the human has none
+  // — a ticking "(5s)" there read as a stuck spinner during a wait that may
+  // legitimately last hours.
   const blocked = input.blocked
   if (blocked.length === 1) {
     const only = blocked[0]
     if (only.isQuestion) {
       return {
         tone: 'blocked',
-        label: `Waiting for your answer${suffix}`,
+        label: 'Waiting for your answer',
         sublabel: CLI_QUESTION_SUBLABEL,
       }
     }
     return {
       tone: 'blocked',
-      label: `Waiting for your approval: ${only.toolName ?? only.label}${suffix}`,
+      label: `Waiting for your approval: ${only.toolName ?? only.label}`,
       sublabel: CLI_BLOCKED_SUBLABEL,
     }
   }
   if (blocked.length > 1) {
     return {
       tone: 'blocked',
-      label: `Waiting for you on ${blocked.length} actions${suffix}`,
+      label: `Waiting for you on ${blocked.length} actions`,
       sublabel: blocked.some((item) => item.isQuestion)
         ? CLI_QUESTION_SUBLABEL
         : CLI_BLOCKED_SUBLABEL,

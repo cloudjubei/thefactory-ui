@@ -94,9 +94,7 @@ export function WriteToolsPreview({ toolCall, result, resultType }: WriteToolsPr
 
   if (!successPatch) {
     if (isInFlight) return <SpinnerContent label="Loading diff preview…" />
-    return (
-      <Text style={{ fontSize: 11, color: theme.text.secondary }}>No diff output</Text>
-    )
+    return <Text style={{ fontSize: 11, color: theme.text.secondary }}>No diff output</Text>
   }
 
   const isUnified = successPatch.includes('@@')

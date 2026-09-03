@@ -254,10 +254,7 @@ function SuggestionsStrip({
                 backgroundColor: pressed ? theme.surface.hover : 'transparent',
               })}
             >
-              <Text
-                style={{ fontSize: 13, color: theme.text.primary }}
-                numberOfLines={1}
-              >
+              <Text style={{ fontSize: 13, color: theme.text.primary }} numberOfLines={1}>
                 {sug.label}
               </Text>
               {sug.description && (

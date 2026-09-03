@@ -101,9 +101,7 @@ export default function ToolArgInput({
       <Field label={label} hint="Provide a valid JSON object.">
         <Textarea
           rows={5}
-          value={
-            typeof value === 'string' ? value : value ? JSON.stringify(value, null, 2) : ''
-          }
+          value={typeof value === 'string' ? value : value ? JSON.stringify(value, null, 2) : ''}
           onChangeText={onChange}
           autoCapitalize="none"
           autoCorrect={false}

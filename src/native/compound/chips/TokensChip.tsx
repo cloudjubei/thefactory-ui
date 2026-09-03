@@ -32,9 +32,7 @@ export default function TokensChip({ prompt, completion, averages }: TokensChipP
       </Text>
       {averages && (
         <View style={{ marginTop: nativeSpace[3], gap: 2 }}>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            Per-message averages
-          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>Per-message averages</Text>
           <Text style={{ fontSize: 12, color: theme.text.muted }}>
             User ({averages.userMessages ?? 0}):{' '}
             {averages.avgPromptPerUser != null ? `${averages.avgPromptPerUser} tokens/msg` : '—'} ·

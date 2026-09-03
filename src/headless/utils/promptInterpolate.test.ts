@@ -43,21 +43,17 @@ describe('interpolatePrompt', () => {
 
   it('serialises group_projects as a JSON array, defaulting to []', () => {
     expect(interpolatePrompt('{{group_projects}}', {})).toBe('[]')
-    expect(
-      interpolatePrompt('{{group_projects}}', { group: { projects: [{ id: 'p1' }] } }),
-    ).toBe('[{"id":"p1"}]')
+    expect(interpolatePrompt('{{group_projects}}', { group: { projects: [{ id: 'p1' }] } })).toBe(
+      '[{"id":"p1"}]',
+    )
   })
 
   it('replaces every occurrence of a repeated placeholder', () => {
-    expect(interpolatePrompt('{{project_id}}-{{project_id}}', { project: { id: 'x' } })).toBe(
-      'x-x',
-    )
+    expect(interpolatePrompt('{{project_id}}-{{project_id}}', { project: { id: 'x' } })).toBe('x-x')
   })
 
   it('replaces the agent run type placeholder', () => {
-    expect(interpolatePrompt('{{agent_run_type}}', { agentRunType: 'developer' })).toBe(
-      'developer',
-    )
+    expect(interpolatePrompt('{{agent_run_type}}', { agentRunType: 'developer' })).toBe('developer')
   })
 })
 
@@ -86,7 +82,9 @@ describe('interpolateChatSystemPrompt', () => {
 describe('buildChatPromptVariables', () => {
   const project = { id: 'p1', title: 'Acme', description: 'Ships' }
   const getStory = (id: string) =>
-    id === 's1' ? { id: 's1', title: 'Auth', description: 'Login', features: [{ id: 'f1' }] } : undefined
+    id === 's1'
+      ? { id: 's1', title: 'Auth', description: 'Login', features: [{ id: 'f1' }] }
+      : undefined
   const getFeature = (s: string, f: string) =>
     s === 's1' && f === 'f1' ? { id: 'f1', title: 'OAuth', description: 'Google' } : undefined
   const getGroupById = (id: string) =>
@@ -98,8 +96,16 @@ describe('buildChatPromptVariables', () => {
   })
 
   it('resolves the story for a story context', () => {
-    const vars = buildChatPromptVariables({ storyId: 's1' }, { project, getStory, getFeature, getGroupById })
-    expect(vars.story).toEqual({ id: 's1', title: 'Auth', description: 'Login', features: [{ id: 'f1' }] })
+    const vars = buildChatPromptVariables(
+      { storyId: 's1' },
+      { project, getStory, getFeature, getGroupById },
+    )
+    expect(vars.story).toEqual({
+      id: 's1',
+      title: 'Auth',
+      description: 'Login',
+      features: [{ id: 'f1' }],
+    })
     expect(vars.feature).toBeUndefined()
   })
 
@@ -113,12 +119,18 @@ describe('buildChatPromptVariables', () => {
   })
 
   it('resolves the group (projects mapped to {id}) for a group context', () => {
-    const vars = buildChatPromptVariables({ groupId: 'g1' }, { project, getStory, getFeature, getGroupById })
+    const vars = buildChatPromptVariables(
+      { groupId: 'g1' },
+      { project, getStory, getFeature, getGroupById },
+    )
     expect(vars.group).toEqual({ id: 'g1', title: 'Team', projects: [{ id: 'p1' }, { id: 'p2' }] })
   })
 
   it('omits unresolved entities (so their placeholders collapse, never leak)', () => {
-    const vars = buildChatPromptVariables({ storyId: 'missing' }, { project, getStory, getFeature, getGroupById })
+    const vars = buildChatPromptVariables(
+      { storyId: 'missing' },
+      { project, getStory, getFeature, getGroupById },
+    )
     expect(vars.story).toBeUndefined()
     // End to end: the template renders with no raw braces.
     const out = interpolateChatSystemPrompt('{{project_title}}/{{story_title}}', vars)

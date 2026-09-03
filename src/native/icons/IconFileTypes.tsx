@@ -78,12 +78,7 @@ export function IconFileDefault({ size = 20 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x="4" y="3" width="16" height="18" rx="2" fill="#f5f6f8" stroke="#d9dbe1" />
-      <Path
-        d="M8 8h8M8 12h8M8 16h6"
-        stroke="#9ca3af"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
+      <Path d="M8 8h8M8 12h8M8 16h6" stroke="#9ca3af" strokeWidth="1.3" strokeLinecap="round" />
     </Svg>
   )
 }

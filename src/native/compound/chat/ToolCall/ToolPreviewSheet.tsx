@@ -169,8 +169,7 @@ function FallbackArgsResult({
   const { theme } = useNativeTheme()
   const hasArgs =
     toolCall.arguments &&
-    (typeof toolCall.arguments !== 'object' ||
-      Object.keys(toolCall.arguments as object).length > 0)
+    (typeof toolCall.arguments !== 'object' || Object.keys(toolCall.arguments as object).length > 0)
   const hasResult = result !== undefined && resultType !== 'aborted'
   const resultLang: 'text' | 'json' | 'diff' = resultType === 'errored' ? 'text' : 'json'
   return (

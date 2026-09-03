@@ -128,16 +128,16 @@ export function BinaryDiffView({
   const headline =
     reason === 'binary' ? 'Binary file — no text diff' : "Couldn't parse this diff as text"
   // The side most likely to carry the corruption drives the inline note.
-  const corruptionNote =
-    reasonLabel(recovery?.after.reason) || reasonLabel(recovery?.before.reason)
+  const corruptionNote = reasonLabel(recovery?.after.reason) || reasonLabel(recovery?.before.reason)
   // "Apply" only helps when the on-disk (working-tree) side is the corrupt one.
   // When only the committed/staged side is binary (the working copy is already
   // clean text), a working-tree write is a no-op — the user must commit.
   const workingFileCorrupt = !!recovery?.after.wasBinary
   const onlyCommittedCorrupt = !!recovery?.recovered && !workingFileCorrupt
-  const delta = typeof beforeSize === 'number' && typeof afterSize === 'number'
-    ? afterSize - beforeSize
-    : undefined
+  const delta =
+    typeof beforeSize === 'number' && typeof afterSize === 'number'
+      ? afterSize - beforeSize
+      : undefined
 
   return (
     <div className="p-3 text-xs text-(--text-primary)">

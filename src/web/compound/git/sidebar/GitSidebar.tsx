@@ -115,12 +115,7 @@ export function sectionMatches(
 ): boolean {
   if (!selectedBranchSection) return true
   if (selectedBranchSection === rowSection) return true
-  if (
-    branch.localSha &&
-    branch.remoteSha &&
-    branch.localSha === branch.remoteSha
-  )
-    return true
+  if (branch.localSha && branch.remoteSha && branch.localSha === branch.remoteSha) return true
   return false
 }
 

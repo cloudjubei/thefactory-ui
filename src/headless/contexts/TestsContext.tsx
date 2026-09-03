@@ -152,12 +152,9 @@ export function TestsProvider({ children }: { children: ReactNode }) {
     clearTimeout(timeoutId)
     if (gen !== refreshGenRef.current || controller.signal.aborted) return
 
-    const available =
-      listRes.status === 'fulfilled' ? listRes.value.data : EMPTY_AVAILABLE
+    const available = listRes.status === 'fulfilled' ? listRes.value.data : EMPTY_AVAILABLE
     const lastRun =
-      runRes.status === 'fulfilled' && isTestRun(runRes.value.data)
-        ? runRes.value.data
-        : null
+      runRes.status === 'fulfilled' && isTestRun(runRes.value.data) ? runRes.value.data : null
     const lastCustomRun =
       customRes.status === 'fulfilled' && isTestRun(customRes.value.data)
         ? customRes.value.data

@@ -129,11 +129,7 @@ export default function OverseerGitView({ onBack }: OverseerGitViewProps) {
 
           <section className="flex min-h-0 flex-1 flex-col">
             {selectedCommitSha ? (
-              <CommitDiffViewer
-                commitSha={selectedCommitSha}
-                log={log}
-                fetcher={fetchCommitDiff}
-              />
+              <CommitDiffViewer commitSha={selectedCommitSha} log={log} fetcher={fetchCommitDiff} />
             ) : (
               <div className="flex flex-1 items-center justify-center text-xs opacity-60">
                 Select a commit to see its diff.

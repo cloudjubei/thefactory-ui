@@ -2,7 +2,15 @@ import Svg, { Path, Rect } from 'react-native-svg'
 
 export function IconSyringe({ size = 24, color }: { size?: number; color?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      color={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M3 7l4 4" stroke="#3B82F6" strokeWidth="2" />
       <Path d="M7 3l4 4" stroke="#60A5FA" strokeWidth="2" />
       <Rect

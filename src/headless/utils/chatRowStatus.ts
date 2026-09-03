@@ -57,8 +57,7 @@ export function computeChatRowStatus(input: {
   seen: ChatsSeenMap
 }): ChatRowStatus {
   const { context, contextKey, chat, isSending, seen } = input
-  const isAgentContext =
-    context.type === 'AGENT_RUN_STORY' || context.type === 'AGENT_RUN_FEATURE'
+  const isAgentContext = context.type === 'AGENT_RUN_STORY' || context.type === 'AGENT_RUN_FEATURE'
   const isAgentRunning = Boolean(
     isAgentContext && (chat?.state === 'running' || chat?.state === 'created'),
   )

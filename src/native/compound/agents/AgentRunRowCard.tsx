@@ -123,13 +123,9 @@ export default function AgentRunRowCard({
         }}
       >
         <StatusChip state={state} label={state} />
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>
-          {messageCount} msgs
-        </Text>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{messageCount} msgs</Text>
         {totalCostUSD > 0 && (
-          <Text style={{ fontSize: 11, color: theme.text.muted }}>
-            ${totalCostUSD.toFixed(4)}
-          </Text>
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>${totalCostUSD.toFixed(4)}</Text>
         )}
         {onRate && (
           <View

@@ -300,13 +300,31 @@ describe('describeCliRunActivity', () => {
     expect(activity.label).toBe('Working…')
   })
 
-  it('carries the elapsed readout into the blocked line', () => {
-    const activity = describeCliRunActivity(
+  it("drops the elapsed / token readout while blocked — the clock is the user's, not the agent's", () => {
+    // A ticking "(5s)" next to "Waiting for your approval" reads as the agent
+    // still working against a clock, and the wait may legitimately be hours.
+    // The suffix is agent-activity evidence; a parked run has none to show.
+    const approval = describeCliRunActivity(
       activityInput({
         elapsedMs: 5_000,
+        approxTokens: 120,
         blocked: [{ toolName: 'inspectProjectPath', label: 'x' }],
       }),
     )
-    expect(activity.label).toBe('Waiting for your approval: inspectProjectPath (5s)')
+    expect(approval.label).toBe('Waiting for your approval: inspectProjectPath')
+    const question = describeCliRunActivity(
+      activityInput({ elapsedMs: 65_000, blocked: [{ label: 'q', isQuestion: true }] }),
+    )
+    expect(question.label).toBe('Waiting for your answer')
+    const many = describeCliRunActivity(
+      activityInput({
+        elapsedMs: 65_000,
+        blocked: [
+          { toolName: 'a', label: 'a' },
+          { toolName: 'b', label: 'b' },
+        ],
+      }),
+    )
+    expect(many.label).toBe('Waiting for you on 2 actions')
   })
 })

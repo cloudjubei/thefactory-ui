@@ -241,9 +241,7 @@ export function GitCommitGraph({
         </div>
       )}
       {!loadingMore && !hasMore && commits.length > 0 && (
-        <div className="text-center py-2 text-[10px] text-(--text-muted)">
-          — End of history —
-        </div>
+        <div className="text-center py-2 text-[10px] text-(--text-muted)">— End of history —</div>
       )}
     </>
   )

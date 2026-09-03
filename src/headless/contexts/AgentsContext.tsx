@@ -86,8 +86,12 @@ const isAgentRunChat = (c: GetChatResponse): c is RunChat =>
 
 export function AgentsProvider({ children }: { children: ReactNode }) {
   const { chats, refresh: refreshChats, getChatLiveState } = useChats()
-  const { configs: llmConfigs, activeAgentRunConfig, activeRunnerKind, activeAgentRunCliModel } =
-    useLLMConfigs()
+  const {
+    configs: llmConfigs,
+    activeAgentRunConfig,
+    activeRunnerKind,
+    activeAgentRunCliModel,
+  } = useLLMConfigs()
   const { credentials } = useGitCredentials()
   const { keys } = useWebSearchKeys()
   const webSearchKeys = keys
@@ -262,15 +266,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       deleteRun,
       rateRun,
     }),
-    [
-      runs,
-      runsActive,
-      runsHistory,
-      startAgent,
-      cancelRun,
-      deleteRun,
-      rateRun,
-    ],
+    [runs, runsActive, runsHistory, startAgent, cancelRun, deleteRun, rateRun],
   )
 
   return <AgentsContext.Provider value={value}>{children}</AgentsContext.Provider>

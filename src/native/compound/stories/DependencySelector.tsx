@@ -191,9 +191,7 @@ function DepRow({
         }}
       >
         {selected && (
-          <Text style={{ color: theme.text.inverted, fontSize: 12, lineHeight: 14 }}>
-            ✓
-          </Text>
+          <Text style={{ color: theme.text.inverted, fontSize: 12, lineHeight: 14 }}>✓</Text>
         )}
       </View>
       <Text
@@ -211,10 +209,7 @@ function DepRow({
           {title}
         </Text>
         {description ? (
-          <Text
-            style={{ fontSize: 12, color: theme.text.muted, marginTop: 2 }}
-            numberOfLines={1}
-          >
+          <Text style={{ fontSize: 12, color: theme.text.muted, marginTop: 2 }} numberOfLines={1}>
             {description}
           </Text>
         ) : null}

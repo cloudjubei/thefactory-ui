@@ -63,9 +63,7 @@ export default function CodeInfoChip({
         style={({ pressed }) => [
           containerStyle,
           {
-            backgroundColor: pressed
-              ? theme.surface.muted
-              : containerStyle.backgroundColor,
+            backgroundColor: pressed ? theme.surface.muted : containerStyle.backgroundColor,
           },
         ]}
       >

@@ -64,9 +64,7 @@ export default function GitSidebarBranchRow({
       <span
         className={
           'truncate font-medium flex-1 min-w-0 ' +
-          (branch.current && !isRemoteSection
-            ? 'text-(--text-primary)'
-            : 'text-(--text-secondary)')
+          (branch.current && !isRemoteSection ? 'text-(--text-primary)' : 'text-(--text-secondary)')
         }
       >
         {displayName}

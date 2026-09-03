@@ -30,17 +30,11 @@ export default function Field({ label, labelTrailing, hint, children }: FieldPro
           gap: nativeSpace[3],
         }}
       >
-        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
-          {label}
-        </Text>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>{label}</Text>
         {labelTrailing}
       </View>
       {children}
-      {hint && (
-        <Text style={{ fontSize: 12, color: theme.text.muted, opacity: 0.85 }}>
-          {hint}
-        </Text>
-      )}
+      {hint && <Text style={{ fontSize: 12, color: theme.text.muted, opacity: 0.85 }}>{hint}</Text>}
     </View>
   )
 }

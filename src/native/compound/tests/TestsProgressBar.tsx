@@ -38,9 +38,7 @@ export function TestsProgressBar({ label, completed, total, currentFile }: Tests
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
-          {label}
-        </Text>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>{label}</Text>
         <Text
           style={{
             fontSize: 12,

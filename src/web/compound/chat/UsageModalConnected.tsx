@@ -1,7 +1,7 @@
-import { getPrice } from "../../../headless/api"
-import type { ChatMessage } from "../../../headless/api"
-import { UsageModal as UsageModalBase } from "../.."
-import { useCosts } from "../../../headless"
+import { getPrice } from '../../../headless/api'
+import type { ChatMessage } from '../../../headless/api'
+import { UsageModal as UsageModalBase } from '../..'
+import { useCosts } from '../../../headless'
 
 export type UsageModalProps = {
   isOpen: boolean

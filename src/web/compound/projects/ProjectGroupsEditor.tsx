@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-} from "../.."
+} from '../..'
 import {
   IconArrowLeftMini,
   IconArrowRightMini,
@@ -19,13 +19,9 @@ import {
   IconEdit,
   IconPlus,
   IconSave,
-} from "../../icons"
-import {
-  useProjectsGroups,
-  type GroupType,
-  type ProjectsGroup,
-} from "../../../headless"
-import { extractErrorMessage } from "../../../headless/api"
+} from '../../icons'
+import { useProjectsGroups, type GroupType, type ProjectsGroup } from '../../../headless'
+import { extractErrorMessage } from '../../../headless/api'
 
 function GroupNameModal({
   title,

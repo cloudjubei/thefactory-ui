@@ -268,18 +268,13 @@ export default function ChatInput({
                 paddingHorizontal: nativeSpace[5],
                 paddingVertical: nativeSpace[3],
                 borderRadius: nativeRadii.round,
-                backgroundColor: pressed
-                  ? theme.surface.muted
-                  : theme.surface.overlay,
+                backgroundColor: pressed ? theme.surface.muted : theme.surface.overlay,
                 borderWidth: 1,
                 borderColor: theme.border.subtle,
                 opacity: isThinking ? 0.6 : 1,
               })}
             >
-              <Text
-                numberOfLines={1}
-                style={{ fontSize: 13, color: theme.text.primary }}
-              >
+              <Text numberOfLines={1} style={{ fontSize: 13, color: theme.text.primary }}>
                 {sa}
               </Text>
             </Pressable>
@@ -454,7 +449,12 @@ export default function ChatInput({
           if (speech.status === 'error') speech.reset()
         }
         return (
-          <Modal isOpen={open} onClose={dismiss} title={dictationErrorTitle(errorCode ?? '')} size="sm">
+          <Modal
+            isOpen={open}
+            onClose={dismiss}
+            title={dictationErrorTitle(errorCode ?? '')}
+            size="sm"
+          >
             <View style={{ gap: 12 }}>
               <Text style={{ color: theme.text.primary }}>
                 {dictationErrorMessage(errorCode ?? '')}

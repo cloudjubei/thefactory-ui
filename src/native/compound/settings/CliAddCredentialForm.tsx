@@ -182,9 +182,7 @@ export function CliAddCredentialForm({ onClose }: CliAddCredentialFormProps) {
         </Field>
       ) : null}
 
-      <View
-        style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[3] }}
-      >
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[3] }}>
         <Button variant="secondary" onPress={() => void handleCancel()}>
           Cancel
         </Button>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Alert } from "../.."
-import { ConfirmDialog } from "../.."
-import { Surface } from "../.."
+import { Alert } from '../..'
+import { ConfirmDialog } from '../..'
+import { Surface } from '../..'
 
 /**
  * Documented schema for the per-project data-location switch. Mirrors

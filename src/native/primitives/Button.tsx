@@ -2,12 +2,7 @@ import { Children, forwardRef, isValidElement } from 'react'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { PressableProps, View as RNView, StyleProp, ViewStyle, TextStyle } from 'react-native'
-import {
-  nativeControls,
-  nativeLightStatus,
-  nativeRadii,
-  nativeSpace,
-} from '../../tokens/native'
+import { nativeControls, nativeLightStatus, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import Spinner from './Spinner'
 

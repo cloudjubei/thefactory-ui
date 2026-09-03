@@ -51,14 +51,22 @@ export function upsertActivityRun(
     finishedAt: typeof run.finishedAt === 'string' ? run.finishedAt : undefined,
   }
   const prev = byScope[scope] ?? []
-  byScope = { ...byScope, [scope]: prev.filter((a) => a.activityId !== lite.activityId).concat(lite) }
+  byScope = {
+    ...byScope,
+    [scope]: prev.filter((a) => a.activityId !== lite.activityId).concat(lite),
+  }
   emit()
 }
 
 /** Replace a scope's full list (from a `listActivities` seed, carrying `isLive`). */
 export function replaceActivityScope(
   scope: string,
-  runs: ReadonlyArray<{ activityId: string; status: string; isLive?: boolean; finishedAt?: string }>,
+  runs: ReadonlyArray<{
+    activityId: string
+    status: string
+    isLive?: boolean
+    finishedAt?: string
+  }>,
 ): void {
   byScope = {
     ...byScope,

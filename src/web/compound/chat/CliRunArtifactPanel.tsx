@@ -144,7 +144,9 @@ function CheckRow({ row }: { row: ReviewCheckRow }) {
  * approving stays disabled until the diff has loaded, since signing off
  * sight-unseen would bypass the conflict check.
  */
-export default function CliRunArtifactPanel({ runId, projectId,
+export default function CliRunArtifactPanel({
+  runId,
+  projectId,
   onSendMessage,
 }: CliRunArtifactPanelProps) {
   const {

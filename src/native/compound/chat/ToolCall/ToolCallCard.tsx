@@ -4,11 +4,7 @@ import Code from '../../Code'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
 import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
-import {
-  nativePalette,
-  nativeRadii,
-  nativeSpace,
-} from '../../../../tokens/native'
+import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
@@ -80,7 +76,9 @@ function ToolCallCardInner({
   // single field stands in for the call.
   const argDisplay = useMemo(() => {
     if (!hasArgs) return null
-    return toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+    return (
+      toolArgDisplay(toolCall) ?? { kind: 'text' as const, text: jsonString(toolCall.arguments) }
+    )
   }, [hasArgs, toolCall])
   const timeLabel = formatDurationLabel(durationMs)
 
@@ -117,9 +115,7 @@ function ToolCallCardInner({
         borderRadius: nativeRadii[2],
         borderWidth: 1,
         borderColor: isRequireConfirm ? nativePalette.green[600] : theme.border.subtle,
-        backgroundColor: isRequireConfirm
-          ? 'rgba(22,163,74,0.08)'
-          : theme.surface.overlay,
+        backgroundColor: isRequireConfirm ? 'rgba(22,163,74,0.08)' : theme.surface.overlay,
       }}
     >
       {/* Row 1: status icon · name · compact input · time chip · chevron. The
@@ -136,7 +132,10 @@ function ToolCallCardInner({
         }}
       >
         {status ? <StatusIcon kind={status.kind} color={status.iconColor} /> : null}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }} numberOfLines={1}>
+        <Text
+          style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}
+          numberOfLines={1}
+        >
           {toolCall.name}
         </Text>
         <ToolOriginBadge origin={toolCall.origin} />

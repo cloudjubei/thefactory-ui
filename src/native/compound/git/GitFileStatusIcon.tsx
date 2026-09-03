@@ -1,9 +1,4 @@
-import {
-  IconFileAdded,
-  IconFileDeleted,
-  IconFileModified,
-  IconWarningTriangle,
-} from '../../icons'
+import { IconFileAdded, IconFileDeleted, IconFileModified, IconWarningTriangle } from '../../icons'
 import { nativePalette } from '../../../tokens/native'
 
 export interface GitFileStatusIconProps {

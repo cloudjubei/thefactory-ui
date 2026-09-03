@@ -1,9 +1,5 @@
 export { DiffViewer, type DiffViewerProps } from './DiffViewer'
-export {
-  BinaryDiffView,
-  type BinaryDiffViewProps,
-  type BinaryDiffRecovery,
-} from './BinaryDiffView'
+export { BinaryDiffView, type BinaryDiffViewProps, type BinaryDiffRecovery } from './BinaryDiffView'
 export {
   generateHunkPatch,
   generateSelectedPatch,

@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Button,
-  Modal,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../.."
-import { IconSave } from "../../icons"
-import type { ProgrammingLanguage } from "../../../headless/api"
+import { Button, Modal, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../..'
+import { IconSave } from '../../icons'
+import type { ProgrammingLanguage } from '../../../headless/api'
 
 // Per-language framework / test-framework registries — duplicated from
 // `thefactory-tools/projectConstants.ts` so the web doesn't have to pull the

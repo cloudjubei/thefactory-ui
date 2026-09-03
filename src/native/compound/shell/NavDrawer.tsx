@@ -325,7 +325,9 @@ export default function NavDrawer({
             }}
           >
             <View style={{ flex: 1 }}>{footerItem ? <Row item={footerItem} /> : null}</View>
-            {footerActions?.map((action) => <FooterAction key={action.key} item={action} />)}
+            {footerActions?.map((action) => (
+              <FooterAction key={action.key} item={action} />
+            ))}
           </View>
         ) : null}
       </Animated.View>

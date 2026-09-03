@@ -1,7 +1,7 @@
-import { useChats } from "../../../headless"
-import { useActiveProject } from "../../../headless"
-import type { GetChatResponse } from "../../../headless/api"
-import { ChatTopicCreateModal as ChatTopicCreateModalBase } from "../.."
+import { useChats } from '../../../headless'
+import { useActiveProject } from '../../../headless'
+import type { GetChatResponse } from '../../../headless/api'
+import { ChatTopicCreateModal as ChatTopicCreateModalBase } from '../..'
 
 export type ChatTopicCreateModalProps = {
   isOpen: boolean

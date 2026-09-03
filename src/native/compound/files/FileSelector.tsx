@@ -60,15 +60,11 @@ const FileSelectorRow = memo(function FileSelectorRow({ file, isSelected, onTogg
               justifyContent: 'center',
               borderRadius: nativeRadii[1],
               borderWidth: 1,
-              borderColor: isSelected
-                ? theme.accent.primary
-                : theme.border.subtle,
+              borderColor: isSelected ? theme.accent.primary : theme.border.subtle,
               backgroundColor: isSelected ? theme.accent.primary : 'transparent',
             }}
           >
-            {isSelected && (
-              <Text style={{ fontSize: 10, color: theme.text.inverted }}>✓</Text>
-            )}
+            {isSelected && <Text style={{ fontSize: 10, color: theme.text.inverted }}>✓</Text>}
           </View>
         }
       />
@@ -143,9 +139,7 @@ export default function FileSelector({
             accessibilityLabel="Search files"
           />
         </View>
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>
-          {filtered.length} files
-        </Text>
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{filtered.length} files</Text>
       </View>
 
       <FlatList
@@ -186,10 +180,7 @@ export default function FileSelector({
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[4] }}>
         {/* Per the user-policy: no Cancel here — close via the modal's X /
          *  overlay / back gesture. Only the primary confirm remains. */}
-        <Button
-          onPress={() => onConfirm(Array.from(selected))}
-          disabled={selected.size === 0}
-        >
+        <Button onPress={() => onConfirm(Array.from(selected))} disabled={selected.size === 0}>
           {selected.size ? `Confirm (${selected.size})` : 'Confirm'}
         </Button>
       </View>

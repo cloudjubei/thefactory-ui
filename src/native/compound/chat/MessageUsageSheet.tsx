@@ -99,15 +99,7 @@ export default function MessageUsageSheet({ isOpen, onClose, message }: MessageU
   )
 }
 
-function Row({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string
-  value: string
-  mono?: boolean
-}) {
+function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   const { theme } = useNativeTheme()
   return (
     <View
@@ -132,4 +124,3 @@ function Row({
     </View>
   )
 }
-

@@ -41,7 +41,11 @@ export function StatusChip({
   if (resultType === 'running') {
     return (
       <View style={[wrap, { paddingHorizontal: 8, minHeight: 18 }]}>
-        <ActivityIndicator size="small" color={nativePalette.blue[600]} style={{ transform: [{ scale: 0.7 }] }} />
+        <ActivityIndicator
+          size="small"
+          color={nativePalette.blue[600]}
+          style={{ transform: [{ scale: 0.7 }] }}
+        />
       </View>
     )
   }
