@@ -3,11 +3,10 @@ import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
-import LaunchApprovalPanel from './LaunchApprovalPanel'
+import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
-import ToolConfirmationModal from './ToolConfirmationModal'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
-import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
+import { pendingApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -82,7 +81,6 @@ export type ChatBodyProps = {
    */
   activeCliRunId?: string
   onConfirmTools: (grantedToolCallIds: string[]) => Promise<void> | void
-  onCancelToolConfirmation: () => void
   /**
    * Unified tool-approval grants (API + CLI). When provided, the confirmation
    * modal renders these per-grant (with the CLI-only "allow permanently"
@@ -177,7 +175,6 @@ export default function ChatBody({
   isBusy,
   activeCliRunId,
   onConfirmTools,
-  onCancelToolConfirmation,
   onDeleteLastMessage,
   onRetry,
   onRestartTurn,
@@ -206,13 +203,16 @@ export default function ChatBody({
   // chat, so a reload keeps watching a turn this session never started.
   const cliRunId = liveState.cliRunId ?? activeCliRunId
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
-  // A lone launch approval takes the composer's place so the ask is unmissable
-  // while the conversation stays visible. `Decide later` dismisses it back to the
-  // composer WITHOUT deciding; a NEW launch (different grant id) re-shows it,
-  // because the dismissed id no longer matches.
-  const launchGrant = useMemo(() => soleLaunchGrant(grants), [grants])
-  const [launchDismissedId, setLaunchDismissedId] = useState<string | null>(null)
-  const showLaunchPanel = launchGrant !== null && launchGrant.id !== launchDismissedId
+  // EVERY pending approval takes the composer's place so the asks are unmissable
+  // while the conversation stays visible. They stack: an ask outlives the turn
+  // that raised it, so a later turn's ask can arrive on top of an unanswered one
+  // — that pile-up used to fall back to a modal covering the chat. `Decide later`
+  // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
+  // (changing the id set) re-shows it, because the dismissed key no longer matches.
+  const approvalGrants = useMemo(() => pendingApprovalGrants(grants), [grants])
+  const approvalKey = approvalGrants.map((g) => g.id).join('|')
+  const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
+  const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
   // Everything the active run is parked on — permission grants AND questions.
   // Both stop the agent dead, so both belong on the live activity line.
   const cliBlockedOn = useMemo(() => blockedOnFromGrants(grants), [grants])
@@ -312,11 +312,16 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {hideInput ? null : showLaunchPanel ? (
-        <LaunchApprovalPanel
-          grant={launchGrant!}
-          onDecideLater={() => setLaunchDismissedId(launchGrant!.id)}
-        />
+      {hideInput ? null : showApprovalPanel ? (
+        <div className="flex flex-col">
+          {approvalGrants.map((grant) => (
+            <ApprovalPanel
+              key={grant.id}
+              grant={grant}
+              onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+            />
+          ))}
+        </div>
       ) : inputOverride ? (
         inputOverride
       ) : (
@@ -331,8 +336,6 @@ export default function ChatBody({
           {...inputProps}
         />
       )}
-
-      <ToolConfirmationModal grants={grants} busy={isSending} onCancel={onCancelToolConfirmation} />
     </div>
   )
 }

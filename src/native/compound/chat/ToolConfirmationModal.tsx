@@ -4,9 +4,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
-import { partitionGrants } from '../../../headless/utils/agentQuestions'
-import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
-import type { PendingToolGrant } from '../../../headless'
 import type { PendingToolConfirmationLike } from '../../../headless/utils/chatTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -16,15 +13,6 @@ export interface ToolConfirmationModalProps {
   busy: boolean
   onConfirm: (grantedToolCallIds: string[]) => Promise<void> | void
   onCancel: () => void
-  /**
-   * Unified tool-approval feed spanning both the API confirmation path and the
-   * CLI permission broker. When provided, the modal renders each grant as its
-   * own row with per-grant Allow / Deny actions (plus "Allow permanently" for
-   * CLI grants) and the {@link pending}/{@link onConfirm} path is ignored.
-   * `askUser` question grants are filtered out: they render inline as an
-   * `AgentQuestionCard`, never as a permission prompt.
-   */
-  grants?: PendingToolGrant[]
 }
 
 function formatJson(v: unknown): string {
@@ -48,11 +36,9 @@ export default function ToolConfirmationModal({
   busy,
   onConfirm,
   onCancel,
-  grants: allGrants,
 }: ToolConfirmationModalProps) {
   const { theme } = useNativeTheme()
   const [granted, setGranted] = useState<Record<string, boolean>>({})
-  const grants = allGrants ? partitionGrants(allGrants).permissions : undefined
 
   // Reset selection whenever a new wave of tools arrives — the toolCallIds
   // change between waves, so prior choices are meaningless.
@@ -70,119 +56,6 @@ export default function ToolConfirmationModal({
         .map(([k]) => k),
     [granted],
   )
-
-  if (grants) {
-    if (grants.length === 0) return null
-    // A lone launch approval renders inline (LaunchApprovalPanel in ChatBody);
-    // suppress it here so it is never shown twice.
-    if (soleLaunchGrant(grants)) return null
-    return (
-      <Modal
-        isOpen
-        onClose={onCancel}
-        title="The agent wants to run tools"
-        size="lg"
-        footer={
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-              gap: nativeSpace[2],
-              flexWrap: 'wrap',
-            }}
-          >
-            <Button variant="ghost" onPress={onCancel} disabled={busy}>
-              Cancel
-            </Button>
-            <Button
-              variant="secondary"
-              onPress={() => grants.forEach((g) => void g.decide('deny'))}
-              disabled={busy}
-            >
-              Deny all
-            </Button>
-            <Button
-              onPress={() => grants.forEach((g) => void g.decide('once'))}
-              loading={busy}
-              disabled={grants.length === 0}
-            >
-              Allow all
-            </Button>
-          </View>
-        }
-      >
-        <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: nativeSpace[2] }}>
-          {grants.map((grant) => (
-            <View
-              key={grant.id}
-              style={{
-                padding: nativeSpace[3],
-                borderRadius: nativeRadii[3],
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-                backgroundColor: theme.surface.muted,
-                gap: nativeSpace[2],
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: 'Courier',
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: theme.text.primary,
-                }}
-              >
-                {grant.label}
-              </Text>
-              {grant.detail !== undefined ? (
-                <ScrollView
-                  style={{ maxHeight: 160 }}
-                  contentContainerStyle={{ padding: nativeSpace[2] }}
-                >
-                  <Text
-                    selectable
-                    style={{ fontFamily: 'Courier', fontSize: 12, color: theme.text.secondary }}
-                  >
-                    {formatJson(grant.detail)}
-                  </Text>
-                </ScrollView>
-              ) : null}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'flex-end',
-                  gap: nativeSpace[2],
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => void grant.decide('deny')}
-                  disabled={busy}
-                >
-                  Deny
-                </Button>
-                <Button size="sm" onPress={() => void grant.decide('once')} disabled={busy}>
-                  Allow
-                </Button>
-                {grant.source === 'cli' && grant.canGrantPermanently !== false ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onPress={() => void grant.decide('permanent')}
-                    disabled={busy}
-                  >
-                    Allow permanently
-                  </Button>
-                ) : null}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      </Modal>
-    )
-  }
 
   if (!pending) return null
 

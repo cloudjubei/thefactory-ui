@@ -173,7 +173,14 @@ export function mergeNotice(result: GitMergeResult | undefined): ReviewMergeNoti
 
 export function reviewActionMode(input: ReviewActionInput): ReviewActionMode {
   if (input.verdict) return 'decided'
-  return input.hasReviewBranch ? 'actions' : 'none'
+  if (input.hasReviewBranch) return 'actions'
+  // A story run executes each feature in its own sub-run. Those carry a captured
+  // diff but are deliberately never landed — the story's consolidated review is
+  // the single place the work lands. Offering them the direct-apply path would
+  // put N ungated ways to land fragments of the same work beside one gated way
+  // to land all of it.
+  if (input.partOfStoryRun) return 'none'
+  return 'apply'
 }
 
 /** Reject / request-changes both require a non-blank reason. */

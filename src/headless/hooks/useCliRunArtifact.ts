@@ -76,6 +76,8 @@ export type UseCliRunArtifact = {
    * the verdict instead of the approve / request-changes / reject row.
    */
   verdict: CliRunVerdict | undefined
+  /** The story this run executes a FEATURE of, when it is a story sub-run. */
+  storyId: string | undefined
   /**
    * Set when the run produced changes that could NOT be landed on a review
    * branch (no git repo, detached HEAD, failed commit). The changes exist but
@@ -167,6 +169,9 @@ export function useCliRunArtifact(
   const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [verification, setVerification] = useState<RunVerification | undefined>(undefined)
   const [verdict, setVerdict] = useState<CliRunVerdict | undefined>(undefined)
+  // The story this run executes a FEATURE of, when it is a story sub-run. Drives the
+  // suppression of the direct-apply path — see `reviewActionMode`.
+  const [storyId, setStoryId] = useState<string | undefined>(undefined)
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
   const [costUSD, setCostUSD] = useState<number | undefined>(undefined)
@@ -248,6 +253,7 @@ export function useCliRunArtifact(
       setReview(run.review ?? undefined)
       setVerification(run.verification ?? undefined)
       setVerdict(run.verdict ?? undefined)
+      setStoryId(run.storyId ?? undefined)
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
       setCostUSD(run.costUSD ?? undefined)
@@ -514,6 +520,7 @@ export function useCliRunArtifact(
     review,
     verification,
     verdict,
+    storyId,
     landFailure,
     startedAtMs,
     costUSD,

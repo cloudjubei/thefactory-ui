@@ -4,12 +4,12 @@ import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
-import LaunchApprovalPanel from './LaunchApprovalPanel'
+import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import { partitionGrants } from '../../../headless/utils/agentQuestions'
-import { soleLaunchGrant } from '../../../headless/utils/launchGrant'
+import { pendingApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type {
@@ -183,10 +183,16 @@ export default function ChatBody({
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
-  // A lone launch approval takes the composer's place — see the web ChatBody.
-  const launchGrant = useMemo(() => soleLaunchGrant(grants), [grants])
-  const [launchDismissedId, setLaunchDismissedId] = useState<string | null>(null)
-  const showLaunchPanel = launchGrant !== null && launchGrant.id !== launchDismissedId
+  // EVERY pending approval takes the composer's place so the asks are unmissable
+  // while the conversation stays visible. They stack: an ask outlives the turn
+  // that raised it, so a later turn's ask can arrive on top of an unanswered one
+  // — that pile-up used to fall back to a modal covering the chat. `Decide later`
+  // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
+  // (changing the id set) re-shows it, because the dismissed key no longer matches.
+  const approvalGrants = useMemo(() => pendingApprovalGrants(grants), [grants])
+  const approvalKey = approvalGrants.map((g) => g.id).join('|')
+  const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
+  const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
   // A capture is only actionable when the host wired both resolutions, so an
   // unwired ChatBody shows no form rather than one that cannot be answered.
   const captureBinding = useMemo(() => {
@@ -304,11 +310,16 @@ export default function ChatBody({
           {captureBinding.unbound.map(renderCaptureCard)}
         </View>
       )}
-      {hideInput ? null : showLaunchPanel ? (
-        <LaunchApprovalPanel
-          grant={launchGrant!}
-          onDecideLater={() => setLaunchDismissedId(launchGrant!.id)}
-        />
+      {hideInput ? null : showApprovalPanel ? (
+        <View>
+          {approvalGrants.map((grant) => (
+            <ApprovalPanel
+              key={grant.id}
+              grant={grant}
+              onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+            />
+          ))}
+        </View>
       ) : (
         (inputOverride ?? (
           <ChatInput

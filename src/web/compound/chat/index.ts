@@ -56,10 +56,6 @@ export {
   type SystemPromptViewerModalProps,
 } from './SystemPromptViewerModal'
 export { default as ThinkingRow, type ThinkingRowProps } from './ThinkingRow'
-export {
-  default as ToolConfirmationModal,
-  type ToolConfirmationModalProps,
-} from './ToolConfirmationModal'
 
 export {
   StatusIcon,

@@ -18,6 +18,7 @@ import {
   isCliRunLifecycleEvent,
   isToolGrantAction,
   pickActiveCliRunId,
+  pickActiveStoryRunId,
 } from '../utils/pendingToolGrants'
 import { answerDecision, declineDecision, isQuestionAction } from '../utils/agentQuestions'
 
@@ -81,15 +82,29 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   // `status: 'running'` probe can, and `isRunActive` is derived from it.
   // Re-resolved on run lifecycle events (not a timer) so start/end/resume is
   // picked up live.
+  // A STORY agent-run chat has no run of its own: the orchestrator spawns one run
+  // PER FEATURE, each keyed to that feature's chat context. Asking by
+  // `chatContextId` therefore matches nothing and the chat shows a lone milestone
+  // line while the work streams into a child chat the user is never shown. Ask by
+  // `storyId` instead — the handle the sub-runs carry back to their story.
+  const storyScope = ctx.type === 'AGENT_RUN_STORY' ? ctx.storyId : undefined
+
   useEffect(() => {
     let cancelled = false
     const discover = async () => {
       try {
         const { data } = await listCliAgentRuns({
-          query: { chatContextId, status: ACTIVE_CLI_RUN_STATUS },
+          query: storyScope
+            ? { storyId: storyScope, status: ACTIVE_CLI_RUN_STATUS }
+            : { chatContextId, status: ACTIVE_CLI_RUN_STATUS },
           throwOnError: true,
         })
-        if (!cancelled) setDiscoveredRunId(pickActiveCliRunId(data, chatContextId))
+        if (cancelled) return
+        setDiscoveredRunId(
+          storyScope
+            ? pickActiveStoryRunId(data, storyScope)
+            : pickActiveCliRunId(data, chatContextId),
+        )
       } catch {
         if (!cancelled) setDiscoveredRunId(undefined)
       }
@@ -102,7 +117,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       cancelled = true
       off()
     }
-  }, [chatContextId, ws])
+  }, [chatContextId, storyScope, ws])
 
   const activeRunId = runId ?? discoveredRunId
 

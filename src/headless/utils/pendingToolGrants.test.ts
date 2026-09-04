@@ -10,6 +10,7 @@ import {
   isToolGrantAction,
   pendingActionToolName,
   pickActiveCliRunId,
+  pickActiveStoryRunId,
 } from './pendingToolGrants'
 
 describe('apiToolCallToGrant', () => {
@@ -164,6 +165,45 @@ describe('isCliRunLifecycleEvent', () => {
     expect(isCliRunLifecycleEvent({ runId: 'r1', type: 'actionDecided' })).toBe(false)
     expect(isCliRunLifecycleEvent({ runId: 'r1', type: 'policyChanged' })).toBe(false)
     expect(isCliRunLifecycleEvent(null)).toBe(false)
+  })
+})
+
+describe('pickActiveStoryRunId', () => {
+  it('finds the live per-feature sub-run by the story it is running for', () => {
+    // The regression: a story run has no run of its own — each FEATURE gets a run
+    // keyed to the feature's chat context, so the story chat matched nothing and
+    // showed one milestone line while the work streamed into a chat never shown.
+    const runs = [
+      {
+        id: 'feature-run',
+        chatContextId: '/projects/p/stories/s1/features/f1/agents/a1',
+        storyId: 's1',
+        createdAt: 5,
+      },
+    ]
+    expect(pickActiveStoryRunId(runs, 's1')).toBe('feature-run')
+  })
+
+  it('prefers the most recent sub-run as the story advances through its features', () => {
+    const runs = [
+      { id: 'feature-1', storyId: 's1', createdAt: 10 },
+      { id: 'feature-2', storyId: 's1', createdAt: 30 },
+    ]
+    expect(pickActiveStoryRunId(runs, 's1')).toBe('feature-2')
+  })
+
+  it('never returns a run from another story, even if the filter was dropped', () => {
+    const runs = [
+      { id: 'other', storyId: 's2', createdAt: 99 },
+      { id: 'unbound', createdAt: 98 },
+      { id: 'mine', storyId: 's1', createdAt: 1 },
+    ]
+    expect(pickActiveStoryRunId(runs, 's1')).toBe('mine')
+    expect(pickActiveStoryRunId([runs[0], runs[1]], 's1')).toBeUndefined()
+  })
+
+  it('returns undefined for an empty story id rather than matching anything', () => {
+    expect(pickActiveStoryRunId([{ id: 'r', storyId: '', createdAt: 1 }], '')).toBeUndefined()
   })
 })
 

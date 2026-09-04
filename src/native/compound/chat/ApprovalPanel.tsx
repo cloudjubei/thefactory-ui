@@ -2,30 +2,38 @@ import { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 import { Button } from '../../primitives/Button'
-import { startFeatureWorkGrantSummary } from '../../../headless/utils/launchGrant'
+import {
+  formatGrantDetail,
+  isStartFeatureWorkGrant,
+  startFeatureWorkGrantSummary,
+} from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { PendingToolGrant } from '../../../headless'
 
-export type LaunchApprovalPanelProps = {
+export type ApprovalPanelProps = {
   grant: PendingToolGrant
   onDecideLater: () => void
 }
 
 /**
- * Native peer of
- * [web's `LaunchApprovalPanel`](../../../web/compound/chat/LaunchApprovalPanel.tsx).
- * Takes the composer's place so the launch ask is unmissable while the chat stays
- * visible; `onDecideLater` restores the composer without deciding.
+ * Native peer of [web's `ApprovalPanel`](../../../web/compound/chat/ApprovalPanel.tsx).
+ * Takes the composer's place so the ask is unmissable while the chat stays
+ * visible; `onDecideLater` restores the composer without deciding. Takes no
+ * external busy flag — see the web peer for why.
  */
-export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchApprovalPanelProps) {
+export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelProps) {
   const { theme } = useNativeTheme()
+  const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
+  const detail = isLaunch ? undefined : formatGrantDetail(grant.detail)
+  const canGrantPermanently =
+    !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const decide = (decision: 'once' | 'deny') => {
+  const decide = (decision: 'once' | 'deny' | 'permanent') => {
     setBusy(true)
     setError(null)
     // A refused decision (409: the approval already expired / was decided)
@@ -49,13 +57,14 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
       }}
     >
       <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text.primary }}>
-        Start work on this in an isolated run?
+        {isLaunch ? 'Start work on this in an isolated run?' : 'The agent needs your approval'}
       </Text>
       <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-        The agent will work in an isolated copy of the project and land its changes on a review
-        branch with verification attached — nothing touches your working tree until you sign off.
+        {isLaunch
+          ? 'The agent will work in an isolated copy of the project and land its changes on a review branch with verification attached — nothing touches your working tree until you sign off.'
+          : `It is waiting on this before it can continue: ${grant.label}`}
       </Text>
-      {summary.note !== undefined ? (
+      {isLaunch && summary.note !== undefined ? (
         <View
           style={{
             padding: nativeSpace[3],
@@ -77,6 +86,24 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
           <ScrollView style={{ maxHeight: 160 }}>
             <Text selectable style={{ fontSize: 14, color: theme.text.primary }}>
               {summary.note}
+            </Text>
+          </ScrollView>
+        </View>
+      ) : null}
+      {detail !== undefined ? (
+        <View
+          style={{
+            padding: nativeSpace[3],
+            borderRadius: nativeRadii[3],
+            backgroundColor: theme.surface.muted,
+          }}
+        >
+          <ScrollView style={{ maxHeight: 160 }}>
+            <Text
+              selectable
+              style={{ fontSize: 12, fontFamily: 'Courier', color: theme.text.primary }}
+            >
+              {detail}
             </Text>
           </ScrollView>
         </View>
@@ -104,11 +131,16 @@ export default function LaunchApprovalPanel({ grant, onDecideLater }: LaunchAppr
         <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
           Decide later
         </Button>
+        {canGrantPermanently ? (
+          <Button variant="ghost" size="sm" onPress={() => decide('permanent')} disabled={busy}>
+            Always allow
+          </Button>
+        ) : null}
         <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
           Not now
         </Button>
         <Button size="sm" onPress={() => decide('once')} loading={busy}>
-          Approve &amp; launch
+          {isLaunch ? 'Approve & launch' : 'Approve'}
         </Button>
       </View>
     </View>

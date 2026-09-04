@@ -19,6 +19,8 @@ export type CliRunLike = {
   id: string
   chatContextId?: string
   createdAt?: number
+  /** The story a run is executing for — set on the per-feature sub-runs of a story run. */
+  storyId?: string
 }
 
 /**
@@ -82,6 +84,33 @@ export function pickActiveCliRunId(
   for (const run of runs ?? []) {
     if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
     if (run.chatContextId !== chatContextId) continue
+    if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
+  }
+  return best?.id
+}
+
+/**
+ * The live run a STORY agent-run chat should surface.
+ *
+ * A story run does not execute in a run of its own: it spawns one run PER
+ * FEATURE, each keyed to that feature's chat context. So the story chat asking
+ * "which run is mine?" by `chatContextId` matches nothing, and the user watches
+ * a single milestone line while the work happens in a child chat they are never
+ * shown. The children carry the `storyId` they are being run for, which is the
+ * only handle tying them back.
+ *
+ * Mirrors {@link pickActiveCliRunId}: the binding is re-checked here rather than
+ * trusted from the query, so a dropped filter cannot surface another story's run.
+ */
+export function pickActiveStoryRunId(
+  runs: readonly CliRunLike[] | undefined,
+  storyId: string,
+): string | undefined {
+  if (!storyId) return undefined
+  let best: CliRunLike | undefined
+  for (const run of runs ?? []) {
+    if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
+    if (run.storyId !== storyId) continue
     if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
   }
   return best?.id

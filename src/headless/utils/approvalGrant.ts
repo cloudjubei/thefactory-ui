@@ -48,16 +48,34 @@ export function startFeatureWorkGrantSummary(
 }
 
 /**
- * The lone launch approval a chat is waiting on, or `null`.
+ * Every approval a chat is currently waiting on, in raise order.
  *
- * Returns the grant only when the chat's pending PERMISSION grants (questions
- * excluded — they render as their own card) are exactly one AND it is a launch.
- * The single source of truth for the inline launch panel and for the permission
- * modal that must suppress it: one predicate, two consumers, so the launch is
- * never rendered twice. A launch alongside other permission grants stays in the
- * generic modal — a bespoke panel for one of several would hide the rest.
+ * Questions are excluded — they render as their own card. Everything else, of
+ * whatever tool, is a decision blocking the agent and belongs inline in the
+ * composer's place where it is unmissable and the conversation stays visible.
+ *
+ * Returns a LIST, not "the lone one". Approvals genuinely arrive in twos: an ask
+ * outlives the turn that raised it, so a later turn's ask stacks on top of one
+ * the user has not answered yet. Rendering only the singleton case sent exactly
+ * those pile-ups to a modal that covered the chat — the surface the user asked
+ * us to get rid of. There is no modal fallback any more; the panel stacks them.
  */
-export function soleLaunchGrant(grants?: PendingToolGrant[]): PendingToolGrant | null {
-  const permissions = partitionGrants(grants).permissions
-  return permissions.length === 1 && isStartFeatureWorkGrant(permissions[0]) ? permissions[0] : null
+export function pendingApprovalGrants(grants?: PendingToolGrant[]): PendingToolGrant[] {
+  return partitionGrants(grants).permissions
+}
+
+/**
+ * A grant's payload rendered for a human, or `undefined` when there is nothing
+ * worth showing. Keeps the two clients' approval panels formatting the same
+ * thing the same way; a payload that will not serialise degrades to its string
+ * form rather than blanking the panel.
+ */
+export function formatGrantDetail(detail: unknown): string | undefined {
+  if (detail === undefined || detail === null) return undefined
+  if (typeof detail === 'string') return detail.length > 0 ? detail : undefined
+  try {
+    return JSON.stringify(detail, null, 2)
+  } catch {
+    return String(detail)
+  }
 }

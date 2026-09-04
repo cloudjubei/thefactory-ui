@@ -73,13 +73,23 @@ export type ReviewMergeNotice = {
  * Which review affordance the panel renders:
  * - `decided` — a verdict exists; show it, the review is over.
  * - `actions` — the run landed on a review branch and is still open.
- * - `none` — no review branch (the no-git direct-apply path).
+ * - `apply`   — no review branch, but a captured diff the user may apply
+ *              directly (the no-git path).
+ * - `none`    — nothing to offer here; this run's work lands somewhere else.
  */
-export type ReviewActionMode = 'decided' | 'actions' | 'none'
+export type ReviewActionMode = 'decided' | 'actions' | 'apply' | 'none'
 
 export type ReviewActionInput = {
   verdict: CliRunVerdict | undefined
   hasReviewBranch: boolean
+  /**
+   * True when this run is one FEATURE of a story run. Such a sub-run carries its
+   * own captured diff but is never landed: the story's consolidated review is the
+   * only place its work should land. Without this it matches the no-git path and
+   * offers a direct, ungated "Apply to project" for a fragment of the work —
+   * bypassing the review branch, the verdict and every verification check.
+   */
+  partOfStoryRun?: boolean
 }
 
 /** Cost + duration labels for the summary head; `undefined` when unrecorded. */

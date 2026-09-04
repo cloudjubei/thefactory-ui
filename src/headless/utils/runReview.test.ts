@@ -310,8 +310,28 @@ describe('reviewActionMode', () => {
     expect(reviewActionMode({ verdict: undefined, hasReviewBranch: true })).toBe('actions')
   })
 
-  it('shows nothing on the no-git direct-apply path', () => {
-    expect(reviewActionMode({ verdict: undefined, hasReviewBranch: false })).toBe('none')
+  it('offers direct apply on the no-git path', () => {
+    expect(reviewActionMode({ verdict: undefined, hasReviewBranch: false })).toBe('apply')
+  })
+
+  it('offers NOTHING for a story run\u2019s per-feature sub-run', () => {
+    // A story executes each feature in its own sub-run. Those carry a captured
+    // diff but are never landed \u2014 the story's consolidated review is the single
+    // place the work lands. Offering apply here put N ungated ways to land
+    // fragments of the work beside one gated way to land all of it.
+    expect(
+      reviewActionMode({ verdict: undefined, hasReviewBranch: false, partOfStoryRun: true }),
+    ).toBe('none')
+  })
+
+  it('still shows the verdict and the action row for a story sub-run that has one', () => {
+    // Suppression is only about the direct-apply path; a real review still wins.
+    expect(reviewActionMode({ verdict, hasReviewBranch: false, partOfStoryRun: true })).toBe(
+      'decided',
+    )
+    expect(
+      reviewActionMode({ verdict: undefined, hasReviewBranch: true, partOfStoryRun: true }),
+    ).toBe('actions')
   })
 })
 

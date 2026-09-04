@@ -154,6 +154,7 @@ export default function CliRunArtifactPanel({
     review,
     verification,
     verdict,
+    storyId,
     landFailure,
     costUSD,
     durationMs,
@@ -251,7 +252,11 @@ export default function CliRunArtifactPanel({
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
-  const actionMode = reviewActionMode({ verdict, hasReviewBranch: !!review })
+  const actionMode = reviewActionMode({
+    verdict,
+    hasReviewBranch: !!review,
+    partOfStoryRun: storyId !== undefined,
+  })
   const busy = merging || rejecting || requestingChanges
   const reasonValid = isReviewReasonValid(reason)
 
@@ -490,7 +495,7 @@ export default function CliRunArtifactPanel({
                   {merging ? 'Merging…' : isMerged ? 'Merged ✓' : 'Approve & merge'}
                 </button>
               </div>
-            ) : actionMode === 'none' && artifact ? (
+            ) : actionMode === 'apply' && artifact ? (
               <button
                 type="button"
                 className={`${ACTION_BUTTON} bg-(--accent-primary) text-(--text-inverted) hover:opacity-90`}
