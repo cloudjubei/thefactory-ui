@@ -10,14 +10,20 @@ import {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
+  verificationApproachRows,
+  approveActionDescriptors,
   verificationHeadline,
   useCliRunArtifact,
+  type ApproveActionDescriptor,
   type ReviewChangeCounts,
   type ReviewCheckRow,
   type ReviewTone,
   formatChangeRequestMessage,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
+import { Button } from '../../primitives/Button'
+import Alert from '../../primitives/Alert'
+import { Modal } from '../../primitives/Modal'
 import { StructuredUnifiedDiff } from '../diff'
 
 export type CliRunArtifactPanelProps = {
@@ -169,11 +175,16 @@ export default function CliRunArtifactPanel({
     reviewDiff,
     reviewLoading,
     loadReviewDiff,
-    merge,
     merging,
     mergeResult,
     verify,
     verifying,
+    verificationApproaches,
+    loadVerificationPlan,
+    planLoading,
+    approve,
+    approving,
+    approveResult,
     reject,
     rejecting,
     requestChanges,
@@ -248,6 +259,15 @@ export default function CliRunArtifactPanel({
 
   const head = verificationHeadline(verification)
   const checkRows = verificationCheckRows(verification)
+  const approachRows = verificationApproachRows(verificationApproaches)
+  const approveOptions = approveActionDescriptors({
+    branch: review?.branch ?? 'the review branch',
+    baseBranch: 'the working branch',
+    hasRemote: true,
+    fileCount: counts.total,
+  })
+  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
+  const [approveNote, setApproveNote] = useState('')
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
@@ -257,7 +277,7 @@ export default function CliRunArtifactPanel({
     hasReviewBranch: !!review,
     partOfStoryRun: storyId !== undefined,
   })
-  const busy = merging || rejecting || requestingChanges
+  const busy = merging || approving || rejecting || requestingChanges
   const reasonValid = isReviewReasonValid(reason)
 
   const openReason = (decision: 'rejected' | 'changes-requested') => {
@@ -338,6 +358,37 @@ export default function CliRunArtifactPanel({
             {verifying ? 'Running checks…' : 'Re-run checks'}
           </button>
         </div>
+
+        {head.status === 'unchecked' ? (
+          <div className="flex flex-col gap-1.5 rounded-md border border-orange-500/20 bg-orange-500/5 p-2">
+            {approachRows.length === 0 ? (
+              <button
+                type="button"
+                className="self-start text-[11px] underline text-(--text-secondary) disabled:opacity-50"
+                onClick={() => void loadVerificationPlan()}
+                disabled={planLoading}
+              >
+                {planLoading ? 'Checking what this machine can do…' : 'What could be checked?'}
+              </button>
+            ) : (
+              <>
+                <span className="text-[11px] font-medium text-(--text-secondary)">
+                  Ways to prove this change
+                </span>
+                {approachRows.map((row) => (
+                  <div key={row.id} className="flex items-baseline gap-2">
+                    <span className={`text-[11px] font-medium ${TONE_TEXT[row.tone]}`}>
+                      {row.available ? '·' : '○'} {row.label}
+                    </span>
+                    <span className="text-[11px] text-(--text-secondary) min-w-0">
+                      {row.detail}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        ) : null}
 
         {checkRows.length > 0 ? (
           <div className="flex flex-col gap-1.5">
@@ -486,14 +537,26 @@ export default function CliRunArtifactPanel({
                 >
                   {rejecting ? 'Rejecting…' : 'Reject'}
                 </button>
-                <button
-                  type="button"
-                  className={`${ACTION_BUTTON} bg-(--accent-primary) text-(--text-inverted) hover:opacity-90`}
-                  onClick={() => void merge()}
-                  disabled={busy || isMerged || !reviewDiff}
-                >
-                  {merging ? 'Merging…' : isMerged ? 'Merged ✓' : 'Approve & merge'}
-                </button>
+                {approveOptions.map((option) => (
+                  <button
+                    key={option.action}
+                    type="button"
+                    // The hover callout: each button's label says WHAT, the title
+                    // says where the work ends up — the only thing that differs.
+                    title={option.disabledReason ?? option.hint}
+                    className={`${ACTION_BUTTON} ${
+                      option.action === 'merge'
+                        ? 'bg-(--accent-primary) text-(--text-inverted) hover:opacity-90'
+                        : 'border border-(--border-subtle) text-(--text-secondary) hover:bg-(--surface-hover)'
+                    }`}
+                    onClick={() => setPendingApprove(option)}
+                    disabled={
+                      busy || isMerged || !reviewDiff || option.disabledReason !== undefined
+                    }
+                  >
+                    {isMerged && option.action === 'merge' ? 'Merged ✓' : option.label}
+                  </button>
+                ))}
               </div>
             ) : actionMode === 'apply' && artifact ? (
               <button
@@ -507,6 +570,65 @@ export default function CliRunArtifactPanel({
             ) : null}
           </div>
         )}
+
+        {pendingApprove ? (
+          <Modal
+            isOpen
+            onClose={() => setPendingApprove(undefined)}
+            title={pendingApprove.title}
+            size="sm"
+          >
+            <div className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-1.5 text-[13px] text-(--text-secondary)">
+                {pendingApprove.effects.map((effect) => (
+                  <li key={effect} className="flex gap-2">
+                    <span aria-hidden>—</span>
+                    <span>{effect}</span>
+                  </li>
+                ))}
+              </ul>
+              <label className="flex flex-col gap-1 text-[12px] text-(--text-secondary)">
+                Note (optional)
+                <Input
+                  size="sm"
+                  autoFocus
+                  value={approveNote}
+                  placeholder="Anything worth recording with this approval"
+                  onChange={(e) => setApproveNote(e.target.value)}
+                />
+              </label>
+              {approveResult && !approveResult.approved ? (
+                <Alert variant="error">
+                  {approveResult.blockedReason ?? 'The approval was refused.'}
+                </Alert>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPendingApprove(undefined)}
+                  disabled={approving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={approving}
+                  onClick={() => {
+                    const action = pendingApprove.action
+                    const note = approveNote.trim()
+                    void approve(action, note.length > 0 ? note : undefined).then(() => {
+                      setPendingApprove(undefined)
+                      setApproveNote('')
+                    })
+                  }}
+                >
+                  {approving ? 'Working…' : pendingApprove.confirmLabel}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        ) : null}
 
         {reasonFor ? (
           <div className="flex items-center gap-2">

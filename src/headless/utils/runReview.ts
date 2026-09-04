@@ -11,6 +11,7 @@ import type {
   CliRunVerdict,
   GitMergeResult,
   RunVerification,
+  VerificationApproachOption,
   VerificationCheckStatus,
 } from '../api/generated'
 import {
@@ -32,6 +33,7 @@ import type {
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
+  ReviewApproachRow,
   ReviewCheckRow,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
@@ -60,7 +62,8 @@ export function asRunVerification(value: unknown): RunVerification | undefined {
   if (
     candidate.status !== 'passed' &&
     candidate.status !== 'failed' &&
-    candidate.status !== 'error'
+    candidate.status !== 'error' &&
+    candidate.status !== 'unchecked'
   ) {
     return undefined
   }
@@ -81,7 +84,14 @@ export function verificationHeadline(
   const failed = checks.filter((c) => c.status === 'failed').length
   const skipped = checks.filter((c) => c.status === 'skipped').length
   const errored = checks.filter((c) => c.status === 'error').length
-  const status: VerificationHeadlineStatus = verification?.status ?? 'not-run'
+  // Derive rather than trust, but only downgrade a claimed SUCCESS. Records
+  // written before the 'unchecked' state existed still say 'passed' with nothing
+  // executed, and that must not read green. A stored 'failed'/'error' with no
+  // checks is a harness-level failure — real signal that must survive.
+  const storedStatus: VerificationHeadlineStatus = verification?.status ?? 'not-run'
+  const nothingExecuted = verification !== undefined && !checks.some((c) => c.status !== 'skipped')
+  const status: VerificationHeadlineStatus =
+    nothingExecuted && storedStatus === 'passed' ? 'unchecked' : storedStatus
 
   const parts: string[] = []
   if (passed > 0) parts.push(`${passed} passed`)
@@ -97,7 +107,11 @@ export function verificationHeadline(
     status,
     tone: VERIFICATION_STATUS_TONES[status],
     label: VERIFICATION_STATUS_LABELS[status],
-    detail: !verification ? NOT_VERIFIED_DETAIL : parts.join(' · ') || NO_CHECKS_DETAIL,
+    // The reason names the CAUSE ("no check applies to .kt"), which is the only
+    // version of this a reviewer can act on.
+    detail: !verification
+      ? NOT_VERIFIED_DETAIL
+      : (verification.uncheckedReason?.summary ?? parts.join(' · ')) || NO_CHECKS_DETAIL,
     passed,
     failed,
     skipped,
@@ -122,6 +136,35 @@ export function verificationCheckRows(verification: RunVerification | undefined)
     details: trimmedOrUndefined(check.details),
     optional: check.optional === true,
   }))
+}
+
+/**
+ * The "so what can I do about it" list under an unchecked result: what this host
+ * could prove, best-supported first.
+ *
+ * Approaches that do not APPLY are dropped rather than shown as unavailable —
+ * telling someone a screenshot diff is unavailable for their backend library
+ * sends them to install a device they will never need. What remains is either
+ * runnable now or runnable after one named install.
+ */
+export function verificationApproachRows(
+  approaches: readonly VerificationApproachOption[],
+): ReviewApproachRow[] {
+  const rows: ReviewApproachRow[] = []
+  for (const option of approaches) {
+    const { availability, spec } = option
+    if (availability.status === 'not-applicable') continue
+    rows.push({
+      id: spec.id,
+      label: spec.label,
+      proves: spec.proves,
+      available: availability.status === 'available',
+      tone: availability.status === 'available' ? 'positive' : 'neutral',
+      detail:
+        availability.status === 'available' ? spec.proves : (availability.hints ?? []).join(' '),
+    })
+  }
+  return rows.sort((a, b) => Number(b.available) - Number(a.available))
 }
 
 export function verdictSummary(verdict: CliRunVerdict): ReviewVerdictSummary {

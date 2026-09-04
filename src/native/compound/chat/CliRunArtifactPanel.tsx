@@ -11,6 +11,7 @@ import {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
+  verificationApproachRows,
   verificationHeadline,
   useCliRunArtifact,
   type ReviewCheckRow,
@@ -156,6 +157,12 @@ export default function CliRunArtifactPanel({
     mergeResult,
     verify,
     verifying,
+    verificationApproaches,
+    loadVerificationPlan,
+    planLoading,
+    approve,
+    approving,
+    approveResult,
     reject,
     rejecting,
     requestChanges,
@@ -222,6 +229,15 @@ export default function CliRunArtifactPanel({
 
   const head = verificationHeadline(verification)
   const checkRows = verificationCheckRows(verification)
+  const approachRows = verificationApproachRows(verificationApproaches)
+  const approveOptions = approveActionDescriptors({
+    branch: review?.branch ?? 'the review branch',
+    baseBranch: 'the working branch',
+    hasRemote: true,
+    fileCount: counts.total,
+  })
+  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
+  const [approveNote, setApproveNote] = useState('')
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
@@ -436,6 +452,64 @@ export default function CliRunArtifactPanel({
           </Pressable>
         </View>
 
+        {head.status === 'unchecked' ? (
+          <View
+            style={{
+              gap: 6,
+              padding: 8,
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: TONE_BORDER.warning,
+              backgroundColor: TONE_BG.warning,
+            }}
+          >
+            {approachRows.length === 0 ? (
+              <Pressable
+                onPress={() => void loadVerificationPlan()}
+                disabled={planLoading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: planLoading, busy: planLoading }}
+                style={{ alignSelf: 'flex-start', opacity: planLoading ? 0.5 : 1 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: theme.text.secondary,
+                    textDecorationLine: 'underline',
+                  }}
+                >
+                  {planLoading ? 'Checking what this machine can do…' : 'What could be checked?'}
+                </Text>
+              </Pressable>
+            ) : (
+              <>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
+                  Ways to prove this change
+                </Text>
+                {approachRows.map((row) => (
+                  <View key={row.id} style={{ flexDirection: 'row', gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '500',
+                        color: TONE_FG[row.tone] ?? theme.text.secondary,
+                      }}
+                    >
+                      {`${row.available ? '·' : '○'} ${row.label}`}
+                    </Text>
+                    <Text
+                      style={{ fontSize: 11, color: theme.text.secondary, flex: 1 }}
+                      numberOfLines={3}
+                    >
+                      {row.detail}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            )}
+          </View>
+        ) : null}
+
         {checkRows.length > 0 ? (
           <View style={{ gap: 6 }}>
             {checkRows.map((row) => (
@@ -645,12 +719,21 @@ export default function CliRunArtifactPanel({
                     tone: 'danger',
                   },
                 )}
-                {primaryButton(
-                  merging ? 'Merging…' : isMerged ? 'Merged ✓' : 'Approve & merge',
-                  () => void merge(),
-                  busy || isMerged || !reviewDiff,
-                  merging,
-                )}
+                {approveOptions.map((option) => (
+                  <View key={option.action}>
+                    {option.action === 'merge'
+                      ? primaryButton(
+                          isMerged ? 'Merged ✓' : option.label,
+                          () => setPendingApprove(option),
+                          busy || isMerged || !reviewDiff,
+                          approving,
+                        )
+                      : secondaryButton(option.label, () => setPendingApprove(option), {
+                          disabled:
+                            busy || isMerged || !reviewDiff || option.disabledReason !== undefined,
+                        })}
+                  </View>
+                ))}
               </View>
             ) : actionMode === 'apply' && artifact ? (
               primaryButton(

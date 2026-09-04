@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   applyCliAgentArtifact,
   getCliAgentRun,
+  approveCliRunReview,
+  getCliRunVerificationPlan,
   getGitBranchDiffSummary,
   mergeCliRunReview,
   previewCliAgentArtifact,
@@ -19,6 +21,9 @@ import {
   type GitDiffSummary,
   type GitMergeResult,
   type RunVerification,
+  type CliRunApproveAction,
+  type CliRunApproveResult,
+  type VerificationApproachOption,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import { appendCliRunTranscript, mergeCliRunTranscript } from '../utils/cliRunActivity'
@@ -139,6 +144,25 @@ export type UseCliRunArtifact = {
   verify: () => Promise<void>
   /** True while verification is running. */
   verifying: boolean
+  /**
+   * Approve the run: keep the branch, open a pull request, or merge. A refusal
+   * lands in {@link approveResult} with a reason rather than throwing.
+   */
+  approve: (action: CliRunApproveAction, notes?: string) => Promise<void>
+  /** True while an approval is in flight. */
+  approving: boolean
+  /** The last approval's outcome — including a refusal and why. */
+  approveResult: CliRunApproveResult | undefined
+  /**
+   * Every verification approach for this project with its availability on the
+   * host — what COULD be proven, not just what is configured. Empty until
+   * {@link loadVerificationPlan} has run.
+   */
+  verificationApproaches: VerificationApproachOption[]
+  /** Fetch {@link verificationApproaches}. Idempotent; safe to call on click. */
+  loadVerificationPlan: () => Promise<void>
+  /** True while the plan is loading. */
+  planLoading: boolean
   /** Reject the run outright, recording the (required) reason. */
   reject: (reason: string) => Promise<void>
   /** True while a rejection is in flight. */
@@ -186,6 +210,12 @@ export function useCliRunArtifact(
   const [merging, setMerging] = useState(false)
   const [mergeResult, setMergeResult] = useState<GitMergeResult | undefined>(undefined)
   const [verifying, setVerifying] = useState(false)
+  const [verificationApproaches, setVerificationApproaches] = useState<
+    VerificationApproachOption[]
+  >([])
+  const [planLoading, setPlanLoading] = useState(false)
+  const [approving, setApproving] = useState(false)
+  const [approveResult, setApproveResult] = useState<CliRunApproveResult | undefined>(undefined)
   const [rejecting, setRejecting] = useState(false)
   const [requestingChanges, setRequestingChanges] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
@@ -200,6 +230,8 @@ export function useCliRunArtifact(
   // epoch are discarded so a remounted-in-place panel never shows another run's
   // diff or result.
   const epochRef = useRef(0)
+  /** Guards a repeat plan fetch — the host toolchain does not change per click. */
+  const planRef = useRef(false)
   // Mirror of the rendered transcript, so the record fetch and the live stream
   // can both reconcile against the CURRENT value without reading through a
   // setState updater (which StrictMode double-invokes).
@@ -460,6 +492,61 @@ export function useCliRunArtifact(
     [runId, projectId, review],
   )
 
+  /**
+   * What COULD be proven about this run, loaded on demand.
+   *
+   * Kept lazy rather than fetched with the run: it only matters once a reader is
+   * looking at an unchecked result and asking "so what can I do about it", and
+   * fetching it for every run would probe the host toolchain on every render.
+   */
+  const loadVerificationPlan = useCallback(async () => {
+    if (!runId || planRef.current) return
+    const epoch = epochRef.current
+    setPlanLoading(true)
+    try {
+      const { data } = await getCliRunVerificationPlan({ path: { runId }, throwOnError: true })
+      if (epoch === epochRef.current && data) {
+        planRef.current = true
+        setVerificationApproaches(data.approaches ?? [])
+      }
+    } catch {
+      // A plan we could not load must not break the review surface: the chip and
+      // the diff are still the point. Leaving the approaches empty simply omits
+      // the "what else is possible" line.
+    } finally {
+      setPlanLoading(false)
+    }
+  }, [runId])
+
+  /**
+   * Approve the run one of three ways. A refused approval (policy gate, missing
+   * remote, failed merge) comes back as a RESULT rather than an error — it is a
+   * normal answer the surface has to show, not a fault.
+   */
+  const approve = useCallback(
+    async (action: CliRunApproveAction, notes?: string) => {
+      if (!runId || !projectId) return
+      const epoch = epochRef.current
+      setApproving(true)
+      setError(undefined)
+      try {
+        const { data } = await approveCliRunReview({
+          path: { runId },
+          body: { projectId, action, ...(notes ? { reason: notes } : {}) },
+          throwOnError: true,
+        })
+        if (epoch !== epochRef.current) return
+        setApproveResult(data)
+        if (data?.approved) await reload()
+      } catch (err: unknown) {
+        if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setApproving(false)
+      }
+    },
+    [runId, projectId, reload],
+  )
+
   const verify = useCallback(async () => {
     if (!runId || !projectId) return
     const epoch = epochRef.current
@@ -540,8 +627,14 @@ export function useCliRunArtifact(
     merge,
     merging,
     mergeResult,
+    approve,
+    approving,
+    approveResult,
     verify,
     verifying,
+    verificationApproaches,
+    loadVerificationPlan,
+    planLoading,
     reject,
     rejecting,
     requestChanges,

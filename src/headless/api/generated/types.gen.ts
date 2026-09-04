@@ -512,6 +512,7 @@ export type PanelVerdict = {
   compileErrorCount: number
   testsRun: boolean
   testsPassed: boolean
+  checksRun: boolean
   verified: boolean
 }
 
@@ -526,6 +527,7 @@ export type PanelCandidate = {
     compileErrorCount: number
     testsRun: boolean
     testsPassed: boolean
+    checksRun: boolean
     verified: boolean
   }
   error?: string
@@ -545,6 +547,7 @@ export type SpawnPanelResult =
           compileErrorCount: number
           testsRun: boolean
           testsPassed: boolean
+          checksRun: boolean
           verified: boolean
         }
         error?: string
@@ -857,6 +860,105 @@ export type ArenaPanelResult = {
   correct?: boolean
   status: 'consensus' | 'contested' | 'unjudged'
   costUSD: number
+}
+
+export type CapabilityId =
+  | 'java'
+  | 'androidSdk'
+  | 'adb'
+  | 'androidDevice'
+  | 'xcode'
+  | 'simctl'
+  | 'iosSimulator'
+  | 'idb'
+  | 'git'
+  | 'node'
+
+export type CapabilityOverrides = {
+  java?: string
+  androidSdk?: string
+  adb?: string
+  androidDevice?: string
+  xcode?: string
+  simctl?: string
+  iosSimulator?: string
+  idb?: string
+  git?: string
+  node?: string
+}
+
+export type CapabilityStatus = {
+  id: CapabilityId
+  present: boolean
+  detail?: string
+}
+
+export type VerificationApproachId =
+  | 'compile'
+  | 'unit-tests'
+  | 'screenshot-diff'
+  | 'screen-recording'
+  | 'code-explanation'
+  | 'adversarial-review'
+
+export type ProjectPlatform = 'android' | 'ios' | 'web' | 'unknown'
+
+export type VerificationApproachSpec = {
+  id: VerificationApproachId
+  label: string
+  proves: string
+  requires: {
+    android?: Array<CapabilityId>
+    ios?: Array<CapabilityId>
+    web?: Array<CapabilityId>
+    unknown?: Array<CapabilityId>
+  } & {
+    default: Array<CapabilityId>
+  }
+  appliesTo?: Array<ProjectPlatform>
+  drivenBy?: {
+    android?: Array<string>
+    ios?: Array<string>
+    web?: Array<string>
+    unknown?: Array<string>
+  } & {
+    default?: Array<string>
+  }
+}
+
+export type ApproachAvailability =
+  | {
+      status: 'available'
+    }
+  | {
+      status: 'unavailable'
+      missing: Array<CapabilityId>
+      hints: Array<string>
+    }
+  | {
+      status: 'not-applicable'
+      reason: string
+    }
+
+export type VerificationApproachOption = {
+  spec: VerificationApproachSpec
+  availability: ApproachAvailability
+  drivenBy: Array<string>
+}
+
+export type CreateCapabilityToolsOptions = {
+  overrides?: {
+    java?: string
+    androidSdk?: string
+    adb?: string
+    androidDevice?: string
+    xcode?: string
+    simctl?: string
+    iosSimulator?: string
+    idb?: string
+    git?: string
+    node?: string
+  }
 }
 
 export type ChatContextGeneral = {
@@ -1899,7 +2001,7 @@ export type VerificationCheckKind = 'compile' | 'tests' | 'command'
 
 export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
 
-export type VerificationStatus = 'passed' | 'failed' | 'error'
+export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
 
 export type VerificationPolicy = 'require' | 'warn' | 'off'
 
@@ -1926,9 +2028,20 @@ export type VerificationCheckResult = {
   optional?: boolean
 }
 
+export type VerificationUncheckedReason = {
+  kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+  summary: string
+  extensions?: Array<string>
+}
+
 export type RunVerification = {
   status: VerificationStatus
   checks: Array<VerificationCheckResult>
+  uncheckedReason?: {
+    kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+    summary: string
+    extensions?: Array<string>
+  }
   startedAt: number
   finishedAt: number
   sha?: string
@@ -2270,6 +2383,11 @@ export type CliRun = {
   verification?: {
     status: VerificationStatus
     checks: Array<VerificationCheckResult>
+    uncheckedReason?: {
+      kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+      summary: string
+      extensions?: Array<string>
+    }
     startedAt: number
     finishedAt: number
     sha?: string
@@ -2608,6 +2726,143 @@ export type CliAgentRunFilter = {
   storyId?: string
   status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
   chatContextId?: string
+}
+
+export type CliRunApproveAction = 'leave-branch' | 'create-pr' | 'merge'
+
+export type CliRunApproveOutcome = {
+  allowed: boolean
+  needsPush: boolean
+  needsMerge: boolean
+  prUrl?: string
+  blockedReason?: string
+}
+
+export type GitConflictType =
+  | 'both_modified'
+  | 'both_added'
+  | 'both_deleted'
+  | 'deleted_by_us'
+  | 'deleted_by_them'
+  | 'added_by_us'
+  | 'added_by_them'
+
+export type GitConflictEntry = {
+  path: string
+  type: GitConflictType
+}
+
+export type GitMergeResult = {
+  ok: boolean
+  mergeCommit?: string
+  fastForward?: boolean
+  conflicts?: Array<GitConflictEntry>
+  stashed?: boolean
+  restoredStash?: boolean
+  aborted?: boolean
+  message?: string
+}
+
+export type CliRunApproveResult = {
+  action: CliRunApproveAction
+  approved: boolean
+  blockedReason?: string
+  merge?: {
+    ok: boolean
+    mergeCommit?: string
+    fastForward?: boolean
+    conflicts?: Array<GitConflictEntry>
+    stashed?: boolean
+    restoredStash?: boolean
+    aborted?: boolean
+    message?: string
+  }
+  prUrl?: string
+  pushed?: boolean
+  run?: {
+    id: string
+    projectId: string
+    chatContextId?: string
+    storyId?: string
+    status: CliRunStatus
+    cli?: {
+      tool: CliTool
+      version: string
+    }
+    cliSessionId?: string
+    modelId?: string
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    authCredentialId?: string
+    apiKeyCredentialId?: string
+    prompt: string
+    workspaceHostPath?: string
+    parent?: {
+      runId: string
+      via: 'resume' | 'fork'
+      notes?: string
+    }
+    policy: SandboxPolicy
+    policyHistory: Array<PolicyChange>
+    transcript: Array<CliRunTranscriptEntry>
+    pendingActions: Array<PendingAction>
+    approvedActions: Array<PendingAction>
+    artifacts: Array<CliRunArtifact>
+    usage?: {
+      tokensIn: number
+      tokensOut: number
+      cacheReadTokens?: number
+      cacheCreationTokens?: number
+    }
+    costUSD?: number
+    durationMs?: number
+    firstByteMs?: number
+    subscription?: {
+      plan?: string
+      tokensRemainingPerWindow?: number
+      windowResetAt?: number
+      [key: string]: unknown
+    }
+    retryAttempts?: number
+    nextRetryAt?: number
+    retryHistory?: Array<CliRunRetryHistoryEntry>
+    createdAt: number
+    updatedAt: number
+    exitCode?: number
+    abortReason?: string
+    review?: {
+      branch: string
+      baseSha: string
+      headSha?: string
+      landedAt?: number
+      mergedAt?: number
+      mergeCommit?: string
+      rejectedAt?: number
+    }
+    landFailure?: {
+      reason: CliRunLandFailureReason
+      message?: string
+      at: number
+    }
+    verification?: {
+      status: VerificationStatus
+      checks: Array<VerificationCheckResult>
+      uncheckedReason?: {
+        kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+        summary: string
+        extensions?: Array<string>
+      }
+      startedAt: number
+      finishedAt: number
+      sha?: string
+      changedPaths?: Array<string>
+    }
+    verdict?: {
+      decision: 'approved' | 'changes-requested' | 'rejected'
+      by: CliRunVerdictAuthor
+      notes?: string
+      at: number
+    }
+  }
 }
 
 export type CodexResidentProtocolOptions = {
@@ -3918,6 +4173,7 @@ export type DecisionBuildReport = {
     compileErrorCount: number
     testsRun: boolean
     testsPassed: boolean
+    checksRun: boolean
     verified: boolean
   }
   reviewVerdicts?: Array<TriageItemVerdict>
@@ -3938,6 +4194,7 @@ export type DecisionBuildEvidence = {
     compileErrorCount: number
     testsRun: boolean
     testsPassed: boolean
+    checksRun: boolean
     verified: boolean
   }
   reviewVerdicts?: Array<TriageItemVerdict>
@@ -4405,20 +4662,6 @@ export type GitImpactOnLocal = {
   untrackedOverwrite: Array<string>
 }
 
-export type GitConflictType =
-  | 'both_modified'
-  | 'both_added'
-  | 'both_deleted'
-  | 'deleted_by_us'
-  | 'deleted_by_them'
-  | 'added_by_us'
-  | 'added_by_them'
-
-export type GitConflictEntry = {
-  path: string
-  type: GitConflictType
-}
-
 export type GitMergePlan = {
   schemaVersion: string
   repoPath: string
@@ -4485,17 +4728,6 @@ export type GitApplyMergeOptions = {
   includeUntrackedInStash?: boolean
   confirmWhenDirty?: boolean
   dryRun?: boolean
-}
-
-export type GitMergeResult = {
-  ok: boolean
-  mergeCommit?: string
-  fastForward?: boolean
-  conflicts?: Array<GitConflictEntry>
-  stashed?: boolean
-  restoredStash?: boolean
-  aborted?: boolean
-  message?: string
 }
 
 export type GitBuildMergeReportOptions = {
@@ -5845,6 +6077,11 @@ export type OpenFactsResult = {
   materials: Array<ProvenancedField>
 }
 
+export type OpenFactsIdentityMatch = {
+  status: 'confirmed' | 'conflicting' | 'unknown'
+  matchedOn?: 'brand' | 'name'
+}
+
 export type EvalGoal = {
   query: string
   categoryPath?: Array<string>
@@ -6066,6 +6303,17 @@ export type FieldCitation = {
 
 export type ExtractionTier = 'structured' | 'grounded-llm'
 
+export type IdentityCorroboration = {
+  source: 'open-db'
+  status: 'confirmed' | 'conflicting' | 'unknown'
+  barcode: string
+  url: string
+  registeredBrand?: string
+  registeredName?: string
+  matchedOn?: 'brand' | 'name'
+  checkedAt: string
+}
+
 export type CatalogItem = {
   key: string
   identityReliability?: 'reliable' | 'provisional' | 'underspecified' | 'unreliable'
@@ -6137,6 +6385,16 @@ export type CatalogItem = {
   }
   fieldAgreement?: {
     [key: string]: number
+  }
+  identityCorroboration?: {
+    source: 'open-db'
+    status: 'confirmed' | 'conflicting' | 'unknown'
+    barcode: string
+    url: string
+    registeredBrand?: string
+    registeredName?: string
+    matchedOn?: 'brand' | 'name'
+    checkedAt: string
   }
   freshness: {
     [key: string]: string
@@ -6390,6 +6648,14 @@ export type ReviewLead = {
   sampleWeight?: number
 }
 
+export type ReviewCorpusEntry = {
+  raw: Array<RawReview>
+  aggregateLeads: Array<ReviewLead>
+  aspects: Array<ReviewAspect>
+  scaleInferred?: boolean
+  verifiedPurchaseHosts?: unknown
+}
+
 export type ImageVerdict = {
   images: Array<{
     depictsProduct: boolean
@@ -6421,6 +6687,12 @@ export type ProductAuditReport = {
     currencyConsistent: AuditCheck
     offerIsProductPage: AuditCheck
     compositionConsistency: AuditCheck
+    identityGrounded: {
+      status: 'pass' | 'fail' | 'na'
+      detail: string
+      good?: number
+      total?: number
+    }
   }
 }
 
@@ -6450,6 +6722,24 @@ export type CatalogAuditScorecard = {
     pricedPct: number
     blocked: number
     withBuyLinkNoPrice: number
+    outOfStock: number
+    stockUnknown: number
+  }
+  floorTrust: {
+    flooredImplied: number
+    trusted: number
+    foreignOnly: number
+    unsourced: number
+    foreignKeys: Array<string>
+  }
+  gtinIntegrity: {
+    gtins: number
+    sharedByMultiple: number
+    suspicious: number
+    suspiciousSample: Array<{
+      gtin: string
+      keys: Array<string>
+    }>
   }
   products: Array<ProductAuditReport>
 }
@@ -6531,6 +6821,16 @@ export type Product = {
   fieldAgreement?: {
     [key: string]: number
   }
+  identityCorroboration?: {
+    source: 'open-db'
+    status: 'confirmed' | 'conflicting' | 'unknown'
+    barcode: string
+    url: string
+    registeredBrand?: string
+    registeredName?: string
+    matchedOn?: 'brand' | 'name'
+    checkedAt: string
+  }
   freshness: {
     [key: string]: string
   }
@@ -6605,6 +6905,9 @@ export type SourceRecord = {
   url?: string
   hostKind?: 'official-site'
   brand?: string
+  curation?: 'muted' | 'preferred'
+  curatedAt?: string
+  verifiedPurchaseGated?: boolean
   qualityTags: Array<string>
   categories?: Array<Array<string>>
   seenCount: number
@@ -6652,7 +6955,7 @@ export type BrandRecord = {
 export type CriterionSpec = {
   id: string
   claim: string
-  mode: 'gate' | 'grade'
+  mode: 'gate' | 'grade' | 'info'
   positiveProxies?: Array<string>
   updatedAt: string
 }
@@ -6704,6 +7007,21 @@ export type MaterialProposal = {
   lastSeen: string
 }
 
+export type CriterionRulingProposal = {
+  id: string
+  slug: string
+  name: string
+  criterionId: string
+  disposition: 'allowed' | 'disallowed'
+  seenOn: Array<{
+    itemKey: string
+    criterionId: string
+  }>
+  count: number
+  firstSeen: string
+  lastSeen: string
+}
+
 export type CoercedRankRow = {
   key: string
   score: number
@@ -6722,6 +7040,9 @@ export type CatalogBuildCaps = {
   maxDiversityBackfills?: number
   knownSellersOnly?: boolean
   maxCriterionQueries?: number
+  maxAutoEscalations?: number
+  maxOpenKbLookups?: number
+  resampleFields?: Array<string>
   enforceProductType?: boolean
   autoDiscoverSeeds?: boolean
   deadlineMs?: number
@@ -6943,6 +7264,7 @@ export type BuildProductCatalogResult = {
     found: number
     empty: number
     ceilingHit: boolean
+    listingRescues: number
   }
 }
 
@@ -7002,7 +7324,7 @@ export type RegisterProductCriterionParams = {
   recordType: string
   id: string
   claim: string
-  mode: 'gate' | 'grade'
+  mode: 'gate' | 'grade' | 'info'
   positiveProxies?: Array<string>
 }
 
@@ -7016,6 +7338,13 @@ export type RegisterCriterionKnowledgeParams = {
     reason?: string
     source?: string
   }>
+}
+
+export type RemoveCriterionKnowledgeParams = {
+  scope: string
+  recordType: string
+  criterionId: string
+  subject: string
 }
 
 export type GetCriterionKnowledgeParams = {
@@ -7058,6 +7387,17 @@ export type GetMaterialParams = {
   material: string
 }
 
+export type ListRulingProposalsParams = {
+  scope: string
+  recordType: string
+}
+
+export type DismissRulingProposalParams = {
+  scope: string
+  recordType: string
+  id: string
+}
+
 export type ListMaterialProposalsParams = {
   scope: string
   recordType: string
@@ -7080,6 +7420,14 @@ export type ListProductSourcesParams = {
   scope: string
   recordType: string
   country?: string
+}
+
+export type CurateProductSourceParams = {
+  scope: string
+  recordType: string
+  id: string
+  curation?: 'muted' | 'preferred' | unknown
+  verifiedPurchaseGated?: boolean
 }
 
 export type SetProductNoteParams = {
@@ -7158,6 +7506,8 @@ export type RankProductCandidatesParams = {
   abortSignal?: unknown
 }
 
+export type EscalationTrigger = 'abstain' | 'low-agreement'
+
 export type WebSearchProvider =
   | 'exa'
   | 'tavily'
@@ -7208,6 +7558,57 @@ export type ReplayLog = {
       [key: string]: SearchPageContent
     }
   }
+}
+
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
+
+export type ReviewEvidenceScope = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+}
+
+export type ReviewEvidenceRef = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  id: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log'
+  path: string
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  approach?: string
+  mediaType: string
+  bytes: number
+  createdAt: number
+}
+
+export type ReviewEvidenceQuery = {
+  projectId?: string
+  runId?: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  kind?: 'screenshot' | 'recording' | 'report' | 'log'
+}
+
+export type RecordReviewEvidenceInput = {
+  runId: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  sourcePath: string
+  kind: 'screenshot' | 'recording' | 'report' | 'log'
+  label?: string
+  phase?: 'before' | 'after'
+  subject?: string
+  approach?: string
 }
 
 export type NetworkSpec =
@@ -7578,9 +7979,12 @@ export type ToolName =
   | 'sendChatCompletionWithTools'
   | 'startChatCompletionWithToolsCli'
   | 'restartChatCompletionWithToolsCli'
+  | 'resumeChatCompletionWithToolsCli'
   | 'retryChatCompletionWithTools'
   | 'resumeChatCompletionWithTools'
   | 'startAgentRun'
+  | 'getHostCapabilities'
+  | 'getVerificationOptions'
   | 'getChatsDir'
   | 'listChats'
   | 'listChatsByType'
@@ -7621,6 +8025,7 @@ export type ToolName =
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
   | 'decideCliAgentAction'
+  | 'cancelCliAgentAction'
   | 'subscribeCliAgentActions'
   | 'getCliAgentAction'
   | 'claimCliAgentActionExecution'
@@ -7635,6 +8040,7 @@ export type ToolName =
   | 'verifyCliRunReview'
   | 'setCliRunVerdict'
   | 'rejectCliRunReview'
+  | 'approveCliRunReview'
   | 'planCliRunVerification'
   | 'startCliAuthLogin'
   | 'proposePr'
@@ -7867,7 +8273,9 @@ export type ToolName =
   | 'deleteProduct'
   | 'registerCriterionKnowledge'
   | 'getCriterionKnowledge'
+  | 'removeCriterionKnowledge'
   | 'listProductSources'
+  | 'curateProductSource'
   | 'setProductNote'
   | 'researchMaterial'
   | 'seedMaterials'
@@ -7876,7 +8284,13 @@ export type ToolName =
   | 'setMaterialVerdict'
   | 'listMaterialProposals'
   | 'dismissMaterialProposal'
+  | 'listRulingProposals'
+  | 'dismissRulingProposal'
   | 'researchWeb'
+  | 'recordReviewEvidence'
+  | 'listReviewEvidence'
+  | 'getReviewEvidence'
+  | 'deleteReviewEvidence'
   | 'runSandbox'
   | 'startSandboxProxy'
   | 'killSandbox'
@@ -7933,6 +8347,7 @@ export type ToolName =
   | 'webCheckProviderHealth'
   | 'webReadURLsFull'
   | 'webReadPages'
+  | 'webReadRevalidationReport'
   | 'webInteract'
 
 export type ValidationResult = {
@@ -8261,6 +8676,18 @@ export type PageAction = {
 }
 
 export type FetchStrategy = 'direct' | 'hardened-browser' | 'discovery-only'
+
+export type ReadValidators = {
+  etag?: string
+  lastModified?: string
+}
+
+export type RevalidationHostRow = {
+  host: string
+  revalidated: number
+  notModified: number
+  hitRate: number
+}
 
 export type BuiltQuery = {
   text: string
@@ -17921,6 +18348,8 @@ export type GetCliRunVerificationPlanResponses = {
   200: {
     policy: VerificationPolicy
     checks: Array<VerificationCheck>
+    platform: ProjectPlatform
+    approaches: Array<VerificationApproachOption>
   }
 }
 
@@ -18028,6 +18457,58 @@ export type MergeCliRunReviewResponses = {
 }
 
 export type MergeCliRunReviewResponse = MergeCliRunReviewResponses[keyof MergeCliRunReviewResponses]
+
+export type ApproveCliRunReviewData = {
+  body: {
+    projectId: string
+    action: CliRunApproveAction
+    reason?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/approve-review'
+}
+
+export type ApproveCliRunReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ApproveCliRunReviewError = ApproveCliRunReviewErrors[keyof ApproveCliRunReviewErrors]
+
+export type ApproveCliRunReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRunApproveResult
+}
+
+export type ApproveCliRunReviewResponse =
+  ApproveCliRunReviewResponses[keyof ApproveCliRunReviewResponses]
 
 export type StartCliAuthLoginData = {
   body: {

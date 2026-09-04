@@ -105,3 +105,34 @@ export type ReviewChangeCounts = {
   deleted: number
   total: number
 }
+
+/**
+ * One row in the "what could be checked" list shown under an unchecked result.
+ * `available` splits runnable-now from one-install-away; `detail` carries what
+ * the approach proves, or the install hints when it cannot run yet.
+ */
+export type ReviewApproachRow = {
+  id: string
+  label: string
+  proves: string
+  available: boolean
+  tone: ReviewTone
+  detail: string
+}
+
+/** One of the three ways to approve, fully described for a button and its confirm dialog. */
+export type ApproveActionDescriptor = {
+  action: 'leave-branch' | 'create-pr' | 'merge'
+  /** Button text. */
+  label: string
+  /** Hover callout — one line on what this does that the label cannot say. */
+  hint: string
+  /** Confirm-dialog heading. */
+  title: string
+  /** Exactly what will happen, in order. Shown as the dialog's body. */
+  effects: string[]
+  /** Confirm-button text. */
+  confirmLabel: string
+  /** Why the action cannot be offered, when it cannot. */
+  disabledReason?: string
+}

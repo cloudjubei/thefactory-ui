@@ -36,6 +36,9 @@ import type {
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
+  ApproveCliRunReviewData,
+  ApproveCliRunReviewErrors,
+  ApproveCliRunReviewResponses,
   ArchiveChatData,
   ArchiveChatErrors,
   ArchiveChatResponses,
@@ -3929,6 +3932,24 @@ export const mergeCliRunReview = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/merge-review',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const approveCliRunReview = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveCliRunReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ApproveCliRunReviewResponses,
+    ApproveCliRunReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/approve-review',
     ...options,
     headers: {
       'Content-Type': 'application/json',

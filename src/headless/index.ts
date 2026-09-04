@@ -319,9 +319,11 @@ export {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
+  verificationApproachRows,
   verificationHeadline,
   formatChangeRequestMessage,
 } from './utils/runReview'
+export { approveActionDescriptors } from './utils/approveActions'
 export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
@@ -340,6 +342,8 @@ export type {
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
+  ApproveActionDescriptor,
+  ReviewApproachRow,
   ReviewCheckRow,
   ReviewLandFailureSummary,
   ReviewMergeNotice,

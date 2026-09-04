@@ -10,6 +10,10 @@ export const VERIFICATION_STATUS_TONES: Record<VerificationHeadlineStatus, Revie
   passed: 'positive',
   failed: 'danger',
   error: 'danger',
+  // Warning, not neutral: verification RAN and came back with no evidence, which
+  // is something the reviewer must act on. 'not-run' is the genuinely different
+  // fact that it never happened, so the two must not look alike.
+  unchecked: 'warning',
   'not-run': 'neutral',
 }
 
@@ -17,6 +21,7 @@ export const VERIFICATION_STATUS_LABELS: Record<VerificationHeadlineStatus, stri
   passed: 'Checks passed',
   failed: 'Checks failed',
   error: 'Checks errored',
+  unchecked: 'Nothing checked',
   'not-run': 'Not verified',
 }
 

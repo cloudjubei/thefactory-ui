@@ -59,7 +59,7 @@
     "typecheck": "tsc --noEmit",
     "check:uikit": "bash scripts/check-uikit-boundaries.sh",
     "generate:tokens": "tsx scripts/generate-tokens-css.ts",
-    "generate:backend": "openapi-ts && prettier --write './src/headless/api/generated/**/*'",
+    "generate:backend": "openapi-ts && prettier --write --ignore-path /dev/null './src/headless/api/generated/**/*.ts'",
     "prebuild": "npm run check:uikit && npm run generate:tokens",
     "pretest": "npm run check:uikit",
     "build": "tsup",

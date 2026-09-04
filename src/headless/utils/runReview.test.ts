@@ -6,6 +6,7 @@ import type {
   GitMergeResult,
   RunVerification,
   VerificationCheckResult,
+  VerificationApproachOption,
 } from '../api/generated'
 import {
   asRunVerification,
@@ -20,6 +21,7 @@ import {
   verdictSummary,
   verificationCheckRows,
   verificationHeadline,
+  verificationApproachRows,
   formatChangeRequestMessage,
 } from './runReview'
 import {
@@ -75,6 +77,12 @@ describe('asRunVerification', () => {
   it('accepts failed and error statuses', () => {
     expect(asRunVerification({ status: 'failed', checks: [] })).toBeDefined()
     expect(asRunVerification({ status: 'error', checks: [] })).toBeDefined()
+  })
+
+  it('accepts UNCHECKED — dropping it would hide the very state it exists to show', () => {
+    // This narrowing silently discarded the whole verification object for any
+    // status it did not enumerate, so a new backend status vanished client-side.
+    expect(asRunVerification({ status: 'unchecked', checks: [] })).toBeDefined()
   })
 })
 
@@ -135,8 +143,45 @@ describe('verificationHeadline', () => {
     expect(head.label).toBe('Checks errored')
   })
 
+  it('is WARNING, never positive, when nothing was checked', () => {
+    const head = verificationHeadline(verification({ status: 'unchecked', checks: [] }))
+    expect(head.tone).toBe('warning')
+    expect(head.tone).not.toBe('positive')
+    expect(head.label).toBe('Nothing checked')
+  })
+
+  it('shows the reason nothing was checked, not a generic placeholder', () => {
+    const head = verificationHeadline(
+      verification({
+        status: 'unchecked',
+        checks: [],
+        uncheckedReason: {
+          kind: 'no-applicable-checks',
+          summary: 'No check applies to .kt, .xml — the built-in checks only cover TypeScript.',
+          extensions: ['.kt', '.xml'],
+        },
+      }),
+    )
+    expect(head.detail).toContain('.kt')
+  })
+
+  it('NEVER shows a positive tone for a verification whose checks all skipped', () => {
+    // Defensive: even if a stored record predates the unchecked state (or a
+    // future producer gets it wrong), zero executed checks must not read green.
+    const head = verificationHeadline(
+      verification({
+        status: 'passed',
+        checks: [{ ...check(), status: 'skipped' }],
+      }),
+    )
+    expect(head.tone).not.toBe('positive')
+    expect(head.status).toBe('unchecked')
+  })
+
   it('falls back to a no-checks detail when the run verified nothing', () => {
-    expect(verificationHeadline(verification({ checks: [] })).detail).toBe(NO_CHECKS_DETAIL)
+    expect(verificationHeadline(verification({ status: 'unchecked', checks: [] })).detail).toBe(
+      NO_CHECKS_DETAIL,
+    )
   })
 
   it('derives duration from the start/finish span, never negative', () => {
@@ -422,5 +467,57 @@ describe('formatChangeRequestMessage', () => {
 
   it('trims the notes so a stray newline is not sent as content', () => {
     expect(formatChangeRequestMessage('  fix it  ')?.endsWith('fix it')).toBe(true)
+  })
+})
+
+describe('verificationApproachRows', () => {
+  const option = (
+    id: string,
+    availability: VerificationApproachOption['availability'],
+  ): VerificationApproachOption => ({
+    spec: {
+      id,
+      label: `Label ${id}`,
+      proves: `Proves ${id}`,
+      requires: { default: [] },
+    } as VerificationApproachOption['spec'],
+    availability,
+    drivenBy: [],
+  })
+
+  it('puts what can be run first, then what is one install away', () => {
+    const rows = verificationApproachRows([
+      option('a', { status: 'unavailable', missing: ['adb'], hints: ['Install adb.'] }),
+      option('b', { status: 'available' }),
+    ])
+    expect(rows.map((r) => r.id)).toEqual(['b', 'a'])
+    expect(rows[0]?.tone).toBe('positive')
+  })
+
+  it('omits what does not apply — that is noise, not a next step', () => {
+    // Telling someone a screenshot diff does not apply to their backend library
+    // is worse than saying nothing.
+    const rows = verificationApproachRows([
+      option('shot', { status: 'not-applicable', reason: 'not a mobile project' }),
+      option('review', { status: 'available' }),
+    ])
+    expect(rows.map((r) => r.id)).toEqual(['review'])
+  })
+
+  it('carries the install hint as the detail, so the row is actionable', () => {
+    const rows = verificationApproachRows([
+      option('a', {
+        status: 'unavailable',
+        missing: ['adb', 'androidDevice'],
+        hints: ['Install platform-tools.', 'Create a virtual device.'],
+      }),
+    ])
+    expect(rows[0]?.detail).toContain('Install platform-tools.')
+    expect(rows[0]?.detail).toContain('Create a virtual device.')
+    expect(rows[0]?.tone).toBe('neutral')
+  })
+
+  it('is empty for an empty plan, so the caller renders nothing', () => {
+    expect(verificationApproachRows([])).toEqual([])
   })
 })
