@@ -60,8 +60,6 @@ export function ChatSidebarPanel({
     onCollapsedChange?.(next)
   }
 
-  if (!isOpen) return null
-
   const MIN_W = getMetricPx('--sidebar-w', 260)
   const COLLAPSED_W = getMetricPx('--sidebar-w-collapsed', 64)
 
@@ -78,6 +76,10 @@ export function ChatSidebarPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // After every hook: closing the panel must not change the hook count, or
+  // toggling `isOpen` crashes the tree with "rendered fewer hooks than expected".
+  if (!isOpen) return null
 
   const onResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (collapsed) return

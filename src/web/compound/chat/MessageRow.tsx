@@ -329,7 +329,15 @@ function MessageRow({
           </div>
 
           {deleteAffordance ? (
-            <span className="mt-1 transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+            <span
+              className={
+                deleteAffordance.locked
+                  ? // A locked row states itself: it is not a hover-only nicety,
+                    // because "this history is deliberately kept" is the message.
+                    'mt-1'
+                  : 'mt-1 transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+              }
+            >
               <button
                 type="button"
                 title={deleteAffordance.label}
@@ -338,7 +346,13 @@ function MessageRow({
                 onClick={() => onDeleteLastMessage?.()}
                 disabled={deleteAffordance.disabled}
               >
-                <IconDelete className="w-3.5 h-3.5" />
+                {deleteAffordance.locked ? (
+                  <span aria-hidden className="text-[11px] leading-none">
+                    🔒
+                  </span>
+                ) : (
+                  <IconDelete className="w-3.5 h-3.5" />
+                )}
               </button>
             </span>
           ) : null}

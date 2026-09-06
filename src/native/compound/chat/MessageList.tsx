@@ -101,6 +101,8 @@ export interface MessageListProps {
 
   onDeleteLastMessage?: () => void
   onRetry?: () => void
+  /** True when the chat's history is closed and kept: delete controls render LOCKED. */
+  historyLocked?: boolean
   /** Re-run the chat's trailing user message. Absent ⇒ no row offers a restart. */
   onRestartTurn?: () => void
 
@@ -154,6 +156,7 @@ export default function MessageList({
   onReadLatest,
   scrollToBottomSignal,
   onDeleteLastMessage,
+  historyLocked,
   onRetry,
   onRestartTurn,
   renderToolCall,
@@ -362,6 +365,7 @@ export default function MessageList({
             isLast: i === lastIndex,
             turnInFlight,
             runId: msg.cliRunId,
+            historyLocked,
           })
           const restartControl = describeLastUserMessageRestart({
             hasRestartAction: !!onRestartTurn,

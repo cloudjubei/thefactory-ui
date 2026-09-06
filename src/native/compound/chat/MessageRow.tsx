@@ -341,10 +341,16 @@ function MessageRow({
               borderWidth: 1,
               borderColor: theme.border.subtle,
               backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
-              opacity: deleteControl.disabled ? 0.4 : 1,
+              // A locked row is not merely unavailable — keep it legible, since
+              // "this history is deliberately kept" is the message it carries.
+              opacity: deleteControl.locked ? 0.85 : deleteControl.disabled ? 0.4 : 1,
             })}
           >
-            <IconDelete size={12} color={theme.text.secondary} />
+            {deleteControl.locked ? (
+              <Text style={{ fontSize: 11 }}>🔒</Text>
+            ) : (
+              <IconDelete size={12} color={theme.text.secondary} />
+            )}
           </Pressable>
         )}
       </View>

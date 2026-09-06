@@ -33,6 +33,9 @@ import type {
   AddDatabaseData,
   AddDatabaseErrors,
   AddDatabaseResponses,
+  AnswerFeatureQuestionData,
+  AnswerFeatureQuestionErrors,
+  AnswerFeatureQuestionResponses,
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
@@ -72,6 +75,9 @@ import type {
   CompleteOverseerGithubAuthResponses,
   ConfirmOverseerLocalOnlyData,
   ConfirmOverseerLocalOnlyResponses,
+  ConsolidateChatData,
+  ConsolidateChatErrors,
+  ConsolidateChatResponses,
   CountProjectDataData,
   CountProjectDataErrors,
   CountProjectDataResponses,
@@ -331,6 +337,8 @@ import type {
   GetProviderConnectionData,
   GetProviderConnectionErrors,
   GetProviderConnectionResponses,
+  GetReviewEvidenceContentData,
+  GetReviewEvidenceContentResponses,
   GetStoriesOrderData,
   GetStoriesOrderResponses,
   GetStoryData,
@@ -490,6 +498,9 @@ import type {
   ListProjectsResponses,
   ListProviderConnectionsData,
   ListProviderConnectionsResponses,
+  ListReviewEvidenceData,
+  ListReviewEvidenceErrors,
+  ListReviewEvidenceResponses,
   ListRunnersData,
   ListRunnersResponses,
   ListSourceRecordsData,
@@ -617,6 +628,9 @@ import type {
   ReorderProjectsGroupsResponses,
   ReorderStoriesData,
   ReorderStoriesResponses,
+  RequestCliRunReviewData,
+  RequestCliRunReviewErrors,
+  RequestCliRunReviewResponses,
   ResetOverseerData,
   ResetOverseerResponses,
   RestartChatWithCliData,
@@ -1271,6 +1285,24 @@ export const updateFeature = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const answerFeatureQuestion = <ThrowOnError extends boolean = false>(
+  options: Options<AnswerFeatureQuestionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AnswerFeatureQuestionResponses,
+    AnswerFeatureQuestionErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/features/{featureId}/answer',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const reorderFeatures = <ThrowOnError extends boolean = false>(
   options: Options<ReorderFeaturesData, ThrowOnError>,
 ) =>
@@ -1283,6 +1315,29 @@ export const reorderFeatures = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const listReviewEvidence = <ThrowOnError extends boolean = false>(
+  options: Options<ListReviewEvidenceData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListReviewEvidenceResponses,
+    ListReviewEvidenceErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence',
+    ...options,
+  })
+
+export const getReviewEvidenceContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetReviewEvidenceContentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetReviewEvidenceContentResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content',
+    ...options,
   })
 
 export const listLlmConfigs = <ThrowOnError extends boolean = false>(
@@ -1958,6 +2013,20 @@ export const deleteLastChatMessage = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/delete-last-message',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const consolidateChat = <ThrowOnError extends boolean = false>(
+  options: Options<ConsolidateChatData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ConsolidateChatResponses, ConsolidateChatErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/consolidate',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3950,6 +4019,24 @@ export const approveCliRunReview = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/approve-review',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const requestCliRunReview = <ThrowOnError extends boolean = false>(
+  options: Options<RequestCliRunReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RequestCliRunReviewResponses,
+    RequestCliRunReviewErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/request-review',
     ...options,
     headers: {
       'Content-Type': 'application/json',

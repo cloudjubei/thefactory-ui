@@ -6,6 +6,7 @@ import {
   addChatMessages,
   archiveChat as archiveChatApi,
   clearChat as clearChatApi,
+  consolidateChat as consolidateChatApi,
   createTopicChat,
   deleteChat as deleteChatApi,
   deleteLastChatMessage,
@@ -170,6 +171,11 @@ export type ChatsContextValue = {
    * reset does — `clearChat` would empty it in place.
    */
   archiveChat: (ctx: ChatCtx) => Promise<void>
+  /**
+   * Summarise a finished agent-run chat into a NEW chat and close this one.
+   * Resolves with the successor's context to navigate to.
+   */
+  consolidateChat: (ctx: ChatCtx) => Promise<ChatCtx | undefined>
   /** Delete the chat entirely. Backend rejects deletion of the canonical
    * `PROJECT` chat — callers should guard against that case. */
   deleteChat: (ctx: ChatCtx) => Promise<void>
@@ -1195,6 +1201,24 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [refresh],
     )
 
+    /**
+     * Close a finished agent-run chat down: the backend summarises the work into
+     * a NEW chat and archives this one. Returns the successor's context so the
+     * caller can navigate the user straight into it — closing a chat and leaving
+     * them staring at a read-only page would be a dead end.
+     */
+    const consolidateChat = useCallback(
+      async (ctx: ChatCtx) => {
+        const { data } = await consolidateChatApi({
+          body: { context: ctx },
+          throwOnError: true,
+        })
+        await refresh()
+        return data?.successorContext
+      },
+      [refresh],
+    )
+
     const deleteChat = useCallback(
       async (ctx: ChatCtx) => {
         await deleteChatApi({ body: { context: ctx }, throwOnError: true })
@@ -1347,6 +1371,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         abortChat,
         clearChat,
         archiveChat,
+        consolidateChat,
         deleteChat,
         deleteLastMessage,
         createProjectTopic,
@@ -1374,6 +1399,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         abortChat,
         clearChat,
         archiveChat,
+        consolidateChat,
         deleteChat,
         deleteLastMessage,
         createProjectTopic,

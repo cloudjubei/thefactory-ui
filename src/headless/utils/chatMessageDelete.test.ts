@@ -5,6 +5,8 @@ import {
   CLI_TURN_DELETE_RUNNING_LABEL,
   MESSAGE_DELETE_BUSY_LABEL,
   MESSAGE_DELETE_LABEL,
+  HISTORY_LOCKED_LABEL,
+  SIGNED_OFF_TURN_LOCKED_LABEL,
 } from './chatMessageDeleteConstants'
 import type { MessageDeleteControl, MessageDeleteInput } from './chatMessageDeleteTypes'
 
@@ -103,5 +105,56 @@ describe('refuseWhileRunActive', () => {
       disabled: true,
     }
     expect(refuseWhileRunActive(busy, true)).toBe(busy)
+  })
+})
+
+describe('describeLastMessageDelete: locked history', () => {
+  it('still RENDERS the control when history is locked, but refuses', () => {
+    // Hiding it reads as "deleting is impossible"; the user asked to be told the
+    // messages are deliberately kept, not to have the affordance vanish.
+    const control = describeLastMessageDelete({ ...base, historyLocked: true })
+    expect(control).toBeDefined()
+    expect(control?.disabled).toBe(true)
+    expect(control?.locked).toBe(true)
+    expect(control?.label).toBe(HISTORY_LOCKED_LABEL)
+  })
+
+  it('locks a turn whose work was signed off, naming that as the reason', () => {
+    const control = describeLastMessageDelete({
+      ...base,
+      runId: 'r1',
+      turnSignedOff: true,
+    })
+    expect(control?.locked).toBe(true)
+    expect(control?.disabled).toBe(true)
+    expect(control?.label).toBe(SIGNED_OFF_TURN_LOCKED_LABEL)
+  })
+
+  it('locking outranks the in-flight refusal — a closed chat is not "try again later"', () => {
+    const control = describeLastMessageDelete({
+      ...base,
+      historyLocked: true,
+      turnInFlight: true,
+    })
+    expect(control?.label).toBe(HISTORY_LOCKED_LABEL)
+  })
+
+  it('leaves an ordinary turn deletable', () => {
+    const control = describeLastMessageDelete({ ...base, runId: 'r1' })
+    expect(control?.locked).toBeUndefined()
+    expect(control?.disabled).toBe(false)
+  })
+
+  it('never offers a control at all when the host wired none, locked or not', () => {
+    expect(
+      describeLastMessageDelete({ ...base, hasDeleteAction: false, historyLocked: true }),
+    ).toBeUndefined()
+  })
+})
+
+describe('refuseWhileRunActive: locked control', () => {
+  it('does not downgrade a locked label to the running one', () => {
+    const locked = describeLastMessageDelete({ ...base, historyLocked: true })
+    expect(refuseWhileRunActive(locked, true)?.label).toBe(HISTORY_LOCKED_LABEL)
   })
 })

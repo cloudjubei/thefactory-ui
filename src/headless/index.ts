@@ -324,6 +324,23 @@ export {
   formatChangeRequestMessage,
 } from './utils/runReview'
 export { approveActionDescriptors } from './utils/approveActions'
+export { censusFeatures, incompleteStoryReason } from './utils/storyCensus'
+export { openFeatureQuestions } from './utils/featureQuestions'
+export { chatClosure } from './utils/chatClosure'
+export { chatCloseAction } from './utils/chatCloseAction'
+export {
+  groupEvidence,
+  isViewableImage,
+  summarizeEvidence,
+  toEvidenceTile,
+} from './utils/reviewEvidenceView'
+export type { EvidenceGroup, EvidenceTile } from './utils/reviewEvidenceView'
+export { useReviewEvidence } from './hooks/useReviewEvidence'
+export type { UseReviewEvidence } from './hooks/useReviewEvidence'
+export type { ChatCloseAction } from './utils/chatCloseAction'
+export type { ChatClosure } from './utils/chatClosure'
+export type { OpenFeatureQuestion } from './utils/featureQuestions'
+export type { StoryFeatureCensus } from './utils/storyCensus'
 export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,

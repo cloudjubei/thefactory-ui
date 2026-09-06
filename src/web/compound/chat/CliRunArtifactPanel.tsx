@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
+import { answerFeatureQuestion } from '../../../headless/api'
 import {
   isReviewReasonValid,
   landFailureSummary,
@@ -12,6 +13,13 @@ import {
   verificationCheckRows,
   verificationApproachRows,
   approveActionDescriptors,
+  censusFeatures,
+  incompleteStoryReason,
+  openFeatureQuestions,
+  useReviewEvidence,
+  groupEvidence,
+  summarizeEvidence,
+  useStories,
   verificationHeadline,
   useCliRunArtifact,
   type ApproveActionDescriptor,
@@ -182,6 +190,8 @@ export default function CliRunArtifactPanel({
     verificationApproaches,
     loadVerificationPlan,
     planLoading,
+    requestReview,
+    requestingReview,
     approve,
     approving,
     approveResult,
@@ -196,6 +206,16 @@ export default function CliRunArtifactPanel({
     undefined,
   )
   const [reason, setReason] = useState('')
+  // Every hook stays ABOVE the early returns below. React counts hooks per
+  // render: a hook placed after `if (loading) return null` runs on some renders
+  // and not others, which is exactly the "rendered more hooks than during the
+  // previous render" crash.
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answering, setAnswering] = useState<string | undefined>()
+  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
+  const [approveNote, setApproveNote] = useState('')
+  const { getStory } = useStories()
+  const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
   useEffect(() => {
     if (error) return
@@ -260,14 +280,33 @@ export default function CliRunArtifactPanel({
   const head = verificationHeadline(verification)
   const checkRows = verificationCheckRows(verification)
   const approachRows = verificationApproachRows(verificationApproaches)
+  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
+  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
+  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
+  const evidenceGroups = groupEvidence(evidence.tiles)
+
+  /** Send one answer; the SDK decides whether that releases the feature. */
+  const submitAnswer = async (q: { questionId: string; featureId: string }) => {
+    const answer = (answers[q.questionId] ?? '').trim()
+    if (!projectId || !storyId || answer.length === 0) return
+    setAnswering(q.questionId)
+    try {
+      await answerFeatureQuestion({
+        path: { projectId, storyId, featureId: q.featureId },
+        body: { questionId: q.questionId, answer },
+        throwOnError: true,
+      })
+      setAnswers((prev) => ({ ...prev, [q.questionId]: '' }))
+    } finally {
+      setAnswering(undefined)
+    }
+  }
   const approveOptions = approveActionDescriptors({
     branch: review?.branch ?? 'the review branch',
     baseBranch: 'the working branch',
     hasRemote: true,
     fileCount: counts.total,
   })
-  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
-  const [approveNote, setApproveNote] = useState('')
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
@@ -339,6 +378,60 @@ export default function CliRunArtifactPanel({
           ) : null}
         </div>
 
+        {openQuestions.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-md border border-(--accent-primary)/25 bg-(--accent-primary)/5 p-2">
+            <span className="text-[11px] font-medium text-(--text-secondary)">
+              {openQuestions.length === 1
+                ? 'The agent has a question'
+                : `The agent has ${openQuestions.length} questions`}
+            </span>
+            {openQuestions.map((q) => (
+              <div key={q.questionId} className="flex flex-col gap-1">
+                <span className="text-[12px] text-(--text-primary)">{q.question}</span>
+                <span className="text-[11px] text-(--text-secondary)">on {q.featureTitle}</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    size="sm"
+                    value={answers[q.questionId] ?? ''}
+                    placeholder="Your answer — this unblocks the feature"
+                    onChange={(e) =>
+                      setAnswers((prev) => ({ ...prev, [q.questionId]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void submitAnswer(q)
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={
+                      answering === q.questionId ||
+                      (answers[q.questionId] ?? '').trim().length === 0
+                    }
+                    onClick={() => void submitAnswer(q)}
+                  >
+                    {answering === q.questionId ? 'Sending…' : 'Answer'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {census ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${
+                census.complete ? TONE_CHIP.positive : TONE_CHIP.warning
+              }`}
+            >
+              {census.label}
+            </span>
+            {storyIncomplete ? (
+              <span className="text-[11px] text-(--text-secondary) min-w-0">{storyIncomplete}</span>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${TONE_CHIP[head.tone]}`}
@@ -358,6 +451,75 @@ export default function CliRunArtifactPanel({
             {verifying ? 'Running checks…' : 'Re-run checks'}
           </button>
         </div>
+
+        {evidence.refs.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-md border border-(--border-subtle) p-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-(--text-secondary)">
+                Proof of the work
+              </span>
+              <span className="text-[11px] text-(--text-secondary)">
+                {summarizeEvidence(evidence.refs)}
+              </span>
+              {evidence.notShown > 0 ? (
+                <span className="text-[11px] text-(--text-secondary)">
+                  {`(+${evidence.notShown} not shown)`}
+                </span>
+              ) : null}
+            </div>
+            {evidenceGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-1">
+                {group.before || group.after ? (
+                  <>
+                    <span className="text-[11px] text-(--text-secondary)">{group.title}</span>
+                    <div className="flex gap-2 flex-wrap">
+                      {[group.before, group.after].map((tile, i) =>
+                        tile ? (
+                          <figure key={tile.ref.id} className="flex flex-col gap-1">
+                            {tile.dataUri ? (
+                              <img
+                                src={tile.dataUri}
+                                alt={tile.caption}
+                                className="max-h-56 rounded border border-(--border-subtle)"
+                              />
+                            ) : (
+                              <div className="h-56 w-32 rounded border border-(--border-subtle) bg-(--surface-hover)" />
+                            )}
+                            <figcaption className="text-[11px] text-(--text-secondary)">
+                              {i === 0 ? 'Before' : 'After'} — {tile.caption}
+                            </figcaption>
+                          </figure>
+                        ) : null,
+                      )}
+                    </div>
+                  </>
+                ) : null}
+                {group.singles.length > 0 ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {group.singles.map((tile) => (
+                      <figure key={tile.ref.id} className="flex flex-col gap-1">
+                        {tile.dataUri ? (
+                          <img
+                            src={tile.dataUri}
+                            alt={tile.caption}
+                            className="max-h-56 rounded border border-(--border-subtle)"
+                          />
+                        ) : (
+                          <span className="text-[11px] text-(--text-secondary)">
+                            {`${tile.ref.kind} · ${tile.caption}`}
+                          </span>
+                        )}
+                        <figcaption className="text-[11px] text-(--text-secondary)">
+                          {tile.caption}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {head.status === 'unchecked' ? (
           <div className="flex flex-col gap-1.5 rounded-md border border-orange-500/20 bg-orange-500/5 p-2">
@@ -383,6 +545,17 @@ export default function CliRunArtifactPanel({
                     <span className="text-[11px] text-(--text-secondary) min-w-0">
                       {row.detail}
                     </span>
+                    {row.available ? (
+                      <button
+                        type="button"
+                        className="ml-auto shrink-0 text-[11px] underline text-(--text-secondary) disabled:opacity-50"
+                        title="Run this now — a verifier produces the evidence and attaches it here"
+                        onClick={() => void requestReview(row.id, row.label)}
+                        disabled={requestingReview !== undefined}
+                      >
+                        {requestingReview === row.id ? 'Starting…' : 'Run this'}
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </>
@@ -543,7 +716,7 @@ export default function CliRunArtifactPanel({
                     type="button"
                     // The hover callout: each button's label says WHAT, the title
                     // says where the work ends up — the only thing that differs.
-                    title={option.disabledReason ?? option.hint}
+                    title={storyIncomplete ?? option.disabledReason ?? option.hint}
                     className={`${ACTION_BUTTON} ${
                       option.action === 'merge'
                         ? 'bg-(--accent-primary) text-(--text-inverted) hover:opacity-90'
@@ -551,7 +724,11 @@ export default function CliRunArtifactPanel({
                     }`}
                     onClick={() => setPendingApprove(option)}
                     disabled={
-                      busy || isMerged || !reviewDiff || option.disabledReason !== undefined
+                      busy ||
+                      isMerged ||
+                      !reviewDiff ||
+                      option.disabledReason !== undefined ||
+                      storyIncomplete !== undefined
                     }
                   >
                     {isMerged && option.action === 'merge' ? 'Merged ✓' : option.label}

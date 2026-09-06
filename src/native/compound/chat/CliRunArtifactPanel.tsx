@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
+import { answerFeatureQuestion } from '../../../headless/api'
 import {
   isReviewReasonValid,
   landFailureSummary,
@@ -12,8 +13,17 @@ import {
   verdictSummary,
   verificationCheckRows,
   verificationApproachRows,
+  approveActionDescriptors,
+  censusFeatures,
+  incompleteStoryReason,
+  openFeatureQuestions,
+  useReviewEvidence,
+  groupEvidence,
+  summarizeEvidence,
+  useStories,
   verificationHeadline,
   useCliRunArtifact,
+  type ApproveActionDescriptor,
   type ReviewCheckRow,
   type ReviewTone,
   formatChangeRequestMessage,
@@ -21,6 +31,7 @@ import {
 import { nativePalette } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Input } from '../../primitives/Input'
+import { Modal } from '../../primitives/Modal'
 import UnifiedDiff from '../git/UnifiedDiff'
 
 export type CliRunArtifactPanelProps = {
@@ -152,7 +163,6 @@ export default function CliRunArtifactPanel({
     reviewDiff,
     reviewLoading,
     loadReviewDiff,
-    merge,
     merging,
     mergeResult,
     verify,
@@ -160,6 +170,8 @@ export default function CliRunArtifactPanel({
     verificationApproaches,
     loadVerificationPlan,
     planLoading,
+    requestReview,
+    requestingReview,
     approve,
     approving,
     approveResult,
@@ -174,6 +186,16 @@ export default function CliRunArtifactPanel({
     undefined,
   )
   const [reason, setReason] = useState('')
+  // Every hook stays ABOVE the early returns below. React counts hooks per
+  // render: a hook placed after `if (loading) return null` runs on some renders
+  // and not others, which is exactly the "rendered more hooks than during the
+  // previous render" crash.
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answering, setAnswering] = useState<string | undefined>()
+  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
+  const [approveNote, setApproveNote] = useState('')
+  const { getStory } = useStories()
+  const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
   useEffect(() => {
     // Eager load (not gated on `expanded`) so the always-visible action row
@@ -230,14 +252,34 @@ export default function CliRunArtifactPanel({
   const head = verificationHeadline(verification)
   const checkRows = verificationCheckRows(verification)
   const approachRows = verificationApproachRows(verificationApproaches)
+  // Parity with web: how much of the story is finished, stated rather than implied.
+  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
+  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
+  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
+  const evidenceGroups = groupEvidence(evidence.tiles)
+
+  /** Send one answer; the SDK decides whether that releases the feature. */
+  const submitAnswer = async (q: { questionId: string; featureId: string }) => {
+    const answer = (answers[q.questionId] ?? '').trim()
+    if (!projectId || !storyId || answer.length === 0) return
+    setAnswering(q.questionId)
+    try {
+      await answerFeatureQuestion({
+        path: { projectId, storyId, featureId: q.featureId },
+        body: { questionId: q.questionId, answer },
+        throwOnError: true,
+      })
+      setAnswers((prev) => ({ ...prev, [q.questionId]: '' }))
+    } finally {
+      setAnswering(undefined)
+    }
+  }
   const approveOptions = approveActionDescriptors({
     branch: review?.branch ?? 'the review branch',
     baseBranch: 'the working branch',
     hasRemote: true,
     fileCount: counts.total,
   })
-  const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
-  const [approveNote, setApproveNote] = useState('')
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
@@ -247,7 +289,7 @@ export default function CliRunArtifactPanel({
     hasReviewBranch: !!review,
     partOfStoryRun: storyId !== undefined,
   })
-  const busy = merging || rejecting || requestingChanges
+  const busy = merging || approving || rejecting || requestingChanges
   const reasonValid = isReviewReasonValid(reason)
 
   const openReason = (decision: 'rejected' | 'changes-requested') => {
@@ -452,6 +494,165 @@ export default function CliRunArtifactPanel({
           </Pressable>
         </View>
 
+        {openQuestions.length > 0 ? (
+          <View
+            style={{
+              gap: 8,
+              padding: 8,
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: theme.border.default,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
+              {openQuestions.length === 1
+                ? 'The agent has a question'
+                : `The agent has ${openQuestions.length} questions`}
+            </Text>
+            {openQuestions.map((q) => (
+              <View key={q.questionId} style={{ gap: 4 }}>
+                <Text style={{ fontSize: 12, color: theme.text.primary }}>{q.question}</Text>
+                <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                  {`on ${q.featureTitle}`}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      value={answers[q.questionId] ?? ''}
+                      placeholder="Your answer — this unblocks the feature"
+                      onChangeText={(text) =>
+                        setAnswers((prev) => ({ ...prev, [q.questionId]: text }))
+                      }
+                    />
+                  </View>
+                  {primaryButton(
+                    answering === q.questionId ? 'Sending…' : 'Answer',
+                    () => void submitAnswer(q),
+                    answering === q.questionId || (answers[q.questionId] ?? '').trim().length === 0,
+                    answering === q.questionId,
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {census ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: census.complete ? TONE_BORDER.positive : TONE_BORDER.warning,
+                backgroundColor: census.complete ? TONE_BG.positive : TONE_BG.warning,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '500',
+                  color:
+                    (census.complete ? TONE_FG.positive : TONE_FG.warning) ?? theme.text.secondary,
+                }}
+              >
+                {census.label}
+              </Text>
+            </View>
+            {storyIncomplete ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary, flex: 1 }}>
+                {storyIncomplete}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {evidence.refs.length > 0 ? (
+          <View
+            style={{
+              gap: 8,
+              padding: 8,
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: theme.border.default,
+            }}
+          >
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
+                Proof of the work
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                {summarizeEvidence(evidence.refs)}
+              </Text>
+            </View>
+            {evidenceGroups.map((group) => (
+              <View key={group.key} style={{ gap: 4 }}>
+                {group.before || group.after ? (
+                  <>
+                    <Text style={{ fontSize: 11, color: theme.text.secondary }}>{group.title}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                      {[group.before, group.after].map((tile, i) =>
+                        tile ? (
+                          <View key={tile.ref.id} style={{ gap: 4 }}>
+                            {tile.dataUri ? (
+                              <Image
+                                source={{ uri: tile.dataUri }}
+                                style={{
+                                  width: 120,
+                                  height: 220,
+                                  borderRadius: 4,
+                                  borderWidth: 1,
+                                  borderColor: theme.border.subtle,
+                                }}
+                                resizeMode="contain"
+                                accessibilityLabel={tile.caption}
+                              />
+                            ) : (
+                              <View
+                                style={{
+                                  width: 120,
+                                  height: 220,
+                                  borderRadius: 4,
+                                  backgroundColor: theme.surface.muted,
+                                }}
+                              />
+                            )}
+                            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                              {`${i === 0 ? 'Before' : 'After'} — ${tile.caption}`}
+                            </Text>
+                          </View>
+                        ) : null,
+                      )}
+                    </View>
+                  </>
+                ) : null}
+                {group.singles.map((tile) => (
+                  <View key={tile.ref.id} style={{ gap: 4 }}>
+                    {tile.dataUri ? (
+                      <Image
+                        source={{ uri: tile.dataUri }}
+                        style={{
+                          width: 120,
+                          height: 220,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: theme.border.subtle,
+                        }}
+                        resizeMode="contain"
+                        accessibilityLabel={tile.caption}
+                      />
+                    ) : null}
+                    <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                      {tile.caption}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {head.status === 'unchecked' ? (
           <View
             style={{
@@ -503,6 +704,25 @@ export default function CliRunArtifactPanel({
                     >
                       {row.detail}
                     </Text>
+                    {row.available ? (
+                      <Pressable
+                        onPress={() => void requestReview(row.id, row.label)}
+                        disabled={requestingReview !== undefined}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Run ${row.label} now`}
+                        style={{ opacity: requestingReview !== undefined ? 0.5 : 1 }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: theme.text.secondary,
+                            textDecorationLine: 'underline',
+                          }}
+                        >
+                          {requestingReview === row.id ? 'Starting…' : 'Run this'}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ))}
               </>
@@ -725,12 +945,16 @@ export default function CliRunArtifactPanel({
                       ? primaryButton(
                           isMerged ? 'Merged ✓' : option.label,
                           () => setPendingApprove(option),
-                          busy || isMerged || !reviewDiff,
+                          busy || isMerged || !reviewDiff || storyIncomplete !== undefined,
                           approving,
                         )
                       : secondaryButton(option.label, () => setPendingApprove(option), {
                           disabled:
-                            busy || isMerged || !reviewDiff || option.disabledReason !== undefined,
+                            busy ||
+                            isMerged ||
+                            !reviewDiff ||
+                            option.disabledReason !== undefined ||
+                            storyIncomplete !== undefined,
                         })}
                   </View>
                 ))}
@@ -745,6 +969,56 @@ export default function CliRunArtifactPanel({
             ) : null}
           </View>
         )}
+
+        {pendingApprove ? (
+          <Modal
+            isOpen
+            onClose={() => setPendingApprove(undefined)}
+            title={pendingApprove.title}
+            size="sm"
+          >
+            <View style={{ gap: 12 }}>
+              <View style={{ gap: 6 }}>
+                {pendingApprove.effects.map((effect) => (
+                  <View key={effect} style={{ flexDirection: 'row', gap: 6 }}>
+                    <Text style={{ fontSize: 13, color: theme.text.secondary }}>—</Text>
+                    <Text style={{ fontSize: 13, color: theme.text.secondary, flex: 1 }}>
+                      {effect}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <Input
+                value={approveNote}
+                placeholder="Note (optional)"
+                onChangeText={setApproveNote}
+              />
+              {approveResult && !approveResult.approved ? (
+                <Text style={{ fontSize: 12, color: TONE_FG.danger ?? theme.text.secondary }}>
+                  {approveResult.blockedReason ?? 'The approval was refused.'}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+                {secondaryButton('Cancel', () => setPendingApprove(undefined), {
+                  disabled: approving,
+                })}
+                {primaryButton(
+                  approving ? 'Working…' : pendingApprove.confirmLabel,
+                  () => {
+                    const action = pendingApprove.action
+                    const note = approveNote.trim()
+                    void approve(action, note.length > 0 ? note : undefined).then(() => {
+                      setPendingApprove(undefined)
+                      setApproveNote('')
+                    })
+                  },
+                  approving,
+                  approving,
+                )}
+              </View>
+            </View>
+          </Modal>
+        ) : null}
 
         {reasonFor ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

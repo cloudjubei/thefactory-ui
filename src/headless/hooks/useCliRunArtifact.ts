@@ -3,6 +3,7 @@ import {
   applyCliAgentArtifact,
   getCliAgentRun,
   approveCliRunReview,
+  requestCliRunReview,
   getCliRunVerificationPlan,
   getGitBranchDiffSummary,
   mergeCliRunReview,
@@ -163,6 +164,13 @@ export type UseCliRunArtifact = {
   loadVerificationPlan: () => Promise<void>
   /** True while the plan is loading. */
   planLoading: boolean
+  /**
+   * Ask for proof using one approach. Starts a host-side verifier run that
+   * captures the evidence and files it against THIS run.
+   */
+  requestReview: (approach: string, approachLabel: string) => Promise<void>
+  /** The approach id currently being requested, or `undefined`. */
+  requestingReview: string | undefined
   /** Reject the run outright, recording the (required) reason. */
   reject: (reason: string) => Promise<void>
   /** True while a rejection is in flight. */
@@ -214,6 +222,7 @@ export function useCliRunArtifact(
     VerificationApproachOption[]
   >([])
   const [planLoading, setPlanLoading] = useState(false)
+  const [requestingReview, setRequestingReview] = useState<string | undefined>(undefined)
   const [approving, setApproving] = useState(false)
   const [approveResult, setApproveResult] = useState<CliRunApproveResult | undefined>(undefined)
   const [rejecting, setRejecting] = useState(false)
@@ -547,6 +556,31 @@ export function useCliRunArtifact(
     [runId, projectId, reload],
   )
 
+  /**
+   * Ask for proof using one approach. Launches a host-side verifier run — the
+   * only place device capture can happen — and returns its error, if any.
+   */
+  const requestReview = useCallback(
+    async (approach: string, approachLabel: string) => {
+      if (!runId || !projectId) return
+      setRequestingReview(approach)
+      setError(undefined)
+      try {
+        const { data } = await requestCliRunReview({
+          path: { runId },
+          body: { projectId, approach, approachLabel },
+          throwOnError: true,
+        })
+        if (data && data.started === false && data.error) setError(data.error)
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setRequestingReview(undefined)
+      }
+    },
+    [runId, projectId],
+  )
+
   const verify = useCallback(async () => {
     if (!runId || !projectId) return
     const epoch = epochRef.current
@@ -635,6 +669,8 @@ export function useCliRunArtifact(
     verificationApproaches,
     loadVerificationPlan,
     planLoading,
+    requestReview,
+    requestingReview,
     reject,
     rejecting,
     requestChanges,

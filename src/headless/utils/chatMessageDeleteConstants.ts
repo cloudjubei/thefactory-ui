@@ -16,3 +16,14 @@ export const CLI_TURN_DELETE_RUNNING_LABEL = 'Stop the run before deleting this 
 
 /** Short visible caption next to the icon on the CLI turn control. */
 export const CLI_TURN_DELETE_ACTION_LABEL = 'Delete turn'
+
+/**
+ * The chat's history is closed and deliberately kept. Shown INSTEAD of hiding the
+ * control: the record of how the work happened is the valuable part, and a
+ * missing button reads as a bug rather than a decision.
+ */
+export const HISTORY_LOCKED_LABEL = 'This chat is closed — its history is kept and cannot be edited'
+
+/** One turn whose work was signed off. Removing it would orphan the approval that points at it. */
+export const SIGNED_OFF_TURN_LOCKED_LABEL =
+  'This turn was signed off — its history is kept and cannot be removed'

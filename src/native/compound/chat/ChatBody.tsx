@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { View } from 'react-native'
+import { Text, View } from 'react-native'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
@@ -43,6 +43,14 @@ export interface ChatBodyProps {
    * the canvas is action-only (e.g. a pending feature-request chat whose only
    * actions live in the centered `emptyStateContent`). */
   hideInput?: boolean
+
+  /**
+   * True when this chat's history is closed and deliberately kept (archived /
+   * consolidated). Rows then show their delete control as LOCKED rather than
+   * hiding it — the record of how the work happened is the point of keeping it,
+   * and a missing button reads as a bug rather than a decision.
+   */
+  historyLocked?: boolean
 
   messages: ChatMessageLike[]
   liveState: ChatLiveStateLike
@@ -149,6 +157,7 @@ export default function ChatBody({
   sendError,
   inputOverride,
   hideInput,
+  historyLocked,
   messages,
   liveState,
   systemPrompt,
@@ -270,6 +279,7 @@ export default function ChatBody({
           renderCliRunArtifact={renderCliRunArtifact}
           onShowUsage={onShowUsage}
           emptyStateContent={emptyStateContent}
+          historyLocked={historyLocked}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
@@ -319,6 +329,15 @@ export default function ChatBody({
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
             />
           ))}
+        </View>
+      ) : historyLocked ? (
+        // Parity with web: a closed chat keeps its history and takes no new work.
+        <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {
+              '🔒 This chat is closed. Its history is kept as the record of how the work was done — start a new chat to carry on from here.'
+            }
+          </Text>
         </View>
       ) : (
         (inputOverride ?? (

@@ -41,6 +41,14 @@ export type ChatBodyProps = {
    * actions live in the centered `emptyStateContent`). */
   hideInput?: boolean
 
+  /**
+   * True when this chat's history is closed and deliberately kept (archived /
+   * consolidated). Rows then show their delete control as LOCKED rather than
+   * hiding it — the record of how the work happened is the point of keeping it,
+   * and a missing button reads as a bug rather than a decision.
+   */
+  historyLocked?: boolean
+
   messages: ChatMessageLike[]
   liveState: ChatLiveStateLike
 
@@ -162,6 +170,7 @@ export default function ChatBody({
   sendError,
   inputOverride,
   hideInput,
+  historyLocked,
   messages,
   liveState,
   renderToolResult,
@@ -279,6 +288,7 @@ export default function ChatBody({
           onAtBottomChange={onAtBottomChange}
           onReadLatest={onReadLatest}
           scrollToBottomSignal={scrollToBottomSignal}
+          historyLocked={historyLocked}
           onDeleteLastMessage={onDeleteLastMessage ? () => void onDeleteLastMessage() : undefined}
           onRetry={onRetry ? () => void onRetry() : undefined}
           onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
@@ -321,6 +331,16 @@ export default function ChatBody({
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
             />
           ))}
+        </div>
+      ) : historyLocked ? (
+        // A closed chat keeps its history and takes no new work. Archiving is
+        // one-way by design — reopening would contradict the very locking that
+        // preserves the record — so the composer is replaced with the reason
+        // rather than left to fail on send.
+        <div className="px-3 py-2 text-[12px] text-(--text-secondary) border-t border-(--border-subtle)">
+          <span aria-hidden>🔒 </span>
+          This chat is closed. Its history is kept as the record of how the work was done — start a
+          new chat to carry on from here.
         </div>
       ) : inputOverride ? (
         inputOverride

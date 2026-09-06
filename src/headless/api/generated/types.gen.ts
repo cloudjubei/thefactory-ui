@@ -256,7 +256,7 @@ export type WorkItemProgress = {
   failed: number
 }
 
-export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
+export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer' | 'verifier'
 
 export type ChatContextAgentRun = {
   projectId: string
@@ -299,6 +299,7 @@ export type AgentRunParams = {
     [key: string]: string
   }
   dbConnectionString?: string
+  proofRequired?: boolean
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -1726,6 +1727,14 @@ export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
 export type Status = 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
 
+export type FeatureQuestion = {
+  id: string
+  question: string
+  answer?: string
+  askedAt: string
+  answeredAt?: string
+}
+
 export type ExternalRef = {
   provider: string
   externalId: string
@@ -1744,6 +1753,7 @@ export type Feature = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  questions?: Array<FeatureQuestion>
   externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
@@ -1818,12 +1828,13 @@ export type ChatContextArguments = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    questions?: Array<FeatureQuestion>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
     completedAt?: string
   }
-  agentRunType?: 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
+  agentRunType?: 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer' | 'verifier'
 }
 
 export type ChatContextArgumentsGeneral = {
@@ -1923,6 +1934,7 @@ export type ChatContextArgumentsFeature = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    questions?: Array<FeatureQuestion>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -1981,6 +1993,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     acceptance?: string
     blockers?: Array<string>
     rejection?: string
+    questions?: Array<FeatureQuestion>
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -6166,6 +6179,8 @@ export type CriterionVerdict = {
   evidence: Array<CriterionEvidence>
   derivation?: string
   abstainReason?: 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
+  mode?: 'cheap' | 'deep'
+  priorStatus?: 'confirmed' | 'implied' | 'unverifiable' | 'refuted' | 'conflicting' | 'alternative'
   methodology: string
   sourcesAttempted: Array<string>
   asOf: string
@@ -7007,6 +7022,17 @@ export type MaterialProposal = {
   lastSeen: string
 }
 
+export type CatalogOfferHealth = {
+  products: number
+  productsWithNoOffer: number
+  offers: number
+  priced: number
+  pricedPct: number
+  withBuyLinkNoPrice: number
+  outOfStock: number
+  stockUnknown: number
+}
+
 export type CriterionRulingProposal = {
   id: string
   slug: string
@@ -7387,6 +7413,44 @@ export type GetMaterialParams = {
   material: string
 }
 
+export type VerifyProductImageryParams = {
+  scope: string
+  recordType: string
+  market: string
+  criterionId: string
+  model: ModelSelection
+  visionModel?:
+    | {
+        kind: 'api'
+        llmConfig: LlmConfig
+      }
+    | {
+        kind: 'cli'
+        cli: CliTool
+        modelId?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        authCredentialId?: string
+        apiKeyCredentialId?: string
+      }
+  visionCandidates?: Array<ModelSelection>
+  keys?: Array<string>
+  abortSignal?: unknown
+}
+
+export type VerifyProductImageryResult = {
+  skipped?: 'model-not-vision'
+  checked: number
+  changed: number
+  refuted: number
+  galleryDropped: number
+}
+
+export type GetCatalogHealthParams = {
+  scope: string
+  recordType: string
+  market: string
+}
+
 export type ListRulingProposalsParams = {
   scope: string
   recordType: string
@@ -7694,6 +7758,39 @@ export type CliRunFileStat = {
   size: number
 }
 
+export type StoryFeatureCensus = {
+  total: number
+  done: number
+  pending: number
+  inProgress: number
+  blocked: number
+  deferred: number
+  outstanding: number
+  complete: boolean
+  label: string
+}
+
+export type WorkHandoverInput = {
+  storyTitle?: string
+  census?: {
+    total: number
+    done: number
+    pending: number
+    inProgress: number
+    blocked: number
+    deferred: number
+    outstanding: number
+    complete: boolean
+    label: string
+  }
+  changedFileCount?: number
+  verificationStatus?: string
+  verificationSummary?: string
+  evidenceCount?: number
+  branch?: string
+  verdict?: string
+}
+
 export type FeatureCreateInput = {
   title: string
   description: string
@@ -7704,6 +7801,7 @@ export type FeatureCreateInput = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  questions?: Array<FeatureQuestion>
   externalIds?: Array<ExternalRef>
 }
 
@@ -7717,6 +7815,7 @@ export type FeatureEditInput = {
   acceptance?: string
   blockers?: Array<string>
   rejection?: string
+  questions?: Array<FeatureQuestion>
   externalIds?: Array<ExternalRef>
 }
 
@@ -8286,6 +8385,8 @@ export type ToolName =
   | 'dismissMaterialProposal'
   | 'listRulingProposals'
   | 'dismissRulingProposal'
+  | 'getCatalogHealth'
+  | 'verifyProductImagery'
   | 'researchWeb'
   | 'recordReviewEvidence'
   | 'listReviewEvidence'
@@ -8313,6 +8414,7 @@ export type ToolName =
   | 'deleteFeature'
   | 'reorderFeature'
   | 'blockFeature'
+  | 'answerFeatureQuestion'
   | 'completeAssignment'
   | 'listTests'
   | 'runTests'
@@ -8348,6 +8450,7 @@ export type ToolName =
   | 'webReadURLsFull'
   | 'webReadPages'
   | 'webReadRevalidationReport'
+  | 'webReadCacheReport'
   | 'webInteract'
 
 export type ValidationResult = {
@@ -10480,6 +10583,44 @@ export type UpdateFeatureResponses = {
 
 export type UpdateFeatureResponse = UpdateFeatureResponses[keyof UpdateFeatureResponses]
 
+export type AnswerFeatureQuestionData = {
+  body: {
+    questionId: string
+    answer: string
+  }
+  path: {
+    projectId: string
+    storyId: string
+    featureId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/stories/{storyId}/features/{featureId}/answer'
+}
+
+export type AnswerFeatureQuestionErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AnswerFeatureQuestionError =
+  AnswerFeatureQuestionErrors[keyof AnswerFeatureQuestionErrors]
+
+export type AnswerFeatureQuestionResponses = {
+  /**
+   * Default Response
+   */
+  200: Story
+}
+
+export type AnswerFeatureQuestionResponse =
+  AnswerFeatureQuestionResponses[keyof AnswerFeatureQuestionResponses]
+
 export type ReorderFeaturesData = {
   body: ReorderPayload
   path: {
@@ -10511,6 +10652,60 @@ export type ReorderFeaturesResponses = {
 }
 
 export type ReorderFeaturesResponse = ReorderFeaturesResponses[keyof ReorderFeaturesResponses]
+
+export type ListReviewEvidenceData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    runId?: string
+    storyId?: string
+    featureId?: string
+    chatContextId?: string
+  }
+  url: '/api/v1/projects/{projectId}/review-evidence'
+}
+
+export type ListReviewEvidenceErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListReviewEvidenceError = ListReviewEvidenceErrors[keyof ListReviewEvidenceErrors]
+
+export type ListReviewEvidenceResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ReviewEvidenceRef>
+}
+
+export type ListReviewEvidenceResponse =
+  ListReviewEvidenceResponses[keyof ListReviewEvidenceResponses]
+
+export type GetReviewEvidenceContentData = {
+  body?: never
+  path: {
+    projectId: string
+    evidenceId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content'
+}
+
+export type GetReviewEvidenceContentResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
 
 export type ListLlmConfigsData = {
   body?: never
@@ -11991,6 +12186,38 @@ export type DeleteLastChatMessageResponses = {
 
 export type DeleteLastChatMessageResponse =
   DeleteLastChatMessageResponses[keyof DeleteLastChatMessageResponses]
+
+export type ConsolidateChatData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/consolidate'
+}
+
+export type ConsolidateChatErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ConsolidateChatError = ConsolidateChatErrors[keyof ConsolidateChatErrors]
+
+export type ConsolidateChatResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    successorContext: ChatContext
+    summary: string
+  }
+}
+
+export type ConsolidateChatResponse = ConsolidateChatResponses[keyof ConsolidateChatResponses]
 
 export type ClearChatData = {
   body: ChatContextBody
@@ -17150,6 +17377,7 @@ export type StartAgentRunData = {
         [key: string]: string
       }
       dbConnectionString?: string
+      proofRequired?: boolean
     }
     settings: CompletionSettings
     isolated?: boolean
@@ -18509,6 +18737,63 @@ export type ApproveCliRunReviewResponses = {
 
 export type ApproveCliRunReviewResponse =
   ApproveCliRunReviewResponses[keyof ApproveCliRunReviewResponses]
+
+export type RequestCliRunReviewData = {
+  body: {
+    projectId: string
+    approach: string
+    approachLabel: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/request-review'
+}
+
+export type RequestCliRunReviewErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RequestCliRunReviewError = RequestCliRunReviewErrors[keyof RequestCliRunReviewErrors]
+
+export type RequestCliRunReviewResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    started: boolean
+    runId?: string
+    agentRunId?: string
+    error?: string
+  }
+}
+
+export type RequestCliRunReviewResponse =
+  RequestCliRunReviewResponses[keyof RequestCliRunReviewResponses]
 
 export type StartCliAuthLoginData = {
   body: {

@@ -17,6 +17,12 @@ export type MessageDeleteControl = {
   disabled: boolean
   /** Set when the row owns a CLI run: deleting removes that entire turn. */
   cliRunId?: string
+  /**
+   * True when the refusal is PERMANENT rather than "not right now". Lets the
+   * surface show a lock instead of a spinner-ish disabled state, so a closed
+   * chat never looks like it is merely busy.
+   */
+  locked?: boolean
 }
 
 /** Everything the control is derived from. Pure input — no React, no I/O. */
@@ -37,4 +43,15 @@ export type MessageDeleteInput = {
    * mounted, so it says "a run happened here", not "a run is happening".
    */
   turnInFlight: boolean
+  /**
+   * True when the whole chat's history is closed (archived / consolidated). The
+   * record of how the work happened is the point of keeping it, so nothing in it
+   * may be removed.
+   */
+  historyLocked?: boolean
+  /**
+   * True when THIS turn's work carries a sign-off verdict. Removing it would
+   * orphan the approval that points at the run.
+   */
+  turnSignedOff?: boolean
 }
