@@ -322,7 +322,12 @@ export default function MessageList({
           gap: nativeSpace[6],
         }}
       >
-        {systemPrompt && messages.length === 0 && (
+        {/* Idle-chat preview only. During a run a CLI turn streams through
+            CliRunMessages, not `messages`, so this bubble used to sit on top of
+            the run's booting spinner for the whole run. Suppress it whenever a
+            turn is in flight (`turnInFlight` includes server-truth `isBusy`, so
+            it covers a run this session did not start). */}
+        {systemPrompt && messages.length === 0 && !turnInFlight && (
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
         {messages.length === 0 && !isThinking && emptyStateContent ? emptyStateContent : null}
@@ -478,10 +483,13 @@ export default function MessageList({
             />
           </View>
         ) : null}
-        {isThinking && (!pending || !pending.content) && !pendingCliRunId && (
+        {turnInFlight && (!pending || !pending.content) && !pendingCliRunId && (
           // A CLI turn boots its container before the first transcript byte
           // (and before pendingCliRunId is set). Show "Preparing <agent>" for
           // that window — driven by the model tag set synchronously on send.
+          // `turnInFlight` (not just `isThinking`) so a run this session did NOT
+          // start — launched elsewhere or resumed after reload, where `isBusy`
+          // is the only signal — still shows a spinner, not the system prompt.
           <ThinkingRow
             label={thinkingLabel ?? 'Thinking'}
             {...(pendingCliModel
@@ -495,7 +503,7 @@ export default function MessageList({
                     spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
                   }
                 : { spinnerLabel: 'Working…' }
-              : {})}
+              : { spinnerLabel: 'Working…' })}
           />
         )}
       </ScrollView>

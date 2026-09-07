@@ -5,6 +5,7 @@
 // this shape.
 
 import type { AgentQuestion } from './agentQuestionTypes'
+import type { AgentRemedy } from './agentRemedyTypes'
 
 export type ChatContextLike = {
   type:
@@ -129,6 +130,12 @@ export type PendingToolGrantData = {
    */
   question?: AgentQuestion
   /**
+   * Set when the CLI action is a REMEDY a remediable tool raised (no bootable
+   * AVD, missing SDK, …) rather than a permission request or question. Resolved
+   * by choosing one of its options (`resolveRemedy`), never Allow/Deny.
+   */
+  remedy?: AgentRemedy
+  /**
    * Whether "allow permanently" is genuinely on offer. Some gated tools — a
    * per-path filesystem read, a per-use secret — refuse standing grants server
    * side, where a permanent decision is silently downgraded to a single use.
@@ -147,12 +154,26 @@ export type PendingToolGrant = PendingToolGrantData & {
   decide: (decision: PendingToolGrantDecision, metadata?: Record<string, unknown>) => Promise<void>
   /** Resolve a question grant with the user's typed answer. Question grants only. */
   answer?: (answer: string) => Promise<void>
+  /**
+   * Resolve a remedy grant by choosing an option. `value` carries a hint (e.g.
+   * the chosen AVD) when the option asks for one. Remedy grants only.
+   */
+  resolveRemedy?: (remedyId: string, value?: string) => Promise<void>
+  /** Dismiss a remedy grant — the run's original error surfaces. Remedy grants only. */
+  dismissRemedy?: () => Promise<void>
 }
 
 /** A grant the question card can render: a parsed question plus a text answer channel. */
 export type PendingQuestionGrant = PendingToolGrant & {
   question: AgentQuestion
   answer: (answer: string) => Promise<void>
+}
+
+/** A grant the remedy card can render: a parsed remedy plus a resolve channel. */
+export type PendingRemedyGrant = PendingToolGrant & {
+  remedy: AgentRemedy
+  resolveRemedy: (remedyId: string, value?: string) => Promise<void>
+  dismissRemedy: () => Promise<void>
 }
 
 // Per-context live state the chat shell consumes — tracks the in-flight

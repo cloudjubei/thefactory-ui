@@ -5,6 +5,8 @@ export type EvidenceTile = {
   ref: ReviewEvidenceRef
   /** Data URI for an image, once loaded. Absent for non-images and while loading. */
   dataUri?: string
+  /** Text of a note/report, once loaded. Absent for non-notes and while loading. */
+  text?: string
   /** Human caption — the label, falling back to the phase or the kind. */
   caption: string
 }
@@ -23,6 +25,15 @@ export type EvidenceGroup = {
 /** Whether this item is something a reviewer can actually LOOK at inline. */
 export function isViewableImage(ref: Pick<ReviewEvidenceRef, 'mediaType'>): boolean {
   return ref.mediaType.startsWith('image/')
+}
+
+/** Whether this item is a written note/report whose TEXT should be shown inline. */
+export function isReadableNote(ref: Pick<ReviewEvidenceRef, 'mediaType'>): boolean {
+  return (
+    ref.mediaType.startsWith('text/') ||
+    ref.mediaType === 'application/json' ||
+    ref.mediaType === 'application/markdown'
+  )
 }
 
 function captionFor(ref: ReviewEvidenceRef): string {

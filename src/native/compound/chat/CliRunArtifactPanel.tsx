@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Image, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview } from '../../../headless/api'
 import { answerFeatureQuestion } from '../../../headless/api'
@@ -283,6 +283,9 @@ export default function CliRunArtifactPanel({
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
+  // Landed but an auto-review verifier is still confirming on a device: hold in
+  // "Verifying…" until it finishes (evidence lands) or a verdict is recorded.
+  const reviewInProgress = !!review?.reviewRunId && !verdict && evidence.refs.length === 0
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
   const actionMode = reviewActionMode({
     verdict,
@@ -642,6 +645,21 @@ export default function CliRunArtifactPanel({
                         resizeMode="contain"
                         accessibilityLabel={tile.caption}
                       />
+                    ) : tile.text ? (
+                      <ScrollView
+                        style={{
+                          maxHeight: 220,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: theme.border.subtle,
+                          backgroundColor: theme.surface.raised,
+                          padding: 8,
+                        }}
+                      >
+                        <Text selectable style={{ fontSize: 11, color: theme.text.primary }}>
+                          {tile.text}
+                        </Text>
+                      </ScrollView>
                     ) : null}
                     <Text style={{ fontSize: 11, color: theme.text.secondary }}>
                       {tile.caption}
@@ -883,6 +901,13 @@ export default function CliRunArtifactPanel({
             {decided.notes ? (
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>{decided.notes}</Text>
             ) : null}
+          </View>
+        ) : reviewInProgress ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ActivityIndicator size="small" color={theme.text.secondary} />
+            <Text style={{ fontSize: 12, color: theme.text.secondary, flex: 1 }}>
+              Verifying the change on a device — approval opens when the review is in.
+            </Text>
           </View>
         ) : (
           <View

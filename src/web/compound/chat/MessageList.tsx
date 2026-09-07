@@ -591,7 +591,14 @@ export default function MessageList({
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
       onScroll={handleScroll}
     >
-      {systemPromptMessage && messagesToDisplay.length === 0 ? (
+      {/* The system-prompt preview is for an IDLE, empty chat. During a run it
+          was pure noise: a CLI run streams through CliRunMessages, not the chat
+          message list, so `messagesToDisplay` stays empty for the WHOLE run and
+          the bubble sat on top of the run's own booting spinner and never left.
+          Suppress it whenever a turn is in flight (`turnInFlight` includes the
+          server-truth `isBusy`, so it covers a run this session did not start) —
+          the run panel / spinner below owns the "what's happening" view. */}
+      {systemPromptMessage && messagesToDisplay.length === 0 && !turnInFlight ? (
         <SystemPromptBubble
           content={systemPromptMessage.content}
           timestamp={systemPromptMessage.startedAt}
@@ -824,11 +831,14 @@ export default function MessageList({
             renderDependency={renderDependency}
           />
         ) : null}
-        {isThinking && !pending && !pendingCliRunId ? (
+        {turnInFlight && !pending && !pendingCliRunId ? (
           // A CLI turn boots its container before the first transcript byte
           // arrives (and before the run-update sets pendingCliRunId). Show
           // "Preparing <agent>" for that whole window — driven by the model tag
-          // set synchronously on send — rather than a bare spinner.
+          // set synchronously on send — rather than a bare spinner. `turnInFlight`
+          // (not just `isThinking`) so a run this session did NOT start — one
+          // launched elsewhere or resumed after a reload, where `isBusy` is the
+          // only signal — still shows a spinner instead of a blank/system prompt.
           <ThinkingRow
             {...(pendingCliModel
               ? firstCliRunId === undefined
@@ -841,7 +851,7 @@ export default function MessageList({
                     spinnerSubLabel: 'The first message is slowest while the sandbox starts up.',
                   }
                 : { spinnerLabel: 'Working…' }
-              : {})}
+              : { spinnerLabel: 'Working…' })}
           />
         ) : null}
       </div>

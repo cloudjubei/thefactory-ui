@@ -256,7 +256,14 @@ export type WorkItemProgress = {
   failed: number
 }
 
-export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer' | 'verifier'
+export type AgentRunType =
+  | 'developer'
+  | 'tester'
+  | 'planner'
+  | 'contexter'
+  | 'speccer'
+  | 'verifier'
+  | 'remedy'
 
 export type ChatContextAgentRun = {
   projectId: string
@@ -1834,7 +1841,14 @@ export type ChatContextArguments = {
     updatedAt: string
     completedAt?: string
   }
-  agentRunType?: 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer' | 'verifier'
+  agentRunType?:
+    | 'developer'
+    | 'tester'
+    | 'planner'
+    | 'contexter'
+    | 'speccer'
+    | 'verifier'
+    | 'remedy'
 }
 
 export type ChatContextArgumentsGeneral = {
@@ -2307,6 +2321,7 @@ export type CliRunReview = {
   baseSha: string
   headSha?: string
   landedAt?: number
+  reviewRunId?: string
   mergedAt?: number
   mergeCommit?: string
   rejectedAt?: number
@@ -2384,6 +2399,7 @@ export type CliRun = {
     baseSha: string
     headSha?: string
     landedAt?: number
+    reviewRunId?: string
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
@@ -2847,6 +2863,7 @@ export type CliRunApproveResult = {
       baseSha: string
       headSha?: string
       landedAt?: number
+      reviewRunId?: string
       mergedAt?: number
       mergeCommit?: string
       rejectedAt?: number
@@ -5706,6 +5723,34 @@ export type MobileDoctorReport = {
   issues: Array<string>
 }
 
+export type BootEmulatorOptions = {
+  avd?: string
+  window?: boolean
+}
+
+export type BootEmulatorResult = {
+  deviceId: string
+  avd: string
+}
+
+export type BuildAndroidAppOptions = {
+  repoPath: string
+  module?: string
+  flavor?: string
+  buildType?: string
+}
+
+export type MobileBuildAppInput = {
+  module?: string
+  flavor?: string
+  buildType?: string
+}
+
+export type BuildAndroidAppResult = {
+  appPath: string
+  task: string
+}
+
 export type OpenMobileSessionOptions = {
   platform: MobilePlatform
   appPath?: string
@@ -7072,6 +7117,7 @@ export type CatalogBuildCaps = {
   enforceProductType?: boolean
   autoDiscoverSeeds?: boolean
   deadlineMs?: number
+  hardStopGraceMs?: number
   minProducts?: number
 }
 
@@ -7268,7 +7314,7 @@ export type FindMoreProductsResult = {
 }
 
 export type DegradationEvent = {
-  seam: 'offers' | 'support' | 'reviews'
+  seam: 'offers' | 'support' | 'reviews' | 'build'
   item?: string
   reason: string
 }
@@ -7570,7 +7616,52 @@ export type RankProductCandidatesParams = {
   abortSignal?: unknown
 }
 
+export type RefutationGroup = {
+  material: string
+  slug: string
+  products: number
+  sample: Array<string>
+  inKnowledgeBase: boolean
+  ruled: boolean
+  via: Array<string>
+}
+
 export type EscalationTrigger = 'abstain' | 'low-agreement'
+
+export type RemedyOptionKind = 'hint' | 'agent' | 'manual'
+
+export type RemedyOption = {
+  id: string
+  kind: RemedyOptionKind
+  label: string
+  param?: string
+  suggestions?: Array<string>
+}
+
+export type RemedyRequest = {
+  tool: string
+  kind: string
+  summary: string
+  detail?: string
+  externalToProject: boolean
+  attempted?: Array<string>
+  remedies: Array<RemedyOption>
+}
+
+export type RemedyDecision =
+  | {
+      type: 'hint'
+      hint: {
+        [key: string]: unknown
+      }
+    }
+  | {
+      type: 'retry'
+    }
+  | {
+      type: 'abandon'
+      reason?: string
+    }
 
 export type WebSearchProvider =
   | 'exa'
@@ -7667,7 +7758,8 @@ export type RecordReviewEvidenceInput = {
   storyId?: string
   featureId?: string
   chatContextId?: string
-  sourcePath: string
+  sourcePath?: string
+  text?: string
   kind: 'screenshot' | 'recording' | 'report' | 'log'
   label?: string
   phase?: 'before' | 'after'
@@ -8111,6 +8203,7 @@ export type ToolName =
   | 'resetSettingsPrompt'
   | 'startCliAgentRun'
   | 'getCliAgentRun'
+  | 'linkReviewRun'
   | 'recycleCliAgentSessions'
   | 'listCliAgentRuns'
   | 'getCliAgentRunSubscriptionStatus'
@@ -8123,6 +8216,8 @@ export type ToolName =
   | 'forkCliAgentRun'
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
+  | 'requestCliAgentAction'
+  | 'requestPendingCliAgentAction'
   | 'decideCliAgentAction'
   | 'cancelCliAgentAction'
   | 'subscribeCliAgentActions'
@@ -8318,6 +8413,8 @@ export type ToolName =
   | 'savePricingConfig'
   | 'mobileTestDoctor'
   | 'mobileTestListDevices'
+  | 'mobileTestBootDevice'
+  | 'mobileTestBuildApp'
   | 'mobileTestOpenSession'
   | 'mobileTestCloseSession'
   | 'mobileTestListSessions'

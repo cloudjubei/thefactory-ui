@@ -3,6 +3,7 @@
 // decision to the right CLI broker outcome. No React, no I/O.
 
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
+import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
@@ -158,6 +159,7 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
     ...(toolName ? { toolName } : {}),
   }
   if (isQuestionAction(action)) grant.question = parseQuestionPayload(action.payload)
+  if (isRemedyAction(action)) grant.remedy = parseRemedyPayload(action.payload)
   return grant
 }
 

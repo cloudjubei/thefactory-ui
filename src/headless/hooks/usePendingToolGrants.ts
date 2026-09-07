@@ -21,6 +21,8 @@ import {
   pickActiveStoryRunId,
 } from '../utils/pendingToolGrants'
 import { answerDecision, declineDecision, isQuestionAction } from '../utils/agentQuestions'
+import { declineRemedyDecision, remedyChoiceDecision } from '../utils/agentRemedy'
+import type { AgentRemedyDecision } from '../utils/agentRemedyTypes'
 
 /**
  * The run a chat is currently EXECUTING, which is what the run view mounts on.
@@ -224,6 +226,19 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     [loadCliActions],
   )
 
+  const resolveRemedyCli = useCallback(
+    async (actionId: string, body: AgentRemedyDecision) => {
+      try {
+        await decideCliAgentAction({ path: { actionId }, body, throwOnError: true })
+        setCliActions((prev) => prev.filter((a) => a.id !== actionId))
+      } catch (err) {
+        void loadCliActions()
+        throw err
+      }
+    },
+    [loadCliActions],
+  )
+
   const grants = useMemo<PendingToolGrant[]>(() => {
     const apiGrants = apiToolCalls.map<PendingToolGrant>((tc) => ({
       ...apiToolCallToGrant(tc),
@@ -235,10 +250,17 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         ...data,
         decide: (decision, metadata) => decideCli(action, decision, metadata),
         ...(data.question ? { answer: (text: string) => answerCli(action.id, text) } : {}),
+        ...(data.remedy
+          ? {
+              resolveRemedy: (remedyId: string, value?: string) =>
+                resolveRemedyCli(action.id, remedyChoiceDecision(remedyId, value)),
+              dismissRemedy: () => resolveRemedyCli(action.id, declineRemedyDecision()),
+            }
+          : {}),
       }
     })
     return [...apiGrants, ...cliGrants]
-  }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli])
+  }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli, resolveRemedyCli])
 
   return {
     grants,

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import Alert from '../../primitives/Alert'
 import AgentQuestionCard from './AgentQuestionCard'
+import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
@@ -212,6 +213,7 @@ export default function ChatBody({
   // chat, so a reload keeps watching a turn this session never started.
   const cliRunId = liveState.cliRunId ?? activeCliRunId
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
+  const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
   // EVERY pending approval takes the composer's place so the asks are unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
   // that raised it, so a later turn's ask can arrive on top of an unanswered one
@@ -309,6 +311,14 @@ export default function ChatBody({
         <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
           {questionGrants.map((grant) => (
             <AgentQuestionCard key={grant.id} grant={grant} />
+          ))}
+        </div>
+      ) : null}
+
+      {remedyGrants.length > 0 ? (
+        <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
+          {remedyGrants.map((grant) => (
+            <RemedyCard key={grant.id} grant={grant} />
           ))}
         </div>
       ) : null}

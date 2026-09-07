@@ -8,7 +8,8 @@ import {
   QUESTION_DECLINED_ANSWER,
   QUESTION_FALLBACK_PROMPT,
 } from './agentQuestionConstants'
-import type { PendingQuestionGrant, PendingToolGrant } from './chatTypes'
+import type { PendingQuestionGrant, PendingRemedyGrant, PendingToolGrant } from './chatTypes'
+import { isRemedyGrant } from './agentRemedy'
 import type { CliPendingActionLike } from './pendingToolGrants'
 
 /** True when a broker action is an `askUser` question rather than a permission request. */
@@ -84,13 +85,16 @@ export function isQuestionGrant(grant: PendingToolGrant): grant is PendingQuesti
  */
 export function partitionGrants(grants: PendingToolGrant[] | undefined): {
   questions: PendingQuestionGrant[]
+  remedies: PendingRemedyGrant[]
   permissions: PendingToolGrant[]
 } {
   const questions: PendingQuestionGrant[] = []
+  const remedies: PendingRemedyGrant[] = []
   const permissions: PendingToolGrant[] = []
   for (const grant of grants ?? []) {
     if (isQuestionGrant(grant)) questions.push(grant)
+    else if (isRemedyGrant(grant)) remedies.push(grant)
     else permissions.push(grant)
   }
-  return { questions, permissions }
+  return { questions, remedies, permissions }
 }

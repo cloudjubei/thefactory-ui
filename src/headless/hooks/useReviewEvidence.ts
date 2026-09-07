@@ -5,7 +5,13 @@ import {
   listReviewEvidence,
   type ReviewEvidenceRef,
 } from '../api/generated'
-import { isViewableImage, toEvidenceTile, type EvidenceTile } from '../utils/reviewEvidenceView'
+import { useApi } from '../api/ApiContext'
+import {
+  isReadableNote,
+  isViewableImage,
+  toEvidenceTile,
+  type EvidenceTile,
+} from '../utils/reviewEvidenceView'
 
 /**
  * How many images are decoded into memory at once.
@@ -65,6 +71,7 @@ export function useReviewEvidence(
   const [error, setError] = useState<string | undefined>()
   const [notShown, setNotShown] = useState(0)
   const epochRef = useRef(0)
+  const { ws } = useApi()
 
   const { runId, storyId, featureId } = query
 
@@ -112,6 +119,25 @@ export function useReviewEvidence(
           // One unreadable file must not blank the whole gallery.
         }
       }
+
+      // Fetch note/report text so the verifier's written findings are READABLE
+      // inline — not just a labelled tile. This is the whole evidence when a
+      // screenshot could not be captured, so it must be visible, not a dead link.
+      for (const note of found.filter(isReadableNote)) {
+        try {
+          const res = await getReviewEvidenceContent({
+            path: { projectId, evidenceId: note.id },
+            responseType: 'text',
+            throwOnError: true,
+          } as never)
+          if (epoch !== epochRef.current) return
+          const text = (res as { data?: unknown }).data
+          if (typeof text !== 'string' || text.length === 0) continue
+          setTiles((prev) => prev.map((t) => (t.ref.id === note.id ? { ...t, text } : t)))
+        } catch {
+          // A note we cannot read just stays a labelled tile.
+        }
+      }
     } catch (err: unknown) {
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -127,6 +153,19 @@ export function useReviewEvidence(
       epochRef.current += 1
     }
   }, [reload])
+
+  // Live-refresh: the auto-review verifier files evidence in a SEPARATE run, so
+  // nothing in this panel's own run stream announces it — without this the newly
+  // filed screenshots/notes only appeared after navigating away and back. Any run
+  // or chat activity is a cheap, idempotent trigger to re-pull (epoch-guarded).
+  useEffect(() => {
+    const offRun = ws.on('cli:run-update', () => void reload())
+    const offChat = ws.on('chats:updated', () => void reload())
+    return () => {
+      offRun()
+      offChat()
+    }
+  }, [ws, reload])
 
   return { refs, tiles, loading, error, notShown, reload }
 }

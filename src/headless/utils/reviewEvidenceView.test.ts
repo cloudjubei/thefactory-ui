@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   groupEvidence,
+  isReadableNote,
   isViewableImage,
   summarizeEvidence,
   toEvidenceTile,
@@ -25,6 +26,17 @@ describe('isViewableImage', () => {
     expect(isViewableImage(ref())).toBe(true)
     expect(isViewableImage(ref({ mediaType: 'video/mp4' }))).toBe(false)
     expect(isViewableImage(ref({ mediaType: 'text/markdown' }))).toBe(false)
+  })
+})
+
+describe('isReadableNote', () => {
+  it('is true for text/markdown/json notes (so their text is fetched + shown inline)', () => {
+    expect(isReadableNote(ref({ mediaType: 'text/markdown' }))).toBe(true)
+    expect(isReadableNote(ref({ mediaType: 'text/plain' }))).toBe(true)
+    expect(isReadableNote(ref({ mediaType: 'application/json' }))).toBe(true)
+  })
+  it('is false for images (those render as pictures, not text)', () => {
+    expect(isReadableNote(ref({ mediaType: 'image/png' }))).toBe(false)
   })
 })
 

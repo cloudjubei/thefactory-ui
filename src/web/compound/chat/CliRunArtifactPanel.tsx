@@ -310,6 +310,11 @@ export default function CliRunArtifactPanel({
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
+  // Work has landed but an auto-review verifier is still confirming it on a
+  // device: hold the run in "Verifying…" rather than offering approve, until it
+  // finishes (evidence lands) or a verdict is recorded. `reviewRunId` is set by
+  // the backend when it dispatches that verifier.
+  const reviewInProgress = !!review?.reviewRunId && !verdict && evidence.refs.length === 0
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
   const actionMode = reviewActionMode({
     verdict,
@@ -497,13 +502,17 @@ export default function CliRunArtifactPanel({
                 {group.singles.length > 0 ? (
                   <div className="flex gap-2 flex-wrap">
                     {group.singles.map((tile) => (
-                      <figure key={tile.ref.id} className="flex flex-col gap-1">
+                      <figure key={tile.ref.id} className="flex flex-col gap-1 min-w-0">
                         {tile.dataUri ? (
                           <img
                             src={tile.dataUri}
                             alt={tile.caption}
                             className="max-h-56 rounded border border-(--border-subtle)"
                           />
+                        ) : tile.text ? (
+                          <pre className="max-h-56 w-full max-w-[560px] overflow-auto whitespace-pre-wrap wrap-break-word rounded border border-(--border-subtle) bg-(--surface-raised) p-2 text-[11px] text-(--text-primary)">
+                            {tile.text}
+                          </pre>
                         ) : (
                           <span className="text-[11px] text-(--text-secondary)">
                             {`${tile.ref.kind} · ${tile.caption}`}
@@ -666,6 +675,11 @@ export default function CliRunArtifactPanel({
             {decided.notes ? (
               <div className="text-[12px] text-(--text-secondary) break-words">{decided.notes}</div>
             ) : null}
+          </div>
+        ) : reviewInProgress ? (
+          <div className="flex items-center gap-2 text-[12px] text-(--text-secondary)">
+            <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+            Verifying the change on a device — approval opens when the review is in.
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
