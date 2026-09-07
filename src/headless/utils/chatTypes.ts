@@ -139,7 +139,12 @@ export type PendingToolGrantData = {
 }
 
 export type PendingToolGrant = PendingToolGrantData & {
-  decide: (decision: PendingToolGrantDecision) => Promise<void>
+  /**
+   * Decide this ask. `metadata` carries options the user set ON the approval
+   * (e.g. capture proof for this run); the host whitelists what it honours, so a
+   * decision can never redirect the work.
+   */
+  decide: (decision: PendingToolGrantDecision, metadata?: Record<string, unknown>) => Promise<void>
   /** Resolve a question grant with the user's typed answer. Question grants only. */
   answer?: (answer: string) => Promise<void>
 }

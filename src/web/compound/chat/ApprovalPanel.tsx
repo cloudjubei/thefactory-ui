@@ -44,6 +44,9 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
   const detail = isLaunch ? undefined : formatGrantDetail(grant.detail)
   const canGrantPermanently =
     !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
+  // ON by default — proof was opt-in and was reliably never asked for, so work
+  // landed with nothing to look at. The user sees the choice and can clear it.
+  const [captureProof, setCaptureProof] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const decide = (decision: 'once' | 'deny' | 'permanent') => {
@@ -52,10 +55,12 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
     // A refused decision (409: the approval already expired / was decided)
     // must be SHOWN — a swallowed failure here looked like "approved, then
     // nothing happened".
-    void grant.decide(decision).catch((err: unknown) => {
-      setBusy(false)
-      setError(grantDecideErrorMessage(err))
-    })
+    void grant
+      .decide(decision, isLaunch ? { proofRequired: captureProof } : undefined)
+      .catch((err: unknown) => {
+        setBusy(false)
+        setError(grantDecideErrorMessage(err))
+      })
   }
   return (
     <Surface className="m-3 p-4 flex flex-col gap-3 border border-(--border-strong)">
@@ -82,6 +87,25 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             {summary.note}
           </p>
         </div>
+      )}
+      {isLaunch && (
+        <label className="flex items-start gap-2 text-xs cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={captureProof}
+            onChange={(e) => setCaptureProof(e.target.checked)}
+            disabled={busy}
+          />
+          <span>
+            <span className="font-medium">Capture proof I can look at</span>
+            <span className="opacity-80">
+              {' '}
+              — the run works out what this machine can do (screenshots on a device, a recording, or
+              a written before/after) and attaches it to the review.
+            </span>
+          </span>
+        </label>
       )}
       {detail !== undefined && (
         <pre className="rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word max-h-40 overflow-auto opacity-90">

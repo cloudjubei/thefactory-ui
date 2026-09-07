@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, Text, View, Pressable } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import {
@@ -31,6 +31,8 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
   const detail = isLaunch ? undefined : formatGrantDetail(grant.detail)
   const canGrantPermanently =
     !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
+  // ON by default — see the web peer: proof was opt-in and never got asked for.
+  const [captureProof, setCaptureProof] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const decide = (decision: 'once' | 'deny' | 'permanent') => {
@@ -39,10 +41,12 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
     // A refused decision (409: the approval already expired / was decided)
     // must be SHOWN — a swallowed failure here looked like "approved, then
     // nothing happened".
-    void grant.decide(decision).catch((err: unknown) => {
-      setBusy(false)
-      setError(grantDecideErrorMessage(err))
-    })
+    void grant
+      .decide(decision, isLaunch ? { proofRequired: captureProof } : undefined)
+      .catch((err: unknown) => {
+        setBusy(false)
+        setError(grantDecideErrorMessage(err))
+      })
   }
   return (
     <View
@@ -64,6 +68,27 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
           ? 'The agent will work in an isolated copy of the project and land its changes on a review branch with verification attached — nothing touches your working tree until you sign off.'
           : `It is waiting on this before it can continue: ${grant.label}`}
       </Text>
+      {isLaunch ? (
+        <Pressable
+          onPress={() => setCaptureProof((v) => !v)}
+          disabled={busy}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: captureProof, disabled: busy }}
+          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: nativeSpace[2] }}
+        >
+          <Text style={{ fontSize: 14, color: theme.text.primary }}>
+            {captureProof ? '☑' : '☐'}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary, flex: 1 }}>
+            <Text style={{ fontWeight: '600', color: theme.text.primary }}>
+              Capture proof I can look at
+            </Text>
+            {
+              ' — the run works out what this machine can do (screenshots on a device, a recording, or a written before/after) and attaches it to the review.'
+            }
+          </Text>
+        </Pressable>
+      ) : null}
       {isLaunch && summary.note !== undefined ? (
         <View
           style={{

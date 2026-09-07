@@ -176,13 +176,22 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   }, [])
 
   const decideCli = useCallback(
-    async (action: PendingAction, decision: PendingToolGrantDecision) => {
+    async (
+      action: PendingAction,
+      decision: PendingToolGrantDecision,
+      metadata?: Record<string, unknown>,
+    ) => {
       // Declining a question isn't a permission denial: the agent is told to
       // carry on with its own judgement, so the answer rides along on `denied`.
       const body =
         isQuestionAction(action) && decision === 'deny'
           ? declineDecision()
-          : { outcome: cliDecideOutcome(decision) }
+          : {
+              outcome: cliDecideOutcome(decision),
+              // Options the user set ON the approval (e.g. capture proof). The
+              // host whitelists these — a decision cannot redirect the run.
+              ...(metadata ? { metadata } : {}),
+            }
       try {
         await decideCliAgentAction({ path: { actionId: action.id }, body, throwOnError: true })
         setCliActions((prev) => prev.filter((a) => a.id !== action.id))
@@ -224,7 +233,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       const data = cliPendingActionToGrant(action)
       return {
         ...data,
-        decide: (decision) => decideCli(action, decision),
+        decide: (decision, metadata) => decideCli(action, decision, metadata),
         ...(data.question ? { answer: (text: string) => answerCli(action.id, text) } : {}),
       }
     })
