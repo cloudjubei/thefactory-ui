@@ -148,6 +148,7 @@ export default function CliRunArtifactPanel({
     review,
     verification,
     verdict,
+    reviewInProgress,
     storyId,
     landFailure,
     costUSD,
@@ -283,9 +284,9 @@ export default function CliRunArtifactPanel({
   const facts = runReviewFacts({ costUSD, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
-  // Landed but an auto-review verifier is still confirming on a device: hold in
-  // "Verifying…" until it finishes (evidence lands) or a verdict is recorded.
-  const reviewInProgress = !!review?.reviewRunId && !verdict && evidence.refs.length === 0
+  // `reviewInProgress` comes from the hook (verifier's terminal status), so a
+  // verifier that finishes without evidence releases "Verifying…" instead of
+  // hanging it forever.
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
   const actionMode = reviewActionMode({
     verdict,

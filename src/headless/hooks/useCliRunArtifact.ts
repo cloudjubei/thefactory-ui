@@ -82,6 +82,13 @@ export type UseCliRunArtifact = {
    * the verdict instead of the approve / request-changes / reject row.
    */
   verdict: CliRunVerdict | undefined
+  /**
+   * True while the landed work's auto-review verifier (`review.reviewRunId`) is
+   * still running — the panel shows "Verifying…" and withholds approval. Releases
+   * when the verifier reaches a terminal status, evidence or not, so a verifier
+   * that fails can never hang the run in "Verifying…" forever.
+   */
+  reviewInProgress: boolean
   /** The story this run executes a FEATURE of, when it is a story sub-run. */
   storyId: string | undefined
   /**
@@ -234,6 +241,11 @@ export function useCliRunArtifact(
   // "Preparing…" during the container spin-up window before any status exists.
   const [notReady, setNotReady] = useState(false)
   const [fetchNonce, setFetchNonce] = useState(0)
+  // Terminal-ness of the auto-review verifier linked in `review.reviewRunId`.
+  // `false` = still running (hold "Verifying…"); `true`/`undefined` = done or none
+  // (show the review result). Driven off the verifier's OWN status, NOT whether it
+  // filed evidence — a verifier that finishes with nothing must still un-stick.
+  const [reviewRunTerminal, setReviewRunTerminal] = useState<boolean | undefined>(undefined)
   const { ws } = useApi()
   // Bumped whenever the target run changes; in-flight responses from a prior
   // epoch are discarded so a remounted-in-place panel never shows another run's
@@ -634,6 +646,44 @@ export function useCliRunArtifact(
     [decide],
   )
 
+  // Track the linked verifier run's terminal status so the panel can hold
+  // "Verifying…" only while it is actually running, and release it the moment it
+  // ends — evidence or not. Re-checks on any run-update for that verifier id.
+  const reviewRunId = review?.reviewRunId
+  useEffect(() => {
+    if (!reviewRunId || verdict) {
+      setReviewRunTerminal(undefined)
+      return
+    }
+    let cancelled = false
+    const TERMINAL = new Set(['succeeded', 'errored', 'aborted', 'canceled', 'cancelled'])
+    const check = async () => {
+      try {
+        const { data } = await getCliAgentRun({ path: { runId: reviewRunId }, throwOnError: true })
+        if (!cancelled) setReviewRunTerminal(!!data?.status && TERMINAL.has(data.status))
+      } catch {
+        // A verifier record that cannot be read (e.g. 404 before it lands) is not
+        // yet terminal; leave the panel in "Verifying…" until an update says so.
+        if (!cancelled) setReviewRunTerminal(false)
+      }
+    }
+    void check()
+    const off = ws.on('cli:run-update', (data: unknown) => {
+      if ((data as { runId?: string })?.runId === reviewRunId) void check()
+    })
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [reviewRunId, verdict, ws])
+
+  /**
+   * The work has landed and its auto-review verifier is still running — hold the
+   * panel in "Verifying…" rather than offering approval. Releases when the
+   * verifier reaches a terminal status, regardless of whether it filed evidence.
+   */
+  const reviewInProgress = !!reviewRunId && !verdict && reviewRunTerminal === false
+
   return {
     artifact,
     transcript,
@@ -641,6 +691,7 @@ export function useCliRunArtifact(
     review,
     verification,
     verdict,
+    reviewInProgress,
     storyId,
     landFailure,
     startedAtMs,
