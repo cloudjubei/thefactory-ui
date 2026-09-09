@@ -232,6 +232,7 @@ export {
   asRecord,
   buildUnifiedDiffIfPresent,
   extract,
+  canonicalToolPreviewName,
   getToolHeaderPath,
   isCompletelyNewFile,
   isFilePathTool,
@@ -329,12 +330,15 @@ export { openFeatureQuestions } from './utils/featureQuestions'
 export { chatClosure } from './utils/chatClosure'
 export { chatCloseAction } from './utils/chatCloseAction'
 export {
+  evidenceViewerImages,
   groupEvidence,
   isViewableImage,
   summarizeEvidence,
   toEvidenceTile,
 } from './utils/reviewEvidenceView'
-export type { EvidenceGroup, EvidenceTile } from './utils/reviewEvidenceView'
+export type { EvidenceGroup, EvidenceTile, EvidenceViewerImage } from './utils/reviewEvidenceView'
+export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
+export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
 export type { ChatCloseAction } from './utils/chatCloseAction'

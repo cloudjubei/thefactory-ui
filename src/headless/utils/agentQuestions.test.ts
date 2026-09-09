@@ -144,12 +144,19 @@ describe('partitionGrants', () => {
 
     expect(partitionGrants([q1, p1, q2, p2])).toEqual({
       questions: [q1, q2],
+      // Remedy grants are their own lane (they render a RemedyCard, not a
+      // permission row); none here, but the key is part of the shape.
+      remedies: [],
       permissions: [p1, p2],
     })
   })
 
   it('returns empty lists for an empty or missing feed', () => {
-    expect(partitionGrants([])).toEqual({ questions: [], permissions: [] })
-    expect(partitionGrants(undefined)).toEqual({ questions: [], permissions: [] })
+    expect(partitionGrants([])).toEqual({ questions: [], remedies: [], permissions: [] })
+    expect(partitionGrants(undefined)).toEqual({
+      questions: [],
+      remedies: [],
+      permissions: [],
+    })
   })
 })

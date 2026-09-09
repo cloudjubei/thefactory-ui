@@ -17,12 +17,14 @@ import {
   incompleteStoryReason,
   openFeatureQuestions,
   useReviewEvidence,
+  evidenceViewerImages,
   groupEvidence,
   summarizeEvidence,
   useStories,
   verificationHeadline,
   useCliRunArtifact,
   type ApproveActionDescriptor,
+  type EvidenceTile,
   type ReviewChangeCounts,
   type ReviewCheckRow,
   type ReviewTone,
@@ -33,6 +35,8 @@ import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
 import { StructuredUnifiedDiff } from '../diff'
+import { IconMaximize } from '../../icons'
+import { EvidenceImageOverlay } from './EvidenceImageOverlay'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -215,6 +219,9 @@ export default function CliRunArtifactPanel({
   const [answering, setAnswering] = useState<string | undefined>()
   const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
   const [approveNote, setApproveNote] = useState('')
+  // Which evidence group the full-screen viewer is showing, by group key. Keyed
+  // rather than held as an object: the groups are rebuilt every render.
+  const [viewerGroupKey, setViewerGroupKey] = useState<string | undefined>()
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
@@ -285,6 +292,8 @@ export default function CliRunArtifactPanel({
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
   const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
   const evidenceGroups = groupEvidence(evidence.tiles)
+  const viewerGroup = evidenceGroups.find((g) => g.key === viewerGroupKey)
+  const viewerImages = viewerGroup ? evidenceViewerImages(viewerGroup) : []
 
   /** Send one answer; the SDK decides whether that releases the feature. */
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
@@ -471,61 +480,73 @@ export default function CliRunArtifactPanel({
                 </span>
               ) : null}
             </div>
-            {evidenceGroups.map((group) => (
-              <div key={group.key} className="flex flex-col gap-1">
-                {group.before || group.after ? (
-                  <>
-                    <span className="text-[11px] text-(--text-secondary)">{group.title}</span>
-                    <div className="flex gap-2 flex-wrap">
-                      {[group.before, group.after].map((tile, i) =>
-                        tile ? (
-                          <figure key={tile.ref.id} className="flex flex-col gap-1">
-                            {tile.dataUri ? (
-                              <img
-                                src={tile.dataUri}
-                                alt={tile.caption}
-                                className="max-h-56 rounded border border-(--border-subtle)"
-                              />
-                            ) : (
-                              <div className="h-56 w-32 rounded border border-(--border-subtle) bg-(--surface-hover)" />
-                            )}
-                            <figcaption className="text-[11px] text-(--text-secondary)">
-                              {i === 0 ? 'Before' : 'After'} — {tile.caption}
-                            </figcaption>
-                          </figure>
-                        ) : null,
-                      )}
+            {evidenceGroups.map((group) => {
+              const groupImages = evidenceViewerImages(group)
+              // A thumbnail is an affordance, not the evidence: it opens the
+              // full-screen viewer. Images keep their aspect ratio (`w-auto`
+              // + `object-contain`, and `items-start` so the flex column does
+              // not stretch them) — a squashed screenshot proves nothing.
+              const thumb = (tile: EvidenceTile, label?: string) => (
+                <figure key={tile.ref.id} className="flex min-w-0 flex-col items-start gap-1">
+                  {tile.dataUri ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewerGroupKey(group.key)}
+                      title="View full size"
+                      aria-label={`View ${label ? `${label} — ` : ''}${tile.caption} full size`}
+                      className="rounded border border-(--border-subtle) hover:opacity-90"
+                    >
+                      <img
+                        src={tile.dataUri}
+                        alt={tile.caption}
+                        className="block h-40 w-auto max-w-full rounded object-contain"
+                      />
+                    </button>
+                  ) : tile.text ? (
+                    <pre className="max-h-56 w-full max-w-[560px] overflow-auto whitespace-pre-wrap wrap-break-word rounded border border-(--border-subtle) bg-(--surface-raised) p-2 text-[11px] text-(--text-primary)">
+                      {tile.text}
+                    </pre>
+                  ) : (
+                    <span className="text-[11px] text-(--text-secondary)">
+                      {`${tile.ref.kind} · ${tile.caption}`}
+                    </span>
+                  )}
+                  <figcaption className="text-[11px] text-(--text-secondary)">
+                    {label ? `${label} — ${tile.caption}` : tile.caption}
+                  </figcaption>
+                </figure>
+              )
+              return (
+                <div key={group.key} className="flex flex-col gap-1">
+                  {group.before || group.after ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-(--text-secondary)">{group.title}</span>
+                        {groupImages.length > 0 ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setViewerGroupKey(group.key)}
+                          >
+                            <IconMaximize className="mr-1 h-3 w-3" />
+                            {groupImages.length > 1 ? 'Compare' : 'View'}
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {group.before ? thumb(group.before, 'Before') : null}
+                        {group.after ? thumb(group.after, 'After') : null}
+                      </div>
+                    </>
+                  ) : null}
+                  {group.singles.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {group.singles.map((tile) => thumb(tile))}
                     </div>
-                  </>
-                ) : null}
-                {group.singles.length > 0 ? (
-                  <div className="flex gap-2 flex-wrap">
-                    {group.singles.map((tile) => (
-                      <figure key={tile.ref.id} className="flex flex-col gap-1 min-w-0">
-                        {tile.dataUri ? (
-                          <img
-                            src={tile.dataUri}
-                            alt={tile.caption}
-                            className="max-h-56 rounded border border-(--border-subtle)"
-                          />
-                        ) : tile.text ? (
-                          <pre className="max-h-56 w-full max-w-[560px] overflow-auto whitespace-pre-wrap wrap-break-word rounded border border-(--border-subtle) bg-(--surface-raised) p-2 text-[11px] text-(--text-primary)">
-                            {tile.text}
-                          </pre>
-                        ) : (
-                          <span className="text-[11px] text-(--text-secondary)">
-                            {`${tile.ref.kind} · ${tile.caption}`}
-                          </span>
-                        )}
-                        <figcaption className="text-[11px] text-(--text-secondary)">
-                          {tile.caption}
-                        </figcaption>
-                      </figure>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
         ) : null}
 
@@ -863,6 +884,13 @@ export default function CliRunArtifactPanel({
           ))}
         </div>
       ) : null}
+
+      <EvidenceImageOverlay
+        isOpen={viewerImages.length > 0}
+        onClose={() => setViewerGroupKey(undefined)}
+        title={viewerGroup?.title ?? 'Evidence'}
+        images={viewerImages}
+      />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  evidenceViewerImages,
   groupEvidence,
   isReadableNote,
   isViewableImage,
@@ -106,5 +107,43 @@ describe('summarizeEvidence', () => {
 
   it('says so plainly when there is nothing', () => {
     expect(summarizeEvidence([])).toBe('No evidence recorded')
+  })
+})
+
+describe('evidenceViewerImages', () => {
+  const tile = (id: string, caption: string, dataUri?: string) => ({
+    ref: ref({ id }),
+    caption,
+    ...(dataUri ? { dataUri } : {}),
+  })
+
+  it('orders before → after → singles and phase-prefixes the pair', () => {
+    const images = evidenceViewerImages({
+      key: 'login',
+      title: 'login',
+      before: tile('b', 'Login screen', 'data:image/png;base64,BB'),
+      after: tile('a', 'Login screen', 'data:image/png;base64,AA'),
+      singles: [tile('s', 'Stray shot', 'data:image/png;base64,SS')],
+    })
+    expect(images.map((i) => i.id)).toEqual(['b', 'a', 's'])
+    expect(images[0].caption).toBe('Before — Login screen')
+    expect(images[1].caption).toBe('After — Login screen')
+    // A single carries no phase prefix — it is not half of a comparison.
+    expect(images[2].caption).toBe('Stray shot')
+  })
+
+  it('skips items whose bytes never loaded, so the viewer never opens on a blank frame', () => {
+    const images = evidenceViewerImages({
+      key: 'k',
+      title: 'k',
+      before: tile('b', 'no bytes yet'),
+      after: tile('a', 'loaded', 'data:image/png;base64,AA'),
+      singles: [tile('s', 'a note with no image')],
+    })
+    expect(images.map((i) => i.id)).toEqual(['a'])
+  })
+
+  it('returns nothing for a group with no loaded images', () => {
+    expect(evidenceViewerImages({ key: 'k', title: 'k', singles: [] })).toEqual([])
   })
 })

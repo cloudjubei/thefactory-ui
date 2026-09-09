@@ -15,6 +15,7 @@ describe('SHELL_TAB_DEFS', () => {
       'app',
       'stories',
       'files',
+      'notes',
       'chat',
       'git',
       'tests',

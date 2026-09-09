@@ -18,12 +18,14 @@ import {
   incompleteStoryReason,
   openFeatureQuestions,
   useReviewEvidence,
+  evidenceViewerImages,
   groupEvidence,
   summarizeEvidence,
   useStories,
   verificationHeadline,
   useCliRunArtifact,
   type ApproveActionDescriptor,
+  type EvidenceTile,
   type ReviewCheckRow,
   type ReviewTone,
   formatChangeRequestMessage,
@@ -33,6 +35,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import UnifiedDiff from '../git/UnifiedDiff'
+import EvidenceImageOverlay from './EvidenceImageOverlay'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -195,6 +198,9 @@ export default function CliRunArtifactPanel({
   const [answering, setAnswering] = useState<string | undefined>()
   const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
   const [approveNote, setApproveNote] = useState('')
+  // Which evidence group the full-screen viewer is showing, by group key. Keyed
+  // rather than held as an object: the groups are rebuilt every render.
+  const [viewerGroupKey, setViewerGroupKey] = useState<string | undefined>()
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
@@ -258,6 +264,8 @@ export default function CliRunArtifactPanel({
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
   const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
   const evidenceGroups = groupEvidence(evidence.tiles)
+  const viewerGroup = evidenceGroups.find((g) => g.key === viewerGroupKey)
+  const viewerImages = viewerGroup ? evidenceViewerImages(viewerGroup) : []
 
   /** Send one answer; the SDK decides whether that releases the feature. */
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
@@ -590,50 +598,18 @@ export default function CliRunArtifactPanel({
                 {summarizeEvidence(evidence.refs)}
               </Text>
             </View>
-            {evidenceGroups.map((group) => (
-              <View key={group.key} style={{ gap: 4 }}>
-                {group.before || group.after ? (
-                  <>
-                    <Text style={{ fontSize: 11, color: theme.text.secondary }}>{group.title}</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                      {[group.before, group.after].map((tile, i) =>
-                        tile ? (
-                          <View key={tile.ref.id} style={{ gap: 4 }}>
-                            {tile.dataUri ? (
-                              <Image
-                                source={{ uri: tile.dataUri }}
-                                style={{
-                                  width: 120,
-                                  height: 220,
-                                  borderRadius: 4,
-                                  borderWidth: 1,
-                                  borderColor: theme.border.subtle,
-                                }}
-                                resizeMode="contain"
-                                accessibilityLabel={tile.caption}
-                              />
-                            ) : (
-                              <View
-                                style={{
-                                  width: 120,
-                                  height: 220,
-                                  borderRadius: 4,
-                                  backgroundColor: theme.surface.muted,
-                                }}
-                              />
-                            )}
-                            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                              {`${i === 0 ? 'Before' : 'After'} — ${tile.caption}`}
-                            </Text>
-                          </View>
-                        ) : null,
-                      )}
-                    </View>
-                  </>
-                ) : null}
-                {group.singles.map((tile) => (
-                  <View key={tile.ref.id} style={{ gap: 4 }}>
-                    {tile.dataUri ? (
+            {evidenceGroups.map((group) => {
+              const groupImages = evidenceViewerImages(group)
+              // A thumbnail is an affordance, not the evidence: tapping it opens
+              // the full-screen zoomable viewer.
+              const thumb = (tile: EvidenceTile, label?: string) => (
+                <View key={tile.ref.id} style={{ gap: 4 }}>
+                  {tile.dataUri ? (
+                    <Pressable
+                      onPress={() => setViewerGroupKey(group.key)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${label ? `${label} — ` : ''}${tile.caption} full size`}
+                    >
                       <Image
                         source={{ uri: tile.dataUri }}
                         style={{
@@ -646,29 +622,73 @@ export default function CliRunArtifactPanel({
                         resizeMode="contain"
                         accessibilityLabel={tile.caption}
                       />
-                    ) : tile.text ? (
-                      <ScrollView
-                        style={{
-                          maxHeight: 220,
-                          borderRadius: 4,
-                          borderWidth: 1,
-                          borderColor: theme.border.subtle,
-                          backgroundColor: theme.surface.raised,
-                          padding: 8,
-                        }}
-                      >
-                        <Text selectable style={{ fontSize: 11, color: theme.text.primary }}>
-                          {tile.text}
+                    </Pressable>
+                  ) : tile.text ? (
+                    <ScrollView
+                      style={{
+                        maxHeight: 220,
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: theme.border.subtle,
+                        backgroundColor: theme.surface.raised,
+                        padding: 8,
+                      }}
+                    >
+                      <Text selectable style={{ fontSize: 11, color: theme.text.primary }}>
+                        {tile.text}
+                      </Text>
+                    </ScrollView>
+                  ) : (
+                    <View
+                      style={{
+                        width: 120,
+                        height: 220,
+                        borderRadius: 4,
+                        backgroundColor: theme.surface.muted,
+                      }}
+                    />
+                  )}
+                  <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                    {label ? `${label} — ${tile.caption}` : tile.caption}
+                  </Text>
+                </View>
+              )
+              return (
+                <View key={group.key} style={{ gap: 4 }}>
+                  {group.before || group.after ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                          {group.title}
                         </Text>
-                      </ScrollView>
-                    ) : null}
-                    <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                      {tile.caption}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ))}
+                        {groupImages.length > 0 ? (
+                          <Pressable
+                            onPress={() => setViewerGroupKey(group.key)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open ${group.title} full size`}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: theme.text.secondary,
+                                textDecorationLine: 'underline',
+                              }}
+                            >
+                              {groupImages.length > 1 ? 'Compare' : 'View'}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                        {group.before ? thumb(group.before, 'Before') : null}
+                        {group.after ? thumb(group.after, 'After') : null}
+                      </View>
+                    </>
+                  ) : null}
+                  {group.singles.map((tile) => thumb(tile))}
+                </View>
+              )
+            })}
           </View>
         ) : null}
 
@@ -1086,6 +1106,13 @@ export default function CliRunArtifactPanel({
           ))}
         </View>
       ) : null}
+
+      <EvidenceImageOverlay
+        isOpen={viewerImages.length > 0}
+        onClose={() => setViewerGroupKey(undefined)}
+        title={viewerGroup?.title ?? 'Evidence'}
+        images={viewerImages}
+      />
     </View>
   )
 }

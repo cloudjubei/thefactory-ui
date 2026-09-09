@@ -41,6 +41,7 @@ export const PROJECT_ICON_REGISTRY: Record<ProjectIconKey, (props: any) => JSX.E
   // App / navigation
   home: Icons.IconHome,
   files: Icons.IconFiles,
+  notes: Icons.IconDocument,
   chat: Icons.IconChat,
   robot: Icons.IconRobot,
   timeline: Icons.IconTimeline,

@@ -84,6 +84,37 @@ export function groupEvidence(tiles: readonly EvidenceTile[]): EvidenceGroup[] {
     : paired
 }
 
+/** One image, captioned, ready for the full-screen zoom viewer. */
+export type EvidenceViewerImage = {
+  id: string
+  /** Caption shown under the image, phase-prefixed for a pair. */
+  caption: string
+  dataUri: string
+}
+
+/**
+ * The loaded images of a group, in before → after → singles order.
+ *
+ * A thumbnail strip is too small to judge a UI change, so the panel opens these
+ * side by side in a zoomable viewer. Items whose bytes have not loaded (or that
+ * are notes, not images) are skipped — the viewer never opens on a blank frame.
+ */
+export function evidenceViewerImages(group: EvidenceGroup): EvidenceViewerImage[] {
+  const images: EvidenceViewerImage[] = []
+  const push = (tile: EvidenceTile | undefined, prefix?: string): void => {
+    if (!tile?.dataUri) return
+    images.push({
+      id: tile.ref.id,
+      caption: prefix ? `${prefix} — ${tile.caption}` : tile.caption,
+      dataUri: tile.dataUri,
+    })
+  }
+  push(group.before, 'Before')
+  push(group.after, 'After')
+  for (const single of group.singles) push(single)
+  return images
+}
+
 /** One-line summary for the section header. */
 export function summarizeEvidence(refs: readonly ReviewEvidenceRef[]): string {
   if (refs.length === 0) return 'No evidence recorded'

@@ -5,6 +5,10 @@ export {
   type CliRunArtifactPanelProps,
 } from './CliRunArtifactPanel'
 export {
+  default as EvidenceImageOverlay,
+  type EvidenceImageOverlayProps,
+} from './EvidenceImageOverlay'
+export {
   default as CredentialCaptureCard,
   type CredentialCaptureCardProps,
 } from './CredentialCaptureCard'

@@ -380,6 +380,7 @@ export {
   AgentQuestionCard,
   ChatBody,
   CliRunArtifactPanel,
+  EvidenceImageOverlay,
   ChatDebugModal,
   ChatDynamicContextModal,
   ChatHeader,

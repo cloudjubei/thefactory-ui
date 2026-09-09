@@ -207,6 +207,10 @@ export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './compound/chat/CliRunArtifactPanel'
+export {
+  default as EvidenceImageOverlay,
+  type EvidenceImageOverlayProps,
+} from './compound/chat/EvidenceImageOverlay'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
 export {
   default as GlobalChatOverlay,

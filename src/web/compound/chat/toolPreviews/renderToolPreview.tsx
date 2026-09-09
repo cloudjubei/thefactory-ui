@@ -12,7 +12,12 @@ import {
 import { PatchPreview, SmallBadge } from './FieldDiff'
 import { WriteMultiToolsPreview } from './WriteMultiToolsPreview'
 import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
-import { extract, safePreviewString, tryString } from '../../../../headless/utils/toolPreview'
+import {
+  canonicalToolPreviewName,
+  extract,
+  safePreviewString,
+  tryString,
+} from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
@@ -42,6 +47,22 @@ export type ToolPreviewHooks = {
   /** Render the rich `FeatureCard` for a completed `addFeature` /
    * `updateFeature`. */
   renderFeatureCard?: (story: StoryShape, feature: FeatureShape) => ReactNode
+  /**
+   * Render a filed review-evidence image as a thumbnail that opens the
+   * full-screen zoom viewer. The host owns it: fetching the bytes is an
+   * authenticated API call the preview registry cannot make.
+   */
+  renderEvidenceImage?: (args: { evidenceId: string; label?: string }) => ReactNode
+  /**
+   * Render a link + LIVE status for the agent run `startFeatureWork` launched
+   * (progress, whether it is waiting on the user). The host owns this because
+   * the status is live data the preview registry cannot reach.
+   */
+  renderAgentRunLink?: (args: {
+    storyId?: string
+    agentRunId?: string
+    runId?: string
+  }) => ReactNode
   /** Render a story-and-feature callout (used for `completeAssignment` /
    * `blockFeature`). Host wires its own component. */
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
@@ -122,6 +143,16 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces',
   'writeFile',
   'updateStory',
+  'startFeatureWork',
+  'mobileTestDoctor',
+  'mobileTestBuildApp',
+  'mobileTestBootDevice',
+  'mobileTestOpenSession',
+  'mobileTestCloseSession',
+  'mobileTestSnapshot',
+  'mobileTestTap',
+  'mobileTestScreenshot',
+  'recordReviewEvidence',
   'updateFeature',
   'addStory',
   'addFeature',
@@ -209,7 +240,7 @@ function summarizeExperimentSpec(spec: unknown): string {
 
 /** True when {@link renderToolPreview} has a dedicated drawer for `name`. */
 export function hasToolPreview(name: string): boolean {
-  return RECOGNIZED_TOOL_PREVIEW_NAMES.has(name)
+  return RECOGNIZED_TOOL_PREVIEW_NAMES.has(canonicalToolPreviewName(name))
 }
 
 export function renderToolPreview({
@@ -219,7 +250,7 @@ export function renderToolPreview({
   sideBySide = false,
   hooks,
 }: RenderToolPreviewArgs): ReactNode {
-  const name = String(toolCall?.name ?? 'tool')
+  const name = canonicalToolPreviewName(String(toolCall?.name ?? 'tool'))
   const args = (toolCall?.arguments as Record<string, unknown>) ?? {}
   const isInFlight =
     resultType === 'pending' || resultType === 'running' || resultType === 'require_confirmation'
@@ -384,6 +415,229 @@ export function renderToolPreview({
         after={featureInput as unknown as Record<string, unknown>}
         sideBySide={sideBySide}
       />
+    )
+  }
+
+  // ---- device automation + evidence ----
+  if (name === 'mobileTestDoctor') {
+    const checks = (extract(result, ['checks']) as unknown[] | undefined) ?? []
+    const devices = (extract(result, ['devices']) as unknown[] | undefined) ?? []
+    const ready = extract(result, ['platformReady']) as Record<string, unknown> | undefined
+    return (
+      <div className="text-xs space-y-2">
+        <div className="flex flex-wrap gap-1">
+          {ready
+            ? Object.entries(ready).map(([platform, ok]) => (
+                <SmallBadge
+                  key={platform}
+                >{`${platform} ${ok ? 'ready' : 'not ready'}`}</SmallBadge>
+              ))
+            : null}
+        </div>
+        {checks.length > 0 ? (
+          <div>
+            <SectionTitle>Toolchain</SectionTitle>
+            <PreLimited
+              lines={checks.map((c) => {
+                const r = c as { name?: string; available?: boolean; version?: string }
+                return `${r.available ? '✓' : '✗'} ${r.name ?? '?'}${r.version ? ` — ${r.version}` : ''}`
+              })}
+              maxLines={8}
+            />
+          </div>
+        ) : null}
+        {devices.length > 0 ? (
+          <div>
+            <SectionTitle>Devices</SectionTitle>
+            <PreLimited
+              lines={devices.map((d) => {
+                const r = d as { id?: string; platform?: string; state?: string; name?: string }
+                return `${r.id ?? '?'} · ${r.platform ?? '?'}${r.state ? ` · ${r.state}` : ''}${r.name ? ` · ${r.name}` : ''}`
+              })}
+              maxLines={8}
+            />
+          </div>
+        ) : (
+          <div className="text-[11px] text-(--text-secondary)">No device is booted.</div>
+        )}
+      </div>
+    )
+  }
+
+  if (name === 'mobileTestBuildApp' || name === 'mobileTestBootDevice') {
+    const appPath = tryString(extract(result, ['appPath']))
+    const task = tryString(extract(result, ['task']))
+    const ref = tryString(extract(result, ['ref'])) ?? tryString(extract(args, ['ref']))
+    const flavor = tryString(extract(args, ['flavor']))
+    const deviceId = tryString(extract(result, ['deviceId']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <div className="text-xs space-y-2">
+        <div className="flex flex-wrap gap-1">
+          {flavor ? <SmallBadge>{flavor}</SmallBadge> : null}
+          {/* A `ref` build is the BASE half of a before/after — say so plainly. */}
+          {ref ? <SmallBadge>{`base @ ${ref.slice(0, 8)}`}</SmallBadge> : null}
+          {deviceId ? <SmallBadge>{deviceId}</SmallBadge> : null}
+        </div>
+        {task ? (
+          <Row>
+            <span className="font-mono text-[11px]">{task}</span>
+          </Row>
+        ) : null}
+        {appPath ? (
+          <div>
+            <SectionTitle>APK</SectionTitle>
+            <div className="font-mono text-[11px] break-all text-(--text-secondary)">{appPath}</div>
+          </div>
+        ) : null}
+        {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
+      </div>
+    )
+  }
+
+  if (name === 'mobileTestOpenSession' || name === 'mobileTestCloseSession') {
+    const sessionId =
+      tryString(extract(result, ['sessionId'])) ?? tryString(extract(args, ['sessionId']))
+    const platform = tryString(extract(result, ['platform']))
+    const deviceId = tryString(extract(result, ['deviceId']))
+    const appId = tryString(extract(result, ['appId']))
+    return (
+      <div className="text-xs space-y-2">
+        <div className="flex flex-wrap gap-1">
+          {platform ? <SmallBadge>{platform}</SmallBadge> : null}
+          {deviceId ? <SmallBadge>{deviceId}</SmallBadge> : null}
+          {appId ? <SmallBadge>{appId}</SmallBadge> : null}
+          <SmallBadge>{name === 'mobileTestCloseSession' ? 'closed' : 'open'}</SmallBadge>
+        </div>
+        {sessionId ? (
+          <div className="font-mono text-[10px] break-all text-(--text-secondary)">{sessionId}</div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (name === 'mobileTestSnapshot') {
+    const snapshot = tryString(extract(result, ['snapshot'])) ?? ''
+    const refsCount = extract(result, ['refsCount'])
+    return (
+      <div className="text-xs space-y-2">
+        {typeof refsCount === 'number' ? <SmallBadge>{`${refsCount} elements`}</SmallBadge> : null}
+        {snapshot ? (
+          <div>
+            <SectionTitle>Screen</SectionTitle>
+            <PreLimited lines={snapshot.split(/\r?\n/)} maxLines={16} />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (name === 'mobileTestTap') {
+    const ref = tryString(extract(args, ['ref']))
+    const x = extract(args, ['x'])
+    const y = extract(args, ['y'])
+    const ok = extract(result, ['ok'])
+    return (
+      <div className="text-xs flex flex-wrap items-center gap-1">
+        {ref ? <SmallBadge>{`ref ${ref}`}</SmallBadge> : null}
+        {typeof x === 'number' && typeof y === 'number' ? (
+          <SmallBadge>{`(${x}, ${y})`}</SmallBadge>
+        ) : null}
+        <SmallBadge>{ok === false ? 'failed' : 'tapped'}</SmallBadge>
+      </div>
+    )
+  }
+
+  if (name === 'mobileTestScreenshot') {
+    const path = tryString(extract(result, ['path']))
+    const ok = extract(result, ['ok'])
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <div className="text-xs space-y-2">
+        <SmallBadge>{ok === false ? 'no image captured' : 'captured'}</SmallBadge>
+        {path ? (
+          <div className="font-mono text-[11px] break-all text-(--text-secondary)">{path}</div>
+        ) : null}
+        {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
+        <div className="text-[11px] text-(--text-secondary)">
+          A captured shot becomes viewable once it is filed with recordReviewEvidence.
+        </div>
+      </div>
+    )
+  }
+
+  if (name === 'recordReviewEvidence') {
+    const evidenceId = tryString(extract(result, ['id']))
+    const kind = tryString(extract(result, ['kind'])) ?? tryString(extract(args, ['kind']))
+    const label = tryString(extract(result, ['label'])) ?? tryString(extract(args, ['label']))
+    const phase = tryString(extract(result, ['phase'])) ?? tryString(extract(args, ['phase']))
+    const subject = tryString(extract(result, ['subject'])) ?? tryString(extract(args, ['subject']))
+    const errorText = tryString(extract(result, ['error']))
+    const isImage = (tryString(extract(result, ['mediaType'])) ?? '').startsWith('image/')
+    return (
+      <div className="text-xs space-y-2">
+        <div className="flex flex-wrap gap-1">
+          {kind ? <SmallBadge>{kind}</SmallBadge> : null}
+          {phase ? <SmallBadge>{phase}</SmallBadge> : null}
+          {subject ? <SmallBadge>{subject}</SmallBadge> : null}
+        </div>
+        {label ? <div className="text-[11px] text-(--text-secondary)">{label}</div> : null}
+        {evidenceId && isImage && hooks?.renderEvidenceImage
+          ? hooks.renderEvidenceImage({ evidenceId, ...(label ? { label } : {}) })
+          : null}
+        {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
+      </div>
+    )
+  }
+
+  // ---- delegated feature work (story + proof + live run link) ----
+  if (name === 'startFeatureWork') {
+    const storyId = tryString(extract(args, ['storyId']))
+    const note = tryString(extract(args, ['note']))
+    // The tool defaults proof to TRUE; only an explicit `false` turns it off.
+    const proofRequired = extract(args, ['proofRequired']) !== false
+    const runner = tryString(extract(args, ['runner'])) ?? tryString(extract(result, ['runner']))
+    const cli = tryString(extract(result, ['cli']))
+    const agentRunId = tryString(extract(result, ['agentRunId']))
+    const runId = tryString(extract(result, ['runId']))
+    const errorText = tryString(extract(result, ['error']))
+    const story = storyId ? hooks?.getStory?.(storyId) : undefined
+    const features = story?.features ?? []
+    const doneCount = features.filter((f) => f.status === 'done').length
+    return (
+      <div className="text-xs space-y-2">
+        {story && hooks?.renderStoryCard ? (
+          hooks.renderStoryCard(story)
+        ) : storyId ? (
+          <SmallBadge>{`story ${storyId}`}</SmallBadge>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-1">
+          <SmallBadge>{proofRequired ? 'proof required' : 'no proof'}</SmallBadge>
+          {cli ? <SmallBadge>{cli}</SmallBadge> : runner ? <SmallBadge>{runner}</SmallBadge> : null}
+          {features.length > 0 ? (
+            <SmallBadge>{`${doneCount}/${features.length} features done`}</SmallBadge>
+          ) : null}
+        </div>
+        {note ? (
+          <div>
+            <SectionTitle>Note to the agent</SectionTitle>
+            <div className="whitespace-pre-wrap break-words text-[11px] text-(--text-secondary)">
+              {note}
+            </div>
+          </div>
+        ) : null}
+        {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
+        {hooks?.renderAgentRunLink && (agentRunId || runId) ? (
+          <div>
+            <SectionTitle>Work</SectionTitle>
+            {hooks.renderAgentRunLink({
+              ...(storyId ? { storyId } : {}),
+              ...(agentRunId ? { agentRunId } : {}),
+              ...(runId ? { runId } : {}),
+            })}
+          </div>
+        ) : null}
+      </div>
     )
   }
 

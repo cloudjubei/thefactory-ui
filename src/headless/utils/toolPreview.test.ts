@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ToolSchemas } from 'thefactory-tools/constants'
 import {
   MAX_TOOL_PREVIEW_CHARS,
+  canonicalToolPreviewName,
   getToolHeaderPath,
   isFilePathTool,
   safePreviewString,
@@ -184,5 +185,26 @@ describe('getToolHeaderPath', () => {
       expect(registry[name], `${name} is not a real tool`).toBeDefined()
       expect(getToolHeaderPath({ name, arguments: {} })).toBeUndefined()
     }
+  })
+})
+
+describe('canonicalToolPreviewName', () => {
+  it("maps a CLI agent's built-in shell tool onto our preview key", () => {
+    // claude-code emits `Bash`; the registry key is `bash`. The lookup is an
+    // exact-match Set, so casing alone lost the custom preview and a long shell
+    // command fell through to the raw-JSON dump that breaks the row.
+    expect(canonicalToolPreviewName('Bash')).toBe('bash')
+    expect(canonicalToolPreviewName('bash')).toBe('bash')
+    expect(canonicalToolPreviewName('shell')).toBe('bash')
+    expect(canonicalToolPreviewName('runShellCommand')).toBe('bash')
+  })
+
+  it('passes an unaliased name through untouched (casing preserved)', () => {
+    expect(canonicalToolPreviewName('updateStory')).toBe('updateStory')
+    expect(canonicalToolPreviewName('mobileTestScreenshot')).toBe('mobileTestScreenshot')
+  })
+
+  it('falls back to a stable placeholder for a missing name', () => {
+    expect(canonicalToolPreviewName(undefined)).toBe('tool')
   })
 })

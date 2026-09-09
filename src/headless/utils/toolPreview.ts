@@ -274,3 +274,27 @@ export function toolArgDisplay(toolCall: {
 
   return null
 }
+
+/**
+ * Aliases from a CLI agent's built-in tool names to our registry's canonical
+ * preview keys. Lower-cased on both sides so casing alone never loses a match.
+ */
+const TOOL_PREVIEW_ALIASES: Readonly<Record<string, string>> = {
+  bash: 'bash',
+  shell: 'bash',
+  runshellcommand: 'bash',
+}
+
+/**
+ * The canonical preview key for a tool name.
+ *
+ * A CLI agent names its built-ins differently from our registry — claude-code
+ * emits `Bash`, ours is `bash` — and the registry lookup is an exact-match Set.
+ * So the custom shell preview was silently lost and a 250-character command fell
+ * through to the raw-JSON dump, which is what breaks the row's layout. Anything
+ * without an alias passes through untouched.
+ */
+export function canonicalToolPreviewName(name: string | undefined): string {
+  if (!name) return 'tool'
+  return TOOL_PREVIEW_ALIASES[name.toLowerCase()] ?? name
+}
