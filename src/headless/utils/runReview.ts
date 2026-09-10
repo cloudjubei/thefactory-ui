@@ -11,7 +11,6 @@ import type {
   CliRunVerdict,
   GitMergeResult,
   RunVerification,
-  VerificationApproachOption,
   VerificationCheckStatus,
 } from '../api/generated'
 import {
@@ -20,28 +19,21 @@ import {
   LAND_FAILURE_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
-  NO_CHECKS_DETAIL,
-  NOT_VERIFIED_DETAIL,
   VERDICT_AUTHOR_LABELS,
   VERDICT_LABELS,
   VERDICT_TONES,
-  VERIFICATION_STATUS_LABELS,
-  VERIFICATION_STATUS_TONES,
   CHANGE_REQUEST_MESSAGE_PREFIX,
 } from './runReviewConstants'
 import type {
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
-  ReviewApproachRow,
   ReviewCheckRow,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
   ReviewTone,
   ReviewVerdictSummary,
   RunReviewFacts,
-  VerificationHeadline,
-  VerificationHeadlineStatus,
 } from './runReviewTypes'
 import { formatDurationMs } from './time'
 
@@ -75,54 +67,6 @@ export function checkTone(status: VerificationCheckStatus): ReviewTone {
   return CHECK_STATUS_TONES[status] ?? 'neutral'
 }
 
-/** The coloured verification chip: one status, its tone, and the tallies. */
-export function verificationHeadline(
-  verification: RunVerification | undefined,
-): VerificationHeadline {
-  const checks = verification?.checks ?? []
-  const passed = checks.filter((c) => c.status === 'passed').length
-  const failed = checks.filter((c) => c.status === 'failed').length
-  const skipped = checks.filter((c) => c.status === 'skipped').length
-  const errored = checks.filter((c) => c.status === 'error').length
-  // Derive rather than trust, but only downgrade a claimed SUCCESS. Records
-  // written before the 'unchecked' state existed still say 'passed' with nothing
-  // executed, and that must not read green. A stored 'failed'/'error' with no
-  // checks is a harness-level failure — real signal that must survive.
-  const storedStatus: VerificationHeadlineStatus = verification?.status ?? 'not-run'
-  const nothingExecuted = verification !== undefined && !checks.some((c) => c.status !== 'skipped')
-  const status: VerificationHeadlineStatus =
-    nothingExecuted && storedStatus === 'passed' ? 'unchecked' : storedStatus
-
-  const parts: string[] = []
-  if (passed > 0) parts.push(`${passed} passed`)
-  if (failed > 0) parts.push(`${failed} failed`)
-  if (errored > 0) parts.push(`${errored} errored`)
-  if (skipped > 0) parts.push(`${skipped} skipped`)
-
-  const durationMs = verification
-    ? Math.max(0, verification.finishedAt - verification.startedAt)
-    : undefined
-
-  return {
-    status,
-    tone: VERIFICATION_STATUS_TONES[status],
-    label: VERIFICATION_STATUS_LABELS[status],
-    // The reason names the CAUSE ("no check applies to .kt"), which is the only
-    // version of this a reviewer can act on.
-    detail: !verification
-      ? NOT_VERIFIED_DETAIL
-      : (verification.uncheckedReason?.summary ?? parts.join(' · ')) || NO_CHECKS_DETAIL,
-    passed,
-    failed,
-    skipped,
-    errored,
-    total: checks.length,
-    durationMs,
-    durationLabel:
-      durationMs == null ? undefined : trimmedOrUndefined(formatDurationMs(durationMs)),
-  }
-}
-
 /** Per-check rows for the summary head, pre-toned and pre-formatted. */
 export function verificationCheckRows(verification: RunVerification | undefined): ReviewCheckRow[] {
   return (verification?.checks ?? []).map((check) => ({
@@ -136,35 +80,6 @@ export function verificationCheckRows(verification: RunVerification | undefined)
     details: trimmedOrUndefined(check.details),
     optional: check.optional === true,
   }))
-}
-
-/**
- * The "so what can I do about it" list under an unchecked result: what this host
- * could prove, best-supported first.
- *
- * Approaches that do not APPLY are dropped rather than shown as unavailable —
- * telling someone a screenshot diff is unavailable for their backend library
- * sends them to install a device they will never need. What remains is either
- * runnable now or runnable after one named install.
- */
-export function verificationApproachRows(
-  approaches: readonly VerificationApproachOption[],
-): ReviewApproachRow[] {
-  const rows: ReviewApproachRow[] = []
-  for (const option of approaches) {
-    const { availability, spec } = option
-    if (availability.status === 'not-applicable') continue
-    rows.push({
-      id: spec.id,
-      label: spec.label,
-      proves: spec.proves,
-      available: availability.status === 'available',
-      tone: availability.status === 'available' ? 'positive' : 'neutral',
-      detail:
-        availability.status === 'available' ? spec.proves : (availability.hints ?? []).join(' '),
-    })
-  }
-  return rows.sort((a, b) => Number(b.available) - Number(a.available))
 }
 
 export function verdictSummary(verdict: CliRunVerdict): ReviewVerdictSummary {

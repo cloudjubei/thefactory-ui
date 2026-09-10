@@ -6,7 +6,6 @@ import type {
   GitMergeResult,
   RunVerification,
   VerificationCheckResult,
-  VerificationApproachOption,
 } from '../api/generated'
 import {
   asRunVerification,
@@ -20,8 +19,6 @@ import {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
-  verificationHeadline,
-  verificationApproachRows,
   formatChangeRequestMessage,
 } from './runReview'
 import {
@@ -29,8 +26,6 @@ import {
   LAND_FAILURE_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
-  NO_CHECKS_DETAIL,
-  NOT_VERIFIED_DETAIL,
 } from './runReviewConstants'
 
 function check(over: Partial<VerificationCheckResult> = {}): VerificationCheckResult {
@@ -92,115 +87,6 @@ describe('checkTone', () => {
     expect(checkTone('failed')).toBe('danger')
     expect(checkTone('error')).toBe('danger')
     expect(checkTone('skipped')).toBe('neutral')
-  })
-})
-
-describe('verificationHeadline', () => {
-  it('reports not-run when no verification is stamped', () => {
-    const head = verificationHeadline(undefined)
-    expect(head.status).toBe('not-run')
-    expect(head.tone).toBe('neutral')
-    expect(head.label).toBe('Not verified')
-    expect(head.detail).toBe(NOT_VERIFIED_DETAIL)
-    expect(head.total).toBe(0)
-    expect(head.durationMs).toBeUndefined()
-  })
-
-  it('tallies checks per status and builds the detail line in order', () => {
-    const head = verificationHeadline(
-      verification({
-        status: 'failed',
-        checks: [
-          check({ id: 'a', status: 'passed' }),
-          check({ id: 'b', status: 'failed' }),
-          check({ id: 'c', status: 'error' }),
-          check({ id: 'd', status: 'skipped' }),
-          check({ id: 'e', status: 'passed' }),
-        ],
-      }),
-    )
-    expect(head).toMatchObject({
-      status: 'failed',
-      tone: 'danger',
-      label: 'Checks failed',
-      passed: 2,
-      failed: 1,
-      errored: 1,
-      skipped: 1,
-      total: 5,
-    })
-    expect(head.detail).toBe('2 passed · 1 failed · 1 errored · 1 skipped')
-  })
-
-  it('is positive when passed', () => {
-    expect(verificationHeadline(verification()).tone).toBe('positive')
-    expect(verificationHeadline(verification()).label).toBe('Checks passed')
-  })
-
-  it('is danger when errored', () => {
-    const head = verificationHeadline(verification({ status: 'error', checks: [] }))
-    expect(head.tone).toBe('danger')
-    expect(head.label).toBe('Checks errored')
-  })
-
-  it('is WARNING, never positive, when nothing was checked', () => {
-    const head = verificationHeadline(verification({ status: 'unchecked', checks: [] }))
-    expect(head.tone).toBe('warning')
-    expect(head.tone).not.toBe('positive')
-    expect(head.label).toBe('Nothing checked')
-  })
-
-  it('shows the reason nothing was checked, not a generic placeholder', () => {
-    const head = verificationHeadline(
-      verification({
-        status: 'unchecked',
-        checks: [],
-        uncheckedReason: {
-          kind: 'no-applicable-checks',
-          summary: 'No check applies to .kt, .xml — the built-in checks only cover TypeScript.',
-          extensions: ['.kt', '.xml'],
-        },
-      }),
-    )
-    expect(head.detail).toContain('.kt')
-  })
-
-  it('NEVER shows a positive tone for a verification whose checks all skipped', () => {
-    // Defensive: even if a stored record predates the unchecked state (or a
-    // future producer gets it wrong), zero executed checks must not read green.
-    const head = verificationHeadline(
-      verification({
-        status: 'passed',
-        checks: [{ ...check(), status: 'skipped' }],
-      }),
-    )
-    expect(head.tone).not.toBe('positive')
-    expect(head.status).toBe('unchecked')
-  })
-
-  it('falls back to a no-checks detail when the run verified nothing', () => {
-    expect(verificationHeadline(verification({ status: 'unchecked', checks: [] })).detail).toBe(
-      NO_CHECKS_DETAIL,
-    )
-  })
-
-  it('derives duration from the start/finish span, never negative', () => {
-    expect(verificationHeadline(verification({ startedAt: 1000, finishedAt: 3500 }))).toMatchObject(
-      {
-        durationMs: 2500,
-        durationLabel: '2.5s',
-      },
-    )
-    expect(verificationHeadline(verification({ startedAt: 3500, finishedAt: 1000 }))).toMatchObject(
-      {
-        durationMs: 0,
-        durationLabel: '0ms',
-      },
-    )
-  })
-
-  it('has no duration label when nothing ran', () => {
-    expect(verificationHeadline(undefined).durationLabel).toBeUndefined()
   })
 })
 
@@ -467,57 +353,5 @@ describe('formatChangeRequestMessage', () => {
 
   it('trims the notes so a stray newline is not sent as content', () => {
     expect(formatChangeRequestMessage('  fix it  ')?.endsWith('fix it')).toBe(true)
-  })
-})
-
-describe('verificationApproachRows', () => {
-  const option = (
-    id: string,
-    availability: VerificationApproachOption['availability'],
-  ): VerificationApproachOption => ({
-    spec: {
-      id,
-      label: `Label ${id}`,
-      proves: `Proves ${id}`,
-      requires: { default: [] },
-    } as VerificationApproachOption['spec'],
-    availability,
-    drivenBy: [],
-  })
-
-  it('puts what can be run first, then what is one install away', () => {
-    const rows = verificationApproachRows([
-      option('a', { status: 'unavailable', missing: ['adb'], hints: ['Install adb.'] }),
-      option('b', { status: 'available' }),
-    ])
-    expect(rows.map((r) => r.id)).toEqual(['b', 'a'])
-    expect(rows[0]?.tone).toBe('positive')
-  })
-
-  it('omits what does not apply — that is noise, not a next step', () => {
-    // Telling someone a screenshot diff does not apply to their backend library
-    // is worse than saying nothing.
-    const rows = verificationApproachRows([
-      option('shot', { status: 'not-applicable', reason: 'not a mobile project' }),
-      option('review', { status: 'available' }),
-    ])
-    expect(rows.map((r) => r.id)).toEqual(['review'])
-  })
-
-  it('carries the install hint as the detail, so the row is actionable', () => {
-    const rows = verificationApproachRows([
-      option('a', {
-        status: 'unavailable',
-        missing: ['adb', 'androidDevice'],
-        hints: ['Install platform-tools.', 'Create a virtual device.'],
-      }),
-    ])
-    expect(rows[0]?.detail).toContain('Install platform-tools.')
-    expect(rows[0]?.detail).toContain('Create a virtual device.')
-    expect(rows[0]?.tone).toBe('neutral')
-  })
-
-  it('is empty for an empty plan, so the caller renders nothing', () => {
-    expect(verificationApproachRows([])).toEqual([])
   })
 })

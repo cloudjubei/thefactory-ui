@@ -39,6 +39,7 @@ export type ActionRequest = {
   runId: string
   kind: string
   payload: ActionPayload
+  grantPayload?: unknown
   credentialId?: string
   timeoutMs?: number
   noPermanentGrant?: boolean
@@ -80,6 +81,7 @@ export type PendingAction = {
   runId: string
   kind: string
   payload: ActionPayload
+  grantPayload?: unknown
   credentialId?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
@@ -307,6 +309,7 @@ export type AgentRunParams = {
   }
   dbConnectionString?: string
   proofRequired?: boolean
+  note?: string
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -3923,7 +3926,12 @@ export type EvidencePassage = {
   text: string
 }
 
-export type AbstainReason = 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
+export type AbstainReason =
+  | 'no-source'
+  | 'reader-failure'
+  | 'sub-quorum'
+  | 'thin-evidence'
+  | 'shared-source-only'
 
 export type ClaimVerdict = {
   status: ResearchVerdictStatus
@@ -3933,7 +3941,12 @@ export type ClaimVerdict = {
     url: string
   }>
   derivation?: string
-  abstainReason?: 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
+  abstainReason?:
+    | 'no-source'
+    | 'reader-failure'
+    | 'sub-quorum'
+    | 'thin-evidence'
+    | 'shared-source-only'
   methodology: string
   sourcesAttempted: Array<string>
 }
@@ -5738,17 +5751,20 @@ export type BuildAndroidAppOptions = {
   module?: string
   flavor?: string
   buildType?: string
+  ref?: string
 }
 
 export type MobileBuildAppInput = {
   module?: string
   flavor?: string
   buildType?: string
+  ref?: string
 }
 
 export type BuildAndroidAppResult = {
   appPath: string
   task: string
+  ref?: string
 }
 
 export type OpenMobileSessionOptions = {
@@ -6154,6 +6170,7 @@ export type CriterionStatus =
   | 'refuted'
   | 'conflicting'
   | 'alternative'
+  | 'partial'
 
 export type EvalResultItem = {
   key: string
@@ -6223,9 +6240,21 @@ export type CriterionVerdict = {
   confidence: number
   evidence: Array<CriterionEvidence>
   derivation?: string
-  abstainReason?: 'no-source' | 'reader-failure' | 'sub-quorum' | 'thin-evidence'
+  abstainReason?:
+    | 'no-source'
+    | 'reader-failure'
+    | 'sub-quorum'
+    | 'thin-evidence'
+    | 'shared-source-only'
   mode?: 'cheap' | 'deep'
-  priorStatus?: 'confirmed' | 'implied' | 'unverifiable' | 'refuted' | 'conflicting' | 'alternative'
+  priorStatus?:
+    | 'confirmed'
+    | 'implied'
+    | 'unverifiable'
+    | 'refuted'
+    | 'conflicting'
+    | 'alternative'
+    | 'partial'
   methodology: string
   sourcesAttempted: Array<string>
   asOf: string
@@ -6445,6 +6474,19 @@ export type CatalogItem = {
   }
   fieldAgreement?: {
     [key: string]: number
+  }
+  offerDiagnosis?: {
+    candidates: number
+    kept: number
+    dropped: {
+      [key: string]: number
+    }
+  }
+  identityImageConflict?: {
+    statedBrand?: string
+    note: string
+    confidence: number
+    asOf: string
   }
   identityCorroboration?: {
     source: 'open-db'
@@ -6723,6 +6765,7 @@ export type ImageVerdict = {
   }>
   bodyLooksPlastic: 'yes' | 'no' | 'unclear'
   closureLooksPlastic: 'yes' | 'no' | 'unclear'
+  brandMismatch: 'yes' | 'no' | 'unclear'
   confidence: number
   reason: string
 }
@@ -7076,6 +7119,10 @@ export type CatalogOfferHealth = {
   withBuyLinkNoPrice: number
   outOfStock: number
   stockUnknown: number
+  noOfferWithRejectedCandidates: number
+  offerDropsByReason: {
+    [key: string]: number
+  }
 }
 
 export type CriterionRulingProposal = {
@@ -7084,6 +7131,7 @@ export type CriterionRulingProposal = {
   name: string
   criterionId: string
   disposition: 'allowed' | 'disallowed'
+  contestability?: 'tautological' | 'ambiguous-root' | 'named-polymer'
   seenOn: Array<{
     itemKey: string
     criterionId: string
@@ -7494,6 +7542,37 @@ export type VerifyProductImageryResult = {
 export type GetCatalogHealthParams = {
   scope: string
   recordType: string
+  market: string
+}
+
+export type EscalationTransition = {
+  from: CriterionStatus
+  to: CriterionStatus
+  count: number
+}
+
+export type EscalationReport = {
+  verdicts: number
+  cheap: number
+  deep: number
+  unlabelled: number
+  deepChanged: number
+  deepUnchanged: number
+  deepFirstVerdict: number
+  changedShare: number
+  transitions: Array<EscalationTransition>
+}
+
+export type UnattributedRefutation = {
+  key: string
+  plasticTermsInEvidence: Array<string>
+  evidenceUrls: Array<string>
+}
+
+export type GetEscalationReportParams = {
+  scope: string
+  recordType: string
+  criterionId: string
   market: string
 }
 
@@ -8483,6 +8562,7 @@ export type ToolName =
   | 'listRulingProposals'
   | 'dismissRulingProposal'
   | 'getCatalogHealth'
+  | 'getEscalationReport'
   | 'verifyProductImagery'
   | 'researchWeb'
   | 'recordReviewEvidence'
@@ -8802,6 +8882,14 @@ export type HeroImageCandidate = {
   inReview?: boolean
 }
 
+export type HostReadFailures = {
+  total: number
+  wall: number
+  gone: number
+  flaky: number
+  sample?: string
+}
+
 export type WebSearchProviderKind = 'api' | 'cli' | 'playwright'
 
 export type SearchEngine = 'duckduckgo' | 'bing' | 'google'
@@ -8887,6 +8975,13 @@ export type RevalidationHostRow = {
   revalidated: number
   notModified: number
   hitRate: number
+}
+
+export type HostReadHealth = {
+  host: string
+  total: number
+  verdict: 'wall' | 'dead-links' | 'flaky'
+  action: string
 }
 
 export type BuiltQuery = {
@@ -17475,6 +17570,7 @@ export type StartAgentRunData = {
       }
       dbConnectionString?: string
       proofRequired?: boolean
+      note?: string
     }
     settings: CompletionSettings
     isolated?: boolean

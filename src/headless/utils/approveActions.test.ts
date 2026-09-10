@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { approveActionDescriptors } from './approveActions'
+import { approveActionDescriptors, earnedApproveActions } from './approveActions'
 
 const base = { branch: 'run/abc', baseBranch: 'main', hasRemote: true, fileCount: 3 }
 
@@ -59,5 +59,37 @@ describe('approveActionDescriptors', () => {
       expect(d.confirmLabel.length).toBeGreaterThan(0)
       expect(d.effects.length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('earnedApproveActions', () => {
+  const all = approveActionDescriptors(base)
+
+  it('lets a proven run merge from the front', () => {
+    const earned = earnedApproveActions(all, 'proven')
+    expect(earned?.primary.action).toBe('merge')
+    expect(earned?.rest.map((d) => d.action)).toEqual(['leave-branch', 'create-pr'])
+  })
+
+  it('puts leave-branch in front of anything less than proven', () => {
+    for (const key of ['partly', 'failed', 'not-run'] as const) {
+      const earned = earnedApproveActions(all, key)
+      expect(earned?.primary.action).toBe('leave-branch')
+      expect(earned?.rest.map((d) => d.action)).toEqual(['create-pr', 'merge'])
+    }
+  })
+
+  it('never drops an action — the menu holds everything that is not primary', () => {
+    const earned = earnedApproveActions(all, 'partly')
+    expect([earned?.primary, ...(earned?.rest ?? [])]).toHaveLength(all.length)
+  })
+
+  it('falls back to the first descriptor when the earned lead is missing', () => {
+    const onlyPr = all.filter((d) => d.action === 'create-pr')
+    expect(earnedApproveActions(onlyPr, 'proven')?.primary.action).toBe('create-pr')
+  })
+
+  it('is undefined with nothing to offer', () => {
+    expect(earnedApproveActions([], 'proven')).toBeUndefined()
   })
 })

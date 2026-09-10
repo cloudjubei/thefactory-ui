@@ -216,11 +216,20 @@ export const nativeDarkTheme: NativeSemanticTheme = {
   focusRing: brand[400],
 }
 
-// Soft variants from the web theme use `color-mix()`; we omit them on RN and
-// let consumers layer `opacity` on the bold colour when they need a tint.
+/** A `#rrggbb` colour at an opacity. RN has no `color-mix()`, so tints are precomputed. */
+export function nativeAlpha(hex: string, alpha: number): string {
+  const rgb = parseInt(hex.slice(1, 7), 16)
+  return `rgba(${(rgb >> 16) & 255}, ${(rgb >> 8) & 255}, ${rgb & 255}, ${alpha})`
+}
+
+// The soft variants mirror `semantic.ts`, with its `color-mix()` expressions
+// resolved to rgba so the same tints render on RN.
 export interface NativeStatusVariant {
   bg: string
   fg: string
+  softBg: string
+  softFg: string
+  softBorder: string
 }
 
 export interface NativeStatusTokens {
@@ -235,25 +244,121 @@ export interface NativeStatusTokens {
 }
 
 export const nativeLightStatus: NativeStatusTokens = {
-  empty: { bg: '#ffffff', fg: '#000000' },
-  done: { bg: green[600], fg: '#053b2e' },
-  working: { bg: orange[650], fg: '#231200' },
-  stuck: { bg: red[600], fg: '#ffffff' },
-  on_hold: { bg: purple[650], fg: '#ffffff' },
-  review: { bg: blue[650], fg: '#ffffff' },
-  queued: { bg: '#eaeaea', fg: gray[800] },
-  blocked: { bg: '#b42318', fg: '#ffffff' },
+  empty: {
+    bg: '#ffffff',
+    fg: '#000000',
+    softBg: nativeAlpha(gray[400], 0.12),
+    softFg: gray[800],
+    softBorder: gray[300],
+  },
+  done: {
+    bg: green[600],
+    fg: '#053b2e',
+    softBg: nativeAlpha(green[600], 0.15),
+    softFg: green[800],
+    softBorder: green[400],
+  },
+  working: {
+    bg: orange[650],
+    fg: '#231200',
+    softBg: nativeAlpha(orange[650], 0.18),
+    softFg: orange[800],
+    softBorder: orange[400],
+  },
+  stuck: {
+    bg: red[600],
+    fg: '#ffffff',
+    softBg: nativeAlpha(red[600], 0.12),
+    softFg: red[700],
+    softBorder: red[400],
+  },
+  on_hold: {
+    bg: purple[650],
+    fg: '#ffffff',
+    softBg: nativeAlpha(purple[650], 0.12),
+    softFg: purple[700],
+    softBorder: purple[400],
+  },
+  review: {
+    bg: blue[650],
+    fg: '#ffffff',
+    softBg: nativeAlpha(blue[650], 0.12),
+    softFg: blue[700],
+    softBorder: blue[400],
+  },
+  queued: {
+    bg: '#eaeaea',
+    fg: gray[800],
+    softBg: nativeAlpha('#eaeaea', 0.3),
+    softFg: gray[800],
+    softBorder: '#d4d4d4',
+  },
+  blocked: {
+    bg: '#b42318',
+    fg: '#ffffff',
+    softBg: nativeAlpha('#b42318', 0.12),
+    softFg: '#b42318',
+    softBorder: nativeAlpha('#b42318', 0.45),
+  },
 }
 
 export const nativeDarkStatus: NativeStatusTokens = {
-  empty: { bg: '#121821', fg: '#f5f7fa' },
-  done: { bg: green[700], fg: '#e9fff6' },
-  working: { bg: orange[700], fg: '#1b1200' },
-  stuck: { bg: red[700], fg: '#fff5f6' },
-  on_hold: { bg: purple[700], fg: '#f7f1ff' },
-  review: { bg: blue[700], fg: '#f2f7ff' },
-  queued: { bg: '#313843', fg: '#e5e7eb' },
-  blocked: { bg: '#b42318', fg: '#ffffff' },
+  empty: {
+    bg: '#121821',
+    fg: '#f5f7fa',
+    softBg: nativeAlpha('#ffffff', 0.1),
+    softFg: '#c8d0da',
+    softBorder: nativeAlpha('#ffffff', 0.35),
+  },
+  done: {
+    bg: green[700],
+    fg: '#e9fff6',
+    softBg: nativeAlpha(green[600], 0.18),
+    softFg: '#bbf7e1',
+    softBorder: nativeAlpha(green[600], 0.6),
+  },
+  working: {
+    bg: orange[700],
+    fg: '#1b1200',
+    softBg: nativeAlpha(orange[650], 0.2),
+    softFg: '#ffe6c7',
+    softBorder: nativeAlpha(orange[650], 0.6),
+  },
+  stuck: {
+    bg: red[700],
+    fg: '#fff5f6',
+    softBg: nativeAlpha(red[600], 0.16),
+    softFg: '#ffdadf',
+    softBorder: nativeAlpha(red[600], 0.6),
+  },
+  on_hold: {
+    bg: purple[700],
+    fg: '#f7f1ff',
+    softBg: nativeAlpha(purple[650], 0.16),
+    softFg: '#e7d8ff',
+    softBorder: nativeAlpha(purple[650], 0.6),
+  },
+  review: {
+    bg: blue[700],
+    fg: '#f2f7ff',
+    softBg: nativeAlpha(blue[650], 0.16),
+    softFg: '#d9e7ff',
+    softBorder: nativeAlpha(blue[650], 0.6),
+  },
+  queued: {
+    bg: '#313843',
+    fg: '#e5e7eb',
+    softBg: nativeAlpha('#313843', 0.4),
+    softFg: '#e5e7eb',
+    softBorder: '#505963',
+  },
+  blocked: {
+    bg: '#b42318',
+    fg: '#ffffff',
+    softBg: nativeAlpha('#b42318', 0.22),
+    softFg: '#ffc9c4',
+    softBorder: nativeAlpha('#b42318', 0.55),
+  },
 }
 
 export const nativeTheme = {

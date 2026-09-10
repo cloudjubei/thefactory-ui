@@ -2,7 +2,13 @@ import { Children, forwardRef, isValidElement } from 'react'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { PressableProps, View as RNView, StyleProp, ViewStyle, TextStyle } from 'react-native'
-import { nativeControls, nativeLightStatus, nativeRadii, nativeSpace } from '../../tokens/native'
+import {
+  nativeAlpha,
+  nativeControls,
+  nativeLightStatus,
+  nativeRadii,
+  nativeSpace,
+} from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import Spinner from './Spinner'
 
@@ -14,6 +20,8 @@ export type ButtonVariant =
   | 'danger'
   | 'success'
   | 'link'
+  | 'run'
+  | 'handoff'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
 // `asChild` (web's Radix Slot pattern) has no RN analogue and is intentionally
@@ -91,6 +99,28 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
       return {
         container: { backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 0 },
         text: { color: theme.accent.primary, textDecorationLine: 'underline' },
+      }
+    case 'run':
+      // Mirrors web's `.btn-run`: the immediate, agent-free action on a review
+      // surface is the only accent-toned control in its block.
+      return {
+        container: {
+          backgroundColor: nativeAlpha(theme.accent.primary, 0.08),
+          borderWidth: 1,
+          borderColor: nativeAlpha(theme.accent.primary, 0.4),
+        },
+        text: { color: theme.accent.primary },
+      }
+    case 'handoff':
+      // Mirrors web's `.btn-handoff`: quieter than `run` because it spends an
+      // agent run, and never accent-filled so the two cannot be confused.
+      return {
+        container: {
+          backgroundColor: theme.surface.raised,
+          borderWidth: 1,
+          borderColor: theme.border.strong,
+        },
+        text: { color: theme.text.secondary },
       }
   }
 }

@@ -31,6 +31,7 @@ import { appendCliRunTranscript, mergeCliRunTranscript } from '../utils/cliRunAc
 import { CLI_TRANSCRIPT_FLUSH_MS } from '../utils/cliRunActivityConstants'
 import { cliRunTranscripts } from '../utils/cliRunTranscriptCache'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
+import { runModelOf, type RunModel } from '../utils/runModel'
 import { asRunVerification } from '../utils/runReview'
 
 // How long to keep retrying a 404 while a just-started run's record is still
@@ -97,6 +98,8 @@ export type UseCliRunArtifact = {
    * are not reviewable — the panel warns explicitly.
    */
   landFailure: CliRunLandFailure | undefined
+  /** Which agent and model carried the run out — a fact, not a picker. */
+  runModel: RunModel | undefined
   /**
    * Epoch ms the run record was created, once loaded. The live view measures
    * elapsed time from here rather than from mount, so a page opened mid-run
@@ -212,6 +215,7 @@ export function useCliRunArtifact(
   // suppression of the direct-apply path — see `reviewActionMode`.
   const [storyId, setStoryId] = useState<string | undefined>(undefined)
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
+  const [runModel, setRunModel] = useState<RunModel | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
   const [costUSD, setCostUSD] = useState<number | undefined>(undefined)
   const [durationMs, setDurationMs] = useState<number | undefined>(undefined)
@@ -307,6 +311,7 @@ export function useCliRunArtifact(
       setVerification(run.verification ?? undefined)
       setVerdict(run.verdict ?? undefined)
       setStoryId(run.storyId ?? undefined)
+      setRunModel(runModelOf(run))
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
       setCostUSD(run.costUSD ?? undefined)
@@ -335,6 +340,7 @@ export function useCliRunArtifact(
     setVerification(undefined)
     setVerdict(undefined)
     setLandFailure(undefined)
+    setRunModel(undefined)
     setStartedAtMs(undefined)
     setCostUSD(undefined)
     setDurationMs(undefined)
@@ -694,6 +700,7 @@ export function useCliRunArtifact(
     reviewInProgress,
     storyId,
     landFailure,
+    runModel,
     startedAtMs,
     costUSD,
     durationMs,

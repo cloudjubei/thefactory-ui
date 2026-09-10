@@ -59,7 +59,7 @@
     "typecheck": "tsc --noEmit",
     "check:uikit": "bash scripts/check-uikit-boundaries.sh",
     "check:hooks": "node scripts/check-hook-order.mjs",
-    "generate:tokens": "tsx scripts/generate-tokens-css.ts",
+    "generate:tokens": "tsx scripts/generate-tokens-css.ts && prettier --write --ignore-path /dev/null './src/web/styles/tokens.css' './src/native/styles/tokens.css'",
     "generate:backend": "openapi-ts && prettier --write --ignore-path /dev/null './src/headless/api/generated/**/*.ts'",
     "prebuild": "npm run check:uikit && npm run check:hooks && npm run generate:tokens",
     "pretest": "npm run check:uikit && npm run check:hooks",

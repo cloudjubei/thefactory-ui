@@ -3,7 +3,10 @@ import {
   evidenceViewerImages,
   groupEvidence,
   isReadableNote,
+  fileNameSlug,
   isViewableImage,
+  screenPairFileStem,
+  screenPairs,
   summarizeEvidence,
   toEvidenceTile,
 } from './reviewEvidenceView'
@@ -145,5 +148,133 @@ describe('evidenceViewerImages', () => {
 
   it('returns nothing for a group with no loaded images', () => {
     expect(evidenceViewerImages({ key: 'k', title: 'k', singles: [] })).toEqual([])
+  })
+})
+
+describe('screenPairs', () => {
+  const tiles = (...refs: ReviewEvidenceRef[]) => groupEvidence(refs.map(toEvidenceTile))
+
+  it('a before and an after of one subject become one pair tile', () => {
+    const pairs = screenPairs(
+      tiles(
+        ref({ id: 'a', subject: 'login', phase: 'before', createdAt: 5 }),
+        ref({ id: 'b', subject: 'login', phase: 'after', createdAt: 6 }),
+      ),
+    )
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].class).toBe('pair')
+    expect(pairs[0].before?.ref.id).toBe('a')
+    expect(pairs[0].after?.ref.id).toBe('b')
+    expect(pairs[0].title).toBe('login')
+  })
+
+  it('an after with no before is new; a before with no after is removed', () => {
+    const pairs = screenPairs(
+      tiles(
+        ref({ id: 'a', subject: 'onboarding', phase: 'after', createdAt: 1 }),
+        ref({ id: 'b', subject: 'legacy', phase: 'before', createdAt: 2 }),
+      ),
+    )
+    expect(pairs.map((p) => p.class)).toEqual(['new', 'removed'])
+  })
+
+  it('an unphased screenshot is a single tile of its own', () => {
+    const pairs = screenPairs(tiles(ref({ id: 'a', createdAt: 1 })))
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].class).toBe('single')
+    expect(pairs[0].key).toBe('a')
+  })
+
+  it('leaves written reports out — a report is not a screen', () => {
+    const pairs = screenPairs(
+      tiles(
+        ref({ id: 'a', kind: 'report', mediaType: 'text/markdown', subject: 's', phase: 'after' }),
+        ref({ id: 'b', kind: 'report', mediaType: 'text/markdown' }),
+      ),
+    )
+    expect(pairs).toEqual([])
+  })
+
+  it('orders by first capture time and numbers from 1', () => {
+    const pairs = screenPairs(
+      tiles(
+        ref({ id: 'late', subject: 'settings', phase: 'after', createdAt: 30 }),
+        ref({ id: 'early', createdAt: 10 }),
+        ref({ id: 'mid-b', subject: 'login', phase: 'before', createdAt: 20 }),
+        ref({ id: 'mid-a', subject: 'login', phase: 'after', createdAt: 25 }),
+      ),
+    )
+    expect(pairs.map((p) => [p.index, p.key])).toEqual([
+      [1, 'early'],
+      [2, 'login'],
+      [3, 'settings'],
+    ])
+  })
+
+  it("takes a pair's time from its earliest side, not its latest", () => {
+    const pairs = screenPairs(
+      tiles(
+        ref({ id: 'x', createdAt: 15 }),
+        ref({ id: 'b', subject: 'login', phase: 'before', createdAt: 10 }),
+        ref({ id: 'a', subject: 'login', phase: 'after', createdAt: 20 }),
+      ),
+    )
+    expect(pairs.map((p) => p.key)).toEqual(['login', 'x'])
+  })
+})
+
+describe('screenPairFileStem', () => {
+  it('leads with the zero-padded index so a saved set sorts in walkthrough order', () => {
+    expect(screenPairFileStem({ index: 3, title: 'Login' })).toBe('03-login')
+  })
+
+  it('keeps a two-digit index unpadded past ten', () => {
+    expect(screenPairFileStem({ index: 12, title: 'Login' })).toBe('12-login')
+  })
+
+  it('replaces every run of non-alphanumerics with a single dash', () => {
+    expect(screenPairFileStem({ index: 1, title: 'Login  /  SSO' })).toBe('01-login-sso')
+  })
+
+  it('never emits a path separator, whatever the screen was called', () => {
+    expect(screenPairFileStem({ index: 1, title: 'a/b\\c' })).not.toMatch(/[/\\]/)
+  })
+
+  it('trims leading and trailing dashes rather than emitting a dotfile-ish name', () => {
+    expect(screenPairFileStem({ index: 2, title: '  !Login!  ' })).toBe('02-login')
+  })
+
+  it('lowercases so two casings of one screen cannot collide on a case-insensitive disk', () => {
+    expect(screenPairFileStem({ index: 4, title: 'LogIn' })).toBe('04-login')
+  })
+
+  it('falls back to the index alone when the title has nothing usable left', () => {
+    expect(screenPairFileStem({ index: 5, title: '///' })).toBe('05')
+  })
+})
+
+describe('fileNameSlug', () => {
+  it('replaces every run of non-alphanumerics with a single dash', () => {
+    expect(fileNameSlug('Login  /  SSO')).toBe('login-sso')
+  })
+
+  it('never emits a path separator, whatever the label was', () => {
+    expect(fileNameSlug('a/b\\c')).not.toMatch(/[/\\]/)
+  })
+
+  it('trims leading and trailing dashes rather than emitting a dotfile-ish name', () => {
+    expect(fileNameSlug('  !Login!  ')).toBe('login')
+  })
+
+  it('lowercases so two casings cannot collide on a case-insensitive disk', () => {
+    expect(fileNameSlug('LogIn')).toBe('login')
+  })
+
+  it('returns the fallback when nothing usable survives', () => {
+    expect(fileNameSlug('///', 'report')).toBe('report')
+  })
+
+  it('returns an empty string when nothing survives and no fallback was given', () => {
+    expect(fileNameSlug('///')).toBe('')
   })
 })

@@ -134,6 +134,14 @@ export {
 } from './compound/chips/StatusChip'
 export { default as TokensChip, type TokensChipProps } from './compound/chips/TokensChip'
 export { default as TurnChip, type TurnChipProps } from './compound/chips/TurnChip'
+export { default as CheckChip, type CheckChipProps } from './compound/chips/CheckChip'
+export { default as HandoffButton, type HandoffButtonProps } from './compound/chips/HandoffButton'
+export { default as HelpChip, type HelpChipProps } from './compound/chips/HelpChip'
+export { default as RefChip, type RefChipKind, type RefChipProps } from './compound/chips/RefChip'
+export {
+  default as RunActionButton,
+  type RunActionButtonProps,
+} from './compound/chips/RunActionButton'
 export {
   default as DependencyBullet,
   type DependencyBulletProps,

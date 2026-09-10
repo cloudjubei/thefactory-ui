@@ -1,3 +1,4 @@
+import type { SignoffVerdictKey } from './checkMethodTypes'
 import type { ApproveActionDescriptor } from './runReviewTypes'
 
 /**
@@ -67,4 +68,28 @@ export function approveActionDescriptors(input: {
       confirmLabel: 'Merge',
     },
   ]
+}
+
+export type EarnedApproveActions = {
+  /** The one action the primary button carries. */
+  primary: ApproveActionDescriptor
+  /** The rest, for the split menu, in their original order. */
+  rest: ApproveActionDescriptor[]
+}
+
+/**
+ * Which approve action leads is EARNED by the evidence, not fixed. A fully
+ * proven run may merge from the front; anything less puts the action that
+ * changes nothing shared — approve and leave the branch — in front, and merge
+ * steps back into the menu. The menu always holds every action, so nothing is
+ * hidden, only re-ranked.
+ */
+export function earnedApproveActions(
+  descriptors: readonly ApproveActionDescriptor[],
+  verdict: SignoffVerdictKey,
+): EarnedApproveActions | undefined {
+  if (descriptors.length === 0) return undefined
+  const lead = verdict === 'proven' ? 'merge' : 'leave-branch'
+  const primary = descriptors.find((d) => d.action === lead) ?? descriptors[0]
+  return { primary, rest: descriptors.filter((d) => d !== primary) }
 }

@@ -4,26 +4,7 @@ import type {
   CliRunVerdictAuthor,
   VerificationCheckStatus,
 } from '../api/generated'
-import type { ReviewTone, VerificationHeadlineStatus } from './runReviewTypes'
-
-export const VERIFICATION_STATUS_TONES: Record<VerificationHeadlineStatus, ReviewTone> = {
-  passed: 'positive',
-  failed: 'danger',
-  error: 'danger',
-  // Warning, not neutral: verification RAN and came back with no evidence, which
-  // is something the reviewer must act on. 'not-run' is the genuinely different
-  // fact that it never happened, so the two must not look alike.
-  unchecked: 'warning',
-  'not-run': 'neutral',
-}
-
-export const VERIFICATION_STATUS_LABELS: Record<VerificationHeadlineStatus, string> = {
-  passed: 'Checks passed',
-  failed: 'Checks failed',
-  error: 'Checks errored',
-  unchecked: 'Nothing checked',
-  'not-run': 'Not verified',
-}
+import type { ReviewTone } from './runReviewTypes'
 
 export const CHECK_STATUS_TONES: Record<VerificationCheckStatus, ReviewTone> = {
   passed: 'positive',
@@ -59,8 +40,6 @@ export const LAND_FAILURE_REASON_LABELS: Record<CliRunLandFailureReason, string>
 export const LAND_FAILURE_TITLE = 'Changes were not landed for review'
 
 export const NOT_VERIFIED_DETAIL = 'No checks have run against these changes yet.'
-
-export const NO_CHECKS_DETAIL = 'No checks configured'
 
 export const MERGE_FAILED_FALLBACK = 'Merge failed'
 

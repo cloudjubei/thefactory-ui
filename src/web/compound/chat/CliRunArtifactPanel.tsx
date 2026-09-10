@@ -1,42 +1,60 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import type { FilesEmittedFilePreview } from '../../../headless/api'
+import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
 import { answerFeatureQuestion } from '../../../headless/api'
 import {
+  approveActionDescriptors,
+  censusFeatures,
+  checkMethodRows,
+  earnedApproveActions,
+  formatChangeRequestMessage,
+  groupEvidence,
+  handoffRequest,
+  incompleteStoryReason,
   isReviewReasonValid,
   landFailureSummary,
   mergeNotice,
+  openFeatureQuestions,
   reviewActionMode,
   reviewChangeCounts,
+  reviewTabs,
   runReviewFacts,
+  screenPairs,
+  signoffVerdict,
+  useCliRunArtifact,
+  useReviewEvidence,
+  useStories,
   verdictSummary,
   verificationCheckRows,
-  verificationApproachRows,
-  approveActionDescriptors,
-  censusFeatures,
-  incompleteStoryReason,
-  openFeatureQuestions,
-  useReviewEvidence,
-  evidenceViewerImages,
-  groupEvidence,
-  summarizeEvidence,
-  useStories,
-  verificationHeadline,
-  useCliRunArtifact,
   type ApproveActionDescriptor,
-  type EvidenceTile,
-  type ReviewChangeCounts,
-  type ReviewCheckRow,
-  type ReviewTone,
-  formatChangeRequestMessage,
+  type CheckMethodId,
+  type CheckMethodRow,
+  type HandoffPurpose,
+  type HandoffRequest,
+  type ReviewTabId,
+  type SignoffVerdict,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
 import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
-import { StructuredUnifiedDiff } from '../diff'
-import { IconMaximize } from '../../icons'
-import { EvidenceImageOverlay } from './EvidenceImageOverlay'
+import { RefChip } from '../chips'
+import {
+  ChangesTab,
+  CheckChipRow,
+  ChecksTab,
+  ComparisonOverlay,
+  DecisionBar,
+  ReportTab,
+  ReviewTabBar,
+  RunModelChip,
+  ScreensTab,
+  WalkthroughTab,
+  WorkBar,
+  type ChangeFile,
+  TONE_CHIP,
+  TONE_TEXT,
+} from './signoff'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -46,126 +64,77 @@ export type CliRunArtifactPanelProps = {
   /**
    * Sends a message into the chat this panel sits in.
    *
-   * Wired so "Request changes" reaches the AGENT and not just the run record:
-   * the notes are the whole point of the action, and a verdict nobody is told
-   * about cannot produce the change the user asked for.
+   * Wired so "Request changes" and every hand-off reach the AGENT and not just
+   * the run record: the notes are the whole point of the action, and a verdict
+   * nobody is told about cannot produce the change the user asked for.
    */
   onSendMessage?: (text: string) => void | Promise<void>
+  /** Opens the run's review branch in the app's Git view, when the host has one. */
+  onOpenGit?: () => void
 }
 
-const TONE_TEXT: Record<ReviewTone, string> = {
-  positive: 'text-green-700 dark:text-green-400',
-  warning: 'text-orange-700 dark:text-orange-400',
-  danger: 'text-red-700 dark:text-red-400',
-  neutral: 'text-(--text-secondary)',
-}
-
-const TONE_CHIP: Record<ReviewTone, string> = {
-  positive: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
-  warning: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
-  danger: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-  neutral: 'bg-(--surface-hover) text-(--text-secondary) border-(--border-subtle)',
-}
-
-function statusBadge(file: FilesEmittedFilePreview) {
-  const map: Record<FilesEmittedFilePreview['status'], { label: string; cls: string }> = {
-    added: { label: 'added', cls: 'text-(--color-green-700) dark:text-(--color-green-300)' },
-    modified: {
-      label: 'modified',
-      cls: 'text-(--color-orange-700) dark:text-(--color-orange-300)',
-    },
-    deleted: { label: 'deleted', cls: 'text-(--color-red-700) dark:text-(--color-red-300)' },
-  }
-  const m = map[file.status]
-  return <span className={`text-[11px] font-medium ${m.cls}`}>{m.label}</span>
+/** The verdict word as a bold status badge; the two undecided states draw as absence. */
+const VERDICT_BADGE: Record<SignoffVerdict['key'], string> = {
+  proven: 'badge--done',
+  partly: 'badge--review badge--absent',
+  failed: 'badge--stuck',
+  'not-run': 'badge--queued badge--absent',
 }
 
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 
-const ACTION_BUTTON = 'shrink-0 px-3 py-1.5 rounded-md text-[13px] font-medium disabled:opacity-50'
+const TEST_METHODS: readonly CheckMethodId[] = ['tests']
+const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build']
 
-/** Per-status file-count pills (added / modified / deleted), shown in the
- * always-visible summary head — mirrors the Git view's multi-file change
- * summary so the user sees the run's footprint without expanding. */
-function FileCountChips({ counts }: { counts: ReviewChangeCounts }) {
-  if (counts.total === 0) return null
-  return (
-    <div className="flex items-center gap-1.5 text-[11px] font-medium leading-none">
-      {counts.added > 0 ? (
-        <span className="px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-          +{counts.added}
-        </span>
-      ) : null}
-      {counts.modified > 0 ? (
-        <span className="px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20">
-          ~{counts.modified}
-        </span>
-      ) : null}
-      {counts.deleted > 0 ? (
-        <span className="px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20">
-          −{counts.deleted}
-        </span>
-      ) : null}
-    </div>
-  )
+function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
+  // Git already speaks in letters; renames, copies and the rest read as modified.
+  const status: ChangeFile['status'] = file.status === 'A' ? 'A' : file.status === 'D' ? 'D' : 'M'
+  return {
+    path: file.path,
+    status,
+    ...(file.patch ? { patch: file.patch } : {}),
+    ...(file.patch ? {} : { note: file.binary ? 'Binary file.' : 'No textual diff.' }),
+  }
 }
 
-function CheckRow({ row }: { row: ReviewCheckRow }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-start gap-2">
-        <span
-          className={`shrink-0 px-1.5 py-0.5 rounded-full border text-[10px] font-medium uppercase tracking-wide ${TONE_CHIP[row.tone]}`}
-        >
-          {row.status}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[12px] font-medium text-(--text-primary)">{row.label}</span>
-            {row.optional ? (
-              <span className="text-[11px] text-(--text-secondary)">optional</span>
-            ) : null}
-            {row.durationLabel ? (
-              <span className="text-[11px] text-(--text-secondary)">{row.durationLabel}</span>
-            ) : null}
-          </div>
-          <div className="text-[12px] text-(--text-secondary) break-words">{row.summary}</div>
-          {row.details ? (
-            <button
-              type="button"
-              className="mt-0.5 text-[11px] underline text-(--text-secondary)"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-            >
-              {open ? 'Hide output' : 'Show output'}
-            </button>
-          ) : null}
-          {open && row.details ? (
-            <pre className="mt-1 max-h-60 overflow-auto rounded-md bg-(--surface-muted) p-2 text-[11px] font-mono whitespace-pre-wrap text-(--text-secondary)">
-              {row.details}
-            </pre>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  )
+function previewToChangeFile(file: FilesEmittedFilePreview, applied: boolean): ChangeFile {
+  const status: ChangeFile['status'] =
+    file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : 'M'
+  const note = file.unsafePath
+    ? 'Unsafe path — will not be applied.'
+    : file.contentUnavailable
+      ? 'Binary or oversized content — cannot be applied from the artifact.'
+      : file.unchanged
+        ? 'No changes — already applied.'
+        : undefined
+  return {
+    path: file.path,
+    status,
+    ...(file.patch ? { patch: file.patch } : {}),
+    ...(note ? { note } : {}),
+    ...(file.conflict && !applied
+      ? { warning: 'conflict — this file changed in the project after the agent ran' }
+      : {}),
+  }
+}
+
+function timeLabel(epochMs: number | undefined): string | undefined {
+  if (!epochMs) return undefined
+  return new Date(epochMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
- * The chat-side surface for a CLI agent's workspace diff. Like a PR view: an
- * always-visible summary head (what changed, verification evidence, cost +
- * duration) sits above the diff, and a footer carries the review decision —
- * Approve & merge / Request changes / Reject in review mode, "Apply to project"
- * on the no-git path. Expanding only reveals the per-file unified diffs. The
- * diff is loaded eagerly so the action row isn't perma-disabled while collapsed;
- * approving stays disabled until the diff has loaded, since signing off
- * sight-unseen would bypass the conflict check.
+ * The sign-off surface for a landed run: a verdict line, the nine-method
+ * "what was checked" row, the evidence in tabs that exist only when that proof
+ * was filed, and a decision bar whose primary action is earned by the evidence.
+ * Everything it derives comes from headless, so the native panel renders the
+ * same facts the same way.
  */
 export default function CliRunArtifactPanel({
   runId,
   projectId,
   onSendMessage,
+  onOpenGit,
 }: CliRunArtifactPanelProps) {
   const {
     artifact,
@@ -175,6 +144,7 @@ export default function CliRunArtifactPanel({
     reviewInProgress,
     storyId,
     landFailure,
+    runModel,
     costUSD,
     durationMs,
     loading,
@@ -206,31 +176,29 @@ export default function CliRunArtifactPanel({
     requestingChanges,
     error,
   } = useCliRunArtifact(runId, projectId)
-  const [expanded, setExpanded] = useState(false)
-  const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>(
-    undefined,
-  )
+
+  const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
-  // Every hook stays ABOVE the early returns below. React counts hooks per
-  // render: a hook placed after `if (loading) return null` runs on some renders
-  // and not others, which is exactly the "rendered more hooks than during the
-  // previous render" crash.
+  // Every hook stays ABOVE the early returns below — React counts hooks per
+  // render, and a hook after `if (loading) return null` is the "rendered more
+  // hooks than during the previous render" crash.
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [answering, setAnswering] = useState<string | undefined>()
   const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
   const [approveNote, setApproveNote] = useState('')
-  // Which evidence group the full-screen viewer is showing, by group key. Keyed
-  // rather than held as an object: the groups are rebuilt every render.
-  const [viewerGroupKey, setViewerGroupKey] = useState<string | undefined>()
+  const [pendingHandoff, setPendingHandoff] = useState<
+    { row: CheckMethodRow; request: HandoffRequest } | undefined
+  >()
+  const [sentHandoff, setSentHandoff] = useState<string | undefined>()
+  const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
+  const [openPairKey, setOpenPairKey] = useState<string | undefined>()
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
   useEffect(() => {
     if (error) return
-    // Load eagerly (not gated on `expanded`) so the always-visible action row
-    // reflects the real diff state even while collapsed. Review mode (run landed
-    // on a branch) loads the branch diff; otherwise the no-git path loads the
-    // files-emitted preview. `error` gates the retry so a failing load doesn't
+    // Load eagerly (not gated on a tab) so the decision bar reflects the real diff
+    // state from the start. `error` gates the retry so a failing load cannot
     // refire forever.
     if (review) {
       if (!reviewDiff && !reviewLoading) void loadReviewDiff()
@@ -249,8 +217,35 @@ export default function CliRunArtifactPanel({
     loadPreview,
   ])
 
+  // The verification plan is what tells "not run" apart from "not set up", so
+  // it loads with the panel rather than behind a link.
+  useEffect(() => {
+    if (verificationApproaches.length === 0 && !planLoading) void loadVerificationPlan()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const methodRows = useMemo(
+    () =>
+      checkMethodRows({
+        verification,
+        approaches: verificationApproaches,
+        evidence: evidence.refs,
+      }),
+    [verification, verificationApproaches, evidence.refs],
+  )
+  const headline = useMemo(
+    () => signoffVerdict({ rows: methodRows, verified: verification !== undefined }),
+    [methodRows, verification],
+  )
+  const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
+  const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
+  const recordings = evidence.tiles.filter((t) => t.ref.kind === 'recording')
+  const reports = evidence.tiles.filter((t) => t.ref.kind === 'report')
+  const checkRows = verificationCheckRows(verification)
+  const testChecks = checkRows.filter((c) => c.kind === 'tests')
+  const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
+
   if (loading) return null
-  // A failed run-fetch must be distinguishable from "the run changed no files".
   if (!artifact && error) {
     return (
       <div className={`mt-2 text-[12px] ${DANGER_TEXT}`}>
@@ -261,17 +256,11 @@ export default function CliRunArtifactPanel({
       </div>
     )
   }
-  // The panel surfaces the run's workspace changes; nothing to show without an
-  // artifact — unless the run tried and failed to land them, which the user must
-  // still be told about.
   if (!artifact && !landFailure) return null
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
   const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
-  // "Applied" means the change actually landed: a fresh apply with no errors that
-  // materialised ≥1 file, OR the durable `appliedAt` stamped on the run record
-  // (so a reopened chat rehydrates it). A failed apply leaves it retryable.
   const appliedOk =
     !!applyResultData &&
     applyResultData.errors.length === 0 &&
@@ -280,22 +269,89 @@ export default function CliRunArtifactPanel({
       applyResultData.deleted.length >
       0
   const isApplied = appliedOk || artifact?.appliedAt != null
-  // Merge sign-off is durable: a fresh merge OR the persisted review.mergedAt
-  // (so a reopened panel shows "Merged" instead of an active Approve button).
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const head = verificationHeadline(verification)
-  const checkRows = verificationCheckRows(verification)
-  const approachRows = verificationApproachRows(verificationApproaches)
   const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
   const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
-  const evidenceGroups = groupEvidence(evidence.tiles)
-  const viewerGroup = evidenceGroups.find((g) => g.key === viewerGroupKey)
-  const viewerImages = viewerGroup ? evidenceViewerImages(viewerGroup) : []
 
-  /** Send one answer; the SDK decides whether that releases the feature. */
+  const changeFiles: ChangeFile[] = review
+    ? (reviewDiff?.files ?? []).map(toChangeFile)
+    : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
+  const changesKnown = review ? reviewDiff !== undefined : preview !== undefined
+  const tabs = reviewTabs({
+    screens: pairs.length,
+    walkthroughs: recordings.length,
+    reports: reports.length,
+    testChecks: testChecks.length,
+    buildChecks: buildChecks.length,
+    changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
+  })
+  const currentTab: ReviewTabId =
+    activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? 'changes')
+
+  const approveOptions = approveActionDescriptors({
+    branch: review?.branch ?? 'the review branch',
+    baseBranch: 'the working branch',
+    hasRemote: true,
+    fileCount: counts.total,
+  })
+  const earned = earnedApproveActions(approveOptions, headline.key)
+  const facts = runReviewFacts({ costUSD, durationMs })
+  const notice = mergeNotice(mergeResult)
+  const decided = verdict ? verdictSummary(verdict) : undefined
+  const landing = landFailure ? landFailureSummary(landFailure) : undefined
+  const actionMode = reviewActionMode({
+    verdict,
+    hasReviewBranch: !!review,
+    partOfStoryRun: storyId !== undefined,
+  })
+  const busy = merging || approving || rejecting || requestingChanges
+  const reasonValid = isReviewReasonValid(reason)
+  const capturedLabel = timeLabel(
+    evidence.refs.length > 0 ? Math.min(...evidence.refs.map((r) => r.createdAt)) : undefined,
+  )
+  const busyMethod: CheckMethodId | undefined = verifying
+    ? (methodRows.find((r) => r.action.kind === 'run' && r.state !== 'passed')?.id ?? 'types')
+    : requestingReview
+      ? methodRows.find(
+          (r) => r.action.kind === 'request' && r.action.approachId === requestingReview,
+        )?.id
+      : undefined
+  const working = reviewInProgress
+    ? 'Verifying the change on a device'
+    : verifying
+      ? 'Running the configured checks'
+      : requestingReview
+        ? `Capturing ${methodRows.find((r) => r.id === busyMethod)?.noun ?? 'evidence'}`
+        : undefined
+
+  const approveDisabledReason =
+    storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
+
+  // Only ever called for a row whose action is `run` — both call sites gate on
+  // it — so every path here is the project's own verification pass.
+  const runMethod = () => {
+    void verify()
+  }
+
+  // EVERY hand-off confirms, capture included: it spends an agent run, and the
+  // button's own ellipsis promises a step before anything happens.
+  const requestMethod = (row: CheckMethodRow, purpose: HandoffPurpose) => {
+    setPendingHandoff({ row, request: handoffRequest(row, purpose, { branch: review?.branch }) })
+  }
+
+  const confirmHandoff = () => {
+    if (!pendingHandoff) return
+    const { row, request } = pendingHandoff
+    setPendingHandoff(undefined)
+    const approachId = row.action.kind === 'request' ? row.action.approachId : undefined
+    if (request.purpose === 'capture' && approachId) void requestReview(approachId, row.label)
+    else if (onSendMessage) void onSendMessage(request.message)
+    setSentHandoff(`Asked the agent — ${request.buttonLabel.replace(/^Ask the agent to /, '')}.`)
+  }
+
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
     const answer = (answers[q.questionId] ?? '').trim()
     if (!projectId || !storyId || answer.length === 0) return
@@ -311,26 +367,6 @@ export default function CliRunArtifactPanel({
       setAnswering(undefined)
     }
   }
-  const approveOptions = approveActionDescriptors({
-    branch: review?.branch ?? 'the review branch',
-    baseBranch: 'the working branch',
-    hasRemote: true,
-    fileCount: counts.total,
-  })
-  const facts = runReviewFacts({ costUSD, durationMs })
-  const notice = mergeNotice(mergeResult)
-  const decided = verdict ? verdictSummary(verdict) : undefined
-  // `reviewInProgress` now comes from the hook, keyed off the verifier run's
-  // TERMINAL status (not whether evidence landed) — so a verifier that finishes
-  // without evidence releases the panel instead of hanging it in "Verifying…".
-  const landing = landFailure ? landFailureSummary(landFailure) : undefined
-  const actionMode = reviewActionMode({
-    verdict,
-    hasReviewBranch: !!review,
-    partOfStoryRun: storyId !== undefined,
-  })
-  const busy = merging || approving || rejecting || requestingChanges
-  const reasonValid = isReviewReasonValid(reason)
 
   const openReason = (decision: 'rejected' | 'changes-requested') => {
     setReasonFor(decision)
@@ -347,8 +383,6 @@ export default function CliRunArtifactPanel({
       void reject(text)
       return
     }
-    // Record the verdict AND send the notes to the agent. Recording alone left
-    // the user waiting on a message nobody had sent.
     void (async () => {
       await requestChanges(text)
       const message = formatChangeRequestMessage(text)
@@ -357,38 +391,69 @@ export default function CliRunArtifactPanel({
   }
 
   return (
-    <div className="mt-2 rounded-md border border-(--border-default) bg-(--surface-raised) overflow-hidden">
-      {/* Header — always visible; toggles the per-file diffs. */}
-      <button
-        type="button"
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-(--surface-hover)"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-      >
-        <span className="text-[13px] font-medium text-(--text-primary)">
-          {artifact
-            ? `Agent changed ${files.length} file${files.length === 1 ? '' : 's'}`
-            : 'Agent changes were not landed'}
-          {review ? (
-            <span className="ml-2 text-[11px] font-normal text-(--text-secondary) font-mono">
-              {review.branch} ← {review.baseSha.slice(0, 8)}
-            </span>
-          ) : null}
+    <div className="mt-2 rounded-md border border-(--border-default) bg-(--surface-raised)">
+      {/* Head — the run as a tool row: what, where, how long. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
+        <span className="text-[13px] font-semibold text-(--text-primary)">
+          {artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </span>
-        <span className="text-[12px] text-(--text-secondary)">{expanded ? '▾' : '▸'}</span>
-      </button>
+        {review ? (
+          <Tooltip
+            placement="bottom"
+            content={
+              <div className="max-w-[260px] text-xs">
+                <b className="mb-0.5 block font-semibold">The review branch</b>
+                <span>
+                  Every commit this run made lives here. Your own branch is untouched until you
+                  approve.
+                </span>
+              </div>
+            }
+          >
+            <span className="inline-flex">
+              <RefChip kind="branch" value={review.branch} />
+            </span>
+          </Tooltip>
+        ) : null}
+        <RunModelChip model={runModel} />
+        {facts.costLabel ? (
+          <span className="text-[11px] text-(--text-secondary)">{facts.costLabel}</span>
+        ) : null}
+        <span className="flex-1" />
+        {facts.durationLabel ? (
+          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-blue-600 dark:text-blue-400">
+            {facts.durationLabel}
+          </span>
+        ) : null}
+      </div>
 
-      {/* Summary head — always visible: what changed, what it cost, what the
-          checks say. The evidence a reviewer needs before deciding. */}
-      <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-2">
-        <div className="flex items-center gap-3 flex-wrap">
-          <FileCountChips counts={counts} />
-          {facts.costLabel ? (
-            <span className="text-[11px] text-(--text-secondary)">{facts.costLabel}</span>
-          ) : null}
-          {facts.durationLabel ? (
-            <span className="text-[11px] text-(--text-secondary)">{facts.durationLabel}</span>
-          ) : null}
+      <div className="flex flex-col gap-3 px-3 py-3">
+        {sentHandoff ? (
+          <div className="flex items-center gap-2 rounded-md border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-2.5 py-1.5 text-[12px] text-(--status-done-soft-fg)">
+            <span>{sentHandoff}</span>
+            <span className="flex-1" />
+            <button
+              type="button"
+              className="text-[11px] underline"
+              onClick={() => setSentHandoff(undefined)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {/* Verdict — the chip and the sentence say the same thing. */}
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
+              <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
+              {headline.word}
+            </span>
+            <span className="text-[14px] font-semibold text-(--text-primary)">
+              {headline.title}
+            </span>
+          </div>
+          <p className="max-w-[64ch] text-[12px] text-(--text-secondary)">{headline.detail}</p>
         </div>
 
         {openQuestions.length > 0 ? (
@@ -431,172 +496,85 @@ export default function CliRunArtifactPanel({
         ) : null}
 
         {census ? (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${
+              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                 census.complete ? TONE_CHIP.positive : TONE_CHIP.warning
               }`}
             >
               {census.label}
             </span>
             {storyIncomplete ? (
-              <span className="text-[11px] text-(--text-secondary) min-w-0">{storyIncomplete}</span>
+              <span className="min-w-0 text-[11px] text-(--text-secondary)">{storyIncomplete}</span>
             ) : null}
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${TONE_CHIP[head.tone]}`}
-          >
-            {head.label}
+        {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            What was checked
           </span>
-          <span className="text-[11px] text-(--text-secondary) min-w-0">{head.detail}</span>
-          {head.durationLabel ? (
-            <span className="text-[11px] text-(--text-secondary)">in {head.durationLabel}</span>
-          ) : null}
-          <button
-            type="button"
-            className="ml-auto shrink-0 text-[11px] underline text-(--text-secondary) disabled:opacity-50"
-            onClick={() => void verify()}
-            disabled={verifying}
-          >
-            {verifying ? 'Running checks…' : 'Re-run checks'}
-          </button>
+          <CheckChipRow
+            rows={methodRows}
+            branch={review?.branch}
+            busyId={busyMethod}
+            canRequest={onSendMessage !== undefined}
+            onOpenProof={setActiveTab}
+            onRun={runMethod}
+            onRequest={requestMethod}
+          />
         </div>
 
-        {evidence.refs.length > 0 ? (
-          <div className="flex flex-col gap-2 rounded-md border border-(--border-subtle) p-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium text-(--text-secondary)">
-                Proof of the work
-              </span>
-              <span className="text-[11px] text-(--text-secondary)">
-                {summarizeEvidence(evidence.refs)}
-              </span>
-              {evidence.notShown > 0 ? (
-                <span className="text-[11px] text-(--text-secondary)">
-                  {`(+${evidence.notShown} not shown)`}
-                </span>
-              ) : null}
-            </div>
-            {evidenceGroups.map((group) => {
-              const groupImages = evidenceViewerImages(group)
-              // A thumbnail is an affordance, not the evidence: it opens the
-              // full-screen viewer. Images keep their aspect ratio (`w-auto`
-              // + `object-contain`, and `items-start` so the flex column does
-              // not stretch them) — a squashed screenshot proves nothing.
-              const thumb = (tile: EvidenceTile, label?: string) => (
-                <figure key={tile.ref.id} className="flex min-w-0 flex-col items-start gap-1">
-                  {tile.dataUri ? (
-                    <button
-                      type="button"
-                      onClick={() => setViewerGroupKey(group.key)}
-                      title="View full size"
-                      aria-label={`View ${label ? `${label} — ` : ''}${tile.caption} full size`}
-                      className="rounded border border-(--border-subtle) hover:opacity-90"
-                    >
-                      <img
-                        src={tile.dataUri}
-                        alt={tile.caption}
-                        className="block h-40 w-auto max-w-full rounded object-contain"
-                      />
-                    </button>
-                  ) : tile.text ? (
-                    <pre className="max-h-56 w-full max-w-[560px] overflow-auto whitespace-pre-wrap wrap-break-word rounded border border-(--border-subtle) bg-(--surface-raised) p-2 text-[11px] text-(--text-primary)">
-                      {tile.text}
-                    </pre>
-                  ) : (
-                    <span className="text-[11px] text-(--text-secondary)">
-                      {`${tile.ref.kind} · ${tile.caption}`}
-                    </span>
-                  )}
-                  <figcaption className="text-[11px] text-(--text-secondary)">
-                    {label ? `${label} — ${tile.caption}` : tile.caption}
-                  </figcaption>
-                </figure>
-              )
-              return (
-                <div key={group.key} className="flex flex-col gap-1">
-                  {group.before || group.after ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-(--text-secondary)">{group.title}</span>
-                        {groupImages.length > 0 ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setViewerGroupKey(group.key)}
-                          >
-                            <IconMaximize className="mr-1 h-3 w-3" />
-                            {groupImages.length > 1 ? 'Compare' : 'View'}
-                          </Button>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {group.before ? thumb(group.before, 'Before') : null}
-                        {group.after ? thumb(group.after, 'After') : null}
-                      </div>
-                    </>
-                  ) : null}
-                  {group.singles.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {group.singles.map((tile) => thumb(tile))}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {head.status === 'unchecked' ? (
-          <div className="flex flex-col gap-1.5 rounded-md border border-orange-500/20 bg-orange-500/5 p-2">
-            {approachRows.length === 0 ? (
-              <button
-                type="button"
-                className="self-start text-[11px] underline text-(--text-secondary) disabled:opacity-50"
-                onClick={() => void loadVerificationPlan()}
-                disabled={planLoading}
-              >
-                {planLoading ? 'Checking what this machine can do…' : 'What could be checked?'}
-              </button>
+        {tabs.length > 0 ? (
+          <div className="flex flex-col gap-2.5">
+            <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
+            {currentTab === 'screens' ? (
+              <ScreensTab pairs={pairs} onOpen={setOpenPairKey} capturedLabel={capturedLabel} />
+            ) : currentTab === 'walkthrough' ? (
+              <WalkthroughTab projectId={projectId} recordings={recordings} />
+            ) : currentTab === 'tests' ? (
+              <ChecksTab
+                methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
+                checks={testChecks}
+                branch={review?.branch}
+                busyId={busyMethod}
+                canRequest={onSendMessage !== undefined}
+                onRun={runMethod}
+                onRequest={requestMethod}
+                emptyState={{
+                  title: 'This project has no tests at all.',
+                  body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
+                }}
+              />
+            ) : currentTab === 'build' ? (
+              <ChecksTab
+                methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
+                checks={buildChecks}
+                branch={review?.branch}
+                busyId={busyMethod}
+                canRequest={onSendMessage !== undefined}
+                onRun={runMethod}
+                onRequest={requestMethod}
+              />
+            ) : currentTab === 'report' ? (
+              <ReportTab reports={reports} />
             ) : (
-              <>
-                <span className="text-[11px] font-medium text-(--text-secondary)">
-                  Ways to prove this change
-                </span>
-                {approachRows.map((row) => (
-                  <div key={row.id} className="flex items-baseline gap-2">
-                    <span className={`text-[11px] font-medium ${TONE_TEXT[row.tone]}`}>
-                      {row.available ? '·' : '○'} {row.label}
-                    </span>
-                    <span className="text-[11px] text-(--text-secondary) min-w-0">
-                      {row.detail}
-                    </span>
-                    {row.available ? (
-                      <button
-                        type="button"
-                        className="ml-auto shrink-0 text-[11px] underline text-(--text-secondary) disabled:opacity-50"
-                        title="Run this now — a verifier produces the evidence and attaches it here"
-                        onClick={() => void requestReview(row.id, row.label)}
-                        disabled={requestingReview !== undefined}
-                      >
-                        {requestingReview === row.id ? 'Starting…' : 'Run this'}
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </>
+              <ChangesTab
+                review={review}
+                files={changeFiles}
+                loading={review ? reviewLoading : previewLoading}
+                error={error}
+                onRetry={
+                  review && !reviewDiff && !reviewLoading
+                    ? () => void loadReviewDiff()
+                    : !review && !preview && !previewLoading
+                      ? () => void loadPreview()
+                      : undefined
+                }
+                onOpenGit={onOpenGit}
+              />
             )}
-          </div>
-        ) : null}
-
-        {checkRows.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            {checkRows.map((row) => (
-              <CheckRow key={row.id} row={row} />
-            ))}
           </div>
         ) : null}
 
@@ -611,99 +589,24 @@ export default function CliRunArtifactPanel({
         ) : null}
       </div>
 
-      {/* Expanded — per-file unified diffs only. */}
-      {expanded ? (
-        <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-3">
-          {error ? (
-            <div className={`text-[12px] ${DANGER_TEXT}`}>
-              {error}{' '}
-              {review && !reviewDiff && !reviewLoading ? (
-                <button type="button" className="underline" onClick={() => void loadReviewDiff()}>
-                  Retry
-                </button>
-              ) : !review && !preview && !previewLoading ? (
-                <button type="button" className="underline" onClick={() => void loadPreview()}>
-                  Retry
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {review && reviewLoading ? (
-            <div className="text-[12px] text-(--text-secondary)">Loading diff…</div>
-          ) : null}
-          {!review && previewLoading ? (
-            <div className="text-[12px] text-(--text-secondary)">Computing diff…</div>
-          ) : null}
-
-          {review
-            ? (reviewDiff?.files ?? []).map((file) => (
-                <div key={file.path} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-mono text-(--text-primary)">{file.path}</span>
-                    <span className="text-[11px] font-medium text-(--text-secondary)">
-                      {file.status}
-                    </span>
-                  </div>
-                  {file.patch ? (
-                    <StructuredUnifiedDiff patch={file.patch} />
-                  ) : (
-                    <div className="text-[12px] text-(--text-secondary)">
-                      {file.binary ? 'Binary file.' : 'No textual diff.'}
-                    </div>
-                  )}
-                </div>
-              ))
-            : (preview?.files ?? []).map((file) => (
-                <div key={file.path} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-mono text-(--text-primary)">{file.path}</span>
-                    {statusBadge(file)}
-                    {file.conflict && !isApplied ? (
-                      <span
-                        className={`text-[11px] font-medium ${DANGER_TEXT}`}
-                        title="This file changed in the project after the agent ran — applying overwrites that edit."
-                      >
-                        conflict
-                      </span>
-                    ) : null}
-                  </div>
-                  {file.patch ? (
-                    <StructuredUnifiedDiff patch={file.patch} />
-                  ) : (
-                    <div className="text-[12px] text-(--text-secondary)">
-                      {file.unsafePath
-                        ? 'Unsafe path — will not be applied.'
-                        : file.contentUnavailable
-                          ? 'Binary or oversized content — cannot be applied from the artifact.'
-                          : file.unchanged
-                            ? 'No changes — already applied.'
-                            : null}
-                    </div>
-                  )}
-                </div>
-              ))}
-        </div>
-      ) : null}
-
-      {/* Footer — always visible: outcome message + the review decision. */}
-      <div className="border-t border-(--border-subtle) px-3 py-2 flex flex-col gap-2">
+      {/* Foot — the decision, or the work in flight that has replaced it. */}
+      <div className="flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2">
         {decided ? (
           <div className="flex flex-col gap-0.5">
             <div className={`text-[12px] font-medium ${TONE_TEXT[decided.tone]}`}>
               {decided.label} by {decided.byLabel}
             </div>
             {decided.notes ? (
-              <div className="text-[12px] text-(--text-secondary) break-words">{decided.notes}</div>
+              <div className="wrap-break-word text-[12px] text-(--text-secondary)">
+                {decided.notes}
+              </div>
             ) : null}
           </div>
-        ) : reviewInProgress ? (
-          <div className="flex items-center gap-2 text-[12px] text-(--text-secondary)">
-            <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-            Verifying the change on a device — approval opens when the review is in.
-          </div>
+        ) : working ? (
+          <WorkBar label={working} />
         ) : (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {notice ? (
                 <span className={`text-[12px] ${TONE_TEXT[notice.tone]}`}>{notice.message}</span>
               ) : actionMode === 'actions' && isMerged ? (
@@ -727,119 +630,28 @@ export default function CliRunArtifactPanel({
             </div>
 
             {actionMode === 'actions' ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  className={`${ACTION_BUTTON} border border-(--border-default) text-(--text-secondary) hover:bg-(--surface-hover)`}
-                  onClick={() => openReason('changes-requested')}
-                  disabled={busy || isMerged}
-                >
-                  {requestingChanges ? 'Sending…' : 'Request changes'}
-                </button>
-                <button
-                  type="button"
-                  className={`${ACTION_BUTTON} border border-red-500/30 ${TONE_TEXT.danger} hover:bg-red-500/10`}
-                  onClick={() => openReason('rejected')}
-                  disabled={busy || isMerged}
-                >
-                  {rejecting ? 'Rejecting…' : 'Reject'}
-                </button>
-                {approveOptions.map((option) => (
-                  <button
-                    key={option.action}
-                    type="button"
-                    // The hover callout: each button's label says WHAT, the title
-                    // says where the work ends up — the only thing that differs.
-                    title={storyIncomplete ?? option.disabledReason ?? option.hint}
-                    className={`${ACTION_BUTTON} ${
-                      option.action === 'merge'
-                        ? 'bg-(--accent-primary) text-(--text-inverted) hover:opacity-90'
-                        : 'border border-(--border-subtle) text-(--text-secondary) hover:bg-(--surface-hover)'
-                    }`}
-                    onClick={() => setPendingApprove(option)}
-                    disabled={
-                      busy ||
-                      isMerged ||
-                      !reviewDiff ||
-                      option.disabledReason !== undefined ||
-                      storyIncomplete !== undefined
-                    }
-                  >
-                    {isMerged && option.action === 'merge' ? 'Merged ✓' : option.label}
-                  </button>
-                ))}
-              </div>
+              <DecisionBar
+                earned={earned}
+                approveDisabledReason={approveDisabledReason}
+                busy={busy}
+                isMerged={isMerged}
+                requestingChanges={requestingChanges}
+                rejecting={rejecting}
+                onApprove={setPendingApprove}
+                onRequestChanges={() => openReason('changes-requested')}
+                onReject={() => openReason('rejected')}
+              />
             ) : actionMode === 'apply' && artifact ? (
-              <button
-                type="button"
-                className={`${ACTION_BUTTON} bg-(--accent-primary) text-(--text-inverted) hover:opacity-90`}
+              <Button
+                size="sm"
                 onClick={() => void apply()}
                 disabled={applying || isApplied || !preview}
               >
                 {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
-              </button>
+              </Button>
             ) : null}
           </div>
         )}
-
-        {pendingApprove ? (
-          <Modal
-            isOpen
-            onClose={() => setPendingApprove(undefined)}
-            title={pendingApprove.title}
-            size="sm"
-          >
-            <div className="flex flex-col gap-3">
-              <ul className="flex flex-col gap-1.5 text-[13px] text-(--text-secondary)">
-                {pendingApprove.effects.map((effect) => (
-                  <li key={effect} className="flex gap-2">
-                    <span aria-hidden>—</span>
-                    <span>{effect}</span>
-                  </li>
-                ))}
-              </ul>
-              <label className="flex flex-col gap-1 text-[12px] text-(--text-secondary)">
-                Note (optional)
-                <Input
-                  size="sm"
-                  autoFocus
-                  value={approveNote}
-                  placeholder="Anything worth recording with this approval"
-                  onChange={(e) => setApproveNote(e.target.value)}
-                />
-              </label>
-              {approveResult && !approveResult.approved ? (
-                <Alert variant="error">
-                  {approveResult.blockedReason ?? 'The approval was refused.'}
-                </Alert>
-              ) : null}
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPendingApprove(undefined)}
-                  disabled={approving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={approving}
-                  onClick={() => {
-                    const action = pendingApprove.action
-                    const note = approveNote.trim()
-                    void approve(action, note.length > 0 ? note : undefined).then(() => {
-                      setPendingApprove(undefined)
-                      setApproveNote('')
-                    })
-                  }}
-                >
-                  {approving ? 'Working…' : pendingApprove.confirmLabel}
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
 
         {reasonFor ? (
           <div className="flex items-center gap-2">
@@ -856,21 +668,12 @@ export default function CliRunArtifactPanel({
                 if (e.key === 'Escape') setReasonFor(undefined)
               }}
             />
-            <button
-              type="button"
-              className={`${ACTION_BUTTON} bg-(--accent-primary) text-(--text-inverted) hover:opacity-90`}
-              onClick={submitReason}
-              disabled={!reasonValid || busy}
-            >
+            <Button size="sm" onClick={submitReason} disabled={!reasonValid || busy}>
               {reasonFor === 'rejected' ? 'Reject' : 'Send'}
-            </button>
-            <button
-              type="button"
-              className={`${ACTION_BUTTON} border border-(--border-default) text-(--text-secondary) hover:bg-(--surface-hover)`}
-              onClick={() => setReasonFor(undefined)}
-            >
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setReasonFor(undefined)}>
               Cancel
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>
@@ -885,11 +688,101 @@ export default function CliRunArtifactPanel({
         </div>
       ) : null}
 
-      <EvidenceImageOverlay
-        isOpen={viewerImages.length > 0}
-        onClose={() => setViewerGroupKey(undefined)}
-        title={viewerGroup?.title ?? 'Evidence'}
-        images={viewerImages}
+      {pendingApprove ? (
+        <Modal
+          isOpen
+          onClose={() => setPendingApprove(undefined)}
+          title={pendingApprove.title}
+          size="sm"
+        >
+          <div className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-1.5 text-[13px] text-(--text-secondary)">
+              {pendingApprove.effects.map((effect) => (
+                <li key={effect} className="flex gap-2">
+                  <span aria-hidden>—</span>
+                  <span>{effect}</span>
+                </li>
+              ))}
+            </ul>
+            <label className="flex flex-col gap-1 text-[12px] text-(--text-secondary)">
+              Note (optional)
+              <Input
+                size="sm"
+                autoFocus
+                value={approveNote}
+                placeholder="Anything worth recording with this approval"
+                onChange={(e) => setApproveNote(e.target.value)}
+              />
+            </label>
+            {approveResult && !approveResult.approved ? (
+              <Alert variant="error">
+                {approveResult.blockedReason ?? 'The approval was refused.'}
+              </Alert>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPendingApprove(undefined)}
+                disabled={approving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={approving}
+                onClick={() => {
+                  const action = pendingApprove.action
+                  const note = approveNote.trim()
+                  void approve(action, note.length > 0 ? note : undefined).then(() => {
+                    setPendingApprove(undefined)
+                    setApproveNote('')
+                  })
+                }}
+              >
+                {approving ? 'Working…' : pendingApprove.confirmLabel}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {pendingHandoff ? (
+        <Modal
+          isOpen
+          onClose={() => setPendingHandoff(undefined)}
+          title={pendingHandoff.request.title}
+          size="sm"
+        >
+          <div className="flex flex-col gap-3">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+              {pendingHandoff.request.facts.map((fact) => (
+                <div key={fact.label} className="contents">
+                  <dt className="text-(--text-muted)">{fact.label}</dt>
+                  <dd className="m-0 text-(--text-secondary)">{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-[12px] text-(--text-muted)">{pendingHandoff.request.caveat}</p>
+            <div className="flex items-center justify-end gap-2">
+              <span className="mr-auto text-[11px] text-(--text-muted)">no “always allow”</span>
+              <Button variant="ghost" size="sm" onClick={() => setPendingHandoff(undefined)}>
+                Not now
+              </Button>
+              <Button size="sm" onClick={confirmHandoff} disabled={!onSendMessage}>
+                Start
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      <ComparisonOverlay
+        pairs={pairs}
+        openKey={openPairKey}
+        onClose={() => setOpenPairKey(undefined)}
+        baseSha={review?.baseSha}
+        headSha={review?.headSha}
       />
     </div>
   )

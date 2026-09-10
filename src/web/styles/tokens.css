@@ -1,7 +1,6 @@
 /* AUTO-GENERATED from src/tokens/. Do not edit by hand. */
 /* Run: npm run generate:tokens */
 
-
 :root {
   /* Palette ramps */
   --color-gray-50: #f9fafb;
@@ -176,10 +175,15 @@
   --status-queued-soft-bg: color-mix(in srgb, var(--status-queued-bg) 30%, transparent);
   --status-queued-soft-fg: #1f2937;
   --status-queued-soft-border: #d4d4d4;
+  --status-blocked-soft-bg: color-mix(in srgb, #b42318 12%, transparent);
+  --status-blocked-soft-fg: #b42318;
+  --status-blocked-soft-border: color-mix(in srgb, #b42318 45%, transparent);
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   --fs-xxs: 10px;
   --fs-xs: 12px;
   --fs-sm: 14px;
@@ -300,6 +304,8 @@
   --status-review-fg: #f2f7ff;
   --status-queued-bg: #313843;
   --status-queued-fg: #e5e7eb;
+  --status-blocked-bg: color-mix(in srgb, #b42318 85%, #0b0f14);
+  --status-blocked-fg: #ffe4e0;
 
   /* Status: soft */
   --status-empty-soft-bg: color-mix(in srgb, #ffffff 10%, transparent);
@@ -323,6 +329,9 @@
   --status-queued-soft-bg: color-mix(in srgb, var(--status-queued-bg) 40%, transparent);
   --status-queued-soft-fg: #e5e7eb;
   --status-queued-soft-border: #505963;
+  --status-blocked-soft-bg: color-mix(in srgb, #b42318 22%, transparent);
+  --status-blocked-soft-fg: #ffc9c4;
+  --status-blocked-soft-border: color-mix(in srgb, #b42318 55%, transparent);
 
   /* Shadows */
   --shadow-0: none;

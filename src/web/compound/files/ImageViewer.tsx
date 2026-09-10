@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { zoomByWheel, zoomIn as stepIn, zoomLabel, zoomOut as stepOut } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import { IconZoomIn, IconZoomOut, IconRefresh } from '../../icons'
 
@@ -9,10 +10,6 @@ export type ImageViewerProps = {
   /** Alt text for accessibility. */
   alt?: string
 }
-
-const MIN_ZOOM = 0.1
-const MAX_ZOOM = 8
-const ZOOM_STEP = 1.25
 
 export function ImageViewer({ src, alt }: ImageViewerProps) {
   const [zoom, setZoom] = useState(1)
@@ -37,15 +34,14 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
-      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
-      setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)))
+      setZoom((z) => zoomByWheel(z, e.deltaY))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
 
-  const zoomIn = () => setZoom((z) => Math.min(MAX_ZOOM, z * ZOOM_STEP))
-  const zoomOut = () => setZoom((z) => Math.max(MIN_ZOOM, z / ZOOM_STEP))
+  const zoomIn = () => setZoom(stepIn)
+  const zoomOut = () => setZoom(stepOut)
   const reset = () => {
     setZoom(1)
     setTranslate({ x: 0, y: 0 })
@@ -83,9 +79,7 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
         >
           <IconZoomOut className="w-4 h-4" />
         </Button>
-        <span className="tabular-nums w-12 text-center text-(--text-muted)">
-          {Math.round(zoom * 100)}%
-        </span>
+        <span className="tabular-nums w-12 text-center text-(--text-muted)">{zoomLabel(zoom)}</span>
         <Button
           variant="secondary"
           size="icon"

@@ -2,7 +2,6 @@ import type {
   CliRunVerdict,
   VerificationCheckKind,
   VerificationCheckStatus,
-  VerificationStatus,
 } from '../api/generated'
 
 /**
@@ -10,28 +9,7 @@ import type {
  * to Tailwind token classes, native to `nativePalette` values — the decision of
  * WHICH role applies is made once, here in headless.
  */
-export type ReviewTone = 'positive' | 'warning' | 'danger' | 'neutral'
-
-/** A run's verification status, widened with the "no checks have run" case. */
-export type VerificationHeadlineStatus = VerificationStatus | 'not-run'
-
-/** The verification chip above the diff: one status + the per-status tallies. */
-export type VerificationHeadline = {
-  status: VerificationHeadlineStatus
-  tone: ReviewTone
-  label: string
-  /** `3 passed · 1 failed`, or the not-run explainer. */
-  detail: string
-  passed: number
-  failed: number
-  skipped: number
-  errored: number
-  total: number
-  /** Wall-clock span of the verification run; `undefined` when it never ran. */
-  durationMs: number | undefined
-  /** `durationMs` as a label; `undefined` when it never ran. */
-  durationLabel: string | undefined
-}
+export type ReviewTone = 'positive' | 'warning' | 'danger' | 'neutral' | 'absent'
 
 /** One rendered check row under the verification chip. */
 export type ReviewCheckRow = {
@@ -104,20 +82,6 @@ export type ReviewChangeCounts = {
   modified: number
   deleted: number
   total: number
-}
-
-/**
- * One row in the "what could be checked" list shown under an unchecked result.
- * `available` splits runnable-now from one-install-away; `detail` carries what
- * the approach proves, or the install hints when it cannot run yet.
- */
-export type ReviewApproachRow = {
-  id: string
-  label: string
-  proves: string
-  available: boolean
-  tone: ReviewTone
-  detail: string
 }
 
 /** One of the three ways to approve, fully described for a button and its confirm dialog. */

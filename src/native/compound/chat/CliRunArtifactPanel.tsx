@@ -1,41 +1,64 @@
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
-import type { FilesEmittedFilePreview } from '../../../headless/api'
+import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
 import { answerFeatureQuestion } from '../../../headless/api'
 import {
+  approveActionDescriptors,
+  censusFeatures,
+  checkMethodRows,
+  earnedApproveActions,
+  formatChangeRequestMessage,
+  groupEvidence,
+  handoffRequest,
+  incompleteStoryReason,
   isReviewReasonValid,
   landFailureSummary,
   mergeNotice,
+  openFeatureQuestions,
   reviewActionMode,
   reviewChangeCounts,
+  reviewTabs,
   runReviewFacts,
+  screenPairs,
+  signoffVerdict,
+  useCliRunArtifact,
+  useReviewEvidence,
+  useStories,
   verdictSummary,
   verificationCheckRows,
-  verificationApproachRows,
-  approveActionDescriptors,
-  censusFeatures,
-  incompleteStoryReason,
-  openFeatureQuestions,
-  useReviewEvidence,
-  evidenceViewerImages,
-  groupEvidence,
-  summarizeEvidence,
-  useStories,
-  verificationHeadline,
-  useCliRunArtifact,
   type ApproveActionDescriptor,
-  type EvidenceTile,
-  type ReviewCheckRow,
-  type ReviewTone,
-  formatChangeRequestMessage,
+  type CheckMethodId,
+  type CheckMethodRow,
+  type HandoffPurpose,
+  type HandoffRequest,
+  type ReviewTabId,
 } from '../../../headless'
-import { nativePalette } from '../../../tokens/native'
+import { nativeAlpha, nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import Alert from '../../primitives/Alert'
+import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
-import UnifiedDiff from '../git/UnifiedDiff'
-import EvidenceImageOverlay from './EvidenceImageOverlay'
+import RefChip from '../chips/RefChip'
+import {
+  ChangesTab,
+  CheckChipRow,
+  ChecksTab,
+  ComparisonOverlay,
+  DecisionBar,
+  DurationPill,
+  ReportTab,
+  ReviewTabBar,
+  ScreensTab,
+  VerdictBadge,
+  WalkthroughTab,
+  WorkBar,
+  toneChip,
+  toneText,
+  type ChangeFile,
+  type SaveFileHandler,
+} from './signoff'
 
 export type CliRunArtifactPanelProps = {
   /** The CLI run whose workspace diff to surface (from the message's `cliRunId`). */
@@ -45,107 +68,75 @@ export type CliRunArtifactPanelProps = {
   /**
    * Sends a message into the chat this panel sits in.
    *
-   * Wired so "Request changes" reaches the AGENT and not just the run record:
-   * the notes are the whole point of the action, and a verdict nobody is told
-   * about cannot produce the change the user asked for.
+   * Wired so "Request changes" and every hand-off reach the AGENT and not just
+   * the run record: the notes are the whole point of the action, and a verdict
+   * nobody is told about cannot produce the change the user asked for.
    */
   onSendMessage?: (text: string) => void | Promise<void>
+  /** Opens the run's review branch in the app's Git view, when the host has one. */
+  onOpenGit?: () => void
+  /**
+   * Puts a file where the user can reach it. Omitted when the host has no way
+   * to — every save affordance then stays hidden rather than failing on press.
+   */
+  onSaveFile?: SaveFileHandler
 }
 
-const TONE_FG: Record<ReviewTone, string | undefined> = {
-  positive: nativePalette.green[700],
-  warning: nativePalette.orange[700],
-  danger: nativePalette.red[700],
-  neutral: undefined,
+const TEST_METHODS: readonly CheckMethodId[] = ['tests']
+const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build']
+
+function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
+  // Git already speaks in letters; renames, copies and the rest read as modified.
+  const status: ChangeFile['status'] = file.status === 'A' ? 'A' : file.status === 'D' ? 'D' : 'M'
+  return {
+    path: file.path,
+    status,
+    ...(file.patch ? { patch: file.patch } : {}),
+    ...(file.patch ? {} : { note: file.binary ? 'Binary file.' : 'No textual diff.' }),
+  }
 }
 
-const TONE_BG: Record<ReviewTone, string> = {
-  positive: 'rgba(34,197,94,0.12)',
-  warning: 'rgba(249,115,22,0.12)',
-  danger: 'rgba(239,68,68,0.12)',
-  neutral: 'transparent',
+function previewToChangeFile(file: FilesEmittedFilePreview, applied: boolean): ChangeFile {
+  const status: ChangeFile['status'] =
+    file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : 'M'
+  const note = file.unsafePath
+    ? 'Unsafe path — will not be applied.'
+    : file.contentUnavailable
+      ? 'Binary or oversized content — cannot be applied from the artifact.'
+      : file.unchanged
+        ? 'No changes — already applied.'
+        : undefined
+  return {
+    path: file.path,
+    status,
+    ...(file.patch ? { patch: file.patch } : {}),
+    ...(note ? { note } : {}),
+    ...(file.conflict && !applied
+      ? { warning: 'conflict — this file changed in the project after the agent ran' }
+      : {}),
+  }
 }
 
-const TONE_BORDER: Record<ReviewTone, string> = {
-  positive: 'rgba(34,197,94,0.25)',
-  warning: 'rgba(249,115,22,0.25)',
-  danger: 'rgba(239,68,68,0.25)',
-  neutral: 'transparent',
-}
-
-function CheckRow({ row }: { row: ReviewCheckRow }) {
-  const { theme } = useNativeTheme()
-  const [open, setOpen] = useState(false)
-  const fg = TONE_FG[row.tone] ?? theme.text.secondary
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-      <View
-        style={{
-          paddingHorizontal: 6,
-          paddingVertical: 2,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: TONE_BORDER[row.tone],
-          backgroundColor: TONE_BG[row.tone],
-        }}
-      >
-        <Text style={{ fontSize: 10, fontWeight: '600', color: fg }}>{row.status}</Text>
-      </View>
-      <View style={{ flexShrink: 1, flexGrow: 1, gap: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
-            {row.label}
-          </Text>
-          {row.optional ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>optional</Text>
-          ) : null}
-          {row.durationLabel ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{row.durationLabel}</Text>
-          ) : null}
-        </View>
-        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{row.summary}</Text>
-        {row.details ? (
-          <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button">
-            <Text
-              style={{ fontSize: 11, color: theme.text.secondary, textDecorationLine: 'underline' }}
-            >
-              {open ? 'Hide output' : 'Show output'}
-            </Text>
-          </Pressable>
-        ) : null}
-        {open && row.details ? (
-          <View
-            style={{
-              borderRadius: 6,
-              backgroundColor: theme.surface.muted,
-              paddingHorizontal: 8,
-              paddingVertical: 6,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontFamily: 'Menlo', color: theme.text.secondary }}>
-              {row.details}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-    </View>
-  )
+function timeLabel(epochMs: number | undefined): string | undefined {
+  if (!epochMs) return undefined
+  return new Date(epochMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
- * Native mirror of web's `CliRunArtifactPanel`. PR-style: an always-visible
- * summary head (what changed, verification evidence, cost + duration) sits above
- * the diff and a footer carries the review decision — Approve & merge / Request
- * changes / Reject in review mode, "Apply to project" on the no-git path.
- * Expanding only reveals the per-file diffs; the diff loads eagerly so the
- * action row reflects real state while collapsed.
+ * The sign-off surface for a landed run: a verdict line, the nine-method
+ * "what was checked" row, the evidence in tabs that exist only when that proof
+ * was filed, and a decision bar whose primary action is earned by the evidence.
+ * Everything it derives comes from headless, so it renders the same facts the
+ * same way as the web panel.
  */
 export default function CliRunArtifactPanel({
   runId,
   projectId,
   onSendMessage,
+  onOpenGit,
+  onSaveFile,
 }: CliRunArtifactPanelProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const {
     artifact,
     review,
@@ -185,29 +176,30 @@ export default function CliRunArtifactPanel({
     requestingChanges,
     error,
   } = useCliRunArtifact(runId, projectId)
-  const [expanded, setExpanded] = useState(false)
-  const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>(
-    undefined,
-  )
+
+  const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
-  // Every hook stays ABOVE the early returns below. React counts hooks per
-  // render: a hook placed after `if (loading) return null` runs on some renders
-  // and not others, which is exactly the "rendered more hooks than during the
-  // previous render" crash.
+  // Every hook stays ABOVE the early returns below — React counts hooks per
+  // render, and a hook after `if (loading) return null` is the "rendered more
+  // hooks than during the previous render" crash.
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [answering, setAnswering] = useState<string | undefined>()
   const [pendingApprove, setPendingApprove] = useState<ApproveActionDescriptor | undefined>()
   const [approveNote, setApproveNote] = useState('')
-  // Which evidence group the full-screen viewer is showing, by group key. Keyed
-  // rather than held as an object: the groups are rebuilt every render.
-  const [viewerGroupKey, setViewerGroupKey] = useState<string | undefined>()
+  const [pendingHandoff, setPendingHandoff] = useState<
+    { row: CheckMethodRow; request: HandoffRequest } | undefined
+  >()
+  const [sentHandoff, setSentHandoff] = useState<string | undefined>()
+  const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
+  const [openPairKey, setOpenPairKey] = useState<string | undefined>()
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
   useEffect(() => {
-    // Eager load (not gated on `expanded`) so the always-visible action row
-    // reflects the real diff state while collapsed.
     if (error) return
+    // Load eagerly (not gated on a tab) so the decision bar reflects the real diff
+    // state from the start. `error` gates the retry so a failing load cannot
+    // refire forever.
     if (review) {
       if (!reviewDiff && !reviewLoading) void loadReviewDiff()
     } else if (artifact && !preview && !previewLoading) {
@@ -225,11 +217,39 @@ export default function CliRunArtifactPanel({
     loadPreview,
   ])
 
+  // The verification plan is what tells "not run" apart from "not set up", so
+  // it loads with the panel rather than behind a link.
+  useEffect(() => {
+    if (verificationApproaches.length === 0 && !planLoading) void loadVerificationPlan()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const methodRows = useMemo(
+    () =>
+      checkMethodRows({
+        verification,
+        approaches: verificationApproaches,
+        evidence: evidence.refs,
+      }),
+    [verification, verificationApproaches, evidence.refs],
+  )
+  const headline = useMemo(
+    () => signoffVerdict({ rows: methodRows, verified: verification !== undefined }),
+    [methodRows, verification],
+  )
+  const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
+  const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
+  const recordings = evidence.tiles.filter((t) => t.ref.kind === 'recording')
+  const reports = evidence.tiles.filter((t) => t.ref.kind === 'report')
+  const checkRows = verificationCheckRows(verification)
+  const testChecks = checkRows.filter((c) => c.kind === 'tests')
+  const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
+  const dangerText = toneText('danger', theme)
+
   if (loading) return null
-  // A failed run-fetch must be distinguishable from "the run changed no files".
   if (!artifact && error) {
     return (
-      <Text style={{ marginTop: 8, fontSize: 12, color: nativePalette.red[700] }}>
+      <Text style={{ marginTop: 8, fontSize: 12, color: dangerText }}>
         Failed to load agent changes: {error}{' '}
         <Text style={{ textDecorationLine: 'underline' }} onPress={reload}>
           Retry
@@ -237,9 +257,6 @@ export default function CliRunArtifactPanel({
       </Text>
     )
   }
-  // The panel surfaces the run's workspace changes; nothing to show without an
-  // artifact — unless the run tried and failed to land them, which the user must
-  // still be told about.
   if (!artifact && !landFailure) return null
 
   const files = artifact?.payload.files ?? []
@@ -256,18 +273,92 @@ export default function CliRunArtifactPanel({
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const head = verificationHeadline(verification)
-  const checkRows = verificationCheckRows(verification)
-  const approachRows = verificationApproachRows(verificationApproaches)
-  // Parity with web: how much of the story is finished, stated rather than implied.
   const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
   const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
-  const evidenceGroups = groupEvidence(evidence.tiles)
-  const viewerGroup = evidenceGroups.find((g) => g.key === viewerGroupKey)
-  const viewerImages = viewerGroup ? evidenceViewerImages(viewerGroup) : []
 
-  /** Send one answer; the SDK decides whether that releases the feature. */
+  const changeFiles: ChangeFile[] = review
+    ? (reviewDiff?.files ?? []).map(toChangeFile)
+    : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
+  const changesKnown = review ? reviewDiff !== undefined : preview !== undefined
+  const tabs = reviewTabs({
+    screens: pairs.length,
+    walkthroughs: recordings.length,
+    reports: reports.length,
+    testChecks: testChecks.length,
+    buildChecks: buildChecks.length,
+    changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
+  })
+  const currentTab: ReviewTabId =
+    activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? 'changes')
+
+  const approveOptions = approveActionDescriptors({
+    branch: review?.branch ?? 'the review branch',
+    baseBranch: 'the working branch',
+    hasRemote: true,
+    fileCount: counts.total,
+  })
+  const earned = earnedApproveActions(approveOptions, headline.key)
+  const facts = runReviewFacts({ costUSD, durationMs })
+  const notice = mergeNotice(mergeResult)
+  const decided = verdict ? verdictSummary(verdict) : undefined
+  const landing = landFailure ? landFailureSummary(landFailure) : undefined
+  const actionMode = reviewActionMode({
+    verdict,
+    hasReviewBranch: !!review,
+    partOfStoryRun: storyId !== undefined,
+  })
+  const busy = merging || approving || rejecting || requestingChanges
+  const reasonValid = isReviewReasonValid(reason)
+  const capturedLabel = timeLabel(
+    evidence.refs.length > 0 ? Math.min(...evidence.refs.map((r) => r.createdAt)) : undefined,
+  )
+  const busyMethod: CheckMethodId | undefined = verifying
+    ? (methodRows.find((r) => r.action.kind === 'run' && r.state !== 'passed')?.id ?? 'types')
+    : requestingReview
+      ? methodRows.find(
+          (r) => r.action.kind === 'request' && r.action.approachId === requestingReview,
+        )?.id
+      : undefined
+  const working = reviewInProgress
+    ? 'Verifying the change on a device'
+    : verifying
+      ? 'Running the configured checks'
+      : requestingReview
+        ? `Capturing ${methodRows.find((r) => r.id === busyMethod)?.noun ?? 'evidence'}`
+        : undefined
+
+  const approveDisabledReason =
+    storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
+
+  const warning = toneChip('warning', theme, status)
+  const censusLook = census
+    ? toneChip(census.complete ? 'positive' : 'warning', theme, status)
+    : undefined
+  const done = status.done
+
+  // Only ever called for a row whose action is `run` — both call sites gate on
+  // it — so every path here is the project's own verification pass.
+  const runMethod = () => {
+    void verify()
+  }
+
+  // EVERY hand-off confirms, capture included: it spends an agent run, and the
+  // button's own ellipsis promises a step before anything happens.
+  const requestMethod = (row: CheckMethodRow, purpose: HandoffPurpose) => {
+    setPendingHandoff({ row, request: handoffRequest(row, purpose, { branch: review?.branch }) })
+  }
+
+  const confirmHandoff = () => {
+    if (!pendingHandoff) return
+    const { row, request } = pendingHandoff
+    setPendingHandoff(undefined)
+    const approachId = row.action.kind === 'request' ? row.action.approachId : undefined
+    if (request.purpose === 'capture' && approachId) void requestReview(approachId, row.label)
+    else if (onSendMessage) void onSendMessage(request.message)
+    setSentHandoff(`Asked the agent — ${request.buttonLabel.replace(/^Ask the agent to /, '')}.`)
+  }
+
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
     const answer = (answers[q.questionId] ?? '').trim()
     if (!projectId || !storyId || answer.length === 0) return
@@ -283,26 +374,6 @@ export default function CliRunArtifactPanel({
       setAnswering(undefined)
     }
   }
-  const approveOptions = approveActionDescriptors({
-    branch: review?.branch ?? 'the review branch',
-    baseBranch: 'the working branch',
-    hasRemote: true,
-    fileCount: counts.total,
-  })
-  const facts = runReviewFacts({ costUSD, durationMs })
-  const notice = mergeNotice(mergeResult)
-  const decided = verdict ? verdictSummary(verdict) : undefined
-  // `reviewInProgress` comes from the hook (verifier's terminal status), so a
-  // verifier that finishes without evidence releases "Verifying…" instead of
-  // hanging it forever.
-  const landing = landFailure ? landFailureSummary(landFailure) : undefined
-  const actionMode = reviewActionMode({
-    verdict,
-    hasReviewBranch: !!review,
-    partOfStoryRun: storyId !== undefined,
-  })
-  const busy = merging || approving || rejecting || requestingChanges
-  const reasonValid = isReviewReasonValid(reason)
 
   const openReason = (decision: 'rejected' | 'changes-requested') => {
     setReasonFor(decision)
@@ -319,8 +390,6 @@ export default function CliRunArtifactPanel({
       void reject(text)
       return
     }
-    // Record the verdict AND send the notes to the agent. Recording alone left
-    // the user waiting on a message nobody had sent.
     void (async () => {
       await requestChanges(text)
       const message = formatChangeRequestMessage(text)
@@ -328,182 +397,79 @@ export default function CliRunArtifactPanel({
     })()
   }
 
-  const statusColor = (file: FilesEmittedFilePreview): string =>
-    file.status === 'added'
-      ? nativePalette.green[700]
-      : file.status === 'deleted'
-        ? nativePalette.red[700]
-        : nativePalette.orange[700]
-
-  const chip = (label: string, color: string, bg: string) => (
-    <View
-      style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: bg }}
-    >
-      <Text style={{ fontSize: 11, fontWeight: '600', color }}>{label}</Text>
-    </View>
-  )
-
-  const secondaryButton = (
-    label: string,
-    onPress: () => void,
-    opts: { disabled?: boolean; tone?: ReviewTone } = {},
-  ) => {
-    const tone = opts.tone ?? 'neutral'
-    const fg = TONE_FG[tone] ?? theme.text.secondary
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={opts.disabled}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !!opts.disabled }}
-        style={{
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-          borderRadius: 8,
-          borderWidth: 1,
-          borderColor: tone === 'neutral' ? theme.border.default : TONE_BORDER[tone],
-          opacity: opts.disabled ? 0.5 : 1,
-        }}
-      >
-        <Text style={{ fontSize: 13, fontWeight: '500', color: fg }}>{label}</Text>
-      </Pressable>
-    )
-  }
-
-  const primaryButton = (
-    label: string,
-    onPress: () => void,
-    disabled: boolean,
-    busyNow: boolean,
-  ) => (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled, busy: busyNow }}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-        backgroundColor: theme.accent.primary,
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <Text style={{ fontSize: 13, fontWeight: '500', color: theme.text.inverted }}>{label}</Text>
-    </Pressable>
-  )
-
   return (
     <View
       style={{
         marginTop: 8,
+        borderRadius: nativeRadii[2],
         borderWidth: 1,
         borderColor: theme.border.default,
-        borderRadius: 8,
         backgroundColor: theme.surface.raised,
         overflow: 'hidden',
       }}
     >
-      {/* Header — always visible; toggles the per-file diffs. */}
-      <Pressable
-        onPress={() => setExpanded((v) => !v)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          gap: 8,
-        }}
-      >
-        <Text
-          style={{ fontSize: 13, fontWeight: '500', color: theme.text.primary, flexShrink: 1 }}
-          numberOfLines={1}
-        >
-          {artifact
-            ? `Agent changed ${files.length} file${files.length === 1 ? '' : 's'}`
-            : 'Agent changes were not landed'}
-          {review ? `  ${review.branch} ← ${review.baseSha.slice(0, 8)}` : ''}
-        </Text>
-        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{expanded ? '▾' : '▸'}</Text>
-      </Pressable>
-
-      {/* Summary head — always visible: what changed, what it cost, what the
-          checks say. The evidence a reviewer needs before deciding. */}
+      {/* Head — the run as a tool row: what, where, how long. */}
       <View
         style={{
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 8,
           paddingHorizontal: 12,
           paddingVertical: 8,
-          gap: 8,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border.subtle,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {counts.added > 0
-            ? chip(`+${counts.added}`, nativePalette.green[700], TONE_BG.positive)
-            : null}
-          {counts.modified > 0
-            ? chip(`~${counts.modified}`, nativePalette.orange[700], TONE_BG.warning)
-            : null}
-          {counts.deleted > 0
-            ? chip(`−${counts.deleted}`, nativePalette.red[700], TONE_BG.danger)
-            : null}
-          {facts.costLabel ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{facts.costLabel}</Text>
-          ) : null}
-          {facts.durationLabel ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{facts.durationLabel}</Text>
-          ) : null}
-        </View>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+          {artifact ? 'Sign-off' : 'Agent changes were not landed'}
+        </Text>
+        {review ? <RefChip kind="branch" value={review.branch} /> : null}
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+          {`${files.length} file${files.length === 1 ? '' : 's'}`}
+        </Text>
+        {facts.costLabel ? (
+          <Text style={{ fontSize: 11, color: theme.text.secondary }}>{facts.costLabel}</Text>
+        ) : null}
+        <View style={{ flex: 1 }} />
+        {facts.durationLabel ? <DurationPill label={facts.durationLabel} /> : null}
+      </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ gap: 12, paddingHorizontal: 12, paddingVertical: 12 }}>
+        {sentHandoff ? (
           <View
             style={{
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 999,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              borderRadius: nativeRadii[2],
               borderWidth: 1,
-              borderColor: TONE_BORDER[head.tone],
-              backgroundColor: TONE_BG[head.tone],
+              borderColor: done.softBorder,
+              backgroundColor: done.softBg,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
             }}
           >
+            <Text style={{ flex: 1, fontSize: 12, color: done.softFg }}>{sentHandoff}</Text>
+            <Pressable accessibilityRole="button" onPress={() => setSentHandoff(undefined)}>
+              <Text style={{ fontSize: 11, textDecorationLine: 'underline', color: done.softFg }}>
+                Dismiss
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Verdict — the chip and the sentence say the same thing. */}
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <VerdictBadge verdict={headline} />
             <Text
-              style={{
-                fontSize: 11,
-                fontWeight: '600',
-                color: TONE_FG[head.tone] ?? theme.text.secondary,
-              }}
+              style={{ flexShrink: 1, fontSize: 14, fontWeight: '600', color: theme.text.primary }}
             >
-              {head.label}
+              {headline.title}
             </Text>
           </View>
-          <Text
-            style={{ fontSize: 11, color: theme.text.secondary, flexShrink: 1 }}
-            numberOfLines={2}
-          >
-            {head.detail}
-          </Text>
-          {head.durationLabel ? (
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-              {`in ${head.durationLabel}`}
-            </Text>
-          ) : null}
-          <Pressable
-            onPress={() => void verify()}
-            disabled={verifying}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: verifying, busy: verifying }}
-            style={{ marginLeft: 'auto', opacity: verifying ? 0.5 : 1 }}
-          >
-            <Text
-              style={{ fontSize: 11, color: theme.text.secondary, textDecorationLine: 'underline' }}
-            >
-              {verifying ? 'Running checks…' : 'Re-run checks'}
-            </Text>
-          </Pressable>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{headline.detail}</Text>
         </View>
 
         {openQuestions.length > 0 ? (
@@ -511,9 +477,10 @@ export default function CliRunArtifactPanel({
             style={{
               gap: 8,
               padding: 8,
-              borderRadius: 6,
+              borderRadius: nativeRadii[2],
               borderWidth: 1,
-              borderColor: theme.border.default,
+              borderColor: nativeAlpha(theme.accent.primary, 0.25),
+              backgroundColor: nativeAlpha(theme.accent.primary, 0.05),
             }}
           >
             <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
@@ -530,562 +497,256 @@ export default function CliRunArtifactPanel({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <Input
+                      size="sm"
                       value={answers[q.questionId] ?? ''}
                       placeholder="Your answer — this unblocks the feature"
                       onChangeText={(text) =>
                         setAnswers((prev) => ({ ...prev, [q.questionId]: text }))
                       }
+                      onSubmitEditing={() => void submitAnswer(q)}
                     />
                   </View>
-                  {primaryButton(
-                    answering === q.questionId ? 'Sending…' : 'Answer',
-                    () => void submitAnswer(q),
-                    answering === q.questionId || (answers[q.questionId] ?? '').trim().length === 0,
-                    answering === q.questionId,
-                  )}
+                  <Button
+                    size="sm"
+                    disabled={
+                      answering === q.questionId ||
+                      (answers[q.questionId] ?? '').trim().length === 0
+                    }
+                    onPress={() => void submitAnswer(q)}
+                  >
+                    {answering === q.questionId ? 'Sending…' : 'Answer'}
+                  </Button>
                 </View>
               </View>
             ))}
           </View>
         ) : null}
 
-        {census ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {census && censusLook ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <View
               style={{
                 paddingHorizontal: 8,
                 paddingVertical: 2,
-                borderRadius: 999,
+                borderRadius: nativeRadii.round,
                 borderWidth: 1,
-                borderColor: census.complete ? TONE_BORDER.positive : TONE_BORDER.warning,
-                backgroundColor: census.complete ? TONE_BG.positive : TONE_BG.warning,
+                borderColor: censusLook.border,
+                backgroundColor: censusLook.bg,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '500',
-                  color:
-                    (census.complete ? TONE_FG.positive : TONE_FG.warning) ?? theme.text.secondary,
-                }}
-              >
+              <Text style={{ fontSize: 11, fontWeight: '500', color: censusLook.fg }}>
                 {census.label}
               </Text>
             </View>
             {storyIncomplete ? (
-              <Text style={{ fontSize: 11, color: theme.text.secondary, flex: 1 }}>
+              <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.secondary }}>
                 {storyIncomplete}
               </Text>
             ) : null}
           </View>
         ) : null}
 
-        {evidence.refs.length > 0 ? (
-          <View
+        {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
+        <View style={{ gap: 6 }}>
+          <Text
             style={{
-              gap: 8,
-              padding: 8,
-              borderRadius: 6,
-              borderWidth: 1,
-              borderColor: theme.border.default,
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.8,
+              textTransform: 'uppercase',
+              color: theme.text.muted,
             }}
           >
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
-                Proof of the work
-              </Text>
-              <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                {summarizeEvidence(evidence.refs)}
-              </Text>
-            </View>
-            {evidenceGroups.map((group) => {
-              const groupImages = evidenceViewerImages(group)
-              // A thumbnail is an affordance, not the evidence: tapping it opens
-              // the full-screen zoomable viewer.
-              const thumb = (tile: EvidenceTile, label?: string) => (
-                <View key={tile.ref.id} style={{ gap: 4 }}>
-                  {tile.dataUri ? (
-                    <Pressable
-                      onPress={() => setViewerGroupKey(group.key)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`View ${label ? `${label} — ` : ''}${tile.caption} full size`}
-                    >
-                      <Image
-                        source={{ uri: tile.dataUri }}
-                        style={{
-                          width: 120,
-                          height: 220,
-                          borderRadius: 4,
-                          borderWidth: 1,
-                          borderColor: theme.border.subtle,
-                        }}
-                        resizeMode="contain"
-                        accessibilityLabel={tile.caption}
-                      />
-                    </Pressable>
-                  ) : tile.text ? (
-                    <ScrollView
-                      style={{
-                        maxHeight: 220,
-                        borderRadius: 4,
-                        borderWidth: 1,
-                        borderColor: theme.border.subtle,
-                        backgroundColor: theme.surface.raised,
-                        padding: 8,
-                      }}
-                    >
-                      <Text selectable style={{ fontSize: 11, color: theme.text.primary }}>
-                        {tile.text}
-                      </Text>
-                    </ScrollView>
-                  ) : (
-                    <View
-                      style={{
-                        width: 120,
-                        height: 220,
-                        borderRadius: 4,
-                        backgroundColor: theme.surface.muted,
-                      }}
-                    />
-                  )}
-                  <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                    {label ? `${label} — ${tile.caption}` : tile.caption}
-                  </Text>
-                </View>
-              )
-              return (
-                <View key={group.key} style={{ gap: 4 }}>
-                  {group.before || group.after ? (
-                    <>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                          {group.title}
-                        </Text>
-                        {groupImages.length > 0 ? (
-                          <Pressable
-                            onPress={() => setViewerGroupKey(group.key)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Open ${group.title} full size`}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                color: theme.text.secondary,
-                                textDecorationLine: 'underline',
-                              }}
-                            >
-                              {groupImages.length > 1 ? 'Compare' : 'View'}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                        {group.before ? thumb(group.before, 'Before') : null}
-                        {group.after ? thumb(group.after, 'After') : null}
-                      </View>
-                    </>
-                  ) : null}
-                  {group.singles.map((tile) => thumb(tile))}
-                </View>
-              )
-            })}
-          </View>
-        ) : null}
+            What was checked
+          </Text>
+          <CheckChipRow
+            rows={methodRows}
+            branch={review?.branch}
+            busyId={busyMethod}
+            canRequest={onSendMessage !== undefined}
+            onOpenProof={setActiveTab}
+            onRun={runMethod}
+            onRequest={requestMethod}
+          />
+        </View>
 
-        {head.status === 'unchecked' ? (
-          <View
-            style={{
-              gap: 6,
-              padding: 8,
-              borderRadius: 6,
-              borderWidth: 1,
-              borderColor: TONE_BORDER.warning,
-              backgroundColor: TONE_BG.warning,
-            }}
-          >
-            {approachRows.length === 0 ? (
-              <Pressable
-                onPress={() => void loadVerificationPlan()}
-                disabled={planLoading}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: planLoading, busy: planLoading }}
-                style={{ alignSelf: 'flex-start', opacity: planLoading ? 0.5 : 1 }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: theme.text.secondary,
-                    textDecorationLine: 'underline',
-                  }}
-                >
-                  {planLoading ? 'Checking what this machine can do…' : 'What could be checked?'}
-                </Text>
-              </Pressable>
+        {tabs.length > 0 ? (
+          <View style={{ gap: 10 }}>
+            <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
+            {currentTab === 'screens' ? (
+              <ScreensTab pairs={pairs} onOpen={setOpenPairKey} capturedLabel={capturedLabel} />
+            ) : currentTab === 'walkthrough' ? (
+              <WalkthroughTab recordings={recordings} />
+            ) : currentTab === 'tests' ? (
+              <ChecksTab
+                methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
+                checks={testChecks}
+                branch={review?.branch}
+                busyId={busyMethod}
+                canRequest={onSendMessage !== undefined}
+                onRun={runMethod}
+                onRequest={requestMethod}
+                emptyState={{
+                  title: 'This project has no tests at all.',
+                  body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
+                }}
+              />
+            ) : currentTab === 'build' ? (
+              <ChecksTab
+                methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
+                checks={buildChecks}
+                branch={review?.branch}
+                busyId={busyMethod}
+                canRequest={onSendMessage !== undefined}
+                onRun={runMethod}
+                onRequest={requestMethod}
+              />
+            ) : currentTab === 'report' ? (
+              <ReportTab reports={reports} onSaveFile={onSaveFile} />
             ) : (
-              <>
-                <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
-                  Ways to prove this change
-                </Text>
-                {approachRows.map((row) => (
-                  <View key={row.id} style={{ flexDirection: 'row', gap: 6 }}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: '500',
-                        color: TONE_FG[row.tone] ?? theme.text.secondary,
-                      }}
-                    >
-                      {`${row.available ? '·' : '○'} ${row.label}`}
-                    </Text>
-                    <Text
-                      style={{ fontSize: 11, color: theme.text.secondary, flex: 1 }}
-                      numberOfLines={3}
-                    >
-                      {row.detail}
-                    </Text>
-                    {row.available ? (
-                      <Pressable
-                        onPress={() => void requestReview(row.id, row.label)}
-                        disabled={requestingReview !== undefined}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Run ${row.label} now`}
-                        style={{ opacity: requestingReview !== undefined ? 0.5 : 1 }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: theme.text.secondary,
-                            textDecorationLine: 'underline',
-                          }}
-                        >
-                          {requestingReview === row.id ? 'Starting…' : 'Run this'}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ))}
-              </>
+              <ChangesTab
+                review={review}
+                files={changeFiles}
+                loading={review ? reviewLoading : previewLoading}
+                error={error}
+                onRetry={
+                  review && !reviewDiff && !reviewLoading
+                    ? () => void loadReviewDiff()
+                    : !review && !preview && !previewLoading
+                      ? () => void loadPreview()
+                      : undefined
+                }
+                onOpenGit={onOpenGit}
+              />
             )}
-          </View>
-        ) : null}
-
-        {checkRows.length > 0 ? (
-          <View style={{ gap: 6 }}>
-            {checkRows.map((row) => (
-              <CheckRow key={row.id} row={row} />
-            ))}
           </View>
         ) : null}
 
         {landing ? (
           <View
             style={{
+              gap: 2,
+              borderRadius: nativeRadii[2],
               borderWidth: 1,
-              borderColor: TONE_BORDER.warning,
-              backgroundColor: TONE_BG.warning,
-              borderRadius: 6,
+              borderColor: warning.border,
+              backgroundColor: warning.bg,
               paddingHorizontal: 8,
               paddingVertical: 6,
-              gap: 2,
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '600', color: nativePalette.orange[700] }}>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: warning.fg }}>
               {landing.title}
             </Text>
-            <Text style={{ fontSize: 12, color: nativePalette.orange[700] }}>
+            <Text style={{ fontSize: 12, color: warning.fg }}>
               {`The agent produced changes but they were not committed to a review branch — ${landing.message}.`}
             </Text>
           </View>
         ) : null}
       </View>
 
-      {/* Expanded — per-file unified diffs only. */}
-      {expanded ? (
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: theme.border.subtle,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            gap: 12,
-          }}
-        >
-          {error ? (
-            <Text style={{ fontSize: 12, color: nativePalette.red[700] }}>
-              {error}{' '}
-              {review && !reviewDiff && !reviewLoading ? (
-                <Text
-                  style={{ textDecorationLine: 'underline' }}
-                  onPress={() => void loadReviewDiff()}
-                >
-                  Retry
-                </Text>
-              ) : !review && !preview && !previewLoading ? (
-                <Text
-                  style={{ textDecorationLine: 'underline' }}
-                  onPress={() => void loadPreview()}
-                >
-                  Retry
-                </Text>
-              ) : null}
-            </Text>
-          ) : null}
-          {review && reviewLoading ? (
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>Loading diff…</Text>
-          ) : null}
-          {!review && previewLoading ? (
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>Computing diff…</Text>
-          ) : null}
-
-          {review
-            ? (reviewDiff?.files ?? []).map((file) => (
-                <View key={file.path} style={{ gap: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text
-                      style={{ fontSize: 12, color: theme.text.primary, flexShrink: 1 }}
-                      numberOfLines={1}
-                    >
-                      {file.path}
-                    </Text>
-                    <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
-                      {file.status}
-                    </Text>
-                  </View>
-                  {file.patch ? (
-                    <UnifiedDiff patch={file.patch} />
-                  ) : (
-                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                      {file.binary ? 'Binary file.' : 'No textual diff.'}
-                    </Text>
-                  )}
-                </View>
-              ))
-            : (preview?.files ?? []).map((file) => (
-                <View key={file.path} style={{ gap: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text
-                      style={{ fontSize: 12, color: theme.text.primary, flexShrink: 1 }}
-                      numberOfLines={1}
-                    >
-                      {file.path}
-                    </Text>
-                    <Text style={{ fontSize: 11, fontWeight: '500', color: statusColor(file) }}>
-                      {file.status}
-                    </Text>
-                    {file.conflict && !isApplied ? (
-                      <Text
-                        style={{ fontSize: 11, fontWeight: '500', color: nativePalette.red[700] }}
-                      >
-                        conflict
-                      </Text>
-                    ) : null}
-                  </View>
-                  {file.patch ? (
-                    <UnifiedDiff patch={file.patch} />
-                  ) : (
-                    <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                      {file.unsafePath
-                        ? 'Unsafe path — will not be applied.'
-                        : file.contentUnavailable
-                          ? 'Binary or oversized content — cannot be applied from the artifact.'
-                          : file.unchanged
-                            ? 'No changes — already applied.'
-                            : ''}
-                    </Text>
-                  )}
-                </View>
-              ))}
-        </View>
-      ) : null}
-
-      {/* Footer — always visible: outcome message + the review decision. */}
+      {/* Foot — the decision, or the work in flight that has replaced it. */}
       <View
         style={{
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
+          gap: 8,
           paddingHorizontal: 12,
           paddingVertical: 8,
-          gap: 8,
+          borderTopWidth: 1,
+          borderTopColor: theme.border.subtle,
         }}
       >
         {decided ? (
           <View style={{ gap: 2 }}>
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: TONE_FG[decided.tone] ?? theme.text.secondary,
-              }}
-            >
+            <Text style={{ fontSize: 12, fontWeight: '500', color: toneText(decided.tone, theme) }}>
               {`${decided.label} by ${decided.byLabel}`}
             </Text>
             {decided.notes ? (
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>{decided.notes}</Text>
             ) : null}
           </View>
-        ) : reviewInProgress ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ActivityIndicator size="small" color={theme.text.secondary} />
-            <Text style={{ fontSize: 12, color: theme.text.secondary, flex: 1 }}>
-              Verifying the change on a device — approval opens when the review is in.
-            </Text>
-          </View>
+        ) : working ? (
+          <WorkBar label={working} />
         ) : (
           <View
             style={{
               flexDirection: 'row',
+              flexWrap: 'wrap',
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 12,
-              flexWrap: 'wrap',
             }}
           >
-            <View style={{ flexShrink: 1 }}>
+            <View style={{ flexShrink: 1, minWidth: 0 }}>
               {notice ? (
-                <Text
-                  style={{ fontSize: 12, color: TONE_FG[notice.tone] ?? theme.text.secondary }}
-                  numberOfLines={2}
-                >
+                <Text style={{ fontSize: 12, color: toneText(notice.tone, theme) }}>
                   {notice.message}
                 </Text>
               ) : actionMode === 'actions' && isMerged ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                   Merged into your branch
                 </Text>
               ) : applyResultData ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
-                  {applyResultData.added.length} added, {applyResultData.modified.length} modified,{' '}
-                  {applyResultData.deleted.length} deleted
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                  {`${applyResultData.added.length} added, ${applyResultData.modified.length} modified, ${applyResultData.deleted.length} deleted${
+                    applyResultData.errors.length > 0
+                      ? `, ${applyResultData.errors.length} failed`
+                      : ''
+                  }`}
                 </Text>
               ) : conflictCount > 0 && !isApplied ? (
-                <Text style={{ fontSize: 12, color: nativePalette.red[700] }} numberOfLines={1}>
-                  {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — overwrites local edits
+                <Text style={{ fontSize: 12, color: dangerText }}>
+                  {`${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — applying overwrites local edits`}
                 </Text>
               ) : isApplied ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                   Applied to project
                 </Text>
               ) : null}
             </View>
 
             {actionMode === 'actions' ? (
-              <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
-              >
-                {secondaryButton(
-                  requestingChanges ? 'Sending…' : 'Request changes',
-                  () => openReason('changes-requested'),
-                  { disabled: busy || isMerged },
-                )}
-                {secondaryButton(
-                  rejecting ? 'Rejecting…' : 'Reject',
-                  () => openReason('rejected'),
-                  {
-                    disabled: busy || isMerged,
-                    tone: 'danger',
-                  },
-                )}
-                {approveOptions.map((option) => (
-                  <View key={option.action}>
-                    {option.action === 'merge'
-                      ? primaryButton(
-                          isMerged ? 'Merged ✓' : option.label,
-                          () => setPendingApprove(option),
-                          busy || isMerged || !reviewDiff || storyIncomplete !== undefined,
-                          approving,
-                        )
-                      : secondaryButton(option.label, () => setPendingApprove(option), {
-                          disabled:
-                            busy ||
-                            isMerged ||
-                            !reviewDiff ||
-                            option.disabledReason !== undefined ||
-                            storyIncomplete !== undefined,
-                        })}
-                  </View>
-                ))}
-              </View>
+              <DecisionBar
+                earned={earned}
+                approveDisabledReason={approveDisabledReason}
+                busy={busy}
+                isMerged={isMerged}
+                requestingChanges={requestingChanges}
+                rejecting={rejecting}
+                onApprove={setPendingApprove}
+                onRequestChanges={() => openReason('changes-requested')}
+                onReject={() => openReason('rejected')}
+              />
             ) : actionMode === 'apply' && artifact ? (
-              primaryButton(
-                applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project',
-                () => void apply(),
-                applying || isApplied || !preview,
-                applying,
-              )
+              <Button
+                size="sm"
+                onPress={() => void apply()}
+                disabled={applying || isApplied || !preview}
+              >
+                {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
+              </Button>
             ) : null}
           </View>
         )}
 
-        {pendingApprove ? (
-          <Modal
-            isOpen
-            onClose={() => setPendingApprove(undefined)}
-            title={pendingApprove.title}
-            size="sm"
-          >
-            <View style={{ gap: 12 }}>
-              <View style={{ gap: 6 }}>
-                {pendingApprove.effects.map((effect) => (
-                  <View key={effect} style={{ flexDirection: 'row', gap: 6 }}>
-                    <Text style={{ fontSize: 13, color: theme.text.secondary }}>—</Text>
-                    <Text style={{ fontSize: 13, color: theme.text.secondary, flex: 1 }}>
-                      {effect}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <Input
-                value={approveNote}
-                placeholder="Note (optional)"
-                onChangeText={setApproveNote}
-              />
-              {approveResult && !approveResult.approved ? (
-                <Text style={{ fontSize: 12, color: TONE_FG.danger ?? theme.text.secondary }}>
-                  {approveResult.blockedReason ?? 'The approval was refused.'}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                {secondaryButton('Cancel', () => setPendingApprove(undefined), {
-                  disabled: approving,
-                })}
-                {primaryButton(
-                  approving ? 'Working…' : pendingApprove.confirmLabel,
-                  () => {
-                    const action = pendingApprove.action
-                    const note = approveNote.trim()
-                    void approve(action, note.length > 0 ? note : undefined).then(() => {
-                      setPendingApprove(undefined)
-                      setApproveNote('')
-                    })
-                  },
-                  approving,
-                  approving,
-                )}
-              </View>
-            </View>
-          </Modal>
-        ) : null}
-
         {reasonFor ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Input
-              size="sm"
-              autoFocus
-              value={reason}
-              placeholder={
-                reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
-              }
-              onChangeText={setReason}
-              onSubmitEditing={submitReason}
-              style={{ flexGrow: 1, flexShrink: 1 }}
-            />
-            {primaryButton(
-              reasonFor === 'rejected' ? 'Reject' : 'Send',
-              submitReason,
-              !reasonValid || busy,
-              busy,
-            )}
-            {secondaryButton('Cancel', () => setReasonFor(undefined))}
+            <View style={{ flex: 1 }}>
+              <Input
+                size="sm"
+                autoFocus
+                value={reason}
+                placeholder={
+                  reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
+                }
+                onChangeText={setReason}
+                onSubmitEditing={submitReason}
+              />
+            </View>
+            <Button size="sm" onPress={submitReason} disabled={!reasonValid || busy}>
+              {reasonFor === 'rejected' ? 'Reject' : 'Send'}
+            </Button>
+            <Button size="sm" variant="secondary" onPress={() => setReasonFor(undefined)}>
+              Cancel
+            </Button>
           </View>
         ) : null}
       </View>
@@ -1093,25 +754,126 @@ export default function CliRunArtifactPanel({
       {applyResultData && applyResultData.errors.length > 0 ? (
         <View
           style={{
-            borderTopWidth: 1,
-            borderTopColor: theme.border.subtle,
             paddingHorizontal: 12,
             paddingVertical: 8,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
           }}
         >
           {applyResultData.errors.map((e) => (
-            <Text key={e.path} style={{ fontSize: 12, color: nativePalette.red[700] }}>
-              {e.path}: {e.reason}
+            <Text key={e.path} style={{ fontSize: 12, color: dangerText }}>
+              {`${e.path}: ${e.reason}`}
             </Text>
           ))}
         </View>
       ) : null}
 
-      <EvidenceImageOverlay
-        isOpen={viewerImages.length > 0}
-        onClose={() => setViewerGroupKey(undefined)}
-        title={viewerGroup?.title ?? 'Evidence'}
-        images={viewerImages}
+      {pendingApprove ? (
+        <Modal
+          isOpen
+          onClose={() => setPendingApprove(undefined)}
+          title={pendingApprove.title}
+          size="sm"
+        >
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 6 }}>
+              {pendingApprove.effects.map((effect) => (
+                <View key={effect} style={{ flexDirection: 'row', gap: 8 }}>
+                  <Text style={{ fontSize: 13, color: theme.text.secondary }}>—</Text>
+                  <Text style={{ flex: 1, fontSize: 13, color: theme.text.secondary }}>
+                    {effect}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>Note (optional)</Text>
+              <Input
+                size="sm"
+                autoFocus
+                value={approveNote}
+                placeholder="Anything worth recording with this approval"
+                onChangeText={setApproveNote}
+              />
+            </View>
+            {approveResult && !approveResult.approved ? (
+              <Alert variant="error">
+                {approveResult.blockedReason ?? 'The approval was refused.'}
+              </Alert>
+            ) : null}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => setPendingApprove(undefined)}
+                disabled={approving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={approving}
+                onPress={() => {
+                  const action = pendingApprove.action
+                  const note = approveNote.trim()
+                  void approve(action, note.length > 0 ? note : undefined).then(() => {
+                    setPendingApprove(undefined)
+                    setApproveNote('')
+                  })
+                }}
+              >
+                {approving ? 'Working…' : pendingApprove.confirmLabel}
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+
+      {pendingHandoff ? (
+        <Modal
+          isOpen
+          onClose={() => setPendingHandoff(undefined)}
+          title={pendingHandoff.request.title}
+          size="sm"
+        >
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 4 }}>
+              {pendingHandoff.request.facts.map((fact) => (
+                <View key={fact.label} style={{ flexDirection: 'row', gap: 12 }}>
+                  <Text style={{ width: 84, fontSize: 12, color: theme.text.muted }}>
+                    {fact.label}
+                  </Text>
+                  <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }}>
+                    {fact.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={{ fontSize: 12, color: theme.text.muted }}>
+              {pendingHandoff.request.caveat}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, fontSize: 11, color: theme.text.muted }}>
+                no “always allow”
+              </Text>
+              <Button variant="ghost" size="sm" onPress={() => setPendingHandoff(undefined)}>
+                Not now
+              </Button>
+              <Button size="sm" onPress={confirmHandoff} disabled={!onSendMessage}>
+                Start
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+
+      <ComparisonOverlay
+        pairs={pairs}
+        openKey={openPairKey}
+        onClose={() => setOpenPairKey(undefined)}
+        baseSha={review?.baseSha}
+        headSha={review?.headSha}
+        onSaveFile={onSaveFile}
       />
     </View>
   )

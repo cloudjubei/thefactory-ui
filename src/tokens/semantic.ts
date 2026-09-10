@@ -53,7 +53,7 @@ export interface StatusTokens {
   on_hold: StatusVariant
   review: StatusVariant
   queued: StatusVariant
-  blocked: Pick<StatusVariant, 'bg' | 'fg'>
+  blocked: StatusVariant
 }
 
 export interface StatusVariant {
@@ -150,6 +150,9 @@ export const lightTheme: SemanticTheme = {
     blocked: {
       bg: '#b42318',
       fg: '#ffffff',
+      softBg: 'color-mix(in srgb, #b42318 12%, transparent)',
+      softFg: '#b42318',
+      softBorder: 'color-mix(in srgb, #b42318 45%, transparent)',
     },
   },
 }
@@ -238,8 +241,11 @@ export const darkTheme: SemanticTheme = {
       softBorder: '#505963',
     },
     blocked: {
-      bg: '#b42318',
-      fg: '#ffffff',
+      bg: 'color-mix(in srgb, #b42318 85%, #0b0f14)',
+      fg: '#ffe4e0',
+      softBg: 'color-mix(in srgb, #b42318 22%, transparent)',
+      softFg: '#ffc9c4',
+      softBorder: 'color-mix(in srgb, #b42318 55%, transparent)',
     },
   },
 }

@@ -51,7 +51,7 @@ function paletteVars(): string[] {
   return out
 }
 
-function statusVars(s: StatusTokens, includeBlockedBg: boolean): string[] {
+function statusVars(s: StatusTokens): string[] {
   const out: string[] = []
   out.push('  /* Status: bold */')
   out.push(`  --status-empty-bg: ${s.empty.bg};`)
@@ -68,13 +68,20 @@ function statusVars(s: StatusTokens, includeBlockedBg: boolean): string[] {
   out.push(`  --status-review-fg: ${s.review.fg};`)
   out.push(`  --status-queued-bg: ${s.queued.bg};`)
   out.push(`  --status-queued-fg: ${s.queued.fg};`)
-  if (includeBlockedBg) {
-    out.push(`  --status-blocked-bg: ${s.blocked.bg};`)
-    out.push(`  --status-blocked-fg: ${s.blocked.fg};`)
-  }
+  out.push(`  --status-blocked-bg: ${s.blocked.bg};`)
+  out.push(`  --status-blocked-fg: ${s.blocked.fg};`)
   out.push('')
   out.push('  /* Status: soft */')
-  for (const key of ['empty', 'done', 'working', 'stuck', 'on_hold', 'review', 'queued'] as const) {
+  for (const key of [
+    'empty',
+    'done',
+    'working',
+    'stuck',
+    'on_hold',
+    'review',
+    'queued',
+    'blocked',
+  ] as const) {
     const v = s[key]
     out.push(`  --status-${key}-soft-bg: ${v.softBg};`)
     out.push(`  --status-${key}-soft-fg: ${v.softFg};`)
@@ -171,7 +178,7 @@ function build(): string {
   lines.push(':root {')
   lines.push(...paletteVars())
   lines.push(...semanticVars(lightTheme))
-  lines.push(...statusVars(lightTheme.status, true))
+  lines.push(...statusVars(lightTheme.status))
   lines.push('')
   lines.push(...metricsVars())
   lines.push('')
@@ -182,7 +189,7 @@ function build(): string {
   lines.push('.dark,')
   lines.push("[data-theme='dark'] {")
   lines.push(...semanticVars(darkTheme))
-  lines.push(...statusVars(darkTheme.status, false))
+  lines.push(...statusVars(darkTheme.status))
   lines.push('')
   lines.push(...shadowVars('dark'))
   lines.push('}')

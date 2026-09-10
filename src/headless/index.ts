@@ -320,11 +320,75 @@ export {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
-  verificationApproachRows,
-  verificationHeadline,
   formatChangeRequestMessage,
 } from './utils/runReview'
-export { approveActionDescriptors } from './utils/approveActions'
+export {
+  LAUNCH_NOTE_MAX_CHARS,
+  LAUNCH_OPTIONS_READ_ONLY,
+  START_FEATURE_WORK_TOOL_NAME,
+  featuresToWorkOn,
+  formatGrantDetail,
+  launchOptionsAreHonoured,
+  isStartFeatureWorkGrant,
+  launchBeats,
+  pendingApprovalGrants,
+  startFeatureWorkGrantSummary,
+} from './utils/approvalGrant'
+export type {
+  LaunchBeat,
+  StartFeatureWorkGrantSummary,
+  StartFeatureWorkRunner,
+} from './utils/approvalGrant'
+export { approveActionDescriptors, earnedApproveActions } from './utils/approveActions'
+export type { EarnedApproveActions } from './utils/approveActions'
+export {
+  checkMethodFor,
+  checkMethodRows,
+  checkRowLayout,
+  evidenceMethodFor,
+  reviewTabs,
+  signoffVerdict,
+  tabForMethod,
+} from './utils/checkMethods'
+export type { CheckRowLayout } from './utils/checkMethods'
+export { handoffRequest } from './utils/handoffRequests'
+export type { HandoffFact, HandoffPurpose, HandoffRequest } from './utils/handoffRequests'
+export type {
+  CheckMethodAction,
+  CheckMethodFill,
+  CheckMethodId,
+  CheckMethodRow,
+  CheckMethodState,
+  ReviewTab,
+  ReviewTabId,
+  ReviewTabsInput,
+  SignoffVerdict,
+  SignoffVerdictInput,
+  SignoffVerdictKey,
+} from './utils/checkMethodTypes'
+export {
+  CHECK_METHOD_LABELS,
+  CHECK_METHOD_ORDER,
+  AGENT_UNREACHABLE,
+  CHECK_STATE_LABELS,
+  REJECT_EXPLAINER,
+  REQUEST_CHANGES_EXPLAINER,
+  STORY_UNFINISHED_TITLE,
+  CHECK_STATE_TONES,
+  COLLAPSE_ABSENT_PAST,
+  REVIEW_TAB_LABELS,
+  REVIEW_TAB_ORDER,
+} from './utils/checkMethodConstants'
+export {
+  IMAGE_ZOOM_MAX,
+  IMAGE_ZOOM_MIN,
+  IMAGE_ZOOM_STEP,
+  clampZoom,
+  zoomByWheel,
+  zoomIn,
+  zoomLabel,
+  zoomOut,
+} from './utils/imageZoom'
 export { censusFeatures, incompleteStoryReason } from './utils/storyCensus'
 export { openFeatureQuestions } from './utils/featureQuestions'
 export { chatClosure } from './utils/chatClosure'
@@ -335,8 +399,18 @@ export {
   isViewableImage,
   summarizeEvidence,
   toEvidenceTile,
+  screenPairs,
+  screenPairFileStem,
+  fileNameSlug,
 } from './utils/reviewEvidenceView'
-export type { EvidenceGroup, EvidenceTile, EvidenceViewerImage } from './utils/reviewEvidenceView'
+export type {
+  EvidenceGroup,
+  EvidenceTile,
+  EvidenceViewerImage,
+  ScreenPair,
+  ScreenPairClass,
+} from './utils/reviewEvidenceView'
+export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
@@ -351,28 +425,22 @@ export {
   LAND_FAILURE_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
-  NO_CHECKS_DETAIL,
   NOT_VERIFIED_DETAIL,
   VERDICT_AUTHOR_LABELS,
   VERDICT_LABELS,
   VERDICT_TONES,
-  VERIFICATION_STATUS_LABELS,
-  VERIFICATION_STATUS_TONES,
 } from './utils/runReviewConstants'
 export type {
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
   ApproveActionDescriptor,
-  ReviewApproachRow,
   ReviewCheckRow,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
   ReviewTone,
   ReviewVerdictSummary,
   RunReviewFacts,
-  VerificationHeadline,
-  VerificationHeadlineStatus,
 } from './utils/runReviewTypes'
 
 // Story / feature status

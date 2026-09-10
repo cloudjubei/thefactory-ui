@@ -11,6 +11,8 @@ export type ButtonVariant =
   | 'ghost'
   | 'danger'
   | 'success'
+  | 'run'
+  | 'handoff'
   | 'link'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
@@ -28,6 +30,8 @@ const variantClass: Record<ButtonVariant, string> = {
   ghost: 'btn btn-ghost',
   danger: 'btn btn-danger',
   success: 'btn btn-success',
+  run: 'btn btn-run',
+  handoff: 'btn btn-handoff',
   link: 'btn btn-link',
 }
 

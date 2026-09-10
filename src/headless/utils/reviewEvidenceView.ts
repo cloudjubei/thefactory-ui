@@ -122,3 +122,94 @@ export function summarizeEvidence(refs: readonly ReviewEvidenceRef[]): string {
   for (const ref of refs) counts.set(ref.kind, (counts.get(ref.kind) ?? 0) + 1)
   return [...counts.entries()].map(([kind, n]) => `${n} ${kind}${n === 1 ? '' : 's'}`).join(' · ')
 }
+
+/**
+ * What a screen pair IS, before any pixel comparison has run.
+ *
+ * `pair` is a before and an after whose difference is not yet computed — the
+ * honest name for it until the backend files a diff. `new` and `removed` are
+ * one-sided by construction. `single` is an unphased screenshot that belongs
+ * to no comparison. There is deliberately no `changed`/`unchanged` here: that
+ * is a claim about pixels, and nothing in this model has looked at any.
+ */
+export type ScreenPairClass = 'pair' | 'new' | 'removed' | 'single'
+
+/** One tile in the Screens strip: a comparison, or a lone capture. */
+export type ScreenPair = {
+  key: string
+  /** Walkthrough position, 1-based. Fixed at capture order — a filter never renumbers it. */
+  index: number
+  title: string
+  class: ScreenPairClass
+  before?: EvidenceTile
+  after?: EvidenceTile
+}
+
+function earliestCreatedAt(group: EvidenceGroup): number {
+  const times = [group.before, group.after, ...group.singles]
+    .filter((t): t is EvidenceTile => t !== undefined)
+    .map((t) => t.ref.createdAt)
+  return times.length > 0 ? Math.min(...times) : Number.MAX_SAFE_INTEGER
+}
+
+/**
+ * The Screens strip, in walkthrough order.
+ *
+ * Only images take part: a written report is not a screen. Paired groups become
+ * one tile; each unpaired image becomes its own. Order is by first capture time,
+ * so the index reads as "where in the walkthrough this was", and it is assigned
+ * once here — filtering the strip later must not shift it.
+ */
+export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
+  const raw: Omit<ScreenPair, 'index'>[] = []
+  const timed: number[] = []
+  for (const group of groups) {
+    const before = group.before && isViewableImage(group.before.ref) ? group.before : undefined
+    const after = group.after && isViewableImage(group.after.ref) ? group.after : undefined
+    if (before || after) {
+      raw.push({
+        key: group.key,
+        title: group.title,
+        class: before && after ? 'pair' : after ? 'new' : 'removed',
+        ...(before ? { before } : {}),
+        ...(after ? { after } : {}),
+      })
+      timed.push(earliestCreatedAt({ ...group, singles: [] }))
+    }
+    for (const single of group.singles) {
+      if (!isViewableImage(single.ref)) continue
+      raw.push({ key: single.ref.id, title: single.caption, class: 'single', after: single })
+      timed.push(single.ref.createdAt)
+    }
+  }
+  return raw
+    .map((pair, i) => ({ pair, at: timed[i] }))
+    .sort((a, b) => a.at - b.at)
+    .map(({ pair }, i) => ({ index: i + 1, ...pair }))
+}
+
+/**
+ * Reduce a human label to characters every filesystem and share sheet accepts.
+ *
+ * A screen titled "Login / SSO" must not put a path separator in a file name,
+ * and two casings of one title must not collide on a case-insensitive disk.
+ */
+export function fileNameSlug(text: string, fallback = ''): string {
+  const slug = text
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+  return slug || fallback
+}
+
+/**
+ * File-name stem for a saved screen, e.g. `03-login-sso`.
+ *
+ * Leads with the zero-padded walkthrough index so a saved set sorts on disk the
+ * way the reviewer walked it.
+ */
+export function screenPairFileStem(pair: Pick<ScreenPair, 'index' | 'title'>): string {
+  const index = String(pair.index).padStart(2, '0')
+  const slug = fileNameSlug(pair.title)
+  return slug ? `${index}-${slug}` : index
+}
