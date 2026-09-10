@@ -1,4 +1,5 @@
 import { fileNameSlug, type EvidenceTile } from '../../../../headless'
+import Markdown from '../../Markdown'
 import { Button } from '../../../primitives/Button'
 import { IconDownload } from '../../../icons'
 import { HelpChip } from '../../chips'
@@ -57,8 +58,8 @@ export default function ReportTab({ reports }: ReportTabProps) {
               </Button>
             </div>
             {text ? (
-              <div className="whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-(--text-secondary)">
-                {text}
+              <div className="markdown-content text-[12.5px] leading-relaxed text-(--text-secondary)">
+                <Markdown text={text} />
               </div>
             ) : (
               <div className="text-[12px] text-(--text-muted)">Loading the report…</div>

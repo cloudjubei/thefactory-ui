@@ -6,6 +6,7 @@ import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconDownload } from '../../../icons'
 import { Button } from '../../../primitives/Button'
 import HelpChip from '../../chips/HelpChip'
+import Markdown from '../../Markdown'
 import type { SaveFileHandler } from './signoffTypes'
 
 export type ReportTabProps = {
@@ -77,12 +78,7 @@ export default function ReportTab({ reports, onSaveFile }: ReportTabProps) {
             ) : null}
           </View>
           {report.text ? (
-            <Text
-              selectable
-              style={{ fontSize: 12.5, lineHeight: 20, color: theme.text.secondary }}
-            >
-              {report.text}
-            </Text>
+            <Markdown text={report.text} />
           ) : (
             <Text style={{ fontSize: 12, color: theme.text.muted }}>Loading the report…</Text>
           )}

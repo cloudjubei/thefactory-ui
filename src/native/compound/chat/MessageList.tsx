@@ -18,6 +18,7 @@ import type {
   ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
@@ -53,6 +54,8 @@ export interface MessageListProps {
    * it. Mirrors web's prop of the same name.
    */
   isSending?: boolean
+  /** A delete is still landing on the server — blocks a second one. */
+  isDeleting?: boolean
   /**
    * Whether a turn is running according to the SERVER, not just this session.
    * Without it a second client renders the restart control enabled over someone
@@ -143,6 +146,7 @@ export default function MessageList({
   messages,
   isThinking = false,
   isSending = false,
+  isDeleting = false,
   isBusy,
   pending,
   pendingCliRunId,
@@ -303,6 +307,10 @@ export default function MessageList({
     cutoffIndex === null ? null : cutoffIndex - startIndex >= 0 ? cutoffIndex - startIndex : null
 
   const lastIndex = windowed.length - 1
+  // Holding the delete control lights every row it would remove — derived from
+  // the SAME rule the store applies, so the preview cannot drift from the effect.
+  const [deletePreview, setDeletePreview] = useState(false)
+  const deleteFromIndex = useMemo(() => lastMessageDeleteFromIndex(windowed), [windowed])
   const prevUserCount = renderable.filter((m) => m.role === 'user').length
   // A turn this session started is still streaming. `pendingCliRunId` is NOT a
   // signal here: it stays set after a CLI run terminates so the run view keeps
@@ -368,6 +376,8 @@ export default function MessageList({
           const deleteControl = describeLastMessageDelete({
             hasDeleteAction: !!onDeleteLastMessage,
             isLast: i === lastIndex,
+            // NOT `|| isDeleting`: a live agent HIDES the control, but our own
+            // delete landing must keep it on screen to show the spinner.
             turnInFlight,
             runId: msg.cliRunId,
             historyLocked,
@@ -404,6 +414,9 @@ export default function MessageList({
                     : {})}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
+                  deletePreview={isInDeleteRange(i, deleteFromIndex, deletePreview)}
+                  onDeletePreviewChange={setDeletePreview}
+                  deleting={isDeleting}
                 />
               ) : (
                 <MessageRow
@@ -422,6 +435,9 @@ export default function MessageList({
                   }
                   onDeleteLastMessage={onDeleteLastMessage}
                   deleteControl={deleteControl}
+                  deletePreview={isInDeleteRange(i, deleteFromIndex, deletePreview)}
+                  onDeletePreviewChange={setDeletePreview}
+                  deleting={isDeleting}
                   onRestartTurn={onRestartTurn}
                   restartControl={restartControl}
                   onRetry={onRetry}

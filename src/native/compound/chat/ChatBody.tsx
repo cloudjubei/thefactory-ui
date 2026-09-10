@@ -264,6 +264,7 @@ export default function ChatBody({
           messages={messages}
           isThinking={liveState.isSending && !cliRunId}
           isSending={liveState.isSending}
+          isDeleting={liveState.isDeleting === true}
           pending={pending}
           pendingCliRunId={cliRunId}
           pendingCliModel={liveState.cliModel ?? undefined}

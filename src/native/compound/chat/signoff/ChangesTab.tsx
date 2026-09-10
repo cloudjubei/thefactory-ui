@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import type { CliRunReview } from '../../../../headless/api'
-import { nativeRadii } from '../../../../tokens/native'
+import { formatTime, type BranchCommit } from '../../../../headless'
+import { nativeFontFamilies, nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
-import { IconBranch, IconChevron, IconMaximize } from '../../../icons'
+import { IconChevron, IconExternalLink } from '../../../icons'
 import { Button } from '../../../primitives/Button'
 import RefChip from '../../chips/RefChip'
 import { GitFileChangesPills } from '../../git/GitFileChangesPills'
@@ -26,6 +27,8 @@ export type ChangeFile = {
 }
 
 export type ChangesTabProps = {
+  /** The branch's own commits, newest first; empty when they are unknown. */
+  commits?: readonly BranchCommit[]
   review: CliRunReview | undefined
   files: readonly ChangeFile[]
   loading: boolean
@@ -112,13 +115,35 @@ export default function ChangesTab({
   error,
   onRetry,
   onOpenGit,
+  commits = [],
 }: ChangesTabProps) {
   const { theme } = useNativeTheme()
+  const [commitsOpen, setCommitsOpen] = useState(false)
   return (
     <View style={{ gap: 8 }}>
       {review ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-          <IconBranch size={14} color={theme.text.muted} />
+          {commits.length > 0 ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: commitsOpen }}
+                onPress={() => setCommitsOpen((v) => !v)}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: theme.text.primary,
+                    textDecorationLine: 'underline',
+                  }}
+                >
+                  {`${commits.length} commit${commits.length === 1 ? '' : 's'}`}
+                </Text>
+              </Pressable>
+              <Text style={{ fontSize: 12, color: theme.text.muted }}>on</Text>
+            </>
+          ) : null}
           <RefChip kind="branch" value={review.branch} />
           <Text style={{ fontSize: 12, color: theme.text.muted }}>from</Text>
           <RefChip kind="commit" value={review.baseSha} />
@@ -136,9 +161,51 @@ export default function ChangesTab({
               accessibilityLabel="Open in Git"
               onPress={onOpenGit}
             >
-              <IconMaximize size={16} color={theme.text.primary} />
+              <IconExternalLink size={16} color={theme.text.primary} />
             </Button>
           ) : null}
+        </View>
+      ) : null}
+
+      {review && commitsOpen && commits.length > 0 ? (
+        <View
+          style={{
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.raised,
+          }}
+        >
+          {commits.map((commit, i) => (
+            <View
+              key={commit.hash}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'baseline',
+                gap: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderBottomWidth: i === commits.length - 1 ? 0 : 1,
+                borderBottomColor: theme.border.subtle,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: nativeFontFamilies.mono,
+                  fontSize: 11,
+                  color: theme.text.muted,
+                }}
+              >
+                {commit.hash.slice(0, 8)}
+              </Text>
+              <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: theme.text.primary }}>
+                {commit.subject}
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.text.muted }}>
+                {formatTime(new Date(commit.authorDate).toISOString())}
+              </Text>
+            </View>
+          ))}
         </View>
       ) : null}
 

@@ -62,6 +62,12 @@ export type CliRunMessagesProps = {
   onDeleteTurn?: () => void
   /** Label + refusal for {@link onDeleteTurn}, from `describeLastMessageDelete`. */
   deleteControl?: MessageDeleteControl
+  /** True while the delete control is hovered — the WHOLE run goes, so the whole block lights. */
+  deletePreview?: boolean
+  /** Raised on hover/focus of the delete control so the list can light the range. */
+  onDeletePreviewChange?: (active: boolean) => void
+  /** A delete is still landing — the control spins and refuses a second press. */
+  deleting?: boolean
 }
 
 /**
@@ -86,6 +92,9 @@ export default function CliRunMessages({
   blockedOn,
   onDeleteTurn,
   deleteControl,
+  deletePreview = false,
+  onDeletePreviewChange,
+  deleting = false,
 }: CliRunMessagesProps) {
   const { transcript, status, notReady, startedAtMs, error } = useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
@@ -116,6 +125,8 @@ export default function CliRunMessages({
   // turn rather than restarting from zero.
   const mountedAtRef = useRef<number | undefined>(undefined)
   const [, setTick] = useState(0)
+  // Two deliberate acts to remove a turn — see the confirm below.
+  const [confirming, setConfirming] = useState(false)
   useEffect(() => {
     if (!active) {
       mountedAtRef.current = undefined
@@ -147,51 +158,120 @@ export default function CliRunMessages({
   // Half the regular message gap (the list uses space-y-3 = 12px) so a run's
   // tool/assistant steps read as a tight series rather than spread-out messages.
   return (
-    <div className="group/cli-turn flex flex-col gap-1.5">
-      {messages.map((m, i) => {
-        // Show the model chip once, on the run's first assistant message —
-        // matches API grouping (chip on the first assistant, not repeated).
-        const showModel = !!model && m.role === 'assistant' && !shownModel
-        if (showModel) shownModel = true
-        return (
-          <div key={`cli-${runId}-${i}`}>
-            <MessageRow
-              msg={{ ...m, showModel, isFirstInGroup: true }}
-              globalIndex={baseIndex + i}
-              totalMessages={total}
-              isThinking={false}
-              isLast={false}
-              prevUserMessagesLen={0}
-              enhancedTotalLength={total}
-              renderToolResult={renderToolResult}
-              getToolHeaderPath={getToolHeaderPath}
-              onResolveFile={onResolveFile}
-              renderDependency={renderDependency}
-            />
-          </div>
-        )
-      })}
-      {active ? (
-        <ThinkingRow
-          spinnerLabel={activity.label}
-          tone={activity.tone === 'blocked' ? 'blocked' : 'working'}
-          {...(activity.sublabel ? { spinnerSubLabel: activity.sublabel } : {})}
-        />
-      ) : null}
-      {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
+    // One CLI turn is ONE stored message that expands into this whole block, so
+    // the delete preview lights the block entire — every step and the sign-off
+    // panel with it.
+    <div
+      data-delete-preview={deletePreview || undefined}
+      className={`group/cli-turn flex flex-col gap-1.5 ${
+        deleting ? 'motion-safe:animate-chat-turn-leave' : ''
+      }`}
+    >
+      {/* The tint marks WHAT WOULD GO. It deliberately stops short of the delete
+          control below: a translucent wash over the button made it read as
+          disabled, and the control that arms a destructive action must stay
+          fully legible at all times. `outline` + a background tint only —
+          changing the box would reflow the block under the cursor. */}
+      <div
+        className={`flex flex-col gap-1.5 ${
+          deletePreview
+            ? 'rounded-md bg-(--color-red-500)/8 outline outline-1 outline-(--color-red-500)/50'
+            : ''
+        }`}
+      >
+        {messages.map((m, i) => {
+          // Show the model chip once, on the run's first assistant message —
+          // matches API grouping (chip on the first assistant, not repeated).
+          const showModel = !!model && m.role === 'assistant' && !shownModel
+          if (showModel) shownModel = true
+          return (
+            <div key={`cli-${runId}-${i}`}>
+              <MessageRow
+                msg={{ ...m, showModel, isFirstInGroup: true }}
+                globalIndex={baseIndex + i}
+                totalMessages={total}
+                isThinking={false}
+                isLast={false}
+                prevUserMessagesLen={0}
+                enhancedTotalLength={total}
+                renderToolResult={renderToolResult}
+                getToolHeaderPath={getToolHeaderPath}
+                onResolveFile={onResolveFile}
+                renderDependency={renderDependency}
+              />
+            </div>
+          )
+        })}
+        {active ? (
+          <ThinkingRow
+            spinnerLabel={activity.label}
+            tone={activity.tone === 'blocked' ? 'blocked' : 'working'}
+            {...(activity.sublabel ? { spinnerSubLabel: activity.sublabel } : {})}
+          />
+        ) : null}
+        {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
+      </div>
+
       {deleteAffordance ? (
-        <div className="transition-opacity opacity-0 group-hover/cli-turn:opacity-100 focus-within:opacity-100">
-          <button
-            type="button"
-            title={deleteAffordance.label}
-            aria-label={deleteAffordance.label}
-            className="inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
-            onClick={() => onDeleteTurn?.()}
-            disabled={deleteAffordance.disabled}
-          >
-            <IconDelete className="w-3.5 h-3.5" />
-            <span>{CLI_TURN_DELETE_ACTION_LABEL}</span>
-          </button>
+        <div
+          className={`transition-opacity group-hover/cli-turn:opacity-100 focus-within:opacity-100 ${
+            deletePreview || confirming ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          {confirming ? (
+            // Deleting a turn is irreversible and there is no undo, so it takes
+            // TWO deliberate acts. A single mis-aimed click used to remove a
+            // turn outright, and repeated clicks emptied whole chats.
+            <div className="inline-flex items-center gap-2 rounded border border-(--color-red-500)/50 bg-(--color-red-500)/8 px-2 py-1">
+              <span className="text-[11px] text-(--text-primary)">
+                Delete this turn? It cannot be undone.
+              </span>
+              <button
+                type="button"
+                className="h-6 rounded border border-(--color-red-500) bg-(--color-red-500) px-2 text-[11px] font-medium text-white"
+                onClick={() => {
+                  setConfirming(false)
+                  onDeletePreviewChange?.(false)
+                  onDeleteTurn?.()
+                }}
+              >
+                Delete turn
+              </button>
+              <button
+                type="button"
+                className="h-6 rounded px-2 text-[11px] text-(--text-secondary) hover:text-(--text-primary)"
+                onClick={() => {
+                  setConfirming(false)
+                  onDeletePreviewChange?.(false)
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              title={deleteAffordance.label}
+              aria-label={deleteAffordance.label}
+              className="inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
+              onClick={() => setConfirming(true)}
+              onMouseEnter={() => onDeletePreviewChange?.(true)}
+              onMouseLeave={() => onDeletePreviewChange?.(false)}
+              onFocus={() => onDeletePreviewChange?.(true)}
+              onBlur={() => onDeletePreviewChange?.(false)}
+              disabled={deleteAffordance.disabled || deleting}
+            >
+              {deleting ? (
+                <span
+                  aria-hidden
+                  className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                />
+              ) : (
+                <IconDelete className="w-3.5 h-3.5" />
+              )}
+              <span>{deleting ? 'Deleting…' : CLI_TURN_DELETE_ACTION_LABEL}</span>
+            </button>
+          )}
         </div>
       ) : null}
     </div>

@@ -18,6 +18,7 @@ import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
@@ -135,6 +136,8 @@ export type MessageListProps = {
   /** True while a send/resume is in flight — drives the inline "Resume" button's
    * spinner + disabled state so the user sees the tools are running. */
   isSending?: boolean
+  /** A delete is still landing on the server — blocks a second one. */
+  isDeleting?: boolean
   /**
    * Whether a turn is running according to the SERVER, not just this session.
    * Without it a second client renders the restart control enabled over someone
@@ -179,6 +182,7 @@ export default function MessageList({
   previewTool,
   onResumeTools,
   isSending = false,
+  isDeleting = false,
   isBusy,
   emptyStateContent,
 }: MessageListProps) {
@@ -223,6 +227,14 @@ export default function MessageList({
   }, [chatId])
 
   const totalMessages = messagesToDisplay.length
+  // Hovering the delete control lights every row it would remove — the range is
+  // derived from the SAME rule the store applies, so the preview cannot drift
+  // from the effect.
+  const [deletePreview, setDeletePreview] = useState(false)
+  const deleteFromIndex = useMemo(
+    () => lastMessageDeleteFromIndex(messagesToDisplay),
+    [messagesToDisplay],
+  )
   const startIndex = Math.max(0, totalMessages - visibleCount)
   const visibleMessages = useMemo(
     () => messagesToDisplay.slice(startIndex),
@@ -298,6 +310,7 @@ export default function MessageList({
   // A run started before a reload is caught inside `CliRunMessages` instead,
   // off the run record's own status.
   const turnInFlight = (isBusy ?? false) || isThinking || pending !== null || isSending
+  const deleting = isDeleting
 
   // Last-unread positioning on chat open.
   const lastMessageIsoMemo = useMemo(() => lastMessageIso(messagesToDisplay), [messagesToDisplay])
@@ -644,6 +657,9 @@ export default function MessageList({
           const deleteControl = describeLastMessageDelete({
             hasDeleteAction: !!onDeleteLastMessage,
             isLast,
+            // NOT `|| deleting`: a live agent HIDES the control, but our own
+            // delete landing must keep it on screen to show the spinner. The
+            // second press is refused by the control's own `deleting` flag.
             turnInFlight,
             runId: msg.cliRunId,
             historyLocked,
@@ -704,6 +720,9 @@ export default function MessageList({
                     : {})}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
+                  deletePreview={isInDeleteRange(globalIndex, deleteFromIndex, deletePreview)}
+                  onDeletePreviewChange={setDeletePreview}
+                  deleting={deleting}
                 />
               ) : (
                 <MessageRow
@@ -716,6 +735,8 @@ export default function MessageList({
                   enhancedTotalLength={messagesToDisplay.length}
                   onDeleteLastMessage={onDeleteLastMessage}
                   deleteControl={deleteControl}
+                  deletePreview={isInDeleteRange(globalIndex, deleteFromIndex, deletePreview)}
+                  onDeletePreviewChange={setDeletePreview}
                   onRetry={onRetry}
                   onRestartTurn={onRestartTurn}
                   restartControl={restartControl}

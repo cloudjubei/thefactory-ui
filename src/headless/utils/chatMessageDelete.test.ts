@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { describeLastMessageDelete, refuseWhileRunActive } from './chatMessageDelete'
 import {
   CLI_TURN_DELETE_LABEL,
-  CLI_TURN_DELETE_RUNNING_LABEL,
-  MESSAGE_DELETE_BUSY_LABEL,
-  MESSAGE_DELETE_LABEL,
   HISTORY_LOCKED_LABEL,
+  MESSAGE_DELETE_LABEL,
   SIGNED_OFF_TURN_LOCKED_LABEL,
 } from './chatMessageDeleteConstants'
 import type { MessageDeleteControl, MessageDeleteInput } from './chatMessageDeleteTypes'
@@ -40,11 +38,10 @@ describe('describeLastMessageDelete', () => {
     expect(describeLastMessageDelete(base)).not.toHaveProperty('cliRunId')
   })
 
-  it('refuses a plain message while a turn is in flight', () => {
-    expect(describeLastMessageDelete({ ...base, turnInFlight: true })).toEqual({
-      label: MESSAGE_DELETE_BUSY_LABEL,
-      disabled: true,
-    })
+  it('offers NO delete on a plain message while a turn is in flight', () => {
+    // DELIBERATE: a live turn is the composer stop button's job. A disabled bin
+    // beside it was a second control for the same moment that could do nothing.
+    expect(describeLastMessageDelete({ ...base, turnInFlight: true })).toBeUndefined()
   })
 
   it('describes a finished CLI turn as removing the whole run', () => {
@@ -55,12 +52,18 @@ describe('describeLastMessageDelete', () => {
     })
   })
 
-  it('refuses a CLI turn while a turn is in flight', () => {
-    expect(describeLastMessageDelete({ ...base, runId: 'run-1', turnInFlight: true })).toEqual({
-      label: CLI_TURN_DELETE_RUNNING_LABEL,
-      disabled: true,
-      cliRunId: 'run-1',
-    })
+  it('offers NO delete on a CLI turn that is starting or running', () => {
+    expect(
+      describeLastMessageDelete({ ...base, runId: 'run-1', turnInFlight: true }),
+    ).toBeUndefined()
+  })
+
+  it('still SHOWS the refusal when the chat is locked, even mid-turn', () => {
+    // The locked case is the opposite call: there the refusal IS the message,
+    // and a missing button would read as a bug rather than a decision.
+    const locked = describeLastMessageDelete({ ...base, turnInFlight: true, historyLocked: true })
+    expect(locked?.locked).toBe(true)
+    expect(locked?.disabled).toBe(true)
   })
 
   it('does not treat an empty runId as a CLI turn', () => {
@@ -86,12 +89,8 @@ describe('refuseWhileRunActive', () => {
     expect(refuseWhileRunActive(enabled, false)).toBe(enabled)
   })
 
-  it('refuses an enabled control when the run is still active', () => {
-    expect(refuseWhileRunActive(enabled, true)).toEqual({
-      label: CLI_TURN_DELETE_RUNNING_LABEL,
-      disabled: true,
-      cliRunId: 'run-1',
-    })
+  it('HIDES an enabled control when the run is still active', () => {
+    expect(refuseWhileRunActive(enabled, true)).toBeUndefined()
   })
 
   it('does not mutate the control it was given', () => {
@@ -99,12 +98,13 @@ describe('refuseWhileRunActive', () => {
     expect(enabled).toEqual({ label: CLI_TURN_DELETE_LABEL, disabled: false, cliRunId: 'run-1' })
   })
 
-  it('keeps an already-refused control as it is', () => {
-    const busy: MessageDeleteControl = {
-      label: MESSAGE_DELETE_BUSY_LABEL,
+  it('keeps a LOCKED control as it is — that refusal outranks the run', () => {
+    const locked: MessageDeleteControl = {
+      label: HISTORY_LOCKED_LABEL,
       disabled: true,
+      locked: true,
     }
-    expect(refuseWhileRunActive(busy, true)).toBe(busy)
+    expect(refuseWhileRunActive(locked, true)).toBe(locked)
   })
 })
 

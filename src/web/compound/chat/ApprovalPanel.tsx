@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { Button } from '../../primitives/Button'
 import Surface from '../../primitives/Surface'
@@ -24,6 +24,18 @@ import DependencyBullet from '../stories/DependencyBullet'
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
   grant: PendingToolGrant
+  /**
+   * The app's own model chip, wired to THIS chat. Rendered in place of the
+   * static executor label so the model can be picked before the run starts —
+   * the launch reads the chat's runner at approval time, so what the chip shows
+   * is what the work runs on. Hosts that have no connected chip omit it and get
+   * the label instead.
+   */
+  renderModelChip?: (picked: {
+    /** The model chosen for THIS run, or `undefined` while it is the chat's. */
+    model: string | undefined
+    onPick: (modelId: string) => void
+  }) => ReactNode
   /**
    * Restore the composer WITHOUT deciding — the ask stays pending, so the user
    * can type first (a clarification, a change of plan) and decide later from
@@ -52,7 +64,11 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
  * chat is sending" made the buttons permanently dead exactly when they were
  * needed. The only disable is the local one while THIS decision is in flight.
  */
-export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelProps) {
+export default function ApprovalPanel({
+  grant,
+  onDecideLater,
+  renderModelChip,
+}: ApprovalPanelProps) {
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
   const detail = isLaunch ? undefined : formatGrantDetail(grant.detail)
@@ -65,6 +81,12 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
   const runnerLabel = launchRunnerLabel(summary, grant.source)
   const [captureProof, setCaptureProof] = useState(summary.proofRequired)
   const [note, setNote] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [agentNoteOpen, setAgentNoteOpen] = useState(false)
+  // The model this WORK runs on. Seeded from the chat by the chip itself and
+  // sent with the decision — picking here must never change the agent the
+  // conversation is being held with.
+  const [runModel, setRunModel] = useState<string | undefined>(undefined)
   const [beatsOpen, setBeatsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,7 +106,11 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
       .decide(
         decision,
         isLaunch
-          ? { proofRequired: captureProof, ...(trimmedNote ? { note: trimmedNote } : {}) }
+          ? {
+              proofRequired: captureProof,
+              ...(trimmedNote ? { note: trimmedNote } : {}),
+              ...(runModel ? { cliModel: runModel } : {}),
+            }
           : undefined,
       )
       .catch((err: unknown) => {
@@ -122,7 +148,7 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             </Button>
           )}
           <Button variant="secondary" size="sm" onClick={() => decide('deny')} disabled={busy}>
-            Not now
+            Don’t start it
           </Button>
           <Button size="sm" onClick={() => decide('once')} loading={busy}>
             Approve
@@ -177,28 +203,32 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Tooltip
-          placement="top"
-          content={
-            <div className={TIP}>
-              <b>Agent</b>
-              <p className="mt-0.5">{runnerLabel.tip}</p>
-            </div>
-          }
-        >
-          <span
-            className={`inline-flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] ${
-              runnerLabel.redirected
-                ? 'border-(--status-working-soft-border) bg-(--status-working-soft-bg) text-(--status-working-soft-fg)'
-                : 'border-(--border-default) bg-(--surface-base) text-(--text-secondary)'
-            }`}
+        {renderModelChip ? (
+          renderModelChip({ model: runModel, onPick: setRunModel })
+        ) : (
+          <Tooltip
+            placement="top"
+            content={
+              <div className={TIP}>
+                <b>Agent</b>
+                <p className="mt-0.5">{runnerLabel.tip}</p>
+              </div>
+            }
           >
-            {runnerLabel.label}
-            <span className="rounded-full border border-(--border-subtle) bg-(--surface-overlay) px-1.5 py-[1px] text-[9px] font-semibold tracking-wide">
-              {runnerLabel.pill}
+            <span
+              className={`inline-flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] ${
+                runnerLabel.redirected
+                  ? 'border-(--status-working-soft-border) bg-(--status-working-soft-bg) text-(--status-working-soft-fg)'
+                  : 'border-(--border-default) bg-(--surface-base) text-(--text-secondary)'
+              }`}
+            >
+              {runnerLabel.label}
+              <span className="rounded-full border border-(--border-subtle) bg-(--surface-overlay) px-1.5 py-[1px] text-[9px] font-semibold tracking-wide">
+                {runnerLabel.pill}
+              </span>
             </span>
-          </span>
-        </Tooltip>
+          </Tooltip>
+        )}
 
         <Tooltip
           placement="top"
@@ -318,33 +348,69 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         ) : null}
       </div>
 
+      {summary.note ? (
+        // The agent's own note, when it wrote one. Collapsed to a chip: it is
+        // context from the conversation, worth being able to read before
+        // approving, but not worth a standing block above every launch. Sits
+        // ABOVE the user's own note — the agent briefed the run first.
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            aria-expanded={agentNoteOpen}
+            onClick={() => setAgentNoteOpen((v) => !v)}
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-(--border-default) bg-(--surface-base) px-2.5 py-1 text-[11.5px] text-(--text-secondary) hover:border-(--border-strong) hover:text-(--text-primary)"
+          >
+            <IconChevron
+              className={`w-3 h-3 transition-transform ${agentNoteOpen ? 'rotate-90' : ''}`}
+            />
+            Note from the agent
+          </button>
+          {agentNoteOpen ? (
+            <p className="rounded border border-(--border-subtle) bg-(--surface-base) px-2 py-1.5 text-[11.5px] leading-relaxed text-(--text-secondary)">
+              {summary.note}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {optionsHonoured ? (
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-            Note for this run{' '}
-            <span className="font-normal normal-case tracking-normal">
-              — goes into its opening prompt
-            </span>
-          </span>
-          <Textarea
-            rows={2}
-            value={note}
-            disabled={busy}
-            maxLength={LAUNCH_NOTE_MAX_CHARS}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="(optional) Anything this run should know — a flavour to use, a gotcha, an account to test with…"
-          />
-        </label>
+        <div className="flex flex-col gap-1.5">
+          {noteOpen ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+                Note for this run{' '}
+                <span className="font-normal normal-case tracking-normal">
+                  — goes into its opening prompt
+                </span>
+              </span>
+              <Textarea
+                rows={2}
+                value={note}
+                disabled={busy}
+                maxLength={LAUNCH_NOTE_MAX_CHARS}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Anything this run should know — a flavour to use, a gotcha, an account to test with…"
+              />
+            </label>
+          ) : (
+            // Collapsed by default: most launches need no note, and an empty box
+            // asks every user to decide about something almost none of them want.
+            <button
+              type="button"
+              onClick={() => setNoteOpen(true)}
+              disabled={busy}
+              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-dashed border-(--border-strong) px-2.5 py-1 text-[11.5px] text-(--text-muted) hover:border-(--accent-primary) hover:text-(--text-primary)"
+            >
+              <span aria-hidden className="text-[13px] leading-none">
+                +
+              </span>
+              Add a note for this run
+            </button>
+          )}
+        </div>
       ) : (
         <p className="text-[11.5px] text-(--text-muted)">{LAUNCH_OPTIONS_READ_ONLY}</p>
       )}
-
-      {summary.note ? (
-        <p className="text-[11.5px] text-(--text-muted)">
-          The agent's own note for the run:{' '}
-          <span className="text-(--text-secondary)">{summary.note}</span>
-        </p>
-      ) : null}
 
       {error !== null && (
         <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
@@ -371,9 +437,14 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         >
           <Button
             size="sm"
+            variant="primary"
             onClick={() => decide('once')}
             loading={busy}
-            disabled={features.length === 0}
+            // Only refuse when the story is KNOWN to have nothing pickable.
+            // While it is still loading `features` is legitimately empty, and
+            // greying the primary action there reads as "not allowed" rather
+            // than "not loaded yet".
+            disabled={story !== undefined && features.length === 0}
           >
             Start work
           </Button>
@@ -382,7 +453,7 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
           placement="top"
           content={
             <div className={TIP}>
-              <b>Declines this launch</b>
+              <b>Answers the agent: no</b>
               <p className="mt-0.5">
                 The run is not started and the story is left exactly as it is. The agent is told you
                 said no, so it can suggest something else or wait.
@@ -402,9 +473,13 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
           placement="top"
           content={
             <div className={TIP}>
-              <b>Keeps the ask, brings the composer back</b>
+              <b>Answers nothing — the ask stays open</b>
               <p className="mt-0.5">
-                Type first — a question, a change of plan — and decide later from here.
+                Brings the composer back so you can type first — a question, a change of plan — and
+                come back to this same ask afterwards.
+              </p>
+              <p className="mt-1 text-(--text-muted)">
+                The agent is still waiting; it is not told anything either way.
               </p>
             </div>
           }

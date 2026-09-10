@@ -1,3 +1,4 @@
+import { APPROVE_MENU_HEADS } from './checkMethodConstants'
 import type { SignoffVerdictKey } from './checkMethodTypes'
 import type { ApproveActionDescriptor } from './runReviewTypes'
 
@@ -25,7 +26,8 @@ export function approveActionDescriptors(input: {
   return [
     {
       action: 'leave-branch',
-      label: 'Approve',
+      label: 'Approve, keep on branch',
+      safest: true,
       hint: `Record your approval and stop. The work stays on ${branch} for you to handle.`,
       title: 'Approve and leave the branch',
       effects: [
@@ -33,7 +35,7 @@ export function approveActionDescriptors(input: {
         `Nothing is merged — ${baseBranch} is untouched.`,
         `The ${branch} branch stays as it is, with ${files} on it.`,
       ],
-      confirmLabel: 'Approve',
+      confirmLabel: 'Approve, keep on branch',
     },
     {
       action: 'create-pr',
@@ -57,6 +59,7 @@ export function approveActionDescriptors(input: {
     {
       action: 'merge',
       label: 'Approve & merge',
+      warnUnlessProven: true,
       hint: `Merge ${branch} into ${baseBranch} here, on this machine.`,
       title: 'Approve and merge',
       effects: [
@@ -75,14 +78,22 @@ export type EarnedApproveActions = {
   primary: ApproveActionDescriptor
   /** The rest, for the split menu, in their original order. */
   rest: ApproveActionDescriptor[]
+  /**
+   * False on a FAILED run: approving is still possible, but Request changes
+   * takes the primary slot and every approve moves behind the caret.
+   */
+  approveLeads: boolean
+  /** The sentence that opens the menu, saying which option the evidence supports. */
+  menuHead: string
 }
 
 /**
- * Which approve action leads is EARNED by the evidence, not fixed. A fully
- * proven run may merge from the front; anything less puts the action that
- * changes nothing shared — approve and leave the branch — in front, and merge
- * steps back into the menu. The menu always holds every action, so nothing is
- * hidden, only re-ranked.
+ * Which action leads is EARNED by the evidence, in three tiers. A fully proven
+ * run may merge from the front; a partly proven one leads with the action that
+ * changes nothing shared; and a run that FAILED leads with Request changes —
+ * approving is still possible, but it stops being the obvious move and every
+ * approve steps behind the caret. The menu always holds every action, so nothing
+ * is hidden, only re-ranked.
  */
 export function earnedApproveActions(
   descriptors: readonly ApproveActionDescriptor[],
@@ -91,5 +102,10 @@ export function earnedApproveActions(
   if (descriptors.length === 0) return undefined
   const lead = verdict === 'proven' ? 'merge' : 'leave-branch'
   const primary = descriptors.find((d) => d.action === lead) ?? descriptors[0]
-  return { primary, rest: descriptors.filter((d) => d !== primary) }
+  return {
+    primary,
+    rest: descriptors.filter((d) => d !== primary),
+    approveLeads: verdict !== 'failed',
+    menuHead: APPROVE_MENU_HEADS[verdict],
+  }
 }

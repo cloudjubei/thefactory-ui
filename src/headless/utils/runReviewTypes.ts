@@ -99,4 +99,8 @@ export type ApproveActionDescriptor = {
   confirmLabel: string
   /** Why the action cannot be offered, when it cannot. */
   disabledReason?: string
+  /** Marks the option that changes nothing shared — badged in the menu. */
+  safest?: boolean
+  /** Carries a "not proven" marker in the menu on any verdict but `proven`. */
+  warnUnlessProven?: boolean
 }

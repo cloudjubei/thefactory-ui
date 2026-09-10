@@ -10,6 +10,7 @@ import {
   createTopicChat,
   deleteChat as deleteChatApi,
   deleteLastChatMessage,
+  getChat as getChatApi,
   getChatsSettings,
   getCliAgentRun,
   listChats,
@@ -33,6 +34,7 @@ import { useApi, useAuth } from '../api'
 import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
 import { isRestartableChatTail } from '../utils/chatMessageRestart'
+import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
 import { useLLMConfigs } from './LLMConfigsContext'
@@ -77,6 +79,13 @@ export type ChatLiveState = {
   cliModel: string | null
   /** ISO start time of the active CLI run, for the live message's timestamp. */
   cliStartedAt: string | null
+  /**
+   * A delete is in flight for this chat. The rows are already gone locally, so
+   * this exists to keep the control busy — a second delete while the first is
+   * still landing would trim from a list the server has not agreed to yet, and
+   * that is how one mis-aimed click became several.
+   */
+  isDeleting: boolean
 }
 
 const EMPTY_LIVE_STATE: ChatLiveState = {
@@ -87,6 +96,7 @@ const EMPTY_LIVE_STATE: ChatLiveState = {
   cliRunId: null,
   cliModel: null,
   cliStartedAt: null,
+  isDeleting: false,
 }
 
 const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
@@ -1234,9 +1244,38 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // the message the view was handed over to, and the trailing live block
         // would remount the very turn the user just deleted — so drop the id
         // with it. A run still streaming re-asserts its id on the next update.
-        updateLiveState(ctx, { cliRunId: null, cliModel: null, cliStartedAt: null })
-        await deleteLastChatMessage({ body: { context: ctx }, throwOnError: true })
-        await refresh()
+        updateLiveState(ctx, {
+          cliRunId: null,
+          cliModel: null,
+          cliStartedAt: null,
+          isDeleting: true,
+        })
+        // Trim LOCALLY first so the rows go the moment the click lands. The cut
+        // uses the same rule the store applies, so the optimistic list matches
+        // what comes back; `refresh()` below is the reconciliation, not the
+        // thing the user is waiting on.
+        setChats((prev) =>
+          prev.map((c) => {
+            if (!sameContext(c.context, ctx)) return c
+            const from = lastMessageDeleteFromIndex(c.messages ?? [])
+            return from === undefined ? c : { ...c, messages: (c.messages ?? []).slice(0, from) }
+          }),
+        )
+        try {
+          await deleteLastChatMessage({ body: { context: ctx }, throwOnError: true })
+          // Reconcile ONE chat, not the whole corpus. `refresh()` re-fetches
+          // every chat in every project WITH its full message array — tens of
+          // megabytes here — which is what made a one-file delete feel slow.
+          const { data } = await getChatApi({ body: { context: ctx }, throwOnError: true })
+          setChats((prev) => prev.map((c) => (sameContext(c.context, ctx) ? { ...c, ...data } : c)))
+        } catch {
+          // The optimistic trim removed rows the server may still have: fall
+          // back to the full reload so the user is never left looking at a
+          // deletion that did not happen.
+          await refresh()
+        } finally {
+          updateLiveState(ctx, { isDeleting: false })
+        }
       },
       [refresh, updateLiveState],
     )

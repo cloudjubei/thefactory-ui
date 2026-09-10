@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
 import type { CliRunReview } from '../../../../headless/api'
+import { formatTime, type BranchCommit } from '../../../../headless'
 import { Button } from '../../../primitives/Button'
-import { IconBranch, IconChevron, IconMaximize } from '../../../icons'
+import { IconChevron, IconExternalLink } from '../../../icons'
 import { StructuredUnifiedDiff } from '../../diff'
 import GitFileChangesPills from '../../git/common/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/common/GitFileStatusIcon'
@@ -22,6 +23,8 @@ export type ChangeFile = {
 }
 
 export type ChangesTabProps = {
+  /** The branch's own commits, newest first; empty when they are unknown. */
+  commits?: readonly BranchCommit[]
   review: CliRunReview | undefined
   files: readonly ChangeFile[]
   loading: boolean
@@ -86,12 +89,26 @@ export default function ChangesTab({
   error,
   onRetry,
   onOpenGit,
+  commits = [],
 }: ChangesTabProps) {
+  const [commitsOpen, setCommitsOpen] = useState(false)
   return (
     <div className="flex flex-col gap-2">
       {review ? (
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <IconBranch className="w-3.5 h-3.5 text-(--text-muted)" />
+          {commits.length > 0 ? (
+            <>
+              <button
+                type="button"
+                aria-expanded={commitsOpen}
+                onClick={() => setCommitsOpen((v) => !v)}
+                className="font-semibold text-(--text-primary) underline decoration-(--border-strong) underline-offset-2"
+              >
+                {commits.length} commit{commits.length === 1 ? '' : 's'}
+              </button>
+              <span className="text-(--text-muted)">on</span>
+            </>
+          ) : null}
           <RefChip kind="branch" value={review.branch} />
           <span className="text-(--text-muted)">from</span>
           <RefChip kind="commit" value={review.baseSha} />
@@ -107,12 +124,33 @@ export default function ChangesTab({
               variant="secondary"
               size="icon"
               aria-label="Open in Git"
-              title="Open this branch in the Git view"
+              title="Opens this branch in the app's own Git view, where you can read the full history, stage, and merge. Leaves this decision open."
               onClick={onOpenGit}
             >
-              <IconMaximize className="w-4 h-4" />
+              <IconExternalLink className="w-4 h-4" />
             </Button>
           ) : null}
+        </div>
+      ) : null}
+
+      {review && commitsOpen && commits.length > 0 ? (
+        <div className="flex flex-col rounded-md border border-(--border-subtle) bg-(--surface-raised)">
+          {commits.map((commit) => (
+            <div
+              key={commit.hash}
+              className="flex items-baseline gap-2 border-b border-(--border-subtle) px-2.5 py-1.5 text-[12px] last:border-b-0"
+            >
+              <code className="font-mono text-[11px] text-(--text-muted)">
+                {commit.hash.slice(0, 8)}
+              </code>
+              <span className="min-w-0 flex-1 truncate text-(--text-primary)">
+                {commit.subject}
+              </span>
+              <span className="text-[11px] tabular-nums text-(--text-muted)">
+                {formatTime(new Date(commit.authorDate).toISOString())}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
 

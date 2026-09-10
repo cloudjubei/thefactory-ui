@@ -1,15 +1,18 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { ScreenPair, ScreenPairClass } from '../../../../headless'
 import SegmentedControl from '../../../primitives/SegmentedControl'
 import Tooltip from '../../../primitives/Tooltip'
-import { IconChevronLeft, IconChevronRight } from '../../../icons'
+import { IconChevronLeft, IconChevronRight, IconDownload } from '../../../icons'
+import { Button } from '../../../primitives/Button'
 
 export type ScreensTabProps = {
   pairs: readonly ScreenPair[]
   onOpen: (key: string) => void
   /** When the capture happened, as a label — the one fact the footer keeps. */
   capturedLabel: string | undefined
+  /** Saves every capture; omitted when the host cannot put a file anywhere. */
+  onSaveAll?: () => void
 }
 
 type ThumbMode = 'before' | 'after'
@@ -38,10 +41,25 @@ function Frame({ src, alt }: { src: string | undefined; alt: string }) {
  * no changed/unchanged split here yet, because nothing has compared pixels;
  * the tile number is the walkthrough position and never renumbers.
  */
-export default function ScreensTab({ pairs, onOpen, capturedLabel }: ScreensTabProps) {
+export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: ScreensTabProps) {
+  // With nothing captured on the base there is no "before" to switch to, and a
+  // segment that changes nothing reads as broken.
+  const hasBefore = pairs.some((p) => p.before !== undefined)
   const [mode, setMode] = useState<ThumbMode>('after')
   const stripRef = useRef<HTMLDivElement | null>(null)
   const scrollBy = (dx: number) => stripRef.current?.scrollBy({ left: dx, behavior: 'smooth' })
+  // Arrows only when there is somewhere to scroll — a strip that already fits
+  // should not offer two controls that do nothing.
+  const [overflowing, setOverflowing] = useState(false)
+  useEffect(() => {
+    const el = stripRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [pairs.length])
 
   return (
     <div className="flex flex-col gap-2">
@@ -62,27 +80,45 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel }: ScreensTabP
         >
           <span className="text-[11px] text-(--text-muted)">Diff · not computed</span>
         </Tooltip>
-        <SegmentedControl
-          size="sm"
-          ariaLabel="What the thumbnails show"
-          value={mode}
-          onChange={(v) => setMode(v as ThumbMode)}
-          options={[
-            { value: 'before', label: 'Before' },
-            { value: 'after', label: 'After' },
-          ]}
-        />
+        {onSaveAll ? (
+          <Tooltip
+            placement="top"
+            content={
+              <span className="text-xs">
+                Saves every capture in this set, named by its walkthrough position.
+              </span>
+            }
+          >
+            <Button variant="secondary" size="icon" aria-label="Save screens" onClick={onSaveAll}>
+              <IconDownload className="w-4 h-4" />
+            </Button>
+          </Tooltip>
+        ) : null}
+        {hasBefore ? (
+          <SegmentedControl
+            size="sm"
+            ariaLabel="What the thumbnails show"
+            value={mode}
+            onChange={(v) => setMode(v as ThumbMode)}
+            options={[
+              { value: 'before', label: 'Before' },
+              { value: 'after', label: 'After' },
+            ]}
+          />
+        ) : null}
       </div>
 
       <div className="relative">
-        <button
-          type="button"
-          aria-label="Scroll left"
-          onClick={() => scrollBy(-SCROLL_STEP)}
-          className="absolute -left-2 top-[92px] z-10 hidden h-[26px] w-[26px] place-items-center rounded-full border border-(--border-default) bg-(--surface-overlay) text-(--text-secondary) shadow-md hover:text-(--text-primary) md:grid"
-        >
-          <IconChevronLeft className="w-3.5 h-3.5" />
-        </button>
+        {overflowing ? (
+          <button
+            type="button"
+            aria-label="Scroll left"
+            onClick={() => scrollBy(-SCROLL_STEP)}
+            className="strip-nav absolute -left-2 top-[92px] z-10 h-[26px] w-[26px] place-items-center rounded-full border border-(--border-default) bg-(--surface-overlay) text-(--text-secondary) shadow-md hover:text-(--text-primary)"
+          >
+            <IconChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        ) : null}
         <div
           ref={stripRef}
           className="flex snap-x snap-proximity gap-3 overflow-x-auto scroll-smooth px-0.5 pb-2.5 pt-1.5 [scrollbar-width:thin]"
@@ -128,14 +164,16 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel }: ScreensTabP
             )
           })}
         </div>
-        <button
-          type="button"
-          aria-label="Scroll right"
-          onClick={() => scrollBy(SCROLL_STEP)}
-          className="absolute -right-2 top-[92px] z-10 hidden h-[26px] w-[26px] place-items-center rounded-full border border-(--border-default) bg-(--surface-overlay) text-(--text-secondary) shadow-md hover:text-(--text-primary) md:grid"
-        >
-          <IconChevronRight className="w-3.5 h-3.5" />
-        </button>
+        {overflowing ? (
+          <button
+            type="button"
+            aria-label="Scroll right"
+            onClick={() => scrollBy(SCROLL_STEP)}
+            className="strip-nav absolute -right-2 top-[92px] z-10 h-[26px] w-[26px] place-items-center rounded-full border border-(--border-default) bg-(--surface-overlay) text-(--text-secondary) shadow-md hover:text-(--text-primary)"
+          >
+            <IconChevronRight className="w-3.5 h-3.5" />
+          </button>
+        ) : null}
       </div>
 
       {capturedLabel ? (

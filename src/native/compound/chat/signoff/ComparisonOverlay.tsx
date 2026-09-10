@@ -144,6 +144,15 @@ export default function ComparisonOverlay({
   const heading = pair ? `${String(pair.index).padStart(2, '0')} · ${pair.title}` : ''
   const iconColor = theme.text.primary
 
+  const pairFact =
+    pair?.class === 'new'
+      ? 'This screen exists only on the branch.'
+      : pair?.class === 'removed'
+        ? 'This screen exists only on the base.'
+        : pair?.class === 'single'
+          ? 'A single capture — there is nothing to compare it with.'
+          : 'Captured on both the base and the branch.'
+
   const hint =
     effectiveMode === 'mirror'
       ? 'Both frames are on screen, so there is nothing to flip.'
@@ -333,7 +342,13 @@ export default function ComparisonOverlay({
           </View>
         ) : null}
 
-        <Text style={{ textAlign: 'center', fontSize: 12, color: theme.text.muted }}>{hint}</Text>
+        <View style={{ gap: 2 }}>
+          {/* What this pair IS comes first — the mode hint is secondary. */}
+          <Text style={{ textAlign: 'center', fontSize: 12, color: theme.text.secondary }}>
+            {pairFact}
+          </Text>
+          <Text style={{ textAlign: 'center', fontSize: 12, color: theme.text.muted }}>{hint}</Text>
+        </View>
 
         <View
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}

@@ -209,6 +209,8 @@ export function checkMethodRows(input: {
   verification: RunVerification | undefined
   approaches: readonly VerificationApproachOption[]
   evidence: readonly ReviewEvidenceRef[]
+  /** Who decided the run, when anyone has — a `reviewer-agent` verdict IS the diff review. */
+  verdictBy?: string
 }): CheckMethodRow[] {
   const { verification, approaches, evidence } = input
   const checks = verification?.checks ?? []
@@ -224,6 +226,10 @@ export function checkMethodRows(input: {
     evidenceCounts.set(id, (evidenceCounts.get(id) ?? 0) + 1)
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
+  // "Was the diff actually read" has exactly one recorded answer: a verdict left
+  // by the reviewer agent. A human's own verdict is the sign-off itself, not a
+  // check that can be held against the run before they have made it.
+  const diffReviewed = input.verdictBy === 'reviewer-agent'
 
   return CHECK_METHOD_ORDER.map((id) => {
     const matched = byMethod.get(id) ?? []
@@ -242,6 +248,12 @@ export function checkMethodRows(input: {
               .filter((s) => s.trim().length > 0)
               .join(' · ')
           : absentDetail(id, state, approaches)
+    } else if (id === 'diff') {
+      state = diffReviewed ? 'passed' : 'unchecked'
+      state === 'passed'
+      detail = diffReviewed
+        ? 'The reviewer agent read the diff'
+        : absentDetail(id, 'unchecked', approaches)
     } else {
       state = evidenceState(id, captured, approaches)
       detail =
@@ -340,12 +352,15 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
  * always exist, because the way to ask for a missing check lives inside them.
  */
 export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
+  // Only Screens, Tests and Changes carry a count. Walkthrough, Build and Report
+  // deliberately carry none: their tabs already exist only when there is
+  // something in them, so a badge would restate the tab's own presence.
   const counts: Record<ReviewTabId, number | undefined> = {
     screens: input.screens,
-    walkthrough: input.walkthroughs,
-    tests: input.testChecks > 0 ? input.testChecks : undefined,
-    build: input.buildChecks > 0 ? input.buildChecks : undefined,
-    report: input.reports,
+    walkthrough: undefined,
+    tests: input.testCount > 0 ? input.testCount : undefined,
+    build: undefined,
+    report: undefined,
     changes: input.changedFiles,
   }
   const present: Record<ReviewTabId, boolean> = {

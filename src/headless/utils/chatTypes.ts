@@ -192,4 +192,6 @@ export type ChatLiveStateLike = {
   cliModel?: string | null
   /** ISO start time of the active CLI run — the live Agent-run message's timestamp. */
   cliStartedAt?: string | null
+  /** A delete is still landing on the server; the rows are already gone locally. */
+  isDeleting?: boolean
 }

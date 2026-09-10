@@ -10,8 +10,8 @@ import type { CliRun } from '../api/generated'
 export type RunModel = {
   /** `claude-code`, `codex`, … for a CLI run; `undefined` for an API run. */
   tool: string | undefined
-  /** The transport label the chip leads with: the CLI's name, or `API`. */
-  tag: string
+  /** The TRANSPORT the chip leads with — `CLI` or `API`, never the tool's name. */
+  tag: 'CLI' | 'API'
   /** The model the run was carried out on, when the record names one. */
   model: string | undefined
   /** Reasoning effort, when the runner reported one. */
@@ -33,7 +33,9 @@ export function runModelOf(run: Pick<CliRun, 'cli' | 'modelId' | 'effort'>): Run
   const tool = trimmedOrUndefined(run.cli?.tool)
   return {
     tool,
-    tag: tool ?? 'API',
+    // The tag slot carries the transport, matching the composer's model chip;
+    // the tool's own name belongs in the model slot, not shouted in the tag.
+    tag: tool ? 'CLI' : 'API',
     model: trimmedOrUndefined(run.modelId),
     effort: trimmedOrUndefined(run.effort),
   }

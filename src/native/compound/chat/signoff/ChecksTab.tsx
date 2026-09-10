@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { type ReactNode } from 'react'
+import { ScrollView, Text, View } from 'react-native'
 
 import {
   AGENT_UNREACHABLE,
+  aggregateTestCounts,
   handoffRequest,
+  parseTestFailures,
+  type TestFailure,
   type CheckMethodId,
   type CheckMethodRow,
   type HandoffPurpose,
@@ -51,38 +54,98 @@ function Card({ children, padding = 10 }: { children: ReactNode; padding?: numbe
   )
 }
 
-function Output({ text }: { text: string }) {
+/**
+ * The command output, always visible. The 132px cap IS the containment — hiding
+ * it behind a toggle meant the one thing a reviewer opens this tab to read was
+ * the one thing they had to go looking for.
+ */
+function Output({ text, stream }: { text: string; stream: 'stdout' | 'stderr' }) {
   const { theme } = useNativeTheme()
   return (
-    <ScrollView
-      nestedScrollEnabled
-      style={{
-        maxHeight: OUTPUT_MAX_HEIGHT,
-        borderRadius: nativeRadii[1],
-        borderWidth: 1,
-        borderColor: theme.border.subtle,
-        backgroundColor: theme.surface.overlay,
-      }}
-      contentContainerStyle={{ padding: 8 }}
-    >
+    <View style={{ gap: 4 }}>
       <Text
-        selectable
         style={{
-          fontFamily: nativeFontFamilies.mono,
-          fontSize: 11,
-          lineHeight: 17,
-          color: theme.text.secondary,
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: theme.text.muted,
         }}
       >
-        {text}
+        {stream}
       </Text>
-    </ScrollView>
+      <ScrollView
+        nestedScrollEnabled
+        style={{
+          maxHeight: OUTPUT_MAX_HEIGHT,
+          borderRadius: nativeRadii[1],
+          borderWidth: 1,
+          borderColor: theme.border.subtle,
+          backgroundColor: theme.surface.overlay,
+        }}
+        contentContainerStyle={{ padding: 8 }}
+      >
+        <Text
+          selectable
+          style={{
+            fontFamily: nativeFontFamilies.mono,
+            fontSize: 11,
+            lineHeight: 17,
+            color: theme.text.secondary,
+          }}
+        >
+          {text}
+        </Text>
+      </ScrollView>
+    </View>
+  )
+}
+
+/** A failing test, laid out so the assertion is readable without opening a log. */
+function Failure({ path, name, message }: TestFailure) {
+  const { theme, status } = useNativeTheme()
+  return (
+    <View
+      style={{
+        gap: 2,
+        padding: 8,
+        borderRadius: nativeRadii[1],
+        borderWidth: 1,
+        borderColor: status.stuck.softBorder,
+        backgroundColor: status.stuck.softBg,
+      }}
+    >
+      {path ? (
+        <Text
+          style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: theme.text.muted }}
+        >
+          {path}
+        </Text>
+      ) : null}
+      {name ? (
+        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>{name}</Text>
+      ) : null}
+      {message ? (
+        <Text
+          selectable
+          style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: status.stuck.softFg }}
+        >
+          {message}
+        </Text>
+      ) : null}
+    </View>
   )
 }
 
 function CheckBlock({
   row,
-  checks,
+  title,
+  command,
+  failed,
+  summary,
+  durationLabel,
+  output,
+  failures,
   branch,
   busy,
   canRequest,
@@ -90,7 +153,13 @@ function CheckBlock({
   onRequest,
 }: {
   row: CheckMethodRow
-  checks: ReviewCheckRow[]
+  title: ReactNode
+  command: string | undefined
+  failed: boolean
+  summary: string
+  durationLabel: string | undefined
+  output: string | undefined
+  failures: readonly TestFailure[]
   branch: string | undefined
   busy: boolean
   canRequest: boolean
@@ -98,56 +167,43 @@ function CheckBlock({
   onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
 }) {
   const { theme } = useNativeTheme()
-  const [showOutput, setShowOutput] = useState(row.state === 'failed')
   const action = row.action
-  const command = checks.length === 1 ? checks[0].label : undefined
   const unreachable = action.kind === 'request' && action.purpose !== 'capture' && !canRequest
 
   return (
     <Card>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <CheckChip row={row} inert />
-        {command && row.state !== 'unchecked' && row.state !== 'unconfigured' ? (
-          <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.secondary }}>
+        {title}
+        {command ? (
+          <Text
+            style={{
+              flexShrink: 1,
+              fontFamily: nativeFontFamilies.mono,
+              fontSize: 11,
+              color: theme.text.secondary,
+            }}
+          >
             {command}
           </Text>
         ) : (
-          <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.muted }}>{row.detail}</Text>
+          <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.muted }}>{summary}</Text>
         )}
         <View style={{ flex: 1 }} />
-        {row.durationLabel ? <DurationPill label={row.durationLabel} /> : null}
+        {durationLabel ? <DurationPill label={durationLabel} /> : null}
       </View>
 
-      {checks.length > 1 ? (
-        <View style={{ gap: 4 }}>
-          {checks.map((check) => (
-            <View key={check.id} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '500', color: toneText(check.tone, theme) }}>
-                {check.status}
-              </Text>
-              <Text style={{ fontSize: 12, color: theme.text.primary }}>{check.label}</Text>
-              <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}>
-                {check.summary}
-              </Text>
-            </View>
-          ))}
-        </View>
+      {command && summary ? (
+        <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{summary}</Text>
       ) : null}
 
-      {row.output ? (
-        <View style={{ gap: 4 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showOutput }}
-            onPress={() => setShowOutput((v) => !v)}
-            style={{ alignSelf: 'flex-start' }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.secondary }}>
-              {showOutput ? 'Hide output' : 'Show output'}
-            </Text>
-          </Pressable>
-          {showOutput ? <Output text={row.output} /> : null}
+      {failures.length > 0 ? (
+        <View style={{ gap: 6 }}>
+          {failures.map((f, i) => (
+            <Failure key={`${f.path}-${f.name}-${i}`} {...f} />
+          ))}
         </View>
+      ) : output ? (
+        <Output text={output} stream={failed ? 'stderr' : 'stdout'} />
       ) : null}
 
       {action.kind === 'run' ? (
@@ -197,7 +253,7 @@ export default function ChecksTab({
   onRequest,
   emptyState,
 }: ChecksTabProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
   if (emptyState && allUnconfigured) {
     const first = methods[0]
@@ -218,20 +274,88 @@ export default function ChecksTab({
       </Card>
     )
   }
+  const testsRow = methods.length === 1 && methods[0]?.id === 'tests' ? methods[0] : undefined
+  const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
+  const totals = testsRow ? aggregateTestCounts(layers.map((l) => l.summary)) : undefined
+  const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
+  const agg = anyFailed ? status.stuck : status.done
+
   return (
     <View style={{ gap: 8 }}>
-      {methods.map((row) => (
-        <CheckBlock
-          key={row.id}
-          row={row}
-          checks={checks.filter((c) => row.checkIds.includes(c.id))}
-          branch={branch}
-          busy={busyId === row.id}
-          canRequest={canRequest}
-          onRun={onRun}
-          onRequest={onRequest}
-        />
-      ))}
+      {totals ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 10,
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: agg.softBorder,
+            backgroundColor: agg.softBg,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '600', color: agg.softFg }}>
+            {anyFailed ? 'Test run completed with failures' : 'All configured layers passed'}
+          </Text>
+          <View style={{ flex: 1 }} />
+          <Text style={{ fontSize: 12, color: agg.softFg }}>{`✓ ${totals.passed}`}</Text>
+          <Text style={{ fontSize: 12, color: agg.softFg }}>{`✗ ${totals.failed}`}</Text>
+          <Text style={{ fontSize: 12, color: agg.softFg }}>{`○ ${totals.skipped}`}</Text>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>
+            {`• ${totals.total} across ${layers.length} ${layers.length === 1 ? 'layer' : 'layers'}`}
+          </Text>
+        </View>
+      ) : null}
+
+      {testsRow && layers.length > 0
+        ? layers.map((layer) => (
+            <CheckBlock
+              key={layer.id}
+              row={testsRow}
+              title={
+                <Text
+                  style={{ fontSize: 12, fontWeight: '600', color: toneText(layer.tone, theme) }}
+                >
+                  {layer.label}
+                </Text>
+              }
+              command={undefined}
+              failed={layer.status !== 'passed' && layer.status !== 'skipped'}
+              summary={layer.summary}
+              durationLabel={layer.durationLabel}
+              output={layer.details}
+              failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
+              branch={branch}
+              busy={busyId === testsRow.id}
+              canRequest={canRequest}
+              onRun={onRun}
+              onRequest={onRequest}
+            />
+          ))
+        : methods.map((row) => {
+            const mine = checks.filter((c) => row.checkIds.includes(c.id))
+            return (
+              <CheckBlock
+                key={row.id}
+                row={row}
+                title={<CheckChip row={row} inert />}
+                command={mine.length === 1 ? mine[0].label : undefined}
+                failed={row.state === 'failed'}
+                summary={row.detail}
+                durationLabel={row.durationLabel}
+                output={row.output}
+                failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
+                branch={branch}
+                busy={busyId === row.id}
+                canRequest={canRequest}
+                onRun={onRun}
+                onRequest={onRequest}
+              />
+            )
+          })}
     </View>
   )
 }

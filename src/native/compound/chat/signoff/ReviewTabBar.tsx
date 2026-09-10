@@ -61,8 +61,12 @@ export default function ReviewTabBar({ tabs, active, onChange }: ReviewTabBarPro
             {tab.count !== undefined ? (
               <View
                 style={{
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
+                  // Circle at one digit, pill only when it needs the width.
+                  minWidth: 16,
+                  height: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 4,
                   borderRadius: nativeRadii.round,
                   borderWidth: 1,
                   borderColor: selected

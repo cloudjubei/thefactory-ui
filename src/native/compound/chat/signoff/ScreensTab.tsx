@@ -6,12 +6,16 @@ import { nativeRadii, nativeShadows } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import SegmentedControl from '../../../primitives/SegmentedControl'
 import Tooltip from '../../../primitives/Tooltip'
+import { Button } from '../../../primitives/Button'
+import { IconDownload } from '../../../icons'
 
 export type ScreensTabProps = {
   pairs: readonly ScreenPair[]
   onOpen: (key: string) => void
   /** When the capture happened, as a label — the one fact the footer keeps. */
   capturedLabel: string | undefined
+  /** Saves every capture; omitted when the host cannot put a file anywhere. */
+  onSaveAll?: () => void
 }
 
 type ThumbMode = 'before' | 'after'
@@ -45,8 +49,11 @@ function Frame({ src }: { src: string | undefined }) {
  * here yet, because nothing has compared pixels; the tile number is the
  * walkthrough position and never renumbers.
  */
-export default function ScreensTab({ pairs, onOpen, capturedLabel }: ScreensTabProps) {
+export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: ScreensTabProps) {
   const { theme, status } = useNativeTheme()
+  // With nothing captured on the base there is no "before" to switch to, and a
+  // segment that changes nothing reads as broken.
+  const hasBefore = pairs.some((p) => p.before !== undefined)
   const [mode, setMode] = useState<ThumbMode>('after')
 
   return (
@@ -68,16 +75,28 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel }: ScreensTabP
         >
           <Text style={{ fontSize: 11, color: theme.text.muted }}>Diff · not computed</Text>
         </Tooltip>
-        <SegmentedControl
-          size="sm"
-          ariaLabel="What the thumbnails show"
-          value={mode}
-          onChange={(v) => setMode(v as ThumbMode)}
-          options={[
-            { value: 'before', label: 'Before' },
-            { value: 'after', label: 'After' },
-          ]}
-        />
+        {onSaveAll ? (
+          <Button
+            variant="secondary"
+            size="icon"
+            accessibilityLabel="Save screens"
+            onPress={onSaveAll}
+          >
+            <IconDownload size={16} color={theme.text.primary} />
+          </Button>
+        ) : null}
+        {hasBefore ? (
+          <SegmentedControl
+            size="sm"
+            ariaLabel="What the thumbnails show"
+            value={mode}
+            onChange={(v) => setMode(v as ThumbMode)}
+            options={[
+              { value: 'before', label: 'Before' },
+              { value: 'after', label: 'After' },
+            ]}
+          />
+        ) : null}
       </View>
 
       <ScrollView

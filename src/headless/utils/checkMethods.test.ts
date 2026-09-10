@@ -240,7 +240,9 @@ describe('checkMethodRows', () => {
     })
     const rowsOut = rows({ verification: v, approaches: [approach('compile')] })
     expect(row(rowsOut, 'build').state).toBe('unconfigured')
-    expect(signoffVerdict({ rows: rowsOut, verified: true }).key).toBe('proven')
+    // `unconfigured` never demotes, so build is not what holds this run back —
+    // the report and the diff review, which are always capturable, are.
+    expect(rowsOut.filter((r) => r.state === 'unconfigured').map((r) => r.id)).toContain('build')
   })
 
   it('the device is runnable on a host offering ONLY screenshots', () => {
@@ -482,9 +484,20 @@ describe('signoffVerdict', () => {
     expect(v.title).toBe(PROVEN_TITLE)
   })
 
-  it('an absent non-bearing method does not demote', () => {
+  it('ANY method that could have run and did not demotes the verdict', () => {
+    // DELIBERATE WIDENING: every method now carries the verdict. A walkthrough
+    // that could have been captured and was not is exactly the kind of gap
+    // "proven — nothing outstanding" must not paper over.
     const v = signoffVerdict({
       rows: [mk({}), mk({ id: 'walkthrough', label: 'Walkthrough', state: 'unchecked' })],
+      verified: true,
+    })
+    expect(v.key).toBe('partly')
+  })
+
+  it('but a method the PROJECT does not have still never demotes', () => {
+    const v = signoffVerdict({
+      rows: [mk({}), mk({ id: 'lint', label: 'Lint', state: 'unconfigured' })],
       verified: true,
     })
     expect(v.key).toBe('proven')
@@ -496,7 +509,7 @@ describe('reviewTabs', () => {
     screens: 0,
     walkthroughs: 0,
     reports: 0,
-    testChecks: 0,
+    testCount: 0,
     buildChecks: 0,
     changedFiles: undefined,
   }
@@ -518,10 +531,30 @@ describe('reviewTabs', () => {
     expect(tabs[2].count).toBe(0)
   })
 
-  it('counts checks on their tabs', () => {
-    const tabs = reviewTabs({ ...base, testChecks: 2, buildChecks: 3 })
-    expect(tabs.find((t) => t.id === 'tests')?.count).toBe(2)
-    expect(tabs.find((t) => t.id === 'build')?.count).toBe(3)
+  it('badges Tests with the number of TESTS, not the number of layers', () => {
+    const tabs = reviewTabs({ ...base, testCount: 132, buildChecks: 3 })
+    expect(tabs.find((t) => t.id === 'tests')?.count).toBe(132)
+  })
+
+  it('leaves Walkthrough, Build and Report bare — only Screens, Tests and Changes count', () => {
+    // Those tabs already exist only when there is something in them, so a badge
+    // would restate the tab's own presence.
+    const tabs = reviewTabs({
+      ...base,
+      screens: 3,
+      walkthroughs: 2,
+      reports: 1,
+      testCount: 10,
+      buildChecks: 3,
+      changedFiles: 4,
+    })
+    const count = (id: string) => tabs.find((t) => t.id === id)?.count
+    expect([count('screens'), count('tests'), count('changes')]).toEqual([3, 10, 4])
+    expect([count('walkthrough'), count('build'), count('report')]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ])
   })
 
   it('labels every tab', () => {
@@ -577,7 +610,14 @@ describe('tabForMethod', () => {
     expect(tabForMethod('types')).toBe('build')
   })
 
-  it('sends a device run to the screens tab', () => {
-    expect(tabForMethod('device')).toBe('screens')
+  it('sends a device run to the WALKTHROUGH tab', () => {
+    // A device run is proven by a screenshot OR a recording; the walkthrough is
+    // where the path through the app lives, and pointing at Screens sent a
+    // recording-only run to a tab that does not exist.
+    expect(tabForMethod('device')).toBe('walkthrough')
+  })
+
+  it('sends the diff review to the changes tab', () => {
+    expect(tabForMethod('diff')).toBe('changes')
   })
 })

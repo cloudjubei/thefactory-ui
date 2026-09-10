@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
 import {
@@ -19,7 +19,7 @@ import type { ToolCallLike, ToolResultTypeLike } from '../../../headless/utils/c
 import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
 import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
-import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeAlpha, nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -60,6 +60,12 @@ export type CliRunMessagesProps = {
   onDeleteTurn?: () => void
   /** Label + refusal for {@link onDeleteTurn}, from `describeLastMessageDelete`. */
   deleteControl?: MessageDeleteControl
+  /** True while the delete control is held — the WHOLE run goes, so the whole block lights. */
+  deletePreview?: boolean
+  /** Raised while the delete control is held so the list can light the range. */
+  onDeletePreviewChange?: (active: boolean) => void
+  /** A delete is still landing — the control spins and refuses a second press. */
+  deleting?: boolean
 }
 
 /**
@@ -82,6 +88,9 @@ export default function CliRunMessages({
   blockedOn,
   onDeleteTurn,
   deleteControl,
+  deletePreview = false,
+  onDeletePreviewChange,
+  deleting = false,
 }: CliRunMessagesProps) {
   const { theme } = useNativeTheme()
   const { transcript, status, notReady, startedAtMs, error } = useCliRunArtifact(runId, undefined)
@@ -111,6 +120,8 @@ export default function CliRunMessages({
   // real age of the turn rather than restarting from zero. Mirrors web.
   const mountedAtRef = useRef<number | undefined>(undefined)
   const [, setTick] = useState(0)
+  // Two deliberate acts to remove a turn: the first press arms, the second commits.
+  const [confirming, setConfirming] = useState(false)
   useEffect(() => {
     if (!active) {
       mountedAtRef.current = undefined
@@ -139,39 +150,68 @@ export default function CliRunMessages({
   })
 
   return (
+    // One CLI turn is ONE stored message that expands into this whole block, so
+    // the delete preview lights the block entire.
     <View style={{ gap: 6 }}>
-      {messages.map((m, i) => {
-        const showModel = !!model && m.role === 'assistant' && !shownModel
-        if (showModel) shownModel = true
-        return (
-          <MessageRow
-            key={`cli-${runId}-${i}`}
-            msg={{ ...m, showModel, isFirstInGroup: true }}
-            globalIndex={baseIndex + i}
-            totalMessages={total}
-            isThinking={false}
-            isLast={false}
-            prevUserMessagesLen={0}
-            enhancedTotalLength={total}
-            renderToolCall={renderToolCall}
-            onResolveFile={onResolveFile}
-            renderDependency={renderDependency}
+      {/* The tint marks WHAT WOULD GO and deliberately stops short of the delete
+          control below: a wash over the control made it read as disabled. Tint
+          only — a border or padding would reflow the block under the finger. */}
+      <View
+        style={{
+          gap: 6,
+          ...(deletePreview
+            ? {
+                borderRadius: nativeRadii[2],
+                backgroundColor: nativeAlpha(nativePalette.red[500], 0.1),
+              }
+            : {}),
+        }}
+      >
+        {messages.map((m, i) => {
+          const showModel = !!model && m.role === 'assistant' && !shownModel
+          if (showModel) shownModel = true
+          return (
+            <MessageRow
+              key={`cli-${runId}-${i}`}
+              msg={{ ...m, showModel, isFirstInGroup: true }}
+              globalIndex={baseIndex + i}
+              totalMessages={total}
+              isThinking={false}
+              isLast={false}
+              prevUserMessagesLen={0}
+              enhancedTotalLength={total}
+              renderToolCall={renderToolCall}
+              onResolveFile={onResolveFile}
+              renderDependency={renderDependency}
+            />
+          )
+        })}
+        {active ? (
+          <ThinkingRow
+            spinnerLabel={activity.label}
+            tone={activity.tone === 'blocked' ? 'blocked' : 'working'}
+            {...(activity.sublabel ? { spinnerSubLabel: activity.sublabel } : {})}
           />
-        )
-      })}
-      {active ? (
-        <ThinkingRow
-          spinnerLabel={activity.label}
-          tone={activity.tone === 'blocked' ? 'blocked' : 'working'}
-          {...(activity.sublabel ? { spinnerSubLabel: activity.sublabel } : {})}
-        />
-      ) : null}
-      {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
+        ) : null}
+        {renderCliRunArtifact ? renderCliRunArtifact(runId) : null}
+      </View>
       {deleteAffordance ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={deleteAffordance.label}
-          onPress={onDeleteTurn}
+          onPress={() => {
+            // Two deliberate acts: the first arms, the second commits. A single
+            // mis-aimed press used to remove a turn outright.
+            if (!confirming) {
+              setConfirming(true)
+              return
+            }
+            setConfirming(false)
+            onDeletePreviewChange?.(false)
+            onDeleteTurn?.()
+          }}
+          onPressIn={() => onDeletePreviewChange?.(true)}
+          onPressOut={() => onDeletePreviewChange?.(confirming)}
           disabled={deleteAffordance.disabled}
           hitSlop={4}
           style={({ pressed }) => ({
@@ -188,9 +228,17 @@ export default function CliRunMessages({
             opacity: deleteAffordance.disabled ? 0.4 : 1,
           })}
         >
-          <IconDelete size={12} color={theme.text.secondary} />
+          {deleting ? (
+            <ActivityIndicator size="small" color={theme.text.secondary} />
+          ) : (
+            <IconDelete size={12} color={theme.text.secondary} />
+          )}
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-            {CLI_TURN_DELETE_ACTION_LABEL}
+            {deleting
+              ? 'Deleting…'
+              : confirming
+                ? 'Tap again to delete — cannot be undone'
+                : CLI_TURN_DELETE_ACTION_LABEL}
           </Text>
         </Pressable>
       ) : null}

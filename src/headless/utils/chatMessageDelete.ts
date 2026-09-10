@@ -1,7 +1,5 @@
 import {
   CLI_TURN_DELETE_LABEL,
-  CLI_TURN_DELETE_RUNNING_LABEL,
-  MESSAGE_DELETE_BUSY_LABEL,
   MESSAGE_DELETE_LABEL,
   HISTORY_LOCKED_LABEL,
   SIGNED_OFF_TURN_LOCKED_LABEL,
@@ -36,17 +34,16 @@ export function describeLastMessageDelete(
     }
   }
 
+  // A turn that is STARTING or RUNNING offers no delete at all. Stopping a live
+  // agent is the composer's stop button, and a disabled bin next to it was a
+  // second control for the same moment that could not do anything — unlike the
+  // locked case above, where the refusal IS the message worth showing.
+  if (input.turnInFlight) return undefined
+
   if (runId !== undefined) {
-    return {
-      label: input.turnInFlight ? CLI_TURN_DELETE_RUNNING_LABEL : CLI_TURN_DELETE_LABEL,
-      disabled: input.turnInFlight,
-      cliRunId: runId,
-    }
+    return { label: CLI_TURN_DELETE_LABEL, disabled: false, cliRunId: runId }
   }
-  return {
-    label: input.turnInFlight ? MESSAGE_DELETE_BUSY_LABEL : MESSAGE_DELETE_LABEL,
-    disabled: input.turnInFlight,
-  }
+  return { label: MESSAGE_DELETE_LABEL, disabled: false }
 }
 
 /**
@@ -65,6 +62,7 @@ export function refuseWhileRunActive(
   // A locked control is already refusing for a better reason; downgrading its
   // label to "stop the run" would misdescribe a permanently closed chat.
   if (control.locked === true) return control
-  if (control.disabled) return control
-  return { ...control, label: CLI_TURN_DELETE_RUNNING_LABEL, disabled: true }
+  // Same rule as above: a live run hides the control rather than showing a bin
+  // that refuses. The composer's stop button is what acts on a running agent.
+  return undefined
 }

@@ -371,8 +371,10 @@ export {
   CHECK_METHOD_ORDER,
   AGENT_UNREACHABLE,
   CHECK_STATE_LABELS,
+  MORE_APPROVE_OPTIONS_LABEL,
   REJECT_EXPLAINER,
   REQUEST_CHANGES_EXPLAINER,
+  APPROVE_MENU_HEADS,
   STORY_UNFINISHED_TITLE,
   CHECK_STATE_TONES,
   COLLAPSE_ABSENT_PAST,
@@ -403,6 +405,7 @@ export {
   screenPairFileStem,
   fileNameSlug,
 } from './utils/reviewEvidenceView'
+export type { DecisionExplainer } from './utils/checkMethodConstants'
 export type {
   EvidenceGroup,
   EvidenceTile,
@@ -411,6 +414,14 @@ export type {
   ScreenPairClass,
 } from './utils/reviewEvidenceView'
 export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
+export { aggregateTestCounts, parseTestCounts, type TestCounts } from './utils/testCounts'
+export { parseTestFailures, type TestFailure } from './utils/testFailures'
+export { commitsSinceBase, type BranchCommit } from './utils/branchCommits'
+export {
+  isInDeleteRange,
+  lastMessageDeleteFromIndex,
+  type DeletableMessage,
+} from './utils/chatTurnDelete'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
@@ -819,8 +830,6 @@ export { isGeneralProjectChat, isGeneralGroupChat } from './utils/chatContextGua
 export {
   CLI_TURN_DELETE_ACTION_LABEL,
   CLI_TURN_DELETE_LABEL,
-  CLI_TURN_DELETE_RUNNING_LABEL,
-  MESSAGE_DELETE_BUSY_LABEL,
   MESSAGE_DELETE_LABEL,
 } from './utils/chatMessageDeleteConstants'
 export type { MessageDeleteControl, MessageDeleteInput } from './utils/chatMessageDeleteTypes'

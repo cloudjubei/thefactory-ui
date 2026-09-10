@@ -152,24 +152,6 @@
   font-size: 10px;
   gap: 4px;
 }
-/* Absence: nothing has been established either way. Dashed edge, no fill —
- * the one treatment reserved for "nobody looked", never for a verdict.
- *
- * Doubled selector so it outranks `.badge--bold.badge--<status>` above: at one
- * class it lost the `background` to those two-class rules and painted a solid
- * pill, which is exactly the "an absence read as a verdict" mistake this
- * treatment exists to prevent. It must also restate `border-color`, since
- * `.badge` starts from a transparent border and a dashed transparent edge is
- * invisible. */
-.badge.badge--absent {
-  background: transparent;
-  border-style: dashed;
-  border-color: currentColor;
-  color: var(--text-secondary);
-}
-.badge.badge--absent.badge--review {
-  color: var(--status-review-soft-fg);
-}
 /* Fill law: a filled dot marks a verdict, a hollow dot marks a state nobody
  * has decided yet. */
 .badge__dot {
@@ -184,6 +166,36 @@
   height: 7px;
   background: transparent;
   border: 1.5px solid currentColor;
+}
+/* Filled dot with a pulsing ring — something is actively happening. The ring is
+ * the only animated thing in the badge family, so it reads as "in flight"
+ * rather than as decoration. */
+.badge__dot--pulse {
+  position: relative;
+}
+.badge__dot--pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--radius-round);
+  border: 1.5px solid currentColor;
+  opacity: 0.5;
+  animation: badge-dot-ring 1.6s ease-out infinite;
+}
+@keyframes badge-dot-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge__dot--pulse::after {
+    animation: none;
+  }
 }
 /* Interactive (editable) badge — used by `StatusControl` when an `onChange`
  * is provided. Surfaces the hand cursor and suppresses accidental text

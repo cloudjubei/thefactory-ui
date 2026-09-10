@@ -26,6 +26,16 @@ import type {
 export type ChatBodyProps = {
   /** Stable id for the chat — drives MessageList scroll/visibility resets. */
   chatId?: string
+  /**
+   * The app's own model chip for THIS chat, rendered inside a launch approval so
+   * the model can be picked before the work starts. A host slot because the
+   * connected chip lives in the app, not in this library.
+   */
+  renderApprovalModelChip?: (picked: {
+    /** The model chosen for the run, or `undefined` while it is the chat's. */
+    model: string | undefined
+    onPick: (modelId: string) => void
+  }) => ReactNode
   /** Caller-rendered header. Title, icons, etc. — ChatBody only provides the
    * vertical layout. When omitted the header section is not rendered. */
   header?: ReactNode
@@ -167,6 +177,7 @@ export type ChatBodyProps = {
  */
 export default function ChatBody({
   chatId,
+  renderApprovalModelChip,
   header,
   sendError,
   inputOverride,
@@ -297,6 +308,7 @@ export default function ChatBody({
           previewTool={previewTool}
           onResumeTools={onResumeTools ?? onConfirmTools}
           isSending={isSending}
+          isDeleting={liveState.isDeleting === true}
           emptyStateContent={emptyStateContent}
         />
       </div>
@@ -339,6 +351,7 @@ export default function ChatBody({
               key={grant.id}
               grant={grant}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+              {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
             />
           ))}
         </div>

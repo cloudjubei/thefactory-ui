@@ -13,7 +13,13 @@ import type {
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
 import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
-import { nativePalette, nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
+import {
+  nativeAlpha,
+  nativePalette,
+  nativeRadii,
+  nativeShadows,
+  nativeSpace,
+} from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
   cliDotColor,
@@ -171,6 +177,12 @@ export interface MessageRowProps {
    * the list via `describeLastMessageDelete`. Absent ⇒ the row offers no delete.
    */
   deleteControl?: MessageDeleteControl
+  /** True while the delete control is held and THIS row is one of the doomed. */
+  deletePreview?: boolean
+  /** Raised while the delete control is held so the list can light the range. */
+  onDeletePreviewChange?: (active: boolean) => void
+  /** A delete is still landing — the control spins and refuses a second press. */
+  deleting?: boolean
 
   onRestartTurn?: () => void
   /**
@@ -239,6 +251,9 @@ function MessageRow({
   toolRowOverride,
   onDeleteLastMessage,
   deleteControl,
+  deletePreview = false,
+  onDeletePreviewChange,
+  deleting = false,
   onRestartTurn,
   restartControl,
   onRetry,
@@ -250,6 +265,8 @@ function MessageRow({
   thinkingLabel,
 }: MessageRowProps) {
   const { theme } = useNativeTheme()
+  // ABOVE any early return: a hook that runs on only some renders crashes.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const role = msg.role
   const isSystem = role === 'system'
   const isUser = role === 'user'
@@ -321,6 +338,16 @@ function MessageRow({
         flexDirection: isUser ? 'row-reverse' : 'row',
         alignItems: 'flex-start',
         gap: nativeSpace[3],
+        // No hover on a touch screen: the reach of the delete is shown while the
+        // control is HELD, before the release commits it. A TINT ONLY — a border
+        // or padding would reflow the row under the finger mid-press. The
+        // control column below opts out so it never reads as disabled.
+        ...(deletePreview
+          ? {
+              borderRadius: nativeRadii[2],
+              backgroundColor: nativeAlpha(nativePalette.red[500], 0.1),
+            }
+          : {}),
       }}
     >
       <View style={{ alignItems: 'center', gap: nativeSpace[2] }}>
@@ -328,9 +355,24 @@ function MessageRow({
         {onDeleteLastMessage && deleteControl && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={deleteControl.label}
-            onPress={onDeleteLastMessage}
-            disabled={deleteControl.disabled}
+            accessibilityLabel={
+              confirmingDelete ? 'Tap again to delete — cannot be undone' : deleteControl.label
+            }
+            onPress={() => {
+              // Two deliberate acts: the first press arms, the second commits.
+              if (!confirmingDelete) {
+                setConfirmingDelete(true)
+                return
+              }
+              setConfirmingDelete(false)
+              onDeletePreviewChange?.(false)
+              onDeleteLastMessage?.()
+            }}
+            onPressIn={() => onDeletePreviewChange?.(true)}
+            onPressOut={() => onDeletePreviewChange?.(confirmingDelete)}
+            // Blocked while a delete lands: the rows are gone locally but the
+            // server has not agreed yet.
+            disabled={deleteControl.disabled || deleting}
             hitSlop={4}
             style={({ pressed }) => ({
               width: 24,

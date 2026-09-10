@@ -11,7 +11,7 @@ describe('runModelOf', () => {
     })
     expect(m).toEqual({
       tool: 'claude-code',
-      tag: 'claude-code',
+      tag: 'CLI',
       model: 'claude-opus-5',
       effort: 'high',
     })
@@ -33,6 +33,14 @@ describe('runModelOf', () => {
 
   it('carries no model when the record names none', () => {
     expect(runModelOf({}).model).toBeUndefined()
+  })
+})
+
+describe('runModelOf — transport tag', () => {
+  it('tags a CLI run CLI, not with the tool name', () => {
+    // The tag slot is the transport; "CLAUDE-CODE" shouted in it is the tool's
+    // name in the wrong place, and the model slot then had nothing to say.
+    expect(runModelOf({ cli: { tool: 'claude-code', version: '1' } }).tag).toBe('CLI')
   })
 })
 

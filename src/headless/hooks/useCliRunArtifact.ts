@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   applyCliAgentArtifact,
+  abortCliAgentRun,
   getCliAgentRun,
   approveCliRunReview,
   requestCliRunReview,
@@ -98,6 +99,8 @@ export type UseCliRunArtifact = {
    * are not reviewable — the panel warns explicitly.
    */
   landFailure: CliRunLandFailure | undefined
+  /** Stops the in-flight verifier; a no-op when nothing is running. */
+  cancelWork: () => Promise<void>
   /** Which agent and model carried the run out — a fact, not a picker. */
   runModel: RunModel | undefined
   /**
@@ -690,8 +693,22 @@ export function useCliRunArtifact(
    */
   const reviewInProgress = !!reviewRunId && !verdict && reviewRunTerminal === false
 
+  // Stop the verifier that is still producing evidence. The RUN itself is
+  // untouched — its commits stay on the branch; only the work that had not
+  // finished is cut short.
+  const cancelWork = useCallback(async () => {
+    const id = review?.reviewRunId
+    if (!id) return
+    await abortCliAgentRun({
+      path: { runId: id },
+      body: { reason: 'Cancelled from the sign-off panel' },
+      throwOnError: true,
+    })
+  }, [review?.reviewRunId])
+
   return {
     artifact,
+    cancelWork,
     transcript,
     status,
     review,

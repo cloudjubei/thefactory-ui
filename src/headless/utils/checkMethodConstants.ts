@@ -17,6 +17,7 @@ export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
   'screens',
   'walkthrough',
   'report',
+  'diff',
 ]
 
 export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
@@ -29,6 +30,7 @@ export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   screens: 'Screens',
   walkthrough: 'Walkthrough',
   report: 'Report',
+  diff: 'Diff',
 }
 
 export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
@@ -41,6 +43,7 @@ export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
   screens: 'before/after screens',
   walkthrough: 'a walkthrough recording',
   report: 'a written report',
+  diff: 'a diff review',
 }
 
 /**
@@ -60,6 +63,7 @@ export const CHECK_METHOD_ABSENT_NOUNS: Record<CheckMethodId, string> = {
   screens: 'before/after screens',
   walkthrough: 'walkthrough recording',
   report: 'written report',
+  diff: 'diff review',
 }
 
 /**
@@ -77,6 +81,7 @@ export const CHECK_METHOD_CAPTURE_VERBS: Record<CheckMethodId, string> = {
   screens: 'capture before/after screens',
   walkthrough: 'record a walkthrough',
   report: 'write up what changed',
+  diff: 'review the diff',
 }
 
 export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
@@ -89,6 +94,7 @@ export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
   screens: 'capture screens',
   walkthrough: 'record a walkthrough',
   report: 'write a report',
+  diff: 'review the diff',
 }
 
 /**
@@ -106,6 +112,7 @@ export const CHECK_METHOD_FILL: Record<CheckMethodId, CheckMethodFill> = {
   screens: 'agent',
   walkthrough: 'agent',
   report: 'agent',
+  diff: 'agent',
 }
 
 /** Where a method's proof lives when it has some. */
@@ -115,10 +122,11 @@ export const CHECK_METHOD_TAB: Record<CheckMethodId, ReviewTabId> = {
   lint: 'build',
   format: 'build',
   build: 'build',
-  device: 'screens',
+  device: 'walkthrough',
   screens: 'screens',
   walkthrough: 'walkthrough',
   report: 'report',
+  diff: 'changes',
 }
 
 /** The verification approach that produces each evidence method, when one does. */
@@ -128,6 +136,7 @@ export const CHECK_METHOD_APPROACH: Partial<Record<CheckMethodId, string>> = {
   screens: 'screenshot-diff',
   walkthrough: 'screen-recording',
   report: 'code-explanation',
+  diff: 'adversarial-review',
 }
 
 export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
@@ -145,18 +154,12 @@ export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
 }
 
 /**
- * Only these methods can demote the verdict when absent. A missing walkthrough
- * or report is worth asking for, but a run whose every configured check passed
- * is not "partly proven" for lack of a video.
+ * Every method carries the verdict: any FAILURE makes the run failed, any method
+ * that could have run and did not makes it partly proven. `unconfigured` still
+ * never demotes — a project that has no linter is not a worse-proven change —
+ * so the set is closed over the whole vocabulary rather than a subset.
  */
-export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = [
-  'tests',
-  'types',
-  'lint',
-  'format',
-  'build',
-  'screens',
-]
+export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = CHECK_METHOD_ORDER
 
 /** Past this many absent chips, the row collapses them into one. */
 export const COLLAPSE_ABSENT_PAST = 3
@@ -196,13 +199,38 @@ export const REVIEW_TAB_LABELS: Record<ReviewTabId, string> = {
 /** Shown beside a disabled hand-off — both clients must give the same reason. */
 export const AGENT_UNREACHABLE = 'This panel cannot reach the agent from here.'
 
-/** What "Request changes" does, in one sentence, on every client. */
-export const REQUEST_CHANGES_EXPLAINER =
-  'Opens a reason box, then resumes this run with your note. The branch and its commits stay exactly as they are; nothing is merged and nothing is thrown away.'
+/**
+ * Every decide-bar explainer is three parts: a headline naming the act, the body,
+ * and the reassurance of what it does NOT do — the last being the part that
+ * answers the fear, so it is never folded into the body.
+ */
+export type DecisionExplainer = { headline: string; body: string; not: string }
 
-/** What "Reject" does, in one sentence, on every client. */
-export const REJECT_EXPLAINER =
-  'Closes the run as rejected. The story goes back to where it was; the branch is kept so you can still look at it, but no further work happens on it.'
+export const REQUEST_CHANGES_EXPLAINER: DecisionExplainer = {
+  headline: 'Sends it back with a note',
+  body: 'Opens a reason box, then resumes this same run with your note. The branch and its commits stay exactly as they are.',
+  not: 'Does not close the run.',
+}
+
+export const REJECT_EXPLAINER: DecisionExplainer = {
+  headline: 'Closes the run as rejected',
+  body: 'The story goes back to where it was and the run stops. The branch is kept so you can still look at it.',
+  not: 'Deletes nothing.',
+}
+
+/** The accessible name of the split caret. */
+export const MORE_APPROVE_OPTIONS_LABEL = 'More approve options'
+
+/**
+ * The line that opens the approve menu — it names which option the evidence
+ * actually supports, so the ranking is explained rather than just applied.
+ */
+export const APPROVE_MENU_HEADS: Record<SignoffVerdictKey, string> = {
+  proven: 'Everything checked out — merge is the safe option.',
+  partly: 'Merge is available, but nothing proved the change itself.',
+  failed: 'This run failed. Approving is possible, but read the report first.',
+  'not-run': 'Nothing has been checked, so nothing supports a merge yet.',
+}
 
 export const PROVEN_TITLE = 'Every configured check passed'
 export const PROVEN_DETAIL = 'Built, checked, and captured. Nothing outstanding.'

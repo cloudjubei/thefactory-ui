@@ -50,6 +50,8 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
   const runnerLabel = launchRunnerLabel(summary, grant.source)
   const [captureProof, setCaptureProof] = useState(summary.proofRequired)
   const [note, setNote] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [agentNoteOpen, setAgentNoteOpen] = useState(false)
   const [beatsOpen, setBeatsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -181,7 +183,7 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             </Button>
           ) : null}
           <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            Not now
+            No — cancel
           </Button>
           <Button size="sm" onPress={() => decide('once')} loading={busy}>
             Approve
@@ -520,7 +522,79 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         ) : null}
       </View>
 
-      {optionsHonoured ? (
+      {summary.note ? (
+        // The agent's own note, when it wrote one. Collapsed to a chip: context
+        // worth reading before approving, not worth a standing block. Sits ABOVE
+        // the user's own note — the agent briefed the run first.
+        <View style={{ gap: 4 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: agentNoteOpen }}
+            onPress={() => setAgentNoteOpen((v) => !v)}
+            style={{
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: nativeRadii.round,
+              borderWidth: 1,
+              borderColor: theme.border.default,
+              backgroundColor: theme.surface.base,
+            }}
+          >
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>
+              {agentNoteOpen ? '▾' : '▸'}
+            </Text>
+            <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>Note from the agent</Text>
+          </Pressable>
+          {agentNoteOpen ? (
+            <Text
+              style={{
+                fontSize: 11.5,
+                lineHeight: 18,
+                color: theme.text.secondary,
+                borderRadius: nativeRadii[2],
+                borderWidth: 1,
+                borderColor: theme.border.subtle,
+                backgroundColor: theme.surface.base,
+                paddingHorizontal: 8,
+                paddingVertical: 6,
+              }}
+            >
+              {summary.note}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {optionsHonoured && !noteOpen ? (
+        // Collapsed by default: most launches need no note, and an empty box
+        // asks every user to decide about something almost none of them want.
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setNoteOpen(true)}
+          disabled={busy}
+          style={{
+            alignSelf: 'flex-start',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: nativeRadii.round,
+            borderWidth: 1,
+            borderStyle: 'dashed',
+            borderColor: theme.border.strong,
+          }}
+        >
+          <Text style={{ fontSize: 13, color: theme.text.muted }}>+</Text>
+          <Text style={{ fontSize: 11.5, color: theme.text.muted }}>Add a note for this run</Text>
+        </Pressable>
+      ) : null}
+
+      {optionsHonoured && noteOpen ? (
         <View style={{ gap: 4 }}>
           <Text
             style={{
@@ -548,12 +622,6 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
       ) : (
         <Text style={{ fontSize: 11.5, color: theme.text.muted }}>{LAUNCH_OPTIONS_READ_ONLY}</Text>
       )}
-
-      {summary.note ? (
-        <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>
-          The agent's own note for the run: {summary.note}
-        </Text>
-      ) : null}
 
       {errorBox}
 

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
-import { answerFeatureQuestion } from '../../../headless/api'
+import { answerFeatureQuestion, getGitLog } from '../../../headless/api'
 import {
+  aggregateTestCounts,
   approveActionDescriptors,
   censusFeatures,
   checkMethodRows,
@@ -19,6 +20,8 @@ import {
   reviewChangeCounts,
   reviewTabs,
   runReviewFacts,
+  commitsSinceBase,
+  screenPairFileStem,
   screenPairs,
   signoffVerdict,
   useCliRunArtifact,
@@ -31,6 +34,7 @@ import {
   type CheckMethodRow,
   type HandoffPurpose,
   type HandoffRequest,
+  type BranchCommit,
   type ReviewTabId,
   type SignoffVerdict,
 } from '../../../headless'
@@ -38,7 +42,9 @@ import { Input } from '../../primitives/Input'
 import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
+import Tooltip from '../../primitives/Tooltip'
 import { RefChip } from '../chips'
+import { downloadDataUri } from './signoff/download'
 import {
   ChangesTab,
   CheckChipRow,
@@ -73,12 +79,20 @@ export type CliRunArtifactPanelProps = {
   onOpenGit?: () => void
 }
 
-/** The verdict word as a bold status badge; the two undecided states draw as absence. */
+/**
+ * The verdict word as a bold status badge.
+ *
+ * A verdict is always a SOLID pill; its absence signal is the hollow dot alone.
+ * The dashed treatment belongs to the check CHIPS ("nobody looked") and putting
+ * it on a headline verdict borrows a grammar that does not mean the same thing
+ * there. Both undecided verdicts take review blue — the hue for "not proven" —
+ * never the neutral grey that means "not set up".
+ */
 const VERDICT_BADGE: Record<SignoffVerdict['key'], string> = {
   proven: 'badge--done',
-  partly: 'badge--review badge--absent',
+  partly: 'badge--review',
   failed: 'badge--stuck',
-  'not-run': 'badge--queued badge--absent',
+  'not-run': 'badge--review',
 }
 
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
@@ -145,6 +159,8 @@ export default function CliRunArtifactPanel({
     storyId,
     landFailure,
     runModel,
+    cancelWork,
+    startedAtMs,
     costUSD,
     durationMs,
     loading,
@@ -192,6 +208,7 @@ export default function CliRunArtifactPanel({
   const [sentHandoff, setSentHandoff] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
+  const [cancelling, setCancelling] = useState(false)
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
@@ -224,6 +241,10 @@ export default function CliRunArtifactPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
+  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
+  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
+
   const methodRows = useMemo(
     () =>
       checkMethodRows({
@@ -234,8 +255,13 @@ export default function CliRunArtifactPanel({
     [verification, verificationApproaches, evidence.refs],
   )
   const headline = useMemo(
-    () => signoffVerdict({ rows: methodRows, verified: verification !== undefined }),
-    [methodRows, verification],
+    () =>
+      signoffVerdict({
+        rows: methodRows,
+        verified: verification !== undefined,
+        ...(storyIncomplete ? { storyIncomplete } : {}),
+      }),
+    [methodRows, verification, storyIncomplete],
   )
   const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
@@ -243,7 +269,47 @@ export default function CliRunArtifactPanel({
   const reports = evidence.tiles.filter((t) => t.ref.kind === 'report')
   const checkRows = verificationCheckRows(verification)
   const testChecks = checkRows.filter((c) => c.kind === 'tests')
+  // The Tests badge counts TESTS, not layers — the number comes out of each
+  // layer's own summary line.
+  const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
   const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
+
+  // The completion moment: the evidence changes underneath the reader. Say so in
+  // a line at the top rather than yanking them anywhere — the chips above may
+  // have moved while they were reading. ABOVE the early returns: a hook that
+  // runs on only some renders is the "rendered more hooks" crash.
+  // The branch's own commits, for the Changes header. Loaded once the diff is
+  // being shown; a failure leaves the header without a count rather than
+  // blocking the diff itself.
+  const [commits, setCommits] = useState<BranchCommit[]>([])
+  useEffect(() => {
+    const branch = review?.branch
+    const baseSha = review?.baseSha
+    if (!branch || !baseSha || !projectId) return
+    let cancelled = false
+    void getGitLog({ path: { projectId }, query: { ref: branch, maxCount: 100 } })
+      .then(({ data }) => {
+        if (!cancelled && data) setCommits(commitsSinceBase(data.commits, baseSha))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [review?.branch, review?.baseSha, projectId])
+
+  const isWorking = reviewInProgress || verifying || requestingReview !== undefined
+  const wasWorking = useRef(false)
+  useEffect(() => {
+    if (isWorking) {
+      wasWorking.current = true
+      return
+    }
+    if (!wasWorking.current) return
+    wasWorking.current = false
+    setSentHandoff(
+      `The work finished and the evidence was re-filed at ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} — the chips above may have changed while you were reading.`,
+    )
+  }, [isWorking])
 
   if (loading) return null
   if (!artifact && error) {
@@ -272,10 +338,6 @@ export default function CliRunArtifactPanel({
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
-  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
-  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
-
   const changeFiles: ChangeFile[] = review
     ? (reviewDiff?.files ?? []).map(toChangeFile)
     : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
@@ -284,7 +346,7 @@ export default function CliRunArtifactPanel({
     screens: pairs.length,
     walkthroughs: recordings.length,
     reports: reports.length,
-    testChecks: testChecks.length,
+    testCount: testTotals?.total ?? 0,
     buildChecks: buildChecks.length,
     changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
   })
@@ -332,6 +394,21 @@ export default function CliRunArtifactPanel({
 
   // Only ever called for a row whose action is `run` — both call sites gate on
   // it — so every path here is the project's own verification pass.
+  // Every capture in the set, each named by its walkthrough position so the
+  // saved folder reads in the order the reviewer walked it.
+  const saveAllScreens = () => {
+    for (const pair of pairs) {
+      const stem = screenPairFileStem(pair)
+      if (pair.before?.dataUri) downloadDataUri(pair.before.dataUri, `${stem}-before.png`)
+      if (pair.after?.dataUri) downloadDataUri(pair.after.dataUri, `${stem}-after.png`)
+    }
+  }
+
+  const cancelReview = () => {
+    setCancelling(true)
+    void cancelWork().finally(() => setCancelling(false))
+  }
+
   const runMethod = () => {
     void verify()
   }
@@ -394,6 +471,15 @@ export default function CliRunArtifactPanel({
     <div className="mt-2 rounded-md border border-(--border-default) bg-(--surface-raised)">
       {/* Head — the run as a tool row: what, where, how long. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
+        {/* The head carries the verdict's colour too, so the run's state is
+            readable before the eye reaches the verdict line below. */}
+        <span
+          aria-hidden
+          className={`badge badge--bold badge--sm ${VERDICT_BADGE[headline.key]} justify-center p-0`}
+          style={{ width: 16, height: 16 }}
+        >
+          <span className="badge__dot" style={{ width: 6, height: 6 }} />
+        </span>
         <span className="text-[13px] font-semibold text-(--text-primary)">
           {artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </span>
@@ -428,255 +514,316 @@ export default function CliRunArtifactPanel({
       </div>
 
       <div className="flex flex-col gap-3 px-3 py-3">
-        {sentHandoff ? (
-          <div className="flex items-center gap-2 rounded-md border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-2.5 py-1.5 text-[12px] text-(--status-done-soft-fg)">
-            <span>{sentHandoff}</span>
-            <span className="flex-1" />
-            <button
-              type="button"
-              className="text-[11px] underline"
-              onClick={() => setSentHandoff(undefined)}
-            >
-              Dismiss
-            </button>
-          </div>
-        ) : null}
-
-        {/* Verdict — the chip and the sentence say the same thing. */}
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
-              <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
-              {headline.word}
-            </span>
-            <span className="text-[14px] font-semibold text-(--text-primary)">
-              {headline.title}
-            </span>
-          </div>
-          <p className="max-w-[64ch] text-[12px] text-(--text-secondary)">{headline.detail}</p>
-        </div>
-
         {openQuestions.length > 0 ? (
-          <div className="flex flex-col gap-2 rounded-md border border-(--accent-primary)/25 bg-(--accent-primary)/5 p-2">
-            <span className="text-[11px] font-medium text-(--text-secondary)">
-              {openQuestions.length === 1
-                ? 'The agent has a question'
-                : `The agent has ${openQuestions.length} questions`}
-            </span>
-            {openQuestions.map((q) => (
-              <div key={q.questionId} className="flex flex-col gap-1">
-                <span className="text-[12px] text-(--text-primary)">{q.question}</span>
-                <span className="text-[11px] text-(--text-secondary)">on {q.featureTitle}</span>
-                <div className="flex items-center gap-2">
-                  <Input
-                    size="sm"
-                    value={answers[q.questionId] ?? ''}
-                    placeholder="Your answer — this unblocks the feature"
-                    onChange={(e) =>
-                      setAnswers((prev) => ({ ...prev, [q.questionId]: e.target.value }))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') void submitAnswer(q)
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    disabled={
-                      answering === q.questionId ||
-                      (answers[q.questionId] ?? '').trim().length === 0
-                    }
-                    onClick={() => void submitAnswer(q)}
-                  >
-                    {answering === q.questionId ? 'Sending…' : 'Answer'}
-                  </Button>
+          <>
+            <p className="text-[12px] text-(--text-secondary)">
+              Sign-off is a final decision, so it waits until the agent has nothing left to settle.
+              Answer this and the review opens.
+            </p>
+            <div className="flex flex-col gap-2 rounded-md border border-(--accent-primary)/25 bg-(--accent-primary)/5 p-2">
+              <span className="text-[11px] font-medium text-(--text-secondary)">
+                {openQuestions.length === 1
+                  ? 'The agent has a question'
+                  : `The agent has ${openQuestions.length} questions`}
+              </span>
+              {openQuestions.map((q) => (
+                <div key={q.questionId} className="flex flex-col gap-1">
+                  <span className="text-[12px] text-(--text-primary)">{q.question}</span>
+                  <span className="text-[11px] text-(--text-secondary)">on {q.featureTitle}</span>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      size="sm"
+                      value={answers[q.questionId] ?? ''}
+                      placeholder="Your answer — this unblocks the feature"
+                      onChange={(e) =>
+                        setAnswers((prev) => ({ ...prev, [q.questionId]: e.target.value }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void submitAnswer(q)
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={
+                        answering === q.questionId ||
+                        (answers[q.questionId] ?? '').trim().length === 0
+                      }
+                      onClick={() => void submitAnswer(q)}
+                    >
+                      {answering === q.questionId ? 'Sending…' : 'Answer'}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {census ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                census.complete ? TONE_CHIP.positive : TONE_CHIP.warning
-              }`}
-            >
-              {census.label}
-            </span>
-            {storyIncomplete ? (
-              <span className="min-w-0 text-[11px] text-(--text-secondary)">{storyIncomplete}</span>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-            What was checked
-          </span>
-          <CheckChipRow
-            rows={methodRows}
-            branch={review?.branch}
-            busyId={busyMethod}
-            canRequest={onSendMessage !== undefined}
-            onOpenProof={setActiveTab}
-            onRun={runMethod}
-            onRequest={requestMethod}
-          />
-        </div>
-
-        {tabs.length > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
-            {currentTab === 'screens' ? (
-              <ScreensTab pairs={pairs} onOpen={setOpenPairKey} capturedLabel={capturedLabel} />
-            ) : currentTab === 'walkthrough' ? (
-              <WalkthroughTab projectId={projectId} recordings={recordings} />
-            ) : currentTab === 'tests' ? (
-              <ChecksTab
-                methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
-                checks={testChecks}
-                branch={review?.branch}
-                busyId={busyMethod}
-                canRequest={onSendMessage !== undefined}
-                onRun={runMethod}
-                onRequest={requestMethod}
-                emptyState={{
-                  title: 'This project has no tests at all.',
-                  body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
-                }}
-              />
-            ) : currentTab === 'build' ? (
-              <ChecksTab
-                methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
-                checks={buildChecks}
-                branch={review?.branch}
-                busyId={busyMethod}
-                canRequest={onSendMessage !== undefined}
-                onRun={runMethod}
-                onRequest={requestMethod}
-              />
-            ) : currentTab === 'report' ? (
-              <ReportTab reports={reports} />
-            ) : (
-              <ChangesTab
-                review={review}
-                files={changeFiles}
-                loading={review ? reviewLoading : previewLoading}
-                error={error}
-                onRetry={
-                  review && !reviewDiff && !reviewLoading
-                    ? () => void loadReviewDiff()
-                    : !review && !preview && !previewLoading
-                      ? () => void loadPreview()
-                      : undefined
-                }
-                onOpenGit={onOpenGit}
-              />
-            )}
-          </div>
-        ) : null}
-
-        {landing ? (
-          <div className={`rounded-md border px-2 py-1.5 text-[12px] ${TONE_CHIP.warning}`}>
-            <div className="font-medium">{landing.title}</div>
-            <div>
-              The agent produced changes but they were not committed to a review branch —{' '}
-              {landing.message}.
+              ))}
             </div>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Foot — the decision, or the work in flight that has replaced it. */}
-      <div className="flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2">
-        {decided ? (
-          <div className="flex flex-col gap-0.5">
-            <div className={`text-[12px] font-medium ${TONE_TEXT[decided.tone]}`}>
-              {decided.label} by {decided.byLabel}
-            </div>
-            {decided.notes ? (
-              <div className="wrap-break-word text-[12px] text-(--text-secondary)">
-                {decided.notes}
-              </div>
-            ) : null}
-          </div>
-        ) : working ? (
-          <WorkBar label={working} />
+          </>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              {notice ? (
-                <span className={`text-[12px] ${TONE_TEXT[notice.tone]}`}>{notice.message}</span>
-              ) : actionMode === 'actions' && isMerged ? (
-                <span className="text-[12px] text-(--text-secondary)">Merged into your branch</span>
-              ) : applyResultData ? (
-                <span className="text-[12px] text-(--text-secondary)">
-                  {applyResultData.added.length} added, {applyResultData.modified.length} modified,{' '}
-                  {applyResultData.deleted.length} deleted
-                  {applyResultData.errors.length > 0
-                    ? `, ${applyResultData.errors.length} failed`
-                    : ''}
+          <>
+            {sentHandoff ? (
+              <div className="flex items-center gap-2 rounded-md border border-(--status-done-soft-border) bg-(--status-done-soft-bg) px-2.5 py-1.5 text-[12px] text-(--status-done-soft-fg)">
+                <span>{sentHandoff}</span>
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  className="text-[11px] underline"
+                  onClick={() => setSentHandoff(undefined)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : null}
+
+            {/* Verdict — the chip and the sentence say the same thing. */}
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
+                  <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
+                  {headline.word}
                 </span>
-              ) : conflictCount > 0 && !isApplied ? (
-                <span className={`text-[12px] ${DANGER_TEXT}`}>
-                  {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
-                  local edits
+                <span className="text-[14px] font-semibold text-(--text-primary)">
+                  {headline.title}
                 </span>
-              ) : isApplied ? (
-                <span className="text-[12px] text-(--text-secondary)">Applied to project</span>
+              </div>
+              <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
+                {headline.detail}
+              </p>
+            </div>
+
+            {census ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    census.complete ? TONE_CHIP.positive : TONE_CHIP.warning
+                  }`}
+                >
+                  {census.label}
+                </span>
+                {storyIncomplete ? (
+                  <span className="min-w-0 text-[11px] text-(--text-secondary)">
+                    {storyIncomplete}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
+            <div className="relative flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+                What was checked
+              </span>
+              <CheckChipRow
+                rows={methodRows}
+                branch={review?.branch}
+                busyId={busyMethod}
+                canRequest={onSendMessage !== undefined}
+                onOpenProof={setActiveTab}
+                onRun={runMethod}
+                onRequest={requestMethod}
+              />
+              {pendingHandoff ? (
+                // Anchored under the chips rather than centred over the panel:
+                // the confirm is asking about evidence that must stay readable
+                // while it is answered.
+                <div className="absolute left-0 top-full z-40 mt-2 flex w-[322px] max-w-[80vw] flex-col gap-2.5 rounded-lg border border-(--border-default) bg-(--surface-overlay) p-3 shadow-lg">
+                  <h4 className="m-0 text-[13px] font-semibold text-(--text-primary)">
+                    {pendingHandoff.request.title}
+                  </h4>
+                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                    {pendingHandoff.request.facts.map((fact) => (
+                      <div key={fact.label} className="contents">
+                        <dt className="text-(--text-muted)">{fact.label}</dt>
+                        <dd className="m-0 text-(--text-secondary)">{fact.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="m-0 text-[12px] text-(--text-muted)">
+                    {pendingHandoff.request.caveat}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={confirmHandoff}>
+                      Start
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setPendingHandoff(undefined)}>
+                      Not now
+                    </Button>
+                    <span className="ml-auto text-[11px] text-(--text-muted)">
+                      no “always allow”
+                    </span>
+                  </div>
+                </div>
               ) : null}
             </div>
 
-            {actionMode === 'actions' ? (
-              <DecisionBar
-                earned={earned}
-                approveDisabledReason={approveDisabledReason}
-                busy={busy}
-                isMerged={isMerged}
-                requestingChanges={requestingChanges}
-                rejecting={rejecting}
-                onApprove={setPendingApprove}
-                onRequestChanges={() => openReason('changes-requested')}
-                onReject={() => openReason('rejected')}
-              />
-            ) : actionMode === 'apply' && artifact ? (
-              <Button
-                size="sm"
-                onClick={() => void apply()}
-                disabled={applying || isApplied || !preview}
-              >
-                {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
-              </Button>
+            {tabs.length > 0 ? (
+              <div className="flex flex-col gap-2.5">
+                <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
+                {currentTab === 'screens' ? (
+                  <ScreensTab
+                    pairs={pairs}
+                    onOpen={setOpenPairKey}
+                    capturedLabel={capturedLabel}
+                    onSaveAll={pairs.length > 0 ? saveAllScreens : undefined}
+                  />
+                ) : currentTab === 'walkthrough' ? (
+                  <WalkthroughTab projectId={projectId} recordings={recordings} />
+                ) : currentTab === 'tests' ? (
+                  <ChecksTab
+                    methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
+                    checks={testChecks}
+                    branch={review?.branch}
+                    busyId={busyMethod}
+                    canRequest={onSendMessage !== undefined}
+                    onRun={runMethod}
+                    onRequest={requestMethod}
+                    emptyState={{
+                      title: 'This project has no tests at all.',
+                      body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
+                    }}
+                  />
+                ) : currentTab === 'build' ? (
+                  <ChecksTab
+                    methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
+                    checks={buildChecks}
+                    branch={review?.branch}
+                    busyId={busyMethod}
+                    canRequest={onSendMessage !== undefined}
+                    onRun={runMethod}
+                    onRequest={requestMethod}
+                  />
+                ) : currentTab === 'report' ? (
+                  <ReportTab reports={reports} />
+                ) : (
+                  <ChangesTab
+                    review={review}
+                    files={changeFiles}
+                    commits={commits}
+                    loading={review ? reviewLoading : previewLoading}
+                    error={error}
+                    onRetry={
+                      review && !reviewDiff && !reviewLoading
+                        ? () => void loadReviewDiff()
+                        : !review && !preview && !previewLoading
+                          ? () => void loadPreview()
+                          : undefined
+                    }
+                    onOpenGit={onOpenGit}
+                  />
+                )}
+              </div>
             ) : null}
-          </div>
-        )}
 
-        {reasonFor ? (
-          <div className="flex items-center gap-2">
-            <Input
-              size="sm"
-              autoFocus
-              value={reason}
-              placeholder={
-                reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
-              }
-              onChange={(e) => setReason(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submitReason()
-                if (e.key === 'Escape') setReasonFor(undefined)
-              }}
-            />
-            <Button size="sm" onClick={submitReason} disabled={!reasonValid || busy}>
-              {reasonFor === 'rejected' ? 'Reject' : 'Send'}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => setReasonFor(undefined)}>
-              Cancel
-            </Button>
-          </div>
-        ) : null}
+            {landing ? (
+              <div className={`rounded-md border px-2 py-1.5 text-[12px] ${TONE_CHIP.warning}`}>
+                <div className="font-medium">{landing.title}</div>
+                <div>
+                  The agent produced changes but they were not committed to a review branch —{' '}
+                  {landing.message}.
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
+
+      {/* Foot — the decision, or the work in flight that has replaced it.
+          Hidden while a question is open: sign-off is final, so it must not be
+          reachable until the agent has nothing left to settle. */}
+      {openQuestions.length === 0 ? (
+        <div className="flex flex-col gap-2 border-t border-(--border-subtle) px-3 py-2">
+          {decided ? (
+            <div className="flex flex-col gap-0.5">
+              <div className={`text-[12px] font-medium ${TONE_TEXT[decided.tone]}`}>
+                {decided.label} by {decided.byLabel}
+              </div>
+              {decided.notes ? (
+                <div className="wrap-break-word text-[12px] text-(--text-secondary)">
+                  {decided.notes}
+                </div>
+              ) : null}
+            </div>
+          ) : working ? (
+            <WorkBar
+              label={working}
+              startedAtMs={startedAtMs}
+              onCancel={reviewInProgress ? cancelReview : undefined}
+              cancelling={cancelling}
+            />
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {notice ? (
+                  <span className={`text-[12px] ${TONE_TEXT[notice.tone]}`}>{notice.message}</span>
+                ) : actionMode === 'actions' && isMerged ? (
+                  <span className="text-[12px] text-(--text-secondary)">
+                    Merged into your branch
+                  </span>
+                ) : applyResultData ? (
+                  <span className="text-[12px] text-(--text-secondary)">
+                    {applyResultData.added.length} added, {applyResultData.modified.length}{' '}
+                    modified, {applyResultData.deleted.length} deleted
+                    {applyResultData.errors.length > 0
+                      ? `, ${applyResultData.errors.length} failed`
+                      : ''}
+                  </span>
+                ) : conflictCount > 0 && !isApplied ? (
+                  <span className={`text-[12px] ${DANGER_TEXT}`}>
+                    {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
+                    local edits
+                  </span>
+                ) : isApplied ? (
+                  <span className="text-[12px] text-(--text-secondary)">Applied to project</span>
+                ) : null}
+              </div>
+
+              {actionMode === 'actions' ? (
+                <DecisionBar
+                  earned={earned}
+                  approveDisabledReason={approveDisabledReason}
+                  busy={busy}
+                  isMerged={isMerged}
+                  requestingChanges={requestingChanges}
+                  rejecting={rejecting}
+                  onApprove={setPendingApprove}
+                  onRequestChanges={() => openReason('changes-requested')}
+                  onReject={() => openReason('rejected')}
+                />
+              ) : actionMode === 'apply' && artifact ? (
+                <Button
+                  size="sm"
+                  onClick={() => void apply()}
+                  disabled={applying || isApplied || !preview}
+                >
+                  {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
+                </Button>
+              ) : null}
+            </div>
+          )}
+
+          {reasonFor ? (
+            <div className="flex items-center gap-2">
+              <Input
+                size="sm"
+                autoFocus
+                value={reason}
+                placeholder={
+                  reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
+                }
+                onChange={(e) => setReason(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitReason()
+                  if (e.key === 'Escape') setReasonFor(undefined)
+                }}
+              />
+              <Button size="sm" onClick={submitReason} disabled={!reasonValid || busy}>
+                {reasonFor === 'rejected' ? 'Reject' : 'Send'}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setReasonFor(undefined)}>
+                Cancel
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {applyResultData && applyResultData.errors.length > 0 ? (
         <div className={`border-t border-(--border-subtle) px-3 py-2 text-[12px] ${DANGER_TEXT}`}>
@@ -741,36 +888,6 @@ export default function CliRunArtifactPanel({
                 }}
               >
                 {approving ? 'Working…' : pendingApprove.confirmLabel}
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
-
-      {pendingHandoff ? (
-        <Modal
-          isOpen
-          onClose={() => setPendingHandoff(undefined)}
-          title={pendingHandoff.request.title}
-          size="sm"
-        >
-          <div className="flex flex-col gap-3">
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
-              {pendingHandoff.request.facts.map((fact) => (
-                <div key={fact.label} className="contents">
-                  <dt className="text-(--text-muted)">{fact.label}</dt>
-                  <dd className="m-0 text-(--text-secondary)">{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="text-[12px] text-(--text-muted)">{pendingHandoff.request.caveat}</p>
-            <div className="flex items-center justify-end gap-2">
-              <span className="mr-auto text-[11px] text-(--text-muted)">no “always allow”</span>
-              <Button variant="ghost" size="sm" onClick={() => setPendingHandoff(undefined)}>
-                Not now
-              </Button>
-              <Button size="sm" onClick={confirmHandoff} disabled={!onSendMessage}>
-                Start
               </Button>
             </div>
           </div>

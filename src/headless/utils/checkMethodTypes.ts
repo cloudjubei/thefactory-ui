@@ -2,7 +2,7 @@ import type { ReviewTone } from './runReviewTypes'
 
 /**
  * The fixed vocabulary of ways a change can be checked. A reviewer learns these
- * nine once and then reads any run at a glance — so the set is closed here, not
+ * ten once and then reads any run at a glance — so the set is closed here, not
  * grown per project.
  */
 export type CheckMethodId =
@@ -15,6 +15,8 @@ export type CheckMethodId =
   | 'screens'
   | 'walkthrough'
   | 'report'
+  /** Was the code diff itself actually read by a reviewer? */
+  | 'diff'
 
 /**
  * Four states. Two of them are ABSENCE and must never read as a verdict:
@@ -97,7 +99,8 @@ export type ReviewTabsInput = {
   screens: number
   walkthroughs: number
   reports: number
-  testChecks: number
+  /** How many TESTS ran (not how many test layers) — the number the badge shows. */
+  testCount: number
   buildChecks: number
   /** `undefined` while the diff is unknown; 0 is a real answer. */
   changedFiles: number | undefined

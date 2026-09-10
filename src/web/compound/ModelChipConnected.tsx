@@ -33,6 +33,14 @@ export type ModelChipConnectedProps = {
   apiOnly?: boolean
   /** Hover callout for the disabled CLI segment when {@link apiOnly}; falls back to a default. */
   apiOnlyReason?: string
+  /**
+   * Run the chip as a CHOOSER for something else — a run about to start —
+   * rather than as the chat's own binding: it seeds from the chat, shows
+   * `overrideModel`, and reports picks through `onOverrideModel` without ever
+   * changing what the conversation runs on.
+   */
+  overrideModel?: string | undefined
+  onOverrideModel?: (modelId: string) => void
 }
 
 const ACTIVITY_API_ONLY_REASON =
@@ -60,9 +68,15 @@ type ModelChipLlmWiring = {
 function ModelChipWithCli({
   chatContext,
   llm,
+  overrideModel,
+  onOverrideModel,
 }: {
   chatContext: ChatContext
   llm: ModelChipLlmWiring
+  /** Show THIS model instead of the chat's, without changing the chat. */
+  overrideModel?: string | undefined
+  /** Picking a model calls this instead of re-binding the chat's runner. */
+  onOverrideModel?: (modelId: string) => void
 }) {
   const {
     enabledClis,
@@ -93,8 +107,10 @@ function ModelChipWithCli({
 
   const useCli = !!cliRunner
   const selectedCli = cliRunner?.tool ?? activeCli ?? null
+  // In override mode the chip is a chooser for something ELSE (a run about to
+  // start), so it seeds from the chat but never writes back to it.
   const selectedCliModelId =
-    cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
+    overrideModel ?? cliRunner?.model ?? (selectedCli ? defaultModel[selectedCli] : undefined)
   const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
   const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
   // No UI path binds an `apiKeyCredentialId` to a CLI runner yet, so this is
@@ -181,6 +197,13 @@ function ModelChipWithCli({
   const onPickCliModel = useCallback(
     (modelId: string) => {
       if (!selectedCli) return
+      // Override mode: hand the pick to the caller. Re-binding the chat here
+      // would change the agent the CONVERSATION runs on, which is not what
+      // choosing a model for one piece of work means.
+      if (onOverrideModel) {
+        onOverrideModel(modelId)
+        return
+      }
       void attach({
         tool: selectedCli,
         credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
@@ -190,7 +213,7 @@ function ModelChipWithCli({
         execMode: cliRunner?.execMode,
       })
     },
-    [selectedCli, cliRunner, credentialForCli, effort, attach],
+    [selectedCli, cliRunner, credentialForCli, effort, attach, onOverrideModel],
   )
 
   // Resident mode keeps one long-lived CLI process per chat (fast multi-turn,
@@ -361,6 +384,8 @@ export default function ModelChipConnected({
   chatContext,
   apiOnly,
   apiOnlyReason,
+  overrideModel,
+  onOverrideModel,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -472,7 +497,14 @@ export default function ModelChipConnected({
   }
 
   if (chatContext) {
-    return <ModelChipWithCli chatContext={chatContext} llm={llm} />
+    return (
+      <ModelChipWithCli
+        chatContext={chatContext}
+        llm={llm}
+        overrideModel={overrideModel}
+        {...(onOverrideModel ? { onOverrideModel } : {})}
+      />
+    )
   }
 
   if (mode === 'activity') {

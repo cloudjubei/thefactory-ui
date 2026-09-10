@@ -52,3 +52,36 @@
   width: 0;
   height: 0;
 }
+
+/* Strip scroll arrows. Shown wherever there is a POINTER that can hover — a
+ * narrow desktop window still overflows and still has a mouse, so a viewport
+ * breakpoint hid the controls exactly where they were needed. Touch gets the
+ * swipe instead. */
+.strip-nav {
+  display: grid;
+}
+@media (hover: none) {
+  .strip-nav {
+    display: none;
+  }
+}
+
+/* A deleted turn leaves rather than vanishing: the rows are already gone from
+ * the model the instant the click lands, and the slide is what makes that read
+ * as "removed" rather than as a glitch. Motion-safe only. */
+@keyframes chat-turn-leave {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 60vh;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+    max-height: 0;
+  }
+}
+.animate-chat-turn-leave {
+  overflow: hidden;
+  animation: chat-turn-leave 180ms ease-in forwards;
+}

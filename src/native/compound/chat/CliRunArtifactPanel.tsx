@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
-import { answerFeatureQuestion } from '../../../headless/api'
+import { answerFeatureQuestion, getGitLog } from '../../../headless/api'
 import {
+  aggregateTestCounts,
   approveActionDescriptors,
   censusFeatures,
   checkMethodRows,
@@ -20,6 +21,8 @@ import {
   reviewChangeCounts,
   reviewTabs,
   runReviewFacts,
+  commitsSinceBase,
+  screenPairFileStem,
   screenPairs,
   signoffVerdict,
   useCliRunArtifact,
@@ -32,6 +35,7 @@ import {
   type CheckMethodRow,
   type HandoffPurpose,
   type HandoffRequest,
+  type BranchCommit,
   type ReviewTabId,
 } from '../../../headless'
 import { nativeAlpha, nativeRadii } from '../../../tokens/native'
@@ -40,6 +44,7 @@ import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
+import Tooltip from '../../primitives/Tooltip'
 import RefChip from '../chips/RefChip'
 import {
   ChangesTab,
@@ -50,6 +55,7 @@ import {
   DurationPill,
   ReportTab,
   ReviewTabBar,
+  RunModelChip,
   ScreensTab,
   VerdictBadge,
   WalkthroughTab,
@@ -145,6 +151,9 @@ export default function CliRunArtifactPanel({
     reviewInProgress,
     storyId,
     landFailure,
+    runModel,
+    cancelWork,
+    startedAtMs,
     costUSD,
     durationMs,
     loading,
@@ -192,6 +201,7 @@ export default function CliRunArtifactPanel({
   const [sentHandoff, setSentHandoff] = useState<string | undefined>()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
+  const [cancelling, setCancelling] = useState(false)
   const { getStory } = useStories()
   const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
 
@@ -224,6 +234,10 @@ export default function CliRunArtifactPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
+  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
+  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
+
   const methodRows = useMemo(
     () =>
       checkMethodRows({
@@ -234,8 +248,13 @@ export default function CliRunArtifactPanel({
     [verification, verificationApproaches, evidence.refs],
   )
   const headline = useMemo(
-    () => signoffVerdict({ rows: methodRows, verified: verification !== undefined }),
-    [methodRows, verification],
+    () =>
+      signoffVerdict({
+        rows: methodRows,
+        verified: verification !== undefined,
+        ...(storyIncomplete ? { storyIncomplete } : {}),
+      }),
+    [methodRows, verification, storyIncomplete],
   )
   const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
@@ -243,8 +262,48 @@ export default function CliRunArtifactPanel({
   const reports = evidence.tiles.filter((t) => t.ref.kind === 'report')
   const checkRows = verificationCheckRows(verification)
   const testChecks = checkRows.filter((c) => c.kind === 'tests')
+  // The Tests badge counts TESTS, not layers — the number comes out of each
+  // layer's own summary line.
+  const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
   const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
   const dangerText = toneText('danger', theme)
+
+  // The completion moment: the evidence changes underneath the reader. Say so in
+  // a line at the top rather than yanking them anywhere — the chips above may
+  // have moved while they were reading. ABOVE the early returns: a hook that
+  // runs on only some renders is the "rendered more hooks" crash.
+  // The branch's own commits, for the Changes header. Loaded once the diff is
+  // being shown; a failure leaves the header without a count rather than
+  // blocking the diff itself.
+  const [commits, setCommits] = useState<BranchCommit[]>([])
+  useEffect(() => {
+    const branch = review?.branch
+    const baseSha = review?.baseSha
+    if (!branch || !baseSha || !projectId) return
+    let cancelled = false
+    void getGitLog({ path: { projectId }, query: { ref: branch, maxCount: 100 } })
+      .then(({ data }) => {
+        if (!cancelled && data) setCommits(commitsSinceBase(data.commits, baseSha))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [review?.branch, review?.baseSha, projectId])
+
+  const isWorking = reviewInProgress || verifying || requestingReview !== undefined
+  const wasWorking = useRef(false)
+  useEffect(() => {
+    if (isWorking) {
+      wasWorking.current = true
+      return
+    }
+    if (!wasWorking.current) return
+    wasWorking.current = false
+    setSentHandoff(
+      `The work finished and the evidence was re-filed at ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} — the chips above may have changed while you were reading.`,
+    )
+  }, [isWorking])
 
   if (loading) return null
   if (!artifact && error) {
@@ -273,10 +332,6 @@ export default function CliRunArtifactPanel({
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
-  const storyIncomplete = census ? incompleteStoryReason(census) : undefined
-  const openQuestions = storyId ? openFeatureQuestions(getStory(storyId)?.features ?? []) : []
-
   const changeFiles: ChangeFile[] = review
     ? (reviewDiff?.files ?? []).map(toChangeFile)
     : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
@@ -285,7 +340,7 @@ export default function CliRunArtifactPanel({
     screens: pairs.length,
     walkthroughs: recordings.length,
     reports: reports.length,
-    testChecks: testChecks.length,
+    testCount: testTotals?.total ?? 0,
     buildChecks: buildChecks.length,
     changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
   })
@@ -332,6 +387,13 @@ export default function CliRunArtifactPanel({
     storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
 
   const warning = toneChip('warning', theme, status)
+  const headMarker =
+    headline.key === 'proven'
+      ? status.done
+      : headline.key === 'failed'
+        ? status.stuck
+        : status.review
+
   const censusLook = census
     ? toneChip(census.complete ? 'positive' : 'warning', theme, status)
     : undefined
@@ -339,6 +401,24 @@ export default function CliRunArtifactPanel({
 
   // Only ever called for a row whose action is `run` — both call sites gate on
   // it — so every path here is the project's own verification pass.
+  // Every capture in the set, each named by its walkthrough position so the
+  // saved folder reads in the order the reviewer walked it.
+  const saveAllScreens = () => {
+    if (!onSaveFile) return
+    for (const pair of pairs) {
+      const stem = screenPairFileStem(pair)
+      if (pair.before?.dataUri)
+        void onSaveFile({ name: `${stem}-before.png`, dataUri: pair.before.dataUri })
+      if (pair.after?.dataUri)
+        void onSaveFile({ name: `${stem}-after.png`, dataUri: pair.after.dataUri })
+    }
+  }
+
+  const cancelReview = () => {
+    setCancelling(true)
+    void cancelWork().finally(() => setCancelling(false))
+  }
+
   const runMethod = () => {
     void verify()
   }
@@ -421,13 +501,43 @@ export default function CliRunArtifactPanel({
           borderBottomColor: theme.border.subtle,
         }}
       >
+        {/* The head carries the verdict's colour too, so the run's state is
+            readable before the eye reaches the verdict line below. */}
+        <View
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: nativeRadii.round,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: headMarker.bg,
+          }}
+        >
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: nativeRadii.round,
+              backgroundColor: headMarker.fg,
+            }}
+          />
+        </View>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
           {artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </Text>
-        {review ? <RefChip kind="branch" value={review.branch} /> : null}
-        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-          {`${files.length} file${files.length === 1 ? '' : 's'}`}
-        </Text>
+        {review ? (
+          <Tooltip
+            content={
+              <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
+                The review branch — every commit this run made lives here. Your own branch is
+                untouched until you approve.
+              </Text>
+            }
+          >
+            <RefChip kind="branch" value={review.branch} />
+          </Tooltip>
+        ) : null}
+        <RunModelChip model={runModel} />
         {facts.costLabel ? (
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>{facts.costLabel}</Text>
         ) : null}
@@ -459,297 +569,329 @@ export default function CliRunArtifactPanel({
           </View>
         ) : null}
 
-        {/* Verdict — the chip and the sentence say the same thing. */}
-        <View style={{ gap: 4 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            <VerdictBadge verdict={headline} />
-            <Text
-              style={{ flexShrink: 1, fontSize: 14, fontWeight: '600', color: theme.text.primary }}
-            >
-              {headline.title}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{headline.detail}</Text>
-        </View>
-
         {openQuestions.length > 0 ? (
-          <View
-            style={{
-              gap: 8,
-              padding: 8,
-              borderRadius: nativeRadii[2],
-              borderWidth: 1,
-              borderColor: nativeAlpha(theme.accent.primary, 0.25),
-              backgroundColor: nativeAlpha(theme.accent.primary, 0.05),
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
-              {openQuestions.length === 1
-                ? 'The agent has a question'
-                : `The agent has ${openQuestions.length} questions`}
+          <>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              Sign-off is a final decision, so it waits until the agent has nothing left to settle.
+              Answer this and the review opens.
             </Text>
-            {openQuestions.map((q) => (
-              <View key={q.questionId} style={{ gap: 4 }}>
-                <Text style={{ fontSize: 12, color: theme.text.primary }}>{q.question}</Text>
-                <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                  {`on ${q.featureTitle}`}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Input
-                      size="sm"
-                      value={answers[q.questionId] ?? ''}
-                      placeholder="Your answer — this unblocks the feature"
-                      onChangeText={(text) =>
-                        setAnswers((prev) => ({ ...prev, [q.questionId]: text }))
-                      }
-                      onSubmitEditing={() => void submitAnswer(q)}
-                    />
-                  </View>
-                  <Button
-                    size="sm"
-                    disabled={
-                      answering === q.questionId ||
-                      (answers[q.questionId] ?? '').trim().length === 0
-                    }
-                    onPress={() => void submitAnswer(q)}
-                  >
-                    {answering === q.questionId ? 'Sending…' : 'Answer'}
-                  </Button>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {census && censusLook ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <View
               style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: nativeRadii.round,
+                gap: 8,
+                padding: 8,
+                borderRadius: nativeRadii[2],
                 borderWidth: 1,
-                borderColor: censusLook.border,
-                backgroundColor: censusLook.bg,
+                borderColor: nativeAlpha(theme.accent.primary, 0.25),
+                backgroundColor: nativeAlpha(theme.accent.primary, 0.05),
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: '500', color: censusLook.fg }}>
-                {census.label}
+              <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.secondary }}>
+                {openQuestions.length === 1
+                  ? 'The agent has a question'
+                  : `The agent has ${openQuestions.length} questions`}
               </Text>
+              {openQuestions.map((q) => (
+                <View key={q.questionId} style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 12, color: theme.text.primary }}>{q.question}</Text>
+                  <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                    {`on ${q.featureTitle}`}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Input
+                        size="sm"
+                        value={answers[q.questionId] ?? ''}
+                        placeholder="Your answer — this unblocks the feature"
+                        onChangeText={(text) =>
+                          setAnswers((prev) => ({ ...prev, [q.questionId]: text }))
+                        }
+                        onSubmitEditing={() => void submitAnswer(q)}
+                      />
+                    </View>
+                    <Button
+                      size="sm"
+                      disabled={
+                        answering === q.questionId ||
+                        (answers[q.questionId] ?? '').trim().length === 0
+                      }
+                      onPress={() => void submitAnswer(q)}
+                    >
+                      {answering === q.questionId ? 'Sending…' : 'Answer'}
+                    </Button>
+                  </View>
+                </View>
+              ))}
             </View>
-            {storyIncomplete ? (
-              <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.secondary }}>
-                {storyIncomplete}
-              </Text>
+          </>
+        ) : (
+          <>
+            {/* Verdict — the chip and the sentence say the same thing. */}
+            <View style={{ gap: 4 }}>
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}
+              >
+                <VerdictBadge verdict={headline} />
+                <Text
+                  style={{
+                    flexShrink: 1,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: theme.text.primary,
+                  }}
+                >
+                  {headline.title}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>{headline.detail}</Text>
+            </View>
+
+            {census && censusLook ? (
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}
+              >
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: nativeRadii.round,
+                    borderWidth: 1,
+                    borderColor: censusLook.border,
+                    backgroundColor: censusLook.bg,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '500', color: censusLook.fg }}>
+                    {census.label}
+                  </Text>
+                </View>
+                {storyIncomplete ? (
+                  <Text style={{ flexShrink: 1, fontSize: 11, color: theme.text.secondary }}>
+                    {storyIncomplete}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
-          </View>
-        ) : null}
 
-        {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
-        <View style={{ gap: 6 }}>
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-              color: theme.text.muted,
-            }}
-          >
-            What was checked
-          </Text>
-          <CheckChipRow
-            rows={methodRows}
-            branch={review?.branch}
-            busyId={busyMethod}
-            canRequest={onSendMessage !== undefined}
-            onOpenProof={setActiveTab}
-            onRun={runMethod}
-            onRequest={requestMethod}
-          />
-        </View>
-
-        {tabs.length > 0 ? (
-          <View style={{ gap: 10 }}>
-            <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
-            {currentTab === 'screens' ? (
-              <ScreensTab pairs={pairs} onOpen={setOpenPairKey} capturedLabel={capturedLabel} />
-            ) : currentTab === 'walkthrough' ? (
-              <WalkthroughTab recordings={recordings} />
-            ) : currentTab === 'tests' ? (
-              <ChecksTab
-                methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
-                checks={testChecks}
-                branch={review?.branch}
-                busyId={busyMethod}
-                canRequest={onSendMessage !== undefined}
-                onRun={runMethod}
-                onRequest={requestMethod}
-                emptyState={{
-                  title: 'This project has no tests at all.',
-                  body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
+            {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
+            <View style={{ gap: 6 }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: '600',
+                  letterSpacing: 0.8,
+                  textTransform: 'uppercase',
+                  color: theme.text.muted,
                 }}
-              />
-            ) : currentTab === 'build' ? (
-              <ChecksTab
-                methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
-                checks={buildChecks}
+              >
+                What was checked
+              </Text>
+              <CheckChipRow
+                rows={methodRows}
                 branch={review?.branch}
                 busyId={busyMethod}
                 canRequest={onSendMessage !== undefined}
+                onOpenProof={setActiveTab}
                 onRun={runMethod}
                 onRequest={requestMethod}
               />
-            ) : currentTab === 'report' ? (
-              <ReportTab reports={reports} onSaveFile={onSaveFile} />
-            ) : (
-              <ChangesTab
-                review={review}
-                files={changeFiles}
-                loading={review ? reviewLoading : previewLoading}
-                error={error}
-                onRetry={
-                  review && !reviewDiff && !reviewLoading
-                    ? () => void loadReviewDiff()
-                    : !review && !preview && !previewLoading
-                      ? () => void loadPreview()
-                      : undefined
-                }
-                onOpenGit={onOpenGit}
-              />
-            )}
-          </View>
-        ) : null}
+            </View>
 
-        {landing ? (
-          <View
-            style={{
-              gap: 2,
-              borderRadius: nativeRadii[2],
-              borderWidth: 1,
-              borderColor: warning.border,
-              backgroundColor: warning.bg,
-              paddingHorizontal: 8,
-              paddingVertical: 6,
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '500', color: warning.fg }}>
-              {landing.title}
-            </Text>
-            <Text style={{ fontSize: 12, color: warning.fg }}>
-              {`The agent produced changes but they were not committed to a review branch — ${landing.message}.`}
-            </Text>
-          </View>
-        ) : null}
+            {tabs.length > 0 ? (
+              <View style={{ gap: 10 }}>
+                <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
+                {currentTab === 'screens' ? (
+                  <ScreensTab
+                    pairs={pairs}
+                    onOpen={setOpenPairKey}
+                    capturedLabel={capturedLabel}
+                    onSaveAll={onSaveFile && pairs.length > 0 ? saveAllScreens : undefined}
+                  />
+                ) : currentTab === 'walkthrough' ? (
+                  <WalkthroughTab recordings={recordings} />
+                ) : currentTab === 'tests' ? (
+                  <ChecksTab
+                    methods={methodRows.filter((r) => TEST_METHODS.includes(r.id))}
+                    checks={testChecks}
+                    branch={review?.branch}
+                    busyId={busyMethod}
+                    canRequest={onSendMessage !== undefined}
+                    onRun={runMethod}
+                    onRequest={requestMethod}
+                    emptyState={{
+                      title: 'This project has no tests at all.',
+                      body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
+                    }}
+                  />
+                ) : currentTab === 'build' ? (
+                  <ChecksTab
+                    methods={methodRows.filter((r) => BUILD_METHODS.includes(r.id))}
+                    checks={buildChecks}
+                    branch={review?.branch}
+                    busyId={busyMethod}
+                    canRequest={onSendMessage !== undefined}
+                    onRun={runMethod}
+                    onRequest={requestMethod}
+                  />
+                ) : currentTab === 'report' ? (
+                  <ReportTab reports={reports} onSaveFile={onSaveFile} />
+                ) : (
+                  <ChangesTab
+                    review={review}
+                    files={changeFiles}
+                    commits={commits}
+                    loading={review ? reviewLoading : previewLoading}
+                    error={error}
+                    onRetry={
+                      review && !reviewDiff && !reviewLoading
+                        ? () => void loadReviewDiff()
+                        : !review && !preview && !previewLoading
+                          ? () => void loadPreview()
+                          : undefined
+                    }
+                    onOpenGit={onOpenGit}
+                  />
+                )}
+              </View>
+            ) : null}
+
+            {landing ? (
+              <View
+                style={{
+                  gap: 2,
+                  borderRadius: nativeRadii[2],
+                  borderWidth: 1,
+                  borderColor: warning.border,
+                  backgroundColor: warning.bg,
+                  paddingHorizontal: 8,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '500', color: warning.fg }}>
+                  {landing.title}
+                </Text>
+                <Text style={{ fontSize: 12, color: warning.fg }}>
+                  {`The agent produced changes but they were not committed to a review branch — ${landing.message}.`}
+                </Text>
+              </View>
+            ) : null}
+          </>
+        )}
       </View>
 
       {/* Foot — the decision, or the work in flight that has replaced it. */}
-      <View
-        style={{
-          gap: 8,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
-        }}
-      >
-        {decided ? (
-          <View style={{ gap: 2 }}>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: toneText(decided.tone, theme) }}>
-              {`${decided.label} by ${decided.byLabel}`}
-            </Text>
-            {decided.notes ? (
-              <Text style={{ fontSize: 12, color: theme.text.secondary }}>{decided.notes}</Text>
-            ) : null}
-          </View>
-        ) : working ? (
-          <WorkBar label={working} />
-        ) : (
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-            }}
-          >
-            <View style={{ flexShrink: 1, minWidth: 0 }}>
-              {notice ? (
-                <Text style={{ fontSize: 12, color: toneText(notice.tone, theme) }}>
-                  {notice.message}
-                </Text>
-              ) : actionMode === 'actions' && isMerged ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                  Merged into your branch
-                </Text>
-              ) : applyResultData ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                  {`${applyResultData.added.length} added, ${applyResultData.modified.length} modified, ${applyResultData.deleted.length} deleted${
-                    applyResultData.errors.length > 0
-                      ? `, ${applyResultData.errors.length} failed`
-                      : ''
-                  }`}
-                </Text>
-              ) : conflictCount > 0 && !isApplied ? (
-                <Text style={{ fontSize: 12, color: dangerText }}>
-                  {`${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — applying overwrites local edits`}
-                </Text>
-              ) : isApplied ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                  Applied to project
-                </Text>
+      {openQuestions.length === 0 ? (
+        <View
+          style={{
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+          }}
+        >
+          {decided ? (
+            <View style={{ gap: 2 }}>
+              <Text
+                style={{ fontSize: 12, fontWeight: '500', color: toneText(decided.tone, theme) }}
+              >
+                {`${decided.label} by ${decided.byLabel}`}
+              </Text>
+              {decided.notes ? (
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>{decided.notes}</Text>
               ) : null}
             </View>
+          ) : working ? (
+            <WorkBar
+              label={working}
+              startedAtMs={startedAtMs}
+              onCancel={reviewInProgress ? cancelReview : undefined}
+              cancelling={cancelling}
+            />
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <View style={{ flexShrink: 1, minWidth: 0 }}>
+                {notice ? (
+                  <Text style={{ fontSize: 12, color: toneText(notice.tone, theme) }}>
+                    {notice.message}
+                  </Text>
+                ) : actionMode === 'actions' && isMerged ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    Merged into your branch
+                  </Text>
+                ) : applyResultData ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    {`${applyResultData.added.length} added, ${applyResultData.modified.length} modified, ${applyResultData.deleted.length} deleted${
+                      applyResultData.errors.length > 0
+                        ? `, ${applyResultData.errors.length} failed`
+                        : ''
+                    }`}
+                  </Text>
+                ) : conflictCount > 0 && !isApplied ? (
+                  <Text style={{ fontSize: 12, color: dangerText }}>
+                    {`${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — applying overwrites local edits`}
+                  </Text>
+                ) : isApplied ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    Applied to project
+                  </Text>
+                ) : null}
+              </View>
 
-            {actionMode === 'actions' ? (
-              <DecisionBar
-                earned={earned}
-                approveDisabledReason={approveDisabledReason}
-                busy={busy}
-                isMerged={isMerged}
-                requestingChanges={requestingChanges}
-                rejecting={rejecting}
-                onApprove={setPendingApprove}
-                onRequestChanges={() => openReason('changes-requested')}
-                onReject={() => openReason('rejected')}
-              />
-            ) : actionMode === 'apply' && artifact ? (
-              <Button
-                size="sm"
-                onPress={() => void apply()}
-                disabled={applying || isApplied || !preview}
-              >
-                {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
-              </Button>
-            ) : null}
-          </View>
-        )}
-
-        {reasonFor ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Input
-                size="sm"
-                autoFocus
-                value={reason}
-                placeholder={
-                  reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
-                }
-                onChangeText={setReason}
-                onSubmitEditing={submitReason}
-              />
+              {actionMode === 'actions' ? (
+                <DecisionBar
+                  earned={earned}
+                  approveDisabledReason={approveDisabledReason}
+                  busy={busy}
+                  isMerged={isMerged}
+                  requestingChanges={requestingChanges}
+                  rejecting={rejecting}
+                  onApprove={setPendingApprove}
+                  onRequestChanges={() => openReason('changes-requested')}
+                  onReject={() => openReason('rejected')}
+                />
+              ) : actionMode === 'apply' && artifact ? (
+                <Button
+                  size="sm"
+                  onPress={() => void apply()}
+                  disabled={applying || isApplied || !preview}
+                >
+                  {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
+                </Button>
+              ) : null}
             </View>
-            <Button size="sm" onPress={submitReason} disabled={!reasonValid || busy}>
-              {reasonFor === 'rejected' ? 'Reject' : 'Send'}
-            </Button>
-            <Button size="sm" variant="secondary" onPress={() => setReasonFor(undefined)}>
-              Cancel
-            </Button>
-          </View>
-        ) : null}
-      </View>
+          )}
+
+          {reasonFor ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  size="sm"
+                  autoFocus
+                  value={reason}
+                  placeholder={
+                    reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
+                  }
+                  onChangeText={setReason}
+                  onSubmitEditing={submitReason}
+                />
+              </View>
+              <Button size="sm" onPress={submitReason} disabled={!reasonValid || busy}>
+                {reasonFor === 'rejected' ? 'Reject' : 'Send'}
+              </Button>
+              <Button size="sm" variant="secondary" onPress={() => setReasonFor(undefined)}>
+                Cancel
+              </Button>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {applyResultData && applyResultData.errors.length > 0 ? (
         <View

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  IMAGE_ZOOM_MAX,
+  IMAGE_ZOOM_MIN,
   screenPairFileStem,
   zoomByWheel,
   zoomIn,
@@ -22,7 +24,7 @@ import {
   IconZoomOut,
 } from '../../../icons'
 import { RefChip } from '../../chips'
-import { downloadDataUri } from './download'
+import { saveSideBySide } from './download'
 
 export type ComparisonOverlayProps = {
   pairs: readonly ScreenPair[]
@@ -82,6 +84,7 @@ export default function ComparisonOverlay({
   const [slidePct, setSlidePct] = useState(50)
   const [holdBase, setHoldBase] = useState(false)
   const [position, setPosition] = useState(0)
+  const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
 
   const isOpen = openKey !== undefined
   const openIndex = useMemo(() => pairs.findIndex((p) => p.key === openKey), [pairs, openKey])
@@ -118,6 +121,15 @@ export default function ComparisonOverlay({
   const effectiveMode: Mode = canSlide ? mode : 'mirror'
   const cut = holdBase ? 100 : slidePct
 
+  const pairFact =
+    pair?.class === 'new'
+      ? 'This screen exists only on the branch.'
+      : pair?.class === 'removed'
+        ? 'This screen exists only on the base.'
+        : pair?.class === 'single'
+          ? 'A single capture — there is nothing to compare it with.'
+          : 'Captured on both the base and the branch.'
+
   const hint =
     effectiveMode === 'mirror'
       ? 'Both frames are on screen, so there is nothing to flip.'
@@ -126,8 +138,9 @@ export default function ComparisonOverlay({
   const save = () => {
     if (!pair) return
     const stem = screenPairFileStem(pair)
-    if (before) downloadDataUri(before, `${stem}-before.png`)
-    if (after) downloadDataUri(after, `${stem}-after.png`)
+    // ONE side-by-side sheet, not two files: the pair is the unit of evidence,
+    // and two downloads make the reader reassemble what they were just shown.
+    void saveSideBySide(before, after, `${stem}-before-after.png`)
   }
 
   return (
@@ -156,7 +169,13 @@ export default function ComparisonOverlay({
           />
           <div className="flex items-center justify-end gap-1.5">
             <Tooltip
-              content={<span className="text-xs">Save this pair as two PNGs.</span>}
+              content={
+                <span className="text-xs">
+                  Both frames as one side-by-side image, named{' '}
+                  <code className="font-mono">{`${pair ? screenPairFileStem(pair) : 'NN-screen'}-before-after.png`}</code>
+                  .
+                </span>
+              }
               placement="bottom"
             >
               <Button variant="secondary" size="icon" aria-label="Save this pair" onClick={save}>
@@ -176,6 +195,7 @@ export default function ComparisonOverlay({
               size="icon"
               aria-label="Zoom out"
               title="Zoom out"
+              disabled={zoom <= IMAGE_ZOOM_MIN + 1e-9}
               onClick={() => setZoom(zoomOut)}
             >
               <IconZoomOut className="w-4 h-4" />
@@ -188,6 +208,7 @@ export default function ComparisonOverlay({
               size="icon"
               aria-label="Zoom in"
               title="Zoom in"
+              disabled={zoom >= IMAGE_ZOOM_MAX - 1e-9}
               onClick={() => setZoom(zoomIn)}
             >
               <IconZoomIn className="w-4 h-4" />
@@ -202,10 +223,36 @@ export default function ComparisonOverlay({
               <IconRefresh className="w-4 h-4" />
             </Button>
           </div>
-          <span className="text-[11px] text-(--text-muted)">Hold Ctrl/⌘ + scroll to zoom.</span>
+          <span className="text-[11px] text-(--text-muted)">
+            Hold Ctrl/⌘ + scroll to zoom; drag to pan.
+          </span>
         </div>
 
-        <div className="flex min-h-0 flex-1 items-start justify-center gap-6 overflow-auto p-2">
+        <div
+          className="flex min-h-0 flex-1 items-start justify-center gap-6 overflow-auto p-2"
+          style={{ cursor: dragRef.current ? 'grabbing' : zoom > 1 ? 'grab' : 'default' }}
+          onPointerDown={(e) => {
+            // Pan only once the frame is bigger than its stage — below that the
+            // drag belongs to the slide handle, not to the image.
+            if (zoom <= 1) return
+            const el = e.currentTarget
+            el.setPointerCapture(e.pointerId)
+            dragRef.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop }
+          }}
+          onPointerMove={(e) => {
+            const drag = dragRef.current
+            if (!drag) return
+            const el = e.currentTarget
+            el.scrollLeft = drag.left - (e.clientX - drag.x)
+            el.scrollTop = drag.top - (e.clientY - drag.y)
+          }}
+          onPointerUp={() => {
+            dragRef.current = null
+          }}
+          onPointerCancel={() => {
+            dragRef.current = null
+          }}
+        >
           {effectiveMode === 'mirror' ? (
             <>
               {pair?.before || !pair?.after ? (
@@ -261,7 +308,11 @@ export default function ComparisonOverlay({
         </div>
 
         <div className="text-center text-xs text-(--text-muted)">
-          {hint} <b className="text-(--text-secondary)">← →</b> to page.
+          {/* What this pair IS comes first — the mode hint is secondary. */}
+          <div>{pairFact}</div>
+          <div>
+            {hint} <b className="text-(--text-secondary)">← →</b> to page.
+          </div>
         </div>
 
         <div className="flex items-center justify-center gap-3">

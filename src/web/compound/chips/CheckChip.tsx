@@ -10,6 +10,7 @@ import {
   IconBuild,
   IconClipboardCheck,
   IconCode,
+  IconDiff,
   IconDocument,
   IconList,
   IconMobile,
@@ -28,6 +29,7 @@ const GLYPH: Record<CheckMethodId, ComponentType<{ className?: string }>> = {
   screens: IconMonitor,
   walkthrough: IconPlay,
   report: IconDocument,
+  diff: IconDiff,
 }
 
 const MARK: Record<CheckMethodState, string> = {

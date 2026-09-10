@@ -1,11 +1,7 @@
 import { Text, View } from 'react-native'
 
 import type { SignoffVerdict } from '../../../../headless'
-import {
-  nativeRadii,
-  type NativeSemanticTheme,
-  type NativeStatusTokens,
-} from '../../../../tokens/native'
+import { nativeRadii, type NativeStatusTokens } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 
 export type VerdictBadgeProps = {
@@ -15,25 +11,20 @@ export type VerdictBadgeProps = {
 type BadgeLook = { bg: string; fg: string; border: string; dashed: boolean }
 
 /** Bold status palette for a verdict; the two undecided states draw as absence. */
-function badgeLook(
-  key: SignoffVerdict['key'],
-  theme: NativeSemanticTheme,
-  status: NativeStatusTokens,
-): BadgeLook {
+function badgeLook(key: SignoffVerdict['key'], status: NativeStatusTokens): BadgeLook {
   switch (key) {
     case 'proven':
       return { bg: status.done.bg, fg: status.done.fg, border: status.done.bg, dashed: false }
     case 'failed':
       return { bg: status.stuck.bg, fg: status.stuck.fg, border: status.stuck.bg, dashed: false }
+    // A verdict is always a SOLID pill; its absence signal is the hollow dot
+    // alone. Dashed belongs to the check CHIPS ("nobody looked") and means
+    // something different there. Both undecided verdicts take review blue — the
+    // hue for "not proven" — never the grey that means "not set up".
     case 'partly':
-      return { bg: 'transparent', fg: status.review.softFg, border: status.review.bg, dashed: true }
+      return { bg: status.review.bg, fg: status.review.fg, border: status.review.bg, dashed: false }
     case 'not-run':
-      return {
-        bg: 'transparent',
-        fg: status.queued.softFg,
-        border: theme.border.strong,
-        dashed: true,
-      }
+      return { bg: status.review.bg, fg: status.review.fg, border: status.review.bg, dashed: false }
   }
 }
 
@@ -42,8 +33,8 @@ function badgeLook(
  * verdict, a hollow dot marks a state nobody has decided yet.
  */
 export default function VerdictBadge({ verdict }: VerdictBadgeProps) {
-  const { theme, status } = useNativeTheme()
-  const look = badgeLook(verdict.key, theme, status)
+  const { status } = useNativeTheme()
+  const look = badgeLook(verdict.key, status)
   return (
     <View
       accessibilityLabel={verdict.word}

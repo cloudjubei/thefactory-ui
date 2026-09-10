@@ -93,3 +93,45 @@ describe('earnedApproveActions', () => {
     expect(earnedApproveActions([], 'proven')).toBeUndefined()
   })
 })
+
+describe('earnedApproveActions — three earned tiers', () => {
+  const ds = approveActionDescriptors({
+    branch: 'agent/x',
+    baseBranch: 'main',
+    hasRemote: true,
+    fileCount: 2,
+  })
+
+  it('a proven run merges from the front', () => {
+    const e = earnedApproveActions(ds, 'proven')
+    expect(e?.primary.action).toBe('merge')
+    expect(e?.approveLeads).toBe(true)
+  })
+
+  it('a partly proven run leads with the option that changes nothing shared', () => {
+    const e = earnedApproveActions(ds, 'partly')
+    expect(e?.primary.action).toBe('leave-branch')
+    expect(e?.approveLeads).toBe(true)
+  })
+
+  it('a FAILED run stops leading with an approve at all', () => {
+    // Approving is still possible, but it is no longer the obvious move.
+    const e = earnedApproveActions(ds, 'failed')
+    expect(e?.approveLeads).toBe(false)
+  })
+
+  it('carries the menu head that says what the evidence supports', () => {
+    expect(earnedApproveActions(ds, 'proven')?.menuHead).toMatch(/merge is the safe option/i)
+    expect(earnedApproveActions(ds, 'failed')?.menuHead).toMatch(/read the report first/i)
+  })
+
+  it('names where the work ends up rather than saying a bare "Approve"', () => {
+    const keep = ds.find((d) => d.action === 'leave-branch')
+    expect(keep?.label).toBe('Approve, keep on branch')
+    expect(keep?.safest).toBe(true)
+  })
+
+  it('marks merge as the option that needs proof', () => {
+    expect(ds.find((d) => d.action === 'merge')?.warnUnlessProven).toBe(true)
+  })
+})

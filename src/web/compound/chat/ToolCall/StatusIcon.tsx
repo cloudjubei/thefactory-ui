@@ -14,6 +14,14 @@ import type { ToolResultType } from './types'
  * for require_confirmation/aborted/not_allowed (the left icon / Switch convey
  * those). The blue pill style is shared so the three states read the same.
  */
+/**
+ * The duration/status pill, as one string so every surface that shows a run's
+ * time is literally the same chip. Sign-off reuses it rather than re-typing the
+ * classes, which is how the two copies would drift.
+ */
+export const DURATION_CHIP_CLASS =
+  'inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-full px-1.5 py-0.5 shrink-0 tabular-nums'
+
 export function StatusChip({
   resultType,
   timeLabel,
@@ -21,8 +29,7 @@ export function StatusChip({
   resultType?: ToolResultType
   timeLabel?: string
 }) {
-  const chip =
-    'inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-full px-1.5 py-0.5 shrink-0 tabular-nums'
+  const chip = DURATION_CHIP_CLASS
   if (resultType === 'pending') return <span className={chip}>Queued</span>
   if (resultType === 'running') {
     return (

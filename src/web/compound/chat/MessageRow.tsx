@@ -169,6 +169,12 @@ export type MessageRowProps = {
    * the list via `describeLastMessageDelete`. Absent ⇒ the row offers no delete.
    */
   deleteControl?: MessageDeleteControl
+  /** True while the delete control is hovered and THIS row is one of the doomed. */
+  deletePreview?: boolean
+  /** Raised on hover/focus of the delete control so the list can light the range. */
+  onDeletePreviewChange?: (active: boolean) => void
+  /** A delete is still landing — the control spins and refuses a second press. */
+  deleting?: boolean
 
   onRestartTurn?: () => void
   /**
@@ -224,6 +230,9 @@ function MessageRow({
   getToolHeaderPath,
   onDeleteLastMessage,
   deleteControl,
+  deletePreview = false,
+  onDeletePreviewChange,
+  deleting = false,
   onRestartTurn,
   restartControl,
   onRetry,
@@ -240,6 +249,9 @@ function MessageRow({
   setLastMessageRef,
 }: MessageRowProps) {
   const role = msg.role
+  // ABOVE the early returns: a hook that runs on only some renders is the
+  // "rendered more hooks" crash.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   if (msg.error) {
     const showRetry = !!onRetry && isLast
@@ -308,12 +320,28 @@ function MessageRow({
       data-msg-idx={globalIndex}
       data-msg-role={role}
       data-msg-iso={iso || ''}
+      data-delete-preview={deletePreview || undefined}
       ref={isLast ? setLastMessageRef : undefined}
+      // Hovering "delete" shows exactly what goes. `outline` and a background
+      // tint ONLY: anything that changes the box (margin, padding, border)
+      // reflows the row under the cursor, which moved the delete button away
+      // mid-click and made a destructive action feel unresponsive.
+      className={[
+        deletePreview
+          ? 'rounded-md bg-(--color-red-500)/8 outline outline-1 outline-(--color-red-500)/50'
+          : '',
+        deleting ? 'motion-safe:animate-chat-turn-leave' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <div
         className={['flex items-start gap-2', isUser ? 'flex-row-reverse' : 'flex-row'].join(' ')}
       >
-        <div className="flex flex-col items-center group">
+        {/* `isolate` + an opaque own background keeps this column — and the
+            delete control in it — clear of the row's danger tint: a wash over
+            the control made it read as disabled. */}
+        <div className="isolate flex flex-col items-center group">
           <div
             className={[
               'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold',
@@ -335,25 +363,65 @@ function MessageRow({
                   ? // A locked row states itself: it is not a hover-only nicety,
                     // because "this history is deliberately kept" is the message.
                     'mt-1'
-                  : 'mt-1 transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+                  : `mt-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${
+                      deletePreview || confirmingDelete ? 'opacity-100' : 'opacity-0'
+                    }`
               }
             >
-              <button
-                type="button"
-                title={deleteAffordance.label}
-                aria-label={deleteAffordance.label}
-                className="inline-flex items-center justify-center w-6 h-6 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary) disabled:cursor-not-allowed disabled:text-(--text-secondary) disabled:hover:bg-(--surface-raised)"
-                onClick={() => onDeleteLastMessage?.()}
-                disabled={deleteAffordance.disabled}
-              >
-                {deleteAffordance.locked ? (
-                  <span aria-hidden className="text-[11px] leading-none">
-                    🔒
-                  </span>
-                ) : (
-                  <IconDelete className="w-3.5 h-3.5" />
-                )}
-              </button>
+              {confirmingDelete ? (
+                // Irreversible, with no undo — so it takes TWO deliberate acts.
+                <span className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="Confirm delete"
+                    className="h-6 rounded border border-(--color-red-500) bg-(--color-red-500) px-1.5 text-[10px] font-medium text-white"
+                    onClick={() => {
+                      setConfirmingDelete(false)
+                      onDeletePreviewChange?.(false)
+                      onDeleteLastMessage?.()
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Cancel delete"
+                    className="h-6 rounded px-1 text-[10px] text-(--text-secondary) hover:text-(--text-primary)"
+                    onClick={() => {
+                      setConfirmingDelete(false)
+                      onDeletePreviewChange?.(false)
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  title={deleteAffordance.label}
+                  aria-label={deleteAffordance.label}
+                  className="inline-flex items-center justify-center w-6 h-6 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-(--text-primary) disabled:cursor-not-allowed disabled:text-(--text-secondary) disabled:hover:bg-(--surface-raised)"
+                  onClick={() => setConfirmingDelete(true)}
+                  onMouseEnter={() => onDeletePreviewChange?.(true)}
+                  onMouseLeave={() => onDeletePreviewChange?.(false)}
+                  onFocus={() => onDeletePreviewChange?.(true)}
+                  onBlur={() => onDeletePreviewChange?.(false)}
+                  disabled={deleteAffordance.disabled || deleting}
+                >
+                  {deleting ? (
+                    <span
+                      aria-hidden
+                      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    />
+                  ) : deleteAffordance.locked ? (
+                    <span aria-hidden className="text-[11px] leading-none">
+                      🔒
+                    </span>
+                  ) : (
+                    <IconDelete className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
             </span>
           ) : null}
         </div>
