@@ -251,8 +251,13 @@ export default function CliRunArtifactPanel({
         verification,
         approaches: verificationApproaches,
         evidence: evidence.refs,
+        // Whether the diff was actually READ has exactly one recorded answer,
+        // and it was never passed: `diffReviewed` was therefore always false,
+        // and because `diff` is verdict-bearing the headline could never reach
+        // `proven` in any client, however much evidence a run produced.
+        ...(verdict?.by ? { verdictBy: verdict.by } : {}),
       }),
-    [verification, verificationApproaches, evidence.refs],
+    [verification, verificationApproaches, evidence.refs, verdict?.by],
   )
   const headline = useMemo(
     () =>

@@ -8,6 +8,8 @@ import {
   QUESTION_ANSWER_PLACEHOLDER,
   QUESTION_CARD_SUBTITLE,
   QUESTION_CARD_TITLE,
+  QUESTION_BLOCKS_COMPOSER_HINT,
+  QUESTION_CANCEL_LABEL,
   QUESTION_DECLINE_LABEL,
   QUESTION_SUBMIT_LABEL,
 } from '../../../headless/utils/agentQuestionConstants'
@@ -104,7 +106,20 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
 
       {error ? <p className="text-[12px] text-red-500">{error}</p> : null}
 
-      <div className="flex justify-end gap-2">
+      <p className="text-[11px] text-(--text-muted)">{QUESTION_BLOCKS_COMPOSER_HINT}</p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {grant.cancel ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={locked}
+            onClick={() => void run(() => grant.cancel!())}
+          >
+            {QUESTION_CANCEL_LABEL}
+          </Button>
+        ) : null}
+        <span className="flex-1" />
         <Button
           size="sm"
           variant="ghost"

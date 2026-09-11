@@ -48,6 +48,9 @@ import type {
   AttachChatCliRunnerData,
   AttachChatCliRunnerErrors,
   AttachChatCliRunnerResponses,
+  CancelCliAgentActionData,
+  CancelCliAgentActionErrors,
+  CancelCliAgentActionResponses,
   CancelCliAuthLoginData,
   CancelCliAuthLoginErrors,
   CancelCliAuthLoginResponses,
@@ -3739,6 +3742,23 @@ export const decideCliAgentAction = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/actions/{actionId}/decide',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const cancelCliAgentAction = <ThrowOnError extends boolean = false>(
+  options: Options<CancelCliAgentActionData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CancelCliAgentActionResponses,
+    CancelCliAgentActionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/actions/{actionId}/cancel',
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -155,6 +155,15 @@ export type PendingToolGrant = PendingToolGrantData & {
   /** Resolve a question grant with the user's typed answer. Question grants only. */
   answer?: (answer: string) => Promise<void>
   /**
+   * Withdraw the question instead of answering it, handing the composer back.
+   * Question grants only.
+   *
+   * Not the same as declining: declining is an ANSWER the agent carries on from,
+   * cancelling takes the question off the table and resumes nothing — the user's
+   * next message is what continues the conversation.
+   */
+  cancel?: () => Promise<void>
+  /**
    * Resolve a remedy grant by choosing an option. `value` carries a hint (e.g.
    * the chosen AVD) when the option asks for one. Remedy grants only.
    */

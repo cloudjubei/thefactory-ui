@@ -10,6 +10,8 @@ import {
   QUESTION_ANSWER_PLACEHOLDER,
   QUESTION_CARD_SUBTITLE,
   QUESTION_CARD_TITLE,
+  QUESTION_BLOCKS_COMPOSER_HINT,
+  QUESTION_CANCEL_LABEL,
   QUESTION_DECLINE_LABEL,
   QUESTION_SUBMIT_LABEL,
 } from '../../../headless/utils/agentQuestionConstants'
@@ -128,14 +130,27 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
 
       {error ? <Alert variant="error">{error}</Alert> : null}
 
+      <Text style={{ fontSize: 11, color: theme.text.muted }}>{QUESTION_BLOCKS_COMPOSER_HINT}</Text>
+
       <View
         style={{
           flexDirection: 'row',
-          justifyContent: 'flex-end',
+          alignItems: 'center',
           gap: nativeSpace[2],
           flexWrap: 'wrap',
         }}
       >
+        {grant.cancel ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={locked}
+            onPress={() => void run(() => grant.cancel!())}
+          >
+            {QUESTION_CANCEL_LABEL}
+          </Button>
+        ) : null}
+        <View style={{ flex: 1 }} />
         <Button
           size="sm"
           variant="ghost"

@@ -31,10 +31,11 @@ export type ApprovalPanelProps = {
 /**
  * Native peer of [web's `ApprovalPanel`](../../../web/compound/chat/ApprovalPanel.tsx).
  * Takes the composer's place so the ask is unmissable while the chat stays
- * visible; `onDecideLater` restores the composer without deciding. A launch
- * renders as the dock — story, features in pick-up order, what "yes" does, a
- * note for the run — everything else shows the tool and its arguments. Takes no
- * external busy flag — see the web peer for why.
+ * visible; `onDecideLater` parks a tool ask and hands the composer back. A
+ * launch renders as the dock — story, features in pick-up order, what "yes"
+ * does, a note for the run — everything else shows the tool and its arguments.
+ * The dock answers either way and offers no park; see the web peer for why, and
+ * for why this takes no external busy flag.
  */
 export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
@@ -183,7 +184,7 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             </Button>
           ) : null}
           <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            No — cancel
+            Not now
           </Button>
           <Button size="sm" onPress={() => decide('once')} loading={busy}>
             Approve
@@ -642,9 +643,11 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         >
           <Button
             size="sm"
+            variant="primary"
             onPress={() => decide('once')}
             loading={busy}
-            disabled={features.length === 0}
+            // `features` is legitimately empty while the story loads.
+            disabled={story !== undefined && features.length === 0}
           >
             Start work
           </Button>
@@ -658,21 +661,8 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             </Text>
           }
         >
-          <Button variant="ghost" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            Not now
-          </Button>
-        </Tooltip>
-        <View style={{ flex: 1 }} />
-        <Tooltip
-          content={
-            <Text style={tipText}>
-              Keeps the ask and brings the composer back. Type first — a question, a change of plan
-              — and decide later from here.
-            </Text>
-          }
-        >
-          <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
-            Decide later
+          <Button variant="danger" size="sm" onPress={() => decide('deny')} disabled={busy}>
+            No — cancel
           </Button>
         </Tooltip>
       </View>

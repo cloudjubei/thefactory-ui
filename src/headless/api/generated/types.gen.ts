@@ -42,6 +42,8 @@ export type ActionRequest = {
   grantPayload?: unknown
   credentialId?: string
   timeoutMs?: number
+  neverExpires?: boolean
+  toolName?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
 }
@@ -86,6 +88,8 @@ export type PendingAction = {
   noPermanentGrant?: boolean
   idempotencyKey?: string
   timeoutMs?: number
+  neverExpires?: boolean
+  toolName?: string
   status: PendingActionStatus
   createdAt: number
   decidedAt?: number
@@ -1056,6 +1060,7 @@ export type CompletionHistorySummarization = {
 export type CompletionMessageSanitization = {
   enabled: boolean
   keepLastMessages?: number
+  hardMaxToolContentChars?: number
   maxAssistantChars?: number
   maxToolArgChars?: number
   maxToolContentChars?: number
@@ -1081,6 +1086,7 @@ export type CompletionSettings = {
   messageSanitization?: {
     enabled: boolean
     keepLastMessages?: number
+    hardMaxToolContentChars?: number
     maxAssistantChars?: number
     maxToolArgChars?: number
     maxToolContentChars?: number
@@ -1737,12 +1743,18 @@ export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
 export type Status = 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
 
+export type FeatureQuestionKind = 'question' | 'blocker'
+
+export type FeatureQuestionAnsweredBy = 'user' | 'system'
+
 export type FeatureQuestion = {
   id: string
   question: string
+  kind?: 'question' | 'blocker'
   answer?: string
   askedAt: string
   answeredAt?: string
+  answeredBy?: 'user' | 'system'
 }
 
 export type ExternalRef = {
@@ -3444,6 +3456,7 @@ export type CompletionRequest = {
   messageSanitization?: {
     enabled: boolean
     keepLastMessages?: number
+    hardMaxToolContentChars?: number
     maxAssistantChars?: number
     maxToolArgChars?: number
     maxToolContentChars?: number
@@ -5806,6 +5819,7 @@ export type MobileScreenshotResult = {
   sessionId: string
   ok: boolean
   path?: string
+  relativePath?: string
   width?: number
   height?: number
   error?: string
@@ -8887,7 +8901,11 @@ export type HostReadFailures = {
   wall: number
   gone: number
   flaky: number
-  sample?: string
+  samples: {
+    wall?: string
+    gone?: string
+    flaky?: string
+  }
 }
 
 export type WebSearchProviderKind = 'api' | 'cli' | 'playwright'
@@ -9307,6 +9325,7 @@ export type UpdateCompletionSettingsInput = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
         maxToolContentChars?: number
@@ -15544,6 +15563,7 @@ export type SendCompletionData = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
         maxToolContentChars?: number
@@ -15689,6 +15709,7 @@ export type SendCompletionWithToolsData = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
         maxToolContentChars?: number
@@ -16169,6 +16190,7 @@ export type ResumeCompletionData = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
         maxToolContentChars?: number
@@ -18094,6 +18116,48 @@ export type DecideCliAgentActionResponses = {
 
 export type DecideCliAgentActionResponse =
   DecideCliAgentActionResponses[keyof DecideCliAgentActionResponses]
+
+export type CancelCliAgentActionData = {
+  body: {
+    reason?: string
+  }
+  path: {
+    actionId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/actions/{actionId}/cancel'
+}
+
+export type CancelCliAgentActionErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CancelCliAgentActionError = CancelCliAgentActionErrors[keyof CancelCliAgentActionErrors]
+
+export type CancelCliAgentActionResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type CancelCliAgentActionResponse =
+  CancelCliAgentActionResponses[keyof CancelCliAgentActionResponses]
 
 export type ListCliAgentModelsData = {
   body?: never

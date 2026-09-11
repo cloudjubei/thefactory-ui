@@ -35,6 +35,9 @@ export type ApprovalPanelProps = {
     /** The model chosen for THIS run, or `undefined` while it is the chat's. */
     model: string | undefined
     onPick: (modelId: string) => void
+    /** The CLI chosen for THIS run, or `undefined` while it is the chat's. */
+    cli: string | undefined
+    onPickCli: (cli: string, credentialId: string | undefined, model: string | undefined) => void
   }) => ReactNode
   /**
    * Restore the composer WITHOUT deciding — the ask stays pending, so the user
@@ -50,14 +53,19 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
 /**
  * The inline approval surface for the one ask a chat is blocked on. It takes the
  * composer's place (rather than a modal over the whole chat) so the conversation
- * stays visible and the decision is unmissable, while `onDecideLater` leaves an
- * escape back to typing.
+ * stays visible and the decision is unmissable, while `onDecideLater` leaves a
+ * tool ask parked and hands the composer back.
  *
  * A feature-work launch is not a tool permission — approving it spends an agent
  * run — so it renders as a dock that says what is about to happen: the story,
  * the features in the order they will be picked up, what happens after "yes",
  * and a note field that goes into the run's opening prompt. Every other gated
  * ask shows the tool and its arguments.
+ *
+ * The dock answers the agent either way and offers no park: "later" would end
+ * exactly where "no" ends — back in the chat with the work not started — so a
+ * third button only made the user rank two words for the same outcome. A tool
+ * ask still parks, because there the agent is mid-turn and waiting.
  *
  * It deliberately takes NO external `busy` flag. The agent is by definition
  * mid-turn while it waits on this decision, so disabling the controls on "the
@@ -87,6 +95,11 @@ export default function ApprovalPanel({
   // sent with the decision — picking here must never change the agent the
   // conversation is being held with.
   const [runModel, setRunModel] = useState<string | undefined>(undefined)
+  // The CLI this WORK runs on. Same rule as the model: seeded from the chat and
+  // sent with the decision, never written back — picking an agent for one piece
+  // of work must not move the conversation onto it.
+  const [runCli, setRunCli] = useState<string | undefined>(undefined)
+  const [runCliCredentialId, setRunCliCredentialId] = useState<string | undefined>(undefined)
   const [beatsOpen, setBeatsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -110,6 +123,8 @@ export default function ApprovalPanel({
               proofRequired: captureProof,
               ...(trimmedNote ? { note: trimmedNote } : {}),
               ...(runModel ? { cliModel: runModel } : {}),
+              ...(runCli ? { cliTool: runCli } : {}),
+              ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
             }
           : undefined,
       )
@@ -148,7 +163,7 @@ export default function ApprovalPanel({
             </Button>
           )}
           <Button variant="secondary" size="sm" onClick={() => decide('deny')} disabled={busy}>
-            Don’t start it
+            Not now
           </Button>
           <Button size="sm" onClick={() => decide('once')} loading={busy}>
             Approve
@@ -204,7 +219,18 @@ export default function ApprovalPanel({
 
       <div className="flex flex-wrap items-center gap-2">
         {renderModelChip ? (
-          renderModelChip({ model: runModel, onPick: setRunModel })
+          renderModelChip({
+            model: runModel,
+            onPick: setRunModel,
+            cli: runCli,
+            onPickCli: (cli, credentialId, model) => {
+              setRunCli(cli)
+              setRunCliCredentialId(credentialId)
+              // A different CLI has its own models, so the previously picked
+              // model no longer applies: fall back to that CLI's default.
+              setRunModel(model)
+            },
+          })
         ) : (
           <Tooltip
             placement="top"
@@ -440,10 +466,7 @@ export default function ApprovalPanel({
             variant="primary"
             onClick={() => decide('once')}
             loading={busy}
-            // Only refuse when the story is KNOWN to have nothing pickable.
-            // While it is still loading `features` is legitimately empty, and
-            // greying the primary action there reads as "not allowed" rather
-            // than "not loaded yet".
+            // `features` is legitimately empty while the story loads.
             disabled={story !== undefined && features.length === 0}
           >
             Start work
@@ -464,28 +487,8 @@ export default function ApprovalPanel({
             </div>
           }
         >
-          <Button variant="ghost" size="sm" onClick={() => decide('deny')} disabled={busy}>
-            Not now
-          </Button>
-        </Tooltip>
-        <span className="flex-1" />
-        <Tooltip
-          placement="top"
-          content={
-            <div className={TIP}>
-              <b>Answers nothing — the ask stays open</b>
-              <p className="mt-0.5">
-                Brings the composer back so you can type first — a question, a change of plan — and
-                come back to this same ask afterwards.
-              </p>
-              <p className="mt-1 text-(--text-muted)">
-                The agent is still waiting; it is not told anything either way.
-              </p>
-            </div>
-          }
-        >
-          <Button variant="ghost" size="sm" onClick={onDecideLater} disabled={busy}>
-            Decide later
+          <Button variant="danger" size="sm" onClick={() => decide('deny')} disabled={busy}>
+            No — cancel
           </Button>
         </Tooltip>
       </div>

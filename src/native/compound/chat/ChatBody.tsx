@@ -296,19 +296,6 @@ export default function ChatBody({
           <Alert variant="error">{sendError.message}</Alert>
         </View>
       )}
-      {questionGrants.length > 0 && (
-        <View
-          style={{
-            paddingHorizontal: nativeSpace[5],
-            paddingTop: nativeSpace[3],
-            gap: nativeSpace[2],
-          }}
-        >
-          {questionGrants.map((grant) => (
-            <AgentQuestionCard key={grant.id} grant={grant} />
-          ))}
-        </View>
-      )}
       {remedyGrants.length > 0 && (
         <View
           style={{
@@ -336,7 +323,28 @@ export default function ChatBody({
           {captureBinding.unbound.map(renderCaptureCard)}
         </View>
       )}
-      {hideInput ? null : showApprovalPanel ? (
+      {/* A question TAKES the composer rather than sitting above a live one: the
+          agent's next step depends on the answer, so a free-text message sent
+          past it would be typed into a conversation that is not listening.
+          Cancelling the question is the way back to typing anything.
+
+          It outranks `hideInput` deliberately: a parked ask waits forever, so a
+          surface that hides the composer must not hide its only release. */}
+      {questionGrants.length > 0 ? (
+        <View
+          style={{
+            paddingHorizontal: nativeSpace[3],
+            paddingVertical: nativeSpace[3],
+            gap: nativeSpace[2],
+            borderTopWidth: 1,
+            borderTopColor: theme.border.subtle,
+          }}
+        >
+          {questionGrants.map((grant) => (
+            <AgentQuestionCard key={grant.id} grant={grant} />
+          ))}
+        </View>
+      ) : hideInput ? null : showApprovalPanel ? (
         <View>
           {approvalGrants.map((grant) => (
             <ApprovalPanel

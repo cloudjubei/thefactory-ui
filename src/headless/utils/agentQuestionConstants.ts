@@ -12,10 +12,25 @@ export const QUESTION_DECLINED_ANSWER =
 export const QUESTION_CARD_TITLE = 'The agent has a question'
 
 /** Card sub-heading, explaining that the run is parked until an answer lands. */
-export const QUESTION_CARD_SUBTITLE = 'The run is paused until you answer.'
+export const QUESTION_CARD_SUBTITLE =
+  'It is waiting on this — answer whenever you like, or cancel to carry on typing.'
 
 export const QUESTION_ANSWER_PLACEHOLDER = 'Type your answer…'
 
 export const QUESTION_SUBMIT_LABEL = 'Send answer'
 
 export const QUESTION_DECLINE_LABEL = 'Let the agent decide'
+
+/**
+ * Withdraw the question. NOT the same as declining: declining is an answer the
+ * agent carries on from, this takes the question off the table and hands the
+ * composer back.
+ */
+export const QUESTION_CANCEL_LABEL = 'Cancel question'
+
+/**
+ * Why the composer is gone. The question owns it, so the user's options are
+ * exactly two: answer it, or cancel it and type anything again.
+ */
+export const QUESTION_BLOCKS_COMPOSER_HINT =
+  'Cancel the question to go back to typing your own message.'

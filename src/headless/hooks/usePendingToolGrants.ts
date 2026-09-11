@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import {
+  cancelCliAgentAction,
   decideCliAgentAction,
   listCliAgentRuns,
   listPendingCliAgentActions,
@@ -226,6 +227,27 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     [loadCliActions],
   )
 
+  /**
+   * Withdraw an ask instead of answering it.
+   *
+   * A question takes the composer, so this is the only way back to typing
+   * freely without putting words in the agent's mouth. Deliberately NOT a
+   * `denied` decision: deny is an answer ("no") the agent acts on and continues
+   * from, cancel takes the question off the table and resumes nothing.
+   */
+  const cancelCli = useCallback(
+    async (actionId: string) => {
+      try {
+        await cancelCliAgentAction({ path: { actionId }, body: {}, throwOnError: true })
+        setCliActions((prev) => prev.filter((a) => a.id !== actionId))
+      } catch (err) {
+        void loadCliActions()
+        throw err
+      }
+    },
+    [loadCliActions],
+  )
+
   const resolveRemedyCli = useCallback(
     async (actionId: string, body: AgentRemedyDecision) => {
       try {
@@ -249,7 +271,12 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       return {
         ...data,
         decide: (decision, metadata) => decideCli(action, decision, metadata),
-        ...(data.question ? { answer: (text: string) => answerCli(action.id, text) } : {}),
+        ...(data.question
+          ? {
+              answer: (text: string) => answerCli(action.id, text),
+              cancel: () => cancelCli(action.id),
+            }
+          : {}),
         ...(data.remedy
           ? {
               resolveRemedy: (remedyId: string, value?: string) =>
@@ -260,7 +287,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       }
     })
     return [...apiGrants, ...cliGrants]
-  }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli, resolveRemedyCli])
+  }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli, cancelCli, resolveRemedyCli])
 
   return {
     grants,

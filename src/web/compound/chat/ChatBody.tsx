@@ -35,6 +35,9 @@ export type ChatBodyProps = {
     /** The model chosen for the run, or `undefined` while it is the chat's. */
     model: string | undefined
     onPick: (modelId: string) => void
+    /** The CLI chosen for the run, or `undefined` while it is the chat's. */
+    cli: string | undefined
+    onPickCli: (cli: string, credentialId: string | undefined, model: string | undefined) => void
   }) => ReactNode
   /** Caller-rendered header. Title, icons, etc. — ChatBody only provides the
    * vertical layout. When omitted the header section is not rendered. */
@@ -319,14 +322,6 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {questionGrants.length > 0 ? (
-        <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
-          {questionGrants.map((grant) => (
-            <AgentQuestionCard key={grant.id} grant={grant} />
-          ))}
-        </div>
-      ) : null}
-
       {remedyGrants.length > 0 ? (
         <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
           {remedyGrants.map((grant) => (
@@ -344,7 +339,21 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {hideInput ? null : showApprovalPanel ? (
+      {/* A question TAKES the composer rather than sitting above a live one: the
+          agent's next step depends on the answer, so a free-text message sent
+          past it would be typed into a conversation that is not listening.
+          Cancelling the question is the way back to typing anything.
+
+          It outranks `hideInput` deliberately. A parked ask now waits forever
+          by design, so a surface that hides the composer must NOT also hide the
+          one control that can release it. */}
+      {questionGrants.length > 0 ? (
+        <div className="flex flex-col gap-2 border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
+          {questionGrants.map((grant) => (
+            <AgentQuestionCard key={grant.id} grant={grant} />
+          ))}
+        </div>
+      ) : hideInput ? null : showApprovalPanel ? (
         <div className="flex flex-col">
           {approvalGrants.map((grant) => (
             <ApprovalPanel
