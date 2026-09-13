@@ -401,6 +401,7 @@ export {
   isViewableImage,
   summarizeEvidence,
   toEvidenceTile,
+  capturedOnLabel,
   screenPairs,
   screenPairFileStem,
   fileNameSlug,
@@ -422,6 +423,8 @@ export {
   lastMessageDeleteFromIndex,
   type DeletableMessage,
 } from './utils/chatTurnDelete'
+export { useEvidenceDiff } from './hooks/useEvidenceDiff'
+export type { UseEvidenceDiff } from './hooks/useEvidenceDiff'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
@@ -434,6 +437,7 @@ export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
   LAND_FAILURE_TITLE,
+  NO_SOURCE_CHANGES_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
   NOT_VERIFIED_DETAIL,

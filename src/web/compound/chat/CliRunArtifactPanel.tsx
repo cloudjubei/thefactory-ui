@@ -95,6 +95,21 @@ const VERDICT_BADGE: Record<SignoffVerdict['key'], string> = {
   'not-run': 'badge--review',
 }
 
+/**
+ * The header MARKER — a dot, not a text pill.
+ *
+ * Kept separate from {@link VERDICT_BADGE} because the badge recipe owns a
+ * 20px height clamp and horizontal padding that a 16px square cannot override,
+ * which is what drew the marker as an ellipse. Status tokens directly, so the
+ * two surfaces still take their colour from the same place.
+ */
+const VERDICT_MARKER: Record<SignoffVerdict['key'], string> = {
+  proven: 'bg-(--status-done-soft-bg) text-(--status-done-fg)',
+  partly: 'bg-(--status-review-soft-bg) text-(--status-review-fg)',
+  failed: 'bg-(--status-stuck-soft-bg) text-(--status-stuck-fg)',
+  'not-run': 'bg-(--status-review-soft-bg) text-(--status-review-fg)',
+}
+
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -478,12 +493,16 @@ export default function CliRunArtifactPanel({
       <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
         {/* The head carries the verdict's colour too, so the run's state is
             readable before the eye reaches the verdict line below. */}
+        {/* Its OWN box, not a borrowed text pill. `.badge--sm` clamps
+            min/max-height to 20px, which an inline `height: 16` cannot beat, so
+            the 16px-wide marker was drawn 16×20 — and a 999px radius on a
+            non-square box is an ellipse, not a circle. `shrink-0` because it is
+            a flex item in a wrapping row and must never be squeezed further. */}
         <span
           aria-hidden
-          className={`badge badge--bold badge--sm ${VERDICT_BADGE[headline.key]} justify-center p-0`}
-          style={{ width: 16, height: 16 }}
+          className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full ${VERDICT_MARKER[headline.key]}`}
         >
-          <span className="badge__dot" style={{ width: 6, height: 6 }} />
+          <span className="size-1.5 rounded-full bg-current" />
         </span>
         <span className="text-[13px] font-semibold text-(--text-primary)">
           {artifact ? 'Sign-off' : 'Agent changes were not landed'}
@@ -507,13 +526,24 @@ export default function CliRunArtifactPanel({
           </Tooltip>
         ) : null}
         <RunModelChip model={runModel} />
-        {facts.costLabel ? (
-          <span className="text-[11px] text-(--text-secondary)">{facts.costLabel}</span>
-        ) : null}
         <span className="flex-1" />
-        {facts.durationLabel ? (
-          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-blue-600 dark:text-blue-400">
-            {facts.durationLabel}
+        {/* What the run COST, in both currencies, together at the top right.
+            The money was already computed and was rendered on the left of the
+            spacer as unstyled secondary text, where it read as a footnote to
+            the model chip rather than as the run's price. */}
+        {facts.durationLabel || facts.costLabel ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">
+            {facts.durationLabel ? (
+              <span className="text-(--text-secondary)">{facts.durationLabel}</span>
+            ) : null}
+            {facts.durationLabel && facts.costLabel ? (
+              <span aria-hidden className="text-(--text-tertiary)">
+                ·
+              </span>
+            ) : null}
+            {facts.costLabel ? (
+              <span className="font-medium text-(--text-primary)">{facts.costLabel}</span>
+            ) : null}
           </span>
         ) : null}
       </div>
@@ -668,6 +698,7 @@ export default function CliRunArtifactPanel({
                     onOpen={setOpenPairKey}
                     capturedLabel={capturedLabel}
                     onSaveAll={pairs.length > 0 ? saveAllScreens : undefined}
+                    capturing={working !== undefined}
                   />
                 ) : currentTab === 'walkthrough' ? (
                   <WalkthroughTab projectId={projectId} recordings={recordings} />
@@ -905,6 +936,7 @@ export default function CliRunArtifactPanel({
         onClose={() => setOpenPairKey(undefined)}
         baseSha={review?.baseSha}
         headSha={review?.headSha}
+        projectId={projectId}
       />
     </div>
   )

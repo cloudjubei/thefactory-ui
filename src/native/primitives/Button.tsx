@@ -125,21 +125,41 @@ function variantStyles(variant: ButtonVariant): VariantStyle {
   }
 }
 
+/**
+ * MIN-height, not height, for every non-icon size — matching the web peer.
+ *
+ * A fixed height cannot contain a label that wraps, so a two-line face drew
+ * outside its own border. The sign-off callouts surfaced it: their hand-off
+ * labels are sentences, not words. An icon button keeps a fixed square, which
+ * is the point of it.
+ */
 function sizeStyles(size: ButtonSize): VariantStyle {
   switch (size) {
     case 'sm':
       return {
-        container: { height: nativeControls.height.sm, paddingHorizontal: nativeSpace[6] },
+        container: {
+          minHeight: nativeControls.height.sm,
+          paddingHorizontal: nativeSpace[6],
+          paddingVertical: 4,
+        },
         text: { fontSize: 13 },
       }
     case 'md':
       return {
-        container: { height: nativeControls.height.md, paddingHorizontal: nativeControls.paddingX },
+        container: {
+          minHeight: nativeControls.height.md,
+          paddingHorizontal: nativeControls.paddingX,
+          paddingVertical: 4,
+        },
         text: { fontSize: 14 },
       }
     case 'lg':
       return {
-        container: { height: nativeControls.height.lg, paddingHorizontal: nativeSpace[8] },
+        container: {
+          minHeight: nativeControls.height.lg,
+          paddingHorizontal: nativeSpace[8],
+          paddingVertical: 4,
+        },
         text: { fontSize: 16 },
       }
     case 'icon':

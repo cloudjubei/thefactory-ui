@@ -16,10 +16,11 @@ import {
   tabForMethod,
 } from './checkMethods'
 import {
-  CHECK_METHOD_ORDER,
+  IMPLEMENTED_CHECK_METHOD_ORDER,
   NOT_RUN_TITLE,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
+  UNIMPLEMENTED_CHECK_METHODS,
   VERDICT_BEARING_METHODS,
 } from './checkMethodConstants'
 import type { CheckMethodRow } from './checkMethodTypes'
@@ -138,8 +139,21 @@ describe('evidenceMethodFor', () => {
 })
 
 describe('checkMethodRows', () => {
-  it('returns the nine methods in their fixed order', () => {
-    expect(rows({}).map((r) => r.id)).toEqual([...CHECK_METHOD_ORDER])
+  it('returns only the IMPLEMENTED methods, in their fixed order', () => {
+    expect(rows({}).map((r) => r.id)).toEqual([...IMPLEMENTED_CHECK_METHOD_ORDER])
+  })
+
+  it('never offers a method nothing can produce', () => {
+    // `walkthrough` names a recorder that does not exist and `diff` an
+    // adversarial reviewer nothing writes. Rendered anyway they read as a
+    // machine that tried and failed, and — being verdict-bearing — they held
+    // every run at "Partly proven" for good.
+    const ids = rows({ approaches: [approach('screen-recording')] }).map((r) => r.id)
+    for (const id of UNIMPLEMENTED_CHECK_METHODS) expect(ids).not.toContain(id)
+  })
+
+  it('drops the Device chip, which only ever opened the Screens tab already', () => {
+    expect(rows({ evidence: [evidence()] }).map((r) => r.id)).not.toContain('device')
   })
 
   it('rolls a passed check up to passed with its summary and duration', () => {
@@ -245,32 +259,59 @@ describe('checkMethodRows', () => {
     expect(rowsOut.filter((r) => r.state === 'unconfigured').map((r) => r.id)).toContain('build')
   })
 
-  it('the device is runnable on a host offering ONLY screenshots', () => {
-    // Mutation guard: the screenshot half of the device availability OR.
-    const r = row(
-      rows({ verification: verification(), approaches: [approach('screenshot-diff')] }),
-      'device',
-    )
-    expect(r.state).toBe('unchecked')
+  it('an IDENTICAL before/after pair proves NOTHING and does not count', () => {
+    // The live false pass: a pair filed 23 seconds apart — far less than an
+    // Android rebuild and reinstall takes — was pixel-identical across 2.46
+    // million pixels, and the gate counted it as visual proof of a font change.
+    // The agent's own report said the screenshots "do not visually prove" it.
+    const list = rows({
+      evidence: [
+        evidence({
+          comparison: { changedPixels: 0, totalPixels: 2462400, identical: true, resized: false },
+        }),
+      ],
+    })
+    expect(row(list, 'screens').state).not.toBe('passed')
+    expect(row(list, 'screens').detail).toMatch(/does not show the change/i)
   })
 
-  it('the device is runnable on a host offering ONLY recording', () => {
-    const r = row(
-      rows({ verification: verification(), approaches: [approach('screen-recording')] }),
-      'device',
-    )
-    expect(r.state).toBe('unchecked')
+  it('a pair that DOES differ still counts', () => {
+    const list = rows({
+      evidence: [
+        evidence({
+          comparison: {
+            changedPixels: 812,
+            totalPixels: 2462400,
+            identical: false,
+            resized: false,
+          },
+        }),
+      ],
+    })
+    expect(row(list, 'screens').state).toBe('passed')
   })
 
-  it('the device is not set up when the host offers neither capture', () => {
-    expect(row(rows({ verification: verification() }), 'device').state).toBe('unconfigured')
+  it('a pair we could not compare is not condemned — unknown is not proof of sameness', () => {
+    const list = rows({
+      evidence: [
+        evidence({
+          comparison: {
+            changedPixels: 0,
+            totalPixels: 0,
+            identical: true,
+            resized: false,
+            unavailable: 'unreadable PNG',
+          },
+        }),
+      ],
+    })
+    expect(row(list, 'screens').state).toBe('passed')
   })
 
-  it('a screenshot proves screens and the device', () => {
+  it('a screenshot proves screens', () => {
     const list = rows({ evidence: [evidence()] })
     expect(row(list, 'screens').state).toBe('passed')
     expect(row(list, 'screens').detail).toBe('1 screenshot captured')
-    expect(row(list, 'device').state).toBe('passed')
   })
 
   it('an available capture approach makes an evidence method not run, with a capture request', () => {
@@ -312,12 +353,6 @@ describe('checkMethodRows', () => {
     const r = row(rows({}), 'report')
     expect(r.state).toBe('unchecked')
     expect(r.action).toEqual({ kind: 'request', purpose: 'capture', approachId: undefined })
-  })
-
-  it('the device is not run when either device approach is available', () => {
-    expect(row(rows({ approaches: [approach('screen-recording')] }), 'device').state).toBe(
-      'unchecked',
-    )
   })
 
   it('a passed method offers to open the tab that holds its proof', () => {
@@ -484,15 +519,42 @@ describe('signoffVerdict', () => {
     expect(v.title).toBe(PROVEN_TITLE)
   })
 
-  it('ANY method that could have run and did not demotes the verdict', () => {
-    // DELIBERATE WIDENING: every method now carries the verdict. A walkthrough
-    // that could have been captured and was not is exactly the kind of gap
-    // "proven — nothing outstanding" must not paper over.
+  it('any IMPLEMENTED method that could have run and did not demotes the verdict', () => {
+    // A capture that could have been taken and was not is exactly the kind of
+    // gap "proven — nothing outstanding" must not paper over.
     const v = signoffVerdict({
-      rows: [mk({}), mk({ id: 'walkthrough', label: 'Walkthrough', state: 'unchecked' })],
+      rows: [mk({}), mk({ id: 'screens', label: 'Screens', state: 'unchecked' })],
       verified: true,
     })
     expect(v.key).toBe('partly')
+    expect(v.title).toContain('Screens')
+  })
+
+  it('an UNIMPLEMENTED method cannot demote — it made "proven" unreachable for every run', () => {
+    // The live report: every chip green, "Partly proven" above them, and no
+    // explanation the reviewer could act on. `diff` can only pass on a
+    // `reviewer-agent` verdict that nothing in any repo writes, so it was
+    // permanently unchecked and permanently demoting.
+    for (const id of UNIMPLEMENTED_CHECK_METHODS) {
+      expect(VERDICT_BEARING_METHODS).not.toContain(id)
+    }
+    const v = signoffVerdict({
+      rows: [mk({}), mk({ id: 'diff', label: 'Diff', state: 'unchecked' })],
+      verified: true,
+    })
+    expect(v.key).toBe('proven')
+  })
+
+  it('a partial verdict always NAMES what held it back', () => {
+    // "Partly proven" with nothing saying why is a headline the reviewer cannot
+    // act on.
+    const v = signoffVerdict({
+      rows: [mk({}), mk({ id: 'screens', label: 'Screens', state: 'unchecked' })],
+      verified: true,
+    })
+    expect(v.key).toBe('partly')
+    expect(v.title.trim().length).toBeGreaterThan(0)
+    expect(v.detail.trim().length).toBeGreaterThan(0)
   })
 
   it('but a method the PROJECT does not have still never demotes', () => {

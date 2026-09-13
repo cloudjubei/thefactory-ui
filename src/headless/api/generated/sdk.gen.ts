@@ -342,6 +342,8 @@ import type {
   GetProviderConnectionResponses,
   GetReviewEvidenceContentData,
   GetReviewEvidenceContentResponses,
+  GetReviewEvidenceDiffData,
+  GetReviewEvidenceDiffResponses,
   GetStoriesOrderData,
   GetStoriesOrderResponses,
   GetStoryData,
@@ -1340,6 +1342,15 @@ export const getReviewEvidenceContent = <ThrowOnError extends boolean = false>(
   (options.client ?? client).get<GetReviewEvidenceContentResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence/{evidenceId}/content',
+    ...options,
+  })
+
+export const getReviewEvidenceDiff = <ThrowOnError extends boolean = false>(
+  options: Options<GetReviewEvidenceDiffData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetReviewEvidenceDiffResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence/diff',
     ...options,
   })
 

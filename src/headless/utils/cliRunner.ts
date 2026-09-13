@@ -722,14 +722,13 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         const thinking = cliThinkingTextFromEntry(entry)
         if (thinking) appendThinking(steps, entry.at, thinking)
         const text = cliAssistantTextFromEntry(entry)
-        // Coalesce consecutive assistant entries into one growing message:
-        // streaming CLIs (resident cursor/codex) emit the reply as many small
-        // per-chunk `assistant` deltas, which must render as ONE bubble that
-        // fills in live — not a fragmented run of tiny messages. A delta is
-        // appended verbatim (whitespace preserved) when the previous step is
-        // already an assistant bubble; otherwise a non-blank delta starts one.
+        // Coalesce a streaming reply into one growing message: cursor and codex
+        // emit it as many small per-chunk deltas, which must render as ONE
+        // bubble that fills in live, not a run of tiny ones. `streaming` is the
+        // producer saying which this is — guessing from adjacency alone also
+        // welded two of claude-code's separate WHOLE replies into one bubble.
         const last = steps[steps.length - 1]
-        if (last && last.kind === 'assistant') {
+        if (entry.streaming === true && last && last.kind === 'assistant') {
           last.text += text
         } else if (text.trim()) {
           steps.push({ kind: 'assistant', at: entry.at, text })

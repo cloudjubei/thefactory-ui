@@ -5,7 +5,6 @@ import type { ScreenPair, ScreenPairClass } from '../../../../headless'
 import { nativeRadii, nativeShadows } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import SegmentedControl from '../../../primitives/SegmentedControl'
-import Tooltip from '../../../primitives/Tooltip'
 import { Button } from '../../../primitives/Button'
 import { IconDownload } from '../../../icons'
 
@@ -16,6 +15,12 @@ export type ScreensTabProps = {
   capturedLabel: string | undefined
   /** Saves every capture; omitted when the host cannot put a file anywhere. */
   onSaveAll?: () => void
+  /**
+   * A capture is still RUNNING, so what is here is partial — see the web peer.
+   * Mid-capture a pair whose `after` had not landed was labelled "only on the
+   * base", which is a conclusion, and a false one.
+   */
+  capturing?: boolean
 }
 
 type ThumbMode = 'before' | 'after'
@@ -49,7 +54,13 @@ function Frame({ src }: { src: string | undefined }) {
  * here yet, because nothing has compared pixels; the tile number is the
  * walkthrough position and never renumbers.
  */
-export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: ScreensTabProps) {
+export default function ScreensTab({
+  pairs,
+  onOpen,
+  capturedLabel,
+  onSaveAll,
+  capturing = false,
+}: ScreensTabProps) {
   const { theme, status } = useNativeTheme()
   // With nothing captured on the base there is no "before" to switch to, and a
   // segment that changes nothing reads as broken.
@@ -61,30 +72,12 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>
           <Text style={{ fontWeight: '600', color: theme.text.primary }}>{pairs.length}</Text>
-          {` ${pairs.length === 1 ? 'screen' : 'screens'} captured`}
+          {` ${pairs.length === 1 ? 'screen' : 'screens'} ${capturing ? 'so far' : 'captured'}`}
         </Text>
         <View style={{ flex: 1 }} />
-        <Tooltip
-          content={
-            <Text style={{ fontSize: 12, color: theme.text.primary }}>
-              A pixel comparison has not been computed for this run yet, so there is no Diff view.
-              Open a screen to compare it by eye.
-            </Text>
-          }
-          placement="top"
-        >
-          <Text style={{ fontSize: 11, color: theme.text.muted }}>Diff · not computed</Text>
-        </Tooltip>
-        {onSaveAll ? (
-          <Button
-            variant="secondary"
-            size="icon"
-            accessibilityLabel="Save screens"
-            onPress={onSaveAll}
-          >
-            <IconDownload size={16} color={theme.text.primary} />
-          </Button>
-        ) : null}
+        {/* Mode control first, download LAST — see the web peer. The
+            "Diff · not computed" label is gone: it announced the absence of a
+            feature rather than the outcome of one. */}
         {hasBefore ? (
           <SegmentedControl
             size="sm"
@@ -96,6 +89,16 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
               { value: 'after', label: 'After' },
             ]}
           />
+        ) : null}
+        {onSaveAll && !capturing ? (
+          <Button
+            variant="secondary"
+            size="icon"
+            accessibilityLabel="Save screens"
+            onPress={onSaveAll}
+          >
+            <IconDownload size={16} color={theme.text.primary} />
+          </Button>
         ) : null}
       </View>
 
@@ -120,7 +123,10 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
             <View key={pair.key} style={{ width: TILE_WIDTH, gap: 4 }}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Compare ${pair.title}`}
+                disabled={capturing}
+                accessibilityLabel={
+                  capturing ? `${pair.title} — still capturing` : `Compare ${pair.title}`
+                }
                 onPress={() => onOpen(pair.key)}
                 style={({ pressed }) => ({
                   width: TILE_WIDTH,
@@ -160,7 +166,9 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
                 >
                   <Frame src={front?.dataUri} />
                 </View>
-                {pair.class === 'new' || pair.class === 'removed' ? (
+                {/* No CONCLUSION while the capture is still running — see the
+                    web peer. */}
+                {!capturing && (pair.class === 'new' || pair.class === 'removed') ? (
                   <View
                     style={{
                       position: 'absolute',
@@ -191,7 +199,9 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
                 </Text>
                 {` · ${pair.title}`}
               </Text>
-              <Text style={{ fontSize: 10, color: theme.text.muted }}>{META[pair.class]}</Text>
+              <Text style={{ fontSize: 10, color: theme.text.muted }}>
+                {capturing ? 'capturing…' : META[pair.class]}
+              </Text>
             </View>
           )
         })}

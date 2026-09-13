@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  capturedOnLabel,
+  useEvidenceDiff,
   IMAGE_ZOOM_MAX,
   IMAGE_ZOOM_MIN,
   screenPairFileStem,
@@ -33,9 +35,11 @@ export type ComparisonOverlayProps = {
   onClose: () => void
   baseSha: string | undefined
   headSha: string | undefined
+  /** Whose evidence store to compute the pixel comparison against. */
+  projectId: string
 }
 
-type Mode = 'mirror' | 'slide'
+type Mode = 'mirror' | 'slide' | 'diff'
 
 const BASE_WIDTH = 240
 
@@ -78,6 +82,7 @@ export default function ComparisonOverlay({
   onClose,
   baseSha,
   headSha,
+  projectId,
 }: ComparisonOverlayProps) {
   const [mode, setMode] = useState<Mode>('slide')
   const [zoom, setZoom] = useState(1)
@@ -114,11 +119,19 @@ export default function ComparisonOverlay({
   }, [isOpen, pairs.length])
 
   const pair = pairs[position]
+  const capturedOn = pair ? capturedOnLabel(pair) : undefined
   const width = Math.round(BASE_WIDTH * zoom)
   const before = pair?.before?.dataUri
   const after = pair?.after?.dataUri
   const canSlide = Boolean(pair?.before && pair?.after)
+  // Diff and Slide both need two captures; with one there is nothing to compare.
   const effectiveMode: Mode = canSlide ? mode : 'mirror'
+  const diff = useEvidenceDiff(
+    projectId,
+    pair?.before?.ref.id,
+    pair?.after?.ref.id,
+    effectiveMode === 'diff',
+  )
   const cut = holdBase ? 100 : slidePct
 
   const pairFact =
@@ -133,7 +146,9 @@ export default function ComparisonOverlay({
   const hint =
     effectiveMode === 'mirror'
       ? 'Both frames are on screen, so there is nothing to flip.'
-      : 'Drag the handle, or hold B to swing it fully to the base.'
+      : effectiveMode === 'diff'
+        ? 'Every pixel that changed, marked. The unchanged screen shows through faintly for context.'
+        : 'Drag the handle, or hold B to swing it fully to the base.'
 
   const save = () => {
     if (!pair) return
@@ -154,8 +169,15 @@ export default function ComparisonOverlay({
         }}
       >
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="min-w-0 truncate text-sm font-semibold text-(--text-primary)">
-            {pair ? `${String(pair.index).padStart(2, '0')} · ${pair.title}` : ''}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-(--text-primary)">
+              {pair ? `${String(pair.index).padStart(2, '0')} · ${pair.title}` : ''}
+            </div>
+            {/* WHERE it was captured. A screenshot offered as proof has to say
+                what it is a screenshot of. */}
+            {capturedOn ? (
+              <div className="truncate text-[11px] text-(--text-secondary)">{capturedOn}</div>
+            ) : null}
           </div>
           <SegmentedControl
             size="sm"
@@ -164,6 +186,7 @@ export default function ComparisonOverlay({
             onChange={(v) => setMode(v as Mode)}
             options={[
               { value: 'mirror', label: 'Mirror' },
+              { value: 'diff', label: 'Diff' },
               { value: 'slide', label: 'Slide' },
             ]}
           />
@@ -253,7 +276,32 @@ export default function ComparisonOverlay({
             dragRef.current = null
           }}
         >
-          {effectiveMode === 'mirror' ? (
+          {effectiveMode === 'diff' ? (
+            <figure className="flex flex-col items-center gap-2">
+              {diff.dataUri ? (
+                <Frame
+                  src={diff.dataUri}
+                  alt={`${pair?.title ?? ''} — changed pixels`}
+                  width={width}
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center rounded-md border border-dashed border-(--border-default) p-6 text-center text-xs text-(--text-secondary)"
+                  style={{ width, minHeight: 160 }}
+                >
+                  {/* A refusal always says WHY — an unreadable capture, no
+                      overlapping area, a size past the ceiling. A blank pane
+                      with no reason is the failure this surface exists to fix. */}
+                  {diff.loading ? 'Comparing…' : (diff.error ?? 'No comparison available.')}
+                </div>
+              )}
+              <figcaption className="flex items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
+                <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
+                  Changed pixels
+                </span>
+              </figcaption>
+            </figure>
+          ) : effectiveMode === 'mirror' ? (
             <>
               {pair?.before || !pair?.after ? (
                 <figure className="flex flex-col items-center gap-2">

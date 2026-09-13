@@ -543,11 +543,20 @@ export default function CliRunArtifactPanel({
           </Tooltip>
         ) : null}
         <RunModelChip model={runModel} />
-        {facts.costLabel ? (
-          <Text style={{ fontSize: 11, color: theme.text.secondary }}>{facts.costLabel}</Text>
-        ) : null}
         <View style={{ flex: 1 }} />
-        {facts.durationLabel ? <DurationPill label={facts.durationLabel} /> : null}
+        {/* Time and money together at the top right — see the web peer. The
+            cost sat on the LEFT of the spacer, reading as a footnote to the
+            model chip rather than as what the run cost. */}
+        {facts.durationLabel || facts.costLabel ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {facts.durationLabel ? <DurationPill label={facts.durationLabel} /> : null}
+            {facts.costLabel ? (
+              <Text style={{ fontSize: 11, fontWeight: '600', color: theme.text.primary }}>
+                {facts.costLabel}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <View style={{ gap: 12, paddingHorizontal: 12, paddingVertical: 12 }}>
@@ -709,6 +718,7 @@ export default function CliRunArtifactPanel({
                     onOpen={setOpenPairKey}
                     capturedLabel={capturedLabel}
                     onSaveAll={onSaveFile && pairs.length > 0 ? saveAllScreens : undefined}
+                    capturing={working !== undefined}
                   />
                 ) : currentTab === 'walkthrough' ? (
                   <WalkthroughTab recordings={recordings} />
@@ -1021,6 +1031,7 @@ export default function CliRunArtifactPanel({
         baseSha={review?.baseSha}
         headSha={review?.headSha}
         onSaveFile={onSaveFile}
+        projectId={projectId}
       />
     </View>
   )

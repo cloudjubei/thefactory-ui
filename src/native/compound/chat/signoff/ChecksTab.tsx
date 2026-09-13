@@ -206,8 +206,11 @@ function CheckBlock({
         <Output text={output} stream={failed ? 'stderr' : 'stdout'} />
       ) : null}
 
+      {/* The action is the card's LAST element, always, on its own line — see
+          the web peer for why a wrapping row moved the button with the length
+          of the prose beside it. */}
       {action.kind === 'run' ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+        <View style={{ alignItems: 'flex-start', gap: 8 }}>
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {`Nothing was captured for ${row.noun}.`}
           </Text>
@@ -216,11 +219,14 @@ function CheckBlock({
           </RunActionButton>
         </View>
       ) : action.kind === 'request' ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+        <View style={{ alignItems: 'flex-start', gap: 8 }}>
           {action.purpose === 'setup' ? (
-            <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}>
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
               {`${row.detail} Setting it up is a code change, so it is work for the agent.`}
             </Text>
+          ) : null}
+          {unreachable ? (
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
           ) : null}
           <HandoffButton
             disabled={busy || unreachable}
@@ -228,9 +234,6 @@ function CheckBlock({
           >
             {handoffRequest(row, action.purpose, { branch }).buttonLabel}
           </HandoffButton>
-          {unreachable ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
-          ) : null}
         </View>
       ) : null}
     </Card>

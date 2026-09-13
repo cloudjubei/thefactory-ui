@@ -213,3 +213,24 @@ export function screenPairFileStem(pair: Pick<ScreenPair, 'index' | 'title'>): s
   const slug = fileNameSlug(pair.title)
   return slug ? `${index}-${slug}` : index
 }
+
+/**
+ * The device a pair was captured on, for display under the image.
+ *
+ * Prefers the AFTER capture — that is the state being argued for — and falls
+ * back to the before. Undefined when neither carries it, so an older run with no
+ * provenance shows nothing rather than a placeholder.
+ *
+ * Evidence without provenance is weaker evidence: "which device was this?" is
+ * the first question a sceptical reviewer asks, and until the capture tool
+ * recorded it nothing in the chain could answer. Pure.
+ */
+export function capturedOnLabel(pair: {
+  before?: { ref: { capturedOn?: string } }
+  after?: { ref: { capturedOn?: string } }
+}): string | undefined {
+  const after = pair.after?.ref.capturedOn?.trim()
+  if (after) return after
+  const before = pair.before?.ref.capturedOn?.trim()
+  return before && before.length > 0 ? before : undefined
+}

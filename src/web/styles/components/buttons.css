@@ -12,8 +12,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: var(--control-h-md);
-  padding: 0 var(--control-pad-x);
+  /* MIN-height, not height. A fixed height cannot contain a label that wraps,
+     so a two-line face escaped the border and drew outside the button — seen on
+     the hand-off buttons in the sign-off callouts, whose labels are sentences.
+     The vertical padding keeps a wrapped face off the border. */
+  min-height: var(--control-h-md);
+  padding: 4px var(--control-pad-x);
+  text-align: center;
   border-radius: var(--radius-2);
   border: 1px solid transparent;
   cursor: pointer;
@@ -179,6 +184,25 @@
 
 /* Sizes */
 .btn-sm,
+/*
+ * A SPLIT button: two controls that read as one.
+ *
+ * Unlayered on purpose. Tailwind's `rounded-r-none` lives in `@layer utilities`
+ * and unlayered CSS beats every layer, so `.btn`'s own `border-radius` won and
+ * the split rendered as two fully-rounded pills overlapping by 2px. The seam
+ * pull is here too, so a call site never hand-tunes a margin against a border
+ * width it cannot see.
+ */
+.btn-join-start {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.btn-join-end {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  margin-inline-start: -1px;
+}
+
 .btn-primary.btn-sm,
 .btn-secondary.btn-sm,
 .btn-ghost.btn-sm,
@@ -186,8 +210,8 @@
 .btn-run.btn-sm,
 .btn-handoff.btn-sm,
 .btn-link.btn-sm {
-  height: var(--control-h-sm);
-  padding: 0 10px;
+  min-height: var(--control-h-sm);
+  padding: 4px 10px;
   font-size: var(--fs-sm, 14px);
 }
 .btn-lg,
@@ -196,8 +220,8 @@
 .btn-ghost.btn-lg,
 .btn-danger.btn-lg,
 .btn-link.btn-lg {
-  height: var(--control-h-lg);
-  padding: 0 14px;
+  min-height: var(--control-h-lg);
+  padding: 4px 14px;
   font-size: var(--fs-md, 16px);
 }
 .btn-icon,

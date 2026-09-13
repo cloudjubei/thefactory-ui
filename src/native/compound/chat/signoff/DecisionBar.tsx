@@ -107,7 +107,9 @@ export default function DecisionBar({
         style={
           approveLeads
             ? {
-                marginLeft: 1,
+                // Pulled together, not pushed apart: the two halves are one
+                // control. Web does the same with a negative inline margin.
+                marginLeft: -1,
                 paddingHorizontal: 8,
                 borderTopLeftRadius: 0,
                 borderBottomLeftRadius: 0,
@@ -150,11 +152,14 @@ export default function DecisionBar({
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       {approveLeads ? approveMenu : requestChanges}
       {approveLeads ? requestChanges : approveMenu}
-      <Tooltip content={tip(REJECT_EXPLAINER)}>
-        <Button size="sm" variant="ghost" disabled={busy || isMerged} onPress={onReject}>
-          {rejecting ? 'Rejecting…' : 'Reject'}
-        </Button>
-      </Tooltip>
+      {/* Reject at the FAR end, away from the approve pair — see the web peer. */}
+      <View style={{ marginLeft: 'auto' }}>
+        <Tooltip content={tip(REJECT_EXPLAINER)}>
+          <Button size="sm" variant="ghost" disabled={busy || isMerged} onPress={onReject}>
+            {rejecting ? 'Rejecting…' : 'Reject'}
+          </Button>
+        </Tooltip>
+      </View>
       {approveDisabledReason ? (
         <Text style={{ flexBasis: '100%', fontSize: 11, color: theme.text.muted }}>
           {approveDisabledReason}

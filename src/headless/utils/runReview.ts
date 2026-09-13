@@ -17,6 +17,7 @@ import {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
   LAND_FAILURE_TITLE,
+  NO_SOURCE_CHANGES_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
   VERDICT_AUTHOR_LABELS,
@@ -95,7 +96,7 @@ export function landFailureSummary(failure: CliRunLandFailure): ReviewLandFailur
   const reason = LAND_FAILURE_REASON_LABELS[failure.reason] ?? failure.reason
   const detail = trimmedOrUndefined(failure.message)
   return {
-    title: LAND_FAILURE_TITLE,
+    title: failure.reason === 'no-source-changes' ? NO_SOURCE_CHANGES_TITLE : LAND_FAILURE_TITLE,
     message: detail ? `${reason} — ${detail}` : reason,
   }
 }

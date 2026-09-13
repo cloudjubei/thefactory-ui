@@ -13,6 +13,15 @@ export type ScreensTabProps = {
   capturedLabel: string | undefined
   /** Saves every capture; omitted when the host cannot put a file anywhere. */
   onSaveAll?: () => void
+  /**
+   * A capture is still RUNNING, so what is here is partial.
+   *
+   * Evidence lands one file at a time. Mid-capture the strip flickered as tiles
+   * arrived, and a pair whose `after` had not been filed yet was labelled "only
+   * on the base" — a CONCLUSION, and a false one: the after was still being
+   * taken. Opening the gallery on that half-state was what broke.
+   */
+  capturing?: boolean
 }
 
 type ThumbMode = 'before' | 'after'
@@ -41,7 +50,13 @@ function Frame({ src, alt }: { src: string | undefined; alt: string }) {
  * no changed/unchanged split here yet, because nothing has compared pixels;
  * the tile number is the walkthrough position and never renumbers.
  */
-export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: ScreensTabProps) {
+export default function ScreensTab({
+  pairs,
+  onOpen,
+  capturedLabel,
+  onSaveAll,
+  capturing = false,
+}: ScreensTabProps) {
   // With nothing captured on the base there is no "before" to switch to, and a
   // segment that changes nothing reads as broken.
   const hasBefore = pairs.some((p) => p.before !== undefined)
@@ -66,21 +81,35 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-(--text-secondary)">
           <span className="font-semibold text-(--text-primary)">{pairs.length}</span>{' '}
-          {pairs.length === 1 ? 'screen' : 'screens'} captured
+          {pairs.length === 1 ? 'screen' : 'screens'} {capturing ? 'so far' : 'captured'}
         </span>
+        {/* Say it is still running. Without this the strip looks finished and a
+            partial set reads as the whole answer. */}
+        {capturing ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-(--status-review-soft-bg) px-2 py-0.5 text-[11px] font-medium text-(--status-review-fg)">
+            <span className="size-1.5 animate-pulse rounded-full bg-current" />
+            Still capturing
+          </span>
+        ) : null}
         <span className="flex-1" />
-        <Tooltip
-          content={
-            <span className="text-xs">
-              A pixel comparison has not been computed for this run yet, so there is no Diff view.
-              Open a screen to compare it by eye.
-            </span>
-          }
-          placement="top"
-        >
-          <span className="text-[11px] text-(--text-muted)">Diff · not computed</span>
-        </Tooltip>
-        {onSaveAll ? (
+        {/* Mode control first, download LAST — it is the row's trailing action,
+            not something wedged between the label and the control it acts on.
+            The "Diff · not computed" label that used to sit here is gone: no
+            pixel comparison exists to compute, so it announced the absence of a
+            feature rather than the outcome of one. */}
+        {hasBefore ? (
+          <SegmentedControl
+            size="sm"
+            ariaLabel="What the thumbnails show"
+            value={mode}
+            onChange={(v) => setMode(v as ThumbMode)}
+            options={[
+              { value: 'before', label: 'Before' },
+              { value: 'after', label: 'After' },
+            ]}
+          />
+        ) : null}
+        {onSaveAll && !capturing ? (
           <Tooltip
             placement="top"
             content={
@@ -93,18 +122,6 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
               <IconDownload className="w-4 h-4" />
             </Button>
           </Tooltip>
-        ) : null}
-        {hasBefore ? (
-          <SegmentedControl
-            size="sm"
-            ariaLabel="What the thumbnails show"
-            value={mode}
-            onChange={(v) => setMode(v as ThumbMode)}
-            options={[
-              { value: 'before', label: 'Before' },
-              { value: 'after', label: 'After' },
-            ]}
-          />
         ) : null}
       </div>
 
@@ -131,14 +148,23 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
               <div key={pair.key} className="flex w-[110px] shrink-0 snap-start flex-col gap-1">
                 <button
                   type="button"
+                  // Not openable mid-capture: the gallery would show a pair whose
+                  // after has not landed, and re-render underneath the reader as
+                  // it does.
+                  disabled={capturing}
                   onClick={() => onOpen(pair.key)}
-                  aria-label={`Compare ${pair.title}`}
-                  className="group relative block h-[196px] w-[110px] rounded-lg text-left"
+                  aria-label={
+                    capturing ? `${pair.title} — still capturing` : `Compare ${pair.title}`
+                  }
+                  className="group relative block h-[196px] w-[110px] rounded-lg text-left disabled:cursor-default"
                 >
                   {hasBack ? (
                     <span className="absolute left-0 top-0 h-[184px] w-[96px] -translate-x-[3px] -translate-y-[3px] rounded-md border border-(--border-subtle) bg-(--surface-raised)" />
                   ) : null}
-                  {pair.class === 'new' || pair.class === 'removed' ? (
+                  {/* No CONCLUSION while the capture is still running. "Only on
+                      the base" is a claim about the branch, and mid-capture it is
+                      simply the after not having arrived yet. */}
+                  {!capturing && (pair.class === 'new' || pair.class === 'removed') ? (
                     <span
                       className={`absolute left-2.5 top-2.5 z-10 rounded px-1 text-[8.5px] font-bold uppercase tracking-wide ${
                         pair.class === 'new'
@@ -159,7 +185,9 @@ export default function ScreensTab({ pairs, onOpen, capturedLabel, onSaveAll }: 
                   </span>{' '}
                   · {pair.title}
                 </span>
-                <span className="text-[10px] text-(--text-muted)">{META[pair.class]}</span>
+                <span className="text-[10px] text-(--text-muted)">
+                  {capturing ? 'capturing…' : META[pair.class]}
+                </span>
               </div>
             )
           })}

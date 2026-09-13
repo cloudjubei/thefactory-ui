@@ -2211,6 +2211,7 @@ export type CliRunTranscriptEntry = {
   at: number
   kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
   payload: unknown
+  streaming?: boolean
   costUSD?: number
 }
 
@@ -2342,7 +2343,12 @@ export type CliRunReview = {
   rejectedAt?: number
 }
 
-export type CliRunLandFailureReason = 'not-a-git-repo' | 'detached-head' | 'commit-failed' | 'error'
+export type CliRunLandFailureReason =
+  | 'not-a-git-repo'
+  | 'detached-head'
+  | 'commit-failed'
+  | 'no-source-changes'
+  | 'error'
 
 export type CliRunLandFailure = {
   reason: CliRunLandFailureReason
@@ -5302,6 +5308,21 @@ export type HostPathInspection = {
   suggestedTitle?: string
 }
 
+export type ImageDiffResult = {
+  png: unknown
+  changedPixels: number
+  totalPixels: number
+  ratio: number
+  resized: boolean
+  width: number
+  height: number
+}
+
+export type ImageDiffOptions = {
+  threshold?: number
+  includeAntiAliased?: boolean
+}
+
 export type InferenceRequest = {
   systemPrompt: string
   userContent: string
@@ -5819,7 +5840,7 @@ export type MobileScreenshotResult = {
   sessionId: string
   ok: boolean
   path?: string
-  relativePath?: string
+  capturedOn?: string
   width?: number
   height?: number
   error?: string
@@ -7818,6 +7839,14 @@ export type ReviewEvidenceScope = {
   chatContextId?: string
 }
 
+export type ReviewEvidenceComparison = {
+  changedPixels: number
+  totalPixels: number
+  identical: boolean
+  resized: boolean
+  unavailable?: string
+}
+
 export type ReviewEvidenceRef = {
   runId: string
   projectId: string
@@ -7831,6 +7860,14 @@ export type ReviewEvidenceRef = {
   phase?: 'before' | 'after'
   subject?: string
   approach?: string
+  capturedOn?: string
+  comparison?: {
+    changedPixels: number
+    totalPixels: number
+    identical: boolean
+    resized: boolean
+    unavailable?: string
+  }
   mediaType: string
   bytes: number
   createdAt: number
@@ -7858,6 +7895,7 @@ export type RecordReviewEvidenceInput = {
   phase?: 'before' | 'after'
   subject?: string
   approach?: string
+  capturedOn?: string
 }
 
 export type NetworkSpec =
@@ -10912,6 +10950,31 @@ export type GetReviewEvidenceContentData = {
 }
 
 export type GetReviewEvidenceContentResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
+
+export type GetReviewEvidenceDiffData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query: {
+    /**
+     * Evidence id of the BEFORE capture.
+     */
+    before: string
+    /**
+     * Evidence id of the AFTER capture.
+     */
+    after: string
+  }
+  url: '/api/v1/projects/{projectId}/review-evidence/diff'
+}
+
+export type GetReviewEvidenceDiffResponses = {
   /**
    * Default Response
    */

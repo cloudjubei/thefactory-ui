@@ -7,18 +7,53 @@ import type {
 } from './checkMethodTypes'
 import type { ReviewTone } from './runReviewTypes'
 
+/**
+ * Every method the vocabulary knows, in display order.
+ *
+ * `device` is deliberately NOT here. It was a roll-up of "did the agent drive a
+ * device", which produced a second chip opening the same Screens tab the
+ * `screens` chip already opens — two doors into one room, and no reviewer could
+ * say what the difference was meant to be. The id survives in the type because
+ * stored evidence may still carry it; it is simply never a chip of its own.
+ */
 export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
   'tests',
   'types',
   'lint',
   'format',
   'build',
-  'device',
   'screens',
   'walkthrough',
   'report',
   'diff',
 ]
+
+/**
+ * Declared, but nothing in any repo can ever produce one.
+ *
+ * `walkthrough` names `screen-recording`, and no recorder exists — its own
+ * `drivenBy` lists four SCREENSHOT tools. `diff` names `adversarial-review`, and
+ * nothing anywhere writes a `reviewer-agent` verdict, which is the only thing
+ * that can satisfy it.
+ *
+ * These are not slow or unavailable, they are ABSENT, and the distinction is the
+ * whole point: `unchecked` means "this run did not do it", which a reviewer can
+ * act on, while an unimplemented method offers no action at any price. Shown
+ * anyway, they read as a machine that tried and failed — a live sign-off
+ * displayed `Diff · not computed` for a feature that does not exist.
+ *
+ * Worse, both were verdict-bearing. Neither can ever pass, so the headline could
+ * NEVER reach "proven": the panel showed every chip green and "Partly proven"
+ * above them, held down by two checks with no implementation behind them.
+ *
+ * Remove an entry here the moment its producer lands — that is the whole switch.
+ */
+export const UNIMPLEMENTED_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough', 'diff']
+
+/** The methods that can actually be satisfied — the only ones a reviewer ever sees. */
+export const IMPLEMENTED_CHECK_METHOD_ORDER: readonly CheckMethodId[] = CHECK_METHOD_ORDER.filter(
+  (id) => !UNIMPLEMENTED_CHECK_METHODS.includes(id),
+)
 
 export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   tests: 'Tests',
@@ -154,12 +189,17 @@ export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
 }
 
 /**
- * Every method carries the verdict: any FAILURE makes the run failed, any method
- * that could have run and did not makes it partly proven. `unconfigured` still
- * never demotes — a project that has no linter is not a worse-proven change —
- * so the set is closed over the whole vocabulary rather than a subset.
+ * Every IMPLEMENTED method carries the verdict: any FAILURE makes the run
+ * failed, any method that could have run and did not makes it partly proven.
+ * `unconfigured` still never demotes — a project that has no linter is not a
+ * worse-proven change.
+ *
+ * Closed over the implemented set, not the whole vocabulary. A method with no
+ * producer cannot be satisfied at any price, so holding it against a run does
+ * not describe the run, it describes the product — and it made "proven"
+ * unreachable for everyone, forever.
  */
-export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = CHECK_METHOD_ORDER
+export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = IMPLEMENTED_CHECK_METHOD_ORDER
 
 /** Past this many absent chips, the row collapses them into one. */
 export const COLLAPSE_ABSENT_PAST = 3

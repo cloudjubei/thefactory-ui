@@ -408,21 +408,43 @@ describe('normalizeCliTranscript', () => {
       entry({
         at: 1,
         kind: 'assistant',
+        streaming: true,
         payload: { message: { content: [{ type: 'text', text: 'The ' }] } },
       }),
       entry({
         at: 2,
         kind: 'assistant',
+        streaming: true,
         payload: { message: { content: [{ type: 'text', text: 'answer ' }] } },
       }),
       entry({
         at: 3,
         kind: 'assistant',
+        streaming: true,
         payload: { message: { content: [{ type: 'text', text: 'is 4.' }] } },
       }),
     ])
     expect(steps).toHaveLength(1)
     expect(steps[0]).toMatchObject({ kind: 'assistant', text: 'The answer is 4.' })
+  })
+
+  it('keeps two WHOLE assistant messages apart — only a marked delta merges', () => {
+    // claude-code emits complete messages, not chunks. Merging on adjacency
+    // alone welded them into one bubble reading "firstsecond".
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'first' }] } },
+      }),
+      entry({
+        at: 2,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'second' }] } },
+      }),
+    ])
+    expect(steps).toHaveLength(2)
+    expect(steps.map((s) => (s as { text: string }).text)).toEqual(['first', 'second'])
   })
 
   it('keeps assistant segments split by a tool step distinct (no over-merge)', () => {
@@ -1019,12 +1041,14 @@ describe('normalizeCliTranscript', () => {
       entry({
         at: 1000,
         kind: 'assistant',
+        streaming: true,
         payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
         costUSD: 0.02,
       }),
       entry({
         at: 2000,
         kind: 'assistant',
+        streaming: true,
         payload: { message: { content: [{ type: 'text', text: 'bye' }] } },
         costUSD: 0.03,
       }),

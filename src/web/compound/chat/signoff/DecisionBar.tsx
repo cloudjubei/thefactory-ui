@@ -112,7 +112,7 @@ export default function DecisionBar({
           <Button
             size="sm"
             variant="primary"
-            className="rounded-r-none"
+            className="btn-join-start"
             title={approveDisabledReason ?? earned.primary.disabledReason}
             disabled={approveLocked || earned.primary.disabledReason !== undefined}
             onClick={() => onApprove(earned.primary)}
@@ -124,7 +124,7 @@ export default function DecisionBar({
       <Button
         size="sm"
         variant={approveLeads ? 'primary' : 'secondary'}
-        className={approveLeads ? '-ml-0.5 rounded-l-none px-2' : 'px-2'}
+        className={approveLeads ? 'btn-join-end px-2' : 'px-2'}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-label={MORE_APPROVE_OPTIONS_LABEL}
@@ -177,10 +177,16 @@ export default function DecisionBar({
     <div className="flex flex-wrap items-center gap-2">
       {approveLeads ? approveMenu : requestChanges}
       {approveLeads ? requestChanges : approveMenu}
+      {/* Reject sits at the FAR end, away from the approve pair. It is the one
+          action that closes the run, and flush against "Request changes" it read
+          as a third peer of the two constructive ones. Separation, not a louder
+          colour — shouting at a destructive control just makes it eye-catching. */}
       <Tooltip placement="top" content={<Explainer text={REJECT_EXPLAINER} />}>
-        <Button size="sm" variant="ghost" disabled={busy || isMerged} onClick={onReject}>
-          {rejecting ? 'Rejecting…' : 'Reject'}
-        </Button>
+        <span className="ml-auto inline-flex">
+          <Button size="sm" variant="ghost" disabled={busy || isMerged} onClick={onReject}>
+            {rejecting ? 'Rejecting…' : 'Reject'}
+          </Button>
+        </span>
       </Tooltip>
     </div>
   )

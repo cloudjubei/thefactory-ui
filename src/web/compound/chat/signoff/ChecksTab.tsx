@@ -120,8 +120,13 @@ function CheckBlock({
         <Console text={output} stream={failed ? 'stderr' : 'stdout'} />
       ) : null}
 
+      {/* The action is the card's LAST element, always, on its own line.
+          Laid out as a wrapping ROW it trailed the sentence and only dropped
+          below once the row overflowed — so the button's position moved with
+          the length of the prose beside it. A column also lets a long button
+          label wrap inside its own box instead of running past the border. */}
       {action.kind === 'run' ? (
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col items-start gap-2">
           <span className="text-[12px] text-(--text-secondary)">
             Nothing was captured for {row.noun}.
           </span>
@@ -130,11 +135,14 @@ function CheckBlock({
           </RunActionButton>
         </div>
       ) : action.kind === 'request' ? (
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col items-start gap-2">
           {action.purpose === 'setup' ? (
             <span className="text-[12px] text-(--text-secondary)">
               {row.detail} Setting it up is a code change, so it is work for the agent.
             </span>
+          ) : null}
+          {action.purpose !== 'capture' && !canRequest ? (
+            <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
           ) : null}
           <HandoffButton
             disabled={busy || (action.purpose !== 'capture' && !canRequest)}
@@ -142,9 +150,6 @@ function CheckBlock({
           >
             {handoffRequest(row, action.purpose, { branch }).buttonLabel}
           </HandoffButton>
-          {action.purpose !== 'capture' && !canRequest ? (
-            <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
-          ) : null}
         </div>
       ) : null}
     </section>

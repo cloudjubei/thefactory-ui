@@ -4,6 +4,7 @@
  * verification plan and the filed evidence — no React, no I/O.
  */
 
+import { evidenceShowsNoChange, identicalPairExplanation } from 'thefactory-tools/utils'
 import type {
   ReviewEvidenceRef,
   RunVerification,
@@ -16,7 +17,7 @@ import {
   CHECK_METHOD_FILL,
   CHECK_METHOD_LABELS,
   CHECK_METHOD_NOUNS,
-  CHECK_METHOD_ORDER,
+  IMPLEMENTED_CHECK_METHOD_ORDER,
   CHECK_METHOD_SETUP_VERBS,
   CHECK_METHOD_TAB,
   CHECK_STATE_TONES,
@@ -220,9 +221,17 @@ export function checkMethodRows(input: {
     byMethod.set(id, [...(byMethod.get(id) ?? []), check])
   }
   const evidenceCounts = new Map<CheckMethodId, number>()
+  // A before/after pair that is PIXEL-IDENTICAL evidences nothing, so it does
+  // not count toward the method it was filed against. Observed live: a pair shot
+  // 23 seconds apart on one unchanged build — far too little to rebuild and
+  // reinstall — was identical across 2.46 million pixels and counted as visual
+  // proof of a font change. The agent's own report said the screenshots "do not
+  // visually prove" it; the gate believed the filing over the sentence.
+  const emptyPairs = evidence.filter(evidenceShowsNoChange).length
   for (const ref of evidence) {
     const id = evidenceMethodFor(ref)
     if (!id) continue
+    if (evidenceShowsNoChange(ref)) continue
     evidenceCounts.set(id, (evidenceCounts.get(id) ?? 0) + 1)
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
@@ -231,7 +240,7 @@ export function checkMethodRows(input: {
   // check that can be held against the run before they have made it.
   const diffReviewed = input.verdictBy === 'reviewer-agent'
 
-  return CHECK_METHOD_ORDER.map((id) => {
+  return IMPLEMENTED_CHECK_METHOD_ORDER.map((id) => {
     const matched = byMethod.get(id) ?? []
     const captured = id === 'device' ? driven : (evidenceCounts.get(id) ?? 0)
     const isRun = CHECK_METHOD_FILL[id] === 'run'
@@ -250,14 +259,20 @@ export function checkMethodRows(input: {
           : absentDetail(id, state, approaches)
     } else if (id === 'diff') {
       state = diffReviewed ? 'passed' : 'unchecked'
-      state === 'passed'
       detail = diffReviewed
         ? 'The reviewer agent read the diff'
         : absentDetail(id, 'unchecked', approaches)
     } else {
       state = evidenceState(id, captured, approaches)
       detail =
-        state === 'passed' ? evidenceDetail(id, captured) : absentDetail(id, state, approaches)
+        state === 'passed'
+          ? evidenceDetail(id, captured)
+          : id === 'screens' && emptyPairs > 0
+            ? // Not "nothing was captured": something WAS, and it showed nothing.
+              // Those are different problems with different fixes, and telling
+              // the reviewer the first one hides the second.
+              identicalPairExplanation()
+            : absentDetail(id, state, approaches)
     }
 
     const totalMs = matched.reduce((sum, c) => sum + Math.max(0, c.durationMs), 0)

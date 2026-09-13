@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
+  capturedOnLabel,
+  useEvidenceDiff,
   screenPairFileStem,
   zoomIn,
   zoomLabel,
@@ -36,9 +38,11 @@ export type ComparisonOverlayProps = {
   headSha: string | undefined
   /** Saves the pair; omitted when the host cannot put a file anywhere. */
   onSaveFile?: SaveFileHandler
+  /** Whose evidence store to compute the pixel comparison against. */
+  projectId: string
 }
 
-type Mode = 'mirror' | 'slide'
+type Mode = 'mirror' | 'slide' | 'diff'
 
 const BASE_WIDTH = 240
 /** Overlay padding, stage padding and the gap between two mirrored frames. */
@@ -113,6 +117,7 @@ export default function ComparisonOverlay({
   baseSha,
   headSha,
   onSaveFile,
+  projectId,
 }: ComparisonOverlayProps) {
   const { theme } = useNativeTheme()
   const { width: screenWidth } = useWindowDimensions()
@@ -142,6 +147,7 @@ export default function ComparisonOverlay({
   const step = (d: number) =>
     setPosition((p) => (pairs.length ? (p + d + pairs.length) % pairs.length : 0))
   const heading = pair ? `${String(pair.index).padStart(2, '0')} · ${pair.title}` : ''
+  const capturedOn = pair ? capturedOnLabel(pair) : undefined
   const iconColor = theme.text.primary
 
   const pairFact =
@@ -153,21 +159,38 @@ export default function ComparisonOverlay({
           ? 'A single capture — there is nothing to compare it with.'
           : 'Captured on both the base and the branch.'
 
+  const diff = useEvidenceDiff(
+    projectId,
+    pair?.before?.ref.id,
+    pair?.after?.ref.id,
+    effectiveMode === 'diff',
+  )
+
   const hint =
     effectiveMode === 'mirror'
       ? 'Both frames are on screen, so there is nothing to flip.'
-      : 'Drag the handle, or hold the button to swing it fully to the base.'
+      : effectiveMode === 'diff'
+        ? 'Every pixel that changed, marked. The unchanged screen shows through faintly for context.'
+        : 'Drag the handle, or hold the button to swing it fully to the base.'
 
   return (
     <FullScreenOverlay isOpen={isOpen} onClose={onClose} hideHeader>
       <View style={{ flex: 1, gap: 12, padding: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text
-            numberOfLines={1}
-            style={{ flex: 1, fontSize: 14, fontWeight: '600', color: theme.text.primary }}
-          >
-            {heading}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text
+              numberOfLines={1}
+              style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}
+            >
+              {heading}
+            </Text>
+            {/* WHERE it was captured — see the web peer. */}
+            {capturedOn ? (
+              <Text numberOfLines={1} style={{ fontSize: 11, color: theme.text.secondary }}>
+                {capturedOn}
+              </Text>
+            ) : null}
+          </View>
           <SegmentedControl
             size="sm"
             ariaLabel="Comparison mode"
@@ -175,6 +198,7 @@ export default function ComparisonOverlay({
             onChange={(v) => setMode(v as Mode)}
             options={[
               { value: 'mirror', label: 'Mirror' },
+              { value: 'diff', label: 'Diff' },
               { value: 'slide', label: 'Slide' },
             ]}
           />
@@ -248,7 +272,35 @@ export default function ComparisonOverlay({
               gap: 24,
             }}
           >
-            {effectiveMode === 'mirror' ? (
+            {effectiveMode === 'diff' ? (
+              <View style={{ alignItems: 'center', gap: 8 }}>
+                {diff.dataUri ? (
+                  <Frame src={diff.dataUri} width={width} />
+                ) : (
+                  <View
+                    style={{
+                      width,
+                      minHeight: 160,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 24,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: theme.border.default,
+                      borderRadius: nativeRadii[2],
+                    }}
+                  >
+                    {/* A refusal always says WHY — see the web peer. */}
+                    <Text
+                      style={{ fontSize: 12, color: theme.text.secondary, textAlign: 'center' }}
+                    >
+                      {diff.loading ? 'Comparing…' : (diff.error ?? 'No comparison available.')}
+                    </Text>
+                  </View>
+                )}
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>Changed pixels</Text>
+              </View>
+            ) : effectiveMode === 'mirror' ? (
               <>
                 {pair?.before || !pair?.after ? (
                   <View style={{ alignItems: 'center', gap: 8 }}>
