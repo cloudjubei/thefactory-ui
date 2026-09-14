@@ -49,7 +49,7 @@ src/index.ts           ─── root barrel re-exports `./web` + `./headless` +
 
 `thefactory-ui` is the shared **UI / React** spine. `thefactory-tools` is the shared **backend-logic** package the Fastify backend is built on. A consumer app (web, desktop, mobile) gets:
 
-- **From `thefactory-ui`** — tokens, primitives, compounds, headless hooks, the backend SDK surface (`thefactory-ui/headless/api`). This is the default; reach here first. Pure `thefactory-tools` helpers an app needs (the git/diff family — `parseUnifiedDiff`, `countPatchAddDel`, `generateHunkPatch`, `getFilePatch`, `getPRUrl`, `mergeUnstagedWithUntracked`) are re-exported from `thefactory-ui/headless`; import them there, so the app keeps a single dependency edge to `thefactory-ui` and `thefactory-tools` stays an internal detail of the spine.
+- **From `thefactory-ui`** — tokens, primitives, compounds, headless hooks, the backend SDK surface (`thefactory-ui/headless/api`). This is the default; reach here first. Pure `thefactory-tools` helpers an app needs (the git/diff family — `parseUnifiedDiff`, `countPatchAddDel`, `generateHunkPatch`, `getFilePatch`, `getPRUrl`, `mergeUnstagedWithUntracked`; and the process readers — `processStepStates`, `processRunProgress`, `processParkChoices`, `stepChainSummary`, plus the `Process*` types) are re-exported from `thefactory-ui/headless`; import them there, so the app keeps a single dependency edge to `thefactory-ui` and `thefactory-tools` stays an internal detail of the spine.
 - **From `thefactory-tools` directly** — _only_ pure, node-free helpers whose output must byte-match the backend's own derivation. Currently that is `getChatContextKey` / `getChatContext` from `thefactory-tools/utils`: they derive the `chatKey` used for routing and cost-aggregate lookups, so a client-side re-implementation that drifts from the backend silently breaks (it did — cost totals read `$0` because the client queried `projects/X` while the backend stored `/projects/X`). Each client re-exports these through its own `core/chats/chatKey.ts` shim.
 
 The direct-`thefactory-tools` exception is deliberately narrow: pure functions, no node dependencies, and a hard "must match the backend exactly" justification. Everything else an app needs from `thefactory-tools` is routed through `thefactory-ui`'s re-export.
@@ -212,6 +212,53 @@ Settings → **Git Credentials** (`GitCredentialsSettings` on web/desktop, `GitC
 
 `GitCredentialsProvider` subscribes to the `gitCredentials:updated` ws topic and refetches on it, exactly as `OverseerGitProvider` does with `overseer:git-status-changed`. Without that the list was a snapshot taken at login, and a credential written by any route other than the Settings form — an in-chat capture, a GitHub OAuth device/redirect flow, another window — stayed invisible until a full reload. The event carries `{ action, credentialId }` only: the record holds a decrypted token, so the refetch (authenticated) is the read, never the broadcast. The backend emits it from every git-credential write path — POST/PATCH/DELETE, both OAuth landings, and the capture submit handler.
 
+### Processes — the pipeline surface
+
+A **process** is the unit of agent work: a named sequence of steps (implement →
+verify → report) with the loop edges that send a failed step back. The engine
+and every pure reader live in `thefactory-tools`; this package ships the three
+surfaces and the mapping that keeps them honest.
+
+`useProcesses(projectId)` fronts the library — the shared definitions plus this
+project's own, resolved so a project entry SHADOWS a global one by id. Saving
+inside a project always writes the project's copy, so editing a shared process
+from a project screen **forks** it rather than changing the library everyone
+else uses; the row says which it is. `useProcesses` also reports the step kinds
+this build can EXECUTE, and the editor offers only those — a kind the save
+would refuse must never be selectable.
+
+`useProcessRun(runId)` fronts one run and keeps it live on the
+`process:run-update` topic. The server pushes the WHOLE record on every step
+change, on purpose: a client that re-fetched per step would flicker through a
+loading state on every node, which is most of what the user is watching.
+
+Three components, each with a `web/` + `native/` peer:
+
+- **`ProcessPipeline`** REPLACES the message list for a run — the plan, where it
+  is, which attempt, and what it is parked on, which is exactly what a
+  transcript buries. **A node is either a nested process or a leaf that owns one
+  agent run**, and that is the whole navigation rule: clicking drills one level
+  down (in-component, with a breadcrumb) or hands off to the chat the leaf owns
+  via `onOpenAgentRun`. The pipeline never renders a transcript itself.
+- **`ProcessRunChip`** is the chat card for the run `startFeatureWork` launched.
+  **It reports; it never decides.** A parked run says a decision is pending and
+  nothing more — which one, and the choices that answer it, live in the
+  pipeline. A second door to the same decision is how two surfaces drift apart.
+- **`ProcessesView`** is the library screen. Web takes a `narrow` prop and
+  collapses to one pane; native is always one pane.
+
+A park is answered with NAMED choices (`processParkChoices`), never a generic
+"resume": the reasons a run parks are not interchangeable — nothing was
+measured, the check said no, the retries ran out — and one button would hide
+which one this is.
+
+`headless/utils/processView.ts` is what stops the two peers drifting: one place
+says what an outcome is called and which status tone it carries. The tones are
+the package's own semantic set (`--status-<key>-*` on web, `status[key]` on
+native), never invented names — **a colour that resolves to no token renders as
+nothing at all, which looks deliberate and is therefore worse than being the
+wrong colour.**
+
 ### Project notes & secrets
 
 `useProjectNotes(projectId)` + `useProjectNoteReveal` front the per-project encrypted store of standing context an agent reaches for (logins for an app under test, API keys, conventions). The list surface (`ProjectNotesSettings` / `ProjectNotesForm`, web + native) **never renders a stored value** — `GET …/notes` returns summaries only, and `…/notes/:id/reveal` is called solely from an explicit per-note Reveal, which masks itself again after `NOTE_REVEAL_TIMEOUT_MS`. `access: 'open'` means any agent on the project can read the value whenever it needs it; `access: 'ask'` means every read asks the user first.
@@ -362,7 +409,8 @@ thefactory-ui/
 │       │   ├── foundations/ · primitives/ · components/ · layout/ · utilities/
 │       │   └── screens/                #     stories, story-details, board, docs, settings
 │       ├── primitives/                 #   Button, Input, Modal, Tooltip, Toast, NativeSelect, Select, …
-│       ├── compound/                   #   CommandPalette, BranchChip, JsonView, diff, files, chips, projectIcons
+│       ├── screens/                    #   shared screens (ProcessesView, ProjectTimelineView, …)
+│       ├── compound/                   #   CommandPalette, BranchChip, JsonView, diff, files, chips, process, projectIcons
 │       ├── icons/                      #   ~155 SVG icons (action + navigation + projects + decoration sets)
 │       ├── utils/cn.ts                 #   clsx + tailwind-merge
 │       └── index.ts

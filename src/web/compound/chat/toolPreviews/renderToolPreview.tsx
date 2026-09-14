@@ -63,6 +63,16 @@ export type ToolPreviewHooks = {
     agentRunId?: string
     runId?: string
   }) => ReactNode
+  /**
+   * Render the LIVE state of the process run `startFeatureWork` launched, and
+   * the way into its pipeline.
+   *
+   * The card reports; it never decides. It shows running / a decision pending /
+   * finished, and its only action is to open the run — every choice is made
+   * where its context is, which is the pipeline. A second door to the same
+   * decision is how two surfaces drift apart.
+   */
+  renderProcessRunLink?: (args: { processRunId: string }) => ReactNode
   /** Render a story-and-feature callout (used for `completeAssignment` /
    * `blockFeature`). Host wires its own component. */
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
@@ -598,12 +608,14 @@ export function renderToolPreview({
     const proofRequired = extract(args, ['proofRequired']) !== false
     const runner = tryString(extract(args, ['runner'])) ?? tryString(extract(result, ['runner']))
     const cli = tryString(extract(result, ['cli']))
-    const agentRunId = tryString(extract(result, ['agentRunId']))
-    const runId = tryString(extract(result, ['runId']))
+    const processRunId = tryString(extract(result, ['processRunId']))
+    const processName = tryString(extract(result, ['processName']))
+    const steps = extract(result, ['steps'])
+    const stepNames = Array.isArray(steps)
+      ? steps.map((s) => tryString(extract(s, ['name']))).filter((n): n is string => Boolean(n))
+      : []
     const errorText = tryString(extract(result, ['error']))
     const story = storyId ? hooks?.getStory?.(storyId) : undefined
-    const features = story?.features ?? []
-    const doneCount = features.filter((f) => f.status === 'done').length
     return (
       <div className="text-xs space-y-2">
         {story && hooks?.renderStoryCard ? (
@@ -612,12 +624,16 @@ export function renderToolPreview({
           <SmallBadge>{`story ${storyId}`}</SmallBadge>
         ) : null}
         <div className="flex flex-wrap items-center gap-1">
+          {processName ? <SmallBadge>{processName}</SmallBadge> : null}
           <SmallBadge>{proofRequired ? 'proof required' : 'no proof'}</SmallBadge>
           {cli ? <SmallBadge>{cli}</SmallBadge> : runner ? <SmallBadge>{runner}</SmallBadge> : null}
-          {features.length > 0 ? (
-            <SmallBadge>{`${doneCount}/${features.length} features done`}</SmallBadge>
-          ) : null}
         </div>
+        {stepNames.length > 0 ? (
+          <div>
+            <SectionTitle>What it will do</SectionTitle>
+            <div className="text-[11px] text-(--text-secondary)">{stepNames.join(' → ')}</div>
+          </div>
+        ) : null}
         {note ? (
           <div>
             <SectionTitle>Note to the agent</SectionTitle>
@@ -627,16 +643,9 @@ export function renderToolPreview({
           </div>
         ) : null}
         {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
-        {hooks?.renderAgentRunLink && (agentRunId || runId) ? (
-          <div>
-            <SectionTitle>Work</SectionTitle>
-            {hooks.renderAgentRunLink({
-              ...(storyId ? { storyId } : {}),
-              ...(agentRunId ? { agentRunId } : {}),
-              ...(runId ? { runId } : {}),
-            })}
-          </div>
-        ) : null}
+        {hooks?.renderProcessRunLink && processRunId
+          ? hooks.renderProcessRunLink({ processRunId })
+          : null}
       </div>
     )
   }

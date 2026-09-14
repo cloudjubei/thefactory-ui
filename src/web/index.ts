@@ -659,6 +659,15 @@ export { default as DiagnosticsOverlay } from './compound/shell/DiagnosticsOverl
 // native equivalents).
 export { default as WelcomeView } from './screens/WelcomeView'
 export { default as ProjectTimelineView } from './screens/ProjectTimelineView'
+export { default as ProcessesView } from './screens/ProcessesView'
+export {
+  default as ProcessPipeline,
+  type ProcessPipelineProps,
+} from './compound/process/ProcessPipeline'
+export {
+  default as ProcessRunChip,
+  type ProcessRunChipProps,
+} from './compound/process/ProcessRunChip'
 export {
   default as GithubCallback,
   GITHUB_OAUTH_MESSAGE_TYPE,

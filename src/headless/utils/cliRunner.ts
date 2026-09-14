@@ -40,8 +40,23 @@ export function chatCliRunnerToStartRunBody(
     ...(runner.credentialId ? { authCredentialId: runner.credentialId } : {}),
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { modelId: runner.model } : {}),
-    ...(runner.effort ? { effort: runner.effort as StartCliAgentRunData['body']['effort'] } : {}),
+    ...(cliEffort(runner.effort) ? { effort: cliEffort(runner.effort) } : {}),
   }
+}
+
+/** The reasoning-effort levels a run request accepts. */
+const CLI_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+
+/**
+ * A chat's stored effort, narrowed to what a run request accepts.
+ *
+ * The chat side keeps it as a loose string, so a value that predates the
+ * current level set — or one a hand-edited chat record carries — must be
+ * DROPPED rather than sent: the run would be rejected at the boundary, and the
+ * user would see a launch fail for a setting they cannot see.
+ */
+export function cliEffort(value: string | undefined): (typeof CLI_EFFORTS)[number] | undefined {
+  return CLI_EFFORTS.find((level) => level === value)
 }
 
 /**
@@ -55,7 +70,7 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.credentialId ? { authCredentialId: runner.credentialId } : {}),
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { model: runner.model } : {}),
-    ...(runner.effort ? { effort: runner.effort } : {}),
+    ...(cliEffort(runner.effort) ? { effort: cliEffort(runner.effort) } : {}),
     // Default to resident (the session-warm process — no per-turn container/CLI
     // boot). An unset execMode means the user never touched the toggle; resident
     // is the better default and `isResidentEligible` degrades to per-turn when

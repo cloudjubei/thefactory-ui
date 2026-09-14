@@ -66,6 +66,15 @@ export { default as SpinnerWithDot, type SpinnerWithDotProps } from './primitive
 export { Slider, type SliderProps } from './primitives/Slider'
 export { SecretInput, type SecretInputProps } from './primitives/SecretInput'
 export { Switch, type SwitchProps } from './primitives/Switch'
+export {
+  default as ProcessPipeline,
+  type ProcessPipelineProps,
+} from './compound/process/ProcessPipeline'
+export {
+  default as ProcessRunChip,
+  type ProcessRunChipProps,
+} from './compound/process/ProcessRunChip'
+export { default as ProcessesView } from './screens/ProcessesView'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {

@@ -22,6 +22,7 @@ describe('SHELL_TAB_DEFS', () => {
       'live-data',
       'timeline',
       'tools',
+      'processes',
       'settings',
     ])
   })

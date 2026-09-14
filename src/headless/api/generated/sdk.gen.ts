@@ -57,6 +57,9 @@ import type {
   CancelCredentialCaptureData,
   CancelCredentialCaptureErrors,
   CancelCredentialCaptureResponses,
+  CancelProcessRunData,
+  CancelProcessRunErrors,
+  CancelProcessRunResponses,
   CheckCliAuthStatusData,
   CheckCliAuthStatusResponses,
   CheckCliImageUpdatesData,
@@ -181,6 +184,8 @@ import type {
   DeleteLlmConfigData,
   DeleteLlmConfigErrors,
   DeleteLlmConfigResponses,
+  DeleteProcessData,
+  DeleteProcessResponses,
   DeleteProjectData,
   DeleteProjectDataData,
   DeleteProjectDataErrors,
@@ -331,6 +336,14 @@ import type {
   GetPricingData,
   GetPricingErrors,
   GetPricingResponses,
+  GetProcessCapabilitiesData,
+  GetProcessCapabilitiesResponses,
+  GetProcessData,
+  GetProcessErrors,
+  GetProcessResponses,
+  GetProcessRunData,
+  GetProcessRunErrors,
+  GetProcessRunResponses,
   GetProjectData,
   GetProjectErrors,
   GetProjectResponses,
@@ -488,6 +501,10 @@ import type {
   ListOverseerAuthProvidersResponses,
   ListPendingCliAgentActionsData,
   ListPendingCliAgentActionsResponses,
+  ListProcessesData,
+  ListProcessesResponses,
+  ListProcessRunsData,
+  ListProcessRunsResponses,
   ListProjectDataData,
   ListProjectDataErrors,
   ListProjectDataResponses,
@@ -650,6 +667,9 @@ import type {
   ResumeCompletionData,
   ResumeCompletionErrors,
   ResumeCompletionResponses,
+  ResumeProcessRunData,
+  ResumeProcessRunErrors,
+  ResumeProcessRunResponses,
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
@@ -676,6 +696,9 @@ import type {
   RunTestsResponses,
   RunTrainerToolData,
   RunTrainerToolResponses,
+  SaveProcessData,
+  SaveProcessErrors,
+  SaveProcessResponses,
   ScanCodeIntelData,
   ScanCodeIntelErrors,
   ScanCodeIntelResponses,
@@ -820,6 +843,8 @@ import type {
   UploadFileData,
   UploadFileErrors,
   UploadFileResponses,
+  ValidateProcessData,
+  ValidateProcessResponses,
   VerifyCliRunReviewData,
   VerifyCliRunReviewErrors,
   VerifyCliRunReviewResponses,
@@ -1320,6 +1345,117 @@ export const reorderFeatures = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const listProcesses = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProcessesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListProcessesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes',
+    ...options,
+  })
+
+export const getProcessCapabilities = <ThrowOnError extends boolean = false>(
+  options?: Options<GetProcessCapabilitiesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetProcessCapabilitiesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/capabilities',
+    ...options,
+  })
+
+export const deleteProcess = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProcessData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<DeleteProcessResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/{processId}',
+    ...options,
+  })
+
+export const getProcess = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProcessResponses, GetProcessErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/{processId}',
+    ...options,
+  })
+
+export const saveProcess = <ThrowOnError extends boolean = false>(
+  options: Options<SaveProcessData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<SaveProcessResponses, SaveProcessErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/{processId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const validateProcess = <ThrowOnError extends boolean = false>(
+  options: Options<ValidateProcessData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ValidateProcessResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/validate',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listProcessRuns = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProcessRunsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListProcessRunsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs',
+    ...options,
+  })
+
+export const getProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProcessRunResponses, GetProcessRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}',
+    ...options,
+  })
+
+export const resumeProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ResumeProcessRunResponses, ResumeProcessRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const cancelProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<CancelProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CancelProcessRunResponses, CancelProcessRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/cancel',
+    ...options,
   })
 
 export const listReviewEvidence = <ThrowOnError extends boolean = false>(

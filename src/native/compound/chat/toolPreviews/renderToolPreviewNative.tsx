@@ -56,6 +56,14 @@ export type ToolPreviewHooks = {
   /** Route an in-app `overseer://…` resource link tapped in a tool result (F.3). Host wires its
    * `navigateToResource`; omitted ⇒ result links render as inert labels. */
   onResourceLink?: (link: ResourceLink) => void
+  /**
+   * Render the LIVE state of the process run `startFeatureWork` launched, and
+   * the way into its pipeline.
+   *
+   * The card reports; it never decides. Its only action is to open the run —
+   * every choice is made where its context is, which is the pipeline.
+   */
+  renderProcessRunLink?: (args: { processRunId: string }) => ReactNode
 }
 
 export type RenderToolPreviewArgs = {
@@ -100,6 +108,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeExactReplaces',
   'writeFile',
   'updateStory',
+  'startFeatureWork',
   'updateFeature',
   'addStory',
   'addFeature',
@@ -643,6 +652,54 @@ export function renderToolPreviewNative({
     if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
     return <SecondaryText>No reorder data</SecondaryText>
   }
+  if (name === 'startFeatureWork') {
+    const storyId = tryString(extract(args, ['storyId']))
+    const note = tryString(extract(args, ['note']))
+    // The tool defaults proof to TRUE; only an explicit `false` turns it off.
+    const proofRequired = extract(args, ['proofRequired']) !== false
+    const runner = tryString(extract(args, ['runner'])) ?? tryString(extract(result, ['runner']))
+    const cli = tryString(extract(result, ['cli']))
+    const processRunId = tryString(extract(result, ['processRunId']))
+    const processName = tryString(extract(result, ['processName']))
+    const steps = extract(result, ['steps'])
+    const stepNames = Array.isArray(steps)
+      ? steps.map((s) => tryString(extract(s, ['name']))).filter((n): n is string => Boolean(n))
+      : []
+    const errorText = tryString(extract(result, ['error']))
+    const story = storyId ? hooks?.getStory?.(storyId) : undefined
+    return (
+      <View style={{ gap: 8 }}>
+        {story && hooks?.renderStoryCard ? (
+          hooks.renderStoryCard(story)
+        ) : storyId ? (
+          <SmallBadge>{`story ${storyId}`}</SmallBadge>
+        ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {processName ? <SmallBadge>{processName}</SmallBadge> : null}
+          <SmallBadge>{proofRequired ? 'proof required' : 'no proof'}</SmallBadge>
+          {cli ? <SmallBadge>{cli}</SmallBadge> : runner ? <SmallBadge>{runner}</SmallBadge> : null}
+        </View>
+        {stepNames.length > 0 ? (
+          <View>
+            <SectionTitle>What it will do</SectionTitle>
+            <SecondaryText>{stepNames.join(' \u2192 ')}</SecondaryText>
+          </View>
+        ) : null}
+        {note ? (
+          <View>
+            <SectionTitle>Note to the agent</SectionTitle>
+            <SecondaryText>{note}</SecondaryText>
+          </View>
+        ) : null}
+        {errorText ? <SecondaryText>{errorText}</SecondaryText> : null}
+        {hooks?.renderProcessRunLink && processRunId
+          ? hooks.renderProcessRunLink({ processRunId })
+          : null}
+      </View>
+    )
+  }
+
+  // ---- cross-project feature request (live status card) ----
   if (name === 'requestProjectFeature') {
     const requestId = tryString(extract(result, ['requestId']))
     if (requestId && hooks?.renderFeatureRequestWidget) {

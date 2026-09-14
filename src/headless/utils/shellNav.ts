@@ -18,6 +18,7 @@ export type NavIconKey =
   | 'tools'
   | 'settings'
   | 'app'
+  | 'processes'
 
 /** Per-project shell surface keys. Map to URL segments `/projects/:id/{key}`. */
 export type ShellTabKey =
@@ -30,6 +31,7 @@ export type ShellTabKey =
   | 'live-data'
   | 'timeline'
   | 'tools'
+  | 'processes'
   | 'settings'
   | 'app'
 
@@ -57,6 +59,7 @@ export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
   { key: 'live-data', label: 'Live Data', icon: 'live-data' },
   { key: 'timeline', label: 'Timeline', icon: 'timeline' },
   { key: 'tools', label: 'Tools', icon: 'tools' },
+  { key: 'processes', label: 'Processes', icon: 'processes' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 

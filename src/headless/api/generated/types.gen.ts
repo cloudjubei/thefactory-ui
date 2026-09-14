@@ -44,6 +44,7 @@ export type ActionRequest = {
   timeoutMs?: number
   neverExpires?: boolean
   toolName?: string
+  chatContextId?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
 }
@@ -90,6 +91,7 @@ export type PendingAction = {
   timeoutMs?: number
   neverExpires?: boolean
   toolName?: string
+  chatContextId?: string
   status: PendingActionStatus
   createdAt: number
   decidedAt?: number
@@ -106,6 +108,7 @@ export type DecideResult = {
 export type ActionFilter = {
   runId?: string
   status?: 'pending' | 'approved' | 'denied' | 'expired'
+  chatContextId?: string
 }
 
 export type ActionChangeEvent =
@@ -725,6 +728,20 @@ export type AgentTaskResult = {
   finalMessage: string
   costUSD: number
 }
+
+export type ToolApprovalDecision =
+  | {
+      outcome: 'approved'
+    }
+  | {
+      outcome: 'denied'
+      reason?: string
+    }
+  | {
+      outcome: 'expired'
+      reason: 'timeout' | 'cancelled'
+      message?: string
+    }
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
 
@@ -8681,6 +8698,13 @@ export type ToolName =
   | 'webReadRevalidationReport'
   | 'webReadCacheReport'
   | 'webInteract'
+  | 'listProcesses'
+  | 'getProcess'
+  | 'saveProcess'
+  | 'deleteProcess'
+  | 'validateProcess'
+  | 'getProcessRun'
+  | 'listProcessRuns'
 
 export type ValidationResult = {
   valid: boolean
@@ -9038,6 +9062,310 @@ export type HostReadHealth = {
   total: number
   verdict: 'wall' | 'dead-links' | 'flaky'
   action: string
+}
+
+export type ProcessStepKind =
+  | 'agent'
+  | 'check'
+  | 'capture'
+  | 'judge'
+  | 'report'
+  | 'gate'
+  | 'process'
+
+export type ValidateProcessOptions = {
+  implementedKinds?: Array<ProcessStepKind>
+}
+
+export type ProcessScope = 'global' | 'project'
+
+export type ProcessStepOutcome = 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+
+export type ProcessStepExpansion = 'features'
+
+export type ProcessStep = {
+  id: string
+  name: string
+  kind: ProcessStepKind
+  description?: string
+  enabled?: boolean
+  agentType?: string
+  processId?: string
+  expand?: 'features'
+}
+
+export type ProcessLoop = {
+  id: string
+  from: string
+  to: string
+  when: Array<ProcessStepOutcome>
+  maxIterations: number
+}
+
+export type ProcessDefinition = {
+  id: string
+  name: string
+  description?: string
+  steps: Array<ProcessStep>
+  loops: Array<ProcessLoop>
+  version: number
+  updatedAt: number
+  scope?: 'global' | 'project'
+  shadowsGlobal?: boolean
+  seeded?: boolean
+}
+
+export type ProcessSubject = {
+  kind: 'feature'
+  id: string
+  title: string
+}
+
+export type ProcessLaunchContext = {
+  features?: Array<ProcessSubject>
+}
+
+export type ProcessPlanStep = {
+  id: string
+  name: string
+  kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process'
+  description?: string
+  enabled?: boolean
+  agentType?: string
+  processId?: string
+  expand?: 'features'
+  subject?: {
+    kind: 'feature'
+    id: string
+    title: string
+  }
+}
+
+export type ProcessPlan = {
+  definitionId: string
+  definitionScope: ProcessScope
+  definitionVersion: number
+  name: string
+  steps: Array<ProcessPlanStep>
+  loops: Array<ProcessLoop>
+  frozenAt: number
+}
+
+export type ProcessRunCursor = {
+  stepId: string
+  iteration: number
+}
+
+export type ProcessParkReason =
+  | 'gate'
+  | 'step-failed'
+  | 'step-unchecked'
+  | 'step-errored'
+  | 'loop-exhausted'
+  | 'no-steps'
+  | 'unknown-step'
+
+export type ProcessPark = {
+  reason: ProcessParkReason
+  stepId?: string
+  loopId?: string
+  message: string
+  parkedAt: number
+}
+
+export type ProcessResumeChoice = 'continue' | 'retry' | 'abandon' | 'approve' | 'reject'
+
+export type ProcessRunStatus =
+  | 'pending'
+  | 'running'
+  | 'parked'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+
+export type ProcessNodeRunRef = {
+  runId: string
+  agentRunId?: string
+  chatContextId?: string
+  runner?: 'api' | 'cli'
+}
+
+export type ProcessLedgerEntry = {
+  id: string
+  stepId: string
+  iteration: number
+  status: 'running' | 'done'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  summary?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+  childRunId?: string
+  viaLoopId?: string
+  override?: {
+    choice: ProcessResumeChoice
+    at: number
+    note?: string
+  }
+  startedAt: number
+  endedAt?: number
+}
+
+export type ProcessRun = {
+  id: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  parentRunId?: string
+  parentStepId?: string
+  title: string
+  input?: {
+    [key: string]: unknown
+  }
+  plan: ProcessPlan
+  status: ProcessRunStatus
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+  loopCounts: {
+    [key: string]: number
+  }
+  iterationGrants?: {
+    [key: string]: number
+  }
+  ledger: Array<ProcessLedgerEntry>
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+  }
+  startedAt: number
+  updatedAt: number
+  endedAt?: number
+  error?: string
+}
+
+export type ProcessTransition =
+  | {
+      kind: 'enter'
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+    }
+  | {
+      kind: 'finished'
+    }
+  | {
+      kind: 'parked'
+      reason: ProcessParkReason
+      stepId?: string
+      loopId?: string
+    }
+  | {
+      kind: 'cancelled'
+    }
+
+export type ProcessCursorState = {
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+  lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  loopCounts?: {
+    [key: string]: number
+  }
+  iterationGrants?: {
+    [key: string]: number
+  }
+  cancelled?: boolean
+}
+
+export type ProcessStepResult = {
+  outcome: ProcessStepOutcome
+  summary?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+}
+
+export type StartProcessRunInput = {
+  projectId: string
+  processId: string
+  title: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  context?: {
+    features?: Array<ProcessSubject>
+  }
+  input?: {
+    [key: string]: unknown
+  }
+  parentRunId?: string
+  parentStepId?: string
+}
+
+export type ProcessRunQuery = {
+  projectId?: string
+  storyId?: string
+  chatContextId?: string
+  status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  rootOnly?: boolean
+  limit?: number
+}
+
+export type FreezePlanOptions = {
+  scope: ProcessScope
+  now: number
+  context?: {
+    features?: Array<ProcessSubject>
+  }
+}
+
+export type ProcessStepState = {
+  step: ProcessPlanStep
+  status: 'pending' | 'running' | 'done'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  attempts: number
+  latest?: {
+    id: string
+    stepId: string
+    iteration: number
+    status: 'running' | 'done'
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+    summary?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    childRunId?: string
+    viaLoopId?: string
+    override?: {
+      choice: ProcessResumeChoice
+      at: number
+      note?: string
+    }
+    startedAt: number
+    endedAt?: number
+  }
+  current: boolean
+}
+
+export type ProcessRunProgress = {
+  total: number
+  completed: number
+  currentStepId?: string
 }
 
 export type BuiltQuery = {
@@ -9402,7 +9730,7 @@ export type CliRunnerDispatchOptions = {
   apiKeyCredentialId?: string
   workspaceHostPath?: string
   model?: string
-  effort?: string
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   execMode?: 'per-turn' | 'resident'
 }
 
@@ -10901,6 +11229,282 @@ export type ReorderFeaturesResponses = {
 }
 
 export type ReorderFeaturesResponse = ReorderFeaturesResponses[keyof ReorderFeaturesResponses]
+
+export type ListProcessesData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
+     */
+    projectId?: string
+  }
+  url: '/api/v1/processes'
+}
+
+export type ListProcessesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ProcessDefinition>
+}
+
+export type ListProcessesResponse = ListProcessesResponses[keyof ListProcessesResponses]
+
+export type GetProcessCapabilitiesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/processes/capabilities'
+}
+
+export type GetProcessCapabilitiesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    kinds: Array<string>
+    implemented: Array<string>
+  }
+}
+
+export type GetProcessCapabilitiesResponse =
+  GetProcessCapabilitiesResponses[keyof GetProcessCapabilitiesResponses]
+
+export type DeleteProcessData = {
+  body?: never
+  path: {
+    processId: string
+  }
+  query?: {
+    /**
+     * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
+     */
+    projectId?: string
+  }
+  url: '/api/v1/processes/{processId}'
+}
+
+export type DeleteProcessResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteProcessResponse = DeleteProcessResponses[keyof DeleteProcessResponses]
+
+export type GetProcessData = {
+  body?: never
+  path: {
+    processId: string
+  }
+  query?: {
+    /**
+     * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
+     */
+    projectId?: string
+  }
+  url: '/api/v1/processes/{processId}'
+}
+
+export type GetProcessErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessError = GetProcessErrors[keyof GetProcessErrors]
+
+export type GetProcessResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessDefinition
+}
+
+export type GetProcessResponse = GetProcessResponses[keyof GetProcessResponses]
+
+export type SaveProcessData = {
+  body: ProcessDefinition
+  path: {
+    processId: string
+  }
+  query?: {
+    /**
+     * Resolve against a project: its own definitions shadow the shared library, and a save FORKS a shared definition into the project rather than editing it. Omit to read or write the shared library itself.
+     */
+    projectId?: string
+  }
+  url: '/api/v1/processes/{processId}'
+}
+
+export type SaveProcessErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SaveProcessError = SaveProcessErrors[keyof SaveProcessErrors]
+
+export type SaveProcessResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessDefinition
+}
+
+export type SaveProcessResponse = SaveProcessResponses[keyof SaveProcessResponses]
+
+export type ValidateProcessData = {
+  body: ProcessDefinition
+  path?: never
+  query?: never
+  url: '/api/v1/processes/validate'
+}
+
+export type ValidateProcessResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    valid: boolean
+    errors: Array<string>
+  }
+}
+
+export type ValidateProcessResponse = ValidateProcessResponses[keyof ValidateProcessResponses]
+
+export type ListProcessRunsData = {
+  body?: never
+  path?: never
+  query?: {
+    projectId?: string
+    storyId?: string
+    chatContextId?: string
+    /**
+     * Only top-level runs — the ones a chat launched.
+     */
+    rootOnly?: boolean
+    limit?: number
+  }
+  url: '/api/v1/process-runs'
+}
+
+export type ListProcessRunsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ProcessRun>
+}
+
+export type ListProcessRunsResponse = ListProcessRunsResponses[keyof ListProcessRunsResponses]
+
+export type GetProcessRunData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}'
+}
+
+export type GetProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunError = GetProcessRunErrors[keyof GetProcessRunErrors]
+
+export type GetProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type GetProcessRunResponse = GetProcessRunResponses[keyof GetProcessRunResponses]
+
+export type ResumeProcessRunData = {
+  body: {
+    choice: 'continue' | 'retry' | 'abandon' | 'approve' | 'reject'
+    note?: string
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/resume'
+}
+
+export type ResumeProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ResumeProcessRunError = ResumeProcessRunErrors[keyof ResumeProcessRunErrors]
+
+export type ResumeProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
+
+export type CancelProcessRunData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/cancel'
+}
+
+export type CancelProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CancelProcessRunError = CancelProcessRunErrors[keyof CancelProcessRunErrors]
+
+export type CancelProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type CancelProcessRunResponse = CancelProcessRunResponses[keyof CancelProcessRunResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -15935,7 +16539,7 @@ export type SendChatCompletionWithToolsData = {
       apiKeyCredentialId?: string
       workspaceHostPath?: string
       model?: string
-      effort?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       execMode?: 'per-turn' | 'resident'
     }
   }
@@ -16093,7 +16697,7 @@ export type SendChatWithCliData = {
       apiKeyCredentialId?: string
       workspaceHostPath?: string
       model?: string
-      effort?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       execMode?: 'per-turn' | 'resident'
     }
   }
@@ -16147,7 +16751,7 @@ export type RestartChatWithCliData = {
       apiKeyCredentialId?: string
       workspaceHostPath?: string
       model?: string
-      effort?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       execMode?: 'per-turn' | 'resident'
     }
   }
@@ -17666,7 +18270,7 @@ export type StartAgentRunData = {
       apiKeyCredentialId?: string
       workspaceHostPath?: string
       model?: string
-      effort?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       execMode?: 'per-turn' | 'resident'
     }
   }

@@ -998,6 +998,48 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // conventions) an agent can reach for, plus the deliberate one-at-a-time
 // reveal of a stored value.
 export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+export { useProcesses, type UseProcesses } from './hooks/useProcesses'
+export { useProcessRun, type UseProcessRun } from './hooks/useProcessRun'
+// How a process reads on screen — shared by the `web/` and `native/` peers so
+// the two cannot drift on an outcome's name or its status colour.
+export {
+  PROCESS_OUTCOME_VIEW,
+  PROCESS_RUN_STATUS_VIEW,
+  processRunChipLabel,
+  processStepTone,
+  type ProcessStatusTone,
+} from './utils/processView'
+// The process engine's pure readers, re-exported so apps reach them through
+// `thefactory-ui` rather than importing `thefactory-tools` directly. They must
+// agree with the driver's own derivation — `processStepStates` projects a run
+// onto the plan the DRIVER froze, so a client-side re-implementation would
+// render a pipeline the backend does not agree with.
+export {
+  processParkChoices,
+  processRunProgress,
+  processStepStates,
+  stepChainSummary,
+  type ProcessParkChoice,
+  type ProcessStepState,
+} from 'thefactory-tools/utils'
+export { PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
+export type {
+  ProcessDefinition,
+  ProcessLedgerEntry,
+  ProcessLoop,
+  ProcessNodeRunRef,
+  ProcessPark,
+  ProcessParkReason,
+  ProcessPlan,
+  ProcessPlanStep,
+  ProcessResumeChoice,
+  ProcessRun,
+  ProcessRunStatus,
+  ProcessScope,
+  ProcessStep,
+  ProcessStepKind,
+  ProcessStepOutcome,
+} from 'thefactory-tools/types'
 export { useProjectNoteReveal, type UseProjectNoteReveal } from './hooks/useProjectNoteReveal'
 export {
   canRevealNote,
