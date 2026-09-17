@@ -1,4 +1,4 @@
-import { processRunChipLabel, useProcessRun } from '../../../headless'
+import { processRunChain, processRunChipLabel, useProcessRun } from '../../../headless'
 
 export type ProcessRunChipProps = {
   processRunId: string
@@ -19,14 +19,21 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 rounded border px-2 py-1 text-left text-[11px]"
+      className="flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left text-[11px]"
       style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
       onClick={() => onOpen(processRunId)}
     >
-      <span className="font-medium">
-        {run ? processRunChipLabel(run) : 'Loading the pipeline…'}
+      <span className="flex min-w-0 flex-col">
+        <span className="font-medium">
+          {run ? processRunChipLabel(run) : 'Loading the pipeline…'}
+        </span>
+        {run ? (
+          <span className="truncate text-[10px] text-(--text-secondary)">
+            {processRunChain(run)}
+          </span>
+        ) : null}
       </span>
-      <span className="ml-auto text-(--text-secondary)">Open the pipeline →</span>
+      <span className="ml-auto shrink-0 text-(--text-secondary)">Open the pipeline →</span>
     </button>
   )
 }

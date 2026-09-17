@@ -22,6 +22,7 @@ import {
   STORY_UNFINISHED_TITLE,
   UNIMPLEMENTED_CHECK_METHODS,
   VERDICT_BEARING_METHODS,
+  OPTIONAL_CHECK_METHODS,
 } from './checkMethodConstants'
 import type { CheckMethodRow } from './checkMethodTypes'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
@@ -530,19 +531,31 @@ describe('signoffVerdict', () => {
     expect(v.title).toContain('Screens')
   })
 
-  it('an UNIMPLEMENTED method cannot demote — it made "proven" unreachable for every run', () => {
-    // The live report: every chip green, "Partly proven" above them, and no
-    // explanation the reviewer could act on. `diff` can only pass on a
-    // `reviewer-agent` verdict that nothing in any repo writes, so it was
-    // permanently unchecked and permanently demoting.
+  it('a method that cannot be satisfied never carries the verdict', () => {
+    // The live report this closes: every chip green, "Partly proven" above
+    // them, and no explanation the reviewer could act on — held down by two
+    // methods with no implementation behind them.
     for (const id of UNIMPLEMENTED_CHECK_METHODS) {
       expect(VERDICT_BEARING_METHODS).not.toContain(id)
     }
+  })
+
+  it('an OPTIONAL method cannot demote either — implemented is not the same as required', () => {
+    // A recorder exists, so `walkthrough` is real and passes when a video was
+    // filed. Most changes do not need one, and demanding it would mark every
+    // run without a video "partly proven".
+    for (const id of OPTIONAL_CHECK_METHODS) {
+      expect(VERDICT_BEARING_METHODS).not.toContain(id)
+    }
     const v = signoffVerdict({
-      rows: [mk({}), mk({ id: 'diff', label: 'Diff', state: 'unchecked' })],
+      rows: [mk({}), mk({ id: 'walkthrough', label: 'Walkthrough', state: 'unchecked' })],
       verified: true,
     })
     expect(v.key).toBe('proven')
+  })
+
+  it('a walkthrough that WAS recorded still shows as evidence', () => {
+    expect(IMPLEMENTED_CHECK_METHOD_ORDER).toContain('walkthrough')
   })
 
   it('a partial verdict always NAMES what held it back', () => {
@@ -681,5 +694,52 @@ describe('tabForMethod', () => {
 
   it('sends the diff review to the changes tab', () => {
     expect(tabForMethod('diff')).toBe('changes')
+  })
+})
+
+describe('the diff method, now that it has a producer', () => {
+  it('is offered to reviewers — its producer landed with the judge step', () => {
+    expect(UNIMPLEMENTED_CHECK_METHODS).not.toContain('diff')
+    expect(IMPLEMENTED_CHECK_METHOD_ORDER).toContain('diff')
+  })
+
+  it('passes when the change was actually read', () => {
+    const rows = checkMethodRows({
+      verification: undefined,
+      approaches: [],
+      evidence: [],
+      diffReview: { by: 'reviewer-agent', summary: 'Read all 4 files' },
+    })
+    expect(rows.find((r) => r.id === 'diff')).toMatchObject({
+      state: 'passed',
+      detail: 'Read all 4 files',
+    })
+  })
+
+  it('is unchecked when nobody has read it', () => {
+    const rows = checkMethodRows({ verification: undefined, approaches: [], evidence: [] })
+    expect(rows.find((r) => r.id === 'diff')?.state).toBe('unchecked')
+  })
+
+  it('is NOT satisfied by a verdict — deciding and reading are different acts', () => {
+    // An agent stamping the sign-off would be approving on the user's behalf,
+    // which is exactly why reading got a field of its own.
+    const rows = checkMethodRows({
+      verification: undefined,
+      approaches: [],
+      evidence: [],
+      verdictBy: 'reviewer-agent',
+    })
+    expect(rows.find((r) => r.id === 'diff')?.state).toBe('unchecked')
+  })
+
+  it('says who read it when the reader left no summary', () => {
+    const rows = checkMethodRows({
+      verification: undefined,
+      approaches: [],
+      evidence: [],
+      diffReview: { by: 'user' },
+    })
+    expect(rows.find((r) => r.id === 'diff')?.detail).toBe('You read the change')
   })
 })

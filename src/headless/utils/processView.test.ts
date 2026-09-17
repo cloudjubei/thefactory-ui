@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun, ProcessStepOutcome } from 'thefactory-tools/types'
+import { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 import {
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
   processRunChipLabel,
   processStepTone,
+  processRunSpend,
+  PROCESS_KIND_BLURB,
+  copyProcessDefinition,
+  blankProcessDefinition,
+  blankProcessStep,
+  isProcessFork,
+  parkedRunRef,
+  processStepName,
+  processRunChain,
+  processScopeLabel,
 } from './processView'
 
 const TOKEN_STATUSES = ['empty', 'done', 'working', 'stuck', 'blocked', 'queued'] as const
@@ -140,5 +151,176 @@ describe('the question outcome', () => {
       },
     ]
     expect(processRunChipLabel(run({ ledger }))).toBe('Running · 0/2 steps')
+  })
+})
+
+describe('processRunSpend', () => {
+  it('says nothing for a run that was never capped and never measured', () => {
+    expect(processRunSpend(run())).toBeUndefined()
+  })
+
+  it('shows spend against the cap', () => {
+    const r = run({ budget: { spendUsdCap: 5 }, spentUsd: 1.5 })
+    expect(processRunSpend(r)?.label).toBe('$1.50 of $5.00')
+  })
+
+  it('folds a granted raise into the ceiling, and says it was raised', () => {
+    const r = run({ budget: { spendUsdCap: 5 }, budgetGrants: { spendUsdCap: 5 }, spentUsd: 6 })
+    expect(processRunSpend(r)?.label).toBe('$6.00 of $10.00 (raised)')
+  })
+
+  it('shows spend alone when the run is uncapped', () => {
+    expect(processRunSpend(run({ spentUsd: 2 }))?.label).toBe('$2.00')
+  })
+
+  it('reads a capped run that has spent nothing yet as zero, not unknown', () => {
+    expect(processRunSpend(run({ budget: { spendUsdCap: 5 } }))?.label).toBe('$0.00 of $5.00')
+  })
+})
+
+describe('processRunChain', () => {
+  it('reads as the chain a user would describe out loud', () => {
+    expect(processRunChain(run())).toBe('A → B')
+  })
+
+  it('says so rather than returning an empty string for a plan with no steps', () => {
+    // Reachable: `no-steps` is a real park reason, so a run whose plan froze to
+    // zero steps exists and this is its chip's second line.
+    const empty = run()
+    empty.plan.steps = []
+    expect(processRunChain(empty)).toBe('No steps')
+  })
+})
+
+describe('parkedRunRef', () => {
+  const entry = (stepId: string, runRef?: { runId: string; chatContextId?: string }) => ({
+    id: stepId,
+    stepId,
+    iteration: 1,
+    status: 'done' as const,
+    startedAt: 0,
+    ...(runRef ? { runRef } : {}),
+  })
+
+  it('finds the run the parked step owns', () => {
+    const r = run({
+      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      ledger: [entry('a', { runId: 'r1', chatContextId: '/projects/p/stories/s' })],
+    })
+    expect(parkedRunRef(r)?.runId).toBe('r1')
+  })
+
+  it('takes the NEWEST attempt when a step ran more than once', () => {
+    const r = run({
+      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      ledger: [
+        entry('a', { runId: 'old', chatContextId: '/x' }),
+        entry('a', { runId: 'new', chatContextId: '/y' }),
+      ],
+    })
+    expect(parkedRunRef(r)?.runId).toBe('new')
+  })
+
+  it('refuses a ref with no chat to open — a CTA that does nothing is worse than none', () => {
+    const r = run({
+      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      ledger: [entry('a', { runId: 'r1' })],
+    })
+    expect(parkedRunRef(r)).toBeUndefined()
+  })
+
+  it('ignores a run belonging to a different step', () => {
+    const r = run({
+      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      ledger: [entry('b', { runId: 'r1', chatContextId: '/x' })],
+    })
+    expect(parkedRunRef(r)).toBeUndefined()
+  })
+
+  it('finds nothing when the run is not parked', () => {
+    expect(
+      parkedRunRef(run({ ledger: [entry('a', { runId: 'r1', chatContextId: '/x' })] })),
+    ).toBeUndefined()
+  })
+})
+
+describe('the editor helpers both peers share', () => {
+  it('describes every step kind the engine declares', () => {
+    for (const kind of PROCESS_STEP_KINDS) {
+      expect(PROCESS_KIND_BLURB[kind], kind).toBeTruthy()
+    }
+  })
+
+  it('labels a project copy of a shared process as an override', () => {
+    const d = { id: 'x', name: 'X', steps: [], loops: [], version: 1, updatedAt: 0 }
+    expect(processScopeLabel({ ...d, scope: 'project', shadowsGlobal: true })).toBe(
+      'OVERRIDES SHARED',
+    )
+    expect(processScopeLabel({ ...d, scope: 'project' })).toBe('THIS PROJECT')
+    expect(processScopeLabel({ ...d, scope: 'global' })).toBe('SHARED')
+  })
+
+  it('resets the version on a copy — it has no history of its own', () => {
+    const original = {
+      id: 'feature-default',
+      name: 'Feature',
+      steps: [],
+      loops: [],
+      version: 7,
+      updatedAt: 0,
+    }
+    expect(copyProcessDefinition(original)).toMatchObject({
+      id: 'feature-default-copy',
+      name: 'Feature (copy)',
+      version: 1,
+    })
+  })
+
+  it('names a step by its display name, falling back to the id it cannot find', () => {
+    // A loop is described as "Verify → Implement". A missing id printed raw is
+    // still the truth about a definition whose loop points nowhere.
+    const d = {
+      id: 'x',
+      name: 'X',
+      steps: [{ id: 'verify', name: 'Verify', kind: 'agent' as const }],
+      loops: [],
+      version: 1,
+      updatedAt: 0,
+    }
+    expect(processStepName(d, 'verify')).toBe('Verify')
+    expect(processStepName(d, 'ghost')).toBe('ghost')
+  })
+
+  it('builds a blank step the editor can save without further edits', () => {
+    const step = blankProcessStep(2)
+    expect(step).toEqual({ id: 'step-2', name: 'Step 2', kind: 'agent', agentType: 'developer' })
+    // The default role has to be a REAL one: an agent step naming a role that
+    // does not exist is refused at execution time.
+    expect(AGENT_RUN_TYPES).toContain(step.agentType)
+  })
+
+  it('builds a blank definition that already has one step, not an empty plan', () => {
+    // A plan that froze to zero steps parks immediately on `no-steps`, so the
+    // editor's "new" must not start there.
+    const blank = blankProcessDefinition()
+    expect(blank.steps).toHaveLength(1)
+    expect(blank.version).toBe(1)
+    expect(blank.loops).toEqual([])
+    expect(blank.id).toBe('')
+  })
+
+  it('keeps saying "this will fork" while the user renames the id mid-edit', () => {
+    // A lookup-based rule made the explanation vanish at exactly the moment the
+    // user was doing the thing it explains.
+    const draft = {
+      id: 'renamed-by-the-user',
+      name: 'X',
+      steps: [],
+      loops: [],
+      version: 1,
+      updatedAt: 0,
+      scope: 'global' as const,
+    }
+    expect(isProcessFork(draft)).toBe(true)
   })
 })

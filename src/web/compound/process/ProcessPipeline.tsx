@@ -1,17 +1,20 @@
 import { useCallback, useMemo, useState } from 'react'
-import type {
-  ProcessNodeRunRef,
-  ProcessResumeChoice,
-  ProcessRun,
-  ProcessStepOutcome,
-} from 'thefactory-tools/types'
-import { processParkChoices, processRunProgress, processStepStates } from 'thefactory-tools/utils'
 import {
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
+  isReflectedPark,
+  parkedRunRef,
+  processParkChoices,
+  processRunProgress,
+  processRunSpend,
+  processStepStates,
   processStepTone,
   useProcessRun,
+  type ProcessNodeRunRef,
+  type ProcessResumeChoice,
+  type ProcessRun,
   type ProcessStatusTone,
+  type ProcessStepOutcome,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -76,7 +79,14 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
 
       <PipelineHeader run={run} onCancel={() => void cancel()} />
 
-      {run.park ? <ParkBanner run={run} onChoose={(choice) => void resume(choice)} /> : null}
+      {run.park ? (
+        <ParkBanner
+          run={run}
+          onChoose={(choice) => void resume(choice)}
+          onDrill={drillTo}
+          {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+        />
+      ) : null}
 
       <ol className="flex flex-col gap-2">
         {processStepStates(run).map((state, index) => (
@@ -121,6 +131,7 @@ function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: stri
 
 function PipelineHeader({ run, onCancel }: { run: ProcessRun; onCancel: () => void }) {
   const progress = useMemo(() => processRunProgress(run), [run])
+  const spend = useMemo(() => processRunSpend(run), [run])
   const view = PROCESS_RUN_STATUS_VIEW[run.status]
   const running = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   return (
@@ -131,6 +142,11 @@ function PipelineHeader({ run, onCancel }: { run: ProcessRun; onCancel: () => vo
       <span className="text-[11px] text-(--text-secondary)">
         {progress.completed} of {progress.total} steps
       </span>
+      {spend ? (
+        <span className="text-[11px] text-(--text-secondary)" title="Spent against the cap">
+          {spend.label}
+        </span>
+      ) : null}
       {running ? (
         <Button className="ml-auto" size="sm" variant="secondary" onClick={onCancel}>
           Stop
@@ -149,17 +165,47 @@ function PipelineHeader({ run, onCancel }: { run: ProcessRun; onCancel: () => vo
 function ParkBanner({
   run,
   onChoose,
+  onOpenAgentRun,
+  onDrill,
 }: {
   run: ProcessRun
   onChoose: (choice: ProcessResumeChoice) => void
+  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  onDrill: (childRunId: string) => void
 }) {
   const park = run.park
   if (!park) return null
+  // A park that is waiting on an ANSWER has somewhere to go: the run that
+  // asked. Without it the banner tells the user to answer a question and gives
+  // them no way to reach it.
+  const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
+  // A MIRRORED park is a statement, not a question — the decision belongs to
+  // the nested run, where its context is, and the server refuses to answer it
+  // here. So the banner offers the one thing that does work: going there.
+  const reflected = isReflectedPark(park)
   return (
     <Surface className="flex flex-col gap-2 p-3">
       <div className="text-sm">{park.message}</div>
+      {reflected && park.childRunId ? (
+        <button
+          type="button"
+          className="self-start text-[11px] underline text-(--text-secondary)"
+          onClick={() => onDrill(park.childRunId as string)}
+        >
+          Open the nested run to decide →
+        </button>
+      ) : null}
+      {asked && onOpenAgentRun ? (
+        <button
+          type="button"
+          className="self-start text-[11px] underline text-(--text-secondary)"
+          onClick={() => onOpenAgentRun(asked)}
+        >
+          Open the run to answer →
+        </button>
+      ) : null}
       <div className="flex flex-wrap gap-3">
-        {processParkChoices(park.reason).map((choice) => (
+        {processParkChoices(park.reason, { reflected }).map((choice) => (
           <div key={choice.choice} className="flex flex-col gap-0.5">
             <Button
               size="sm"

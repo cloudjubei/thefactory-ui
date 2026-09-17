@@ -242,6 +242,15 @@ describe('launchBeats', () => {
   it('speaks to the reader — the run comes back to you', () => {
     expect(launchBeats(true)[3].detail).toMatch(/comes back to you/)
   })
+
+  it('the launch beat names the pipeline, not a chat the run no longer has', () => {
+    // What starts is a PROCESS whose steps are mostly not agents at all, and it
+    // is followed on the pipeline. Promising "its own chat that you can watch"
+    // sent the user looking for a transcript that does not exist.
+    const detail = launchBeats(true)[0].detail
+    expect(detail).toMatch(/pipeline/i)
+    expect(detail).not.toMatch(/chat/i)
+  })
 })
 
 describe('pendingApprovalGrants', () => {

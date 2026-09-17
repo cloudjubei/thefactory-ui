@@ -97,6 +97,14 @@ export type ChatMessageLike = {
    * the "Resumed by request" tag on the row.
    */
   featureRequestId?: string
+  /**
+   * Set on the assistant message announcing that a process run was launched — the id of that run.
+   *
+   * A launch the user approves after the agent's turn has ended executes host-side, so its result
+   * never reaches the tool call that asked for it; that card keeps its `pending` stub. This is the
+   * only place the run reaches the chat, and it is what the row's live process chip reads.
+   */
+  processRunId?: string
 }
 
 export type PendingToolConfirmationLike = {

@@ -122,6 +122,8 @@ export type MessageListProps = {
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** Forwarded to each row: the live process run an announcement message launched. */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (desktop parity) -----
   /** Host-supplied tool-preview fetcher — called for each
@@ -179,6 +181,7 @@ export default function MessageList({
   renderDependency,
   onResourceLink,
   renderCliRunArtifact,
+  renderProcessRun,
   previewTool,
   onResumeTools,
   isSending = false,
@@ -714,6 +717,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  renderProcessRun={renderProcessRun}
                   coldStart={msg.cliRunId === firstCliRunId}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
@@ -746,6 +750,7 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  renderProcessRun={renderProcessRun}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]
@@ -833,6 +838,7 @@ export default function MessageList({
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
+              renderProcessRun={renderProcessRun}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
             />

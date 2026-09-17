@@ -184,12 +184,18 @@ export type LaunchBeat = {
  * What approving actually does, in four beats. The proof beat is honest about
  * the switch: with proof off, the run may report done on its own word, and the
  * card must say so rather than promise verification it will not perform.
+ *
+ * The first beat names a PIPELINE, not "an agent run in its own chat". What
+ * starts is a process whose steps are mostly not agents at all, and the surface
+ * it is followed on is the pipeline — describing it as one chat sent the user
+ * looking for a transcript that no longer exists.
  */
 export function launchBeats(proofRequired: boolean): LaunchBeat[] {
   return [
     {
       title: 'Launch',
-      detail: 'a new agent run starts straight away, in its own chat that you can watch.',
+      detail:
+        'a pipeline starts straight away: each feature is worked, verified and written up as its own step, in order. You can follow the steps and stop it at any point.',
     },
     {
       title: 'Isolated copy',
@@ -210,7 +216,7 @@ export function launchBeats(proofRequired: boolean): LaunchBeat[] {
     {
       title: 'Your sign-off',
       detail:
-        'it comes back to you with what it did and what it proved. Nothing merges without you.',
+        'the whole story comes back to you with what it did and what it proved. Nothing merges without you.',
     },
   ]
 }

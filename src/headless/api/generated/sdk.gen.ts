@@ -617,6 +617,9 @@ import type {
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
+  RecordCliRunDiffReviewData,
+  RecordCliRunDiffReviewErrors,
+  RecordCliRunDiffReviewResponses,
   RefreshDataSourceData,
   RefreshDataSourceErrors,
   RefreshDataSourceResponses,
@@ -4118,6 +4121,23 @@ export const verifyCliRunReview = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/verify',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const recordCliRunDiffReview = <ThrowOnError extends boolean = false>(
+  options: Options<RecordCliRunDiffReviewData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RecordCliRunDiffReviewResponses,
+    RecordCliRunDiffReviewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/diff-review',
     ...options,
     headers: {
       'Content-Type': 'application/json',

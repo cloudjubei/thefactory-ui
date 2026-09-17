@@ -31,10 +31,15 @@ export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
 /**
  * Declared, but nothing in any repo can ever produce one.
  *
- * `walkthrough` names `screen-recording`, and no recorder exists — its own
- * `drivenBy` lists four SCREENSHOT tools. `diff` names `adversarial-review`, and
- * nothing anywhere writes a `reviewer-agent` verdict, which is the only thing
- * that can satisfy it.
+ * `walkthrough` LANDED with `mobileTestRecordScreen`. Its `drivenBy` used to
+ * list four SCREENSHOT tools, so an agent briefed to record a video had only
+ * stills to do it with.
+ *
+ * `diff` LANDED: the `judge` step reads the branch diff and records
+ * `CliRun.diffReview`, which is what satisfies it. Note what it is NOT — the
+ * verdict. `CliRunVerdict.decision` means approved / changes-requested /
+ * rejected, a SIGN-OFF that is the user's to give, so "the diff was read" got a
+ * field of its own rather than an agent stamping a decision on their behalf.
  *
  * These are not slow or unavailable, they are ABSENT, and the distinction is the
  * whole point: `unchecked` means "this run did not do it", which a reviewer can
@@ -48,7 +53,7 @@ export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
  *
  * Remove an entry here the moment its producer lands — that is the whole switch.
  */
-export const UNIMPLEMENTED_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough', 'diff']
+export const UNIMPLEMENTED_CHECK_METHODS: readonly CheckMethodId[] = []
 
 /** The methods that can actually be satisfied — the only ones a reviewer ever sees. */
 export const IMPLEMENTED_CHECK_METHOD_ORDER: readonly CheckMethodId[] = CHECK_METHOD_ORDER.filter(
@@ -189,17 +194,30 @@ export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
 }
 
 /**
- * Every IMPLEMENTED method carries the verdict: any FAILURE makes the run
- * failed, any method that could have run and did not makes it partly proven.
- * `unconfigured` still never demotes — a project that has no linter is not a
- * worse-proven change.
+ * Methods a reviewer may legitimately show as evidence, but which do NOT
+ * demote a run by their absence.
+ *
+ * `walkthrough` is the case: a recorder exists now, so the method is real and
+ * passes when a video was filed — but most changes do not need one, and making
+ * it verdict-bearing would mark every run without a video "partly proven". That
+ * is the same unreachable headline the unimplemented gate existed to prevent,
+ * arrived at from the other direction: implemented is not the same as required.
+ */
+export const OPTIONAL_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough']
+
+/**
+ * Every IMPLEMENTED, REQUIRED method carries the verdict: any FAILURE makes the
+ * run failed, any method that could have run and did not makes it partly
+ * proven. `unconfigured` still never demotes — a project that has no linter is
+ * not a worse-proven change.
  *
  * Closed over the implemented set, not the whole vocabulary. A method with no
  * producer cannot be satisfied at any price, so holding it against a run does
  * not describe the run, it describes the product — and it made "proven"
  * unreachable for everyone, forever.
  */
-export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] = IMPLEMENTED_CHECK_METHOD_ORDER
+export const VERDICT_BEARING_METHODS: readonly CheckMethodId[] =
+  IMPLEMENTED_CHECK_METHOD_ORDER.filter((id) => !OPTIONAL_CHECK_METHODS.includes(id))
 
 /** Past this many absent chips, the row collapses them into one. */
 export const COLLAPSE_ABSENT_PAST = 3

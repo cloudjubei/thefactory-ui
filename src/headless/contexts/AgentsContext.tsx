@@ -17,13 +17,20 @@ import { useWebSearchKeys } from './WebSearchKeysContext'
 
 export type AgentType = StartAgentRunData['body']['params']['agentType']
 
-export const AGENT_TYPES: readonly AgentType[] = [
-  'speccer',
-  'planner',
-  'contexter',
-  'tester',
-  'developer',
-] as const
+/**
+ * The roles a user can start directly from a story.
+ *
+ * One, now. `speccer` / `planner` / `contexter` / `tester` were a
+ * hand-sequenced pipeline in which each role reset the feature to `pending` for
+ * the next; a PROCESS expresses that sequencing as data instead, with retries
+ * and a place to stop, and is launched from the chat. What is left here is the
+ * escape hatch: run the implementing agent once, on one story, with no ceremony.
+ *
+ * `verifier` / `capture` / `judge` / `remedy` are deliberately absent — each
+ * examines or repairs work that already exists, so starting one from a story
+ * with nothing landed has nothing to act on.
+ */
+export const AGENT_TYPES: readonly AgentType[] = ['developer'] as const
 
 const DEFAULT_AGENT_SETTINGS: StartAgentRunData['body']['settings'] = {
   maxTurns: 50,

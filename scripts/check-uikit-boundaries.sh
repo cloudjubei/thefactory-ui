@@ -27,6 +27,22 @@ scan() {
   fi
 }
 
+# As `scan`, but ignoring comment lines. For rules about CODE that name an
+# identifier a comment is also entitled to mention — "no `window.matchMedia`
+# here" is a doc note, not a violation of itself.
+scan_code() {
+  local label="$1" pattern="$2" path="$3"
+  if [ ! -d "$path" ]; then return; fi
+  local hits
+  hits=$(grep -RE --include='*.ts' --include='*.tsx' "$pattern" "$path" 2>/dev/null \
+    | grep -vE ':[[:space:]]*(//|\*|/\*)' || true)
+  if [ -n "$hits" ]; then
+    echo "uikit-boundaries: $label" >&2
+    echo "$hits" >&2
+    fail=1
+  fi
+}
+
 # 1. tokens/ is pure TS — no React, no DOM, no RN, no CSS imports.
 scan "react import inside src/tokens/" \
   "from 'react'" "$SRC/tokens"
@@ -49,6 +65,13 @@ scan "../web/ import inside src/headless/" \
   "from '.*\\.\\./web" "$SRC/headless"
 scan "../native/ import inside src/headless/" \
   "from '.*\\.\\./native" "$SRC/headless"
+# The rule the header has always claimed, now enforced. A DOM global in headless
+# code does not fail a type-check (the DOM lib is in scope) and does not fail a
+# web build — it throws only on a native device, where nobody runs the headless
+# tests. `useResolvedTheme` is the shape to keep: the HOST injects how to read
+# the system theme, because only the host knows whether it has a `matchMedia`.
+scan_code "DOM global used inside src/headless/" \
+  "(^|[^.[:alnum:]_])(document|window|navigator|localStorage|sessionStorage)\\." "$SRC/headless"
 
 # 3. web/ may not import RN.
 scan "react-native import inside src/web/" \

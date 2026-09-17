@@ -4,8 +4,11 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import {
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
+  isReflectedPark,
+  parkedRunRef,
   processParkChoices,
   processRunProgress,
+  processRunSpend,
   processStepStates,
   processStepTone,
   useProcessRun,
@@ -56,17 +59,42 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
   const progress = processRunProgress(run)
+  const spend = processRunSpend(run)
   const statusView = PROCESS_RUN_STATUS_VIEW[run.status]
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
 
   return (
     <ScrollView contentContainerStyle={{ padding: nativeSpace[4], gap: nativeSpace[3] }}>
       {stack.length > 0 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: nativeSpace[1],
+          }}
+        >
           <Pressable onPress={() => popTo(0)} accessibilityRole="button">
             <Text style={{ fontSize: 12, color: theme.text.secondary }}>← Top</Text>
           </Pressable>
-          <Text style={{ fontSize: 12, color: theme.text.primary }}>{run.title}</Text>
+          {/* Every level, as on web. A single "Top" made the middle of a deep
+              stack unreachable in one move — the small screen is where that
+              costs most, since there is no second pane to hold the place. */}
+          {stack.map((id, index) => (
+            <View
+              key={id}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[1] }}
+            >
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>/</Text>
+              {index === stack.length - 1 ? (
+                <Text style={{ fontSize: 12, color: theme.text.primary }}>{run.title}</Text>
+              ) : (
+                <Pressable onPress={() => popTo(index + 1)} accessibilityRole="button">
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>…</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -85,6 +113,7 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
           <ToneBadge tone={statusView.tone} label={statusView.label} />
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {progress.completed} of {progress.total} steps · {run.plan.name}
+            {spend ? ` · ${spend.label}` : ''}
           </Text>
           {stoppable ? (
             <Button size="sm" variant="secondary" onPress={() => void cancel()}>
@@ -94,7 +123,14 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
         </View>
       </View>
 
-      {run.park ? <ParkBanner run={run} onChoose={(choice) => void resume(choice)} /> : null}
+      {run.park ? (
+        <ParkBanner
+          run={run}
+          onChoose={(choice) => void resume(choice)}
+          onDrill={drillTo}
+          {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+        />
+      ) : null}
 
       <View style={{ gap: nativeSpace[2] }}>
         {processStepStates(run).map((state, index) => (
@@ -150,13 +186,23 @@ function ToneBadge({ tone, label }: { tone: ProcessStatusTone; label: string }) 
 function ParkBanner({
   run,
   onChoose,
+  onOpenAgentRun,
+  onDrill,
 }: {
   run: ProcessRun
   onChoose: (choice: ProcessResumeChoice) => void
+  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  onDrill: (childRunId: string) => void
 }) {
   const { theme } = useNativeTheme()
   const park = run.park
   if (!park) return null
+  // A park waiting on an ANSWER has somewhere to go: the run that asked.
+  const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
+  // A MIRRORED park is a statement, not a question — the decision belongs to
+  // the nested run, where its context is, and the server refuses to answer it
+  // here. So the banner offers the one thing that does work: going there.
+  const reflected = isReflectedPark(park)
   return (
     <View
       style={{
@@ -169,7 +215,21 @@ function ParkBanner({
       }}
     >
       <Text style={{ fontSize: 14, color: theme.text.primary }}>{park.message}</Text>
-      {processParkChoices(park.reason).map((choice) => (
+      {reflected && park.childRunId ? (
+        <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            Open the nested run to decide →
+          </Text>
+        </Pressable>
+      ) : null}
+      {asked && onOpenAgentRun ? (
+        <Pressable onPress={() => onOpenAgentRun(asked)} accessibilityRole="button">
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            Open the run to answer →
+          </Text>
+        </Pressable>
+      ) : null}
+      {processParkChoices(park.reason, { reflected }).map((choice) => (
         <View key={choice.choice} style={{ gap: nativeSpace[1] }}>
           <Button
             size="sm"

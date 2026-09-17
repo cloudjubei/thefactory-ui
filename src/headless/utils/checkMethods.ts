@@ -210,8 +210,10 @@ export function checkMethodRows(input: {
   verification: RunVerification | undefined
   approaches: readonly VerificationApproachOption[]
   evidence: readonly ReviewEvidenceRef[]
-  /** Who decided the run, when anyone has — a `reviewer-agent` verdict IS the diff review. */
+  /** Who decided the run, when anyone has. */
   verdictBy?: string
+  /** That somebody READ the change — what satisfies the `diff` method. */
+  diffReview?: { by?: string; summary?: string }
 }): CheckMethodRow[] {
   const { verification, approaches, evidence } = input
   const checks = verification?.checks ?? []
@@ -235,10 +237,11 @@ export function checkMethodRows(input: {
     evidenceCounts.set(id, (evidenceCounts.get(id) ?? 0) + 1)
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
-  // "Was the diff actually read" has exactly one recorded answer: a verdict left
-  // by the reviewer agent. A human's own verdict is the sign-off itself, not a
-  // check that can be held against the run before they have made it.
-  const diffReviewed = input.verdictBy === 'reviewer-agent'
+  // "Was the change actually READ" has its own recorded answer, deliberately
+  // separate from the verdict: the `judge` step records `diffReview` when a
+  // reviewer agent examines the branch, and opening the Changes tab records it
+  // for a human. Reading is not deciding, and the sign-off stays the user's.
+  const diffReviewed = input.diffReview !== undefined
 
   return IMPLEMENTED_CHECK_METHOD_ORDER.map((id) => {
     const matched = byMethod.get(id) ?? []
@@ -260,7 +263,10 @@ export function checkMethodRows(input: {
     } else if (id === 'diff') {
       state = diffReviewed ? 'passed' : 'unchecked'
       detail = diffReviewed
-        ? 'The reviewer agent read the diff'
+        ? (input.diffReview?.summary ??
+          (input.diffReview?.by === 'user'
+            ? 'You read the change'
+            : 'The reviewer agent read the change'))
         : absentDetail(id, 'unchecked', approaches)
     } else {
       state = evidenceState(id, captured, approaches)

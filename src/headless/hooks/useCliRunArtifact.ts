@@ -7,6 +7,7 @@ import {
   requestCliRunReview,
   getCliRunVerificationPlan,
   getGitBranchDiffSummary,
+  recordCliRunDiffReview,
   mergeCliRunReview,
   previewCliAgentArtifact,
   rejectCliRunReview,
@@ -17,6 +18,7 @@ import {
   type CliRunReview,
   type CliRunStatus,
   type CliRunTranscriptEntry,
+  type CliRunDiffReview,
   type CliRunVerdict,
   type FilesEmittedArtifact,
   type FilesEmittedPreview,
@@ -84,6 +86,14 @@ export type UseCliRunArtifact = {
    * the verdict instead of the approve / request-changes / reject row.
    */
   verdict: CliRunVerdict | undefined
+  /**
+   * That somebody READ this change — the `judge` step, or the human who opened
+   * the Changes tab. What satisfies the `diff` review method.
+   *
+   * Deliberately not the verdict: reading a diff decides nothing, and the
+   * sign-off is the user's.
+   */
+  diffReview: CliRunDiffReview | undefined
   /**
    * True while the landed work's auto-review verifier (`review.reviewRunId`) is
    * still running — the panel shows "Verifying…" and withholds approval. Releases
@@ -214,6 +224,7 @@ export function useCliRunArtifact(
   const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [verification, setVerification] = useState<RunVerification | undefined>(undefined)
   const [verdict, setVerdict] = useState<CliRunVerdict | undefined>(undefined)
+  const [diffReview, setDiffReview] = useState<CliRunDiffReview | undefined>(undefined)
   // The story this run executes a FEATURE of, when it is a story sub-run. Drives the
   // suppression of the direct-apply path — see `reviewActionMode`.
   const [storyId, setStoryId] = useState<string | undefined>(undefined)
@@ -313,6 +324,7 @@ export function useCliRunArtifact(
       setReview(run.review ?? undefined)
       setVerification(run.verification ?? undefined)
       setVerdict(run.verdict ?? undefined)
+      setDiffReview(run.diffReview ?? undefined)
       setStoryId(run.storyId ?? undefined)
       setRunModel(runModelOf(run))
       setLandFailure(run.landFailure ?? undefined)
@@ -342,6 +354,7 @@ export function useCliRunArtifact(
     setReview(undefined)
     setVerification(undefined)
     setVerdict(undefined)
+    setDiffReview(undefined)
     setLandFailure(undefined)
     setRunModel(undefined)
     setStartedAtMs(undefined)
@@ -490,12 +503,26 @@ export function useCliRunArtifact(
         throwOnError: true,
       })
       if (epoch === epochRef.current) setReviewDiff(data)
+      // Opening the Changes tab IS somebody reading the change — the human half
+      // of the `diff` review method. Recorded, never inferred: a reviewer who
+      // read the diff and a run nobody looked at must not present identically.
+      if (runId) {
+        await recordCliRunDiffReview({
+          path: { runId },
+          body: { filesReviewed: data?.files?.length ?? 0 },
+          throwOnError: true,
+        })
+          .then(() => {
+            if (epoch === epochRef.current) setDiffReview({ by: 'user', at: Date.now() })
+          })
+          .catch(() => undefined)
+      }
     } catch (err: unknown) {
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
     } finally {
       setReviewLoading(false)
     }
-  }, [projectId, review])
+  }, [projectId, review, runId])
 
   const merge = useCallback(
     async (note?: string) => {
@@ -707,6 +734,7 @@ export function useCliRunArtifact(
   }, [review?.reviewRunId])
 
   return {
+    diffReview,
     artifact,
     cancelWork,
     transcript,

@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 
-import { processRunChipLabel, useProcessRun } from '../../../headless'
+import { processRunChain, processRunChipLabel, useProcessRun } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -37,10 +37,16 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
         paddingVertical: nativeSpace[1],
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
-        {run ? processRunChipLabel(run) : 'Loading the pipeline…'}
-      </Text>
-      <View style={{ flex: 1 }} />
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>
+          {run ? processRunChipLabel(run) : 'Loading the pipeline…'}
+        </Text>
+        {run ? (
+          <Text numberOfLines={1} style={{ fontSize: 10, color: theme.text.secondary }}>
+            {processRunChain(run)}
+          </Text>
+        ) : null}
+      </View>
       <Text style={{ fontSize: 12, color: theme.text.secondary }}>Open the pipeline →</Text>
     </Pressable>
   )

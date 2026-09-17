@@ -170,6 +170,7 @@ export default function CliRunArtifactPanel({
     review,
     verification,
     verdict,
+    diffReview,
     reviewInProgress,
     storyId,
     landFailure,
@@ -266,13 +267,15 @@ export default function CliRunArtifactPanel({
         verification,
         approaches: verificationApproaches,
         evidence: evidence.refs,
-        // Whether the diff was actually READ has exactly one recorded answer,
-        // and it was never passed: `diffReviewed` was therefore always false,
-        // and because `diff` is verdict-bearing the headline could never reach
-        // `proven` in any client, however much evidence a run produced.
         ...(verdict?.by ? { verdictBy: verdict.by } : {}),
+        // Whether the change was actually READ, from its OWN record — the
+        // `judge` step writes it, and so does opening the Changes tab. It was
+        // once keyed off the verdict, which nothing ever set to
+        // `reviewer-agent`, so `diff` could never pass and the headline could
+        // never reach `proven` in any client however much evidence a run made.
+        ...(diffReview ? { diffReview } : {}),
       }),
-    [verification, verificationApproaches, evidence.refs, verdict?.by],
+    [verification, verificationApproaches, evidence.refs, verdict?.by, diffReview],
   )
   const headline = useMemo(
     () =>

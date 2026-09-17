@@ -11,21 +11,16 @@ import ActionMenu, { type ActionMenuItem } from './ActionMenu'
  * dispatch the run (see the app-side connected wrapper).
  */
 
-export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
+/**
+ * The roles this button can start. See web's peer for why there is one: the
+ * four prep roles were a hand-sequenced pipeline that a PROCESS now expresses
+ * as data.
+ */
+export type AgentRunType = 'developer'
 
-export const AGENT_RUN_TYPES: readonly AgentRunType[] = [
-  'speccer',
-  'planner',
-  'contexter',
-  'tester',
-  'developer',
-]
+export const AGENT_RUN_TYPES: readonly AgentRunType[] = ['developer']
 
 export const AGENT_RUN_TYPE_LABELS: Record<AgentRunType, string> = {
-  speccer: 'Speccer',
-  planner: 'Planner',
-  contexter: 'Contexter',
-  tester: 'Tester',
   developer: 'Developer',
 }
 

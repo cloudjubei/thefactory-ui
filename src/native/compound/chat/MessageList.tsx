@@ -131,6 +131,8 @@ export interface MessageListProps {
   renderDependency?: (dep: string) => ReactNode
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** Forwarded to each row: the live process run an announcement message launched. */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   /** Forwards to `MessageRow.onShowUsage`. */
   onShowUsage?: (msg: ChatMessageLike) => void
@@ -169,6 +171,7 @@ export default function MessageList({
   onResourceLink,
   renderDependency,
   renderCliRunArtifact,
+  renderProcessRun,
   onShowUsage,
   emptyStateContent,
   thinkingLabel,
@@ -408,6 +411,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  renderProcessRun={renderProcessRun}
                   coldStart={msg.cliRunId === firstCliRunId}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
@@ -445,6 +449,7 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
+                  renderProcessRun={renderProcessRun}
                   onShowUsage={onShowUsage}
                   thinkingLabel={perMsgThinking}
                 />
@@ -494,6 +499,7 @@ export default function MessageList({
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
+              renderProcessRun={renderProcessRun}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
             />

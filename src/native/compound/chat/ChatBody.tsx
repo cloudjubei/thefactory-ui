@@ -80,6 +80,8 @@ export interface ChatBodyProps {
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** Forwarded to the message list: the live process run an announcement message launched. */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   /** Fired when the user taps the per-message `$` usage chip. Host opens
    *  a `MessageUsageSheet` with the full breakdown. */
@@ -170,6 +172,7 @@ export default function ChatBody({
   renderDependency,
   onResourceLink,
   renderCliRunArtifact,
+  renderProcessRun,
   onShowUsage,
   emptyStateContent,
   grants,
@@ -280,6 +283,7 @@ export default function ChatBody({
           renderDependency={renderDependency}
           onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
+          renderProcessRun={renderProcessRun}
           onShowUsage={onShowUsage}
           emptyStateContent={emptyStateContent}
           historyLocked={historyLocked}

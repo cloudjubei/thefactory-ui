@@ -265,14 +265,7 @@ export type WorkItemProgress = {
   failed: number
 }
 
-export type AgentRunType =
-  | 'developer'
-  | 'tester'
-  | 'planner'
-  | 'contexter'
-  | 'speccer'
-  | 'verifier'
-  | 'remedy'
+export type AgentRunType = 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy'
 
 export type ChatContextAgentRun = {
   projectId: string
@@ -1205,6 +1198,7 @@ export type CompletionAssistantMessage = {
   thinking?: string
   cliRunId?: string
   featureRequestId?: string
+  processRunId?: string
 }
 
 export type CompletionToolMessage = {
@@ -1287,6 +1281,7 @@ export type Chat = {
     thinking?: string
     cliRunId?: string
     featureRequestId?: string
+    processRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1356,6 +1351,7 @@ export type ChatCreateInput = {
     thinking?: string
     cliRunId?: string
     featureRequestId?: string
+    processRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1421,6 +1417,7 @@ export type ChatEditInput = {
     thinking?: string
     cliRunId?: string
     featureRequestId?: string
+    processRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1873,14 +1870,7 @@ export type ChatContextArguments = {
     updatedAt: string
     completedAt?: string
   }
-  agentRunType?:
-    | 'developer'
-    | 'tester'
-    | 'planner'
-    | 'contexter'
-    | 'speccer'
-    | 'verifier'
-    | 'remedy'
+  agentRunType?: 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy'
 }
 
 export type ChatContextArgumentsGeneral = {
@@ -2056,6 +2046,20 @@ export type GlobalChatLike = {
   createdAt?: string
 }
 
+export type CheckEcosystem =
+  | 'node'
+  | 'python'
+  | 'android'
+  | 'ios'
+  | 'jvm'
+  | 'go'
+  | 'rust'
+  | 'unknown'
+
+export type PackageScripts = {
+  [key: string]: string
+}
+
 export type VerificationCheckKind = 'compile' | 'tests' | 'command'
 
 export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
@@ -2074,6 +2078,9 @@ export type VerificationCheck = {
   timeoutMs?: number
   requiredEnv?: Array<string>
   optional?: boolean
+  requires?: Array<string>
+  source?: 'declared' | 'derived'
+  derivedFrom?: string
 }
 
 export type VerificationCheckResult = {
@@ -2088,7 +2095,7 @@ export type VerificationCheckResult = {
 }
 
 export type VerificationUncheckedReason = {
-  kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+  kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped' | 'only-optional'
   summary: string
   extensions?: Array<string>
 }
@@ -2097,7 +2104,12 @@ export type RunVerification = {
   status: VerificationStatus
   checks: Array<VerificationCheckResult>
   uncheckedReason?: {
-    kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+    kind:
+      | 'policy-off'
+      | 'nothing-declared'
+      | 'no-applicable-checks'
+      | 'all-skipped'
+      | 'only-optional'
     summary: string
     extensions?: Array<string>
   }
@@ -2382,6 +2394,13 @@ export type CliRunVerdict = {
   at: number
 }
 
+export type CliRunDiffReview = {
+  by: CliRunVerdictAuthor
+  at: number
+  summary?: string
+  filesReviewed?: number
+}
+
 export type CliRun = {
   id: string
   projectId: string
@@ -2451,7 +2470,12 @@ export type CliRun = {
     status: VerificationStatus
     checks: Array<VerificationCheckResult>
     uncheckedReason?: {
-      kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+      kind:
+        | 'policy-off'
+        | 'nothing-declared'
+        | 'no-applicable-checks'
+        | 'all-skipped'
+        | 'only-optional'
       summary: string
       extensions?: Array<string>
     }
@@ -2465,6 +2489,12 @@ export type CliRun = {
     by: CliRunVerdictAuthor
     notes?: string
     at: number
+  }
+  diffReview?: {
+    by: CliRunVerdictAuthor
+    at: number
+    summary?: string
+    filesReviewed?: number
   }
 }
 
@@ -2915,7 +2945,12 @@ export type CliRunApproveResult = {
       status: VerificationStatus
       checks: Array<VerificationCheckResult>
       uncheckedReason?: {
-        kind: 'policy-off' | 'nothing-declared' | 'no-applicable-checks' | 'all-skipped'
+        kind:
+          | 'policy-off'
+          | 'nothing-declared'
+          | 'no-applicable-checks'
+          | 'all-skipped'
+          | 'only-optional'
         summary: string
         extensions?: Array<string>
       }
@@ -2929,6 +2964,12 @@ export type CliRunApproveResult = {
       by: CliRunVerdictAuthor
       notes?: string
       at: number
+    }
+    diffReview?: {
+      by: CliRunVerdictAuthor
+      at: number
+      summary?: string
+      filesReviewed?: number
     }
   }
 }
@@ -3375,6 +3416,13 @@ export type CompileSummary = {
   warnings: number
 }
 
+export type CompileNothingCheckedReason =
+  | 'no-supported-language'
+  | 'no-matching-files'
+  | 'empty-project'
+  | 'no-tsconfig'
+  | 'outside-program'
+
 export type CompileCheckResult = {
   cwd: string
   success: boolean
@@ -3382,6 +3430,12 @@ export type CompileCheckResult = {
   summary: CompileSummary
   diagnostics: Array<CompileDiagnostic>
   rawOutput: string
+  nothingChecked?:
+    | 'no-supported-language'
+    | 'no-matching-files'
+    | 'empty-project'
+    | 'no-tsconfig'
+    | 'outside-program'
 }
 
 export type SummarizeOptions = {
@@ -5753,6 +5807,7 @@ export type MobileNode = {
   type: string
   label: string
   id?: string
+  text?: string
   bounds?: {
     x: number
     y: number
@@ -5847,6 +5902,13 @@ export type MobileSnapshotResult = {
   error?: string
 }
 
+export type MobileNodeSelector = {
+  id?: string
+  label?: string
+  type?: string
+  nth?: number
+}
+
 export type MobileActionResult = {
   sessionId: string
   ok: boolean
@@ -5891,8 +5953,21 @@ export type MobileSessionEntry = {
     height: number
   }
   screenshotSeq: number
+  recordingSeq?: number
   createdAt: number
 }
+
+export type MobileNodeResolution =
+  | {
+      ok: true
+      ref: string
+      node: MobileNode
+    }
+  | {
+      ok: false
+      reason: 'not-found' | 'ambiguous'
+      matches: number
+    }
 
 export type CommandResult = {
   code: number
@@ -7885,6 +7960,7 @@ export type ReviewEvidenceRef = {
     resized: boolean
     unavailable?: string
   }
+  inline?: boolean
   mediaType: string
   bytes: number
   createdAt: number
@@ -8381,6 +8457,7 @@ export type ToolName =
   | 'mergeCliRunReview'
   | 'verifyCliRunReview'
   | 'setCliRunVerdict'
+  | 'recordCliRunDiffReview'
   | 'rejectCliRunReview'
   | 'approveCliRunReview'
   | 'planCliRunVerification'
@@ -8568,10 +8645,12 @@ export type ToolName =
   | 'mobileTestListSessions'
   | 'mobileTestSnapshot'
   | 'mobileTestTap'
+  | 'mobileTestTapSelector'
   | 'mobileTestType'
   | 'mobileTestPressKey'
   | 'mobileTestSwipe'
   | 'mobileTestScreenshot'
+  | 'mobileTestRecordScreen'
   | 'mobileTestAdb'
   | 'mobileTestIdb'
   | 'getProjectDir'
@@ -8652,7 +8731,6 @@ export type ToolName =
   | 'deleteStory'
   | 'updateStory'
   | 'blockStory'
-  | 'finishSpec'
   | 'getFeature'
   | 'getFeatureFromIndex'
   | 'addFeature'
@@ -9079,7 +9157,13 @@ export type ValidateProcessOptions = {
 
 export type ProcessScope = 'global' | 'project'
 
-export type ProcessStepOutcome = 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+export type ProcessStepOutcome =
+  | 'passed'
+  | 'failed'
+  | 'unchecked'
+  | 'question'
+  | 'skipped'
+  | 'errored'
 
 export type ProcessStepExpansion = 'features'
 
@@ -9151,6 +9235,11 @@ export type ProcessPlan = {
   frozenAt: number
 }
 
+export type ProcessBudget = {
+  spendUsdCap?: number
+  wallClockMs?: number
+}
+
 export type ProcessRunCursor = {
   stepId: string
   iteration: number
@@ -9159,11 +9248,19 @@ export type ProcessRunCursor = {
 export type ProcessParkReason =
   | 'gate'
   | 'step-failed'
+  | 'step-question'
+  | 'budget-spent'
+  | 'time-spent'
   | 'step-unchecked'
   | 'step-errored'
   | 'loop-exhausted'
   | 'no-steps'
   | 'unknown-step'
+
+export type ProcessPendingEntry = {
+  cursor: ProcessRunCursor
+  viaLoopId?: string
+}
 
 export type ProcessPark = {
   reason: ProcessParkReason
@@ -9171,6 +9268,11 @@ export type ProcessPark = {
   loopId?: string
   message: string
   parkedAt: number
+  pending?: {
+    cursor: ProcessRunCursor
+    viaLoopId?: string
+  }
+  childRunId?: string
 }
 
 export type ProcessResumeChoice = 'continue' | 'retry' | 'abandon' | 'approve' | 'reject'
@@ -9195,7 +9297,7 @@ export type ProcessLedgerEntry = {
   stepId: string
   iteration: number
   status: 'running' | 'done'
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
   summary?: string
   runRef?: {
     runId: string
@@ -9235,6 +9337,16 @@ export type ProcessRun = {
   loopCounts: {
     [key: string]: number
   }
+  budget?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  budgetGrants?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  spentUsd?: number
+  parkedMs?: number
   iterationGrants?: {
     [key: string]: number
   }
@@ -9245,6 +9357,11 @@ export type ProcessRun = {
     loopId?: string
     message: string
     parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+    }
+    childRunId?: string
   }
   startedAt: number
   updatedAt: number
@@ -9266,6 +9383,10 @@ export type ProcessTransition =
       reason: ProcessParkReason
       stepId?: string
       loopId?: string
+      pending?: {
+        cursor: ProcessRunCursor
+        viaLoopId?: string
+      }
     }
   | {
       kind: 'cancelled'
@@ -9276,13 +9397,19 @@ export type ProcessCursorState = {
     stepId: string
     iteration: number
   }
-  lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
   loopCounts?: {
     [key: string]: number
   }
   iterationGrants?: {
     [key: string]: number
   }
+  budget?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  spentUsd?: number
+  elapsedMs?: number
   cancelled?: boolean
 }
 
@@ -9298,6 +9425,7 @@ export type ProcessStepResult = {
 }
 
 export type StartProcessRunInput = {
+  id?: string
   projectId: string
   processId: string
   title: string
@@ -9309,6 +9437,10 @@ export type StartProcessRunInput = {
   }
   input?: {
     [key: string]: unknown
+  }
+  budget?: {
+    spendUsdCap?: number
+    wallClockMs?: number
   }
   parentRunId?: string
   parentStepId?: string
@@ -9334,14 +9466,14 @@ export type FreezePlanOptions = {
 export type ProcessStepState = {
   step: ProcessPlanStep
   status: 'pending' | 'running' | 'done'
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
   attempts: number
   latest?: {
     id: string
     stepId: string
     iteration: number
     status: 'running' | 'done'
-    outcome?: 'passed' | 'failed' | 'unchecked' | 'skipped' | 'errored'
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
     summary?: string
     runRef?: {
       runId: string
@@ -9366,6 +9498,13 @@ export type ProcessRunProgress = {
   total: number
   completed: number
   currentStepId?: string
+}
+
+export type ProcessParkChoice = {
+  choice: ProcessResumeChoice
+  label: string
+  detail: string
+  primary?: boolean
 }
 
 export type BuiltQuery = {
@@ -9628,6 +9767,7 @@ export type AddMessagesInput = {
     thinking?: string
     cliRunId?: string
     featureRequestId?: string
+    processRunId?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -11263,8 +11403,8 @@ export type GetProcessCapabilitiesResponses = {
    * Default Response
    */
   200: {
-    kinds: Array<string>
-    implemented: Array<string>
+    kinds: Array<'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process'>
+    implemented: Array<'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process'>
   }
 }
 
@@ -11454,6 +11594,14 @@ export type ResumeProcessRunData = {
 }
 
 export type ResumeProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -16206,6 +16354,7 @@ export type SendCompletionData = {
         thinking?: string
         cliRunId?: string
         featureRequestId?: string
+        processRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -16295,6 +16444,7 @@ export type SendCompletionResponses = {
       thinking?: string
       cliRunId?: string
       featureRequestId?: string
+      processRunId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -16352,6 +16502,7 @@ export type SendCompletionWithToolsData = {
         thinking?: string
         cliRunId?: string
         featureRequestId?: string
+        processRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -16446,6 +16597,7 @@ export type SendCompletionWithToolsResponses = {
           thinking?: string
           cliRunId?: string
           featureRequestId?: string
+          processRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -16516,6 +16668,7 @@ export type SendChatCompletionWithToolsData = {
       thinking?: string
       cliRunId?: string
       featureRequestId?: string
+      processRunId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -16604,6 +16757,7 @@ export type SendChatCompletionWithToolsResponses = {
           thinking?: string
           cliRunId?: string
           featureRequestId?: string
+          processRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -16674,6 +16828,7 @@ export type SendChatWithCliData = {
       thinking?: string
       cliRunId?: string
       featureRequestId?: string
+      processRunId?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -16833,6 +16988,7 @@ export type ResumeCompletionData = {
         thinking?: string
         cliRunId?: string
         featureRequestId?: string
+        processRunId?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -16927,6 +17083,7 @@ export type ResumeCompletionResponses = {
           thinking?: string
           cliRunId?: string
           featureRequestId?: string
+          processRunId?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -19461,6 +19618,49 @@ export type VerifyCliRunReviewResponses = {
 
 export type VerifyCliRunReviewResponse =
   VerifyCliRunReviewResponses[keyof VerifyCliRunReviewResponses]
+
+export type RecordCliRunDiffReviewData = {
+  body: {
+    filesReviewed?: number
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/diff-review'
+}
+
+export type RecordCliRunDiffReviewErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RecordCliRunDiffReviewError =
+  RecordCliRunDiffReviewErrors[keyof RecordCliRunDiffReviewErrors]
+
+export type RecordCliRunDiffReviewResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type RecordCliRunDiffReviewResponse =
+  RecordCliRunDiffReviewResponses[keyof RecordCliRunDiffReviewResponses]
 
 export type GetCliRunVerificationPlanData = {
   body?: never

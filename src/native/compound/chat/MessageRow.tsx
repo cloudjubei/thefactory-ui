@@ -201,6 +201,14 @@ export interface MessageRowProps {
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /**
+   * Render the live state of the process run this message announced
+   * (`msg.processRunId`) — native peer of web's prop of the same name.
+   *
+   * The message REPORTS and never decides: the run's choices live in the
+   * pipeline, where their context is.
+   */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   /**
    * Fired when the user taps the per-message usage `$` chip. The host
@@ -261,6 +269,7 @@ function MessageRow({
   renderDependency,
   onResourceLink,
   renderCliRunArtifact,
+  renderProcessRun,
   onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
@@ -575,6 +584,14 @@ function MessageRow({
             </CollapsibleContent>
           </View>
         )}
+
+        {/* Directly under the announcement it belongs to, so "the work
+            started" and what the work is now DOING read as one thing. */}
+        {isAssistant && msg.processRunId && renderProcessRun ? (
+          <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
+            {renderProcessRun(msg.processRunId)}
+          </View>
+        ) : null}
 
         {isTool && msg.toolCall && toolRowOverride ? (
           <View style={{ width: '100%' }}>{toolRowOverride}</View>

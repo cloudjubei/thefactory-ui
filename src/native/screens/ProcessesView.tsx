@@ -2,6 +2,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
+  AGENT_RUN_TYPES,
+  PROCESS_KIND_BLURB,
+  blankProcessDefinition,
+  blankProcessStep,
+  copyProcessDefinition,
+  isProcessFork,
+  processScopeLabel,
+  processStepName,
   stepChainSummary,
   useActiveProject,
   useProcesses,
@@ -18,42 +26,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { useNativeTheme } from '../hooks/useNativeTheme'
-
-/** What each step kind actually does, in the words a person picking one needs. */
-const KIND_BLURB: Record<ProcessStepKind, string> = {
-  agent: 'An agent run in an isolated copy of the project.',
-  check: "The project's verification checks, over what the previous step landed.",
-  capture: 'Drive the app and file screenshots as evidence.',
-  judge: 'Read the evidence and the diff, and return a verdict.',
-  report: 'One model pass over the ledger. No tools, no workspace.',
-  gate: 'Stop and wait for a person to decide.',
-  process: 'A nested process, one level down.',
-}
-
-function blankStep(index: number): ProcessStep {
-  return { id: `step-${index}`, name: `Step ${index}`, kind: 'agent', agentType: 'developer' }
-}
-
-function blankDefinition(): ProcessDefinition {
-  return {
-    id: '',
-    name: '',
-    description: '',
-    steps: [blankStep(1)],
-    loops: [],
-    version: 1,
-    updatedAt: 0,
-  }
-}
-
-function scopeLabel(definition: ProcessDefinition): string {
-  if (definition.scope !== 'project') return 'SHARED'
-  return definition.shadowsGlobal ? 'OVERRIDES SHARED' : 'THIS PROJECT'
-}
-
-function stepName(definition: ProcessDefinition, stepId: string): string {
-  return definition.steps.find((s) => s.id === stepId)?.name ?? stepId
-}
 
 /**
  * Native peer of
@@ -114,7 +86,7 @@ export default function ProcessesView() {
         <ProcessEditor
           definition={editing}
           implementedKinds={implementedKinds}
-          isFork={processes.find((p) => p.id === editing.id)?.scope === 'global'}
+          isFork={isProcessFork(editing)}
           onChange={setEditing}
           onSave={() => void onSave(editing)}
         />
@@ -131,6 +103,7 @@ export default function ProcessesView() {
         <ProcessDetail
           definition={selected}
           onEdit={() => setEditing(structuredClone(selected))}
+          onCopy={() => setEditing(copyProcessDefinition(selected))}
           {...(selected.scope === 'project' ? { onDelete: () => void remove(selected.id) } : {})}
         />
       </ScrollView>
@@ -143,7 +116,7 @@ export default function ProcessesView() {
         <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text.primary, flex: 1 }}>
           Processes
         </Text>
-        <Button size="sm" onPress={() => setEditing(blankDefinition())}>
+        <Button size="sm" onPress={() => setEditing(blankProcessDefinition())}>
           New
         </Button>
       </View>
@@ -173,7 +146,9 @@ export default function ProcessesView() {
             <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary, flex: 1 }}>
               {definition.name}
             </Text>
-            <Text style={{ fontSize: 10, color: theme.text.muted }}>{scopeLabel(definition)}</Text>
+            <Text style={{ fontSize: 10, color: theme.text.muted }}>
+              {processScopeLabel(definition)}
+            </Text>
           </View>
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {stepChainSummary(definition)}
@@ -187,10 +162,12 @@ export default function ProcessesView() {
 function ProcessDetail({
   definition,
   onEdit,
+  onCopy,
   onDelete,
 }: {
   definition: ProcessDefinition
   onEdit: () => void
+  onCopy: () => void
   onDelete?: () => void
 }) {
   const { theme } = useNativeTheme()
@@ -200,7 +177,9 @@ function ProcessDetail({
         <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text.primary, flex: 1 }}>
           {definition.name}
         </Text>
-        <Text style={{ fontSize: 10, color: theme.text.muted }}>{scopeLabel(definition)}</Text>
+        <Text style={{ fontSize: 10, color: theme.text.muted }}>
+          {processScopeLabel(definition)}
+        </Text>
       </View>
       {definition.description ? (
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>{definition.description}</Text>
@@ -236,26 +215,42 @@ function ProcessDetail({
               {step.name}
             </Text>
             <Text style={{ fontSize: 11, color: theme.text.muted }}>{step.kind}</Text>
+            {step.agentType ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{step.agentType}</Text>
+            ) : null}
+            {step.processId ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>→ {step.processId}</Text>
+            ) : null}
+            {/* The most consequential fact on the row: ONE authored step becomes
+                N nodes at freeze time, so a 5-step process can execute as 12. */}
+            {step.expand ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                one per {step.expand}
+              </Text>
+            ) : null}
             {step.enabled === false ? (
               <Text style={{ fontSize: 11, color: theme.text.muted }}>off</Text>
             ) : null}
           </View>
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {step.description ?? KIND_BLURB[step.kind]}
+            {step.description ?? PROCESS_KIND_BLURB[step.kind]}
           </Text>
         </View>
       ))}
 
       {definition.loops.map((loop) => (
         <Text key={loop.id} style={{ fontSize: 12, color: theme.text.secondary }}>
-          {stepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
-          {stepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
+          {processStepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
+          {processStepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
         </Text>
       ))}
 
       <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
         <Button size="sm" onPress={onEdit}>
           Edit
+        </Button>
+        <Button size="sm" variant="secondary" onPress={onCopy}>
+          Copy from…
         </Button>
         {onDelete ? (
           <Button size="sm" variant="secondary" onPress={onDelete}>
@@ -331,7 +326,7 @@ function ProcessEditor({
           size="sm"
           variant="secondary"
           onPress={() =>
-            patch({ steps: [...definition.steps, blankStep(definition.steps.length + 1)] })
+            patch({ steps: [...definition.steps, blankProcessStep(definition.steps.length + 1)] })
           }
         >
           Add step
@@ -375,11 +370,25 @@ function ProcessEditor({
           </Field>
           {step.kind === 'agent' ? (
             <Field label="Agent">
-              <Input
-                placeholder="developer"
-                value={step.agentType ?? ''}
-                onChangeText={(agentType) => patchStep(index, { agentType })}
-              />
+              {/* A picker, not a text box, for the same reason `kind` is one: a
+                  role that does not exist is refused at save, and being refused
+                  for a typo is a worse way to learn the list than being shown
+                  it. Doubly so on a phone keyboard. */}
+              <Select
+                value={step.agentType ?? 'developer'}
+                onValueChange={(agentType) => patchStep(index, { agentType })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGENT_RUN_TYPES.map((agentType) => (
+                    <SelectItem key={agentType} value={agentType}>
+                      {agentType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           ) : null}
           {step.kind === 'process' ? (
@@ -391,7 +400,9 @@ function ProcessEditor({
               />
             </Field>
           ) : null}
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{KIND_BLURB[step.kind]}</Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {PROCESS_KIND_BLURB[step.kind]}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
             <Switch
               checked={step.enabled !== false}
@@ -418,7 +429,7 @@ function ProcessEditor({
       {definition.loops.map((loop, index) => (
         <Field
           key={loop.id}
-          label={`${stepName(definition, loop.from)} → ${stepName(definition, loop.to)}`}
+          label={`${processStepName(definition, loop.from)} → ${processStepName(definition, loop.to)}`}
         >
           <Input
             keyboardType="number-pad"

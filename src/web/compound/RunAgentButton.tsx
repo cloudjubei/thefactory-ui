@@ -12,14 +12,19 @@ import { IconPlay } from '../icons'
  * a `.is-sticky-visible` toggle on the nearest `.col-actions` ancestor.
  */
 
-export type AgentRunType = 'developer' | 'tester' | 'planner' | 'contexter' | 'speccer'
+/**
+ * The roles this button can start.
+ *
+ * One, now. The four prep roles it used to offer — speccer / planner /
+ * contexter / tester — were a hand-sequenced pipeline, and a PROCESS expresses
+ * that sequencing as data instead. The picker survives as one entry rather than
+ * being torn out, so the affordance is here the moment a second startable role
+ * exists.
+ */
+export type AgentRunType = 'developer'
 
-const AGENTS_ORDER: AgentRunType[] = ['speccer', 'planner', 'contexter', 'tester', 'developer']
+const AGENTS_ORDER: AgentRunType[] = ['developer']
 const AGENTS_LABELS: Record<AgentRunType, string> = {
-  speccer: 'Speccer',
-  planner: 'Planner',
-  contexter: 'Contexter',
-  tester: 'Tester',
   developer: 'Developer',
 }
 

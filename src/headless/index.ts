@@ -1003,9 +1003,19 @@ export { useProcessRun, type UseProcessRun } from './hooks/useProcessRun'
 // How a process reads on screen — shared by the `web/` and `native/` peers so
 // the two cannot drift on an outcome's name or its status colour.
 export {
+  PROCESS_KIND_BLURB,
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
+  blankProcessDefinition,
+  blankProcessStep,
+  copyProcessDefinition,
+  isProcessFork,
+  parkedRunRef,
+  processScopeLabel,
+  processStepName,
+  processRunChain,
   processRunChipLabel,
+  processRunSpend,
   processStepTone,
   type ProcessStatusTone,
 } from './utils/processView'
@@ -1015,6 +1025,8 @@ export {
 // onto the plan the DRIVER froze, so a client-side re-implementation would
 // render a pipeline the backend does not agree with.
 export {
+  isProcessParkChoiceOffered,
+  isReflectedPark,
   processParkChoices,
   processRunProgress,
   processStepStates,
@@ -1022,7 +1034,7 @@ export {
   type ProcessParkChoice,
   type ProcessStepState,
 } from 'thefactory-tools/utils'
-export { PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
+export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
   ProcessLedgerEntry,
@@ -1223,3 +1235,17 @@ export {
 export { ProjectResourceCache, type CacheEntry } from './utils/projectResourceCache'
 
 export type { RunCliCapabilityCheckResponse } from './api/generated/types.gen.js'
+
+/**
+ * Pure SDK values the apps need, re-exported so they reach them through this
+ * package rather than taking a second dependency on `thefactory-tools`.
+ *
+ * ARCHITECTURE.md keeps the direct-thefactory-tools exception deliberately
+ * narrow: a pure function with no node dependencies AND a hard "must byte-match
+ * the backend's own derivation" justification. These three do not clear that
+ * bar — they are ordinary shared values — so they belong here, where one import
+ * edge serves all three clients and a change is felt in one place.
+ */
+export { parseLiteLLMPrices } from 'thefactory-tools/utils'
+export { EMPTY_TREE_SHA } from 'thefactory-tools/constants'
+export type { FeatureRequestAcceptance } from 'thefactory-tools/types'

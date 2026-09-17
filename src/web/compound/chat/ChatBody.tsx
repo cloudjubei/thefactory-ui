@@ -84,6 +84,8 @@ export type ChatBodyProps = {
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** Forwarded to the message list: the live process run an announcement message launched. */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   // Send / abort / confirm — wired to the host's ChatsContext.
   onSend: (content: string, attachments?: string[]) => Promise<void> | void
@@ -194,6 +196,7 @@ export default function ChatBody({
   renderDependency,
   onResourceLink,
   renderCliRunArtifact,
+  renderProcessRun,
   onSend,
   onAbort,
   isBusy,
@@ -299,6 +302,7 @@ export default function ChatBody({
           renderDependency={renderDependency}
           onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
+          renderProcessRun={renderProcessRun}
           numberMessagesToSend={numberMessagesToSend}
           lastReadIso={lastReadIso}
           onAtBottomChange={onAtBottomChange}

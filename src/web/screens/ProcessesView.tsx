@@ -1,7 +1,20 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { ProcessDefinition, ProcessStep, ProcessStepKind } from 'thefactory-tools/types'
-import { stepChainSummary } from 'thefactory-tools/utils'
-import { useActiveProject, useProcesses } from '../../headless'
+import {
+  AGENT_RUN_TYPES,
+  PROCESS_KIND_BLURB,
+  blankProcessDefinition,
+  blankProcessStep,
+  copyProcessDefinition,
+  isProcessFork,
+  processScopeLabel,
+  processStepName,
+  stepChainSummary,
+  useActiveProject,
+  useProcesses,
+  type ProcessDefinition,
+  type ProcessStep,
+  type ProcessStepKind,
+} from '../../headless'
 import Alert from '../primitives/Alert'
 import { Button } from '../primitives/Button'
 import Field from '../primitives/Field'
@@ -11,33 +24,6 @@ import Surface from '../primitives/Surface'
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { IconSave } from '../icons'
-
-/** What each step kind actually does, in the words a person picking one needs. */
-const KIND_BLURB: Record<ProcessStepKind, string> = {
-  agent: 'An agent run in an isolated copy of the project.',
-  check: "The project's verification checks, over what the previous step landed.",
-  capture: 'Drive the app and file screenshots as evidence.',
-  judge: 'Read the evidence and the diff, and return a verdict.',
-  report: 'One model pass over the ledger. No tools, no workspace.',
-  gate: 'Stop and wait for a person to decide.',
-  process: 'A nested process, one level down.',
-}
-
-function blankStep(index: number): ProcessStep {
-  return { id: `step-${index}`, name: `Step ${index}`, kind: 'agent', agentType: 'developer' }
-}
-
-function blankDefinition(): ProcessDefinition {
-  return {
-    id: '',
-    name: '',
-    description: '',
-    steps: [blankStep(1)],
-    loops: [],
-    version: 1,
-    updatedAt: 0,
-  }
-}
 
 export type ProcessesViewProps = {
   /**
@@ -104,7 +90,7 @@ export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Processes</h2>
-          <Button size="sm" onClick={() => setEditing(blankDefinition())}>
+          <Button size="sm" onClick={() => setEditing(blankProcessDefinition())}>
             New
           </Button>
         </div>
@@ -156,10 +142,7 @@ export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
           <ProcessEditor
             definition={editing}
             implementedKinds={implementedKinds}
-            isFork={
-              editing.scope === 'global' ||
-              (processes.find((p) => p.id === editing.id)?.scope === 'global' && editing.id !== '')
-            }
+            isFork={isProcessFork(editing)}
             onChange={setEditing}
             onCancel={() => setEditing(undefined)}
             onSave={() => void onSave(editing)}
@@ -168,14 +151,7 @@ export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
           <ProcessDetail
             definition={selected}
             onEdit={() => setEditing(structuredClone(selected))}
-            onCopy={() =>
-              setEditing({
-                ...structuredClone(selected),
-                id: `${selected.id}-copy`,
-                name: `${selected.name} (copy)`,
-                version: 1,
-              })
-            }
+            onCopy={() => setEditing(copyProcessDefinition(selected))}
             onDelete={selected.scope === 'project' ? () => void remove(selected.id) : undefined}
           />
         ) : (
@@ -189,12 +165,7 @@ export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
 }
 
 function ScopeBadge({ definition }: { definition: ProcessDefinition }) {
-  const label =
-    definition.scope === 'project'
-      ? definition.shadowsGlobal
-        ? 'OVERRIDES SHARED'
-        : 'THIS PROJECT'
-      : 'SHARED'
+  const label = processScopeLabel(definition)
   return (
     <span
       className="shrink-0 rounded px-1 py-px text-[9px] tracking-wide text-(--text-secondary)"
@@ -268,7 +239,7 @@ function ProcessDetail({
               ) : null}
             </div>
             <div className="mt-1 text-[11px] text-(--text-secondary)">
-              {step.description ?? KIND_BLURB[step.kind]}
+              {step.description ?? PROCESS_KIND_BLURB[step.kind]}
             </div>
           </Surface>
         ))}
@@ -279,18 +250,14 @@ function ProcessDetail({
           <h3 className="text-xs font-semibold">If a step does not pass</h3>
           {definition.loops.map((loop) => (
             <div key={loop.id} className="text-[11px] text-(--text-secondary)">
-              {stepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
-              {stepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
+              {processStepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
+              {processStepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
             </div>
           ))}
         </div>
       ) : null}
     </div>
   )
-}
-
-function stepName(definition: ProcessDefinition, stepId: string): string {
-  return definition.steps.find((s) => s.id === stepId)?.name ?? stepId
 }
 
 function ProcessEditor({
@@ -376,7 +343,7 @@ function ProcessEditor({
             size="sm"
             variant="secondary"
             onClick={() =>
-              patch({ steps: [...definition.steps, blankStep(definition.steps.length + 1)] })
+              patch({ steps: [...definition.steps, blankProcessStep(definition.steps.length + 1)] })
             }
           >
             Add step
@@ -406,12 +373,21 @@ function ProcessEditor({
                 ))}
               </NativeSelect>
               {step.kind === 'agent' ? (
-                <Input
+                // A picker, not a text box, for the same reason `kind` is one:
+                // a role that does not exist is refused at save, and being
+                // refused for a typo is a worse way to learn the list than
+                // being shown it.
+                <NativeSelect
                   className="w-40"
-                  placeholder="developer"
-                  value={step.agentType ?? ''}
+                  value={step.agentType ?? 'developer'}
                   onChange={(e) => patchStep(index, { agentType: e.target.value })}
-                />
+                >
+                  {AGENT_RUN_TYPES.map((agentType) => (
+                    <option key={agentType} value={agentType}>
+                      {agentType}
+                    </option>
+                  ))}
+                </NativeSelect>
               ) : null}
               {step.kind === 'process' ? (
                 <Input
@@ -444,7 +420,9 @@ function ProcessEditor({
                 </Button>
               </div>
             </div>
-            <div className="text-[11px] text-(--text-secondary)">{KIND_BLURB[step.kind]}</div>
+            <div className="text-[11px] text-(--text-secondary)">
+              {PROCESS_KIND_BLURB[step.kind]}
+            </div>
           </Surface>
         ))}
       </div>
@@ -455,7 +433,7 @@ function ProcessEditor({
           {definition.loops.map((loop, index) => (
             <Surface key={loop.id} className="flex flex-wrap items-center gap-2 p-3 text-[11px]">
               <span>
-                {stepName(definition, loop.from)} → {stepName(definition, loop.to)}
+                {processStepName(definition, loop.from)} → {processStepName(definition, loop.to)}
               </span>
               <span className="ml-auto flex items-center gap-1">
                 at most

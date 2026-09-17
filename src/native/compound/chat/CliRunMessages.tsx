@@ -43,6 +43,8 @@ export type CliRunMessagesProps = {
   renderDependency?: (dep: string) => ReactNode
   /** Renders the workspace diff/apply panel for the run (host-wired, carries projectId). */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /** Forwarded to each row: the live process run an announcement message launched. */
+  renderProcessRun?: (processRunId: string) => ReactNode
   /** True only for the chat's first CLI run (turn 1, cold boot). Gates the
    * "Preparing …/first message slowest" copy; warm turns show a plain start line. */
   coldStart?: boolean
@@ -84,6 +86,7 @@ export default function CliRunMessages({
   onResolveFile,
   renderDependency,
   renderCliRunArtifact,
+  renderProcessRun,
   coldStart = false,
   blockedOn,
   onDeleteTurn,
@@ -181,6 +184,7 @@ export default function CliRunMessages({
               prevUserMessagesLen={0}
               enhancedTotalLength={total}
               renderToolCall={renderToolCall}
+              renderProcessRun={renderProcessRun}
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
             />

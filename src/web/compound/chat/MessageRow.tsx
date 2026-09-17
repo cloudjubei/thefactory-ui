@@ -198,6 +198,16 @@ export type MessageRowProps = {
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`).
    * Host binds it to the chat's project (e.g. `CliRunArtifactPanel`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
+  /**
+   * Render the live state of the process run this message announced
+   * (`msg.processRunId`). Host binds it to the chat's project (e.g.
+   * `ProcessRunChip` opening the pipeline).
+   *
+   * The message REPORTS and never decides: the run's choices live in the
+   * pipeline, where their context is, and a second door to them here is how two
+   * surfaces drift apart.
+   */
+  renderProcessRun?: (processRunId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
@@ -240,6 +250,7 @@ function MessageRow({
   renderDependency,
   onResourceLink,
   renderCliRunArtifact,
+  renderProcessRun,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -509,6 +520,12 @@ function MessageRow({
                 </CollapsibleContent>
               )}
             </div>
+          ) : null}
+
+          {/* Directly under the announcement it belongs to, so "the work
+              started" and what the work is now DOING read as one thing. */}
+          {isAssistant && msg.processRunId && renderProcessRun ? (
+            <div className="mt-1.5 w-full">{renderProcessRun(msg.processRunId)}</div>
           ) : null}
 
           {isTool && msg.toolCall && toolRowOverride ? (
