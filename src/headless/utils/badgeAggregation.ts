@@ -18,6 +18,8 @@ export type BadgeState = {
    * `unseen` = runs that finished since the user last opened this project's app tab.
    */
   activity: { running: number; paused: number; unseen: number }
+  /** Live process runs: `active` = running + parked; `parked` = waiting on the user. */
+  process: { active: number; parked: number }
 }
 
 export const EMPTY_BADGE_STATE: BadgeState = {
@@ -25,6 +27,7 @@ export const EMPTY_BADGE_STATE: BadgeState = {
   git: { incoming: 0, uncommitted: 0 },
   tests: { failing: 0 },
   activity: { running: 0, paused: 0, unseen: 0 },
+  process: { active: 0, parked: 0 },
 }
 
 /** Roll member-project states up into a single group badge state. */
@@ -37,6 +40,7 @@ export function aggregateGroupBadgeState(
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
     activity: { running: 0, paused: 0, unseen: 0 },
+    process: { active: 0, parked: 0 },
   }
   for (const pid of memberProjectIds) {
     const st = badgeStateByProject[pid]
@@ -49,6 +53,8 @@ export function aggregateGroupBadgeState(
     agg.activity.running += st.activity.running
     agg.activity.paused += st.activity.paused
     agg.activity.unseen += st.activity.unseen
+    agg.process.active += st.process.active
+    agg.process.parked += st.process.parked
   }
   return agg
 }
@@ -63,7 +69,8 @@ export function hasAnyBadge(s: BadgeState): boolean {
     s.tests.failing > 0 ||
     s.activity.running > 0 ||
     s.activity.paused > 0 ||
-    s.activity.unseen > 0
+    s.activity.unseen > 0 ||
+    s.process.active > 0
   )
 }
 

@@ -10,7 +10,6 @@ import {
   isProcessFork,
   processScopeLabel,
   processStepName,
-  stepChainSummary,
   useActiveProject,
   useProcesses,
   type ProcessDefinition,
@@ -26,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { useNativeTheme } from '../hooks/useNativeTheme'
+import ChainChip from '../compound/process/ChainChip'
 
 /**
  * Native peer of
@@ -150,9 +150,18 @@ export default function ProcessesView() {
               {processScopeLabel(definition)}
             </Text>
           </View>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {stepChainSummary(definition)}
-          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+            {definition.steps
+              .filter((step) => step.enabled !== false)
+              .map((step, i) => (
+                <View key={step.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {i > 0 ? (
+                    <Text style={{ fontSize: 11, color: theme.border.strong }}>›</Text>
+                  ) : null}
+                  <ChainChip chip={{ name: step.name, agent: step.kind === 'agent' }} />
+                </View>
+              ))}
+          </View>
         </Pressable>
       ))}
     </ScrollView>

@@ -16,9 +16,27 @@ import {
   processStepName,
   processRunChain,
   processScopeLabel,
+  processNodeState,
+  processNodeTone,
+  processNodeGlyph,
+  formatProcessDuration,
+  processEntryDurationMs,
+  processEntryDurationLabel,
+  processIterationBadge,
+  processRunBadge,
+  processRunCardView,
 } from './processView'
 
-const TOKEN_STATUSES = ['empty', 'done', 'working', 'stuck', 'blocked', 'queued'] as const
+const TOKEN_STATUSES = [
+  'empty',
+  'done',
+  'working',
+  'stuck',
+  'blocked',
+  'queued',
+  'on_hold',
+  'review',
+] as const
 
 function run(over: Partial<ProcessRun> = {}): ProcessRun {
   return {
@@ -322,5 +340,166 @@ describe('the editor helpers both peers share', () => {
       scope: 'global' as const,
     }
     expect(isProcessFork(draft)).toBe(true)
+  })
+})
+
+describe('processNodeState', () => {
+  const st = (
+    over: Partial<{ status: 'pending' | 'running' | 'done'; outcome: ProcessStepOutcome }>,
+  ) => ({
+    step: { id: 'x' },
+    status: over.status ?? 'done',
+    outcome: over.outcome,
+  })
+
+  it('marks the parked step parked, above every other signal', () => {
+    // Even a step recorded as running reads as parked when the run sits on it.
+    expect(processNodeState(st({ status: 'running' }), 'x')).toBe('parked')
+  })
+
+  it('reads running / pending / passed straight through', () => {
+    expect(processNodeState(st({ status: 'running' }), undefined)).toBe('working')
+    expect(processNodeState(st({ status: 'pending' }), undefined)).toBe('queued')
+    expect(processNodeState(st({ status: 'done', outcome: 'passed' }), undefined)).toBe('done')
+  })
+
+  it('treats failed, errored and unchecked as a failed node — none of them is "done"', () => {
+    for (const outcome of ['failed', 'errored', 'unchecked'] as const) {
+      expect(processNodeState(st({ status: 'done', outcome }), undefined)).toBe('failed')
+    }
+  })
+
+  it('keeps a skipped step distinct from a passed one', () => {
+    expect(processNodeState(st({ status: 'done', outcome: 'skipped' }), undefined)).toBe('skipped')
+  })
+})
+
+describe('processNodeTone', () => {
+  it('a parked GATE is ready-for-you (review); any other park is waiting (on-hold)', () => {
+    expect(processNodeTone('parked', true)).toBe('review')
+    expect(processNodeTone('parked', false)).toBe('on_hold')
+  })
+
+  it('only ever names a status the package has tokens for', () => {
+    const states = ['done', 'working', 'failed', 'parked', 'queued', 'skipped'] as const
+    for (const s of states) {
+      expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, false))
+      expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, true))
+    }
+  })
+})
+
+describe('processNodeGlyph', () => {
+  it('shows a verdict glyph where there is one, else the ordinal', () => {
+    expect(processNodeGlyph('done', 2)).toBe('✓')
+    expect(processNodeGlyph('failed', 2)).toBe('!')
+    expect(processNodeGlyph('parked', 2)).toBe('?')
+    expect(processNodeGlyph('queued', 2)).toBe('2')
+    expect(processNodeGlyph('working', 3)).toBe('3')
+  })
+})
+
+describe('formatProcessDuration', () => {
+  it('writes durations the way the design does', () => {
+    expect(formatProcessDuration(44_000)).toBe('44s')
+    expect(formatProcessDuration(6 * 60_000 + 12_000)).toBe('6m 12s')
+    expect(formatProcessDuration(1 * 60_000 + 4_000)).toBe('1m 04s')
+    expect(formatProcessDuration(63 * 60_000 + 5_000)).toBe('1h 03m')
+  })
+  it('never goes negative', () => {
+    expect(formatProcessDuration(-5)).toBe('0s')
+  })
+})
+
+describe('processEntryDuration', () => {
+  it('measures an ended attempt from its own span, ignoring now', () => {
+    expect(processEntryDurationMs({ startedAt: 1_000, endedAt: 8_000 }, 999_999)).toBe(7_000)
+    expect(processEntryDurationLabel({ startedAt: 1_000, endedAt: 8_000 })).toBe('7s')
+  })
+  it('measures a running attempt against now', () => {
+    expect(processEntryDurationMs({ startedAt: 1_000 }, 5_000)).toBe(4_000)
+  })
+  it('is undefined when there is nothing to measure', () => {
+    expect(processEntryDurationMs(undefined)).toBeUndefined()
+    expect(processEntryDurationMs({ startedAt: 1_000 })).toBeUndefined()
+  })
+})
+
+describe('processIterationBadge', () => {
+  const plan = {
+    loops: [
+      { id: 'fix', from: 'v', to: 'i', when: ['failed'] as ProcessStepOutcome[], maxIterations: 3 },
+    ],
+  }
+  it('says nothing on the first pass — a "1 of 3" on every step is noise', () => {
+    expect(processIterationBadge(1, plan)).toBeUndefined()
+  })
+  it('names the attempt and the cap once a loop has fired', () => {
+    expect(processIterationBadge(2, plan)).toBe('attempt 2 of 3')
+  })
+  it('drops the cap when the plan does not loop', () => {
+    expect(processIterationBadge(2, { loops: [] })).toBe('attempt 2')
+  })
+})
+
+describe('processRunBadge', () => {
+  it('a run parked on the gate is ready-for-you (review)', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'b', message: '', parkedAt: 0 },
+    })
+    expect(processRunBadge(r)).toEqual({ label: 'Ready for you', tone: 'review' })
+  })
+  it('a run parked on a question is waiting-for-you (on-hold)', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+    })
+    expect(processRunBadge(r)).toEqual({ label: 'Waiting for you', tone: 'on_hold' })
+  })
+  it('falls through to the plain status view when not parked', () => {
+    expect(processRunBadge(run({ status: 'running' }))).toEqual(PROCESS_RUN_STATUS_VIEW.running)
+  })
+})
+
+describe('processRunCardView', () => {
+  it('running: shows the current step and no decision strip', () => {
+    const r = run({
+      status: 'running',
+      cursor: { stepId: 'a', iteration: 1 },
+      ledger: [{ id: 'a', stepId: 'a', iteration: 1, status: 'running', startedAt: 0 }],
+    })
+    const view = processRunCardView(r)
+    expect(view.sub).toBe('A')
+    expect(view.body).toBeUndefined()
+    expect(view.cta).toMatch(/open the pipeline/i)
+  })
+
+  it('parked: says a decision is pending and points into the run — never answers it here', () => {
+    const r = run({
+      status: 'parked',
+      cursor: { stepId: 'a', iteration: 1 },
+      park: { reason: 'step-question', stepId: 'a', message: 'q', parkedAt: 0 },
+      ledger: [{ id: 'a', stepId: 'a', iteration: 1, status: 'running', startedAt: 0 }],
+    })
+    const view = processRunCardView(r)
+    expect(view.body?.text).toMatch(/decision pending/i)
+    expect(view.body?.text).toMatch(/in the run/i)
+    expect(view.badge.tone).toBe('on_hold')
+  })
+
+  it('a gate park reads as sign-off, not a generic decision', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'b', message: '', parkedAt: 0 },
+    })
+    expect(processRunCardView(r).body?.text).toMatch(/sign off/i)
+  })
+
+  it('finished: leaves an honest step-count summary to talk about', () => {
+    const r = run({ status: 'succeeded', ledger: [passed('a'), passed('b')] })
+    const view = processRunCardView(r)
+    expect(view.body?.tone).toBe('done')
+    expect(view.body?.text).toMatch(/finished/i)
   })
 })

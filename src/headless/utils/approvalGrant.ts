@@ -172,55 +172,6 @@ export function featuresToWorkOn(story: Pick<Story, 'id' | 'features'>): Feature
   }
 }
 
-/** One beat of what happens after "yes" — a lead-in word and its sentence. */
-export type LaunchBeat = {
-  title: string
-  detail: string
-  /** True for the beat that says proof was turned OFF — drawn as a warning. */
-  off?: boolean
-}
-
-/**
- * What approving actually does, in four beats. The proof beat is honest about
- * the switch: with proof off, the run may report done on its own word, and the
- * card must say so rather than promise verification it will not perform.
- *
- * The first beat names a PIPELINE, not "an agent run in its own chat". What
- * starts is a process whose steps are mostly not agents at all, and the surface
- * it is followed on is the pipeline — describing it as one chat sent the user
- * looking for a transcript that no longer exists.
- */
-export function launchBeats(proofRequired: boolean): LaunchBeat[] {
-  return [
-    {
-      title: 'Launch',
-      detail:
-        'a pipeline starts straight away: each feature is worked, verified and written up as its own step, in order. You can follow the steps and stop it at any point.',
-    },
-    {
-      title: 'Isolated copy',
-      detail:
-        'it works in its own copy of the repo, on its own branch. Your files and the branch you are on are left alone.',
-    },
-    proofRequired
-      ? {
-          title: 'Proof',
-          detail:
-            'it has to show its work before it can report done. What counts depends on the change — a passing test, a clean build, a screen comparison.',
-        }
-      : {
-          title: 'No proof',
-          detail: 'you turned that off, so it can report done on its own word.',
-          off: true,
-        },
-    {
-      title: 'Your sign-off',
-      detail:
-        'the whole story comes back to you with what it did and what it proved. Nothing merges without you.',
-    },
-  ]
-}
-
 /**
  * Every approval a chat is currently waiting on, in raise order.
  *

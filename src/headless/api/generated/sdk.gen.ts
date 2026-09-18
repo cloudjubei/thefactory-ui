@@ -586,6 +586,9 @@ import type {
   PreviewCliAgentArtifactData,
   PreviewCliAgentArtifactErrors,
   PreviewCliAgentArtifactResponses,
+  PreviewProcessData,
+  PreviewProcessErrors,
+  PreviewProcessResponses,
   PreviewToolData,
   PreviewToolErrors,
   PreviewToolResponses,
@@ -1368,6 +1371,20 @@ export const getProcessCapabilities = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/processes/capabilities',
     ...options,
+  })
+
+export const previewProcess = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewProcessData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PreviewProcessResponses, PreviewProcessErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/preview',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const deleteProcess = <ThrowOnError extends boolean = false>(

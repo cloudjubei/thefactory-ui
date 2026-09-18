@@ -10,21 +10,28 @@ import {
   featuresToWorkOn,
   formatGrantDetail,
   isStartFeatureWorkGrant,
-  launchBeats,
   launchOptionsAreHonoured,
   launchRunnerLabel,
   startFeatureWorkGrantSummary,
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
-import { useStories } from '../../../headless'
+import { processProposalView } from '../../../headless/utils/processProposalView'
+import { useProcessProposal, useStories } from '../../../headless'
 import type { PendingToolGrant } from '../../../headless'
-import { nativeAlpha, nativeRadii, nativeSpace } from '../../../tokens/native'
+import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
+import ChainChip from '../process/ChainChip'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
+  /**
+   * The chat's project — used to resolve the launch PROPOSAL shown before
+   * approval. The chat's own project, not a global active one. Omitted ⇒ the
+   * dock falls back to the plain feature list.
+   */
+  projectId?: string
   onDecideLater: () => void
 }
 
@@ -37,7 +44,7 @@ export type ApprovalPanelProps = {
  * The dock answers either way and offers no park; see the web peer for why, and
  * for why this takes no external busy flag.
  */
-export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelProps) {
+export default function ApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
@@ -49,17 +56,21 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
   // agent's own arguments are what runs, so the options are shown, not offered.
   const optionsHonoured = launchOptionsAreHonoured(grant)
   const runnerLabel = launchRunnerLabel(summary, grant.source)
-  const [captureProof, setCaptureProof] = useState(summary.proofRequired)
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
-  const [beatsOpen, setBeatsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
   const features = story ? featuresToWorkOn(story) : []
-  const beats = launchBeats(captureProof)
+  // The resolved plan the user reads before approving — the whole path per
+  // feature, not just the list. A miss falls back to the plain list below.
+  const { proposal } = useProcessProposal({
+    projectId,
+    storyId: isLaunch ? summary.storyId : undefined,
+  })
+  const proposalView = proposal ? processProposalView(proposal) : undefined
 
   const resolvedBullet = (dep: string): ResolvedDependency => {
     const resolved = resolveDependency(dep)
@@ -106,7 +117,12 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
       .decide(
         decision,
         isLaunch
-          ? { proofRequired: captureProof, ...(trimmedNote ? { note: trimmedNote } : {}) }
+          ? {
+              // Proof is no longer a dock toggle — it belongs to the process the
+              // agent chose (its Verify → Report chain), so the launch carries
+              // the agent's own choice unchanged rather than overriding it here.
+              ...(trimmedNote ? { note: trimmedNote } : {}),
+            }
           : undefined,
       )
       .catch((err: unknown) => {
@@ -270,62 +286,183 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         </View>
       ) : null}
 
-      <View
-        style={{
-          gap: 6,
-          paddingHorizontal: 10,
-          paddingVertical: 8,
-          borderRadius: nativeRadii[3],
-          borderWidth: 1,
-          borderColor: theme.border.subtle,
-          backgroundColor: theme.surface.muted,
-        }}
-      >
-        <Text
+      {proposalView && proposalView.features.length > 0 ? (
+        <View
           style={{
-            fontSize: 10,
-            fontWeight: '600',
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: theme.text.secondary,
+            gap: nativeSpace[2],
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: nativeRadii[3],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.muted,
           }}
         >
-          Features to work on
-        </Text>
-        {features.length === 0 ? (
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {story
-              ? 'No feature on this story is ready — it will be refused when launched.'
-              : 'Loading the story…'}
-          </Text>
-        ) : (
-          features.map((feature, i) => (
-            <View
-              key={feature.id}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '600',
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                color: theme.text.secondary,
+              }}
             >
-              <Text
-                style={{ width: 16, textAlign: 'right', fontSize: 10, color: theme.text.secondary }}
-              >
-                {i + 1}
-              </Text>
-              {summary.storyId ? (
-                <DependencyBullet
-                  resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
-                  dependency={`${summary.storyId}.${feature.id}`}
-                  interactive={false}
-                />
+              The process
+            </Text>
+            <Text style={{ fontSize: 10, color: theme.text.muted }}>
+              {proposalView.features.length} feature
+              {proposalView.features.length === 1 ? '' : 's'} · {proposalView.agentStepCount} agent
+              step{proposalView.agentStepCount === 1 ? '' : 's'}
+            </Text>
+          </View>
+          {proposalView.features.map((feature, i) => (
+            <View key={feature.id} style={{ gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+                <Text
+                  style={{
+                    width: 16,
+                    textAlign: 'right',
+                    fontSize: 10,
+                    color: theme.text.secondary,
+                  }}
+                >
+                  {i + 1}
+                </Text>
+                {summary.storyId ? (
+                  <DependencyBullet
+                    resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
+                    dependency={`${summary.storyId}.${feature.id}`}
+                    interactive={false}
+                  />
+                ) : null}
+                <Text
+                  numberOfLines={1}
+                  style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
+                >
+                  {feature.title}
+                </Text>
+              </View>
+              {feature.chain.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginLeft: 24,
+                  }}
+                >
+                  {feature.chain.map((chip, j) => (
+                    <View
+                      key={chip.id}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      {j > 0 ? (
+                        <Text style={{ color: theme.border.strong, fontSize: 11 }}>›</Text>
+                      ) : null}
+                      <ChainChip chip={chip} />
+                    </View>
+                  ))}
+                  {feature.maxIterations && feature.maxIterations > 1 ? (
+                    <Text style={{ fontSize: 10, color: theme.text.muted, marginLeft: 2 }}>
+                      · up to {feature.maxIterations} attempts
+                    </Text>
+                  ) : null}
+                </View>
               ) : null}
-              <Text
-                numberOfLines={1}
-                style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
-              >
-                {feature.title}
-              </Text>
             </View>
-          ))
-        )}
-      </View>
+          ))}
+          {proposalView.tail.length > 0 ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 4,
+                marginLeft: 24,
+                borderTopWidth: 1,
+                borderTopColor: theme.border.subtle,
+                paddingTop: 6,
+              }}
+            >
+              {proposalView.tail.map((chip, j) => (
+                <View key={chip.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {j > 0 ? (
+                    <Text style={{ color: theme.border.strong, fontSize: 11 }}>›</Text>
+                  ) : null}
+                  <ChainChip chip={chip} />
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <Text style={{ fontSize: 10.5, color: theme.text.muted }}>
+            Not included: merging. Nothing lands without your sign-off.
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={{
+            gap: 6,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: nativeRadii[3],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.muted,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+              color: theme.text.secondary,
+            }}
+          >
+            Features to work on
+          </Text>
+          {features.length === 0 ? (
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {story
+                ? 'No feature on this story is ready — it will be refused when launched.'
+                : 'Loading the story…'}
+            </Text>
+          ) : (
+            features.map((feature, i) => (
+              <View
+                key={feature.id}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
+              >
+                <Text
+                  style={{
+                    width: 16,
+                    textAlign: 'right',
+                    fontSize: 10,
+                    color: theme.text.secondary,
+                  }}
+                >
+                  {i + 1}
+                </Text>
+                {summary.storyId ? (
+                  <DependencyBullet
+                    resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
+                    dependency={`${summary.storyId}.${feature.id}`}
+                    interactive={false}
+                  />
+                ) : null}
+                <Text
+                  numberOfLines={1}
+                  style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
+                >
+                  {feature.title}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      )}
 
       <View
         style={{
@@ -363,55 +500,6 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
         <Tooltip
           content={
             <Text style={tipText}>
-              On, the run may not report done until it has filed evidence — a build, a device
-              screenshot, a test result. Off, it can claim done on its own word.
-            </Text>
-          }
-        >
-          <Pressable
-            onPress={() => setCaptureProof((v) => !v)}
-            disabled={busy || !optionsHonoured}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: captureProof, disabled: busy || !optionsHonoured }}
-            style={{
-              ...pill,
-              borderColor: captureProof
-                ? nativeAlpha(theme.accent.primary, 0.45)
-                : status.working.softBorder,
-              backgroundColor: captureProof
-                ? nativeAlpha(theme.accent.primary, 0.1)
-                : status.working.softBg,
-            }}
-          >
-            <View
-              style={{
-                width: 13,
-                height: 13,
-                borderRadius: 3.5,
-                borderWidth: 1.5,
-                borderColor: captureProof ? theme.accent.primary : status.working.softFg,
-                backgroundColor: captureProof ? theme.accent.primary : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {captureProof ? (
-                <Text style={{ fontSize: 9, color: theme.text.inverted, lineHeight: 11 }}>✓</Text>
-              ) : null}
-            </View>
-            <Text
-              style={{
-                fontSize: 12,
-                color: captureProof ? theme.text.primary : status.working.softFg,
-              }}
-            >
-              {captureProof ? 'Proof required' : 'No proof required'}
-            </Text>
-          </Pressable>
-        </Tooltip>
-        <Tooltip
-          content={
-            <Text style={tipText}>
               The run gets its own copy of the repo and its own branch. Your files and the branch
               you are on are never touched, even if it fails.
             </Text>
@@ -421,106 +509,6 @@ export default function ApprovalPanel({ grant, onDecideLater }: ApprovalPanelPro
             <Text style={{ fontSize: 12, color: theme.text.secondary }}>Isolated copy</Text>
           </View>
         </Tooltip>
-      </View>
-
-      <View>
-        <Pressable
-          onPress={() => setBeatsOpen((v) => !v)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: beatsOpen }}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
-        >
-          <Text style={{ fontSize: 12, color: theme.text.secondary, width: 14 }}>
-            {beatsOpen ? '▾' : '▸'}
-          </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 6,
-              flex: 1,
-            }}
-          >
-            {beats.map((beat, i) => {
-              const last = i === beats.length - 1
-              const word =
-                i === 0 ? beat.title : beat.title.charAt(0).toLowerCase() + beat.title.slice(1)
-              const strong = beat.off || i === 0 || last
-              return (
-                <View
-                  key={beat.title}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                >
-                  {i > 0 ? (
-                    <Text
-                      style={{ fontSize: 12, color: theme.border.strong ?? theme.text.secondary }}
-                    >
-                      →
-                    </Text>
-                  ) : null}
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: strong ? '600' : '400',
-                      color: beat.off
-                        ? status.working.softFg
-                        : strong
-                          ? theme.text.primary
-                          : theme.text.secondary,
-                    }}
-                  >
-                    {word}
-                  </Text>
-                </View>
-              )
-            })}
-          </View>
-        </Pressable>
-        {beatsOpen ? (
-          <View
-            style={{
-              marginLeft: 22,
-              marginTop: 8,
-              padding: 10,
-              gap: 6,
-              borderLeftWidth: 2,
-              borderLeftColor: theme.border.subtle,
-              borderTopRightRadius: nativeRadii[3],
-              borderBottomRightRadius: nativeRadii[3],
-              backgroundColor: theme.surface.muted,
-            }}
-          >
-            {beats.map((beat, i) => (
-              <View key={beat.title} style={{ flexDirection: 'row', gap: 8 }}>
-                <Text
-                  style={{
-                    width: 14,
-                    fontSize: 10,
-                    fontWeight: '600',
-                    color: theme.text.secondary,
-                    lineHeight: 17,
-                  }}
-                >
-                  {i + 1}
-                </Text>
-                <Text
-                  style={{ flex: 1, fontSize: 12, color: theme.text.secondary, lineHeight: 17 }}
-                >
-                  <Text
-                    style={{
-                      fontWeight: '600',
-                      color: beat.off ? status.working.softFg : theme.text.primary,
-                    }}
-                  >
-                    {beat.title}
-                  </Text>
-                  {` — ${beat.detail}`}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
       </View>
 
       {summary.note ? (

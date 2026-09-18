@@ -104,6 +104,12 @@ export type UseCliRunArtifact = {
   /** The story this run executes a FEATURE of, when it is a story sub-run. */
   storyId: string | undefined
   /**
+   * The owning `ProcessRun.id` when this CLI run is a process STEP. Its presence
+   * makes the sign-off surface report-only — evidence is shown, but the verdict
+   * and sign-off belong to the pipeline. `undefined` for standalone runs.
+   */
+  processRunId: string | undefined
+  /**
    * Set when the run produced changes that could NOT be landed on a review
    * branch (no git repo, detached HEAD, failed commit). The changes exist but
    * are not reviewable — the panel warns explicitly.
@@ -150,8 +156,12 @@ export type UseCliRunArtifact = {
   reviewDiff: GitDiffSummary | undefined
   /** True while the branch diff is being fetched. */
   reviewLoading: boolean
-  /** Fetch (or refresh) the run-branch diff. */
-  loadReviewDiff: () => Promise<void>
+  /**
+   * Fetch (or refresh) the run-branch diff. `record` (default `true`) files the
+   * human half of the `diff` review method; a process-owned run passes `false`
+   * to VIEW the diff without recording a sign-off it did not make.
+   */
+  loadReviewDiff: (record?: boolean) => Promise<void>
   /**
    * Approve & merge: merge the run branch into the current working branch. The
    * optional note is recorded with the approval. When the project's
@@ -228,6 +238,11 @@ export function useCliRunArtifact(
   // The story this run executes a FEATURE of, when it is a story sub-run. Drives the
   // suppression of the direct-apply path — see `reviewActionMode`.
   const [storyId, setStoryId] = useState<string | undefined>(undefined)
+  // The owning process run, when this CLI run is a process STEP. Its presence
+  // switches the sign-off surface to report-only: a process-owned run's evidence
+  // is shown, but the verdict + sign-off belong to the pipeline, never to a
+  // second free-standing decision here.
+  const [processRunId, setProcessRunId] = useState<string | undefined>(undefined)
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
   const [runModel, setRunModel] = useState<RunModel | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
@@ -326,6 +341,7 @@ export function useCliRunArtifact(
       setVerdict(run.verdict ?? undefined)
       setDiffReview(run.diffReview ?? undefined)
       setStoryId(run.storyId ?? undefined)
+      setProcessRunId(run.processRunId ?? undefined)
       setRunModel(runModelOf(run))
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
@@ -355,6 +371,9 @@ export function useCliRunArtifact(
     setVerification(undefined)
     setVerdict(undefined)
     setDiffReview(undefined)
+    // Cleared on a change of run so a process-owned run's report-only flag never
+    // leaks onto the next (standalone) run before its record has loaded.
+    setProcessRunId(undefined)
     setLandFailure(undefined)
     setRunModel(undefined)
     setStartedAtMs(undefined)
@@ -487,42 +506,48 @@ export function useCliRunArtifact(
     }
   }, [runId, projectId, artifact])
 
-  const loadReviewDiff = useCallback(async () => {
-    if (!projectId || !review) return
-    const epoch = epochRef.current
-    setReviewLoading(true)
-    setError(undefined)
-    try {
-      const { data } = await getGitBranchDiffSummary({
-        path: { projectId },
-        body: {
-          baseRef: review.baseSha,
-          headRef: review.headSha ?? review.branch,
-          includePatch: true,
-        },
-        throwOnError: true,
-      })
-      if (epoch === epochRef.current) setReviewDiff(data)
-      // Opening the Changes tab IS somebody reading the change — the human half
-      // of the `diff` review method. Recorded, never inferred: a reviewer who
-      // read the diff and a run nobody looked at must not present identically.
-      if (runId) {
-        await recordCliRunDiffReview({
-          path: { runId },
-          body: { filesReviewed: data?.files?.length ?? 0 },
+  const loadReviewDiff = useCallback(
+    async (record = true) => {
+      if (!projectId || !review) return
+      const epoch = epochRef.current
+      setReviewLoading(true)
+      setError(undefined)
+      try {
+        const { data } = await getGitBranchDiffSummary({
+          path: { projectId },
+          body: {
+            baseRef: review.baseSha,
+            headRef: review.headSha ?? review.branch,
+            includePatch: true,
+          },
           throwOnError: true,
         })
-          .then(() => {
-            if (epoch === epochRef.current) setDiffReview({ by: 'user', at: Date.now() })
+        if (epoch === epochRef.current) setReviewDiff(data)
+        // Opening the Changes tab IS somebody reading the change — the human half
+        // of the `diff` review method. Recorded, never inferred: a reviewer who
+        // read the diff and a run nobody looked at must not present identically.
+        // A process-owned run passes `record: false` — viewing its diff there is
+        // not a sign-off act, and filing "diff reviewed" would be a proof nobody
+        // gave (the pipeline owns this run's verdict).
+        if (record && runId) {
+          await recordCliRunDiffReview({
+            path: { runId },
+            body: { filesReviewed: data?.files?.length ?? 0 },
+            throwOnError: true,
           })
-          .catch(() => undefined)
+            .then(() => {
+              if (epoch === epochRef.current) setDiffReview({ by: 'user', at: Date.now() })
+            })
+            .catch(() => undefined)
+        }
+      } catch (err: unknown) {
+        if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setReviewLoading(false)
       }
-    } catch (err: unknown) {
-      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setReviewLoading(false)
-    }
-  }, [projectId, review, runId])
+    },
+    [projectId, review, runId],
+  )
 
   const merge = useCallback(
     async (note?: string) => {
@@ -744,6 +769,7 @@ export function useCliRunArtifact(
     verdict,
     reviewInProgress,
     storyId,
+    processRunId,
     landFailure,
     runModel,
     startedAtMs,

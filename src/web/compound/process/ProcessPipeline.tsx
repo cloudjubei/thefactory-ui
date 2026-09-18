@@ -1,24 +1,26 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
-  PROCESS_OUTCOME_VIEW,
-  PROCESS_RUN_STATUS_VIEW,
+  formatProcessDuration,
   isReflectedPark,
   parkedRunRef,
+  processEntryDurationLabel,
+  processIterationBadge,
+  processNodeGlyph,
+  processNodeState,
+  processNodeTone,
   processParkChoices,
-  processRunProgress,
+  processRunBadge,
   processRunSpend,
   processStepStates,
-  processStepTone,
   useProcessRun,
   type ProcessNodeRunRef,
+  type ProcessNodeState,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
-  type ProcessStepOutcome,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
-import Surface from '../../primitives/Surface'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -32,16 +34,16 @@ export type ProcessPipelineProps = {
 }
 
 /**
- * The surface a process run is watched on: the plan, where it is, and what it
- * is waiting for.
+ * The surface a process run is watched on — a pipeline, not a transcript.
  *
- * This REPLACES the message list for a run. The interesting state — which step,
- * which attempt, what it is parked on — is exactly what a transcript buries,
- * and the transcript is still one click away on the node that owns it.
+ * One continuous spine, one live marker: the settled steps above it, the queued
+ * ones dashed below. Which step, which attempt, what it is parked on — the state
+ * a transcript buries — is exactly what the spine shows. The chat that a leaf
+ * owns is still one click away, one level down.
  *
- * Drilling into a nested node stays inside this component with a breadcrumb,
- * because a nested process is the same thing one level down; only a LEAF hands
- * off, to the chat it owns.
+ * Drilling into a nested node stays inside this component with a breadcrumb;
+ * only a LEAF hands off, to the chat it owns. Depth is capped at three by the
+ * model itself — a leaf never contains another pipeline.
  */
 export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
@@ -55,69 +57,41 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
+  const states = processStepStates(run)
+  const now = Date.now()
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
-      {stack.length > 0 ? (
-        <nav className="flex flex-wrap items-center gap-1 text-[11px] text-(--text-secondary)">
-          <button type="button" className="underline" onClick={() => popTo(0)}>
-            Top
-          </button>
-          {stack.map((id, index) => (
-            <span key={id} className="flex items-center gap-1">
-              <span aria-hidden>/</span>
-              {index === stack.length - 1 ? (
-                <span className="text-(--text-primary)">{run.title}</span>
-              ) : (
-                <button type="button" className="underline" onClick={() => popTo(index + 1)}>
-                  …
-                </button>
-              )}
-            </span>
-          ))}
-        </nav>
-      ) : null}
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+      <RunHead run={run} depth={stack.length} onCrumb={popTo} onCancel={() => void cancel()} />
 
-      <PipelineHeader run={run} onCancel={() => void cancel()} />
-
-      {run.park ? (
-        <ParkBanner
-          run={run}
-          onChoose={(choice) => void resume(choice)}
-          onDrill={drillTo}
-          {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
-        />
-      ) : null}
-
-      <ol className="flex flex-col gap-2">
-        {processStepStates(run).map((state, index) => (
-          <StepRow
+      <ol className="flex flex-col px-3 pb-4 pt-3">
+        {states.map((state, index) => (
+          <PipelineNode
             key={state.step.id}
-            index={index}
-            name={state.step.name}
-            kind={state.step.kind}
-            status={state.status}
-            current={state.current}
-            attempts={state.attempts}
-            {...(state.outcome ? { outcome: state.outcome } : {})}
-            {...(state.latest?.summary ? { summary: state.latest.summary } : {})}
-            {...(state.latest?.childRunId ? { childRunId: state.latest.childRunId } : {})}
-            {...(state.latest?.runRef ? { runRef: state.latest.runRef } : {})}
+            run={run}
+            state={state}
+            ordinal={index + 1}
+            isLast={index === states.length - 1}
+            now={now}
+            onChoose={(choice, note) => void resume(choice, note)}
             onDrill={drillTo}
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
           />
         ))}
       </ol>
 
-      {run.error ? <div className="text-[11px] text-(--text-secondary)">{run.error}</div> : null}
+      {run.error ? (
+        <div className="px-4 pb-3 text-[11px] text-(--text-secondary)">{run.error}</div>
+      ) : null}
     </div>
   )
 }
 
-/** A status pill in the package's own semantic palette. */
+/** A soft status pill in the package's own semantic palette. */
 function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: string }) {
   return (
     <span
-      className="rounded px-1.5 py-px text-[10px]"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px]"
       style={{
         background: `var(--status-${tone}-soft-bg)`,
         color: `var(--status-${tone}-soft-fg)`,
@@ -129,26 +103,69 @@ function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: stri
   )
 }
 
-function PipelineHeader({ run, onCancel }: { run: ProcessRun; onCancel: () => void }) {
-  const progress = useMemo(() => processRunProgress(run), [run])
-  const spend = useMemo(() => processRunSpend(run), [run])
-  const view = PROCESS_RUN_STATUS_VIEW[run.status]
-  const running = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
+/** The run header: where you are (breadcrumbs), the headline state, elapsed and spend. */
+function RunHead({
+  run,
+  depth,
+  onCrumb,
+  onCancel,
+}: {
+  run: ProcessRun
+  depth: number
+  onCrumb: (depth: number) => void
+  onCancel: () => void
+}) {
+  const badge = processRunBadge(run)
+  const spend = processRunSpend(run)
+  // Elapsed EXCLUDES parked time — a run does not age while it waits on a person.
+  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <h2 className="text-base font-semibold">{run.title}</h2>
-      <span className="text-[11px] text-(--text-secondary)">{run.plan.name}</span>
-      <ToneBadge tone={view.tone}>{view.label}</ToneBadge>
-      <span className="text-[11px] text-(--text-secondary)">
-        {progress.completed} of {progress.total} steps
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5">
+      <nav className="flex min-w-0 flex-wrap items-center gap-1 text-[12px]">
+        {/* Only the current run is loaded, so ancestor titles are not known —
+            the crumb trail is Top → … → here, capped at three by the model. */}
+        {depth > 0 ? (
+          <>
+            <button
+              type="button"
+              className="rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
+              onClick={() => onCrumb(0)}
+            >
+              Top
+            </button>
+            {Array.from({ length: depth - 1 }).map((_, i) => (
+              <span key={i} className="flex items-center gap-1">
+                <span className="text-(--border-strong)">/</span>
+                <button
+                  type="button"
+                  className="rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
+                  onClick={() => onCrumb(i + 1)}
+                >
+                  …
+                </button>
+              </span>
+            ))}
+            <span className="text-(--border-strong)">/</span>
+          </>
+        ) : null}
+        <span className="font-semibold text-(--text-primary)">{run.title}</span>
+      </nav>
+      <span className="grow" />
+      <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
+      <span className="text-[11px] tabular-nums text-(--text-muted)">
+        {formatProcessDuration(durMs)}
       </span>
       {spend ? (
-        <span className="text-[11px] text-(--text-secondary)" title="Spent against the cap">
+        <span
+          className="text-[11px] tabular-nums text-(--text-muted)"
+          title="Spent against the cap"
+        >
           {spend.label}
         </span>
       ) : null}
-      {running ? (
-        <Button className="ml-auto" size="sm" variant="secondary" onClick={onCancel}>
+      {stoppable ? (
+        <Button size="sm" variant="secondary" onClick={onCancel}>
           Stop
         </Button>
       ) : null}
@@ -156,36 +173,285 @@ function PipelineHeader({ run, onCancel }: { run: ProcessRun; onCancel: () => vo
   )
 }
 
+/** The 26px marker on the spine — a verdict glyph or the ordinal, coloured by state. */
+function Marker({
+  nodeState,
+  glyph,
+  isGate,
+}: {
+  nodeState: ProcessNodeState
+  glyph: string
+  isGate: boolean
+}) {
+  const tone = processNodeTone(nodeState, isGate)
+  const queued = nodeState === 'queued' || nodeState === 'skipped'
+  return (
+    <span
+      className="relative grid size-[26px] shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
+      style={
+        queued
+          ? {
+              background: 'var(--surface-base)',
+              color: 'var(--text-muted)',
+              border: '1.5px dashed var(--border-default)',
+            }
+          : {
+              background: `var(--status-${tone}-bg)`,
+              color: `var(--status-${tone}-fg)`,
+              border: `1.5px solid var(--status-${tone}-bg)`,
+            }
+      }
+    >
+      {nodeState === 'working' ? (
+        <span
+          aria-hidden
+          className="absolute inset-0 animate-ping rounded-full"
+          style={{ border: `1.5px solid var(--status-${tone}-bg)`, opacity: 0.5 }}
+        />
+      ) : null}
+      {glyph}
+    </span>
+  )
+}
+
 /**
- * What the run is waiting for, and the choices that answer it.
- *
- * Named choices rather than one "resume" button: the reasons a run parks are
- * not interchangeable, and a single button would hide which one this is.
+ * One node on the spine. A `process` node with a child run drills; a leaf opens
+ * its chat; a queued function is inert. The node the run is parked on carries the
+ * decision inline, and the active feature node shows its nested pipeline inline.
  */
-function ParkBanner({
+function PipelineNode({
+  run,
+  state,
+  ordinal,
+  isLast,
+  now,
+  onChoose,
+  onDrill,
+  onOpenAgentRun,
+}: {
+  run: ProcessRun
+  state: ReturnType<typeof processStepStates>[number]
+  ordinal: number
+  isLast: boolean
+  now: number
+  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onDrill: (childRunId: string) => void
+  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+}) {
+  const parkStepId = run.park?.stepId
+  const nodeState = processNodeState(state, parkStepId)
+  const glyph = processNodeGlyph(nodeState, ordinal)
+  const childRunId = state.latest?.childRunId
+  const runRef = state.latest?.runRef
+  const isFeature = state.step.kind === 'process'
+  const isAgent = state.step.kind === 'agent'
+  const open = childRunId
+    ? () => onDrill(childRunId)
+    : // Only offer "open ›" when the leaf's run actually has a chat to open.
+      // A verifier leaf attaches a runRef WITHOUT a chatContextId, so guarding on
+      // the ref alone (as before) left a dead button that navigated nowhere —
+      // the same guard `parkedRunRef` already applies.
+      runRef?.chatContextId && onOpenAgentRun
+      ? () => onOpenAgentRun(runRef)
+      : undefined
+  const iteration = processIterationBadge(state.attempts, run.plan)
+  const duration = processEntryDurationLabel(state.latest, now)
+  // The active feature node shows its child pipeline inline — expanded when the
+  // run is on it (running or parked), collapsed (and drillable) otherwise.
+  const expanded = isFeature && (state.current || parkStepId === state.step.id)
+  const parked = parkStepId === state.step.id
+
+  return (
+    <li className="relative grid grid-cols-[26px_minmax(0,1fr)] gap-3">
+      {!isLast ? (
+        <span
+          aria-hidden
+          className="absolute bottom-0 left-[12.5px] top-[26px] w-px"
+          style={{
+            background:
+              nodeState === 'done' ? 'var(--status-done-soft-border)' : 'var(--border-default)',
+          }}
+        />
+      ) : null}
+      <Marker nodeState={nodeState} glyph={glyph} isGate={state.step.kind === 'gate'} />
+      <div className="min-w-0 pb-3">
+        <button
+          type="button"
+          disabled={!open}
+          onClick={open}
+          className="flex w-full flex-wrap items-center gap-2 rounded-md px-1.5 py-1 text-left enabled:hover:bg-(--surface-hover) disabled:cursor-default"
+        >
+          <span
+            className={`text-[13.5px] font-semibold ${nodeState === 'queued' ? 'text-(--text-muted)' : 'text-(--text-primary)'}`}
+          >
+            {state.step.name}
+          </span>
+          <KindChip kind={state.step.kind} agent={isAgent} />
+          {iteration ? (
+            <span
+              className="inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
+              style={{
+                background: 'var(--status-working-soft-bg)',
+                color: 'var(--status-working-soft-fg)',
+                border: '1px solid var(--status-working-soft-border)',
+              }}
+            >
+              {iteration}
+            </span>
+          ) : null}
+          <span className="ml-auto flex items-center gap-2">
+            {duration ? (
+              <span className="text-[11px] tabular-nums text-(--text-muted)">{duration}</span>
+            ) : null}
+            {open ? <span className="text-[11px] text-(--text-muted)">open ›</span> : null}
+          </span>
+        </button>
+
+        {state.latest?.summary ? (
+          <div className="whitespace-pre-wrap px-1.5 text-[12px] text-(--text-secondary)">
+            {state.latest.summary}
+          </div>
+        ) : null}
+
+        {expanded && childRunId ? <InlineSubSteps childRunId={childRunId} now={now} /> : null}
+
+        {parked ? (
+          <ParkBlock
+            run={run}
+            onChoose={onChoose}
+            onDrill={onDrill}
+            {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+          />
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
+/** The kind tag — an agent step (a model runs) is purple; everything else muted. */
+function KindChip({ kind, agent }: { kind: string; agent: boolean }) {
+  return (
+    <span
+      className="rounded px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider"
+      style={
+        agent
+          ? {
+              color: 'var(--color-purple-700)',
+              background: 'color-mix(in srgb, var(--color-purple-650) 12%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-purple-650) 45%, transparent)',
+            }
+          : {
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+            }
+      }
+    >
+      {kind}
+    </span>
+  )
+}
+
+/**
+ * The nested pipeline of the active feature, inline — its own child run's steps,
+ * live. A back-edge that fired is drawn as a loop banner rather than described.
+ * The child is loaded only while expanded, so a collapsed feature costs nothing.
+ */
+function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }) {
+  const { run: child } = useProcessRun(childRunId)
+  if (!child) return null
+  const states = processStepStates(child)
+  const looped = Object.values(child.loopCounts ?? {}).some((n) => n > 0)
+  return (
+    <div className="ml-1 mt-2 flex flex-col gap-1 rounded-r-lg border-l-2 border-(--border-default) bg-(--surface-overlay) px-3 py-2">
+      {looped ? (
+        <div
+          className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]"
+          style={{
+            color: 'var(--status-working-soft-fg)',
+            background: 'var(--status-working-soft-bg)',
+            border: '1px dashed var(--status-working-soft-border)',
+          }}
+        >
+          ↺ Verification sent the work back — <b className="font-semibold">retried</b>
+        </div>
+      ) : null}
+      {states.map((s) => {
+        const st = processNodeState(s, child.park?.stepId)
+        const dur = processEntryDurationLabel(s.latest, now)
+        const iter = processIterationBadge(s.attempts, child.plan)
+        return (
+          <div
+            key={s.step.id}
+            className="flex items-center gap-2 text-[12px] text-(--text-secondary)"
+          >
+            <SubDot nodeState={st} />
+            <b className="font-semibold text-(--text-primary)">{s.step.name}</b>
+            {s.latest?.summary ? (
+              <span className="truncate text-(--text-muted)">· {s.latest.summary}</span>
+            ) : null}
+            {iter ? <span className="text-(--status-working-soft-fg)">· {iter}</span> : null}
+            {dur ? <span className="ml-auto tabular-nums text-(--text-muted)">{dur}</span> : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SubDot({ nodeState }: { nodeState: ProcessNodeState }) {
+  const tone = processNodeTone(nodeState, false)
+  const queued = nodeState === 'queued' || nodeState === 'skipped'
+  const glyph = nodeState === 'done' ? '✓' : nodeState === 'failed' ? '!' : ''
+  return (
+    <span
+      className="grid size-[15px] shrink-0 place-items-center rounded-full text-[8px] font-bold"
+      style={
+        queued
+          ? { background: 'var(--surface-base)', border: '1.5px dashed var(--border-default)' }
+          : {
+              background: `var(--status-${tone}-bg)`,
+              color: `var(--status-${tone}-fg)`,
+              border: `1.5px solid var(--status-${tone}-bg)`,
+            }
+      }
+    >
+      {glyph}
+    </span>
+  )
+}
+
+/**
+ * The decision a parked node carries — named choices, inline on the node, never
+ * a spinner and a hope. A reflected park is a statement, not a question: its
+ * decision belongs to the nested run, so it offers the way there instead.
+ */
+function ParkBlock({
   run,
   onChoose,
   onOpenAgentRun,
   onDrill,
 }: {
   run: ProcessRun
-  onChoose: (choice: ProcessResumeChoice) => void
+  onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
 }) {
   const park = run.park
   if (!park) return null
-  // A park that is waiting on an ANSWER has somewhere to go: the run that
-  // asked. Without it the banner tells the user to answer a question and gives
-  // them no way to reach it.
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
-  // A MIRRORED park is a statement, not a question — the decision belongs to
-  // the nested run, where its context is, and the server refuses to answer it
-  // here. So the banner offers the one thing that does work: going there.
   const reflected = isReflectedPark(park)
+  const tone = park.reason === 'gate' ? 'review' : 'on_hold'
   return (
-    <Surface className="flex flex-col gap-2 p-3">
-      <div className="text-sm">{park.message}</div>
+    <div
+      className="mt-2 flex flex-col gap-2 rounded-lg p-3"
+      style={{
+        background: `var(--status-${tone}-soft-bg)`,
+        border: `1px solid var(--status-${tone}-soft-border)`,
+      }}
+    >
+      <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
+        {park.message}
+      </div>
       {reflected && park.childRunId ? (
         <button
           type="button"
@@ -218,87 +484,6 @@ function ParkBanner({
           </div>
         ))}
       </div>
-    </Surface>
-  )
-}
-
-function StepRow({
-  index,
-  name,
-  kind,
-  status,
-  current,
-  attempts,
-  outcome,
-  summary,
-  childRunId,
-  runRef,
-  onDrill,
-  onOpenAgentRun,
-}: {
-  index: number
-  name: string
-  kind: string
-  status: 'pending' | 'running' | 'done'
-  current: boolean
-  attempts: number
-  outcome?: ProcessStepOutcome
-  summary?: string
-  childRunId?: string
-  runRef?: ProcessNodeRunRef
-  onDrill: (childRunId: string) => void
-  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
-}) {
-  // A node is either a nested process or a leaf that owns one agent run. That
-  // is the whole navigation rule: clicking opens the pipeline one level down,
-  // or the chat, and nothing else.
-  const open = childRunId
-    ? () => onDrill(childRunId)
-    : runRef && onOpenAgentRun
-      ? () => onOpenAgentRun(runRef)
-      : undefined
-
-  return (
-    <Surface
-      as={open ? 'button' : 'div'}
-      {...(open ? { type: 'button' as const, onClick: open } : {})}
-      className="w-full p-3 text-left"
-      style={current ? { borderColor: 'var(--accent-primary)' } : undefined}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusDot tone={processStepTone(status, outcome)} />
-        <span className="text-[11px] text-(--text-secondary)">{index + 1}</span>
-        <span className="text-sm font-medium">{name}</span>
-        <span className="rounded bg-(--surface-muted) px-1 py-px text-[10px]">{kind}</span>
-        {attempts > 1 ? (
-          <span className="text-[10px] text-(--text-secondary)">attempt {attempts}</span>
-        ) : null}
-        {outcome ? (
-          <ToneBadge tone={PROCESS_OUTCOME_VIEW[outcome].tone}>
-            {PROCESS_OUTCOME_VIEW[outcome].label}
-          </ToneBadge>
-        ) : null}
-        {open ? (
-          <span className="ml-auto text-[10px] text-(--text-secondary)">
-            {childRunId ? 'Open the steps →' : 'Open the run →'}
-          </span>
-        ) : null}
-      </div>
-      {summary ? (
-        <div className="mt-1 whitespace-pre-wrap text-[11px] text-(--text-secondary)">
-          {summary}
-        </div>
-      ) : null}
-    </Surface>
-  )
-}
-
-function StatusDot({ tone }: { tone: ProcessStatusTone }) {
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-2 shrink-0 rounded-full"
-      style={{ background: `var(--status-${tone}-fg)` }}
-    />
+    </div>
   )
 }

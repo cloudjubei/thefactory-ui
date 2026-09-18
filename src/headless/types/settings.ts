@@ -67,7 +67,13 @@ export type UserPreferences = {
   cliShowThinking?: boolean
 }
 
-export type NotificationCategory = 'chat' | 'tests' | 'git' | 'activity' | 'cross-project'
+export type NotificationCategory =
+  | 'chat'
+  | 'tests'
+  | 'git'
+  | 'activity'
+  | 'cross-project'
+  | 'processes'
 
 /** Subset of `NotificationCategory` whose badge colour the user can pick. */
 export type BadgeColorCategory = NotificationCategory
@@ -78,6 +84,7 @@ export const BADGE_COLOR_CATEGORIES: readonly BadgeColorCategory[] = [
   'git',
   'activity',
   'cross-project',
+  'processes',
 ] as const
 
 /** Type-guard: narrows a `NotificationCategory` to one that carries a badge colour. */
@@ -110,14 +117,29 @@ export type NotificationPrefs = {
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   osNotificationsEnabled: false,
-  categories: { chat: true, tests: true, git: true, activity: true, 'cross-project': true },
-  badgesEnabled: { chat: true, tests: true, git: true, activity: true, 'cross-project': true },
+  categories: {
+    chat: true,
+    tests: true,
+    git: true,
+    activity: true,
+    'cross-project': true,
+    processes: true,
+  },
+  badgesEnabled: {
+    chat: true,
+    tests: true,
+    git: true,
+    activity: true,
+    'cross-project': true,
+    processes: true,
+  },
   badgeColors: {
     chat: 'red',
     tests: 'green',
     git: 'orange',
     activity: 'red',
     'cross-project': 'blue',
+    processes: 'green',
   },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },

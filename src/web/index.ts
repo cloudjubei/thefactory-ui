@@ -660,6 +660,7 @@ export { default as DiagnosticsOverlay } from './compound/shell/DiagnosticsOverl
 export { default as WelcomeView } from './screens/WelcomeView'
 export { default as ProjectTimelineView } from './screens/ProjectTimelineView'
 export { default as ProcessesView } from './screens/ProcessesView'
+export { default as ProcessRunsView, type ProcessRunsViewProps } from './screens/ProcessRunsView'
 export {
   default as ProcessPipeline,
   type ProcessPipelineProps,

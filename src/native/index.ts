@@ -75,6 +75,7 @@ export {
   type ProcessRunChipProps,
 } from './compound/process/ProcessRunChip'
 export { default as ProcessesView } from './screens/ProcessesView'
+export { default as ProcessRunsView, type ProcessRunsViewProps } from './screens/ProcessRunsView'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {

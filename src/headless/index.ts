@@ -51,6 +51,7 @@ export {
   type BadgeChatInput,
   type BadgeGitInput,
   type BadgeActivityInput,
+  type BadgeProcessInput,
   type ChatBadgeCountMode,
   type GitBadgeSubToggles,
   type UseBadgeCountsCoreInput,
@@ -330,15 +331,10 @@ export {
   formatGrantDetail,
   launchOptionsAreHonoured,
   isStartFeatureWorkGrant,
-  launchBeats,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
 } from './utils/approvalGrant'
-export type {
-  LaunchBeat,
-  StartFeatureWorkGrantSummary,
-  StartFeatureWorkRunner,
-} from './utils/approvalGrant'
+export type { StartFeatureWorkGrantSummary, StartFeatureWorkRunner } from './utils/approvalGrant'
 export { approveActionDescriptors, earnedApproveActions } from './utils/approveActions'
 export type { EarnedApproveActions } from './utils/approveActions'
 export {
@@ -1000,6 +996,19 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
 export { useProcesses, type UseProcesses } from './hooks/useProcesses'
 export { useProcessRun, type UseProcessRun } from './hooks/useProcessRun'
+export {
+  useProcessRuns,
+  isProcessRunActive,
+  PROCESS_RUN_ACTIVE_STATUSES,
+  type UseProcessRuns,
+} from './hooks/useProcessRuns'
+export { useProcessProposal, type UseProcessProposal } from './hooks/useProcessProposal'
+export {
+  processProposalView,
+  type ProcessProposalView,
+  type ProposalChip,
+  type ProposalFeatureRow,
+} from './utils/processProposalView'
 // How a process reads on screen — shared by the `web/` and `native/` peers so
 // the two cannot drift on an outcome's name or its status colour.
 export {
@@ -1017,7 +1026,18 @@ export {
   processRunChipLabel,
   processRunSpend,
   processStepTone,
+  processNodeState,
+  processNodeTone,
+  processNodeGlyph,
+  formatProcessDuration,
+  processEntryDurationMs,
+  processEntryDurationLabel,
+  processIterationBadge,
+  processRunBadge,
+  processRunCardView,
   type ProcessStatusTone,
+  type ProcessNodeState,
+  type ProcessRunCardView,
 } from './utils/processView'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must

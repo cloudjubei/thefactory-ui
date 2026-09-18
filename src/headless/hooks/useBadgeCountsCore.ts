@@ -30,6 +30,10 @@ export type BadgeCounts = {
   activityPaused: boolean
   /** Runs that finished since the user last opened this scope's app tab (unseen-results badge). */
   activityUnseen: number
+  /** Live process runs in scope (running + parked) — the green Processes badge. */
+  processes: number
+  /** True while any process run is parked (a decision is pending). */
+  processesParked: boolean
 }
 
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
@@ -41,6 +45,8 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   activityWorking: false,
   activityPaused: false,
   activityUnseen: 0,
+  processes: 0,
+  processesParked: false,
 }
 
 export type BadgeChannelToggles = {
@@ -48,6 +54,14 @@ export type BadgeChannelToggles = {
   git?: boolean
   tests?: boolean
   activity?: boolean
+  processes?: boolean
+}
+
+export type BadgeProcessInput = {
+  /** Live runs in scope — running + parked. */
+  activeCount: number
+  /** True while any run is parked (waiting on the user). */
+  isParked?: boolean
 }
 
 export type BadgeActivityInput = {
@@ -93,6 +107,8 @@ export type UseBadgeCountsCoreInput = {
   failingTests?: number
   /** Background activities running in scope (count + working flag). */
   activity?: BadgeActivityInput
+  /** Live process runs in scope (running + parked). */
+  processes?: BadgeProcessInput
   /** Per-channel master toggles. Defaults to "enabled". */
   enabled?: BadgeChannelToggles
   /** Git sub-toggles. */
@@ -108,6 +124,7 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       git: input.enabled?.git !== false,
       tests: input.enabled?.tests !== false,
       activity: input.enabled?.activity !== false,
+      processes: input.enabled?.processes !== false,
     }
 
     const out: BadgeCounts = { ...ZERO_BADGE_COUNTS }
@@ -146,12 +163,18 @@ export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts 
       out.activityUnseen = input.activity.unseenCount ?? 0
     }
 
+    if (enabled.processes && input.processes) {
+      out.processes = input.processes.activeCount
+      out.processesParked = input.processes.isParked ?? false
+    }
+
     return out
   }, [
     input.chats,
     input.git,
     input.failingTests,
     input.activity,
+    input.processes,
     input.enabled,
     input.gitSubToggles,
     input.chatBadgeCountMode,

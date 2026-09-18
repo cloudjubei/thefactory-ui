@@ -30,6 +30,7 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   git: 'Git changes',
   activity: 'App activity',
   'cross-project': 'Cross-project requests',
+  processes: 'Processes',
 }
 
 /** Cross-project requests are account-global, so a per-project override is meaningless. */

@@ -13,6 +13,7 @@ function makeState(over: Record<string, any> = {}): BadgeState {
     git: { incoming: 0, uncommitted: 0, ...(over.git || {}) },
     tests: { failing: 0, ...(over.tests || {}) },
     activity: { running: 0, paused: 0, unseen: 0, ...(over.activity || {}) },
+    process: { active: 0, parked: 0, ...(over.process || {}) },
   }
 }
 
@@ -23,6 +24,7 @@ describe('EMPTY_BADGE_STATE', () => {
       git: { incoming: 0, uncommitted: 0 },
       tests: { failing: 0 },
       activity: { running: 0, paused: 0, unseen: 0 },
+      process: { active: 0, parked: 0 },
     })
     expect(hasAnyBadge(EMPTY_BADGE_STATE)).toBe(false)
   })
@@ -38,6 +40,14 @@ describe('hasAnyBadge', () => {
     expect(hasAnyBadge(makeState({ activity: { running: 1, paused: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 1 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ activity: { running: 0, paused: 0, unseen: 2 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ process: { active: 1, parked: 0 } }))).toBe(true)
+  })
+
+  it('does not badge on parked alone when no run is active — active is the count', () => {
+    // `parked` is a subset of `active`, so a parked run always makes active ≥ 1;
+    // a state with parked but zero active is inconsistent, and must not badge on
+    // the parked field (only `active` drives the dot).
+    expect(hasAnyBadge(makeState({ process: { active: 0, parked: 1 } }))).toBe(false)
   })
 })
 
@@ -58,11 +68,13 @@ describe('aggregateGroupBadgeState', () => {
         chat_messages: { unread: 3, thinking: false },
         git: { incoming: 1, uncommitted: 4 },
         tests: { failing: 1 },
+        process: { active: 2, parked: 1 },
       }),
       b: makeState({
         chat_messages: { unread: 5, thinking: true },
         git: { incoming: 2, uncommitted: 6 },
         tests: { failing: 2 },
+        process: { active: 1, parked: 0 },
       }),
     }
     const agg = aggregateGroupBadgeState(['a', 'b'], byProject)
@@ -71,6 +83,7 @@ describe('aggregateGroupBadgeState', () => {
       git: { incoming: 3, uncommitted: 10 },
       tests: { failing: 3 },
       activity: { running: 0, paused: 0, unseen: 0 },
+      process: { active: 3, parked: 1 },
     })
   })
 

@@ -173,6 +173,7 @@ export default function CliRunArtifactPanel({
     diffReview,
     reviewInProgress,
     storyId,
+    processRunId,
     landFailure,
     runModel,
     cancelWork,
@@ -209,6 +210,12 @@ export default function CliRunArtifactPanel({
     error,
   } = useCliRunArtifact(runId, projectId)
 
+  // A run OWNED by a process: its evidence is shown here read-only, but the
+  // verdict and sign-off belong to the pipeline. So no standalone decision bar,
+  // no story-completeness gate, no verdict headline, and viewing the diff never
+  // files a "diff reviewed" proof nobody deliberately gave.
+  const reportOnly = processRunId !== undefined
+
   const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
   // Every hook stays ABOVE the early returns below — React counts hooks per
@@ -234,7 +241,9 @@ export default function CliRunArtifactPanel({
     // state from the start. `error` gates the retry so a failing load cannot
     // refire forever.
     if (review) {
-      if (!reviewDiff && !reviewLoading) void loadReviewDiff()
+      // Report-only (process-owned) loads the diff for VIEWING but never records
+      // it as reviewed — the pipeline owns this run's verdict.
+      if (!reviewDiff && !reviewLoading) void loadReviewDiff(!reportOnly)
     } else if (artifact && !preview && !previewLoading) {
       void loadPreview()
     }
@@ -248,6 +257,7 @@ export default function CliRunArtifactPanel({
     previewLoading,
     error,
     loadPreview,
+    reportOnly,
   ])
 
   // The verification plan is what tells "not run" apart from "not set up", so
@@ -611,23 +621,38 @@ export default function CliRunArtifactPanel({
               </div>
             ) : null}
 
-            {/* Verdict — the chip and the sentence say the same thing. */}
-            <div className="flex flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
-                  <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
-                  {headline.word}
+            {reportOnly ? (
+              // A process step reports; it never decides. This surface shows what
+              // the step did and changed — the verdict and sign-off happen in the
+              // pipeline, so no verdict headline or decision is offered here.
+              <div className="flex flex-col gap-1 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
+                <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
+                  A step in a process
                 </span>
-                <span className="text-[14px] font-semibold text-(--text-primary)">
-                  {headline.title}
-                </span>
+                <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
+                  This run is one step of a process. What it did and changed is shown below; its
+                  outcome and sign-off are decided in the pipeline, not here.
+                </p>
               </div>
-              <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
-                {headline.detail}
-              </p>
-            </div>
+            ) : (
+              /* Verdict — the chip and the sentence say the same thing. */
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
+                    <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
+                    {headline.word}
+                  </span>
+                  <span className="text-[14px] font-semibold text-(--text-primary)">
+                    {headline.title}
+                  </span>
+                </div>
+                <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
+                  {headline.detail}
+                </p>
+              </div>
+            )}
 
-            {census ? (
+            {!reportOnly && census ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
@@ -653,10 +678,13 @@ export default function CliRunArtifactPanel({
                 rows={methodRows}
                 branch={review?.branch}
                 busyId={busyMethod}
-                canRequest={onSendMessage !== undefined}
+                // Report-only: the evidence index stays readable, but running or
+                // requesting a check from here is not offered — verification is
+                // the process's own step.
+                canRequest={!reportOnly && onSendMessage !== undefined}
                 onOpenProof={setActiveTab}
-                onRun={runMethod}
-                onRequest={requestMethod}
+                onRun={reportOnly ? () => {} : runMethod}
+                onRequest={reportOnly ? () => {} : requestMethod}
               />
               {pendingHandoff ? (
                 // Anchored under the chips rather than centred over the panel:
@@ -740,7 +768,7 @@ export default function CliRunArtifactPanel({
                     error={error}
                     onRetry={
                       review && !reviewDiff && !reviewLoading
-                        ? () => void loadReviewDiff()
+                        ? () => void loadReviewDiff(!reportOnly)
                         : !review && !preview && !previewLoading
                           ? () => void loadPreview()
                           : undefined
@@ -814,7 +842,8 @@ export default function CliRunArtifactPanel({
                 ) : null}
               </div>
 
-              {actionMode === 'actions' ? (
+              {/* A process-owned run makes no standalone decision here — the pipeline signs the story off. */}
+              {reportOnly ? null : actionMode === 'actions' ? (
                 <DecisionBar
                   earned={earned}
                   approveDisabledReason={approveDisabledReason}

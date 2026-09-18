@@ -6,7 +6,6 @@ import {
   featuresToWorkOn,
   formatGrantDetail,
   isStartFeatureWorkGrant,
-  launchBeats,
   launchOptionsAreHonoured,
   launchRunnerLabel,
   pendingApprovalGrants,
@@ -215,41 +214,6 @@ describe('featuresToWorkOn', () => {
 
   it('a story with no features picks nothing', () => {
     expect(featuresToWorkOn({ id: 's1', features: [] })).toEqual([])
-  })
-})
-
-describe('launchBeats', () => {
-  it('is four beats in order, ending with the sign-off', () => {
-    const beats = launchBeats(true)
-    expect(beats.map((b) => b.title)).toEqual(['Launch', 'Isolated copy', 'Proof', 'Your sign-off'])
-    expect(beats.every((b) => b.off !== true)).toBe(true)
-  })
-
-  it('with proof off, the third beat says so and is flagged', () => {
-    const beats = launchBeats(false)
-    expect(beats[2]).toEqual({
-      title: 'No proof',
-      detail: 'you turned that off, so it can report done on its own word.',
-      off: true,
-    })
-    expect(beats).toHaveLength(4)
-  })
-
-  it('the proof beat does not promise a screenshot comparison it cannot guarantee', () => {
-    expect(launchBeats(true)[2].detail).toMatch(/what counts depends on the change/i)
-  })
-
-  it('speaks to the reader — the run comes back to you', () => {
-    expect(launchBeats(true)[3].detail).toMatch(/comes back to you/)
-  })
-
-  it('the launch beat names the pipeline, not a chat the run no longer has', () => {
-    // What starts is a PROCESS whose steps are mostly not agents at all, and it
-    // is followed on the pipeline. Promising "its own chat that you can watch"
-    // sent the user looking for a transcript that does not exist.
-    const detail = launchBeats(true)[0].detail
-    expect(detail).toMatch(/pipeline/i)
-    expect(detail).not.toMatch(/chat/i)
   })
 })
 

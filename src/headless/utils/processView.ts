@@ -1,12 +1,15 @@
 import type {
   ProcessDefinition,
+  ProcessLedgerEntry,
   ProcessNodeRunRef,
+  ProcessPlan,
   ProcessRun,
   ProcessStep,
   ProcessStepKind,
   ProcessStepOutcome,
 } from 'thefactory-tools/types'
-import { processRunProgress } from 'thefactory-tools/utils'
+import type { ProcessStepState } from 'thefactory-tools/utils'
+import { processRunProgress, processStepStates } from 'thefactory-tools/utils'
 
 /**
  * How a process reads on screen — shared by the `web/` and `native/` peers so
@@ -18,7 +21,15 @@ import { processRunProgress } from 'thefactory-tools/utils'
  * nothing at all, which is worse than the wrong colour because it looks
  * deliberate.
  */
-export type ProcessStatusTone = 'empty' | 'done' | 'working' | 'stuck' | 'blocked' | 'queued'
+export type ProcessStatusTone =
+  | 'empty'
+  | 'done'
+  | 'working'
+  | 'stuck'
+  | 'blocked'
+  | 'queued'
+  | 'on_hold'
+  | 'review'
 
 /** What each step outcome is called, and the status tone it carries. */
 export const PROCESS_OUTCOME_VIEW: Record<
@@ -215,4 +226,190 @@ export function parkedRunRef(run: ProcessRun): ProcessNodeRunRef | undefined {
     if (entry.stepId === stepId && entry.runRef?.chatContextId) return entry.runRef
   }
   return undefined
+}
+
+/**
+ * A node's visual state on the pipeline spine — the six the design draws.
+ *
+ * Derived, not stored: it folds the run's cursor, the step's outcome and the
+ * run's park point into the one word the marker needs. `parked` wins over
+ * everything, because a run sitting on a decision is the thing the eye must find
+ * first.
+ */
+export type ProcessNodeState = 'done' | 'working' | 'failed' | 'parked' | 'queued' | 'skipped'
+
+/** The node state for one step, given where the run has parked (if anywhere). */
+export function processNodeState(
+  state: Pick<ProcessStepState, 'status' | 'outcome'> & { step: { id: string } },
+  parkedStepId: string | undefined,
+): ProcessNodeState {
+  if (parkedStepId !== undefined && state.step.id === parkedStepId) return 'parked'
+  if (state.status === 'running') return 'working'
+  if (state.status === 'pending') return 'queued'
+  if (state.outcome === 'failed' || state.outcome === 'errored' || state.outcome === 'unchecked')
+    return 'failed'
+  if (state.outcome === 'skipped') return 'skipped'
+  return 'done'
+}
+
+/** The status tone a node marker carries. A parked GATE reads as review (ready
+ * for you), any other park as on-hold (waiting for you) — the design's two
+ * distinct purples/blues, not one "blocked" red. */
+export function processNodeTone(nodeState: ProcessNodeState, isGate: boolean): ProcessStatusTone {
+  switch (nodeState) {
+    case 'done':
+      return 'done'
+    case 'working':
+      return 'working'
+    case 'failed':
+      return 'stuck'
+    case 'parked':
+      return isGate ? 'review' : 'on_hold'
+    case 'skipped':
+      return 'empty'
+    default:
+      return 'queued'
+  }
+}
+
+/** The glyph a marker shows: a verdict where there is one, else the ordinal. */
+export function processNodeGlyph(nodeState: ProcessNodeState, ordinal: number): string {
+  switch (nodeState) {
+    case 'done':
+      return '✓'
+    case 'failed':
+      return '!'
+    case 'parked':
+      return '?'
+    default:
+      return String(ordinal)
+  }
+}
+
+/** ms → "6m 12s" / "1m 04s" / "44s" / "1h 03m", the way the design writes them. */
+export function formatProcessDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000))
+  if (total < 60) return `${total}s`
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  if (m < 60) return `${m}m ${String(s).padStart(2, '0')}s`
+  const h = Math.floor(m / 60)
+  return `${h}h ${String(m % 60).padStart(2, '0')}m`
+}
+
+/**
+ * How long a ledger attempt took, in ms — ended attempts from their span, a
+ * still-running one against `now` (passed in, never read here, so this stays
+ * pure and testable). Undefined when there is nothing to measure yet.
+ */
+export function processEntryDurationMs(
+  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
+  now?: number,
+): number | undefined {
+  if (!entry) return undefined
+  const end = entry.endedAt ?? now
+  if (end === undefined) return undefined
+  return Math.max(0, end - entry.startedAt)
+}
+
+/** A ledger attempt's duration as a label, or undefined when unmeasurable. */
+export function processEntryDurationLabel(
+  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
+  now?: number,
+): string | undefined {
+  const ms = processEntryDurationMs(entry, now)
+  return ms === undefined ? undefined : formatProcessDuration(ms)
+}
+
+/**
+ * The "attempt N of M" badge for a node — shown ONLY once a loop has actually
+ * fired (more than one attempt), because a "1 of 3" on every step is noise that
+ * hides the one node that really did retry. M is the plan's own retry cap.
+ */
+export function processIterationBadge(
+  attempts: number,
+  plan: Pick<ProcessPlan, 'loops'>,
+): string | undefined {
+  if (attempts <= 1) return undefined
+  let cap: number | undefined
+  for (const loop of plan.loops) {
+    if (cap === undefined || loop.maxIterations > cap) cap = loop.maxIterations
+  }
+  return cap === undefined ? `attempt ${attempts}` : `attempt ${attempts} of ${cap}`
+}
+
+/**
+ * The run's headline badge — refined for a park, which the plain status view
+ * cannot be: a run stopped on the sign-off GATE is "Ready for you" (review),
+ * one stopped on a question or a failure is "Waiting for you" (on-hold). Every
+ * other status reads straight from {@link PROCESS_RUN_STATUS_VIEW}.
+ */
+export function processRunBadge(run: ProcessRun): { label: string; tone: ProcessStatusTone } {
+  if (run.status === 'parked') {
+    return run.park?.reason === 'gate'
+      ? { label: 'Ready for you', tone: 'review' }
+      : { label: 'Waiting for you', tone: 'on_hold' }
+  }
+  return PROCESS_RUN_STATUS_VIEW[run.status]
+}
+
+/** The chat card, in the three states the design gives it — reports, never
+ * decides. Its only action stays "Open the pipeline". */
+export interface ProcessRunCardView {
+  title: string
+  badge: { label: string; tone: ProcessStatusTone }
+  sub: string
+  /** A second line drawn as a tinted strip — a pending decision, or a finished
+   * summary. Absent while simply running. */
+  body?: { text: string; tone: ProcessStatusTone }
+  cta: string
+}
+
+/**
+ * The card a launched run leaves in the chat, arranged for one render.
+ *
+ * Running shows the step it is on; parked says a decision is pending and points
+ * into the run (never answers it here); finished leaves an honest summary so
+ * "did it work?" is a normal next message. The counts come from the run itself,
+ * so the card can never claim more than happened.
+ */
+export function processRunCardView(run: ProcessRun): ProcessRunCardView {
+  const { completed, total } = processRunProgress(run)
+  const current = processStepStates(run).find((s) => s.current)
+  const badge = processRunBadge(run)
+  const cta = 'Open the pipeline'
+  const title = processRunChain(run)
+  if (run.status === 'parked') {
+    return {
+      title,
+      badge,
+      sub: current ? current.step.name : `${completed}/${total} steps`,
+      body: {
+        text:
+          run.park?.reason === 'gate'
+            ? 'Ready to sign off — decide in the run'
+            : '1 decision pending — answer it in the run',
+        tone: badge.tone,
+      },
+      cta,
+    }
+  }
+  if (run.status === 'succeeded') {
+    return {
+      title,
+      badge,
+      sub: `${completed} of ${total} steps`,
+      body: { text: `Finished · ${completed} of ${total} steps done`, tone: 'done' },
+      cta,
+    }
+  }
+  if (run.status === 'failed' || run.status === 'cancelled') {
+    return { title, badge, sub: `${completed}/${total} steps`, cta }
+  }
+  return {
+    title,
+    badge,
+    sub: current ? current.step.name : `${completed}/${total} steps`,
+    cta,
+  }
 }

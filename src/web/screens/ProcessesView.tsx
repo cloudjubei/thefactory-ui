@@ -8,7 +8,6 @@ import {
   isProcessFork,
   processScopeLabel,
   processStepName,
-  stepChainSummary,
   useActiveProject,
   useProcesses,
   type ProcessDefinition,
@@ -21,6 +20,7 @@ import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
 import { NativeSelect } from '../primitives/NativeSelect'
 import Surface from '../primitives/Surface'
+import ChainChip from '../compound/process/ChainChip'
 import { Switch } from '../primitives/Switch'
 import { Textarea } from '../primitives/Textarea'
 import { IconSave } from '../icons'
@@ -118,8 +118,15 @@ export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
               <span className="truncate text-xs font-medium">{definition.name}</span>
               <ScopeBadge definition={definition} />
             </div>
-            <div className="mt-1 truncate text-[11px] text-(--text-secondary)">
-              {stepChainSummary(definition)}
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {definition.steps
+                .filter((step) => step.enabled !== false)
+                .map((step, i) => (
+                  <span key={step.id} className="flex items-center gap-1">
+                    {i > 0 ? <span className="text-[11px] text-(--border-strong)">›</span> : null}
+                    <ChainChip chip={{ name: step.name, agent: step.kind === 'agent' }} />
+                  </span>
+                ))}
             </div>
           </Surface>
         ))}

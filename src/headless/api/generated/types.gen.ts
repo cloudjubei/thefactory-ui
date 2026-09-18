@@ -2406,6 +2406,7 @@ export type CliRun = {
   projectId: string
   chatContextId?: string
   storyId?: string
+  processRunId?: string
   status: CliRunStatus
   cli?: {
     tool: CliTool
@@ -2881,6 +2882,7 @@ export type CliRunApproveResult = {
     projectId: string
     chatContextId?: string
     storyId?: string
+    processRunId?: string
     status: CliRunStatus
     cli?: {
       tool: CliTool
@@ -6972,6 +6974,58 @@ export type CatalogAuditScorecard = {
     }>
   }
   products: Array<ProductAuditReport>
+}
+
+export type PersistedCatalog = {
+  region?: string
+  products?: Array<unknown>
+  verdicts?: Array<unknown>
+  offers?: Array<unknown>
+}
+
+export type CatalogQualityRow = {
+  productKey: string
+  brand: string
+  verdict: string
+  materials: Array<string>
+  hero: boolean
+  gallery: number
+  offers: number
+  pricedOffers: number
+  identityReliability?: string
+  wholesale: boolean
+}
+
+export type CatalogQualityFlagCode =
+  | 'zeroPrice'
+  | 'heroMissingWithGallery'
+  | 'refuteNotNamingStatedPlastic'
+  | 'creditedStatesPlastic'
+  | 'borrowedNonOwnedEvidence'
+  | 'underspecifiedBlockedCredit'
+  | 'noBuyableOffer'
+
+export type CatalogQualityFlag = {
+  code: CatalogQualityFlagCode
+  productKey: string
+  detail: string
+}
+
+export type CatalogQualityReport = {
+  region?: string
+  products: number
+  verdictCounts: {
+    [key: string]: number
+  }
+  heroPresent: number
+  galleryPresent: number
+  pricedOffers: number
+  zeroPriceOffers: number
+  rows: Array<CatalogQualityRow>
+  flags: Array<CatalogQualityFlag>
+  flagCounts: {
+    [key: string]: number
+  }
 }
 
 export type ComposedProductId = {
@@ -11410,6 +11464,68 @@ export type GetProcessCapabilitiesResponses = {
 
 export type GetProcessCapabilitiesResponse =
   GetProcessCapabilitiesResponses[keyof GetProcessCapabilitiesResponses]
+
+export type PreviewProcessData = {
+  body: {
+    /**
+     * Resolve the process against this project, so the proposal matches what a launch would freeze.
+     */
+    projectId: string
+    /**
+     * Which process to preview. Defaults to the story process.
+     */
+    processId?: string
+    /**
+     * The story whose features the process would work — the proposal expands one node per ready feature.
+     */
+    storyId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/processes/preview'
+}
+
+export type PreviewProcessErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewProcessError = PreviewProcessErrors[keyof PreviewProcessErrors]
+
+export type PreviewProcessResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    processId: string
+    name: string
+    description?: string
+    scope?: 'global' | 'project'
+    steps: Array<{
+      id: string
+      name: string
+      kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process'
+      description?: string
+      agent: boolean
+      agentType?: string
+      subject?: {
+        kind: 'feature'
+        id: string
+        title: string
+      }
+      children?: Array<unknown>
+      maxIterations?: number
+    }>
+  }
+}
+
+export type PreviewProcessResponse = PreviewProcessResponses[keyof PreviewProcessResponses]
 
 export type DeleteProcessData = {
   body?: never

@@ -26,6 +26,9 @@ import type {
 export type ChatBodyProps = {
   /** Stable id for the chat — drives MessageList scroll/visibility resets. */
   chatId?: string
+  /** The chat's project, forwarded to the launch approval so it can resolve the
+   * process proposal a user reads before approving. */
+  projectId?: string
   /**
    * The app's own model chip for THIS chat, rendered inside a launch approval so
    * the model can be picked before the work starts. A host slot because the
@@ -197,6 +200,7 @@ export default function ChatBody({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  projectId,
   onSend,
   onAbort,
   isBusy,
@@ -363,6 +367,7 @@ export default function ChatBody({
             <ApprovalPanel
               key={grant.id}
               grant={grant}
+              {...(projectId ? { projectId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
             />

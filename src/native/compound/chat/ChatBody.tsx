@@ -29,6 +29,9 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export interface ChatBodyProps {
   chatId?: string
+  /** The chat's project, forwarded to the launch approval so it can resolve the
+   * process proposal a user reads before approving. */
+  projectId?: string
   /** Caller-rendered header (typically `<ChatHeader />`). When omitted no
    * header section is rendered. */
   header?: ReactNode
@@ -173,6 +176,7 @@ export default function ChatBody({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  projectId,
   onShowUsage,
   emptyStateContent,
   grants,
@@ -354,6 +358,7 @@ export default function ChatBody({
             <ApprovalPanel
               key={grant.id}
               grant={grant}
+              {...(projectId ? { projectId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
             />
           ))}
