@@ -77,6 +77,12 @@ export type CliRunArtifactPanelProps = {
   onSendMessage?: (text: string) => void | Promise<void>
   /** Opens the run's review branch in the app's Git view, when the host has one. */
   onOpenGit?: () => void
+  /**
+   * Returns to the pipeline this run is a step of — a process-owned run decides
+   * nothing here, so this is the way back to where its outcome and the next
+   * stages live. Only meaningful (and only shown) when the run is process-owned.
+   */
+  onBackToPipeline?: (processRunId: string) => void
 }
 
 /**
@@ -164,6 +170,7 @@ export default function CliRunArtifactPanel({
   projectId,
   onSendMessage,
   onOpenGit,
+  onBackToPipeline,
 }: CliRunArtifactPanelProps) {
   const {
     artifact,
@@ -624,15 +631,29 @@ export default function CliRunArtifactPanel({
             {reportOnly ? (
               // A process step reports; it never decides. This surface shows what
               // the step did and changed — the verdict and sign-off happen in the
-              // pipeline, so no verdict headline or decision is offered here.
-              <div className="flex flex-col gap-1 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
-                <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
-                  A step in a process
-                </span>
-                <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
-                  This run is one step of a process. What it did and changed is shown below; its
-                  outcome and sign-off are decided in the pipeline, not here.
-                </p>
+              // pipeline, so no verdict headline or decision is offered here, just
+              // the way back to the pipeline to carry on to the next stage.
+              <div className="flex flex-col gap-2 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
+                    This stage is finished here
+                  </span>
+                  <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
+                    This run is one step of a process. What it did and changed is shown below; its
+                    outcome and sign-off are decided in the pipeline, not here.
+                  </p>
+                </div>
+                {onBackToPipeline && processRunId ? (
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => onBackToPipeline(processRunId)}
+                    >
+                      Back to pipeline →
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : (
               /* Verdict — the chip and the sentence say the same thing. */

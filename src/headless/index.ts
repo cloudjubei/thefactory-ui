@@ -996,6 +996,7 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
 export { useProcesses, type UseProcesses } from './hooks/useProcesses'
 export { useProcessRun, type UseProcessRun } from './hooks/useProcessRun'
+export { useRunDiagnostics, type UseRunDiagnostics } from './hooks/useRunDiagnostics'
 export {
   useProcessRuns,
   isProcessRunActive,
@@ -1067,6 +1068,8 @@ export type {
   ProcessResumeChoice,
   ProcessRun,
   ProcessRunStatus,
+  RunDiagnostics,
+  RunDiagnosticsEvent,
   ProcessScope,
   ProcessStep,
   ProcessStepKind,

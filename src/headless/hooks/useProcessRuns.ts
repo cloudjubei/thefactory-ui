@@ -18,6 +18,30 @@ export function isProcessRunActive(run: Pick<ProcessRun, 'status'>): boolean {
   return PROCESS_RUN_ACTIVE_STATUSES.has(run.status)
 }
 
+/** A `process:run-update` event as it arrives on the socket. */
+export type ProcessRunUpdate = { runId?: string; projectId?: string; run?: ProcessRun }
+
+/**
+ * Whether a live `process:run-update` belongs in a `useProcessRuns` list.
+ *
+ * The list is ROOT runs only (the fetch passes `rootOnly`), so the live handler
+ * must apply the SAME rule or it drifts from the fetch: a CHILD run (a feature
+ * step's own pipeline, `parentRunId` set) leaking in counted one process as two
+ * in the nav badge and stacked a drilled-into child beside its parent. A scoped
+ * instance also ignores other projects' updates. Pure, so the rule is tested
+ * once rather than re-derived per socket event.
+ */
+export function shouldTrackProcessRunUpdate(
+  update: ProcessRunUpdate,
+  scopedProjectId?: string,
+): update is ProcessRunUpdate & { runId: string; run: ProcessRun } {
+  if (!update?.run || !update.runId) return false
+  if (scopedProjectId && update.projectId && update.projectId !== scopedProjectId) return false
+  if (scopedProjectId && update.run.projectId !== scopedProjectId) return false
+  if (update.run.parentRunId) return false
+  return true
+}
+
 export type UseProcessRuns = {
   isLoaded: boolean
   loadError: Error | null
@@ -81,15 +105,11 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
   useEffect(() => {
     if (!token) return
     return ws.on('process:run-update', (data: unknown) => {
-      const update = data as { runId?: string; projectId?: string; run?: ProcessRun }
-      if (!update?.run || !update.runId) return
-      // Scoped instances ignore other projects' updates; the update carries its
-      // projectId, so no re-fetch is needed to decide relevance.
-      if (projectId && update.projectId && update.projectId !== projectId) return
-      if (projectId && update.run.projectId !== projectId) return
+      const update = data as ProcessRunUpdate
+      if (!shouldTrackProcessRunUpdate(update, projectId)) return
       setRuns((prev) => {
         const next = prev.filter((r) => r.id !== update.runId)
-        next.push(update.run as ProcessRun)
+        next.push(update.run)
         return next.sort(byStartedDesc)
       })
     })

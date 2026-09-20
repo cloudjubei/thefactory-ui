@@ -357,6 +357,9 @@ import type {
   GetReviewEvidenceContentResponses,
   GetReviewEvidenceDiffData,
   GetReviewEvidenceDiffResponses,
+  GetRunDiagnosticsData,
+  GetRunDiagnosticsErrors,
+  GetRunDiagnosticsResponses,
   GetStoriesOrderData,
   GetStoriesOrderResponses,
   GetStoryData,
@@ -1453,6 +1456,18 @@ export const getProcessRun = <ThrowOnError extends boolean = false>(
     url: '/api/v1/process-runs/{runId}',
     ...options,
   })
+
+export const getRunDiagnostics = <ThrowOnError extends boolean = false>(
+  options: Options<GetRunDiagnosticsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetRunDiagnosticsResponses, GetRunDiagnosticsErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/process-runs/{runId}/diagnostics',
+      ...options,
+    },
+  )
 
 export const resumeProcessRun = <ThrowOnError extends boolean = false>(
   options: Options<ResumeProcessRunData, ThrowOnError>,

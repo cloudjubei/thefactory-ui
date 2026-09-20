@@ -12,6 +12,7 @@ import {
   processRunBadge,
   processRunSpend,
   processStepStates,
+  useAppSettings,
   useProcessRun,
   type ProcessNodeRunRef,
   type ProcessNodeState,
@@ -21,6 +22,7 @@ import {
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
+import RunDiagnosticsView from './RunDiagnosticsView'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -49,6 +51,8 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   const [stack, setStack] = useState<string[]>([])
   const currentId = stack[stack.length - 1] ?? runId
   const { isLoaded, loadError, run, resume, cancel } = useProcessRun(currentId)
+  const { settings } = useAppSettings()
+  const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
 
   const drillTo = useCallback((childId: string) => setStack((s) => [...s, childId]), [])
   const popTo = useCallback((depth: number) => setStack((s) => s.slice(0, depth)), [])
@@ -79,6 +83,8 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
           />
         ))}
       </ol>
+
+      <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
       {run.error ? (
         <div className="px-4 pb-3 text-[11px] text-(--text-secondary)">{run.error}</div>

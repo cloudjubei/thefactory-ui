@@ -14,6 +14,7 @@ import {
   processRunBadge,
   processRunSpend,
   processStepStates,
+  useAppSettings,
   useProcessRun,
   type ProcessNodeRunRef,
   type ProcessNodeState,
@@ -23,6 +24,7 @@ import {
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import Alert from '../../primitives/Alert'
+import RunDiagnosticsView from './RunDiagnosticsView'
 import { Button } from '../../primitives/Button'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -45,6 +47,8 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   const [stack, setStack] = useState<string[]>([])
   const currentId = stack[stack.length - 1] ?? runId
   const { isLoaded, loadError, run, resume, cancel } = useProcessRun(currentId)
+  const { settings } = useAppSettings()
+  const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
 
   const drillTo = useCallback((childId: string) => setStack((s) => [...s, childId]), [])
   const popTo = useCallback((depth: number) => setStack((s) => s.slice(0, depth)), [])
@@ -80,6 +84,9 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
           />
         ))}
       </View>
+
+      <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
+
       {run.error ? (
         <Text
           style={{

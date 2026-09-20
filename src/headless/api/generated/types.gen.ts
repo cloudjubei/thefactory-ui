@@ -4153,6 +4153,28 @@ export type CorroboratedItem = {
   sources: Array<string>
 }
 
+export type RunDiagnosticsPhase = 'process' | 'step' | 'preflight' | 'launch' | 'agent' | 'landing'
+
+export type RunDiagnosticsLevel = 'info' | 'warn' | 'error'
+
+export type RunDiagnosticsEvent = {
+  at: number
+  phase: RunDiagnosticsPhase
+  level: RunDiagnosticsLevel
+  message: string
+  stepId?: string
+  data?: {
+    [key: string]: unknown
+  }
+}
+
+export type RunDiagnostics = {
+  runId: string
+  projectId: string
+  events: Array<RunDiagnosticsEvent>
+  truncated: boolean
+}
+
 export type ArenaEstimateQuestion = {
   question: string
   truth?: number
@@ -6521,6 +6543,14 @@ export type FieldCitation = {
 
 export type ExtractionTier = 'structured' | 'grounded-llm'
 
+export type OfferDiagnosis = {
+  candidates: number
+  kept: number
+  dropped: {
+    [key: string]: number
+  }
+}
+
 export type IdentityCorroboration = {
   source: 'open-db'
   status: 'confirmed' | 'conflicting' | 'unknown'
@@ -6994,6 +7024,13 @@ export type CatalogQualityRow = {
   pricedOffers: number
   identityReliability?: string
   wholesale: boolean
+  offerDiagnosis?: {
+    candidates: number
+    kept: number
+    dropped: {
+      [key: string]: number
+    }
+  }
 }
 
 export type CatalogQualityFlagCode =
@@ -7004,6 +7041,8 @@ export type CatalogQualityFlagCode =
   | 'borrowedNonOwnedEvidence'
   | 'underspecifiedBlockedCredit'
   | 'noBuyableOffer'
+  | 'ownPagesReachedNotSourced'
+  | 'offerCandidatesReachedNotBuyable'
 
 export type CatalogQualityFlag = {
   code: CatalogQualityFlagCode
@@ -7114,6 +7153,13 @@ export type Product = {
     registeredName?: string
     matchedOn?: 'brand' | 'name'
     checkedAt: string
+  }
+  offerDiagnosis?: {
+    candidates: number
+    kept: number
+    dropped: {
+      [key: string]: number
+    }
   }
   freshness: {
     [key: string]: string
@@ -8837,6 +8883,7 @@ export type ToolName =
   | 'validateProcess'
   | 'getProcessRun'
   | 'listProcessRuns'
+  | 'getRunDiagnostics'
 
 export type ValidationResult = {
   valid: boolean
@@ -11696,6 +11743,37 @@ export type GetProcessRunResponses = {
 }
 
 export type GetProcessRunResponse = GetProcessRunResponses[keyof GetProcessRunResponses]
+
+export type GetRunDiagnosticsData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/diagnostics'
+}
+
+export type GetRunDiagnosticsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetRunDiagnosticsError = GetRunDiagnosticsErrors[keyof GetRunDiagnosticsErrors]
+
+export type GetRunDiagnosticsResponses = {
+  /**
+   * Default Response
+   */
+  200: RunDiagnostics
+}
+
+export type GetRunDiagnosticsResponse = GetRunDiagnosticsResponses[keyof GetRunDiagnosticsResponses]
 
 export type ResumeProcessRunData = {
   body: {

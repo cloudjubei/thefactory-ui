@@ -65,6 +65,12 @@ export type UserPreferences = {
    * Show the model's extended-thinking steps in a CLI agent run. On by default.
    */
   cliShowThinking?: boolean
+  /**
+   * Debug mode: reveal the per-run DIAGNOSTICS (flight recorder) on the process
+   * pipeline and run surfaces. Capture is always-on server-side; this only
+   * controls whether a viewer sees the Debug surfaces. Off by default.
+   */
+  showRunDiagnostics?: boolean
 }
 
 export type NotificationCategory =
@@ -169,6 +175,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     storiesListViewStatusFilter: 'all',
     codeBlockTheme: 'light',
     cliShowThinking: true,
+    showRunDiagnostics: false,
   },
   notifications: DEFAULT_NOTIFICATION_PREFS,
 }

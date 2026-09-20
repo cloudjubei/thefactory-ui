@@ -82,6 +82,12 @@ export type CliRunArtifactPanelProps = {
   /** Opens the run's review branch in the app's Git view, when the host has one. */
   onOpenGit?: () => void
   /**
+   * Returns to the pipeline this run is a step of — a process-owned run decides
+   * nothing here, so this is the way back to where its outcome and the next
+   * stages live. Only meaningful (and only shown) when the run is process-owned.
+   */
+  onBackToPipeline?: (processRunId: string) => void
+  /**
    * Puts a file where the user can reach it. Omitted when the host has no way
    * to — every save affordance then stays hidden rather than failing on press.
    */
@@ -140,6 +146,7 @@ export default function CliRunArtifactPanel({
   projectId,
   onSendMessage,
   onOpenGit,
+  onBackToPipeline,
   onSaveFile,
 }: CliRunArtifactPanelProps) {
   const { theme, status } = useNativeTheme()
@@ -653,10 +660,11 @@ export default function CliRunArtifactPanel({
           <>
             {reportOnly ? (
               // A process step reports; it never decides — the verdict + sign-off
-              // happen in the pipeline. Show only what the step did and changed.
+              // happen in the pipeline. Show only what the step did and changed,
+              // plus the way back to the pipeline to carry on to the next stage.
               <View
                 style={{
-                  gap: 3,
+                  gap: 8,
                   borderRadius: nativeRadii[2],
                   borderWidth: 1,
                   borderColor: status.review.softBorder,
@@ -665,13 +673,26 @@ export default function CliRunArtifactPanel({
                   paddingVertical: 8,
                 }}
               >
-                <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.review.softFg }}>
-                  A step in a process
-                </Text>
-                <Text style={{ fontSize: 12, color: status.review.softFg }}>
-                  This run is one step of a process. What it did and changed is shown below; its
-                  outcome and sign-off are decided in the pipeline, not here.
-                </Text>
+                <View style={{ gap: 3 }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.review.softFg }}>
+                    This stage is finished here
+                  </Text>
+                  <Text style={{ fontSize: 12, color: status.review.softFg }}>
+                    This run is one step of a process. What it did and changed is shown below; its
+                    outcome and sign-off are decided in the pipeline, not here.
+                  </Text>
+                </View>
+                {onBackToPipeline && processRunId ? (
+                  <View style={{ flexDirection: 'row' }}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => onBackToPipeline(processRunId)}
+                    >
+                      Back to pipeline →
+                    </Button>
+                  </View>
+                ) : null}
               </View>
             ) : (
               /* Verdict — the chip and the sentence say the same thing. */
