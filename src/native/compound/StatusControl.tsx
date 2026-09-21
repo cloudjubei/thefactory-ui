@@ -54,6 +54,11 @@ const SEMANTIC_COLORS: Record<StatusSemanticKey, StatusColors> = {
     fg: nativePalette.purple[800],
     border: nativePalette.purple[300],
   },
+  review: {
+    bg: nativePalette.blue[100],
+    fg: nativePalette.blue[800],
+    border: nativePalette.blue[300],
+  },
 }
 
 function resolve(status: StoryStatus | string): { colors: StatusColors; label: string } {

@@ -23,6 +23,7 @@ import {
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import RunDiagnosticsView from './RunDiagnosticsView'
+import StorySignoffReview from './StorySignoffReview'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -447,6 +448,9 @@ function ParkBlock({
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
   const tone = park.reason === 'gate' ? 'review' : 'on_hold'
+  // The story sign-off is ONE decision over the whole run — show every feature's
+  // proof here, so the reviewer signs off on what they can see, not on trust.
+  const isSignoffGate = park.reason === 'gate' && !!run.storyId
   return (
     <div
       className="mt-2 flex flex-col gap-2 rounded-lg p-3"
@@ -458,6 +462,9 @@ function ParkBlock({
       <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
         {park.message}
       </div>
+      {isSignoffGate ? (
+        <StorySignoffReview projectId={run.projectId} storyId={run.storyId as string} />
+      ) : null}
       {reflected && park.childRunId ? (
         <button
           type="button"

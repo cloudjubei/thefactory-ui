@@ -411,8 +411,11 @@ export default function CliRunArtifactPanel({
     storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
 
   const warning = toneChip('warning', theme, status)
-  const headMarker =
-    headline.key === 'proven'
+  // A process-owned run is a STAGE, not a sign-off — a verdict-coloured marker
+  // would imply a decision this surface does not make. Neutral for report-only.
+  const headMarker = reportOnly
+    ? { bg: theme.surface.raised, fg: theme.text.muted }
+    : headline.key === 'proven'
       ? status.done
       : headline.key === 'failed'
         ? status.stuck
@@ -547,7 +550,7 @@ export default function CliRunArtifactPanel({
           />
         </View>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          {artifact ? 'Sign-off' : 'Agent changes were not landed'}
+          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </Text>
         {review ? (
           <Tooltip

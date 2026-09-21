@@ -347,6 +347,8 @@ export {
   tabForMethod,
 } from './utils/checkMethods'
 export type { CheckRowLayout } from './utils/checkMethods'
+export { isReviewInProgress } from './utils/reviewProgress'
+export type { ReviewInProgressInput } from './utils/reviewProgress'
 export { handoffRequest } from './utils/handoffRequests'
 export type { HandoffFact, HandoffPurpose, HandoffRequest } from './utils/handoffRequests'
 export type {
@@ -464,6 +466,8 @@ export {
   type StatusSemanticKey,
   type StoryStatus,
 } from './utils/status'
+export { processStatusOverlay } from './utils/processStatusOverlay'
+export type { ProcessStatusOverlay } from './utils/processStatusOverlay'
 
 // Story / feature list options (sorts + status filter) and the shared
 // filter / sort operations both clients' list screens run on.

@@ -520,12 +520,16 @@ export default function CliRunArtifactPanel({
             a flex item in a wrapping row and must never be squeezed further. */}
         <span
           aria-hidden
-          className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full ${VERDICT_MARKER[headline.key]}`}
+          className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full ${
+            reportOnly ? 'bg-(--surface-sunken) text-(--text-muted)' : VERDICT_MARKER[headline.key]
+          }`}
         >
           <span className="size-1.5 rounded-full bg-current" />
         </span>
+        {/* A process-owned run is a STAGE, not a sign-off — the sign-off lives in
+            the pipeline over the whole story, never on one step. */}
         <span className="text-[13px] font-semibold text-(--text-primary)">
-          {artifact ? 'Sign-off' : 'Agent changes were not landed'}
+          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </span>
         {review ? (
           <Tooltip

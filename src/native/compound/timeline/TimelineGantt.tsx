@@ -91,6 +91,11 @@ const SEMANTIC_FILL: Record<StatusSemanticKey, { bg: string; border: string; fg:
     fg: nativePalette.purple[800],
     border: nativePalette.purple[500],
   },
+  review: {
+    bg: nativePalette.blue[100],
+    fg: nativePalette.blue[800],
+    border: nativePalette.blue[500],
+  },
 }
 
 const FEATURE_DEFAULT = {

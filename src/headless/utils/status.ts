@@ -12,7 +12,10 @@ import type { Status } from 'thefactory-tools/types'
 
 export type StoryStatus = Status
 
-export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhold'
+// `review` is not one of the five stored statuses — it is a PROCESS overlay: a
+// story whose work is done but whose pipeline is parked at its sign-off gate. It
+// has its own badge palette (blue) and only ever appears via `processStatusOverlay`.
+export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhold' | 'review'
 
 export const STATUS_LABELS: Record<StoryStatus, string> = {
   done: 'Done',

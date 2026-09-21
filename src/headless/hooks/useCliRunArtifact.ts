@@ -36,6 +36,7 @@ import { cliRunTranscripts } from '../utils/cliRunTranscriptCache'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
 import { runModelOf, type RunModel } from '../utils/runModel'
 import { asRunVerification } from '../utils/runReview'
+import { isReviewInProgress } from '../utils/reviewProgress'
 
 // How long to keep retrying a 404 while a just-started run's record is still
 // being written (≈ container auth/workspace prep before the first writeRun).
@@ -723,8 +724,12 @@ export function useCliRunArtifact(
         const { data } = await getCliAgentRun({ path: { runId: reviewRunId }, throwOnError: true })
         if (!cancelled) setReviewRunTerminal(!!data?.status && TERMINAL.has(data.status))
       } catch {
-        // A verifier record that cannot be read (e.g. 404 before it lands) is not
-        // yet terminal; leave the panel in "Verifying…" until an update says so.
+        // A verifier record that cannot be read yet (404 in the moment between
+        // launch and its first write) is not terminal — hold "Verifying…" until an
+        // update says otherwise, so a freshly-launched auto-review does not flicker
+        // to "not verifying". The reported STUCK case (a process step's own run
+        // showing "Verifying…" forever) is handled upstream by `isReviewInProgress`
+        // returning false for any process-owned run, not by this catch.
         if (!cancelled) setReviewRunTerminal(false)
       }
     }
@@ -741,9 +746,15 @@ export function useCliRunArtifact(
   /**
    * The work has landed and its auto-review verifier is still running — hold the
    * panel in "Verifying…" rather than offering approval. Releases when the
-   * verifier reaches a terminal status, regardless of whether it filed evidence.
+   * verifier reaches a terminal status (regardless of evidence), when its record
+   * is unreadable, or when this run is process-owned (the pipeline verifies).
    */
-  const reviewInProgress = !!reviewRunId && !verdict && reviewRunTerminal === false
+  const reviewInProgress = isReviewInProgress({
+    processRunId,
+    reviewRunId,
+    verdict,
+    reviewRunTerminal,
+  })
 
   // Stop the verifier that is still producing evidence. The RUN itself is
   // untouched — its commits stay on the branch; only the work that had not

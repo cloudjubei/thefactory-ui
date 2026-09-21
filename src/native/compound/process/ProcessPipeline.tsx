@@ -25,6 +25,7 @@ import {
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import Alert from '../../primitives/Alert'
 import RunDiagnosticsView from './RunDiagnosticsView'
+import StorySignoffReview from './StorySignoffReview'
 import { Button } from '../../primitives/Button'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -476,6 +477,9 @@ function ParkBlock({
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
   const variant = park.reason === 'gate' ? status.review : status.on_hold
+  // The story sign-off is ONE decision over the whole run — show every feature's
+  // proof here, so the reviewer signs off on what they can see, not on trust.
+  const isSignoffGate = park.reason === 'gate' && !!run.storyId
   return (
     <View
       style={{
@@ -489,6 +493,9 @@ function ParkBlock({
       }}
     >
       <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>{park.message}</Text>
+      {isSignoffGate ? (
+        <StorySignoffReview projectId={run.projectId} storyId={run.storyId as string} />
+      ) : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
