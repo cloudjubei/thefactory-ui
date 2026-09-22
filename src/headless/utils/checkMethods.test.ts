@@ -396,6 +396,45 @@ describe('checkMethodRows', () => {
   })
 })
 
+describe('checkMethodRows › uitests (agent-filled, command-proven)', () => {
+  it('a passed UI-test command check makes the uitests chip passed with its summary', () => {
+    const v = verification({
+      checks: [
+        check({
+          kind: 'command',
+          id: 'ui-tests',
+          label: 'UI tests',
+          status: 'passed',
+          summary: '12 passed',
+        }),
+      ],
+    })
+    const r = row(rows({ verification: v }), 'uitests')
+    expect(r.state).toBe('passed')
+    expect(r.detail).toBe('12 passed')
+    expect(r.checkIds).toEqual(['ui-tests'])
+  })
+
+  it('a failed UI-test command check makes the uitests chip failed (a red run, not "not set up")', () => {
+    const v = verification({
+      checks: [
+        check({
+          kind: 'command',
+          id: 'e2e',
+          label: 'Playwright',
+          status: 'failed',
+          summary: '2 failed',
+        }),
+      ],
+    })
+    expect(row(rows({ verification: v }), 'uitests').state).toBe('failed')
+  })
+
+  it('with no UI-test check declared the chip reads "not set up", never a bare run', () => {
+    expect(row(rows({ verification: verification() }), 'uitests').state).toBe('unconfigured')
+  })
+})
+
 describe('signoffVerdict', () => {
   it('is NOT proven when every verdict-bearing method is unconfigured', () => {
     // The false-green case: a record exists (so `verified` is true) but nothing
@@ -441,6 +480,32 @@ describe('signoffVerdict', () => {
       ...VERDICT_BEARING_METHODS.filter((id) => id !== 'tests').map((id) =>
         mk({ id, state: 'unconfigured', tone: 'neutral' }),
       ),
+    ]
+    expect(signoffVerdict({ rows: rowsOut, verified: true }).key).toBe('proven')
+  })
+
+  it('a FAILED optional method (uitests) still fails the headline — absence is excused, failure is not', () => {
+    // OPTIONAL means its ABSENCE never demotes; it does NOT mean a red run reads
+    // as "Every configured check passed".
+    const rowsOut = [
+      mk({ id: 'tests', state: 'passed' }),
+      mk({ id: 'uitests', label: 'UI tests', state: 'failed', detail: '2 failed', fill: 'agent' }),
+    ]
+    const v = signoffVerdict({ rows: rowsOut, verified: true })
+    expect(v.key).toBe('failed')
+    expect(v.title).not.toBe(PROVEN_TITLE)
+  })
+
+  it('an ABSENT optional method (uitests) never demotes a proven run', () => {
+    const rowsOut = [
+      ...VERDICT_BEARING_METHODS.map((id) => mk({ id, state: 'passed' })),
+      mk({
+        id: 'uitests',
+        label: 'UI tests',
+        state: 'unconfigured',
+        tone: 'neutral',
+        fill: 'agent',
+      }),
     ]
     expect(signoffVerdict({ rows: rowsOut, verified: true }).key).toBe('proven')
   })

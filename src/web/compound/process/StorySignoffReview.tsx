@@ -138,7 +138,10 @@ export default function StorySignoffReview({ projectId, storyId }: StorySignoffR
         seen.add(id)
       }
     }
-    return order.map((id) => {
+    // The story-scoped (no-featureId) bucket is the OVERALL walkthrough of the
+    // whole story — show it FIRST, as the summary above the per-feature sections.
+    const ordered = [...order.filter((id) => id === ''), ...order.filter((id) => id !== '')]
+    return ordered.map((id) => {
       const tiles = evByFeature.get(id) ?? []
       const pairs: ScreenPair[] = screenPairs(groupEvidence(tiles)).map((p) => ({
         ...p,
@@ -151,7 +154,7 @@ export default function StorySignoffReview({ projectId, storyId }: StorySignoffR
         title:
           fs?.title ??
           features.find((f) => f.id === id)?.title ??
-          (id ? 'Other evidence' : 'Unattributed evidence'),
+          (id ? 'Other evidence' : 'Overall'),
         pairs,
         recordings: tiles.filter((t) => t.ref.kind === 'recording'),
         reports: tiles.filter((t) => t.ref.kind === 'report' || t.ref.kind === 'log'),

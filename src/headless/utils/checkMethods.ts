@@ -271,6 +271,17 @@ export function checkMethodRows(input: {
             ? 'You read the change'
             : 'The reviewer agent read the change'))
         : absentDetail(id, 'unchecked', approaches)
+    } else if (matched.length > 0) {
+      // A method the AGENT fills but a COMMAND proves — `uitests` (live/e2e). When
+      // a check ran, its result IS the state, exactly like a run-filled build check.
+      // Without this the evidence branch below (which ignores `matched`) read a
+      // green — or red — UI-test run as "not set up".
+      state = rollUp(matched)
+      detail = matched
+        .filter((c) => (state === 'failed' ? c.status !== 'passed' : true))
+        .map((c) => c.summary)
+        .filter((s) => s.trim().length > 0)
+        .join(' · ')
     } else {
       state = evidenceState(id, captured, approaches)
       detail =
@@ -320,10 +331,17 @@ function joinNames(rows: readonly CheckMethodRow[]): string {
  * verdict-bearing method that could have run and did not demotes to partly;
  * otherwise proven. A method the project never had cannot be held against the
  * run — it is shown, but it does not demote.
+ *
+ * A FAILURE counts from ANY implemented method, optional or not: OPTIONAL means
+ * "its ABSENCE never demotes" (a change needing no UI test is not "partly"), NOT
+ * "its failure is forgiven". A red UI-test chip must never sit under "proven".
  */
 export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   const bearing = input.rows.filter((r) => VERDICT_BEARING_METHODS.includes(r.id))
-  const failed = bearing.filter((r) => r.state === 'failed')
+  // Failure is read across every row, not just verdict-bearing ones — an optional
+  // method (uitests) is the first that can actually reach `failed`, and swallowing
+  // that would print "Every configured check passed" above a red chip.
+  const failed = input.rows.filter((r) => r.state === 'failed')
   const passed = bearing.filter((r) => r.state === 'passed')
   const unchecked = bearing.filter((r) => r.state === 'unchecked')
 
