@@ -365,6 +365,7 @@ export default function CliRunArtifactPanel({
     walkthroughs: recordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
+    testChecks: testChecks.length,
     buildChecks: buildChecks.length,
     changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
   })

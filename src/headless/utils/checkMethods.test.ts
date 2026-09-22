@@ -585,29 +585,45 @@ describe('reviewTabs', () => {
     walkthroughs: 0,
     reports: 0,
     testCount: 0,
+    testChecks: 0,
     buildChecks: 0,
     changedFiles: undefined,
   }
 
-  it('tests and build always exist, even with nothing to count', () => {
-    expect(reviewTabs(base).map((t) => t.id)).toEqual(['tests', 'build'])
-    expect(reviewTabs(base).map((t) => t.count)).toEqual([undefined, undefined])
+  it('offers NO tabs when nothing ran and nothing was filed', () => {
+    // The chip row already carries "this project has no tests/build" and the
+    // way to ask for it — a bare Tests/Build tab would only duplicate that.
+    expect(reviewTabs(base)).toEqual([])
+  })
+
+  it('tests and build appear only when a check of that kind ran', () => {
+    const tabs = reviewTabs({ ...base, testChecks: 1, buildChecks: 2 })
+    expect(tabs.map((t) => t.id)).toEqual(['tests', 'build'])
+  })
+
+  it('a suite that ran but counted zero tests still opens the Tests tab', () => {
+    // Presence follows testChecks, not testCount: "tests ran and found none" is
+    // still a run, and its tab must exist even though the badge is bare.
+    const tabs = reviewTabs({ ...base, testChecks: 1, testCount: 0 })
+    const tests = tabs.find((t) => t.id === 'tests')
+    expect(tests).toBeDefined()
+    expect(tests?.count).toBeUndefined()
   })
 
   it('evidence tabs exist only when that evidence was filed', () => {
     const tabs = reviewTabs({ ...base, screens: 3, walkthroughs: 1, reports: 1 })
-    expect(tabs.map((t) => t.id)).toEqual(['screens', 'walkthrough', 'tests', 'build', 'report'])
+    expect(tabs.map((t) => t.id)).toEqual(['screens', 'walkthrough', 'report'])
     expect(tabs[0].count).toBe(3)
   })
 
   it('changes exists once the diff is known, even at zero files', () => {
     const tabs = reviewTabs({ ...base, changedFiles: 0 })
-    expect(tabs.map((t) => t.id)).toEqual(['tests', 'build', 'changes'])
-    expect(tabs[2].count).toBe(0)
+    expect(tabs.map((t) => t.id)).toEqual(['changes'])
+    expect(tabs[0].count).toBe(0)
   })
 
   it('badges Tests with the number of TESTS, not the number of layers', () => {
-    const tabs = reviewTabs({ ...base, testCount: 132, buildChecks: 3 })
+    const tabs = reviewTabs({ ...base, testCount: 132, testChecks: 4, buildChecks: 3 })
     expect(tabs.find((t) => t.id === 'tests')?.count).toBe(132)
   })
 
@@ -620,6 +636,7 @@ describe('reviewTabs', () => {
       walkthroughs: 2,
       reports: 1,
       testCount: 10,
+      testChecks: 2,
       buildChecks: 3,
       changedFiles: 4,
     })

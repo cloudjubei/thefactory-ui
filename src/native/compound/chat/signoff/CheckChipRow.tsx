@@ -122,6 +122,14 @@ export default function CheckChipRow({
           key={row.id}
           row={row}
           onPress={() => {
+            // A passed chip has one thing to offer — its proof — so it just opens
+            // it. The sheet is for chips that ask a question (run it? set it up?
+            // fix it?); a passed chip behind a sheet only added a tap to reach a
+            // tab that is already right there.
+            if (row.action.kind === 'open-proof') {
+              onOpenProof(row.action.tab)
+              return
+            }
             setSheetId(row.id)
             setSheetOpen(true)
           }}

@@ -129,7 +129,18 @@ export default function CheckChipRow({
         <CheckChip
           key={row.id}
           row={row}
-          onClick={() => setOpenId((cur) => (cur === row.id ? undefined : row.id))}
+          onClick={() => {
+            // A passed chip has one thing to offer — its proof — so it just opens
+            // it. The callout is for chips that ask a question (run it? set it
+            // up? fix it?); putting a "?"-less passed chip behind a popover only
+            // added a click to reach a tab that is already right there.
+            if (row.action.kind === 'open-proof') {
+              setOpenId(undefined)
+              onOpenProof(row.action.tab)
+              return
+            }
+            setOpenId((cur) => (cur === row.id ? undefined : row.id))
+          }}
         />
       ))}
       {layout.collapsed.length > 0 ? (

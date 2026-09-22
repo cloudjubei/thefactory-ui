@@ -101,6 +101,13 @@ export type ReviewTabsInput = {
   reports: number
   /** How many TESTS ran (not how many test layers) — the number the badge shows. */
   testCount: number
+  /**
+   * How many TEST checks ran — gates whether the Tests tab exists at all. Kept
+   * apart from {@link testCount} because a suite can run and report zero tests,
+   * which is still "tests ran" and must still open a tab.
+   */
+  testChecks: number
+  /** How many BUILD-family checks (types/lint/format/build) ran — gates the Build tab. */
   buildChecks: number
   /** `undefined` while the diff is unknown; 0 is a real answer. */
   changedFiles: number | undefined

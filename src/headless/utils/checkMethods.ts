@@ -368,9 +368,11 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
 }
 
 /**
- * Which tabs the panel offers. Evidence tabs exist only when that evidence was
- * filed — an empty gallery is a lie about the run. The two code-check tabs
- * always exist, because the way to ask for a missing check lives inside them.
+ * Which tabs the panel offers. Every tab exists only when it has something in
+ * it — an empty gallery is a lie about the run, and an empty Tests/Build tab
+ * that only ever said "this project has no ___" duplicated what the chip row
+ * already shows. The way to ask for a missing check lives on the chip, so the
+ * code-check tabs no longer need to stand in for absent ones.
  */
 export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   // Only Screens, Tests and Changes carry a count. Walkthrough, Build and Report
@@ -387,8 +389,8 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   const present: Record<ReviewTabId, boolean> = {
     screens: input.screens > 0,
     walkthrough: input.walkthroughs > 0,
-    tests: true,
-    build: true,
+    tests: input.testChecks > 0,
+    build: input.buildChecks > 0,
     report: input.reports > 0,
     changes: input.changedFiles !== undefined,
   }
