@@ -427,6 +427,18 @@ export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
+export { useStorySignoff } from './hooks/useStorySignoff'
+export type { UseStorySignoff } from './hooks/useStorySignoff'
+export { aggregateStoryVerdict, buildStorySignoff } from './utils/storySignoff'
+export type {
+  BuildStorySignoffInput,
+  FeatureSignoff,
+  StoryDigest,
+  StoryFeatureRef,
+  StorySignoff,
+  StorySignoffProcessRun,
+  StorySignoffRun,
+} from './utils/storySignoffTypes'
 export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
@@ -466,7 +478,7 @@ export {
   type StatusSemanticKey,
   type StoryStatus,
 } from './utils/status'
-export { processStatusOverlay } from './utils/processStatusOverlay'
+export { isReviewable, processStatusOverlay } from './utils/processStatusOverlay'
 export type { ProcessStatusOverlay } from './utils/processStatusOverlay'
 
 // Story / feature list options (sorts + status filter) and the shared
@@ -999,7 +1011,12 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // reveal of a stored value.
 export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
 export { useProcesses, type UseProcesses } from './hooks/useProcesses'
-export { useProcessRun, type UseProcessRun } from './hooks/useProcessRun'
+export {
+  useProcessRun,
+  type UseProcessRun,
+  type ProcessRunBranch,
+  type DeleteProcessRunResult,
+} from './hooks/useProcessRun'
 export { useRunDiagnostics, type UseRunDiagnostics } from './hooks/useRunDiagnostics'
 export {
   useProcessRuns,
@@ -1059,6 +1076,7 @@ export {
   type ProcessParkChoice,
   type ProcessStepState,
 } from 'thefactory-tools/utils'
+export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,

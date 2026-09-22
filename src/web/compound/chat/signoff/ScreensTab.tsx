@@ -13,6 +13,16 @@ export type ScreensTabProps = {
   capturedLabel: string | undefined
   /** Saves every capture; omitted when the host cannot put a file anywhere. */
   onSaveAll?: () => void
+  /** Saves ONE capture — the download that sits on each tile; omitted like {@link onSaveAll}. */
+  onSavePair?: (pair: ScreenPair) => void
+  /**
+   * Ask the evidence store to decode one tile's image bytes.
+   *
+   * Called for every tile in the strip as it renders, so exactly the screens on
+   * this section are decoded — no fixed cap that (the way the old one did) filed
+   * the twelve newest and left every earlier tile blank.
+   */
+  onRequestImage: (id: string, mediaType: string) => void
   /**
    * A capture is still RUNNING, so what is here is partial.
    *
@@ -55,8 +65,18 @@ export default function ScreensTab({
   onOpen,
   capturedLabel,
   onSaveAll,
+  onSavePair,
+  onRequestImage,
   capturing = false,
 }: ScreensTabProps) {
+  // Decode exactly the tiles this strip shows. `onRequestImage` is idempotent,
+  // so firing it on every pairs change (a load re-derives the pairs) is cheap.
+  useEffect(() => {
+    for (const pair of pairs) {
+      if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
+      if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
+    }
+  }, [pairs, onRequestImage])
   // With nothing captured on the base there is no "before" to switch to, and a
   // segment that changes nothing reads as broken.
   const hasBefore = pairs.some((p) => p.before !== undefined)
@@ -145,7 +165,10 @@ export default function ScreensTab({
               mode === 'before' ? (pair.before ?? pair.after) : (pair.after ?? pair.before)
             const hasBack = pair.class === 'pair' && mode === 'after'
             return (
-              <div key={pair.key} className="flex w-[110px] shrink-0 snap-start flex-col gap-1">
+              <div
+                key={pair.key}
+                className="group/tile relative flex w-[110px] shrink-0 snap-start flex-col gap-1"
+              >
                 <button
                   type="button"
                   // Not openable mid-capture: the gallery would show a pair whose
@@ -179,6 +202,20 @@ export default function ScreensTab({
                     <Frame src={front?.dataUri} alt={`${pair.title} — ${mode}`} />
                   </span>
                 </button>
+                {/* Per-screen download — a sibling of the tile button (a button
+                    cannot nest in a button), over the frame's top-right, revealed
+                    on hover or keyboard focus. */}
+                {onSavePair && !capturing && (pair.before?.dataUri || pair.after?.dataUri) ? (
+                  <button
+                    type="button"
+                    aria-label={`Save ${pair.title}`}
+                    title={`Save ${pair.title}`}
+                    onClick={() => onSavePair(pair)}
+                    className="absolute right-2 top-2.5 z-20 grid size-6 place-items-center rounded-md border border-(--border-default) bg-(--surface-overlay) text-(--text-secondary) opacity-0 shadow-sm transition hover:text-(--text-primary) group-hover/tile:opacity-100 focus-visible:opacity-100"
+                  >
+                    <IconDownload className="w-3.5 h-3.5" />
+                  </button>
+                ) : null}
                 <span className="truncate text-[10.5px] text-(--text-secondary)" title={pair.title}>
                   <span className="tabular-nums text-(--text-muted)">
                     {String(pair.index).padStart(2, '0')}

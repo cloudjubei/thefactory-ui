@@ -19,7 +19,13 @@ export function isProcessRunActive(run: Pick<ProcessRun, 'status'>): boolean {
 }
 
 /** A `process:run-update` event as it arrives on the socket. */
-export type ProcessRunUpdate = { runId?: string; projectId?: string; run?: ProcessRun }
+export type ProcessRunUpdate = {
+  runId?: string
+  projectId?: string
+  run?: ProcessRun
+  /** Set when the run (and its tree) was deleted — the list drops it. */
+  deleted?: boolean
+}
 
 /**
  * Whether a live `process:run-update` belongs in a `useProcessRuns` list.
@@ -106,6 +112,12 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
     if (!token) return
     return ws.on('process:run-update', (data: unknown) => {
       const update = data as ProcessRunUpdate
+      // A deletion carries no record — just drop the run (and it is the only
+      // event that removes one, so it is handled before the upsert guard).
+      if (update?.deleted && update.runId) {
+        setRuns((prev) => prev.filter((r) => r.id !== update.runId))
+        return
+      }
       if (!shouldTrackProcessRunUpdate(update, projectId)) return
       setRuns((prev) => {
         const next = prev.filter((r) => r.id !== update.runId)

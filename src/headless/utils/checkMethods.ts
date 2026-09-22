@@ -61,6 +61,9 @@ export function checkMethodFor(
   if (check.kind === 'compile') return 'types'
   if (check.kind === 'tests') return 'tests'
   const text = `${check.id} ${check.label}`.toLowerCase()
+  // Live/e2e UI tests run as a command, but they are NOT the build — they prove
+  // the running app behaves. Route them to their own chip before the build catch-all.
+  if (/playwright|cypress|\be2e\b|\bui[\s-]?tests?\b/.test(text)) return 'uitests'
   if (/\blint/.test(text)) return 'lint'
   if (/format|prettier|ktlint|spotless|\bfmt\b/.test(text)) return 'format'
   return 'build'

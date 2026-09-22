@@ -144,6 +144,7 @@ import type {
   DecideCliAgentActionErrors,
   DecideCliAgentActionResponses,
   DeleteChatData,
+  DeleteChatErrors,
   DeleteChatResponses,
   DeleteCliAuthCacheData,
   DeleteCliAuthCacheErrors,
@@ -186,6 +187,9 @@ import type {
   DeleteLlmConfigResponses,
   DeleteProcessData,
   DeleteProcessResponses,
+  DeleteProcessRunData,
+  DeleteProcessRunErrors,
+  DeleteProcessRunResponses,
   DeleteProjectData,
   DeleteProjectDataData,
   DeleteProjectDataErrors,
@@ -506,6 +510,8 @@ import type {
   ListPendingCliAgentActionsResponses,
   ListProcessesData,
   ListProcessesResponses,
+  ListProcessRunBranchesData,
+  ListProcessRunBranchesResponses,
   ListProcessRunsData,
   ListProcessRunsResponses,
   ListProjectDataData,
@@ -1447,6 +1453,24 @@ export const listProcessRuns = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const deleteProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProcessRunResponses,
+    DeleteProcessRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const getProcessRun = <ThrowOnError extends boolean = false>(
   options: Options<GetProcessRunData, ThrowOnError>,
 ) =>
@@ -1490,6 +1514,16 @@ export const cancelProcessRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/cancel',
+    ...options,
+  })
+
+export const listProcessRunBranches = <ThrowOnError extends boolean = false>(
+  options: Options<ListProcessRunBranchesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListProcessRunBranchesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/branches',
     ...options,
   })
 
@@ -2061,7 +2095,7 @@ export const importConnectionItem = <ThrowOnError extends boolean = false>(
 export const deleteChat = <ThrowOnError extends boolean = false>(
   options: Options<DeleteChatData, ThrowOnError>,
 ) =>
-  (options.client ?? client).delete<DeleteChatResponses, unknown, ThrowOnError>({
+  (options.client ?? client).delete<DeleteChatResponses, DeleteChatErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats',
     ...options,

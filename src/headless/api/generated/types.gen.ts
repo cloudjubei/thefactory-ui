@@ -1282,6 +1282,7 @@ export type Chat = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    handoffFrom?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1352,6 +1353,7 @@ export type ChatCreateInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    handoffFrom?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1418,6 +1420,7 @@ export type ChatEditInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    handoffFrom?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -7043,6 +7046,7 @@ export type CatalogQualityFlagCode =
   | 'noBuyableOffer'
   | 'ownPagesReachedNotSourced'
   | 'offerCandidatesReachedNotBuyable'
+  | 'minorPlasticComponentMiscredit'
 
 export type CatalogQualityFlag = {
   code: CatalogQualityFlagCode
@@ -7721,6 +7725,39 @@ export type SeedMaterialsParams = {
   scope: string
   recordType: string
   materials: Array<MaterialKnowledgeSeed>
+}
+
+export type BrandSeed = {
+  name: string
+  url?: string
+  imageUrl?: string
+  summary?: string
+  categories?: Array<Array<string>>
+}
+
+export type SeedBrandsParams = {
+  scope: string
+  recordType: string
+  brands: Array<BrandSeed>
+}
+
+export type SeedSourcesParams = {
+  scope: string
+  recordType: string
+  region: string
+  sources: Array<SeedSource>
+}
+
+export type KnownShopSeed = {
+  host: string
+  name?: string
+}
+
+export type KnownPlaces = {
+  region: string
+  brands: Array<BrandSeed>
+  shops?: Array<KnownShopSeed>
+  updatedAt: string
 }
 
 export type ListMaterialsParams = {
@@ -8802,6 +8839,8 @@ export type ToolName =
   | 'setProductNote'
   | 'researchMaterial'
   | 'seedMaterials'
+  | 'seedBrands'
+  | 'seedSources'
   | 'listMaterials'
   | 'getMaterial'
   | 'setMaterialVerdict'
@@ -9869,6 +9908,7 @@ export type AddMessagesInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    handoffFrom?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -11713,6 +11753,44 @@ export type ListProcessRunsResponses = {
 
 export type ListProcessRunsResponse = ListProcessRunsResponses[keyof ListProcessRunsResponses]
 
+export type DeleteProcessRunData = {
+  body: {
+    deleteBranches?: boolean
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}'
+}
+
+export type DeleteProcessRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProcessRunError = DeleteProcessRunErrors[keyof DeleteProcessRunErrors]
+
+export type DeleteProcessRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    deletedRuns: number
+    deletedChats: number
+    deletedCliRuns: number
+    deletedBranches: Array<string>
+  }
+}
+
+export type DeleteProcessRunResponse = DeleteProcessRunResponses[keyof DeleteProcessRunResponses]
+
 export type GetProcessRunData = {
   body?: never
   path: {
@@ -11847,6 +11925,28 @@ export type CancelProcessRunResponses = {
 }
 
 export type CancelProcessRunResponse = CancelProcessRunResponses[keyof CancelProcessRunResponses]
+
+export type ListProcessRunBranchesData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/branches'
+}
+
+export type ListProcessRunBranchesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    projectId: string
+    branch: string
+  }>
+}
+
+export type ListProcessRunBranchesResponse =
+  ListProcessRunBranchesResponses[keyof ListProcessRunBranchesResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -13176,6 +13276,19 @@ export type DeleteChatData = {
   query?: never
   url: '/api/v1/chats'
 }
+
+export type DeleteChatErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteChatError = DeleteChatErrors[keyof DeleteChatErrors]
 
 export type DeleteChatResponses = {
   /**
@@ -16549,6 +16662,7 @@ export type SendCompletionData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        handoffFrom?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -16639,6 +16753,7 @@ export type SendCompletionResponses = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      handoffFrom?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -16697,6 +16812,7 @@ export type SendCompletionWithToolsData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        handoffFrom?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -16792,6 +16908,7 @@ export type SendCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          handoffFrom?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -16863,6 +16980,7 @@ export type SendChatCompletionWithToolsData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      handoffFrom?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -16952,6 +17070,7 @@ export type SendChatCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          handoffFrom?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -17023,6 +17142,7 @@ export type SendChatWithCliData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      handoffFrom?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -17183,6 +17303,7 @@ export type ResumeCompletionData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        handoffFrom?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -17278,6 +17399,7 @@ export type ResumeCompletionResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          handoffFrom?: string
           toolCall?: {
             toolCallId: string
             name: string

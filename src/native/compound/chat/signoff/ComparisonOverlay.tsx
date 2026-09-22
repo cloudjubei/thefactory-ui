@@ -38,6 +38,8 @@ export type ComparisonOverlayProps = {
   headSha: string | undefined
   /** Saves the pair; omitted when the host cannot put a file anywhere. */
   onSaveFile?: SaveFileHandler
+  /** Ask the evidence store to decode the open pair's frames. */
+  onRequestImage: (id: string, mediaType: string) => void
   /** Whose evidence store to compute the pixel comparison against. */
   projectId: string
 }
@@ -117,6 +119,7 @@ export default function ComparisonOverlay({
   baseSha,
   headSha,
   onSaveFile,
+  onRequestImage,
   projectId,
 }: ComparisonOverlayProps) {
   const { theme } = useNativeTheme()
@@ -135,6 +138,12 @@ export default function ComparisonOverlay({
   }, [openIndex])
 
   const pair = pairs[position]
+  // Decode the open pair's frames on demand — the strip only decoded thumbnails.
+  useEffect(() => {
+    if (!isOpen || !pair) return
+    if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
+    if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
+  }, [isOpen, pair, onRequestImage])
   // Both mirrored frames must fit at 100% on a phone, and Slide shares the same
   // base so one zoom means one scale in either mode.
   const base = Math.min(BASE_WIDTH, Math.floor((screenWidth - MIRROR_CHROME) / 2))

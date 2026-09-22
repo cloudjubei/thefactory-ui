@@ -18,6 +18,7 @@ import type { ReviewTone } from './runReviewTypes'
  */
 export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
   'tests',
+  'uitests',
   'types',
   'lint',
   'format',
@@ -62,6 +63,7 @@ export const IMPLEMENTED_CHECK_METHOD_ORDER: readonly CheckMethodId[] = CHECK_ME
 
 export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   tests: 'Tests',
+  uitests: 'UI tests',
   types: 'Types',
   lint: 'Lint',
   format: 'Format',
@@ -75,6 +77,7 @@ export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
 
 export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
   tests: 'tests',
+  uitests: 'the UI tests',
   types: 'the typecheck',
   lint: 'lint',
   format: 'formatting',
@@ -95,6 +98,7 @@ export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
  */
 export const CHECK_METHOD_ABSENT_NOUNS: Record<CheckMethodId, string> = {
   tests: 'tests',
+  uitests: 'UI tests',
   types: 'typecheck',
   lint: 'lint',
   format: 'formatting',
@@ -113,6 +117,7 @@ export const CHECK_METHOD_ABSENT_NOUNS: Record<CheckMethodId, string> = {
  */
 export const CHECK_METHOD_CAPTURE_VERBS: Record<CheckMethodId, string> = {
   tests: 'run the tests',
+  uitests: 'run the UI tests',
   types: 'run the typecheck',
   lint: 'run lint',
   format: 'check formatting',
@@ -126,6 +131,7 @@ export const CHECK_METHOD_CAPTURE_VERBS: Record<CheckMethodId, string> = {
 
 export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
   tests: 'add a test suite',
+  uitests: 'add UI tests',
   types: 'wire up a typecheck',
   lint: 'add a lint config',
   format: 'add a formatter',
@@ -144,6 +150,9 @@ export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
  */
 export const CHECK_METHOD_FILL: Record<CheckMethodId, CheckMethodFill> = {
   tests: 'run',
+  // Live UI tests are authored/driven by the agent, not a bare configured command
+  // the panel can fire — so the gap is filled by asking the agent, like a walkthrough.
+  uitests: 'agent',
   types: 'run',
   lint: 'run',
   format: 'run',
@@ -158,6 +167,9 @@ export const CHECK_METHOD_FILL: Record<CheckMethodId, CheckMethodFill> = {
 /** Where a method's proof lives when it has some. */
 export const CHECK_METHOD_TAB: Record<CheckMethodId, ReviewTabId> = {
   tests: 'tests',
+  // A live UI-test check runs as a command, so its output lands with the other
+  // command checks in the Build tab — where the chip opens to show it.
+  uitests: 'build',
   types: 'build',
   lint: 'build',
   format: 'build',
@@ -203,7 +215,9 @@ export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
  * is the same unreachable headline the unimplemented gate existed to prevent,
  * arrived at from the other direction: implemented is not the same as required.
  */
-export const OPTIONAL_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough']
+// `uitests` joins `walkthrough`: real and valuable when present, but most changes
+// do not warrant live UI tests, so their absence must not demote a run to "partly".
+export const OPTIONAL_CHECK_METHODS: readonly CheckMethodId[] = ['walkthrough', 'uitests']
 
 /**
  * Every IMPLEMENTED, REQUIRED method carries the verdict: any FAILURE makes the

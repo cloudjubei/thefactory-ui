@@ -220,12 +220,25 @@ export interface MessageRowProps {
   thinkingLabel?: string
 }
 
-function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
-  const { theme } = useNativeTheme()
+function Avatar({
+  kind,
+  handoffInitial,
+}: {
+  kind: 'user' | 'ai' | 'tool'
+  handoffInitial?: string
+}) {
+  const { theme, status } = useNativeTheme()
   const isUser = kind === 'user'
   const isTool = kind === 'tool'
-  const bg = isUser ? theme.accent.primary : isTool ? theme.surface.overlay : nativePalette.blue[50]
-  const fg = isUser ? theme.text.inverted : theme.text.primary
+  const isHandoff = !!handoffInitial
+  const bg = isHandoff
+    ? status.review.softBg
+    : isUser
+      ? theme.accent.primary
+      : isTool
+        ? theme.surface.overlay
+        : nativePalette.blue[50]
+  const fg = isHandoff ? status.review.softFg : isUser ? theme.text.inverted : theme.text.primary
   return (
     <View
       accessibilityElementsHidden
@@ -236,8 +249,8 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: bg,
-        borderWidth: isUser ? 0 : 1,
-        borderColor: theme.border.subtle,
+        borderWidth: isUser && !isHandoff ? 0 : 1,
+        borderColor: isHandoff ? status.review.softBorder : theme.border.subtle,
       }}
     >
       {isTool ? (
@@ -245,7 +258,9 @@ function Avatar({ kind }: { kind: 'user' | 'ai' | 'tool' }) {
         // previous emoji placeholder + later `IconHammer` swap.
         <IconToolbox size={14} color={fg} />
       ) : (
-        <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>{isUser ? 'You' : 'AI'}</Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: fg }}>
+          {isHandoff ? handoffInitial : isUser ? 'You' : 'AI'}
+        </Text>
       )}
     </View>
   )
@@ -273,7 +288,7 @@ function MessageRow({
   onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   // ABOVE any early return: a hook that runs on only some renders crashes.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const role = msg.role
@@ -281,6 +296,13 @@ function MessageRow({
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
   const isTool = role === 'tool' || !!msg.toolCall
+  // A user-role turn ANOTHER AGENT handed back (e.g. the verifier's report to the
+  // developer): right-aligned like a user message, but styled distinctly.
+  const handoffFrom = isUser ? msg.handoffFrom : undefined
+  const isHandoff = !!handoffFrom
+  const handoffLabel = handoffFrom
+    ? `${handoffFrom.charAt(0).toUpperCase()}${handoffFrom.slice(1)}`
+    : ''
 
   if (msg.error) {
     return (
@@ -360,7 +382,10 @@ function MessageRow({
       }}
     >
       <View style={{ alignItems: 'center', gap: nativeSpace[2] }}>
-        <Avatar kind={isUser ? 'user' : isTool ? 'tool' : 'ai'} />
+        <Avatar
+          kind={isUser ? 'user' : isTool ? 'tool' : 'ai'}
+          {...(isHandoff ? { handoffInitial: handoffLabel.charAt(0) } : {})}
+        />
         {onDeleteLastMessage && deleteControl && (
           <Pressable
             accessibilityRole="button"
@@ -524,14 +549,21 @@ function MessageRow({
             )}
           </View>
         )}
-        {!isAssistant && !isTool && ts && (
+        {isHandoff ? (
+          <Text
+            selectable={false}
+            style={{ fontSize: 10, color: status.review.softFg, alignSelf: 'flex-end' }}
+          >
+            {`↩ ${handoffLabel} handed this back${ts ? ` · ${ts}` : ''}`}
+          </Text>
+        ) : !isAssistant && !isTool && ts ? (
           <Text
             selectable={false}
             style={{ fontSize: 10, color: theme.text.secondary, opacity: 0.8 }}
           >
             {ts}
           </Text>
-        )}
+        ) : null}
 
         {/* CLI agent message: the run transcript renders ABOVE the prose — tool
             steps are the work, the reply is the conclusion at the end. */}
@@ -549,23 +581,30 @@ function MessageRow({
                 maxWidth: '100%',
                 ...nativeShadows[1],
               },
-              isUser
+              isHandoff
                 ? {
-                    backgroundColor: theme.accent.primary,
+                    backgroundColor: status.review.softBg,
+                    borderWidth: 1,
+                    borderColor: status.review.softBorder,
                     borderBottomRightRadius: nativeRadii[1],
                   }
-                : isSystem
+                : isUser
                   ? {
-                      backgroundColor: theme.surface.overlay,
-                      borderWidth: 1,
-                      borderColor: theme.border.subtle,
+                      backgroundColor: theme.accent.primary,
+                      borderBottomRightRadius: nativeRadii[1],
                     }
-                  : {
-                      backgroundColor: theme.surface.raised,
-                      borderWidth: 1,
-                      borderColor: theme.border.subtle,
-                      borderBottomLeftRadius: nativeRadii[1],
-                    },
+                  : isSystem
+                    ? {
+                        backgroundColor: theme.surface.overlay,
+                        borderWidth: 1,
+                        borderColor: theme.border.subtle,
+                      }
+                    : {
+                        backgroundColor: theme.surface.raised,
+                        borderWidth: 1,
+                        borderColor: theme.border.subtle,
+                        borderBottomLeftRadius: nativeRadii[1],
+                      },
             ]}
           >
             <CollapsibleContent maxHeight={600}>
@@ -574,9 +613,9 @@ function MessageRow({
                   text={msg.content}
                   onResolveFile={onResolveFile}
                   renderDependency={renderDependency}
-                  // User bubble is blue → text must be white to read against
-                  // it. Matches web's `text-(--text-inverted)` user bubble.
-                  textColor={theme.text.inverted}
+                  // User bubble is blue → text must be white to read against it.
+                  // A hand-off bubble is review-soft, so its text takes that fg.
+                  textColor={isHandoff ? status.review.softFg : theme.text.inverted}
                 />
               ) : (
                 <Markdown text={msg.content} onResourceLink={onResourceLink} />

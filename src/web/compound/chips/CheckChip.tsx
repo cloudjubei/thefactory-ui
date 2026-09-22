@@ -12,6 +12,7 @@ import {
   IconCode,
   IconDiff,
   IconDocument,
+  IconGlobe,
   IconList,
   IconMobile,
   IconMonitor,
@@ -21,6 +22,7 @@ import {
 
 const GLYPH: Record<CheckMethodId, ComponentType<{ className?: string }>> = {
   tests: IconTests,
+  uitests: IconGlobe,
   types: IconCode,
   lint: IconList,
   format: IconClipboardCheck,

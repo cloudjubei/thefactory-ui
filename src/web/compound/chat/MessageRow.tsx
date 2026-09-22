@@ -299,6 +299,14 @@ function MessageRow({
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
   const isTool = role === 'tool' || !!msg.toolCall
+  // A user-role turn ANOTHER AGENT handed back (the verifier returning its report
+  // to the developer): it sits on the right like a user message, but is styled
+  // distinctly so nobody reads it as something the human typed.
+  const handoffFrom = isUser ? msg.handoffFrom : undefined
+  const isHandoff = !!handoffFrom
+  const handoffLabel = handoffFrom
+    ? `${handoffFrom.charAt(0).toUpperCase()}${handoffFrom.slice(1)}`
+    : ''
 
   const isNewUserBubble =
     isUser && globalIndex === enhancedTotalLength - 1 && globalIndex >= prevUserMessagesLen
@@ -356,15 +364,25 @@ function MessageRow({
           <div
             className={[
               'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold',
-              isUser
-                ? 'bg-(--accent-primary) text-(--text-inverted)'
-                : isSystem || isTool
-                  ? 'bg-(--surface-overlay) text-(--text-primary) border border-(--border-subtle)'
-                  : 'bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)',
+              isHandoff
+                ? 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg) border border-(--status-review-soft-border)'
+                : isUser
+                  ? 'bg-(--accent-primary) text-(--text-inverted)'
+                  : isSystem || isTool
+                    ? 'bg-(--surface-overlay) text-(--text-primary) border border-(--border-subtle)'
+                    : 'bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-(--text-primary) border border-(--border-subtle)',
             ].join(' ')}
             aria-hidden
           >
-            {isUser ? 'You' : isSystem || isTool ? <IconToolbox className="w-3.5 h-3.5" /> : 'AI'}
+            {isHandoff ? (
+              handoffLabel.charAt(0)
+            ) : isUser ? (
+              'You'
+            ) : isSystem || isTool ? (
+              <IconToolbox className="w-3.5 h-3.5" />
+            ) : (
+              'AI'
+            )}
           </div>
 
           {deleteAffordance ? (
@@ -478,6 +496,11 @@ function MessageRow({
                 </div>
               ) : null}
             </div>
+          ) : isHandoff ? (
+            <div className="mb-1 flex items-baseline gap-1 self-end text-[10px] leading-4 text-(--status-review-soft-fg) select-none">
+              <span className="font-semibold">↩ {handoffLabel} handed this back</span>
+              {ts ? <span className="opacity-80">· {ts}</span> : null}
+            </div>
           ) : !isTool && ts ? (
             <div className="text-[10px] leading-4 text-(--text-secondary) opacity-80 select-none mb-1">
               {ts}
@@ -496,11 +519,13 @@ function MessageRow({
               className={[
                 isUser ? 'overflow-x-auto max-w-full' : 'w-full overflow-x-auto max-w-full',
                 'px-3 py-1.5 rounded-2xl whitespace-pre-wrap break-words shadow',
-                isUser
-                  ? 'bg-(--accent-primary) text-(--text-inverted) rounded-br-md'
-                  : isSystem
-                    ? 'border bg-(--surface-overlay) text-(--text-primary) border-(--border-subtle)'
-                    : 'bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle) rounded-bl-md',
+                isHandoff
+                  ? 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg) border border-(--status-review-soft-border) rounded-br-md'
+                  : isUser
+                    ? 'bg-(--accent-primary) text-(--text-inverted) rounded-br-md'
+                    : isSystem
+                      ? 'border bg-(--surface-overlay) text-(--text-primary) border-(--border-subtle)'
+                      : 'bg-(--surface-raised) text-(--text-primary) border border-(--border-subtle) rounded-bl-md',
                 msg.isFirstInGroup ? '' : isUser ? 'rounded-tr-md' : 'rounded-tl-md',
                 isNewUserBubble ? 'animate-fade-in' : '',
                 msg.cliRunId ? 'mt-2' : '',

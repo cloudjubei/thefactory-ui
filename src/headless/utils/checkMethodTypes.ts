@@ -7,6 +7,8 @@ import type { ReviewTone } from './runReviewTypes'
  */
 export type CheckMethodId =
   | 'tests'
+  /** Live/e2e UI tests (Playwright, Cypress) — proof the running app behaves, not just that units pass. */
+  | 'uitests'
   | 'types'
   | 'lint'
   | 'format'

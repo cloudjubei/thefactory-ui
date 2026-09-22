@@ -1,7 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ProcessResumeChoice, ProcessRun } from 'thefactory-tools/types'
-import { cancelProcessRun, getProcessRun, resumeProcessRun } from '../api'
+import {
+  cancelProcessRun,
+  deleteProcessRun,
+  getProcessRun,
+  listProcessRunBranches,
+  resumeProcessRun,
+} from '../api'
 import { useApi, useAuth } from '../api'
+
+/** A review branch a run tree owns — shown in the delete confirm's list. */
+export type ProcessRunBranch = { projectId: string; branch: string }
+
+/** What a cascade delete removed. */
+export type DeleteProcessRunResult = {
+  deletedRuns: number
+  deletedChats: number
+  deletedCliRuns: number
+  deletedBranches: string[]
+}
 
 export type UseProcessRun = {
   isLoaded: boolean
@@ -11,6 +28,10 @@ export type UseProcessRun = {
   /** Answer the park this run is sitting on. */
   resume: (choice: ProcessResumeChoice, note?: string) => Promise<void>
   cancel: () => Promise<void>
+  /** The review branches this run tree owns — for the delete confirm's list. */
+  listBranches: () => Promise<ProcessRunBranch[]>
+  /** Delete this run and everything it owns (chats, CLI runs, records, opt. branches). */
+  deleteRun: (opts?: { deleteBranches?: boolean }) => Promise<DeleteProcessRunResult | undefined>
 }
 
 /**
@@ -77,8 +98,27 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     setRun(data as ProcessRun)
   }, [runId])
 
+  const listBranches = useCallback(async (): Promise<ProcessRunBranch[]> => {
+    if (!runId) return []
+    const { data } = await listProcessRunBranches({ path: { runId }, throwOnError: true })
+    return (data as ProcessRunBranch[] | undefined) ?? []
+  }, [runId])
+
+  const deleteRun = useCallback(
+    async (opts?: { deleteBranches?: boolean }) => {
+      if (!runId) return undefined
+      const { data } = await deleteProcessRun({
+        path: { runId },
+        body: { ...(opts?.deleteBranches ? { deleteBranches: true } : {}) },
+        throwOnError: true,
+      })
+      return data as DeleteProcessRunResult | undefined
+    },
+    [runId],
+  )
+
   return useMemo<UseProcessRun>(
-    () => ({ isLoaded, loadError, run, refresh, resume, cancel }),
-    [isLoaded, loadError, run, refresh, resume, cancel],
+    () => ({ isLoaded, loadError, run, refresh, resume, cancel, listBranches, deleteRun }),
+    [isLoaded, loadError, run, refresh, resume, cancel, listBranches, deleteRun],
   )
 }

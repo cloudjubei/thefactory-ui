@@ -105,6 +105,12 @@ export type ChatMessageLike = {
    * only place the run reaches the chat, and it is what the row's live process chip reads.
    */
   processRunId?: string
+  /**
+   * Set on a user-role turn authored by ANOTHER AGENT handing work back (e.g. the verifier
+   * returning its report to the developer). Names the handing-off agent. The row still sits on
+   * the right (it IS a user turn to act on) but renders visually distinct from what the human typed.
+   */
+  handoffFrom?: string
 }
 
 export type PendingToolConfirmationLike = {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 
 import type { ScreenPair, ScreenPairClass } from '../../../../headless'
@@ -15,6 +15,13 @@ export type ScreensTabProps = {
   capturedLabel: string | undefined
   /** Saves every capture; omitted when the host cannot put a file anywhere. */
   onSaveAll?: () => void
+  /** Saves ONE capture — the download that sits on each tile; omitted like {@link onSaveAll}. */
+  onSavePair?: (pair: ScreenPair) => void
+  /**
+   * Ask the evidence store to decode one tile's image bytes — called for every
+   * tile as it renders, so this section decodes exactly what it shows (no cap).
+   */
+  onRequestImage: (id: string, mediaType: string) => void
   /**
    * A capture is still RUNNING, so what is here is partial — see the web peer.
    * Mid-capture a pair whose `after` had not landed was labelled "only on the
@@ -59,9 +66,18 @@ export default function ScreensTab({
   onOpen,
   capturedLabel,
   onSaveAll,
+  onSavePair,
+  onRequestImage,
   capturing = false,
 }: ScreensTabProps) {
   const { theme, status } = useNativeTheme()
+  // Decode exactly the tiles this strip shows; `onRequestImage` is idempotent.
+  useEffect(() => {
+    for (const pair of pairs) {
+      if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
+      if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
+    }
+  }, [pairs, onRequestImage])
   // With nothing captured on the base there is no "before" to switch to, and a
   // segment that changes nothing reads as broken.
   const hasBefore = pairs.some((p) => p.before !== undefined)
@@ -193,6 +209,20 @@ export default function ScreensTab({
                   </View>
                 ) : null}
               </Pressable>
+              {/* Per-screen download, over the frame's top-right. No hover on a
+                  phone, so it stays visible. */}
+              {onSavePair && !capturing && (pair.before?.dataUri || pair.after?.dataUri) ? (
+                <View style={{ position: 'absolute', right: 2, top: 8, zIndex: 20 }}>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    accessibilityLabel={`Save ${pair.title}`}
+                    onPress={() => onSavePair(pair)}
+                  >
+                    <IconDownload size={14} color={theme.text.primary} />
+                  </Button>
+                </View>
+              ) : null}
               <Text numberOfLines={1} style={{ fontSize: 10.5, color: theme.text.secondary }}>
                 <Text style={{ fontVariant: ['tabular-nums'], color: theme.text.muted }}>
                   {String(pair.index).padStart(2, '0')}

@@ -26,8 +26,12 @@ export interface GroupedChats<C> {
  * Group a project's chats for the Categories view. `storyOrder` fixes the
  * display order of the story buckets; stories absent from it sort last.
  * `PROJECT` / `GROUP` / `GENERAL` chats are ignored — callers surface those
- * separately. Agent-run chats (story- or feature-scoped) bucket under their
- * story's `agentRuns`; `FEATURE` chats bucket under `featureGroups`.
+ * separately. `FEATURE` chats bucket under `featureGroups`.
+ *
+ * Agent-run chats (story- or feature-scoped) are NOT listed here at all: they
+ * belong to the pipeline that spawned them and are reached by drilling into the
+ * process, never from the Chats list. `agentRuns` stays on the shape (always
+ * empty) so callers that read it keep compiling.
  */
 export function groupChats<
   C extends {
@@ -71,7 +75,8 @@ export function groupChats<
         break
       case 'AGENT_RUN_STORY':
       case 'AGENT_RUN_FEATURE':
-        if (ctx.storyId) ensure(ctx.storyId).agentRuns.push(chat)
+        // Owned by the pipeline — reached by drilling into the process, never
+        // shown in the Chats list. Deliberately dropped here.
         break
       case 'FEATURE_REQUEST':
         featureRequests.push(chat)

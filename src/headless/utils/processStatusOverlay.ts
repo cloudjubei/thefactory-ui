@@ -9,7 +9,7 @@ import type { StatusSemanticKey } from './status'
  * the stored status can't express "waiting for you at the sign-off gate" or link
  * anywhere. This derives, from the story's process run, the word to show and the
  * run to jump to:
- *   - parked at the sign-off gate  → Review   (go decide the sign-off)
+ *   - parked at the sign-off gate  → Reviewable (go decide the sign-off)
  *   - running / pending            → Crunching (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
  * A finished (succeeded / cancelled) or absent run yields no overlay — the stored
@@ -22,6 +22,16 @@ export type ProcessStatusOverlay = {
   runId: string
 }
 
+/**
+ * Whether a run is parked at its sign-off gate — the "Reviewable" state, the one
+ * that follows "Crunching" and precedes "Done". Derived, never a stored status.
+ * A gate is always a review point, so this does not require a `storyId` (the
+ * pipeline still gates the story sign-off UI on `storyId` separately). Pure.
+ */
+export function isReviewable(run: Pick<ProcessRun, 'status' | 'park'> | undefined): boolean {
+  return run?.status === 'parked' && run.park?.reason === 'gate'
+}
+
 export function processStatusOverlay(
   run: Pick<ProcessRun, 'id' | 'status' | 'park'> | undefined,
 ): ProcessStatusOverlay | undefined {
@@ -31,8 +41,8 @@ export function processStatusOverlay(
     case 'pending':
       return { label: 'Crunching', semantic: 'working', runId: run.id }
     case 'parked':
-      return run.park?.reason === 'gate'
-        ? { label: 'Review', semantic: 'review', runId: run.id }
+      return isReviewable(run)
+        ? { label: 'Reviewable', semantic: 'review', runId: run.id }
         : { label: 'Blocked', semantic: 'stuck', runId: run.id }
     case 'failed':
       return { label: 'Blocked', semantic: 'stuck', runId: run.id }

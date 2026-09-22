@@ -44,7 +44,7 @@ import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
 import { RefChip } from '../chips'
-import { downloadDataUri } from './signoff/download'
+import { downloadDataUri, saveSideBySide } from './signoff/download'
 import {
   ChangesTab,
   CheckChipRow,
@@ -119,7 +119,7 @@ const VERDICT_MARKER: Record<SignoffVerdict['key'], string> = {
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
-const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build']
+const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
 
 function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
   // Git already speaks in letters; renames, copies and the rest read as modified.
@@ -437,11 +437,29 @@ export default function CliRunArtifactPanel({
   // it — so every path here is the project's own verification pass.
   // Every capture in the set, each named by its walkthrough position so the
   // saved folder reads in the order the reviewer walked it.
-  const saveAllScreens = () => {
+  // One pair as a side-by-side sheet — fetch the bytes at save time rather than
+  // relying on a thumbnail having decoded them, so a screen never scrolled to
+  // still saves.
+  const savePair = async (pair: (typeof pairs)[number]) => {
+    const before = pair.before
+      ? await evidence.loadImage(pair.before.ref.id, pair.before.ref.mediaType)
+      : undefined
+    const after = pair.after
+      ? await evidence.loadImage(pair.after.ref.id, pair.after.ref.mediaType)
+      : undefined
+    await saveSideBySide(before, after, `${screenPairFileStem(pair)}-before-after.png`)
+  }
+  const saveAllScreens = async () => {
     for (const pair of pairs) {
       const stem = screenPairFileStem(pair)
-      if (pair.before?.dataUri) downloadDataUri(pair.before.dataUri, `${stem}-before.png`)
-      if (pair.after?.dataUri) downloadDataUri(pair.after.dataUri, `${stem}-after.png`)
+      if (pair.before) {
+        const uri = await evidence.loadImage(pair.before.ref.id, pair.before.ref.mediaType)
+        if (uri) downloadDataUri(uri, `${stem}-before.png`)
+      }
+      if (pair.after) {
+        const uri = await evidence.loadImage(pair.after.ref.id, pair.after.ref.mediaType)
+        if (uri) downloadDataUri(uri, `${stem}-after.png`)
+      }
     }
   }
 
@@ -754,7 +772,9 @@ export default function CliRunArtifactPanel({
                     pairs={pairs}
                     onOpen={setOpenPairKey}
                     capturedLabel={capturedLabel}
-                    onSaveAll={pairs.length > 0 ? saveAllScreens : undefined}
+                    onSaveAll={pairs.length > 0 ? () => void saveAllScreens() : undefined}
+                    onSavePair={(pair) => void savePair(pair)}
+                    onRequestImage={evidence.requestImage}
                     capturing={working !== undefined}
                   />
                 ) : currentTab === 'walkthrough' ? (
@@ -994,6 +1014,7 @@ export default function CliRunArtifactPanel({
         onClose={() => setOpenPairKey(undefined)}
         baseSha={review?.baseSha}
         headSha={review?.headSha}
+        onRequestImage={evidence.requestImage}
         projectId={projectId}
       />
     </div>

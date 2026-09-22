@@ -22,8 +22,10 @@ import {
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
+import { Modal } from '../../primitives/Modal'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
+import type { ProcessRunBranch } from '../../../headless'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -51,13 +53,48 @@ export type ProcessPipelineProps = {
 export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
   const currentId = stack[stack.length - 1] ?? runId
-  const { isLoaded, loadError, run, resume, cancel } = useProcessRun(currentId)
+  const { isLoaded, loadError, run, resume, cancel, listBranches, deleteRun } =
+    useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
+
+  // Delete-a-whole-run flow: the confirm lists the branches the run owns and
+  // offers to remove them too, since a chat delete leaves the git branches behind.
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [branches, setBranches] = useState<ProcessRunBranch[]>([])
+  const [alsoBranches, setAlsoBranches] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleted, setDeleted] = useState(false)
 
   const drillTo = useCallback((childId: string) => setStack((s) => [...s, childId]), [])
   const popTo = useCallback((depth: number) => setStack((s) => s.slice(0, depth)), [])
 
+  const openDelete = useCallback(() => {
+    setAlsoBranches(false)
+    setBranches([])
+    setConfirmDelete(true)
+    void listBranches()
+      .then(setBranches)
+      .catch(() => setBranches([]))
+  }, [listBranches])
+
+  const runDelete = useCallback(() => {
+    setDeleting(true)
+    void deleteRun({ deleteBranches: alsoBranches })
+      .then(() => {
+        setConfirmDelete(false)
+        setDeleted(true)
+      })
+      .finally(() => setDeleting(false))
+  }, [deleteRun, alsoBranches])
+
+  if (deleted) {
+    return (
+      <div className="p-4">
+        <Alert variant="info">This process run and everything it produced were deleted.</Alert>
+      </div>
+    )
+  }
   if (loadError) return <Alert variant="error">{loadError.message}</Alert>
   if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
@@ -67,7 +104,13 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-      <RunHead run={run} depth={stack.length} onCrumb={popTo} onCancel={() => void cancel()} />
+      <RunHead
+        run={run}
+        depth={stack.length}
+        onCrumb={popTo}
+        onCancel={() => void cancel()}
+        onDelete={openDelete}
+      />
 
       <ol className="flex flex-col px-3 pb-4 pt-3">
         {states.map((state, index) => (
@@ -89,6 +132,61 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
 
       {run.error ? (
         <div className="px-4 pb-3 text-[11px] text-(--text-secondary)">{run.error}</div>
+      ) : null}
+
+      {confirmDelete ? (
+        <Modal
+          isOpen
+          onClose={() => setConfirmDelete(false)}
+          title="Delete this process run?"
+          size="sm"
+        >
+          <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+            <p className="m-0">
+              This removes the run and everything it produced — every step’s agent-run chat and its
+              record. This cannot be undone.
+            </p>
+            {branches.length > 0 ? (
+              <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={alsoBranches}
+                  onChange={(e) => setAlsoBranches(e.target.checked)}
+                />
+                <span className="min-w-0">
+                  <span className="font-medium text-(--text-primary)">
+                    Also delete {branches.length} git branch{branches.length === 1 ? '' : 'es'}
+                  </span>
+                  <span className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-(--text-muted)">
+                    {branches.map((b) => (
+                      <span key={`${b.projectId}:${b.branch}`} className="truncate">
+                        {b.branch}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p className="m-0 text-[12px] text-(--text-muted)">
+                No review branches were found for this run.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={runDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete run'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       ) : null}
     </div>
   )
@@ -116,11 +214,14 @@ function RunHead({
   depth,
   onCrumb,
   onCancel,
+  onDelete,
 }: {
   run: ProcessRun
   depth: number
   onCrumb: (depth: number) => void
   onCancel: () => void
+  /** Delete the WHOLE run — offered only at the top level (not a drilled child). */
+  onDelete?: () => void
 }) {
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
@@ -174,6 +275,11 @@ function RunHead({
       {stoppable ? (
         <Button size="sm" variant="secondary" onClick={onCancel}>
           Stop
+        </Button>
+      ) : null}
+      {depth === 0 && onDelete ? (
+        <Button size="sm" variant="ghost" onClick={onDelete}>
+          Delete
         </Button>
       ) : null}
     </div>

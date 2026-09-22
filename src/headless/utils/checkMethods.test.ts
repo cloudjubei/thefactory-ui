@@ -116,8 +116,20 @@ describe('checkMethodFor', () => {
     )
   })
 
+  it('routes live/e2e UI-test commands to their OWN method, not build', () => {
+    // A Cypress/Playwright/e2e command proves the running app, not the build — it
+    // must not be mislabelled as the Build chip.
+    expect(checkMethodFor(check({ kind: 'command', id: 'e2e', label: 'Cypress' }))).toBe('uitests')
+    expect(checkMethodFor(check({ kind: 'command', id: 'pw', label: 'Playwright' }))).toBe(
+      'uitests',
+    )
+    expect(checkMethodFor(check({ kind: 'command', id: 'ui-tests', label: 'UI tests' }))).toBe(
+      'uitests',
+    )
+  })
+
   it('maps every other command check to build', () => {
-    expect(checkMethodFor(check({ kind: 'command', id: 'e2e', label: 'Cypress' }))).toBe('build')
+    expect(checkMethodFor(check({ kind: 'command', id: 'webpack', label: 'Bundle' }))).toBe('build')
   })
 })
 

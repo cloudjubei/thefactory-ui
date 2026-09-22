@@ -29,19 +29,36 @@ describe('groupChats', () => {
     expect(byStory.map((g) => g.storyId)).toEqual(['S2', 'S1'])
   })
 
-  it('buckets story chats, feature chats and agent runs per story', () => {
+  it('buckets story and feature chats, and EXCLUDES agent runs entirely', () => {
     const { byStory } = groupChats(chats, [{ id: 'S1' }, { id: 'S2' }])
     const s1 = byStory.find((g) => g.storyId === 'S1')!
     expect(s1.storyChats.map((c) => c.id)).toEqual(['c-s1'])
-    expect(s1.agentRuns.map((c) => c.id)).toEqual(['c-ar'])
+    // Agent-run chats belong to the pipeline — never listed in the Chats tree.
+    expect(s1.agentRuns).toEqual([])
     expect(s1.featureGroups).toHaveLength(1)
     expect(s1.featureGroups[0]).toEqual(expect.objectContaining({ featureId: 'F1' }))
     expect(s1.featureGroups[0].chats.map((c) => c.id)).toEqual(['c-f1'])
 
     const s2 = byStory.find((g) => g.storyId === 'S2')!
-    // A feature-scoped agent run still buckets under the story's agentRuns.
-    expect(s2.agentRuns.map((c) => c.id)).toEqual(['c-arf'])
+    // A feature-scoped agent run is likewise excluded; only the story chat remains.
+    expect(s2.agentRuns).toEqual([])
+    expect(s2.storyChats.map((c) => c.id)).toEqual(['c-s2'])
     expect(s2.featureGroups).toHaveLength(0)
+  })
+
+  it('never surfaces an agent-run chat anywhere in the grouping', () => {
+    const { topics, byStory, featureRequests } = groupChats(chats, [])
+    const allIds = [
+      ...topics,
+      ...featureRequests,
+      ...byStory.flatMap((s) => [
+        ...s.storyChats,
+        ...s.agentRuns,
+        ...s.featureGroups.flatMap((f) => f.chats),
+      ]),
+    ].map((c) => c.id)
+    expect(allIds).not.toContain('c-ar')
+    expect(allIds).not.toContain('c-arf')
   })
 
   it('buckets FEATURE_REQUEST chats off the story tree, newest first', () => {

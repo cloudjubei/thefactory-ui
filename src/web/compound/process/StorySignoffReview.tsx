@@ -5,10 +5,14 @@ import {
   screenPairs,
   useReviewEvidence,
   useStories,
+  useStorySignoff,
   type EvidenceTile,
+  type FeatureSignoff,
   type ScreenPair,
+  type StoryDigest,
 } from '../../../headless'
-import { ComparisonOverlay, ReportTab, ScreensTab, WalkthroughTab } from '../chat/signoff'
+import { ComparisonOverlay, VerdictBadge } from '../chat/signoff'
+import FeatureReviewSection from './FeatureReviewSection'
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -17,71 +21,151 @@ export type StorySignoffReviewProps = {
 
 const featureOfTile = (t: EvidenceTile): string => t.ref.featureId ?? ''
 
+/** Cost + duration, together, as the trailing fact of a header row. */
+function Facts({ costLabel, durationLabel }: { costLabel?: string; durationLabel?: string }) {
+  if (!costLabel && !durationLabel) return null
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">
+      {durationLabel ? <span className="text-(--text-secondary)">{durationLabel}</span> : null}
+      {durationLabel && costLabel ? (
+        <span aria-hidden className="text-(--text-tertiary)">
+          ·
+        </span>
+      ) : null}
+      {costLabel ? <span className="font-medium text-(--text-primary)">{costLabel}</span> : null}
+    </span>
+  )
+}
+
+const DIGEST_TONE: Record<'proven' | 'partly' | 'failed' | 'notRun', string> = {
+  proven: 'bg-(--status-done-soft-bg) text-(--status-done-soft-fg)',
+  partly: 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg)',
+  failed: 'bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
+  notRun: 'bg-(--surface-sunken) text-(--text-muted)',
+}
+
+/** The one-glance pass/fail summary — only the states that actually occurred. */
+function DigestStrip({ digest }: { digest: StoryDigest }) {
+  const all: { key: keyof typeof DIGEST_TONE; n: number; label: string }[] = [
+    { key: 'failed', n: digest.failed, label: 'failed' },
+    { key: 'partly', n: digest.partly, label: 'partly' },
+    { key: 'notRun', n: digest.notRun, label: 'not run' },
+    { key: 'proven', n: digest.proven, label: 'proven' },
+  ]
+  const chips = all.filter((c) => c.n > 0)
+  if (chips.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {chips.map((c) => (
+        <span
+          key={c.key}
+          className={`rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${DIGEST_TONE[c.key]}`}
+        >
+          {c.n} {c.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+type Section = {
+  id: string
+  title: string
+  signoff: FeatureSignoff | undefined
+  pairs: ScreenPair[]
+  recordings: EvidenceTile[]
+  reports: EvidenceTile[]
+}
+
 /**
- * The evidence the WHOLE story produced, gathered for its single sign-off.
+ * The evidence + verdict the WHOLE story produced, gathered for its single
+ * sign-off.
  *
  * A story is one unit of work even when it was split into features, so its
- * sign-off is one decision over everything — never one approval per feature (which
- * would let a reviewer approve parts 1 and 3 and leave part 2 out, landing a
- * half-applied change). This shows every feature's proof — screens, walkthroughs
- * and written reports, grouped and titled per feature — above the gate's one
- * Approve / Reject.
+ * sign-off is one decision over everything — never one approval per feature. The
+ * header carries the aggregate verdict, a pass/fail digest and the story-total
+ * cost/duration; then each feature is a section, NEWEST FIRST, with its own
+ * verdict, model and cost, above its screens/walkthroughs/reports.
  *
- * Grouping is done PER FEATURE (not story-wide) because `groupEvidence` keys only
- * on the free-form `subject`: two features that touch the same screen (subject
- * "cart") would otherwise merge into one before/after and mis-attribute — or
- * lose — each other's proof. Each feature's pair keys are then namespaced by
- * featureId so they stay unique across the single ComparisonOverlay.
+ * The per-feature verdict/cost is JOINED from two list endpoints in
+ * {@link useStorySignoff}; the evidence is grouped PER FEATURE (subjects would
+ * otherwise collide across features) and each feature's pair keys are namespaced
+ * by featureId so they stay unique across the one ComparisonOverlay.
  */
 export default function StorySignoffReview({ projectId, storyId }: StorySignoffReviewProps) {
   const evidence = useReviewEvidence(projectId, { storyId })
+  const { signoff } = useStorySignoff(projectId, storyId, evidence.refs)
   const { getStory } = useStories()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
 
   const features = getStory(storyId)?.features ?? []
 
-  const groups = useMemo(() => {
-    const byFeature = new Map<string, EvidenceTile[]>()
+  const evByFeature = useMemo(() => {
+    const m = new Map<string, EvidenceTile[]>()
     for (const t of evidence.tiles) {
       const id = featureOfTile(t)
-      const list = byFeature.get(id)
+      const list = m.get(id)
       if (list) list.push(t)
-      else byFeature.set(id, [t])
+      else m.set(id, [t])
     }
-    const ordered = [
-      ...features.map((f) => f.id).filter((id) => byFeature.has(id)),
-      // Anything the story's feature list doesn't name (unattributed, or a feature
-      // since removed) still has to be reviewed — it goes last.
-      ...[...byFeature.keys()].filter((id) => !features.some((f) => f.id === id)),
-    ]
-    return ordered.map((id) => {
-      const tiles = byFeature.get(id) ?? []
-      // Group + pair WITHIN the feature so subjects can never collide across
-      // features; then namespace the key so it is unique in `allPairs`.
+    return m
+  }, [evidence.tiles])
+
+  const signoffByFeature = useMemo(
+    () => new Map(signoff.features.map((f) => [f.featureId, f])),
+    [signoff.features],
+  )
+
+  const sections = useMemo<Section[]>(() => {
+    const order: string[] = []
+    const seen = new Set<string>()
+    // Run-backed features first, newest-first (the sign-off already orders them).
+    for (const f of signoff.features) {
+      order.push(f.featureId)
+      seen.add(f.featureId)
+    }
+    // Then features that filed evidence but produced no attributable run, still
+    // newest-first; then anything unattributed.
+    for (const f of [...features].reverse()) {
+      if (!seen.has(f.id) && evByFeature.has(f.id)) {
+        order.push(f.id)
+        seen.add(f.id)
+      }
+    }
+    for (const id of evByFeature.keys()) {
+      if (!seen.has(id)) {
+        order.push(id)
+        seen.add(id)
+      }
+    }
+    return order.map((id) => {
+      const tiles = evByFeature.get(id) ?? []
       const pairs: ScreenPair[] = screenPairs(groupEvidence(tiles)).map((p) => ({
         ...p,
         key: `${id}::${p.key}`,
       }))
+      const fs = signoffByFeature.get(id)
       return {
         id,
+        signoff: fs,
         title:
+          fs?.title ??
           features.find((f) => f.id === id)?.title ??
           (id ? 'Other evidence' : 'Unattributed evidence'),
         pairs,
         recordings: tiles.filter((t) => t.ref.kind === 'recording'),
-        // A verifier's written proof is a `report`, or a `log` when it typed a
-        // note without a device — both belong in the written column.
         reports: tiles.filter((t) => t.ref.kind === 'report' || t.ref.kind === 'log'),
       }
     })
-  }, [features, evidence.tiles])
+  }, [signoff.features, signoffByFeature, features, evByFeature])
 
-  const allPairs = useMemo(() => groups.flatMap((g) => g.pairs), [groups])
+  const allPairs = useMemo(() => sections.flatMap((s) => s.pairs), [sections])
+  const hasSignoff = signoff.features.length > 0
 
-  if (evidence.loading && evidence.tiles.length === 0) {
+  if (evidence.loading && evidence.tiles.length === 0 && !hasSignoff) {
     return <div className="text-[12px] text-(--text-secondary)">Loading the evidence…</div>
   }
-  if (evidence.tiles.length === 0) {
+  if (sections.length === 0) {
     return (
       <div className="text-[12px] text-(--text-secondary)">
         No evidence was filed for this story’s features.
@@ -91,33 +175,42 @@ export default function StorySignoffReview({ projectId, storyId }: StorySignoffR
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-        Evidence for the whole story
-      </span>
-      {groups.map((g) => (
-        <section
-          key={g.id || 'unattributed'}
-          className="flex flex-col gap-1.5 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-2.5"
-        >
-          <h4 className="m-0 text-[12.5px] font-semibold text-(--text-primary)">{g.title}</h4>
-          {g.pairs.length > 0 ? (
-            <ScreensTab
-              pairs={g.pairs}
-              onOpen={setOpenPairKey}
-              capturedLabel={undefined}
-              capturing={false}
-            />
-          ) : null}
-          {g.recordings.length > 0 ? (
-            <WalkthroughTab projectId={projectId} recordings={g.recordings} />
-          ) : null}
-          {g.reports.length > 0 ? <ReportTab reports={g.reports} /> : null}
-          {g.pairs.length === 0 && g.recordings.length === 0 && g.reports.length === 0 ? (
-            <span className="text-[11px] text-(--text-secondary)">
-              Evidence filed, but nothing viewable here.
+      {hasSignoff ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <VerdictBadge verdict={signoff.verdict} />
+            <span className="text-[14px] font-semibold text-(--text-primary)">
+              {signoff.verdict.title}
             </span>
-          ) : null}
-        </section>
+            <span className="flex-1" />
+            <Facts
+              costLabel={signoff.facts.costLabel}
+              durationLabel={signoff.facts.durationLabel}
+            />
+          </div>
+          <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
+            {signoff.verdict.detail}
+          </p>
+          <DigestStrip digest={signoff.digest} />
+        </div>
+      ) : (
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+          Evidence for the whole story
+        </span>
+      )}
+
+      {sections.map((s) => (
+        <FeatureReviewSection
+          key={s.id || 'unattributed'}
+          projectId={projectId}
+          title={s.title}
+          signoff={s.signoff}
+          pairs={s.pairs}
+          recordings={s.recordings}
+          reports={s.reports}
+          onOpenPair={setOpenPairKey}
+          onRequestImage={evidence.requestImage}
+        />
       ))}
       <ComparisonOverlay
         pairs={allPairs}
@@ -127,6 +220,7 @@ export default function StorySignoffReview({ projectId, storyId }: StorySignoffR
         // is no one base/head sha — the overlay uses these only for caption chips.
         baseSha={undefined}
         headSha={undefined}
+        onRequestImage={evidence.requestImage}
         projectId={projectId}
       />
     </div>

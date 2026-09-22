@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 
 import {
   formatProcessDuration,
@@ -23,10 +23,13 @@ import {
   type ProcessStatusTone,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
+import type { SaveFileHandler } from '../chat/signoff'
 import { Button } from '../../primitives/Button'
+import { Modal } from '../../primitives/Modal'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessPipelineProps = {
@@ -34,6 +37,8 @@ export type ProcessPipelineProps = {
   runId: string
   /** Open the agent-run chat a leaf owns. A leaf IS a chat, one level down. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /** Native host's file saver; enables the story gate's downloads when provided. */
+  onSaveFile?: SaveFileHandler
 }
 
 /**
@@ -43,17 +48,54 @@ export type ProcessPipelineProps = {
  * pipeline matters more, not less — a transcript is the least readable way to
  * answer "where is this" on a phone.
  */
-export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipelineProps) {
+export default function ProcessPipeline({
+  runId,
+  onOpenAgentRun,
+  onSaveFile,
+}: ProcessPipelineProps) {
   const { theme } = useNativeTheme()
   const [stack, setStack] = useState<string[]>([])
   const currentId = stack[stack.length - 1] ?? runId
-  const { isLoaded, loadError, run, resume, cancel } = useProcessRun(currentId)
+  const { isLoaded, loadError, run, resume, cancel, listBranches, deleteRun } =
+    useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
+
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [branches, setBranches] = useState<ProcessRunBranch[]>([])
+  const [alsoBranches, setAlsoBranches] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleted, setDeleted] = useState(false)
 
   const drillTo = useCallback((childId: string) => setStack((s) => [...s, childId]), [])
   const popTo = useCallback((depth: number) => setStack((s) => s.slice(0, depth)), [])
 
+  const openDelete = useCallback(() => {
+    setAlsoBranches(false)
+    setBranches([])
+    setConfirmDelete(true)
+    void listBranches()
+      .then(setBranches)
+      .catch(() => setBranches([]))
+  }, [listBranches])
+
+  const runDelete = useCallback(() => {
+    setDeleting(true)
+    void deleteRun({ deleteBranches: alsoBranches })
+      .then(() => {
+        setConfirmDelete(false)
+        setDeleted(true)
+      })
+      .finally(() => setDeleting(false))
+  }, [deleteRun, alsoBranches])
+
+  if (deleted) {
+    return (
+      <View style={{ padding: nativeSpace[5] }}>
+        <Alert variant="info">This process run and everything it produced were deleted.</Alert>
+      </View>
+    )
+  }
   if (loadError) return <Alert variant="error">{loadError.message}</Alert>
   if (!isLoaded) {
     return (
@@ -69,7 +111,13 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
-      <RunHead run={run} depth={stack.length} onCrumb={popTo} onCancel={() => void cancel()} />
+      <RunHead
+        run={run}
+        depth={stack.length}
+        onCrumb={popTo}
+        onCancel={() => void cancel()}
+        onDelete={openDelete}
+      />
       <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
         {states.map((state, index) => (
           <PipelineNode
@@ -82,6 +130,7 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
             onChoose={(choice, note) => void resume(choice, note)}
             onDrill={drillTo}
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+            {...(onSaveFile ? { onSaveFile } : {})}
           />
         ))}
       </View>
@@ -98,6 +147,64 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
         >
           {run.error}
         </Text>
+      ) : null}
+
+      {confirmDelete ? (
+        <Modal isOpen onClose={() => setConfirmDelete(false)} title="Delete this process run?">
+          <View style={{ gap: nativeSpace[3] }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+              This removes the run and everything it produced — every step’s agent-run chat and its
+              record. This cannot be undone.
+            </Text>
+            {branches.length > 0 ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: nativeSpace[2],
+                  borderRadius: nativeRadii[2],
+                  borderWidth: 1,
+                  borderColor: theme.border.subtle,
+                  backgroundColor: theme.surface.muted,
+                  padding: nativeSpace[3],
+                }}
+              >
+                <Switch value={alsoBranches} onValueChange={setAlsoBranches} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+                    {`Also delete ${branches.length} git branch${branches.length === 1 ? '' : 'es'}`}
+                  </Text>
+                  {branches.map((b) => (
+                    <Text
+                      key={`${b.projectId}:${b.branch}`}
+                      numberOfLines={1}
+                      style={{ fontSize: 11, color: theme.text.muted }}
+                    >
+                      {b.branch}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 12, color: theme.text.muted }}>
+                No review branches were found for this run.
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" variant="danger" onPress={runDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete run'}
+              </Button>
+            </View>
+          </View>
+        </Modal>
       ) : null}
     </ScrollView>
   )
@@ -127,11 +234,14 @@ function RunHead({
   depth,
   onCrumb,
   onCancel,
+  onDelete,
 }: {
   run: ProcessRun
   depth: number
   onCrumb: (depth: number) => void
   onCancel: () => void
+  /** Delete the WHOLE run — offered only at the top level (not a drilled child). */
+  onDelete?: () => void
 }) {
   const { theme } = useNativeTheme()
   const badge = processRunBadge(run)
@@ -183,6 +293,11 @@ function RunHead({
           Stop
         </Button>
       ) : null}
+      {depth === 0 && onDelete ? (
+        <Button size="sm" variant="ghost" onPress={onDelete}>
+          Delete
+        </Button>
+      ) : null}
     </View>
   )
 }
@@ -232,6 +347,7 @@ function PipelineNode({
   onChoose,
   onDrill,
   onOpenAgentRun,
+  onSaveFile,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
@@ -241,6 +357,7 @@ function PipelineNode({
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onDrill: (childRunId: string) => void
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  onSaveFile?: SaveFileHandler
 }) {
   const { theme, status } = useNativeTheme()
   const parkStepId = run.park?.stepId
@@ -335,6 +452,7 @@ function PipelineNode({
             onChoose={onChoose}
             onDrill={onDrill}
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+            {...(onSaveFile ? { onSaveFile } : {})}
           />
         ) : null}
       </View>
@@ -465,11 +583,13 @@ function ParkBlock({
   onChoose,
   onOpenAgentRun,
   onDrill,
+  onSaveFile,
 }: {
   run: ProcessRun
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
+  onSaveFile?: SaveFileHandler
 }) {
   const { theme, status } = useNativeTheme()
   const park = run.park
@@ -494,7 +614,11 @@ function ParkBlock({
     >
       <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>{park.message}</Text>
       {isSignoffGate ? (
-        <StorySignoffReview projectId={run.projectId} storyId={run.storyId as string} />
+        <StorySignoffReview
+          projectId={run.projectId}
+          storyId={run.storyId as string}
+          {...(onSaveFile ? { onSaveFile } : {})}
+        />
       ) : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">

@@ -35,6 +35,8 @@ export type ComparisonOverlayProps = {
   onClose: () => void
   baseSha: string | undefined
   headSha: string | undefined
+  /** Ask the evidence store to decode the open pair's frames. */
+  onRequestImage: (id: string, mediaType: string) => void
   /** Whose evidence store to compute the pixel comparison against. */
   projectId: string
 }
@@ -82,6 +84,7 @@ export default function ComparisonOverlay({
   onClose,
   baseSha,
   headSha,
+  onRequestImage,
   projectId,
 }: ComparisonOverlayProps) {
   const [mode, setMode] = useState<Mode>('slide')
@@ -119,6 +122,13 @@ export default function ComparisonOverlay({
   }, [isOpen, pairs.length])
 
   const pair = pairs[position]
+  // Decode the open pair's frames on demand — the strip only decoded thumbnails,
+  // and the overlay is where the full-size bytes are actually needed.
+  useEffect(() => {
+    if (!isOpen || !pair) return
+    if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
+    if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
+  }, [isOpen, pair, onRequestImage])
   const capturedOn = pair ? capturedOnLabel(pair) : undefined
   const width = Math.round(BASE_WIDTH * zoom)
   const before = pair?.before?.dataUri

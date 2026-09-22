@@ -95,7 +95,7 @@ export type CliRunArtifactPanelProps = {
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
-const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build']
+const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
 
 function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
   // Git already speaks in letters; renames, copies and the rest read as modified.
@@ -431,15 +431,22 @@ export default function CliRunArtifactPanel({
   // it — so every path here is the project's own verification pass.
   // Every capture in the set, each named by its walkthrough position so the
   // saved folder reads in the order the reviewer walked it.
-  const saveAllScreens = () => {
+  const savePair = async (pair: (typeof pairs)[number]) => {
     if (!onSaveFile) return
-    for (const pair of pairs) {
-      const stem = screenPairFileStem(pair)
-      if (pair.before?.dataUri)
-        void onSaveFile({ name: `${stem}-before.png`, dataUri: pair.before.dataUri })
-      if (pair.after?.dataUri)
-        void onSaveFile({ name: `${stem}-after.png`, dataUri: pair.after.dataUri })
+    const stem = screenPairFileStem(pair)
+    // Fetch bytes at save time so a screen never scrolled to still saves.
+    if (pair.before) {
+      const uri = await evidence.loadImage(pair.before.ref.id, pair.before.ref.mediaType)
+      if (uri) void onSaveFile({ name: `${stem}-before.png`, dataUri: uri })
     }
+    if (pair.after) {
+      const uri = await evidence.loadImage(pair.after.ref.id, pair.after.ref.mediaType)
+      if (uri) void onSaveFile({ name: `${stem}-after.png`, dataUri: uri })
+    }
+  }
+  const saveAllScreens = async () => {
+    if (!onSaveFile) return
+    for (const pair of pairs) await savePair(pair)
   }
 
   const cancelReview = () => {
@@ -781,7 +788,11 @@ export default function CliRunArtifactPanel({
                     pairs={pairs}
                     onOpen={setOpenPairKey}
                     capturedLabel={capturedLabel}
-                    onSaveAll={onSaveFile && pairs.length > 0 ? saveAllScreens : undefined}
+                    onSaveAll={
+                      onSaveFile && pairs.length > 0 ? () => void saveAllScreens() : undefined
+                    }
+                    onSavePair={onSaveFile ? (pair) => void savePair(pair) : undefined}
+                    onRequestImage={evidence.requestImage}
                     capturing={working !== undefined}
                   />
                 ) : currentTab === 'walkthrough' ? (
@@ -1096,6 +1107,7 @@ export default function CliRunArtifactPanel({
         baseSha={review?.baseSha}
         headSha={review?.headSha}
         onSaveFile={onSaveFile}
+        onRequestImage={evidence.requestImage}
         projectId={projectId}
       />
     </View>
