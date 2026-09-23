@@ -17,7 +17,7 @@ import {
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
-import { useProcessProposal, useStories } from '../../../headless'
+import { useProcessProposal, useProjectNotes, useStories } from '../../../headless'
 import type { PendingToolGrant } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
@@ -92,6 +92,16 @@ export default function ApprovalPanel({
   const canGrantPermanently =
     !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
   const { getStory } = useStories()
+  // The notes this launch will point the run at — resolved to labels so you can
+  // see exactly which stored notes (a login, a key) the run is sanctioned to read
+  // before you approve. Only fetched for a launch that flagged some.
+  const flaggedNoteIds = summary.relevantNoteIds ?? []
+  const { notes: projectNotes } = useProjectNotes(
+    isLaunch && flaggedNoteIds.length > 0 ? projectId : undefined,
+  )
+  const flaggedNotes = flaggedNoteIds.map(
+    (id) => projectNotes.find((n) => n.id === id) ?? { id, label: id, kind: 'note' as const },
+  )
   // Only a CLI decision carries metadata to the launch; on the API transport the
   // agent's own arguments are what runs, so the options are shown, not offered.
   const optionsHonoured = launchOptionsAreHonoured(grant)
@@ -371,6 +381,31 @@ export default function ApprovalPanel({
               {summary.note}
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {flaggedNotes.length > 0 ? (
+        // Which stored notes this launch will let the run read — a login for the
+        // screen under test, an API key. Read-only here (the agent proposed
+        // them); approving the launch sanctions the run to read them, even ones
+        // set to "ask". Values are never shown — only labels.
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            Notes this run will use
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {flaggedNotes.map((n) => (
+              <span
+                key={n.id}
+                className="inline-flex items-center gap-1 rounded-full border border-(--border-default) bg-(--surface-base) px-2 py-0.5 text-[11.5px] text-(--text-secondary)"
+              >
+                {n.label}
+                <span className="text-[9px] uppercase tracking-wide text-(--text-muted)">
+                  {n.kind}
+                </span>
+              </span>
+            ))}
+          </div>
         </div>
       ) : null}
 

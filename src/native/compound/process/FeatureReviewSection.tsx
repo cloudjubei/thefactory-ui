@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import {
   aggregateTestCounts,
@@ -7,36 +7,58 @@ import {
   screenPairFileStem,
   verificationCheckRows,
   type CheckMethodId,
+  type CheckMethodRow,
   type EvidenceTile,
   type FeatureSignoff,
+  type RunReviewFacts,
   type ReviewTabId,
   type ScreenPair,
+  type SignoffAgent,
 } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { IconCheck } from '../../icons/IconCheck'
+import { IconXCircle } from '../../icons/IconXCircle'
+import { IconChevronRight } from '../../icons/IconChevronRight'
 import {
   ChecksTab,
   CheckChipRow,
+  DurCostChips,
+  IdChip,
   ReportTab,
   ReviewTabBar,
   RunModelChip,
   ScreensTab,
-  VerdictBadge,
   WalkthroughTab,
   type SaveFileHandler,
 } from '../chat/signoff'
 
+/** The right-of-header line: a verify verdict ("Verify passed") toned by state. */
+export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
+
 export type FeatureReviewSectionProps = {
+  kind: 'overall' | 'feature'
+  idLabel?: string
   title: string
-  /** The feature's verdict + checks + facts, when a run produced them. */
-  signoff: FeatureSignoff | undefined
+  facts: RunReviewFacts
+  agents: readonly SignoffAgent[]
+  rows: readonly CheckMethodRow[]
+  verification: FeatureSignoff['verification']
+  statusLine: ReviewStatusLine
   pairs: readonly ScreenPair[]
   recordings: readonly EvidenceTile[]
   reports: readonly EvidenceTile[]
+  defaultOpen?: boolean
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
   onSaveFile?: SaveFileHandler
+  /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
+  badge?: { label: string; tone: ReviewStatusLine['tone'] }
+  /** The reviewer's own conclusion, shown above the evidence it rests on. */
+  verdictNote?: { label: string; reason?: string; tone: ReviewStatusLine['tone'] }
+  /** What to say when nothing was filed, in place of the section's default. */
+  emptyLabel?: string
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -44,61 +66,87 @@ const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'bui
 
 const noop = () => {}
 
-/** Cost + duration, together, as the trailing fact of the header row. */
-function Facts({ costLabel, durationLabel }: { costLabel?: string; durationLabel?: string }) {
+function AgentRow({ agents }: { agents: readonly SignoffAgent[] }) {
   const { theme } = useNativeTheme()
-  if (!costLabel && !durationLabel) return null
+  if (agents.length === 0) return null
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      {durationLabel ? (
-        <Text style={{ fontSize: 11, color: theme.text.secondary, fontVariant: ['tabular-nums'] }}>
-          {durationLabel}
-        </Text>
-      ) : null}
-      {durationLabel && costLabel ? (
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>·</Text>
-      ) : null}
-      {costLabel ? (
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: '500',
-            color: theme.text.primary,
-            fontVariant: ['tabular-nums'],
-          }}
-        >
-          {costLabel}
-        </Text>
-      ) : null}
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          color: theme.text.muted,
+        }}
+      >
+        Run by
+      </Text>
+      {agents.map((a) => (
+        <RunModelChip key={a.role} model={a.model} role={a.role} />
+      ))}
+    </View>
+  )
+}
+
+/** The mark matches the tone — see the web peer's `StatusVline`. */
+function StatusVline({ line }: { line: ReviewStatusLine }) {
+  const { status } = useNativeTheme()
+  const color = status[line.tone].softFg
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      {line.tone === 'done' ? (
+        <IconCheck size={14} color={color} />
+      ) : line.tone === 'stuck' ? (
+        <IconXCircle size={14} color={color} />
+      ) : (
+        <View
+          style={{ width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: color }}
+        />
+      )}
+      <Text style={{ fontSize: 12.5, fontWeight: '500', color }}>{line.label}</Text>
     </View>
   )
 }
 
 /**
- * One feature's slice of the story sign-off — the native peer of the web
- * `FeatureReviewSection`. Its verdict, the "what was checked" chips, and the
- * evidence behind capability tabs, READ-ONLY: sign-off and running/requesting a
- * check happen in the feature's own chat, so a chip only ever opens its proof.
- * No Changes tab — a per-feature diff is not loaded at story scope.
+ * One section of the story sign-off — the story-wide "Overall" or a single
+ * feature — the native peer of the web `FeatureReviewSection`. A header (scope
+ * chip / OVERALL badge, title, verify line, its own duration + cost chips), then
+ * its body (which agents ran it, the read-only capability chips, the evidence
+ * behind per-capability tabs). A feature is collapsible; the overall is open.
+ *
+ * READ-ONLY: a chip only ever opens its proof. No Changes tab — a per-feature
+ * diff is not loaded at story scope.
  */
 export default function FeatureReviewSection({
+  kind,
+  idLabel,
   title,
-  signoff,
+  facts,
+  agents,
+  rows,
+  verification,
+  statusLine,
   pairs,
   recordings,
   reports,
+  defaultOpen,
   onOpenPair,
   onRequestImage,
   onSaveFile,
+  badge,
+  verdictNote,
+  emptyLabel,
 }: FeatureReviewSectionProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
+  const [open, setOpen] = useState<boolean>(kind === 'overall' ? true : defaultOpen === true)
 
-  const checkRows = verificationCheckRows(signoff?.verification)
+  const checkRows = verificationCheckRows(verification)
   const testChecks = checkRows.filter((c) => c.kind === 'tests')
   const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
   const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
-  const rows = signoff?.rows ?? []
 
   const tabs = reviewTabs({
     screens: pairs.length,
@@ -116,8 +164,6 @@ export default function FeatureReviewSection({
     if (tabs.some((t) => t.id === tab)) setActiveTab(tab)
   }
 
-  // Native has no canvas to composite a side-by-side sheet, so a pair saves as
-  // its two frames — the same as the comparison overlay's save.
   const savePair = (pair: ScreenPair) => {
     if (!onSaveFile) return
     const stem = screenPairFileStem(pair)
@@ -130,33 +176,98 @@ export default function FeatureReviewSection({
     for (const pair of pairs) savePair(pair)
   }
 
-  return (
+  const collapsible = kind === 'feature'
+  const showBody = kind === 'overall' || open
+
+  const header = (
     <View
       style={{
-        flexDirection: 'column',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
         gap: 8,
-        borderRadius: nativeRadii[2],
-        borderWidth: 1,
-        borderColor: theme.border.subtle,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: showBody ? 1 : 0,
+        borderBottomColor: theme.border.subtle,
         backgroundColor: theme.surface.raised,
-        padding: 10,
       }}
     >
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.text.primary }}>
-          {title}
-        </Text>
-        {signoff ? <VerdictBadge verdict={signoff.verdict} /> : null}
-        {signoff?.runModel ? <RunModelChip model={signoff.runModel} /> : null}
-        <View style={{ flex: 1 }} />
-        {signoff ? (
-          <Facts costLabel={signoff.facts.costLabel} durationLabel={signoff.facts.durationLabel} />
-        ) : null}
-      </View>
+      {kind === 'overall' ? (
+        <View
+          style={{
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: nativeRadii.round,
+            backgroundColor: status[badge?.tone ?? 'done'].softBg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.4,
+              color: status[badge?.tone ?? 'done'].softFg,
+            }}
+          >
+            {badge?.label ?? 'OVERALL'}
+          </Text>
+        </View>
+      ) : idLabel ? (
+        <IdChip kind="feature">{idLabel}</IdChip>
+      ) : null}
+      <Text
+        numberOfLines={1}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: 13.5,
+          fontWeight: '600',
+          color: theme.text.primary,
+        }}
+      >
+        {title}
+      </Text>
+      <StatusVline line={statusLine} />
+      <DurCostChips facts={facts} />
+      {collapsible ? (
+        <View style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}>
+          <IconChevronRight size={14} color={theme.text.muted} />
+        </View>
+      ) : null}
+    </View>
+  )
+
+  const body = (
+    <View style={{ gap: 10, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }}>
+      {verdictNote ? (
+        <View
+          style={{
+            gap: 2,
+            borderRadius: nativeRadii[1],
+            borderWidth: 1,
+            borderColor: status[verdictNote.tone].softBorder,
+            backgroundColor: status[verdictNote.tone].softBg,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '600', color: status[verdictNote.tone].softFg }}>
+            Reviewer · {verdictNote.label}
+          </Text>
+          {verdictNote.reason ? (
+            <Text style={{ fontSize: 12, color: status[verdictNote.tone].softFg }}>
+              {verdictNote.reason}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      <AgentRow agents={agents} />
 
       {rows.length > 0 ? (
         <CheckChipRow
-          rows={rows}
+          rows={[...rows]}
           branch={undefined}
           busyId={undefined}
           canRequest={false}
@@ -180,8 +291,6 @@ export default function FeatureReviewSection({
               capturing={false}
             />
           ) : currentTab === 'walkthrough' ? (
-            // Native cannot play or fetch a recording's bytes (no player, no
-            // projectId here), so it names/sizes it rather than downloading it.
             <WalkthroughTab recordings={recordings} />
           ) : currentTab === 'tests' ? (
             <ChecksTab
@@ -209,11 +318,33 @@ export default function FeatureReviewSection({
         </View>
       ) : (
         <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-          {signoff
-            ? 'No screens, walkthroughs or reports were filed for this feature.'
-            : 'Evidence filed, but nothing viewable here.'}
+          {emptyLabel ??
+            (kind === 'overall'
+              ? 'No story-wide evidence was filed.'
+              : 'No screens, walkthroughs or reports were filed for this feature.')}
         </Text>
       )}
+    </View>
+  )
+
+  return (
+    <View
+      style={{
+        borderRadius: nativeRadii[2],
+        borderWidth: 1,
+        borderColor: kind === 'overall' ? theme.accent.primary : theme.border.subtle,
+        backgroundColor: theme.surface.overlay,
+        overflow: 'hidden',
+      }}
+    >
+      {collapsible ? (
+        <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button">
+          {header}
+        </Pressable>
+      ) : (
+        header
+      )}
+      {showBody ? body : null}
     </View>
   )
 }

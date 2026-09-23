@@ -7,13 +7,16 @@ import Tooltip from '../../../primitives/Tooltip'
 
 export type RunModelChipProps = {
   model: RunModel | undefined
+  /** The agent role that ran — `developer`, `verifier`. Adds the provenance line. */
+  role?: string
 }
 
 /**
  * Native peer of the web `RunModelChip`: which agent and model did the work,
- * read-only. A landed run's model is a fact, not a picker.
+ * read-only. A landed run's model is a fact, not a picker. When a `role` is
+ * given it leads the model with the role — the "Run by" chip per section.
  */
-export default function RunModelChip({ model }: RunModelChipProps) {
+export default function RunModelChip({ model, role }: RunModelChipProps) {
   const { theme } = useNativeTheme()
   if (!model) return null
   const line = model.model ?? model.tool
@@ -22,6 +25,7 @@ export default function RunModelChip({ model }: RunModelChipProps) {
     <Tooltip
       content={
         <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
+          {role ? `${role} · ` : ''}
           {model.model
             ? `Ran on ${model.tag} — model ${model.model}${model.effort ? `, ${model.effort} effort` : ''}.`
             : `Ran on ${model.tag}. The runner did not record a model for this run.`}
@@ -64,12 +68,38 @@ export default function RunModelChip({ model }: RunModelChipProps) {
             {model.tag}
           </Text>
         </View>
-        <Text
-          numberOfLines={1}
-          style={{ maxWidth: 128, fontSize: 11.5, fontWeight: '500', color: theme.text.primary }}
-        >
-          {line}
-        </Text>
+        {role ? (
+          <View style={{ flexDirection: 'column' }}>
+            <Text
+              style={{
+                fontSize: 9,
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                color: theme.text.muted,
+              }}
+            >
+              {role}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                maxWidth: 128,
+                fontSize: 11.5,
+                fontWeight: '500',
+                color: theme.text.primary,
+              }}
+            >
+              {line}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            numberOfLines={1}
+            style={{ maxWidth: 128, fontSize: 11.5, fontWeight: '500', color: theme.text.primary }}
+          >
+            {line}
+          </Text>
+        )}
       </View>
     </Tooltip>
   )

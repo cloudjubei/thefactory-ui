@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ReviewEvidenceRef, RunVerification } from '../api/generated'
+import type { ReviewEvidenceRef, RunVerification, VerificationCheckResult } from '../api/generated'
 import { STORY_UNFINISHED_TITLE } from './checkMethodConstants'
 import type { FeatureSignoff, StorySignoffProcessRun, StorySignoffRun } from './storySignoffTypes'
 import { aggregateStoryVerdict, buildStorySignoff } from './storySignoff'
@@ -215,5 +215,199 @@ describe('buildStorySignoff', () => {
     const report = signoff.features[0].rows.find((r) => r.id === 'report')
     expect(report?.state).toBe('passed')
     expect(report?.detail).toContain('report')
+  })
+})
+
+// --- agents, the Overall section, and the digest line ---
+
+/** A process run that carries a plan (roles) AND ledger (run↔step) attribution. */
+const procRoles = (
+  id: string,
+  featureId: string | undefined,
+  entries: Array<{ stepId: string; runId: string }>,
+  steps: Array<{ id: string; agentType?: string }>,
+): StorySignoffProcessRun =>
+  ({
+    id,
+    featureId,
+    plan: { steps },
+    ledger: entries.map((e) => ({ stepId: e.stepId, runRef: { runId: e.runId } })),
+  }) as unknown as StorySignoffProcessRun
+
+const check = (
+  over: Partial<VerificationCheckResult> & Pick<VerificationCheckResult, 'id' | 'kind' | 'status'>,
+): VerificationCheckResult =>
+  ({ label: over.id, durationMs: 0, summary: '', ...over }) as VerificationCheckResult
+
+const verifWith = (checks: VerificationCheckResult[]): RunVerification =>
+  ({ status: 'passed', checks, startedAt: 1, finishedAt: 2 }) as RunVerification
+
+describe('buildStorySignoff — agents', () => {
+  it('names the agents that ran a feature — developer and verifier, latest run per role', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [
+        procRoles(
+          'pr1',
+          'f1',
+          // A fix loop: two developer attempts around one verify.
+          [
+            { stepId: 'implement', runId: 'dev1' },
+            { stepId: 'verify', runId: 'ver1' },
+            { stepId: 'implement', runId: 'dev2' },
+          ],
+          [
+            { id: 'implement', agentType: 'developer' },
+            { id: 'verify', agentType: 'verifier' },
+          ],
+        ),
+      ],
+      cliRuns: [
+        run({ id: 'dev1', processRunId: 'pr1', createdAt: 1, modelId: 'gpt-5-codex' }),
+        run({
+          id: 'ver1',
+          processRunId: 'pr1',
+          createdAt: 2,
+          modelId: 'claude-sonnet-5',
+          verification: passedVerification(),
+        }),
+        run({ id: 'dev2', processRunId: 'pr1', createdAt: 3, modelId: 'gpt-5-codex-2' }),
+      ],
+      evidence: [],
+    })
+    const agents = signoff.features[0].agents
+    // developer FIRST, then verifier — the order work happens in.
+    expect(agents.map((a) => a.role)).toEqual(['developer', 'verifier'])
+    // The LATEST developer run's model, not the first attempt's.
+    expect(agents.find((a) => a.role === 'developer')?.model.model).toBe('gpt-5-codex-2')
+    expect(agents.find((a) => a.role === 'verifier')?.model.model).toBe('claude-sonnet-5')
+  })
+
+  it('leaves agents empty when the process run carries no plan (no role to read)', () => {
+    // A DIFFERENT shape: attribution present, roles absent.
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1', ['ra'])],
+      cliRuns: [run({ id: 'ra', modelId: 'x' })],
+      evidence: [],
+    })
+    expect(signoff.features[0].agents).toEqual([])
+  })
+})
+
+describe('buildStorySignoff — the Overall section', () => {
+  it('aggregates the story-wide checks across features, keeping the latest per check id', () => {
+    const signoff = buildStorySignoff({
+      features: [
+        { id: 'f1', title: 'One' },
+        { id: 'f2', title: 'Two' },
+      ],
+      processRuns: [proc('pr1', 'f1'), proc('pr2', 'f2')],
+      cliRuns: [
+        run({
+          id: 'ra',
+          processRunId: 'pr1',
+          createdAt: 1,
+          verification: verifWith([check({ id: 'unit', kind: 'tests', status: 'passed' })]),
+        }),
+        run({
+          id: 'rb',
+          processRunId: 'pr2',
+          createdAt: 2,
+          verification: verifWith([
+            check({ id: 'unit', kind: 'tests', status: 'passed' }),
+            check({ id: 'tsc', kind: 'compile', status: 'passed' }),
+          ]),
+        }),
+      ],
+      evidence: [],
+    })
+    const overall = signoff.overall
+    expect(overall).toBeDefined()
+    // Story-wide capabilities ONLY — a feature-scoped screens/report chip never
+    // belongs to the Overall.
+    const overallIds = new Set(overall?.rows.map((r) => r.id))
+    expect(overallIds.has('screens')).toBe(false)
+    expect(overallIds.has('report')).toBe(false)
+    expect(overall?.rows.find((r) => r.id === 'tests')?.state).toBe('passed')
+    expect(overall?.rows.find((r) => r.id === 'types')?.state).toBe('passed')
+    expect(overall?.allGreen).toBe(true)
+  })
+
+  it('marks the Overall not-all-green when a story-wide check failed', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1')],
+      cliRuns: [
+        run({
+          id: 'ra',
+          processRunId: 'pr1',
+          createdAt: 1,
+          verification: verifWith([check({ id: 'unit', kind: 'tests', status: 'failed' })]),
+        }),
+      ],
+      evidence: [],
+    })
+    expect(signoff.overall?.allGreen).toBe(false)
+    expect(signoff.overall?.rows.find((r) => r.id === 'tests')?.state).toBe('failed')
+  })
+
+  it('routes a story-scoped run and walkthrough to the Overall, not to any feature', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [
+        proc('pr1', 'f1'),
+        // The root story run that launched the overall walkthrough capture.
+        procRoles(
+          'root',
+          undefined,
+          [{ stepId: 'walkthrough', runId: 'wt' }],
+          [{ id: 'walkthrough', agentType: 'verifier' }],
+        ),
+      ],
+      cliRuns: [
+        run({
+          id: 'ra',
+          processRunId: 'pr1',
+          createdAt: 1,
+          costUSD: 0.1,
+          durationMs: 1000,
+          verification: passedVerification(),
+        }),
+        run({ id: 'wt', processRunId: 'root', createdAt: 2, costUSD: 0.05, durationMs: 500 }),
+      ],
+      evidence: [ev({ id: 'rec', featureId: undefined, kind: 'recording' })],
+    })
+    // The story-scoped run is not a feature section.
+    expect(signoff.features).toHaveLength(1)
+    expect(signoff.features[0].runId).toBe('ra')
+    // Overall facts = the story-scoped run only; head total spans both.
+    expect(signoff.overall?.facts.costLabel).toBe('$0.05')
+    expect(signoff.facts.costLabel).toBe('$0.15')
+    // Its agent is read from the root run's plan role.
+    expect(signoff.overall?.agents.some((a) => a.role === 'verifier')).toBe(true)
+  })
+})
+
+describe('buildStorySignoff — the digest', () => {
+  it('tones the headline by the story verdict and summarises in one line', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1')],
+      cliRuns: [
+        run({
+          id: 'ra',
+          processRunId: 'pr1',
+          createdAt: 1,
+          verification: verifWith([check({ id: 'unit', kind: 'tests', status: 'failed' })]),
+        }),
+      ],
+      evidence: [ev({ id: 'rec', featureId: undefined, kind: 'recording' })],
+    })
+    expect(signoff.verdict.key).toBe('failed')
+    expect(signoff.digest.headline).toBe('A check did not pass')
+    expect(signoff.digest.line).toContain('0 of 1 feature verified')
+    expect(signoff.digest.line).toContain('1 check failed')
+    expect(signoff.digest.line).toContain('1 walkthrough')
   })
 })

@@ -1,4 +1,4 @@
-import type { ReviewEvidenceRef } from '../api/generated'
+import type { ReviewEvidenceRef, ReviewEvidenceVerdict } from '../api/generated'
 
 /** One evidence item ready to render, with its bytes resolved when it is an image. */
 export type EvidenceTile = {
@@ -233,4 +233,39 @@ export function capturedOnLabel(pair: {
   if (after) return after
   const before = pair.before?.ref.capturedOn?.trim()
   return before && before.length > 0 ? before : undefined
+}
+
+/** A time window over filings — one review attempt's, typically. */
+export type EvidenceWindow = { since: number; until?: number }
+
+/** The tiles filed inside a window, e.g. one verify attempt's own captures. */
+export function evidenceFiledWithin(
+  tiles: readonly EvidenceTile[],
+  span: EvidenceWindow,
+): EvidenceTile[] {
+  return tiles.filter(
+    (t) =>
+      t.ref.createdAt >= span.since && (span.until === undefined || t.ref.createdAt <= span.until),
+  )
+}
+
+/** The reviewer's conclusion as it reads on screen. */
+export const REVIEWER_VERDICT_LABEL: Record<ReviewEvidenceVerdict, string> = {
+  approved: 'Approved',
+  'changes-requested': 'Changes requested',
+  rejected: 'Rejected',
+}
+
+/** The reviewer's own conclusion among these filings — the newest one wins, as at the gate. */
+export function reviewerVerdict(
+  refs: readonly Pick<ReviewEvidenceRef, 'verdict' | 'verdictReason' | 'createdAt'>[],
+): { verdict: ReviewEvidenceVerdict; reason?: string } | undefined {
+  let newest: (typeof refs)[number] | undefined
+  for (const r of refs) {
+    if (r.verdict === undefined) continue
+    if (!newest || r.createdAt > newest.createdAt) newest = r
+  }
+  if (!newest?.verdict) return undefined
+  const reason = newest.verdictReason?.trim()
+  return { verdict: newest.verdict, ...(reason ? { reason } : {}) }
 }

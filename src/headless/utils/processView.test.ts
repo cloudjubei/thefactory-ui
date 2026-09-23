@@ -25,6 +25,12 @@ import {
   processIterationBadge,
   processRunBadge,
   processRunCardView,
+  hasIsolatedAttempts,
+  verifyReviewStatus,
+  processAttemptLeaf,
+  processLeafReview,
+  isProcessLeafOpenable,
+  latestOpenableAttempt,
 } from './processView'
 
 const TOKEN_STATUSES = [
@@ -432,13 +438,19 @@ describe('processIterationBadge', () => {
     ],
   }
   it('says nothing on the first pass — a "1 of 3" on every step is noise', () => {
-    expect(processIterationBadge(1, plan)).toBeUndefined()
+    expect(processIterationBadge(1, { plan })).toBeUndefined()
   })
   it('names the attempt and the cap once a loop has fired', () => {
-    expect(processIterationBadge(2, plan)).toBe('attempt 2 of 3')
+    expect(processIterationBadge(2, { plan })).toBe('attempt 2 of 3')
   })
   it('drops the cap when the plan does not loop', () => {
-    expect(processIterationBadge(2, { loops: [] })).toBe('attempt 2')
+    expect(processIterationBadge(2, { plan: { loops: [] } })).toBe('attempt 2')
+  })
+  it('counts the attempts the user granted at an exhausted loop into the cap', () => {
+    expect(processIterationBadge(4, { plan, iterationGrants: { fix: 1 } })).toBe('attempt 4 of 4')
+  })
+  it('ignores a grant for a loop the plan does not have', () => {
+    expect(processIterationBadge(2, { plan, iterationGrants: { other: 5 } })).toBe('attempt 2 of 3')
   })
 })
 
@@ -501,5 +513,198 @@ describe('processRunCardView', () => {
     const view = processRunCardView(r)
     expect(view.body?.tone).toBe('done')
     expect(view.body?.text).toMatch(/finished/i)
+  })
+})
+
+describe('hasIsolatedAttempts', () => {
+  const at = (chatContextId?: string) => ({
+    runRef: chatContextId ? { runId: `r-${chatContextId}`, chatContextId } : undefined,
+  })
+
+  it('is true when every attempt is its own chat — a verifier runs fresh each time', () => {
+    expect(hasIsolatedAttempts([at('v1'), at('v2'), at('v3')])).toBe(true)
+  })
+
+  it('is false when the attempts share ONE chat — a developer fix loop resumes it', () => {
+    // The live McKinsey run: implement attempts 1–3 all carried agent 70f31f39.
+    expect(hasIsolatedAttempts([at('dev'), at('dev'), at('dev')])).toBe(false)
+  })
+
+  it('is false when any two attempts share a chat, even if another is fresh', () => {
+    expect(hasIsolatedAttempts([at('dev-a'), at('dev-b'), at('dev-b')])).toBe(false)
+  })
+
+  it('is false for a single attempt — there is nothing to choose between', () => {
+    expect(hasIsolatedAttempts([at('v1')])).toBe(false)
+    expect(hasIsolatedAttempts([])).toBe(false)
+  })
+
+  it('leaves out an attempt that has not attached a chat yet, rather than hiding the chips', () => {
+    expect(hasIsolatedAttempts([at('v1'), at('v2'), at(undefined)])).toBe(true)
+    expect(hasIsolatedAttempts([at('v1'), at(undefined)])).toBe(false)
+  })
+})
+
+describe('verifyReviewStatus', () => {
+  it('reads a running attempt as in progress, whatever its outcome field says', () => {
+    expect(verifyReviewStatus({ status: 'running' })).toEqual({
+      tone: 'review',
+      label: 'Verifying…',
+    })
+  })
+
+  it('tones each settled outcome the way the sign-off does', () => {
+    expect(verifyReviewStatus({ status: 'done', outcome: 'passed' }).tone).toBe('done')
+    expect(verifyReviewStatus({ status: 'done', outcome: 'failed' })).toEqual({
+      tone: 'stuck',
+      label: 'Verify failed',
+    })
+    expect(verifyReviewStatus({ status: 'done', outcome: 'errored' }).tone).toBe('stuck')
+    expect(verifyReviewStatus({ status: 'done', outcome: 'unchecked' })).toEqual({
+      tone: 'review',
+      label: 'Not proven',
+    })
+  })
+})
+
+describe('the pipeline leaf model', () => {
+  const plan = {
+    definitionId: 'feature',
+    definitionScope: 'global' as const,
+    definitionVersion: 1,
+    name: 'Feature',
+    steps: [
+      { id: 'implement', name: 'Implement', kind: 'agent' as const, agentType: 'developer' },
+      { id: 'verify', name: 'Verify', kind: 'agent' as const, agentType: 'verifier' },
+    ],
+    loops: [],
+    frozenAt: 0,
+  }
+  const dev = {
+    id: 'implement-1',
+    stepId: 'implement',
+    iteration: 1,
+    status: 'done' as const,
+    startedAt: 0,
+    endedAt: 10,
+    runRef: { runId: 'dev-1', chatContextId: 'chat-dev' },
+  }
+  const ver = {
+    id: 'verify-1',
+    stepId: 'verify',
+    iteration: 1,
+    status: 'done' as const,
+    startedAt: 10,
+    endedAt: 20,
+    // A verifier ref can arrive without a chat key — its proof still opens.
+    runRef: { runId: 'ver-1' },
+  }
+  const r = run({ plan, ledger: [dev, ver] })
+
+  it('numbers an attempt only when the step ran more than once', () => {
+    expect(processAttemptLeaf(ver, 'Verify', { index: 3, total: 3 })?.title).toBe(
+      'Verify · attempt 3',
+    )
+    expect(processAttemptLeaf(ver, 'Verify', { index: 1, total: 1 })?.title).toBe('Verify')
+    expect(processAttemptLeaf(ver, 'Verify')).toMatchObject({
+      entryId: 'verify-1',
+      ref: { runId: 'ver-1' },
+    })
+    expect(processAttemptLeaf(undefined, 'Verify')).toBeUndefined()
+    expect(processAttemptLeaf({ ...ver, runRef: undefined }, 'Verify')).toBeUndefined()
+  })
+
+  it("reads a verify leaf's proof from the run as it is now", () => {
+    const leaf = processAttemptLeaf(ver, 'Verify')!
+    expect(processLeafReview(r, leaf)).toMatchObject({
+      scope: { reviewedRunId: 'dev-1', filedSince: 10, filedUntil: 20 },
+      entry: { id: 'verify-1' },
+    })
+    // Still running when opened, finished now: the live run wins.
+    const later = run({ plan, ledger: [dev, { ...ver, endedAt: 99 }] })
+    expect(processLeafReview(later, leaf)?.scope.filedUntil).toBe(99)
+  })
+
+  it('has no proof for a developer leaf or a leaf with no entry', () => {
+    expect(processLeafReview(r, processAttemptLeaf(dev, 'Implement')!)).toBeUndefined()
+    // A question leaf opened from a park carries no entry.
+    expect(processLeafReview(r, {})).toBeUndefined()
+    expect(processLeafReview(r, { entryId: 'gone' })).toBeUndefined()
+  })
+
+  it('opens a verify leaf even with no chat; any other only with a chat and a way to show it', () => {
+    const verLeaf = processAttemptLeaf(ver, 'Verify')
+    const devLeaf = processAttemptLeaf(dev, 'Implement')
+    expect(isProcessLeafOpenable(r, verLeaf, false)).toBe(true)
+    expect(isProcessLeafOpenable(r, devLeaf, true)).toBe(true)
+    expect(isProcessLeafOpenable(r, devLeaf, false)).toBe(false)
+    expect(isProcessLeafOpenable(r, { ...devLeaf!, ref: { runId: 'dev-1' } }, true)).toBe(false)
+    expect(isProcessLeafOpenable(r, undefined, true)).toBe(false)
+  })
+})
+
+describe('latestOpenableAttempt', () => {
+  const plan = {
+    definitionId: 'f',
+    definitionScope: 'global' as const,
+    definitionVersion: 1,
+    name: 'F',
+    steps: [
+      { id: 'implement', name: 'Implement', kind: 'agent' as const, agentType: 'developer' },
+      { id: 'verify', name: 'Verify', kind: 'agent' as const, agentType: 'verifier' },
+    ],
+    loops: [],
+    frozenAt: 0,
+  }
+  const dev = {
+    id: 'd1',
+    stepId: 'implement',
+    iteration: 1,
+    status: 'done' as const,
+    startedAt: 0,
+    endedAt: 5,
+    runRef: { runId: 'dev', chatContextId: 'c-dev' },
+  }
+  const v1 = {
+    id: 'v1',
+    stepId: 'verify',
+    iteration: 1,
+    status: 'done' as const,
+    outcome: 'failed' as const,
+    startedAt: 5,
+    endedAt: 9,
+    runRef: { runId: 'ver-1', chatContextId: 'c-v1' },
+  }
+  const v2NoRun = {
+    id: 'v2',
+    stepId: 'verify',
+    iteration: 2,
+    status: 'done' as const,
+    outcome: 'unchecked' as const,
+    startedAt: 10,
+    endedAt: 11,
+  }
+
+  it('opens the newest attempt when it has something to open', () => {
+    const v2 = { ...v2NoRun, runRef: { runId: 'ver-2', chatContextId: 'c-v2' } }
+    const r = run({ plan, ledger: [dev, v1, v2] })
+    expect(latestOpenableAttempt(r, [v1, v2], 'Verify', true)).toMatchObject({
+      entryId: 'v2',
+      title: 'Verify · attempt 2',
+    })
+  })
+
+  it('falls back to the newest attempt that DID attach a run — the proof stays reachable', () => {
+    const r = run({ plan, ledger: [dev, v1, v2NoRun] })
+    expect(latestOpenableAttempt(r, [v1, v2NoRun], 'Verify', false)).toMatchObject({
+      entryId: 'v1',
+      title: 'Verify · attempt 1',
+    })
+  })
+
+  it('is undefined when no attempt has anything to open', () => {
+    const r = run({ plan, ledger: [v2NoRun] })
+    expect(latestOpenableAttempt(r, [v2NoRun], 'Verify', true)).toBeUndefined()
+    expect(latestOpenableAttempt(r, [], 'Verify', true)).toBeUndefined()
   })
 })

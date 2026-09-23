@@ -362,10 +362,23 @@ export default function CliRunArtifactPanel({
       </div>
     )
   }
-  if (!artifact && !landFailure) return null
+  // A verifier / judge / capture run changes no files, so it has no emitted
+  // artifact — but it DID produce a verdict, checks and evidence. Report-only
+  // (process-owned) runs must still render that review surface, or opening one
+  // falls back to the raw transcript instead of the agreed report view.
+  const hasReviewContent =
+    verification !== undefined || checkRows.length > 0 || evidence.refs.length > 0
+  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
+  // A process step that EMITTED FILES is the developer (or any editing step): its
+  // job is to implement and HAND OFF, so its terminal view is a hand-off + its
+  // diff — not the review surface. The "what was checked" chips and the
+  // screens/report evidence are the VERIFIER's, filed against this run's id; they
+  // belong on the verifier's own report-only panel (a fileless process run), not
+  // stacked onto the developer's as a second "sign off".
+  const isHandoffRun = reportOnly && artifact !== undefined
   const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
   const appliedOk =
     !!applyResultData &&
@@ -659,11 +672,14 @@ export default function CliRunArtifactPanel({
               <div className="flex flex-col gap-2 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
                 <div className="flex flex-col gap-1">
                   <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
-                    This stage is finished here
+                    {isHandoffRun
+                      ? 'Implemented — handed to Verify'
+                      : 'This stage is finished here'}
                   </span>
                   <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
-                    This run is one step of a process. What it did and changed is shown below; its
-                    outcome and sign-off are decided in the pipeline, not here.
+                    {isHandoffRun
+                      ? 'This step wrote the change and handed it to the verifier. Its diff is below; whether it is proven is decided by Verify in the pipeline, not here.'
+                      : 'This run is one step of a process. What it did and changed is shown below; its outcome and sign-off are decided in the pipeline, not here.'}
                   </p>
                 </div>
                 {onBackToPipeline && processRunId ? (
@@ -713,58 +729,84 @@ export default function CliRunArtifactPanel({
               </div>
             ) : null}
 
-            {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
-            <div className="relative flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-                What was checked
-              </span>
-              <CheckChipRow
-                rows={methodRows}
-                branch={review?.branch}
-                busyId={busyMethod}
-                // Report-only: the evidence index stays readable, but running or
-                // requesting a check from here is not offered — verification is
-                // the process's own step.
-                canRequest={!reportOnly && onSendMessage !== undefined}
-                onOpenProof={setActiveTab}
-                onRun={reportOnly ? () => {} : runMethod}
-                onRequest={reportOnly ? () => {} : requestMethod}
-              />
-              {pendingHandoff ? (
-                // Anchored under the chips rather than centred over the panel:
-                // the confirm is asking about evidence that must stay readable
-                // while it is answered.
-                <div className="absolute left-0 top-full z-40 mt-2 flex w-[322px] max-w-[80vw] flex-col gap-2.5 rounded-lg border border-(--border-default) bg-(--surface-overlay) p-3 shadow-lg">
-                  <h4 className="m-0 text-[13px] font-semibold text-(--text-primary)">
-                    {pendingHandoff.request.title}
-                  </h4>
-                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
-                    {pendingHandoff.request.facts.map((fact) => (
-                      <div key={fact.label} className="contents">
-                        <dt className="text-(--text-muted)">{fact.label}</dt>
-                        <dd className="m-0 text-(--text-secondary)">{fact.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="m-0 text-[12px] text-(--text-muted)">
-                    {pendingHandoff.request.caveat}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={confirmHandoff}>
-                      Start
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setPendingHandoff(undefined)}>
-                      Not now
-                    </Button>
-                    <span className="ml-auto text-[11px] text-(--text-muted)">
-                      no “always allow”
-                    </span>
+            {/* What was checked — the index of evidence, and the only place to ask
+                for what has no tab. Hidden on a hand-off (developer) run: those
+                checks + screens are the VERIFIER's, filed against this run's id,
+                and belong on the verifier's panel, not the developer's. */}
+            {!isHandoffRun ? (
+              <div className="relative flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+                  What was checked
+                </span>
+                <CheckChipRow
+                  rows={methodRows}
+                  branch={review?.branch}
+                  busyId={busyMethod}
+                  // Report-only: the evidence index stays readable, but running or
+                  // requesting a check from here is not offered — verification is
+                  // the process's own step.
+                  canRequest={!reportOnly && onSendMessage !== undefined}
+                  onOpenProof={setActiveTab}
+                  onRun={reportOnly ? () => {} : runMethod}
+                  onRequest={reportOnly ? () => {} : requestMethod}
+                />
+                {pendingHandoff ? (
+                  // Anchored under the chips rather than centred over the panel:
+                  // the confirm is asking about evidence that must stay readable
+                  // while it is answered.
+                  <div className="absolute left-0 top-full z-40 mt-2 flex w-[322px] max-w-[80vw] flex-col gap-2.5 rounded-lg border border-(--border-default) bg-(--surface-overlay) p-3 shadow-lg">
+                    <h4 className="m-0 text-[13px] font-semibold text-(--text-primary)">
+                      {pendingHandoff.request.title}
+                    </h4>
+                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                      {pendingHandoff.request.facts.map((fact) => (
+                        <div key={fact.label} className="contents">
+                          <dt className="text-(--text-muted)">{fact.label}</dt>
+                          <dd className="m-0 text-(--text-secondary)">{fact.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p className="m-0 text-[12px] text-(--text-muted)">
+                      {pendingHandoff.request.caveat}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={confirmHandoff}>
+                        Start
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPendingHandoff(undefined)}
+                      >
+                        Not now
+                      </Button>
+                      <span className="ml-auto text-[11px] text-(--text-muted)">
+                        no “always allow”
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            ) : null}
 
-            {tabs.length > 0 ? (
+            {isHandoffRun ? (
+              // Developer hand-off: show ONLY its diff, not the verifier's review tabs.
+              <ChangesTab
+                review={review}
+                files={changeFiles}
+                commits={commits}
+                loading={review ? reviewLoading : previewLoading}
+                error={error}
+                onRetry={
+                  review && !reviewDiff && !reviewLoading
+                    ? () => void loadReviewDiff(!reportOnly)
+                    : !review && !preview && !previewLoading
+                      ? () => void loadPreview()
+                      : undefined
+                }
+                onOpenGit={onOpenGit}
+              />
+            ) : tabs.length > 0 ? (
               <div className="flex flex-col gap-2.5">
                 <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
                 {currentTab === 'screens' ? (

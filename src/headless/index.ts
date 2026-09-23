@@ -403,6 +403,9 @@ export {
   screenPairs,
   screenPairFileStem,
   fileNameSlug,
+  evidenceFiledWithin,
+  reviewerVerdict,
+  REVIEWER_VERDICT_LABEL,
 } from './utils/reviewEvidenceView'
 export type { DecisionExplainer } from './utils/checkMethodConstants'
 export type {
@@ -411,6 +414,7 @@ export type {
   EvidenceViewerImage,
   ScreenPair,
   ScreenPairClass,
+  EvidenceWindow,
 } from './utils/reviewEvidenceView'
 export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
 export { aggregateTestCounts, parseTestCounts, type TestCounts } from './utils/testCounts'
@@ -433,6 +437,8 @@ export { aggregateStoryVerdict, buildStorySignoff } from './utils/storySignoff'
 export type {
   BuildStorySignoffInput,
   FeatureSignoff,
+  OverallSignoff,
+  SignoffAgent,
   StoryDigest,
   StoryFeatureRef,
   StorySignoff,
@@ -1057,9 +1063,17 @@ export {
   processIterationBadge,
   processRunBadge,
   processRunCardView,
+  hasIsolatedAttempts,
+  verifyReviewStatus,
+  processAttemptLeaf,
+  processLeafReview,
+  isProcessLeafOpenable,
+  latestOpenableAttempt,
   type ProcessStatusTone,
   type ProcessNodeState,
   type ProcessRunCardView,
+  type VerifyReviewStatus,
+  type ProcessOpenLeaf,
 } from './utils/processView'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must
@@ -1072,10 +1086,12 @@ export {
   processParkChoices,
   processRunProgress,
   processStepStates,
+  processVerifyReview,
   stepChainSummary,
   type ProcessParkChoice,
   type ProcessStepState,
 } from 'thefactory-tools/utils'
+export type { ProcessVerifyReview } from 'thefactory-tools/types'
 export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {

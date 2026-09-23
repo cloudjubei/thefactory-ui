@@ -152,6 +152,26 @@ describe('startFeatureWorkGrantSummary', () => {
     expect(summary.runner).toBeUndefined()
   })
 
+  it('carries the flagged relevant-note ids so the dock can show them', () => {
+    const summary = startFeatureWorkGrantSummary(
+      grant({ detail: { args: { storyId: 's1', relevantNoteIds: ['n1', 'n2'] } } }),
+    )
+    expect(summary.relevantNoteIds).toEqual(['n1', 'n2'])
+  })
+
+  it('keeps only string ids and omits the field when none survive', () => {
+    // A different shape: a junky array must not reach the dock as ids.
+    const summary = startFeatureWorkGrantSummary(
+      grant({ detail: { args: { storyId: 's1', relevantNoteIds: [1, '', null, 'n3'] } } }),
+    )
+    expect(summary.relevantNoteIds).toEqual(['n3'])
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({ detail: { args: { storyId: 's1', relevantNoteIds: [] } } }),
+      ),
+    ).not.toHaveProperty('relevantNoteIds')
+  })
+
   it('drops empty strings', () => {
     const summary = startFeatureWorkGrantSummary(
       grant({ detail: { args: { storyId: '', note: '' } } }),

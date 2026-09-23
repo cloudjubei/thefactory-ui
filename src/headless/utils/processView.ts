@@ -7,9 +7,10 @@ import type {
   ProcessStep,
   ProcessStepKind,
   ProcessStepOutcome,
+  ProcessVerifyReview,
 } from 'thefactory-tools/types'
 import type { ProcessStepState } from 'thefactory-tools/utils'
-import { processRunProgress, processStepStates } from 'thefactory-tools/utils'
+import { processRunProgress, processStepStates, processVerifyReview } from 'thefactory-tools/utils'
 
 /**
  * How a process reads on screen — shared by the `web/` and `native/` peers so
@@ -324,16 +325,18 @@ export function processEntryDurationLabel(
 /**
  * The "attempt N of M" badge for a node — shown ONLY once a loop has actually
  * fired (more than one attempt), because a "1 of 3" on every step is noise that
- * hides the one node that really did retry. M is the plan's own retry cap.
+ * hides the one node that really did retry. M is the plan's retry cap plus any
+ * extra attempts the user granted at an exhausted loop, as the driver counts it.
  */
 export function processIterationBadge(
   attempts: number,
-  plan: Pick<ProcessPlan, 'loops'>,
+  run: { plan: Pick<ProcessPlan, 'loops'> } & Pick<ProcessRun, 'iterationGrants'>,
 ): string | undefined {
   if (attempts <= 1) return undefined
   let cap: number | undefined
-  for (const loop of plan.loops) {
-    if (cap === undefined || loop.maxIterations > cap) cap = loop.maxIterations
+  for (const loop of run.plan.loops) {
+    const allowed = loop.maxIterations + (run.iterationGrants?.[loop.id] ?? 0)
+    if (cap === undefined || allowed > cap) cap = allowed
   }
   return cap === undefined ? `attempt ${attempts}` : `attempt ${attempts} of ${cap}`
 }
@@ -412,4 +415,115 @@ export function processRunCardView(run: ProcessRun): ProcessRunCardView {
     sub: current ? current.step.name : `${completed}/${total} steps`,
     cta,
   }
+}
+
+/**
+ * Whether a step's attempts are separate agent runs, each with its own chat.
+ *
+ * Only then do per-attempt chips open anything different. A developer's fix
+ * loop RESUMES one chat, so its three attempts are one conversation — chips for
+ * it would all open the same place. A verifier runs fresh every time, so each
+ * attempt is its own chat worth opening. Attempts that have not attached a chat
+ * yet are left out rather than counted as different.
+ */
+export function hasIsolatedAttempts(
+  entries: readonly Pick<ProcessLedgerEntry, 'runRef'>[],
+): boolean {
+  const chats = entries
+    .map((e) => e.runRef?.chatContextId)
+    .filter((c): c is string => c !== undefined)
+  return chats.length >= 2 && new Set(chats).size === chats.length
+}
+
+/** A verify attempt's headline, toned the way the sign-off tones a section. */
+export type VerifyReviewStatus = { tone: 'done' | 'review' | 'stuck'; label: string }
+
+/** What a verify attempt came to, in the sign-off's words. */
+export function verifyReviewStatus(
+  entry: Pick<ProcessLedgerEntry, 'status' | 'outcome'>,
+): VerifyReviewStatus {
+  if (entry.status === 'running') return { tone: 'review', label: 'Verifying…' }
+  switch (entry.outcome) {
+    case 'passed':
+      return { tone: 'done', label: 'Verify passed' }
+    case 'failed':
+      return { tone: 'stuck', label: 'Verify failed' }
+    case 'errored':
+      return { tone: 'stuck', label: 'Verify errored' }
+    case 'question':
+      return { tone: 'review', label: 'Waiting on a question' }
+    case 'skipped':
+      return { tone: 'review', label: 'Skipped' }
+    default:
+      return { tone: 'review', label: 'Not proven' }
+  }
+}
+
+/** A leaf opened from the pipeline: the run it owns, what to call it, and its ledger entry. */
+export type ProcessOpenLeaf = {
+  ref: ProcessNodeRunRef
+  title: string
+  /** The attempt it came from — lets its verify proof be re-read live as the run moves. */
+  entryId?: string
+}
+
+/**
+ * The leaf for one attempt of a step, or `undefined` when it has no run to open.
+ * Numbered only when the step ran more than once.
+ */
+export function processAttemptLeaf(
+  entry: ProcessLedgerEntry | undefined,
+  stepName: string,
+  attempt?: { index: number; total: number },
+): ProcessOpenLeaf | undefined {
+  if (!entry?.runRef) return undefined
+  return {
+    ref: entry.runRef,
+    title: attempt && attempt.total > 1 ? `${stepName} · attempt ${attempt.index}` : stepName,
+    entryId: entry.id,
+  }
+}
+
+/** A verify leaf's proof, read from the run as it is NOW — not as it was when opened. */
+export function processLeafReview(
+  run: Pick<ProcessRun, 'ledger' | 'plan'>,
+  leaf: Pick<ProcessOpenLeaf, 'entryId'>,
+): { scope: ProcessVerifyReview; entry: ProcessLedgerEntry } | undefined {
+  if (leaf.entryId === undefined) return undefined
+  const entry = run.ledger.find((e) => e.id === leaf.entryId)
+  if (!entry) return undefined
+  const scope = processVerifyReview(run, entry)
+  return scope ? { scope, entry } : undefined
+}
+
+/**
+ * Whether a leaf opens: a verify attempt always does (its proof renders in
+ * place), any other only when there is a chat to open and a way to show it.
+ */
+export function isProcessLeafOpenable(
+  run: Pick<ProcessRun, 'ledger' | 'plan'>,
+  leaf: ProcessOpenLeaf | undefined,
+  canOpenTranscript: boolean,
+): leaf is ProcessOpenLeaf {
+  if (!leaf) return false
+  if (processLeafReview(run, leaf)) return true
+  return canOpenTranscript && leaf.ref.chatContextId !== undefined
+}
+
+/**
+ * The newest attempt of a step that has something to open. A retry that never
+ * attached a run (the reviewer could not start) must not make the step's earlier,
+ * real attempt unreachable behind a dead "open".
+ */
+export function latestOpenableAttempt(
+  run: Pick<ProcessRun, 'ledger' | 'plan'>,
+  entries: readonly ProcessLedgerEntry[],
+  stepName: string,
+  canOpenTranscript: boolean,
+): ProcessOpenLeaf | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const leaf = processAttemptLeaf(entries[i], stepName, { index: i + 1, total: entries.length })
+    if (isProcessLeafOpenable(run, leaf, canOpenTranscript)) return leaf
+  }
+  return undefined
 }

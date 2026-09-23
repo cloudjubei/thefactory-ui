@@ -31,7 +31,14 @@ export type UseReviewEvidence = {
   refs: ReviewEvidenceRef[]
   /** Renderable tiles; an image's `dataUri` fills in once it has been requested. */
   tiles: EvidenceTile[]
+  /** A load is in flight — including the live re-pulls every run/chat event triggers. */
   loading: boolean
+  /**
+   * The first load for THIS query has finished. Unlike `loading` it stays true
+   * through live re-pulls, so a view can show "loading" once rather than
+   * flickering back to it on every event while nothing has been filed yet.
+   */
+  loaded: boolean
   error: string | undefined
   /**
    * Ask for one image's bytes to be decoded into the cache.
@@ -69,6 +76,7 @@ export function useReviewEvidence(
   const [images, setImages] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const epochRef = useRef(0)
   // An id is requested at most once per hook instance — its bytes never change,
@@ -125,6 +133,7 @@ export function useReviewEvidence(
       setImages({})
       setNotes({})
       requestedRef.current = new Set()
+      setLoaded(true)
       return
     }
     const epoch = ++epochRef.current
@@ -167,7 +176,10 @@ export function useReviewEvidence(
     } catch (err: unknown) {
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
     } finally {
-      if (epoch === epochRef.current) setLoading(false)
+      if (epoch === epochRef.current) {
+        setLoading(false)
+        setLoaded(true)
+      }
     }
     // `notes` is read only to skip an already-loaded note; keying the callback on
     // it would rebuild (and refire) the loader on every note that lands.
@@ -175,6 +187,7 @@ export function useReviewEvidence(
   }, [projectId, runId, storyId, featureId])
 
   useEffect(() => {
+    setLoaded(false)
     void reload()
     return () => {
       // Invalidate in-flight loads so a late response cannot write decoded
@@ -211,5 +224,5 @@ export function useReviewEvidence(
     [refs, images, notes],
   )
 
-  return { refs, tiles, loading, error, requestImage, loadImage, reload }
+  return { refs, tiles, loading, loaded, error, requestImage, loadImage, reload }
 }

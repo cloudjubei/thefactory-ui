@@ -1,10 +1,15 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import {
   formatProcessDuration,
+  hasIsolatedAttempts,
+  isProcessLeafOpenable,
   isReflectedPark,
+  latestOpenableAttempt,
   parkedRunRef,
   processEntryDurationLabel,
+  processAttemptLeaf,
   processIterationBadge,
+  processLeafReview,
   processNodeGlyph,
   processNodeState,
   processNodeTone,
@@ -12,10 +17,13 @@ import {
   processRunBadge,
   processRunSpend,
   processStepStates,
+  processStepTone,
   useAppSettings,
+  useDurationTimer,
   useProcessRun,
   type ProcessNodeRunRef,
   type ProcessNodeState,
+  type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
@@ -23,9 +31,23 @@ import {
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
+import SegmentedControl from '../../primitives/SegmentedControl'
+import { IconChevronLeft } from '../../icons'
+import { CHIP_PILL_NEUTRAL } from '../chips/pillStyles'
+import { DURATION_CHIP_CLASS } from '../chat/ToolCall/StatusIcon'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
+import VerificationReview from './VerificationReview'
 import type { ProcessRunBranch } from '../../../headless'
+
+/** A run's live elapsed ms — ticks while running, freezes at `updatedAt` once terminal. */
+function liveDurMs(
+  run: Pick<ProcessRun, 'status' | 'updatedAt' | 'startedAt' | 'parkedMs'>,
+  now: number,
+): number {
+  const end = run.status === 'running' ? now : run.updatedAt
+  return Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
+}
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -36,6 +58,15 @@ export type ProcessPipelineProps = {
    * knows how to open one.
    */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /**
+   * Render a leaf's agent-run chat INSIDE the pipeline (a drill-down), rather
+   * than handing off to a Chat route. When provided it wins over
+   * `onOpenAgentRun`: opening a leaf swaps the pipeline body for a drill with a
+   * "← Pipeline" head and this content below it. `onBack` returns to the spine —
+   * hand it to anything in the content that offers the way back. The host owns
+   * the render because the chat body lives in the client layer.
+   */
+  renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
 }
 
 /**
@@ -46,12 +77,20 @@ export type ProcessPipelineProps = {
  * a transcript buries — is exactly what the spine shows. The chat that a leaf
  * owns is still one click away, one level down.
  *
- * Drilling into a nested node stays inside this component with a breadcrumb;
- * only a LEAF hands off, to the chat it owns. Depth is capped at three by the
- * model itself — a leaf never contains another pipeline.
+ * Drilling into a nested node stays inside this component with a breadcrumb,
+ * and so does opening a LEAF: a verify attempt opens as its small sign-off (the
+ * verdict and the proof it rests on), any other leaf as its chat, under one
+ * "← Pipeline" head. Depth is capped at three by the model itself — a leaf never
+ * contains another pipeline.
  */
-export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipelineProps) {
+export default function ProcessPipeline({
+  runId,
+  onOpenAgentRun,
+  renderAgentRun,
+}: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
+  const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
+  const [leafView, setLeafView] = useState<'review' | 'transcript'>('review')
   const currentId = stack[stack.length - 1] ?? runId
   const { isLoaded, loadError, run, resume, cancel, listBranches, deleteRun } =
     useProcessRun(currentId)
@@ -66,8 +105,34 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
-  const drillTo = useCallback((childId: string) => setStack((s) => [...s, childId]), [])
-  const popTo = useCallback((depth: number) => setStack((s) => s.slice(0, depth)), [])
+  // One 1s clock for the whole pipeline — ticks while the run is live so every
+  // step's elapsed advances in real time, freezes the moment it goes terminal.
+  const now = useDurationTimer(run?.status === 'running' || run?.status === 'pending')
+
+  const drillTo = useCallback((childId: string) => {
+    setOpenLeaf(null)
+    setStack((s) => [...s, childId])
+  }, [])
+  const popTo = useCallback((depth: number) => {
+    setOpenLeaf(null)
+    setStack((s) => s.slice(0, depth))
+  }, [])
+
+  // A leaf opens IN PLACE: a verify attempt as its small sign-off (verdict +
+  // the proof it rests on), any other leaf as its chat when the host renders
+  // one. Only with neither does it hand off to the host's route.
+  const canOpenTranscript = renderAgentRun !== undefined || onOpenAgentRun !== undefined
+  const openLeafHere = useCallback(
+    (leaf: ProcessOpenLeaf, hasReview: boolean) => {
+      if (hasReview || renderAgentRun) {
+        setOpenLeaf(leaf)
+        setLeafView(hasReview ? 'review' : 'transcript')
+        return
+      }
+      onOpenAgentRun?.(leaf.ref)
+    },
+    [renderAgentRun, onOpenAgentRun],
+  )
 
   const openDelete = useCallback(() => {
     setAlsoBranches(false)
@@ -99,12 +164,45 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
   if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
+  if (openLeaf) {
+    const back = () => setOpenLeaf(null)
+    const review = processLeafReview(run, openLeaf)
+    const showReview = review !== undefined && leafView === 'review'
+    const hasTranscript = openLeaf.ref.chatContextId !== undefined && canOpenTranscript
+    const pickView = (view: 'review' | 'transcript') => {
+      // Without an in-place renderer the transcript lives on the host's route.
+      if (view === 'transcript' && !renderAgentRun) onOpenAgentRun?.(openLeaf.ref)
+      else setLeafView(view)
+    }
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <LeafHead
+          title={openLeaf.title}
+          onBack={back}
+          {...(review && hasTranscript ? { view: leafView, onView: pickView } : {})}
+        />
+        {showReview ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <VerificationReview
+              projectId={run.projectId}
+              review={review.scope}
+              entry={review.entry}
+              title={openLeaf.title}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col">{renderAgentRun?.(openLeaf.ref, back)}</div>
+        )}
+      </div>
+    )
+  }
+
   const states = processStepStates(run)
-  const now = Date.now()
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       <RunHead
+        now={now}
         run={run}
         depth={stack.length}
         onCrumb={popTo}
@@ -123,7 +221,8 @@ export default function ProcessPipeline({ runId, onOpenAgentRun }: ProcessPipeli
             now={now}
             onChoose={(choice, note) => void resume(choice, note)}
             onDrill={drillTo}
-            {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+            onOpenLeaf={openLeafHere}
+            canOpenTranscript={canOpenTranscript}
           />
         ))}
       </ol>
@@ -212,12 +311,15 @@ function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: stri
 function RunHead({
   run,
   depth,
+  now,
   onCrumb,
   onCancel,
   onDelete,
 }: {
   run: ProcessRun
   depth: number
+  /** The pipeline's live clock — so a running run's elapsed ticks in the head. */
+  now: number
   onCrumb: (depth: number) => void
   onCancel: () => void
   /** Delete the WHOLE run — offered only at the top level (not a drilled child). */
@@ -226,7 +328,7 @@ function RunHead({
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
   // Elapsed EXCLUDES parked time — a run does not age while it waits on a person.
-  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const durMs = liveDurMs(run, now)
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5">
@@ -261,14 +363,13 @@ function RunHead({
       </nav>
       <span className="grow" />
       <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
-      <span className="text-[11px] tabular-nums text-(--text-muted)">
-        {formatProcessDuration(durMs)}
-      </span>
+      <span className={DURATION_CHIP_CLASS}>{formatProcessDuration(durMs)}</span>
       {spend ? (
         <span
-          className="text-[11px] tabular-nums text-(--text-muted)"
+          className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}
           title="Spent against the cap"
         >
+          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
           {spend.label}
         </span>
       ) : null}
@@ -340,7 +441,8 @@ function PipelineNode({
   now,
   onChoose,
   onDrill,
-  onOpenAgentRun,
+  onOpenLeaf,
+  canOpenTranscript,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
@@ -349,25 +451,32 @@ function PipelineNode({
   now: number
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onDrill: (childRunId: string) => void
-  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
+  canOpenTranscript: boolean
 }) {
   const parkStepId = run.park?.stepId
   const nodeState = processNodeState(state, parkStepId)
   const glyph = processNodeGlyph(nodeState, ordinal)
   const childRunId = state.latest?.childRunId
-  const runRef = state.latest?.runRef
   const isFeature = state.step.kind === 'process'
   const isAgent = state.step.kind === 'agent'
+  const total = state.entries.length
+  const leafAt = (index: number) =>
+    processAttemptLeaf(state.entries[index], state.step.name, { index: index + 1, total })
+  const openAttempt = (index: number) => {
+    const leaf = leafAt(index)
+    // Only openable when there is something to show: a dead "open ›" that goes
+    // nowhere is worse than none.
+    if (!isProcessLeafOpenable(run, leaf, canOpenTranscript)) return undefined
+    return () => onOpenLeaf(leaf, processLeafReview(run, leaf) !== undefined)
+  }
+  const latest = latestOpenableAttempt(run, state.entries, state.step.name, canOpenTranscript)
   const open = childRunId
     ? () => onDrill(childRunId)
-    : // Only offer "open ›" when the leaf's run actually has a chat to open.
-      // A verifier leaf attaches a runRef WITHOUT a chatContextId, so guarding on
-      // the ref alone (as before) left a dead button that navigated nowhere —
-      // the same guard `parkedRunRef` already applies.
-      runRef?.chatContextId && onOpenAgentRun
-      ? () => onOpenAgentRun(runRef)
+    : latest
+      ? () => onOpenLeaf(latest, processLeafReview(run, latest) !== undefined)
       : undefined
-  const iteration = processIterationBadge(state.attempts, run.plan)
+  const iteration = processIterationBadge(state.attempts, run)
   const duration = processEntryDurationLabel(state.latest, now)
   // The active feature node shows its child pipeline inline — expanded when the
   // run is on it (running or parked), collapsed (and drillable) otherwise.
@@ -426,6 +535,37 @@ function PipelineNode({
           </div>
         ) : null}
 
+        {/* A fix loop runs an agent step several times; the button above opens the
+            LATEST. Earlier attempts get chips only when each is its OWN run — a
+            verifier starts fresh every time, while a developer's fix loop resumes
+            one chat, so chips for it would all open the same place. */}
+        {isAgent && hasIsolatedAttempts(state.entries) ? (
+          <div className="flex flex-wrap items-center gap-1.5 px-1.5 pt-1">
+            <span className="text-[10.5px] text-(--text-muted)">Attempts</span>
+            {state.entries.map((e, i) => {
+              const openThis = openAttempt(i)
+              const tone = processStepTone(e.status === 'running' ? 'running' : 'done', e.outcome)
+              return (
+                <button
+                  key={e.id ?? i}
+                  type="button"
+                  disabled={!openThis}
+                  onClick={openThis}
+                  title={e.summary ?? e.outcome ?? `Attempt ${i + 1}`}
+                  className="inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums enabled:hover:brightness-105 disabled:opacity-60"
+                  style={{
+                    background: `var(--status-${tone}-soft-bg)`,
+                    color: `var(--status-${tone}-soft-fg)`,
+                    border: `1px solid var(--status-${tone}-soft-border)`,
+                  }}
+                >
+                  #{i + 1}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
         {expanded && childRunId ? <InlineSubSteps childRunId={childRunId} now={now} /> : null}
 
         {parked ? (
@@ -433,11 +573,57 @@ function PipelineNode({
             run={run}
             onChoose={onChoose}
             onDrill={onDrill}
-            {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+            {...(canOpenTranscript
+              ? {
+                  onOpenAsked: (ref: ProcessNodeRunRef) =>
+                    onOpenLeaf({ ref, title: `${state.step.name} · question` }, false),
+                }
+              : {})}
           />
         ) : null}
       </div>
     </li>
+  )
+}
+
+/**
+ * The head of an opened leaf: the ONE way back to the spine, the leaf's name,
+ * and — for a verify attempt — the switch between its proof and its transcript.
+ */
+function LeafHead({
+  title,
+  onBack,
+  view,
+  onView,
+}: {
+  title: string
+  onBack: () => void
+  view?: 'review' | 'transcript'
+  onView?: (view: 'review' | 'transcript') => void
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
+      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 pl-1.5">
+        <IconChevronLeft className="h-4 w-4" />
+        Pipeline
+      </Button>
+      <span className="min-w-0 truncate text-[13px] font-medium text-(--text-primary)">
+        {title}
+      </span>
+      {view && onView ? (
+        <SegmentedControl
+          className="ml-auto"
+          size="sm"
+          ariaLabel="What to show for this attempt"
+          value={view}
+          onChange={(v) => onView(v === 'transcript' ? 'transcript' : 'review')}
+          options={[
+            { value: 'review', label: 'Review' },
+            { value: 'transcript', label: 'Transcript' },
+          ]}
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -491,7 +677,7 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
       {states.map((s) => {
         const st = processNodeState(s, child.park?.stepId)
         const dur = processEntryDurationLabel(s.latest, now)
-        const iter = processIterationBadge(s.attempts, child.plan)
+        const iter = processIterationBadge(s.attempts, child)
         return (
           <div
             key={s.step.id}
@@ -541,12 +727,13 @@ function SubDot({ nodeState }: { nodeState: ProcessNodeState }) {
 function ParkBlock({
   run,
   onChoose,
-  onOpenAgentRun,
+  onOpenAsked,
   onDrill,
 }: {
   run: ProcessRun
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
-  onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /** Open the run that asked the question, to answer it in its chat. */
+  onOpenAsked?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
 }) {
   const park = run.park
@@ -557,6 +744,23 @@ function ParkBlock({
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
   const isSignoffGate = park.reason === 'gate' && !!run.storyId
+
+  // The story sign-off owns its own panel (head + verdict + digest + sections +
+  // decide bar). Hand it the gate's choices so its decide bar acts on the whole
+  // story, and drop the outer park chrome that would frame it twice.
+  if (isSignoffGate) {
+    return (
+      <div className="mt-2">
+        <StorySignoffReview
+          projectId={run.projectId}
+          storyId={run.storyId as string}
+          choices={processParkChoices(park.reason, { reflected })}
+          onChoose={onChoose}
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       className="mt-2 flex flex-col gap-2 rounded-lg p-3"
@@ -568,9 +772,6 @@ function ParkBlock({
       <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
         {park.message}
       </div>
-      {isSignoffGate ? (
-        <StorySignoffReview projectId={run.projectId} storyId={run.storyId as string} />
-      ) : null}
       {reflected && park.childRunId ? (
         <button
           type="button"
@@ -580,11 +781,11 @@ function ParkBlock({
           Open the nested run to decide →
         </button>
       ) : null}
-      {asked && onOpenAgentRun ? (
+      {asked && onOpenAsked ? (
         <button
           type="button"
           className="self-start text-[11px] underline text-(--text-secondary)"
-          onClick={() => onOpenAgentRun(asked)}
+          onClick={() => onOpenAsked(asked)}
         >
           Open the run to answer →
         </button>

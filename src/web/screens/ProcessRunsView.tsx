@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import {
   formatProcessDuration,
   processRunCardView,
+  processRunSpend,
+  useDurationTimer,
   useProcessRuns,
   type ProcessNodeRunRef,
   type ProcessRun,
@@ -11,6 +13,8 @@ import {
 import SegmentedControl from '../primitives/SegmentedControl'
 import Tooltip from '../primitives/Tooltip'
 import { IconSettings, IconWorkflow } from '../icons'
+import { CHIP_PILL_NEUTRAL } from '../compound/chips/pillStyles'
+import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
 
 export type ProcessRunsViewProps = {
@@ -24,6 +28,11 @@ export type ProcessRunsViewProps = {
   onOpenSettings: () => void
   /** A leaf hands off to its agent-run chat — threaded to the pipeline. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /**
+   * Render a leaf's agent-run chat inside the pipeline (drill-down) rather than
+   * routing away — threaded to the pipeline, where it wins over `onOpenAgentRun`.
+   */
+  renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /**
    * Collapse to one pane at a time (small screens): the list, or the detail when
    * a run is selected. A big-screen host omits it and keeps both panes.
@@ -46,6 +55,7 @@ export default function ProcessRunsView({
   onSelectRun,
   onOpenSettings,
   onOpenAgentRun,
+  renderAgentRun,
   narrow = false,
 }: ProcessRunsViewProps) {
   const { isLoaded, current, history } = useProcessRuns(projectId)
@@ -59,6 +69,11 @@ export default function ProcessRunsView({
   )
   const [mode, setMode] = useModeForSelection(selectedIsHistory)
   const rows = mode === 'current' ? current : history
+  // One clock for the whole list — ticks while any current run is live so its
+  // row's elapsed advances; history rows are terminal and ignore it.
+  const now = useDurationTimer(
+    current.some((r) => r.status === 'running' || r.status === 'pending'),
+  )
 
   const sidebar = (
     <div
@@ -106,6 +121,7 @@ export default function ProcessRunsView({
               <li key={run.id}>
                 <RunRow
                   run={run}
+                  now={now}
                   selected={run.id === selectedRunId}
                   onClick={() => onSelectRun(run.id)}
                 />
@@ -119,7 +135,14 @@ export default function ProcessRunsView({
 
   const detail = selectedRunId ? (
     <div className="h-full min-h-0 flex-1 overflow-y-auto">
-      <ProcessPipeline runId={selectedRunId} {...(onOpenAgentRun ? { onOpenAgentRun } : {})} />
+      <ProcessPipeline
+        // A different run is a different pipeline: an opened leaf or a drill into
+        // run A must not carry over into run B's pane.
+        key={selectedRunId}
+        runId={selectedRunId}
+        {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+        {...(renderAgentRun ? { renderAgentRun } : {})}
+      />
     </div>
   ) : (
     <EmptyDetail />
@@ -137,15 +160,20 @@ export default function ProcessRunsView({
 
 function RunRow({
   run,
+  now,
   selected,
   onClick,
 }: {
   run: ProcessRun
+  /** The list's live clock — a running row's elapsed ticks against it. */
+  now: number
   selected: boolean
   onClick: () => void
 }) {
   const view = processRunCardView(run)
-  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const spend = processRunSpend(run)
+  const end = run.status === 'running' ? now : run.updatedAt
+  const durMs = Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
   return (
     <button
       type="button"
@@ -162,11 +190,9 @@ function RunRow({
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
           {view.title}
         </span>
-        <span className="shrink-0 text-[10px] tabular-nums text-(--text-muted)">
-          {formatProcessDuration(durMs)}
-        </span>
+        <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{formatProcessDuration(durMs)}</span>
       </div>
-      <div className="flex items-center gap-2 pl-4">
+      <div className="flex flex-wrap items-center gap-2 pl-4">
         <span
           className="rounded-full px-1.5 py-px text-[9.5px]"
           style={{
@@ -176,7 +202,15 @@ function RunRow({
         >
           {view.badge.label}
         </span>
-        <span className="min-w-0 truncate text-[11px] text-(--text-secondary)">{view.sub}</span>
+        {spend ? (
+          <span className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}>
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+            {spend.label}
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1 truncate text-[11px] text-(--text-secondary)">
+          {view.sub}
+        </span>
       </div>
     </button>
   )

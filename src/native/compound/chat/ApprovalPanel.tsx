@@ -16,7 +16,7 @@ import {
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
-import { useProcessProposal, useStories } from '../../../headless'
+import { useProcessProposal, useProjectNotes, useStories } from '../../../headless'
 import type { PendingToolGrant } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
@@ -52,6 +52,15 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
   const canGrantPermanently =
     !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
   const { getStory, resolveDependency } = useStories()
+  // The notes this launch will point the run at — resolved to labels so the user
+  // sees which stored notes (a login, a key) the run may read before approving.
+  const flaggedNoteIds = summary.relevantNoteIds ?? []
+  const { notes: projectNotes } = useProjectNotes(
+    isLaunch && flaggedNoteIds.length > 0 ? projectId : undefined,
+  )
+  const flaggedNotes = flaggedNoteIds.map(
+    (id) => projectNotes.find((n) => n.id === id) ?? { id, label: id, kind: 'note' as const },
+  )
   // Only a CLI decision carries metadata to the launch; on the API transport the
   // agent's own arguments are what runs, so the options are shown, not offered.
   const optionsHonoured = launchOptionsAreHonoured(grant)
@@ -555,6 +564,55 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
               {summary.note}
             </Text>
           ) : null}
+        </View>
+      ) : null}
+
+      {flaggedNotes.length > 0 ? (
+        // Which stored notes this launch lets the run read (a login, a key).
+        // Read-only; approving sanctions the run to read them even if 'ask'.
+        // Labels only — never a value.
+        <View style={{ gap: 4 }}>
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              color: theme.text.muted,
+            }}
+          >
+            Notes this run will use
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {flaggedNotes.map((n) => (
+              <View
+                key={n.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: nativeRadii.round,
+                  borderWidth: 1,
+                  borderColor: theme.border.default,
+                  backgroundColor: theme.surface.base,
+                }}
+              >
+                <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{n.label}</Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.4,
+                    color: theme.text.muted,
+                  }}
+                >
+                  {n.kind}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
 

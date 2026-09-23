@@ -1159,6 +1159,7 @@ export type CompletionUserMessage = {
   durationMs: number
   files?: Array<string>
   images?: Array<CompletionImage>
+  handoffFrom?: string
 }
 
 export type CompletionUsage = {
@@ -2978,6 +2979,15 @@ export type CliRunApproveResult = {
     }
   }
 }
+
+export type IdleWatchdogResult =
+  | {
+      kind: 'exited'
+      exitCode: number
+    }
+  | {
+      kind: 'idle-timeout'
+    }
 
 export type CodexResidentProtocolOptions = {
   cwd: string
@@ -5419,6 +5429,7 @@ export type ImageDiffResult = {
 export type ImageDiffOptions = {
   threshold?: number
   includeAntiAliased?: boolean
+  ignoreTopPx?: number
 }
 
 export type InferenceRequest = {
@@ -5965,6 +5976,7 @@ export type SwipeMobileOptions = {
 
 export type CreateMobileTestToolsOptions = {
   commandTimeoutMs?: number
+  statusBarSettleMs?: number
 }
 
 export type MobileSessionEntry = {
@@ -7579,11 +7591,49 @@ export type EnrichProductResult = {
   item: CatalogItem | unknown
 }
 
+export type CheckDrillTrace = {
+  ownHost: string
+  query: string
+  gatheredHosts: Array<string>
+  extractedMaterials: Array<{
+    name: string
+    source: string
+  }>
+  reason:
+    | 'no-query'
+    | 'no-evidence'
+    | 'no-match'
+    | 'not-belong'
+    | 'no-materials'
+    | 'folded'
+    | 'error'
+}
+
 export type CheckProductResult = {
   key: string
   added: boolean
   matchedExisting: boolean
   item: CatalogItem | unknown
+  timings?: {
+    [key: string]: number
+  }
+  drillTrace?: {
+    ownHost: string
+    query: string
+    gatheredHosts: Array<string>
+    extractedMaterials: Array<{
+      name: string
+      source: string
+    }>
+    reason:
+      | 'no-query'
+      | 'no-evidence'
+      | 'no-match'
+      | 'not-belong'
+      | 'no-materials'
+      | 'folded'
+      | 'error'
+  }
 }
 
 export type FindMoreProductsResult = {
@@ -8060,6 +8110,8 @@ export type ReplayLog = {
 
 export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
 
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+
 export type ReviewEvidenceScope = {
   runId: string
   projectId: string
@@ -8074,6 +8126,7 @@ export type ReviewEvidenceComparison = {
   identical: boolean
   resized: boolean
   unavailable?: string
+  beforeId?: string
 }
 
 export type ReviewEvidenceRef = {
@@ -8096,11 +8149,30 @@ export type ReviewEvidenceRef = {
     identical: boolean
     resized: boolean
     unavailable?: string
+    beforeId?: string
   }
+  chromeTopPx?: number
+  matchesBeforeIds?: Array<string>
   inline?: boolean
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
   mediaType: string
   bytes: number
   createdAt: number
+}
+
+export type VisualProofAssessment = {
+  pairs: number
+  provenPairs: number
+  identicalPairs: number
+  newSurfaces: number
+  lookalikeSurfaces: number
+  hasProof: boolean
+}
+
+export type ReviewEvidenceCaptureDescription = {
+  capturedOn?: string
+  chromeTopPx?: number
 }
 
 export type ReviewEvidenceQuery = {
@@ -8126,6 +8198,8 @@ export type RecordReviewEvidenceInput = {
   subject?: string
   approach?: string
   capturedOn?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+  verdictReason?: string
 }
 
 export type NetworkSpec =
@@ -8564,6 +8638,7 @@ export type ToolName =
   | 'resetSettingsPrompt'
   | 'startCliAgentRun'
   | 'getCliAgentRun'
+  | 'deleteCliAgentRun'
   | 'linkReviewRun'
   | 'recycleCliAgentSessions'
   | 'listCliAgentRuns'
@@ -8922,6 +8997,7 @@ export type ToolName =
   | 'validateProcess'
   | 'getProcessRun'
   | 'listProcessRuns'
+  | 'deleteProcessRun'
   | 'getRunDiagnostics'
 
 export type ValidationResult = {
@@ -9415,7 +9491,13 @@ export type ProcessPark = {
   childRunId?: string
 }
 
-export type ProcessResumeChoice = 'continue' | 'retry' | 'abandon' | 'approve' | 'reject'
+export type ProcessResumeChoice =
+  | 'continue'
+  | 'retry'
+  | 'abandon'
+  | 'approve'
+  | 'request-changes'
+  | 'reject'
 
 export type ProcessRunStatus =
   | 'pending'
@@ -9631,6 +9713,7 @@ export type ProcessStepState = {
     startedAt: number
     endedAt?: number
   }
+  entries: Array<ProcessLedgerEntry>
   current: boolean
 }
 
@@ -11855,7 +11938,7 @@ export type GetRunDiagnosticsResponse = GetRunDiagnosticsResponses[keyof GetRunD
 
 export type ResumeProcessRunData = {
   body: {
-    choice: 'continue' | 'retry' | 'abandon' | 'approve' | 'reject'
+    choice: 'continue' | 'retry' | 'abandon' | 'approve' | 'request-changes' | 'reject'
     note?: string
   }
   path: {

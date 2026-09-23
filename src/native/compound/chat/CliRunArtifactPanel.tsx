@@ -340,10 +340,20 @@ export default function CliRunArtifactPanel({
       </Text>
     )
   }
-  if (!artifact && !landFailure) return null
+  // A verifier / judge / capture run changes no files, so it has no emitted
+  // artifact — but it DID produce a verdict, checks and evidence. Report-only
+  // (process-owned) runs must still render that review surface, or opening one
+  // falls back to the raw transcript instead of the agreed report view.
+  const hasReviewContent =
+    verification !== undefined || checkRows.length > 0 || evidence.refs.length > 0
+  if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
+  // A process step that emitted files is the developer/editing step: its terminal
+  // view is a hand-off + its diff, not the verifier's review surface (see the web
+  // peer for the full rationale).
+  const isHandoffRun = reportOnly && artifact !== undefined
   const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
   const appliedOk =
     !!applyResultData &&
@@ -686,11 +696,14 @@ export default function CliRunArtifactPanel({
               >
                 <View style={{ gap: 3 }}>
                   <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.review.softFg }}>
-                    This stage is finished here
+                    {isHandoffRun
+                      ? 'Implemented — handed to Verify'
+                      : 'This stage is finished here'}
                   </Text>
                   <Text style={{ fontSize: 12, color: status.review.softFg }}>
-                    This run is one step of a process. What it did and changed is shown below; its
-                    outcome and sign-off are decided in the pipeline, not here.
+                    {isHandoffRun
+                      ? 'This step wrote the change and handed it to the verifier. Its diff is below; whether it is proven is decided by Verify in the pipeline, not here.'
+                      : 'This run is one step of a process. What it did and changed is shown below; its outcome and sign-off are decided in the pipeline, not here.'}
                   </Text>
                 </View>
                 {onBackToPipeline && processRunId ? (
@@ -753,34 +766,53 @@ export default function CliRunArtifactPanel({
               </View>
             ) : null}
 
-            {/* What was checked — the index of evidence, and the only place to ask for what has no tab. */}
-            <View style={{ gap: 6 }}>
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: '600',
-                  letterSpacing: 0.8,
-                  textTransform: 'uppercase',
-                  color: theme.text.muted,
-                }}
-              >
-                What was checked
-              </Text>
-              <CheckChipRow
-                rows={methodRows}
-                branch={review?.branch}
-                busyId={busyMethod}
-                // Report-only: the evidence index stays readable, but running or
-                // requesting a check from here is not offered — verification is
-                // the process's own step.
-                canRequest={!reportOnly && onSendMessage !== undefined}
-                onOpenProof={setActiveTab}
-                onRun={reportOnly ? () => {} : runMethod}
-                onRequest={reportOnly ? () => {} : requestMethod}
-              />
-            </View>
+            {/* What was checked — hidden on a hand-off (developer) run: those
+                checks + screens are the VERIFIER's, filed against this run's id. */}
+            {!isHandoffRun ? (
+              <View style={{ gap: 6 }}>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '600',
+                    letterSpacing: 0.8,
+                    textTransform: 'uppercase',
+                    color: theme.text.muted,
+                  }}
+                >
+                  What was checked
+                </Text>
+                <CheckChipRow
+                  rows={methodRows}
+                  branch={review?.branch}
+                  busyId={busyMethod}
+                  // Report-only: the evidence index stays readable, but running or
+                  // requesting a check from here is not offered — verification is
+                  // the process's own step.
+                  canRequest={!reportOnly && onSendMessage !== undefined}
+                  onOpenProof={setActiveTab}
+                  onRun={reportOnly ? () => {} : runMethod}
+                  onRequest={reportOnly ? () => {} : requestMethod}
+                />
+              </View>
+            ) : null}
 
-            {tabs.length > 0 ? (
+            {isHandoffRun ? (
+              <ChangesTab
+                review={review}
+                files={changeFiles}
+                commits={commits}
+                loading={review ? reviewLoading : previewLoading}
+                error={error}
+                onRetry={
+                  review && !reviewDiff && !reviewLoading
+                    ? () => void loadReviewDiff(!reportOnly)
+                    : !review && !preview && !previewLoading
+                      ? () => void loadPreview()
+                      : undefined
+                }
+                onOpenGit={onOpenGit}
+              />
+            ) : tabs.length > 0 ? (
               <View style={{ gap: 10 }}>
                 <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
                 {currentTab === 'screens' ? (

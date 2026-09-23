@@ -9,6 +9,8 @@ import {
   screenPairs,
   summarizeEvidence,
   toEvidenceTile,
+  evidenceFiledWithin,
+  reviewerVerdict,
 } from './reviewEvidenceView'
 import type { ReviewEvidenceRef } from '../api/generated'
 
@@ -276,5 +278,46 @@ describe('fileNameSlug', () => {
 
   it('returns an empty string when nothing survives and no fallback was given', () => {
     expect(fileNameSlug('///')).toBe('')
+  })
+})
+
+describe('evidenceFiledWithin', () => {
+  const tiles = [5, 10, 15, 20, 25].map((createdAt) =>
+    toEvidenceTile(ref({ id: `e${createdAt}`, createdAt })),
+  )
+
+  it("keeps only one attempt's filings, both ends inclusive", () => {
+    expect(evidenceFiledWithin(tiles, { since: 10, until: 20 }).map((t) => t.ref.id)).toEqual([
+      'e10',
+      'e15',
+      'e20',
+    ])
+  })
+
+  it('is open-ended while the attempt is still running', () => {
+    expect(evidenceFiledWithin(tiles, { since: 15 }).map((t) => t.ref.id)).toEqual([
+      'e15',
+      'e20',
+      'e25',
+    ])
+  })
+})
+
+describe('reviewerVerdict', () => {
+  it('takes the NEWEST verdict, as the gate does', () => {
+    expect(
+      reviewerVerdict([
+        ref({ id: 'a', createdAt: 1, verdict: 'approved' }),
+        ref({ id: 'b', createdAt: 9, verdict: 'changes-requested', verdictReason: ' login wall ' }),
+        ref({ id: 'c', createdAt: 5 }),
+      ]),
+    ).toEqual({ verdict: 'changes-requested', reason: 'login wall' })
+  })
+
+  it('omits an empty reason and is undefined when nobody concluded anything', () => {
+    expect(reviewerVerdict([ref({ verdict: 'approved', verdictReason: '  ' })])).toEqual({
+      verdict: 'approved',
+    })
+    expect(reviewerVerdict([ref(), ref({ id: 'x', kind: 'report' })])).toBeUndefined()
   })
 })

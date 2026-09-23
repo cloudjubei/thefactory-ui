@@ -108,6 +108,12 @@ export type StartFeatureWorkGrantSummary = {
   proofRequired: boolean
   /** Which agent the chat asked for; `undefined` means the same one as the chat. */
   runner?: StartFeatureWorkRunner
+  /**
+   * Project-note ids the run will be pointed at (a login for the screen under
+   * test). Shown on the approval so you can see which stored notes this launch
+   * sanctions the run to read — the ids resolve to labels where they render.
+   */
+  relevantNoteIds?: string[]
 }
 
 /**
@@ -133,11 +139,15 @@ export function startFeatureWorkGrantSummary(
   const storyId = record.storyId
   const note = record.note
   const runner = record.runner
+  const relevantNoteIds = Array.isArray(record.relevantNoteIds)
+    ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    : []
   return {
     ...(typeof storyId === 'string' && storyId.length > 0 ? { storyId } : {}),
     ...(typeof note === 'string' && note.length > 0 ? { note } : {}),
     proofRequired: record.proofRequired !== false,
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
+    ...(relevantNoteIds.length > 0 ? { relevantNoteIds } : {}),
   }
 }
 

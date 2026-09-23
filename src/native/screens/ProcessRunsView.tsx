@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
   formatProcessDuration,
   processRunCardView,
+  processRunSpend,
+  useDurationTimer,
   useProcessRuns,
   type ProcessNodeRunRef,
   type ProcessRun,
 } from '../../headless'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import SegmentedControl from '../primitives/SegmentedControl'
+import { DurCostChips } from '../compound/chat/signoff'
 import { IconSettings } from '../icons'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
@@ -24,6 +27,8 @@ export type ProcessRunsViewProps = {
   onOpenSettings: () => void
   /** Accepted for parity with the web peer; the pipeline detail is a pushed screen on mobile. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /** Accepted for parity with the web peer; the drill is a pushed pipeline screen on mobile. */
+  renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Accepted for parity; mobile is always single-pane (push-nav). */
   narrow?: boolean
 }
@@ -54,6 +59,11 @@ export default function ProcessRunsView({
     if (selectedIsHistory) setMode('history')
   }, [selectedIsHistory])
   const rows = mode === 'current' ? current : history
+  // One clock for the list — ticks while any current run is live; history rows
+  // are terminal and ignore it.
+  const now = useDurationTimer(
+    current.some((r) => r.status === 'running' || r.status === 'pending'),
+  )
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
@@ -114,6 +124,7 @@ export default function ProcessRunsView({
             <RunRow
               key={run.id}
               run={run}
+              now={now}
               selected={run.id === selectedRunId}
               onPress={() => onSelectRun(run.id)}
             />
@@ -126,17 +137,22 @@ export default function ProcessRunsView({
 
 function RunRow({
   run,
+  now,
   selected,
   onPress,
 }: {
   run: ProcessRun
+  /** The list's live clock — a running row's elapsed ticks against it. */
+  now: number
   selected: boolean
   onPress: () => void
 }) {
   const { theme, status } = useNativeTheme()
   const view = processRunCardView(run)
   const variant = status[view.badge.tone]
-  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const spend = processRunSpend(run)
+  const end = run.status === 'running' ? now : run.updatedAt
+  const durMs = Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
   return (
     <Pressable
       accessibilityRole="button"
@@ -159,14 +175,13 @@ function RunRow({
         >
           {view.title}
         </Text>
-        <Text style={{ fontSize: 10, color: theme.text.muted }}>
-          {formatProcessDuration(durMs)}
-        </Text>
+        <DurCostChips facts={{ durationLabel: formatProcessDuration(durMs) }} />
       </View>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: nativeSpace[2],
           paddingLeft: 16,
         }}
@@ -181,6 +196,7 @@ function RunRow({
         >
           <Text style={{ fontSize: 9.5, color: variant.softFg }}>{view.badge.label}</Text>
         </View>
+        {spend ? <DurCostChips facts={{ costLabel: spend.label }} /> : null}
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: theme.text.secondary }}>
           {view.sub}
         </Text>

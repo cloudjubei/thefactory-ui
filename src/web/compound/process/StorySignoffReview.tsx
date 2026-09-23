@@ -7,168 +7,134 @@ import {
   useStories,
   useStorySignoff,
   type EvidenceTile,
-  type FeatureSignoff,
+  type OverallSignoff,
+  type ProcessParkChoice,
+  type ProcessResumeChoice,
   type ScreenPair,
-  type StoryDigest,
+  type SignoffVerdict,
 } from '../../../headless'
-import { ComparisonOverlay, VerdictBadge } from '../chat/signoff'
-import FeatureReviewSection from './FeatureReviewSection'
+import { Button } from '../../primitives/Button'
+import { IconCheck, IconShield } from '../../icons'
+import { ComparisonOverlay, DurCostChips, IdChip, VerdictBadge } from '../chat/signoff'
+import FeatureReviewSection, { type ReviewStatusLine } from './FeatureReviewSection'
 
 export type StorySignoffReviewProps = {
   projectId: string
   storyId: string
+  /** The gate's decision choices — the panel's decide bar acts on the whole story. */
+  choices?: readonly ProcessParkChoice[]
+  onChoose?: (choice: ProcessResumeChoice) => void
 }
 
 const featureOfTile = (t: EvidenceTile): string => t.ref.featureId ?? ''
 
-/** Cost + duration, together, as the trailing fact of a header row. */
-function Facts({ costLabel, durationLabel }: { costLabel?: string; durationLabel?: string }) {
-  if (!costLabel && !durationLabel) return null
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">
-      {durationLabel ? <span className="text-(--text-secondary)">{durationLabel}</span> : null}
-      {durationLabel && costLabel ? (
-        <span aria-hidden className="text-(--text-tertiary)">
-          ·
-        </span>
-      ) : null}
-      {costLabel ? <span className="font-medium text-(--text-primary)">{costLabel}</span> : null}
-    </span>
-  )
+const VERDICT_DOT: Record<SignoffVerdict['key'], string> = {
+  proven: 'bg-(--status-done-soft-fg)',
+  partly: 'bg-(--status-review-soft-fg)',
+  failed: 'bg-(--status-stuck-soft-fg)',
+  'not-run': 'bg-(--status-review-soft-fg)',
 }
 
-const DIGEST_TONE: Record<'proven' | 'partly' | 'failed' | 'notRun', string> = {
-  proven: 'bg-(--status-done-soft-bg) text-(--status-done-soft-fg)',
-  partly: 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg)',
-  failed: 'bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
-  notRun: 'bg-(--surface-sunken) text-(--text-muted)',
+const DIGEST_TONE: Record<SignoffVerdict['key'], string> = {
+  proven: 'border-(--status-done-soft-border) bg-(--status-done-soft-bg)',
+  partly: 'border-(--status-review-soft-border) bg-(--status-review-soft-bg)',
+  failed: 'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg)',
+  'not-run': 'border-(--status-review-soft-border) bg-(--status-review-soft-bg)',
 }
 
-/** The one-glance pass/fail summary — only the states that actually occurred. */
-function DigestStrip({ digest }: { digest: StoryDigest }) {
-  const all: { key: keyof typeof DIGEST_TONE; n: number; label: string }[] = [
-    { key: 'failed', n: digest.failed, label: 'failed' },
-    { key: 'partly', n: digest.partly, label: 'partly' },
-    { key: 'notRun', n: digest.notRun, label: 'not run' },
-    { key: 'proven', n: digest.proven, label: 'proven' },
-  ]
-  const chips = all.filter((c) => c.n > 0)
-  if (chips.length === 0) return null
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {chips.map((c) => (
-        <span
-          key={c.key}
-          className={`rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${DIGEST_TONE[c.key]}`}
-        >
-          {c.n} {c.label}
-        </span>
-      ))}
-    </div>
-  )
+const DIGEST_HEAD_TONE: Record<SignoffVerdict['key'], string> = {
+  proven: 'text-(--status-done-soft-fg)',
+  partly: 'text-(--status-review-soft-fg)',
+  failed: 'text-(--status-stuck-soft-fg)',
+  'not-run': 'text-(--status-review-soft-fg)',
 }
 
-type Section = {
-  id: string
-  title: string
-  signoff: FeatureSignoff | undefined
-  pairs: ScreenPair[]
-  recordings: EvidenceTile[]
-  reports: EvidenceTile[]
+/** The verify line a feature shows, toned by its own verdict. */
+function featureStatusLine(verdict: SignoffVerdict): ReviewStatusLine {
+  switch (verdict.key) {
+    case 'proven':
+      return { tone: 'done', label: 'Verify passed' }
+    case 'failed':
+      return { tone: 'stuck', label: 'Verify failed' }
+    case 'partly':
+      return { tone: 'review', label: 'Partly verified' }
+    default:
+      return { tone: 'review', label: 'Not verified' }
+  }
 }
+
+type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: EvidenceTile[] }
 
 /**
- * The evidence + verdict the WHOLE story produced, gathered for its single
- * sign-off.
+ * The whole-story sign-off, in the settled design: one `panel` — a head naming
+ * the story with its total time + cost, a verdict, a green digest, then the
+ * story-wide Overall section and each feature (newest first, collapsible), each
+ * with which agents ran it and its evidence behind capability tabs — closing on
+ * one decide bar that acts on the WHOLE story, never one approval per feature.
  *
- * A story is one unit of work even when it was split into features, so its
- * sign-off is one decision over everything — never one approval per feature. The
- * header carries the aggregate verdict, a pass/fail digest and the story-total
- * cost/duration; then each feature is a section, NEWEST FIRST, with its own
- * verdict, model and cost, above its screens/walkthroughs/reports.
- *
- * The per-feature verdict/cost is JOINED from two list endpoints in
+ * The per-feature verdict/cost/agents are JOINED from two list endpoints in
  * {@link useStorySignoff}; the evidence is grouped PER FEATURE (subjects would
- * otherwise collide across features) and each feature's pair keys are namespaced
- * by featureId so they stay unique across the one ComparisonOverlay.
+ * otherwise collide) and each pair key is namespaced by feature so they stay
+ * unique across the one ComparisonOverlay.
  */
-export default function StorySignoffReview({ projectId, storyId }: StorySignoffReviewProps) {
+export default function StorySignoffReview({
+  projectId,
+  storyId,
+  choices,
+  onChoose,
+}: StorySignoffReviewProps) {
   const evidence = useReviewEvidence(projectId, { storyId })
   const { signoff } = useStorySignoff(projectId, storyId, evidence.refs)
   const { getStory } = useStories()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
 
-  const features = getStory(storyId)?.features ?? []
+  const story = getStory(storyId)
+  const features = story?.features ?? []
 
-  const evByFeature = useMemo(() => {
-    const m = new Map<string, EvidenceTile[]>()
+  const bucketByFeature = useMemo(() => {
+    const tilesByFeature = new Map<string, EvidenceTile[]>()
     for (const t of evidence.tiles) {
       const id = featureOfTile(t)
-      const list = m.get(id)
+      const list = tilesByFeature.get(id)
       if (list) list.push(t)
-      else m.set(id, [t])
+      else tilesByFeature.set(id, [t])
+    }
+    const m = new Map<string, EvBucket>()
+    for (const [id, tiles] of tilesByFeature) {
+      m.set(id, {
+        pairs: screenPairs(groupEvidence(tiles)).map((p) => ({ ...p, key: `${id}::${p.key}` })),
+        recordings: tiles.filter((t) => t.ref.kind === 'recording'),
+        // Only true reports on the Report tab — a `log` is raw tool output, not
+        // the verifier's account, and stacking both made the sign-off a wall.
+        reports: tiles.filter((t) => t.ref.kind === 'report'),
+      })
     }
     return m
   }, [evidence.tiles])
 
-  const signoffByFeature = useMemo(
-    () => new Map(signoff.features.map((f) => [f.featureId, f])),
-    [signoff.features],
+  const emptyBucket: EvBucket = useMemo(() => ({ pairs: [], recordings: [], reports: [] }), [])
+
+  const overallBucket = bucketByFeature.get('') ?? emptyBucket
+
+  // Every feature that ran, newest first (already ordered by the builder), then
+  // any feature that filed evidence but produced no attributable run.
+  const runBacked = new Set(signoff.features.map((f) => f.featureId))
+  const evidenceOnly = [...features]
+    .reverse()
+    .filter((f) => !runBacked.has(f.id) && bucketByFeature.has(f.id))
+
+  const featureIndex = (id: string): number => features.findIndex((f) => f.id === id) + 1
+
+  const allPairs = useMemo(
+    () => [...bucketByFeature.values()].flatMap((b) => b.pairs),
+    [bucketByFeature],
   )
-
-  const sections = useMemo<Section[]>(() => {
-    const order: string[] = []
-    const seen = new Set<string>()
-    // Run-backed features first, newest-first (the sign-off already orders them).
-    for (const f of signoff.features) {
-      order.push(f.featureId)
-      seen.add(f.featureId)
-    }
-    // Then features that filed evidence but produced no attributable run, still
-    // newest-first; then anything unattributed.
-    for (const f of [...features].reverse()) {
-      if (!seen.has(f.id) && evByFeature.has(f.id)) {
-        order.push(f.id)
-        seen.add(f.id)
-      }
-    }
-    for (const id of evByFeature.keys()) {
-      if (!seen.has(id)) {
-        order.push(id)
-        seen.add(id)
-      }
-    }
-    // The story-scoped (no-featureId) bucket is the OVERALL walkthrough of the
-    // whole story — show it FIRST, as the summary above the per-feature sections.
-    const ordered = [...order.filter((id) => id === ''), ...order.filter((id) => id !== '')]
-    return ordered.map((id) => {
-      const tiles = evByFeature.get(id) ?? []
-      const pairs: ScreenPair[] = screenPairs(groupEvidence(tiles)).map((p) => ({
-        ...p,
-        key: `${id}::${p.key}`,
-      }))
-      const fs = signoffByFeature.get(id)
-      return {
-        id,
-        signoff: fs,
-        title:
-          fs?.title ??
-          features.find((f) => f.id === id)?.title ??
-          (id ? 'Other evidence' : 'Overall'),
-        pairs,
-        recordings: tiles.filter((t) => t.ref.kind === 'recording'),
-        reports: tiles.filter((t) => t.ref.kind === 'report' || t.ref.kind === 'log'),
-      }
-    })
-  }, [signoff.features, signoffByFeature, features, evByFeature])
-
-  const allPairs = useMemo(() => sections.flatMap((s) => s.pairs), [sections])
-  const hasSignoff = signoff.features.length > 0
+  const hasSignoff = signoff.features.length > 0 || signoff.overall !== undefined
 
   if (evidence.loading && evidence.tiles.length === 0 && !hasSignoff) {
     return <div className="text-[12px] text-(--text-secondary)">Loading the evidence…</div>
   }
-  if (sections.length === 0) {
+  if (!hasSignoff && evidence.tiles.length === 0) {
     return (
       <div className="text-[12px] text-(--text-secondary)">
         No evidence was filed for this story’s features.
@@ -176,56 +142,184 @@ export default function StorySignoffReview({ projectId, storyId }: StorySignoffR
     )
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {hasSignoff ? (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <VerdictBadge verdict={signoff.verdict} />
-            <span className="text-[14px] font-semibold text-(--text-primary)">
-              {signoff.verdict.title}
-            </span>
-            <span className="flex-1" />
-            <Facts
-              costLabel={signoff.facts.costLabel}
-              durationLabel={signoff.facts.durationLabel}
-            />
-          </div>
-          <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
-            {signoff.verdict.detail}
-          </p>
-          <DigestStrip digest={signoff.digest} />
-        </div>
-      ) : (
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-          Evidence for the whole story
-        </span>
-      )}
+  const verdict = signoff.verdict
+  const storyLabel = story?.title ? `Story · ${story.title}` : 'Story'
 
-      {sections.map((s) => (
-        <FeatureReviewSection
-          key={s.id || 'unattributed'}
-          projectId={projectId}
-          title={s.title}
-          signoff={s.signoff}
-          pairs={s.pairs}
-          recordings={s.recordings}
-          reports={s.reports}
-          onOpenPair={setOpenPairKey}
-          onRequestImage={evidence.requestImage}
+  return (
+    <div className="overflow-hidden rounded-xl border border-(--border-default) bg-(--surface-raised) shadow-md">
+      {/* panel-head */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3.5 py-2.5">
+        <span
+          className={`size-1.5 shrink-0 rounded-full ${VERDICT_DOT[verdict.key]}`}
+          aria-hidden
         />
-      ))}
+        <span className="text-[13.5px] font-semibold text-(--text-primary)">Sign-off</span>
+        <IdChip kind="story">{storyLabel}</IdChip>
+        <span className="min-w-0 flex-1" />
+        <DurCostChips facts={signoff.facts} />
+      </div>
+
+      {/* panel-in */}
+      <div className="flex flex-col gap-3 bg-(--surface-base) p-3.5">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            Verdict — the whole story
+          </span>
+          <span className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-(--text-primary)">
+            <VerdictBadge verdict={verdict} />
+            {verdict.title}
+          </span>
+          <span className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
+            {verdict.detail}
+          </span>
+        </div>
+
+        <div
+          className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border px-3 py-2.5 ${DIGEST_TONE[verdict.key]}`}
+        >
+          <span
+            className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${DIGEST_HEAD_TONE[verdict.key]}`}
+          >
+            <IconCheck className="size-4" />
+            {signoff.digest.headline}
+          </span>
+          <span className="text-[12px] text-(--text-secondary)">{signoff.digest.line}</span>
+        </div>
+
+        <div className="flex items-start gap-1.5 text-[11.5px] text-(--text-muted)">
+          <IconShield className="mt-px size-3.5 shrink-0" />
+          <span>
+            Each feature was signed off by the review process — nothing gets through unverified.
+            Expand one to inspect its evidence.
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          {signoff.overall ? (
+            <OverallSection
+              projectId={projectId}
+              overall={signoff.overall}
+              bucket={overallBucket}
+              onOpenPair={setOpenPairKey}
+              onRequestImage={evidence.requestImage}
+            />
+          ) : null}
+
+          {signoff.features.map((f, i) => {
+            const bucket = bucketByFeature.get(f.featureId) ?? emptyBucket
+            return (
+              <FeatureReviewSection
+                key={f.featureId}
+                projectId={projectId}
+                kind="feature"
+                idLabel={`Feature #${featureIndex(f.featureId)}`}
+                title={f.title}
+                facts={f.facts}
+                agents={f.agents}
+                rows={f.rows}
+                verification={f.verification}
+                statusLine={featureStatusLine(f.verdict)}
+                pairs={bucket.pairs}
+                recordings={bucket.recordings}
+                reports={bucket.reports}
+                defaultOpen={i === 0}
+                onOpenPair={setOpenPairKey}
+                onRequestImage={evidence.requestImage}
+              />
+            )
+          })}
+
+          {evidenceOnly.map((f) => {
+            const bucket = bucketByFeature.get(f.id) ?? emptyBucket
+            return (
+              <FeatureReviewSection
+                key={f.id}
+                projectId={projectId}
+                kind="feature"
+                idLabel={`Feature #${featureIndex(f.id)}`}
+                title={f.title}
+                facts={{ costLabel: undefined, durationLabel: undefined }}
+                agents={[]}
+                rows={[]}
+                verification={undefined}
+                statusLine={{ tone: 'review', label: 'Not verified' }}
+                pairs={bucket.pairs}
+                recordings={bucket.recordings}
+                reports={bucket.reports}
+                onOpenPair={setOpenPairKey}
+                onRequestImage={evidence.requestImage}
+              />
+            )
+          })}
+        </div>
+      </div>
+
+      {/* decide bar — acts on the WHOLE story */}
+      {choices && choices.length > 0 && onChoose ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-(--border-subtle) px-3.5 py-2.5">
+          {choices.map((c) => (
+            <Button
+              key={c.choice}
+              size="sm"
+              variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
+              className={c.choice === 'reject' ? 'ml-auto' : undefined}
+              title={c.detail}
+              onClick={() => onChoose(c.choice)}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
       <ComparisonOverlay
         pairs={allPairs}
         openKey={openPairKey}
         onClose={() => setOpenPairKey(undefined)}
-        // Story-aggregated evidence spans features on different branches, so there
-        // is no one base/head sha — the overlay uses these only for caption chips.
         baseSha={undefined}
         headSha={undefined}
         onRequestImage={evidence.requestImage}
         projectId={projectId}
       />
     </div>
+  )
+}
+
+/** The story-wide Overall section — the whole-codebase checks + the walkthrough. */
+function OverallSection({
+  projectId,
+  overall,
+  bucket,
+  onOpenPair,
+  onRequestImage,
+}: {
+  projectId: string
+  overall: OverallSignoff
+  bucket: EvBucket
+  onOpenPair: (key: string) => void
+  onRequestImage: (id: string, mediaType: string) => void
+}) {
+  return (
+    <FeatureReviewSection
+      projectId={projectId}
+      kind="overall"
+      title="Story-wide checks"
+      facts={overall.facts}
+      agents={overall.agents}
+      rows={overall.rows}
+      verification={overall.verification}
+      statusLine={
+        overall.allGreen
+          ? { tone: 'done', label: 'All green' }
+          : { tone: 'stuck', label: 'Checks failed' }
+      }
+      // The Overall never shows per-feature screens — its evidence is the
+      // end-to-end walkthrough (and any story-wide report).
+      pairs={[]}
+      recordings={bucket.recordings}
+      reports={bucket.reports}
+      onOpenPair={onOpenPair}
+      onRequestImage={onRequestImage}
+    />
   )
 }
