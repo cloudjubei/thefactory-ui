@@ -51,7 +51,6 @@ export {
   type BadgeChatInput,
   type BadgeGitInput,
   type BadgeActivityInput,
-  type BadgeProcessInput,
   type ChatBadgeCountMode,
   type GitBadgeSubToggles,
   type UseBadgeCountsCoreInput,
@@ -168,8 +167,19 @@ export {
   aggregateGroupBadgeState,
   formatBadgeCount,
   hasAnyBadge,
-  type BadgeState,
+  processTallyByProject,
 } from './utils/badgeAggregation'
+export type { BadgeState, ProcessTally } from './utils/badgeAggregationTypes'
+
+// Nav-row indicator — the one precedence web `NavRow` and native `NavDrawer` render.
+export {
+  groupTabIndicator,
+  navBadgeLabel,
+  navRowIndicator,
+  scopeRowIndicator,
+  shellTabIndicator,
+} from './utils/navIndicator'
+export type { NavBadge, NavRowIndicator, NavRowSignals } from './utils/navIndicatorTypes'
 
 // Chat grouping for the Categories navigation view (topics + per-story buckets)
 export {
@@ -327,9 +337,9 @@ export {
   LAUNCH_NOTE_MAX_CHARS,
   LAUNCH_OPTIONS_READ_ONLY,
   START_FEATURE_WORK_TOOL_NAME,
-  featuresToWorkOn,
   formatGrantDetail,
   launchOptionsAreHonoured,
+  launchRefusalMessage,
   isStartFeatureWorkGrant,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
@@ -389,7 +399,9 @@ export {
   zoomLabel,
   zoomOut,
 } from './utils/imageZoom'
-export { censusFeatures, incompleteStoryReason } from './utils/storyCensus'
+export { censusFeatures, featuresToWork, incompleteStoryReason } from 'thefactory-tools/utils'
+export { storyFeatureCounts } from './utils/storyFeatureCounts'
+export type { StoryFeatureCounts } from './utils/storyFeatureCountsTypes'
 export { openFeatureQuestions } from './utils/featureQuestions'
 export { chatClosure } from './utils/chatClosure'
 export { chatCloseAction } from './utils/chatCloseAction'
@@ -433,6 +445,61 @@ export { useReviewEvidence } from './hooks/useReviewEvidence'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
 export { useStorySignoff } from './hooks/useStorySignoff'
 export type { UseStorySignoff } from './hooks/useStorySignoff'
+export { useVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
+export type { UseVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
+// What a verify attempt proved — the gate's own judgement, shared by the story
+// sign-off and the per-attempt mini sign-off on both clients.
+export {
+  acceptedVerifyAttempt,
+  captureBuildCaption,
+  evidenceLoadState,
+  featureVerifySectionProps,
+  featureVerifySelection,
+  featureVerifyView,
+  mergeEvidenceTiles,
+  missingEvidenceIds,
+  overlayPairsFor,
+  pixelChangeLabel,
+  reviewerVerdictNote,
+  shortSha,
+  storyProofNotice,
+  verifyAttemptEvidence,
+  verifyAttemptFacts,
+  verifyAttempts,
+  verifyAttemptStanding,
+  verifyAttemptStatus,
+  verifyGateLine,
+  verifyProofHeader,
+  verifyProofView,
+  verifySectionProps,
+} from './utils/verifyProof'
+export type {
+  CaptureBuildCaption,
+  EvidenceLoadState,
+  FeatureVerifySectionProps,
+  FeatureVerifyView,
+  ProofPairView,
+  ProofScreenView,
+  ProofUnpairedView,
+  StoryProofNotice,
+  StoryProofSection,
+  VerifyAttempt,
+  VerifyAttemptEvidence,
+  VerifyAttemptRun,
+  VerifyAttemptSelection,
+  VerifyAttemptStanding,
+  VerifyAttemptView,
+  VerifyProofFaked,
+  VerifyProofHeader,
+  VerifyProofMode,
+  VerifyProofSummary,
+  VerifyProofTone,
+  VerifyProofView,
+  VerifyReviewerVerdict,
+  VerifySectionProps,
+  VerifyVerdictNote,
+} from './utils/verifyProofTypes'
+export type { ProcessProofPair, ProcessVerifyProof } from 'thefactory-tools/types'
 export { aggregateStoryVerdict, buildStorySignoff } from './utils/storySignoff'
 export type {
   BuildStorySignoffInput,
@@ -448,7 +515,7 @@ export type {
 export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
-export type { StoryFeatureCensus } from './utils/storyCensus'
+export type { StoryFeatureCensus } from 'thefactory-tools/types'
 export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
@@ -476,8 +543,10 @@ export type {
 
 // Story / feature status
 export {
+  SETTABLE_STATUS_ORDER,
   STATUS_LABELS,
   STATUS_ORDER,
+  isStoryStatus,
   statusKey,
   statusLabel,
   type StatusPickerValue,
@@ -1057,9 +1126,16 @@ export {
   processNodeState,
   processNodeTone,
   processNodeGlyph,
+  processNodeLook,
+  processNodeBadge,
+  processNodeSummary,
+  PROCESS_LIVE_TONE,
   formatProcessDuration,
-  processEntryDurationMs,
-  processEntryDurationLabel,
+  formatProcessCost,
+  processRunWorkMs,
+  processRunWorkLabel,
+  processStepWorkMs,
+  processStepCostLabel,
   processIterationBadge,
   processRunBadge,
   processRunCardView,
@@ -1075,6 +1151,7 @@ export {
   type VerifyReviewStatus,
   type ProcessOpenLeaf,
 } from './utils/processView'
+export type { ProcessNodeLook, ProcessNodeSummary } from './utils/processViewTypes'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must
 // agree with the driver's own derivation — `processStepStates` projects a run

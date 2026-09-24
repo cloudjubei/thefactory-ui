@@ -1,4 +1,3 @@
-import type { Feature, Story } from '../api/generated'
 import { partitionGrants } from './agentQuestions'
 import type { PendingToolGrant } from './chatTypes'
 
@@ -152,34 +151,14 @@ export function startFeatureWorkGrantSummary(
 }
 
 /**
- * The features a launched run will pick up, in the order it will pick them.
- *
- * PAIRED with `findNextAvailableFeature` in thefactory-tools (`src/story/
- * storyUtils.ts`), which the developer run calls repeatedly: a feature is taken
- * when it is 'pending' and every blocker is done. Simulating that loop — each
- * pick counts as done for the next — gives the same list, in the same order,
- * that the run will actually work. The two must agree; change one and change
- * the other.
+ * The reason the server gave for refusing a launch preview — the same words the
+ * launch itself would answer with (a live run already drives the story, or
+ * nothing is left to work). `undefined` when the failure carried no reason.
  */
-export function featuresToWorkOn(story: Pick<Story, 'id' | 'features'>): Feature[] {
-  const features = story.features ?? []
-  const completed = new Set(
-    features.filter((f) => f.status === 'done').map((f) => `${story.id}.${f.id}`),
-  )
-  const picked: Feature[] = []
-  const taken = new Set<string>()
-  for (;;) {
-    const next = features.find(
-      (f) =>
-        !taken.has(f.id) &&
-        f.status === 'pending' &&
-        (f.blockers ?? []).every((b) => completed.has(b)),
-    )
-    if (!next) return picked
-    picked.push(next)
-    taken.add(next.id)
-    completed.add(`${story.id}.${next.id}`)
-  }
+export function launchRefusalMessage(err: unknown): string | undefined {
+  if (!err || typeof err !== 'object') return undefined
+  const reason = (err as { error?: unknown }).error
+  return typeof reason === 'string' && reason.trim().length > 0 ? reason : undefined
 }
 
 /**

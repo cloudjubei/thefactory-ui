@@ -19,7 +19,7 @@ export interface NotificationBadgeProps {
 const COLOR_CLASS: Record<NotificationBadgeColor, string> = {
   red: 'bg-red-500',
   blue: 'bg-blue-500',
-  green: 'bg-green-500',
+  green: 'bg-(--status-done-bg)',
   orange: 'bg-orange-500',
 }
 

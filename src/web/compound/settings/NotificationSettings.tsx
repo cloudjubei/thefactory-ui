@@ -8,6 +8,7 @@ import {
   type NotificationPrefs,
 } from '../../../headless'
 import { useProjectSettingsConnected } from '../../hooks/useProjectSettingsConnected'
+import { getNotificationBadgeColorClass } from '../NotificationBadge'
 import { useWebNotifications } from '../../hooks/useWebNotifications'
 import {
   Alert,
@@ -36,13 +37,6 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
 /** Cross-project requests are account-global, so a per-project override is meaningless. */
 const PROJECT_SCOPED_CATEGORIES = (cs: NotificationCategory[]): NotificationCategory[] =>
   cs.filter((c) => c !== 'cross-project')
-
-const BADGE_COLOR_HEX: Record<BadgeColor, string> = {
-  red: '#ef4444',
-  blue: '#3b82f6',
-  green: '#22c55e',
-  orange: '#f97316',
-}
 
 export default function NotificationSettings() {
   const { settings, setNotifications } = useAppSettings()
@@ -146,8 +140,7 @@ export default function NotificationSettings() {
                           <SelectItem key={color} value={color}>
                             <div className="flex items-center gap-2">
                               <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: BADGE_COLOR_HEX[color] }}
+                                className={`w-3 h-3 rounded-full ${getNotificationBadgeColorClass(color)}`}
                               />
                               <span className="capitalize">{color}</span>
                             </div>

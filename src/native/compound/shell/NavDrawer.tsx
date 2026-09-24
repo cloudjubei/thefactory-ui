@@ -17,19 +17,16 @@ import {
   nativeZIndex,
 } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import SpinnerWithDot from '../../primitives/SpinnerWithDot'
-import NotificationBadge, {
-  getNotificationBadgeColor,
-  type NotificationBadgeColor,
-} from '../NotificationBadge'
-import { formatBadgeCount } from '../../../headless/utils/badgeAggregation'
+import type { NavRowIndicator } from '../../../headless/utils/navIndicatorTypes'
 import {
-  IconChevronDown,
-  IconChevronRight,
-  IconFolder,
-  IconFolderOpen,
-  IconPause,
-} from '../../icons'
+  DEFAULT_NOTIFICATION_PREFS,
+  type BadgeColor,
+  type BadgeColorCategory,
+} from '../../../headless/types/settings'
+import { IconChevronDown, IconChevronRight, IconFolder, IconFolderOpen } from '../../icons'
+import NavIndicator from './NavIndicator'
+
+type BadgeColors = Readonly<Record<BadgeColorCategory, BadgeColor>>
 
 export interface NavDrawerItem {
   key: string
@@ -37,19 +34,8 @@ export interface NavDrawerItem {
   /** Pre-resolved icon node — the host maps `NavIconKey` to its icon set. */
   icon?: ReactNode
   active?: boolean
-  /** Numeric badge; `0` / `undefined` renders nothing. */
-  badgeCount?: number
-  /** Badge / dot colour — matches the per-category palette the user picks in
-   *  notification settings. Falls back to red, mirroring the web `NavRow`. */
-  badgeColor?: NotificationBadgeColor
-  /** Renders a small dot instead of a count (e.g. "thinking"). */
-  showDot?: boolean
-  /** Renders a spinner (with a dot) — the chat "thinking" affordance. Takes
-   *  precedence over `showDot`; a numeric `badgeCount` still wins over both. */
-  thinking?: boolean
-  /** Renders a pause icon — an orphaned activity that resumes when opened.
-   *  `thinking` and a numeric `badgeCount` both win over it. */
-  paused?: boolean
+  /** Trailing indicator, resolved by the headless `navRowIndicator` family. */
+  indicator?: NavRowIndicator
   /** Stable handle for UI-test tooling (Android resource-id / iOS accessibilityIdentifier). */
   testID?: string
   onPress: () => void
@@ -64,18 +50,12 @@ export interface NavDrawerGroup {
   onPress: () => void
   /** Member projects; when non-empty the row becomes an expandable folder. */
   projects: NavDrawerItem[]
-  /** Chat unread shown when the row is flat (SCOPE) or the folder is
-   *  COLLAPSED — typically the aggregate of the group + its member projects. */
-  badgeCount?: number
-  badgeColor?: NotificationBadgeColor
-  /** Spinner affordance when the collapsed/flat badge is streaming. */
-  thinking?: boolean
-  /** Pause affordance when a collapsed member's activity is orphaned (resumes when opened). */
-  paused?: boolean
-  /** Chat unread shown when an expandable folder is OPEN — typically the
-   *  group's OWN chats only (member projects show their own rows). */
-  openBadgeCount?: number
-  openThinking?: boolean
+  /** Shown when the row is flat (SCOPE) or the folder is COLLAPSED —
+   *  typically the rollup of the group + its member projects. */
+  indicator?: NavRowIndicator
+  /** Shown when an expandable folder is OPEN — typically the group's OWN
+   *  state only (member projects show their own rows). */
+  openIndicator?: NavRowIndicator
 }
 
 export interface NavDrawerProps {
@@ -105,6 +85,8 @@ export interface NavDrawerProps {
    * are used; `label` becomes the accessibility name.
    */
   footerActions?: NavDrawerItem[]
+  /** Per-category indicator colours (`settings.notifications.badgeColors`). */
+  badgeColors?: BadgeColors
   /** Safe-area insets supplied by the host (avoids a safe-area dependency here). */
   topInset?: number
   bottomInset?: number
@@ -132,6 +114,7 @@ export default function NavDrawer({
   projectsEmptyLabel = 'No projects yet.',
   footerItem,
   footerActions,
+  badgeColors = DEFAULT_NOTIFICATION_PREFS.badgeColors,
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
@@ -253,7 +236,7 @@ export default function NavDrawer({
         {navItems && navItems.length > 0 ? (
           <View style={{ paddingHorizontal: nativeSpace[2], paddingTop: nativeSpace[2] }}>
             {navItems.map((item) => (
-              <Row key={item.key} item={item} />
+              <Row key={item.key} item={item} badgeColors={badgeColors} />
             ))}
           </View>
         ) : null}
@@ -305,10 +288,10 @@ export default function NavDrawer({
             </Text>
           ) : null}
           {projects?.map((item) => (
-            <Row key={item.key} item={item} />
+            <Row key={item.key} item={item} badgeColors={badgeColors} />
           ))}
           {groups?.map((group) => (
-            <GroupFolder key={group.key} group={group} />
+            <GroupFolder key={group.key} group={group} badgeColors={badgeColors} />
           ))}
         </ScrollView>
 
@@ -324,7 +307,9 @@ export default function NavDrawer({
               borderTopColor: theme.border.subtle,
             }}
           >
-            <View style={{ flex: 1 }}>{footerItem ? <Row item={footerItem} /> : null}</View>
+            <View style={{ flex: 1 }}>
+              {footerItem ? <Row item={footerItem} badgeColors={badgeColors} /> : null}
+            </View>
             {footerActions?.map((action) => (
               <FooterAction key={action.key} item={action} />
             ))}
@@ -379,10 +364,12 @@ function Divider() {
 
 function Row({
   item,
+  badgeColors,
   indent = false,
   trailing,
 }: {
   item: NavDrawerItem
+  badgeColors: BadgeColors
   indent?: boolean
   trailing?: ReactNode
 }) {
@@ -421,32 +408,15 @@ function Row({
       >
         {item.label}
       </Text>
-      {item.badgeCount && item.badgeCount > 0 ? (
-        <NotificationBadge
-          text={formatBadgeCount(item.badgeCount)}
-          color={item.badgeColor}
-          tooltipLabel={item.label}
-        />
-      ) : item.thinking ? (
-        <SpinnerWithDot size={14} showDot dotColor={getNotificationBadgeColor(item.badgeColor)} />
-      ) : item.paused ? (
-        <IconPause size={14} color={nativePalette.brand[500]} />
-      ) : item.showDot ? (
-        <View
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: getNotificationBadgeColor(item.badgeColor),
-          }}
-        />
+      {item.indicator ? (
+        <NavIndicator indicator={item.indicator} badgeColors={badgeColors} />
       ) : null}
       {trailing}
     </Pressable>
   )
 }
 
-function GroupFolder({ group }: { group: NavDrawerGroup }) {
+function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColors: BadgeColors }) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(() => group.projects.some((p) => p.active))
 
@@ -461,21 +431,15 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
           icon: group.icon,
           active: group.active,
           onPress: group.onPress,
-          badgeCount: group.badgeCount,
-          badgeColor: group.badgeColor,
-          thinking: group.thinking,
+          indicator: group.indicator,
         }}
+        badgeColors={badgeColors}
       />
     )
   }
 
   const toggle = () => setOpen((v) => !v)
-  // Open folders show the group's own chats; collapsed folders show the
-  // aggregate. The parent supplies both; we pick by the current open state.
-  const headerBadgeCount = open ? (group.openBadgeCount ?? 0) : (group.badgeCount ?? 0)
-  const headerThinking = open ? !!group.openThinking : !!group.thinking
-  const headerPaused = !open && !!group.paused
-  const showHeaderBadge = headerBadgeCount > 0 || headerThinking || headerPaused
+  const headerIndicator = open ? group.openIndicator : group.indicator
   return (
     <View>
       {/* The folder icon and the right-hand chevron both toggle open/closed;
@@ -523,23 +487,9 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
             {group.label}
           </Text>
         </Pressable>
-        {showHeaderBadge ? (
+        {headerIndicator && headerIndicator.kind !== 'none' ? (
           <View style={{ paddingHorizontal: nativeSpace[1] }}>
-            {headerBadgeCount > 0 ? (
-              <NotificationBadge
-                text={formatBadgeCount(headerBadgeCount)}
-                color={group.badgeColor}
-                tooltipLabel={group.label}
-              />
-            ) : headerThinking ? (
-              <SpinnerWithDot
-                size={14}
-                showDot
-                dotColor={getNotificationBadgeColor(group.badgeColor)}
-              />
-            ) : (
-              <IconPause size={14} color={nativePalette.brand[500]} />
-            )}
+            <NavIndicator indicator={headerIndicator} badgeColors={badgeColors} />
           </View>
         ) : null}
         <Pressable
@@ -557,7 +507,9 @@ function GroupFolder({ group }: { group: NavDrawerGroup }) {
         </Pressable>
       </View>
       {open
-        ? group.projects.map((project) => <Row key={project.key} item={project} indent />)
+        ? group.projects.map((project) => (
+            <Row key={project.key} item={project} badgeColors={badgeColors} indent />
+          ))
         : null}
     </View>
   )

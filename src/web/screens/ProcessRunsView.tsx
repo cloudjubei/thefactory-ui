@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import {
-  formatProcessDuration,
   processRunCardView,
   processRunSpend,
+  processRunWorkLabel,
   useDurationTimer,
   useProcessRuns,
   type ProcessNodeRunRef,
@@ -69,11 +69,9 @@ export default function ProcessRunsView({
   )
   const [mode, setMode] = useModeForSelection(selectedIsHistory)
   const rows = mode === 'current' ? current : history
-  // One clock for the whole list — ticks while any current run is live so its
-  // row's elapsed advances; history rows are terminal and ignore it.
-  const now = useDurationTimer(
-    current.some((r) => r.status === 'running' || r.status === 'pending'),
-  )
+  // One clock for the whole list — ticks while any run has a step working, so
+  // its row's time advances; every other row is fixed at its ledger total.
+  const now = useDurationTimer(current.some((r) => r.totals?.ticking === true))
 
   const sidebar = (
     <div
@@ -172,8 +170,7 @@ function RunRow({
 }) {
   const view = processRunCardView(run)
   const spend = processRunSpend(run)
-  const end = run.status === 'running' ? now : run.updatedAt
-  const durMs = Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
+  const work = processRunWorkLabel(run, now)
   return (
     <button
       type="button"
@@ -190,7 +187,7 @@ function RunRow({
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
           {view.title}
         </span>
-        <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{formatProcessDuration(durMs)}</span>
+        {work ? <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{work}</span> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 pl-4">
         <span

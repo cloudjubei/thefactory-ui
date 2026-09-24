@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Feature, Story } from '../api/generated'
 import {
   START_FEATURE_WORK_TOOL_NAME,
-  featuresToWorkOn,
   formatGrantDetail,
   isStartFeatureWorkGrant,
   launchOptionsAreHonoured,
+  launchRefusalMessage,
   launchRunnerLabel,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
@@ -22,23 +21,6 @@ function grant(over: Partial<PendingToolGrant> = {}): PendingToolGrant {
     decide: async () => {},
     ...over,
   }
-}
-
-function feature(over: Partial<Feature> = {}): Feature {
-  return {
-    id: 'f1',
-    status: 'pending',
-    title: 'Feature',
-    description: '',
-    context: [],
-    createdAt: '',
-    updatedAt: '',
-    ...over,
-  }
-}
-
-function story(features: Feature[]): Pick<Story, 'id' | 'features'> {
-  return { id: 's1', features }
 }
 
 describe('isStartFeatureWorkGrant', () => {
@@ -187,56 +169,6 @@ describe('startFeatureWorkGrantSummary', () => {
   })
 })
 
-describe('featuresToWorkOn', () => {
-  it('picks pending features in story order', () => {
-    const picked = featuresToWorkOn(
-      story([feature({ id: 'a' }), feature({ id: 'b' }), feature({ id: 'c' })]),
-    )
-    expect(picked.map((f) => f.id)).toEqual(['a', 'b', 'c'])
-  })
-
-  it('skips anything that is not pending', () => {
-    const picked = featuresToWorkOn(
-      story([
-        feature({ id: 'done', status: 'done' }),
-        feature({ id: 'blocked', status: 'blocked' }),
-        feature({ id: 'deferred', status: 'deferred' }),
-        feature({ id: 'busy', status: 'in_progress' }),
-        feature({ id: 'ok' }),
-      ]),
-    )
-    expect(picked.map((f) => f.id)).toEqual(['ok'])
-  })
-
-  it('leaves out a pending feature whose blocker is not done', () => {
-    const picked = featuresToWorkOn(
-      story([
-        feature({ id: 'later', blockers: ['s1.x'] }),
-        feature({ id: 'x', status: 'blocked' }),
-      ]),
-    )
-    expect(picked).toEqual([])
-  })
-
-  it('a blocker that is already done releases the feature', () => {
-    const picked = featuresToWorkOn(
-      story([feature({ id: 'x', status: 'done' }), feature({ id: 'later', blockers: ['s1.x'] })]),
-    )
-    expect(picked.map((f) => f.id)).toEqual(['later'])
-  })
-
-  it('a feature picked earlier in the run releases the one it blocks — in run order', () => {
-    const picked = featuresToWorkOn(
-      story([feature({ id: 'second', blockers: ['s1.first'] }), feature({ id: 'first' })]),
-    )
-    expect(picked.map((f) => f.id)).toEqual(['first', 'second'])
-  })
-
-  it('a story with no features picks nothing', () => {
-    expect(featuresToWorkOn({ id: 's1', features: [] })).toEqual([])
-  })
-})
-
 describe('pendingApprovalGrants', () => {
   it('returns permission grants and leaves questions out', () => {
     const permission = grant({ id: 'p' })
@@ -273,5 +205,22 @@ describe('formatGrantDetail', () => {
     const cyclic: Record<string, unknown> = {}
     cyclic.self = cyclic
     expect(formatGrantDetail(cyclic)).toBe('[object Object]')
+  })
+})
+
+describe('launchRefusalMessage', () => {
+  it('reads the reason the server refused the launch preview with', () => {
+    expect(
+      launchRefusalMessage({
+        error: 'Story "Fonts" already has a live process run — "Fonts" (run-7).',
+      }),
+    ).toBe('Story "Fonts" already has a live process run — "Fonts" (run-7).')
+  })
+
+  it('is undefined when the failure carries no reason — the dock keeps its own fallback', () => {
+    expect(launchRefusalMessage(new Error('network down'))).toBeUndefined()
+    expect(launchRefusalMessage({ error: '   ' })).toBeUndefined()
+    expect(launchRefusalMessage(undefined)).toBeUndefined()
+    expect(launchRefusalMessage('boom')).toBeUndefined()
   })
 })

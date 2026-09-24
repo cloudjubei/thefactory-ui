@@ -274,6 +274,7 @@ export {
   type TabKey as ShellTabsTabKey,
 } from './compound/shell/ShellTabs'
 export { default as LoadingScreen, type LoadingScreenProps } from './compound/shell/LoadingScreen'
+export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
 
 // Project timeline (Gantt) — shared types, date / item utils, grid row,

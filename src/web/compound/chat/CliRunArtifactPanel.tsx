@@ -716,7 +716,7 @@ export default function CliRunArtifactPanel({
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    census.complete ? TONE_CHIP.positive : TONE_CHIP.warning
+                    census.signOffReady ? TONE_CHIP.positive : TONE_CHIP.warning
                   }`}
                 >
                   {census.label}

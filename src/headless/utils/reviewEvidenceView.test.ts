@@ -3,6 +3,7 @@ import {
   evidenceViewerImages,
   groupEvidence,
   isReadableNote,
+  notesToRead,
   fileNameSlug,
   isViewableImage,
   screenPairFileStem,
@@ -319,5 +320,29 @@ describe('reviewerVerdict', () => {
       verdict: 'approved',
     })
     expect(reviewerVerdict([ref(), ref({ id: 'x', kind: 'report' })])).toBeUndefined()
+  })
+})
+
+describe('notesToRead', () => {
+  const note = (id: string, mediaType = 'text/markdown') =>
+    ref({ id, kind: 'report', mediaType, path: `${id}.md` })
+
+  it('reads only the notes not already held or on their way', () => {
+    const found = [note('n1'), note('n2', 'application/json'), note('n3'), ref({ id: 'shot' })]
+    expect(notesToRead(found, new Set(['n1'])).map((r) => r.id)).toEqual(['n2', 'n3'])
+  })
+
+  it('reads nothing on a re-pull once every note is held', () => {
+    const found = [note('n1'), note('n2')]
+    expect(notesToRead(found, new Set(['n1', 'n2']))).toEqual([])
+  })
+
+  it('never reads an image or a recording as a note', () => {
+    expect(
+      notesToRead(
+        [ref({ id: 'shot' }), ref({ id: 'rec', kind: 'recording', mediaType: 'video/mp4' })],
+        new Set(),
+      ),
+    ).toEqual([])
   })
 })

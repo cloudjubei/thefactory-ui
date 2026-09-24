@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
-  formatProcessDuration,
   processRunCardView,
   processRunSpend,
+  processRunWorkLabel,
   useDurationTimer,
   useProcessRuns,
   type ProcessNodeRunRef,
@@ -59,11 +59,9 @@ export default function ProcessRunsView({
     if (selectedIsHistory) setMode('history')
   }, [selectedIsHistory])
   const rows = mode === 'current' ? current : history
-  // One clock for the list — ticks while any current run is live; history rows
-  // are terminal and ignore it.
-  const now = useDurationTimer(
-    current.some((r) => r.status === 'running' || r.status === 'pending'),
-  )
+  // One clock for the list — ticks while any run has a step working, so its
+  // row's time advances; every other row is fixed at its ledger total.
+  const now = useDurationTimer(current.some((r) => r.totals?.ticking === true))
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
@@ -151,8 +149,7 @@ function RunRow({
   const view = processRunCardView(run)
   const variant = status[view.badge.tone]
   const spend = processRunSpend(run)
-  const end = run.status === 'running' ? now : run.updatedAt
-  const durMs = Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
+  const work = processRunWorkLabel(run, now)
   return (
     <Pressable
       accessibilityRole="button"
@@ -175,7 +172,7 @@ function RunRow({
         >
           {view.title}
         </Text>
-        <DurCostChips facts={{ durationLabel: formatProcessDuration(durMs) }} />
+        <DurCostChips facts={{ durationLabel: work }} />
       </View>
       <View
         style={{

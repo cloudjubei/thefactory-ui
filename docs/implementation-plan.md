@@ -42,7 +42,7 @@ Steps 1–7 and 9 run end to end today; the run in step 8 verifies and reports, 
 #### M-residue — carried over from the sign-off backbone
 
 - **One logical run = one record.** A story run started with `runner:'cli'` still produces two run records — the CLI run (no `review`, offering "Apply to project") plus the orchestrator's separate landing. Unify them so one logical run has one review surface.
-- **Feature status must follow review state.** `featureStatusOnCompletion` flips a developer feature to `+` when the loop returns success, before and independent of whether the diff was landed, verified, or merged. A feature should not read as done while its diff sits unmerged.
+- ~~**Feature status must follow review state.**~~ — done: a developer's success leaves its feature `in_progress`; its process run passing verification makes it `reviewable`; only the story sign-off (or a person) makes it `done`; an ending without approval, or deleting the run, hands it back to `pending`. One table, `featureStatusAfter` in thefactory-tools.
 - **`startFeatureWork` on the CLI transport.** It launches the API runner today (isolated workspace, lands + verifies). Driving the same flow through the sandboxed CLI runner is blocked behind the dual-record fix above.
 - ~~**Device evidence in the report**~~ — done: `recordReviewEvidence` files a `mobileTest` capture into the review-evidence store, and the sign-off panel's Screens / Walkthrough tabs render it. What is still missing is the CLASSIFICATION of a pair (below).
 - **Emulator lifecycle + build wrappers** — a run still needs a pre-booted device and a pre-built APK. See M4.5.

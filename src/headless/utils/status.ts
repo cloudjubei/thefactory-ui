@@ -1,4 +1,4 @@
-// Domain types + label tables for the five story / feature statuses recognised
+// Domain types + label tables for the six story / feature statuses recognised
 // across the `thefactory-*` apps. Pure TS — no React, no DOM, no RN. Shared
 // between web's `StatusControl` and native's `StatusControl` so consumers see
 // the same vocabulary and ordering everywhere.
@@ -12,27 +12,46 @@ import type { Status } from 'thefactory-tools/types'
 
 export type StoryStatus = Status
 
-// `review` is not one of the five stored statuses — it is a PROCESS overlay: a
-// story whose work is done but whose pipeline is parked at its sign-off gate. It
-// has its own badge palette (blue) and only ever appears via `processStatusOverlay`.
+// `review` is the blue palette of work that passed verification and waits for
+// its sign-off: the stored `reviewable` status, and the story-level overlay of a
+// pipeline parked at its sign-off gate (`processStatusOverlay`).
 export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhold' | 'review'
 
 export const STATUS_LABELS: Record<StoryStatus, string> = {
   done: 'Done',
+  reviewable: 'Reviewable',
   in_progress: 'Crunching',
   pending: 'Pending',
   blocked: 'Blocked',
   deferred: 'Deferred',
 }
 
-export const STATUS_ORDER: StoryStatus[] = ['pending', 'in_progress', 'done', 'deferred', 'blocked']
+export const STATUS_ORDER: StoryStatus[] = [
+  'pending',
+  'in_progress',
+  'reviewable',
+  'done',
+  'deferred',
+  'blocked',
+]
+
+// `in_progress` and `reviewable` belong to the process — its developer starting
+// and its verification passing — so a person is never offered them.
+export const SETTABLE_STATUS_ORDER: StoryStatus[] = STATUS_ORDER.filter(
+  (s) => s !== 'in_progress' && s !== 'reviewable',
+)
 
 const SEMANTIC: Record<StoryStatus, StatusSemanticKey> = {
   pending: 'queued',
   in_progress: 'working',
+  reviewable: 'review',
   done: 'done',
   blocked: 'stuck',
   deferred: 'onhold',
+}
+
+export function isStoryStatus(status: string): status is StoryStatus {
+  return Object.prototype.hasOwnProperty.call(SEMANTIC, status)
 }
 
 export function statusKey(status: StoryStatus): StatusSemanticKey {

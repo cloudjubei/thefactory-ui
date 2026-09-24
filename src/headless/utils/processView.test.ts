@@ -20,8 +20,6 @@ import {
   processNodeTone,
   processNodeGlyph,
   formatProcessDuration,
-  processEntryDurationMs,
-  processEntryDurationLabel,
   processIterationBadge,
   processRunBadge,
   processRunCardView,
@@ -31,6 +29,15 @@ import {
   processLeafReview,
   isProcessLeafOpenable,
   latestOpenableAttempt,
+  PROCESS_LIVE_TONE,
+  processNodeLook,
+  processNodeBadge,
+  processNodeSummary,
+  processRunWorkMs,
+  processRunWorkLabel,
+  processStepWorkMs,
+  processStepCostLabel,
+  formatProcessCost,
 } from './processView'
 
 const TOKEN_STATUSES = [
@@ -106,6 +113,11 @@ describe('PROCESS_RUN_STATUS_VIEW', () => {
   it('says a parked run is waiting for the user rather than that it is running', () => {
     expect(PROCESS_RUN_STATUS_VIEW.parked.label).toMatch(/waiting for you/i)
   })
+
+  it('shows a running run in the SAME green as a finished one — live work is good news', () => {
+    expect(PROCESS_RUN_STATUS_VIEW.running.tone).toBe(PROCESS_LIVE_TONE)
+    expect(PROCESS_LIVE_TONE).toBe(PROCESS_RUN_STATUS_VIEW.succeeded.tone)
+  })
 })
 
 describe('processStepTone', () => {
@@ -113,8 +125,8 @@ describe('processStepTone', () => {
     expect(processStepTone('pending', undefined)).toBe('empty')
   })
 
-  it('shows a running step as working, whatever a previous attempt ended as', () => {
-    expect(processStepTone('running', 'failed')).toBe('working')
+  it('shows a running step in the live green, whatever a previous attempt ended as', () => {
+    expect(processStepTone('running', 'failed')).toBe(PROCESS_LIVE_TONE)
   })
 
   it('takes its tone from the outcome once the step is done', () => {
@@ -179,26 +191,161 @@ describe('the question outcome', () => {
 })
 
 describe('processRunSpend', () => {
+  const totals = (over: Partial<NonNullable<ProcessRun['totals']>> = {}) => ({
+    workMs: 0,
+    ticking: false,
+    at: 0,
+    steps: {},
+    ...over,
+  })
+
   it('says nothing for a run that was never capped and never measured', () => {
-    expect(processRunSpend(run())).toBeUndefined()
+    expect(processRunSpend(run({ totals: totals() }))).toBeUndefined()
   })
 
   it('shows spend against the cap', () => {
-    const r = run({ budget: { spendUsdCap: 5 }, spentUsd: 1.5 })
+    const r = run({ budget: { spendUsdCap: 5 }, totals: totals({ costUsd: 1.5 }) })
     expect(processRunSpend(r)?.label).toBe('$1.50 of $5.00')
   })
 
   it('folds a granted raise into the ceiling, and says it was raised', () => {
-    const r = run({ budget: { spendUsdCap: 5 }, budgetGrants: { spendUsdCap: 5 }, spentUsd: 6 })
+    const r = run({
+      budget: { spendUsdCap: 5 },
+      budgetGrants: { spendUsdCap: 5 },
+      totals: totals({ costUsd: 6 }),
+    })
     expect(processRunSpend(r)?.label).toBe('$6.00 of $10.00 (raised)')
   })
 
   it('shows spend alone when the run is uncapped', () => {
-    expect(processRunSpend(run({ spentUsd: 2 }))?.label).toBe('$2.00')
+    expect(processRunSpend(run({ totals: totals({ costUsd: 2 }) }))?.label).toBe('$2.00')
   })
 
   it('reads a capped run that has spent nothing yet as zero, not unknown', () => {
-    expect(processRunSpend(run({ budget: { spendUsdCap: 5 } }))?.label).toBe('$0.00 of $5.00')
+    expect(processRunSpend(run({ budget: { spendUsdCap: 5 }, totals: totals() }))?.label).toBe(
+      '$0.00 of $5.00',
+    )
+  })
+
+  it('reads the ledger totals, not the counter the driver stamps between steps', () => {
+    const r = run({ spentUsd: 0.19, totals: totals({ costUsd: 30.25 }) })
+    expect(processRunSpend(r)?.spent).toBe(30.25)
+  })
+
+  it('names the tokens it could not price instead of counting them as nothing', () => {
+    const r = run({ totals: totals({ costUsd: 0.5, unpricedTokens: 12_345 }) })
+    expect(processRunSpend(r)?.label).toBe('$0.50 + 12.3k unpriced tokens')
+    expect(processRunSpend(run({ totals: totals({ unpricedTokens: 800 }) }))?.label).toBe(
+      '800 unpriced tokens',
+    )
+  })
+})
+
+describe('formatProcessCost', () => {
+  it('keeps sub-cent spend visible', () => {
+    expect(formatProcessCost({ costUsd: 0.0012 })).toBe('$0.0012')
+  })
+
+  it('shows priced and unpriced side by side, and each alone', () => {
+    expect(formatProcessCost({ costUsd: 3, unpricedTokens: 2_500_000 })).toBe(
+      '$3.00 + 2.5M unpriced tokens',
+    )
+    expect(formatProcessCost({ costUsd: 3 })).toBe('$3.00')
+    expect(formatProcessCost({ unpricedTokens: 999 })).toBe('999 unpriced tokens')
+  })
+
+  it('is undefined when nothing was measured', () => {
+    expect(formatProcessCost({})).toBeUndefined()
+    expect(formatProcessCost(undefined)).toBeUndefined()
+  })
+})
+
+describe('run and step work time', () => {
+  const MIN = 60_000
+  const verifyStep = { id: 'b', name: 'Verify', kind: 'agent' as const, agentType: 'developer' }
+  const gateStep = { id: 'g', name: 'Sign-off', kind: 'gate' as const }
+  const attempts = (...ms: number[]) => ms.map((workMs, i) => ({ entryId: `e${i}`, workMs }))
+
+  it('is the ledger total when nothing is running, whatever the clock says', () => {
+    const r = run({ totals: { workMs: 9 * MIN, ticking: false, at: 100, steps: {} } })
+    expect(processRunWorkMs(r, 100 + 60 * MIN)).toBe(9 * MIN)
+  })
+
+  it('carries the clock on from when the totals were read while a step runs', () => {
+    const r = run({ totals: { workMs: 9 * MIN, ticking: true, at: 100, steps: {} } })
+    expect(processRunWorkMs(r, 100 + 2 * MIN)).toBe(11 * MIN)
+  })
+
+  it('is unknown for a run read without totals', () => {
+    expect(processRunWorkMs(run(), 0)).toBeUndefined()
+    expect(processRunWorkLabel(run(), 0)).toBeUndefined()
+  })
+
+  it('labels the live work time', () => {
+    const r = run({ totals: { workMs: 9 * MIN, ticking: true, at: 0, steps: {} } })
+    expect(processRunWorkLabel(r, 90_000)).toBe('10m 30s')
+  })
+
+  it('sums EVERY attempt of a step — three verifier runs, not the last one', () => {
+    const r = run({
+      totals: {
+        workMs: 43 * MIN,
+        ticking: false,
+        at: 0,
+        steps: { b: { workMs: 43 * MIN, attempts: attempts(21 * MIN, 13 * MIN, 9 * MIN) } },
+      },
+    })
+    const state = { step: verifyStep, latest: { status: 'done' as const } }
+    expect(processStepWorkMs(r, state, 99 * MIN)).toBe(43 * MIN)
+  })
+
+  it('ticks only the step whose attempt is running, on top of its earlier attempts', () => {
+    const r = run({
+      totals: {
+        workMs: 38 * MIN,
+        ticking: true,
+        at: 10,
+        steps: {
+          a: { workMs: 8 * MIN, attempts: attempts(8 * MIN) },
+          b: { workMs: 30 * MIN, attempts: attempts(21 * MIN, 9 * MIN) },
+        },
+      },
+    })
+    const running = { step: verifyStep, latest: { status: 'running' as const } }
+    const finished = { step: { ...verifyStep, id: 'a' }, latest: { status: 'done' as const } }
+    expect(processStepWorkMs(r, running, 10 + MIN)).toBe(31 * MIN)
+    expect(processStepWorkMs(r, finished, 10 + MIN)).toBe(8 * MIN)
+  })
+
+  it('is unknown for a step that has not run', () => {
+    const r = run({ totals: { workMs: 0, ticking: false, at: 0, steps: {} } })
+    expect(processStepWorkMs(r, { step: verifyStep }, 0)).toBeUndefined()
+  })
+
+  it('never ticks a gate: waiting on a person is not work', () => {
+    const r = run({
+      totals: {
+        workMs: 0,
+        ticking: false,
+        at: 0,
+        steps: { g: { workMs: 0, attempts: attempts(0) } },
+      },
+    })
+    const waiting = { step: gateStep, latest: { status: 'running' as const } }
+    expect(processStepWorkMs(r, waiting, 5 * MIN)).toBe(0)
+  })
+
+  it("labels a step's spend across its attempts", () => {
+    const r = run({
+      totals: {
+        workMs: 0,
+        ticking: false,
+        at: 0,
+        steps: { b: { workMs: 0, costUsd: 1.25, unpricedTokens: 4_000, attempts: attempts(0, 0) } },
+      },
+    })
+    expect(processStepCostLabel(r, 'b')).toBe('$1.25 + 4k unpriced tokens')
+    expect(processStepCostLabel(r, 'a')).toBeUndefined()
   })
 })
 
@@ -351,11 +498,24 @@ describe('the editor helpers both peers share', () => {
 
 describe('processNodeState', () => {
   const st = (
-    over: Partial<{ status: 'pending' | 'running' | 'done'; outcome: ProcessStepOutcome }>,
+    over: Partial<{
+      status: 'pending' | 'running' | 'done'
+      outcome: ProcessStepOutcome
+      requeued: boolean
+    }>,
   ) => ({
     step: { id: 'x' },
     status: over.status ?? 'done',
     outcome: over.outcome,
+    requeued: over.requeued ?? false,
+  })
+
+  it('reads a step a retry has gone back over as coming NEXT — not as the failure it no longer is', () => {
+    expect(processNodeState(st({ outcome: 'failed', requeued: true }), undefined)).toBe('requeued')
+  })
+
+  it('still reads a step the run is parked on as parked, requeued or not', () => {
+    expect(processNodeState(st({ outcome: 'failed', requeued: true }), 'x')).toBe('parked')
   })
 
   it('marks the parked step parked, above every other signal', () => {
@@ -386,8 +546,16 @@ describe('processNodeTone', () => {
     expect(processNodeTone('parked', false)).toBe('on_hold')
   })
 
+  it('draws a requeued step as queued — never the red of a failure', () => {
+    expect(processNodeTone('requeued', false)).toBe('queued')
+  })
+
+  it('draws a working step in the live green', () => {
+    expect(processNodeTone('working', false)).toBe(PROCESS_LIVE_TONE)
+  })
+
   it('only ever names a status the package has tokens for', () => {
-    const states = ['done', 'working', 'failed', 'parked', 'queued', 'skipped'] as const
+    const states = ['done', 'working', 'failed', 'parked', 'queued', 'skipped', 'requeued'] as const
     for (const s of states) {
       expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, false))
       expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, true))
@@ -402,6 +570,95 @@ describe('processNodeGlyph', () => {
     expect(processNodeGlyph('parked', 2)).toBe('?')
     expect(processNodeGlyph('queued', 2)).toBe('2')
     expect(processNodeGlyph('working', 3)).toBe('3')
+    expect(processNodeGlyph('requeued', 2)).toBe('2')
+  })
+})
+
+describe('processNodeLook', () => {
+  it('draws running work as a green ring that spins, and finished work as a filled green check', () => {
+    expect(processNodeLook('working', false, 1)).toEqual({
+      tone: PROCESS_LIVE_TONE,
+      shape: 'ring',
+      spin: true,
+      glyph: '1',
+    })
+    expect(processNodeLook('done', false, 1)).toEqual({
+      tone: 'done',
+      shape: 'solid',
+      spin: false,
+      glyph: '✓',
+    })
+  })
+
+  it('never spins anything that is not running', () => {
+    for (const s of ['done', 'failed', 'parked', 'queued', 'skipped', 'requeued'] as const) {
+      expect(processNodeLook(s, false, 2).spin).toBe(false)
+    }
+  })
+
+  it('draws what has not run yet — including a requeued step — as a dashed, numbered outline', () => {
+    for (const s of ['queued', 'requeued', 'skipped'] as const) {
+      expect(processNodeLook(s, false, 3)).toMatchObject({ shape: 'dashed', glyph: '3' })
+    }
+  })
+
+  it('keeps a failure and a decision as filled marks with their glyph', () => {
+    expect(processNodeLook('failed', false, 2)).toMatchObject({
+      shape: 'solid',
+      glyph: '!',
+      tone: 'stuck',
+    })
+    expect(processNodeLook('parked', true, 2)).toMatchObject({
+      shape: 'solid',
+      glyph: '?',
+      tone: 'review',
+    })
+  })
+})
+
+describe('processNodeBadge and processNodeSummary — a requeued step', () => {
+  const plan = {
+    loops: [
+      {
+        id: 'fix',
+        from: 'verify',
+        to: 'implement',
+        when: ['failed'] as ProcessStepOutcome[],
+        maxIterations: 3,
+      },
+    ],
+  }
+  const verify = (
+    over: Partial<{ attempts: number; requeued: boolean; outcome: ProcessStepOutcome }>,
+  ) => ({
+    attempts: over.attempts ?? 3,
+    requeued: over.requeued ?? true,
+    ...(over.outcome ? { outcome: over.outcome } : {}),
+    latest: { summary: 'No before/after pair on the preview screen.' },
+  })
+
+  it('names the attempt that is coming, marked next', () => {
+    expect(processNodeBadge(verify({}), { plan, iterationGrants: { fix: 1 } })).toBe(
+      'attempt 4 of 4 · next',
+    )
+  })
+
+  it('keeps the plain attempt badge for a step that is not requeued', () => {
+    expect(processNodeBadge(verify({ requeued: false }), { plan })).toBe('attempt 3 of 3')
+  })
+
+  it('says the last attempt did not pass, as history rather than as the verdict', () => {
+    expect(processNodeSummary(verify({ outcome: 'failed' }))).toEqual({
+      text: 'Attempt 3 did not pass: No before/after pair on the preview screen.',
+      muted: true,
+    })
+  })
+
+  it("shows a current step's summary as it is", () => {
+    expect(processNodeSummary(verify({ requeued: false, outcome: 'failed' }))).toEqual({
+      text: 'No before/after pair on the preview screen.',
+      muted: false,
+    })
   })
 })
 
@@ -414,20 +671,6 @@ describe('formatProcessDuration', () => {
   })
   it('never goes negative', () => {
     expect(formatProcessDuration(-5)).toBe('0s')
-  })
-})
-
-describe('processEntryDuration', () => {
-  it('measures an ended attempt from its own span, ignoring now', () => {
-    expect(processEntryDurationMs({ startedAt: 1_000, endedAt: 8_000 }, 999_999)).toBe(7_000)
-    expect(processEntryDurationLabel({ startedAt: 1_000, endedAt: 8_000 })).toBe('7s')
-  })
-  it('measures a running attempt against now', () => {
-    expect(processEntryDurationMs({ startedAt: 1_000 }, 5_000)).toBe(4_000)
-  })
-  it('is undefined when there is nothing to measure', () => {
-    expect(processEntryDurationMs(undefined)).toBeUndefined()
-    expect(processEntryDurationMs({ startedAt: 1_000 })).toBeUndefined()
   })
 })
 

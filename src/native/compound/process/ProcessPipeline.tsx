@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { BackHandler, Pressable, ScrollView, Switch, Text, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  AccessibilityInfo,
+  Animated,
+  BackHandler,
+  Easing,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from 'react-native'
 
 import {
   useDurationTimer,
@@ -10,21 +20,23 @@ import {
   latestOpenableAttempt,
   parkedRunRef,
   processAttemptLeaf,
-  processEntryDurationLabel,
-  processIterationBadge,
   processLeafReview,
-  processNodeGlyph,
+  processNodeBadge,
+  processNodeLook,
   processNodeState,
-  processNodeTone,
+  processNodeSummary,
+  type ProcessNodeLook,
   processParkChoices,
   processRunBadge,
   processRunSpend,
+  processRunWorkMs,
+  processStepCostLabel,
+  processStepWorkMs,
   processStepStates,
   processStepTone,
   useAppSettings,
   useProcessRun,
   type ProcessNodeRunRef,
-  type ProcessNodeState,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
@@ -96,9 +108,9 @@ export default function ProcessPipeline({
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
-  // One 1s clock for the whole pipeline — ticks while the run is live so every
-  // step's elapsed advances in real time, freezes the moment it goes terminal.
-  const now = useDurationTimer(run?.status === 'running' || run?.status === 'pending')
+  // One 1s clock for the whole pipeline — ticks while a step is working, so its
+  // time advances in real time; stops while the run waits on a person or ends.
+  const now = useDurationTimer(run?.totals?.ticking === true)
 
   const drillTo = useCallback((childId: string) => {
     setOpenLeaf(null)
@@ -351,9 +363,9 @@ function RunHead({
   const { theme } = useNativeTheme()
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
-  // Elapsed EXCLUDES parked time — a run does not age while it waits on a person.
-  const end = run.status === 'running' ? now : run.updatedAt
-  const durMs = Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
+  // Work time from the ledger: every attempt of every step, nested runs
+  // included, and never the time spent waiting on a person.
+  const workMs = processRunWorkMs(run, now)
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   return (
     <View
@@ -393,7 +405,10 @@ function RunHead({
       <View style={{ flex: 1 }} />
       <ToneBadge tone={badge.tone} label={badge.label} />
       <DurCostChips
-        facts={{ durationLabel: formatProcessDuration(durMs), costLabel: spend?.label }}
+        facts={{
+          durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
+          costLabel: spend?.label,
+        }}
       />
       {stoppable ? (
         <Button size="sm" variant="secondary" onPress={onCancel}>
@@ -409,38 +424,92 @@ function RunHead({
   )
 }
 
-function Marker({
-  nodeState,
-  glyph,
-  isGate,
-}: {
-  nodeState: ProcessNodeState
-  glyph: string
-  isGate: boolean
-}) {
+/**
+ * Native peer of the web Marker: a filled mark for a verdict, a dashed numbered
+ * outline for what has not run yet, and — only for running work — a green ring
+ * that spins (held still when the device asks for reduced motion).
+ */
+function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' }) {
   const { status, theme } = useNativeTheme()
-  const tone = processNodeTone(nodeState, isGate)
-  const queued = nodeState === 'queued' || nodeState === 'skipped'
-  const variant = status[tone]
+  const variant = status[look.tone]
+  const box = size === 'node' ? 26 : 15
+  const glyph = size === 'sub' && look.shape !== 'solid' ? '' : look.glyph
+  const rotation = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (!look.spin) return
+    let loop: Animated.CompositeAnimation | undefined
+    let cancelled = false
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled || reduced) return
+      loop = Animated.loop(
+        Animated.timing(rotation, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+      )
+      loop.start()
+    })
+    return () => {
+      cancelled = true
+      loop?.stop()
+      rotation.setValue(0)
+    }
+  }, [look.spin, rotation])
+  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })
   return (
     <View
       style={{
-        width: 26,
-        height: 26,
+        width: box,
+        height: box,
         borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: queued ? theme.surface.base : variant.bg,
+        backgroundColor: look.shape === 'solid' ? variant.bg : theme.surface.base,
         borderWidth: 1.5,
-        borderColor: queued ? theme.border.default : variant.bg,
-        borderStyle: queued ? 'dashed' : 'solid',
+        borderColor:
+          look.shape === 'dashed'
+            ? theme.border.default
+            : look.shape === 'ring'
+              ? variant.softBorder
+              : variant.bg,
+        borderStyle: look.shape === 'dashed' ? 'dashed' : 'solid',
       }}
     >
-      <Text
-        style={{ fontSize: 10, fontWeight: '700', color: queued ? theme.text.muted : variant.fg }}
-      >
-        {glyph}
-      </Text>
+      {look.spin ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: -1.5,
+            left: -1.5,
+            right: -1.5,
+            bottom: -1.5,
+            borderRadius: 999,
+            borderWidth: 1.5,
+            borderColor: variant.bg,
+            borderTopColor: 'transparent',
+            transform: [{ rotate: spin }],
+          }}
+        />
+      ) : null}
+      {glyph ? (
+        <Text
+          style={{
+            fontSize: size === 'node' ? 10 : 8,
+            fontWeight: '700',
+            color:
+              look.shape === 'dashed'
+                ? theme.text.muted
+                : look.shape === 'ring'
+                  ? variant.bg
+                  : variant.fg,
+          }}
+        >
+          {glyph}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -529,7 +598,9 @@ function PipelineNode({
   const { theme, status } = useNativeTheme()
   const parkStepId = run.park?.stepId
   const nodeState = processNodeState(state, parkStepId)
-  const glyph = processNodeGlyph(nodeState, ordinal)
+  const look = processNodeLook(nodeState, state.step.kind === 'gate', ordinal)
+  const summary = processNodeSummary(state)
+  const chip = status[look.tone]
   const childRunId = state.latest?.childRunId
   const isFeature = state.step.kind === 'process'
   const isAgent = state.step.kind === 'agent'
@@ -547,15 +618,18 @@ function PipelineNode({
     : latest
       ? () => onOpenLeaf(latest, processLeafReview(run, latest) !== undefined)
       : undefined
-  const iteration = processIterationBadge(state.attempts, run)
-  const duration = processEntryDurationLabel(state.latest, now)
+  const iteration = processNodeBadge(state, run)
+  const workMs = processStepWorkMs(run, state, now)
+  const duration = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
+  const cost = processStepCostLabel(run, state.step.id)
+  const meta = [duration, cost].filter(Boolean).join(' · ')
   const expanded = isFeature && (state.current || parkStepId === state.step.id)
   const parked = parkStepId === state.step.id
 
   return (
     <View style={{ flexDirection: 'row', gap: nativeSpace[3] }}>
       <View style={{ width: 26, alignItems: 'center' }}>
-        <Marker nodeState={nodeState} glyph={glyph} isGate={state.step.kind === 'gate'} />
+        <Marker look={look} size="node" />
         {!isLast ? (
           <View
             style={{
@@ -592,28 +666,40 @@ function PipelineNode({
           {iteration ? (
             <View
               style={{
-                backgroundColor: status.working.softBg,
-                borderColor: status.working.softBorder,
+                backgroundColor: chip.softBg,
+                borderColor: chip.softBorder,
                 borderWidth: 1,
                 borderRadius: 999,
                 paddingHorizontal: 6,
                 paddingVertical: 1,
               }}
             >
-              <Text style={{ fontSize: 10.5, fontWeight: '600', color: status.working.softFg }}>
+              <Text style={{ fontSize: 10.5, fontWeight: '600', color: chip.softFg }}>
                 {iteration}
               </Text>
             </View>
           ) : null}
           <View style={{ flex: 1 }} />
-          {duration ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{duration}</Text>
+          {meta ? (
+            <Text
+              style={{ fontSize: 11, color: theme.text.muted }}
+              accessibilityLabel={total > 1 ? `${meta}, all ${total} attempts` : meta}
+            >
+              {meta}
+            </Text>
           ) : null}
           {open ? <Text style={{ fontSize: 11, color: theme.text.muted }}>open ›</Text> : null}
         </Pressable>
 
-        {state.latest?.summary ? (
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{state.latest.summary}</Text>
+        {summary ? (
+          <Text
+            style={{
+              fontSize: 12,
+              color: summary.muted ? theme.text.muted : theme.text.secondary,
+            }}
+          >
+            {summary.text}
+          </Text>
         ) : null}
 
         {/* A fix loop runs an agent step several times; the row above opens the
@@ -733,8 +819,8 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
       {looped ? (
         <View
           style={{
-            backgroundColor: status.working.softBg,
-            borderColor: status.working.softBorder,
+            backgroundColor: status.queued.softBg,
+            borderColor: status.queued.softBorder,
             borderWidth: 1,
             borderStyle: 'dashed',
             borderRadius: nativeRadii[2],
@@ -742,59 +828,31 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
             paddingVertical: 2,
           }}
         >
-          <Text style={{ fontSize: 11, color: status.working.softFg }}>
+          <Text style={{ fontSize: 11, color: status.queued.softFg }}>
             ↺ Verification sent the work back — retried
           </Text>
         </View>
       ) : null}
-      {states.map((s) => {
+      {states.map((s, index) => {
         const st = processNodeState(s, child.park?.stepId)
-        const dur = processEntryDurationLabel(s.latest, now)
-        const iter = processIterationBadge(s.attempts, child)
+        const workMs = processStepWorkMs(child, s, now)
+        const dur = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
+        const iter = processNodeBadge(s, child)
         return (
           <View
             key={s.step.id}
             style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
           >
-            <SubDot nodeState={st} />
+            <Marker look={processNodeLook(st, s.step.kind === 'gate', index + 1)} size="sub" />
             <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
               {s.step.name}
             </Text>
-            {iter ? (
-              <Text style={{ fontSize: 11, color: status.working.softFg }}>· {iter}</Text>
-            ) : null}
+            {iter ? <Text style={{ fontSize: 11, color: theme.text.muted }}>· {iter}</Text> : null}
             <View style={{ flex: 1 }} />
             {dur ? <Text style={{ fontSize: 10.5, color: theme.text.muted }}>{dur}</Text> : null}
           </View>
         )
       })}
-    </View>
-  )
-}
-
-function SubDot({ nodeState }: { nodeState: ProcessNodeState }) {
-  const { status, theme } = useNativeTheme()
-  const tone = processNodeTone(nodeState, false)
-  const queued = nodeState === 'queued' || nodeState === 'skipped'
-  const variant = status[tone]
-  const glyph = nodeState === 'done' ? '✓' : nodeState === 'failed' ? '!' : ''
-  return (
-    <View
-      style={{
-        width: 15,
-        height: 15,
-        borderRadius: 999,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: queued ? theme.surface.base : variant.bg,
-        borderWidth: 1.5,
-        borderColor: queued ? theme.border.default : variant.bg,
-        borderStyle: queued ? 'dashed' : 'solid',
-      }}
-    >
-      {glyph ? (
-        <Text style={{ fontSize: 8, fontWeight: '700', color: variant.fg }}>{glyph}</Text>
-      ) : null}
     </View>
   )
 }

@@ -8,7 +8,6 @@ import { IconChevron } from '../../icons'
 import {
   LAUNCH_NOTE_MAX_CHARS,
   LAUNCH_OPTIONS_READ_ONLY,
-  featuresToWorkOn,
   formatGrantDetail,
   isStartFeatureWorkGrant,
   launchOptionsAreHonoured,
@@ -17,7 +16,7 @@ import {
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
-import { useProcessProposal, useProjectNotes, useStories } from '../../../headless'
+import { featuresToWork, useProcessProposal, useProjectNotes, useStories } from '../../../headless'
 import type { PendingToolGrant } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
@@ -122,11 +121,11 @@ export default function ApprovalPanel({
   const [error, setError] = useState<string | null>(null)
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
-  const features = story ? featuresToWorkOn(story) : []
+  const features = story ? featuresToWork(story) : []
   // The resolved plan the user reads before approving — the whole path the run
   // will take, per feature, not just the feature list. Fetched only for a launch
   // grant that names a story; a miss falls back to the plain feature list below.
-  const { proposal } = useProcessProposal({
+  const { proposal, refusal } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
   })
@@ -280,10 +279,12 @@ export default function ApprovalPanel({
           <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
             Features to work on
           </span>
-          {features.length === 0 ? (
+          {refusal !== undefined ? (
+            <span className="text-[12px] text-(--text-secondary)">{refusal}</span>
+          ) : features.length === 0 ? (
             <span className="text-[12px] text-(--text-secondary)">
               {story
-                ? 'No feature on this story is ready — it will be refused when launched.'
+                ? 'Every feature on this story is done or deferred — it will be refused when launched.'
                 : 'Loading the story…'}
             </span>
           ) : (
@@ -477,7 +478,7 @@ export default function ApprovalPanel({
             onClick={() => decide('once')}
             loading={busy}
             // `features` is legitimately empty while the story loads.
-            disabled={story !== undefined && features.length === 0}
+            disabled={refusal !== undefined || (story !== undefined && features.length === 0)}
           >
             Start work
           </Button>

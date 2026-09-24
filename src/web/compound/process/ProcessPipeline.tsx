@@ -6,23 +6,25 @@ import {
   isReflectedPark,
   latestOpenableAttempt,
   parkedRunRef,
-  processEntryDurationLabel,
   processAttemptLeaf,
-  processIterationBadge,
   processLeafReview,
-  processNodeGlyph,
+  processNodeBadge,
+  processNodeLook,
   processNodeState,
-  processNodeTone,
+  processNodeSummary,
+  type ProcessNodeLook,
   processParkChoices,
   processRunBadge,
   processRunSpend,
+  processRunWorkMs,
+  processStepCostLabel,
+  processStepWorkMs,
   processStepStates,
   processStepTone,
   useAppSettings,
   useDurationTimer,
   useProcessRun,
   type ProcessNodeRunRef,
-  type ProcessNodeState,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
@@ -39,15 +41,6 @@ import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
 import type { ProcessRunBranch } from '../../../headless'
-
-/** A run's live elapsed ms — ticks while running, freezes at `updatedAt` once terminal. */
-function liveDurMs(
-  run: Pick<ProcessRun, 'status' | 'updatedAt' | 'startedAt' | 'parkedMs'>,
-  now: number,
-): number {
-  const end = run.status === 'running' ? now : run.updatedAt
-  return Math.max(0, end - run.startedAt - (run.parkedMs ?? 0))
-}
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -105,9 +98,9 @@ export default function ProcessPipeline({
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
-  // One 1s clock for the whole pipeline — ticks while the run is live so every
-  // step's elapsed advances in real time, freezes the moment it goes terminal.
-  const now = useDurationTimer(run?.status === 'running' || run?.status === 'pending')
+  // One 1s clock for the whole pipeline — ticks while a step is working, so its
+  // time advances in real time; stops while the run waits on a person or ends.
+  const now = useDurationTimer(run?.totals?.ticking === true)
 
   const drillTo = useCallback((childId: string) => {
     setOpenLeaf(null)
@@ -327,8 +320,9 @@ function RunHead({
 }) {
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
-  // Elapsed EXCLUDES parked time — a run does not age while it waits on a person.
-  const durMs = liveDurMs(run, now)
+  // Work time from the ledger: every attempt of every step, nested runs
+  // included, and never the time spent waiting on a person.
+  const workMs = processRunWorkMs(run, now)
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5">
@@ -363,11 +357,15 @@ function RunHead({
       </nav>
       <span className="grow" />
       <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
-      <span className={DURATION_CHIP_CLASS}>{formatProcessDuration(durMs)}</span>
+      {workMs !== undefined ? (
+        <span className={DURATION_CHIP_CLASS} title="Time spent working, across every attempt">
+          {formatProcessDuration(workMs)}
+        </span>
+      ) : null}
       {spend ? (
         <span
           className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}
-          title="Spent against the cap"
+          title={spend.cap !== undefined ? 'Spent against the cap' : 'Spent so far'}
         >
           <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
           {spend.label}
@@ -387,40 +385,45 @@ function RunHead({
   )
 }
 
-/** The 26px marker on the spine — a verdict glyph or the ordinal, coloured by state. */
-function Marker({
-  nodeState,
-  glyph,
-  isGate,
-}: {
-  nodeState: ProcessNodeState
-  glyph: string
-  isGate: boolean
-}) {
-  const tone = processNodeTone(nodeState, isGate)
-  const queued = nodeState === 'queued' || nodeState === 'skipped'
+/**
+ * A node's marker, drawn from its look: a filled mark for a verdict, a dashed
+ * numbered outline for what has not run yet, and — only for running work — a
+ * green ring that spins.
+ */
+function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' }) {
+  const box = size === 'node' ? 'size-[26px] text-[10px]' : 'size-[15px] text-[8px]'
+  const glyph = size === 'sub' && look.shape !== 'solid' ? '' : look.glyph
   return (
     <span
-      className="relative grid size-[26px] shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
+      className={`relative grid shrink-0 place-items-center rounded-full font-bold tabular-nums ${box}`}
       style={
-        queued
+        look.shape === 'dashed'
           ? {
               background: 'var(--surface-base)',
               color: 'var(--text-muted)',
               border: '1.5px dashed var(--border-default)',
             }
-          : {
-              background: `var(--status-${tone}-bg)`,
-              color: `var(--status-${tone}-fg)`,
-              border: `1.5px solid var(--status-${tone}-bg)`,
-            }
+          : look.shape === 'ring'
+            ? {
+                background: 'var(--surface-base)',
+                color: `var(--status-${look.tone}-bg)`,
+                border: `1.5px solid var(--status-${look.tone}-soft-border)`,
+              }
+            : {
+                background: `var(--status-${look.tone}-bg)`,
+                color: `var(--status-${look.tone}-fg)`,
+                border: `1.5px solid var(--status-${look.tone}-bg)`,
+              }
       }
     >
-      {nodeState === 'working' ? (
+      {look.spin ? (
         <span
           aria-hidden
-          className="absolute inset-0 animate-ping rounded-full"
-          style={{ border: `1.5px solid var(--status-${tone}-bg)`, opacity: 0.5 }}
+          className="absolute -inset-[1.5px] rounded-full motion-safe:animate-spin"
+          style={{
+            border: `1.5px solid var(--status-${look.tone}-bg)`,
+            borderTopColor: 'transparent',
+          }}
         />
       ) : null}
       {glyph}
@@ -456,7 +459,8 @@ function PipelineNode({
 }) {
   const parkStepId = run.park?.stepId
   const nodeState = processNodeState(state, parkStepId)
-  const glyph = processNodeGlyph(nodeState, ordinal)
+  const look = processNodeLook(nodeState, state.step.kind === 'gate', ordinal)
+  const summary = processNodeSummary(state)
   const childRunId = state.latest?.childRunId
   const isFeature = state.step.kind === 'process'
   const isAgent = state.step.kind === 'agent'
@@ -476,8 +480,10 @@ function PipelineNode({
     : latest
       ? () => onOpenLeaf(latest, processLeafReview(run, latest) !== undefined)
       : undefined
-  const iteration = processIterationBadge(state.attempts, run)
-  const duration = processEntryDurationLabel(state.latest, now)
+  const iteration = processNodeBadge(state, run)
+  const workMs = processStepWorkMs(run, state, now)
+  const duration = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
+  const cost = processStepCostLabel(run, state.step.id)
   // The active feature node shows its child pipeline inline — expanded when the
   // run is on it (running or parked), collapsed (and drillable) otherwise.
   const expanded = isFeature && (state.current || parkStepId === state.step.id)
@@ -495,7 +501,7 @@ function PipelineNode({
           }}
         />
       ) : null}
-      <Marker nodeState={nodeState} glyph={glyph} isGate={state.step.kind === 'gate'} />
+      <Marker look={look} size="node" />
       <div className="min-w-0 pb-3">
         <button
           type="button"
@@ -513,25 +519,32 @@ function PipelineNode({
             <span
               className="inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
               style={{
-                background: 'var(--status-working-soft-bg)',
-                color: 'var(--status-working-soft-fg)',
-                border: '1px solid var(--status-working-soft-border)',
+                background: `var(--status-${look.tone}-soft-bg)`,
+                color: `var(--status-${look.tone}-soft-fg)`,
+                border: `1px solid var(--status-${look.tone}-soft-border)`,
               }}
             >
               {iteration}
             </span>
           ) : null}
           <span className="ml-auto flex items-center gap-2">
-            {duration ? (
-              <span className="text-[11px] tabular-nums text-(--text-muted)">{duration}</span>
+            {duration || cost ? (
+              <span
+                className="text-[11px] tabular-nums text-(--text-muted)"
+                title={total > 1 ? `All ${total} attempts` : undefined}
+              >
+                {[duration, cost].filter(Boolean).join(' · ')}
+              </span>
             ) : null}
             {open ? <span className="text-[11px] text-(--text-muted)">open ›</span> : null}
           </span>
         </button>
 
-        {state.latest?.summary ? (
-          <div className="whitespace-pre-wrap px-1.5 text-[12px] text-(--text-secondary)">
-            {state.latest.summary}
+        {summary ? (
+          <div
+            className={`whitespace-pre-wrap px-1.5 text-[12px] ${summary.muted ? 'text-(--text-muted)' : 'text-(--text-secondary)'}`}
+          >
+            {summary.text}
           </div>
         ) : null}
 
@@ -666,56 +679,34 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
         <div
           className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]"
           style={{
-            color: 'var(--status-working-soft-fg)',
-            background: 'var(--status-working-soft-bg)',
-            border: '1px dashed var(--status-working-soft-border)',
+            color: 'var(--status-queued-soft-fg)',
+            background: 'var(--status-queued-soft-bg)',
+            border: '1px dashed var(--status-queued-soft-border)',
           }}
         >
           ↺ Verification sent the work back — <b className="font-semibold">retried</b>
         </div>
       ) : null}
-      {states.map((s) => {
+      {states.map((s, index) => {
         const st = processNodeState(s, child.park?.stepId)
-        const dur = processEntryDurationLabel(s.latest, now)
-        const iter = processIterationBadge(s.attempts, child)
+        const workMs = processStepWorkMs(child, s, now)
+        const dur = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
+        const iter = processNodeBadge(s, child)
+        const line = processNodeSummary(s)
         return (
           <div
             key={s.step.id}
             className="flex items-center gap-2 text-[12px] text-(--text-secondary)"
           >
-            <SubDot nodeState={st} />
+            <Marker look={processNodeLook(st, s.step.kind === 'gate', index + 1)} size="sub" />
             <b className="font-semibold text-(--text-primary)">{s.step.name}</b>
-            {s.latest?.summary ? (
-              <span className="truncate text-(--text-muted)">· {s.latest.summary}</span>
-            ) : null}
-            {iter ? <span className="text-(--status-working-soft-fg)">· {iter}</span> : null}
+            {line ? <span className="truncate text-(--text-muted)">· {line.text}</span> : null}
+            {iter ? <span className="text-(--text-muted)">· {iter}</span> : null}
             {dur ? <span className="ml-auto tabular-nums text-(--text-muted)">{dur}</span> : null}
           </div>
         )
       })}
     </div>
-  )
-}
-
-function SubDot({ nodeState }: { nodeState: ProcessNodeState }) {
-  const tone = processNodeTone(nodeState, false)
-  const queued = nodeState === 'queued' || nodeState === 'skipped'
-  const glyph = nodeState === 'done' ? '✓' : nodeState === 'failed' ? '!' : ''
-  return (
-    <span
-      className="grid size-[15px] shrink-0 place-items-center rounded-full text-[8px] font-bold"
-      style={
-        queued
-          ? { background: 'var(--surface-base)', border: '1.5px dashed var(--border-default)' }
-          : {
-              background: `var(--status-${tone}-bg)`,
-              color: `var(--status-${tone}-fg)`,
-              border: `1.5px solid var(--status-${tone}-bg)`,
-            }
-      }
-    >
-      {glyph}
-    </span>
   )
 }
 

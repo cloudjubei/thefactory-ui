@@ -9,6 +9,7 @@ import type {
   ProcessStepOutcome,
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
+import type { ProcessNodeLook, ProcessNodeSummary } from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/utils'
 import { processRunProgress, processStepStates, processVerifyReview } from 'thefactory-tools/utils'
 
@@ -49,13 +50,22 @@ export const PROCESS_OUTCOME_VIEW: Record<
   errored: { label: 'errored', tone: 'stuck' },
 }
 
+/**
+ * The tone of process work that is RUNNING — the same green as work that is
+ * done. A run making progress is good news; the orange working token read as a
+ * warning, and it is shared with story rows, so processes move off it rather
+ * than recolour it. Running and done are told apart by shape: a spinning ring
+ * against a filled mark.
+ */
+export const PROCESS_LIVE_TONE: ProcessStatusTone = 'done'
+
 /** How a whole run reads in one word. */
 export const PROCESS_RUN_STATUS_VIEW: Record<
   ProcessRun['status'],
   { label: string; tone: ProcessStatusTone }
 > = {
   pending: { label: 'Starting', tone: 'queued' },
-  running: { label: 'Running', tone: 'working' },
+  running: { label: 'Running', tone: PROCESS_LIVE_TONE },
   parked: { label: 'Waiting for you', tone: 'blocked' },
   succeeded: { label: 'Finished', tone: 'done' },
   failed: { label: 'Stopped', tone: 'stuck' },
@@ -68,7 +78,7 @@ export function processStepTone(
   outcome: ProcessStepOutcome | undefined,
 ): ProcessStatusTone {
   if (status === 'pending') return 'empty'
-  if (status === 'running') return 'working'
+  if (status === 'running') return PROCESS_LIVE_TONE
   return outcome ? PROCESS_OUTCOME_VIEW[outcome].tone : 'empty'
 }
 
@@ -110,29 +120,100 @@ export function processRunChipLabel(run: ProcessRun): string {
 
 /**
  * What a run has spent against what it was allowed, or `undefined` when it was
- * never capped.
+ * never capped and nothing has been measured.
  *
- * Shown because a cap the user cannot see is one they cannot act on until it
- * parks them — and by then they are reading a banner instead of a number they
- * could have watched.
+ * Read from the ledger totals every surface shares — never from `spentUsd`,
+ * which the driver stamps between steps and so lags whatever just finished.
+ * Tokens with no known price are named beside the dollars, never counted as $0.
  */
 export function processRunSpend(
   run: ProcessRun,
 ): { spent: number; cap?: number; label: string } | undefined {
   const cap = run.budget?.spendUsdCap
   const granted = run.budgetGrants?.spendUsdCap ?? 0
-  const spent = run.spentUsd
-  if (cap === undefined && spent === undefined) return undefined
+  const spent = run.totals?.costUsd
+  const unpriced = run.totals?.unpricedTokens
+  if (cap === undefined && spent === undefined && unpriced === undefined) return undefined
   const limit = cap === undefined ? undefined : cap + granted
-  const money = (value: number) => `$${value.toFixed(2)}`
-  return {
-    spent: spent ?? 0,
-    ...(limit !== undefined ? { cap: limit } : {}),
-    label:
-      limit === undefined
-        ? money(spent ?? 0)
-        : `${money(spent ?? 0)} of ${money(limit)}${granted > 0 ? ' (raised)' : ''}`,
+  const money = (usd: number) => formatProcessCost({ costUsd: usd }) ?? ''
+  const label =
+    limit === undefined
+      ? (formatProcessCost({ costUsd: spent, unpricedTokens: unpriced }) ?? '')
+      : `${money(spent ?? 0)} of ${money(limit)}${granted > 0 ? ' (raised)' : ''}` +
+        (unpriced ? ` + ${formatTokenCount(unpriced)} unpriced tokens` : '')
+  return { spent: spent ?? 0, ...(limit !== undefined ? { cap: limit } : {}), label }
+}
+
+/**
+ * Priced spend and unpriced tokens as one label, or `undefined` when neither
+ * was measured. Sub-cent spend keeps four decimals so it never reads as $0.00.
+ */
+export function formatProcessCost(
+  cost: { costUsd?: number; unpricedTokens?: number } | undefined,
+): string | undefined {
+  const parts: string[] = []
+  const usd = cost?.costUsd
+  if (usd !== undefined && Number.isFinite(usd)) {
+    parts.push(usd > 0 && usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`)
   }
+  if (cost?.unpricedTokens) parts.push(`${formatTokenCount(cost.unpricedTokens)} unpriced tokens`)
+  return parts.length > 0 ? parts.join(' + ') : undefined
+}
+
+function formatTokenCount(tokens: number): string {
+  const compact = (value: number, unit: string) => `${Number(value.toFixed(1))}${unit}`
+  if (tokens < 1_000) return String(tokens)
+  if (tokens < 1_000_000) return compact(tokens / 1_000, 'k')
+  return compact(tokens / 1_000_000, 'M')
+}
+
+/**
+ * How long a run has worked at `now`: its ledger totals, with the clock carried
+ * on from when they were read while a step is running. Parked time and gates
+ * are not work, so they never count. Undefined for a run read without totals.
+ */
+export function processRunWorkMs(run: Pick<ProcessRun, 'totals'>, now: number): number | undefined {
+  const totals = run.totals
+  if (!totals) return undefined
+  return totals.workMs + (totals.ticking ? Math.max(0, now - totals.at) : 0)
+}
+
+/** A run's work time as a label, or undefined when the run was read without totals. */
+export function processRunWorkLabel(
+  run: Pick<ProcessRun, 'totals'>,
+  now: number,
+): string | undefined {
+  const ms = processRunWorkMs(run, now)
+  return ms === undefined ? undefined : formatProcessDuration(ms)
+}
+
+/**
+ * How long a step has worked across EVERY attempt, live while its latest one
+ * runs. A step retried three times took all three — the latest alone is what
+ * made a verifier look like it ran for nine minutes when it ran for forty.
+ */
+export function processStepWorkMs(
+  run: Pick<ProcessRun, 'totals'>,
+  state: {
+    step: Pick<ProcessStep, 'id'>
+    latest?: Pick<ProcessLedgerEntry, 'status'>
+  },
+  now: number,
+): number | undefined {
+  const totals = run.totals
+  const step = totals?.steps[state.step.id]
+  if (!totals || !step) return undefined
+  const live =
+    totals.ticking && state.latest?.status === 'running' ? Math.max(0, now - totals.at) : 0
+  return step.workMs + live
+}
+
+/** What a step has cost across every attempt, as a label. */
+export function processStepCostLabel(
+  run: Pick<ProcessRun, 'totals'>,
+  stepId: string,
+): string | undefined {
+  return formatProcessCost(run.totals?.steps[stepId])
 }
 
 /**
@@ -230,22 +311,31 @@ export function parkedRunRef(run: ProcessRun): ProcessNodeRunRef | undefined {
 }
 
 /**
- * A node's visual state on the pipeline spine — the six the design draws.
+ * A node's visual state on the pipeline spine.
  *
  * Derived, not stored: it folds the run's cursor, the step's outcome and the
  * run's park point into the one word the marker needs. `parked` wins over
  * everything, because a run sitting on a decision is the thing the eye must find
- * first.
+ * first. `requeued` is a step a later pass went back over — a verify that failed
+ * and sent the work back is NEXT again, not the red failure it no longer is.
  */
-export type ProcessNodeState = 'done' | 'working' | 'failed' | 'parked' | 'queued' | 'skipped'
+export type ProcessNodeState =
+  | 'done'
+  | 'working'
+  | 'failed'
+  | 'parked'
+  | 'queued'
+  | 'skipped'
+  | 'requeued'
 
 /** The node state for one step, given where the run has parked (if anywhere). */
 export function processNodeState(
-  state: Pick<ProcessStepState, 'status' | 'outcome'> & { step: { id: string } },
+  state: Pick<ProcessStepState, 'status' | 'outcome' | 'requeued'> & { step: { id: string } },
   parkedStepId: string | undefined,
 ): ProcessNodeState {
   if (parkedStepId !== undefined && state.step.id === parkedStepId) return 'parked'
   if (state.status === 'running') return 'working'
+  if (state.requeued) return 'requeued'
   if (state.status === 'pending') return 'queued'
   if (state.outcome === 'failed' || state.outcome === 'errored' || state.outcome === 'unchecked')
     return 'failed'
@@ -261,7 +351,7 @@ export function processNodeTone(nodeState: ProcessNodeState, isGate: boolean): P
     case 'done':
       return 'done'
     case 'working':
-      return 'working'
+      return PROCESS_LIVE_TONE
     case 'failed':
       return 'stuck'
     case 'parked':
@@ -287,6 +377,60 @@ export function processNodeGlyph(nodeState: ProcessNodeState, ordinal: number): 
   }
 }
 
+/** How a node's marker is drawn — see {@link ProcessNodeLook}. */
+export function processNodeLook(
+  nodeState: ProcessNodeState,
+  isGate: boolean,
+  ordinal: number,
+): ProcessNodeLook {
+  const shape: ProcessNodeLook['shape'] =
+    nodeState === 'working'
+      ? 'ring'
+      : nodeState === 'queued' || nodeState === 'requeued' || nodeState === 'skipped'
+        ? 'dashed'
+        : 'solid'
+  return {
+    tone: processNodeTone(nodeState, isGate),
+    shape,
+    spin: nodeState === 'working',
+    glyph: processNodeGlyph(nodeState, ordinal),
+  }
+}
+
+/**
+ * A node's attempt badge. A requeued step names the attempt that is COMING —
+ * "attempt 4 of 4 · next" — rather than the one that is over.
+ */
+export function processNodeBadge(
+  state: Pick<ProcessStepState, 'attempts' | 'requeued'>,
+  run: { plan: Pick<ProcessPlan, 'loops'> } & Pick<ProcessRun, 'iterationGrants'>,
+): string | undefined {
+  if (!state.requeued) return processIterationBadge(state.attempts, run)
+  return `${processIterationBadge(state.attempts + 1, run)} · next`
+}
+
+/**
+ * The line under a node. For a requeued step its last result is history, said
+ * as such and drawn muted, so it cannot read as the current verdict.
+ */
+export function processNodeSummary(
+  state: Pick<ProcessStepState, 'attempts' | 'requeued' | 'outcome'> & {
+    latest?: Pick<ProcessLedgerEntry, 'summary'>
+  },
+): ProcessNodeSummary | undefined {
+  const summary = state.latest?.summary?.trim()
+  if (!summary) return undefined
+  if (!state.requeued) return { text: summary, muted: false }
+  const failed =
+    state.outcome === 'failed' || state.outcome === 'errored' || state.outcome === 'unchecked'
+  return {
+    text: failed
+      ? `Attempt ${state.attempts} did not pass: ${summary}`
+      : `Attempt ${state.attempts}: ${summary}`,
+    muted: true,
+  }
+}
+
 /** ms → "6m 12s" / "1m 04s" / "44s" / "1h 03m", the way the design writes them. */
 export function formatProcessDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000))
@@ -296,30 +440,6 @@ export function formatProcessDuration(ms: number): string {
   if (m < 60) return `${m}m ${String(s).padStart(2, '0')}s`
   const h = Math.floor(m / 60)
   return `${h}h ${String(m % 60).padStart(2, '0')}m`
-}
-
-/**
- * How long a ledger attempt took, in ms — ended attempts from their span, a
- * still-running one against `now` (passed in, never read here, so this stays
- * pure and testable). Undefined when there is nothing to measure yet.
- */
-export function processEntryDurationMs(
-  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
-  now?: number,
-): number | undefined {
-  if (!entry) return undefined
-  const end = entry.endedAt ?? now
-  if (end === undefined) return undefined
-  return Math.max(0, end - entry.startedAt)
-}
-
-/** A ledger attempt's duration as a label, or undefined when unmeasurable. */
-export function processEntryDurationLabel(
-  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt'> | undefined,
-  now?: number,
-): string | undefined {
-  const ms = processEntryDurationMs(entry, now)
-  return ms === undefined ? undefined : formatProcessDuration(ms)
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { nativePalette } from '../../tokens/native'
+import { nativeLightStatus, nativePalette, type NativeStatusTokens } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
 export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange'
@@ -17,19 +17,25 @@ export interface NotificationBadgeProps {
   style?: StyleProp<ViewStyle>
 }
 
-const COLOR_HEX: Record<NotificationBadgeColor, string> = {
-  red: nativePalette.red[500],
-  blue: nativePalette.blue[500],
-  green: nativePalette.green[500],
-  orange: nativePalette.orange[500],
-}
-
+/**
+ * `green` is the status "done" token of the given theme — the one green
+ * process runs use — so pass the live `useNativeTheme().status`.
+ */
 export function getNotificationBadgeColor(
   color: NotificationBadgeColor | undefined,
   isInformative = false,
+  status: NativeStatusTokens = nativeLightStatus,
 ): string {
-  if (color) return COLOR_HEX[color]
-  return isInformative ? COLOR_HEX.blue : COLOR_HEX.red
+  switch (color ?? (isInformative ? 'blue' : 'red')) {
+    case 'red':
+      return nativePalette.red[500]
+    case 'blue':
+      return nativePalette.blue[500]
+    case 'green':
+      return status.done.bg
+    case 'orange':
+      return nativePalette.orange[500]
+  }
 }
 
 export default function NotificationBadge({
@@ -41,8 +47,8 @@ export default function NotificationBadge({
   className,
   style,
 }: NotificationBadgeProps) {
-  const { theme } = useNativeTheme()
-  const bg = background ?? getNotificationBadgeColor(color, isInformative)
+  const { theme, status } = useNativeTheme()
+  const bg = background ?? getNotificationBadgeColor(color, isInformative, status)
   return (
     <View
       accessibilityLabel={tooltipLabel ?? text}

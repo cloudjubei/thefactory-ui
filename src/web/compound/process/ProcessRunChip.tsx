@@ -1,7 +1,8 @@
 import {
-  formatProcessDuration,
   processRunCardView,
   processRunSpend,
+  processRunWorkLabel,
+  useDurationTimer,
   useProcessRun,
   type ProcessStatusTone,
 } from '../../../headless'
@@ -24,6 +25,7 @@ export type ProcessRunChipProps = {
  */
 export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipProps) {
   const { run } = useProcessRun(processRunId)
+  const now = useDurationTimer(run?.totals?.ticking === true)
   if (!run) {
     return (
       <div
@@ -36,7 +38,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
   }
   const view = processRunCardView(run)
   const spend = processRunSpend(run)
-  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const work = processRunWorkLabel(run, now)
   return (
     <div
       className="flex w-full flex-col gap-2 rounded-lg border p-3"
@@ -72,7 +74,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
           {view.cta} ›
         </button>
         <span className="ml-auto flex items-center gap-2 text-[11px] tabular-nums text-(--text-muted)">
-          <span>{formatProcessDuration(durMs)}</span>
+          {work ? <span>{work}</span> : null}
           {spend ? <span>{spend.label}</span> : null}
         </span>
       </div>

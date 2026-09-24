@@ -6,7 +6,7 @@ import {
   type ReviewEvidenceRef,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
-import { isReadableNote, toEvidenceTile, type EvidenceTile } from '../utils/reviewEvidenceView'
+import { notesToRead, toEvidenceTile, type EvidenceTile } from '../utils/reviewEvidenceView'
 
 /** Turn a fetched body into a data URI usable by both `<img>` and RN `<Image>`. */
 function toDataUri(data: unknown, mediaType: string): string | undefined {
@@ -24,6 +24,26 @@ function toDataUri(data: unknown, mediaType: string): string | undefined {
     return `data:${mediaType};base64,${btoa(binary)}`
   }
   return undefined
+}
+
+type EvidenceQuery = { runId?: string; storyId?: string; featureId?: string }
+
+function evidenceQueryKey(projectId: string | undefined, query: EvidenceQuery): string {
+  return [projectId, query.runId, query.storyId, query.featureId].map((p) => p ?? '').join('|')
+}
+
+async function readNoteText(projectId: string, evidenceId: string): Promise<string | undefined> {
+  try {
+    const res = await getReviewEvidenceContent({
+      path: { projectId, evidenceId },
+      responseType: 'text',
+      throwOnError: true,
+    } as never)
+    const text = (res as { data?: unknown }).data
+    return typeof text === 'string' && text.length > 0 ? text : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export type UseReviewEvidence = {
@@ -70,18 +90,20 @@ export type UseReviewEvidence = {
  */
 export function useReviewEvidence(
   projectId: string | undefined,
-  query: { runId?: string; storyId?: string; featureId?: string },
+  query: EvidenceQuery,
 ): UseReviewEvidence {
   const [refs, setRefs] = useState<ReviewEvidenceRef[]>([])
   const [images, setImages] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+  const [loadedKey, setLoadedKey] = useState<string | undefined>()
   const [error, setError] = useState<string | undefined>()
   const epochRef = useRef(0)
   // An id is requested at most once per hook instance — its bytes never change,
   // so a re-pull that leaves the id present must not refetch it.
   const requestedRef = useRef<Set<string>>(new Set())
+  // The notes whose text is held or on its way — the same rule for text.
+  const notesHeldRef = useRef<Set<string>>(new Set())
   // A live mirror of the cache so `loadImage` can answer from it without taking
   // the cache as a dependency (which would rebuild the callback every decode).
   const imagesRef = useRef(images)
@@ -89,6 +111,7 @@ export function useReviewEvidence(
   const { ws } = useApi()
 
   const { runId, storyId, featureId } = query
+  const loaded = loadedKey === evidenceQueryKey(projectId, { runId, storyId, featureId })
 
   const loadImage = useCallback(
     async (id: string, mediaType: string): Promise<string | undefined> => {
@@ -128,12 +151,14 @@ export function useReviewEvidence(
   )
 
   const reload = useCallback(async () => {
+    const key = evidenceQueryKey(projectId, { runId, storyId, featureId })
     if (!projectId || (!runId && !storyId && !featureId)) {
       setRefs([])
       setImages({})
       setNotes({})
       requestedRef.current = new Set()
-      setLoaded(true)
+      notesHeldRef.current = new Set()
+      setLoadedKey(key)
       return
     }
     const epoch = ++epochRef.current
@@ -157,37 +182,25 @@ export function useReviewEvidence(
       // inline — not just a labelled tile. This is the whole evidence when a
       // screenshot could not be captured, so it must be visible, not a dead link.
       // Notes are small, so they load eagerly; images wait for a tile to ask.
-      for (const note of found.filter(isReadableNote)) {
-        if (notes[note.id]) continue
-        try {
-          const res = await getReviewEvidenceContent({
-            path: { projectId, evidenceId: note.id },
-            responseType: 'text',
-            throwOnError: true,
-          } as never)
-          if (epoch !== epochRef.current) return
-          const text = (res as { data?: unknown }).data
-          if (typeof text !== 'string' || text.length === 0) continue
-          setNotes((prev) => ({ ...prev, [note.id]: text }))
-        } catch {
-          // A note we cannot read just stays a labelled tile.
-        }
+      const held = notesHeldRef.current
+      for (const note of notesToRead(found, held)) {
+        held.add(note.id)
+        const text = await readNoteText(projectId, note.id)
+        if (text === undefined) held.delete(note.id)
+        else setNotes((prev) => ({ ...prev, [note.id]: text }))
+        if (epoch !== epochRef.current) return
       }
     } catch (err: unknown) {
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
     } finally {
       if (epoch === epochRef.current) {
         setLoading(false)
-        setLoaded(true)
+        setLoadedKey(key)
       }
     }
-    // `notes` is read only to skip an already-loaded note; keying the callback on
-    // it would rebuild (and refire) the loader on every note that lands.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, runId, storyId, featureId])
 
   useEffect(() => {
-    setLoaded(false)
     void reload()
     return () => {
       // Invalidate in-flight loads so a late response cannot write decoded

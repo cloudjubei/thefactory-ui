@@ -13,6 +13,10 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
+  type VerifyAttemptView,
+  type VerifyProofTone,
+  type VerifyProofView,
+  type VerifyVerdictNote,
 } from '../../../headless'
 import { IconCheck, IconXCircle } from '../../icons'
 import { IconChevronRight } from '../../icons'
@@ -28,6 +32,9 @@ import {
   WalkthroughTab,
 } from '../chat/signoff'
 import { saveSideBySide } from '../chat/signoff/download'
+import OtherVerifyAttempts from './OtherVerifyAttempts'
+import ProofBanner from './ProofBanner'
+import ProofScreens from './ProofScreens'
 
 /** The right-of-header line: a verify verdict ("Verify passed") toned by state. */
 export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
@@ -47,6 +54,8 @@ export type FeatureReviewSectionProps = {
   statusLine: ReviewStatusLine
   pairs: readonly ScreenPair[]
   recordings: readonly EvidenceTile[]
+  /** Recordings filed with a verify attempt that its gate did not count — shown apart, marked. */
+  uncountedRecordings?: readonly EvidenceTile[]
   reports: readonly EvidenceTile[]
   /** Feature sections start open only for the newest; overall ignores it. */
   defaultOpen?: boolean
@@ -54,10 +63,33 @@ export type FeatureReviewSectionProps = {
   onRequestImage: (id: string, mediaType: string) => void
   /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
   badge?: { label: string; tone: ReviewStatusLine['tone'] }
-  /** The reviewer's own conclusion, shown above the evidence it rests on. */
-  verdictNote?: { label: string; reason?: string; tone: ReviewStatusLine['tone'] }
+  /** A person's acceptance or the gate's conclusion, then the reviewer's — above the evidence. */
+  notes?: readonly VerifyVerdictNote[]
   /** What to say when nothing was filed, in place of the section's default. */
   emptyLabel?: string
+  /**
+   * The verify gate's own judgement. When present it leads the section with the
+   * data it ran on, and the Screens tab shows exactly its pairs — never `pairs`.
+   */
+  proof?: VerifyProofView
+  /** Which verify attempt the section shows, and why it is that one. */
+  attemptLabel?: string
+  /** The verify attempts the section is not showing, folded away. */
+  otherAttempts?: { label: string; attempts: readonly VerifyAttemptView[] }
+}
+
+const MODE_CHIP_TONE: Record<VerifyProofTone, string> = {
+  done: 'badge--done',
+  working: 'badge--working',
+  stuck: 'badge--stuck',
+  empty: 'badge--empty',
+}
+
+const SUMMARY_TONE: Record<VerifyProofTone, string> = {
+  done: 'text-(--status-done-soft-fg)',
+  working: 'text-(--status-working-soft-fg)',
+  stuck: 'text-(--status-stuck-soft-fg)',
+  empty: 'text-(--text-secondary)',
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -145,13 +177,17 @@ export default function FeatureReviewSection({
   statusLine,
   pairs,
   recordings,
+  uncountedRecordings = [],
   reports,
   defaultOpen,
   onOpenPair,
   onRequestImage,
   badge,
-  verdictNote,
+  notes = [],
   emptyLabel,
+  proof,
+  attemptLabel,
+  otherAttempts,
 }: FeatureReviewSectionProps) {
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
@@ -161,8 +197,8 @@ export default function FeatureReviewSection({
   const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
 
   const tabs = reviewTabs({
-    screens: pairs.length,
-    walkthroughs: recordings.length,
+    screens: proof ? proof.screens.length : pairs.length,
+    walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
     testChecks: testChecks.length,
@@ -190,15 +226,33 @@ export default function FeatureReviewSection({
 
   const body = (
     <div className="flex flex-col gap-2.5 px-3 pb-3 pt-2.5">
-      {verdictNote ? (
+      {attemptLabel ? (
+        <span className="text-[11px] text-(--text-muted)">{attemptLabel}</span>
+      ) : null}
+
+      {proof?.header ? <ProofBanner header={proof.header} /> : null}
+
+      {notes.map((note) => (
         <div
-          className={`flex flex-col gap-0.5 rounded-md border px-2.5 py-2 ${NOTE_TONE[verdictNote.tone]}`}
+          key={note.label}
+          className={`flex flex-col gap-0.5 rounded-md border px-2.5 py-2 ${NOTE_TONE[note.tone]}`}
         >
-          <span className="text-[12px] font-semibold">Reviewer · {verdictNote.label}</span>
-          {verdictNote.reason ? (
-            <p className="m-0 max-w-[72ch] text-[12px]">{verdictNote.reason}</p>
+          <span className="text-[12px] font-semibold">{note.label}</span>
+          {note.reason ? <p className="m-0 max-w-[72ch] text-[12px]">{note.reason}</p> : null}
+          {note.details ? (
+            <ul className="m-0 flex max-w-[72ch] list-disc flex-col gap-0.5 pl-4 text-[12px]">
+              {note.details.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
           ) : null}
         </div>
+      ))}
+
+      {proof && proof.screens.length === 0 ? (
+        <span className={`text-[12.5px] font-semibold ${SUMMARY_TONE[proof.summary.tone]}`}>
+          {proof.summary.text}
+        </span>
       ) : null}
 
       <AgentRow agents={agents} />
@@ -219,7 +273,9 @@ export default function FeatureReviewSection({
         <div className="flex flex-col gap-2.5 rounded-lg border border-(--border-subtle) bg-(--surface-base)">
           <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
           <div className="px-3 pb-3">
-            {currentTab === 'screens' ? (
+            {currentTab === 'screens' && proof ? (
+              <ProofScreens view={proof} onOpen={onOpenPair} onRequestImage={onRequestImage} />
+            ) : currentTab === 'screens' ? (
               <ScreensTab
                 pairs={pairs}
                 onOpen={onOpenPair}
@@ -230,7 +286,26 @@ export default function FeatureReviewSection({
                 capturing={false}
               />
             ) : currentTab === 'walkthrough' ? (
-              <WalkthroughTab projectId={projectId} recordings={recordings} />
+              <div className="flex flex-col gap-3">
+                {recordings.length > 0 ? (
+                  <WalkthroughTab projectId={projectId} recordings={recordings} />
+                ) : null}
+                {uncountedRecordings.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+                        Did not count ({uncountedRecordings.length})
+                      </span>
+                      <span className="text-[11.5px] text-(--text-secondary)">
+                        Filed with this attempt, but the reviewer’s approval did not cover them.
+                      </span>
+                    </div>
+                    <div className="opacity-75">
+                      <WalkthroughTab projectId={projectId} recordings={uncountedRecordings} />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : currentTab === 'tests' ? (
               <ChecksTab
                 methods={rows.filter((r) => TEST_METHODS.includes(r.id))}
@@ -264,8 +339,26 @@ export default function FeatureReviewSection({
               : 'No screens, walkthroughs or reports were filed for this feature.')}
         </span>
       )}
+
+      {otherAttempts && otherAttempts.attempts.length > 0 ? (
+        <OtherVerifyAttempts
+          label={otherAttempts.label}
+          attempts={otherAttempts.attempts}
+          onOpenPair={onOpenPair}
+          onRequestImage={onRequestImage}
+        />
+      ) : null}
     </div>
   )
+
+  const modeChip = proof?.header?.chip ? (
+    <span
+      className={`badge badge--soft ${MODE_CHIP_TONE[proof.header.tone]} badge--sm`}
+      title={proof.header.title}
+    >
+      {proof.header.chip}
+    </span>
+  ) : null
 
   if (kind === 'overall') {
     return (
@@ -276,6 +369,7 @@ export default function FeatureReviewSection({
           </span>
           <span className="text-[13.5px] font-semibold text-(--text-primary)">{title}</span>
           <span className="ml-auto flex items-center gap-2">
+            {modeChip}
             <StatusVline line={statusLine} />
             <DurCostChips facts={facts} />
           </span>
@@ -295,6 +389,7 @@ export default function FeatureReviewSection({
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-(--text-primary)">
           {title}
         </span>
+        {modeChip}
         <StatusVline line={statusLine} />
         <DurCostChips facts={facts} />
         <IconChevronRight className="size-3.5 shrink-0 text-(--text-muted) transition-transform group-open:rotate-90" />

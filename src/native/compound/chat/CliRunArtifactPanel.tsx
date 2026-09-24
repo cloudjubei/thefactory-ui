@@ -433,7 +433,7 @@ export default function CliRunArtifactPanel({
         : status.review
 
   const censusLook = census
-    ? toneChip(census.complete ? 'positive' : 'warning', theme, status)
+    ? toneChip(census.signOffReady ? 'positive' : 'warning', theme, status)
     : undefined
   const done = status.done
 

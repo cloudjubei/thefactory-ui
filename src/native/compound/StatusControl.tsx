@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import {
+  SETTABLE_STATUS_ORDER,
   STATUS_LABELS,
   STATUS_ORDER,
+  isStoryStatus,
   statusKey,
   statusLabel,
   type StatusSemanticKey,
@@ -62,13 +64,7 @@ const SEMANTIC_COLORS: Record<StatusSemanticKey, StatusColors> = {
 }
 
 function resolve(status: StoryStatus | string): { colors: StatusColors; label: string } {
-  const isKnown =
-    status === 'pending' ||
-    status === 'in_progress' ||
-    status === 'done' ||
-    status === 'blocked' ||
-    status === 'deferred'
-  const key: StatusSemanticKey = isKnown ? statusKey(status as StoryStatus) : 'queued'
+  const key: StatusSemanticKey = isStoryStatus(status) ? statusKey(status) : 'queued'
   return { colors: SEMANTIC_COLORS[key], label: statusLabel(status) }
 }
 
@@ -114,7 +110,7 @@ export default function StatusControl({ status, onChange, size = 'sm' }: StatusC
       </Pressable>
       <BottomSheet isOpen={open} onClose={() => setOpen(false)} title="Set status">
         <View style={{ paddingBottom: nativeSpace[3] }}>
-          {STATUS_ORDER.map((opt) => {
+          {SETTABLE_STATUS_ORDER.map((opt) => {
             const optResolved = resolve(opt)
             const selected = opt === status
             return (

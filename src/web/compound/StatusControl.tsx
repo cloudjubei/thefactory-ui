@@ -2,8 +2,10 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../utils/cn'
 import {
+  SETTABLE_STATUS_ORDER,
   STATUS_LABELS,
   STATUS_ORDER,
+  isStoryStatus,
   statusKey,
   statusLabel,
   type StatusPickerValue,
@@ -24,16 +26,10 @@ function mapStatusToSemantic(status: StoryStatus | string): {
   key: StatusSemanticKey
   label: string
 } {
-  if (
-    status === 'pending' ||
-    status === 'in_progress' ||
-    status === 'done' ||
-    status === 'blocked' ||
-    status === 'deferred'
-  ) {
-    return { key: statusKey(status), label: statusLabel(status) }
+  return {
+    key: isStoryStatus(status) ? statusKey(status) : 'queued',
+    label: statusLabel(status),
   }
-  return { key: 'queued', label: statusLabel(status) }
 }
 
 function useOutsideClick(refs: React.RefObject<HTMLElement | null>[], onOutside: () => void) {
@@ -66,6 +62,8 @@ export type StatusPickerProps = {
   value: StatusPickerValue
   isAllAllowed?: boolean
   includeNotDone?: boolean
+  /** The statuses offered, in order. Defaults to every status — right for a filter. */
+  options?: StoryStatus[]
   onSelect: (s: StatusPickerValue) => void
   onClose: () => void
 }
@@ -75,6 +73,7 @@ export function StatusPicker({
   value,
   isAllAllowed = false,
   includeNotDone = false,
+  options = STATUS_ORDER,
   onSelect,
   onClose,
 }: StatusPickerProps) {
@@ -104,15 +103,13 @@ export function StatusPicker({
         return
       }
       const idx =
-        active === 'all' || active === 'not-done'
-          ? STATUS_ORDER.length
-          : STATUS_ORDER.indexOf(active)
+        active === 'all' || active === 'not-done' ? options.length : options.indexOf(active)
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault()
-        setActive(STATUS_ORDER[(idx + 1) % STATUS_ORDER.length])
+        setActive(options[(idx + 1) % options.length])
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault()
-        setActive(STATUS_ORDER[(idx - 1 + STATUS_ORDER.length) % STATUS_ORDER.length])
+        setActive(options[(idx - 1 + options.length) % options.length])
       } else if (e.key === 'Enter') {
         e.preventDefault()
         onSelect(active)
@@ -120,7 +117,7 @@ export function StatusPicker({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [active, onClose, onSelect])
+  }, [active, onClose, onSelect, options])
 
   if (!coords) return null
 
@@ -174,7 +171,7 @@ export function StatusPicker({
         </button>
       )}
 
-      {STATUS_ORDER.map((s) => {
+      {options.map((s) => {
         const k = statusKey(s)
         const selected = s === value
         const activeItem = s === active
@@ -266,6 +263,7 @@ export default function StatusControl({
         <StatusPicker
           anchorEl={containerRef.current}
           value={status as StoryStatus}
+          options={SETTABLE_STATUS_ORDER}
           onSelect={(s) => {
             onChange?.(s as StoryStatus)
             setOpen(false)

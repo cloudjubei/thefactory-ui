@@ -2,12 +2,18 @@ import { useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import {
+  evidenceLoadState,
+  featureVerifySectionProps,
+  featureVerifyView,
   groupEvidence,
+  overlayPairsFor,
   screenPairs,
+  storyProofNotice,
   useReviewEvidence,
   useStories,
   useStorySignoff,
   type EvidenceTile,
+  type FeatureVerifyView,
   type OverallSignoff,
   type ProcessParkChoice,
   type ProcessResumeChoice,
@@ -18,6 +24,8 @@ import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
 import { IconCheck } from '../../icons/IconCheck'
+import { IconExclamation } from '../../icons/IconExclamation'
+import { IconInfo } from '../../icons/IconInfo'
 import { IconShield } from '../../icons/IconShield'
 import {
   ComparisonOverlay,
@@ -26,7 +34,7 @@ import {
   VerdictBadge,
   type SaveFileHandler,
 } from '../chat/signoff'
-import FeatureReviewSection, { type ReviewStatusLine } from './FeatureReviewSection'
+import FeatureReviewSection from './FeatureReviewSection'
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -47,19 +55,6 @@ const VERDICT_TONE: Record<SignoffVerdict['key'], 'done' | 'review' | 'stuck'> =
   'not-run': 'review',
 }
 
-function featureStatusLine(verdict: SignoffVerdict): ReviewStatusLine {
-  switch (verdict.key) {
-    case 'proven':
-      return { tone: 'done', label: 'Verify passed' }
-    case 'failed':
-      return { tone: 'stuck', label: 'Verify failed' }
-    case 'partly':
-      return { tone: 'review', label: 'Partly verified' }
-    default:
-      return { tone: 'review', label: 'Not verified' }
-  }
-}
-
 type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: EvidenceTile[] }
 
 /**
@@ -67,7 +62,9 @@ type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: Evid
  * panel: a head naming the story with its total time + cost, a verdict, a toned
  * digest, then the story-wide Overall section and each feature (newest first,
  * collapsible), each with which agents ran it and its evidence behind capability
- * tabs — closing on one decide bar that acts on the WHOLE story.
+ * tabs — closing on one decide bar that acts on the WHOLE story. A feature's
+ * screens are exactly what its verify gate judged on the accepted attempt,
+ * found by id in the story's evidence.
  */
 export default function StorySignoffReview({
   projectId,
@@ -106,7 +103,25 @@ export default function StorySignoffReview({
     return m
   }, [evidence.tiles])
 
+  const evidenceState = evidenceLoadState(evidence)
+  const verifyByFeature = useMemo(() => {
+    const m = new Map<string, FeatureVerifyView>()
+    for (const f of signoff.features) {
+      if (f.verify)
+        m.set(
+          f.featureId,
+          featureVerifyView(f.verify, evidence.tiles, {
+            keyPrefix: `${f.featureId}::`,
+            evidence: evidenceState,
+          }),
+        )
+    }
+    return m
+  }, [signoff.features, evidence.tiles, evidenceState])
+
   const emptyBucket: EvBucket = useMemo(() => ({ pairs: [], recordings: [], reports: [] }), [])
+  const sectionProps = (bucket: EvBucket, v: FeatureVerifyView | undefined) =>
+    v ? featureVerifySectionProps(v) : bucket
   const overallBucket = bucketByFeature.get('') ?? emptyBucket
 
   const runBacked = new Set(signoff.features.map((f) => f.featureId))
@@ -115,9 +130,19 @@ export default function StorySignoffReview({
     .filter((f) => !runBacked.has(f.id) && bucketByFeature.has(f.id))
   const featureIndex = (id: string): number => features.findIndex((f) => f.id === id) + 1
 
-  const allPairs = useMemo(
-    () => [...bucketByFeature.values()].flatMap((b) => b.pairs),
-    [bucketByFeature],
+  const pairGroups = useMemo(() => {
+    const groups: ScreenPair[][] = []
+    for (const [id, bucket] of bucketByFeature) {
+      if (id !== '' && !verifyByFeature.has(id)) groups.push(bucket.pairs)
+    }
+    for (const v of verifyByFeature.values()) {
+      groups.push(v.accepted.evidence.pairs, ...v.others.map((o) => o.evidence.pairs))
+    }
+    return groups
+  }, [bucketByFeature, verifyByFeature])
+  const overlayPairs = useMemo(
+    () => overlayPairsFor(pairGroups, openPairKey),
+    [pairGroups, openPairKey],
   )
   const hasSignoff = signoff.features.length > 0 || signoff.overall !== undefined
 
@@ -135,6 +160,21 @@ export default function StorySignoffReview({
   const verdict = signoff.verdict
   const tone = VERDICT_TONE[verdict.key]
   const storyLabel = story?.title ? `Story · ${story.title}` : 'Story'
+  const proofNotice = storyProofNotice(
+    signoff.features.flatMap((f) => {
+      const v = verifyByFeature.get(f.featureId)
+      return v
+        ? [
+            {
+              label: `Feature #${featureIndex(f.featureId)}`,
+              mode: v.mode,
+              standing: v.standing,
+              dataUnstated: v.dataUnstated,
+            },
+          ]
+        : []
+    }),
+  )
 
   return (
     <View
@@ -218,11 +258,37 @@ export default function StorySignoffReview({
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>{signoff.digest.line}</Text>
         </View>
 
+        {proofNotice ? (
+          <View
+            accessibilityRole="summary"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              borderColor: status[proofNotice.tone].softBorder,
+              backgroundColor: status[proofNotice.tone].softBg,
+            }}
+          >
+            {proofNotice.tone === 'working' ? (
+              <IconExclamation size={16} />
+            ) : (
+              <IconInfo size={16} color={theme.text.secondary} />
+            )}
+            <Text style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}>
+              {proofNotice.text}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
           <IconShield size={14} color={theme.text.muted} />
           <Text style={{ flex: 1, fontSize: 11.5, color: theme.text.muted }}>
-            Each feature was signed off by the review process — nothing gets through unverified.
-            Expand one to inspect its evidence.
+            Each feature went through the review process — how it was checked, live or dry, is on
+            the feature. Expand one to inspect its evidence.
           </Text>
         </View>
 
@@ -249,10 +315,8 @@ export default function StorySignoffReview({
                 agents={f.agents}
                 rows={f.rows}
                 verification={f.verification}
-                statusLine={featureStatusLine(f.verdict)}
-                pairs={bucket.pairs}
-                recordings={bucket.recordings}
-                reports={bucket.reports}
+                statusLine={f.statusLine}
+                {...sectionProps(bucket, verifyByFeature.get(f.featureId))}
                 defaultOpen={i === 0}
                 onOpenPair={setOpenPairKey}
                 onRequestImage={evidence.requestImage}
@@ -314,7 +378,7 @@ export default function StorySignoffReview({
       ) : null}
 
       <ComparisonOverlay
-        pairs={allPairs}
+        pairs={overlayPairs}
         openKey={openPairKey}
         onClose={() => setOpenPairKey(undefined)}
         baseSha={undefined}

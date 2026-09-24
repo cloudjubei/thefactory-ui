@@ -1,22 +1,29 @@
 import { useMemo, useState } from 'react'
 
 import {
+  evidenceLoadState,
+  featureVerifySectionProps,
+  featureVerifyView,
   groupEvidence,
+  overlayPairsFor,
   screenPairs,
+  storyProofNotice,
   useReviewEvidence,
   useStories,
   useStorySignoff,
   type EvidenceTile,
+  type FeatureVerifyView,
   type OverallSignoff,
   type ProcessParkChoice,
   type ProcessResumeChoice,
   type ScreenPair,
   type SignoffVerdict,
+  type VerifyProofTone,
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
-import { IconCheck, IconShield } from '../../icons'
+import { IconCheck, IconExclamation, IconInfo, IconShield } from '../../icons'
 import { ComparisonOverlay, DurCostChips, IdChip, VerdictBadge } from '../chat/signoff'
-import FeatureReviewSection, { type ReviewStatusLine } from './FeatureReviewSection'
+import FeatureReviewSection from './FeatureReviewSection'
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -49,21 +56,14 @@ const DIGEST_HEAD_TONE: Record<SignoffVerdict['key'], string> = {
   'not-run': 'text-(--status-review-soft-fg)',
 }
 
-/** The verify line a feature shows, toned by its own verdict. */
-function featureStatusLine(verdict: SignoffVerdict): ReviewStatusLine {
-  switch (verdict.key) {
-    case 'proven':
-      return { tone: 'done', label: 'Verify passed' }
-    case 'failed':
-      return { tone: 'stuck', label: 'Verify failed' }
-    case 'partly':
-      return { tone: 'review', label: 'Partly verified' }
-    default:
-      return { tone: 'review', label: 'Not verified' }
-  }
-}
-
 type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: EvidenceTile[] }
+
+const NOTICE_TONE: Record<VerifyProofTone, string> = {
+  done: 'border-(--status-done-soft-border) bg-(--status-done-soft-bg)',
+  working: 'border-(--status-working-soft-border) bg-(--status-working-soft-bg)',
+  stuck: 'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg)',
+  empty: 'border-(--status-empty-soft-border) bg-(--status-empty-soft-bg)',
+}
 
 /**
  * The whole-story sign-off, in the settled design: one `panel` — a head naming
@@ -73,9 +73,12 @@ type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: Evid
  * one decide bar that acts on the WHOLE story, never one approval per feature.
  *
  * The per-feature verdict/cost/agents are JOINED from two list endpoints in
- * {@link useStorySignoff}; the evidence is grouped PER FEATURE (subjects would
- * otherwise collide) and each pair key is namespaced by feature so they stay
- * unique across the one ComparisonOverlay.
+ * {@link useStorySignoff}. A feature's screens are exactly what its verify gate
+ * judged on the attempt it was accepted on — never every capture ever filed for
+ * it, re-paired by subject. The story's evidence is loaded because a pair's
+ * before is often shared from another attempt's run; captures are found by id.
+ * Each pair key is namespaced by feature so they stay unique across the one
+ * ComparisonOverlay.
  */
 export default function StorySignoffReview({
   projectId,
@@ -112,7 +115,25 @@ export default function StorySignoffReview({
     return m
   }, [evidence.tiles])
 
+  const evidenceState = evidenceLoadState(evidence)
+  const verifyByFeature = useMemo(() => {
+    const m = new Map<string, FeatureVerifyView>()
+    for (const f of signoff.features) {
+      if (f.verify)
+        m.set(
+          f.featureId,
+          featureVerifyView(f.verify, evidence.tiles, {
+            keyPrefix: `${f.featureId}::`,
+            evidence: evidenceState,
+          }),
+        )
+    }
+    return m
+  }, [signoff.features, evidence.tiles, evidenceState])
+
   const emptyBucket: EvBucket = useMemo(() => ({ pairs: [], recordings: [], reports: [] }), [])
+  const sectionProps = (bucket: EvBucket, v: FeatureVerifyView | undefined) =>
+    v ? featureVerifySectionProps(v) : bucket
 
   const overallBucket = bucketByFeature.get('') ?? emptyBucket
 
@@ -125,9 +146,19 @@ export default function StorySignoffReview({
 
   const featureIndex = (id: string): number => features.findIndex((f) => f.id === id) + 1
 
-  const allPairs = useMemo(
-    () => [...bucketByFeature.values()].flatMap((b) => b.pairs),
-    [bucketByFeature],
+  const pairGroups = useMemo(() => {
+    const groups: ScreenPair[][] = []
+    for (const [id, bucket] of bucketByFeature) {
+      if (id !== '' && !verifyByFeature.has(id)) groups.push(bucket.pairs)
+    }
+    for (const v of verifyByFeature.values()) {
+      groups.push(v.accepted.evidence.pairs, ...v.others.map((o) => o.evidence.pairs))
+    }
+    return groups
+  }, [bucketByFeature, verifyByFeature])
+  const overlayPairs = useMemo(
+    () => overlayPairsFor(pairGroups, openPairKey),
+    [pairGroups, openPairKey],
   )
   const hasSignoff = signoff.features.length > 0 || signoff.overall !== undefined
 
@@ -144,6 +175,21 @@ export default function StorySignoffReview({
 
   const verdict = signoff.verdict
   const storyLabel = story?.title ? `Story · ${story.title}` : 'Story'
+  const proofNotice = storyProofNotice(
+    signoff.features.flatMap((f) => {
+      const v = verifyByFeature.get(f.featureId)
+      return v
+        ? [
+            {
+              label: `Feature #${featureIndex(f.featureId)}`,
+              mode: v.mode,
+              standing: v.standing,
+              dataUnstated: v.dataUnstated,
+            },
+          ]
+        : []
+    }),
+  )
 
   return (
     <div className="overflow-hidden rounded-xl border border-(--border-default) bg-(--surface-raised) shadow-md">
@@ -186,11 +232,27 @@ export default function StorySignoffReview({
           <span className="text-[12px] text-(--text-secondary)">{signoff.digest.line}</span>
         </div>
 
+        {proofNotice ? (
+          <div
+            role="note"
+            className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${NOTICE_TONE[proofNotice.tone]}`}
+          >
+            {proofNotice.tone === 'working' ? (
+              <IconExclamation className="mt-px size-4 shrink-0" />
+            ) : (
+              <IconInfo className="mt-px size-4 shrink-0 text-(--text-secondary)" />
+            )}
+            <span className="max-w-[72ch] text-[12.5px] text-(--text-primary)">
+              {proofNotice.text}
+            </span>
+          </div>
+        ) : null}
+
         <div className="flex items-start gap-1.5 text-[11.5px] text-(--text-muted)">
           <IconShield className="mt-px size-3.5 shrink-0" />
           <span>
-            Each feature was signed off by the review process — nothing gets through unverified.
-            Expand one to inspect its evidence.
+            Each feature went through the review process — how it was checked, live or dry, is on
+            the feature. Expand one to inspect its evidence.
           </span>
         </div>
 
@@ -218,10 +280,8 @@ export default function StorySignoffReview({
                 agents={f.agents}
                 rows={f.rows}
                 verification={f.verification}
-                statusLine={featureStatusLine(f.verdict)}
-                pairs={bucket.pairs}
-                recordings={bucket.recordings}
-                reports={bucket.reports}
+                statusLine={f.statusLine}
+                {...sectionProps(bucket, verifyByFeature.get(f.featureId))}
                 defaultOpen={i === 0}
                 onOpenPair={setOpenPairKey}
                 onRequestImage={evidence.requestImage}
@@ -273,7 +333,7 @@ export default function StorySignoffReview({
       ) : null}
 
       <ComparisonOverlay
-        pairs={allPairs}
+        pairs={overlayPairs}
         openKey={openPairKey}
         onClose={() => setOpenPairKey(undefined)}
         baseSha={undefined}

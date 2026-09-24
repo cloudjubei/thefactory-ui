@@ -14,6 +14,9 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
+  type VerifyAttemptView,
+  type VerifyProofView,
+  type VerifyVerdictNote,
 } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -32,6 +35,9 @@ import {
   WalkthroughTab,
   type SaveFileHandler,
 } from '../chat/signoff'
+import OtherVerifyAttempts from './OtherVerifyAttempts'
+import ProofBanner from './ProofBanner'
+import ProofScreens from './ProofScreens'
 
 /** The right-of-header line: a verify verdict ("Verify passed") toned by state. */
 export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
@@ -47,6 +53,8 @@ export type FeatureReviewSectionProps = {
   statusLine: ReviewStatusLine
   pairs: readonly ScreenPair[]
   recordings: readonly EvidenceTile[]
+  /** Recordings filed with a verify attempt that its gate did not count — shown apart, marked. */
+  uncountedRecordings?: readonly EvidenceTile[]
   reports: readonly EvidenceTile[]
   defaultOpen?: boolean
   onOpenPair: (key: string) => void
@@ -55,10 +63,19 @@ export type FeatureReviewSectionProps = {
   onSaveFile?: SaveFileHandler
   /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
   badge?: { label: string; tone: ReviewStatusLine['tone'] }
-  /** The reviewer's own conclusion, shown above the evidence it rests on. */
-  verdictNote?: { label: string; reason?: string; tone: ReviewStatusLine['tone'] }
+  /** A person's acceptance or the gate's conclusion, then the reviewer's — above the evidence. */
+  notes?: readonly VerifyVerdictNote[]
   /** What to say when nothing was filed, in place of the section's default. */
   emptyLabel?: string
+  /**
+   * The verify gate's own judgement. When present it leads the section with the
+   * data it ran on, and the Screens tab shows exactly its pairs — never `pairs`.
+   */
+  proof?: VerifyProofView
+  /** Which verify attempt the section shows, and why it is that one. */
+  attemptLabel?: string
+  /** The verify attempts the section is not showing, folded away. */
+  otherAttempts?: { label: string; attempts: readonly VerifyAttemptView[] }
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -130,14 +147,18 @@ export default function FeatureReviewSection({
   statusLine,
   pairs,
   recordings,
+  uncountedRecordings = [],
   reports,
   defaultOpen,
   onOpenPair,
   onRequestImage,
   onSaveFile,
   badge,
-  verdictNote,
+  notes = [],
   emptyLabel,
+  proof,
+  attemptLabel,
+  otherAttempts,
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
@@ -149,8 +170,8 @@ export default function FeatureReviewSection({
   const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
 
   const tabs = reviewTabs({
-    screens: pairs.length,
-    walkthroughs: recordings.length,
+    screens: proof ? proof.screens.length : pairs.length,
+    walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
     testChecks: testChecks.length,
@@ -228,6 +249,28 @@ export default function FeatureReviewSection({
       >
         {title}
       </Text>
+      {proof?.header?.chip ? (
+        <View
+          accessibilityLabel={proof.header.title}
+          style={{
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: nativeRadii.round,
+            backgroundColor: status[proof.header.tone].softBg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.4,
+              color: status[proof.header.tone].softFg,
+            }}
+          >
+            {proof.header.chip}
+          </Text>
+        </View>
+      ) : null}
       <StatusVline line={statusLine} />
       <DurCostChips facts={facts} />
       {collapsible ? (
@@ -240,27 +283,52 @@ export default function FeatureReviewSection({
 
   const body = (
     <View style={{ gap: 10, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }}>
-      {verdictNote ? (
+      {attemptLabel ? (
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{attemptLabel}</Text>
+      ) : null}
+
+      {proof?.header ? <ProofBanner header={proof.header} /> : null}
+
+      {notes.map((note) => (
         <View
+          key={note.label}
           style={{
             gap: 2,
             borderRadius: nativeRadii[1],
             borderWidth: 1,
-            borderColor: status[verdictNote.tone].softBorder,
-            backgroundColor: status[verdictNote.tone].softBg,
+            borderColor: status[note.tone].softBorder,
+            backgroundColor: status[note.tone].softBg,
             paddingHorizontal: 10,
             paddingVertical: 8,
           }}
         >
-          <Text style={{ fontSize: 12, fontWeight: '600', color: status[verdictNote.tone].softFg }}>
-            Reviewer · {verdictNote.label}
+          <Text style={{ fontSize: 12, fontWeight: '600', color: status[note.tone].softFg }}>
+            {note.label}
           </Text>
-          {verdictNote.reason ? (
-            <Text style={{ fontSize: 12, color: status[verdictNote.tone].softFg }}>
-              {verdictNote.reason}
-            </Text>
+          {note.reason ? (
+            <Text style={{ fontSize: 12, color: status[note.tone].softFg }}>{note.reason}</Text>
           ) : null}
+          {note.details?.map((d) => (
+            <Text key={d} style={{ fontSize: 12, color: status[note.tone].softFg }}>
+              {`• ${d}`}
+            </Text>
+          ))}
         </View>
+      ))}
+
+      {proof && proof.screens.length === 0 ? (
+        <Text
+          style={{
+            fontSize: 12.5,
+            fontWeight: '600',
+            color:
+              proof.summary.tone === 'empty'
+                ? theme.text.secondary
+                : status[proof.summary.tone].softFg,
+          }}
+        >
+          {proof.summary.text}
+        </Text>
       ) : null}
 
       <AgentRow agents={agents} />
@@ -280,7 +348,9 @@ export default function FeatureReviewSection({
       {tabs.length > 0 && currentTab ? (
         <View style={{ gap: 10 }}>
           <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
-          {currentTab === 'screens' ? (
+          {currentTab === 'screens' && proof ? (
+            <ProofScreens view={proof} onOpen={onOpenPair} onRequestImage={onRequestImage} />
+          ) : currentTab === 'screens' ? (
             <ScreensTab
               pairs={pairs}
               onOpen={onOpenPair}
@@ -291,7 +361,32 @@ export default function FeatureReviewSection({
               capturing={false}
             />
           ) : currentTab === 'walkthrough' ? (
-            <WalkthroughTab recordings={recordings} />
+            <View style={{ gap: 12 }}>
+              {recordings.length > 0 ? <WalkthroughTab recordings={recordings} /> : null}
+              {uncountedRecordings.length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  <View style={{ gap: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '600',
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                        color: theme.text.muted,
+                      }}
+                    >
+                      {`Did not count (${uncountedRecordings.length})`}
+                    </Text>
+                    <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>
+                      Filed with this attempt, but the reviewer’s approval did not cover them.
+                    </Text>
+                  </View>
+                  <View style={{ opacity: 0.75 }}>
+                    <WalkthroughTab recordings={uncountedRecordings} />
+                  </View>
+                </View>
+              ) : null}
+            </View>
           ) : currentTab === 'tests' ? (
             <ChecksTab
               methods={rows.filter((r) => TEST_METHODS.includes(r.id))}
@@ -324,6 +419,15 @@ export default function FeatureReviewSection({
               : 'No screens, walkthroughs or reports were filed for this feature.')}
         </Text>
       )}
+
+      {otherAttempts && otherAttempts.attempts.length > 0 ? (
+        <OtherVerifyAttempts
+          label={otherAttempts.label}
+          attempts={otherAttempts.attempts}
+          onOpenPair={onOpenPair}
+          onRequestImage={onRequestImage}
+        />
+      ) : null}
     </View>
   )
 

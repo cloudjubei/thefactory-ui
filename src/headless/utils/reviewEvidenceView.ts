@@ -36,6 +36,18 @@ export function isReadableNote(ref: Pick<ReviewEvidenceRef, 'mediaType'>): boole
   )
 }
 
+/**
+ * The written notes of a listing whose text is not yet held or on its way. A
+ * note's text never changes, so a live re-pull — one on every run or chat event
+ * — must not download it again.
+ */
+export function notesToRead(
+  refs: readonly ReviewEvidenceRef[],
+  held: ReadonlySet<string>,
+): ReviewEvidenceRef[] {
+  return refs.filter((ref) => isReadableNote(ref) && !held.has(ref.id))
+}
+
 function captionFor(ref: ReviewEvidenceRef): string {
   if (ref.label && ref.label.trim().length > 0) return ref.label
   if (ref.phase) return ref.phase === 'before' ? 'Before' : 'After'
@@ -143,6 +155,14 @@ export type ScreenPair = {
   class: ScreenPairClass
   before?: EvidenceTile
   after?: EvidenceTile
+  /** What the verify gate made of this pair, said in place of the class's generic line. */
+  note?: string
+  /**
+   * The commits the gate required the before and after to be built from. An
+   * expectation only — a capture's caption comes from its own build record.
+   */
+  expectedBaseSha?: string
+  expectedHeadSha?: string
 }
 
 function earliestCreatedAt(group: EvidenceGroup): number {

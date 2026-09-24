@@ -259,6 +259,24 @@ native), never invented names — **a colour that resolves to no token renders a
 nothing at all, which looks deliberate and is therefore worse than being the
 wrong colour.**
 
+Time and cost are never computed in a view. Every run arrives with `totals`
+(derived from its ledger by thefactory-tools), and `processRunWorkMs` /
+`processStepWorkMs` / `processRunSpend` / `formatProcessCost` read them — a
+step's time is every attempt's, a clock ticks only while `totals.ticking`, and
+unpriced tokens are named beside the dollars rather than counted as $0. Each
+surface once had its own formula, and they disagreed by hours and by dollars.
+
+The story sign-off shows exactly what the verify gate judged
+(`headless/utils/verifyProof.ts`): each feature's header comes from its verify
+attempt's standing — passed, unchecked ("the reviewer approved, but the proof
+could not be confirmed", with every reason), failed, or **accepted by you** (a
+person's `override` at a park) — never from the CLI check rows, which stay
+listed as their own rows. Counted before/after pairs come first, then new
+screens (each beside its entry point on the base), then what did not count and
+why. A dry verification always says what the live backend must send. Each side
+of a pair is captioned from its own build record, never from the commit it was
+supposed to be built from.
+
 ### Project notes & secrets
 
 `useProjectNotes(projectId)` + `useProjectNoteReveal` front the per-project encrypted store of standing context an agent reaches for (logins for an app under test, API keys, conventions). The list surface (`ProjectNotesSettings` / `ProjectNotesForm`, web + native) **never renders a stored value** — `GET …/notes` returns summaries only, and `…/notes/:id/reveal` is called solely from an explicit per-note Reveal, which masks itself again after `NOTE_REVEAL_TIMEOUT_MS`. `access: 'open'` means any agent on the project can read the value whenever it needs it; `access: 'ask'` means every read asks the user first.

@@ -1,7 +1,11 @@
-import type { CliRun, ProcessRun, ReviewEvidenceRef, RunVerification } from '../api/generated'
+import type { ProcessRun } from 'thefactory-tools/types'
+
+import type { CliRun, ReviewEvidenceRef, RunVerification } from '../api/generated'
 import type { CheckMethodRow, SignoffVerdict } from './checkMethodTypes'
+import type { VerifyReviewStatus } from './processView'
 import type { RunModel } from './runModel'
 import type { RunReviewFacts } from './runReviewTypes'
+import type { VerifyAttemptSelection, VerifyAttemptStanding } from './verifyProofTypes'
 
 /** A story's feature, reduced to what the sign-off needs from it. */
 export type StoryFeatureRef = { id: string; title: string }
@@ -29,14 +33,16 @@ export type StorySignoffRun = Pick<
 >
 
 /**
- * The process-run fields that carry the feature↔run attribution AND the role of
- * each run.
+ * The process-run fields that carry the feature↔run attribution, the role of
+ * each run, and the pipeline's own time and cost.
  *
  * `ledger` links a run id to the step it ran; `plan` says what ROLE that step
- * was (developer, verifier), so the sign-off can show which agents ran each
- * section — not just the one run its verdict reflects.
+ * was (developer, verifier) and which step a feature ran as, so the sign-off
+ * can show which agents ran each section and read each feature's totals from
+ * the same step the pipeline shows.
  */
-export type StorySignoffProcessRun = Pick<ProcessRun, 'id' | 'featureId' | 'ledger' | 'plan'>
+export type StorySignoffProcessRun = Pick<ProcessRun, 'id' | 'featureId' | 'ledger' | 'plan'> &
+  Partial<Pick<ProcessRun, 'parentRunId' | 'totals'>>
 
 export type BuildStorySignoffInput = {
   /** The story's features, in declaration order. */
@@ -74,14 +80,26 @@ export type FeatureSignoff = {
   verification: RunVerification | undefined
   /** The "what was checked" chips for this feature. */
   rows: CheckMethodRow[]
-  /** This feature's own headline verdict. */
+  /**
+   * This feature's own headline verdict — the verify gate's outcome on its
+   * accepted attempt when one ran, else what its checks came to.
+   */
   verdict: SignoffVerdict
-  /** This feature's cost + duration labels. */
+  /** The line beside the feature's title, in the same terms as its verdict. */
+  statusLine: VerifyReviewStatus
+  /** Where the accepted verify attempt stands; absent when no verify attempt ran. */
+  standing: VerifyAttemptStanding | undefined
+  /** This feature's time and cost: its step totals across every run of the story. */
   facts: RunReviewFacts
   /** Which agent/model produced this feature's run. */
   runModel: RunModel | undefined
   /** The agents that ran this feature — developer + verifier, newest per role. */
   agents: SignoffAgent[]
+  /**
+   * The verify attempt the feature was accepted on — its ledger entry carries the
+   * gate's proof — and its other attempts. Absent when no run of it verified.
+   */
+  verify: VerifyAttemptSelection | undefined
 }
 
 /**
@@ -99,7 +117,7 @@ export type OverallSignoff = {
   allGreen: boolean
   /** The verifier(s)/capture agent(s) that produced the story-wide checks. */
   agents: SignoffAgent[]
-  /** Cost + duration of the story-scoped runs (the walkthrough capture, etc.). */
+  /** Time and cost of the story's own steps (the walkthrough capture, etc.) across every run. */
   facts: RunReviewFacts
 }
 
@@ -110,6 +128,8 @@ export type StoryDigest = {
   partly: number
   failed: number
   notRun: number
+  /** Features a person accepted over the gate — counted within `partly`. */
+  accepted: number
   /** The green strip's lead line, toned by the aggregate verdict. */
   headline: string
   /** The green strip's supporting line — what was verified, in one sentence. */
@@ -128,6 +148,6 @@ export type StorySignoff = {
   /** The story headline — the worst feature verdict wins. */
   verdict: SignoffVerdict
   digest: StoryDigest
-  /** Story-total cost + duration. */
+  /** Story-total time and cost — every root run of the story. */
   facts: RunReviewFacts
 }

@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
+  captureBuildCaption,
   capturedOnLabel,
   useEvidenceDiff,
   screenPairFileStem,
   zoomIn,
   zoomLabel,
   zoomOut,
+  type CaptureBuildCaption,
   type ScreenPair,
 } from '../../../../headless'
 import { nativePalette, nativeRadii } from '../../../../tokens/native'
@@ -34,7 +36,9 @@ export type ComparisonOverlayProps = {
   /** Key of the pair to show; `undefined` keeps the overlay closed. */
   openKey: string | undefined
   onClose: () => void
+  /** The commit befores should be built from — the expectation, never a capture's caption. */
   baseSha: string | undefined
+  /** The commit afters should be built from — the expectation, never a capture's caption. */
   headSha: string | undefined
   /** Saves the pair; omitted when the host cannot put a file anywhere. */
   onSaveFile?: SaveFileHandler
@@ -61,11 +65,38 @@ function Pill({ word }: { word: 'Before' | 'After' }) {
   )
 }
 
-function Caption({ word, sha }: { word: 'Before' | 'After'; sha: string | undefined }) {
+/** A side's build as its own record states it, and apart, what it was expected to be — see the web peer. */
+function BuildMarks({ build }: { build: CaptureBuildCaption }) {
+  const { theme, status } = useNativeTheme()
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+    <>
+      {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.dirty ? (
+        <Text style={{ fontSize: 12, color: status.stuck.softFg }}>uncommitted changes</Text>
+      ) : null}
+      {build.expectedSha ? (
+        <>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>expected</Text>
+          <RefChip kind="commit" value={build.expectedSha} />
+        </>
+      ) : null}
+    </>
+  )
+}
+
+function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuildCaption }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+      }}
+    >
       <Pill word={word} />
-      {sha ? <RefChip kind="commit" value={sha} /> : null}
+      <BuildMarks build={build} />
     </View>
   )
 }
@@ -160,13 +191,16 @@ export default function ComparisonOverlay({
   const iconColor = theme.text.primary
 
   const pairFact =
-    pair?.class === 'new'
+    pair?.note ??
+    (pair?.class === 'new'
       ? 'This screen exists only on the branch.'
       : pair?.class === 'removed'
         ? 'This screen exists only on the base.'
         : pair?.class === 'single'
           ? 'A single capture — there is nothing to compare it with.'
-          : 'Captured on both the base and the branch.'
+          : 'Captured on both the base and the branch.')
+  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
+  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
 
   const diff = useEvidenceDiff(
     projectId,
@@ -314,13 +348,13 @@ export default function ComparisonOverlay({
                 {pair?.before || !pair?.after ? (
                   <View style={{ alignItems: 'center', gap: 8 }}>
                     <Frame src={before} width={width} />
-                    <Caption word="Before" sha={baseSha} />
+                    <Caption word="Before" build={beforeBuild} />
                   </View>
                 ) : null}
                 {pair?.after ? (
                   <View style={{ alignItems: 'center', gap: 8 }}>
                     <Frame src={after} width={width} />
-                    <Caption word="After" sha={headSha} />
+                    <Caption word="After" build={afterBuild} />
                   </View>
                 ) : null}
               </>
@@ -376,10 +410,10 @@ export default function ComparisonOverlay({
               }}
             >
               <Pill word="Before" />
-              {baseSha ? <RefChip kind="commit" value={baseSha} /> : null}
+              <BuildMarks build={beforeBuild} />
               <Text style={{ fontSize: 12, color: theme.text.muted }}>drag</Text>
               <Pill word="After" />
-              {headSha ? <RefChip kind="commit" value={headSha} /> : null}
+              <BuildMarks build={afterBuild} />
             </View>
             <View style={{ width: Math.min(width, screenWidth - 32) }}>
               <Slider value={slidePct} min={0} max={100} onChange={setSlidePct} />

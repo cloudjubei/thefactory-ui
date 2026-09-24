@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  captureBuildCaption,
   capturedOnLabel,
   useEvidenceDiff,
   IMAGE_ZOOM_MAX,
@@ -10,6 +11,7 @@ import {
   zoomIn,
   zoomLabel,
   zoomOut,
+  type CaptureBuildCaption,
   type ScreenPair,
 } from '../../../../headless'
 import { Button } from '../../../primitives/Button'
@@ -33,7 +35,9 @@ export type ComparisonOverlayProps = {
   /** Key of the pair to show; `undefined` keeps the overlay closed. */
   openKey: string | undefined
   onClose: () => void
+  /** The commit befores should be built from — the expectation, never a capture's caption. */
   baseSha: string | undefined
+  /** The commit afters should be built from — the expectation, never a capture's caption. */
   headSha: string | undefined
   /** Ask the evidence store to decode the open pair's frames. */
   onRequestImage: (id: string, mediaType: string) => void
@@ -45,11 +49,32 @@ type Mode = 'mirror' | 'slide' | 'diff'
 
 const BASE_WIDTH = 240
 
-function Caption({ word, sha }: { word: 'Before' | 'After'; sha: string | undefined }) {
+/**
+ * A side's build, as its own record states it — the commit it was built from,
+ * whether the tree was dirty — and, apart, the commit it was expected to be.
+ */
+function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
-    <figcaption className="flex items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
+    <>
+      {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.dirty ? (
+        <span className="text-(--status-stuck-soft-fg)">uncommitted changes</span>
+      ) : null}
+      {build.expectedSha ? (
+        <>
+          <span className="text-(--text-muted)">expected</span>
+          <RefChip kind="commit" value={build.expectedSha} />
+        </>
+      ) : null}
+    </>
+  )
+}
+
+function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuildCaption }) {
+  return (
+    <figcaption className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
       <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">{word}</span>
-      {sha ? <RefChip kind="commit" value={sha} /> : null}
+      <BuildMarks build={build} />
     </figcaption>
   )
 }
@@ -145,13 +170,16 @@ export default function ComparisonOverlay({
   const cut = holdBase ? 100 : slidePct
 
   const pairFact =
-    pair?.class === 'new'
+    pair?.note ??
+    (pair?.class === 'new'
       ? 'This screen exists only on the branch.'
       : pair?.class === 'removed'
         ? 'This screen exists only on the base.'
         : pair?.class === 'single'
           ? 'A single capture — there is nothing to compare it with.'
-          : 'Captured on both the base and the branch.'
+          : 'Captured on both the base and the branch.')
+  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
+  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
 
   const hint =
     effectiveMode === 'mirror'
@@ -316,13 +344,13 @@ export default function ComparisonOverlay({
               {pair?.before || !pair?.after ? (
                 <figure className="flex flex-col items-center gap-2">
                   <Frame src={before} alt={`${pair?.title ?? ''} — before`} width={width} />
-                  <Caption word="Before" sha={baseSha} />
+                  <Caption word="Before" build={beforeBuild} />
                 </figure>
               ) : null}
               {pair?.after ? (
                 <figure className="flex flex-col items-center gap-2">
                   <Frame src={after} alt={`${pair.title} — after`} width={width} />
-                  <Caption word="After" sha={headSha} />
+                  <Caption word="After" build={afterBuild} />
                 </figure>
               ) : null}
             </>
@@ -341,16 +369,16 @@ export default function ComparisonOverlay({
                   style={{ left: `${cut}%` }}
                 />
               </span>
-              <figcaption className="flex items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
+              <figcaption className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
                 <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
                   Before
                 </span>
-                {baseSha ? <RefChip kind="commit" value={baseSha} /> : null}
+                <BuildMarks build={beforeBuild} />
                 <span className="text-(--text-muted)">drag</span>
                 <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
                   After
                 </span>
-                {headSha ? <RefChip kind="commit" value={headSha} /> : null}
+                <BuildMarks build={afterBuild} />
               </figcaption>
               <input
                 type="range"

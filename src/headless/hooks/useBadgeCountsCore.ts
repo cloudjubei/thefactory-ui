@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { ProcessTally } from '../utils/badgeAggregationTypes'
 
 /**
  * Headless badge-count computation shared by web (`useBadgeCounts`) and
@@ -30,10 +31,10 @@ export type BadgeCounts = {
   activityPaused: boolean
   /** Runs that finished since the user last opened this scope's app tab (unseen-results badge). */
   activityUnseen: number
-  /** Live process runs in scope (running + parked) — the green Processes badge. */
-  processes: number
-  /** True while any process run is parked (a decision is pending). */
-  processesParked: boolean
+  /** Root process runs pending or running — drives the Processes tab spinner. */
+  processesRunning: number
+  /** Root process runs parked on the user (sign-off gate or any park) — the Processes count. */
+  processesWaiting: number
 }
 
 export const ZERO_BADGE_COUNTS: BadgeCounts = {
@@ -45,8 +46,8 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   activityWorking: false,
   activityPaused: false,
   activityUnseen: 0,
-  processes: 0,
-  processesParked: false,
+  processesRunning: 0,
+  processesWaiting: 0,
 }
 
 export type BadgeChannelToggles = {
@@ -55,13 +56,6 @@ export type BadgeChannelToggles = {
   tests?: boolean
   activity?: boolean
   processes?: boolean
-}
-
-export type BadgeProcessInput = {
-  /** Live runs in scope — running + parked. */
-  activeCount: number
-  /** True while any run is parked (waiting on the user). */
-  isParked?: boolean
 }
 
 export type BadgeActivityInput = {
@@ -107,8 +101,8 @@ export type UseBadgeCountsCoreInput = {
   failingTests?: number
   /** Background activities running in scope (count + working flag). */
   activity?: BadgeActivityInput
-  /** Live process runs in scope (running + parked). */
-  processes?: BadgeProcessInput
+  /** Live root process runs in scope, from `processTallyByProject`. */
+  processes?: ProcessTally
   /** Per-channel master toggles. Defaults to "enabled". */
   enabled?: BadgeChannelToggles
   /** Git sub-toggles. */
@@ -117,66 +111,71 @@ export type UseBadgeCountsCoreInput = {
   chatBadgeCountMode?: ChatBadgeCountMode
 }
 
-export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts {
-  return useMemo(() => {
-    const enabled = {
-      chat: input.enabled?.chat !== false,
-      git: input.enabled?.git !== false,
-      tests: input.enabled?.tests !== false,
-      activity: input.enabled?.activity !== false,
-      processes: input.enabled?.processes !== false,
-    }
+export function computeBadgeCounts(input: UseBadgeCountsCoreInput): BadgeCounts {
+  const enabled = {
+    chat: input.enabled?.chat !== false,
+    git: input.enabled?.git !== false,
+    tests: input.enabled?.tests !== false,
+    activity: input.enabled?.activity !== false,
+    processes: input.enabled?.processes !== false,
+  }
 
-    const out: BadgeCounts = { ...ZERO_BADGE_COUNTS }
+  const out: BadgeCounts = { ...ZERO_BADGE_COUNTS }
 
-    if (enabled.chat) {
-      let chatsWithUnread = 0
-      let totalUnread = 0
-      let anyThinking = false
-      for (const c of input.chats) {
-        if (c.unreadMessages > 0) {
-          chatsWithUnread += 1
-          totalUnread += c.unreadMessages
-        }
-        if (!anyThinking && c.isThinking) anyThinking = true
+  if (enabled.chat) {
+    let chatsWithUnread = 0
+    let totalUnread = 0
+    let anyThinking = false
+    for (const c of input.chats) {
+      if (c.unreadMessages > 0) {
+        chatsWithUnread += 1
+        totalUnread += c.unreadMessages
       }
-      out.chat = input.chatBadgeCountMode === 'total_messages' ? totalUnread : chatsWithUnread
-      out.chatThinking = anyThinking
+      if (!anyThinking && c.isThinking) anyThinking = true
     }
+    out.chat = input.chatBadgeCountMode === 'total_messages' ? totalUnread : chatsWithUnread
+    out.chatThinking = anyThinking
+  }
 
-    if (enabled.git && input.git) {
-      const sub = input.gitSubToggles ?? {}
-      let g = 0
-      if (sub.uncommitted_changes !== false) g += input.git.uncommittedFileCount
-      if (sub.incoming_commits !== false) g += input.git.incomingCommitCount
-      out.git = g
-    }
+  if (enabled.git && input.git) {
+    const sub = input.gitSubToggles ?? {}
+    let g = 0
+    if (sub.uncommitted_changes !== false) g += input.git.uncommittedFileCount
+    if (sub.incoming_commits !== false) g += input.git.incomingCommitCount
+    out.git = g
+  }
 
-    if (enabled.tests) {
-      out.tests = input.failingTests ?? 0
-    }
+  if (enabled.tests) {
+    out.tests = input.failingTests ?? 0
+  }
 
-    if (enabled.activity && input.activity) {
-      out.activity = input.activity.runningCount
-      out.activityWorking = input.activity.isWorking
-      out.activityPaused = input.activity.isPaused ?? false
-      out.activityUnseen = input.activity.unseenCount ?? 0
-    }
+  if (enabled.activity && input.activity) {
+    out.activity = input.activity.runningCount
+    out.activityWorking = input.activity.isWorking
+    out.activityPaused = input.activity.isPaused ?? false
+    out.activityUnseen = input.activity.unseenCount ?? 0
+  }
 
-    if (enabled.processes && input.processes) {
-      out.processes = input.processes.activeCount
-      out.processesParked = input.processes.isParked ?? false
-    }
+  if (enabled.processes && input.processes) {
+    out.processesRunning = input.processes.running
+    out.processesWaiting = input.processes.waiting
+  }
 
-    return out
-  }, [
-    input.chats,
-    input.git,
-    input.failingTests,
-    input.activity,
-    input.processes,
-    input.enabled,
-    input.gitSubToggles,
-    input.chatBadgeCountMode,
-  ])
+  return out
+}
+
+export function useBadgeCountsCore(input: UseBadgeCountsCoreInput): BadgeCounts {
+  return useMemo(
+    () => computeBadgeCounts(input),
+    [
+      input.chats,
+      input.git,
+      input.failingTests,
+      input.activity,
+      input.processes,
+      input.enabled,
+      input.gitSubToggles,
+      input.chatBadgeCountMode,
+    ],
+  )
 }

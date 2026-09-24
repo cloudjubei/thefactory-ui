@@ -1,9 +1,10 @@
 import { Pressable, Text, View } from 'react-native'
 
 import {
-  formatProcessDuration,
   processRunCardView,
   processRunSpend,
+  processRunWorkLabel,
+  useDurationTimer,
   useProcessRun,
   type ProcessStatusTone,
 } from '../../../headless'
@@ -26,6 +27,7 @@ export type ProcessRunChipProps = {
 export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipProps) {
   const { theme } = useNativeTheme()
   const { run } = useProcessRun(processRunId)
+  const now = useDurationTimer(run?.totals?.ticking === true)
   if (!run) {
     return (
       <View
@@ -44,7 +46,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
   }
   const view = processRunCardView(run)
   const spend = processRunSpend(run)
-  const durMs = Math.max(0, run.updatedAt - run.startedAt - (run.parkedMs ?? 0))
+  const work = processRunWorkLabel(run, now)
   return (
     <View
       style={{
@@ -86,8 +88,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
         </Pressable>
         <View style={{ flex: 1 }} />
         <Text style={{ fontSize: 11, color: theme.text.muted }}>
-          {formatProcessDuration(durMs)}
-          {spend ? `  ${spend.label}` : ''}
+          {[work, spend?.label].filter(Boolean).join('  ')}
         </Text>
       </View>
     </View>

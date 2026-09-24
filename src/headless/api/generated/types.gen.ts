@@ -1759,7 +1759,7 @@ export type ProjectRegistryEntry = {
 
 export type ProjectSpec = ProjectRegistryEntry & ProjectConfig
 
-export type Status = 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+export type Status = 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
 
 export type FeatureQuestionKind = 'question' | 'blocker'
 
@@ -2369,6 +2369,8 @@ export type CliRunReview = {
   branch: string
   baseSha: string
   headSha?: string
+  seamSha?: string
+  seamError?: string
   landedAt?: number
   reviewRunId?: string
   mergedAt?: number
@@ -2460,6 +2462,8 @@ export type CliRun = {
     branch: string
     baseSha: string
     headSha?: string
+    seamSha?: string
+    seamError?: string
     landedAt?: number
     reviewRunId?: string
     mergedAt?: number
@@ -2936,6 +2940,8 @@ export type CliRunApproveResult = {
       branch: string
       baseSha: string
       headSha?: string
+      seamSha?: string
+      seamError?: string
       landedAt?: number
       reviewRunId?: string
       mergedAt?: number
@@ -2978,6 +2984,11 @@ export type CliRunApproveResult = {
       filesReviewed?: number
     }
   }
+}
+
+export type TestSeamManifest = {
+  description: string
+  paths: Array<string>
 }
 
 export type IdleWatchdogResult =
@@ -5717,7 +5728,7 @@ export type PricingConfig = {
 export type LlmCostSourceKind = 'api' | 'cli'
 
 export type LlmCostLedgerEntryContent = {
-  costUSD: number
+  costUSD?: number
   usage: {
     promptTokens: number
     completionTokens: number
@@ -5727,6 +5738,8 @@ export type LlmCostLedgerEntryContent = {
   chatContext: ChatContext
   source: LlmCostSourceKind
   sourceExtra?: string
+  chatKeys: Array<string>
+  recordedAt: number
 }
 
 export type LlmCostLedgerEntryEntity = {
@@ -5749,6 +5762,7 @@ export type LlmCostBreakdown = {
   completionTokens: number
   cachedReadInputTokens: number
   count: number
+  unpricedTokens?: number
 }
 
 export type LlmCostAggregateContent = {
@@ -5757,6 +5771,7 @@ export type LlmCostAggregateContent = {
   totalPromptTokens: number
   totalCompletionTokens: number
   totalCachedReadInputTokens: number
+  totalUnpricedTokens?: number
   breakdown: {
     [key: string]: LlmCostBreakdown
   }
@@ -5767,6 +5782,7 @@ export type LlmCostAggregateContent = {
       completionTokens: number
       cachedReadInputTokens: number
       count: number
+      unpricedTokens?: number
     }
     cli?: {
       costUSD: number
@@ -5774,6 +5790,7 @@ export type LlmCostAggregateContent = {
       completionTokens: number
       cachedReadInputTokens: number
       count: number
+      unpricedTokens?: number
     }
   }
 }
@@ -5854,7 +5871,57 @@ export type MobileNode = {
   }
   depth: number
   clickable?: boolean
+  focused?: boolean
+  password?: boolean
 }
+
+export type MobileNodeSelector = {
+  id?: string
+  label?: string
+  type?: string
+  within?: string
+  nth?: number
+}
+
+export type MobileRefTarget = {
+  bounds: MobileBounds
+  label: string
+  type: string
+  selector?: {
+    id?: string
+    label?: string
+    type?: string
+    within?: string
+    nth?: number
+  }
+  after?: string
+  ordinal?: number
+  ties?: number
+}
+
+export type MobileRefLocation =
+  | {
+      ok: true
+      bounds: MobileBounds
+      node: MobileNode
+    }
+  | {
+      ok: false
+      reason: 'gone' | 'ambiguous'
+      matches: number
+    }
+
+export type MobileNodeResolution =
+  | {
+      ok: true
+      ref: string
+      node: MobileNode
+    }
+  | {
+      ok: false
+      reason: 'not-found' | 'ambiguous' | 'empty-selector'
+      matches: number
+    }
 
 export type MobileDevice = {
   id: string
@@ -5896,6 +5963,17 @@ export type BuildAndroidAppOptions = {
   flavor?: string
   buildType?: string
   ref?: string
+  overlayRefs?: Array<string>
+}
+
+export type MobileBuildProvenance = {
+  root: string
+  sha: string
+  dirty: boolean
+  module: string
+  flavor?: string
+  buildType: string
+  overlays?: Array<string>
 }
 
 export type MobileBuildAppInput = {
@@ -5903,12 +5981,14 @@ export type MobileBuildAppInput = {
   flavor?: string
   buildType?: string
   ref?: string
+  overlayRefs?: Array<string>
 }
 
 export type BuildAndroidAppResult = {
   appPath: string
   task: string
   ref?: string
+  builtFrom: MobileBuildProvenance
 }
 
 export type OpenMobileSessionOptions = {
@@ -5940,16 +6020,24 @@ export type MobileSnapshotResult = {
   error?: string
 }
 
-export type MobileNodeSelector = {
-  id?: string
-  label?: string
-  type?: string
-  nth?: number
-}
-
 export type MobileActionResult = {
   sessionId: string
   ok: boolean
+  error?: string
+  detail?: string
+}
+
+export type MobileLogcatOptions = {
+  sinceMs?: number
+  tag?: string
+  maxLines?: number
+}
+
+export type MobileLogcatResult = {
+  sessionId: string
+  ok: boolean
+  lines: Array<string>
+  truncated: boolean
   error?: string
 }
 
@@ -5974,9 +6062,26 @@ export type SwipeMobileOptions = {
   direction: 'up' | 'down' | 'left' | 'right'
 }
 
-export type CreateMobileTestToolsOptions = {
-  commandTimeoutMs?: number
-  statusBarSettleMs?: number
+export type MobileDeviceInstall = {
+  build?: {
+    root: string
+    sha: string
+    dirty: boolean
+    module: string
+    flavor?: string
+    buildType: string
+    overlays?: Array<string>
+  }
+  appId?: string
+}
+
+export type MobileRawInstallTarget = {
+  deviceId?: string
+}
+
+export type ReviewEvidenceScreen = {
+  ids: Array<string>
+  texts: Array<string>
 }
 
 export type MobileSessionEntry = {
@@ -5985,7 +6090,11 @@ export type MobileSessionEntry = {
   deviceId: string
   appId?: string
   lastRefs: {
-    [key: string]: MobileBounds
+    [key: string]: MobileRefTarget
+  }
+  lastScreen?: {
+    ids: Array<string>
+    texts: Array<string>
   }
   screen?: {
     width: number
@@ -5995,18 +6104,6 @@ export type MobileSessionEntry = {
   recordingSeq?: number
   createdAt: number
 }
-
-export type MobileNodeResolution =
-  | {
-      ok: true
-      ref: string
-      node: MobileNode
-    }
-  | {
-      ok: false
-      reason: 'not-found' | 'ambiguous'
-      matches: number
-    }
 
 export type CommandResult = {
   code: number
@@ -8129,6 +8226,15 @@ export type ReviewEvidenceComparison = {
   beforeId?: string
 }
 
+export type ReviewEvidenceVerificationMode = 'live' | 'dry'
+
+export type ReviewEvidenceBuild = {
+  sha: string
+  dirty: boolean
+  variant?: string
+  overlays?: Array<string>
+}
+
 export type ReviewEvidenceRef = {
   runId: string
   projectId: string
@@ -8156,6 +8262,20 @@ export type ReviewEvidenceRef = {
   inline?: boolean
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
+  build?: {
+    sha: string
+    dirty: boolean
+    variant?: string
+    overlays?: Array<string>
+  }
+  screen?: {
+    ids: Array<string>
+    texts: Array<string>
+  }
   mediaType: string
   bytes: number
   createdAt: number
@@ -8173,6 +8293,16 @@ export type VisualProofAssessment = {
 export type ReviewEvidenceCaptureDescription = {
   capturedOn?: string
   chromeTopPx?: number
+  build?: {
+    sha: string
+    dirty: boolean
+    variant?: string
+    overlays?: Array<string>
+  }
+  screen?: {
+    ids: Array<string>
+    texts: Array<string>
+  }
 }
 
 export type ReviewEvidenceQuery = {
@@ -8200,6 +8330,10 @@ export type RecordReviewEvidenceInput = {
   capturedOn?: string
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
+  verdictScreens?: Array<string>
+  verdictNewScreens?: Array<string>
+  verificationMode?: 'live' | 'dry'
+  dryAssumptions?: string
 }
 
 export type NetworkSpec =
@@ -8288,12 +8422,13 @@ export type CliRunFileStat = {
 export type StoryFeatureCensus = {
   total: number
   done: number
+  reviewable: number
   pending: number
   inProgress: number
   blocked: number
   deferred: number
   outstanding: number
-  complete: boolean
+  signOffReady: boolean
   label: string
 }
 
@@ -8302,12 +8437,13 @@ export type WorkHandoverInput = {
   census?: {
     total: number
     done: number
+    reviewable: number
     pending: number
     inProgress: number
     blocked: number
     deferred: number
     outstanding: number
-    complete: boolean
+    signOffReady: boolean
     label: string
   }
   changedFileCount?: number
@@ -8318,12 +8454,29 @@ export type WorkHandoverInput = {
   verdict?: string
 }
 
+export type FeatureTransitionEvent =
+  | 'implement-started'
+  | 'verified'
+  | 'signed-off'
+  | 'not-accepted'
+  | 'process-deleted'
+
+export type FeatureTransitionOptions = {
+  note?: string
+  questionsAskedSince?: string
+}
+
+export type RetireQuestionsOptions = {
+  answer?: string
+  askedSince?: string
+}
+
 export type FeatureCreateInput = {
   title: string
   description: string
   context: Array<string>
 } & {
-  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
   blockers?: Array<string>
@@ -8337,7 +8490,7 @@ export type FeatureEditInput = {
   description?: string
   context?: Array<string>
 } & {
-  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
   blockers?: Array<string>
@@ -8358,7 +8511,7 @@ export type StoryCreateInput = {
 export type StoryEditInput = {
   title?: string
   description?: string
-  status?: 'pending' | 'in_progress' | 'done' | 'blocked' | 'deferred'
+  status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   blockers?: Array<string>
   rejection?: string
   externalIds?: Array<ExternalRef>
@@ -8841,6 +8994,7 @@ export type ToolName =
   | 'listSourceRecords'
   | 'appendCost'
   | 'getCost'
+  | 'getCostSince'
   | 'listPrices'
   | 'upsertPrices'
   | 'getPrice'
@@ -8863,6 +9017,7 @@ export type ToolName =
   | 'mobileTestSwipe'
   | 'mobileTestScreenshot'
   | 'mobileTestRecordScreen'
+  | 'mobileTestLogcat'
   | 'mobileTestAdb'
   | 'mobileTestIdb'
   | 'getProjectDir'
@@ -9514,6 +9669,51 @@ export type ProcessNodeRunRef = {
   runner?: 'api' | 'cli'
 }
 
+export type ProcessVerifyReview = {
+  reviewedRunId: string
+  filedSince: number
+  filedUntil?: number
+}
+
+export type ProcessProofPair = {
+  subject: string
+  beforeId: string
+  afterId: string
+  changedPixels?: number
+  totalPixels?: number
+  sameScreen?: number
+  counted: boolean
+  reason?: string
+  newScreen?: boolean
+}
+
+export type ProcessProofUnpaired = {
+  subject: string
+  afterId: string
+  reason: string
+}
+
+export type ProcessVerifyProof = {
+  baseSha?: string
+  headSha?: string
+  seams?: Array<string>
+  pairs: Array<ProcessProofPair>
+  newScreenIds: Array<string>
+  recordingIds: Array<string>
+  mode?: 'live' | 'dry'
+  dryAssumptions?: string
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+  reason?: string
+  reasons?: Array<string>
+  judged?: boolean
+  unpaired?: Array<ProcessProofUnpaired>
+}
+
+export type ProcessEntryCost = {
+  costUsd?: number
+  unpricedTokens?: number
+}
+
 export type ProcessLedgerEntry = {
   id: string
   stepId: string
@@ -9534,8 +9734,52 @@ export type ProcessLedgerEntry = {
     at: number
     note?: string
   }
+  proof?: {
+    baseSha?: string
+    headSha?: string
+    seams?: Array<string>
+    pairs: Array<ProcessProofPair>
+    newScreenIds: Array<string>
+    recordingIds: Array<string>
+    mode?: 'live' | 'dry'
+    dryAssumptions?: string
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+    reason?: string
+    reasons?: Array<string>
+    judged?: boolean
+    unpaired?: Array<ProcessProofUnpaired>
+  }
+  cost?: {
+    costUsd?: number
+    unpricedTokens?: number
+  }
   startedAt: number
   endedAt?: number
+}
+
+export type ProcessAttemptTotals = {
+  entryId: string
+  workMs: number
+  costUsd?: number
+  unpricedTokens?: number
+}
+
+export type ProcessStepTotals = {
+  workMs: number
+  costUsd?: number
+  unpricedTokens?: number
+  attempts: Array<ProcessAttemptTotals>
+}
+
+export type ProcessRunTotals = {
+  workMs: number
+  costUsd?: number
+  unpricedTokens?: number
+  ticking: boolean
+  at: number
+  steps: {
+    [key: string]: ProcessStepTotals
+  }
 }
 
 export type ProcessRun = {
@@ -9589,7 +9833,30 @@ export type ProcessRun = {
   updatedAt: number
   endedAt?: number
   error?: string
+  totals?: {
+    workMs: number
+    costUsd?: number
+    unpricedTokens?: number
+    ticking: boolean
+    at: number
+    steps: {
+      [key: string]: ProcessStepTotals
+    }
+  }
 }
+
+export type ProcessRunDecision =
+  | {
+      kind: 'signed-off'
+    }
+  | {
+      kind: 'not-accepted'
+      choice?: 'continue' | 'retry' | 'abandon' | 'approve' | 'request-changes' | 'reject'
+      note?: string
+    }
+  | {
+      kind: 'none'
+    }
 
 export type ProcessTransition =
   | {
@@ -9643,6 +9910,25 @@ export type ProcessStepResult = {
     agentRunId?: string
     chatContextId?: string
     runner?: 'api' | 'cli'
+  }
+  proof?: {
+    baseSha?: string
+    headSha?: string
+    seams?: Array<string>
+    pairs: Array<ProcessProofPair>
+    newScreenIds: Array<string>
+    recordingIds: Array<string>
+    mode?: 'live' | 'dry'
+    dryAssumptions?: string
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+    reason?: string
+    reasons?: Array<string>
+    judged?: boolean
+    unpaired?: Array<ProcessProofUnpaired>
+  }
+  cost?: {
+    costUsd?: number
+    unpricedTokens?: number
   }
 }
 
@@ -9710,11 +9996,31 @@ export type ProcessStepState = {
       at: number
       note?: string
     }
+    proof?: {
+      baseSha?: string
+      headSha?: string
+      seams?: Array<string>
+      pairs: Array<ProcessProofPair>
+      newScreenIds: Array<string>
+      recordingIds: Array<string>
+      mode?: 'live' | 'dry'
+      dryAssumptions?: string
+      outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+      reason?: string
+      reasons?: Array<string>
+      judged?: boolean
+      unpaired?: Array<ProcessProofUnpaired>
+    }
+    cost?: {
+      costUsd?: number
+      unpricedTokens?: number
+    }
     startedAt: number
     endedAt?: number
   }
   entries: Array<ProcessLedgerEntry>
   current: boolean
+  requeued: boolean
 }
 
 export type ProcessRunProgress = {
@@ -11660,6 +11966,14 @@ export type PreviewProcessErrors = {
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
     error: string
     code?: string
     requestId?: string

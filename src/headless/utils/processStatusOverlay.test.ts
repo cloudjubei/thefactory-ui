@@ -35,6 +35,33 @@ describe('processStatusOverlay', () => {
     })
   })
 
+  const decidedRun = (choice: 'reject' | 'request-changes' | 'abandon' | 'retry') =>
+    ({
+      id: 'run-1',
+      status: 'failed',
+      plan: { steps: [{ id: 'sign-off', name: 'Sign-off', kind: 'gate' }] },
+      ledger: [
+        {
+          id: 'e1',
+          stepId: 'sign-off',
+          iteration: 1,
+          status: 'done',
+          startedAt: 0,
+          override: { choice, at: 1 },
+        },
+      ],
+    }) as unknown as ProcessRun
+
+  it('a run a PERSON ended — rejected, sent back, abandoned — yields NO overlay: its features are pending again', () => {
+    for (const choice of ['reject', 'request-changes', 'abandon'] as const) {
+      expect(processStatusOverlay(decidedRun(choice))).toBeUndefined()
+    }
+  })
+
+  it('a run that failed with nobody deciding stays Blocked — it is stuck', () => {
+    expect(processStatusOverlay(decidedRun('retry'))?.label).toBe('Blocked')
+  })
+
   it('a finished (succeeded / cancelled) or absent run yields NO overlay — the stored status stands', () => {
     expect(processStatusOverlay(run({ status: 'succeeded' }))).toBeUndefined()
     expect(processStatusOverlay(run({ status: 'cancelled' }))).toBeUndefined()

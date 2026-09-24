@@ -348,6 +348,7 @@ export {
   type NavDrawerItem,
   type NavDrawerProps,
 } from './compound/shell/NavDrawer'
+export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
 export { default as ScreenShell, type ScreenShellProps } from './compound/shell/ScreenShell'
 
 // Text / code viewers
