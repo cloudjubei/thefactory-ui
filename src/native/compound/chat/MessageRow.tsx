@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from 'react'
+import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
 import Markdown from '../Markdown'
@@ -20,6 +20,7 @@ import {
   nativeShadows,
   nativeSpace,
 } from '../../../tokens/native'
+import { messageUsageCost } from '../../../headless/utils/costDetails'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
   cliDotColor,
@@ -105,13 +106,19 @@ function CollapsibleContent({
 
 /**
  * Compact per-message usage chip — pressable. Just shows `$` (matches web).
- * Web reveals the full token breakdown in a hover tooltip; touch has no
- * hover, so on tap the host opens a `MessageUsageSheet` with the full
- * breakdown.
+ * Web reveals the cost details in a hover tooltip; touch has no hover, so on
+ * tap the host opens a `MessageUsageSheet` with them. Shown, like its web
+ * peer, only when the message measured something: a stored CLI turn's
+ * zero-token placeholder has no details to open.
  */
 function UsageChip({ msg, onPress }: { msg: ChatMessageLike; onPress?: () => void }) {
   const { theme } = useNativeTheme()
-  if (!msg.usage) return null
+  const usage = msg.usage
+  const measured = useMemo(
+    () => (usage ? messageUsageCost(usage, msg.model) !== undefined : false),
+    [usage, msg.model],
+  )
+  if (!measured) return null
   return (
     <Pressable
       onPress={onPress}

@@ -13,8 +13,9 @@ export type RunModelChipProps = {
 
 /**
  * Native peer of the web `RunModelChip`: which agent and model did the work,
- * read-only. A landed run's model is a fact, not a picker. When a `role` is
- * given it leads the model with the role — the "Run by" chip per section.
+ * read-only. A landed run's model is a fact, not a picker. It names the model
+ * the CLI reported running, with what the run asked for in its details. When a
+ * `role` is given it leads the model with the role — the "Run by" chip per section.
  */
 export default function RunModelChip({ model, role }: RunModelChipProps) {
   const { theme } = useNativeTheme()
@@ -29,6 +30,7 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
           {model.model
             ? `Ran on ${model.tag} — model ${model.model}${model.effort ? `, ${model.effort} effort` : ''}.`
             : `Ran on ${model.tag}. The runner did not record a model for this run.`}
+          {model.requested ? ` Asked for ${model.requested}.` : ''}
         </Text>
       }
     >

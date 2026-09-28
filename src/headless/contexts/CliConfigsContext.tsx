@@ -37,8 +37,16 @@ import { useApi, useAuth } from '../api'
 export type CliImageVersion = ListCliImageVersionsResponse['images'][number]
 
 /** `cli:image-update` WS payload. Mirrors the backend's CliImageUpdateData union. */
+export type CliImageUpdatePhase = NonNullable<NonNullable<CliImageVersion['update']>['phase']>
+
 export type CliImageUpdateEvent =
   | { updateId: string; cli: string; type: 'chunk'; event: { updateId: string; chunk: string } }
+  | {
+      updateId: string
+      cli: string
+      type: 'phase'
+      event: { updateId: string; phase: CliImageUpdatePhase }
+    }
   | {
       updateId: string
       cli: string
@@ -483,6 +491,8 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   )
 
   const seenBuildIdsRef = useRef<Set<string>>(new Set())
+  const cliImageVersionsRef = useRef(cliImageVersions)
+  cliImageVersionsRef.current = cliImageVersions
   useEffect(
     () =>
       ws.on<CliImageUpdateEvent>('cli:image-update', (data) => {
@@ -497,6 +507,20 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
             seenBuildIdsRef.current.add(data.updateId)
             void refreshCliImages()
           }
+          return
+        }
+        if (data.type === 'phase') {
+          if (!cliImageVersionsRef.current.some((row) => row.update?.updateId === data.updateId)) {
+            void refreshCliImages()
+            return
+          }
+          setCliImageVersions((prev) =>
+            prev.map((row) =>
+              row.update?.updateId === data.updateId
+                ? { ...row, update: { ...row.update, phase: data.event.phase } }
+                : row,
+            ),
+          )
           return
         }
         void refreshCliImages()

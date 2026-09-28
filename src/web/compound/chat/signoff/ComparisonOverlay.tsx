@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   captureBuildCaption,
   capturedOnLabel,
+  comparisonPairFacts,
   useEvidenceDiff,
   IMAGE_ZOOM_MAX,
   IMAGE_ZOOM_MIN,
@@ -51,12 +52,14 @@ const BASE_WIDTH = 240
 
 /**
  * A side's build, as its own record states it — the commit it was built from,
- * whether the tree was dirty — and, apart, the commit it was expected to be.
+ * whether the tree was dirty — and, apart, the commit it was expected to be. A
+ * capture the backend cannot vouch for has no build to show, and says so.
  */
 function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.unvouched ? <span className="text-(--text-muted)">{build.unvouched}</span> : null}
       {build.dirty ? (
         <span className="text-(--status-stuck-soft-fg)">uncommitted changes</span>
       ) : null}
@@ -169,15 +172,7 @@ export default function ComparisonOverlay({
   )
   const cut = holdBase ? 100 : slidePct
 
-  const pairFact =
-    pair?.note ??
-    (pair?.class === 'new'
-      ? 'This screen exists only on the branch.'
-      : pair?.class === 'removed'
-        ? 'This screen exists only on the base.'
-        : pair?.class === 'single'
-          ? 'A single capture — there is nothing to compare it with.'
-          : 'Captured on both the base and the branch.')
+  const pairFacts = pair ? comparisonPairFacts(pair) : []
   const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
   const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
 
@@ -395,7 +390,11 @@ export default function ComparisonOverlay({
 
         <div className="text-center text-xs text-(--text-muted)">
           {/* What this pair IS comes first — the mode hint is secondary. */}
-          <div>{pairFact}</div>
+          {pairFacts.map((fact) => (
+            <div key={fact} className="mx-auto max-w-[72ch]">
+              {fact}
+            </div>
+          ))}
           <div>
             {hint} <b className="text-(--text-secondary)">← →</b> to page.
           </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 
-import type { ScreenPair, ScreenPairClass } from '../../../../headless'
+import { screenPairMeta, type ScreenPair } from '../../../../headless'
 import { nativeRadii, nativeShadows } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import SegmentedControl from '../../../primitives/SegmentedControl'
@@ -31,13 +31,6 @@ export type ScreensTabProps = {
 }
 
 type ThumbMode = 'before' | 'after'
-
-const META: Record<ScreenPairClass, string> = {
-  pair: 'before / after',
-  new: 'only on the branch',
-  removed: 'only on the base',
-  single: 'single capture',
-}
 
 const TILE_WIDTH = 110
 const TILE_HEIGHT = 196
@@ -143,6 +136,7 @@ export default function ScreensTab({
                 accessibilityLabel={
                   capturing ? `${pair.title} — still capturing` : `Compare ${pair.title}`
                 }
+                accessibilityHint={capturing ? undefined : pair.unvouched?.text}
                 onPress={() => onOpen(pair.key)}
                 style={({ pressed }) => ({
                   width: TILE_WIDTH,
@@ -230,7 +224,7 @@ export default function ScreensTab({
                 {` · ${pair.title}`}
               </Text>
               <Text style={{ fontSize: 10, color: theme.text.muted }}>
-                {capturing ? 'capturing…' : META[pair.class]}
+                {screenPairMeta(pair, { capturing })}
               </Text>
             </View>
           )

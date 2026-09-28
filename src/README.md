@@ -49,7 +49,7 @@ The semantic theme uses CSS-shaped strings (`color-mix(...)`, `var(--...)`) for 
 - `web/icons/`: 56 SVG icons (`IconHome`/`IconChat`/`IconChevron`/`IconFile{Json,Image,Zip,Text,Default}`/`IconExclamation`/`IconGlobe`/etc.) — branded multi-colour for nav, `currentColor` for utilities
 - `web/primitives/`: Alert, Button, Chip, DotBadge, Field, Input, Modal, ConfirmDialog, Select, SegmentedControl, Skeleton, Spinner, SpinnerWithDot, Surface, Switch, Textarea, Toast (`ToastProvider` + `useToast`), Tooltip
 - `web/compound/`: BranchChip, Code, CollapsibleSidebar, CommandPalette, JsonView, Markdown, NotificationBadge, PathDisplay, ResizeHandle, SafeText, ShortcutsHelpView
-- `web/compound/chips/`: CostChip, ProjectChip, StatusChip, TokensChip, TurnChip
+- `web/compound/chips/`: CostChip, ProjectChip, StatusChip, TurnChip
 - `web/compound/diff/`: DiffViewer (single-file widget with selectable hunks / intra-line modes / partial-apply), `parseUnifiedDiff` / `generateSelectedPatch` / `generateHunkPatch`, StructuredUnifiedDiff, InlineTextDiff, SimpleUnifiedDiff, SimpleSplitText
 - `web/compound/files/`: FileDisplay (with `UikitFileMeta` shape and `onReadPreview`/`onNavigate` callbacks)
 

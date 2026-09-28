@@ -261,10 +261,61 @@ wrong colour.**
 
 Time and cost are never computed in a view. Every run arrives with `totals`
 (derived from its ledger by thefactory-tools), and `processRunWorkMs` /
-`processStepWorkMs` / `processRunSpend` / `formatProcessCost` read them — a
-step's time is every attempt's, a clock ticks only while `totals.ticking`, and
-unpriced tokens are named beside the dollars rather than counted as $0. Each
-surface once had its own formula, and they disagreed by hours and by dollars.
+`processStepWorkMs` / `processRunSpend` / `processStepCostLabel` read them — a
+step's time is every attempt's, and a clock ticks only while `totals.ticking`.
+Each surface once had its own formula, and they disagreed by hours and by
+dollars.
+
+A cost CHIP says one thing: the charge, in dollars (`costChipLabel`) — `$0.00`
+is a real value for work a subscription covered, and a spend cap reads
+`$x of $cap`. When no charge is known the chip says why instead of a `$0.00`
+it never was: `Charge pending` (a metered run still going — its runner prices
+it with its terminal write), `No known price`, or `Not reported` (a CLI that
+reported no token counts). A CLI run's recorded `costUSD` is never read: before
+billing was kept it held Claude Code's list-price estimate and Cursor's "no
+price found" $0; a run's cost comes from its per-model rows and billing, read
+through `thefactory-tools` `cliRunSpends` so a run's chip and its process
+attempt's chip agree. Everything else a cost knows lives in ONE details view,
+`headless/utils/costDetails.ts` → `costDetailsView(cost)`: the tokens a plan
+included, the metered tokens with no known price (unknown, never $0), the list
+value, a row per model with how it was paid for, and notes on what the record
+cannot say (which model Cursor's Auto used; usage beyond a plan's allowance).
+Every chip opens it through `CostChip` — a hover/focus/pinned popover on web
+(always a tab stop, so it is never put inside a `<button>`: a clickable row is a
+stretched button with the chip beside it), a bottom sheet on native — whether the cost is a pipeline ledger cost, a CLI run
+(`cliRunCost`) or a chat message's usage (`messageUsageCost`). The usage modal's
+tables come from `useUsageBreakdown` on both clients, so a column, a ledger read
+or a price estimate cannot exist on one and not the other. Prices are looked up
+exactly as the backend charges them (`thefactory-tools` `getPrice`), never by a
+near match.
+
+Each details row names how its model was paid for (`Included in your Cursor
+subscription`, `API key — billed per token`, `Free`). A count the CLI never
+reported — every count of a Cursor resident turn, the output of a Claude Code
+turn cut off before its `result` line — reads `Not reported by <tool>`, never 0,
+and such a row has no list value. A list value that leaves some tokens out — a
+row beside it without one; in the usage modal, the ledger's unlisted, unpriced or
+not-reported tokens — reads `≈ $x for the tokens with a known price` in the
+details and `$x (known prices only)` in the modal, so a part is never shown as
+the whole.
+A CLI turn's chat message carries the usage its run was stamped with — per-model
+rows, billing, list value, written by the tools' CLI dispatch from the run
+record — so a stored chat opens the same details as the run. The usage modal's
+CURRENT table counts a CLI turn under each model its rows say ran, named as the
+ledger names it (`Cursor · Composer 2.5 (subscription)`), never under the
+`cli-agent/<cli>/<model>` tag its message carries. A landed review record — the
+one a process step's chat opens — mirrors the run whose work it lands
+(`mirrorOf`) and carries no spend of its own; its cost and duration are read off
+that run (`cliRunSpendRecord`). The UI's cost math extends the tools'
+(`processEntryCostFromSpends`, `sumProcessEntryCosts`) only with states the tools
+never write — no billing recorded, a run still going — and the parity tests in
+`costDetails.test.ts` hold the two alike on every row shape the tools do write.
+
+Every pricing panel words a price through `priceListEntryView`
+(`headless/utils/priceList.ts`): its source and all five rates, a rate the
+catalogue leaves out shown as the one the ledger bills it at — a cache rate at
+the input rate, a one-hour write at the cache-write rate — so no client fills a
+gap its own way.
 
 The story sign-off shows exactly what the verify gate judged
 (`headless/utils/verifyProof.ts`): each feature's header comes from its verify
@@ -277,9 +328,77 @@ why. A dry verification always says what the live backend must send. Each side
 of a pair is captioned from its own build record, never from the commit it was
 supposed to be built from.
 
+The sign-off reads each feature's LATEST run only — its run under the story run
+being signed off, else its newest run — so a relaunched story is judged on
+where it stands now (`buildStorySignoff`, `signoffEvidence` in
+`headless/utils/storySignoff.ts`). Attempts are numbered within that run, a
+feature's time and cost are that run's own, the head adds those to the story
+run's own steps, and only the latest report and that run's filings show.
+Earlier runs, their attempts and reports stay in the pipeline for whoever drills
+in. The Overall section is always there for a story run, even when it filed
+nothing story-wide: it holds the story-wide checks ("Not checked" when none
+ran, never "All green"), how the story run's capture steps ended (a skipped
+walkthrough's reason is read from its ledger entry), and only that run's own
+story-wide filings. Nothing is drawn until the runs, the story and the evidence
+have all loaded (`signoffLoadStatus`): computed without the runs there is no
+scope, so every earlier run's filings would show under a verdict that then
+flips. The verdict badge carries the tally (`Proven · 2/2`); the verdict's line
+shows only when the outcome is not a clean all-proven one, and a reviewer's
+approval of a pass the section header already shows is left out of the
+sign-off (it stays on the attempt's own view).
+
+Reports are routed by the `approach` they were filed under (`reportAuthor` in
+`headless/utils/reviewEvidenceView.ts`; the approaches are the tools'
+`CODE_REVIEW_APPROACH`, `FINAL_REPORT_APPROACH`, `FEATURE_REPORT_APPROACH`). The
+story's final report leads the Overall's Report tab, which the Overall opens on;
+a feature's report leads that feature's Report tab, the verifier's newest after
+it. A code review has its own Code review tab (Overall, or a feature when it was
+reviewed on its own), and its verdict is the `diff` method's state — the "Code
+review" chip — falling back to `CliRun.diffReview` only for a run from before
+code reviews filed any. The Overall's notes say how the story run's walkthrough,
+code review and report steps ended, a finished code review by its verdict. None
+of these reports is ever the verifier's: `reviewerVerdict`, `latestReport` and
+`verifyAttemptEvidence` read only the verifier's filings (`isVerifierFiling`),
+and a run's own Report tab (`runReports`) never shows a code review or the
+final report. The sections are bucketed once, headlessly (`signoffSections`,
+`signoffSectionProps` in `storySignoff.ts`), for both clients.
+
+An item the running backend cannot vouch for (`ReviewEvidenceRef.unvouchedReason`)
+lists with no build, device, screen or verdict. After any backend restart, every
+item filed before it lists this way. Every surface keeps the item's image and
+says why in place of what is missing (`evidenceUnvouched` in
+`headless/utils/reviewEvidenceView.ts`). The restart reason gets calm wording:
+filed before the backend last restarted, or edited since, so it doesn't count
+and the next verify run captures it again. Any other reason, such as a record
+or file changed on the host, is shown in the backend's own words, matched
+exactly against the tools' constants. When the two sides of a pair cannot be
+vouched for for different reasons, both are said, each naming its side, and the
+restart wording never stands for a side whose file or record changed
+(`pairUnvouched`). The chat row of a `recordReviewEvidence` call says it too,
+beside the filed image (`recordedEvidenceUnvouched`). A pair or new screen the
+gate counted but cannot now be vouched for is listed first under what did not
+count, marked "the gate counted this when it ran". It is never shown as showing
+the change. When nothing a proof rested on can still be vouched for, three
+places say so: the proof banner and its collapsed chip
+(`VerifyProofHeader.unvouched`), and the story notice. A reviewer verdict the
+backend dropped is noted instead of vanishing, and an older verdict is never
+shown as the conclusion once a filing at least as new lost its own
+(`reviewerVerdict`). The check chips (`checkMethodRows`) count such filings apart
+(`CheckMethodRow.unvouched`) and never as proof. They read as needing to be
+captured again, never as "never ran" — but what a chip offers stays what the
+host can do with nothing filed: the switch when the project withholds the
+capture, the set-up (with the host's install hints) when the toolchain is
+missing, never a capture that would be refused. A read-only record — the story
+sign-off, a report-only panel — passes no action host to `CheckChipRow` or
+`ChecksTab`, so its chips and check blocks offer only the proof
+(`checkActionOffer`), never a button that does nothing.
+
 ### Project notes & secrets
 
 `useProjectNotes(projectId)` + `useProjectNoteReveal` front the per-project encrypted store of standing context an agent reaches for (logins for an app under test, API keys, conventions). The list surface (`ProjectNotesSettings` / `ProjectNotesForm`, web + native) **never renders a stored value** — `GET …/notes` returns summaries only, and `…/notes/:id/reveal` is called solely from an explicit per-note Reveal, which masks itself again after `NOTE_REVEAL_TIMEOUT_MS`. `access: 'open'` means any agent on the project can read the value whenever it needs it; `access: 'ask'` means every read asks the user first.
+
+A capture the project withholds — device automation is a per-project backend setting, on by default and switched off only by the project's own record; no client exposes it — reaches the sign-off as the approach status `not-allowed` (or `unavailable` carrying `withheld`, when the host also lacks its toolchain — the chip names both); `checkMethodRows` gives its chip the `allow` action — the backend's reason — instead of offering the agent a set-up it cannot do (`checkCallout` words every chip's callout on both clients).
+
 
 ## Resolved decisions
 

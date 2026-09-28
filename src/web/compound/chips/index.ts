@@ -6,7 +6,6 @@ export {
   type ChipState,
   type StatusChipProps,
 } from './StatusChip'
-export { default as TokensChip, type TokensChipProps } from './TokensChip'
 export { default as TurnChip } from './TurnChip'
 export { default as CheckChip, type CheckChipProps } from './CheckChip'
 export { default as HandoffButton, type HandoffButtonProps } from './HandoffButton'

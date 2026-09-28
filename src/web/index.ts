@@ -129,7 +129,6 @@ export {
   RunActionButton,
   StatusChip,
   StatusIcon,
-  TokensChip,
   TurnChip,
   type CheckChipProps,
   type ChipState,
@@ -141,7 +140,6 @@ export {
   type RefChipProps,
   type RunActionButtonProps,
   type StatusChipProps,
-  type TokensChipProps,
 } from './compound/chips'
 export {
   CommandPalette,
@@ -356,15 +354,7 @@ export {
   type ShortcutEntry,
   type ShortcutsHelpViewProps,
 } from './compound/ShortcutsHelpView'
-export {
-  UsageModal,
-  type UsageModalCostAggregate,
-  type UsageModalCostBreakdown,
-  type UsageModalMessage,
-  type UsageModalModelPrice,
-  type UsageModalProps,
-  type UsageModalUsage,
-} from './compound/UsageModal'
+export { UsageModal, type UsageModalProps } from './compound/UsageModal'
 export {
   ModelChip,
   type ModelChipConfig,

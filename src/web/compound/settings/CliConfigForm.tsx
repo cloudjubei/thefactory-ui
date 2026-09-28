@@ -8,6 +8,7 @@ import type {
   CliTool,
   ModelInfo,
 } from '../../../headless/api'
+import { CliImageBuildProgress, cliImageBuildStepLabel } from './CliImageBuildProgress'
 import { CliImageVersionChip } from './CliImageVersionChip'
 import { useCliConfigs } from '../../../headless'
 import type { CliLiveProbeResult, RunCliCapabilityCheckResponse } from '../../../headless'
@@ -94,6 +95,8 @@ export function CliConfigForm() {
   const [liveProbe, setLiveProbe] = useState<Record<string, LiveProbeState>>({})
   const [capability, setCapability] = useState<Record<string, CapabilityState>>({})
   const [imageBuildError, setImageBuildError] = useState<Record<string, string>>({})
+  const [imageBuildStarting, setImageBuildStarting] = useState<Record<string, boolean>>({})
+  const [watchedImageBuilds, setWatchedImageBuilds] = useState<ReadonlySet<string>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<CliAuthCacheEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
   // Per-credential "Check now" auth probe in flight.
@@ -186,6 +189,32 @@ export function CliConfigForm() {
     )
     if (stale) void checkCliImages()
   }, [cliImagesLoading, cliImageDocker, cliImageVersions, checkCliImages])
+
+  // Builds seen in progress in this view, so a success is confirmed for them and not for an old record.
+  useEffect(() => {
+    const building = cliImageVersions
+      .filter((row) => row.state === 'updating' && row.update)
+      .map((row) => row.update!.updateId)
+      .filter((id) => !watchedImageBuilds.has(id))
+    if (building.length > 0) setWatchedImageBuilds((prev) => new Set([...prev, ...building]))
+  }, [cliImageVersions, watchedImageBuilds])
+
+  const startImageBuild = (cli: CliTool) => {
+    setImageBuildError((prev) => {
+      const next = { ...prev }
+      delete next[cli]
+      return next
+    })
+    setImageBuildStarting((prev) => ({ ...prev, [cli]: true }))
+    startCliImageBuild(cli)
+      .catch((err: unknown) => {
+        setImageBuildError((prev) => ({
+          ...prev,
+          [cli]: extractErrorMessage(err, 'The image build could not be started.'),
+        }))
+      })
+      .finally(() => setImageBuildStarting((prev) => ({ ...prev, [cli]: false })))
+  }
 
   const runLiveModelsProbe = async (cli: CliTool, credentialId: string) => {
     setLiveModelsProbe((prev) => ({ ...prev, [cli]: { kind: 'loading' } }))
@@ -285,6 +314,8 @@ export function CliConfigForm() {
         const canRefreshLive = (cli === 'cursor-agent' || cli === 'codex') && !!groupCredId
         const imageVersion = cliImageVersions.find((row) => row.cli === cli)
         const isUpdating = imageVersion?.state === 'updating'
+        const isStarting = imageBuildStarting[cli] === true
+        const imageUpdate = imageVersion?.update
         return (
           <div
             key={cli}
@@ -307,24 +338,9 @@ export function CliConfigForm() {
                           ? 'success'
                           : 'outline'
                       }
-                      loading={isUpdating}
-                      disabled={isUpdating}
-                      onClick={() => {
-                        setImageBuildError((prev) => {
-                          const next = { ...prev }
-                          delete next[cli]
-                          return next
-                        })
-                        startCliImageBuild(cli).catch((err: unknown) => {
-                          setImageBuildError((prev) => ({
-                            ...prev,
-                            [cli]: extractErrorMessage(
-                              err,
-                              'The image build could not be started.',
-                            ),
-                          }))
-                        })
-                      }}
+                      loading={isUpdating || isStarting}
+                      disabled={isUpdating || isStarting}
+                      onClick={() => startImageBuild(cli)}
                       title={
                         imageVersion.state === 'unknown'
                           ? (imageVersion.detail ?? 'Rebuild this image')
@@ -332,12 +348,14 @@ export function CliConfigForm() {
                       }
                     >
                       {isUpdating
-                        ? 'Building…'
-                        : imageVersion.state === 'not-built'
-                          ? 'Build image'
-                          : imageVersion.state === 'update-available'
-                            ? `Update to ${imageVersion.latest ?? ''}`
-                            : 'Rebuild'}
+                        ? 'Updating…'
+                        : isStarting
+                          ? 'Starting…'
+                          : imageVersion.state === 'not-built'
+                            ? 'Build image'
+                            : imageVersion.state === 'update-available'
+                              ? `Update to ${imageVersion.latest ?? ''}`
+                              : 'Rebuild'}
                     </Button>
                   )}
               </div>
@@ -359,19 +377,37 @@ export function CliConfigForm() {
               </div>
             )}
 
-            {imageVersion?.update?.status === 'failed' && (
+            {isUpdating && imageUpdate?.status === 'building' && (
+              <CliImageBuildProgress
+                cliName={cliLabel(cli)}
+                update={imageUpdate}
+                output={cliImageBuildOutput[imageUpdate.updateId]}
+              />
+            )}
+
+            {imageUpdate?.status === 'succeeded' &&
+              watchedImageBuilds.has(imageUpdate.updateId) && (
+                <div className="rounded border border-green-600/40 bg-(--surface-muted) px-2 py-2 text-xs flex items-center gap-2 text-green-600">
+                  <IconCheck className="w-3.5 h-3.5" />
+                  <span className="font-medium">
+                    Updated to {imageUpdate.installedAfter ?? imageUpdate.targetVersion}
+                  </span>
+                </div>
+              )}
+
+            {imageUpdate?.status === 'failed' && (
               <div className="rounded border border-red-500/40 bg-(--surface-muted) px-2 py-2 text-xs flex flex-col gap-2">
                 <span className="text-red-500 font-medium">
-                  Build failed · {imageVersion.update.targetVersion}
+                  Update to {imageUpdate.targetVersion} failed
+                  {cliImageBuildStepLabel(imageUpdate.phase)
+                    ? ` at “${cliImageBuildStepLabel(imageUpdate.phase)}”`
+                    : ''}{' '}
+                  — the previous image is still in use.
                 </span>
-                {imageVersion.update.error && (
-                  <span className="text-red-500">{imageVersion.update.error}</span>
-                )}
-                {(cliImageBuildOutput[imageVersion.update.updateId] ??
-                  imageVersion.update.logTail) && (
+                {imageUpdate.error && <span className="text-red-500">{imageUpdate.error}</span>}
+                {(cliImageBuildOutput[imageUpdate.updateId] ?? imageUpdate.logTail) && (
                   <pre className="m-0 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-(--text-secondary)">
-                    {cliImageBuildOutput[imageVersion.update.updateId] ??
-                      imageVersion.update.logTail}
+                    {cliImageBuildOutput[imageUpdate.updateId] ?? imageUpdate.logTail}
                   </pre>
                 )}
               </div>

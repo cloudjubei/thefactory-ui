@@ -1,20 +1,28 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
-import type {
-  EvidenceTile,
-  ProofPairView,
-  ProofScreenView,
-  ProofUnpairedView,
-  VerifyProofTone,
-  VerifyProofView,
+import {
+  proofScreensPane,
+  proofThumbnailFrame,
+  type EvidenceTile,
+  type ProofPairView,
+  type ProofThumbnail,
+  type ProofThumbnailSide,
+  type ProofUnpairedView,
+  type ScreenPair,
+  type VerifyProofTone,
+  type VerifyProofView,
 } from '../../../headless'
-import { IconCheck } from '../../icons'
+import { IconChevronRight, IconDownload } from '../../icons'
+import { Button } from '../../primitives/Button'
+import SegmentedControl from '../../primitives/SegmentedControl'
 
 export type ProofScreensProps = {
   view: VerifyProofView
   /** Opens the comparison overlay on a pair or new screen, by its key. */
   onOpen: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
+  /** Saves one proving pair — the download on each thumbnail and, for all of them, the pane's. */
+  onSavePair?: (pair: ScreenPair) => void
 }
 
 const SUMMARY_TONE: Record<VerifyProofTone, string> = {
@@ -61,80 +69,18 @@ function Frame({
   )
 }
 
-function FrameCaption({ word }: { word: string }) {
-  return (
-    <span className="text-center text-[10px] font-medium uppercase tracking-wide text-(--text-muted)">
-      {word}
-    </span>
-  )
+/**
+ * Why a capture cannot be vouched for, in full, under what it did not count
+ * for. Muted, not alarming: after a restart every earlier capture reads so.
+ */
+function UnvouchedLine({ text }: { text: string | undefined }) {
+  return text ? <span className="text-[11px] text-(--text-muted)">{text}</span> : null
 }
 
-function GroupHead({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-        {title}
-      </span>
-      {hint ? <span className="text-[11.5px] text-(--text-secondary)">{hint}</span> : null}
-    </div>
-  )
-}
-
-/** A pair the pass rested on: both frames side by side, big enough to judge, one tap from the diff. */
-function CountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: string) => void }) {
-  return (
-    <div className="flex w-[292px] max-w-full flex-col gap-2 rounded-lg border border-(--status-done-soft-border) bg-(--surface-raised) p-2.5">
-      <button
-        type="button"
-        onClick={() => onOpen(pair.key)}
-        aria-label={`Compare ${pair.subject}`}
-        className="flex gap-2 rounded-md text-left hover:opacity-90"
-      >
-        <span className="flex flex-col gap-1">
-          <Frame
-            tile={pair.before}
-            absent={pair.beforeAbsent}
-            label={`${pair.subject} — before`}
-            className="h-[236px] w-[132px]"
-          />
-          <FrameCaption word="Before" />
-        </span>
-        <span className="flex flex-col gap-1">
-          <Frame
-            tile={pair.after}
-            absent={pair.afterAbsent}
-            label={`${pair.subject} — after`}
-            className="h-[236px] w-[132px]"
-          />
-          <FrameCaption word="After" />
-        </span>
-      </button>
-      <span
-        className="truncate text-[12.5px] font-semibold text-(--text-primary)"
-        title={pair.subject}
-      >
-        {pair.subject}
-      </span>
-      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-(--status-done-soft-fg)">
-        <IconCheck className="size-3.5" />
-        {pair.verdict}
-      </span>
-      <span className="text-[11px] text-(--text-secondary)">
-        {pair.change}
-        {pair.sameScreen ? ` · ${pair.sameScreen}` : ''}
-      </span>
-      <button
-        type="button"
-        onClick={() => onOpen(pair.key)}
-        className="self-start text-[11.5px] font-medium text-(--accent-primary) hover:underline"
-      >
-        Compare and see the diff
-      </button>
-    </div>
-  )
-}
-
-/** A pair that did not count: small, muted, with the gate's reason — secondary to the proof. */
+/**
+ * A pair that did not count: small, muted, with its reason — secondary to the
+ * proof — and, when a side cannot be vouched for, why.
+ */
 function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: string) => void }) {
   return (
     <button
@@ -171,6 +117,7 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
           />
           <span>{pair.verdict}</span>
         </span>
+        <UnvouchedLine text={pair.unvouched?.text} />
         <span className="text-[10.5px] text-(--text-muted)">
           {pair.change}
           {pair.sameScreen ? ` · ${pair.sameScreen}` : ''}
@@ -180,49 +127,7 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
   )
 }
 
-/** A screen the change adds, beside the entry point on the base it opens from when the gate recorded one. */
-function NewScreen({ screen, onOpen }: { screen: ProofScreenView; onOpen: (key: string) => void }) {
-  const hasEntry = screen.entryPoint !== undefined || screen.entryPointAbsent !== undefined
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(screen.key)}
-      aria-label={`Open ${screen.title}`}
-      className="flex max-w-full shrink-0 flex-col gap-1 text-left"
-    >
-      <span className="flex items-end gap-1.5">
-        {hasEntry ? (
-          <span className="flex flex-col gap-1 opacity-80">
-            <Frame
-              tile={screen.entryPoint}
-              absent={screen.entryPointAbsent}
-              label={`${screen.title} — where it opens from on the base`}
-              className="h-[140px] w-[79px]"
-            />
-            <FrameCaption word="Opens from" />
-          </span>
-        ) : null}
-        <span className="flex flex-col gap-1">
-          <Frame
-            tile={screen.tile}
-            absent={screen.absent}
-            label={screen.title}
-            className="h-[196px] w-[110px]"
-          />
-          {hasEntry ? <FrameCaption word="New screen" /> : null}
-        </span>
-      </span>
-      <span
-        className="max-w-[196px] truncate text-[10.5px] text-(--text-secondary)"
-        title={screen.title}
-      >
-        {screen.title}
-      </span>
-    </button>
-  )
-}
-
-/** An after filed with no before of its subject: shown with the gate's reason, never as proof. */
+/** An after shown alone — no before of its subject, or a new screen that cannot be vouched for — with why, never as proof. */
 function UnpairedAfter({
   item,
   onOpen,
@@ -259,83 +164,183 @@ function UnpairedAfter({
           />
           <span>{item.reason}</span>
         </span>
+        <UnvouchedLine text={item.unvouched?.text} />
       </span>
     </button>
   )
 }
 
 /**
- * Exactly the screens a verify gate judged — never a regrouping of everything
- * filed. The pairs the pass rested on lead, side by side; the screens the change
- * adds follow, beside where they open from; the pairs and lone afters that did
- * not count come last, muted, each with the gate's own reason, so a reader sees
- * what was rejected and why without it reading as proof.
+ * One thumbnail the proof rests on: the toggle's side of the pair, its change
+ * marker in the corner, and a download revealed on hover (always shown where
+ * there is no hover). The thumbnail opens the comparison, where the verdict,
+ * the pixel and element stats and the diff are read.
  */
-export default function ProofScreens({ view, onOpen, onRequestImage }: ProofScreensProps) {
+function Thumbnail({
+  thumb,
+  side,
+  onOpen,
+  onSave,
+}: {
+  thumb: ProofThumbnail
+  side: ProofThumbnailSide
+  onOpen: (key: string) => void
+  onSave: ((pair: ScreenPair) => void) | undefined
+}) {
+  const frame = proofThumbnailFrame(thumb, side)
+  const savable = onSave && (thumb.screen.before?.dataUri || thumb.screen.after?.dataUri)
+  return (
+    <div className="group/thumb relative flex w-[92px] shrink-0 flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => onOpen(thumb.key)}
+        aria-label={`Compare ${thumb.subject}`}
+        className="relative block w-[92px] overflow-hidden rounded-md border border-(--border-default) bg-(--surface-muted) text-left leading-none transition hover:border-(--accent-primary) hover:shadow-md"
+      >
+        {frame.tile?.dataUri ? (
+          <img
+            src={frame.tile.dataUri}
+            alt={`${thumb.subject} — ${side}`}
+            className="block h-auto w-full"
+          />
+        ) : frame.tile ? (
+          <span className="block h-[164px] w-full animate-pulse bg-(--surface-muted)" />
+        ) : (
+          <span className="flex h-[164px] w-full items-center justify-center p-1 text-center text-[9.5px] leading-tight text-(--text-muted)">
+            {frame.absent}
+          </span>
+        )}
+        {thumb.marker ? (
+          <span className="absolute bottom-1 right-1 rounded bg-(--accent-primary) px-1 text-[10px] font-bold leading-[1.4] tabular-nums text-white">
+            {thumb.marker}
+          </span>
+        ) : null}
+      </button>
+      {savable ? (
+        <button
+          type="button"
+          aria-label={`Save ${thumb.subject}`}
+          title={`Save ${thumb.subject}`}
+          onClick={() => onSave(thumb.screen)}
+          className="absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-md border border-(--border-default) bg-(--surface-overlay)/90 text-(--text-secondary) opacity-0 shadow-sm transition hover:border-(--accent-primary) hover:text-(--accent-primary) focus-visible:opacity-100 group-hover/thumb:opacity-100 [@media(hover:none)]:opacity-100"
+        >
+          <IconDownload className="size-3" />
+        </button>
+      ) : null}
+      <span className="text-[10px] leading-tight text-(--text-muted) [overflow-wrap:anywhere]">
+        {thumb.subject}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Exactly the screens a verify gate judged, as the agreed grid: one thumbnail
+ * per pair the proof rests on — then each screen the change adds — with a
+ * Before/After toggle and a download for all of them. Everything that did not
+ * count folds into one quiet line that opens the list, each with its reason,
+ * so what was rejected is one click away without reading as proof. What the
+ * gate counted but the backend can no longer vouch for is among it.
+ */
+export default function ProofScreens({
+  view,
+  onOpen,
+  onRequestImage,
+  onSavePair,
+}: ProofScreensProps) {
+  const pane = proofScreensPane(view)
+  const [side, setSide] = useState<ProofThumbnailSide>('after')
+  const [foldOpen, setFoldOpen] = useState(false)
+  const uncounted = view.pairs.filter((p) => !p.counted)
+
   useEffect(() => {
+    for (const thumb of pane.thumbnails) {
+      if (thumb.before) onRequestImage(thumb.before.ref.id, thumb.before.ref.mediaType)
+      if (thumb.after) onRequestImage(thumb.after.ref.id, thumb.after.ref.mediaType)
+    }
+  }, [pane.thumbnails, onRequestImage])
+
+  useEffect(() => {
+    if (!foldOpen) return
     for (const pair of view.pairs) {
+      if (pair.counted) continue
       if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
       if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
-    }
-    for (const screen of view.newScreens) {
-      if (screen.tile) onRequestImage(screen.tile.ref.id, screen.tile.ref.mediaType)
-      if (screen.entryPoint)
-        onRequestImage(screen.entryPoint.ref.id, screen.entryPoint.ref.mediaType)
     }
     for (const item of view.unpaired) {
       if (item.after) onRequestImage(item.after.ref.id, item.after.ref.mediaType)
     }
-  }, [view, onRequestImage])
+  }, [foldOpen, view, onRequestImage])
 
-  const counted = view.pairs.filter((p) => p.counted)
-  const uncounted = view.pairs.filter((p) => !p.counted)
-  const notCounted = uncounted.length + view.unpaired.length
+  const savable = pane.thumbnails.filter((t) => t.screen.before?.dataUri || t.screen.after?.dataUri)
+  const saveAll = onSavePair ? () => savable.forEach((t) => onSavePair(t.screen)) : undefined
 
   return (
     <div className="flex flex-col gap-3">
-      <span className={`text-[12.5px] font-semibold ${SUMMARY_TONE[view.summary.tone]}`}>
-        {view.summary.text}
-      </span>
+      {pane.summary ? (
+        <span className={`text-[12.5px] font-semibold ${SUMMARY_TONE[pane.summary.tone]}`}>
+          {pane.summary.text}
+        </span>
+      ) : null}
 
-      {counted.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <GroupHead title="Shows the change" hint="The pairs this verification rests on." />
-          <div className="flex flex-wrap gap-3">
-            {counted.map((p) => (
-              <CountedPair key={p.key} pair={p} onOpen={onOpen} />
+      {pane.thumbnails.length > 0 ? (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {pane.hasBefore ? (
+              <SegmentedControl
+                size="sm"
+                ariaLabel="What the thumbnails show"
+                value={side}
+                onChange={(v) => setSide(v as ProofThumbnailSide)}
+                options={[
+                  { value: 'before', label: 'Before' },
+                  { value: 'after', label: 'After' },
+                ]}
+              />
+            ) : null}
+            {saveAll && savable.length > 0 ? (
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label={pane.saveAllLabel}
+                title={pane.saveAllLabel}
+                onClick={saveAll}
+              >
+                <IconDownload className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-start gap-2.5">
+            {pane.thumbnails.map((t) => (
+              <Thumbnail key={t.key} thumb={t} side={side} onOpen={onOpen} onSave={onSavePair} />
             ))}
           </div>
         </div>
       ) : null}
 
-      {view.newScreens.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <GroupHead
-            title="Screens the change adds"
-            hint="These did not exist on the base, so each is shown beside where it opens from there, when that was captured — and counts on the reviewer’s approval of what it shows."
-          />
-          <div className="flex flex-wrap gap-3">
-            {view.newScreens.map((s) => (
-              <NewScreen key={s.key} screen={s} onOpen={onOpen} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {notCounted > 0 ? (
-        <div className="flex flex-col gap-2">
-          <GroupHead
-            title={`Did not count (${notCounted})`}
-            hint="Filed, but not proof of the change — the gate’s reason is under each."
-          />
-          <div className="flex flex-col gap-1.5">
-            {uncounted.map((p) => (
-              <UncountedPair key={p.key} pair={p} onOpen={onOpen} />
-            ))}
-            {view.unpaired.map((u) => (
-              <UnpairedAfter key={u.key} item={u} onOpen={onOpen} />
-            ))}
-          </div>
+      {pane.notCounted ? (
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            aria-expanded={foldOpen}
+            onClick={() => setFoldOpen((o) => !o)}
+            className="inline-flex items-center gap-0.5 self-start text-left text-[11.5px] text-(--text-muted) hover:text-(--accent-primary)"
+          >
+            {pane.notCounted.label}
+            <IconChevronRight
+              className={`size-3 transition-transform ${foldOpen ? 'rotate-90' : ''}`}
+            />
+          </button>
+          {foldOpen ? (
+            <div className="flex flex-col gap-1.5">
+              {uncounted.map((p) => (
+                <UncountedPair key={p.key} pair={p} onOpen={onOpen} />
+              ))}
+              {view.unpaired.map((u) => (
+                <UnpairedAfter key={u.key} item={u} onOpen={onOpen} />
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

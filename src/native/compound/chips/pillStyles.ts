@@ -2,7 +2,7 @@ import type { TextStyle, ViewStyle } from 'react-native'
 import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../../tokens/native'
 
 // Shared visual chrome for the chip family (BranchChip, ProjectChip, StatusChip,
-// CostChip, TokensChip, TurnChip). Mirrors the web's `chip-pill chip-pill--sm
+// CostChip, TurnChip). Mirrors the web's `chip-pill chip-pill--sm
 // chip-pill--neutral` CSS recipe with RN-friendly style objects.
 //
 // Theme-dependent surfaces / borders / text colours are produced by these

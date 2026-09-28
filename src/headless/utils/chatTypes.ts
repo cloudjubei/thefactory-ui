@@ -1,11 +1,17 @@
 // Structural types the chat-view compounds consume. Mirrors the domain
 // shapes from `thefactory-tools` (`Chat`, `ChatMessage`, `ChatContext`,
-// `ToolCall`, …) but stays in this package so consumers don't take a hard
-// dep on the tools package — both web and desktop already produce data in
-// this shape.
+// `ToolCall`, …) loosely rather than importing them, so web and desktop can
+// hand over what they already hold without a cast. A message's cost is the
+// exception: its billing and per-model rows are the tools' own cost vocabulary
+// (`BillingBasis`, `ModelSpend` via `CostSpend`), imported as types only from
+// the tools package this one already peers on, so a cost reads the same here
+// as in every ledger and run record.
+
+import type { BillingBasis } from 'thefactory-tools/types'
 
 import type { AgentQuestion } from './agentQuestionTypes'
 import type { AgentRemedy } from './agentRemedyTypes'
+import type { CostSpend } from './costDetailsTypes'
 
 export type ChatContextLike = {
   type:
@@ -69,8 +75,20 @@ export type MessageUsageLike = {
    *  shows this in the per-message breakdown and the mobile peer mirrors
    *  it; safe to leave undefined for providers that don't report it. */
   cachedReadInputTokens?: number
+  /** Input tokens written to a prompt cache. */
+  cacheWriteInputTokens?: number
+  /** What was charged: 0 on a subscription, absent when metered with no known price. */
   cost?: number
+  /** The model an older API turn kept on its usage rather than on the message. */
   model?: string
+  /** That model's provider, kept beside it on the same older turns. */
+  provider?: string
+  /** How the tokens were paid for. Absent on an API turn, which is metered. */
+  billing?: BillingBasis
+  /** The same tokens at list price, when a price is known. */
+  listCostUsd?: number
+  /** Per model — a CLI turn can use more than one — so its details are not one guessed row. */
+  byModel?: CostSpend[]
 }
 
 export type ChatMessageLike = {

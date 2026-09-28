@@ -19,6 +19,7 @@ import {
   reviewActionMode,
   reviewChangeCounts,
   reviewTabs,
+  runReports,
   runReviewFacts,
   commitsSinceBase,
   screenPairFileStem,
@@ -31,6 +32,7 @@ import {
   verificationCheckRows,
   type ApproveActionDescriptor,
   type CheckMethodId,
+  type CheckActionHost,
   type CheckMethodRow,
   type HandoffPurpose,
   type HandoffRequest,
@@ -43,7 +45,7 @@ import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
-import { RefChip } from '../chips'
+import { CostChip, RefChip } from '../chips'
 import { downloadDataUri, saveSideBySide } from './signoff/download'
 import {
   ChangesTab,
@@ -185,7 +187,7 @@ export default function CliRunArtifactPanel({
     runModel,
     cancelWork,
     startedAtMs,
-    costUSD,
+    cost,
     durationMs,
     loading,
     preview,
@@ -306,7 +308,7 @@ export default function CliRunArtifactPanel({
   const evidenceGroups = useMemo(() => groupEvidence(evidence.tiles), [evidence.tiles])
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
   const recordings = evidence.tiles.filter((t) => t.ref.kind === 'recording')
-  const reports = evidence.tiles.filter((t) => t.ref.kind === 'report')
+  const reports = runReports(evidence.tiles)
   const checkRows = verificationCheckRows(verification)
   const testChecks = checkRows.filter((c) => c.kind === 'tests')
   // The Tests badge counts TESTS, not layers — the number comes out of each
@@ -414,7 +416,7 @@ export default function CliRunArtifactPanel({
     fileCount: counts.total,
   })
   const earned = earnedApproveActions(approveOptions, headline.key)
-  const facts = runReviewFacts({ costUSD, durationMs })
+  const facts = runReviewFacts({ cost, durationMs })
   const notice = mergeNotice(mergeResult)
   const decided = verdict ? verdictSummary(verdict) : undefined
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
@@ -489,6 +491,12 @@ export default function CliRunArtifactPanel({
   // button's own ellipsis promises a step before anything happens.
   const requestMethod = (row: CheckMethodRow, purpose: HandoffPurpose) => {
     setPendingHandoff({ row, request: handoffRequest(row, purpose, { branch: review?.branch }) })
+  }
+
+  const checkActions: CheckActionHost = {
+    canRequest: onSendMessage !== undefined,
+    onRun: runMethod,
+    onRequest: requestMethod,
   }
 
   const confirmHandoff = () => {
@@ -598,7 +606,14 @@ export default function CliRunArtifactPanel({
               </span>
             ) : null}
             {facts.costLabel ? (
-              <span className="font-medium text-(--text-primary)">{facts.costLabel}</span>
+              <span className="font-medium text-(--text-primary)">
+                <CostChip
+                  label={facts.costLabel}
+                  cost={facts.cost}
+                  title="This run"
+                  appearance="text"
+                />
+              </span>
             ) : null}
           </span>
         ) : null}
@@ -745,10 +760,8 @@ export default function CliRunArtifactPanel({
                   // Report-only: the evidence index stays readable, but running or
                   // requesting a check from here is not offered — verification is
                   // the process's own step.
-                  canRequest={!reportOnly && onSendMessage !== undefined}
                   onOpenProof={setActiveTab}
-                  onRun={reportOnly ? () => {} : runMethod}
-                  onRequest={reportOnly ? () => {} : requestMethod}
+                  actions={reportOnly ? undefined : checkActions}
                 />
                 {pendingHandoff ? (
                   // Anchored under the chips rather than centred over the panel:
@@ -827,9 +840,7 @@ export default function CliRunArtifactPanel({
                     checks={testChecks}
                     branch={review?.branch}
                     busyId={busyMethod}
-                    canRequest={onSendMessage !== undefined}
-                    onRun={runMethod}
-                    onRequest={requestMethod}
+                    actions={checkActions}
                     emptyState={{
                       title: 'This project has no tests at all.',
                       body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
@@ -841,9 +852,7 @@ export default function CliRunArtifactPanel({
                     checks={buildChecks}
                     branch={review?.branch}
                     busyId={busyMethod}
-                    canRequest={onSendMessage !== undefined}
-                    onRun={runMethod}
-                    onRequest={requestMethod}
+                    actions={checkActions}
                   />
                 ) : currentTab === 'report' ? (
                   <ReportTab reports={reports} />

@@ -18,6 +18,7 @@ import {
   processRunSpend,
   processRunWorkMs,
   processStepCostLabel,
+  processStepCostTitle,
   processStepWorkMs,
   processStepStates,
   processStepTone,
@@ -35,7 +36,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { IconChevronLeft } from '../../icons'
-import { CHIP_PILL_NEUTRAL } from '../chips/pillStyles'
+import CostChip from '../chips/CostChip'
 import { DURATION_CHIP_CLASS } from '../chat/ToolCall/StatusIcon'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
@@ -362,15 +363,7 @@ function RunHead({
           {formatProcessDuration(workMs)}
         </span>
       ) : null}
-      {spend ? (
-        <span
-          className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}
-          title={spend.cap !== undefined ? 'Spent against the cap' : 'Spent so far'}
-        >
-          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-          {spend.label}
-        </span>
-      ) : null}
+      {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
       {stoppable ? (
         <Button size="sm" variant="secondary" onClick={onCancel}>
           Stop
@@ -503,21 +496,26 @@ function PipelineNode({
       ) : null}
       <Marker look={look} size="node" />
       <div className="min-w-0 pb-3">
-        <button
-          type="button"
-          disabled={!open}
-          onClick={open}
-          className="flex w-full flex-wrap items-center gap-2 rounded-md px-1.5 py-1 text-left enabled:hover:bg-(--surface-hover) disabled:cursor-default"
-        >
+        <div className="relative flex w-full flex-wrap items-center gap-2 rounded-md px-1.5 py-1 has-[>button:hover]:bg-(--surface-hover)">
+          {open ? (
+            <button
+              type="button"
+              onClick={open}
+              aria-label={`Open ${state.step.name}`}
+              className="absolute inset-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+            />
+          ) : null}
           <span
-            className={`text-[13.5px] font-semibold ${nodeState === 'queued' ? 'text-(--text-muted)' : 'text-(--text-primary)'}`}
+            className={`pointer-events-none text-[13.5px] font-semibold ${nodeState === 'queued' ? 'text-(--text-muted)' : 'text-(--text-primary)'}`}
           >
             {state.step.name}
           </span>
-          <KindChip kind={state.step.kind} agent={isAgent} />
+          <span className="pointer-events-none inline-flex">
+            <KindChip kind={state.step.kind} agent={isAgent} />
+          </span>
           {iteration ? (
             <span
-              className="inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
+              className="pointer-events-none inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
               style={{
                 background: `var(--status-${look.tone}-soft-bg)`,
                 color: `var(--status-${look.tone}-soft-fg)`,
@@ -527,18 +525,33 @@ function PipelineNode({
               {iteration}
             </span>
           ) : null}
-          <span className="ml-auto flex items-center gap-2">
+          <span className="pointer-events-none ml-auto flex items-center gap-2">
             {duration || cost ? (
-              <span
-                className="text-[11px] tabular-nums text-(--text-muted)"
-                title={total > 1 ? `All ${total} attempts` : undefined}
-              >
-                {[duration, cost].filter(Boolean).join(' · ')}
+              <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-(--text-muted)">
+                {duration ? (
+                  <span
+                    title={total > 1 ? `All ${total} attempts` : undefined}
+                    className={total > 1 ? 'pointer-events-auto' : undefined}
+                  >
+                    {duration}
+                  </span>
+                ) : null}
+                {duration && cost ? <span aria-hidden>·</span> : null}
+                {cost ? (
+                  <span className="pointer-events-auto relative inline-flex">
+                    <CostChip
+                      label={cost}
+                      cost={run.totals?.steps[state.step.id]}
+                      title={processStepCostTitle(state.step.name, total)}
+                      appearance="text"
+                    />
+                  </span>
+                ) : null}
               </span>
             ) : null}
             {open ? <span className="text-[11px] text-(--text-muted)">open ›</span> : null}
           </span>
-        </button>
+        </div>
 
         {summary ? (
           <div
@@ -745,6 +758,7 @@ function ParkBlock({
         <StorySignoffReview
           projectId={run.projectId}
           storyId={run.storyId as string}
+          storyRunId={run.id}
           choices={processParkChoices(park.reason, { reflected })}
           onChoose={onChoose}
         />

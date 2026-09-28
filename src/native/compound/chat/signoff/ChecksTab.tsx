@@ -4,12 +4,13 @@ import { ScrollView, Text, View } from 'react-native'
 import {
   AGENT_UNREACHABLE,
   aggregateTestCounts,
+  checkActionOffer,
   handoffRequest,
   parseTestFailures,
   type TestFailure,
+  type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
-  type HandoffPurpose,
   type ReviewCheckRow,
 } from '../../../../headless'
 import { nativeFontFamilies, nativeRadii } from '../../../../tokens/native'
@@ -27,9 +28,8 @@ export type ChecksTabProps = {
   checks: readonly ReviewCheckRow[]
   branch: string | undefined
   busyId: CheckMethodId | undefined
-  canRequest: boolean
-  onRun: (row: CheckMethodRow) => void
-  onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
+  /** What this panel can do about a check; absent on a read-only record, which offers no control. */
+  actions?: CheckActionHost
   /** Shown when the tab owns no method with anything to say — e.g. no tests at all. */
   emptyState?: { title: string; body: string }
 }
@@ -148,9 +148,7 @@ function CheckBlock({
   failures,
   branch,
   busy,
-  canRequest,
-  onRun,
-  onRequest,
+  actions,
 }: {
   row: CheckMethodRow
   title: ReactNode
@@ -162,13 +160,10 @@ function CheckBlock({
   failures: readonly TestFailure[]
   branch: string | undefined
   busy: boolean
-  canRequest: boolean
-  onRun: (row: CheckMethodRow) => void
-  onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
+  actions: CheckActionHost | undefined
 }) {
   const { theme } = useNativeTheme()
-  const action = row.action
-  const unreachable = action.kind === 'request' && action.purpose !== 'capture' && !canRequest
+  const offer = checkActionOffer(row.action, actions)
 
   return (
     <Card>
@@ -209,31 +204,37 @@ function CheckBlock({
       {/* The action is the card's LAST element, always, on its own line — see
           the web peer for why a wrapping row moved the button with the length
           of the prose beside it. */}
-      {action.kind === 'run' ? (
+      {row.action.kind === 'run' ? (
         <View style={{ alignItems: 'flex-start', gap: 8 }}>
           <Text style={{ fontSize: 12, color: theme.text.secondary }}>
             {`Nothing was captured for ${row.noun}.`}
           </Text>
-          <RunActionButton busy={busy} onPress={() => onRun(row)}>
-            Run it now
-          </RunActionButton>
+          {offer.kind === 'run' && actions ? (
+            <RunActionButton busy={busy} onPress={() => actions.onRun(row)}>
+              Run it now
+            </RunActionButton>
+          ) : null}
         </View>
-      ) : action.kind === 'request' ? (
+      ) : row.action.kind === 'request' && (row.action.purpose === 'setup' || actions) ? (
         <View style={{ alignItems: 'flex-start', gap: 8 }}>
-          {action.purpose === 'setup' ? (
+          {row.action.purpose === 'setup' ? (
             <Text style={{ fontSize: 12, color: theme.text.secondary }}>
               {`${row.detail} Setting it up is a code change, so it is work for the agent.`}
             </Text>
           ) : null}
-          {unreachable ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
+          {offer.kind === 'request' && actions ? (
+            <>
+              {offer.unreachable ? (
+                <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
+              ) : null}
+              <HandoffButton
+                disabled={busy || offer.unreachable}
+                onPress={() => actions.onRequest(row, offer.purpose)}
+              >
+                {handoffRequest(row, offer.purpose, { branch }).buttonLabel}
+              </HandoffButton>
+            </>
           ) : null}
-          <HandoffButton
-            disabled={busy || unreachable}
-            onPress={() => onRequest(row, action.purpose)}
-          >
-            {handoffRequest(row, action.purpose, { branch }).buttonLabel}
-          </HandoffButton>
         </View>
       ) : null}
     </Card>
@@ -251,29 +252,36 @@ export default function ChecksTab({
   checks,
   branch,
   busyId,
-  canRequest,
-  onRun,
-  onRequest,
+  actions,
   emptyState,
 }: ChecksTabProps) {
   const { theme, status } = useNativeTheme()
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
   if (emptyState && allUnconfigured) {
     const first = methods[0]
+    const setup = checkActionOffer(
+      { kind: 'request', purpose: 'setup', approachId: undefined },
+      actions,
+    )
     return (
       <Card padding={12}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
           {emptyState.title}
         </Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{emptyState.body}</Text>
-        <View style={{ alignItems: 'flex-start', gap: 6 }}>
-          <HandoffButton disabled={!canRequest} onPress={() => onRequest(first, 'setup')}>
-            {handoffRequest(first, 'setup', { branch }).buttonLabel}
-          </HandoffButton>
-          {!canRequest ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
-          ) : null}
-        </View>
+        {setup.kind === 'request' && actions ? (
+          <View style={{ alignItems: 'flex-start', gap: 6 }}>
+            <HandoffButton
+              disabled={setup.unreachable}
+              onPress={() => actions.onRequest(first, 'setup')}
+            >
+              {handoffRequest(first, 'setup', { branch }).buttonLabel}
+            </HandoffButton>
+            {setup.unreachable ? (
+              <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
+            ) : null}
+          </View>
+        ) : null}
       </Card>
     )
   }
@@ -333,9 +341,7 @@ export default function ChecksTab({
               failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
               branch={branch}
               busy={busyId === testsRow.id}
-              canRequest={canRequest}
-              onRun={onRun}
-              onRequest={onRequest}
+              actions={actions}
             />
           ))
         : methods.map((row) => {
@@ -353,9 +359,7 @@ export default function ChecksTab({
                 failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
                 branch={branch}
                 busy={busyId === row.id}
-                canRequest={canRequest}
-                onRun={onRun}
-                onRequest={onRequest}
+                actions={actions}
               />
             )
           })}

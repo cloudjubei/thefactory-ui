@@ -1,3 +1,4 @@
+import type { HandoffPurpose } from './handoffRequests'
 import type { ReviewTone } from './runReviewTypes'
 
 /**
@@ -17,7 +18,7 @@ export type CheckMethodId =
   | 'screens'
   | 'walkthrough'
   | 'report'
-  /** Was the code diff itself actually read by a reviewer? */
+  /** Did the code review pass the change — or, before code reviews, was the diff read? */
   | 'diff'
 
 /**
@@ -35,12 +36,54 @@ export type CheckMethodState = 'passed' | 'failed' | 'unchecked' | 'unconfigured
  */
 export type CheckMethodFill = 'run' | 'agent'
 
-export type ReviewTabId = 'screens' | 'walkthrough' | 'tests' | 'build' | 'report' | 'changes'
+export type ReviewTabId =
+  | 'screens'
+  | 'walkthrough'
+  | 'tests'
+  | 'build'
+  | 'report'
+  | 'code-review'
+  | 'changes'
 
 export type CheckMethodAction =
   | { kind: 'open-proof'; tab: ReviewTabId }
   | { kind: 'run' }
   | { kind: 'request'; purpose: 'fix' | 'setup' | 'capture'; approachId: string | undefined }
+  /**
+   * The project has not allowed what would fill the gap — device automation —
+   * so neither a run nor the agent can; only the user can, and `reason` says
+   * where.
+   */
+  | { kind: 'allow'; reason: string }
+
+/**
+ * What the surface showing a check can do about it. A read-only record — the
+ * story sign-off, a report-only panel — has none, so it passes none: nothing
+ * there can run a check or spawn a verifier.
+ */
+export type CheckActionHost = {
+  /** A message reaches the agent in this chat — what a fix or a set-up needs, and a capture does not. */
+  canRequest: boolean
+  onRun: (row: CheckMethodRow) => void
+  onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
+}
+
+/**
+ * The control a chip or check block shows for its action on a given host.
+ * `unreachable` is a request that needs the chat this host cannot reach — shown,
+ * disabled, with why; `none` is no control at all.
+ */
+export type CheckActionOffer =
+  | { kind: 'open-proof'; tab: ReviewTabId }
+  | { kind: 'run' }
+  | { kind: 'request'; purpose: HandoffPurpose; unreachable: boolean }
+  | { kind: 'none' }
+
+/** What a chip's callout says: the sentence it leads with, and the detail beneath when it adds something. */
+export type CheckCallout = {
+  lead: string
+  detail: string | undefined
+}
 
 /** One chip in the "what was checked" row, fully derived. */
 export type CheckMethodRow = {
@@ -61,6 +104,12 @@ export type CheckMethodRow = {
   action: CheckMethodAction
   /** Ids of the verification checks that rolled up into this row. */
   checkIds: string[]
+  /**
+   * Items filed for this method that the backend cannot vouch for — after a
+   * restart, every one filed before it. They never count, so a method with
+   * nothing else needs capturing again; it did not "never run".
+   */
+  unvouched: number
 }
 
 export type ReviewTab = {
@@ -98,7 +147,15 @@ export type SignoffVerdictInput = {
 }
 
 export type ReviewTabsInput = {
+  /** Every screen filed — gates whether the Screens tab exists at all. */
   screens: number
+  /**
+   * When a verify gate judged the screens: how many its proof rests on — the
+   * number the badge shows. Kept apart from {@link screens} so a tab whose
+   * captures all failed to count still opens, and what did not count stays
+   * one click away, while the badge never counts it as proof.
+   */
+  screensProof?: number
   walkthroughs: number
   reports: number
   /** How many TESTS ran (not how many test layers) — the number the badge shows. */
@@ -113,4 +170,8 @@ export type ReviewTabsInput = {
   buildChecks: number
   /** `undefined` while the diff is unknown; 0 is a real answer. */
   changedFiles: number | undefined
+  /** How many code reviews are shown — gates the Code review tab. */
+  codeReviews?: number
+  /** The tab that leads the rest when it is there — the story's final report. */
+  lead?: ReviewTabId
 }

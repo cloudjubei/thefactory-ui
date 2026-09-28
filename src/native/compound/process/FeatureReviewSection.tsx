@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   aggregateTestCounts,
+  proofScreensPane,
   reviewTabs,
   screenPairFileStem,
   verificationCheckRows,
@@ -14,7 +15,6 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
-  type VerifyAttemptView,
   type VerifyProofView,
   type VerifyVerdictNote,
 } from '../../../headless'
@@ -35,7 +35,6 @@ import {
   WalkthroughTab,
   type SaveFileHandler,
 } from '../chat/signoff'
-import OtherVerifyAttempts from './OtherVerifyAttempts'
 import ProofBanner from './ProofBanner'
 import ProofScreens from './ProofScreens'
 
@@ -56,6 +55,10 @@ export type FeatureReviewSectionProps = {
   /** Recordings filed with a verify attempt that its gate did not count — shown apart, marked. */
   uncountedRecordings?: readonly EvidenceTile[]
   reports: readonly EvidenceTile[]
+  /** The code review's finding — its own tab, never the Report tab. */
+  codeReviews?: readonly EvidenceTile[]
+  /** The tab the section opens on when it is there — the story's final report. */
+  leadTab?: ReviewTabId
   defaultOpen?: boolean
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
@@ -74,14 +77,10 @@ export type FeatureReviewSectionProps = {
   proof?: VerifyProofView
   /** Which verify attempt the section shows, and why it is that one. */
   attemptLabel?: string
-  /** The verify attempts the section is not showing, folded away. */
-  otherAttempts?: { label: string; attempts: readonly VerifyAttemptView[] }
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
 const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
-
-const noop = () => {}
 
 function AgentRow({ agents }: { agents: readonly SignoffAgent[] }) {
   const { theme } = useNativeTheme()
@@ -149,6 +148,8 @@ export default function FeatureReviewSection({
   recordings,
   uncountedRecordings = [],
   reports,
+  codeReviews = [],
+  leadTab,
   defaultOpen,
   onOpenPair,
   onRequestImage,
@@ -158,7 +159,6 @@ export default function FeatureReviewSection({
   emptyLabel,
   proof,
   attemptLabel,
-  otherAttempts,
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
@@ -171,12 +171,15 @@ export default function FeatureReviewSection({
 
   const tabs = reviewTabs({
     screens: proof ? proof.screens.length : pairs.length,
+    ...(proof ? { screensProof: proofScreensPane(proof).thumbnails.length } : {}),
     walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
     testChecks: testChecks.length,
     buildChecks: buildChecks.length,
     changedFiles: undefined,
+    codeReviews: codeReviews.length,
+    ...(leadTab ? { lead: leadTab } : {}),
   })
   const currentTab: ReviewTabId | undefined =
     activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id
@@ -271,6 +274,28 @@ export default function FeatureReviewSection({
           </Text>
         </View>
       ) : null}
+      {proof?.header?.unvouched ? (
+        <View
+          accessibilityLabel={proof.header.unvouched.text}
+          style={{
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: nativeRadii.round,
+            backgroundColor: status.empty.softBg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.4,
+              color: theme.text.secondary,
+            }}
+          >
+            {proof.header.unvouched.chip}
+          </Text>
+        </View>
+      ) : null}
       <StatusVline line={statusLine} />
       <DurCostChips facts={facts} />
       {collapsible ? (
@@ -338,10 +363,7 @@ export default function FeatureReviewSection({
           rows={[...rows]}
           branch={undefined}
           busyId={undefined}
-          canRequest={false}
           onOpenProof={openProof}
-          onRun={noop}
-          onRequest={noop}
         />
       ) : null}
 
@@ -349,7 +371,12 @@ export default function FeatureReviewSection({
         <View style={{ gap: 10 }}>
           <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
           {currentTab === 'screens' && proof ? (
-            <ProofScreens view={proof} onOpen={onOpenPair} onRequestImage={onRequestImage} />
+            <ProofScreens
+              view={proof}
+              onOpen={onOpenPair}
+              onRequestImage={onRequestImage}
+              onSavePair={onSaveFile ? savePair : undefined}
+            />
           ) : currentTab === 'screens' ? (
             <ScreensTab
               pairs={pairs}
@@ -393,9 +420,6 @@ export default function FeatureReviewSection({
               checks={testChecks}
               branch={undefined}
               busyId={undefined}
-              canRequest={false}
-              onRun={noop}
-              onRequest={noop}
             />
           ) : currentTab === 'build' ? (
             <ChecksTab
@@ -403,12 +427,11 @@ export default function FeatureReviewSection({
               checks={buildChecks}
               branch={undefined}
               busyId={undefined}
-              canRequest={false}
-              onRun={noop}
-              onRequest={noop}
             />
           ) : currentTab === 'report' ? (
             <ReportTab reports={reports} onSaveFile={onSaveFile} />
+          ) : currentTab === 'code-review' ? (
+            <ReportTab reports={codeReviews} onSaveFile={onSaveFile} />
           ) : null}
         </View>
       ) : (
@@ -419,15 +442,6 @@ export default function FeatureReviewSection({
               : 'No screens, walkthroughs or reports were filed for this feature.')}
         </Text>
       )}
-
-      {otherAttempts && otherAttempts.attempts.length > 0 ? (
-        <OtherVerifyAttempts
-          label={otherAttempts.label}
-          attempts={otherAttempts.attempts}
-          onOpenPair={onOpenPair}
-          onRequestImage={onRequestImage}
-        />
-      ) : null}
     </View>
   )
 

@@ -34,6 +34,9 @@ import { appendCliRunTranscript, mergeCliRunTranscript } from '../utils/cliRunAc
 import { CLI_TRANSCRIPT_FLUSH_MS } from '../utils/cliRunActivityConstants'
 import { cliRunTranscripts } from '../utils/cliRunTranscriptCache'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
+import type { MessageUsageLike } from '../utils/chatTypes'
+import { cliRunCost, cliRunMessageUsage, cliRunSpendRecord } from '../utils/costDetails'
+import type { CostSource } from '../utils/costDetailsTypes'
 import { runModelOf, type RunModel } from '../utils/runModel'
 import { asRunVerification } from '../utils/runReview'
 import { isReviewInProgress } from '../utils/reviewProgress'
@@ -126,9 +129,18 @@ export type UseCliRunArtifact = {
    * reports how long the agent has ACTUALLY been going.
    */
   startedAtMs: number | undefined
-  /** The run's billed cost, when the runner reported one. */
-  costUSD: number | undefined
-  /** The run's wall-clock duration, when the runner reported one. */
+  /**
+   * What the run cost — its charge (`$0` on a subscription) and, per model, its
+   * tokens, billing and list value — for the cost chip and its details. A
+   * landed review record's is the run it mirrors (`cliRunSpendRecord`).
+   */
+  cost: CostSource | undefined
+  /**
+   * The same, as a chat message's usage: what lets the run's first message show
+   * its `$` chip and details even when the charge is $0.
+   */
+  usage: MessageUsageLike | undefined
+  /** The run's wall-clock duration, when the runner reported one — like `cost`, a mirror's is its run's. */
   durationMs: number | undefined
   /** True while the run record is being fetched. */
   loading: boolean
@@ -247,7 +259,8 @@ export function useCliRunArtifact(
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
   const [runModel, setRunModel] = useState<RunModel | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
-  const [costUSD, setCostUSD] = useState<number | undefined>(undefined)
+  const [cost, setCost] = useState<CostSource | undefined>(undefined)
+  const [usage, setUsage] = useState<MessageUsageLike | undefined>(undefined)
   const [durationMs, setDurationMs] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<FilesEmittedPreview | undefined>(undefined)
@@ -301,6 +314,11 @@ export function useCliRunArtifact(
   // yet", not a failure — retry a few times instead of surfacing an error. The
   // live transcript still streams over the WS in the meantime.
   const notReadyRetriesRef = useRef(0)
+  // The run a landed review record mirrors, once fetched, and the id of the one
+  // fetched or being fetched — so a record re-read on every review update does
+  // not refetch a spend that cannot change.
+  const mirroredRunRef = useRef<CliRun | undefined>(undefined)
+  const mirroredRunIdRef = useRef<string | undefined>(undefined)
 
   const commitTranscript = useCallback(
     (next: CliRunTranscriptEntry[]) => {
@@ -328,6 +346,43 @@ export function useCliRunArtifact(
     commitTranscript(appendCliRunTranscript(transcriptRef.current, batch))
   }, [commitTranscript])
 
+  /**
+   * The cost, usage and duration the panel shows, read off the record that
+   * carries the run's spend — none while that record is not at hand.
+   */
+  const applySpend = useCallback((record: CliRun | undefined) => {
+    setCost(record ? cliRunCost(record) : undefined)
+    setUsage(record ? cliRunMessageUsage(record) : undefined)
+    setDurationMs(record?.durationMs ?? undefined)
+  }, [])
+
+  /**
+   * A landed review record carries no spend of its own: it mirrors the run
+   * whose work it lands (`mirrorOf`), and a process step's chat opens on it. Its
+   * spend is read off that run, fetched once — a settled run's spend does not
+   * change — and retried on the next record read if the fetch failed.
+   */
+  const applyRunSpend = useCallback(
+    (run: CliRun) => {
+      const mirrored = mirroredRunRef.current
+      applySpend(cliRunSpendRecord(run, mirrored ? [mirrored] : []))
+      const sourceId = run.mirrorOf
+      if (sourceId === undefined || mirroredRunIdRef.current === sourceId) return
+      mirroredRunIdRef.current = sourceId
+      const epoch = epochRef.current
+      void getCliAgentRun({ path: { runId: sourceId }, throwOnError: true })
+        .then(({ data: source }) => {
+          if (epoch !== epochRef.current) return
+          mirroredRunRef.current = source
+          applySpend(cliRunSpendRecord(run, [source]))
+        })
+        .catch(() => {
+          if (epoch === epochRef.current) mirroredRunIdRef.current = undefined
+        })
+    },
+    [applySpend],
+  )
+
   const applyRunRecord = useCallback(
     (run: CliRun) => {
       setArtifact(filesEmittedArtifactOf(run.artifacts))
@@ -346,10 +401,9 @@ export function useCliRunArtifact(
       setRunModel(runModelOf(run))
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
-      setCostUSD(run.costUSD ?? undefined)
-      setDurationMs(run.durationMs ?? undefined)
+      applyRunSpend(run)
     },
-    [commitTranscript],
+    [commitTranscript, applyRunSpend],
   )
 
   // Reset on a CHANGE OF RUN only. A refetch (`fetchNonce`) must not wipe the
@@ -359,6 +413,8 @@ export function useCliRunArtifact(
     epochRef.current += 1
     notReadyRetriesRef.current = 0
     pendingEntriesRef.current = []
+    mirroredRunRef.current = undefined
+    mirroredRunIdRef.current = undefined
     // Rehydrate from what an earlier mount of this same run streamed. The live
     // block hands over to the persisted row mid-turn and a navigation tears the
     // view down entirely; the record cannot restore a mid-run transcript, so
@@ -378,7 +434,8 @@ export function useCliRunArtifact(
     setLandFailure(undefined)
     setRunModel(undefined)
     setStartedAtMs(undefined)
-    setCostUSD(undefined)
+    setCost(undefined)
+    setUsage(undefined)
     setDurationMs(undefined)
     setPreview(undefined)
     setApplyResult(undefined)
@@ -784,7 +841,8 @@ export function useCliRunArtifact(
     landFailure,
     runModel,
     startedAtMs,
-    costUSD,
+    cost,
+    usage,
     durationMs,
     loading,
     notReady,

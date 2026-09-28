@@ -10,7 +10,6 @@ import type {
 import {
   asRunVerification,
   checkTone,
-  formatCostUSD,
   isReviewReasonValid,
   landFailureSummary,
   mergeNotice,
@@ -274,44 +273,50 @@ describe('isReviewReasonValid', () => {
   })
 })
 
-describe('formatCostUSD', () => {
-  it('drops out when unrecorded or nonsensical', () => {
-    expect(formatCostUSD(undefined)).toBeUndefined()
-    expect(formatCostUSD(Number.NaN)).toBeUndefined()
-    expect(formatCostUSD(Number.POSITIVE_INFINITY)).toBeUndefined()
-    expect(formatCostUSD(-1)).toBeUndefined()
-  })
-
-  it('keeps four decimals under a cent so sub-cent runs stay visible', () => {
-    expect(formatCostUSD(0.0012)).toBe('$0.0012')
-    expect(formatCostUSD(0.009)).toBe('$0.0090')
-  })
-
-  it('uses two decimals from a cent up', () => {
-    expect(formatCostUSD(0)).toBe('$0.00')
-    expect(formatCostUSD(0.01)).toBe('$0.01')
-    expect(formatCostUSD(1.234)).toBe('$1.23')
-  })
-})
-
 describe('runReviewFacts', () => {
-  it('formats both sides when recorded', () => {
-    expect(runReviewFacts({ costUSD: 0.42, durationMs: 65000 })).toEqual({
+  const subscriptionRun = {
+    costUsd: 0,
+    includedTokens: 14_701,
+    byModel: [
+      {
+        provider: 'cursor',
+        model: 'composer-2.5',
+        label: 'Composer 2.5',
+        billing: 'subscription' as const,
+        inputTokens: 5825,
+        outputTokens: 860,
+        cacheReadTokens: 8016,
+        cacheWriteTokens: 0,
+        costUsd: 0,
+      },
+    ],
+  }
+
+  it('formats both sides when recorded, and keeps the cost for its details', () => {
+    expect(runReviewFacts({ cost: { costUsd: 0.42 }, durationMs: 65000 })).toEqual({
       costLabel: '$0.42',
       durationLabel: '1m 5s',
+      cost: { costUsd: 0.42 },
     })
+  })
+
+  it('labels a subscription run $0.00 — a real charge, with its tokens in the details only', () => {
+    const facts = runReviewFacts({ cost: subscriptionRun, durationMs: 1500 })
+    expect(facts.costLabel).toBe('$0.00')
+    expect(facts.cost).toBe(subscriptionRun)
   })
 
   it('drops each side independently when unrecorded', () => {
-    expect(runReviewFacts({ costUSD: undefined, durationMs: 1500 })).toEqual({
+    expect(runReviewFacts({ cost: undefined, durationMs: 1500 })).toEqual({
       costLabel: undefined,
       durationLabel: '1.5s',
     })
-    expect(runReviewFacts({ costUSD: 2, durationMs: undefined })).toEqual({
+    expect(runReviewFacts({ cost: { costUsd: 2 }, durationMs: undefined })).toEqual({
       costLabel: '$2.00',
       durationLabel: undefined,
+      cost: { costUsd: 2 },
     })
-    expect(runReviewFacts({ costUSD: undefined, durationMs: -5 })).toEqual({
+    expect(runReviewFacts({ cost: undefined, durationMs: -5 })).toEqual({
       costLabel: undefined,
       durationLabel: undefined,
     })

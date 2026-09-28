@@ -31,6 +31,7 @@ import {
   processRunSpend,
   processRunWorkMs,
   processStepCostLabel,
+  processStepCostTitle,
   processStepWorkMs,
   processStepStates,
   processStepTone,
@@ -49,6 +50,7 @@ import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
 import { DurCostChips, type SaveFileHandler } from '../chat/signoff'
+import CostChip from '../chips/CostChip'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
@@ -408,7 +410,9 @@ function RunHead({
         facts={{
           durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
           costLabel: spend?.label,
+          cost: run.totals,
         }}
+        costTitle={spend?.title}
       />
       {stoppable ? (
         <Button size="sm" variant="secondary" onPress={onCancel}>
@@ -623,6 +627,7 @@ function PipelineNode({
   const duration = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
   const cost = processStepCostLabel(run, state.step.id)
   const meta = [duration, cost].filter(Boolean).join(' · ')
+  const metaStyle = { fontSize: 11, color: theme.text.muted } as const
   const expanded = isFeature && (state.current || parkStepId === state.step.id)
   const parked = parkStepId === state.step.id
 
@@ -681,12 +686,22 @@ function PipelineNode({
           ) : null}
           <View style={{ flex: 1 }} />
           {meta ? (
-            <Text
-              style={{ fontSize: 11, color: theme.text.muted }}
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               accessibilityLabel={total > 1 ? `${meta}, all ${total} attempts` : meta}
             >
-              {meta}
-            </Text>
+              {duration ? <Text style={metaStyle}>{duration}</Text> : null}
+              {duration && cost ? <Text style={metaStyle}>·</Text> : null}
+              {cost ? (
+                <CostChip
+                  label={cost}
+                  cost={run.totals?.steps[state.step.id]}
+                  title={processStepCostTitle(state.step.name, total)}
+                  appearance="text"
+                  textStyle={metaStyle}
+                />
+              ) : null}
+            </View>
           ) : null}
           {open ? <Text style={{ fontSize: 11, color: theme.text.muted }}>open ›</Text> : null}
         </Pressable>
@@ -890,6 +905,7 @@ function ParkBlock({
         <StorySignoffReview
           projectId={run.projectId}
           storyId={run.storyId as string}
+          storyRunId={run.id}
           choices={processParkChoices(park.reason, { reflected })}
           onChoose={onChoose}
           {...(onSaveFile ? { onSaveFile } : {})}

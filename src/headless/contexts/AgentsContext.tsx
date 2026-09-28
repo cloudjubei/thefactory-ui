@@ -10,6 +10,7 @@ import {
   type GetChatResponse,
   type StartAgentRunData,
 } from '../api/generated'
+import { agentRunLlmConfig } from '../utils/llmConfigBilling'
 import { useChats } from './createChatsContext'
 import { useGitCredentials } from './GitCredentialsContext'
 import { useLLMConfigs } from './LLMConfigsContext'
@@ -144,17 +145,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       const params: StartAgentRunData['body']['params'] = {
         agentType,
         chatContext: chatContext as StartAgentRunData['body']['params']['chatContext'],
-        llmConfig: {
-          model: llmConfig.model,
-          provider: llmConfig.provider,
-          id: llmConfig.id,
-          name: llmConfig.name,
-          apiKey: llmConfig.apiKey,
-          apiUrlOverride: llmConfig.apiUrlOverride,
-          costInputPerMTokensUSD: llmConfig.costInputPerMTokensUSD,
-          costOutputPerMTokensUSD: llmConfig.costOutputPerMTokensUSD,
-          costCacheReadInputPerMTokensUSD: llmConfig.costCacheReadInputPerMTokensUSD,
-        },
+        llmConfig: agentRunLlmConfig(llmConfig),
         githubCredentials: {
           name: cred.name,
           username: cred.username,

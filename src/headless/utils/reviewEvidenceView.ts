@@ -1,26 +1,28 @@
-import type { ReviewEvidenceRef, ReviewEvidenceVerdict } from '../api/generated'
-
-/** One evidence item ready to render, with its bytes resolved when it is an image. */
-export type EvidenceTile = {
-  ref: ReviewEvidenceRef
-  /** Data URI for an image, once loaded. Absent for non-images and while loading. */
-  dataUri?: string
-  /** Text of a note/report, once loaded. Absent for non-notes and while loading. */
-  text?: string
-  /** Human caption — the label, falling back to the phase or the kind. */
-  caption: string
-}
-
-/** A before/after pair of the same subject, or a single item with no counterpart. */
-export type EvidenceGroup = {
-  /** What the comparison is OF, or the item's id when it stands alone. */
-  key: string
-  title: string
-  before?: EvidenceTile
-  after?: EvidenceTile
-  /** Items that are not part of a before/after pair. */
-  singles: EvidenceTile[]
-}
+import type { ReviewEvidenceRef } from '../api/generated'
+import {
+  ELSEWHERE_REPORT_AUTHORS,
+  REPORT_AUTHOR_BY_APPROACH,
+  REPORT_PROVENANCE,
+  SCREEN_PAIR_CAPTURING_META,
+  STEP_REPORT_AUTHORS,
+  SCREEN_PAIR_FACT,
+  SCREEN_PAIR_META,
+  SCREEN_PAIR_UNVOUCHED_META,
+  UNVOUCHED_CAUSE_BY_REASON,
+  UNVOUCHED_LABEL,
+  UNVOUCHED_RESTART_TEXT,
+  UNVOUCHED_SIDE_LEAD,
+} from './reviewEvidenceViewConstants'
+import type {
+  EvidenceGroup,
+  EvidenceTile,
+  EvidenceUnvouched,
+  EvidenceViewerImage,
+  EvidenceWindow,
+  ReportAuthor,
+  ReviewerVerdictReading,
+  ScreenPair,
+} from './reviewEvidenceViewTypes'
 
 /** Whether this item is something a reviewer can actually LOOK at inline. */
 export function isViewableImage(ref: Pick<ReviewEvidenceRef, 'mediaType'>): boolean {
@@ -54,9 +56,71 @@ function captionFor(ref: ReviewEvidenceRef): string {
   return ref.kind
 }
 
+/**
+ * Why the running backend cannot vouch for an item, worded for a reviewer — or
+ * `undefined` when it can.
+ *
+ * The restart reason gets the calm wording: after any restart every earlier
+ * item reads that way, and it only needs capturing again. Any other reason —
+ * a record or file changed on the host, or one this client does not know — is
+ * shown in the backend's own words, so a forged record is never explained away
+ * as a restart. Pure.
+ */
+export function evidenceUnvouched(ref: {
+  kind: string
+  unvouchedReason?: string
+}): EvidenceUnvouched | undefined {
+  const reason = ref.unvouchedReason?.trim()
+  if (!reason) return undefined
+  const cause = UNVOUCHED_CAUSE_BY_REASON.get(reason) ?? 'other'
+  const captured = ref.kind === 'screenshot' || ref.kind === 'recording'
+  return {
+    cause,
+    label: UNVOUCHED_LABEL,
+    text: cause === 'restart' ? UNVOUCHED_RESTART_TEXT[captured ? 'capture' : 'filing'] : reason,
+  }
+}
+
+/**
+ * Why a filing the `recordReviewEvidence` tool returned cannot be vouched for,
+ * read from the tool's raw result — or `undefined` when it can, or the result
+ * is no filing. The chat row shows the filed image beside the call; without
+ * this it presented a capture that never counts as if it did. Pure.
+ */
+export function recordedEvidenceUnvouched(result: unknown): EvidenceUnvouched | undefined {
+  if (typeof result !== 'object' || result === null) return undefined
+  const { kind, unvouchedReason } = result as Record<string, unknown>
+  if (typeof unvouchedReason !== 'string') return undefined
+  return evidenceUnvouched({ kind: typeof kind === 'string' ? kind : '', unvouchedReason })
+}
+
 /** Wrap a ref for rendering, without loading anything yet. */
 export function toEvidenceTile(ref: ReviewEvidenceRef): EvidenceTile {
-  return { ref, caption: captionFor(ref) }
+  const unvouched = evidenceUnvouched(ref)
+  return { ref, caption: captionFor(ref), ...(unvouched ? { unvouched } : {}) }
+}
+
+/**
+ * Why a pair cannot be vouched for, or `undefined` when both sides can.
+ *
+ * One side's reason, or the one both share, stands as it is. Two different
+ * reasons are both said, each naming its side: keeping only one let an after
+ * filed before a restart speak for a before whose file was changed, in the calm
+ * restart wording. The cause is the one that is not a restart — the after's
+ * when neither is — so nothing downstream reads the pair as a restart alone.
+ */
+export function pairUnvouched(pair: {
+  before?: Pick<EvidenceTile, 'unvouched'>
+  after?: Pick<EvidenceTile, 'unvouched'>
+}): EvidenceUnvouched | undefined {
+  const before = pair.before?.unvouched
+  const after = pair.after?.unvouched
+  if (!before || !after || before.text === after.text) return after ?? before
+  return {
+    cause: after.cause === 'restart' ? before.cause : after.cause,
+    label: after.label,
+    text: `${UNVOUCHED_SIDE_LEAD.before} ${before.text} ${UNVOUCHED_SIDE_LEAD.after} ${after.text}`,
+  }
 }
 
 /**
@@ -96,14 +160,6 @@ export function groupEvidence(tiles: readonly EvidenceTile[]): EvidenceGroup[] {
     : paired
 }
 
-/** One image, captioned, ready for the full-screen zoom viewer. */
-export type EvidenceViewerImage = {
-  id: string
-  /** Caption shown under the image, phase-prefixed for a pair. */
-  caption: string
-  dataUri: string
-}
-
 /**
  * The loaded images of a group, in before → after → singles order.
  *
@@ -135,36 +191,6 @@ export function summarizeEvidence(refs: readonly ReviewEvidenceRef[]): string {
   return [...counts.entries()].map(([kind, n]) => `${n} ${kind}${n === 1 ? '' : 's'}`).join(' · ')
 }
 
-/**
- * What a screen pair IS, before any pixel comparison has run.
- *
- * `pair` is a before and an after whose difference is not yet computed — the
- * honest name for it until the backend files a diff. `new` and `removed` are
- * one-sided by construction. `single` is an unphased screenshot that belongs
- * to no comparison. There is deliberately no `changed`/`unchanged` here: that
- * is a claim about pixels, and nothing in this model has looked at any.
- */
-export type ScreenPairClass = 'pair' | 'new' | 'removed' | 'single'
-
-/** One tile in the Screens strip: a comparison, or a lone capture. */
-export type ScreenPair = {
-  key: string
-  /** Walkthrough position, 1-based. Fixed at capture order — a filter never renumbers it. */
-  index: number
-  title: string
-  class: ScreenPairClass
-  before?: EvidenceTile
-  after?: EvidenceTile
-  /** What the verify gate made of this pair, said in place of the class's generic line. */
-  note?: string
-  /**
-   * The commits the gate required the before and after to be built from. An
-   * expectation only — a capture's caption comes from its own build record.
-   */
-  expectedBaseSha?: string
-  expectedHeadSha?: string
-}
-
 function earliestCreatedAt(group: EvidenceGroup): number {
   const times = [group.before, group.after, ...group.singles]
     .filter((t): t is EvidenceTile => t !== undefined)
@@ -187,18 +213,26 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
     const before = group.before && isViewableImage(group.before.ref) ? group.before : undefined
     const after = group.after && isViewableImage(group.after.ref) ? group.after : undefined
     if (before || after) {
+      const unvouched = pairUnvouched({ before, after })
       raw.push({
         key: group.key,
         title: group.title,
         class: before && after ? 'pair' : after ? 'new' : 'removed',
         ...(before ? { before } : {}),
         ...(after ? { after } : {}),
+        ...(unvouched ? { unvouched } : {}),
       })
       timed.push(earliestCreatedAt({ ...group, singles: [] }))
     }
     for (const single of group.singles) {
       if (!isViewableImage(single.ref)) continue
-      raw.push({ key: single.ref.id, title: single.caption, class: 'single', after: single })
+      raw.push({
+        key: single.ref.id,
+        title: single.caption,
+        class: 'single',
+        after: single,
+        ...(single.unvouched ? { unvouched: single.unvouched } : {}),
+      })
       timed.push(single.ref.createdAt)
     }
   }
@@ -206,6 +240,32 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
     .map((pair, i) => ({ pair, at: timed[i] }))
     .sort((a, b) => a.at - b.at)
     .map(({ pair }, i) => ({ index: i + 1, ...pair }))
+}
+
+/**
+ * The line under a tile in the Screens strip. No conclusion while the capture
+ * is still running — "only on the base" mid-capture is just an after that has
+ * not landed yet — and a tile that cannot be vouched for says so in place of
+ * what it would otherwise be claimed to show.
+ */
+export function screenPairMeta(
+  pair: Pick<ScreenPair, 'class' | 'unvouched'>,
+  opts: { capturing: boolean },
+): string {
+  if (opts.capturing) return SCREEN_PAIR_CAPTURING_META
+  return pair.unvouched ? SCREEN_PAIR_UNVOUCHED_META : SCREEN_PAIR_META[pair.class]
+}
+
+/**
+ * What the comparison overlay says under an open pair: the gate's note, else
+ * what the pair is — then, in full, why a side cannot be vouched for, since
+ * its build marks and device caption are gone and would otherwise look lost.
+ */
+export function comparisonPairFacts(
+  pair: Pick<ScreenPair, 'class' | 'note' | 'unvouched'>,
+): string[] {
+  const fact = pair.note ?? SCREEN_PAIR_FACT[pair.class]
+  return pair.unvouched ? [fact, pair.unvouched.text] : [fact]
 }
 
 /**
@@ -255,9 +315,6 @@ export function capturedOnLabel(pair: {
   return before && before.length > 0 ? before : undefined
 }
 
-/** A time window over filings — one review attempt's, typically. */
-export type EvidenceWindow = { since: number; until?: number }
-
 /** The tiles filed inside a window, e.g. one verify attempt's own captures. */
 export function evidenceFiledWithin(
   tiles: readonly EvidenceTile[],
@@ -269,23 +326,121 @@ export function evidenceFiledWithin(
   )
 }
 
-/** The reviewer's conclusion as it reads on screen. */
-export const REVIEWER_VERDICT_LABEL: Record<ReviewEvidenceVerdict, string> = {
-  approved: 'Approved',
-  'changes-requested': 'Changes requested',
-  rejected: 'Rejected',
+/** Who wrote a report, by the approach it was filed under. */
+export function reportAuthor(ref: Pick<ReviewEvidenceRef, 'approach'>): ReportAuthor {
+  return (ref.approach && REPORT_AUTHOR_BY_APPROACH.get(ref.approach)) || 'verifier'
 }
 
-/** The reviewer's own conclusion among these filings — the newest one wins, as at the gate. */
-export function reviewerVerdict(
-  refs: readonly Pick<ReviewEvidenceRef, 'verdict' | 'verdictReason' | 'createdAt'>[],
-): { verdict: ReviewEvidenceVerdict; reason?: string } | undefined {
-  let newest: (typeof refs)[number] | undefined
+/**
+ * Whether a filing is the verifier's own — every capture, and any report no
+ * other step wrote. A code review files under the very run a verifier reviews,
+ * so without this its report and verdict read as the verifier's.
+ */
+export function isVerifierFiling(ref: Pick<ReviewEvidenceRef, 'kind' | 'approach'>): boolean {
+  return ref.kind !== 'report' || reportAuthor(ref) === 'verifier'
+}
+
+/** Whether a filing is a code review's finding. */
+export function isCodeReview(ref: Pick<ReviewEvidenceRef, 'kind' | 'approach'>): boolean {
+  return ref.kind === 'report' && reportAuthor(ref) === 'code-review'
+}
+
+/** "How this report was produced" — credited to the step that wrote it. */
+export function reportProvenance(ref: Pick<ReviewEvidenceRef, 'approach'>): string {
+  return REPORT_PROVENANCE[reportAuthor(ref)]
+}
+
+function newestTile(tiles: readonly EvidenceTile[]): EvidenceTile | undefined {
+  return tiles.reduce<EvidenceTile | undefined>(
+    (best, t) => (!best || t.ref.createdAt > best.ref.createdAt ? t : best),
+    undefined,
+  )
+}
+
+/**
+ * The verifier's newest report alone, or none. A sign-off shows the current
+ * account of the work, and the ones before it read as if they still held; they
+ * stay on the attempt a person drills into. A report another step wrote is
+ * never the verifier's account, however new.
+ */
+export function latestReport(reports: readonly EvidenceTile[]): EvidenceTile[] {
+  const newest = newestTile(
+    reports.filter((t) => t.ref.kind === 'report' && reportAuthor(t.ref) === 'verifier'),
+  )
+  return newest ? [newest] : []
+}
+
+/** The newest of the tiles alone, or none. */
+export function newestOnly(tiles: readonly EvidenceTile[]): EvidenceTile[] {
+  const newest = newestTile(tiles)
+  return newest ? [newest] : []
+}
+
+/**
+ * A Report tab's order: the step's own report leads — it is the account of the
+ * whole run — and the rest follow newest first, reachable as earlier reports.
+ */
+export function orderReports(reports: readonly EvidenceTile[]): EvidenceTile[] {
+  const rank = (t: EvidenceTile): number =>
+    STEP_REPORT_AUTHORS.includes(reportAuthor(t.ref)) ? 0 : 1
+  return [...reports].sort((a, b) => rank(a) - rank(b) || b.ref.createdAt - a.ref.createdAt)
+}
+
+/**
+ * A run's own Report tab: its reports, never a code review — that has a tab of
+ * its own — nor the story's final report, which belongs to the story.
+ */
+export function runReports(tiles: readonly EvidenceTile[]): EvidenceTile[] {
+  return tiles.filter(
+    (t) => t.ref.kind === 'report' && !ELSEWHERE_REPORT_AUTHORS.includes(reportAuthor(t.ref)),
+  )
+}
+
+/**
+ * Whether the backend listed this filing without whatever verdict was filed
+ * with it. A capture whose own record was not the tool's is not one: its filing
+ * is vouched for, and keeps any verdict.
+ */
+function lostItsVerdict(ref: Pick<ReviewEvidenceRef, 'kind' | 'unvouchedReason'>): boolean {
+  const unvouched = evidenceUnvouched(ref)
+  return unvouched !== undefined && unvouched.cause !== 'capture-record'
+}
+
+type VerdictFiling = Pick<
+  ReviewEvidenceRef,
+  'kind' | 'approach' | 'verdict' | 'verdictReason' | 'createdAt' | 'unvouchedReason'
+>
+
+/**
+ * The newest conclusion among these filings — unless a filing that lost its
+ * verdict is at least as new: it may have carried the newer conclusion, and the
+ * older one shown in its place read as the answer beside a gate that had failed
+ * on the newer.
+ */
+function newestVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
+  let newest: VerdictFiling | undefined
   for (const r of refs) {
-    if (r.verdict === undefined) continue
-    if (!newest || r.createdAt > newest.createdAt) newest = r
+    const lost = lostItsVerdict(r)
+    if (r.verdict === undefined && !lost) continue
+    if (!newest || r.createdAt > newest.createdAt || (r.createdAt === newest.createdAt && lost)) {
+      newest = r
+    }
   }
-  if (!newest?.verdict) return undefined
+  if (!newest) return { state: 'none' }
+  if (!newest.verdict) return { state: 'unvouched' }
   const reason = newest.verdictReason?.trim()
-  return { verdict: newest.verdict, ...(reason ? { reason } : {}) }
+  return { state: 'concluded', verdict: { verdict: newest.verdict, ...(reason ? { reason } : {}) } }
+}
+
+/**
+ * The reviewer's own conclusion among these filings — the newest one wins, as
+ * at the gate. A code review's verdict is its own finding, never the reviewer's.
+ */
+export function reviewerVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
+  return newestVerdict(refs.filter(isVerifierFiling))
+}
+
+/** The code review's conclusion among these filings — the newest review's. */
+export function codeReviewVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
+  return newestVerdict(refs.filter(isCodeReview))
 }

@@ -6,7 +6,9 @@ import {
   type ReviewEvidenceRef,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
-import { notesToRead, toEvidenceTile, type EvidenceTile } from '../utils/reviewEvidenceView'
+import { notesToRead, toEvidenceTile } from '../utils/reviewEvidenceView'
+import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
+import type { EvidenceTile } from '../utils/reviewEvidenceViewTypes'
 
 /** Turn a fetched body into a data URI usable by both `<img>` and RN `<Image>`. */
 function toDataUri(data: unknown, mediaType: string): string | undefined {
@@ -212,15 +214,19 @@ export function useReviewEvidence(
   // Live-refresh: the auto-review verifier files evidence in a SEPARATE run, so
   // nothing in this panel's own run stream announces it — without this the newly
   // filed screenshots/notes only appeared after navigating away and back. Any run
-  // or chat activity is a cheap, idempotent trigger to re-pull (epoch-guarded).
+  // or chat activity is a trigger to re-pull (epoch-guarded) — one at a time, and never for a streamed transcript
+  // entry, which files no evidence and arrives several times a second per running run.
+  const reloadCoalesced = useMemo(() => createCoalescedRefresh(reload), [reload])
   useEffect(() => {
-    const offRun = ws.on('cli:run-update', () => void reload())
-    const offChat = ws.on('chats:updated', () => void reload())
+    const offRun = ws.on('cli:run-update', (data: unknown) => {
+      if (isRunStateUpdate(data)) void reloadCoalesced()
+    })
+    const offChat = ws.on('chats:updated', () => void reloadCoalesced())
     return () => {
       offRun()
       offChat()
     }
-  }, [ws, reload])
+  }, [ws, reloadCoalesced])
 
   const tiles = useMemo(
     () =>

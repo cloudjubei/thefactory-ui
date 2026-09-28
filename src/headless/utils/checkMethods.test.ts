@@ -1,3 +1,10 @@
+import {
+  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+  CODE_REVIEW_APPROACH,
+  EVIDENCE_RECORD_UNVOUCHED_REASON,
+  FEATURE_REPORT_APPROACH,
+  FINAL_REPORT_APPROACH,
+} from 'thefactory-tools/constants'
 import { describe, expect, it } from 'vitest'
 
 import type {
@@ -7,6 +14,8 @@ import type {
   VerificationCheckResult,
 } from '../api/generated'
 import {
+  checkActionOffer,
+  checkCallout,
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
@@ -16,8 +25,12 @@ import {
   tabForMethod,
 } from './checkMethods'
 import {
+  CHECK_METHOD_ABSENT_NOUNS,
+  CHECK_STATE_SENTENCES,
+  CHECK_STATE_UNVOUCHED_SENTENCE,
   IMPLEMENTED_CHECK_METHOD_ORDER,
   NOT_RUN_TITLE,
+  NOTHING_VOUCHED_TITLE,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
   UNIMPLEMENTED_CHECK_METHODS,
@@ -396,6 +409,84 @@ describe('checkMethodRows', () => {
   })
 })
 
+describe('checkMethodRows › a capture the project has not allowed', () => {
+  const DEVICE_OFF =
+    'Device automation is switched off for this project, so its runs drive no emulator or simulator.'
+  const withheld = [
+    approach('screenshot-diff', { status: 'not-allowed', reason: DEVICE_OFF }),
+    approach('screen-recording', { status: 'not-allowed', reason: DEVICE_OFF }),
+    approach('code-explanation'),
+  ]
+
+  it.each(['screens', 'walkthrough'] as const)(
+    'says the %s are withheld while the project has device automation switched off',
+    (id) => {
+      const r = row(rows({ verification: verification(), approaches: withheld }), id)
+      expect(r.state).toBe('unconfigured')
+      expect(r.detail).toBe(DEVICE_OFF)
+      expect(r.action).toEqual({ kind: 'allow', reason: DEVICE_OFF })
+    },
+  )
+
+  it('never offers to ask the agent to set a withheld capture up — only the user can allow it', () => {
+    const list = rows({ verification: verification(), approaches: withheld })
+    for (const id of ['screens', 'walkthrough'] as const) {
+      expect(row(list, id).action.kind).not.toBe('request')
+    }
+  })
+
+  it('still reads a capture that does not apply as absent, with the agent offered to set it up', () => {
+    const list = rows({
+      verification: verification(),
+      approaches: [
+        approach('screenshot-diff', {
+          status: 'not-applicable',
+          reason: 'Before/after screenshots do not apply to a unknown project.',
+        }),
+      ],
+    })
+    expect(row(list, 'screens').detail).toBe(
+      `This project has no ${CHECK_METHOD_ABSENT_NOUNS.screens}.`,
+    )
+    expect(row(list, 'screens').action).toEqual({
+      kind: 'request',
+      purpose: 'setup',
+      approachId: undefined,
+    })
+  })
+
+  it('names what the host lacks AND the switch, for a capture it cannot run that the project withholds too', () => {
+    const XCODE = 'Install Xcode from the App Store.'
+    const SIMCTL = 'simctl ships with Xcode.'
+    const list = rows({
+      verification: verification(),
+      approaches: [
+        approach('screenshot-diff', {
+          status: 'unavailable',
+          missing: ['xcode', 'simctl'],
+          hints: [XCODE, SIMCTL],
+          withheld: DEVICE_OFF,
+        }),
+        approach('code-explanation'),
+      ],
+    })
+    const r = row(list, 'screens')
+    expect(r.state).toBe('unconfigured')
+    expect(r.detail).toBe(`${XCODE} ${SIMCTL} ${DEVICE_OFF}`)
+    expect(r.action).toEqual({ kind: 'allow', reason: DEVICE_OFF })
+  })
+
+  it('shows the proof once it is filed, allowed or not', () => {
+    const list = rows({
+      verification: verification(),
+      approaches: withheld,
+      evidence: [evidence({ kind: 'screenshot' })],
+    })
+    expect(row(list, 'screens').state).toBe('passed')
+    expect(row(list, 'screens').action.kind).toBe('open-proof')
+  })
+})
+
 describe('checkMethodRows › uitests (agent-filled, command-proven)', () => {
   it('a passed UI-test command check makes the uitests chip passed with its summary', () => {
     const v = verification({
@@ -432,6 +523,254 @@ describe('checkMethodRows › uitests (agent-filled, command-proven)', () => {
 
   it('with no UI-test check declared the chip reads "not set up", never a bare run', () => {
     expect(row(rows({ verification: verification() }), 'uitests').state).toBe('unconfigured')
+  })
+})
+
+describe('checkMethodRows › filings the backend cannot vouch for', () => {
+  /** As the backend lists a filing it cannot vouch for: no build, device, comparison or verdict. */
+  const unvouched = (over: Partial<ReviewEvidenceRef> & { id: string }): ReviewEvidenceRef =>
+    evidence({
+      path: `.factory/artifacts/review/r/${over.id}.png`,
+      phase: 'after',
+      subject: 'login',
+      unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
+      ...over,
+    })
+
+  it('never counts them as proof — they only need capturing again', () => {
+    const r = row(
+      rows({
+        approaches: [approach('screenshot-diff')],
+        evidence: [unvouched({ id: 'a' }), unvouched({ id: 'b', phase: 'before' })],
+      }),
+      'screens',
+    )
+    expect(r.state).toBe('unchecked')
+    expect(r.unvouched).toBe(2)
+    expect(r.detail).toBe(
+      '2 screenshots filed, but the backend can’t vouch for them, so they don’t count.',
+    )
+    expect(r.action).toEqual({ kind: 'request', purpose: 'capture', approachId: 'screenshot-diff' })
+  })
+
+  it('reads as not captured again, not "not set up", on the read-only story sign-off', () => {
+    const r = row(rows({ evidence: [unvouched({ id: 'a' })] }), 'screens')
+    expect(r.state).toBe('unchecked')
+    expect(r.detail).toBe(
+      '1 screenshot filed, but the backend can’t vouch for it, so it doesn’t count.',
+    )
+  })
+
+  it('counts only what can be vouched for beside them', () => {
+    const r = row(
+      rows({
+        evidence: [
+          unvouched({ id: 'a' }),
+          evidence({ id: 'fresh', capturedOn: 'android · emulator-5554' }),
+        ],
+      }),
+      'screens',
+    )
+    expect(r.state).toBe('passed')
+    expect(r.detail).toBe('1 screenshot captured')
+    expect(r.unvouched).toBe(1)
+  })
+
+  it('words a recording and a report by what they are', () => {
+    const list = rows({
+      evidence: [
+        unvouched({ id: 'rec', kind: 'recording', mediaType: 'video/mp4' }),
+        unvouched({ id: 'rep', kind: 'report', mediaType: 'text/markdown' }),
+      ],
+    })
+    expect(row(list, 'walkthrough')).toMatchObject({
+      state: 'unchecked',
+      detail: '1 recording filed, but the backend can’t vouch for it, so it doesn’t count.',
+    })
+    expect(row(list, 'report')).toMatchObject({
+      state: 'unchecked',
+      detail: '1 report filed, but the backend can’t vouch for it, so it doesn’t count.',
+    })
+  })
+
+  it('treats a capture whose own record was not the tool’s the same — it never counted at the gate', () => {
+    const r = row(
+      rows({
+        evidence: [unvouched({ id: 'a', unvouchedReason: CAPTURE_RECORD_NOT_THE_TOOLS_REASON })],
+      }),
+      'screens',
+    )
+    expect(r.state).toBe('unchecked')
+    expect(r.unvouched).toBe(1)
+  })
+
+  it('leaves every method a filing does not prove untouched', () => {
+    const list = rows({
+      evidence: [unvouched({ id: 'log', kind: 'log', mediaType: 'text/plain' })],
+    })
+    expect(list.every((r) => r.unvouched === 0)).toBe(true)
+  })
+})
+
+describe('checkMethodRows › unvouched filings where the capture cannot be taken again here', () => {
+  const DEVICE_OFF =
+    'Device automation is switched off for this project, so its runs drive no emulator or simulator.'
+  const ADB = 'Install the Android SDK platform-tools (adb).'
+  const XCODE = 'Install Xcode from the App Store.'
+  const SIMCTL = 'simctl ships with Xcode.'
+  const ONE_SHOT = '1 screenshot filed, but the backend can’t vouch for it, so it doesn’t count.'
+  const filedBeforeRestart = (over: Partial<ReviewEvidenceRef> & { id: string }) =>
+    evidence({
+      path: `.factory/artifacts/review/r/${over.id}.png`,
+      phase: 'after',
+      subject: 'login',
+      unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
+      ...over,
+    })
+
+  it.each([
+    ['screens', 'screenshot-diff', filedBeforeRestart({ id: 'a' }), ONE_SHOT],
+    [
+      'walkthrough',
+      'screen-recording',
+      filedBeforeRestart({ id: 'rec', kind: 'recording', mediaType: 'video/mp4' }),
+      '1 recording filed, but the backend can’t vouch for it, so it doesn’t count.',
+    ],
+  ] as const)(
+    'points the %s chip at the switch, never at a capture the backend would refuse',
+    (id, approachId, filed, unvouchedDetail) => {
+      const r = row(
+        rows({
+          verification: verification(),
+          approaches: [
+            approach(approachId, { status: 'not-allowed', reason: DEVICE_OFF }),
+            approach('code-explanation'),
+          ],
+          evidence: [filed],
+        }),
+        id,
+      )
+      expect(r.state).toBe('unchecked')
+      expect(r.unvouched).toBe(1)
+      expect(r.action).toEqual({ kind: 'allow', reason: DEVICE_OFF })
+      expect(checkCallout(r)).toEqual({ lead: DEVICE_OFF, detail: unvouchedDetail })
+    },
+  )
+
+  it('keeps the install hint and offers the set-up when the host lacks the toolchain', () => {
+    const r = row(
+      rows({
+        verification: verification(),
+        approaches: [
+          approach('screenshot-diff', { status: 'unavailable', missing: ['adb'], hints: [ADB] }),
+        ],
+        evidence: [filedBeforeRestart({ id: 'a' })],
+      }),
+      'screens',
+    )
+    expect(r.state).toBe('unchecked')
+    expect(r.detail).toBe(`${ONE_SHOT} ${ADB}`)
+    expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: 'screenshot-diff' })
+    expect(checkCallout(r)).toEqual({
+      lead: CHECK_STATE_UNVOUCHED_SENTENCE,
+      detail: `${ONE_SHOT} ${ADB}`,
+    })
+  })
+
+  it('names what the host lacks under the switch, once, when the project withholds it too', () => {
+    const r = row(
+      rows({
+        verification: verification(),
+        approaches: [
+          approach('screenshot-diff', {
+            status: 'unavailable',
+            missing: ['xcode', 'simctl'],
+            hints: [XCODE, SIMCTL],
+            withheld: DEVICE_OFF,
+          }),
+        ],
+        evidence: [filedBeforeRestart({ id: 'a' })],
+      }),
+      'screens',
+    )
+    expect(r.action).toEqual({ kind: 'allow', reason: DEVICE_OFF })
+    expect(checkCallout(r)).toEqual({
+      lead: DEVICE_OFF,
+      detail: `${ONE_SHOT} ${XCODE} ${SIMCTL}`,
+    })
+  })
+
+  it('offers no capture where nothing says one can be taken — the story sign-off knows no plan', () => {
+    const r = row(rows({ evidence: [filedBeforeRestart({ id: 'a' })] }), 'screens')
+    expect(r.state).toBe('unchecked')
+    expect(r.detail).toBe(ONE_SHOT)
+    expect(r.action).toEqual({ kind: 'request', purpose: 'setup', approachId: undefined })
+  })
+
+  it('still asks for a report again — writing one needs no device, allowed or not', () => {
+    const r = row(
+      rows({
+        verification: verification(),
+        approaches: [
+          approach('screenshot-diff', { status: 'not-allowed', reason: DEVICE_OFF }),
+          approach('code-explanation'),
+        ],
+        evidence: [filedBeforeRestart({ id: 'rep', kind: 'report', mediaType: 'text/markdown' })],
+      }),
+      'report',
+    )
+    expect(r.state).toBe('unchecked')
+    expect(r.action).toEqual({
+      kind: 'request',
+      purpose: 'capture',
+      approachId: 'code-explanation',
+    })
+  })
+})
+
+describe('checkActionOffer', () => {
+  const request = (purpose: 'fix' | 'setup' | 'capture') =>
+    ({ kind: 'request', purpose, approachId: 'screenshot-diff' }) as const
+
+  it('offers nothing but the proof on a read-only record — a button there would do nothing', () => {
+    expect(checkActionOffer({ kind: 'run' }, undefined)).toEqual({ kind: 'none' })
+    for (const purpose of ['capture', 'fix', 'setup'] as const) {
+      expect(checkActionOffer(request(purpose), undefined)).toEqual({ kind: 'none' })
+    }
+    expect(checkActionOffer({ kind: 'open-proof', tab: 'screens' }, undefined)).toEqual({
+      kind: 'open-proof',
+      tab: 'screens',
+    })
+  })
+
+  it('offers a capture without a chat, since the host spawns the verifier itself', () => {
+    expect(checkActionOffer(request('capture'), { canRequest: false })).toEqual({
+      kind: 'request',
+      purpose: 'capture',
+      unreachable: false,
+    })
+  })
+
+  it('marks a fix or a set-up unreachable without a chat to send it to', () => {
+    for (const purpose of ['fix', 'setup'] as const) {
+      expect(checkActionOffer(request(purpose), { canRequest: false })).toEqual({
+        kind: 'request',
+        purpose,
+        unreachable: true,
+      })
+      expect(checkActionOffer(request(purpose), { canRequest: true })).toEqual({
+        kind: 'request',
+        purpose,
+        unreachable: false,
+      })
+    }
+  })
+
+  it('offers a run wherever something can act, and nothing for a switch only the user flips', () => {
+    expect(checkActionOffer({ kind: 'run' }, { canRequest: false })).toEqual({ kind: 'run' })
+    expect(checkActionOffer({ kind: 'allow', reason: 'x' }, { canRequest: true })).toEqual({
+      kind: 'none',
+    })
   })
 })
 
@@ -523,7 +862,72 @@ describe('signoffVerdict', () => {
     fill: 'run',
     action: { kind: 'open-proof', tab: 'build' },
     checkIds: [],
+    unvouched: 0,
     ...over,
+  })
+
+  it('says a method whose filings cannot be vouched for cannot be — never that it never ran', () => {
+    const v = signoffVerdict({
+      rows: [mk({}), mk({ id: 'screens', label: 'Screens', state: 'unchecked', unvouched: 3 })],
+      verified: true,
+    })
+    expect(v.key).toBe('partly')
+    expect(v.title).toBe('Passes what ran — Screens can’t be vouched for')
+    expect(v.title).not.toContain('never ran')
+  })
+
+  it('never says nothing was checked when what was filed only cannot be vouched for', () => {
+    const v = signoffVerdict({
+      rows: [
+        mk({ id: 'report', label: 'Report', state: 'unchecked' }),
+        mk({ id: 'screens', label: 'Screens', state: 'unchecked', unvouched: 13 }),
+      ],
+      verified: false,
+    })
+    expect(v.key).toBe('not-run')
+    expect(v.title).toBe(NOTHING_VOUCHED_TITLE)
+    expect(v.detail).toBe('Screens can’t be vouched for now — it counts once captured again.')
+    expect(v.detail).not.toBe(NOT_VERIFIED_DETAIL)
+  })
+
+  it('names several such methods, and still says nothing was checked when nothing was filed', () => {
+    const several = signoffVerdict({
+      rows: [
+        mk({ id: 'screens', label: 'Screens', state: 'unchecked', unvouched: 2 }),
+        mk({ id: 'report', label: 'Report', state: 'unchecked', unvouched: 1 }),
+      ],
+      verified: false,
+    })
+    expect(several.detail).toBe(
+      'Screens and Report can’t be vouched for now — they count once captured again.',
+    )
+    const nothing = signoffVerdict({ rows: [mk({ state: 'unchecked' })], verified: false })
+    expect(nothing.title).toBe(NOT_RUN_TITLE)
+  })
+
+  it('does not say nothing filed can be vouched for beside a walkthrough that counted', () => {
+    const v = signoffVerdict({
+      rows: [
+        mk({ id: 'screens', label: 'Screens', state: 'unchecked', unvouched: 2 }),
+        mk({ id: 'walkthrough', label: 'Walkthrough', state: 'passed', unvouched: 1 }),
+      ],
+      verified: false,
+    })
+    expect(v.title).not.toBe(NOTHING_VOUCHED_TITLE)
+  })
+
+  it('names what never ran and what cannot be vouched for apart', () => {
+    const v = signoffVerdict({
+      rows: [
+        mk({ id: 'lint', label: 'Lint', state: 'unchecked' }),
+        mk({ id: 'screens', label: 'Screens', state: 'unchecked', unvouched: 2 }),
+        mk({ id: 'report', label: 'Report', state: 'unchecked', unvouched: 1 }),
+      ],
+      verified: true,
+    })
+    expect(v.title).toBe(
+      'Passes what ran — Lint never ran; Screens and Report can’t be vouched for',
+    )
   })
 
   it('any failed bearing method wins', () => {
@@ -676,6 +1080,25 @@ describe('reviewTabs', () => {
   it('tests and build appear only when a check of that kind ran', () => {
     const tabs = reviewTabs({ ...base, testChecks: 1, buildChecks: 2 })
     expect(tabs.map((t) => t.id)).toEqual(['tests', 'build'])
+  })
+
+  it('badges a verify proof’s Screens tab with what the proof rests on, not every capture judged', () => {
+    const screens = reviewTabs({ ...base, screens: 4, screensProof: 2 }).find(
+      (t) => t.id === 'screens',
+    )
+    expect(screens?.count).toBe(2)
+  })
+
+  it('keeps a proof’s Screens tab when nothing counted, so what did not count stays reachable', () => {
+    const screens = reviewTabs({ ...base, screens: 3, screensProof: 0 }).find(
+      (t) => t.id === 'screens',
+    )
+    expect(screens).toBeDefined()
+    expect(screens?.count).toBe(0)
+  })
+
+  it('badges every capture when there is no proof to count against', () => {
+    expect(reviewTabs({ ...base, screens: 4 }).find((t) => t.id === 'screens')?.count).toBe(4)
   })
 
   it('a suite that ran but counted zero tests still opens the Tests tab', () => {
@@ -835,5 +1258,229 @@ describe('the diff method, now that it has a producer', () => {
       diffReview: { by: 'user' },
     })
     expect(rows.find((r) => r.id === 'diff')?.detail).toBe('You read the change')
+  })
+})
+
+describe('checkCallout', () => {
+  const DEVICE_OFF =
+    'Device automation is switched off for this project, so its runs drive no emulator or simulator.'
+
+  it('leads with the withheld reason, once, when only the user can allow the capture', () => {
+    const screens = row(
+      rows({
+        verification: verification(),
+        approaches: [approach('screenshot-diff', { status: 'not-allowed', reason: DEVICE_OFF })],
+      }),
+      'screens',
+    )
+    expect(checkCallout(screens)).toEqual({ lead: DEVICE_OFF, detail: undefined })
+  })
+
+  it('asks for a method the project has not set up, with why beneath', () => {
+    const lint = row(rows({ verification: verification() }), 'lint')
+    expect(checkCallout(lint)).toEqual({
+      lead: `There is no ${lint.noun} in this project, so there is no tab for it. Ask for it here.`,
+      detail: lint.detail,
+    })
+  })
+
+  it('never says a method whose filings cannot be vouched for never ran', () => {
+    const screens = row(
+      rows({
+        approaches: [approach('screenshot-diff')],
+        evidence: [
+          evidence({ id: 'a', phase: 'after', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
+        ],
+      }),
+      'screens',
+    )
+    expect(checkCallout(screens)).toEqual({
+      lead: CHECK_STATE_UNVOUCHED_SENTENCE,
+      detail: '1 screenshot filed, but the backend can’t vouch for it, so it doesn’t count.',
+    })
+    expect(checkCallout(screens).lead).not.toBe(CHECK_STATE_SENTENCES.unchecked)
+  })
+
+  it('states a passed method, and adds no detail to the proof', () => {
+    const types = row(rows({ verification: verification() }), 'types')
+    expect(checkCallout(types)).toEqual({ lead: CHECK_STATE_SENTENCES.passed, detail: undefined })
+  })
+
+  it('states a failed method, with what failed beneath', () => {
+    const types = row(
+      rows({
+        verification: verification({
+          checks: [check({ status: 'failed', summary: '3 type errors' })],
+        }),
+      }),
+      'types',
+    )
+    expect(checkCallout(types)).toEqual({
+      lead: CHECK_STATE_SENTENCES.failed,
+      detail: '3 type errors',
+    })
+  })
+})
+
+describe('the diff method, read from the code review', () => {
+  const review = (over: Partial<ReviewEvidenceRef> = {}): ReviewEvidenceRef =>
+    ({
+      id: 'cr',
+      runId: 'r',
+      projectId: 'p',
+      kind: 'report',
+      approach: CODE_REVIEW_APPROACH,
+      label: 'Code review',
+      path: 'cr.md',
+      mediaType: 'text/markdown',
+      bytes: 10,
+      createdAt: 5,
+      ...over,
+    }) as ReviewEvidenceRef
+  const diffRow = (evidence: ReviewEvidenceRef[], diffReview?: { by?: string; summary?: string }) =>
+    checkMethodRows({
+      verification: undefined,
+      approaches: [],
+      evidence,
+      ...(diffReview ? { diffReview } : {}),
+    }).find((r) => r.id === 'diff')
+
+  it('is called Code review', () => {
+    expect(diffRow([])?.label).toBe('Code review')
+  })
+
+  it('passes on an approving code review, and its chip opens the Code review tab', () => {
+    expect(
+      diffRow([review({ verdict: 'approved', verdictReason: 'Meets every criterion.' })]),
+    ).toMatchObject({
+      state: 'passed',
+      detail: 'Meets every criterion.',
+      action: { kind: 'open-proof', tab: 'code-review' },
+    })
+  })
+
+  it('fails on a code review that requested changes, and still opens its finding', () => {
+    const row = diffRow([review({ verdict: 'changes-requested', verdictReason: 'No test.' })])
+    expect(row).toMatchObject({
+      state: 'failed',
+      detail: 'No test.',
+      action: { kind: 'open-proof', tab: 'code-review' },
+    })
+    expect(signoffVerdict({ rows: [row as CheckMethodRow], verified: true })).toMatchObject({
+      key: 'failed',
+      title: 'Code review failed',
+    })
+  })
+
+  it('says what the review concluded when it gave no reason', () => {
+    expect(diffRow([review({ verdict: 'approved' })])?.detail).toBe(
+      'The code review approved the change',
+    )
+    expect(diffRow([review({ verdict: 'changes-requested' })])?.detail).toBe(
+      'The code review requested changes',
+    )
+  })
+
+  it('reads the NEWEST code review', () => {
+    expect(
+      diffRow([
+        review({ id: 'old', createdAt: 1, verdict: 'changes-requested' }),
+        review({ id: 'new', createdAt: 9, verdict: 'approved' }),
+      ])?.state,
+    ).toBe('passed')
+    expect(
+      diffRow([
+        review({ id: 'new', createdAt: 9, verdict: 'changes-requested' }),
+        review({ id: 'old', createdAt: 1, verdict: 'approved' }),
+      ])?.state,
+    ).toBe('failed')
+  })
+
+  it('lets a code review outrank a recorded read of the diff', () => {
+    expect(
+      diffRow([review({ verdict: 'changes-requested' })], { by: 'reviewer-agent' })?.state,
+    ).toBe('failed')
+  })
+
+  it('is unchecked over a code review that filed no verdict, even when the diff was read', () => {
+    const row = diffRow([review()], { by: 'reviewer-agent', summary: 'Read it' })
+    expect(row?.state).toBe('unchecked')
+    expect(row?.detail).toBe('The code review filed no verdict.')
+  })
+
+  it('is unchecked over a code review the backend cannot vouch for', () => {
+    const row = diffRow([review({ unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON })])
+    expect(row?.state).toBe('unchecked')
+    expect(row?.unvouched).toBe(1)
+    expect(row?.detail).toContain('1 code review filed')
+  })
+
+  it('keeps an old run’s read diff passing when no code review was filed', () => {
+    expect(diffRow([], { by: 'reviewer-agent', summary: 'Read all 4 files' })).toMatchObject({
+      state: 'passed',
+      detail: 'Read all 4 files',
+      action: { kind: 'open-proof', tab: 'changes' },
+    })
+  })
+
+  it('never counts the verifier’s approval as a code review', () => {
+    expect(
+      diffRow([{ ...review({ verdict: 'approved' }), approach: undefined } as ReviewEvidenceRef])
+        ?.state,
+    ).toBe('unchecked')
+  })
+
+  it('never counts a code review or the final report as the written report', () => {
+    const reportRow = (evidence: ReviewEvidenceRef[]) =>
+      checkMethodRows({ verification: undefined, approaches: [], evidence }).find(
+        (r) => r.id === 'report',
+      )?.state
+    expect(reportRow([review({ verdict: 'approved' })])).toBe('unchecked')
+    expect(reportRow([review({ approach: FINAL_REPORT_APPROACH })])).toBe('unchecked')
+    expect(reportRow([review({ approach: FEATURE_REPORT_APPROACH })])).toBe('passed')
+    expect(reportRow([review({ approach: undefined })])).toBe('passed')
+  })
+})
+
+describe('evidenceMethodFor, for a report', () => {
+  it('routes a report by who wrote it', () => {
+    expect(evidenceMethodFor({ kind: 'report', approach: CODE_REVIEW_APPROACH })).toBe('diff')
+    expect(evidenceMethodFor({ kind: 'report', approach: FINAL_REPORT_APPROACH })).toBeUndefined()
+    expect(evidenceMethodFor({ kind: 'report', approach: FEATURE_REPORT_APPROACH })).toBe('report')
+    expect(evidenceMethodFor({ kind: 'report' })).toBe('report')
+  })
+})
+
+describe('reviewTabs, with a code review', () => {
+  const none = {
+    screens: 0,
+    walkthroughs: 0,
+    reports: 0,
+    testCount: 0,
+    testChecks: 0,
+    buildChecks: 0,
+    changedFiles: undefined,
+  }
+
+  it('offers a Code review tab only when a code review was filed, after the Report tab', () => {
+    expect(reviewTabs({ ...none, reports: 1 }).map((t) => t.id)).toEqual(['report'])
+    const tabs = reviewTabs({ ...none, reports: 1, codeReviews: 1, testChecks: 1 })
+    expect(tabs.map((t) => t.id)).toEqual(['tests', 'report', 'code-review'])
+    expect(tabs.find((t) => t.id === 'code-review')).toEqual({
+      id: 'code-review',
+      label: 'Code review',
+      count: undefined,
+    })
+  })
+
+  it('leads with the tab asked to lead, when it is there', () => {
+    expect(
+      reviewTabs({ ...none, walkthroughs: 1, reports: 1, codeReviews: 1, lead: 'report' }).map(
+        (t) => t.id,
+      ),
+    ).toEqual(['report', 'walkthrough', 'code-review'])
+    expect(reviewTabs({ ...none, walkthroughs: 1, lead: 'report' }).map((t) => t.id)).toEqual([
+      'walkthrough',
+    ])
   })
 })

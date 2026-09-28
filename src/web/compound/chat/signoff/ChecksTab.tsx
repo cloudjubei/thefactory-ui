@@ -3,11 +3,12 @@ import type { ReactNode } from 'react'
 import {
   AGENT_UNREACHABLE,
   aggregateTestCounts,
+  checkActionOffer,
   handoffRequest,
   parseTestFailures,
+  type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
-  type HandoffPurpose,
   type ReviewCheckRow,
   type TestFailure,
 } from '../../../../headless'
@@ -22,9 +23,8 @@ export type ChecksTabProps = {
   checks: readonly ReviewCheckRow[]
   branch: string | undefined
   busyId: CheckMethodId | undefined
-  canRequest: boolean
-  onRun: (row: CheckMethodRow) => void
-  onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
+  /** What this panel can do about a check; absent on a read-only record, which offers no control. */
+  actions?: CheckActionHost
   /** Shown when the tab owns no method with anything to say — e.g. no tests at all. */
   emptyState?: { title: string; body: string }
 }
@@ -74,9 +74,7 @@ function CheckBlock({
   failures,
   branch,
   busy,
-  canRequest,
-  onRun,
-  onRequest,
+  actions,
 }: {
   row: CheckMethodRow
   title: ReactNode
@@ -88,11 +86,9 @@ function CheckBlock({
   failures: readonly TestFailure[]
   branch: string | undefined
   busy: boolean
-  canRequest: boolean
-  onRun: (row: CheckMethodRow) => void
-  onRequest: (row: CheckMethodRow, purpose: HandoffPurpose) => void
+  actions: CheckActionHost | undefined
 }) {
-  const action = row.action
+  const offer = checkActionOffer(row.action, actions)
   return (
     <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -125,31 +121,37 @@ function CheckBlock({
           below once the row overflowed — so the button's position moved with
           the length of the prose beside it. A column also lets a long button
           label wrap inside its own box instead of running past the border. */}
-      {action.kind === 'run' ? (
+      {row.action.kind === 'run' ? (
         <div className="flex flex-col items-start gap-2">
           <span className="text-[12px] text-(--text-secondary)">
             Nothing was captured for {row.noun}.
           </span>
-          <RunActionButton busy={busy} onClick={() => onRun(row)}>
-            Run it now
-          </RunActionButton>
+          {offer.kind === 'run' && actions ? (
+            <RunActionButton busy={busy} onClick={() => actions.onRun(row)}>
+              Run it now
+            </RunActionButton>
+          ) : null}
         </div>
-      ) : action.kind === 'request' ? (
+      ) : row.action.kind === 'request' && (row.action.purpose === 'setup' || actions) ? (
         <div className="flex flex-col items-start gap-2">
-          {action.purpose === 'setup' ? (
+          {row.action.purpose === 'setup' ? (
             <span className="text-[12px] text-(--text-secondary)">
               {row.detail} Setting it up is a code change, so it is work for the agent.
             </span>
           ) : null}
-          {action.purpose !== 'capture' && !canRequest ? (
-            <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
+          {offer.kind === 'request' && actions ? (
+            <>
+              {offer.unreachable ? (
+                <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
+              ) : null}
+              <HandoffButton
+                disabled={busy || offer.unreachable}
+                onClick={() => actions.onRequest(row, offer.purpose)}
+              >
+                {handoffRequest(row, offer.purpose, { branch }).buttonLabel}
+              </HandoffButton>
+            </>
           ) : null}
-          <HandoffButton
-            disabled={busy || (action.purpose !== 'capture' && !canRequest)}
-            onClick={() => onRequest(row, action.purpose)}
-          >
-            {handoffRequest(row, action.purpose, { branch }).buttonLabel}
-          </HandoffButton>
         </div>
       ) : null}
     </section>
@@ -167,26 +169,33 @@ export default function ChecksTab({
   checks,
   branch,
   busyId,
-  canRequest,
-  onRun,
-  onRequest,
+  actions,
   emptyState,
 }: ChecksTabProps) {
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
   if (emptyState && allUnconfigured) {
     const first = methods[0]
+    const setup = checkActionOffer(
+      { kind: 'request', purpose: 'setup', approachId: undefined },
+      actions,
+    )
     return (
       <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-3">
         <div className="text-[13px] font-semibold text-(--text-primary)">{emptyState.title}</div>
         <p className="max-w-[64ch] text-[12px] text-(--text-secondary)">{emptyState.body}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <HandoffButton disabled={!canRequest} onClick={() => onRequest(first, 'setup')}>
-            {handoffRequest(first, 'setup', { branch }).buttonLabel}
-          </HandoffButton>
-          {!canRequest ? (
-            <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
-          ) : null}
-        </div>
+        {setup.kind === 'request' && actions ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <HandoffButton
+              disabled={setup.unreachable}
+              onClick={() => actions.onRequest(first, 'setup')}
+            >
+              {handoffRequest(first, 'setup', { branch }).buttonLabel}
+            </HandoffButton>
+            {setup.unreachable ? (
+              <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     )
   }
@@ -237,9 +246,7 @@ export default function ChecksTab({
               failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
               branch={branch}
               busy={busyId === testsRow.id}
-              canRequest={canRequest}
-              onRun={onRun}
-              onRequest={onRequest}
+              actions={actions}
             />
           ))
         : methods.map((row) => {
@@ -257,9 +264,7 @@ export default function ChecksTab({
                 failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
                 branch={branch}
                 busy={busyId === row.id}
-                canRequest={canRequest}
-                onRun={onRun}
-                onRequest={onRequest}
+                actions={actions}
               />
             )
           })}

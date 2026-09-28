@@ -1,60 +1,81 @@
+import { useMemo, type KeyboardEvent, type MouseEvent } from 'react'
+
+import { costDetailsView, type CostSource } from '../../../headless'
 import Tooltip from '../../primitives/Tooltip'
+import CostDetailsPanel from './CostDetailsPanel'
 import { CHIP_PILL_NEUTRAL } from './pillStyles'
 
 export type CostChipProps = {
-  provider: string
-  model: string
-  price?: {
-    inputPerMTokensUSD: number
-    outputPerMTokensUSD: number
-  }
-  costUSD?: number
-  /** Executor that produced this cost — renders a small API/CLI pill when set. */
-  source?: 'api' | 'cli'
+  /** The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens. */
+  label: string
+  /** The cost behind the label. The chip opens its details whenever there are any. */
+  cost?: CostSource
+  /** What the cost is of, heading its details — "Spent against the cap". */
+  title?: string
+  /** `pill` — the neutral cost chip; `text` — muted inline text, for a meta line. */
+  appearance?: 'pill' | 'text'
+  /**
+   * Set when the chip sits inside a control that acts on a click or a key — a
+   * section's `<summary>`: a click, Enter or Space opens the details instead of
+   * working the control. Never put the chip inside a `<button>`: interactive
+   * content there is invalid and unreachable by keyboard; lay the chip beside a
+   * stretched button instead.
+   */
+  nested?: boolean
 }
 
-function formatUSD(n?: number) {
-  if (n == null) return '—'
-  return `$${n.toFixed(4)}`
+const keepClickToChip = (e: MouseEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
 }
 
-export default function CostChip({ provider, model, price, costUSD, source }: CostChipProps) {
-  const content = (
-    <div className="text-xs">
-      <div className="font-semibold mb-1">
-        {provider || 'Unknown'} · {model || 'Unknown'}
-        {source ? ` · ${source.toUpperCase()}` : ''}
-      </div>
-      {price ? (
-        <div className="space-y-0.5">
-          <div>
-            <span className="text-neutral-400">Input:</span> {`$${price.inputPerMTokensUSD}`} per 1M
-            tokens
-          </div>
-          <div>
-            <span className="text-neutral-400">Output:</span> {`$${price.outputPerMTokensUSD}`} per
-            1M tokens
-          </div>
-        </div>
-      ) : (
-        <div className="text-neutral-400">Pricing unavailable</div>
-      )}
-    </div>
-  )
+/** Only the keys that open the details: Tab and the rest must still move on. */
+const keepActivationToChip = (e: KeyboardEvent) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return
+  e.preventDefault()
+  e.stopPropagation()
+}
 
-  return (
-    <Tooltip content={content} placement="top">
+/**
+ * A cost, as a chip: the charge in dollars, and the way into everything else.
+ * Hover or focus shows the details, a click or Enter pins them — the one
+ * details view every cost surface shares, so a token count never has to ride
+ * on the chip itself. Always a tab stop, like its native peer's button.
+ */
+export default function CostChip({
+  label,
+  cost,
+  title,
+  appearance = 'pill',
+  nested = false,
+}: CostChipProps) {
+  const view = useMemo(() => costDetailsView(cost), [cost])
+  const face =
+    appearance === 'pill' ? (
       <span className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
-        <span>{formatUSD(costUSD)}</span>
-        {source ? (
-          <span
-            className={`text-[9px] font-semibold uppercase ${source === 'cli' ? 'text-violet-500' : 'text-neutral-400'}`}
-          >
-            {source}
-          </span>
-        ) : null}
+        <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+        {label}
       </span>
-    </Tooltip>
+    ) : (
+      <span className="tabular-nums">{label}</span>
+    )
+  if (!view) return face
+  return (
+    <span
+      className="inline-flex"
+      onClick={nested ? keepClickToChip : undefined}
+      onKeyDown={nested ? keepActivationToChip : undefined}
+    >
+      <Tooltip
+        content={<CostDetailsPanel view={view} title={title} />}
+        placement="bottom"
+        allowedPlacements={['bottom', 'top']}
+        sideAlign="end"
+        anchorTabIndex={0}
+        anchorClassName="inline-flex cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+      >
+        {face}
+      </Tooltip>
+    </span>
   )
 }

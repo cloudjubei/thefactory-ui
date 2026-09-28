@@ -6,6 +6,7 @@ import {
   useProcessRun,
   type ProcessStatusTone,
 } from '../../../headless'
+import CostChip from '../chips/CostChip'
 
 export type ProcessRunChipProps = {
   processRunId: string
@@ -75,7 +76,9 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
         </button>
         <span className="ml-auto flex items-center gap-2 text-[11px] tabular-nums text-(--text-muted)">
           {work ? <span>{work}</span> : null}
-          {spend ? <span>{spend.label}</span> : null}
+          {spend ? (
+            <CostChip label={spend.label} cost={run.totals} title={spend.title} appearance="text" />
+          ) : null}
         </span>
       </div>
     </div>

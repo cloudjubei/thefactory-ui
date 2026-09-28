@@ -9,6 +9,8 @@ import type {
   ProcessStepOutcome,
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
+import { costChipLabel, formatCostUSD } from './costDetails'
+import { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './processViewConstants'
 import type { ProcessNodeLook, ProcessNodeSummary } from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/utils'
 import { processRunProgress, processStepStates, processVerifyReview } from 'thefactory-tools/utils'
@@ -124,47 +126,36 @@ export function processRunChipLabel(run: ProcessRun): string {
  *
  * Read from the ledger totals every surface shares — never from `spentUsd`,
  * which the driver stamps between steps and so lags whatever just finished.
- * Tokens with no known price are named beside the dollars, never counted as $0.
+ * The label is the charge alone: tokens a plan covered or no price is known for
+ * are in the cost's details, never on the chip. A cap is charged dollars only,
+ * because only charged dollars count against it — so a capped run whose charge
+ * is unknown says so beside the cap, rather than a `$0.00` that would read like
+ * a run a plan covered. `spent` is absent then; `title` heads the details.
  */
 export function processRunSpend(
   run: ProcessRun,
-): { spent: number; cap?: number; label: string } | undefined {
+): { spent?: number; cap?: number; label: string; title: string } | undefined {
   const cap = run.budget?.spendUsdCap
   const granted = run.budgetGrants?.spendUsdCap ?? 0
-  const spent = run.totals?.costUsd
-  const unpriced = run.totals?.unpricedTokens
-  if (cap === undefined && spent === undefined && unpriced === undefined) return undefined
-  const limit = cap === undefined ? undefined : cap + granted
-  const money = (usd: number) => formatProcessCost({ costUsd: usd }) ?? ''
-  const label =
-    limit === undefined
-      ? (formatProcessCost({ costUsd: spent, unpricedTokens: unpriced }) ?? '')
-      : `${money(spent ?? 0)} of ${money(limit)}${granted > 0 ? ' (raised)' : ''}` +
-        (unpriced ? ` + ${formatTokenCount(unpriced)} unpriced tokens` : '')
-  return { spent: spent ?? 0, ...(limit !== undefined ? { cap: limit } : {}), label }
-}
-
-/**
- * Priced spend and unpriced tokens as one label, or `undefined` when neither
- * was measured. Sub-cent spend keeps four decimals so it never reads as $0.00.
- */
-export function formatProcessCost(
-  cost: { costUsd?: number; unpricedTokens?: number } | undefined,
-): string | undefined {
-  const parts: string[] = []
-  const usd = cost?.costUsd
-  if (usd !== undefined && Number.isFinite(usd)) {
-    parts.push(usd > 0 && usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`)
+  const charged = costChipLabel(run.totals)
+  if (cap === undefined && charged === undefined) return undefined
+  const spent = run.totals?.costUsd ?? (charged === undefined ? 0 : undefined)
+  const money = (usd: number) => formatCostUSD(usd) ?? ''
+  if (cap === undefined) {
+    return {
+      ...(spent !== undefined ? { spent } : {}),
+      label: charged ?? '',
+      title: PROCESS_SPEND_TITLE,
+    }
   }
-  if (cost?.unpricedTokens) parts.push(`${formatTokenCount(cost.unpricedTokens)} unpriced tokens`)
-  return parts.length > 0 ? parts.join(' + ') : undefined
-}
-
-function formatTokenCount(tokens: number): string {
-  const compact = (value: number, unit: string) => `${Number(value.toFixed(1))}${unit}`
-  if (tokens < 1_000) return String(tokens)
-  if (tokens < 1_000_000) return compact(tokens / 1_000, 'k')
-  return compact(tokens / 1_000_000, 'M')
+  const limit = cap + granted
+  const ceiling = `${money(limit)}${granted > 0 ? ' (raised)' : ''}`
+  return {
+    ...(spent !== undefined ? { spent } : {}),
+    cap: limit,
+    label: spent === undefined ? `${charged} · cap ${ceiling}` : `${money(spent)} of ${ceiling}`,
+    title: PROCESS_SPEND_CAP_TITLE,
+  }
 }
 
 /**
@@ -208,12 +199,17 @@ export function processStepWorkMs(
   return step.workMs + live
 }
 
-/** What a step has cost across every attempt, as a label. */
+/** What a step's cost details are headed with: the step, and every attempt when it took several. */
+export function processStepCostTitle(stepName: string, attempts: number): string {
+  return attempts > 1 ? `${stepName} · all ${attempts} attempts` : stepName
+}
+
+/** What a step has been charged across every attempt, as a chip label. */
 export function processStepCostLabel(
   run: Pick<ProcessRun, 'totals'>,
   stepId: string,
 ): string | undefined {
-  return formatProcessCost(run.totals?.steps[stepId])
+  return costChipLabel(run.totals?.steps[stepId])
 }
 
 /**

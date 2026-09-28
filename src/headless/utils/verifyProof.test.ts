@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import {
+  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+  CODE_REVIEW_APPROACH,
+  EVIDENCE_FILE_CHANGED_REASON,
+  EVIDENCE_RECORD_UNVOUCHED_REASON,
+  FEATURE_REPORT_APPROACH,
+} from 'thefactory-tools/constants'
 import type {
   ProcessLedgerEntry,
   ProcessPlan,
@@ -7,16 +14,23 @@ import type {
 } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceRef } from '../api/generated'
-import { toEvidenceTile, type EvidenceTile } from './reviewEvidenceView'
+import { toEvidenceTile } from './reviewEvidenceView'
+import { UNVOUCHED_LABEL, UNVOUCHED_RESTART_TEXT } from './reviewEvidenceViewConstants'
+import type { EvidenceTile } from './reviewEvidenceViewTypes'
 import {
+  COUNTED_UNVOUCHED_VERDICT,
+  REVIEWER_VERDICT_UNVOUCHED_LABEL,
+  REVIEWER_VERDICT_UNVOUCHED_REASON,
+  UNVOUCHED_BASIS_BANNER,
+  UNVOUCHED_BASIS_SUMMARY,
   ATTEMPT_EMPTY,
   ATTEMPT_RUNNING_EMPTY,
   CAPTURE_LOAD_FAILED,
   CAPTURE_LOADING,
   CAPTURE_MISSING,
-  DRY_FAKED_LABEL,
   DRY_FAKED_MISSING,
-  DRY_TODO,
+  DRY_LINE_TEXT,
+  DRY_LINE_TOGGLE,
   NEW_SCREEN_ENTRY_NOTE,
   NEW_SCREEN_NOTE,
   NEW_SCREEN_PAIR_CHANGE,
@@ -27,14 +41,17 @@ import {
 import {
   acceptedVerifyAttempt,
   captureBuildCaption,
+  codeReviewVerdictNote,
   evidenceLoadState,
   featureVerifySectionProps,
-  featureVerifySelection,
   featureVerifyView,
   mergeEvidenceTiles,
   missingEvidenceIds,
   overlayPairsFor,
   pixelChangeLabel,
+  proofChangeMarker,
+  proofScreensPane,
+  proofThumbnailFrame,
   reviewerVerdictNote,
   shortSha,
   storyProofNotice,
@@ -124,19 +141,24 @@ describe('verifyProofHeader', () => {
       title: 'Verified on live data',
       chip: 'Live data',
       unstated: false,
-      faked: undefined,
-      todo: undefined,
+      dry: undefined,
       baseSha: 'be10edd8',
       headSha: '38832196',
       seams: [],
     })
   })
 
-  it('says a dry pass was not against the live backend, what was faked, and what is still owed', () => {
+  it('says a dry pass in one quiet line, folding what was faked and the builds into rows', () => {
     const assumptions =
       'Faked eventStyles.typography.fontFamily = "McKinsey Sans"; the CMS must send it.'
     const h = verifyProofHeader(
-      proof({ mode: 'dry', dryAssumptions: `  ${assumptions}  `, seams: [SEAM] }),
+      proof({
+        mode: 'dry',
+        dryAssumptions: `  ${assumptions}  `,
+        baseSha: BASE,
+        headSha: HEAD,
+        seams: [SEAM],
+      }),
       'passed',
     )
     expect(h.mode).toBe('dry')
@@ -144,30 +166,80 @@ describe('verifyProofHeader', () => {
     expect(h.title).toBe('Verified dry — not against the live backend')
     expect(h.chip).toBe('Dry run')
     expect(h.dryAssumptions).toBe(assumptions)
-    expect(h.faked).toEqual({ label: DRY_FAKED_LABEL, text: assumptions })
-    expect(h.todo).toBe(DRY_TODO)
     expect(h.seams).toEqual(['f00dcafe'])
+    expect(h.dry).toEqual({
+      lead: 'Verified dry',
+      text: DRY_LINE_TEXT,
+      toggle: DRY_LINE_TOGGLE,
+      rows: [
+        { kind: 'text', label: 'Faked', text: assumptions },
+        {
+          kind: 'build',
+          label: 'Built from',
+          parts: [
+            { kind: 'sha', sha: 'be10edd8' },
+            { kind: 'word', text: 'with seam' },
+            { kind: 'sha', sha: 'f00dcafe' },
+            { kind: 'word', text: '→' },
+            { kind: 'sha', sha: '38832196' },
+          ],
+        },
+      ],
+    })
   })
 
   it('still flags a dry verification whose reviewer never said what was faked', () => {
     const h = verifyProofHeader(proof({ mode: 'dry', dryAssumptions: '   ' }), 'passed')
     expect(h.dryAssumptions).toBeUndefined()
-    expect(h.faked).toEqual({ label: DRY_FAKED_LABEL, text: DRY_FAKED_MISSING })
+    expect(h.dry?.rows).toEqual([{ kind: 'text', label: 'Faked', text: DRY_FAKED_MISSING }])
   })
 
-  it('does not call a failed attempt verified, and owes nothing on it', () => {
+  it('names every seam, and leaves the arrow out when there is nothing before the branch', () => {
+    const seams = verifyProofHeader(
+      proof({ mode: 'dry', dryAssumptions: 'x', baseSha: BASE, seams: [SEAM, HEAD] }),
+      'passed',
+    )
+    expect(seams.dry?.rows[1]).toEqual({
+      kind: 'build',
+      label: 'Built from',
+      parts: [
+        { kind: 'sha', sha: 'be10edd8' },
+        { kind: 'word', text: 'with seams' },
+        { kind: 'sha', sha: 'f00dcafe' },
+        { kind: 'sha', sha: '38832196' },
+      ],
+    })
+    const headOnly = verifyProofHeader(
+      proof({ mode: 'dry', dryAssumptions: 'x', headSha: HEAD }),
+      'passed',
+    )
+    expect(headOnly.dry?.rows[1]).toEqual({
+      kind: 'build',
+      label: 'Built from',
+      parts: [{ kind: 'sha', sha: '38832196' }],
+    })
+  })
+
+  it('does not call a failed attempt verified', () => {
     const h = verifyProofHeader(proof({ mode: 'dry', dryAssumptions: 'x' }), 'failed')
     expect(h.title).toBe('Checked dry — not against the live backend')
-    expect(h.todo).toBeUndefined()
+    expect(h.dry?.lead).toBe('Checked dry')
     expect(verifyProofHeader(proof({ mode: 'live' }), 'unchecked').title).toBe(
       'Checked on live data',
     )
   })
 
-  it('never calls an attempt a person accepted verified, but still owes the live check on it', () => {
+  it('never calls an attempt a person accepted verified', () => {
     const h = verifyProofHeader(proof({ mode: 'dry', dryAssumptions: 'x' }), 'accepted')
     expect(h.title).toBe('Checked dry — not against the live backend')
-    expect(h.todo).toBe(DRY_TODO)
+    expect(h.dry?.lead).toBe('Checked dry')
+  })
+
+  it('has no dry line for a proof on live data, or one that never named its data', () => {
+    expect(verifyProofHeader(proof({ mode: 'live', dryAssumptions: 'x' }), 'passed').dry).toBe(
+      undefined,
+    )
+    expect(verifyProofHeader(proof({ dryAssumptions: 'x' }), 'passed').dry).toBeUndefined()
   })
 
   it('flags an unstated data mode on an attempt that stands, so a collapsed header shows it', () => {
@@ -272,6 +344,7 @@ describe('verifyProofView', () => {
       verdict: PAIR_COUNTED_VERDICT,
       change: '219,902 px changed (9.2%)',
       sameScreen: '84% of on-screen elements shared',
+      marker: '9%',
       missing: [],
       beforeAbsent: undefined,
       afterAbsent: undefined,
@@ -373,8 +446,13 @@ describe('verifyProofView', () => {
     ])
     expect(v.screens.map((s) => s.class)).toEqual(['pair', 'new', 'pair', 'pair'])
     expect(v.screens.map((s) => s.index)).toEqual([1, 2, 3, 4])
-    expect(v.screens[0].note).toBe('Shows the change · 219,902 px changed (9.2%)')
+    expect(v.screens[0].note).toBe(
+      'Shows the change · 219,902 px changed (9.2%) · 84% of on-screen elements shared',
+    )
     expect(v.screens[1].note).toBe(NEW_SCREEN_NOTE)
+    expect(v.screens[2].note).toBe(
+      'Pixel-identical — the change does not show here. · Pixel-identical',
+    )
     expect(v.screens.every((s) => s.key.startsWith('f1::'))).toBe(true)
     expect(new Set(v.screens.map((s) => s.key)).size).toBe(4)
     expect(v.screens[0]).toMatchObject({ expectedBaseSha: 'be10edd8', expectedHeadSha: '38832196' })
@@ -537,6 +615,7 @@ describe('verifyProofView', () => {
       expect(settings.newScreen).toBe(true)
       expect(settings.change).toBe(NEW_SCREEN_PAIR_CHANGE)
       expect(settings.sameScreen).toBeUndefined()
+      expect(settings.marker).toBe('new')
       expect(settings.verdict).toBe('It looks like a base capture — it is not new.')
     })
 
@@ -599,6 +678,219 @@ describe('verifyProofView', () => {
     expect(verifyProofView(unjudged, tiles, { standing: 'accepted' }).summary).toEqual({
       tone: 'empty',
       text: NOTHING_JUDGED,
+    })
+  })
+})
+
+describe('proofChangeMarker', () => {
+  it('rounds the changed share of the screen to a whole percent', () => {
+    expect(proofChangeMarker(192_556, 2_391_120)).toBe('8%')
+    expect(proofChangeMarker(23_912, 2_391_120)).toBe('1%')
+    expect(proofChangeMarker(2_381_000, 2_391_120)).toBe('100%')
+  })
+
+  it('never rounds a change under one percent down to nothing', () => {
+    expect(proofChangeMarker(92, 2_391_120)).toBe('<1%')
+    expect(proofChangeMarker(23_880, 2_391_120)).toBe('<1%')
+  })
+
+  it('says a measured zero as it is', () => {
+    expect(proofChangeMarker(0, 2_391_120)).toBe('0%')
+  })
+
+  it('marks nothing it cannot measure', () => {
+    expect(proofChangeMarker(undefined, 2_391_120)).toBeUndefined()
+    expect(proofChangeMarker(500, undefined)).toBeUndefined()
+    expect(proofChangeMarker(500, 0)).toBeUndefined()
+  })
+})
+
+describe('proofScreensPane', () => {
+  const tiles: EvidenceTile[] = [
+    tile({ id: 'b-home', phase: 'before', subject: 'event-home', createdAt: 10 }),
+    tile({ id: 'a-home', phase: 'after', subject: 'event-home', createdAt: 20 }),
+    tile({ id: 'b-guide', phase: 'before', subject: 'event-guide-webview', createdAt: 11 }),
+    tile({ id: 'a-guide', phase: 'after', subject: 'event-guide-webview', createdAt: 21 }),
+    tile({ id: 'b-agenda', phase: 'before', subject: 'agenda', createdAt: 12 }),
+    tile({ id: 'a-agenda', phase: 'after', subject: 'agenda', createdAt: 22 }),
+    tile({ id: 'b-menu', phase: 'before', subject: 'font-preview', createdAt: 13 }),
+    tile({ id: 'a-font', phase: 'after', subject: 'font-preview', createdAt: 23 }),
+    tile({ id: 'a-launch', phase: 'after', subject: 'launch-font-preview', createdAt: 24 }),
+  ]
+  const passed = proof({
+    mode: 'dry',
+    baseSha: BASE,
+    headSha: HEAD,
+    pairs: [
+      pair({
+        subject: 'event-home',
+        beforeId: 'b-home',
+        afterId: 'a-home',
+        changedPixels: 167_378,
+        totalPixels: 2_391_120,
+        sameScreen: 0.86,
+        counted: true,
+      }),
+      pair({
+        subject: 'agenda',
+        beforeId: 'b-agenda',
+        afterId: 'a-agenda',
+        changedPixels: 0,
+        totalPixels: 2_391_120,
+        counted: false,
+        reason: 'Pixel-identical — the change does not show here.',
+      }),
+      pair({
+        subject: 'event-guide-webview',
+        beforeId: 'b-guide',
+        afterId: 'a-guide',
+        changedPixels: 95_644,
+        totalPixels: 2_391_120,
+        sameScreen: 0.91,
+        counted: true,
+      }),
+      pair({
+        subject: 'font-preview',
+        beforeId: 'b-menu',
+        afterId: 'a-font',
+        changedPixels: 900_000,
+        totalPixels: 2_391_120,
+        counted: true,
+        newScreen: true,
+      }),
+    ],
+    newScreenIds: ['a-font'],
+    unpaired: [
+      {
+        subject: 'launch-font-preview',
+        afterId: 'a-launch',
+        reason: 'No base capture under this subject.',
+      },
+    ],
+  })
+
+  it('shows one thumbnail per proving pair, then each screen the change adds — nothing that did not count', () => {
+    const v = verifyProofView(passed, tiles, { standing: 'passed', keyPrefix: 'f2::' })
+    const pane = proofScreensPane(v)
+    expect(pane.thumbnails.map((t) => [t.subject, t.marker])).toEqual([
+      ['event-home', '7%'],
+      ['event-guide-webview', '4%'],
+      ['font-preview', 'new'],
+    ])
+    expect(pane.thumbnails.map((t) => t.screen.index)).toEqual([1, 2, 3])
+    expect(pane.thumbnails.every((t) => t.screen.key === t.key)).toBe(true)
+    expect(pane.thumbnails.map((t) => [t.before?.ref.id, t.after?.ref.id])).toEqual([
+      ['b-home', 'a-home'],
+      ['b-guide', 'a-guide'],
+      ['b-menu', 'a-font'],
+    ])
+    expect(pane.hasBefore).toBe(true)
+    expect(pane.saveAllLabel).toBe('Save 3 screens')
+  })
+
+  it('drops the summary line while thumbnails show the proof, and folds what did not count into one line', () => {
+    const pane = proofScreensPane(verifyProofView(passed, tiles, { standing: 'passed' }))
+    expect(pane.summary).toBeUndefined()
+    expect(pane.notCounted).toEqual({
+      count: 2,
+      label: '2 more captures filed · not part of the proof',
+    })
+  })
+
+  it('says one capture in the singular', () => {
+    const one = proof({ ...passed, unpaired: [] })
+    expect(
+      proofScreensPane(verifyProofView(one, tiles, { standing: 'passed' })).notCounted,
+    ).toEqual({ count: 1, label: '1 more capture filed · not part of the proof' })
+  })
+
+  it('has no fold when everything filed counted', () => {
+    const clean = proof({ ...passed, pairs: passed.pairs.filter((p) => p.counted), unpaired: [] })
+    const pane = proofScreensPane(verifyProofView(clean, tiles, { standing: 'passed' }))
+    expect(pane.notCounted).toBeUndefined()
+    expect(pane.thumbnails).toHaveLength(3)
+  })
+
+  it('keeps the attempt’s own line when no pair shows the change, folding the rest without "more"', () => {
+    const failed = proof({
+      mode: 'live',
+      pairs: passed.pairs.map((p) => ({ ...p, counted: false, reason: 'Wrong base.' })),
+      newScreenIds: [],
+      unpaired: passed.unpaired,
+    })
+    const v = verifyProofView(failed, tiles, { standing: 'failed' })
+    const pane = proofScreensPane(v)
+    expect(pane.thumbnails).toEqual([])
+    expect(pane.hasBefore).toBe(false)
+    expect(pane.summary).toEqual(v.summary)
+    expect(pane.summary?.text).toBe('No pair shows the change · 5 did not count')
+    expect(pane.notCounted).toEqual({
+      count: 5,
+      label: '5 captures filed · not part of the proof',
+    })
+  })
+
+  it('offers no before when every thumbnail is a new screen with no entry point', () => {
+    const lone = proof({ mode: 'live', newScreenIds: ['a-launch'] })
+    const pane = proofScreensPane(verifyProofView(lone, tiles, { standing: 'passed' }))
+    expect(pane.thumbnails.map((t) => [t.subject, t.marker, t.before])).toEqual([
+      ['launch-font-preview', 'new', undefined],
+    ])
+    expect(pane.hasBefore).toBe(false)
+    expect(pane.saveAllLabel).toBe('Save 1 screen')
+  })
+
+  it('marks an unmeasured proving pair with nothing rather than a guess', () => {
+    const unmeasured = proof({
+      pairs: [
+        pair({ subject: 'event-home', beforeId: 'b-home', afterId: 'a-home', counted: true }),
+      ],
+    })
+    const [thumb] = proofScreensPane(
+      verifyProofView(unmeasured, tiles, { standing: 'passed' }),
+    ).thumbnails
+    expect(thumb.marker).toBeUndefined()
+  })
+
+  it('carries why a side is absent while the evidence loads', () => {
+    const [thumb] = proofScreensPane(
+      verifyProofView(passed, [], { standing: 'passed', evidence: 'loading' }),
+    ).thumbnails
+    expect(thumb.before).toBeUndefined()
+    expect(thumb.beforeAbsent).toBe(CAPTURE_LOADING)
+    expect(
+      proofScreensPane(verifyProofView(passed, [], { standing: 'passed', evidence: 'loading' }))
+        .hasBefore,
+    ).toBe(true)
+    expect(thumb.afterAbsent).toBe(CAPTURE_LOADING)
+  })
+})
+
+describe('proofThumbnailFrame', () => {
+  const before = tile({ id: 'b', phase: 'before', subject: 'home' })
+  const after = tile({ id: 'a', phase: 'after', subject: 'home' })
+  const thumb = {
+    before,
+    after,
+    beforeAbsent: undefined,
+    afterAbsent: undefined,
+  }
+
+  it('shows the side the toggle names', () => {
+    expect(proofThumbnailFrame(thumb, 'before')).toEqual({ tile: before, absent: undefined })
+    expect(proofThumbnailFrame(thumb, 'after')).toEqual({ tile: after, absent: undefined })
+  })
+
+  it('says why a before is absent rather than showing the after in its place', () => {
+    expect(
+      proofThumbnailFrame({ ...thumb, before: undefined, beforeAbsent: CAPTURE_MISSING }, 'before'),
+    ).toEqual({ tile: undefined, absent: CAPTURE_MISSING })
+  })
+
+  it('shows the after of a screen that has no before at all', () => {
+    expect(proofThumbnailFrame({ ...thumb, before: undefined }, 'before')).toEqual({
+      tile: after,
+      absent: undefined,
     })
   })
 })
@@ -751,7 +1043,7 @@ describe('verifyGateLine', () => {
 })
 
 describe('verifyAttemptFacts', () => {
-  it('gives the attempt’s own time and cost, unpriced tokens named', () => {
+  it('gives the attempt’s own time and charge, with its unpriced tokens in the details only', () => {
     expect(
       verifyAttemptFacts(
         verify('v', 'passed', 1_000, {
@@ -759,7 +1051,18 @@ describe('verifyAttemptFacts', () => {
           cost: { costUsd: 0.42, unpricedTokens: 1_200_000 },
         }),
       ),
-    ).toEqual({ durationLabel: '1m 35s', costLabel: '$0.42 + 1.2M unpriced tokens' })
+    ).toEqual({
+      durationLabel: '1m 35s',
+      costLabel: '$0.42',
+      cost: { costUsd: 0.42, unpricedTokens: 1_200_000 },
+    })
+  })
+
+  it('shows a verifier on a subscription as $0.00', () => {
+    const cost = { costUsd: 0, includedTokens: 1_308_171 }
+    expect(
+      verifyAttemptFacts(verify('v', 'passed', 1_000, { endedAt: 61_000, cost })).costLabel,
+    ).toBe('$0.00')
   })
 
   it('leaves out what a still-running attempt has not measured', () => {
@@ -808,7 +1111,7 @@ describe('verifyAttempts', () => {
 
 describe('acceptedVerifyAttempt', () => {
   it('takes the latest PASSED attempt, even when a later one failed', () => {
-    const sel = acceptedVerifyAttempt(
+    const attempt = acceptedVerifyAttempt(
       childRun([
         implement('i1', 'dev-1', 0),
         verify('v1', 'failed', 10),
@@ -816,12 +1119,11 @@ describe('acceptedVerifyAttempt', () => {
         verify('v3', 'failed', 50),
       ]),
     )
-    expect(sel?.accepted.entry.id).toBe('v2')
-    expect(sel?.others.map((a) => a.entry.id)).toEqual(['v3', 'v1'])
+    expect(attempt?.entry.id).toBe('v2')
   })
 
   it('takes the attempt a person accepted over the gate, as the run moved on from it', () => {
-    const sel = acceptedVerifyAttempt(
+    const attempt = acceptedVerifyAttempt(
       childRun([
         implement('i1', 'dev-1', 0),
         verify('v1', 'failed', 10),
@@ -829,89 +1131,44 @@ describe('acceptedVerifyAttempt', () => {
         verify('v3', 'failed', 50),
       ]),
     )
-    expect(sel?.accepted.entry.id).toBe('v2')
-    expect(sel?.others.map((a) => a.entry.id)).toEqual(['v3', 'v1'])
+    expect(attempt?.entry.id).toBe('v2')
   })
 
   it('does not take an attempt a person only retried', () => {
-    const sel = acceptedVerifyAttempt(
+    const attempt = acceptedVerifyAttempt(
       childRun([
         implement('i1', 'dev-1', 0),
         verify('v1', 'failed', 10, { override: { choice: 'retry', at: 20 } }),
         verify('v2', 'failed', 30),
       ]),
     )
-    expect(sel?.accepted.entry.id).toBe('v2')
+    expect(attempt?.entry.id).toBe('v2')
   })
 
   it('falls back to the latest attempt when none passed, so a failure still shows why', () => {
-    const sel = acceptedVerifyAttempt(
+    const attempt = acceptedVerifyAttempt(
       childRun([
         implement('i1', 'dev-1', 0),
         verify('v1', 'failed', 10),
         verify('v2', 'errored', 30),
       ]),
     )
-    expect(sel?.accepted.entry.id).toBe('v2')
-    expect(sel?.others.map((a) => a.entry.id)).toEqual(['v1'])
+    expect(attempt?.entry.id).toBe('v2')
   })
 
   it('shows a still-running attempt when nothing has passed yet', () => {
-    const sel = acceptedVerifyAttempt(
+    const attempt = acceptedVerifyAttempt(
       childRun([
         implement('i1', 'dev-1', 0),
         verify('v1', 'failed', 10),
         entry({ id: 'v2', status: 'running', startedAt: 30 }),
       ]),
     )
-    expect(sel?.accepted.entry.id).toBe('v2')
+    expect(attempt?.entry.id).toBe('v2')
   })
 
   it('is undefined when the run never verified', () => {
     expect(acceptedVerifyAttempt(childRun([implement('i1', 'dev-1', 0)]))).toBeUndefined()
-  })
-})
-
-describe('featureVerifySelection', () => {
-  it('selects from the feature’s child run whose verification is newest', () => {
-    const older = childRun([implement('i1', 'dev-1', 0), verify('old', 'passed', 10)])
-    const newer = childRun([implement('i2', 'dev-2', 100), verify('new', 'failed', 110)])
-    const other = childRun([implement('i3', 'dev-3', 500), verify('x', 'passed', 510)], 'f2')
-    const root = { plan: PLAN, ledger: [verify('root', 'passed', 900)] } as VerifyAttemptRun
-    const sel = featureVerifySelection([older, other, newer, root], 'f1')
-    expect(sel?.accepted.entry.id).toBe('new')
-    expect(sel?.others.map((o) => o.entry.id)).toEqual(['old'])
-  })
-
-  it('keeps every earlier attempt across a relaunch, numbered by when each started', () => {
-    const relaunched = childRun([implement('j1', 'dev-9', 1_000), verify('w1', 'passed', 1_100)])
-    const first = childRun([
-      implement('i1', 'dev-1', 100),
-      verify('v1', 'failed', 200),
-      implement('i2', 'dev-2', 400),
-      verify('v2', 'failed', 500),
-    ])
-    const sel = featureVerifySelection([relaunched, first], 'f1')!
-    expect([sel.accepted.entry.id, sel.accepted.attempt, sel.accepted.total]).toEqual(['w1', 3, 3])
-    expect(sel.accepted.review?.reviewedRunId).toBe('dev-9')
-    expect(sel.others.map((o) => [o.entry.id, o.attempt, o.total])).toEqual([
-      ['v2', 2, 3],
-      ['v1', 1, 3],
-    ])
-    expect(sel.others[0].review?.reviewedRunId).toBe('dev-2')
-  })
-
-  it('lets a relaunch supersede an older run’s pass', () => {
-    const passedBefore = childRun([implement('i1', 'dev-1', 0), verify('old', 'passed', 10)])
-    const relaunched = childRun([implement('i2', 'dev-2', 100), verify('new', 'failed', 110)])
-    const sel = featureVerifySelection([relaunched, passedBefore], 'f1')!
-    expect(sel.accepted.entry.id).toBe('new')
-    expect(sel.others.map((o) => o.entry.id)).toEqual(['old'])
-  })
-
-  it('is undefined when no run of the feature verified', () => {
-    expect(featureVerifySelection([childRun([implement('i1', 'dev-1', 0)])], 'f1')).toBeUndefined()
-    expect(featureVerifySelection([], 'f1')).toBeUndefined()
   })
 })
 
@@ -1062,7 +1319,7 @@ describe('featureVerifyView', () => {
     }),
   ])
 
-  it('labels the accepted attempt and folds the rest under "Earlier attempts"', () => {
+  it('labels the accepted attempt by where it sits among its run’s attempts', () => {
     const view = featureVerifyView(acceptedVerifyAttempt(run)!, tiles, { keyPrefix: 'f1::' })
     expect(view.acceptedLabel).toBe('Verify attempt 3 of 3 — the one the gate passed')
     expect(view.standing).toBe('passed')
@@ -1074,17 +1331,7 @@ describe('featureVerifyView', () => {
       { label: 'The gate passed it', reason: '1 pair proves the change', tone: 'done' },
     ])
     expect(view.accepted.entry.id).toBe('v3')
-    expect(view.othersLabel).toBe('Earlier attempts (2)')
-    expect(view.others.map((o) => o.title)).toEqual(['Attempt 2 of 3', 'Attempt 1 of 3'])
-    expect(view.others[1].notes).toEqual([
-      {
-        label: 'The gate did not pass it',
-        reason: 'No before/after pair on the preview screen.',
-        tone: 'stuck',
-      },
-    ])
-    expect(view.others[0].notes).toEqual([{ label: 'The gate did not pass it', tone: 'stuck' }])
-    expect(new Set([view.accepted.key, ...view.others.map((o) => o.key)]).size).toBe(3)
+    expect(view.accepted.key).toBe('f1::v3::')
   })
 
   it('shows an attempt a person accepted as accepted by them, saying what the gate said', () => {
@@ -1157,12 +1404,7 @@ describe('featureVerifyView', () => {
     expect(view.dataUnstated).toBe(true)
   })
 
-  it('says when no attempt passed, and that later attempts are not all earlier', () => {
-    const failing = childRun([
-      implement('i1', 'dev-1', 0),
-      verify('v1', 'passed', 10),
-      verify('v2', 'failed', 20),
-    ])
+  it('says when no attempt passed', () => {
     const lastOnly = featureVerifyView(
       acceptedVerifyAttempt(childRun([implement('i1', 'dev-1', 0), verify('v1', 'failed', 10)]))!,
       tiles,
@@ -1171,10 +1413,6 @@ describe('featureVerifyView', () => {
     expect(lastOnly.standing).toBe('failed')
     expect(lastOnly.mode).toBe('unknown')
     expect(lastOnly.dataUnstated).toBe(false)
-    expect(lastOnly.othersLabel).toBeUndefined()
-    expect(featureVerifyView(acceptedVerifyAttempt(failing)!, tiles).othersLabel).toBe(
-      'Other attempts (1)',
-    )
   })
 
   it('says the gate could not confirm the latest attempt when that is what it concluded', () => {
@@ -1186,19 +1424,6 @@ describe('featureVerifyView', () => {
     )
     expect(view.acceptedLabel).toBe(
       'Verify attempt 1 of 1 — the latest; the gate could not confirm the proof',
-    )
-  })
-
-  it('does not claim none passed when a superseded run’s attempt did', () => {
-    const sel = featureVerifySelection(
-      [
-        childRun([implement('i1', 'dev-1', 0), verify('old', 'passed', 10)]),
-        childRun([implement('i2', 'dev-2', 100), verify('new', 'failed', 110)]),
-      ],
-      'f1',
-    )!
-    expect(featureVerifyView(sel, tiles).acceptedLabel).toBe(
-      'Verify attempt 2 of 2 — the latest; it did not pass',
     )
   })
 
@@ -1237,7 +1462,32 @@ describe('storyProofNotice', () => {
     mode: 'live',
     standing: 'passed',
     dataUnstated: false,
+    proofUnvouched: false,
     ...over,
+  })
+
+  it('names a feature whose proof now rests only on captures that cannot be vouched for', () => {
+    expect(
+      storyProofNotice([
+        section({ label: 'Feature #1', proofUnvouched: true }),
+        section({ label: 'Feature #2' }),
+      ]),
+    ).toEqual({
+      tone: 'empty',
+      text: 'Feature #1 rests only on captures that can’t be vouched for now — open it to see why; the next verify run captures them again.',
+    })
+  })
+
+  it('names several such features naturally, beside the other flags, and never one that did not stand', () => {
+    const notice = storyProofNotice([
+      section({ label: 'Feature #1', proofUnvouched: true, mode: 'dry' }),
+      section({ label: 'Feature #2', proofUnvouched: true }),
+      section({ label: 'Feature #3', proofUnvouched: true, standing: 'failed' }),
+    ])
+    expect(notice?.tone).toBe('working')
+    expect(notice?.text).toBe(
+      'Feature #1 was verified dry — not against the live backend. Open it to see what the live backend must send. Feature #1 and Feature #2 rest only on captures that can’t be vouched for now — open each to see why; the next verify run captures them again.',
+    )
   })
 
   it('names every feature that passed only on faked data', () => {
@@ -1596,7 +1846,7 @@ describe('verifySectionProps', () => {
 })
 
 describe('featureVerifySectionProps', () => {
-  it('adds which attempt is shown and folds the others', () => {
+  it('adds which attempt is shown and offers none of the others', () => {
     const run = childRun([
       implement('i1', 'dev-1', 0),
       verify('v1', 'failed', 10),
@@ -1605,8 +1855,105 @@ describe('featureVerifySectionProps', () => {
     const props = featureVerifySectionProps(featureVerifyView(acceptedVerifyAttempt(run)!, []))
     expect(props.attemptLabel).toBe('Verify attempt 2 of 2 — the one the gate passed')
     expect(props.proof?.header?.mode).toBe('dry')
-    expect(props.otherAttempts?.label).toBe('Earlier attempts (1)')
-    expect(props.otherAttempts?.attempts.map((a) => a.title)).toEqual(['Attempt 1 of 2'])
+    expect('otherAttempts' in props).toBe(false)
+  })
+
+  it('hands the section only the latest report its attempt filed', () => {
+    const run = childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)])
+    const reports = [
+      tile({ id: 'first', runId: 'dev-1', kind: 'report', createdAt: 12 }),
+      tile({ id: 'last', runId: 'dev-1', kind: 'report', createdAt: 18 }),
+      tile({ id: 'middle', runId: 'dev-1', kind: 'report', createdAt: 15 }),
+    ]
+    const props = featureVerifySectionProps(featureVerifyView(acceptedVerifyAttempt(run)!, reports))
+    expect(props.reports.map((r) => r.ref.id)).toEqual(['last'])
+  })
+
+  describe('the reviewer’s note', () => {
+    const approved = (reason?: string) =>
+      tile({
+        id: 'verdict',
+        runId: 'dev-1',
+        kind: 'report',
+        mediaType: 'text/markdown',
+        verdict: 'approved',
+        ...(reason ? { verdictReason: reason } : {}),
+        createdAt: 15,
+      })
+    const changesRequested = tile({
+      id: 'verdict',
+      runId: 'dev-1',
+      kind: 'report',
+      mediaType: 'text/markdown',
+      verdict: 'changes-requested',
+      verdictReason: 'The card still uses the old font.',
+      createdAt: 15,
+    })
+    const notesFor = (v: ProcessLedgerEntry, tiles: EvidenceTile[]) => {
+      const run = childRun([implement('i1', 'dev-1', 0), v])
+      return featureVerifySectionProps(featureVerifyView(acceptedVerifyAttempt(run)!, tiles)).notes
+    }
+
+    it('is left out when it only approves what the gate passed — the section’s line says so', () => {
+      const onScreens = verify('v1', 'passed', 10, {
+        summary: '1 before/after pair shows the change (home), approved by the reviewer.',
+        proof: proof({ newScreenIds: ['a-home'] }),
+      })
+      expect(notesFor(onScreens, [approved('Shown on the card.')])).toEqual([])
+      const onReading = verify('v1', 'passed', 10, {
+        summary: 'The reviewer read the change and approved it.',
+        proof: proof(),
+      })
+      expect(
+        notesFor(onReading, [approved('The reviewer read the change and approved it.')]),
+      ).toEqual([
+        {
+          label: 'The gate passed it',
+          reason: 'The reviewer read the change and approved it.',
+          tone: 'done',
+        },
+      ])
+    })
+
+    it('stays when the gate did not pass what the reviewer approved', () => {
+      const unconfirmed = verify('v1', 'unchecked', 10, {
+        proof: proof({ outcome: 'unchecked', reasons: ['home: Pixel-identical.'] }),
+      })
+      expect(notesFor(unconfirmed, [approved()]).map((n) => n.label)).toEqual([
+        'The reviewer approved, but the proof could not be confirmed',
+        'Reviewer · Approved',
+      ])
+      const failed = verify('v1', 'failed', 10, { summary: 'No pair shows the change.' })
+      expect(notesFor(failed, [approved()]).map((n) => n.label)).toContain('Reviewer · Approved')
+    })
+
+    it('stays when a person accepted the attempt', () => {
+      const accepted = verify('v1', 'unchecked', 10, { ...accept('continue'), proof: proof() })
+      expect(notesFor(accepted, [approved()]).map((n) => n.label)).toEqual([
+        'Accepted by you',
+        'The reviewer approved, but the proof could not be confirmed',
+        'Reviewer · Approved',
+      ])
+    })
+
+    it('stays when the reviewer did not approve what the gate passed', () => {
+      const passed = verify('v1', 'passed', 10, { proof: proof({ newScreenIds: ['a-home'] }) })
+      expect(notesFor(passed, [changesRequested])).toEqual([
+        {
+          label: 'Reviewer · Changes requested',
+          reason: 'The card still uses the old font.',
+          tone: 'stuck',
+        },
+      ])
+    })
+
+    it('is still shown on the attempt itself, where it is the reviewer’s own record', () => {
+      const e = verify('v1', 'passed', 10, { proof: proof({ newScreenIds: ['a-home'] }) })
+      const review = { reviewedRunId: 'dev-1', filedSince: 10, filedUntil: 20 }
+      expect(
+        verifySectionProps(e, verifyAttemptEvidence({ entry: e, review }, [approved()])).notes,
+      ).toEqual([{ label: 'Reviewer · Approved', tone: 'done' }])
+    })
   })
 
   it('carries the acceptance of an attempt a person accepted, and what the gate said', () => {
@@ -1619,12 +1966,6 @@ describe('featureVerifySectionProps', () => {
       { label: 'Accepted by you', tone: 'review' },
       { label: 'The gate did not pass it', reason: 'No pair shows the change.', tone: 'stuck' },
     ])
-  })
-
-  it('offers no disclosure when the accepted attempt is the only one', () => {
-    const run = childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)])
-    const props = featureVerifySectionProps(featureVerifyView(acceptedVerifyAttempt(run)!, []))
-    expect('otherAttempts' in props).toBe(false)
   })
 })
 
@@ -1675,6 +2016,416 @@ describe('captureBuildCaption', () => {
       builtSha: '38832196',
       dirty: false,
       expectedSha: undefined,
+    })
+  })
+})
+
+/**
+ * A capture as the backend lists it once it cannot vouch for it — after a
+ * restart, every earlier one: what the filer named and where it is stored,
+ * with the reason, and no build, device, screen, comparison or verdict.
+ */
+const unvouchedTile = (
+  over: Partial<ReviewEvidenceRef> & { id: string },
+  reason: string = EVIDENCE_RECORD_UNVOUCHED_REASON,
+): EvidenceTile =>
+  tile({
+    path: `.factory/artifacts/review/reviewed/${over.id}.png`,
+    bytes: 618_269,
+    unvouchedReason: reason,
+    ...over,
+  })
+
+describe('verifyProofView, once the backend cannot vouch for the captures', () => {
+  const vouched = (over: Partial<ReviewEvidenceRef> & { id: string }) =>
+    tile({
+      capturedOn: 'android · emulator-5554',
+      build: { platform: 'android', sha: HEAD, dirty: false },
+      ...over,
+    })
+
+  const passed = proof({
+    mode: 'live',
+    baseSha: BASE,
+    headSha: HEAD,
+    pairs: [
+      pair({
+        subject: 'login-card',
+        beforeId: 'b-login',
+        afterId: 'a-login',
+        changedPixels: 219_902,
+        totalPixels: 2_391_120,
+        sameScreen: 0.84,
+        counted: true,
+      }),
+      pair({
+        subject: 'home',
+        beforeId: 'b-home',
+        afterId: 'a-home',
+        changedPixels: 0,
+        totalPixels: 2_391_120,
+        counted: false,
+        reason: 'Pixel-identical — the change does not show here.',
+      }),
+      pair({
+        subject: 'font-preview-roles',
+        beforeId: 'b-menu',
+        afterId: 'a-roles',
+        changedPixels: 900_000,
+        totalPixels: 2_391_120,
+        counted: true,
+        newScreen: true,
+      }),
+    ],
+    newScreenIds: ['a-roles', 'a-picker'],
+  })
+
+  const afterRestart: EvidenceTile[] = [
+    unvouchedTile({ id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 }),
+    unvouchedTile({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
+    unvouchedTile({ id: 'b-home', phase: 'before', subject: 'home', createdAt: 10 }),
+    unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 20 }),
+    unvouchedTile({ id: 'b-menu', phase: 'before', subject: 'font-preview-roles', createdAt: 12 }),
+    unvouchedTile({ id: 'a-roles', phase: 'after', subject: 'font-preview-roles', createdAt: 23 }),
+    unvouchedTile({ id: 'a-picker', phase: 'after', subject: 'font-picker', createdAt: 24 }),
+  ]
+
+  it('never shows a pair the gate counted as showing the change once a side cannot be vouched for', () => {
+    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
+    expect(v.pairs.some((p) => p.counted)).toBe(false)
+    expect(v.pairs.some((p) => p.verdict === PAIR_COUNTED_VERDICT)).toBe(false)
+    expect(v.countedCount).toBe(0)
+    expect(v.newScreens).toEqual([])
+  })
+
+  it('groups what the gate counted with what did not count, first, saying the gate counted it then', () => {
+    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
+    expect(v.pairs.map((p) => [p.subject, p.verdict])).toEqual([
+      ['login-card', COUNTED_UNVOUCHED_VERDICT],
+      ['font-preview-roles', COUNTED_UNVOUCHED_VERDICT],
+      ['home', 'Pixel-identical — the change does not show here.'],
+    ])
+    expect(v.pairs.map((p) => p.unvouched?.text)).toEqual([
+      UNVOUCHED_RESTART_TEXT.capture,
+      UNVOUCHED_RESTART_TEXT.capture,
+      UNVOUCHED_RESTART_TEXT.capture,
+    ])
+    expect(v.pairs[1]).toMatchObject({ newScreen: true, change: NEW_SCREEN_PAIR_CHANGE })
+    expect(v.unpaired.map((u) => [u.subject, u.reason, u.unvouched?.cause])).toEqual([
+      ['font-picker', COUNTED_UNVOUCHED_VERDICT, 'restart'],
+    ])
+  })
+
+  it('keeps each image, and pages the overlay in the order the page shows it', () => {
+    const v = verifyProofView(passed, afterRestart, { standing: 'passed', keyPrefix: 'f1::' })
+    expect(v.pairs[0].before?.ref.id).toBe('b-login')
+    expect(v.pairs[0].after?.ref.id).toBe('a-login')
+    expect(v.screens.map((s) => [s.index, s.title])).toEqual([
+      [1, 'login-card'],
+      [2, 'font-preview-roles'],
+      [3, 'home'],
+      [4, 'font-picker'],
+    ])
+    expect(v.screens[0].note).toBe(
+      `${COUNTED_UNVOUCHED_VERDICT} · 219,902 px changed (9.2%) · 84% of on-screen elements shared`,
+    )
+    expect(v.screens.every((s) => s.unvouched?.cause === 'restart')).toBe(true)
+    expect(new Set(v.screens.map((s) => s.key)).size).toBe(4)
+    const byKey = new Map(v.screens.map((s) => [s.key, s.index]))
+    for (const p of v.pairs) expect(byKey.get(p.key)).toBe(p.index)
+    for (const u of v.unpaired) expect(byKey.get(u.key)).toBe(u.index)
+  })
+
+  it('says in the banner and the summary that nothing it rested on can be vouched for', () => {
+    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
+    expect(v.restsOnScreens).toBe(true)
+    expect(v.header?.unvouched).toEqual({
+      chip: UNVOUCHED_LABEL,
+      text: UNVOUCHED_BASIS_BANNER.restart,
+    })
+    expect(v.header?.title).toBe('Verified on live data')
+    expect(v.summary).toEqual({
+      tone: 'empty',
+      text: `${UNVOUCHED_BASIS_SUMMARY} · 4 did not count`,
+    })
+  })
+
+  it('does not blame a restart when what it rested on was changed on the host', () => {
+    const changed = afterRestart.map((t) =>
+      t.ref.id === 'a-login'
+        ? tile({ ...t.ref, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON })
+        : t,
+    )
+    const v = verifyProofView(passed, changed, { standing: 'passed' })
+    expect(v.header?.unvouched?.text).toBe(UNVOUCHED_BASIS_BANNER.other)
+    expect(v.pairs[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
+  })
+
+  it('does not blame a restart when only a pair’s BEFORE was changed on the host', () => {
+    const changedBefore = afterRestart.map((t) =>
+      t.ref.id === 'b-login'
+        ? tile({ ...t.ref, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON })
+        : t,
+    )
+    const v = verifyProofView(passed, changedBefore, { standing: 'passed' })
+    expect(v.header?.unvouched?.text).toBe(UNVOUCHED_BASIS_BANNER.other)
+    expect(v.pairs[0].unvouched?.cause).toBe('file-changed')
+    expect(v.pairs[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
+    expect(v.screens[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
+  })
+
+  it('still rests on what can be vouched for, with no banner, when only some of it cannot', () => {
+    const partly = [
+      ...afterRestart.filter((t) => t.ref.id !== 'b-login' && t.ref.id !== 'a-login'),
+      vouched({ id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 }),
+      vouched({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
+    ]
+    const v = verifyProofView(passed, partly, { standing: 'passed' })
+    expect(v.header?.unvouched).toBeUndefined()
+    expect(v.pairs[0]).toMatchObject({
+      subject: 'login-card',
+      counted: true,
+      verdict: PAIR_COUNTED_VERDICT,
+      unvouched: undefined,
+    })
+    expect(v.summary).toEqual({
+      tone: 'done',
+      text: '1 pair shows the change · 3 did not count',
+    })
+  })
+
+  it('does not count one unvouched side any more than two', () => {
+    const oneSide = [
+      ...afterRestart.filter((t) => t.ref.id !== 'a-login'),
+      vouched({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
+    ]
+    const [login] = verifyProofView(passed, oneSide, { standing: 'passed' }).pairs
+    expect(login).toMatchObject({ counted: false, verdict: COUNTED_UNVOUCHED_VERDICT })
+    expect(login.unvouched?.cause).toBe('restart')
+  })
+
+  it('keeps a new screen whose entry point cannot be vouched for out of the screens the change adds', () => {
+    const entryOnly = [
+      ...afterRestart.filter((t) => t.ref.id !== 'a-roles' && t.ref.id !== 'a-picker'),
+      vouched({ id: 'a-roles', phase: 'after', subject: 'font-preview-roles', createdAt: 23 }),
+      vouched({ id: 'a-picker', phase: 'after', subject: 'font-picker', createdAt: 24 }),
+    ]
+    const v = verifyProofView(passed, entryOnly, { standing: 'passed' })
+    expect(v.newScreens.map((s) => s.id)).toEqual(['a-picker'])
+    expect(v.pairs.find((p) => p.afterId === 'a-roles')).toMatchObject({
+      counted: false,
+      verdict: COUNTED_UNVOUCHED_VERDICT,
+    })
+    expect(v.header?.unvouched).toBeUndefined()
+  })
+
+  it('never takes a capture that has not loaded yet for one that cannot be vouched for', () => {
+    const v = verifyProofView(passed, [], { standing: 'passed', evidence: 'loading' })
+    expect(v.pairs[0]).toMatchObject({ subject: 'login-card', counted: true, unvouched: undefined })
+    expect(v.newScreens.map((s) => s.id)).toEqual(['a-roles', 'a-picker'])
+    expect(v.header?.unvouched).toBeUndefined()
+  })
+
+  it('keeps the gate’s reason on an after it never counted, and says why it cannot be vouched for', () => {
+    const v = verifyProofView(
+      proof({
+        unpaired: [
+          {
+            subject: 'preview',
+            afterId: 'a-preview',
+            reason: 'No base capture under this subject.',
+          },
+        ],
+      }),
+      [unvouchedTile({ id: 'a-preview', phase: 'after', subject: 'preview' })],
+      { standing: 'failed' },
+    )
+    expect(v.unpaired[0].reason).toBe('No base capture under this subject.')
+    expect(v.unpaired[0].unvouched?.text).toBe(UNVOUCHED_RESTART_TEXT.capture)
+    expect(v.screens[0].unvouched?.cause).toBe('restart')
+    expect(v.header?.unvouched).toBeUndefined()
+  })
+})
+
+describe('verifyAttemptEvidence, once the backend cannot vouch for the filings', () => {
+  const review = { reviewedRunId: 'reviewed', filedSince: 100, filedUntil: 200 }
+  const report = (over: Partial<ReviewEvidenceRef> & { id: string }) =>
+    tile({ kind: 'report', mediaType: 'text/markdown', createdAt: 190, ...over })
+
+  it('says the reviewer’s verdict is not shown when the filings it rode on cannot be vouched for', () => {
+    const tiles = [
+      unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
+      report({ id: 'rep', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
+    ]
+    const entryPassed = verify('v1', 'passed', 100, {
+      proof: proof({ pairs: [pair({ beforeId: 'b-gone', afterId: 'a-home', counted: true })] }),
+    })
+    const ev = verifyAttemptEvidence({ entry: entryPassed, review }, tiles)
+    expect(ev.verdict).toBeUndefined()
+    expect(ev.verdictUnvouched).toBe(true)
+    expect(verifySectionProps(entryPassed, ev).notes).toContainEqual({
+      label: REVIEWER_VERDICT_UNVOUCHED_LABEL,
+      reason: REVIEWER_VERDICT_UNVOUCHED_REASON,
+      tone: 'review',
+    })
+  })
+
+  it('shows a verdict the backend still vouches for, and no such note', () => {
+    const tiles = [
+      unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
+      report({ id: 'rep', verdict: 'approved', verdictReason: 'The login card shows it.' }),
+    ]
+    const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
+    expect(ev.verdictUnvouched).toBe(false)
+    const labels = verifySectionProps(verify('v1', 'failed', 100), ev).notes.map((n) => n.label)
+    expect(labels).toContain('Reviewer · Approved')
+    expect(labels).not.toContain(REVIEWER_VERDICT_UNVOUCHED_LABEL)
+  })
+
+  it('never shows an older approval as the reviewer’s conclusion once a newer report lost its verdict', () => {
+    const tiles = [
+      report({ id: 'r2', createdAt: 190, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
+      report({
+        id: 'r1',
+        createdAt: 150,
+        verdict: 'approved',
+        verdictReason: 'Looks right',
+      }),
+    ]
+    const failed = verify('v1', 'failed', 100)
+    const ev = verifyAttemptEvidence({ entry: failed, review }, tiles)
+    expect(ev.verdict).toBeUndefined()
+    expect(ev.verdictUnvouched).toBe(true)
+    const notes = verifySectionProps(failed, ev).notes
+    expect(notes.map((n) => n.label)).not.toContain('Reviewer · Approved')
+    expect(notes).toContainEqual({
+      label: REVIEWER_VERDICT_UNVOUCHED_LABEL,
+      reason: REVIEWER_VERDICT_UNVOUCHED_REASON,
+      tone: 'review',
+    })
+  })
+
+  it('says nothing about a verdict when only a capture’s own record was not the tool’s — its filing kept every verdict', () => {
+    const tiles = [
+      unvouchedTile(
+        { id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 },
+        CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+      ),
+    ]
+    const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
+    expect(ev.verdictUnvouched).toBe(false)
+  })
+
+  it('reads the same in an entry from before the gate recorded its proof, pairs marked', () => {
+    const tiles = [
+      unvouchedTile({ id: 'b-home', phase: 'before', subject: 'home', createdAt: 120 }),
+      unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
+    ]
+    const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
+    expect(ev.proof).toBeUndefined()
+    expect(ev.verdictUnvouched).toBe(true)
+    expect(ev.pairs[0]).toMatchObject({ class: 'pair', title: 'home' })
+    expect(ev.pairs[0].unvouched?.cause).toBe('restart')
+  })
+})
+
+describe('featureVerifyView, once its proof cannot be vouched for', () => {
+  it('flags a feature whose accepted proof rests only on captures that cannot be vouched for', () => {
+    const run = childRun([
+      implement('i1', 'dev-1', 0),
+      verify('v1', 'passed', 10, { proof: proof({ mode: 'live', newScreenIds: ['a-new'] }) }),
+    ])
+    const flagged = featureVerifyView(acceptedVerifyAttempt(run)!, [
+      unvouchedTile({ id: 'a-new', phase: 'after', subject: 'picker' }),
+    ])
+    expect(flagged.proofUnvouched).toBe(true)
+    const clear = featureVerifyView(acceptedVerifyAttempt(run)!, [
+      tile({ id: 'a-new', phase: 'after', subject: 'picker', capturedOn: 'ios · iPhone 16' }),
+    ])
+    expect(clear.proofUnvouched).toBe(false)
+  })
+
+  it('never flags a feature whose proof is not on record', () => {
+    const run = childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)])
+    expect(featureVerifyView(acceptedVerifyAttempt(run)!, []).proofUnvouched).toBe(false)
+  })
+})
+
+describe('captureBuildCaption, for a capture that cannot be vouched for', () => {
+  it('says so in place of a build, keeping the commit it had to come from', () => {
+    expect(
+      captureBuildCaption(unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home' }), HEAD),
+    ).toEqual({
+      builtSha: undefined,
+      dirty: false,
+      expectedSha: '38832196',
+      unvouched: UNVOUCHED_LABEL,
+    })
+  })
+})
+
+describe('verifyAttemptEvidence, beside a code review filed under the reviewed run', () => {
+  const review = { reviewedRunId: 'reviewed', filedSince: 100 }
+  const tiles: EvidenceTile[] = [
+    tile({
+      id: 'rep',
+      kind: 'report',
+      mediaType: 'text/markdown',
+      verdict: 'approved',
+      createdAt: 150,
+    }),
+    tile({
+      id: 'code-review',
+      kind: 'report',
+      approach: CODE_REVIEW_APPROACH,
+      mediaType: 'text/markdown',
+      verdict: 'changes-requested',
+      verdictReason: 'The new font is never loaded on Android.',
+      createdAt: 400,
+    }),
+    tile({
+      id: 'feature-report',
+      kind: 'report',
+      approach: FEATURE_REPORT_APPROACH,
+      mediaType: 'text/markdown',
+      createdAt: 500,
+    }),
+  ]
+
+  it('keeps the code review and the step reports out of the verifier’s report and verdict', () => {
+    for (const entry of [
+      verify('v1', 'passed', 100, { proof: proof() }),
+      verify('v1', 'passed', 100),
+    ]) {
+      const ev = verifyAttemptEvidence({ entry, review }, tiles)
+      expect(ev.reports.map((r) => r.ref.id)).toEqual(['rep'])
+      expect(ev.verdict).toEqual({ verdict: 'approved' })
+    }
+  })
+
+  it('reads no reviewer verdict when only the code review concluded', () => {
+    const ev = verifyAttemptEvidence(
+      { entry: verify('v1', 'passed', 100), review },
+      tiles.filter((t) => t.ref.id !== 'rep'),
+    )
+    expect(ev.reports).toEqual([])
+    expect(ev.verdict).toBeUndefined()
+    expect(ev.verdictUnvouched).toBe(false)
+  })
+})
+
+describe('codeReviewVerdictNote', () => {
+  it('says the code review’s verdict as the reviewer’s is said', () => {
+    expect(codeReviewVerdictNote({ verdict: 'approved' })).toEqual({
+      label: 'Code review · Approved',
+      tone: 'done',
+    })
+    expect(
+      codeReviewVerdictNote({ verdict: 'changes-requested', reason: 'Missing a test.' }),
+    ).toEqual({
+      label: 'Code review · Changes requested',
+      reason: 'Missing a test.',
+      tone: 'stuck',
     })
   })
 })

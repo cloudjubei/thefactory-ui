@@ -1,3 +1,5 @@
+import { getPrice as findExactPrice } from 'thefactory-tools/utils'
+
 import { getPricing, refreshPricing as refreshPricingApi } from './generated'
 import type { ModelPrice } from './generated/types.gen'
 import type { PricingSnapshot } from './sdkTypes'
@@ -80,60 +82,14 @@ export async function refreshPricingState(
   }
 }
 
-function normalizeProvider(s: string) {
-  return String(s || '')
-    .trim()
-    .toLowerCase()
-}
-
-function normalizeModel(s: string) {
-  const raw = String(s || '')
-    .trim()
-    .toLowerCase()
-  const seg = raw.split(/[/:]/).pop() || raw
-  return seg
-}
-
 /**
- * Look up a price for a `(provider, model)` pair against the cached
- * snapshot (fetching if empty/stale). Falls back through progressively
- * looser matches: exact → model suffix-contains → provider-contains →
- * model substring on either side.
+ * The price for a `(provider, model)` pair from the cached snapshot (fetching
+ * if empty or stale), matched exactly as the backend prices a call — the same
+ * `thefactory-tools` lookup, so the UI can never show a price the ledger would
+ * not charge. No near matches: a loose one priced Cursor's `Composer 2.5` as a
+ * Bedrock Mistral model and `auto` as Moonshot's. An unknown model has no price.
  */
 export async function getPrice(provider?: string, model?: string): Promise<ModelPrice | undefined> {
   const state = await fetchPricing()
-  if (!provider || !model) return undefined
-  const p = normalizeProvider(provider)
-  const m = normalizeModel(model)
-
-  const prices = state.prices || []
-
-  let rec = prices.find((r) => normalizeProvider(r.provider) === p && normalizeModel(r.model) === m)
-  if (rec) return rec
-
-  rec = prices.find(
-    (r) =>
-      normalizeProvider(r.provider) === p && normalizeModel(m).includes(normalizeModel(r.model)),
-  )
-  if (rec) return rec
-
-  rec = prices.find(
-    (r) =>
-      normalizeProvider(r.provider) === p && normalizeModel(r.model).includes(normalizeModel(m)),
-  )
-  if (rec) return rec
-
-  rec = prices.find(
-    (r) =>
-      normalizeProvider(r.provider).includes(p) &&
-      normalizeModel(m).includes(normalizeModel(r.model)),
-  )
-  if (rec) return rec
-
-  rec = prices.find(
-    (r) =>
-      normalizeModel(m).includes(normalizeModel(r.model)) ||
-      normalizeModel(r.model).includes(normalizeModel(m)),
-  )
-  return rec
+  return findExactPrice(state, provider, model)
 }

@@ -36,6 +36,8 @@ import type {
   ReviewVerdictSummary,
   RunReviewFacts,
 } from './runReviewTypes'
+import { costChipLabel } from './costDetails'
+import type { CostSource } from './costDetailsTypes'
 import { formatDurationMs } from './time'
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
@@ -148,23 +150,17 @@ export function isReviewReasonValid(reason: string): boolean {
 }
 
 /**
- * Run cost as a label. Sub-cent runs keep four decimals so a `$0.0012` run
- * doesn't collapse to `$0.00`.
+ * Cost + duration for the summary head; each side drops out when unrecorded.
+ * The cost label is the charge alone — the cost itself rides along so the chip
+ * can open its details.
  */
-export function formatCostUSD(costUSD: number | undefined): string | undefined {
-  if (costUSD == null || !Number.isFinite(costUSD) || costUSD < 0) return undefined
-  if (costUSD > 0 && costUSD < 0.01) return `$${costUSD.toFixed(4)}`
-  return `$${costUSD.toFixed(2)}`
-}
-
-/** Cost + duration for the summary head; each side drops out when unrecorded. */
 export function runReviewFacts(input: {
-  costUSD: number | undefined
+  cost: CostSource | undefined
   durationMs: number | undefined
 }): RunReviewFacts {
   const durationLabel =
     input.durationMs == null ? undefined : trimmedOrUndefined(formatDurationMs(input.durationMs))
-  return { costLabel: formatCostUSD(input.costUSD), durationLabel }
+  return { costLabel: costChipLabel(input.cost), durationLabel, cost: input.cost }
 }
 
 /** Per-status tallies for the artifact's file list ("what changed"). */

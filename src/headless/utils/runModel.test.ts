@@ -36,6 +36,39 @@ describe('runModelOf', () => {
   })
 })
 
+describe('runModelOf — the model that ran', () => {
+  it('shows the model the CLI reported, and keeps the one asked for as the request', () => {
+    const m = runModelOf({
+      cli: { tool: 'cursor-agent', version: '' },
+      modelId: 'auto',
+      reportedModel: 'Composer 2.5',
+    })
+    expect(m.model).toBe('Composer 2.5')
+    expect(m.requested).toBe('auto')
+  })
+
+  it('names the reported model when the run asked for none', () => {
+    const m = runModelOf({
+      cli: { tool: 'claude-code', version: '2.1' },
+      reportedModel: 'claude-sonnet-5',
+    })
+    expect(m.model).toBe('claude-sonnet-5')
+    expect(m.requested).toBeUndefined()
+  })
+
+  it('does not repeat the request when it is what ran', () => {
+    const m = runModelOf({ modelId: 'claude-opus-5', reportedModel: 'claude-opus-5' })
+    expect(m.model).toBe('claude-opus-5')
+    expect(m.requested).toBeUndefined()
+  })
+
+  it('falls back to the requested model when the CLI reported none', () => {
+    const m = runModelOf({ modelId: 'composer-2.5', reportedModel: '  ' })
+    expect(m.model).toBe('composer-2.5')
+    expect(m.requested).toBeUndefined()
+  })
+})
+
 describe('runModelOf — transport tag', () => {
   it('tags a CLI run CLI, not with the tool name', () => {
     // The tag slot is the transport; "CLAUDE-CODE" shouted in it is the tool's

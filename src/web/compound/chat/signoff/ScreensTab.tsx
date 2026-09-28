@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { ScreenPair, ScreenPairClass } from '../../../../headless'
+import { screenPairMeta, type ScreenPair } from '../../../../headless'
 import SegmentedControl from '../../../primitives/SegmentedControl'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevronLeft, IconChevronRight, IconDownload } from '../../../icons'
@@ -35,13 +35,6 @@ export type ScreensTabProps = {
 }
 
 type ThumbMode = 'before' | 'after'
-
-const META: Record<ScreenPairClass, string> = {
-  pair: 'before / after',
-  new: 'only on the branch',
-  removed: 'only on the base',
-  single: 'single capture',
-}
 
 const SCROLL_STEP = 366
 
@@ -222,8 +215,11 @@ export default function ScreensTab({
                   </span>{' '}
                   · {pair.title}
                 </span>
-                <span className="text-[10px] text-(--text-muted)">
-                  {capturing ? 'capturing…' : META[pair.class]}
+                <span
+                  className="text-[10px] text-(--text-muted)"
+                  title={capturing ? undefined : pair.unvouched?.text}
+                >
+                  {screenPairMeta(pair, { capturing })}
                 </span>
               </div>
             )

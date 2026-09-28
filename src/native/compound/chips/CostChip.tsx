@@ -1,81 +1,85 @@
-import { Text, View } from 'react-native'
-import Tooltip from '../../primitives/Tooltip'
-import { nativePalette, nativeSpace } from '../../../tokens/native'
+import { useMemo, useState } from 'react'
+import { Pressable, Text, View, type StyleProp, type TextStyle } from 'react-native'
+
+import { costDetailsView, type CostSource } from '../../../headless'
+import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { chipPillStyle, chipPillTextStyle } from './pillStyles'
+import CostDetailsSheet from './CostDetailsSheet'
 
 export interface CostChipProps {
-  provider: string
-  model: string
-  price?: {
-    inputPerMTokensUSD: number
-    outputPerMTokensUSD: number
-  }
-  costUSD?: number
-  /** Executor that produced this cost — renders a small API/CLI pill when set. */
-  source?: 'api' | 'cli'
+  /** The chip's words: the charge in dollars (`$1.25`, `$0.00`, `$1.50 of $5.00`) — never tokens. */
+  label: string
+  /** The cost behind the label. The chip opens its details whenever there are any. */
+  cost?: CostSource
+  /** What the cost is of, heading its details sheet — "Spent against the cap". */
+  title?: string
+  /** `pill` — the neutral cost chip; `text` — inline text, for a meta line. */
+  appearance?: 'pill' | 'text'
+  /** The text look for `appearance="text"`, matching the line it sits in. */
+  textStyle?: StyleProp<TextStyle>
 }
 
-function formatUSD(n?: number): string {
-  if (n == null) return '—'
-  return `$${n.toFixed(4)}`
-}
-
-export default function CostChip({ provider, model, price, costUSD, source }: CostChipProps) {
+/**
+ * A cost, as a chip: the charge in dollars, and the way into everything else.
+ * The native peer of the web `CostChip` — a press opens the details in a
+ * sheet, the touch analogue of the web popover, so a token count never has to
+ * ride on the chip itself.
+ */
+export default function CostChip({
+  label,
+  cost,
+  title,
+  appearance = 'pill',
+  textStyle,
+}: CostChipProps) {
   const { theme } = useNativeTheme()
-  const tooltipBody = (
-    <View>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
-        {(provider || 'Unknown') + ' · ' + (model || 'Unknown')}
-      </Text>
-      {price ? (
-        <View style={{ marginTop: nativeSpace[2], gap: 2 }}>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            Input: ${price.inputPerMTokensUSD} per 1M tokens
-          </Text>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            Output: ${price.outputPerMTokensUSD} per 1M tokens
-          </Text>
-        </View>
-      ) : (
+  const [open, setOpen] = useState(false)
+  const view = useMemo(() => costDetailsView(cost), [cost])
+  const face =
+    appearance === 'pill' ? (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+          borderRadius: nativeRadii.round,
+          borderWidth: 1,
+          borderColor: theme.border.subtle,
+          backgroundColor: theme.surface.overlay,
+        }}
+      >
+        <View
+          style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10b981' }}
+          aria-hidden
+        />
         <Text
           style={{
-            marginTop: nativeSpace[2],
-            fontSize: 12,
-            color: theme.text.muted,
+            fontSize: 11,
+            fontWeight: '500',
+            color: theme.text.secondary,
+            fontVariant: ['tabular-nums'],
           }}
         >
-          Pricing unavailable
+          {label}
         </Text>
-      )}
-    </View>
-  )
-
-  return (
-    <Tooltip content={tooltipBody}>
-      <View style={chipPillStyle(theme)}>
-        <View
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: nativePalette.green[500],
-          }}
-        />
-        <Text style={chipPillTextStyle(theme)}>{formatUSD(costUSD)}</Text>
-        {source ? (
-          <Text
-            style={{
-              fontSize: 9,
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              color: source === 'cli' ? nativePalette.purple[500] : theme.text.muted,
-            }}
-          >
-            {source}
-          </Text>
-        ) : null}
       </View>
-    </Tooltip>
+    ) : (
+      <Text style={[{ fontVariant: ['tabular-nums'] }, textStyle]}>{label}</Text>
+    )
+  if (!view) return face
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}. Show cost details`}
+      >
+        {face}
+      </Pressable>
+      <CostDetailsSheet isOpen={open} onClose={() => setOpen(false)} view={view} title={title} />
+    </>
   )
 }

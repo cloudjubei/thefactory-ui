@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'r
 import {
   captureBuildCaption,
   capturedOnLabel,
+  comparisonPairFacts,
   useEvidenceDiff,
   screenPairFileStem,
   zoomIn,
@@ -71,6 +72,9 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.unvouched ? (
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>{build.unvouched}</Text>
+      ) : null}
       {build.dirty ? (
         <Text style={{ fontSize: 12, color: status.stuck.softFg }}>uncommitted changes</Text>
       ) : null}
@@ -190,15 +194,7 @@ export default function ComparisonOverlay({
   const capturedOn = pair ? capturedOnLabel(pair) : undefined
   const iconColor = theme.text.primary
 
-  const pairFact =
-    pair?.note ??
-    (pair?.class === 'new'
-      ? 'This screen exists only on the branch.'
-      : pair?.class === 'removed'
-        ? 'This screen exists only on the base.'
-        : pair?.class === 'single'
-          ? 'A single capture — there is nothing to compare it with.'
-          : 'Captured on both the base and the branch.')
+  const pairFacts = pair ? comparisonPairFacts(pair) : []
   const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
   const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
 
@@ -439,9 +435,14 @@ export default function ComparisonOverlay({
 
         <View style={{ gap: 2 }}>
           {/* What this pair IS comes first — the mode hint is secondary. */}
-          <Text style={{ textAlign: 'center', fontSize: 12, color: theme.text.secondary }}>
-            {pairFact}
-          </Text>
+          {pairFacts.map((fact) => (
+            <Text
+              key={fact}
+              style={{ textAlign: 'center', fontSize: 12, color: theme.text.secondary }}
+            >
+              {fact}
+            </Text>
+          ))}
           <Text style={{ textAlign: 'center', fontSize: 12, color: theme.text.muted }}>{hint}</Text>
         </View>
 

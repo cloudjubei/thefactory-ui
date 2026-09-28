@@ -99,7 +99,10 @@ export default function CliRunMessages({
   onDeletePreviewChange,
   deleting = false,
 }: CliRunMessagesProps) {
-  const { transcript, status, notReady, startedAtMs, error } = useCliRunArtifact(runId, undefined)
+  const { transcript, status, notReady, startedAtMs, error, usage } = useCliRunArtifact(
+    runId,
+    undefined,
+  )
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
   // The run is "active" (show the activity line) while it's booting (record not
@@ -116,8 +119,9 @@ export default function CliRunMessages({
         ...(model ? { model } : {}),
         showThinking,
         awaitingApprovalToolNames,
+        ...(usage ? { usage } : {}),
       }),
-    [transcript, model, showThinking, awaitingApprovalToolNames],
+    [transcript, model, showThinking, awaitingApprovalToolNames, usage],
   )
   const total = baseIndex + messages.length + 1
   let shownModel = false

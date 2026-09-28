@@ -13,7 +13,7 @@ import {
 import SegmentedControl from '../primitives/SegmentedControl'
 import Tooltip from '../primitives/Tooltip'
 import { IconSettings, IconWorkflow } from '../icons'
-import { CHIP_PILL_NEUTRAL } from '../compound/chips/pillStyles'
+import CostChip from '../compound/chips/CostChip'
 import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
 
@@ -172,24 +172,28 @@ function RunRow({
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={selected}
-      className={`flex w-full flex-col gap-1 rounded-md border px-2.5 py-2 text-left transition-colors ${
+    <div
+      className={`relative flex w-full flex-col gap-1 rounded-md border px-2.5 py-2 text-left transition-colors ${
         selected
           ? 'border-(--border-strong) bg-(--surface-raised)'
-          : 'border-transparent hover:bg-(--surface-raised)'
+          : 'border-transparent has-[>button:hover]:bg-(--surface-raised)'
       }`}
     >
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={selected}
+        aria-label={`${view.title} · ${view.badge.label}`}
+        className="absolute inset-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+      />
+      <div className="pointer-events-none flex items-center gap-2">
         <StatusDot tone={view.badge.tone} />
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
           {view.title}
         </span>
         {work ? <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{work}</span> : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2 pl-4">
+      <div className="pointer-events-none flex flex-wrap items-center gap-2 pl-4">
         <span
           className="rounded-full px-1.5 py-px text-[9.5px]"
           style={{
@@ -200,16 +204,15 @@ function RunRow({
           {view.badge.label}
         </span>
         {spend ? (
-          <span className={`inline-flex items-center gap-1 ${CHIP_PILL_NEUTRAL}`}>
-            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-            {spend.label}
+          <span className="pointer-events-auto relative inline-flex">
+            <CostChip label={spend.label} cost={run.totals} title={spend.title} />
           </span>
         ) : null}
         <span className="min-w-0 flex-1 truncate text-[11px] text-(--text-secondary)">
           {view.sub}
         </span>
       </div>
-    </button>
+    </div>
   )
 }
 

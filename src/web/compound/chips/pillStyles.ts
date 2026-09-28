@@ -1,7 +1,6 @@
 // Shared visual chrome for the agent/run chip family (Cost, Project, Status,
-// Tokens, Turn). Captures the colour + border + sizing that desktop uses for
-// these pills. Layout (flex direction, gap) stays per-chip because TokensChip
-// stacks vertically while the others lay out horizontally.
+// Turn). Captures the colour + border + sizing that desktop uses for these
+// pills. Layout (flex direction, gap) stays per-chip.
 
 // Defers entirely to the CSS `.chip-pill .chip-pill--sm .chip-pill--neutral`
 // recipe so project / cost / tokens chips share the `text-box-trim`-based

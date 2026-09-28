@@ -11,7 +11,7 @@ import type {
   FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
-import type { ChatMessageLike, ToolOrigin } from './chatTypes'
+import type { ChatMessageLike, MessageUsageLike, ToolOrigin } from './chatTypes'
 
 export type StartCliRunBodyInput = {
   projectId: string
@@ -865,9 +865,12 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  *   API path's tool messages.
  * Protocol steps (system/result/raw) are dropped — they have no API analogue.
  * `opts.model` stamps the assistant messages so they show the model chip, and
- * the run's aggregate cost/tokens are attached as `usage` to the first assistant
- * message (the one that shows the model chip) so a CLI run surfaces a cost chip
- * just like an API turn — but only when the CLI reported usage.
+ * `opts.usage` — the run record's tokens, charge and billing — is attached to
+ * the first assistant message (the one that shows the model chip), so a CLI run
+ * surfaces a cost chip just like an API turn, a $0 subscription run included.
+ * The transcript's per-entry `costUSD` is never summed in its place: claude-code
+ * repeats a message's usage on every line it streams, so the sum counts each
+ * message once per line (covision-android/88342735: $0.76 against $0.32).
  *
  * `opts.awaitingApprovalToolNames` re-types an in-flight tool step the run is
  * BLOCKED on from `running` to `require_confirmation`, so it borrows the API
@@ -876,7 +879,12 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
-  opts?: { model?: string; showThinking?: boolean; awaitingApprovalToolNames?: readonly string[] },
+  opts?: {
+    model?: string
+    showThinking?: boolean
+    awaitingApprovalToolNames?: readonly string[]
+    usage?: MessageUsageLike
+  },
 ): ChatMessageLike[] {
   const showThinking = opts?.showThinking ?? true
   const awaitingApproval = new Set(opts?.awaitingApprovalToolNames ?? [])
@@ -929,25 +937,12 @@ export function cliTranscriptToMessages(
       })
     }
   }
-  const usage = aggregateCliRunUsage(entries)
+  const usage = opts?.usage
   if (usage) {
     const firstAssistant = messages.find((m) => m.role === 'assistant')
     if (firstAssistant) firstAssistant.usage = usage
   }
   return messages
-}
-
-/**
- * Sum a CLI run's per-entry `costUSD` into a single {@link MessageUsageLike}, or
- * `undefined` when the run reported no cost (some CLIs don't emit it). Token
- * counts aren't carried per transcript entry, so the chip surfaces cost only.
- */
-function aggregateCliRunUsage(entries: CliRunTranscriptEntry[]): ChatMessageLike['usage'] {
-  let cost = 0
-  for (const e of entries) {
-    if (typeof e.costUSD === 'number' && Number.isFinite(e.costUSD)) cost += e.costUSD
-  }
-  return cost > 0 ? { cost } : undefined
 }
 
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */

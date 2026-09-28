@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import {
   aggregateTestCounts,
+  proofScreensPane,
   reviewTabs,
   screenPairFileStem,
   verificationCheckRows,
@@ -13,7 +14,6 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
-  type VerifyAttemptView,
   type VerifyProofTone,
   type VerifyProofView,
   type VerifyVerdictNote,
@@ -32,7 +32,6 @@ import {
   WalkthroughTab,
 } from '../chat/signoff'
 import { saveSideBySide } from '../chat/signoff/download'
-import OtherVerifyAttempts from './OtherVerifyAttempts'
 import ProofBanner from './ProofBanner'
 import ProofScreens from './ProofScreens'
 
@@ -57,6 +56,10 @@ export type FeatureReviewSectionProps = {
   /** Recordings filed with a verify attempt that its gate did not count — shown apart, marked. */
   uncountedRecordings?: readonly EvidenceTile[]
   reports: readonly EvidenceTile[]
+  /** The code review's finding — its own tab, never the Report tab. */
+  codeReviews?: readonly EvidenceTile[]
+  /** The tab the section opens on when it is there — the story's final report. */
+  leadTab?: ReviewTabId
   /** Feature sections start open only for the newest; overall ignores it. */
   defaultOpen?: boolean
   onOpenPair: (key: string) => void
@@ -74,8 +77,6 @@ export type FeatureReviewSectionProps = {
   proof?: VerifyProofView
   /** Which verify attempt the section shows, and why it is that one. */
   attemptLabel?: string
-  /** The verify attempts the section is not showing, folded away. */
-  otherAttempts?: { label: string; attempts: readonly VerifyAttemptView[] }
 }
 
 const MODE_CHIP_TONE: Record<VerifyProofTone, string> = {
@@ -94,8 +95,6 @@ const SUMMARY_TONE: Record<VerifyProofTone, string> = {
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
 const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'build', 'uitests']
-
-const noop = () => {}
 
 /** "Run by" + a read-only model chip per agent that ran the section. */
 function AgentRow({ agents }: { agents: readonly SignoffAgent[] }) {
@@ -179,6 +178,8 @@ export default function FeatureReviewSection({
   recordings,
   uncountedRecordings = [],
   reports,
+  codeReviews = [],
+  leadTab,
   defaultOpen,
   onOpenPair,
   onRequestImage,
@@ -187,7 +188,6 @@ export default function FeatureReviewSection({
   emptyLabel,
   proof,
   attemptLabel,
-  otherAttempts,
 }: FeatureReviewSectionProps) {
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
@@ -198,12 +198,15 @@ export default function FeatureReviewSection({
 
   const tabs = reviewTabs({
     screens: proof ? proof.screens.length : pairs.length,
+    ...(proof ? { screensProof: proofScreensPane(proof).thumbnails.length } : {}),
     walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
     testChecks: testChecks.length,
     buildChecks: buildChecks.length,
     changedFiles: undefined,
+    codeReviews: codeReviews.length,
+    ...(leadTab ? { lead: leadTab } : {}),
   })
   const currentTab: ReviewTabId | undefined =
     activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id
@@ -262,10 +265,7 @@ export default function FeatureReviewSection({
           rows={[...rows]}
           branch={undefined}
           busyId={undefined}
-          canRequest={false}
           onOpenProof={openProof}
-          onRun={noop}
-          onRequest={noop}
         />
       ) : null}
 
@@ -274,7 +274,12 @@ export default function FeatureReviewSection({
           <ReviewTabBar tabs={tabs} active={currentTab} onChange={setActiveTab} />
           <div className="px-3 pb-3">
             {currentTab === 'screens' && proof ? (
-              <ProofScreens view={proof} onOpen={onOpenPair} onRequestImage={onRequestImage} />
+              <ProofScreens
+                view={proof}
+                onOpen={onOpenPair}
+                onRequestImage={onRequestImage}
+                onSavePair={savePair}
+              />
             ) : currentTab === 'screens' ? (
               <ScreensTab
                 pairs={pairs}
@@ -312,9 +317,6 @@ export default function FeatureReviewSection({
                 checks={testChecks}
                 branch={undefined}
                 busyId={undefined}
-                canRequest={false}
-                onRun={noop}
-                onRequest={noop}
               />
             ) : currentTab === 'build' ? (
               <ChecksTab
@@ -322,12 +324,11 @@ export default function FeatureReviewSection({
                 checks={buildChecks}
                 branch={undefined}
                 busyId={undefined}
-                canRequest={false}
-                onRun={noop}
-                onRequest={noop}
               />
             ) : currentTab === 'report' ? (
               <ReportTab reports={reports} />
+            ) : currentTab === 'code-review' ? (
+              <ReportTab reports={codeReviews} />
             ) : null}
           </div>
         </div>
@@ -339,26 +340,29 @@ export default function FeatureReviewSection({
               : 'No screens, walkthroughs or reports were filed for this feature.')}
         </span>
       )}
-
-      {otherAttempts && otherAttempts.attempts.length > 0 ? (
-        <OtherVerifyAttempts
-          label={otherAttempts.label}
-          attempts={otherAttempts.attempts}
-          onOpenPair={onOpenPair}
-          onRequestImage={onRequestImage}
-        />
-      ) : null}
     </div>
   )
 
-  const modeChip = proof?.header?.chip ? (
-    <span
-      className={`badge badge--soft ${MODE_CHIP_TONE[proof.header.tone]} badge--sm`}
-      title={proof.header.title}
-    >
-      {proof.header.chip}
-    </span>
-  ) : null
+  const modeChip = (
+    <>
+      {proof?.header?.chip ? (
+        <span
+          className={`badge badge--soft ${MODE_CHIP_TONE[proof.header.tone]} badge--sm`}
+          title={proof.header.title}
+        >
+          {proof.header.chip}
+        </span>
+      ) : null}
+      {proof?.header?.unvouched ? (
+        <span
+          className="badge badge--soft badge--empty badge--sm"
+          title={proof.header.unvouched.text}
+        >
+          {proof.header.unvouched.chip}
+        </span>
+      ) : null}
+    </>
+  )
 
   if (kind === 'overall') {
     return (
@@ -391,7 +395,7 @@ export default function FeatureReviewSection({
         </span>
         {modeChip}
         <StatusVline line={statusLine} />
-        <DurCostChips facts={facts} />
+        <DurCostChips facts={facts} nested />
         <IconChevronRight className="size-3.5 shrink-0 text-(--text-muted) transition-transform group-open:rotate-90" />
       </summary>
       {body}

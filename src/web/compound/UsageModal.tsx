@@ -1,46 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
-
+import { useUsageBreakdown } from '../../headless/hooks/useUsageBreakdown'
+import {
+  USAGE_CURRENT_TITLE,
+  USAGE_FOOTNOTES,
+  USAGE_LEDGER_TITLE,
+  USAGE_SOURCES_TITLE,
+  USAGE_TABLE_COLUMNS,
+} from '../../headless/utils/usageBreakdownConstants'
+import type {
+  UsageModalCostAggregate,
+  UsageModalMessage,
+  UsageModalModelPrice,
+  UsageTableRow,
+} from '../../headless/utils/usageBreakdownTypes'
 import { Modal } from '../primitives/Modal'
-
-export type UsageModalModelPrice = {
-  provider: string
-  model: string
-  inputPerMTokensUSD: number
-  outputPerMTokensUSD: number
-  cacheReadInputPerMTokensUSD?: number
-  currency?: 'USD'
-}
-
-export type UsageModalCostBreakdown = {
-  costUSD: number
-  promptTokens: number
-  completionTokens: number
-  cachedReadInputTokens: number
-}
-
-export type UsageModalCostAggregate = {
-  chatKey: string
-  totalCostUSD: number
-  totalPromptTokens: number
-  totalCompletionTokens: number
-  totalCachedReadInputTokens: number
-  breakdown: Record<string, UsageModalCostBreakdown>
-  /** Optional per-executor split (API in-process vs sandboxed CLI agent). */
-  bySource?: Partial<Record<'api' | 'cli', UsageModalCostBreakdown & { count?: number }>>
-}
-
-export type UsageModalUsage = {
-  promptTokens?: number
-  completionTokens?: number
-  cachedReadInputTokens?: number
-  cost?: number
-}
-
-export type UsageModalMessage = {
-  role: string
-  model?: { provider: string; model: string }
-  usage?: UsageModalUsage
-}
 
 export type UsageModalProps = {
   isOpen: boolean
@@ -51,82 +23,67 @@ export type UsageModalProps = {
   getCost?: (chatKey: string) => Promise<UsageModalCostAggregate | undefined>
 }
 
-function formatUSD(n?: number) {
-  if (n == null || Number.isNaN(n)) return '—'
-  return `$${n.toFixed(4)}`
+const COLUMN_WIDTH = '112px'
+
+function UsageTable({ rows }: { rows: UsageTableRow[] }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-[var(--border-subtle)]">
+      <div className="overflow-x-auto">
+        <table className="min-w-full table-fixed text-sm">
+          <colgroup>
+            {USAGE_TABLE_COLUMNS.map((c) => (
+              <col key={c.cell} style={{ width: COLUMN_WIDTH }} />
+            ))}
+          </colgroup>
+          <thead className="bg-[var(--surface-raised)] text-[var(--text-secondary)]">
+            <tr>
+              {USAGE_TABLE_COLUMNS.map((c) => (
+                <th
+                  key={c.cell}
+                  className="px-2 py-2 text-center align-top whitespace-normal break-words"
+                >
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.key}
+                className={`border-t border-[var(--border-subtle)] tabular-nums ${r.total ? 'font-semibold' : ''}`}
+              >
+                {USAGE_TABLE_COLUMNS.map((c) => (
+                  <td
+                    key={c.cell}
+                    className={`px-2 py-2 align-top ${c.cell === 'label' ? 'whitespace-normal break-words text-[var(--text-primary)]' : ''}`}
+                  >
+                    {r[c.cell]}
+                    {c.cell === 'label' && r.notReportedBy ? (
+                      <div className="text-[11px] font-normal text-[var(--text-secondary)]">
+                        {r.notReportedBy}
+                      </div>
+                    ) : null}
+                    {c.cell === 'cachedRead' && r.cacheRatio ? <div>{r.cacheRatio}</div> : null}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }
 
-function safeNumber(n: unknown): number {
-  return typeof n === 'number' && isFinite(n) ? n : 0
-}
-
-function prettifyBreakdownKey(k: string): { provider?: string; model?: string; label: string } {
-  if (k.includes('::')) {
-    const [provider, ...rest] = k.split('::')
-    const model = rest.join('::')
-    if (provider && model) return { provider, model, label: `${provider} · ${model}` }
-  }
-
-  if (k.includes('/') && !k.includes('://')) {
-    const parts = k.split('/')
-    if (parts.length === 2) {
-      const [provider, model] = parts
-      if (provider && model) return { provider, model, label: `${provider} · ${model}` }
-    }
-  }
-
-  if (k.includes(':') && !k.includes('://')) {
-    const parts = k.split(':')
-    if (parts.length === 2) {
-      const [provider, model] = parts
-      if (provider && model) return { provider, model, label: `${provider} · ${model}` }
-    }
-  }
-
-  return { label: k }
-}
-
-type UsageAgg = {
-  costUSD: number
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-  cachedReadInputTokens: number
-  cachedReadInputTokensRatio: number
-}
-
-function emptyAgg(): UsageAgg {
-  return {
-    costUSD: 0,
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    cachedReadInputTokens: 0,
-    cachedReadInputTokensRatio: 0,
-  }
-}
-
-type UsageRow = {
-  idx: number
-  role: string
-  provider: string
-  model: string
-  promptTokens: number
-  completionTokens: number
-  cachedReadInputTokens: number
-  costUSD?: number
-  estimatedCostUSD?: number
-  price?: UsageModalModelPrice
-}
-
-function isAssistantWithUsage(m: UsageModalMessage): m is UsageModalMessage & {
-  role: 'assistant'
-  model: { provider: string; model: string }
-  usage: UsageModalUsage
-} {
-  return m.role === 'assistant' && !!m.usage && !!m.model
-}
-
+/**
+ * What a chat, story or project has spent: the durable cost ledger per model
+ * and per executor, and the messages on screen. Every table keeps charged,
+ * included (a plan covered them) and unpriced (no known price) tokens apart,
+ * with their value at list price — marked when it covers only part — and names
+ * the tool behind any count a CLI never reported instead of showing it as 0.
+ * The rows come from the headless `useUsageBreakdown`, shared with the native peer.
+ */
 export function UsageModal({
   isOpen,
   onClose,
@@ -135,363 +92,58 @@ export function UsageModal({
   getPrice,
   getCost,
 }: UsageModalProps) {
-  const [pricesByKey, setPricesByKey] = useState<Record<string, UsageModalModelPrice | undefined>>(
-    {},
-  )
-  const [durable, setDurable] = useState<UsageModalCostAggregate | undefined>(undefined)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!isOpen) return
-    if (!chatKey || !getCost) {
-      setDurable(undefined)
-      return
-    }
-
-    const run = async () => {
-      try {
-        const agg = await getCost(chatKey)
-        if (cancelled) return
-        setDurable(agg)
-      } catch {
-        if (cancelled) return
-        setDurable(undefined)
-      }
-    }
-
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [chatKey, isOpen, getCost])
-
-  useEffect(() => {
-    let cancelled = false
-
-    const keys = new Set<string>()
-    for (const m of messages) {
-      if (!isAssistantWithUsage(m)) continue
-      keys.add(`${m.model.provider}::${m.model.model}`)
-    }
-
-    const run = async () => {
-      const next: Record<string, UsageModalModelPrice | undefined> = {}
-      for (const k of Array.from(keys)) {
-        const [provider, model] = k.split('::')
-        try {
-          next[k] = await getPrice(provider, model)
-        } catch {
-          next[k] = undefined
-        }
-      }
-      if (!cancelled) setPricesByKey(next)
-    }
-
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [messages, getPrice])
-
-  const usageRows: UsageRow[] = useMemo(() => {
-    return messages
-      .filter((m) => isAssistantWithUsage(m))
-      .map((m, idx) => {
-        const usage = (m.usage ?? {}) as UsageModalUsage
-        const provider = m.model?.provider ?? ''
-        const model = m.model?.model ?? ''
-
-        const key = `${provider}::${model}`
-        const price = pricesByKey[key]
-
-        const promptTokens = safeNumber(usage.promptTokens)
-        const completionTokens = safeNumber(usage.completionTokens)
-        const cachedReadInputTokens = safeNumber(usage.cachedReadInputTokens)
-
-        const costUSD = typeof usage.cost === 'number' ? usage.cost : undefined
-
-        const inputRate = safeNumber(price?.inputPerMTokensUSD)
-        const outputRate = safeNumber(price?.outputPerMTokensUSD)
-        const cacheReadRate = safeNumber(price?.cacheReadInputPerMTokensUSD)
-
-        const canEstimate = inputRate > 0 || outputRate > 0 || cacheReadRate > 0
-
-        const estPromptUSD =
-          canEstimate && inputRate > 0 ? (promptTokens * inputRate) / 1_000_000 : 0
-        const estCachedReadUSD =
-          canEstimate && cacheReadRate > 0
-            ? (cachedReadInputTokens * cacheReadRate) / 1_000_000
-            : canEstimate && inputRate > 0
-              ? (cachedReadInputTokens * inputRate) / 1_000_000
-              : 0
-        const estOutputUSD =
-          canEstimate && outputRate > 0 ? (completionTokens * outputRate) / 1_000_000 : 0
-        const estCostUSD = canEstimate ? estPromptUSD + estCachedReadUSD + estOutputUSD : undefined
-
-        return {
-          idx,
-          role: m.role,
-          provider,
-          model,
-          promptTokens,
-          completionTokens,
-          cachedReadInputTokens,
-          costUSD,
-          estimatedCostUSD: typeof costUSD === 'number' ? undefined : estCostUSD,
-          price,
-        } satisfies UsageRow
-      })
-  }, [messages, pricesByKey])
-  const hasCurrent = usageRows.length > 0
-
-  const aggByModel = useMemo(() => {
-    const totalsAgg = emptyAgg()
-    const map = new Map<string, UsageAgg>()
-    for (const r of usageRows) {
-      const name = `${r.provider} · ${r.model}`
-      const a = map.get(name) || emptyAgg()
-
-      const cost =
-        typeof r.costUSD === 'number'
-          ? r.costUSD
-          : typeof r.estimatedCostUSD === 'number'
-            ? r.estimatedCostUSD
-            : 0
-      a.costUSD += cost
-      totalsAgg.costUSD += cost
-      a.promptTokens += r.promptTokens
-      totalsAgg.promptTokens += r.promptTokens
-      a.completionTokens += r.completionTokens
-      totalsAgg.completionTokens += r.completionTokens
-      a.cachedReadInputTokens += r.cachedReadInputTokens
-      totalsAgg.cachedReadInputTokens += r.cachedReadInputTokens
-      a.cachedReadInputTokensRatio =
-        a.cachedReadInputTokens / Math.max(1, a.promptTokens + a.cachedReadInputTokens)
-      totalsAgg.cachedReadInputTokensRatio =
-        totalsAgg.cachedReadInputTokens /
-        Math.max(1, totalsAgg.promptTokens + totalsAgg.cachedReadInputTokens)
-      a.totalTokens += r.promptTokens + r.completionTokens + r.cachedReadInputTokens
-      totalsAgg.totalTokens += r.promptTokens + r.completionTokens + r.cachedReadInputTokens
-      map.set(name, a)
-    }
-    const rows = Array.from(map.entries())
-      .map(([name, a]) => {
-        return { name, ...a }
-      })
-      .sort((a, b) => b.costUSD - a.costUSD)
-    if (rows.length <= 1) return [{ name: 'TOTALS', ...totalsAgg }]
-    return [{ name: 'TOTALS', ...totalsAgg }, ...rows]
-  }, [usageRows])
-
-  const colGroup = (
-    <colgroup>
-      <col style={{ width: '160px' }} />
-      <col style={{ width: '160px' }} />
-      <col style={{ width: '160px' }} />
-      <col style={{ width: '160px' }} />
-      <col style={{ width: '160px' }} />
-      <col style={{ width: '160px' }} />
-    </colgroup>
-  )
-  const sharedHeader = (
-    <thead className="bg-[var(--surface-raised)] text-[var(--text-secondary)]">
-      <tr>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">Group</th>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">Cost</th>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">Tokens</th>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">Prompt</th>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">
-          Completion
-        </th>
-        <th className="text-center px-2 py-2 align-top whitespace-normal break-words">
-          Cached read
-        </th>
-      </tr>
-    </thead>
-  )
-  const renderAggBody = (rows: Array<{ key: string; label: string } & UsageAgg>) => {
-    return (
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.key} className="border-t border-[var(--border-subtle)]">
-            <td className="px-2 py-2 text-[var(--text-primary)] whitespace-normal break-words align-top">
-              {r.label}
-            </td>
-            <td className="px-2 py-2 align-top whitespace-normal break-words">
-              <div className="line-clamp-3">{formatUSD(r.costUSD)}</div>
-            </td>
-            <td className="px-2 py-2 align-top">{Math.round(r.totalTokens).toLocaleString()}</td>
-            <td className="px-2 py-2 align-top">{Math.round(r.promptTokens).toLocaleString()}</td>
-            <td className="px-2 py-2 align-top">
-              {Math.round(r.completionTokens).toLocaleString()}
-            </td>
-            <td className="px-2 py-2 align-top">
-              <div>{Math.round(r.cachedReadInputTokens).toLocaleString()}</div>
-              <div>({Math.round(r.cachedReadInputTokensRatio * 100).toLocaleString()}%)</div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    )
-  }
-
-  const durableAgg: UsageAgg | undefined = durable
-    ? {
-        costUSD: durable.totalCostUSD,
-        promptTokens: durable.totalPromptTokens,
-        completionTokens: durable.totalCompletionTokens,
-        cachedReadInputTokens: durable.totalCachedReadInputTokens,
-        cachedReadInputTokensRatio:
-          durable.totalCachedReadInputTokens /
-          Math.max(1, durable.totalPromptTokens + durable.totalCachedReadInputTokens),
-        totalTokens:
-          durable.totalPromptTokens +
-          durable.totalCompletionTokens +
-          durable.totalCachedReadInputTokens,
-      }
-    : undefined
-
-  const durableBreakdownRows: Array<{ key: string; label: string } & UsageAgg> | undefined =
-    useMemo(() => {
-      if (!durable) return undefined
-      const rows = Object.entries(durable.breakdown)
-        .map(([k, b]) => {
-          const pretty = prettifyBreakdownKey(k)
-          return {
-            key: `durable:${k}`,
-            label: pretty.label,
-            costUSD: b.costUSD,
-            promptTokens: b.promptTokens,
-            completionTokens: b.completionTokens,
-            cachedReadInputTokens: b.cachedReadInputTokens,
-            cachedReadInputTokensRatio:
-              b.cachedReadInputTokens / Math.max(1, b.promptTokens + b.cachedReadInputTokens),
-            totalTokens: b.promptTokens + b.completionTokens + b.cachedReadInputTokens,
-          }
-        })
-        .sort((a, b) => b.costUSD - a.costUSD)
-
-      return [
-        {
-          key: 'durable:TOTALS',
-          label: 'TOTALS',
-          ...(durableAgg || emptyAgg()),
-        },
-        ...rows,
-      ]
-    }, [durable, durableAgg])
-
-  const durableSourceRows: Array<{ key: string; label: string } & UsageAgg> | undefined =
-    useMemo(() => {
-      const bySource = durable?.bySource
-      if (!bySource) return undefined
-      const rows = (['api', 'cli'] as const)
-        .map((source) => {
-          const b = bySource[source]
-          if (!b) return undefined
-          return {
-            key: `durable:source:${source}`,
-            label: source === 'api' ? 'API' : 'CLI',
-            costUSD: b.costUSD,
-            promptTokens: b.promptTokens,
-            completionTokens: b.completionTokens,
-            cachedReadInputTokens: b.cachedReadInputTokens,
-            cachedReadInputTokensRatio:
-              b.cachedReadInputTokens / Math.max(1, b.promptTokens + b.cachedReadInputTokens),
-            totalTokens: b.promptTokens + b.completionTokens + b.cachedReadInputTokens,
-          }
-        })
-        .filter((r): r is { key: string; label: string } & UsageAgg => Boolean(r))
-      return rows.length > 0 ? rows : undefined
-    }, [durable])
+  const { ledger, sources, current } = useUsageBreakdown({
+    isOpen,
+    messages,
+    chatKey,
+    getPrice,
+    getCost,
+  })
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Usage" contentClassName="!p-0">
+    <Modal isOpen={isOpen} onClose={onClose} title="Usage" size="xl" contentClassName="!p-0">
       <div className="bg-[var(--surface-base)] text-sm text-[var(--text-secondary)]">
         <div className="space-y-6">
-          {chatKey ? (
+          {ledger ? (
             <div className="space-y-2">
-              <div className="px-4 pt-4">
-                <div className="text-[12px] text-[var(--text-secondary)]">
-                  Ledger totals (durable)
-                </div>
+              <div className="px-4 pt-4 text-[12px] text-[var(--text-secondary)]">
+                {USAGE_LEDGER_TITLE}
               </div>
               <div className="px-4">
-                <div className="border border-[var(--border-subtle)] rounded-md overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm table-fixed">
-                      {colGroup}
-                      {sharedHeader}
-                      {durableBreakdownRows
-                        ? renderAggBody(durableBreakdownRows)
-                        : renderAggBody([
-                            {
-                              key: 'durable',
-                              label: 'TOTALS (unavailable)',
-                              ...emptyAgg(),
-                            },
-                          ])}
-                    </table>
-                  </div>
-                </div>
+                <UsageTable rows={ledger} />
               </div>
-              {durableSourceRows ? (
+              {sources ? (
                 <div className="px-4">
-                  <div className="text-[12px] text-[var(--text-secondary)] mb-1">By executor</div>
-                  <div className="border border-[var(--border-subtle)] rounded-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm table-fixed">
-                        {colGroup}
-                        {sharedHeader}
-                        {renderAggBody(durableSourceRows)}
-                      </table>
-                    </div>
+                  <div className="mb-1 text-[12px] text-[var(--text-secondary)]">
+                    {USAGE_SOURCES_TITLE}
                   </div>
+                  <UsageTable rows={sources} />
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {hasCurrent ? (
+          {current ? (
             <div className="space-y-2">
               <div className="px-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
-                  <div className="text-[12px] text-[var(--text-secondary)] tracking-wide">
-                    CURRENT
+                  <div className="h-px flex-1 bg-[var(--border-subtle)]" />
+                  <div className="text-[12px] tracking-wide text-[var(--text-secondary)]">
+                    {USAGE_CURRENT_TITLE}
                   </div>
-                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+                  <div className="h-px flex-1 bg-[var(--border-subtle)]" />
                 </div>
               </div>
               <div className="px-4 pb-4">
-                <div className="border border-[var(--border-subtle)] rounded-md overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm table-fixed">
-                      {colGroup}
-                      {sharedHeader}
-                      {renderAggBody(
-                        aggByModel.map((r) => ({
-                          key: `${r.name}`,
-                          label: `${r.name}`,
-                          ...r,
-                        })),
-                      )}
-                    </table>
-                  </div>
-                </div>
+                <UsageTable rows={current} />
               </div>
             </div>
           ) : null}
 
-          <div className="text-[11px] text-[var(--text-secondary)] opacity-80 px-4 pb-4 space-y-1">
-            <div>
-              If a message has no stored cost, cost is estimated using current pricing for that
-              provider+model and the message's tokens.
-            </div>
-            <div>
-              Durable totals are computed from the persisted cost ledger for this 'chatKey' and do
-              not decrease if you clear/restart/delete a chat.
-            </div>
+          <div className="space-y-1 px-4 pb-4 text-[11px] text-[var(--text-secondary)] opacity-80">
+            {USAGE_FOOTNOTES.map((note) => (
+              <div key={note}>{note}</div>
+            ))}
           </div>
         </div>
       </div>

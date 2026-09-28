@@ -15,7 +15,11 @@ import {
   cliTranscriptToMessages,
   parseCliAgentModelTag,
 } from '../../../headless/utils/cliRunner'
-import type { ToolCallLike, ToolResultTypeLike } from '../../../headless/utils/chatTypes'
+import type {
+  ChatMessageLike,
+  ToolCallLike,
+  ToolResultTypeLike,
+} from '../../../headless/utils/chatTypes'
 import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
 import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
@@ -45,6 +49,8 @@ export type CliRunMessagesProps = {
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /** Opens a message's usage sheet from its `$` chip — a CLI turn's usage, $0 or not, included. */
+  onShowUsage?: (msg: ChatMessageLike) => void
   /** True only for the chat's first CLI run (turn 1, cold boot). Gates the
    * "Preparing …/first message slowest" copy; warm turns show a plain start line. */
   coldStart?: boolean
@@ -87,6 +93,7 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
   renderProcessRun,
+  onShowUsage,
   coldStart = false,
   blockedOn,
   onDeleteTurn,
@@ -96,7 +103,10 @@ export default function CliRunMessages({
   deleting = false,
 }: CliRunMessagesProps) {
   const { theme } = useNativeTheme()
-  const { transcript, status, notReady, startedAtMs, error } = useCliRunArtifact(runId, undefined)
+  const { transcript, status, notReady, startedAtMs, error, usage } = useCliRunArtifact(
+    runId,
+    undefined,
+  )
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
   // Active = booting (record not written yet, the container spin-up) or
@@ -112,8 +122,9 @@ export default function CliRunMessages({
         ...(model ? { model } : {}),
         showThinking,
         awaitingApprovalToolNames,
+        ...(usage ? { usage } : {}),
       }),
-    [transcript, model, showThinking, awaitingApprovalToolNames],
+    [transcript, model, showThinking, awaitingApprovalToolNames, usage],
   )
   const total = baseIndex + messages.length + 1
   let shownModel = false
@@ -187,6 +198,7 @@ export default function CliRunMessages({
               renderProcessRun={renderProcessRun}
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
+              onShowUsage={onShowUsage}
             />
           )
         })}

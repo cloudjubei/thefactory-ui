@@ -20,9 +20,15 @@ import {
   IMPLEMENTED_CHECK_METHOD_ORDER,
   CHECK_METHOD_SETUP_VERBS,
   CHECK_METHOD_TAB,
+  CHECK_STATE_SENTENCES,
   CHECK_STATE_TONES,
+  CHECK_STATE_UNVOUCHED_SENTENCE,
+  CODE_REVIEW_DETAIL,
+  CODE_REVIEW_NO_VERDICT,
+  CODE_REVIEW_TAB,
   COLLAPSE_ABSENT_PAST,
   NOT_RUN_TITLE,
+  NOTHING_VOUCHED_TITLE,
   PROVEN_DETAIL,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
@@ -30,9 +36,13 @@ import {
   REVIEW_TAB_ORDER,
   SIGNOFF_VERDICT_TONES,
   SIGNOFF_VERDICT_WORDS,
+  UNVOUCHED_EVIDENCE_NOUNS,
   VERDICT_BEARING_METHODS,
 } from './checkMethodConstants'
 import type {
+  CheckActionHost,
+  CheckActionOffer,
+  CheckCallout,
   CheckMethodAction,
   CheckMethodId,
   CheckMethodRow,
@@ -44,10 +54,32 @@ import type {
   SignoffVerdictInput,
   SignoffVerdictKey,
 } from './checkMethodTypes'
+import {
+  codeReviewVerdict,
+  evidenceUnvouched,
+  isCodeReview,
+  reportAuthor,
+} from './reviewEvidenceView'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
 import { formatDurationMs } from './time'
 
 type ApproachState = 'available' | 'unavailable' | 'missing'
+
+/**
+ * Why the project has not allowed the approach that would prove a method, or
+ * `undefined` when nothing is withheld. A withheld capture is not a missing
+ * one: the fix is the user's switch, not an agent's set-up — and it is
+ * withheld too when the host also lacks its toolchain, which is then named
+ * beside it (`absentDetail`).
+ */
+function withheldReason(
+  approaches: readonly VerificationApproachOption[],
+  id: CheckMethodId,
+): string | undefined {
+  const availability = approaches.find((a) => a.spec.id === CHECK_METHOD_APPROACH[id])?.availability
+  if (availability?.status === 'not-allowed') return availability.reason
+  return availability?.status === 'unavailable' ? availability.withheld : undefined
+}
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
@@ -69,15 +101,29 @@ export function checkMethodFor(
   return 'build'
 }
 
-/** Which method a piece of filed evidence proves; logs prove nothing by themselves. */
-export function evidenceMethodFor(ref: Pick<ReviewEvidenceRef, 'kind'>): CheckMethodId | undefined {
+/**
+ * Which method a piece of filed evidence proves; logs prove nothing by
+ * themselves. A report proves what its author checked: a code review's finding
+ * is the code review, and the story's final report — an account of the whole
+ * run, written from its record — proves nothing on its own.
+ */
+export function evidenceMethodFor(
+  ref: Pick<ReviewEvidenceRef, 'kind' | 'approach'>,
+): CheckMethodId | undefined {
   switch (ref.kind) {
     case 'screenshot':
       return 'screens'
     case 'recording':
       return 'walkthrough'
     case 'report':
-      return 'report'
+      switch (reportAuthor(ref)) {
+        case 'code-review':
+          return 'diff'
+        case 'final-report':
+          return undefined
+        default:
+          return 'report'
+      }
     default:
       return undefined
   }
@@ -154,13 +200,22 @@ function rollUp(checks: readonly VerificationCheckResult[]): CheckMethodState {
   return 'unchecked'
 }
 
+/**
+ * What a chip offers. A method whose proof is a finding — a code review — opens
+ * it whatever it concluded: what failed is written there, and reading it is
+ * the next step, not a fix asked of an agent that has not read it either.
+ */
 function actionFor(
   id: CheckMethodId,
   state: CheckMethodState,
   approaches: readonly VerificationApproachOption[],
+  finding: ReviewTabId | undefined,
 ): CheckMethodAction {
   const approachId = CHECK_METHOD_APPROACH[id]
   const known = approachState(approaches, approachId) === 'missing' ? undefined : approachId
+  if (finding && (state === 'passed' || state === 'failed')) {
+    return { kind: 'open-proof', tab: finding }
+  }
   if (state === 'passed') return { kind: 'open-proof', tab: CHECK_METHOD_TAB[id] }
   if (state === 'failed') return { kind: 'request', purpose: 'fix', approachId: known }
   if (state === 'unchecked') {
@@ -168,6 +223,8 @@ function actionFor(
       ? { kind: 'run' }
       : { kind: 'request', purpose: 'capture', approachId: known }
   }
+  const withheld = withheldReason(approaches, id)
+  if (withheld !== undefined) return { kind: 'allow', reason: withheld }
   return { kind: 'request', purpose: 'setup', approachId: known }
 }
 
@@ -188,6 +245,68 @@ function evidenceDetail(id: CheckMethodId, captured: number): string {
   }
 }
 
+/**
+ * How many filed items of a method the backend cannot vouch for, said without
+ * alarm — then what the host lacks to capture them again, when it lacks
+ * anything. The user's switch is not named here: it leads the callout as the
+ * action.
+ */
+function unvouchedDetail(
+  id: CheckMethodId,
+  unvouched: number,
+  approaches: readonly VerificationApproachOption[],
+): string {
+  const one = unvouched === 1
+  const said = `${plural(unvouched, UNVOUCHED_EVIDENCE_NOUNS[id] ?? 'item')} filed, but the backend can’t vouch for ${one ? 'it' : 'them'}, so ${one ? 'it doesn’t' : 'they don’t'} count.`
+  const lacks = approachHints(approaches, CHECK_METHOD_APPROACH[id])
+  return lacks ? `${said} ${lacks}` : said
+}
+
+/**
+ * The Code review chip, read from the newest code review filed: its verdict is
+ * the state. A run from before code reviews has none, and there a recorded read
+ * of the diff still passes it — but once a review is filed, only its verdict
+ * counts, so a read diff never passes a change the review turned back.
+ */
+function diffState(
+  evidence: readonly ReviewEvidenceRef[],
+  diffReview: { by?: string; summary?: string } | undefined,
+  unvouched: number,
+  approaches: readonly VerificationApproachOption[],
+): { state: CheckMethodState; detail: string; finding: ReviewTabId | undefined } {
+  if (evidence.some(isCodeReview)) {
+    const reading = codeReviewVerdict(evidence)
+    if (reading.state === 'concluded') {
+      const { verdict, reason } = reading.verdict
+      return {
+        state: verdict === 'approved' ? 'passed' : 'failed',
+        detail: reason ?? CODE_REVIEW_DETAIL[verdict],
+        finding: CODE_REVIEW_TAB,
+      }
+    }
+    return {
+      state: 'unchecked',
+      detail:
+        unvouched > 0 ? unvouchedDetail('diff', unvouched, approaches) : CODE_REVIEW_NO_VERDICT,
+      finding: CODE_REVIEW_TAB,
+    }
+  }
+  if (!diffReview) {
+    return {
+      state: 'unchecked',
+      detail: absentDetail('diff', 'unchecked', approaches),
+      finding: undefined,
+    }
+  }
+  return {
+    state: 'passed',
+    detail:
+      diffReview.summary ??
+      (diffReview.by === 'user' ? 'You read the change' : 'The reviewer agent read the change'),
+    finding: undefined,
+  }
+}
+
 function absentDetail(
   id: CheckMethodId,
   state: CheckMethodState,
@@ -198,8 +317,11 @@ function absentDetail(
       ? 'Configured, but never run on this branch.'
       : 'Not captured on this branch.'
   }
-  const hints = approachHints(approaches, CHECK_METHOD_APPROACH[id])
-  return hints ?? `This project has no ${CHECK_METHOD_ABSENT_NOUNS[id]}.`
+  const why = [
+    approachHints(approaches, CHECK_METHOD_APPROACH[id]),
+    withheldReason(approaches, id),
+  ].filter((part): part is string => part !== undefined)
+  return why.length > 0 ? why.join(' ') : `This project has no ${CHECK_METHOD_ABSENT_NOUNS[id]}.`
 }
 
 /**
@@ -208,6 +330,13 @@ function absentDetail(
  * Checks roll up by method; evidence counts as proof of the method that filed
  * it; a device run is proven by any driven capture. What is offered on click
  * follows the state AND how the gap can be filled — see `CHECK_METHOD_FILL`.
+ *
+ * Filings the backend cannot vouch for make a method `unchecked` — they ran, so
+ * it is never "not set up" — but what the chip offers stays what this host
+ * could do with nothing filed. A capture the project withholds would be refused
+ * device tools, and one the host lacks the toolchain for would fail: offering
+ * either spends a verifier run that cannot capture, so the chip points at the
+ * switch, or at the set-up, instead.
  */
 export function checkMethodRows(input: {
   verification: RunVerification | undefined
@@ -215,7 +344,10 @@ export function checkMethodRows(input: {
   evidence: readonly ReviewEvidenceRef[]
   /** Who decided the run, when anyone has. */
   verdictBy?: string
-  /** That somebody READ the change — what satisfies the `diff` method. */
+  /**
+   * That somebody READ the change — what satisfies the `diff` method on a run
+   * from before code reviews, which filed none.
+   */
   diffReview?: { by?: string; summary?: string }
 }): CheckMethodRow[] {
   const { verification, approaches, evidence } = input
@@ -233,26 +365,29 @@ export function checkMethodRows(input: {
   // proof of a font change. The agent's own report said the screenshots "do not
   // visually prove" it; the gate believed the filing over the sentence.
   const emptyPairs = evidence.filter(evidenceShowsNoChange).length
+  const unvouchedCounts = new Map<CheckMethodId, number>()
   for (const ref of evidence) {
     const id = evidenceMethodFor(ref)
     if (!id) continue
+    if (evidenceUnvouched(ref)) {
+      unvouchedCounts.set(id, (unvouchedCounts.get(id) ?? 0) + 1)
+      continue
+    }
     if (evidenceShowsNoChange(ref)) continue
     evidenceCounts.set(id, (evidenceCounts.get(id) ?? 0) + 1)
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
-  // "Was the change actually READ" has its own recorded answer, deliberately
-  // separate from the verdict: the `judge` step records `diffReview` when a
-  // reviewer agent examines the branch, and opening the Changes tab records it
-  // for a human. Reading is not deciding, and the sign-off stays the user's.
-  const diffReviewed = input.diffReview !== undefined
 
   return IMPLEMENTED_CHECK_METHOD_ORDER.map((id) => {
     const matched = byMethod.get(id) ?? []
     const captured = id === 'device' ? driven : (evidenceCounts.get(id) ?? 0)
+    const unvouched = unvouchedCounts.get(id) ?? 0
     const isRun = CHECK_METHOD_FILL[id] === 'run'
 
     let state: CheckMethodState
     let detail: string
+    let fillable: CheckMethodState | undefined
+    let finding: ReviewTabId | undefined
     if (isRun) {
       state = matched.length > 0 ? rollUp(matched) : absentRunState(id, verification)
       detail =
@@ -264,13 +399,10 @@ export function checkMethodRows(input: {
               .join(' · ')
           : absentDetail(id, state, approaches)
     } else if (id === 'diff') {
-      state = diffReviewed ? 'passed' : 'unchecked'
-      detail = diffReviewed
-        ? (input.diffReview?.summary ??
-          (input.diffReview?.by === 'user'
-            ? 'You read the change'
-            : 'The reviewer agent read the change'))
-        : absentDetail(id, 'unchecked', approaches)
+      const review = diffState(evidence, input.diffReview, unvouched, approaches)
+      state = review.state
+      detail = review.detail
+      finding = review.finding
     } else if (matched.length > 0) {
       // A method the AGENT fills but a COMMAND proves — `uitests` (live/e2e). When
       // a check ran, its result IS the state, exactly like a run-filled build check.
@@ -283,7 +415,8 @@ export function checkMethodRows(input: {
         .filter((s) => s.trim().length > 0)
         .join(' · ')
     } else {
-      state = evidenceState(id, captured, approaches)
+      fillable = evidenceState(id, captured, approaches)
+      state = captured === 0 && unvouched > 0 ? 'unchecked' : fillable
       detail =
         state === 'passed'
           ? evidenceDetail(id, captured)
@@ -292,7 +425,9 @@ export function checkMethodRows(input: {
               // Those are different problems with different fixes, and telling
               // the reviewer the first one hides the second.
               identicalPairExplanation()
-            : absentDetail(id, state, approaches)
+            : unvouched > 0
+              ? unvouchedDetail(id, unvouched, approaches)
+              : absentDetail(id, state, approaches)
     }
 
     const totalMs = matched.reduce((sum, c) => sum + Math.max(0, c.durationMs), 0)
@@ -314,8 +449,9 @@ export function checkMethodRows(input: {
       durationLabel: matched.length > 0 ? trimmedOrUndefined(formatDurationMs(totalMs)) : undefined,
       output,
       fill: CHECK_METHOD_FILL[id],
-      action: actionFor(id, state, approaches),
+      action: actionFor(id, fillable ?? state, approaches, finding),
       checkIds: matched.map((c) => c.id),
+      unvouched,
     }
   })
 }
@@ -324,6 +460,20 @@ function joinNames(rows: readonly CheckMethodRow[]): string {
   const names = rows.map((r) => r.label)
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
+ * What holds a partly-proven run back, by name: a method that never ran, and
+ * apart, one whose filings the backend cannot vouch for — "never ran" over a
+ * screenshot that was taken and filed would be false.
+ */
+function heldBack(unchecked: readonly CheckMethodRow[]): string {
+  const neverRan = unchecked.filter((r) => r.unvouched === 0)
+  const unvouched = unchecked.filter((r) => r.unvouched > 0)
+  return [
+    ...(neverRan.length > 0 ? [`${joinNames(neverRan)} never ran`] : []),
+    ...(unvouched.length > 0 ? [`${joinNames(unvouched)} can’t be vouched for`] : []),
+  ].join('; ')
 }
 
 /**
@@ -354,11 +504,17 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
     detail = failed.map((r) => r.detail).join(' · ')
   } else if (!input.verified && passed.length === 0) {
     key = 'not-run'
-    title = NOT_RUN_TITLE
-    detail = NOT_VERIFIED_DETAIL
+    const unvouched = input.rows.some((r) => r.state === 'passed')
+      ? []
+      : input.rows.filter((r) => r.unvouched > 0)
+    title = unvouched.length > 0 ? NOTHING_VOUCHED_TITLE : NOT_RUN_TITLE
+    detail =
+      unvouched.length > 0
+        ? `${joinNames(unvouched)} can’t be vouched for now — ${unvouched.length === 1 ? 'it counts' : 'they count'} once captured again.`
+        : NOT_VERIFIED_DETAIL
   } else if (unchecked.length > 0) {
     key = 'partly'
-    title = `Passes what ran — ${joinNames(unchecked)} never ran`
+    title = `Passes what ran — ${heldBack(unchecked)}`
     detail = passed.length > 0 ? `${joinNames(passed)} passed.` : 'Nothing that ran failed.'
   } else if (passed.length === 0) {
     // Every verdict-bearing method is `unconfigured`: nothing was checked at all.
@@ -400,11 +556,12 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
   // deliberately carry none: their tabs already exist only when there is
   // something in them, so a badge would restate the tab's own presence.
   const counts: Record<ReviewTabId, number | undefined> = {
-    screens: input.screens,
+    screens: input.screensProof ?? input.screens,
     walkthrough: undefined,
     tests: input.testCount > 0 ? input.testCount : undefined,
     build: undefined,
     report: undefined,
+    'code-review': undefined,
     changes: input.changedFiles,
   }
   const present: Record<ReviewTabId, boolean> = {
@@ -413,13 +570,19 @@ export function reviewTabs(input: ReviewTabsInput): ReviewTab[] {
     tests: input.testChecks > 0,
     build: input.buildChecks > 0,
     report: input.reports > 0,
+    'code-review': (input.codeReviews ?? 0) > 0,
     changes: input.changedFiles !== undefined,
   }
-  return REVIEW_TAB_ORDER.filter((id) => present[id]).map((id) => ({
-    id,
-    label: REVIEW_TAB_LABELS[id],
-    count: counts[id],
-  }))
+  const lead = input.lead
+  const order =
+    lead === undefined ? REVIEW_TAB_ORDER : [lead, ...REVIEW_TAB_ORDER.filter((id) => id !== lead)]
+  return order
+    .filter((id) => present[id])
+    .map((id) => ({
+      id,
+      label: REVIEW_TAB_LABELS[id],
+      count: counts[id],
+    }))
 }
 
 export type CheckRowLayout = {
@@ -427,6 +590,48 @@ export type CheckRowLayout = {
   visible: CheckMethodRow[]
   /** Absent rows folded behind a single "N not checked" chip; empty when not folded. */
   collapsed: CheckMethodRow[]
+}
+
+/**
+ * What a chip's callout says, on every client. A capture the project has not
+ * allowed leads with where the user allows it — "there is no screenshot in this
+ * project, ask for it here" would send them to an agent that cannot turn it on.
+ * One whose filings the backend cannot vouch for ran, so it never reads "never
+ * run" — and under a switch it still says what was filed, or those filings
+ * would sit behind the chip unexplained.
+ */
+export function checkCallout(row: CheckMethodRow): CheckCallout {
+  if (row.action.kind === 'allow') {
+    return { lead: row.action.reason, detail: row.unvouched > 0 ? row.detail : undefined }
+  }
+  const lead =
+    row.state === 'unconfigured'
+      ? `There is no ${row.noun} in this project, so there is no tab for it. Ask for it here.`
+      : row.state === 'unchecked' && row.unvouched > 0
+        ? CHECK_STATE_UNVOUCHED_SENTENCE
+        : CHECK_STATE_SENTENCES[row.state]
+  return { lead, detail: row.state !== 'passed' && row.detail ? row.detail : undefined }
+}
+
+/**
+ * The control a chip or check block shows for its action on `host`, on every
+ * client. A capture is produced by a verifier the host spawns, so it needs no
+ * chat; a fix or a set-up is an instruction to the agent in this chat, so
+ * without one it is shown disabled, with why. With no host — a read-only record
+ * — only the proof is offered: a button there would do nothing when pressed.
+ */
+export function checkActionOffer(
+  action: CheckMethodAction,
+  host: Pick<CheckActionHost, 'canRequest'> | undefined,
+): CheckActionOffer {
+  if (action.kind === 'open-proof') return { kind: 'open-proof', tab: action.tab }
+  if (action.kind === 'allow' || !host) return { kind: 'none' }
+  if (action.kind === 'run') return { kind: 'run' }
+  return {
+    kind: 'request',
+    purpose: action.purpose,
+    unreachable: action.purpose !== 'capture' && !host.canRequest,
+  }
 }
 
 /**

@@ -34,10 +34,31 @@ export const PROOF_MODE_CHIP: Record<VerifyProofMode, string> = {
   unknown: 'Data not stated',
 }
 
-export const DRY_FAKED_LABEL = 'What was faked — and what the live backend must send'
 export const DRY_FAKED_MISSING = 'The reviewer did not say what was faked.'
-export const DRY_TODO =
-  'Still unverified end to end: confirm the live backend sends this, then check the screens on live data.'
+
+/** The dry line's lead, worded like `PROOF_MODE_TITLE` for an attempt that passed, and one that did not. */
+export const DRY_LINE_LEAD: { passed: string; other: string } = {
+  passed: 'Verified dry',
+  other: 'Checked dry',
+}
+export const DRY_LINE_TEXT = '— the data it depends on was faked, not sent by the live backend.'
+export const DRY_LINE_TOGGLE: { open: string; close: string } = {
+  open: 'What was faked',
+  close: 'Hide',
+}
+export const DRY_ROW_FAKED = 'Faked'
+export const DRY_ROW_BUILT_FROM = 'Built from'
+export const DRY_BUILD_SEAM: { one: string; many: string } = {
+  one: 'with seam',
+  many: 'with seams',
+}
+export const DRY_BUILD_ARROW = '→'
+
+/** A thumbnail's corner marker for a screen the change adds — it has no before to measure against. */
+export const PROOF_THUMB_NEW_MARKER = 'new'
+/** A thumbnail's corner marker for a change under one percent — never rounded down to nothing. */
+export const PROOF_THUMB_UNDER_ONE = '<1%'
+export const PROOF_NOT_COUNTED_TAIL = 'not part of the proof'
 
 export const PAIR_COUNTED_VERDICT = 'Shows the change'
 export const PAIR_NOT_COUNTED_VERDICT = 'Did not count as proof.'
@@ -73,4 +94,37 @@ export const GATE_OUTCOME_SAID: Record<ProcessStepOutcome, string> = {
   question: 'The gate stopped to ask a question',
   skipped: 'The gate never concluded',
   errored: 'The verify step errored',
+}
+
+/**
+ * A pair or new screen the gate counted, whose capture the backend can no longer
+ * vouch for — said so the reader knows why a pass shows nothing that counts.
+ */
+export const COUNTED_UNVOUCHED_VERDICT =
+  'The gate counted this when it ran — it can’t be vouched for now'
+
+/** The summary's lead when nothing the outcome rested on can still be vouched for. */
+export const UNVOUCHED_BASIS_SUMMARY = 'Nothing it rested on can be vouched for now'
+
+/**
+ * The banner line over a proof that now rests only on captures the backend
+ * cannot vouch for: the calm restart wording when that is the only cause, else
+ * a pointer to each capture's own reason — a changed file is not a restart.
+ */
+export const UNVOUCHED_BASIS_BANNER: Record<'restart' | 'other', string> = {
+  restart:
+    'Everything this verification rested on was filed before the backend last restarted, or edited since, so none of it can be vouched for now. The gate’s outcome is kept as it was recorded; the next verify run captures the screens again.',
+  other:
+    'Nothing this verification rested on can be vouched for now — each capture below says why. The gate’s outcome is kept as it was recorded.',
+}
+
+/** Said in place of the reviewer's verdict when the filings it rode on cannot be vouched for. */
+export const REVIEWER_VERDICT_UNVOUCHED_LABEL = 'Reviewer’s verdict not shown'
+export const REVIEWER_VERDICT_UNVOUCHED_REASON =
+  'Some of what the reviewer filed can’t be vouched for now, so any verdict filed with it isn’t shown.'
+
+/** Who a verdict note names as having concluded it. */
+export const VERDICT_NOTE_WHO: Record<'reviewer' | 'codeReview', string> = {
+  reviewer: 'Reviewer',
+  codeReview: 'Code review',
 }

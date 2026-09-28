@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import type { BillingBasis } from 'thefactory-tools/types'
 import { listLlmModels, extractErrorMessage } from '../../../headless/api'
 import type {
   GetLlmConfigResponse,
@@ -7,6 +8,8 @@ import type {
   LlmConfigEditInput,
 } from '../../../headless/api'
 import { useLLMConfigs } from '../../../headless'
+import { llmConfigBilling } from '../../../headless/utils/llmConfigBilling'
+import { LLM_CONFIG_BILLING_OPTIONS } from '../../../headless/utils/llmConfigBillingConstants'
 import {
   Alert,
   Button,
@@ -105,6 +108,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   const [model, setModel] = useState(initial?.model ?? '')
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
   const [apiUrlOverride, setApiUrlOverride] = useState(initial?.apiUrlOverride ?? '')
+  const [billing, setBilling] = useState<BillingBasis>(() => llmConfigBilling(initial))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -255,6 +259,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
         model: model.trim(),
         apiKey: apiKey.trim(),
         apiUrlOverride: apiUrlOverride.trim() || undefined,
+        billing,
       }
       await mode.onSubmit(payload)
       onCancel()
@@ -420,6 +425,32 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
         )}
         {modelsError && <p className="text-sm text-red-500 mt-1">{modelsError}</p>}
       </div>
+
+      <fieldset className="flex flex-col gap-1" aria-label="Billing">
+        <legend className="mb-1 text-sm font-medium">Billing</legend>
+        {LLM_CONFIG_BILLING_OPTIONS.map((option) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer items-start gap-3 rounded p-2 hover:bg-(--surface-hover)"
+          >
+            <input
+              type="radio"
+              name="llm-config-billing"
+              value={option.value}
+              checked={billing === option.value}
+              onChange={() => {
+                markDirty()
+                setBilling(option.value)
+              }}
+              className="mt-1"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">{option.label}</span>
+              <span className="text-xs opacity-70">{option.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <div className="flex justify-end pt-2">
         {mode.kind === 'create' ? (

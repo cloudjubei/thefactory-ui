@@ -142,7 +142,6 @@ export {
   type ChipState,
   type StatusChipProps,
 } from './compound/chips/StatusChip'
-export { default as TokensChip, type TokensChipProps } from './compound/chips/TokensChip'
 export { default as TurnChip, type TurnChipProps } from './compound/chips/TurnChip'
 export { default as CheckChip, type CheckChipProps } from './compound/chips/CheckChip'
 export { default as HandoffButton, type HandoffButtonProps } from './compound/chips/HandoffButton'
@@ -270,11 +269,11 @@ export {
   default as CredentialCaptureCard,
   type CredentialCaptureCardProps,
 } from './compound/chat/CredentialCaptureCard'
+export { default as UsageModal, type UsageModalProps } from './compound/chat/UsageModal'
 export {
-  default as UsageModal,
-  type UsageModalProps,
-  type UsageModelRow,
-} from './compound/chat/UsageModal'
+  default as UsageModalConnected,
+  type UsageModalConnectedProps,
+} from './compound/chat/UsageModalConnected'
 export {
   default as MessageUsageSheet,
   type MessageUsageSheetProps,

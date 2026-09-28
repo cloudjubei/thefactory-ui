@@ -1,11 +1,13 @@
 import { Text, View } from 'react-native'
 
-import type { SignoffVerdict } from '../../../../headless'
+import type { SignoffTally, SignoffVerdict } from '../../../../headless'
 import { nativeRadii, type NativeStatusTokens } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 
 export type VerdictBadgeProps = {
   verdict: SignoffVerdict
+  /** The count the verdict is over — `Proven · 2/2` — so no separate line has to repeat it. */
+  tally?: SignoffTally
 }
 
 type BadgeLook = { bg: string; fg: string; border: string; dashed: boolean }
@@ -29,15 +31,16 @@ function badgeLook(key: SignoffVerdict['key'], status: NativeStatusTokens): Badg
 }
 
 /**
- * The verdict word as a bold status badge. Fill law: a filled dot marks a
- * verdict, a hollow dot marks a state nobody has decided yet.
+ * The verdict word as a bold status badge, with its tally when it has one. Fill
+ * law: a filled dot marks a verdict, a hollow dot marks a state nobody has
+ * decided yet.
  */
-export default function VerdictBadge({ verdict }: VerdictBadgeProps) {
+export default function VerdictBadge({ verdict, tally }: VerdictBadgeProps) {
   const { status } = useNativeTheme()
   const look = badgeLook(verdict.key, status)
   return (
     <View
-      accessibilityLabel={verdict.word}
+      accessibilityLabel={tally ? `${verdict.word} · ${tally.title}` : verdict.word}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -66,7 +69,9 @@ export default function VerdictBadge({ verdict }: VerdictBadgeProps) {
           style={{ width: 6, height: 6, borderRadius: nativeRadii.round, backgroundColor: look.fg }}
         />
       )}
-      <Text style={{ fontSize: 12, fontWeight: '600', color: look.fg }}>{verdict.word}</Text>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: look.fg }}>
+        {tally ? `${verdict.word} · ${tally.label}` : verdict.word}
+      </Text>
     </View>
   )
 }

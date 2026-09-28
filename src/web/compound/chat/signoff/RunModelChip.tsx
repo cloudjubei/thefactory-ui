@@ -10,7 +10,8 @@ export type RunModelChipProps = {
 /**
  * Which agent and model did the work, in the same shape as the composer's model
  * chip — but READ-ONLY. A landed run's model is a fact about work already done;
- * there is nothing here to pick. When a `role` is given it leads the model with
+ * there is nothing here to pick. It names the model the CLI REPORTED running;
+ * what the run asked for (`auto`, say) is in its details. When a `role` is given it leads the model with
  * the role (developer / verifier), so a section can say WHO ran it, not only on
  * what — the "Run by" chip the sign-off shows per section.
  */
@@ -31,6 +32,11 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
               ? `Model ${model.model}${model.effort ? `, ${model.effort} effort` : ''}.`
               : 'The runner did not record a model for this run.'}
           </span>
+          {model.requested ? (
+            <span className="mt-0.5 block text-(--text-secondary)">
+              Asked for {model.requested}.
+            </span>
+          ) : null}
         </div>
       }
     >

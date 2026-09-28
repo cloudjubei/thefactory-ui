@@ -37,7 +37,7 @@ import {
   processRunWorkLabel,
   processStepWorkMs,
   processStepCostLabel,
-  formatProcessCost,
+  processStepCostTitle,
 } from './processView'
 
 const TOKEN_STATUSES = [
@@ -232,31 +232,71 @@ describe('processRunSpend', () => {
     expect(processRunSpend(r)?.spent).toBe(30.25)
   })
 
-  it('names the tokens it could not price instead of counting them as nothing', () => {
+  it('keeps the chip to dollars: unpriced tokens belong in its details, never on it', () => {
     const r = run({ totals: totals({ costUsd: 0.5, unpricedTokens: 12_345 }) })
-    expect(processRunSpend(r)?.label).toBe('$0.50 + 12.3k unpriced tokens')
+    expect(processRunSpend(r)?.label).toBe('$0.50')
     expect(processRunSpend(run({ totals: totals({ unpricedTokens: 800 }) }))?.label).toBe(
-      '800 unpriced tokens',
+      'No known price',
     )
+  })
+
+  it('keeps the cap label dollars only, whatever went unpriced', () => {
+    const r = run({
+      budget: { spendUsdCap: 5 },
+      totals: totals({ costUsd: 1.5, unpricedTokens: 12_345 }),
+    })
+    expect(processRunSpend(r)?.label).toBe('$1.50 of $5.00')
+  })
+
+  it('shows a run a subscription covered as a real $0.00', () => {
+    const r = run({ totals: totals({ costUsd: 0, includedTokens: 1_308_171 }) })
+    expect(processRunSpend(r)?.label).toBe('$0.00')
+  })
+
+  it("never reads a capped run's unknown charge as the $0.00 a plan-covered run shows", () => {
+    const unpriced = {
+      provider: 'openai',
+      model: 'gpt-5.5-codex',
+      billing: 'metered' as const,
+      inputTokens: 40_120,
+      outputTokens: 3_010,
+      cacheReadTokens: 6_870,
+      cacheWriteTokens: 0,
+    }
+    const capped = run({
+      budget: { spendUsdCap: 5 },
+      totals: totals({ unpricedTokens: 50_000, byModel: [unpriced] }),
+    })
+    expect(processRunSpend(capped)).toEqual({
+      cap: 5,
+      label: 'No known price · cap $5.00',
+      title: 'Spent against the cap',
+    })
+    const raised = run({
+      budget: { spendUsdCap: 5 },
+      budgetGrants: { spendUsdCap: 5 },
+      totals: totals({ unpricedTokens: 50_000, byModel: [unpriced] }),
+    })
+    expect(processRunSpend(raised)?.label).toBe('No known price · cap $10.00 (raised)')
+    const covered = run({
+      budget: { spendUsdCap: 5 },
+      totals: totals({ costUsd: 0, includedTokens: 50_000 }),
+    })
+    expect(processRunSpend(covered)?.label).toBe('$0.00 of $5.00')
+  })
+
+  it('titles its details by whether a cap stands against the spend', () => {
+    expect(processRunSpend(run({ totals: totals({ costUsd: 2 }) }))?.title).toBe('Spent so far')
+    expect(
+      processRunSpend(run({ budget: { spendUsdCap: 5 }, totals: totals({ costUsd: 2 }) }))?.title,
+    ).toBe('Spent against the cap')
   })
 })
 
-describe('formatProcessCost', () => {
-  it('keeps sub-cent spend visible', () => {
-    expect(formatProcessCost({ costUsd: 0.0012 })).toBe('$0.0012')
-  })
-
-  it('shows priced and unpriced side by side, and each alone', () => {
-    expect(formatProcessCost({ costUsd: 3, unpricedTokens: 2_500_000 })).toBe(
-      '$3.00 + 2.5M unpriced tokens',
-    )
-    expect(formatProcessCost({ costUsd: 3 })).toBe('$3.00')
-    expect(formatProcessCost({ unpricedTokens: 999 })).toBe('999 unpriced tokens')
-  })
-
-  it('is undefined when nothing was measured', () => {
-    expect(formatProcessCost({})).toBeUndefined()
-    expect(formatProcessCost(undefined)).toBeUndefined()
+describe('processStepCostTitle', () => {
+  it('names the step, and every attempt when there was more than one', () => {
+    expect(processStepCostTitle('Verify', 1)).toBe('Verify')
+    expect(processStepCostTitle('Verify', 3)).toBe('Verify · all 3 attempts')
   })
 })
 
@@ -344,7 +384,7 @@ describe('run and step work time', () => {
         steps: { b: { workMs: 0, costUsd: 1.25, unpricedTokens: 4_000, attempts: attempts(0, 0) } },
       },
     })
-    expect(processStepCostLabel(r, 'b')).toBe('$1.25 + 4k unpriced tokens')
+    expect(processStepCostLabel(r, 'b')).toBe('$1.25')
     expect(processStepCostLabel(r, 'a')).toBeUndefined()
   })
 })

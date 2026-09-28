@@ -2,28 +2,32 @@ import { useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import {
+  EMPTY_SIGNOFF_SECTION,
   evidenceLoadState,
-  featureVerifySectionProps,
   featureVerifyView,
-  groupEvidence,
   overlayPairsFor,
-  screenPairs,
+  signoffSectionProps,
+  signoffSections,
+  SIGNOFF_LOAD_FAILED,
+  SIGNOFF_LOADING,
   storyProofNotice,
   useReviewEvidence,
   useStories,
   useStorySignoff,
-  type EvidenceTile,
+  type EvidenceLoadState,
   type FeatureVerifyView,
   type OverallSignoff,
   type ProcessParkChoice,
   type ProcessResumeChoice,
   type ScreenPair,
+  type SignoffSection,
   type SignoffVerdict,
+  type StorySignoff,
+  type UseReviewEvidence,
 } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
-import { IconCheck } from '../../icons/IconCheck'
 import { IconExclamation } from '../../icons/IconExclamation'
 import { IconInfo } from '../../icons/IconInfo'
 import { IconShield } from '../../icons/IconShield'
@@ -39,14 +43,14 @@ import FeatureReviewSection from './FeatureReviewSection'
 export type StorySignoffReviewProps = {
   projectId: string
   storyId: string
+  /** The story run being signed off — each feature shows where its run under it stands. */
+  storyRunId: string
   /** The gate's decision choices — the panel's decide bar acts on the whole story. */
   choices?: readonly ProcessParkChoice[]
   onChoose?: (choice: ProcessResumeChoice) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
   onSaveFile?: SaveFileHandler
 }
-
-const featureOfTile = (t: EvidenceTile): string => t.ref.featureId ?? ''
 
 const VERDICT_TONE: Record<SignoffVerdict['key'], 'done' | 'review' | 'stuck'> = {
   proven: 'done',
@@ -55,55 +59,76 @@ const VERDICT_TONE: Record<SignoffVerdict['key'], 'done' | 'review' | 'stuck'> =
   'not-run': 'review',
 }
 
-type EvBucket = { pairs: ScreenPair[]; recordings: EvidenceTile[]; reports: EvidenceTile[] }
-
 /**
  * The whole-story sign-off — the native peer of the web `StorySignoffReview`. One
- * panel: a head naming the story with its total time + cost, a verdict, a toned
- * digest, then the story-wide Overall section and each feature (newest first,
+ * panel: a head naming the story with its total time + cost, a verdict badge
+ * carrying its tally (and a line under it only when the outcome needs
+ * explaining), then the story-wide Overall section and each feature (newest first,
  * collapsible), each with which agents ran it and its evidence behind capability
- * tabs — closing on one decide bar that acts on the WHOLE story. A feature's
- * screens are exactly what its verify gate judged on the accepted attempt,
- * found by id in the story's evidence.
+ * tabs — closing on one decide bar that acts on the WHOLE story. Each feature
+ * shows its LATEST run only; earlier runs stay in the pipeline for whoever
+ * drills in. A feature's screens are exactly what its verify gate judged on the
+ * accepted attempt, found by id in the story's evidence. Nothing is drawn until
+ * the runs, the story and the evidence have all loaded: a verdict computed from
+ * part of them is wrong, and it flips once the rest lands.
  */
-export default function StorySignoffReview({
+export default function StorySignoffReview(props: StorySignoffReviewProps) {
+  const { projectId, storyId, storyRunId } = props
+  const { theme } = useNativeTheme()
+  const evidence = useReviewEvidence(projectId, { storyId })
+  const evidenceState = evidenceLoadState(evidence)
+  const { signoff, status, error } = useStorySignoff(
+    projectId,
+    storyId,
+    storyRunId,
+    evidence.refs,
+    evidenceState,
+  )
+  if (!signoff) {
+    return (
+      <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+        {status === 'failed'
+          ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
+          : SIGNOFF_LOADING}
+      </Text>
+    )
+  }
+  return (
+    <StorySignoffPanel
+      {...props}
+      signoff={signoff}
+      evidence={evidence}
+      evidenceState={evidenceState}
+    />
+  )
+}
+
+function StorySignoffPanel({
   projectId,
   storyId,
   choices,
   onChoose,
   onSaveFile,
-}: StorySignoffReviewProps) {
+  signoff,
+  evidence,
+  evidenceState,
+}: StorySignoffReviewProps & {
+  signoff: StorySignoff
+  evidence: UseReviewEvidence
+  evidenceState: EvidenceLoadState
+}) {
   const { theme, status } = useNativeTheme()
-  const evidence = useReviewEvidence(projectId, { storyId })
-  const { signoff } = useStorySignoff(projectId, storyId, evidence.refs)
   const { getStory } = useStories()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
 
   const story = getStory(storyId)
   const features = story?.features ?? []
 
-  const bucketByFeature = useMemo(() => {
-    const tilesByFeature = new Map<string, EvidenceTile[]>()
-    for (const t of evidence.tiles) {
-      const id = featureOfTile(t)
-      const list = tilesByFeature.get(id)
-      if (list) list.push(t)
-      else tilesByFeature.set(id, [t])
-    }
-    const m = new Map<string, EvBucket>()
-    for (const [id, tiles] of tilesByFeature) {
-      m.set(id, {
-        pairs: screenPairs(groupEvidence(tiles)).map((p) => ({ ...p, key: `${id}::${p.key}` })),
-        recordings: tiles.filter((t) => t.ref.kind === 'recording'),
-        // Only true reports — a `log` is raw tool output, not the verifier's
-        // account; stacking both turned the sign-off into a wall.
-        reports: tiles.filter((t) => t.ref.kind === 'report'),
-      })
-    }
-    return m
-  }, [evidence.tiles])
+  const sections = useMemo(
+    () => signoffSections(signoff, evidence.tiles),
+    [signoff, evidence.tiles],
+  )
 
-  const evidenceState = evidenceLoadState(evidence)
   const verifyByFeature = useMemo(() => {
     const m = new Map<string, FeatureVerifyView>()
     for (const f of signoff.features) {
@@ -119,36 +144,30 @@ export default function StorySignoffReview({
     return m
   }, [signoff.features, evidence.tiles, evidenceState])
 
-  const emptyBucket: EvBucket = useMemo(() => ({ pairs: [], recordings: [], reports: [] }), [])
-  const sectionProps = (bucket: EvBucket, v: FeatureVerifyView | undefined) =>
-    v ? featureVerifySectionProps(v) : bucket
-  const overallBucket = bucketByFeature.get('') ?? emptyBucket
+  const sectionOf = (id: string): SignoffSection => sections.get(id) ?? EMPTY_SIGNOFF_SECTION
 
   const runBacked = new Set(signoff.features.map((f) => f.featureId))
   const evidenceOnly = [...features]
     .reverse()
-    .filter((f) => !runBacked.has(f.id) && bucketByFeature.has(f.id))
+    .filter((f) => !runBacked.has(f.id) && sections.has(f.id))
   const featureIndex = (id: string): number => features.findIndex((f) => f.id === id) + 1
 
   const pairGroups = useMemo(() => {
     const groups: ScreenPair[][] = []
-    for (const [id, bucket] of bucketByFeature) {
-      if (id !== '' && !verifyByFeature.has(id)) groups.push(bucket.pairs)
+    for (const [id, section] of sections) {
+      if (id !== '' && !verifyByFeature.has(id)) groups.push(section.pairs)
     }
     for (const v of verifyByFeature.values()) {
-      groups.push(v.accepted.evidence.pairs, ...v.others.map((o) => o.evidence.pairs))
+      groups.push(v.accepted.evidence.pairs)
     }
     return groups
-  }, [bucketByFeature, verifyByFeature])
+  }, [sections, verifyByFeature])
   const overlayPairs = useMemo(
     () => overlayPairsFor(pairGroups, openPairKey),
     [pairGroups, openPairKey],
   )
   const hasSignoff = signoff.features.length > 0 || signoff.overall !== undefined
 
-  if (evidence.loading && evidence.tiles.length === 0 && !hasSignoff) {
-    return <Text style={{ fontSize: 12, color: theme.text.secondary }}>Loading the evidence…</Text>
-  }
   if (!hasSignoff && evidence.tiles.length === 0) {
     return (
       <Text style={{ fontSize: 12, color: theme.text.secondary }}>
@@ -170,6 +189,7 @@ export default function StorySignoffReview({
               mode: v.mode,
               standing: v.standing,
               dataUnstated: v.dataUnstated,
+              proofUnvouched: v.proofUnvouched,
             },
           ]
         : []
@@ -213,49 +233,26 @@ export default function StorySignoffReview({
       {/* panel-in */}
       <View style={{ backgroundColor: theme.surface.base, padding: 14, gap: 12 }}>
         <View style={{ gap: 6 }}>
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 0.5,
-              textTransform: 'uppercase',
-              color: theme.text.muted,
-            }}
-          >
-            Verdict — the whole story
-          </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            <VerdictBadge verdict={verdict} />
-            <Text
-              style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary, flexShrink: 1 }}
-            >
-              {verdict.title}
-            </Text>
+            <VerdictBadge verdict={verdict} tally={signoff.digest.tally} />
+            {signoff.headline ? (
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: theme.text.primary,
+                  flexShrink: 1,
+                }}
+              >
+                {signoff.headline.title}
+              </Text>
+            ) : null}
           </View>
-          <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{verdict.detail}</Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 8,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            borderRadius: nativeRadii[2],
-            borderWidth: 1,
-            borderColor: status[tone].softBorder,
-            backgroundColor: status[tone].softBg,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <IconCheck size={15} color={status[tone].softFg} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: status[tone].softFg }}>
-              {signoff.digest.headline}
+          {signoff.headline ? (
+            <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>
+              {signoff.headline.detail}
             </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{signoff.digest.line}</Text>
+          ) : null}
         </View>
 
         {proofNotice ? (
@@ -296,57 +293,49 @@ export default function StorySignoffReview({
           {signoff.overall ? (
             <OverallSection
               overall={signoff.overall}
-              bucket={overallBucket}
+              section={sectionOf('')}
               onOpenPair={setOpenPairKey}
               onRequestImage={evidence.requestImage}
               onSaveFile={onSaveFile}
             />
           ) : null}
 
-          {signoff.features.map((f, i) => {
-            const bucket = bucketByFeature.get(f.featureId) ?? emptyBucket
-            return (
-              <FeatureReviewSection
-                key={f.featureId}
-                kind="feature"
-                idLabel={`Feature #${featureIndex(f.featureId)}`}
-                title={f.title}
-                facts={f.facts}
-                agents={f.agents}
-                rows={f.rows}
-                verification={f.verification}
-                statusLine={f.statusLine}
-                {...sectionProps(bucket, verifyByFeature.get(f.featureId))}
-                defaultOpen={i === 0}
-                onOpenPair={setOpenPairKey}
-                onRequestImage={evidence.requestImage}
-                onSaveFile={onSaveFile}
-              />
-            )
-          })}
+          {signoff.features.map((f, i) => (
+            <FeatureReviewSection
+              key={f.featureId}
+              kind="feature"
+              idLabel={`Feature #${featureIndex(f.featureId)}`}
+              title={f.title}
+              facts={f.facts}
+              agents={f.agents}
+              rows={f.rows}
+              verification={f.verification}
+              statusLine={f.statusLine}
+              {...signoffSectionProps(sectionOf(f.featureId), verifyByFeature.get(f.featureId))}
+              defaultOpen={i === 0}
+              onOpenPair={setOpenPairKey}
+              onRequestImage={evidence.requestImage}
+              onSaveFile={onSaveFile}
+            />
+          ))}
 
-          {evidenceOnly.map((f) => {
-            const bucket = bucketByFeature.get(f.id) ?? emptyBucket
-            return (
-              <FeatureReviewSection
-                key={f.id}
-                kind="feature"
-                idLabel={`Feature #${featureIndex(f.id)}`}
-                title={f.title}
-                facts={{ costLabel: undefined, durationLabel: undefined }}
-                agents={[]}
-                rows={[]}
-                verification={undefined}
-                statusLine={{ tone: 'review', label: 'Not verified' }}
-                pairs={bucket.pairs}
-                recordings={bucket.recordings}
-                reports={bucket.reports}
-                onOpenPair={setOpenPairKey}
-                onRequestImage={evidence.requestImage}
-                onSaveFile={onSaveFile}
-              />
-            )
-          })}
+          {evidenceOnly.map((f) => (
+            <FeatureReviewSection
+              key={f.id}
+              kind="feature"
+              idLabel={`Feature #${featureIndex(f.id)}`}
+              title={f.title}
+              facts={{ costLabel: undefined, durationLabel: undefined }}
+              agents={[]}
+              rows={[]}
+              verification={undefined}
+              statusLine={{ tone: 'review', label: 'Not verified' }}
+              {...signoffSectionProps(sectionOf(f.id), undefined)}
+              onOpenPair={setOpenPairKey}
+              onRequestImage={evidence.requestImage}
+              onSaveFile={onSaveFile}
+            />
+          ))}
         </View>
       </View>
 
@@ -393,13 +382,13 @@ export default function StorySignoffReview({
 
 function OverallSection({
   overall,
-  bucket,
+  section,
   onOpenPair,
   onRequestImage,
   onSaveFile,
 }: {
   overall: OverallSignoff
-  bucket: EvBucket
+  section: SignoffSection
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
   onSaveFile?: SaveFileHandler
@@ -412,14 +401,13 @@ function OverallSection({
       agents={overall.agents}
       rows={overall.rows}
       verification={overall.verification}
-      statusLine={
-        overall.allGreen
-          ? { tone: 'done', label: 'All green' }
-          : { tone: 'stuck', label: 'Checks failed' }
-      }
+      statusLine={overall.statusLine}
+      notes={overall.notes}
       pairs={[]}
-      recordings={bucket.recordings}
-      reports={bucket.reports}
+      recordings={section.recordings}
+      reports={section.reports}
+      codeReviews={section.codeReviews}
+      leadTab={section.leadTab}
       onOpenPair={onOpenPair}
       onRequestImage={onRequestImage}
       onSaveFile={onSaveFile}

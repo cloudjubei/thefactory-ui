@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import type { BillingBasis } from 'thefactory-tools/types'
 import {
   extractErrorMessage,
   listLlmModels,
@@ -24,6 +25,8 @@ import { IconChat } from '../../icons/IconChat'
 import { IconRobot } from '../../icons/IconRobot'
 import { IconRocket } from '../../icons/IconRocket'
 import { IconSave } from '../../icons/IconSave'
+import { llmConfigBilling } from '../../../headless/utils/llmConfigBilling'
+import { LLM_CONFIG_BILLING_OPTIONS } from '../../../headless/utils/llmConfigBillingConstants'
 import { nativeLightStatus, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -103,7 +106,9 @@ export interface LLMConfigFormHandle {
 /**
  * Native peer of web's `LLMConfigForm`. Self-contained LLM-config editor used
  * inside a host modal: name, provider, API key, optional URL override, model
- * (with refresh-from-provider). In edit mode it also renders "Activate Agent"
+ * (with refresh-from-provider), and how its calls are paid for — metered,
+ * free or subscription, each explained in one line, as on web. In edit mode it
+ * also renders "Activate Agent"
  * / "Activate Chat" buttons and an icon Save submit; in create mode the
  * submit reads "Create config".
  *
@@ -121,6 +126,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   const [model, setModel] = useState(initial?.model ?? '')
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
   const [apiUrlOverride, setApiUrlOverride] = useState(initial?.apiUrlOverride ?? '')
+  const [billing, setBilling] = useState<BillingBasis>(() => llmConfigBilling(initial))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -267,6 +273,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
         model: model.trim(),
         apiKey: apiKey.trim(),
         apiUrlOverride: apiUrlOverride.trim() || undefined,
+        billing,
       }
       await mode.onSubmit(payload)
       onCancel()
@@ -503,6 +510,64 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             {modelsError}
           </Text>
         ) : null}
+      </View>
+
+      <View accessibilityRole="radiogroup" accessibilityLabel="Billing" style={{ gap: 4 }}>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>Billing</Text>
+        {LLM_CONFIG_BILLING_OPTIONS.map((option) => {
+          const checked = billing === option.value
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              accessibilityState={{ checked }}
+              accessibilityLabel={`${option.label}: ${option.description}`}
+              onPress={() => {
+                if (checked) return
+                markDirty()
+                setBilling(option.value)
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: nativeSpace[3],
+                paddingVertical: nativeSpace[2],
+              }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  marginTop: 1,
+                  borderRadius: 9,
+                  borderWidth: 2,
+                  borderColor: checked ? theme.accent.primary : theme.border.default,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {checked ? (
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: theme.accent.primary,
+                    }}
+                  />
+                ) : null}
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary }}>
+                  {option.label}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                  {option.description}
+                </Text>
+              </View>
+            </Pressable>
+          )
+        })}
       </View>
 
       <View

@@ -12,8 +12,13 @@ export type RunModel = {
   tool: string | undefined
   /** The TRANSPORT the chip leads with — `CLI` or `API`, never the tool's name. */
   tag: 'CLI' | 'API'
-  /** The model the run was carried out on, when the record names one. */
+  /**
+   * The model the run was carried out on: what the CLI reported running, else
+   * what it was asked for. Cursor asked for `auto` reports `Composer 2.5`.
+   */
   model: string | undefined
+  /** What the run asked for, when the CLI reported running something else. */
+  requested?: string
   /** Reasoning effort, when the runner reported one. */
   effort: string | undefined
 }
@@ -27,16 +32,23 @@ function trimmedOrUndefined(value: string | undefined): string | undefined {
  * Read the run's executor off its record.
  *
  * `cli` is absent for an API-transport run, which is the only thing that tells
- * the two apart — so its absence IS the "API" reading, not missing data.
+ * the two apart — so its absence IS the "API" reading, not missing data. The
+ * model is the one the CLI REPORTED: `modelId` is only the request, and a run
+ * asked for `auto` — or for nothing — says which model actually ran.
  */
-export function runModelOf(run: Pick<CliRun, 'cli' | 'modelId' | 'effort'>): RunModel {
+export function runModelOf(
+  run: Pick<CliRun, 'cli' | 'modelId' | 'effort'> & { reportedModel?: string },
+): RunModel {
   const tool = trimmedOrUndefined(run.cli?.tool)
+  const reported = trimmedOrUndefined(run.reportedModel)
+  const requested = trimmedOrUndefined(run.modelId)
   return {
     tool,
     // The tag slot carries the transport, matching the composer's model chip;
     // the tool's own name belongs in the model slot, not shouted in the tag.
     tag: tool ? 'CLI' : 'API',
-    model: trimmedOrUndefined(run.modelId),
+    model: reported ?? requested,
+    ...(reported && requested && requested !== reported ? { requested } : {}),
     effort: trimmedOrUndefined(run.effort),
   }
 }

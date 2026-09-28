@@ -13,6 +13,7 @@ import {
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import SegmentedControl from '../primitives/SegmentedControl'
 import { DurCostChips } from '../compound/chat/signoff'
+import CostChip from '../compound/chips/CostChip'
 import { IconSettings } from '../icons'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
@@ -193,7 +194,7 @@ function RunRow({
         >
           <Text style={{ fontSize: 9.5, color: variant.softFg }}>{view.badge.label}</Text>
         </View>
-        {spend ? <DurCostChips facts={{ costLabel: spend.label }} /> : null}
+        {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: theme.text.secondary }}>
           {view.sub}
         </Text>

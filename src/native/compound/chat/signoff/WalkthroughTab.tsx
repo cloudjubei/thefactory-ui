@@ -34,6 +34,9 @@ function Recording({ tile }: { tile: EvidenceTile }) {
       >
         {tile.caption}
       </Text>
+      {tile.unvouched ? (
+        <Text style={{ fontSize: 11.5, color: theme.text.muted }}>{tile.unvouched.text}</Text>
+      ) : null}
       <View
         style={{
           height: 210,

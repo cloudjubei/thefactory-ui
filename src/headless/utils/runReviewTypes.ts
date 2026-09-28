@@ -3,6 +3,7 @@ import type {
   VerificationCheckKind,
   VerificationCheckStatus,
 } from '../api/generated'
+import type { CostSource } from './costDetailsTypes'
 
 /**
  * Semantic colour role for a run-review surface. Platform-neutral: web maps it
@@ -72,8 +73,11 @@ export type ReviewActionInput = {
 
 /** Cost + duration labels for the summary head; `undefined` when unrecorded. */
 export type RunReviewFacts = {
+  /** The charge alone, in dollars — never a token count. */
   costLabel: string | undefined
   durationLabel: string | undefined
+  /** The cost behind the label, for its details view. Present whenever `costLabel` is. */
+  cost?: CostSource
 }
 
 /** Per-status file tallies for the "what changed" line. */

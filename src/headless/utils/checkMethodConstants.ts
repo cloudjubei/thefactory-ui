@@ -1,3 +1,4 @@
+import type { ReviewEvidenceVerdict } from '../api/generated'
 import type {
   CheckMethodFill,
   CheckMethodId,
@@ -36,11 +37,13 @@ export const CHECK_METHOD_ORDER: readonly CheckMethodId[] = [
  * list four SCREENSHOT tools, so an agent briefed to record a video had only
  * stills to do it with.
  *
- * `diff` LANDED: the `judge` step reads the branch diff and records
- * `CliRun.diffReview`, which is what satisfies it. Note what it is NOT — the
- * verdict. `CliRunVerdict.decision` means approved / changes-requested /
- * rejected, a SIGN-OFF that is the user's to give, so "the diff was read" got a
- * field of its own rather than an agent stamping a decision on their behalf.
+ * `diff` LANDED, and is now the code review: the `judge` step files its finding
+ * as a `code-review` report, whose verdict is the chip's state; a run from
+ * before that filed none is still satisfied by `CliRun.diffReview`. Note what
+ * it is NOT — the run's verdict. `CliRunVerdict.decision` means approved /
+ * changes-requested / rejected, a SIGN-OFF that is the user's to give, so the
+ * review got a record of its own rather than an agent stamping a decision on
+ * their behalf.
  *
  * These are not slow or unavailable, they are ABSENT, and the distinction is the
  * whole point: `unchecked` means "this run did not do it", which a reviewer can
@@ -72,7 +75,7 @@ export const CHECK_METHOD_LABELS: Record<CheckMethodId, string> = {
   screens: 'Screens',
   walkthrough: 'Walkthrough',
   report: 'Report',
-  diff: 'Diff',
+  diff: 'Code review',
 }
 
 export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
@@ -86,7 +89,7 @@ export const CHECK_METHOD_NOUNS: Record<CheckMethodId, string> = {
   screens: 'before/after screens',
   walkthrough: 'a walkthrough recording',
   report: 'a written report',
-  diff: 'a diff review',
+  diff: 'a code review',
 }
 
 /**
@@ -107,7 +110,7 @@ export const CHECK_METHOD_ABSENT_NOUNS: Record<CheckMethodId, string> = {
   screens: 'before/after screens',
   walkthrough: 'walkthrough recording',
   report: 'written report',
-  diff: 'diff review',
+  diff: 'code review',
 }
 
 /**
@@ -126,7 +129,7 @@ export const CHECK_METHOD_CAPTURE_VERBS: Record<CheckMethodId, string> = {
   screens: 'capture before/after screens',
   walkthrough: 'record a walkthrough',
   report: 'write up what changed',
-  diff: 'review the diff',
+  diff: 'review the code',
 }
 
 export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
@@ -140,7 +143,7 @@ export const CHECK_METHOD_SETUP_VERBS: Record<CheckMethodId, string> = {
   screens: 'capture screens',
   walkthrough: 'record a walkthrough',
   report: 'write a report',
-  diff: 'review the diff',
+  diff: 'review the code',
 }
 
 /**
@@ -190,6 +193,17 @@ export const CHECK_METHOD_APPROACH: Partial<Record<CheckMethodId, string>> = {
   report: 'code-explanation',
   diff: 'adversarial-review',
 }
+
+/** The sentence a chip's callout leads with, by state; an unconfigured one names its method instead. */
+export const CHECK_STATE_SENTENCES: Record<Exclude<CheckMethodState, 'unconfigured'>, string> = {
+  passed: 'Passed. The proof is filed on this run.',
+  failed: 'Failed on this branch.',
+  unchecked: 'Configured for this project, but never run on this branch.',
+}
+
+/** The callout's lead for a method whose every filing the backend cannot vouch for — it ran. */
+export const CHECK_STATE_UNVOUCHED_SENTENCE =
+  'Filed on this branch, but the backend can’t vouch for it now — it counts once it is captured again.'
 
 export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
   passed: 'positive',
@@ -256,6 +270,7 @@ export const REVIEW_TAB_ORDER: readonly ReviewTabId[] = [
   'tests',
   'build',
   'report',
+  'code-review',
   'changes',
 ]
 
@@ -265,6 +280,7 @@ export const REVIEW_TAB_LABELS: Record<ReviewTabId, string> = {
   tests: 'Tests',
   build: 'Build',
   report: 'Report',
+  'code-review': 'Code review',
   changes: 'Changes',
 }
 
@@ -308,5 +324,36 @@ export const PROVEN_TITLE = 'Every configured check passed'
 export const PROVEN_DETAIL = 'Built, checked, and captured. Nothing outstanding.'
 export const NOT_RUN_TITLE = 'Nothing has been checked'
 
+/**
+ * Verdict headline when nothing counts only because what was filed cannot be
+ * vouched for — after a restart, every earlier filing. It ran; saying nothing
+ * was checked would send the reader looking for a run that happened.
+ */
+export const NOTHING_VOUCHED_TITLE = 'Nothing filed can be vouched for now'
+
 /** Verdict headline when the checks pass but the story itself is not finished. */
 export const STORY_UNFINISHED_TITLE = 'Checks pass — but the story is not finished'
+
+/**
+ * What one filed item of an evidence method is called, for the line that says
+ * how many of them the backend cannot vouch for.
+ */
+export const UNVOUCHED_EVIDENCE_NOUNS: Partial<Record<CheckMethodId, string>> = {
+  screens: 'screenshot',
+  walkthrough: 'recording',
+  report: 'report',
+  diff: 'code review',
+}
+
+/** Where a filed code review's finding is read — the chip opens it whatever it concluded. */
+export const CODE_REVIEW_TAB: ReviewTabId = 'code-review'
+
+/** The Code review chip's line when the review concluded without saying why. */
+export const CODE_REVIEW_DETAIL: Record<ReviewEvidenceVerdict, string> = {
+  approved: 'The code review approved the change',
+  'changes-requested': 'The code review requested changes',
+  rejected: 'The code review rejected the change',
+}
+
+/** The Code review chip's line over a review that concluded nothing. */
+export const CODE_REVIEW_NO_VERDICT = 'The code review filed no verdict.'

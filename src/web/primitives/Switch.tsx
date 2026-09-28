@@ -4,6 +4,8 @@ export interface SwitchProps {
   label?: string
   disabled?: boolean
   className?: string
+  /** The switch's accessible name; defaults to `label`, which is shown beside it but not tied to it. */
+  ariaLabel?: string
 }
 
 export function Switch({
@@ -12,6 +14,7 @@ export function Switch({
   label,
   disabled = false,
   className,
+  ariaLabel,
 }: SwitchProps) {
   const state = checked ? 'checked' : 'unchecked'
 
@@ -26,6 +29,7 @@ export function Switch({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={ariaLabel ?? label}
         aria-disabled={disabled || undefined}
         disabled={disabled}
         onClick={handleClick}

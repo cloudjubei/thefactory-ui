@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
@@ -16,13 +16,8 @@ import {
   parseCliAgentModelTag,
   shortCliModelLabel,
 } from '../../../headless/utils/cliRunner'
-
-const USD = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 4,
-  maximumFractionDigits: 4,
-})
+import { costDetailsView, messageUsageCost } from '../../../headless/utils/costDetails'
+import CostDetailsPanel from '../chips/CostDetailsPanel'
 
 function formatFriendlyTimestamp(iso: string): string {
   try {
@@ -90,51 +85,24 @@ function CollapsibleContent({
   )
 }
 
-function safeNumber(n: unknown): number {
-  return typeof n === 'number' && isFinite(n) ? n : 0
-}
-
+/**
+ * The per-message `$` chip. Hover (or a click, which pins it) opens the same
+ * cost details every cost chip opens, so a CLI turn covered by a subscription
+ * reads as included — not as `$0.0000`, and never as a missing price.
+ */
 function UsageChip({ message }: { message: ChatMessageLike }) {
   const usage = message.usage
-  if (!usage) return null
-  const cost = typeof usage.cost === 'number' ? usage.cost : undefined
-  const promptTokens = safeNumber(usage.promptTokens)
-  const completionTokens = safeNumber(usage.completionTokens)
-  const cachedReadInputTokens = safeNumber(
-    (usage as unknown as { cachedReadInputTokens?: number }).cachedReadInputTokens,
+  const view = useMemo(
+    () => (usage ? costDetailsView(messageUsageCost(usage, message.model)) : undefined),
+    [usage, message.model],
   )
-  const cacheRatio = cachedReadInputTokens / Math.max(1, promptTokens + cachedReadInputTokens)
-
-  const tooltipContent = (
-    <div className="min-w-[220px] text-xs text-(--text-primary)">
-      <div className="font-semibold mb-2">Message usage</div>
-      <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-(--text-secondary)">Cost</span>
-          <span>{cost != null ? USD.format(cost) : '—'}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-(--text-secondary)">Input</span>
-          <span>{Math.round(promptTokens).toLocaleString()}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-(--text-secondary)">Output</span>
-          <span>{Math.round(completionTokens).toLocaleString()}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-(--text-secondary)">Cached read</span>
-          <span>{Math.round(cachedReadInputTokens).toLocaleString()}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-(--text-secondary)">Cache ratio</span>
-          <span>{Math.round(cacheRatio * 100).toLocaleString()}%</span>
-        </div>
-      </div>
-    </div>
-  )
-
+  if (!view) return null
   return (
-    <Tooltip content={tooltipContent} placement="top" delayMs={150}>
+    <Tooltip
+      content={<CostDetailsPanel view={view} title="Message usage" />}
+      placement="top"
+      delayMs={150}
+    >
       <button
         type="button"
         className="text-[11px] text-(--text-secondary) inline-flex items-center gap-1 border border-(--border-subtle) bg-(--surface-overlay) rounded-full px-2 py-[2px] hover:bg-(--surface-raised) transition-colors"

@@ -9,7 +9,7 @@ import {
   shortCliModelLabel,
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
-import type { UsageModalModelPrice } from './UsageModal'
+import type { UsageModalModelPrice } from '../../headless/utils/usageBreakdownTypes'
 
 export type ModelChipConfig = {
   id: string

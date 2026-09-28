@@ -412,6 +412,7 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
+                  onShowUsage={onShowUsage}
                   coldStart={msg.cliRunId === firstCliRunId}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
@@ -500,6 +501,7 @@ export default function MessageList({
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
               renderProcessRun={renderProcessRun}
+              onShowUsage={onShowUsage}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
             />

@@ -21,7 +21,7 @@ export interface ModelChipConfig {
 
 export type ModelChipMode = 'agentRun' | 'chat' | 'activity'
 
-/** Minimal price record shape — full `UsageModalModelPrice` is web-only. */
+/** Minimal price record shape — the rates the chip reads of headless `UsageModalModelPrice`. */
 export interface ModelPriceRecord {
   inputPerMTokensUSD: number
   outputPerMTokensUSD: number

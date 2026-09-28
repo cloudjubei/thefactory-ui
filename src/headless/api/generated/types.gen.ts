@@ -138,6 +138,8 @@ export type LlmModel = {
   provider: LlmProvider
 }
 
+export type BillingBasis = 'subscription' | 'metered' | 'free'
+
 export type LlmConfig = {
   model: string
   provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
@@ -148,6 +150,7 @@ export type LlmConfig = {
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
 }
 
 export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
@@ -722,6 +725,13 @@ export type AgentTaskResult = {
   costUSD: number
 }
 
+export type CapturePlatform = 'android' | 'ios' | 'web'
+
+export type AgentRunCaptureAccess = {
+  deviceAutomation: boolean
+  platforms: Array<CapturePlatform>
+}
+
 export type ToolApprovalDecision =
   | {
       outcome: 'approved'
@@ -737,6 +747,8 @@ export type ToolApprovalDecision =
     }
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
+
+export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
 
 export type ResearchSource = {
   title: string
@@ -896,6 +908,7 @@ export type CapabilityId =
   | 'simctl'
   | 'iosSimulator'
   | 'idb'
+  | 'playwrightBrowser'
   | 'git'
   | 'node'
 
@@ -908,9 +921,12 @@ export type CapabilityOverrides = {
   simctl?: string
   iosSimulator?: string
   idb?: string
+  playwrightBrowser?: string
   git?: string
   node?: string
 }
+
+export type CapabilityLibraryPath = 'playwrightChromium'
 
 export type CapabilityStatus = {
   id: CapabilityId
@@ -927,6 +943,12 @@ export type VerificationApproachId =
   | 'adversarial-review'
 
 export type ProjectPlatform = 'android' | 'ios' | 'web' | 'unknown'
+
+export type ProjectPlatformInput = {
+  language?: string
+  framework?: string
+  webRecipe?: string
+}
 
 export type VerificationApproachSpec = {
   id: VerificationApproachId
@@ -959,6 +981,11 @@ export type ApproachAvailability =
       status: 'unavailable'
       missing: Array<CapabilityId>
       hints: Array<string>
+      withheld?: string
+    }
+  | {
+      status: 'not-allowed'
+      reason: string
     }
   | {
       status: 'not-applicable'
@@ -981,6 +1008,7 @@ export type CreateCapabilityToolsOptions = {
     simctl?: string
     iosSimulator?: string
     idb?: string
+    playwrightBrowser?: string
     git?: string
     node?: string
   }
@@ -1162,16 +1190,36 @@ export type CompletionUserMessage = {
   handoffFrom?: string
 }
 
+export type ModelSpend = {
+  provider: string
+  model: string
+  label?: string
+  billing: BillingBasis
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  costUsd?: number
+  listCostUsd?: number
+  outputTokensNotReported?: true
+  tokensNotReported?: true
+}
+
 export type CompletionUsage = {
   promptTokens: number
   completionTokens: number
   inputTokens?: number
   totalTokens?: number
   cachedReadInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
   reasoningTokens?: number
   cost?: number
   costInput?: number
   costOutput?: number
+  billing?: 'subscription' | 'metered' | 'free'
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
 }
 
 export type CompletionAssistantMessage = {
@@ -1186,10 +1234,15 @@ export type CompletionAssistantMessage = {
     inputTokens?: number
     totalTokens?: number
     cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+    cacheWrite1hInputTokens?: number
     reasoningTokens?: number
     cost?: number
     costInput?: number
     costOutput?: number
+    billing?: 'subscription' | 'metered' | 'free'
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
   }
   model: {
     model: string
@@ -1269,10 +1322,15 @@ export type Chat = {
       inputTokens?: number
       totalTokens?: number
       cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
       reasoningTokens?: number
       cost?: number
       costInput?: number
       costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
     }
     model?: {
       model: string
@@ -1340,10 +1398,15 @@ export type ChatCreateInput = {
       inputTokens?: number
       totalTokens?: number
       cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
       reasoningTokens?: number
       cost?: number
       costInput?: number
       costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
     }
     model?: {
       model: string
@@ -1407,10 +1470,15 @@ export type ChatEditInput = {
       inputTokens?: number
       totalTokens?: number
       cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
       reasoningTokens?: number
       cost?: number
       costInput?: number
       costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
     }
     model?: {
       model: string
@@ -2133,6 +2201,50 @@ export type SignOffDecision = {
   reason?: string
 }
 
+export type CliRunTranscriptEntry = {
+  at: number
+  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
+  payload: unknown
+  streaming?: boolean
+  costUSD?: number
+}
+
+export type RealTranscriptLine = {
+  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
+} & {
+  payload: {
+    [key: string]: unknown
+  }
+}
+
+export type RealCliRunTranscripts = {
+  cursorComposer25_86f37c86: Array<RealTranscriptLine>
+  cursorAuto_19ca191b: Array<RealTranscriptLine>
+  cursorComposer25FastInner_d5d6ac74: Array<RealTranscriptLine>
+  claudeOneShotSonnet5_88342735: Array<RealTranscriptLine>
+  claudeOneShotSubagentSpend_69ddd7b2: Array<RealTranscriptLine>
+  claudeResidentTurn1_3d4befd2: Array<RealTranscriptLine>
+  claudeResidentTurn2_84fe1469: Array<RealTranscriptLine>
+  cursorAcpResident_026fbbbe: Array<RealTranscriptLine>
+  claudeSubagentToolCall_69ddd7b2: Array<RealTranscriptLine>
+}
+
+export type CursorAcpLiveProbe = {
+  messages: Array<{
+    id?: number
+    method?: string
+    result?: unknown
+    params?: unknown
+  }>
+}
+
+export type CodexTokenCountEvents = {
+  model: string
+  tokenCounts: Array<{
+    [key: string]: unknown
+  }>
+}
+
 export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
 
 export type CliAuthStatusSource = 'run-failure' | 'probe' | 'login'
@@ -2240,19 +2352,31 @@ export type CliRunStatus =
   | 'aborted'
   | 'paused'
 
-export type CliRunTranscriptEntry = {
-  at: number
-  kind: 'assistant' | 'tool-call' | 'tool-result' | 'system' | 'result' | 'other'
-  payload: unknown
-  streaming?: boolean
-  costUSD?: number
-}
-
 export type CliRunUsage = {
   tokensIn: number
   tokensOut: number
   cacheReadTokens?: number
   cacheCreationTokens?: number
+  cacheCreation1hTokens?: number
+  outputTokensNotReported?: true
+}
+
+export type CliModelTokens = {
+  model: string
+  label?: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  cacheWrite1hTokens?: number
+  listCostUsd?: number
+  outputTokensNotReported?: true
+}
+
+export type CliBillingConflict = {
+  intended: BillingBasis
+  reported: BillingBasis
+  authSource: string
 }
 
 export type CliModelAuthMode = 'subscription' | 'api-key'
@@ -2354,7 +2478,20 @@ export type CliRunFailureKind =
   | 'network-unreachable'
   | 'sandbox-killed'
   | 'tool-protocol'
+  | 'native-tool-used'
   | 'unknown'
+
+export type CliRunSpend = {
+  usage?: {
+    tokensIn: number
+    tokensOut: number
+    cacheReadTokens?: number
+    cacheCreationTokens?: number
+    cacheCreation1hTokens?: number
+    outputTokensNotReported?: true
+  }
+  modelUsage?: Array<ModelSpend>
+}
 
 export type CliRunRetryHistoryEntry = {
   at: number
@@ -2363,6 +2500,17 @@ export type CliRunRetryHistoryEntry = {
   message: string
   retryAfterSec?: number
   delayMs: number
+  spentSoFar?: {
+    usage?: {
+      tokensIn: number
+      tokensOut: number
+      cacheReadTokens?: number
+      cacheCreationTokens?: number
+      cacheCreation1hTokens?: number
+      outputTokensNotReported?: true
+    }
+    modelUsage?: Array<ModelSpend>
+  }
 }
 
 export type CliRunReview = {
@@ -2441,8 +2589,16 @@ export type CliRun = {
     tokensOut: number
     cacheReadTokens?: number
     cacheCreationTokens?: number
+    cacheCreation1hTokens?: number
+    outputTokensNotReported?: true
   }
   costUSD?: number
+  modelUsage?: Array<ModelSpend>
+  billing?: 'subscription' | 'metered' | 'free'
+  authSource?: string
+  reportedModel?: string
+  tokensNotReported?: true
+  mirrorOf?: string
   durationMs?: number
   firstByteMs?: number
   subscription?: {
@@ -2519,6 +2675,7 @@ export type CliRunFailurePolicy = {
   authExpired?: 'pause' | 'abort'
   networkUnreachable?: 'retry' | 'abort'
   toolProtocol?: 'retry' | 'abort'
+  nativeToolUsed?: 'retry' | 'abort'
   quotaExceeded?: 'pause' | 'abort'
   sandboxKilled?: 'abort'
   unknown?: 'abort'
@@ -2560,8 +2717,13 @@ export type CliRunResult = {
     tokensOut: number
     cacheReadTokens?: number
     cacheCreationTokens?: number
+    cacheCreation1hTokens?: number
+    outputTokensNotReported?: true
   }
   costUSD?: number
+  modelUsage?: Array<ModelSpend>
+  billing?: 'subscription' | 'metered' | 'free'
+  reportedModel?: string
 }
 
 export type WorkspaceCapState = 'under' | 'warn' | 'over'
@@ -2635,6 +2797,8 @@ export type FinalizeIsolatedChatTurnInput = {
 export type ClaudeCodeInitMetadata = {
   sessionId?: string
   version?: string
+  model?: string
+  apiKeySource?: string
 }
 
 export type CursorInitMetadata = {
@@ -2642,6 +2806,23 @@ export type CursorInitMetadata = {
   model?: string
   apiKeySource?: string
   permissionMode?: string
+}
+
+export type CursorAcpSessionModel = {
+  label: string
+  model: string
+}
+
+export type CodexTokenCount = {
+  total: CliRunUsage
+  last?: {
+    tokensIn: number
+    tokensOut: number
+    cacheReadTokens?: number
+    cacheCreationTokens?: number
+    cacheCreation1hTokens?: number
+    outputTokensNotReported?: true
+  }
 }
 
 export type CodexInitMetadata = {
@@ -2919,8 +3100,16 @@ export type CliRunApproveResult = {
       tokensOut: number
       cacheReadTokens?: number
       cacheCreationTokens?: number
+      cacheCreation1hTokens?: number
+      outputTokensNotReported?: true
     }
     costUSD?: number
+    modelUsage?: Array<ModelSpend>
+    billing?: 'subscription' | 'metered' | 'free'
+    authSource?: string
+    reportedModel?: string
+    tokensNotReported?: true
+    mirrorOf?: string
     durationMs?: number
     firstByteMs?: number
     subscription?: {
@@ -2986,6 +3175,28 @@ export type CliRunApproveResult = {
   }
 }
 
+export type TestSeamFile = {
+  path: string
+  content: string
+}
+
+export type ReplaceReviewTestSeamInput = {
+  runId: string
+  repoPath: string
+  description: string
+  files: Array<TestSeamFile>
+}
+
+export type ReplaceReviewTestSeamResult =
+  | {
+      ok: true
+      review: CliRunReview
+    }
+  | {
+      ok: false
+      error: string
+    }
+
 export type TestSeamManifest = {
   description: string
   paths: Array<string>
@@ -3040,10 +3251,21 @@ export type ResidentProfileInput = {
   effort?: string
 }
 
+export type ResidentTurnSpend = {
+  tokens?: Array<CliModelTokens>
+  reportedModel?: string
+  authSource?: string
+}
+
 export type ResidentTurnResult = {
   transcript: Array<CliRunTranscriptEntry>
   status: 'succeeded' | 'errored'
   resultSubtype?: string
+  spend?: {
+    tokens?: Array<CliModelTokens>
+    reportedModel?: string
+    authSource?: string
+  }
 }
 
 export type CliImageReleaseSource =
@@ -3317,9 +3539,29 @@ export type CodeIntelMemberSupersession = {
   valueFlowEdges: Array<CodeIntelValueFlowEdge>
 }
 
+export type CodeIntelMemberCall = {
+  receiver?: string
+  field?: string
+  method: string
+  text: string
+  line: number
+}
+
 export type CodeIntelCallGraphMember = {
   name: string
   targets: Array<string>
+  method?: {
+    owner: string
+    startLine: number
+    endLine: number
+  }
+  memberCalls?: Array<CodeIntelMemberCall>
+}
+
+export type CodeIntelModuleInstance = {
+  name: string
+  className: string
+  line: number
 }
 
 export type CodeIntelHandlerWiringKind = 'route' | 'middleware' | 'event'
@@ -3578,6 +3820,8 @@ export type NormalizedUsage = {
   promptTokens?: number
   completionTokens?: number
   cachedReadInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
   reasoningTokens?: number
 }
 
@@ -3700,6 +3944,7 @@ export type LlmConfigEntry = {
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
   createdAt: string
   updatedAt: string
 }
@@ -3713,6 +3958,7 @@ export type LlmConfigCreateInput = {
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
 }
 
 export type GitCredentialTokenSource = 'pat' | 'oauth'
@@ -4097,10 +4343,15 @@ export type ResearchTraceEvent = {
     inputTokens?: number
     totalTokens?: number
     cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+    cacheWrite1hInputTokens?: number
     reasoningTokens?: number
     cost?: number
     costInput?: number
     costOutput?: number
+    billing?: 'subscription' | 'metered' | 'free'
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
   }
   query?: string
   results?: Array<{
@@ -4650,6 +4901,14 @@ export type StructuredDiff = {
     line: number
     text: string
   }>
+}
+
+export type SweptDirectoryLifetime = 'watch' | 'settling'
+
+export type WatchGapSweeperOptions = {
+  offsetsMs: Array<number>
+  minIntervalMs: number
+  concurrency: number
 }
 
 export type FlowStatus = 'running' | 'completed' | 'failed' | 'aborted'
@@ -5312,6 +5571,11 @@ export type GitApplyStashOptions = {
   timeoutMs?: number
 }
 
+export type ResolvedCommitWorktree = {
+  sha: string
+  overlays: Array<string>
+}
+
 export type GitLogOptions = {
   ref?: string
   all?: boolean
@@ -5471,10 +5735,28 @@ export type InferenceResult = {
     inputTokens?: number
     totalTokens?: number
     cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+    cacheWrite1hInputTokens?: number
     reasoningTokens?: number
     cost?: number
     costInput?: number
     costOutput?: number
+    billing?: 'subscription' | 'metered' | 'free'
+    listCostUsd?: number
+    byModel?: Array<{
+      provider: string
+      model: string
+      label?: string
+      billing: 'subscription' | 'metered' | 'free'
+      inputTokens: number
+      outputTokens: number
+      cacheReadTokens: number
+      cacheWriteTokens: number
+      costUsd?: number
+      listCostUsd?: number
+      outputTokensNotReported?: true
+      tokensNotReported?: true
+    }>
   }
 }
 
@@ -5705,6 +5987,9 @@ export type ModelPrice = {
   inputPerMTokensUSD: number
   outputPerMTokensUSD: number
   cacheReadInputPerMTokensUSD?: number
+  cacheWriteInputPerMTokensUSD?: number
+  cacheWrite1hInputPerMTokensUSD?: number
+  source?: string
   currency?: 'USD'
 }
 
@@ -5712,6 +5997,14 @@ export type ModelUsage = {
   promptTokens: number
   completionTokens: number
   cachedReadInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
+}
+
+export type CostModelRef = {
+  provider: string
+  model: string
+  label?: string
 }
 
 export type PricingState = {
@@ -5729,12 +6022,25 @@ export type LlmCostSourceKind = 'api' | 'cli'
 
 export type LlmCostLedgerEntryContent = {
   costUSD?: number
+  listCostUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
   usage: {
     promptTokens: number
     completionTokens: number
     cachedReadInputTokens: number
+    cacheWriteInputTokens?: number
   }
-  model: LlmModel
+  outputTokensNotReported?: true
+  tokensNotReported?: true
+  model: CostModelRef
+  chatContext: ChatContext
+  source: LlmCostSourceKind
+  sourceExtra?: string
+  chatKeys: Array<string>
+  recordedAt: number
+}
+
+export type CostLedgerPlacement = {
   chatContext: ChatContext
   source: LlmCostSourceKind
   sourceExtra?: string
@@ -5757,12 +6063,22 @@ export type LlmCostLedgerEntryEntity = {
 }
 
 export type LlmCostBreakdown = {
+  provider?: string
+  model?: string
+  label?: string
   costUSD: number
   promptTokens: number
   completionTokens: number
   cachedReadInputTokens: number
+  cacheWriteInputTokens?: number
   count: number
   unpricedTokens?: number
+  includedTokens?: number
+  listCostUSD?: number
+  unlistedTokens?: number
+  outputTokensNotReported?: true
+  tokensNotReported?: true
+  billing?: 'subscription' | 'metered' | 'free'
 }
 
 export type LlmCostAggregateContent = {
@@ -5772,25 +6088,49 @@ export type LlmCostAggregateContent = {
   totalCompletionTokens: number
   totalCachedReadInputTokens: number
   totalUnpricedTokens?: number
+  totalIncludedTokens?: number
+  totalCacheWriteInputTokens?: number
+  totalListCostUSD?: number
+  totalUnlistedTokens?: number
   breakdown: {
     [key: string]: LlmCostBreakdown
   }
   bySource?: {
     api?: {
+      provider?: string
+      model?: string
+      label?: string
       costUSD: number
       promptTokens: number
       completionTokens: number
       cachedReadInputTokens: number
+      cacheWriteInputTokens?: number
       count: number
       unpricedTokens?: number
+      includedTokens?: number
+      listCostUSD?: number
+      unlistedTokens?: number
+      outputTokensNotReported?: true
+      tokensNotReported?: true
+      billing?: 'subscription' | 'metered' | 'free'
     }
     cli?: {
+      provider?: string
+      model?: string
+      label?: string
       costUSD: number
       promptTokens: number
       completionTokens: number
       cachedReadInputTokens: number
+      cacheWriteInputTokens?: number
       count: number
       unpricedTokens?: number
+      includedTokens?: number
+      listCostUSD?: number
+      unlistedTokens?: number
+      outputTokensNotReported?: true
+      tokensNotReported?: true
+      billing?: 'subscription' | 'metered' | 'free'
     }
   }
 }
@@ -5948,13 +6288,26 @@ export type MobileDoctorReport = {
 }
 
 export type BootEmulatorOptions = {
+  platform?: 'android' | 'ios'
   avd?: string
   window?: boolean
+  udid?: string
+  name?: string
 }
 
 export type BootEmulatorResult = {
   deviceId: string
-  avd: string
+  platform: MobilePlatform
+  avd?: string
+  name?: string
+}
+
+export type MobileSimulator = {
+  udid: string
+  name: string
+  state: string
+  runtime: string
+  deviceTypeIdentifier?: string
 }
 
 export type BuildAndroidAppOptions = {
@@ -5967,6 +6320,7 @@ export type BuildAndroidAppOptions = {
 }
 
 export type MobileBuildProvenance = {
+  platform: 'android' | 'ios'
   root: string
   sha: string
   dirty: boolean
@@ -5974,21 +6328,94 @@ export type MobileBuildProvenance = {
   flavor?: string
   buildType: string
   overlays?: Array<string>
+  appId?: string
+  artifactSha256?: string
+}
+
+export type BuildIosAppOptions = {
+  repoPath: string
+  scheme?: string
+  configuration?: string
+  project?: string
+  workspace?: string
+  ref?: string
+  overlayRefs?: Array<string>
 }
 
 export type MobileBuildAppInput = {
+  platform?: 'android' | 'ios'
   module?: string
   flavor?: string
   buildType?: string
+  scheme?: string
+  configuration?: string
+  project?: string
+  workspace?: string
   ref?: string
   overlayRefs?: Array<string>
 }
 
 export type BuildAndroidAppResult = {
+  platform: 'android'
   appPath: string
   task: string
   ref?: string
   builtFrom: MobileBuildProvenance
+}
+
+export type BuildIosAppResult = {
+  platform: 'ios'
+  appPath: string
+  appId: string
+  scheme: string
+  configuration: string
+  ref?: string
+  builtFrom: MobileBuildProvenance
+}
+
+export type MobileBuildAppResult = BuildAndroidAppResult | BuildIosAppResult
+
+export type MobileBuildDeps = {
+  outputRoot?: string
+}
+
+export type MobileBuildVariant =
+  | {
+      platform: 'android'
+      module: string
+      flavor: string
+      buildType: string
+    }
+  | {
+      platform: 'ios'
+      container: string
+      scheme: string
+      configuration: string
+    }
+
+export type XcodeContainer = {
+  kind: 'project' | 'workspace'
+  path: string
+}
+
+export type XcodeSchemeInfo = {
+  launchConfiguration?: string
+  runnableApp?: string
+}
+
+export type XcodeSchemeEntry = {
+  name: string
+  info: XcodeSchemeInfo
+}
+
+export type IosBuildSpec = {
+  container: XcodeContainer
+  scheme: XcodeSchemeEntry
+  configuration: string
+}
+
+export type BootSimulatorDeps = {
+  bootTimeoutMs?: number
 }
 
 export type OpenMobileSessionOptions = {
@@ -6058,12 +6485,19 @@ export type MobileShellResult = {
   stderr: string
 }
 
+export type MobileStdoutCapture = {
+  exitCode: number | unknown
+  stderr: string
+  sha256: string
+}
+
 export type SwipeMobileOptions = {
   direction: 'up' | 'down' | 'left' | 'right'
 }
 
 export type MobileDeviceInstall = {
   build?: {
+    platform: 'android' | 'ios'
     root: string
     sha: string
     dirty: boolean
@@ -6071,6 +6505,8 @@ export type MobileDeviceInstall = {
     flavor?: string
     buildType: string
     overlays?: Array<string>
+    appId?: string
+    artifactSha256?: string
   }
   appId?: string
 }
@@ -6082,6 +6518,7 @@ export type MobileRawInstallTarget = {
 export type ReviewEvidenceScreen = {
   ids: Array<string>
   texts: Array<string>
+  activity?: string
 }
 
 export type MobileSessionEntry = {
@@ -6095,6 +6532,7 @@ export type MobileSessionEntry = {
   lastScreen?: {
     ids: Array<string>
     texts: Array<string>
+    activity?: string
   }
   screen?: {
     width: number
@@ -7531,10 +7969,15 @@ export type RecommendTraceEvent = {
     inputTokens?: number
     totalTokens?: number
     cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+    cacheWrite1hInputTokens?: number
     reasoningTokens?: number
     cost?: number
     costInput?: number
     costOutput?: number
+    billing?: 'subscription' | 'metered' | 'free'
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
   }
   unit?: string
   item?: string
@@ -8205,9 +8648,49 @@ export type ReplayLog = {
   }
 }
 
-export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
+export type CaptureSealDomain = 'capture' | 'evidence' | 'build'
 
-export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+export type CopiedFile = {
+  sha256: string
+  bytes: number
+}
+
+export type ReviewEvidenceBuild = {
+  platform?: 'android' | 'ios' | 'web'
+  sha: string
+  dirty: boolean
+  variant?: string
+  overlays?: Array<string>
+}
+
+export type ReviewEvidenceCaptureDescription = {
+  capturedOn?: string
+  chromeTopPx?: number
+  build?: {
+    platform?: 'android' | 'ios' | 'web'
+    sha: string
+    dirty: boolean
+    variant?: string
+    overlays?: Array<string>
+  }
+  screen?: {
+    ids: Array<string>
+    texts: Array<string>
+    activity?: string
+  }
+}
+
+export type CaptureRecordReading =
+  | {
+      status: 'absent'
+    }
+  | {
+      status: 'unsealed'
+    }
+  | {
+      status: 'sealed'
+      description: ReviewEvidenceCaptureDescription
+    }
 
 export type ReviewEvidenceScope = {
   runId: string
@@ -8216,6 +8699,8 @@ export type ReviewEvidenceScope = {
   featureId?: string
   chatContextId?: string
 }
+
+export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
 
 export type ReviewEvidenceComparison = {
   changedPixels: number
@@ -8226,14 +8711,9 @@ export type ReviewEvidenceComparison = {
   beforeId?: string
 }
 
-export type ReviewEvidenceVerificationMode = 'live' | 'dry'
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
 
-export type ReviewEvidenceBuild = {
-  sha: string
-  dirty: boolean
-  variant?: string
-  overlays?: Array<string>
-}
+export type ReviewEvidenceVerificationMode = 'live' | 'dry'
 
 export type ReviewEvidenceRef = {
   runId: string
@@ -8267,6 +8747,7 @@ export type ReviewEvidenceRef = {
   verificationMode?: 'live' | 'dry'
   dryAssumptions?: string
   build?: {
+    platform?: 'android' | 'ios' | 'web'
     sha: string
     dirty: boolean
     variant?: string
@@ -8275,10 +8756,23 @@ export type ReviewEvidenceRef = {
   screen?: {
     ids: Array<string>
     texts: Array<string>
+    activity?: string
   }
+  unvouchedReason?: string
   mediaType: string
   bytes: number
+  sha256?: string
   createdAt: number
+}
+
+export type EvidenceRecordReading = {
+  ref: ReviewEvidenceRef
+  vouched: boolean
+}
+
+export type StoredFileHash = {
+  version: string
+  sha256: string
 }
 
 export type VisualProofAssessment = {
@@ -8290,19 +8784,42 @@ export type VisualProofAssessment = {
   hasProof: boolean
 }
 
-export type ReviewEvidenceCaptureDescription = {
-  capturedOn?: string
-  chromeTopPx?: number
-  build?: {
-    sha: string
-    dirty: boolean
-    variant?: string
-    overlays?: Array<string>
-  }
-  screen?: {
-    ids: Array<string>
-    texts: Array<string>
-  }
+export type CaptureBuildVariantParts =
+  | {
+      platform: 'android'
+      module: string
+      flavor?: string
+      buildType: string
+    }
+  | {
+      platform: 'ios'
+      scheme: string
+      configuration: string
+    }
+  | {
+      platform: 'web'
+      recipe: string
+    }
+
+export type ScreenIdPatterns = {
+  framework: Array<unknown>
+  chrome: unknown
+}
+
+export type CaptureToolSet = {
+  doctor?: string
+  boot?: string
+  build: string
+  open: string
+  snapshot: string
+  tap: string
+  type: string
+  scroll: string
+  screenshot: string
+  record?: string
+  close?: string
+  logs: string
+  stop?: string
 }
 
 export type ReviewEvidenceQuery = {
@@ -8793,6 +9310,7 @@ export type ToolName =
   | 'getCliAgentRun'
   | 'deleteCliAgentRun'
   | 'linkReviewRun'
+  | 'replaceReviewTestSeam'
   | 'recycleCliAgentSessions'
   | 'listCliAgentRuns'
   | 'getCliAgentRunSubscriptionStatus'
@@ -8993,6 +9511,7 @@ export type ToolName =
   | 'readSubscribedRecords'
   | 'listSourceRecords'
   | 'appendCost'
+  | 'priceSpend'
   | 'getCost'
   | 'getCostSince'
   | 'listPrices'
@@ -9128,6 +9647,9 @@ export type ToolName =
   | 'uiTestPressKey'
   | 'uiTestWaitFor'
   | 'uiTestScreenshot'
+  | 'uiTestServeApp'
+  | 'uiTestStopApp'
+  | 'uiTestListApps'
   | 'uiTestGetConsole'
   | 'uiTestGetNetwork'
   | 'uiTestMeasure'
@@ -9163,6 +9685,12 @@ export type ValidationResult = {
 export type ReorderPayload = {
   fromIndex: number
   toIndex: number
+}
+
+export type UiServeFixtureCommits = {
+  base: string
+  seam: string
+  head: string
 }
 
 export type UiTarget = 'web' | 'electron'
@@ -9228,6 +9756,158 @@ export type ScreenshotUiOptions = {
   marks?: boolean
 }
 
+export type UiWebFramework = 'next' | 'vite'
+
+export type UiServeRecipe = {
+  package?: string
+  framework?: 'next' | 'vite'
+  build?: string
+  serve?: string
+  portEnv?: string
+  envFiles?: Array<string>
+  readyPath?: string
+  locale?: string
+  timezoneId?: string
+}
+
+export type UiServeAppOptions = {
+  ref?: string
+  overlayRefs?: Array<string>
+  recipe?: {
+    package?: string
+    framework?: 'next' | 'vite'
+    build?: string
+    serve?: string
+    portEnv?: string
+    envFiles?: Array<string>
+    readyPath?: string
+    locale?: string
+    timezoneId?: string
+  }
+}
+
+export type UiBuildProvenance = {
+  platform: 'web'
+  root: string
+  sha: string
+  dirty: boolean
+  overlays?: Array<string>
+  recipe: string
+  origin: string
+}
+
+export type UiServeAppResult = {
+  appId: string
+  url: string
+  origin: string
+  builtFrom: UiBuildProvenance
+  reused: boolean
+  warnings?: Array<string>
+}
+
+export type UiServedAppInfo = {
+  appId: string
+  url: string
+  origin: string
+  builtFrom: UiBuildProvenance
+  startedAt: number
+}
+
+export type UiStopAppResult = {
+  ok: boolean
+  appId: string
+  stopped: boolean
+}
+
+export type UiServeRequest = {
+  ref?: string
+  overlayRefs?: Array<string>
+  recipe?: {
+    package?: string
+    framework?: 'next' | 'vite'
+    build?: string
+    serve?: string
+    portEnv?: string
+    envFiles?: Array<string>
+    readyPath?: string
+    locale?: string
+    timezoneId?: string
+  }
+  root: string
+}
+
+export type UiTreeSnapshot = {
+  head: string
+  commit: string
+  dirty: boolean
+}
+
+export type UiServeStep =
+  | {
+      kind: 'bin'
+      bin: string
+      args: Array<string>
+    }
+  | {
+      kind: 'script'
+      script: string
+    }
+
+export type UiServePlan = {
+  build?:
+    | {
+        kind: 'bin'
+        bin: string
+        args: Array<string>
+      }
+    | {
+        kind: 'script'
+        script: string
+      }
+  serve: UiServeStep
+  env: {
+    [key: string]: string
+  }
+}
+
+export type UiHostBoundOptions = {
+  cleanup?: {
+    tree: string
+    repo: string
+  }
+}
+
+export type UiRawScreen = {
+  ids: Array<string>
+  texts: Array<string>
+}
+
+export type UiCaptureDevice = {
+  browserVersion?: string
+  width: number
+  height: number
+  deviceScaleFactor: number
+  locale?: string
+  timeZone?: string
+}
+
+export type UiCaptureBuildState = {
+  target: UiTarget
+  connection: UiConnection
+  tainted: boolean
+  deterministic: boolean
+  options: ScreenshotUiOptions
+  served?: {
+    platform: 'web'
+    root: string
+    sha: string
+    dirty: boolean
+    overlays?: Array<string>
+    recipe: string
+    origin: string
+  }
+}
+
 export type UiSessionResult = {
   sessionId: string
   target: UiTarget
@@ -9267,6 +9947,8 @@ export type UiScreenshotResult = {
   width?: number
   height?: number
   marks?: Array<string>
+  capturedOn?: string
+  noBuildReason?: string
   error?: string
 }
 
@@ -9334,6 +10016,14 @@ export type RawPerformanceInput = {
   domContentLoadedEventEnd?: number
   loadEventEnd?: number
   firstContentfulPaint?: number
+}
+
+export type UiLaunchContextOptions = {
+  deviceScaleFactor?: number
+  reducedMotion?: 'reduce' | 'no-preference'
+  colorScheme?: 'light' | 'dark' | 'no-preference'
+  locale?: string
+  timezoneId?: string
 }
 
 export type DocumentLink = {
@@ -9712,6 +10402,9 @@ export type ProcessVerifyProof = {
 export type ProcessEntryCost = {
   costUsd?: number
   unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
 }
 
 export type ProcessLedgerEntry = {
@@ -9752,29 +10445,41 @@ export type ProcessLedgerEntry = {
   cost?: {
     costUsd?: number
     unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
   }
   startedAt: number
   endedAt?: number
 }
 
 export type ProcessAttemptTotals = {
-  entryId: string
-  workMs: number
   costUsd?: number
   unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  entryId: string
+  workMs: number
 }
 
 export type ProcessStepTotals = {
-  workMs: number
   costUsd?: number
   unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
   attempts: Array<ProcessAttemptTotals>
 }
 
 export type ProcessRunTotals = {
-  workMs: number
   costUsd?: number
   unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
   ticking: boolean
   at: number
   steps: {
@@ -9834,9 +10539,12 @@ export type ProcessRun = {
   endedAt?: number
   error?: string
   totals?: {
-    workMs: number
     costUsd?: number
     unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    workMs: number
     ticking: boolean
     at: number
     steps: {
@@ -9929,6 +10637,9 @@ export type ProcessStepResult = {
   cost?: {
     costUsd?: number
     unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
   }
 }
 
@@ -10014,6 +10725,9 @@ export type ProcessStepState = {
     cost?: {
       costUsd?: number
       unpricedTokens?: number
+      includedTokens?: number
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
     }
     startedAt: number
     endedAt?: number
@@ -10283,10 +10997,15 @@ export type AddMessagesInput = {
       inputTokens?: number
       totalTokens?: number
       cachedReadInputTokens?: number
+      cacheWriteInputTokens?: number
+      cacheWrite1hInputTokens?: number
       reasoningTokens?: number
       cost?: number
       costInput?: number
       costOutput?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
     }
     model?: {
       model: string
@@ -10465,6 +11184,7 @@ export type LlmConfigEditInput = {
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
 }
 
 export type GitCredentialEditInput = {
@@ -17045,10 +17765,15 @@ export type SendCompletionData = {
           inputTokens?: number
           totalTokens?: number
           cachedReadInputTokens?: number
+          cacheWriteInputTokens?: number
+          cacheWrite1hInputTokens?: number
           reasoningTokens?: number
           cost?: number
           costInput?: number
           costOutput?: number
+          billing?: 'subscription' | 'metered' | 'free'
+          listCostUsd?: number
+          byModel?: Array<ModelSpend>
         }
         model?: {
           model: string
@@ -17136,10 +17861,15 @@ export type SendCompletionResponses = {
         inputTokens?: number
         totalTokens?: number
         cachedReadInputTokens?: number
+        cacheWriteInputTokens?: number
+        cacheWrite1hInputTokens?: number
         reasoningTokens?: number
         cost?: number
         costInput?: number
         costOutput?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        listCostUsd?: number
+        byModel?: Array<ModelSpend>
       }
       model?: {
         model: string
@@ -17195,10 +17925,15 @@ export type SendCompletionWithToolsData = {
           inputTokens?: number
           totalTokens?: number
           cachedReadInputTokens?: number
+          cacheWriteInputTokens?: number
+          cacheWrite1hInputTokens?: number
           reasoningTokens?: number
           cost?: number
           costInput?: number
           costOutput?: number
+          billing?: 'subscription' | 'metered' | 'free'
+          listCostUsd?: number
+          byModel?: Array<ModelSpend>
         }
         model?: {
           model: string
@@ -17291,10 +18026,15 @@ export type SendCompletionWithToolsResponses = {
             inputTokens?: number
             totalTokens?: number
             cachedReadInputTokens?: number
+            cacheWriteInputTokens?: number
+            cacheWrite1hInputTokens?: number
             reasoningTokens?: number
             cost?: number
             costInput?: number
             costOutput?: number
+            billing?: 'subscription' | 'metered' | 'free'
+            listCostUsd?: number
+            byModel?: Array<ModelSpend>
           }
           model?: {
             model: string
@@ -17363,10 +18103,15 @@ export type SendChatCompletionWithToolsData = {
         inputTokens?: number
         totalTokens?: number
         cachedReadInputTokens?: number
+        cacheWriteInputTokens?: number
+        cacheWrite1hInputTokens?: number
         reasoningTokens?: number
         cost?: number
         costInput?: number
         costOutput?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        listCostUsd?: number
+        byModel?: Array<ModelSpend>
       }
       model?: {
         model: string
@@ -17453,10 +18198,15 @@ export type SendChatCompletionWithToolsResponses = {
             inputTokens?: number
             totalTokens?: number
             cachedReadInputTokens?: number
+            cacheWriteInputTokens?: number
+            cacheWrite1hInputTokens?: number
             reasoningTokens?: number
             cost?: number
             costInput?: number
             costOutput?: number
+            billing?: 'subscription' | 'metered' | 'free'
+            listCostUsd?: number
+            byModel?: Array<ModelSpend>
           }
           model?: {
             model: string
@@ -17525,10 +18275,15 @@ export type SendChatWithCliData = {
         inputTokens?: number
         totalTokens?: number
         cachedReadInputTokens?: number
+        cacheWriteInputTokens?: number
+        cacheWrite1hInputTokens?: number
         reasoningTokens?: number
         cost?: number
         costInput?: number
         costOutput?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        listCostUsd?: number
+        byModel?: Array<ModelSpend>
       }
       model?: {
         model: string
@@ -17686,10 +18441,15 @@ export type ResumeCompletionData = {
           inputTokens?: number
           totalTokens?: number
           cachedReadInputTokens?: number
+          cacheWriteInputTokens?: number
+          cacheWrite1hInputTokens?: number
           reasoningTokens?: number
           cost?: number
           costInput?: number
           costOutput?: number
+          billing?: 'subscription' | 'metered' | 'free'
+          listCostUsd?: number
+          byModel?: Array<ModelSpend>
         }
         model?: {
           model: string
@@ -17782,10 +18542,15 @@ export type ResumeCompletionResponses = {
             inputTokens?: number
             totalTokens?: number
             cachedReadInputTokens?: number
+            cacheWriteInputTokens?: number
+            cacheWrite1hInputTokens?: number
             reasoningTokens?: number
             cost?: number
             costInput?: number
             costOutput?: number
+            billing?: 'subscription' | 'metered' | 'free'
+            listCostUsd?: number
+            byModel?: Array<ModelSpend>
           }
           model?: {
             model: string
@@ -17894,10 +18659,7 @@ export type GetPricingResponses = {
   /**
    * Default Response
    */
-  200: {
-    updatedAt: string
-    prices: Array<ModelPrice>
-  }
+  200: PricingState
 }
 
 export type GetPricingResponse = GetPricingResponses[keyof GetPricingResponses]
@@ -17929,10 +18691,7 @@ export type RefreshPricingResponses = {
   /**
    * Default Response
    */
-  200: {
-    updatedAt: string
-    prices: Array<ModelPrice>
-  }
+  200: PricingState
 }
 
 export type RefreshPricingResponse = RefreshPricingResponses[keyof RefreshPricingResponses]
@@ -19871,10 +20630,14 @@ export type ListCliImageVersionsResponses = {
          * A build that never finished (server restart) is reported as failed, never left building.
          */
         status: 'building' | 'succeeded' | 'failed'
+        /**
+         * The stage in progress, or the one a failed build stopped in. Absent before the first stage starts and after success.
+         */
+        phase?: 'building' | 'verifying' | 'promoting' | 'restarting-sessions'
         startedAt: string
         finishedAt?: string
         /**
-         * Last lines of the docker build log — the tail is what diagnoses a failure.
+         * Last lines of the docker build log — live while building, and what diagnoses a failure.
          */
         logTail: string
         error?: string
@@ -19927,10 +20690,14 @@ export type CheckCliImageUpdatesResponses = {
          * A build that never finished (server restart) is reported as failed, never left building.
          */
         status: 'building' | 'succeeded' | 'failed'
+        /**
+         * The stage in progress, or the one a failed build stopped in. Absent before the first stage starts and after success.
+         */
+        phase?: 'building' | 'verifying' | 'promoting' | 'restarting-sessions'
         startedAt: string
         finishedAt?: string
         /**
-         * Last lines of the docker build log — the tail is what diagnoses a failure.
+         * Last lines of the docker build log — live while building, and what diagnoses a failure.
          */
         logTail: string
         error?: string

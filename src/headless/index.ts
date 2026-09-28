@@ -316,13 +316,41 @@ export {
   type LLMPriceLike,
 } from './utils/agentRun'
 
+// A cost, the one way every surface shows it: the chip says the charge in
+// dollars; one details view (web popover, native sheet) says the rest.
+export {
+  addCost,
+  cliRunCost,
+  cliRunMessageUsage,
+  cliRunSpendRecord,
+  costChipLabel,
+  costDetailsView,
+  formatCostUSD,
+  messageUsageCost,
+  pickCost,
+} from './utils/costDetails'
+export type {
+  CliRunCostSource,
+  CliRunSpendRecord,
+  CostDetailsLine,
+  CostDetailsRow,
+  CostDetailsView,
+  CostSource,
+  CostSpend,
+} from './utils/costDetailsTypes'
+
+// The model price list, worded once for every client's pricing panel: each
+// price's source, and every rate it is billed at, cache writes included.
+export { formatRatePerMTokens, priceListEntryView } from './utils/priceList'
+export { PRICE_RATE_LABELS } from './utils/priceListConstants'
+export type { PriceListEntryView, PriceRate, PriceRateKey } from './utils/priceListTypes'
+
 // CLI-run review evidence bundle — verification chip / check rows / verdict /
 // land-failure / merge-outcome derivations shared by the web + native
 // `CliRunArtifactPanel`.
 export {
   asRunVerification,
   checkTone,
-  formatCostUSD,
   isReviewReasonValid,
   landFailureSummary,
   mergeNotice,
@@ -348,6 +376,8 @@ export type { StartFeatureWorkGrantSummary, StartFeatureWorkRunner } from './uti
 export { approveActionDescriptors, earnedApproveActions } from './utils/approveActions'
 export type { EarnedApproveActions } from './utils/approveActions'
 export {
+  checkActionOffer,
+  checkCallout,
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
@@ -362,6 +392,9 @@ export type { ReviewInProgressInput } from './utils/reviewProgress'
 export { handoffRequest } from './utils/handoffRequests'
 export type { HandoffFact, HandoffPurpose, HandoffRequest } from './utils/handoffRequests'
 export type {
+  CheckActionHost,
+  CheckActionOffer,
+  CheckCallout,
   CheckMethodAction,
   CheckMethodFill,
   CheckMethodId,
@@ -412,22 +445,46 @@ export {
   summarizeEvidence,
   toEvidenceTile,
   capturedOnLabel,
+  comparisonPairFacts,
+  evidenceUnvouched,
+  pairUnvouched,
+  recordedEvidenceUnvouched,
+  screenPairMeta,
   screenPairs,
   screenPairFileStem,
   fileNameSlug,
   evidenceFiledWithin,
+  latestReport,
   reviewerVerdict,
-  REVIEWER_VERDICT_LABEL,
+  codeReviewVerdict,
+  isCodeReview,
+  isVerifierFiling,
+  newestOnly,
+  orderReports,
+  reportAuthor,
+  reportProvenance,
+  runReports,
 } from './utils/reviewEvidenceView'
+export {
+  REPORT_PROVENANCE,
+  REVIEWER_VERDICT_LABEL,
+  UNVOUCHED_LABEL,
+  UNVOUCHED_RESTART_TEXT,
+  UNVOUCHED_SIDE_LEAD,
+} from './utils/reviewEvidenceViewConstants'
 export type { DecisionExplainer } from './utils/checkMethodConstants'
 export type {
   EvidenceGroup,
   EvidenceTile,
+  EvidenceUnvouched,
+  EvidenceUnvouchedCause,
   EvidenceViewerImage,
+  ReportAuthor,
+  ReviewerVerdictReading,
   ScreenPair,
   ScreenPairClass,
   EvidenceWindow,
-} from './utils/reviewEvidenceView'
+} from './utils/reviewEvidenceViewTypes'
 export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
 export { aggregateTestCounts, parseTestCounts, type TestCounts } from './utils/testCounts'
 export { parseTestFailures, type TestFailure } from './utils/testFailures'
@@ -452,14 +509,17 @@ export type { UseVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
 export {
   acceptedVerifyAttempt,
   captureBuildCaption,
+  codeReviewVerdictNote,
   evidenceLoadState,
   featureVerifySectionProps,
-  featureVerifySelection,
   featureVerifyView,
   mergeEvidenceTiles,
   missingEvidenceIds,
   overlayPairsFor,
   pixelChangeLabel,
+  proofChangeMarker,
+  proofScreensPane,
+  proofThumbnailFrame,
   reviewerVerdictNote,
   shortSha,
   storyProofNotice,
@@ -475,37 +535,63 @@ export {
 } from './utils/verifyProof'
 export type {
   CaptureBuildCaption,
+  DryBuildPart,
+  DryProofRow,
   EvidenceLoadState,
   FeatureVerifySectionProps,
   FeatureVerifyView,
+  ProofNotCountedFold,
   ProofPairView,
+  ProofScreensPane,
   ProofScreenView,
+  ProofThumbnail,
+  ProofThumbnailFrame,
+  ProofThumbnailSide,
   ProofUnpairedView,
   StoryProofNotice,
   StoryProofSection,
   VerifyAttempt,
   VerifyAttemptEvidence,
   VerifyAttemptRun,
-  VerifyAttemptSelection,
   VerifyAttemptStanding,
   VerifyAttemptView,
-  VerifyProofFaked,
+  VerifyProofDryLine,
   VerifyProofHeader,
   VerifyProofMode,
   VerifyProofSummary,
   VerifyProofTone,
+  VerifyProofUnvouched,
   VerifyProofView,
   VerifyReviewerVerdict,
   VerifySectionProps,
   VerifyVerdictNote,
 } from './utils/verifyProofTypes'
 export type { ProcessProofPair, ProcessVerifyProof } from 'thefactory-tools/types'
-export { aggregateStoryVerdict, buildStorySignoff } from './utils/storySignoff'
+export {
+  aggregateStoryVerdict,
+  buildStorySignoff,
+  signoffEvidence,
+  signoffLoadStatus,
+  signoffSectionProps,
+  signoffSections,
+} from './utils/storySignoff'
+export {
+  EMPTY_SIGNOFF_SECTION,
+  SIGNOFF_LOAD_FAILED,
+  SIGNOFF_LOADING,
+} from './utils/storySignoffConstants'
 export type {
   BuildStorySignoffInput,
   FeatureSignoff,
   OverallSignoff,
   SignoffAgent,
+  SignoffHeadline,
+  SignoffLoadStatus,
+  SignoffSection,
+  SignoffSectionProps,
+  SignoffSources,
+  SignoffSourceState,
+  SignoffTally,
   StoryDigest,
   StoryFeatureRef,
   StorySignoff,
@@ -817,6 +903,16 @@ export {
 // LLM cost aggregation per chat — TTL-cached + de-duped fetcher shared by
 // all clients' usage / cost views.
 export { CostsProvider, useCosts, type CostsContextValue } from './contexts/CostsContext'
+export { useUsageBreakdown, type UseUsageBreakdownInput } from './hooks/useUsageBreakdown'
+export type {
+  UsageBreakdown,
+  UsageModalCostAggregate,
+  UsageModalCostBreakdown,
+  UsageModalMessage,
+  UsageModalModelPrice,
+  UsageModalUsage,
+  UsageTableRow,
+} from './utils/usageBreakdownTypes'
 
 // LLM provider configs (create / update / delete + per-purpose active +
 // recents) backed by an app-provided `SyncKVStorage` for the active /
@@ -1131,11 +1227,11 @@ export {
   processNodeSummary,
   PROCESS_LIVE_TONE,
   formatProcessDuration,
-  formatProcessCost,
   processRunWorkMs,
   processRunWorkLabel,
   processStepWorkMs,
   processStepCostLabel,
+  processStepCostTitle,
   processIterationBadge,
   processRunBadge,
   processRunCardView,
@@ -1152,6 +1248,7 @@ export {
   type ProcessOpenLeaf,
 } from './utils/processView'
 export type { ProcessNodeLook, ProcessNodeSummary } from './utils/processViewTypes'
+export { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './utils/processViewConstants'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must
 // agree with the driver's own derivation — `processStepStates` projects a run

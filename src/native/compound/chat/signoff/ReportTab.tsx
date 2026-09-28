@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { fileNameSlug, type EvidenceTile } from '../../../../headless'
+import {
+  fileNameSlug,
+  orderReports,
+  reportProvenance,
+  type EvidenceTile,
+} from '../../../../headless'
 import { nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconDownload } from '../../../icons'
@@ -18,11 +23,9 @@ export type ReportTabProps = {
 
 function ReportCard({
   report,
-  showProvenance,
   onSaveFile,
 }: {
   report: EvidenceTile
-  showProvenance: boolean
   onSaveFile?: SaveFileHandler
 }) {
   const { theme } = useNativeTheme()
@@ -37,34 +40,22 @@ function ReportCard({
         backgroundColor: theme.surface.raised,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text
-          style={{
-            fontSize: 10,
-            fontWeight: '600',
-            letterSpacing: 0.8,
-            textTransform: 'uppercase',
-            color: theme.text.muted,
-          }}
-        >
-          Written by the verifier
-        </Text>
-        {showProvenance ? (
-          <HelpChip label="How this report was produced">
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
-              Where this came from
-            </Text>
-            <Text style={{ fontSize: 12, color: theme.text.primary }}>
-              The verifier agent wrote it as its closing step, after building and driving the app.
-              It is that agent's own account of what it did — not a summary of the diff, and not
-              written by the agent that made the change.
-            </Text>
-            <Text style={{ fontSize: 12, color: theme.text.muted }}>
-              Filed as evidence on this run, so it cannot be edited afterwards.
-            </Text>
-          </HelpChip>
-        ) : null}
-        <View style={{ flex: 1 }} />
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}
+      >
+        <HelpChip label="How this report was produced">
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
+            Where this came from
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.primary }}>
+            {reportProvenance(report.ref)}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>
+            {report.unvouched
+              ? report.unvouched.text
+              : 'Filed as evidence on this run, so it cannot be edited afterwards.'}
+          </Text>
+        </HelpChip>
         {onSaveFile && report.text ? (
           <Button
             variant="secondary"
@@ -91,18 +82,18 @@ function ReportCard({
 }
 
 /**
- * The verifier's written account — ONE report, not a wall. The latest is
- * authoritative; earlier fix-loop attempts fold behind a disclosure.
+ * A written account — ONE report, not a wall. The report step's own account
+ * leads, then the latest; earlier ones fold behind a disclosure. Each card
+ * credits the step that wrote it.
  */
 export default function ReportTab({ reports, onSaveFile }: ReportTabProps) {
   const { theme } = useNativeTheme()
   const [showEarlier, setShowEarlier] = useState(false)
   if (reports.length === 0) return null
-  const ordered = [...reports].sort((a, b) => (b.ref.createdAt ?? 0) - (a.ref.createdAt ?? 0))
-  const [latest, ...earlier] = ordered
+  const [latest, ...earlier] = orderReports(reports)
   return (
     <View style={{ gap: 8 }}>
-      <ReportCard report={latest} showProvenance {...(onSaveFile ? { onSaveFile } : {})} />
+      <ReportCard report={latest} {...(onSaveFile ? { onSaveFile } : {})} />
       {earlier.length > 0 ? (
         <View style={{ gap: 8 }}>
           <Pressable onPress={() => setShowEarlier((v) => !v)} accessibilityRole="button">
@@ -116,7 +107,6 @@ export default function ReportTab({ reports, onSaveFile }: ReportTabProps) {
                 <ReportCard
                   key={report.ref.id}
                   report={report}
-                  showProvenance={false}
                   {...(onSaveFile ? { onSaveFile } : {})}
                 />
               ))

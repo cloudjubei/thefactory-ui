@@ -27,6 +27,7 @@ import {
   isEmptyToolInput,
   acpToolOrigin,
 } from './cliRunner'
+import { cliRunMessageUsage } from './costDetails'
 import type { CliRunTranscriptEntry } from '../api/generated'
 
 const entry = (over: Partial<CliRunTranscriptEntry>): CliRunTranscriptEntry => ({
@@ -1036,31 +1037,88 @@ describe('normalizeCliTranscript', () => {
     })
   })
 
-  it('aggregates per-entry cost onto the (coalesced) assistant message as usage', () => {
+  it("attaches nothing from the transcript's per-entry costs: claude-code repeats a message's usage on every line of it", () => {
+    // covision-android/88342735: 18 assistant messages streamed as 32 lines, 13
+    // of them repeating their message's usage — the per-entry costs summed to
+    // $0.76 against the run's own $0.32.
+    const line = (at: number, id: string, text: string) =>
+      entry({
+        at,
+        kind: 'assistant',
+        payload: {
+          type: 'assistant',
+          message: {
+            id,
+            model: 'claude-sonnet-5',
+            content: [{ type: 'text', text }],
+            usage: { input_tokens: 3, output_tokens: 120, cache_read_input_tokens: 41_000 },
+          },
+        },
+        costUSD: 0.0187,
+      })
     const messages = cliTranscriptToMessages([
-      entry({
-        at: 1000,
-        kind: 'assistant',
-        streaming: true,
-        payload: { message: { content: [{ type: 'text', text: 'hi' }] } },
-        costUSD: 0.02,
-      }),
-      entry({
-        at: 2000,
-        kind: 'assistant',
-        streaming: true,
-        payload: { message: { content: [{ type: 'text', text: 'bye' }] } },
-        costUSD: 0.03,
-      }),
+      line(1000, 'msg_01', 'Reading the file. '),
+      line(1001, 'msg_01', 'Then the test.'),
     ])
-    // Consecutive assistant deltas coalesce into ONE bubble; the run total (summed
-    // across every entry's cost, not just the merged ones) lands on it as the chip anchor.
-    expect(messages).toHaveLength(1)
-    expect(messages[0].content).toBe('hibye')
-    expect(messages[0].usage).toEqual({ cost: 0.05 })
+    expect(messages.length).toBeGreaterThan(0)
+    expect(messages.map((m) => m.usage)).toEqual(messages.map(() => undefined))
   })
 
-  it('attaches no usage when the run reported no cost', () => {
+  it("attaches the run record's usage, even at a $0 charge", () => {
+    const usage = cliRunMessageUsage({
+      cli: { tool: 'cursor-agent', version: '' },
+      status: 'succeeded',
+      modelId: 'composer-2.5',
+      reportedModel: 'Composer 2.5',
+      billing: 'subscription',
+      usage: { tokensIn: 5825, tokensOut: 860, cacheReadTokens: 8016, cacheCreationTokens: 0 },
+    })
+    const messages = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'text', text: 'done' }] } },
+        }),
+        entry({ at: 2, kind: 'result', payload: { type: 'result' }, costUSD: 0 }),
+      ],
+      { model: 'cli-agent/cursor-agent/composer-2.5', usage },
+    )
+    expect(messages[0].usage).toBe(usage)
+    expect(messages[0].usage).toMatchObject({
+      cost: 0,
+      billing: 'subscription',
+      promptTokens: 5825,
+    })
+  })
+
+  it('keeps the CLI tag the model chip reads, whatever model the run reported', () => {
+    const usage = cliRunMessageUsage({
+      cli: { tool: 'cursor-agent', version: '' },
+      status: 'succeeded',
+      modelId: 'auto',
+      reportedModel: 'Composer 2.5',
+      billing: 'subscription',
+      usage: { tokensIn: 5825, tokensOut: 860, cacheReadTokens: 8016, cacheCreationTokens: 0 },
+    })
+    const [first] = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'assistant',
+          payload: { message: { content: [{ type: 'text', text: 'done' }] } },
+        }),
+      ],
+      { model: 'cli-agent/cursor-agent/auto', usage },
+    )
+    const shown = first.usage?.model ?? first.model
+    expect(parseCliAgentModelTag(typeof shown === 'string' ? shown : shown?.model)).toEqual({
+      cli: 'cursor-agent',
+      modelId: 'auto',
+    })
+  })
+
+  it('attaches no usage when the run record carries none', () => {
     const messages = cliTranscriptToMessages([
       entry({
         at: 1,

@@ -9,6 +9,7 @@ import {
   type ProcessStatusTone,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
+import CostChip from '../chips/CostChip'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessRunChipProps = {
@@ -87,9 +88,16 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
           </Text>
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>
-          {[work, spend?.label].filter(Boolean).join('  ')}
-        </Text>
+        {work ? <Text style={{ fontSize: 11, color: theme.text.muted }}>{work}</Text> : null}
+        {spend ? (
+          <CostChip
+            label={spend.label}
+            cost={run.totals}
+            title={spend.title}
+            appearance="text"
+            textStyle={{ fontSize: 11, color: theme.text.muted }}
+          />
+        ) : null}
       </View>
     </View>
   )
