@@ -1,7 +1,12 @@
 import type { ProcessRun } from 'thefactory-tools/types'
 
 import type { CliRun, ReviewEvidenceRef, RunVerification } from '../api/generated'
-import type { CheckMethodRow, ReviewTabId, SignoffVerdict } from './checkMethodTypes'
+import type {
+  CheckMethodRow,
+  CheckMethodState,
+  ReviewTabId,
+  SignoffVerdict,
+} from './checkMethodTypes'
 import type { CliRunCostSource } from './costDetailsTypes'
 import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
@@ -145,16 +150,38 @@ export type OverallSignoff = {
   /** What the story-wide checks came to — failed, all green, or nothing checked. */
   statusLine: VerifyReviewStatus
   /**
-   * How each of the story run's own steps (the walkthrough, the code review, the
-   * final report) ended, with the reason it gave — a skipped walkthrough files
-   * nothing, so this is the one place its reason is read. A finished code review
-   * that filed a finding is said by its verdict instead.
+   * The one-glance summary: how each of the story run's own steps that ran (the
+   * walkthrough, the code review, the final report) came out, in plan order.
    */
-  notes: VerifyVerdictNote[]
+  steps: StoryStepLine[]
   /** The verifier(s)/capture agent(s) that produced the story-wide checks. */
   agents: SignoffAgent[]
   /** Time and cost of the story run's own steps (the walkthrough capture, etc.). */
   facts: RunReviewFacts
+}
+
+/** One of the story run's own steps — what the Overall's summary says a line of. */
+export type StoryStepKey = 'walkthrough' | 'code-review' | 'report'
+
+/** A summary line's tone — a report is an account, not a check, so a written one is neutral. */
+export type StoryStepTone = VerifyVerdictNote['tone'] | 'neutral'
+
+/**
+ * How one of the story run's own steps came out, read from the run's ledger —
+ * which only the backend's driver writes and a restart never unvouches, unlike
+ * the findings the steps filed.
+ */
+export type StoryStepLine = {
+  key: StoryStepKey
+  /** The step's name in the plan. */
+  name: string
+  /** Where it stands, in a word or two: "Recorded", "Changes requested", "Written". */
+  word: string
+  /** Its one line: why it was skipped, the code review's reason, the report's verdict. */
+  line: string | undefined
+  tone: StoryStepTone
+  /** What it makes its chip — a code review that turned the change back fails it. */
+  check: CheckMethodState
 }
 
 /** How many features landed in each verdict — the one-glance pass/fail summary. */

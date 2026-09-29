@@ -8,10 +8,16 @@ import type { ProcessRun } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceRef, RunVerification, VerificationCheckResult } from '../api/generated'
 import { STORY_UNFINISHED_TITLE } from './checkMethodConstants'
-import type { FeatureSignoff, StorySignoffProcessRun, StorySignoffRun } from './storySignoffTypes'
+import type {
+  FeatureSignoff,
+  OverallSignoff,
+  StorySignoffProcessRun,
+  StorySignoffRun,
+} from './storySignoffTypes'
 import {
   aggregateStoryVerdict,
   buildStorySignoff,
+  ledgerCodeReview,
   signoffEvidence,
   signoffLoadStatus,
   signoffSectionProps,
@@ -108,6 +114,85 @@ describe('aggregateStoryVerdict', () => {
     expect(v.key).toBe('partly')
     expect(v.title).toBe('Nothing is proven yet')
     expect(v.detail).toBe('1 accepted by you without the gate passing it.')
+  })
+
+  describe('over the story’s own steps', () => {
+    const turnedBack = {
+      rows: [
+        { id: 'tests', label: 'Tests', state: 'unchecked', detail: 'Not run.' },
+        { id: 'diff', label: 'Code review', state: 'failed', detail: 'No tests.' },
+      ],
+      steps: [
+        {
+          key: 'code-review',
+          name: 'Code review',
+          word: 'Changes requested',
+          line: 'No tests.',
+          tone: 'stuck',
+          check: 'failed',
+        },
+      ],
+    } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+
+    it('says what the story’s own steps found when no feature has a verdict', () => {
+      expect(aggregateStoryVerdict([fs('not-run')], undefined, turnedBack)).toMatchObject({
+        key: 'failed',
+        title: 'Code review: changes requested',
+        detail: 'No tests.',
+      })
+    })
+
+    it('names a failing story-wide check by its label', () => {
+      const overall = {
+        rows: [{ id: 'build', label: 'Build', state: 'failed', detail: 'tsc exited 2' }],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        key: 'failed',
+        title: 'Build failed',
+        detail: 'tsc exited 2',
+      })
+    })
+
+    it('counts several story-wide failures', () => {
+      const overall = {
+        rows: [
+          { id: 'build', label: 'Build', state: 'failed', detail: 'tsc exited 2' },
+          { id: 'tests', label: 'Tests', state: 'failed', detail: '3 failed' },
+        ],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        title: '2 story-wide checks failed',
+        detail: 'tsc exited 2 · 3 failed',
+      })
+    })
+
+    it('lets the code review turning the change back outrank proven features', () => {
+      expect(aggregateStoryVerdict([fs('proven')], undefined, turnedBack)).toMatchObject({
+        key: 'failed',
+        word: 'Changes requested',
+        title: 'Code review: changes requested',
+      })
+    })
+
+    it('leaves a verdict the features reached to the features over any other story-wide failure', () => {
+      const walkthroughFailed = {
+        rows: [{ id: 'walkthrough', label: 'Walkthrough', state: 'failed', detail: 'Gone.' }],
+        steps: [
+          {
+            key: 'walkthrough',
+            name: 'Walkthrough',
+            word: 'Failed',
+            line: 'Gone.',
+            tone: 'stuck',
+            check: 'failed',
+          },
+        ],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([fs('partly')], undefined, walkthroughFailed).key).toBe('partly')
+      expect(aggregateStoryVerdict([fs('proven')], undefined, walkthroughFailed).key).toBe('proven')
+    })
   })
 
   it('lets an unfinished story outrank acceptance, and a failure outrank both', () => {
@@ -1544,22 +1629,62 @@ describe('buildStorySignoff — the Overall of a story run that filed nothing st
   })
 
   it('says why the walkthrough was skipped', () => {
-    expect(signoffOf({ outcome: 'skipped', summary: SKIPPED }).overall?.notes).toEqual([
-      { label: 'Walkthrough · skipped', reason: SKIPPED, tone: 'review' },
+    expect(signoffOf({ outcome: 'skipped', summary: SKIPPED }).overall?.steps).toEqual([
+      {
+        key: 'walkthrough',
+        name: 'Walkthrough',
+        word: 'Skipped',
+        line: SKIPPED,
+        tone: 'review',
+        check: 'unchecked',
+      },
     ])
   })
 
   it('names how the walkthrough ended, toned by it', () => {
     expect(
-      signoffOf({ outcome: 'passed', summary: 'Recorded one walkthrough.' }).overall?.notes,
+      signoffOf({ outcome: 'passed', summary: 'Recorded one walkthrough.' }).overall?.steps,
     ).toEqual([
-      { label: 'Walkthrough · passed', reason: 'Recorded one walkthrough.', tone: 'done' },
+      {
+        key: 'walkthrough',
+        name: 'Walkthrough',
+        word: 'Recorded',
+        line: undefined,
+        tone: 'done',
+        check: 'passed',
+      },
     ])
-    expect(signoffOf({ outcome: 'errored' }).overall?.notes).toEqual([
-      { label: 'Walkthrough · errored', tone: 'stuck' },
+    expect(signoffOf({ outcome: 'errored' }).overall?.steps).toEqual([
+      {
+        key: 'walkthrough',
+        name: 'Walkthrough',
+        word: 'Errored',
+        line: undefined,
+        tone: 'stuck',
+        check: 'unchecked',
+      },
     ])
-    expect(signoffOf({ status: 'running' }).overall?.notes).toEqual([
-      { label: 'Walkthrough · running', tone: 'review' },
+    expect(
+      signoffOf({ outcome: 'failed', summary: 'The device went away.' }).overall?.steps,
+    ).toEqual([
+      {
+        key: 'walkthrough',
+        name: 'Walkthrough',
+        word: 'Failed',
+        line: 'The device went away.',
+        tone: 'stuck',
+        check: 'failed',
+      },
+    ])
+    expect(signoffOf({ status: 'running' }).overall?.steps).toEqual([
+      {
+        key: 'walkthrough',
+        name: 'Walkthrough',
+        word: 'Running',
+        line: undefined,
+        tone: 'review',
+        check: 'unchecked',
+      },
     ])
   })
 
@@ -1579,15 +1704,17 @@ describe('buildStorySignoff — the Overall of a story run that filed nothing st
       cliRuns: [],
       evidence: [],
     })
-    expect(s.overall?.notes).toEqual([
-      { label: 'Walkthrough · skipped', reason: SKIPPED, tone: 'review' },
-    ])
+    expect(s.overall?.steps.map((l) => [l.word, l.line])).toEqual([['Skipped', SKIPPED]])
   })
 
   it('keeps the Overall before the walkthrough has run, with nothing to say about it', () => {
     const overall = signoffOf(undefined).overall
     expect(overall).toBeDefined()
-    expect(overall?.notes).toEqual([])
+    expect(overall?.steps).toEqual([])
+    expect(overall?.rows.find((r) => r.id === 'walkthrough')).toMatchObject({
+      state: 'unchecked',
+      detail: 'Has not run yet.',
+    })
   })
 
   it('never shows an earlier story run’s story-wide filings as this run’s', () => {
@@ -1639,7 +1766,7 @@ describe('buildStorySignoff — the Overall without a story run', () => {
       evidence: [ev({ id: 'x', runId: 'ra', featureId: undefined, kind: 'report' })],
     })
     expect(s.overall?.statusLine).toEqual({ tone: 'review', label: 'Not checked' })
-    expect(s.overall?.notes).toEqual([])
+    expect(s.overall?.steps).toEqual([])
   })
 })
 
@@ -1681,11 +1808,13 @@ describe('buildStorySignoff — the story’s code review and final report', () 
     startedAt: T + 60 * MIN,
     ...over,
   })
-  const root = (entries: Entry[]) =>
+  const root = (entries: Entry[], stepIds?: readonly string[]) =>
     ({
       id: 'root',
       startedAt: T,
-      plan: rootPlan,
+      plan: stepIds
+        ? { ...rootPlan, steps: rootPlan.steps.filter((st) => stepIds.includes(st.id)) }
+        : rootPlan,
       ledger: [
         {
           id: 'e-f1',
@@ -1730,11 +1859,11 @@ describe('buildStorySignoff — the story’s code review and final report', () 
   const signoffOf = (
     rootEntries: Entry[],
     evidence: ReviewEvidenceRef[],
-    opts: { childEntries?: Entry[]; devDiffReview?: boolean } = {},
+    opts: { childEntries?: Entry[]; devDiffReview?: boolean; rootSteps?: readonly string[] } = {},
   ) =>
     buildStorySignoff({
       features: [{ id: 'f1', title: 'Fonts' }],
-      processRuns: [root(rootEntries), child(opts.childEntries)],
+      processRuns: [root(rootEntries, opts.rootSteps), child(opts.childEntries)],
       storyRunId: 'root',
       cliRuns: [
         run({
@@ -1753,64 +1882,208 @@ describe('buildStorySignoff — the story’s code review and final report', () 
   const overallDiff = (s: ReturnType<typeof signoffOf>) =>
     s.overall?.rows.find((r) => r.id === 'diff')
 
-  describe('the Overall’s notes', () => {
+  const lineOf = (s: ReturnType<typeof signoffOf>, key: string) =>
+    s.overall?.steps.find((l) => l.key === key)
+
+  describe('the Overall’s summary of the story’s own steps', () => {
     it('says a code review is still running', () => {
       expect(
-        signoffOf([step('code-review', 'cr-run', { status: 'running' })], []).overall?.notes,
-      ).toEqual([{ label: 'Code review · running', tone: 'review' }])
+        lineOf(
+          signoffOf([step('code-review', 'cr-run', { status: 'running' })], []),
+          'code-review',
+        ),
+      ).toEqual({
+        key: 'code-review',
+        name: 'Code review',
+        word: 'Running',
+        line: undefined,
+        tone: 'review',
+        check: 'unchecked',
+      })
     })
 
-    it('says the verdict of a finished code review, not that its step passed', () => {
-      const approved = signoffOf(
-        [step('code-review', 'cr-run', { outcome: 'passed', summary: 'Approved.' })],
+    it('says the verdict the ledger kept, never that its step passed', () => {
+      const s = signoffOf(
+        [
+          step('code-review', 'cr-run', {
+            outcome: 'passed',
+            summary: `Code review: changes requested — ${REASON}`,
+            review: { verdict: 'changes-requested', reason: REASON },
+          }),
+        ],
+        [],
+      )
+      expect(lineOf(s, 'code-review')).toEqual({
+        key: 'code-review',
+        name: 'Code review',
+        word: 'Changes requested',
+        line: REASON,
+        tone: 'stuck',
+        check: 'failed',
+      })
+    })
+
+    it.each([
+      ['approved', 'Approved', 'done', 'passed'],
+      ['changes requested', 'Changes requested', 'stuck', 'failed'],
+      ['rejected', 'Rejected', 'stuck', 'failed'],
+    ] as const)(
+      'reads a legacy entry’s verdict from its summary: %s',
+      (said, word, tone, check) => {
+        const s = signoffOf(
+          [
+            step('code-review', 'cr-run', {
+              outcome: 'passed',
+              summary: `Code review: ${said} — ${REASON}`,
+            }),
+          ],
+          [],
+        )
+        expect(lineOf(s, 'code-review')).toMatchObject({ word, line: REASON, tone, check })
+      },
+    )
+
+    it('reads a legacy verdict that gave no reason', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed', summary: 'Code review: approved' })],
+        [],
+      )
+      expect(lineOf(s, 'code-review')).toMatchObject({
+        word: 'Approved',
+        line: undefined,
+        check: 'passed',
+      })
+    })
+
+    it('lets the ledger’s verdict outrank a finding the backend can no longer vouch for', () => {
+      const s = signoffOf(
+        [
+          step('code-review', 'cr-run', {
+            outcome: 'passed',
+            review: { verdict: 'changes-requested', reason: REASON },
+          }),
+        ],
+        [
+          codeReview({
+            unvouchedReason: 'The backend restarted since this was filed.',
+          } as Partial<ReviewEvidenceRef>),
+        ],
+      )
+      expect(lineOf(s, 'code-review')?.check).toBe('failed')
+      expect(overallDiff(s)).toMatchObject({
+        state: 'failed',
+        detail: REASON,
+        unvouched: 0,
+        action: { kind: 'open-proof', tab: 'code-review' },
+      })
+    })
+
+    it('lets the ledger’s verdict outrank a vouched finding that disagrees', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed', review: { verdict: 'rejected' } })],
+        [codeReview({ verdict: 'approved' })],
+      )
+      expect(overallDiff(s)?.state).toBe('failed')
+    })
+
+    it('falls back to the review’s own finding when the ledger says no verdict', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed' })],
         [codeReview({ verdict: 'approved', verdictReason: 'Meets every criterion.' })],
       )
-      expect(approved.overall?.notes).toEqual([
-        { label: 'Code review · Approved', reason: 'Meets every criterion.', tone: 'done' },
-      ])
-      const turnedBack = signoffOf(
-        [step('code-review', 'cr-run', { outcome: 'failed', summary: 'Changes requested.' })],
-        [codeReview({ verdict: 'changes-requested', verdictReason: REASON })],
-      )
-      expect(turnedBack.overall?.notes).toEqual([
-        { label: 'Code review · Changes requested', reason: REASON, tone: 'stuck' },
-      ])
+      expect(lineOf(s, 'code-review')).toMatchObject({
+        word: 'Approved',
+        line: 'Meets every criterion.',
+        check: 'passed',
+      })
     })
 
-    it('says how the code review ended when it filed no finding', () => {
+    it('says a finished code review filed no verdict, without passing it', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed', summary: 'Looked fine.' })],
+        [],
+      )
+      expect(lineOf(s, 'code-review')).toMatchObject({
+        word: 'No verdict',
+        line: 'Looked fine.',
+        tone: 'review',
+        check: 'unchecked',
+      })
+    })
+
+    it('says how the code review ended when it errored', () => {
       expect(
-        signoffOf(
-          [step('code-review', 'cr-run', { outcome: 'errored', summary: 'The agent crashed.' })],
-          [],
-        ).overall?.notes,
-      ).toEqual([{ label: 'Code review · errored', reason: 'The agent crashed.', tone: 'stuck' }])
+        lineOf(
+          signoffOf(
+            [step('code-review', 'cr-run', { outcome: 'errored', summary: 'The agent crashed.' })],
+            [],
+          ),
+          'code-review',
+        ),
+      ).toMatchObject({
+        word: 'Errored',
+        line: 'The agent crashed.',
+        tone: 'stuck',
+        check: 'unchecked',
+      })
     })
 
     it('never says an earlier attempt’s verdict for the attempt that ended', () => {
       expect(
-        signoffOf(
-          [step('code-review', 'cr-run-2', { outcome: 'errored' })],
-          [codeReview({ verdict: 'approved' })],
-        ).overall?.notes,
-      ).toEqual([{ label: 'Code review · errored', tone: 'stuck' }])
+        lineOf(
+          signoffOf(
+            [step('code-review', 'cr-run-2', { outcome: 'errored' })],
+            [codeReview({ verdict: 'approved' })],
+          ),
+          'code-review',
+        ),
+      ).toMatchObject({ word: 'Errored', check: 'unchecked' })
     })
 
     it('says a running code review is running, even over a finding it filed', () => {
       expect(
-        signoffOf(
-          [step('code-review', 'cr-run', { status: 'running' })],
-          [codeReview({ verdict: 'approved' })],
-        ).overall?.notes,
-      ).toEqual([{ label: 'Code review · running', tone: 'review' }])
+        lineOf(
+          signoffOf(
+            [step('code-review', 'cr-run', { status: 'running' })],
+            [codeReview({ verdict: 'approved' })],
+          ),
+          'code-review',
+        )?.word,
+      ).toBe('Running')
     })
 
-    it('says how the report step ended, and why', () => {
+    it('leads with the written report’s verdict paragraph, in a quiet tone', () => {
+      const lead = 'No — not everything asked for is done right.'
       expect(
-        signoffOf(
-          [step('report', 'rep-run', { outcome: 'skipped', summary: 'Nothing to report on.' })],
-          [],
-        ).overall?.notes,
-      ).toEqual([{ label: 'Report · skipped', reason: 'Nothing to report on.', tone: 'review' }])
+        lineOf(
+          signoffOf([step('report', 'rep-run', { outcome: 'passed', summary: lead })], []),
+          'report',
+        ),
+      ).toEqual({
+        key: 'report',
+        name: 'Report',
+        word: 'Written',
+        line: lead,
+        tone: 'neutral',
+        check: 'passed',
+      })
+    })
+
+    it('says why no report was written', () => {
+      expect(
+        lineOf(
+          signoffOf(
+            [step('report', 'rep-run', { outcome: 'skipped', summary: 'Nothing to report on.' })],
+            [],
+          ),
+          'report',
+        ),
+      ).toMatchObject({
+        word: 'Not written',
+        line: 'Nothing to report on.',
+        tone: 'review',
+        check: 'unchecked',
+      })
     })
 
     it('reads the story’s own steps in plan order, never a feature’s', () => {
@@ -1823,11 +2096,178 @@ describe('buildStorySignoff — the story’s code review and final report', () 
         [codeReview({ verdict: 'approved' })],
         { childEntries: [step('code-review', 'dev', { outcome: 'failed' })] },
       )
-      expect(s.overall?.notes.map((n) => n.label)).toEqual([
-        'Walkthrough · skipped',
+      expect(s.overall?.steps.map((l) => `${l.name} · ${l.word}`)).toEqual([
+        'Walkthrough · Skipped',
         'Code review · Approved',
-        'Report · passed',
+        'Report · Written',
       ])
+    })
+  })
+
+  describe('the story headline over the story’s code review', () => {
+    it('is proven with every feature proven and an approving review', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed', review: { verdict: 'approved' } })],
+        [],
+      )
+      expect(s.features[0].verdict.key).toBe('proven')
+      expect(s.verdict).toMatchObject({ key: 'proven', word: 'Proven' })
+      expect(s.headline).toBeUndefined()
+    })
+
+    it('reads as the review’s turning back over every feature proven', () => {
+      const s = signoffOf(
+        [
+          step('code-review', 'cr-run', {
+            outcome: 'passed',
+            review: { verdict: 'changes-requested', reason: REASON },
+          }),
+        ],
+        [],
+      )
+      expect(s.features[0].verdict.key).toBe('proven')
+      expect(s.verdict).toMatchObject({
+        key: 'failed',
+        tone: 'danger',
+        word: 'Changes requested',
+        hollow: false,
+        title: 'Code review: changes requested',
+        detail: REASON,
+      })
+      expect(s.headline).toEqual({ title: 'Code review: changes requested', detail: REASON })
+      expect(s.digest.tally).toEqual({ label: '1/1', title: '1 of 1 feature proven' })
+    })
+
+    it('reads a legacy review’s rejection from its summary', () => {
+      const s = signoffOf(
+        [step('code-review', 'cr-run', { outcome: 'passed', summary: 'Code review: rejected' })],
+        [],
+      )
+      expect(s.verdict).toMatchObject({
+        key: 'failed',
+        word: 'Rejected',
+        title: 'Code review: rejected',
+        detail: 'The story’s code review turned the change back.',
+      })
+    })
+
+    it('outranks a partly proven story too', () => {
+      const unconfirmed = {
+        ...child(),
+        ledger: [
+          step('implement', 'dev', { outcome: 'passed', startedAt: T }),
+          step('verify', 'ver', { outcome: 'unchecked', startedAt: T + 10 * MIN }),
+        ],
+      } as unknown as StorySignoffProcessRun
+      const s = buildStorySignoff({
+        features: [{ id: 'f1', title: 'Fonts' }],
+        processRuns: [
+          root([
+            step('code-review', 'cr-run', {
+              outcome: 'passed',
+              summary: `Code review: changes requested — ${REASON}`,
+            }),
+          ]),
+          unconfirmed,
+        ],
+        storyRunId: 'root',
+        cliRuns: [run({ id: 'dev', processRunId: 'f1-run', createdAt: T })],
+        evidence: [],
+      })
+      expect(s.features[0].verdict.key).toBe('partly')
+      expect(s.verdict).toMatchObject({ key: 'failed', word: 'Changes requested', detail: REASON })
+    })
+
+    it('never lets a failed walkthrough demote a proven story', () => {
+      const s = signoffOf(
+        [
+          step('walkthrough', 'wt', { outcome: 'failed', summary: 'The device went away.' }),
+          step('code-review', 'cr-run', { outcome: 'passed', review: { verdict: 'approved' } }),
+        ],
+        [],
+      )
+      expect(s.overall?.statusLine.label).toBe('Checks failed')
+      expect(s.verdict.key).toBe('proven')
+    })
+  })
+
+  describe('the Overall’s chips, from the story’s own steps', () => {
+    const recording = (over: Partial<ReviewEvidenceRef> = {}) =>
+      ev({
+        id: 'rec',
+        runId: 'wt',
+        kind: 'recording',
+        mediaType: 'video/mp4',
+        createdAt: T + 65 * MIN,
+        ...over,
+      })
+    const restarted = { unvouchedReason: 'The backend restarted since this was filed.' }
+    const chip = (s: ReturnType<typeof signoffOf>, id: string) =>
+      s.overall?.rows.find((r) => r.id === id)
+
+    it('passes the Walkthrough chip on a recorded walkthrough the backend can no longer vouch for', () => {
+      const s = signoffOf(
+        [step('walkthrough', 'wt', { outcome: 'passed' })],
+        [recording(restarted as Partial<ReviewEvidenceRef>)],
+      )
+      expect(chip(s, 'walkthrough')).toMatchObject({
+        state: 'passed',
+        unvouched: 0,
+        action: { kind: 'open-proof', tab: 'walkthrough' },
+      })
+      expect(s.overall?.statusLine).toEqual({ tone: 'done', label: 'All green' })
+    })
+
+    it('never passes the Walkthrough chip on a recording its skipped step did not make', () => {
+      const s = signoffOf(
+        [step('walkthrough', 'wt', { outcome: 'skipped', summary: 'No device was available.' })],
+        [recording()],
+      )
+      expect(chip(s, 'walkthrough')).toMatchObject({
+        state: 'unchecked',
+        detail: 'No device was available.',
+      })
+    })
+
+    it('fails the Overall on a code review that requested changes, though its step passed', () => {
+      const s = signoffOf(
+        [
+          step('walkthrough', 'wt', { outcome: 'passed' }),
+          step('code-review', 'cr-run', {
+            outcome: 'passed',
+            summary: `Code review: changes requested — ${REASON}`,
+          }),
+        ],
+        [],
+      )
+      expect(chip(s, 'walkthrough')?.state).toBe('passed')
+      expect(overallDiff(s)).toMatchObject({ state: 'failed', detail: REASON })
+      expect(s.overall?.statusLine).toEqual({ tone: 'stuck', label: 'Checks failed' })
+    })
+
+    it('adds a Report chip that opens the Report tab once the report is written', () => {
+      const s = signoffOf([step('report', 'rep-run', { outcome: 'passed', summary: 'Yes.' })], [])
+      expect(chip(s, 'report')).toMatchObject({
+        label: 'Report',
+        state: 'passed',
+        action: { kind: 'open-proof', tab: 'report' },
+      })
+      expect(s.overall?.rows.map((r) => r.id).slice(-3)).toEqual(['walkthrough', 'report', 'diff'])
+    })
+
+    it('never calls the story-wide checks green on a written report alone', () => {
+      const s = signoffOf([step('report', 'rep-run', { outcome: 'passed', summary: 'Yes.' })], [])
+      expect(s.overall?.statusLine).toEqual({ tone: 'review', label: 'Not checked' })
+    })
+
+    it('holds a step that has not run yet unchecked, whatever was filed before it', () => {
+      const s = signoffOf([], [recording(), codeReview({ verdict: 'approved' })])
+      expect(chip(s, 'walkthrough')).toMatchObject({
+        state: 'unchecked',
+        detail: 'Has not run yet.',
+      })
+      expect(overallDiff(s)?.state).toBe('unchecked')
+      expect(chip(s, 'report')?.state).toBe('unchecked')
     })
   })
 
@@ -1863,8 +2303,8 @@ describe('buildStorySignoff — the story’s code review and final report', () 
       expect(overallDiff(s)?.state).toBe('failed')
     })
 
-    it('keeps an old story’s read diff passing when no code review was filed', () => {
-      const s = signoffOf([], [], { devDiffReview: true })
+    it('keeps an old story’s read diff passing when its plan has no code review', () => {
+      const s = signoffOf([], [], { devDiffReview: true, rootSteps: ['features:f1', 'sign-off'] })
       expect(overallDiff(s)).toMatchObject({
         state: 'passed',
         action: { kind: 'open-proof', tab: 'changes' },
@@ -1929,6 +2369,136 @@ describe('buildStorySignoff — the story’s code review and final report', () 
       expect(view.accepted.evidence.reports.map((t) => t.ref.id)).toEqual(['ver-report'])
       expect(view.accepted.evidence.verdict).toEqual({ verdict: 'approved' })
     })
+  })
+})
+
+describe('ledgerCodeReview', () => {
+  const entry = (over: Record<string, unknown>) =>
+    ({
+      id: 'e',
+      stepId: 'code-review',
+      iteration: 1,
+      status: 'done',
+      startedAt: 1,
+      ...over,
+    }) as never
+
+  it('reads the verdict the driver kept on the entry', () => {
+    expect(ledgerCodeReview(entry({ review: { verdict: 'rejected', reason: 'Wrong.' } }))).toEqual({
+      verdict: 'rejected',
+      reason: 'Wrong.',
+    })
+  })
+
+  it('prefers the kept verdict over the summary', () => {
+    expect(
+      ledgerCodeReview(
+        entry({ review: { verdict: 'approved' }, summary: 'Code review: rejected — Old.' }),
+      ),
+    ).toEqual({ verdict: 'approved' })
+  })
+
+  it('reads a legacy summary, a dash inside its reason kept', () => {
+    expect(
+      ledgerCodeReview(entry({ summary: 'Code review: changes requested — A — and B.' })),
+    ).toEqual({ verdict: 'changes-requested', reason: 'A — and B.' })
+  })
+
+  it('reads nothing from a summary in any other words', () => {
+    expect(ledgerCodeReview(entry({ summary: 'Code review: maybe — who knows.' }))).toBeUndefined()
+    expect(
+      ledgerCodeReview(entry({ summary: 'The code review filed no finding.' })),
+    ).toBeUndefined()
+    expect(ledgerCodeReview(entry({}))).toBeUndefined()
+  })
+})
+
+describe('buildStorySignoff — a story run with no features of its own', () => {
+  const T = 1_790_347_372_871
+  const plan = {
+    steps: [
+      { id: 'walkthrough', name: 'Walkthrough', kind: 'capture' },
+      { id: 'code-review', name: 'Code review', kind: 'judge' },
+      { id: 'report', name: 'Report', kind: 'report' },
+      { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
+    ],
+    loops: [],
+  }
+  const entry = (stepId: string, over: Record<string, unknown>) => ({
+    id: `e-${stepId}`,
+    stepId,
+    iteration: 1,
+    status: 'done',
+    runRef: { runId: `${stepId}-run`, runner: 'cli' },
+    startedAt: T,
+    ...over,
+  })
+  const signoffOf = (entries: Record<string, unknown>[]) =>
+    buildStorySignoff({
+      features: [],
+      processRuns: [
+        { id: 'root', startedAt: T, plan, ledger: entries } as unknown as StorySignoffProcessRun,
+      ],
+      storyRunId: 'root',
+      cliRuns: [],
+      evidence: [],
+    })
+
+  it('heads the story with its code review turning the change back, never “nothing checked”', () => {
+    const s = signoffOf([
+      entry('walkthrough', { outcome: 'passed' }),
+      entry('code-review', {
+        outcome: 'passed',
+        summary: 'Code review: changes requested — No tests.',
+      }),
+    ])
+    expect(s.verdict).toMatchObject({
+      key: 'failed',
+      word: 'Changes requested',
+      title: 'Code review: changes requested',
+      detail: 'No tests.',
+    })
+  })
+
+  it('heads a story whose own steps passed as partly proven, naming what passed', () => {
+    const s = signoffOf([
+      entry('walkthrough', { outcome: 'passed' }),
+      entry('code-review', { outcome: 'passed', review: { verdict: 'approved' } }),
+    ])
+    expect(s.verdict).toMatchObject({
+      key: 'partly',
+      title: 'No feature has been verified',
+      detail: 'Walkthrough and Code review passed story-wide.',
+    })
+  })
+
+  it('still says nothing has been checked when none of its steps concluded', () => {
+    const s = signoffOf([entry('report', { outcome: 'passed', summary: 'Yes.' })])
+    expect(s.verdict).toMatchObject({ key: 'not-run', title: 'Nothing has been checked' })
+  })
+})
+
+describe('buildStorySignoff — the Overall of a story with no process run', () => {
+  it('reads its chips from what was filed, with no summary and no Report chip', () => {
+    const s = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [],
+      cliRuns: [run({ id: 'ra', createdAt: 1 })],
+      evidence: [
+        ev({ id: 'rec', runId: 'ra', kind: 'recording', mediaType: 'video/mp4' }),
+        ev({
+          id: 'cr',
+          runId: 'ra',
+          kind: 'report',
+          approach: CODE_REVIEW_APPROACH,
+          verdict: 'changes-requested',
+        }),
+      ],
+    })
+    expect(s.overall?.steps).toEqual([])
+    expect(s.overall?.rows.find((r) => r.id === 'walkthrough')?.state).toBe('passed')
+    expect(s.overall?.rows.find((r) => r.id === 'diff')?.state).toBe('failed')
+    expect(s.overall?.rows.some((r) => r.id === 'report')).toBe(false)
   })
 })
 

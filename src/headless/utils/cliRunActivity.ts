@@ -6,7 +6,6 @@ import type { CliRunTranscriptEntry } from '../api/generated'
 import {
   CLI_BLOCKED_SUBLABEL,
   CLI_BOOT_SUBLABEL,
-  CLI_CHARS_PER_TOKEN,
   CLI_QUESTION_SUBLABEL,
 } from './cliRunActivityConstants'
 import type { CliRunActivity, CliRunActivityInput, CliRunBlockedOn } from './cliRunActivityTypes'
@@ -69,17 +68,19 @@ export function runningCliToolNames(messages: readonly ChatMessageLike[]): strin
 }
 
 /**
- * Rough count of the tokens the agent has streamed back so far, from the
- * assistant prose in the derived messages. A "not idling" readout, not billing:
- * the run record's own cost is what the usage chip reports.
+ * When the agent last did something: the newest transcript entry's timestamp,
+ * or the run start while nothing has streamed yet (booting). The activity line
+ * times the CURRENT action from here — run totals belong to the review.
  */
-export function approxCliOutputTokens(messages: readonly ChatMessageLike[]): number {
-  let chars = 0
-  for (const message of messages) {
-    if (message.role !== 'assistant') continue
-    if (typeof message.content === 'string') chars += message.content.length
+export function lastCliActionAtMs(
+  transcript: readonly CliRunTranscriptEntry[],
+  startedAtMs: number | undefined,
+): number | undefined {
+  let latest: number | undefined
+  for (const entry of transcript) {
+    if (latest === undefined || entry.at > latest) latest = entry.at
   }
-  return Math.floor(chars / CLI_CHARS_PER_TOKEN)
+  return latest ?? startedAtMs
 }
 
 /**
@@ -120,13 +121,12 @@ export function formatCliElapsed(ms: number): string {
 }
 
 /**
- * The "(1m 05s · ~340 tokens)" tail. Suppressed under a second so a
- * just-started turn doesn't flash "(0s)".
+ * The "(1m 05s)" tail: how long the agent has been on its current action.
+ * Suppressed under a second so a fresh action doesn't flash "(0s)".
  */
-function activitySuffix(elapsedMs: number, approxTokens: number): string {
-  if (!Number.isFinite(elapsedMs) || elapsedMs < 1000) return ''
-  const tokens = approxTokens > 0 ? ` · ~${approxTokens} tokens` : ''
-  return ` (${formatCliElapsed(elapsedMs)}${tokens})`
+function activitySuffix(sinceLastActionMs: number): string {
+  if (!Number.isFinite(sinceLastActionMs) || sinceLastActionMs < 1000) return ''
+  return ` (${formatCliElapsed(sinceLastActionMs)})`
 }
 
 /**
@@ -136,8 +136,8 @@ function activitySuffix(elapsedMs: number, approxTokens: number): string {
  * as one that is busy, which is the whole point of the line.
  */
 export function describeCliRunActivity(input: CliRunActivityInput): CliRunActivity {
-  const suffix = activitySuffix(input.elapsedMs, input.approxTokens)
-  // Blocked lines carry NO elapsed/token readout: the suffix is evidence the
+  const suffix = activitySuffix(input.sinceLastActionMs)
+  // Blocked lines carry NO timing readout: the suffix is evidence the
   // agent is working against a clock, and a run parked on the human has none
   // — a ticking "(5s)" there read as a stuck spinner during a wait that may
   // legitimately last hours.

@@ -268,7 +268,14 @@ export type WorkItemProgress = {
   failed: number
 }
 
-export type AgentRunType = 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy'
+export type AgentRunType =
+  | 'developer'
+  | 'verifier'
+  | 'capture'
+  | 'judge'
+  | 'remedy'
+  | 'report'
+  | 'fixer'
 
 export type ChatContextAgentRun = {
   projectId: string
@@ -313,6 +320,7 @@ export type AgentRunParams = {
   dbConnectionString?: string
   proofRequired?: boolean
   note?: string
+  seedFromRunId?: string
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -1942,7 +1950,7 @@ export type ChatContextArguments = {
     updatedAt: string
     completedAt?: string
   }
-  agentRunType?: 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy'
+  agentRunType?: 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy' | 'report' | 'fixer'
 }
 
 export type ChatContextArgumentsGeneral = {
@@ -3345,6 +3353,8 @@ export type DockerImageInspect =
       timedOut: boolean
       detail: string
     }
+
+export type CliImageBuildPhase = 'building' | 'verifying' | 'promoting'
 
 export type CliImageBuildOutcome =
   | {
@@ -4967,6 +4977,7 @@ export type GitExecResult = {
   stdout: string
   stderr: string
   truncated?: boolean
+  timedOut?: boolean
 }
 
 export type GitOpResult =
@@ -4982,6 +4993,7 @@ export type GitOpResult =
         stdout: string
         stderr: string
         truncated?: boolean
+        timedOut?: boolean
       }
     }
 
@@ -5691,6 +5703,13 @@ export type HostPathInspection = {
   suggestedTitle?: string
 }
 
+export type SuspendedGapInput = {
+  lastTickAt: number
+  now: number
+  tickMs: number
+  thresholdMs: number
+}
+
 export type ImageDiffResult = {
   png: unknown
   changedPixels: number
@@ -5769,6 +5788,11 @@ export type IngestionResult = {
   durationMs: number
 }
 
+export type IngestedTree = {
+  result: IngestionResult
+  indexedSrcs: unknown
+}
+
 export type IngestionProgressEvent =
   | {
       type: 'started'
@@ -5798,6 +5822,26 @@ export type IngestionProgressEvent =
       path?: string
       error: string
     }
+
+export type SearchIndexSyncResult = {
+  projectId: string
+  scanned: number
+  upserted: number
+  skipped: number
+  failed: number
+  durationMs: number
+  pruned: number
+}
+
+export type SearchIndexChangeResult = {
+  upserted: number
+  deleted: number
+}
+
+export type ProjectSearchIndexOptions = {
+  batchSize?: number
+  flushDelayMs?: number
+}
 
 export type JobStatus = 'running' | 'completed' | 'failed' | 'aborted' | 'paused' | 'awaiting-input'
 
@@ -6359,6 +6403,7 @@ export type BuildAndroidAppResult = {
   platform: 'android'
   appPath: string
   task: string
+  appId?: string
   ref?: string
   builtFrom: MobileBuildProvenance
 }
@@ -6468,11 +6513,43 @@ export type MobileLogcatResult = {
   error?: string
 }
 
+export type SwipeMobileOptions = {
+  direction: 'up' | 'down' | 'left' | 'right'
+}
+
+export type MobileRecordingStep =
+  | {
+      tap: MobileNodeSelector
+    }
+  | {
+      type: string
+    }
+  | {
+      pressKey: string
+    }
+  | {
+      swipe: 'up' | 'down' | 'left' | 'right'
+    }
+  | {
+      wait: number
+    }
+  | {
+      restartApp: true
+    }
+
+export type MobileRecordingStepResult = {
+  step: number
+  ok: boolean
+  detail?: string
+  error?: string
+}
+
 export type MobileScreenshotResult = {
   sessionId: string
   ok: boolean
   path?: string
   capturedOn?: string
+  steps?: Array<MobileRecordingStepResult>
   width?: number
   height?: number
   error?: string
@@ -6491,8 +6568,10 @@ export type MobileStdoutCapture = {
   sha256: string
 }
 
-export type SwipeMobileOptions = {
-  direction: 'up' | 'down' | 'left' | 'right'
+export type MobileRecordingPace = {
+  pauseMs: number
+  findTimeoutMs: number
+  pollMs: number
 }
 
 export type MobileDeviceInstall = {
@@ -8853,6 +8932,13 @@ export type RecordReviewEvidenceInput = {
   dryAssumptions?: string
 }
 
+export type ReviewEvidenceBuildHint = {
+  sha: string
+  variant: string
+  createdAt: number
+  vouched: boolean
+}
+
 export type NetworkSpec =
   | {
       mode: 'none'
@@ -10365,6 +10451,11 @@ export type ProcessVerifyReview = {
   filedUntil?: number
 }
 
+export type ProcessReviewVerdict = {
+  verdict: ReviewEvidenceVerdict
+  reason?: string
+}
+
 export type ProcessProofPair = {
   subject: string
   beforeId: string
@@ -10442,6 +10533,10 @@ export type ProcessLedgerEntry = {
     judged?: boolean
     unpaired?: Array<ProcessProofUnpaired>
   }
+  review?: {
+    verdict: ReviewEvidenceVerdict
+    reason?: string
+  }
   cost?: {
     costUsd?: number
     unpricedTokens?: number
@@ -10451,6 +10546,7 @@ export type ProcessLedgerEntry = {
   }
   startedAt: number
   endedAt?: number
+  suspendedMs?: number
 }
 
 export type ProcessAttemptTotals = {
@@ -10518,6 +10614,7 @@ export type ProcessRun = {
   }
   spentUsd?: number
   parkedMs?: number
+  suspendedMs?: number
   iterationGrants?: {
     [key: string]: number
   }
@@ -10634,6 +10731,10 @@ export type ProcessStepResult = {
     judged?: boolean
     unpaired?: Array<ProcessProofUnpaired>
   }
+  review?: {
+    verdict: ReviewEvidenceVerdict
+    reason?: string
+  }
   cost?: {
     costUsd?: number
     unpricedTokens?: number
@@ -10722,6 +10823,10 @@ export type ProcessStepState = {
       judged?: boolean
       unpaired?: Array<ProcessProofUnpaired>
     }
+    review?: {
+      verdict: ReviewEvidenceVerdict
+      reason?: string
+    }
     cost?: {
       costUsd?: number
       unpricedTokens?: number
@@ -10731,6 +10836,7 @@ export type ProcessStepState = {
     }
     startedAt: number
     endedAt?: number
+    suspendedMs?: number
   }
   entries: Array<ProcessLedgerEntry>
   current: boolean

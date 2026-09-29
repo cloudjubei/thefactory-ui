@@ -2,6 +2,8 @@
 // PendingActions into the unified PendingToolGrantData shape, and route a
 // decision to the right CLI broker outcome. No React, no I/O.
 
+import { getChatContext, getChatContextKey } from 'thefactory-tools/utils'
+import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
@@ -91,27 +93,46 @@ export function pickActiveCliRunId(
 }
 
 /**
- * The live run a STORY agent-run chat should surface.
- *
- * A story run does not execute in a run of its own: it spawns one run PER
- * FEATURE, each keyed to that feature's chat context. So the story chat asking
- * "which run is mine?" by `chatContextId` matches nothing, and the user watches
- * a single milestone line while the work happens in a child chat they are never
- * shown. The children carry the `storyId` they are being run for, which is the
- * only handle tying them back.
+ * True when a run is this story agent-run chat's own, or one of the per-feature
+ * sub-runs it spawned. A sub-run keeps its parent's `agentRunId` under a feature
+ * chat key, so the `agentRunId` is what separates it from the next process
+ * step's agent running in the same story.
+ */
+function belongsToStoryAgentRun(
+  chatContextId: string | undefined,
+  storyChat: ChatContextAgentRunStory,
+  storyChatKey: string,
+): boolean {
+  if (!chatContextId) return false
+  if (chatContextId === storyChatKey) return true
+  const runChat = getChatContext(chatContextId)
+  return (
+    runChat?.type === 'AGENT_RUN_FEATURE' &&
+    runChat.projectId === storyChat.projectId &&
+    runChat.storyId === storyChat.storyId &&
+    runChat.agentRunId === storyChat.agentRunId
+  )
+}
+
+/**
+ * The live run a STORY agent-run chat should surface: its own run, or the
+ * newest per-feature sub-run of the same agent run. A story run spawns one run
+ * PER FEATURE keyed to that feature's chat, so matching on the story chat key
+ * alone would miss the work; matching on the story alone surfaces whichever
+ * process step's agent happens to be running next.
  *
  * Mirrors {@link pickActiveCliRunId}: the binding is re-checked here rather than
- * trusted from the query, so a dropped filter cannot surface another story's run.
+ * trusted from the query, so a dropped filter cannot surface another chat's run.
  */
 export function pickActiveStoryRunId(
   runs: readonly CliRunLike[] | undefined,
-  storyId: string,
+  storyChat: ChatContextAgentRunStory,
 ): string | undefined {
-  if (!storyId) return undefined
+  const storyChatKey = getChatContextKey(storyChat)
   let best: CliRunLike | undefined
   for (const run of runs ?? []) {
     if (!run || typeof run.id !== 'string' || run.id.length === 0) continue
-    if (run.storyId !== storyId) continue
+    if (!belongsToStoryAgentRun(run.chatContextId, storyChat, storyChatKey)) continue
     if (!best || (run.createdAt ?? 0) >= (best.createdAt ?? 0)) best = run
   }
   return best?.id

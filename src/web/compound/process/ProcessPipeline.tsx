@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import {
   formatProcessDuration,
+  gateSendsBack,
   hasIsolatedAttempts,
   isProcessLeafOpenable,
   isReflectedPark,
@@ -744,6 +745,10 @@ function ParkBlock({
   if (!park) return null
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
+  const choices = processParkChoices(park.reason, {
+    reflected,
+    sendsBack: park.stepId !== undefined && gateSendsBack(run.plan, park.stepId),
+  })
   const tone = park.reason === 'gate' ? 'review' : 'on_hold'
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -759,7 +764,7 @@ function ParkBlock({
           projectId={run.projectId}
           storyId={run.storyId as string}
           storyRunId={run.id}
-          choices={processParkChoices(park.reason, { reflected })}
+          choices={choices}
           onChoose={onChoose}
         />
       </div>
@@ -796,7 +801,7 @@ function ParkBlock({
         </button>
       ) : null}
       <div className="flex flex-wrap gap-3">
-        {processParkChoices(park.reason, { reflected }).map((choice) => (
+        {choices.map((choice) => (
           <div key={choice.choice} className="flex flex-col gap-0.5">
             <Button
               size="sm"

@@ -16,13 +16,19 @@ import type { ProcessRunTotals } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceRef, RunVerification, VerificationCheckResult } from '../api/generated'
 import {
+  CHECK_STATE_TONES,
   NOT_RUN_TITLE,
   SIGNOFF_VERDICT_TONES,
   SIGNOFF_VERDICT_WORDS,
   STORY_UNFINISHED_TITLE,
 } from './checkMethodConstants'
-import { checkMethodRows, signoffVerdict } from './checkMethods'
-import type { CheckMethodId, SignoffVerdict, SignoffVerdictKey } from './checkMethodTypes'
+import { checkMethodRows, joinNames, signoffVerdict } from './checkMethods'
+import type {
+  CheckMethodId,
+  CheckMethodRow,
+  SignoffVerdict,
+  SignoffVerdictKey,
+} from './checkMethodTypes'
 import { addCost, cliRunCost, pickCost } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
 import { formatProcessDuration, PROCESS_OUTCOME_VIEW, type VerifyReviewStatus } from './processView'
@@ -36,17 +42,24 @@ import {
   reportAuthor,
   screenPairs,
 } from './reviewEvidenceView'
-import { STEP_REPORT_AUTHORS } from './reviewEvidenceViewConstants'
+import { REVIEWER_VERDICT_LABEL, STEP_REPORT_AUTHORS } from './reviewEvidenceViewConstants'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 import { runReviewFacts } from './runReview'
 import type { RunReviewFacts } from './runReviewTypes'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
 import {
-  OVERALL_NOTE_STEP_KINDS,
+  CODE_REVIEW_SUMMARY,
+  CODE_REVIEW_SUMMARY_VERDICTS,
   OVERALL_STATUS,
   SECTION_STEP_REPORT,
+  STORY_STEP_KINDS,
+  STORY_STEP_METHODS,
+  STORY_STEP_NOT_RUN,
   STORY_STEP_NOTE_TONE,
-  STORY_STEP_RUNNING,
+  STORY_STEP_TABS,
+  STORY_STEP_WORDS,
+  STORY_REVIEW_TURNED_BACK,
+  STORY_WIDE_ONLY_TITLE,
 } from './storySignoffConstants'
 import type {
   BuildStorySignoffInput,
@@ -65,6 +78,8 @@ import type {
   StorySignoff,
   StorySignoffProcessRun,
   StorySignoffRun,
+  StoryStepKey,
+  StoryStepLine,
 } from './storySignoffTypes'
 import {
   acceptedVerifyAttempt,
@@ -75,12 +90,7 @@ import {
   verifyGateLine,
 } from './verifyProof'
 import { GATE_OUTCOME_SAID } from './verifyProofConstants'
-import type {
-  FeatureVerifyView,
-  VerifyAttempt,
-  VerifyReviewerVerdict,
-  VerifyVerdictNote,
-} from './verifyProofTypes'
+import type { FeatureVerifyView, VerifyAttempt, VerifyReviewerVerdict } from './verifyProofTypes'
 
 /**
  * The capabilities that prove the STORY, not a single change: the full suite,
@@ -446,13 +456,15 @@ function storyRunOf(scope: SignoffScope | undefined): StorySignoffProcessRun | u
   return run && !run.featureId ? run : undefined
 }
 
+type LedgerEntry = StorySignoffProcessRun['ledger'][number]
+
 /**
  * The verdict a finished code review filed — its own run's newest finding — or
  * undefined when it filed none. An earlier attempt's finding is never said for
  * the attempt that ended.
  */
 function filedCodeReview(
-  entry: StorySignoffProcessRun['ledger'][number],
+  entry: LedgerEntry,
   storyEvidence: readonly ReviewEvidenceRef[],
 ): VerifyReviewerVerdict | undefined {
   const runId = entry.runRef?.runId
@@ -462,58 +474,135 @@ function filedCodeReview(
 }
 
 /**
- * How each of the story run's own steps ended — the walkthrough, the code review
- * and the final report — from its latest attempt. Each can end without filing
- * anything: a walkthrough is best-effort and skipped when it records nothing, so
- * its outcome and reason live only on the ledger — without this the Overall
- * could not say why no walkthrough is there. A finished code review that filed a
- * finding is said by its verdict, which says more than that its step passed.
+ * A code review attempt's verdict as its ledger entry keeps it: the verdict the
+ * driver copied onto it, or — on an entry written before it kept one — read back
+ * from the summary the driver wrote from it. Either way it was read while the
+ * finding could still be vouched for, so a restart never loses it.
  */
-function captureNotes(
-  storyRun: StorySignoffProcessRun | undefined,
-  storyEvidence: readonly ReviewEvidenceRef[],
-): VerifyVerdictNote[] {
-  if (!storyRun) return []
-  const notes: VerifyVerdictNote[] = []
-  for (const step of storyRun.plan?.steps ?? []) {
-    if (!OVERALL_NOTE_STEP_KINDS.includes(step.kind) || step.subject) continue
-    const latest = storyRun.ledger.filter((e) => e.stepId === step.id).at(-1)
-    if (!latest) continue
-    const name = step.name ?? step.id
-    if (latest.status === 'running') {
-      notes.push({ label: `${name} · ${STORY_STEP_RUNNING}`, tone: 'review' })
-      continue
-    }
-    const verdict = step.kind === 'judge' ? filedCodeReview(latest, storyEvidence) : undefined
-    if (verdict) {
-      notes.push(codeReviewVerdictNote(verdict))
-      continue
-    }
-    if (!latest.outcome) continue
-    const view = PROCESS_OUTCOME_VIEW[latest.outcome]
-    const reason = latest.summary?.trim()
-    notes.push({
-      label: `${name} · ${view.label}`,
-      ...(reason ? { reason } : {}),
-      tone: STORY_STEP_NOTE_TONE[view.tone],
-    })
+export function ledgerCodeReview(entry: LedgerEntry): VerifyReviewerVerdict | undefined {
+  if (entry.review) return entry.review
+  const said = CODE_REVIEW_SUMMARY.exec(entry.summary?.trim() ?? '')
+  if (!said) return undefined
+  const reason = said[2]?.trim()
+  return {
+    verdict: CODE_REVIEW_SUMMARY_VERDICTS[said[1]],
+    ...(reason ? { reason } : {}),
   }
-  return notes
 }
 
-/** What the story-wide checks came to: any failure fails them; green only over something that passed. */
-function overallStatus(rows: readonly { state: string }[]): VerifyReviewStatus {
+function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/**
+ * How one of the story run's own steps came out, from its latest attempt. Only a
+ * recorded walkthrough, an approving code review and a written report pass their
+ * chip; a code review that turned the change back fails it whatever its step's
+ * outcome — a story's review never blocks, so its step always "passed".
+ */
+function storyStepLine(
+  key: StoryStepKey,
+  name: string,
+  entry: LedgerEntry,
+  storyEvidence: readonly ReviewEvidenceRef[],
+): StoryStepLine {
+  const reason = entry.summary?.trim() || undefined
+  const line = (
+    word: string,
+    tone: StoryStepLine['tone'],
+    check: StoryStepLine['check'],
+    said: string | undefined,
+  ): StoryStepLine => ({ key, name, word, line: said, tone, check })
+  if (entry.status === 'running') {
+    return line(STORY_STEP_WORDS.running, 'review', 'unchecked', undefined)
+  }
+  if (key === 'code-review') {
+    const review = ledgerCodeReview(entry) ?? filedCodeReview(entry, storyEvidence)
+    if (review) {
+      const approved = review.verdict === 'approved'
+      return line(
+        REVIEWER_VERDICT_LABEL[review.verdict],
+        approved ? 'done' : 'stuck',
+        approved ? 'passed' : 'failed',
+        review.reason,
+      )
+    }
+    if (entry.outcome === 'passed' || entry.outcome === 'failed') {
+      return line(STORY_STEP_WORDS.noVerdict, 'review', 'unchecked', reason)
+    }
+  }
+  if (key === 'walkthrough' && entry.outcome === 'passed') {
+    return line(STORY_STEP_WORDS.recorded, 'done', 'passed', undefined)
+  }
+  if (key === 'walkthrough' && entry.outcome === 'failed') {
+    return line(STORY_STEP_WORDS.failed, 'stuck', 'failed', reason)
+  }
+  if (key === 'report' && entry.outcome === 'passed') {
+    return line(STORY_STEP_WORDS.written, 'neutral', 'passed', reason)
+  }
+  if (key === 'report' && entry.outcome === 'skipped') {
+    return line(STORY_STEP_WORDS.notWritten, 'review', 'unchecked', reason)
+  }
+  const view = PROCESS_OUTCOME_VIEW[entry.outcome ?? 'skipped']
+  return line(capitalized(view.label), STORY_STEP_NOTE_TONE[view.tone], 'unchecked', reason)
+}
+
+/**
+ * The story run's own steps its plan holds — the walkthrough, the code review and
+ * the final report — each with its latest attempt, absent until it has run.
+ */
+function storyStepsOf(
+  storyRun: StorySignoffProcessRun,
+): { key: StoryStepKey; name: string; entry: LedgerEntry | undefined }[] {
+  const keys = Object.keys(STORY_STEP_KINDS) as StoryStepKey[]
+  return (storyRun.plan?.steps ?? []).flatMap((step) => {
+    const key = keys.find((k) => STORY_STEP_KINDS[k] === step.kind)
+    if (!key || step.subject) return []
+    const entry = storyRun.ledger.filter((e) => e.stepId === step.id).at(-1)
+    return [{ key, name: step.name ?? step.id, entry }]
+  })
+}
+
+/**
+ * A chip one of the story run's own steps decides, from how that step came out
+ * rather than from what it filed: what it filed is sealed per backend process,
+ * so a restart strips every verdict and leaves the chip unable to say anything.
+ */
+function stepRow(
+  row: CheckMethodRow,
+  key: StoryStepKey,
+  step: StoryStepLine | undefined,
+): CheckMethodRow {
+  const state = step?.check ?? 'unchecked'
+  const concluded = state === 'passed' || state === 'failed'
+  return {
+    ...row,
+    state,
+    tone: CHECK_STATE_TONES[state],
+    detail: step ? (step.line ?? step.word) : STORY_STEP_NOT_RUN,
+    action: concluded ? { kind: 'open-proof', tab: STORY_STEP_TABS[key] } : row.action,
+    unvouched: 0,
+  }
+}
+
+/**
+ * What the story-wide checks came to: any failure fails them; green only over
+ * something that passed. A written report is an account of the run, not a check
+ * of it, so on its own it never makes them green.
+ */
+function overallStatus(rows: readonly CheckMethodRow[]): VerifyReviewStatus {
   if (rows.some((r) => r.state === 'failed')) return OVERALL_STATUS.failed
-  if (rows.some((r) => r.state === 'passed')) return OVERALL_STATUS.green
+  if (rows.some((r) => r.state === 'passed' && r.id !== 'report')) return OVERALL_STATUS.green
   return OVERALL_STATUS.unchecked
 }
 
 /**
  * The story-wide section: the whole-codebase checks aggregated across features,
- * the story's own runs' cost, the agents that ran them, and how its walkthrough
- * ended. Always there for a story run — it is where the story's own steps are
+ * the story's own runs' cost, the agents that ran them, and how its own steps
+ * came out. Always there for a story run — it is where the story's own steps are
  * read, even when none of them filed anything; without one, present only when a
- * story-wide check ran or something story-wide was filed.
+ * story-wide check ran or something story-wide was filed, its chips read from
+ * what was filed.
  */
 function buildOverall(
   storyRun: StorySignoffProcessRun | undefined,
@@ -547,7 +636,27 @@ function buildOverall(
     evidence: storyEvidence,
     ...(diffReview ? { diffReview } : {}),
   })
-  const rows = allRows.filter((r) => OVERALL_METHODS.includes(r.id))
+
+  const planned = storyRun ? storyStepsOf(storyRun) : []
+  const steps = planned.flatMap(({ key, name, entry }) =>
+    entry ? [storyStepLine(key, name, entry, storyEvidence)] : [],
+  )
+  const methods = [
+    ...OVERALL_METHODS,
+    ...(planned.some((p) => p.key === 'report') ? (['report'] as const) : []),
+  ]
+  const rows = allRows
+    .filter((r) => methods.includes(r.id))
+    .map((row) => {
+      const key = planned.find((p) => STORY_STEP_METHODS[p.key] === row.id)?.key
+      return key
+        ? stepRow(
+            row,
+            key,
+            steps.find((l) => l.key === key),
+          )
+        : row
+    })
 
   // The verifier ran the checks; a story-scoped capture run (walkthrough) may add
   // its own agent. Dedupe by role, verifier first.
@@ -565,7 +674,7 @@ function buildOverall(
     rows,
     verification,
     statusLine: overallStatus(rows),
-    notes: captureNotes(storyRun, storyEvidence),
+    steps,
     agents,
     facts,
   }
@@ -606,6 +715,7 @@ function acceptedLine(accepted: number): string {
 export function aggregateStoryVerdict(
   features: readonly FeatureSignoff[],
   storyIncomplete: string | undefined,
+  overall?: Pick<OverallSignoff, 'rows' | 'steps'>,
 ): SignoffVerdict {
   const total = features.length
   const failed = features.filter((f) => f.verdict.key === 'failed')
@@ -622,6 +732,8 @@ export function aggregateStoryVerdict(
       failed.map((f) => f.title).join(' · '),
     )
   }
+  const turnedBack = overall ? reviewTurnedBack(overall.steps) : undefined
+  if (turnedBack) return turnedBack
   if (total > 0 && open === 0) {
     // Every feature that ran is settled — but if the story itself is unfinished
     // (a feature never ran at all), "proven" would sit above the count of what
@@ -657,7 +769,56 @@ export function aggregateStoryVerdict(
   if (accepted.length > 0) {
     return makeVerdict('partly', 'Nothing is proven yet', acceptedLine(accepted.length))
   }
-  return makeVerdict('not-run', NOT_RUN_TITLE, NOT_VERIFIED_DETAIL)
+  return (
+    (overall ? storyWideVerdict(overall) : undefined) ??
+    makeVerdict('not-run', NOT_RUN_TITLE, NOT_VERIFIED_DETAIL)
+  )
+}
+
+/**
+ * The story's code review turning the change back, as the headline. The story's
+ * review never blocks — the person signing off decides — so every feature can be
+ * proven beneath it; "Proven" over a review that asked for changes contradicts
+ * it. Only the review demotes the story: a walkthrough is best-effort.
+ */
+function reviewTurnedBack(steps: readonly StoryStepLine[]): SignoffVerdict | undefined {
+  const review = steps.find((l) => l.key === 'code-review' && l.check === 'failed')
+  if (!review) return undefined
+  return {
+    ...makeVerdict(
+      'failed',
+      `${review.name}: ${review.word.toLowerCase()}`,
+      review.line ?? STORY_REVIEW_TURNED_BACK,
+    ),
+    word: review.word,
+  }
+}
+
+/**
+ * The story headline when no feature has a verdict but the story's own checks
+ * concluded something: "nothing has been checked" over a walkthrough that was
+ * recorded and a code review that turned the change back is false. What failed
+ * is named — a story step by what it came to — and a pass is only partly proven,
+ * since no feature was verified.
+ */
+function storyWideVerdict(
+  overall: Pick<OverallSignoff, 'rows' | 'steps'>,
+): SignoffVerdict | undefined {
+  const failed = overall.rows.filter((r) => r.state === 'failed')
+  if (failed.length > 0) {
+    const titleOf = (row: CheckMethodRow): string => {
+      const step = overall.steps.find((l) => STORY_STEP_METHODS[l.key] === row.id)
+      return step ? `${step.name}: ${step.word.toLowerCase()}` : `${row.label} failed`
+    }
+    return makeVerdict(
+      'failed',
+      failed.length === 1 ? titleOf(failed[0]) : `${failed.length} story-wide checks failed`,
+      failed.map((r) => r.detail).join(' · '),
+    )
+  }
+  const passed = overall.rows.filter((r) => r.state === 'passed' && r.id !== 'report')
+  if (passed.length === 0) return undefined
+  return makeVerdict('partly', STORY_WIDE_ONLY_TITLE, `${joinNames(passed)} passed story-wide.`)
 }
 
 /** The proven features over those shown — what the verdict word is counted against. */
@@ -785,7 +946,7 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     pipeline ? measuredFacts(pipeline.own) : runReviewFacts(sumFacts(storyRuns)),
   )
 
-  const verdict = aggregateStoryVerdict(featureSignoffs, storyIncomplete)
+  const verdict = aggregateStoryVerdict(featureSignoffs, storyIncomplete, overall)
   return {
     features: featureSignoffs,
     overall,

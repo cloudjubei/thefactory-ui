@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendCliRunTranscript,
-  approxCliOutputTokens,
   blockedOnFromGrants,
   blockedToolNames,
   describeCliRunActivity,
   formatCliElapsed,
+  lastCliActionAtMs,
   mergeCliRunTranscript,
   runningCliToolNames,
 } from './cliRunActivity'
@@ -38,8 +38,7 @@ const activityInput = (over: Partial<CliRunActivityInput> = {}): CliRunActivityI
   runningToolNames: [],
   booting: false,
   coldStart: false,
-  elapsedMs: 0,
-  approxTokens: 0,
+  sinceLastActionMs: 0,
   blocked: [],
   ...over,
 })
@@ -115,13 +114,21 @@ describe('runningCliToolNames', () => {
   })
 })
 
-describe('approxCliOutputTokens', () => {
-  it('estimates from assistant prose at four characters per token', () => {
-    expect(approxCliOutputTokens([{ role: 'assistant', content: '12345678' }])).toBe(2)
+describe('lastCliActionAtMs', () => {
+  it('reads the newest transcript entry, not the run start', () => {
+    expect(lastCliActionAtMs([entry(1_000), entry(4_000, 'tool-call')], 500)).toBe(4_000)
   })
 
-  it('ignores tool rows', () => {
-    expect(approxCliOutputTokens([toolMessage('readPaths', 'success')])).toBe(0)
+  it('takes the latest timestamp even when entries arrive out of order', () => {
+    expect(lastCliActionAtMs([entry(7_000), entry(6_000, 'tool-result')], 500)).toBe(7_000)
+  })
+
+  it('falls back to the run start while there is no transcript yet', () => {
+    expect(lastCliActionAtMs([], 500)).toBe(500)
+  })
+
+  it('is unknown with neither a transcript nor a run start', () => {
+    expect(lastCliActionAtMs([], undefined)).toBeUndefined()
   })
 })
 
@@ -285,40 +292,48 @@ describe('describeCliRunActivity', () => {
     expect(describeCliRunActivity(activityInput()).label).toBe('Working…')
   })
 
-  it('appends the elapsed readout once a second has passed', () => {
-    const activity = describeCliRunActivity(activityInput({ elapsedMs: 65_000 }))
+  it('appends the time since the last action once a second has passed', () => {
+    const activity = describeCliRunActivity(activityInput({ sinceLastActionMs: 65_000 }))
     expect(activity.label).toBe('Working… (1m 05s)')
   })
 
-  it('appends the token estimate alongside the elapsed readout', () => {
-    const activity = describeCliRunActivity(activityInput({ elapsedMs: 2_000, approxTokens: 340 }))
-    expect(activity.label).toBe('Working… (2s · ~340 tokens)')
+  it('times the running tool from the last action', () => {
+    const activity = describeCliRunActivity(
+      activityInput({ runningToolNames: ['readPaths'], sinceLastActionMs: 12_000 }),
+    )
+    expect(activity).toEqual({ tone: 'working', label: 'Running readPaths… (12s)' })
   })
 
-  it('suppresses the readout under a second so a fresh turn never flashes zero', () => {
-    const activity = describeCliRunActivity(activityInput({ elapsedMs: 999, approxTokens: 12 }))
+  it('times the boot line too', () => {
+    const activity = describeCliRunActivity(
+      activityInput({ booting: true, coldStart: false, sinceLastActionMs: 3_000 }),
+    )
+    expect(activity.label).toBe('Starting the turn… (3s)')
+  })
+
+  it('suppresses the readout under a second so a fresh action never flashes zero', () => {
+    const activity = describeCliRunActivity(activityInput({ sinceLastActionMs: 999 }))
     expect(activity.label).toBe('Working…')
   })
 
-  it("drops the elapsed / token readout while blocked — the clock is the user's, not the agent's", () => {
+  it("drops the since-last-action readout while blocked — the clock is the user's, not the agent's", () => {
     // A ticking "(5s)" next to "Waiting for your approval" reads as the agent
     // still working against a clock, and the wait may legitimately be hours.
     // The suffix is agent-activity evidence; a parked run has none to show.
     const approval = describeCliRunActivity(
       activityInput({
-        elapsedMs: 5_000,
-        approxTokens: 120,
+        sinceLastActionMs: 5_000,
         blocked: [{ toolName: 'inspectProjectPath', label: 'x' }],
       }),
     )
     expect(approval.label).toBe('Waiting for your approval: inspectProjectPath')
     const question = describeCliRunActivity(
-      activityInput({ elapsedMs: 65_000, blocked: [{ label: 'q', isQuestion: true }] }),
+      activityInput({ sinceLastActionMs: 65_000, blocked: [{ label: 'q', isQuestion: true }] }),
     )
     expect(question.label).toBe('Waiting for your answer')
     const many = describeCliRunActivity(
       activityInput({
-        elapsedMs: 65_000,
+        sinceLastActionMs: 65_000,
         blocked: [
           { toolName: 'a', label: 'a' },
           { toolName: 'b', label: 'b' },

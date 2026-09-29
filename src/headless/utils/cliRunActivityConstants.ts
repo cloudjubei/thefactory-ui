@@ -7,9 +7,6 @@ export const CLI_BLOCKED_SUBLABEL = 'The agent is paused until you decide.'
 /** Shown under a blocked-on-question line. */
 export const CLI_QUESTION_SUBLABEL = 'The agent is waiting for your answer.'
 
-/** Characters per token for the streamed-output estimate in the activity line. */
-export const CLI_CHARS_PER_TOKEN = 4
-
 /**
  * Live transcript appends are buffered and committed on this cadence. A verbose
  * turn emits entries far faster than a human can read; one state update per
@@ -17,7 +14,7 @@ export const CLI_CHARS_PER_TOKEN = 4
  */
 export const CLI_TRANSCRIPT_FLUSH_MS = 120
 
-/** Cadence of the elapsed-time readout while a run is active. */
+/** Cadence of the since-last-action readout while a run is active. */
 export const CLI_ELAPSED_TICK_MS = 1000
 
 /**

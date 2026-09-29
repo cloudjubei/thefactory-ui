@@ -355,7 +355,7 @@ function OverallSection({
       rows={overall.rows}
       verification={overall.verification}
       statusLine={overall.statusLine}
-      notes={overall.notes}
+      steps={overall.steps}
       // The Overall never shows per-feature screens — its evidence is the
       // end-to-end walkthrough, the final report and the story's code review.
       pairs={[]}

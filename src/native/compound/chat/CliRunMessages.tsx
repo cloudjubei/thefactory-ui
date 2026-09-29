@@ -3,9 +3,9 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
 import {
-  approxCliOutputTokens,
   blockedToolNames,
   describeCliRunActivity,
+  lastCliActionAtMs,
   runningCliToolNames,
 } from '../../../headless/utils/cliRunActivity'
 import { CLI_ELAPSED_TICK_MS } from '../../../headless/utils/cliRunActivityConstants'
@@ -129,9 +129,9 @@ export default function CliRunMessages({
   const total = baseIndex + messages.length + 1
   let shownModel = false
 
-  // Elapsed readout, ticking once a second while active. Measured from the RUN's
-  // own start once the record loads, so a screen opened mid-turn reports the
-  // real age of the turn rather than restarting from zero. Mirrors web.
+  // Since-last-action readout, ticking once a second while active: times the
+  // CURRENT action from the agent's last transcript event, or from the run's own
+  // start while it is still booting. Mirrors web.
   const mountedAtRef = useRef<number | undefined>(undefined)
   const [, setTick] = useState(0)
   // Two deliberate acts to remove a turn: the first press arms, the second commits.
@@ -145,8 +145,8 @@ export default function CliRunMessages({
     const id = setInterval(() => setTick((t) => t + 1), CLI_ELAPSED_TICK_MS)
     return () => clearInterval(id)
   }, [active])
-  const startedAt = startedAtMs ?? mountedAtRef.current
-  const elapsedMs = active && startedAt !== undefined ? Date.now() - startedAt : 0
+  const lastActionAt = lastCliActionAtMs(transcript, startedAtMs ?? mountedAtRef.current)
+  const sinceLastActionMs = active && lastActionAt !== undefined ? Date.now() - lastActionAt : 0
   // The record's own verdict on whether the run is still going, so a turn
   // started before a reload still refuses deletion. `notReady` only counts while
   // the record fetch is still being retried — once it gives up it stays set, and
@@ -158,8 +158,7 @@ export default function CliRunMessages({
     booting,
     coldStart,
     ...(cli ? { agentLabel: cliLabel(cli) } : {}),
-    elapsedMs,
-    approxTokens: approxCliOutputTokens(messages),
+    sinceLastActionMs,
     blocked: blockedOn ?? [],
   })
 

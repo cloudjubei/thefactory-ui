@@ -358,6 +358,7 @@ function StorySignoffPanel({
               key={c.choice}
               size="sm"
               variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
+              accessibilityHint={c.detail}
               onPress={() => onChoose(c.choice)}
             >
               {c.label}
@@ -402,7 +403,7 @@ function OverallSection({
       rows={overall.rows}
       verification={overall.verification}
       statusLine={overall.statusLine}
-      notes={overall.notes}
+      steps={overall.steps}
       pairs={[]}
       recordings={section.recordings}
       reports={section.reports}

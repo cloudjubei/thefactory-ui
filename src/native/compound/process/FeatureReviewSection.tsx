@@ -15,6 +15,8 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
+  type StoryStepLine,
+  type StoryStepTone,
   type VerifyProofView,
   type VerifyVerdictNote,
 } from '../../../headless'
@@ -68,6 +70,8 @@ export type FeatureReviewSectionProps = {
   badge?: { label: string; tone: ReviewStatusLine['tone'] }
   /** A person's acceptance or the gate's conclusion, then the reviewer's — above the evidence. */
   notes?: readonly VerifyVerdictNote[]
+  /** The overall's one-glance summary: how each of the story run's own steps came out. */
+  steps?: readonly StoryStepLine[]
   /** What to say when nothing was filed, in place of the section's default. */
   emptyLabel?: string
   /**
@@ -125,6 +129,48 @@ function StatusVline({ line }: { line: ReviewStatusLine }) {
   )
 }
 
+/** The mark beside a step's line — see {@link StatusVline}; a written report takes a quiet dot. */
+function StepMark({ tone, color }: { tone: StoryStepTone; color: string }) {
+  if (tone === 'done') return <IconCheck size={14} color={color} />
+  if (tone === 'stuck') return <IconXCircle size={14} color={color} />
+  return (
+    <View
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        ...(tone === 'neutral'
+          ? { backgroundColor: color }
+          : { borderWidth: 1.5, borderColor: color }),
+      }}
+    />
+  )
+}
+
+/** One line per story step, quiet by design — the web peer's `StepSummary`. */
+function StepSummary({ steps }: { steps: readonly StoryStepLine[] }) {
+  const { theme, status } = useNativeTheme()
+  const colorOf = (tone: StoryStepTone): string =>
+    tone === 'neutral' ? theme.text.secondary : status[tone].softFg
+  return (
+    <View style={{ gap: 4 }}>
+      {steps.map((step) => (
+        <View key={step.key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <View style={{ width: 14, height: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <StepMark tone={step.tone} color={colorOf(step.tone)} />
+          </View>
+          <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }} numberOfLines={2}>
+            <Text style={{ fontWeight: '600', color: theme.text.primary }}>{step.name}</Text>
+            {'  '}
+            <Text style={{ fontWeight: '500', color: colorOf(step.tone) }}>{step.word}</Text>
+            {step.line ? `  ${step.line}` : ''}
+          </Text>
+        </View>
+      ))}
+    </View>
+  )
+}
+
 /**
  * One section of the story sign-off — the story-wide "Overall" or a single
  * feature — the native peer of the web `FeatureReviewSection`. A header (scope
@@ -156,6 +202,7 @@ export default function FeatureReviewSection({
   onSaveFile,
   badge,
   notes = [],
+  steps = [],
   emptyLabel,
   proof,
   attemptLabel,
@@ -340,6 +387,8 @@ export default function FeatureReviewSection({
           ))}
         </View>
       ))}
+
+      {steps.length > 0 ? <StepSummary steps={steps} /> : null}
 
       {proof && proof.screens.length === 0 ? (
         <Text

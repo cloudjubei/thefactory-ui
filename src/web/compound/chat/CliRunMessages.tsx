@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { useAppSettings, useCliRunArtifact } from '../../../headless'
 import {
-  approxCliOutputTokens,
   blockedToolNames,
   describeCliRunActivity,
+  lastCliActionAtMs,
   runningCliToolNames,
 } from '../../../headless/utils/cliRunActivity'
 import { CLI_ELAPSED_TICK_MS } from '../../../headless/utils/cliRunActivityConstants'
@@ -126,10 +126,10 @@ export default function CliRunMessages({
   const total = baseIndex + messages.length + 1
   let shownModel = false
 
-  // "Not idling" proof, like VS Code / Cursor: the elapsed readout ticks once a
-  // second while the run is active. It measures from the RUN's own start when
-  // the record has loaded, so a page opened mid-turn reports the real age of the
-  // turn rather than restarting from zero.
+  // "Not idling" proof, like VS Code / Cursor: the readout ticks once a second
+  // while the run is active and times the CURRENT action — since the agent's
+  // last transcript event, or the run's own start while it is still booting.
+  // Run totals belong to the review, not the spinner line.
   const mountedAtRef = useRef<number | undefined>(undefined)
   const [, setTick] = useState(0)
   // Two deliberate acts to remove a turn — see the confirm below.
@@ -143,15 +143,14 @@ export default function CliRunMessages({
     const id = setInterval(() => setTick((t) => t + 1), CLI_ELAPSED_TICK_MS)
     return () => clearInterval(id)
   }, [active])
-  const startedAt = startedAtMs ?? mountedAtRef.current
-  const elapsedMs = active && startedAt !== undefined ? Date.now() - startedAt : 0
+  const lastActionAt = lastCliActionAtMs(transcript, startedAtMs ?? mountedAtRef.current)
+  const sinceLastActionMs = active && lastActionAt !== undefined ? Date.now() - lastActionAt : 0
   const activity = describeCliRunActivity({
     runningToolNames: runningCliToolNames(messages),
     booting,
     coldStart,
     ...(cli ? { agentLabel: cliLabel(cli) } : {}),
-    elapsedMs,
-    approxTokens: approxCliOutputTokens(messages),
+    sinceLastActionMs,
     blocked: blockedOn ?? [],
   })
 

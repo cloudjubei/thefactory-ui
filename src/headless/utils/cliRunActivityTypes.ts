@@ -25,10 +25,8 @@ export type CliRunActivityInput = {
   coldStart: boolean
   /** Human CLI name ("Claude Code") for the cold-start line. */
   agentLabel?: string
-  /** Wall-clock ms the run has been watched for. */
-  elapsedMs: number
-  /** Rough streamed-output token estimate; `0` hides the readout. */
-  approxTokens: number
+  /** Wall-clock ms since the agent's last transcript event (the run start while booting). */
+  sinceLastActionMs: number
   /** What the run is waiting on the human for, if anything. */
   blocked: readonly CliRunBlockedOn[]
 }

@@ -14,6 +14,7 @@ import {
 import {
   useDurationTimer,
   formatProcessDuration,
+  gateSendsBack,
   hasIsolatedAttempts,
   isProcessLeafOpenable,
   isReflectedPark,
@@ -891,6 +892,10 @@ function ParkBlock({
   if (!park) return null
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
+  const choices = processParkChoices(park.reason, {
+    reflected,
+    sendsBack: park.stepId !== undefined && gateSendsBack(run.plan, park.stepId),
+  })
   const variant = park.reason === 'gate' ? status.review : status.on_hold
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -906,7 +911,7 @@ function ParkBlock({
           projectId={run.projectId}
           storyId={run.storyId as string}
           storyRunId={run.id}
-          choices={processParkChoices(park.reason, { reflected })}
+          choices={choices}
           onChoose={onChoose}
           {...(onSaveFile ? { onSaveFile } : {})}
         />
@@ -941,7 +946,7 @@ function ParkBlock({
           </Text>
         </Pressable>
       ) : null}
-      {processParkChoices(park.reason, { reflected }).map((choice) => (
+      {choices.map((choice) => (
         <View key={choice.choice} style={{ gap: 2 }}>
           <Button
             size="sm"

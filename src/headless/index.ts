@@ -597,6 +597,9 @@ export type {
   StorySignoff,
   StorySignoffProcessRun,
   StorySignoffRun,
+  StoryStepKey,
+  StoryStepLine,
+  StoryStepTone,
 } from './utils/storySignoffTypes'
 export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
@@ -983,11 +986,11 @@ export type {
 // plus the single activity line (booting / running <tool> / waiting on you).
 export {
   appendCliRunTranscript,
-  approxCliOutputTokens,
   blockedOnFromGrants,
   blockedToolNames,
   describeCliRunActivity,
   formatCliElapsed,
+  lastCliActionAtMs,
   mergeCliRunTranscript,
   runningCliToolNames,
 } from './utils/cliRunActivity'
@@ -1000,7 +1003,6 @@ export type {
 export {
   CLI_BLOCKED_SUBLABEL,
   CLI_BOOT_SUBLABEL,
-  CLI_CHARS_PER_TOKEN,
   CLI_ELAPSED_TICK_MS,
   CLI_QUESTION_SUBLABEL,
   CLI_TRANSCRIPT_CACHE_MAX_RUNS,
@@ -1255,6 +1257,7 @@ export { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './utils/processVie
 // onto the plan the DRIVER froze, so a client-side re-implementation would
 // render a pipeline the backend does not agree with.
 export {
+  gateSendsBack,
   isProcessParkChoiceOffered,
   isReflectedPark,
   processParkChoices,

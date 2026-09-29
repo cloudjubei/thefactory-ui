@@ -6,6 +6,7 @@ import {
   listCliAgentRuns,
   listPendingCliAgentActions,
   type ChatContext,
+  type ChatContextAgentRunStory,
   type PendingAction,
 } from '../api/generated'
 import { useApi } from '../api'
@@ -85,27 +86,42 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   // `status: 'running'` probe can, and `isRunActive` is derived from it.
   // Re-resolved on run lifecycle events (not a timer) so start/end/resume is
   // picked up live.
-  // A STORY agent-run chat has no run of its own: the orchestrator spawns one run
-  // PER FEATURE, each keyed to that feature's chat context. Asking by
-  // `chatContextId` therefore matches nothing and the chat shows a lone milestone
-  // line while the work streams into a child chat the user is never shown. Ask by
-  // `storyId` instead — the handle the sub-runs carry back to their story.
-  const storyScope = ctx.type === 'AGENT_RUN_STORY' ? ctx.storyId : undefined
+  // A STORY agent-run chat's work may run in per-feature sub-runs keyed to their
+  // feature chats, so asking by `chatContextId` alone misses them. Ask by
+  // `storyId` — the handle every run in the story carries — and let
+  // `pickActiveStoryRunId` keep only this agent run's own run and sub-runs, not
+  // another process step's agent running in the same story.
+  const storyRun = ctx.type === 'AGENT_RUN_STORY' ? ctx : undefined
+  const storyProjectId = storyRun?.projectId
+  const storyId = storyRun?.storyId
+  const storyAgentRunId = storyRun?.agentRunId
+  const storyChat = useMemo<ChatContextAgentRunStory | undefined>(
+    () =>
+      storyProjectId !== undefined && storyId !== undefined && storyAgentRunId !== undefined
+        ? {
+            type: 'AGENT_RUN_STORY',
+            projectId: storyProjectId,
+            storyId,
+            agentRunId: storyAgentRunId,
+          }
+        : undefined,
+    [storyProjectId, storyId, storyAgentRunId],
+  )
 
   useEffect(() => {
     let cancelled = false
     const discover = async () => {
       try {
         const { data } = await listCliAgentRuns({
-          query: storyScope
-            ? { storyId: storyScope, status: ACTIVE_CLI_RUN_STATUS }
+          query: storyChat
+            ? { storyId: storyChat.storyId, status: ACTIVE_CLI_RUN_STATUS }
             : { chatContextId, status: ACTIVE_CLI_RUN_STATUS },
           throwOnError: true,
         })
         if (cancelled) return
         setDiscoveredRunId(
-          storyScope
-            ? pickActiveStoryRunId(data, storyScope)
+          storyChat
+            ? pickActiveStoryRunId(data, storyChat)
             : pickActiveCliRunId(data, chatContextId),
         )
       } catch {
@@ -120,7 +136,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       cancelled = true
       off()
     }
-  }, [chatContextId, storyScope, ws])
+  }, [chatContextId, storyChat, ws])
 
   const activeRunId = runId ?? discoveredRunId
 

@@ -14,6 +14,8 @@ import {
   type ReviewTabId,
   type ScreenPair,
   type SignoffAgent,
+  type StoryStepLine,
+  type StoryStepTone,
   type VerifyProofTone,
   type VerifyProofView,
   type VerifyVerdictNote,
@@ -68,6 +70,8 @@ export type FeatureReviewSectionProps = {
   badge?: { label: string; tone: ReviewStatusLine['tone'] }
   /** A person's acceptance or the gate's conclusion, then the reviewer's — above the evidence. */
   notes?: readonly VerifyVerdictNote[]
+  /** The overall's one-glance summary: how each of the story run's own steps came out. */
+  steps?: readonly StoryStepLine[]
   /** What to say when nothing was filed, in place of the section's default. */
   emptyLabel?: string
   /**
@@ -131,6 +135,53 @@ const STATUS_TONE: Record<ReviewStatusLine['tone'], string> = {
   stuck: 'text-(--status-stuck-soft-fg)',
 }
 
+const STEP_TONE: Record<StoryStepTone, string> = {
+  ...STATUS_TONE,
+  neutral: 'text-(--text-secondary)',
+}
+
+/** The mark beside a step's line — see {@link StatusVline}; a written report takes a quiet dot. */
+function StepMark({ tone }: { tone: StoryStepTone }) {
+  if (tone === 'done') return <IconCheck className="size-3.5" />
+  if (tone === 'stuck') return <IconXCircle className="size-3.5" />
+  return (
+    <span
+      aria-hidden
+      className={`size-2 rounded-full ${tone === 'neutral' ? 'bg-current' : 'border-[1.5px] border-current'}`}
+    />
+  )
+}
+
+/**
+ * One line per story step, quiet by design — the chips below open each one's
+ * evidence; this only says how each came out, and why.
+ */
+function StepSummary({ steps }: { steps: readonly StoryStepLine[] }) {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
+      {steps.map((step) => (
+        <li key={step.key} className="flex min-w-0 items-baseline gap-2 text-[12px]">
+          <span
+            className={`inline-flex size-3.5 shrink-0 translate-y-0.5 items-center justify-center ${STEP_TONE[step.tone]}`}
+          >
+            <StepMark tone={step.tone} />
+          </span>
+          <span className="shrink-0 font-semibold text-(--text-primary)">{step.name}</span>
+          <span className={`shrink-0 font-medium ${STEP_TONE[step.tone]}`}>{step.word}</span>
+          {step.line ? (
+            <span
+              className="line-clamp-2 min-w-0 max-w-[72ch] text-(--text-secondary)"
+              title={step.line}
+            >
+              {step.line}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * The mark matches the tone: a check only for what passed, a cross for what
  * failed, and a hollow dot for what nobody concluded — a check beside "Verify
@@ -185,6 +236,7 @@ export default function FeatureReviewSection({
   onRequestImage,
   badge,
   notes = [],
+  steps = [],
   emptyLabel,
   proof,
   attemptLabel,
@@ -251,6 +303,8 @@ export default function FeatureReviewSection({
           ) : null}
         </div>
       ))}
+
+      {steps.length > 0 ? <StepSummary steps={steps} /> : null}
 
       {proof && proof.screens.length === 0 ? (
         <span className={`text-[12.5px] font-semibold ${SUMMARY_TONE[proof.summary.tone]}`}>

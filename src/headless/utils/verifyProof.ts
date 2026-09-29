@@ -16,7 +16,7 @@ import type {
   ProcessStepOutcome,
   ProcessVerifyProof,
 } from 'thefactory-tools/types'
-import { processVerifyReview } from 'thefactory-tools/utils'
+import { processEntryWorkMs, processVerifyReview } from 'thefactory-tools/utils'
 
 import type { ReviewEvidenceRef } from '../api/generated'
 import { formatProcessDuration, verifyReviewStatus, type VerifyReviewStatus } from './processView'
@@ -224,14 +224,14 @@ export function verifyGateLine(
 
 /** One attempt's own time and cost, in the pipeline's words — never a CLI record's guess. */
 export function verifyAttemptFacts(
-  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt' | 'cost'>,
+  entry: Pick<ProcessLedgerEntry, 'startedAt' | 'endedAt' | 'suspendedMs' | 'cost'>,
 ): RunReviewFacts {
   return {
     ...runReviewFacts({ cost: entry.cost, durationMs: undefined }),
     durationLabel:
       entry.endedAt === undefined
         ? undefined
-        : formatProcessDuration(entry.endedAt - entry.startedAt),
+        : formatProcessDuration(processEntryWorkMs(entry, entry.endedAt)),
   }
 }
 

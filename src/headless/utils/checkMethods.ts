@@ -456,7 +456,8 @@ export function checkMethodRows(input: {
   })
 }
 
-function joinNames(rows: readonly CheckMethodRow[]): string {
+/** The rows' labels as a sentence names them: "Tests, Types and Build". */
+export function joinNames(rows: readonly Pick<CheckMethodRow, 'label'>[]): string {
   const names = rows.map((r) => r.label)
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`

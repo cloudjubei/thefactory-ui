@@ -1058,6 +1058,13 @@ describe('verifyAttemptFacts', () => {
     })
   })
 
+  it('leaves out the time the machine slept through the attempt', () => {
+    expect(
+      verifyAttemptFacts(verify('v', 'passed', 0, { endedAt: 4_064_000, suspendedMs: 2_460_000 }))
+        .durationLabel,
+    ).toBe('26m 44s')
+  })
+
   it('shows a verifier on a subscription as $0.00', () => {
     const cost = { costUsd: 0, includedTokens: 1_308_171 }
     expect(

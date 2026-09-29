@@ -12,6 +12,7 @@ import {
   pickActiveCliRunId,
   pickActiveStoryRunId,
 } from './pendingToolGrants'
+import type { ChatContextAgentRunStory } from '../api/generated'
 
 describe('apiToolCallToGrant', () => {
   it('maps an API tool-call to an api-source grant keyed by toolCallId', () => {
@@ -169,41 +170,102 @@ describe('isCliRunLifecycleEvent', () => {
 })
 
 describe('pickActiveStoryRunId', () => {
-  it('finds the live per-feature sub-run by the story it is running for', () => {
-    // The regression: a story run has no run of its own — each FEATURE gets a run
-    // keyed to the feature's chat context, so the story chat matched nothing and
-    // showed one milestone line while the work streamed into a chat never shown.
+  const storyChat: ChatContextAgentRunStory = {
+    type: 'AGENT_RUN_STORY',
+    projectId: 'p',
+    storyId: 's1',
+    agentRunId: 'verifier',
+  }
+  const storyChatKey = '/projects/p/stories/s1/agents/verifier'
+
+  it("ignores another agent's story-level run in the same story", () => {
+    // The regression: a finished verifier's Transcript showed the REPORT agent
+    // running next in the same story, because any active run in the story won.
+    const runs = [
+      {
+        id: 'report-run',
+        chatContextId: '/projects/p/stories/s1/agents/report',
+        storyId: 's1',
+        createdAt: 50,
+      },
+    ]
+    expect(pickActiveStoryRunId(runs, storyChat)).toBeUndefined()
+  })
+
+  it("picks this chat's own run", () => {
+    const runs = [
+      { id: 'report-run', chatContextId: '/projects/p/stories/s1/agents/report', createdAt: 50 },
+      { id: 'own-run', chatContextId: storyChatKey, storyId: 's1', createdAt: 10 },
+    ]
+    expect(pickActiveStoryRunId(runs, storyChat)).toBe('own-run')
+  })
+
+  it('picks a feature sub-run spawned by this agent run', () => {
     const runs = [
       {
         id: 'feature-run',
-        chatContextId: '/projects/p/stories/s1/features/f1/agents/a1',
+        chatContextId: '/projects/p/stories/s1/features/f1/agents/verifier',
         storyId: 's1',
         createdAt: 5,
       },
     ]
-    expect(pickActiveStoryRunId(runs, 's1')).toBe('feature-run')
+    expect(pickActiveStoryRunId(runs, storyChat)).toBe('feature-run')
   })
 
-  it('prefers the most recent sub-run as the story advances through its features', () => {
+  it('ignores a feature sub-run belonging to a different agent run', () => {
     const runs = [
-      { id: 'feature-1', storyId: 's1', createdAt: 10 },
-      { id: 'feature-2', storyId: 's1', createdAt: 30 },
+      {
+        id: 'foreign-feature',
+        chatContextId: '/projects/p/stories/s1/features/f1/agents/report',
+        storyId: 's1',
+        createdAt: 5,
+      },
     ]
-    expect(pickActiveStoryRunId(runs, 's1')).toBe('feature-2')
+    expect(pickActiveStoryRunId(runs, storyChat)).toBeUndefined()
   })
 
-  it('never returns a run from another story, even if the filter was dropped', () => {
+  it('ignores a same-named agent run under another story or project', () => {
     const runs = [
-      { id: 'other', storyId: 's2', createdAt: 99 },
-      { id: 'unbound', createdAt: 98 },
-      { id: 'mine', storyId: 's1', createdAt: 1 },
+      { id: 'other-story', chatContextId: '/projects/p/stories/s2/features/f1/agents/verifier' },
+      { id: 'other-project', chatContextId: '/projects/q/stories/s1/features/f1/agents/verifier' },
+      { id: 'other-story-own', chatContextId: '/projects/p/stories/s2/agents/verifier' },
     ]
-    expect(pickActiveStoryRunId(runs, 's1')).toBe('mine')
-    expect(pickActiveStoryRunId([runs[0], runs[1]], 's1')).toBeUndefined()
+    expect(pickActiveStoryRunId(runs, storyChat)).toBeUndefined()
   })
 
-  it('returns undefined for an empty story id rather than matching anything', () => {
-    expect(pickActiveStoryRunId([{ id: 'r', storyId: '', createdAt: 1 }], '')).toBeUndefined()
+  it('ignores a run with no chat binding or an unparseable one', () => {
+    const runs = [
+      { id: 'unbound', storyId: 's1', createdAt: 9 },
+      { id: 'garbage', chatContextId: 'not/a/chat/key', storyId: 's1', createdAt: 8 },
+    ]
+    expect(pickActiveStoryRunId(runs, storyChat)).toBeUndefined()
+  })
+
+  it('prefers the newest of several runs that belong to this chat', () => {
+    const runs = [
+      {
+        id: 'feature-1',
+        chatContextId: '/projects/p/stories/s1/features/f1/agents/verifier',
+        createdAt: 10,
+      },
+      {
+        id: 'foreign-newest',
+        chatContextId: '/projects/p/stories/s1/agents/report',
+        createdAt: 99,
+      },
+      {
+        id: 'feature-2',
+        chatContextId: '/projects/p/stories/s1/features/f2/agents/verifier',
+        createdAt: 30,
+      },
+      { id: 'own', chatContextId: storyChatKey, createdAt: 20 },
+    ]
+    expect(pickActiveStoryRunId(runs, storyChat)).toBe('feature-2')
+  })
+
+  it('returns undefined when there are no runs', () => {
+    expect(pickActiveStoryRunId(undefined, storyChat)).toBeUndefined()
+    expect(pickActiveStoryRunId([], storyChat)).toBeUndefined()
   })
 })
 
