@@ -25,9 +25,7 @@ function ReportCard({ report }: { report: EvidenceTile }) {
           <div className="font-semibold">Where this came from</div>
           <p className="mt-1">{reportProvenance(report.ref)}</p>
           <p className="mt-1 text-(--text-muted)">
-            {report.unvouched
-              ? report.unvouched.text
-              : 'Filed as evidence on this run, so it cannot be edited afterwards.'}
+            Filed as evidence on this run, so it cannot be edited afterwards.
           </p>
         </HelpChip>
         <Button

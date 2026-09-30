@@ -12,16 +12,20 @@ import {
 } from 'react-native'
 
 import {
+  choiceTakesNote,
   useDurationTimer,
   formatProcessDuration,
   gateSendsBack,
   hasIsolatedAttempts,
+  isIntegratingApproval,
   isProcessLeafOpenable,
   isReflectedPark,
   latestOpenableAttempt,
   parkedRunRef,
+  processAmendmentView,
   processAttemptLeaf,
   processLeafReview,
+  processLoopSenders,
   processNodeBadge,
   processNodeLook,
   processNodeState,
@@ -38,6 +42,7 @@ import {
   processStepTone,
   useAppSettings,
   useProcessRun,
+  type ProcessIntegrationMode,
   type ProcessNodeRunRef,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
@@ -47,6 +52,8 @@ import {
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
+import IntegrationResult from './IntegrationResult'
+import ParkNoteComposer from './ParkNoteComposer'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
@@ -95,13 +102,22 @@ export default function ProcessPipeline({
   onSaveFile,
   isFocused = true,
 }: ProcessPipelineProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const [stack, setStack] = useState<string[]>([])
   const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
   const [leafView, setLeafView] = useState<'review' | 'transcript'>('review')
   const currentId = stack[stack.length - 1] ?? runId
-  const { isLoaded, loadError, run, resume, cancel, listBranches, deleteRun } =
-    useProcessRun(currentId)
+  const {
+    isLoaded,
+    loadError,
+    actionError,
+    run,
+    resume,
+    retryIntegration,
+    cancel,
+    listBranches,
+    deleteRun,
+  } = useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
 
@@ -223,6 +239,7 @@ export default function ProcessPipeline({
   }
 
   const states = processStepStates(run)
+  const amendments = processAmendmentView(run)
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
@@ -234,6 +251,58 @@ export default function ProcessPipeline({
         onCancel={() => void cancel()}
         onDelete={openDelete}
       />
+      {actionError ? (
+        <View
+          accessibilityRole="alert"
+          style={{
+            marginHorizontal: nativeSpace[3],
+            marginTop: nativeSpace[3],
+            paddingHorizontal: nativeSpace[2],
+            paddingVertical: nativeSpace[2],
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            backgroundColor: status.stuck.softBg,
+            borderColor: status.stuck.softBorder,
+          }}
+        >
+          <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
+        </View>
+      ) : null}
+      {amendments.notes.length > 0 ? (
+        <View
+          style={{
+            marginHorizontal: nativeSpace[3],
+            marginTop: nativeSpace[3],
+            gap: 4,
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            borderRadius: nativeRadii[2],
+            backgroundColor: theme.surface.base,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              color: theme.text.muted,
+            }}
+          >
+            Work added to this run
+          </Text>
+          {amendments.notes.map((note) => (
+            <Text
+              key={note}
+              style={{ fontSize: 11.5, lineHeight: 17, color: theme.text.secondary }}
+            >
+              {note}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
         {states.map((state, index) => (
           <PipelineNode
@@ -243,7 +312,8 @@ export default function ProcessPipeline({
             ordinal={index + 1}
             isLast={index === states.length - 1}
             now={now}
-            onChoose={(choice, note) => void resume(choice, note)}
+            addedTag={amendments.addedSteps[state.step.id]}
+            onChoose={(choice, note, integration) => void resume(choice, note, integration)}
             onDrill={drillTo}
             onOpenLeaf={openLeafHere}
             canOpenTranscript={canOpenTranscript}
@@ -251,6 +321,8 @@ export default function ProcessPipeline({
           />
         ))}
       </View>
+
+      <IntegrationResult run={run} onRetry={retryIntegration} />
 
       <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
@@ -583,6 +655,7 @@ function PipelineNode({
   ordinal,
   isLast,
   now,
+  addedTag,
   onChoose,
   onDrill,
   onOpenLeaf,
@@ -594,7 +667,13 @@ function PipelineNode({
   ordinal: number
   isLast: boolean
   now: number
-  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  /** "Added <date>" when this step was added to the run after it started. */
+  addedTag: string | undefined
+  onChoose: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => void
   onDrill: (childRunId: string) => void
   onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
   canOpenTranscript: boolean
@@ -669,6 +748,20 @@ function PipelineNode({
             {state.step.name}
           </Text>
           <KindChip kind={state.step.kind} agent={isAgent} />
+          {addedTag ? (
+            <View
+              style={{
+                borderColor: theme.border.strong,
+                borderStyle: 'dashed',
+                borderWidth: 1,
+                borderRadius: 999,
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+              }}
+            >
+              <Text style={{ fontSize: 10.5, color: theme.text.secondary }}>{addedTag}</Text>
+            </View>
+          ) : null}
           {iteration ? (
             <View
               style={{
@@ -816,7 +909,7 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
   const { run: child } = useProcessRun(childRunId)
   if (!child) return null
   const states = processStepStates(child)
-  const looped = Object.values(child.loopCounts ?? {}).some((n) => n > 0)
+  const sentBack = processLoopSenders(child)
   return (
     <View
       style={{
@@ -832,7 +925,7 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
         gap: 4,
       }}
     >
-      {looped ? (
+      {sentBack ? (
         <View
           style={{
             backgroundColor: status.queued.softBg,
@@ -845,7 +938,7 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
           }}
         >
           <Text style={{ fontSize: 11, color: status.queued.softFg }}>
-            ↺ Verification sent the work back — retried
+            ↺ {sentBack} sent the work back — retried
           </Text>
         </View>
       ) : null}
@@ -881,21 +974,24 @@ function ParkBlock({
   onSaveFile,
 }: {
   run: ProcessRun
-  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onChoose: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => void
   /** Open the run that asked the question, to answer it in its chat. */
   onOpenAsked?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
   onSaveFile?: SaveFileHandler
 }) {
   const { theme, status } = useNativeTheme()
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const park = run.park
   if (!park) return null
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
-  const choices = processParkChoices(park.reason, {
-    reflected,
-    sendsBack: park.stepId !== undefined && gateSendsBack(run.plan, park.stepId),
-  })
+  const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
+  const choices = processParkChoices(park.reason, { reflected, sendsBack })
   const variant = park.reason === 'gate' ? status.review : status.on_hold
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -912,6 +1008,10 @@ function ParkBlock({
           storyId={run.storyId as string}
           storyRunId={run.id}
           choices={choices}
+          sendsBack={sendsBack}
+          {...(run.workBranch && isIntegratingApproval(run, 'approve')
+            ? { workBranch: run.workBranch }
+            : {})}
           onChoose={onChoose}
           {...(onSaveFile ? { onSaveFile } : {})}
         />
@@ -946,18 +1046,28 @@ function ParkBlock({
           </Text>
         </Pressable>
       ) : null}
-      {choices.map((choice) => (
-        <View key={choice.choice} style={{ gap: 2 }}>
-          <Button
-            size="sm"
-            variant={choice.primary ? 'primary' : 'secondary'}
-            onPress={() => onChoose(choice.choice)}
-          >
-            {choice.label}
-          </Button>
-          <Text style={{ fontSize: 11, color: theme.text.secondary }}>{choice.detail}</Text>
-        </View>
-      ))}
+      {noteFor ? (
+        <ParkNoteComposer
+          sendsBack={sendsBack}
+          onSend={(note) => onChoose(noteFor, note)}
+          onCancel={() => setNoteFor(undefined)}
+        />
+      ) : (
+        choices.map((choice) => (
+          <View key={choice.choice} style={{ gap: 2 }}>
+            <Button
+              size="sm"
+              variant={choice.primary ? 'primary' : 'secondary'}
+              onPress={() =>
+                choiceTakesNote(choice.choice) ? setNoteFor(choice.choice) : onChoose(choice.choice)
+              }
+            >
+              {choice.label}
+            </Button>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{choice.detail}</Text>
+          </View>
+        ))
+      )}
     </View>
   )
 }

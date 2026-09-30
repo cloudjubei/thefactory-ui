@@ -32,6 +32,7 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
+import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
 import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
@@ -167,9 +168,15 @@ export type ChatsContextValue = {
   /**
    * Resume the in-flight completion for `ctx`, granting the listed
    * tool-call ids. Tools not in `grantedToolCallIds` come back as
-   * `not_allowed`. Pass `[]` to deny everything.
+   * `not_allowed`. Pass `[]` to deny everything. `openWorkDecisions` carries,
+   * by granted tool-call id, how the person chose to start a story over its
+   * open work.
    */
-  confirmTools: (ctx: ChatCtx, grantedToolCallIds: string[]) => Promise<void>
+  confirmTools: (
+    ctx: ChatCtx,
+    grantedToolCallIds: string[],
+    openWorkDecisions?: Record<string, ProcessOpenWorkDecision>,
+  ) => Promise<void>
   /** Drop the pending tool confirmation for `ctx` without resuming. */
   cancelToolConfirmation: (ctx: ChatCtx) => void
   /** Clear all messages in the chat — keeps the chat record itself. Mirrors
@@ -1049,7 +1056,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     )
 
     const confirmTools = useCallback(
-      async (ctx: ChatCtx, grantedToolCallIds: string[]) => {
+      async (
+        ctx: ChatCtx,
+        grantedToolCallIds: string[],
+        openWorkDecisions?: Record<string, ProcessOpenWorkDecision>,
+      ) => {
         const live = getChatLiveState(ctx)
         const pending = live.pendingToolConfirmation
         if (!pending) return
@@ -1091,6 +1102,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               },
               settings: pending.settings,
               toolsGranted: grantedToolCallIds,
+              ...(openWorkDecisions && Object.keys(openWorkDecisions).length > 0
+                ? { openWorkDecisions }
+                : {}),
             },
             throwOnError: true,
           })

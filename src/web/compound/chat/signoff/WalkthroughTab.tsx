@@ -44,11 +44,6 @@ function Recording({ projectId, tile }: { projectId: string; tile: EvidenceTile 
           <IconDownload className="w-4 h-4" />
         </Button>
       </div>
-      {tile.unvouched ? (
-        <span className="max-w-[72ch] text-[11.5px] text-(--text-muted)">
-          {tile.unvouched.text}
-        </span>
-      ) : null}
       {dataUri ? (
         // The browser's own transport: play, time, scrubber, and the settings
         // gear that hides everything else — the standard every player follows.

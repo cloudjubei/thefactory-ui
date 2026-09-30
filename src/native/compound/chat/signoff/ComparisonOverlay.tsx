@@ -72,9 +72,6 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
-      {build.unvouched ? (
-        <Text style={{ fontSize: 12, color: theme.text.muted }}>{build.unvouched}</Text>
-      ) : null}
       {build.dirty ? (
         <Text style={{ fontSize: 12, color: status.stuck.softFg }}>uncommitted changes</Text>
       ) : null}

@@ -381,6 +381,7 @@ export {
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
+  reviewTabOrder,
   evidenceMethodFor,
   reviewTabs,
   signoffVerdict,
@@ -446,9 +447,6 @@ export {
   toEvidenceTile,
   capturedOnLabel,
   comparisonPairFacts,
-  evidenceUnvouched,
-  pairUnvouched,
-  recordedEvidenceUnvouched,
   screenPairMeta,
   screenPairs,
   screenPairFileStem,
@@ -465,19 +463,11 @@ export {
   reportProvenance,
   runReports,
 } from './utils/reviewEvidenceView'
-export {
-  REPORT_PROVENANCE,
-  REVIEWER_VERDICT_LABEL,
-  UNVOUCHED_LABEL,
-  UNVOUCHED_RESTART_TEXT,
-  UNVOUCHED_SIDE_LEAD,
-} from './utils/reviewEvidenceViewConstants'
+export { REPORT_PROVENANCE, REVIEWER_VERDICT_LABEL } from './utils/reviewEvidenceViewConstants'
 export type { DecisionExplainer } from './utils/checkMethodConstants'
 export type {
   EvidenceGroup,
   EvidenceTile,
-  EvidenceUnvouched,
-  EvidenceUnvouchedCause,
   EvidenceViewerImage,
   ReportAuthor,
   ReviewerVerdictReading,
@@ -560,7 +550,6 @@ export type {
   VerifyProofMode,
   VerifyProofSummary,
   VerifyProofTone,
-  VerifyProofUnvouched,
   VerifyProofView,
   VerifyReviewerVerdict,
   VerifySectionProps,
@@ -571,9 +560,11 @@ export {
   aggregateStoryVerdict,
   buildStorySignoff,
   signoffEvidence,
+  signoffFixSectionProps,
   signoffLoadStatus,
   signoffSectionProps,
   signoffSections,
+  signoffVerifyViews,
 } from './utils/storySignoff'
 export {
   EMPTY_SIGNOFF_SECTION,
@@ -583,6 +574,10 @@ export {
 export type {
   BuildStorySignoffInput,
   FeatureSignoff,
+  FixSentBy,
+  FixSignoff,
+  SectionCodeReview,
+  SectionSignoff,
   OverallSignoff,
   SignoffAgent,
   SignoffHeadline,
@@ -1235,6 +1230,7 @@ export {
   processStepCostLabel,
   processStepCostTitle,
   processIterationBadge,
+  processLoopSenders,
   processRunBadge,
   processRunCardView,
   hasIsolatedAttempts,
@@ -1251,6 +1247,60 @@ export {
 } from './utils/processView'
 export type { ProcessNodeLook, ProcessNodeSummary } from './utils/processViewTypes'
 export { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './utils/processViewConstants'
+export {
+  choiceTakesNote,
+  parkNoteCopy,
+  parkNoteCounter,
+  parkNoteToSend,
+} from './utils/processParkNote'
+export {
+  PARK_NOTE_CANCEL,
+  PARK_NOTE_CHOICES,
+  PARK_NOTE_COPY,
+  PARK_NOTE_COUNTER_FROM,
+  PARK_NOTE_MAX_LENGTH,
+} from './utils/processParkNoteConstants'
+export type { ParkNoteCopy } from './utils/processParkNoteTypes'
+export {
+  isIntegratingApproval,
+  processIntegrationBadge,
+  processIntegrationChoices,
+  processIntegrationView,
+} from './utils/processIntegration'
+export {
+  PROCESS_INTEGRATION_BADGE,
+  PROCESS_INTEGRATION_CANCEL,
+  PROCESS_INTEGRATION_CHOOSER_HEAD,
+  PROCESS_INTEGRATION_CHOOSER_NOTE,
+  PROCESS_INTEGRATION_COMPARE_LINK,
+  PROCESS_INTEGRATION_NEVER_TRIED,
+  PROCESS_INTEGRATION_PR_LINK,
+  PROCESS_INTEGRATION_RETRY,
+  PROCESS_INTEGRATION_RETRY_HEAD,
+} from './utils/processIntegrationConstants'
+export type {
+  ProcessIntegrationChoice,
+  ProcessIntegrationView,
+} from './utils/processIntegrationTypes'
+export {
+  processAmendmentView,
+  processOpenWorkMetadata,
+  processOpenWorkView,
+} from './utils/processOpenWork'
+export {
+  OPEN_WORK_EXTEND_LABEL,
+  OPEN_WORK_FRESH_LABEL,
+  OPEN_WORK_NEW_ON_BRANCH_LABEL,
+  OPEN_WORK_RISKY_TAG,
+  OPEN_WORK_WARNING_PARALLEL,
+  OPEN_WORK_WARNING_UNREVIEWED,
+} from './utils/processOpenWorkConstants'
+export type {
+  ProcessAmendmentView,
+  ProcessOpenWorkMetadata,
+  ProcessOpenWorkOptionView,
+  ProcessOpenWorkView,
+} from './utils/processOpenWorkTypes'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must
 // agree with the driver's own derivation — `processStepStates` projects a run
@@ -1273,6 +1323,13 @@ export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
+  ProcessIntegrationMode,
+  ProcessOpenWork,
+  ProcessOpenWorkChoice,
+  ProcessOpenWorkDecision,
+  ProcessProposal,
+  ProcessRunIntegration,
+  ProcessWorkBranch,
   ProcessLedgerEntry,
   ProcessLoop,
   ProcessNodeRunRef,

@@ -14,15 +14,9 @@ import type {
 } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceRef } from '../api/generated'
-import { toEvidenceTile } from './reviewEvidenceView'
-import { UNVOUCHED_LABEL, UNVOUCHED_RESTART_TEXT } from './reviewEvidenceViewConstants'
+import { comparisonPairFacts, toEvidenceTile } from './reviewEvidenceView'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 import {
-  COUNTED_UNVOUCHED_VERDICT,
-  REVIEWER_VERDICT_UNVOUCHED_LABEL,
-  REVIEWER_VERDICT_UNVOUCHED_REASON,
-  UNVOUCHED_BASIS_BANNER,
-  UNVOUCHED_BASIS_SUMMARY,
   ATTEMPT_EMPTY,
   ATTEMPT_RUNNING_EMPTY,
   CAPTURE_LOAD_FAILED,
@@ -1469,32 +1463,7 @@ describe('storyProofNotice', () => {
     mode: 'live',
     standing: 'passed',
     dataUnstated: false,
-    proofUnvouched: false,
     ...over,
-  })
-
-  it('names a feature whose proof now rests only on captures that cannot be vouched for', () => {
-    expect(
-      storyProofNotice([
-        section({ label: 'Feature #1', proofUnvouched: true }),
-        section({ label: 'Feature #2' }),
-      ]),
-    ).toEqual({
-      tone: 'empty',
-      text: 'Feature #1 rests only on captures that can’t be vouched for now — open it to see why; the next verify run captures them again.',
-    })
-  })
-
-  it('names several such features naturally, beside the other flags, and never one that did not stand', () => {
-    const notice = storyProofNotice([
-      section({ label: 'Feature #1', proofUnvouched: true, mode: 'dry' }),
-      section({ label: 'Feature #2', proofUnvouched: true }),
-      section({ label: 'Feature #3', proofUnvouched: true, standing: 'failed' }),
-    ])
-    expect(notice?.tone).toBe('working')
-    expect(notice?.text).toBe(
-      'Feature #1 was verified dry — not against the live backend. Open it to see what the live backend must send. Feature #1 and Feature #2 rest only on captures that can’t be vouched for now — open each to see why; the next verify run captures them again.',
-    )
   })
 
   it('names every feature that passed only on faked data', () => {
@@ -2043,14 +2012,17 @@ const unvouchedTile = (
     ...over,
   })
 
-describe('verifyProofView, once the backend cannot vouch for the captures', () => {
-  const vouched = (over: Partial<ReviewEvidenceRef> & { id: string }) =>
-    tile({
-      capturedOn: 'android · emulator-5554',
-      build: { platform: 'android', sha: HEAD, dirty: false },
-      ...over,
-    })
+const BACKEND_REASONS = [
+  EVIDENCE_RECORD_UNVOUCHED_REASON,
+  EVIDENCE_FILE_CHANGED_REASON,
+  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+] as const
 
+/** A view with every filing's reason dropped — what it must read as, reason or not. */
+const withoutReasons = (value: unknown): unknown =>
+  JSON.parse(JSON.stringify(value, (k, v: unknown) => (k === 'unvouchedReason' ? undefined : v)))
+
+describe('verifyProofView, once the backend cannot vouch for the captures', () => {
   const passed = proof({
     mode: 'live',
     baseSha: BASE,
@@ -2087,153 +2059,74 @@ describe('verifyProofView, once the backend cannot vouch for the captures', () =
     newScreenIds: ['a-roles', 'a-picker'],
   })
 
-  const afterRestart: EvidenceTile[] = [
-    unvouchedTile({ id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 }),
-    unvouchedTile({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
-    unvouchedTile({ id: 'b-home', phase: 'before', subject: 'home', createdAt: 10 }),
-    unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 20 }),
-    unvouchedTile({ id: 'b-menu', phase: 'before', subject: 'font-preview-roles', createdAt: 12 }),
-    unvouchedTile({ id: 'a-roles', phase: 'after', subject: 'font-preview-roles', createdAt: 23 }),
-    unvouchedTile({ id: 'a-picker', phase: 'after', subject: 'font-picker', createdAt: 24 }),
+  const captures = (reason: string): EvidenceTile[] => [
+    unvouchedTile({ id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 }, reason),
+    unvouchedTile({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }, reason),
+    unvouchedTile({ id: 'b-home', phase: 'before', subject: 'home', createdAt: 10 }, reason),
+    unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 20 }, reason),
+    unvouchedTile(
+      { id: 'b-menu', phase: 'before', subject: 'font-preview-roles', createdAt: 12 },
+      reason,
+    ),
+    unvouchedTile(
+      { id: 'a-roles', phase: 'after', subject: 'font-preview-roles', createdAt: 23 },
+      reason,
+    ),
+    unvouchedTile(
+      { id: 'a-picker', phase: 'after', subject: 'font-picker', createdAt: 24 },
+      reason,
+    ),
   ]
+  const plain = captures('').map((t) => tile({ ...t.ref, unvouchedReason: undefined }))
 
-  it('never shows a pair the gate counted as showing the change once a side cannot be vouched for', () => {
-    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
-    expect(v.pairs.some((p) => p.counted)).toBe(false)
-    expect(v.pairs.some((p) => p.verdict === PAIR_COUNTED_VERDICT)).toBe(false)
-    expect(v.countedCount).toBe(0)
-    expect(v.newScreens).toEqual([])
+  it.each(BACKEND_REASONS)(
+    'shows what the gate counted as counted over captures carrying "%s"',
+    (reason) => {
+      const v = verifyProofView(passed, captures(reason), { standing: 'passed' })
+      expect(v.countedCount).toBe(1)
+      expect(v.pairs.map((p) => [p.subject, p.counted, p.verdict])).toEqual([
+        ['login-card', true, PAIR_COUNTED_VERDICT],
+        ['home', false, 'Pixel-identical — the change does not show here.'],
+      ])
+      expect(v.newScreens.map((s) => s.id)).toEqual(['a-roles', 'a-picker'])
+      expect(v.unpaired).toEqual([])
+      expect(v.summary).toEqual({
+        tone: 'done',
+        text: '1 pair shows the change · 1 did not count · 2 new screens the change adds',
+      })
+    },
+  )
+
+  it.each(BACKEND_REASONS)('renders exactly as the same captures without "%s"', (reason) => {
+    const opts = { standing: 'passed' as const, keyPrefix: 'f1::' }
+    const v = verifyProofView(passed, captures(reason), opts)
+    expect(withoutReasons(v)).toEqual(withoutReasons(verifyProofView(passed, plain, opts)))
+    expect(JSON.stringify(withoutReasons(v))).not.toMatch(/vouch/i)
   })
 
-  it('groups what the gate counted with what did not count, first, saying the gate counted it then', () => {
-    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
-    expect(v.pairs.map((p) => [p.subject, p.verdict])).toEqual([
-      ['login-card', COUNTED_UNVOUCHED_VERDICT],
-      ['font-preview-roles', COUNTED_UNVOUCHED_VERDICT],
-      ['home', 'Pixel-identical — the change does not show here.'],
-    ])
-    expect(v.pairs.map((p) => p.unvouched?.text)).toEqual([
-      UNVOUCHED_RESTART_TEXT.capture,
-      UNVOUCHED_RESTART_TEXT.capture,
-      UNVOUCHED_RESTART_TEXT.capture,
-    ])
-    expect(v.pairs[1]).toMatchObject({ newScreen: true, change: NEW_SCREEN_PAIR_CHANGE })
-    expect(v.unpaired.map((u) => [u.subject, u.reason, u.unvouched?.cause])).toEqual([
-      ['font-picker', COUNTED_UNVOUCHED_VERDICT, 'restart'],
-    ])
-  })
-
-  it('keeps each image, and pages the overlay in the order the page shows it', () => {
-    const v = verifyProofView(passed, afterRestart, { standing: 'passed', keyPrefix: 'f1::' })
-    expect(v.pairs[0].before?.ref.id).toBe('b-login')
-    expect(v.pairs[0].after?.ref.id).toBe('a-login')
-    expect(v.screens.map((s) => [s.index, s.title])).toEqual([
-      [1, 'login-card'],
-      [2, 'font-preview-roles'],
-      [3, 'home'],
-      [4, 'font-picker'],
-    ])
-    expect(v.screens[0].note).toBe(
-      `${COUNTED_UNVOUCHED_VERDICT} · 219,902 px changed (9.2%) · 84% of on-screen elements shared`,
-    )
-    expect(v.screens.every((s) => s.unvouched?.cause === 'restart')).toBe(true)
-    expect(new Set(v.screens.map((s) => s.key)).size).toBe(4)
-    const byKey = new Map(v.screens.map((s) => [s.key, s.index]))
-    for (const p of v.pairs) expect(byKey.get(p.key)).toBe(p.index)
-    for (const u of v.unpaired) expect(byKey.get(u.key)).toBe(u.index)
-  })
-
-  it('says in the banner and the summary that nothing it rested on can be vouched for', () => {
-    const v = verifyProofView(passed, afterRestart, { standing: 'passed' })
-    expect(v.restsOnScreens).toBe(true)
-    expect(v.header?.unvouched).toEqual({
-      chip: UNVOUCHED_LABEL,
-      text: UNVOUCHED_BASIS_BANNER.restart,
+  it('puts no banner, chip or summary about vouching over the proof', () => {
+    const v = verifyProofView(passed, captures(EVIDENCE_RECORD_UNVOUCHED_REASON), {
+      standing: 'passed',
     })
     expect(v.header?.title).toBe('Verified on live data')
-    expect(v.summary).toEqual({
-      tone: 'empty',
-      text: `${UNVOUCHED_BASIS_SUMMARY} · 4 did not count`,
-    })
+    expect(Object.keys(v.header ?? {})).not.toContain('unvouched')
+    expect(v.screens.every((s) => !('unvouched' in s))).toBe(true)
+    expect(v.pairs.every((p) => !('unvouched' in p))).toBe(true)
   })
 
-  it('does not blame a restart when what it rested on was changed on the host', () => {
-    const changed = afterRestart.map((t) =>
-      t.ref.id === 'a-login'
-        ? tile({ ...t.ref, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON })
-        : t,
-    )
-    const v = verifyProofView(passed, changed, { standing: 'passed' })
-    expect(v.header?.unvouched?.text).toBe(UNVOUCHED_BASIS_BANNER.other)
-    expect(v.pairs[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
-  })
-
-  it('does not blame a restart when only a pair’s BEFORE was changed on the host', () => {
-    const changedBefore = afterRestart.map((t) =>
-      t.ref.id === 'b-login'
-        ? tile({ ...t.ref, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON })
-        : t,
-    )
-    const v = verifyProofView(passed, changedBefore, { standing: 'passed' })
-    expect(v.header?.unvouched?.text).toBe(UNVOUCHED_BASIS_BANNER.other)
-    expect(v.pairs[0].unvouched?.cause).toBe('file-changed')
-    expect(v.pairs[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
-    expect(v.screens[0].unvouched?.text).toContain(EVIDENCE_FILE_CHANGED_REASON)
-  })
-
-  it('still rests on what can be vouched for, with no banner, when only some of it cannot', () => {
-    const partly = [
-      ...afterRestart.filter((t) => t.ref.id !== 'b-login' && t.ref.id !== 'a-login'),
-      vouched({ id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 }),
-      vouched({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
-    ]
-    const v = verifyProofView(passed, partly, { standing: 'passed' })
-    expect(v.header?.unvouched).toBeUndefined()
-    expect(v.pairs[0]).toMatchObject({
-      subject: 'login-card',
-      counted: true,
-      verdict: PAIR_COUNTED_VERDICT,
-      unvouched: undefined,
-    })
-    expect(v.summary).toEqual({
-      tone: 'done',
-      text: '1 pair shows the change · 3 did not count',
-    })
-  })
-
-  it('does not count one unvouched side any more than two', () => {
+  it('counts a pair only one side of which carries a reason', () => {
     const oneSide = [
-      ...afterRestart.filter((t) => t.ref.id !== 'a-login'),
-      vouched({ id: 'a-login', phase: 'after', subject: 'login-card', createdAt: 21 }),
+      ...plain.filter((t) => t.ref.id !== 'b-login'),
+      unvouchedTile(
+        { id: 'b-login', phase: 'before', subject: 'login-card', createdAt: 5 },
+        EVIDENCE_FILE_CHANGED_REASON,
+      ),
     ]
     const [login] = verifyProofView(passed, oneSide, { standing: 'passed' }).pairs
-    expect(login).toMatchObject({ counted: false, verdict: COUNTED_UNVOUCHED_VERDICT })
-    expect(login.unvouched?.cause).toBe('restart')
+    expect(login).toMatchObject({ counted: true, verdict: PAIR_COUNTED_VERDICT })
   })
 
-  it('keeps a new screen whose entry point cannot be vouched for out of the screens the change adds', () => {
-    const entryOnly = [
-      ...afterRestart.filter((t) => t.ref.id !== 'a-roles' && t.ref.id !== 'a-picker'),
-      vouched({ id: 'a-roles', phase: 'after', subject: 'font-preview-roles', createdAt: 23 }),
-      vouched({ id: 'a-picker', phase: 'after', subject: 'font-picker', createdAt: 24 }),
-    ]
-    const v = verifyProofView(passed, entryOnly, { standing: 'passed' })
-    expect(v.newScreens.map((s) => s.id)).toEqual(['a-picker'])
-    expect(v.pairs.find((p) => p.afterId === 'a-roles')).toMatchObject({
-      counted: false,
-      verdict: COUNTED_UNVOUCHED_VERDICT,
-    })
-    expect(v.header?.unvouched).toBeUndefined()
-  })
-
-  it('never takes a capture that has not loaded yet for one that cannot be vouched for', () => {
-    const v = verifyProofView(passed, [], { standing: 'passed', evidence: 'loading' })
-    expect(v.pairs[0]).toMatchObject({ subject: 'login-card', counted: true, unvouched: undefined })
-    expect(v.newScreens.map((s) => s.id)).toEqual(['a-roles', 'a-picker'])
-    expect(v.header?.unvouched).toBeUndefined()
-  })
-
-  it('keeps the gate’s reason on an after it never counted, and says why it cannot be vouched for', () => {
+  it('keeps the gate’s reason, alone, on an after it never counted', () => {
     const v = verifyProofView(
       proof({
         unpaired: [
@@ -2248,9 +2141,8 @@ describe('verifyProofView, once the backend cannot vouch for the captures', () =
       { standing: 'failed' },
     )
     expect(v.unpaired[0].reason).toBe('No base capture under this subject.')
-    expect(v.unpaired[0].unvouched?.text).toBe(UNVOUCHED_RESTART_TEXT.capture)
-    expect(v.screens[0].unvouched?.cause).toBe('restart')
-    expect(v.header?.unvouched).toBeUndefined()
+    expect(v.screens[0].note).toBe('No base capture under this subject.')
+    expect(comparisonPairFacts(v.screens[0])).toEqual(['No base capture under this subject.'])
   })
 })
 
@@ -2259,7 +2151,7 @@ describe('verifyAttemptEvidence, once the backend cannot vouch for the filings',
   const report = (over: Partial<ReviewEvidenceRef> & { id: string }) =>
     tile({ kind: 'report', mediaType: 'text/markdown', createdAt: 190, ...over })
 
-  it('says the reviewer’s verdict is not shown when the filings it rode on cannot be vouched for', () => {
+  it('says nothing in place of a verdict the filings lost', () => {
     const tiles = [
       unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
       report({ id: 'rep', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
@@ -2269,104 +2161,116 @@ describe('verifyAttemptEvidence, once the backend cannot vouch for the filings',
     })
     const ev = verifyAttemptEvidence({ entry: entryPassed, review }, tiles)
     expect(ev.verdict).toBeUndefined()
-    expect(ev.verdictUnvouched).toBe(true)
-    expect(verifySectionProps(entryPassed, ev).notes).toContainEqual({
-      label: REVIEWER_VERDICT_UNVOUCHED_LABEL,
-      reason: REVIEWER_VERDICT_UNVOUCHED_REASON,
-      tone: 'review',
-    })
+    expect(Object.keys(ev)).not.toContain('verdictUnvouched')
+    const notes = verifySectionProps(entryPassed, ev).notes
+    expect(notes.filter((n) => n.label.startsWith('Reviewer'))).toEqual([])
+    expect(JSON.stringify(notes)).not.toMatch(/vouch/i)
   })
 
-  it('shows a verdict the backend still vouches for, and no such note', () => {
+  it('shows a verdict still carried by a filing with a reason, as any other', () => {
     const tiles = [
       unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
-      report({ id: 'rep', verdict: 'approved', verdictReason: 'The login card shows it.' }),
-    ]
-    const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
-    expect(ev.verdictUnvouched).toBe(false)
-    const labels = verifySectionProps(verify('v1', 'failed', 100), ev).notes.map((n) => n.label)
-    expect(labels).toContain('Reviewer · Approved')
-    expect(labels).not.toContain(REVIEWER_VERDICT_UNVOUCHED_LABEL)
-  })
-
-  it('never shows an older approval as the reviewer’s conclusion once a newer report lost its verdict', () => {
-    const tiles = [
-      report({ id: 'r2', createdAt: 190, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
       report({
-        id: 'r1',
-        createdAt: 150,
+        id: 'rep',
         verdict: 'approved',
-        verdictReason: 'Looks right',
+        verdictReason: 'The login card shows it.',
+        unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
       }),
     ]
     const failed = verify('v1', 'failed', 100)
     const ev = verifyAttemptEvidence({ entry: failed, review }, tiles)
-    expect(ev.verdict).toBeUndefined()
-    expect(ev.verdictUnvouched).toBe(true)
-    const notes = verifySectionProps(failed, ev).notes
-    expect(notes.map((n) => n.label)).not.toContain('Reviewer · Approved')
-    expect(notes).toContainEqual({
-      label: REVIEWER_VERDICT_UNVOUCHED_LABEL,
-      reason: REVIEWER_VERDICT_UNVOUCHED_REASON,
-      tone: 'review',
-    })
+    expect(ev.verdict).toEqual({ verdict: 'approved', reason: 'The login card shows it.' })
+    expect(verifySectionProps(failed, ev).notes.map((n) => n.label)).toContain(
+      'Reviewer · Approved',
+    )
   })
 
-  it('says nothing about a verdict when only a capture’s own record was not the tool’s — its filing kept every verdict', () => {
+  it.each([EVIDENCE_RECORD_UNVOUCHED_REASON, EVIDENCE_FILE_CHANGED_REASON])(
+    'never shows an older approval as the reviewer’s conclusion once a newer report lost its verdict ("%s")',
+    (reason) => {
+      const tiles = [
+        report({ id: 'r2', createdAt: 190, unvouchedReason: reason }),
+        report({
+          id: 'r1',
+          createdAt: 150,
+          verdict: 'approved',
+          verdictReason: 'Looks right',
+        }),
+      ]
+      const failed = verify('v1', 'failed', 100)
+      const ev = verifyAttemptEvidence({ entry: failed, review }, tiles)
+      expect(ev.verdict).toBeUndefined()
+      const notes = verifySectionProps(failed, ev).notes
+      expect(notes.map((n) => n.label)).not.toContain('Reviewer · Approved')
+      expect(JSON.stringify(notes)).not.toMatch(/vouch/i)
+    },
+  )
+
+  it('keeps an older verdict over a newer capture whose own record was not the tool’s', () => {
     const tiles = [
+      report({ id: 'r1', createdAt: 150, verdict: 'approved' }),
       unvouchedTile(
-        { id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 },
+        { id: 'a-home', phase: 'after', subject: 'home', createdAt: 180 },
         CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
       ),
     ]
     const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
-    expect(ev.verdictUnvouched).toBe(false)
+    expect(ev.verdict).toEqual({ verdict: 'approved' })
   })
 
-  it('reads the same in an entry from before the gate recorded its proof, pairs marked', () => {
+  it('pairs filings plainly in an entry from before the gate recorded its proof', () => {
     const tiles = [
       unvouchedTile({ id: 'b-home', phase: 'before', subject: 'home', createdAt: 120 }),
       unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home', createdAt: 150 }),
     ]
     const ev = verifyAttemptEvidence({ entry: verify('v1', 'failed', 100), review }, tiles)
     expect(ev.proof).toBeUndefined()
-    expect(ev.verdictUnvouched).toBe(true)
-    expect(ev.pairs[0]).toMatchObject({ class: 'pair', title: 'home' })
-    expect(ev.pairs[0].unvouched?.cause).toBe('restart')
+    expect(ev.pairs).toEqual([
+      {
+        key: 'home',
+        index: 1,
+        title: 'home',
+        class: 'pair',
+        before: tiles[0],
+        after: tiles[1],
+      },
+    ])
   })
 })
 
-describe('featureVerifyView, once its proof cannot be vouched for', () => {
-  it('flags a feature whose accepted proof rests only on captures that cannot be vouched for', () => {
+describe('featureVerifyView, over captures the backend cannot vouch for', () => {
+  it('raises nothing on the story notice for a live pass resting on them', () => {
     const run = childRun([
       implement('i1', 'dev-1', 0),
       verify('v1', 'passed', 10, { proof: proof({ mode: 'live', newScreenIds: ['a-new'] }) }),
     ])
-    const flagged = featureVerifyView(acceptedVerifyAttempt(run)!, [
+    const view = featureVerifyView(acceptedVerifyAttempt(run)!, [
       unvouchedTile({ id: 'a-new', phase: 'after', subject: 'picker' }),
     ])
-    expect(flagged.proofUnvouched).toBe(true)
-    const clear = featureVerifyView(acceptedVerifyAttempt(run)!, [
-      tile({ id: 'a-new', phase: 'after', subject: 'picker', capturedOn: 'ios · iPhone 16' }),
-    ])
-    expect(clear.proofUnvouched).toBe(false)
-  })
-
-  it('never flags a feature whose proof is not on record', () => {
-    const run = childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)])
-    expect(featureVerifyView(acceptedVerifyAttempt(run)!, []).proofUnvouched).toBe(false)
+    expect(view).toMatchObject({ standing: 'passed', mode: 'live', dataUnstated: false })
+    expect(Object.keys(view)).not.toContain('proofUnvouched')
+    expect(view.accepted.evidence.proof?.newScreens.map((s) => s.id)).toEqual(['a-new'])
+    expect(
+      storyProofNotice([
+        {
+          label: 'Feature #1',
+          standing: view.standing,
+          mode: view.mode,
+          dataUnstated: view.dataUnstated,
+        },
+      ]),
+    ).toBeUndefined()
   })
 })
 
 describe('captureBuildCaption, for a capture that cannot be vouched for', () => {
-  it('says so in place of a build, keeping the commit it had to come from', () => {
+  it('shows no build it does not have, and the commit it had to come from', () => {
     expect(
       captureBuildCaption(unvouchedTile({ id: 'a-home', phase: 'after', subject: 'home' }), HEAD),
     ).toEqual({
       builtSha: undefined,
       dirty: false,
       expectedSha: '38832196',
-      unvouched: UNVOUCHED_LABEL,
     })
   })
 })
@@ -2417,7 +2321,6 @@ describe('verifyAttemptEvidence, beside a code review filed under the reviewed r
     )
     expect(ev.reports).toEqual([])
     expect(ev.verdict).toBeUndefined()
-    expect(ev.verdictUnvouched).toBe(false)
   })
 })
 

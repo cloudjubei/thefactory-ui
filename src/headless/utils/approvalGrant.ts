@@ -152,8 +152,8 @@ export function startFeatureWorkGrantSummary(
 
 /**
  * The reason the server gave for refusing a launch preview — the same words the
- * launch itself would answer with (a live run already drives the story, or
- * nothing is left to work). `undefined` when the failure carried no reason.
+ * launch itself would answer with (nothing is left to work). `undefined` when
+ * the failure carried no reason.
  */
 export function launchRefusalMessage(err: unknown): string | undefined {
   if (!err || typeof err !== 'object') return undefined

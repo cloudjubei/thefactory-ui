@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import {
   aggregateTestCounts,
   proofScreensPane,
+  reviewTabOrder,
   reviewTabs,
   screenPairFileStem,
   verificationCheckRows,
@@ -46,6 +47,8 @@ export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: strin
 export type FeatureReviewSectionProps = {
   kind: 'overall' | 'feature'
   idLabel?: string
+  /** The id chip's scope tint — a story-level section (a fix pass) is the story's blue. */
+  idScope?: 'story' | 'feature'
   title: string
   facts: RunReviewFacts
   agents: readonly SignoffAgent[]
@@ -61,7 +64,6 @@ export type FeatureReviewSectionProps = {
   codeReviews?: readonly EvidenceTile[]
   /** The tab the section opens on when it is there — the story's final report. */
   leadTab?: ReviewTabId
-  defaultOpen?: boolean
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
@@ -184,6 +186,7 @@ function StepSummary({ steps }: { steps: readonly StoryStepLine[] }) {
 export default function FeatureReviewSection({
   kind,
   idLabel,
+  idScope = 'feature',
   title,
   facts,
   agents,
@@ -196,7 +199,6 @@ export default function FeatureReviewSection({
   reports,
   codeReviews = [],
   leadTab,
-  defaultOpen,
   onOpenPair,
   onRequestImage,
   onSaveFile,
@@ -209,7 +211,7 @@ export default function FeatureReviewSection({
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
-  const [open, setOpen] = useState<boolean>(kind === 'overall' ? true : defaultOpen === true)
+  const [open, setOpen] = useState<boolean>(kind === 'overall')
 
   const checkRows = verificationCheckRows(verification)
   const testChecks = checkRows.filter((c) => c.kind === 'tests')
@@ -285,7 +287,7 @@ export default function FeatureReviewSection({
           </Text>
         </View>
       ) : idLabel ? (
-        <IdChip kind="feature">{idLabel}</IdChip>
+        <IdChip kind={idScope}>{idLabel}</IdChip>
       ) : null}
       <Text
         numberOfLines={1}
@@ -318,28 +320,6 @@ export default function FeatureReviewSection({
             }}
           >
             {proof.header.chip}
-          </Text>
-        </View>
-      ) : null}
-      {proof?.header?.unvouched ? (
-        <View
-          accessibilityLabel={proof.header.unvouched.text}
-          style={{
-            paddingHorizontal: 6,
-            paddingVertical: 2,
-            borderRadius: nativeRadii.round,
-            backgroundColor: status.empty.softBg,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 0.4,
-              color: theme.text.secondary,
-            }}
-          >
-            {proof.header.unvouched.chip}
           </Text>
         </View>
       ) : null}
@@ -409,6 +389,7 @@ export default function FeatureReviewSection({
 
       {rows.length > 0 ? (
         <CheckChipRow
+          tabOrder={reviewTabOrder(leadTab)}
           rows={[...rows]}
           branch={undefined}
           busyId={undefined}

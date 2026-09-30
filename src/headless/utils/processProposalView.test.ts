@@ -71,4 +71,34 @@ describe('processProposalView', () => {
     // The row is still there, still named — only its interior is unknown.
     expect(view.features[0]!.title).toBe('Bundled fonts drive the Compose UI')
   })
+
+  describe('a step that runs only when work is sent back to it', () => {
+    const withFix = (): ProcessProposal => {
+      const p = proposal()
+      p.steps.splice(2, 0, {
+        id: 'fix',
+        name: 'Fix',
+        kind: 'process',
+        agent: false,
+        onlyWhenSentBack: true,
+        children: [
+          { id: 'implement', name: 'Fix', kind: 'agent', agent: true },
+          { id: 'code-review', name: 'Code review', kind: 'judge', agent: true },
+          { id: 'verify', name: 'Verify', kind: 'agent', agent: true },
+        ],
+      })
+      return p
+    }
+
+    it('says so on its chip', () => {
+      expect(processProposalView(withFix()).tail.map((t) => [t.id, t.name, t.agent])).toEqual([
+        ['fix', 'Fix — only if sent back', false],
+        ['sign-off', 'Sign-off', false],
+      ])
+    })
+
+    it('leaves its steps out of the agent steps the plan is sure to run', () => {
+      expect(processProposalView(withFix()).agentStepCount).toBe(4)
+    })
+  })
 })

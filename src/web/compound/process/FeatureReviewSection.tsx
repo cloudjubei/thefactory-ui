@@ -3,6 +3,7 @@ import { useState } from 'react'
 import {
   aggregateTestCounts,
   proofScreensPane,
+  reviewTabOrder,
   reviewTabs,
   screenPairFileStem,
   verificationCheckRows,
@@ -44,8 +45,10 @@ export type FeatureReviewSectionProps = {
   projectId: string
   /** An overall (story-wide) section is always open; a feature is collapsible. */
   kind: 'overall' | 'feature'
-  /** The feature id label, e.g. "Feature #1.2" — feature sections only. */
+  /** The section id label, e.g. "Feature #1.2" or "Fix · pass 2" — collapsible sections only. */
   idLabel?: string
+  /** The id chip's scope tint — a story-level section (a fix pass) is the story's blue. */
+  idScope?: 'story' | 'feature'
   title: string
   facts: RunReviewFacts
   agents: readonly SignoffAgent[]
@@ -62,8 +65,6 @@ export type FeatureReviewSectionProps = {
   codeReviews?: readonly EvidenceTile[]
   /** The tab the section opens on when it is there — the story's final report. */
   leadTab?: ReviewTabId
-  /** Feature sections start open only for the newest; overall ignores it. */
-  defaultOpen?: boolean
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
   /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
@@ -219,6 +220,7 @@ export default function FeatureReviewSection({
   projectId,
   kind,
   idLabel,
+  idScope = 'feature',
   title,
   facts,
   agents,
@@ -231,7 +233,6 @@ export default function FeatureReviewSection({
   reports,
   codeReviews = [],
   leadTab,
-  defaultOpen,
   onOpenPair,
   onRequestImage,
   badge,
@@ -316,6 +317,7 @@ export default function FeatureReviewSection({
 
       {rows.length > 0 ? (
         <CheckChipRow
+          tabOrder={reviewTabOrder(leadTab)}
           rows={[...rows]}
           branch={undefined}
           busyId={undefined}
@@ -397,26 +399,14 @@ export default function FeatureReviewSection({
     </div>
   )
 
-  const modeChip = (
-    <>
-      {proof?.header?.chip ? (
-        <span
-          className={`badge badge--soft ${MODE_CHIP_TONE[proof.header.tone]} badge--sm`}
-          title={proof.header.title}
-        >
-          {proof.header.chip}
-        </span>
-      ) : null}
-      {proof?.header?.unvouched ? (
-        <span
-          className="badge badge--soft badge--empty badge--sm"
-          title={proof.header.unvouched.text}
-        >
-          {proof.header.unvouched.chip}
-        </span>
-      ) : null}
-    </>
-  )
+  const modeChip = proof?.header?.chip ? (
+    <span
+      className={`badge badge--soft ${MODE_CHIP_TONE[proof.header.tone]} badge--sm`}
+      title={proof.header.title}
+    >
+      {proof.header.chip}
+    </span>
+  ) : null
 
   if (kind === 'overall') {
     return (
@@ -438,12 +428,9 @@ export default function FeatureReviewSection({
   }
 
   return (
-    <details
-      className="group overflow-hidden rounded-lg border border-(--border-subtle) bg-(--surface-overlay)"
-      {...(defaultOpen ? { open: true } : {})}
-    >
+    <details className="group overflow-hidden rounded-lg border border-(--border-subtle) bg-(--surface-overlay)">
       <summary className="flex list-none flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5 [&::-webkit-details-marker]:hidden cursor-pointer">
-        {idLabel ? <IdChip kind="feature">{idLabel}</IdChip> : null}
+        {idLabel ? <IdChip kind={idScope}>{idLabel}</IdChip> : null}
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-(--text-primary)">
           {title}
         </span>

@@ -10,6 +10,7 @@ import type {
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
+import { processIntegrationBadge } from './processIntegration'
 import { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './processViewConstants'
 import type { ProcessNodeLook, ProcessNodeSummary } from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/utils'
@@ -395,14 +396,22 @@ export function processNodeLook(
 
 /**
  * A node's attempt badge. A requeued step names the attempt that is COMING —
- * "attempt 4 of 4 · next" — rather than the one that is over.
+ * "attempt 4 of 4 · next" — rather than the one that is over. A step that runs
+ * only when work is sent back to it counts only the passes a send-back ran, not
+ * the times the run passed through it.
  */
 export function processNodeBadge(
-  state: Pick<ProcessStepState, 'attempts' | 'requeued'>,
-  run: { plan: Pick<ProcessPlan, 'loops'> } & Pick<ProcessRun, 'iterationGrants'>,
+  state: Pick<ProcessStepState, 'attempts' | 'requeued'> & {
+    step: Pick<ProcessStep, 'id' | 'onlyWhenSentBack'>
+    entries: readonly Pick<ProcessLedgerEntry, 'viaLoopId'>[]
+  },
+  run: IterationRun,
 ): string | undefined {
-  if (!state.requeued) return processIterationBadge(state.attempts, run)
-  return `${processIterationBadge(state.attempts + 1, run)} · next`
+  const attempts = state.step.onlyWhenSentBack
+    ? state.entries.filter((e) => e.viaLoopId !== undefined).length
+    : state.attempts
+  if (!state.requeued) return processIterationBadge(attempts, state.step.id, run)
+  return `${processIterationBadge(attempts + 1, state.step.id, run)} · next`
 }
 
 /**
@@ -438,23 +447,61 @@ export function formatProcessDuration(ms: number): string {
   return `${h}h ${String(m % 60).padStart(2, '0')}m`
 }
 
+type IterationRun = {
+  plan: {
+    steps: readonly Pick<ProcessStep, 'id' | 'onlyWhenSentBack'>[]
+    loops: ProcessPlan['loops']
+  }
+} & Pick<ProcessRun, 'iterationGrants'>
+
 /**
  * The "attempt N of M" badge for a node — shown ONLY once a loop has actually
  * fired (more than one attempt), because a "1 of 3" on every step is noise that
- * hides the one node that really did retry. M is the plan's retry cap plus any
- * extra attempts the user granted at an exhausted loop, as the driver counts it.
+ * hides the one node that really did retry. M is how many times the step can
+ * run: once, plus every pass each loop that goes back over it can still send
+ * the work back for — the extra attempts the user granted included, as the
+ * driver counts them. A feature reviewed before it is verified is sent back by
+ * both, so its implement step can run more often than either loop allows alone.
+ * A step that runs only when work is sent back to it has no pass of its own.
  */
 export function processIterationBadge(
   attempts: number,
-  run: { plan: Pick<ProcessPlan, 'loops'> } & Pick<ProcessRun, 'iterationGrants'>,
+  stepId: string,
+  run: IterationRun,
 ): string | undefined {
   if (attempts <= 1) return undefined
-  let cap: number | undefined
+  const order = run.plan.steps.map((s) => s.id)
+  const at = order.indexOf(stepId)
+  const own = run.plan.steps[at]?.onlyWhenSentBack ? 0 : 1
+  let retries: number | undefined
   for (const loop of run.plan.loops) {
-    const allowed = loop.maxIterations + (run.iterationGrants?.[loop.id] ?? 0)
-    if (cap === undefined || allowed > cap) cap = allowed
+    const from = order.indexOf(loop.from)
+    const to = order.indexOf(loop.to)
+    if (at === -1 || from === -1 || to === -1 || at < to || at > from) continue
+    retries = (retries ?? 0) + loop.maxIterations - 1 + (run.iterationGrants?.[loop.id] ?? 0)
   }
-  return cap === undefined ? `attempt ${attempts}` : `attempt ${attempts} of ${cap}`
+  return retries === undefined ? `attempt ${attempts}` : `attempt ${attempts} of ${retries + own}`
+}
+
+/**
+ * The steps whose loops have sent the work back, named in plan order — what a
+ * nested pipeline's retry banner says. A feature is sent back by its code review
+ * as well as its verify, so the banner cannot assume which. Undefined until a
+ * loop has fired.
+ */
+export function processLoopSenders(
+  run: {
+    plan: { steps: readonly Pick<ProcessStep, 'id' | 'name'>[]; loops: ProcessPlan['loops'] }
+  } & Partial<Pick<ProcessRun, 'loopCounts'>>,
+): string | undefined {
+  const fired = new Set(
+    run.plan.loops.filter((l) => (run.loopCounts?.[l.id] ?? 0) > 0).map((l) => l.from),
+  )
+  const names = run.plan.steps.filter((s) => fired.has(s.id)).map((s) => s.name)
+  if (names.length === 0) return undefined
+  return names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
 /**
@@ -464,6 +511,8 @@ export function processIterationBadge(
  * other status reads straight from {@link PROCESS_RUN_STATUS_VIEW}.
  */
 export function processRunBadge(run: ProcessRun): { label: string; tone: ProcessStatusTone } {
+  const integration = processIntegrationBadge(run)
+  if (integration) return integration
   if (run.status === 'parked') {
     return run.park?.reason === 'gate'
       ? { label: 'Ready for you', tone: 'review' }

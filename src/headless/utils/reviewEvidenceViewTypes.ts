@@ -1,42 +1,12 @@
 import type { ReviewEvidenceRef, ReviewEvidenceVerdict } from '../api/generated'
 
 /**
- * Which of the backend's reasons an item could not be vouched for.
- *
- * `restart` is the everyday case — the item was filed before the backend last
- * restarted (or its record edited since), and after any restart EVERY earlier
- * item reads this way. `file-changed` and `capture-record` say something on the
- * host wrote over what was filed or captured. `other` is a reason this client
- * does not know yet, shown in the backend's own words.
- */
-export type EvidenceUnvouchedCause = 'restart' | 'file-changed' | 'capture-record' | 'other'
-
-/**
- * Why the running backend cannot vouch for an item, in words a reviewer reads.
- *
- * The backend lists such an item without its build, device, screen and verdict,
- * so a tile that simply dropped those looked broken. The image is kept; this
- * says why nothing is said about it, that it does not count, and what happens
- * next.
- */
-export type EvidenceUnvouched = {
-  cause: EvidenceUnvouchedCause
-  /** A few words for a place too small for the sentence — a frame caption. */
-  label: string
-  /** The whole sentence. */
-  text: string
-}
-
-/**
  * The reviewer's conclusion as a listing lets it be read. `concluded` is the
- * newest verdict filed. `unvouched` is a filing that lost whatever was filed
- * with it and is at least as new as any verdict: it may have carried a newer
- * one, so no older verdict can stand as the conclusion. `none` is a reviewer
- * who concluded nothing.
+ * newest verdict filed. `none` is a reviewer who concluded nothing — or whose
+ * newest filing lost whatever was filed with it, so no older verdict can stand.
  */
 export type ReviewerVerdictReading =
   | { state: 'concluded'; verdict: { verdict: ReviewEvidenceVerdict; reason?: string } }
-  | { state: 'unvouched' }
   | { state: 'none' }
 
 /**
@@ -56,8 +26,6 @@ export type EvidenceTile = {
   text?: string
   /** Human caption — the label, falling back to the phase or the kind. */
   caption: string
-  /** Present when the backend cannot vouch for this item: it is shown, never counted. */
-  unvouched?: EvidenceUnvouched
 }
 
 /** A before/after pair of the same subject, or a single item with no counterpart. */
@@ -101,11 +69,6 @@ export type ScreenPair = {
   after?: EvidenceTile
   /** What the verify gate made of this pair, said in place of the class's generic line. */
   note?: string
-  /**
-   * Set when either side cannot be vouched for. Such a pair never shows the
-   * change, whatever the gate made of it when it ran.
-   */
-  unvouched?: EvidenceUnvouched
   /**
    * The commits the gate required the before and after to be built from. An
    * expectation only — a capture's caption comes from its own build record.

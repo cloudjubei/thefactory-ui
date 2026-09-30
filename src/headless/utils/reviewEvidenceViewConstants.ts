@@ -1,59 +1,17 @@
 import {
-  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
   CODE_REVIEW_APPROACH,
-  EVIDENCE_FILE_CHANGED_REASON,
-  EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
 } from 'thefactory-tools/constants'
 
 import type { ReviewEvidenceVerdict } from '../api/generated'
-import type {
-  EvidenceUnvouchedCause,
-  ReportAuthor,
-  ScreenPairClass,
-} from './reviewEvidenceViewTypes'
+import type { ReportAuthor, ScreenPairClass } from './reviewEvidenceViewTypes'
 
 /** The reviewer's conclusion as it reads on screen. */
 export const REVIEWER_VERDICT_LABEL: Record<ReviewEvidenceVerdict, string> = {
   approved: 'Approved',
   'changes-requested': 'Changes requested',
   rejected: 'Rejected',
-}
-
-/**
- * The backend's reasons, matched exactly. Keyed by the tools' own constants so a
- * reworded reason can never silently fall through to another cause's wording.
- */
-export const UNVOUCHED_CAUSE_BY_REASON: ReadonlyMap<string, EvidenceUnvouchedCause> = new Map([
-  [EVIDENCE_RECORD_UNVOUCHED_REASON, 'restart'],
-  [EVIDENCE_FILE_CHANGED_REASON, 'file-changed'],
-  [CAPTURE_RECORD_NOT_THE_TOOLS_REASON, 'capture-record'],
-])
-
-/** A frame caption's few words for an item the backend cannot vouch for. */
-export const UNVOUCHED_LABEL = 'Can’t be vouched for'
-
-/**
- * The restart case, said calmly: after a restart every earlier item reads this
- * way, and nothing is wrong with it — it only has to be captured again. Worded
- * per kind because a report is written again, not captured.
- */
-export const UNVOUCHED_RESTART_TEXT: Record<'capture' | 'filing', string> = {
-  capture:
-    'Filed before the backend last restarted, or edited since — it can’t be vouched for, so it doesn’t count. The next verify run captures it again.',
-  filing:
-    'Filed before the backend last restarted, or edited since — it can’t be vouched for, so it doesn’t count. The next verify run files it again.',
-}
-
-/**
- * Names each side of a pair whose two captures cannot be vouched for for
- * different reasons, so neither reason is lost to the other — a before whose
- * file changed must not read as an after filed before a restart.
- */
-export const UNVOUCHED_SIDE_LEAD: Record<'before' | 'after', string> = {
-  before: 'Before capture —',
-  after: 'After capture —',
 }
 
 /** What a tile in the Screens strip is, under its title. */
@@ -63,9 +21,6 @@ export const SCREEN_PAIR_META: Record<ScreenPairClass, string> = {
   removed: 'only on the base',
   single: 'single capture',
 }
-
-/** The strip's line under a tile a side of which cannot be vouched for. */
-export const SCREEN_PAIR_UNVOUCHED_META = 'can’t be vouched for'
 
 /** The strip's line under a tile while its capture is still running. */
 export const SCREEN_PAIR_CAPTURING_META = 'capturing…'

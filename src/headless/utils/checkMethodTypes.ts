@@ -104,12 +104,6 @@ export type CheckMethodRow = {
   action: CheckMethodAction
   /** Ids of the verification checks that rolled up into this row. */
   checkIds: string[]
-  /**
-   * Items filed for this method that the backend cannot vouch for — after a
-   * restart, every one filed before it. They never count, so a method with
-   * nothing else needs capturing again; it did not "never run".
-   */
-  unvouched: number
 }
 
 export type ReviewTab = {

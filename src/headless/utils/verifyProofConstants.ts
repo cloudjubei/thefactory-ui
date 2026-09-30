@@ -1,4 +1,4 @@
-import type { ProcessStepOutcome } from 'thefactory-tools/types'
+import type { ProcessResumeChoice, ProcessStepOutcome } from 'thefactory-tools/types'
 
 import type { VerifyProofMode, VerifyProofTone } from './verifyProofTypes'
 
@@ -84,6 +84,9 @@ export const CAPTURE_LOAD_FAILED = 'Couldn’t load the evidence'
 export const CAPTURE_MISSING = 'Not in the evidence store'
 
 export const ACCEPTED_BY_YOU = 'Accepted by you'
+
+/** The park answers that carry an attempt on over its gate — a person accepting it. */
+export const ACCEPTING_CHOICES: readonly ProcessResumeChoice[] = ['continue', 'approve']
 export const APPROVED_UNCONFIRMED = 'The reviewer approved, but the proof could not be confirmed'
 
 /** What the gate concluded, as a sentence a person reads beside their own decision. */
@@ -95,33 +98,6 @@ export const GATE_OUTCOME_SAID: Record<ProcessStepOutcome, string> = {
   skipped: 'The gate never concluded',
   errored: 'The verify step errored',
 }
-
-/**
- * A pair or new screen the gate counted, whose capture the backend can no longer
- * vouch for — said so the reader knows why a pass shows nothing that counts.
- */
-export const COUNTED_UNVOUCHED_VERDICT =
-  'The gate counted this when it ran — it can’t be vouched for now'
-
-/** The summary's lead when nothing the outcome rested on can still be vouched for. */
-export const UNVOUCHED_BASIS_SUMMARY = 'Nothing it rested on can be vouched for now'
-
-/**
- * The banner line over a proof that now rests only on captures the backend
- * cannot vouch for: the calm restart wording when that is the only cause, else
- * a pointer to each capture's own reason — a changed file is not a restart.
- */
-export const UNVOUCHED_BASIS_BANNER: Record<'restart' | 'other', string> = {
-  restart:
-    'Everything this verification rested on was filed before the backend last restarted, or edited since, so none of it can be vouched for now. The gate’s outcome is kept as it was recorded; the next verify run captures the screens again.',
-  other:
-    'Nothing this verification rested on can be vouched for now — each capture below says why. The gate’s outcome is kept as it was recorded.',
-}
-
-/** Said in place of the reviewer's verdict when the filings it rode on cannot be vouched for. */
-export const REVIEWER_VERDICT_UNVOUCHED_LABEL = 'Reviewer’s verdict not shown'
-export const REVIEWER_VERDICT_UNVOUCHED_REASON =
-  'Some of what the reviewer filed can’t be vouched for now, so any verdict filed with it isn’t shown.'
 
 /** Who a verdict note names as having concluded it. */
 export const VERDICT_NOTE_WHO: Record<'reviewer' | 'codeReview', string> = {

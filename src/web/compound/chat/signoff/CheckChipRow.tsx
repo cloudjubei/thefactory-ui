@@ -20,12 +20,14 @@ export type CheckChipRowProps = {
   /** Which method is currently being run or captured, if any. */
   busyId: CheckMethodId | undefined
   onOpenProof: (tab: ReviewTabId) => void
+  /** The order of the tabs below (`reviewTabOrder`), so the chips sit in the same order. */
+  tabOrder?: readonly ReviewTabId[]
   /** What this panel can do about a chip; absent on a read-only record, which offers only the proof. */
   actions?: CheckActionHost
 }
 
 /**
- * The "what was checked" row — nine chips in a fixed order, and the only place
+ * The "what was checked" row — its chips in the order of the tabs below, and the only place
  * that can ask for evidence which has no tab yet (a walkthrough nobody recorded
  * has no Walkthrough tab to ask from). Clicking a chip opens what its state
  * allows: open the proof, run it, or hand it to the agent.
@@ -35,6 +37,7 @@ export default function CheckChipRow({
   branch,
   busyId,
   onOpenProof,
+  tabOrder,
   actions,
 }: CheckChipRowProps) {
   const [expanded, setExpanded] = useState(false)
@@ -57,7 +60,7 @@ export default function CheckChipRow({
     }
   }, [openId])
 
-  const layout = checkRowLayout(rows, expanded)
+  const layout = checkRowLayout(rows, expanded, tabOrder)
   const open = rows.find((r) => r.id === openId)
   const callout = open ? checkCallout(open) : undefined
 

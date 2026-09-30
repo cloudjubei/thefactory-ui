@@ -201,10 +201,6 @@ export const CHECK_STATE_SENTENCES: Record<Exclude<CheckMethodState, 'unconfigur
   unchecked: 'Configured for this project, but never run on this branch.',
 }
 
-/** The callout's lead for a method whose every filing the backend cannot vouch for — it ran. */
-export const CHECK_STATE_UNVOUCHED_SENTENCE =
-  'Filed on this branch, but the backend can’t vouch for it now — it counts once it is captured again.'
-
 export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
   passed: 'positive',
   failed: 'danger',
@@ -324,26 +320,8 @@ export const PROVEN_TITLE = 'Every configured check passed'
 export const PROVEN_DETAIL = 'Built, checked, and captured. Nothing outstanding.'
 export const NOT_RUN_TITLE = 'Nothing has been checked'
 
-/**
- * Verdict headline when nothing counts only because what was filed cannot be
- * vouched for — after a restart, every earlier filing. It ran; saying nothing
- * was checked would send the reader looking for a run that happened.
- */
-export const NOTHING_VOUCHED_TITLE = 'Nothing filed can be vouched for now'
-
 /** Verdict headline when the checks pass but the story itself is not finished. */
 export const STORY_UNFINISHED_TITLE = 'Checks pass — but the story is not finished'
-
-/**
- * What one filed item of an evidence method is called, for the line that says
- * how many of them the backend cannot vouch for.
- */
-export const UNVOUCHED_EVIDENCE_NOUNS: Partial<Record<CheckMethodId, string>> = {
-  screens: 'screenshot',
-  walkthrough: 'recording',
-  report: 'report',
-  diff: 'code review',
-}
 
 /** Where a filed code review's finding is read — the chip opens it whatever it concluded. */
 export const CODE_REVIEW_TAB: ReviewTabId = 'code-review'

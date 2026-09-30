@@ -19,6 +19,7 @@ import {
   openFeatureQuestions,
   reviewActionMode,
   reviewChangeCounts,
+  reviewTabOrder,
   reviewTabs,
   runReports,
   runReviewFacts,
@@ -795,6 +796,7 @@ export default function CliRunArtifactPanel({
                   What was checked
                 </Text>
                 <CheckChipRow
+                  tabOrder={reviewTabOrder()}
                   rows={methodRows}
                   branch={review?.branch}
                   busyId={busyMethod}

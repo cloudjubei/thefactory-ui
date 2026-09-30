@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
+import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
 import {
   cancelCliAgentAction,
   decideCliAgentAction,
@@ -14,6 +15,7 @@ import { useChats } from '../contexts/createChatsContext'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../utils/chatTypes'
 import {
   apiToolCallToGrant,
+  openWorkDecisionOf,
   cliDecideOutcome,
   cliPendingActionToGrant,
   isCliActionUpdateEvent,
@@ -74,6 +76,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const chatContextId = getChatContextKey(ctx)
   const apiToolCalls = getChatLiveState(ctx).pendingToolConfirmation?.toolCalls ?? []
   const [apiDecisions, setApiDecisions] = useState<Record<string, boolean>>({})
+  const [apiOpenWork, setApiOpenWork] = useState<Record<string, ProcessOpenWorkDecision>>({})
   const [cliActions, setCliActions] = useState<PendingAction[]>([])
   const [discoveredRunId, setDiscoveredRunId] = useState<string>()
 
@@ -182,17 +185,32 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     const grantedIds = apiToolCalls
       .filter((tc) => apiDecisions[tc.toolCallId])
       .map((tc) => tc.toolCallId)
+    const openWork = Object.fromEntries(
+      grantedIds.flatMap((id) => (apiOpenWork[id] ? [[id, apiOpenWork[id]]] : [])),
+    )
     setApiDecisions({})
-    void confirmTools(ctx, grantedIds)
+    setApiOpenWork({})
+    void confirmTools(ctx, grantedIds, openWork)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allApiDecided])
 
-  const decideApi = useCallback((toolCallId: string, decision: PendingToolGrantDecision) => {
-    if (decision === 'permanent') {
-      throw new Error('Permanent grants are CLI-only')
-    }
-    setApiDecisions((prev) => ({ ...prev, [toolCallId]: decision === 'once' }))
-  }, [])
+  const decideApi = useCallback(
+    (
+      toolCallId: string,
+      decision: PendingToolGrantDecision,
+      metadata?: Record<string, unknown>,
+    ) => {
+      if (decision === 'permanent') {
+        throw new Error('Permanent grants are CLI-only')
+      }
+      // A story launch over open work carries the person's choice on the API
+      // transport too; nothing else an approval sets reaches an API run.
+      const openWork = decision === 'once' ? openWorkDecisionOf(metadata) : undefined
+      if (openWork) setApiOpenWork((prev) => ({ ...prev, [toolCallId]: openWork }))
+      setApiDecisions((prev) => ({ ...prev, [toolCallId]: decision === 'once' }))
+    },
+    [],
+  )
 
   const decideCli = useCallback(
     async (
@@ -280,7 +298,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const grants = useMemo<PendingToolGrant[]>(() => {
     const apiGrants = apiToolCalls.map<PendingToolGrant>((tc) => ({
       ...apiToolCallToGrant(tc),
-      decide: async (decision) => decideApi(tc.toolCallId, decision),
+      decide: async (decision, metadata) => decideApi(tc.toolCallId, decision, metadata),
     }))
     const cliGrants = cliActions.map<PendingToolGrant>((action) => {
       const data = cliPendingActionToGrant(action)

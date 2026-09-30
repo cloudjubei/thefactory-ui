@@ -9,7 +9,6 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   comparisonPairFacts,
-  evidenceUnvouched,
   evidenceViewerImages,
   groupEvidence,
   isReadableNote,
@@ -17,8 +16,6 @@ import {
   fileNameSlug,
   isViewableImage,
   latestReport,
-  pairUnvouched,
-  recordedEvidenceUnvouched,
   screenPairFileStem,
   screenPairMeta,
   screenPairs,
@@ -37,10 +34,6 @@ import {
   SCREEN_PAIR_CAPTURING_META,
   SCREEN_PAIR_FACT,
   SCREEN_PAIR_META,
-  SCREEN_PAIR_UNVOUCHED_META,
-  UNVOUCHED_LABEL,
-  UNVOUCHED_RESTART_TEXT,
-  UNVOUCHED_SIDE_LEAD,
 } from './reviewEvidenceViewConstants'
 import type { ScreenPair } from './reviewEvidenceViewTypes'
 import type { ReviewEvidenceRef } from '../api/generated'
@@ -405,245 +398,86 @@ const listedUnvouched = (
   ...over,
 })
 
-describe('evidenceUnvouched', () => {
-  it('says the restart case calmly, as a capture the next verify run takes again', () => {
-    expect(
-      evidenceUnvouched(
-        listedUnvouched({ id: 'shot', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
-      ),
-    ).toEqual({
-      cause: 'restart',
-      label: UNVOUCHED_LABEL,
-      text: UNVOUCHED_RESTART_TEXT.capture,
-    })
-  })
-
-  it('words a recording as captured again, and a report or log as filed again', () => {
-    const restart = (kind: ReviewEvidenceRef['kind'], mediaType: string) =>
-      evidenceUnvouched(
-        listedUnvouched({
-          id: kind,
-          kind,
-          mediaType,
-          unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
-        }),
-      )?.text
-    expect(restart('recording', 'video/mp4')).toBe(UNVOUCHED_RESTART_TEXT.capture)
-    expect(restart('report', 'text/markdown')).toBe(UNVOUCHED_RESTART_TEXT.filing)
-    expect(restart('log', 'text/plain')).toBe(UNVOUCHED_RESTART_TEXT.filing)
-  })
-
-  it.each([
-    [EVIDENCE_FILE_CHANGED_REASON, 'file-changed'],
-    [CAPTURE_RECORD_NOT_THE_TOOLS_REASON, 'capture-record'],
-  ] as const)(
-    'gives a changed or forged record the backend’s own words, never the restart wording',
-    (reason, cause) => {
-      const note = evidenceUnvouched(listedUnvouched({ id: 'shot', unvouchedReason: reason }))
-      expect(note).toEqual({ cause, label: UNVOUCHED_LABEL, text: reason })
-      expect(note?.text).not.toBe(UNVOUCHED_RESTART_TEXT.capture)
-    },
-  )
-
-  it('shows a reason it does not know verbatim rather than dropping it', () => {
-    expect(
-      evidenceUnvouched(
-        listedUnvouched({ id: 'shot', unvouchedReason: '  The seal key rotated.  ' }),
-      ),
-    ).toEqual({ cause: 'other', label: UNVOUCHED_LABEL, text: 'The seal key rotated.' })
-  })
-
-  it('is undefined for an item the backend vouches for, or a blank reason', () => {
-    expect(evidenceUnvouched(ref({ capturedOn: 'android · emulator-5554' }))).toBeUndefined()
-    expect(evidenceUnvouched(ref({ unvouchedReason: '   ' }))).toBeUndefined()
-  })
-})
+const BACKEND_REASONS = [
+  EVIDENCE_RECORD_UNVOUCHED_REASON,
+  EVIDENCE_FILE_CHANGED_REASON,
+  CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+  'The seal key rotated.',
+] as const
 
 describe('toEvidenceTile, for an item the backend cannot vouch for', () => {
-  it('keeps the filer’s caption and says why nothing else is said about it', () => {
-    const t = toEvidenceTile(
-      listedUnvouched({ id: 'shot', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
-    )
-    expect(t.caption).toBe('Onsite debug — login')
-    expect(t.unvouched?.cause).toBe('restart')
-  })
-
-  it('adds nothing to an item the backend vouches for', () => {
-    expect('unvouched' in toEvidenceTile(ref({ capturedOn: 'ios · iPhone 16' }))).toBe(false)
-  })
-})
-
-describe('pairUnvouched', () => {
-  const restart = toEvidenceTile(
-    listedUnvouched({
-      id: 'b',
-      phase: 'before',
-      unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
-    }),
-  )
-  const changed = toEvidenceTile(
-    listedUnvouched({ id: 'a', unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
-  )
-  const vouched = toEvidenceTile(ref({ id: 'v', capturedOn: 'android · emulator-5554' }))
-
-  it('takes the after’s changed file as the cause over a before’s restart, saying both', () => {
-    const u = pairUnvouched({ before: restart, after: changed })
-    expect(u?.cause).toBe('file-changed')
-    expect(u?.text).toBe(
-      `${UNVOUCHED_SIDE_LEAD.before} ${UNVOUCHED_RESTART_TEXT.capture} ${UNVOUCHED_SIDE_LEAD.after} ${EVIDENCE_FILE_CHANGED_REASON}`,
-    )
-  })
-
-  it('falls back to the before, whichever side it is', () => {
-    expect(pairUnvouched({ before: restart, after: vouched })?.cause).toBe('restart')
-    expect(pairUnvouched({ before: vouched, after: changed })?.cause).toBe('file-changed')
-  })
-
-  it('is undefined when both sides are vouched for, or absent', () => {
-    expect(pairUnvouched({ before: vouched, after: vouched })).toBeUndefined()
-    expect(pairUnvouched({})).toBeUndefined()
-  })
-
-  it('says one reason once when both sides share it', () => {
-    const otherRestart = toEvidenceTile(
-      listedUnvouched({ id: 'a2', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
-    )
-    expect(pairUnvouched({ before: restart, after: otherRestart })).toEqual({
-      cause: 'restart',
-      label: UNVOUCHED_LABEL,
-      text: UNVOUCHED_RESTART_TEXT.capture,
+  it.each(
+    BACKEND_REASONS.flatMap((reason) =>
+      (
+        [
+          ['screenshot', 'image/png', 'Onsite debug — login'],
+          ['recording', 'video/mp4', undefined],
+          ['report', 'text/markdown', ''],
+        ] as const
+      ).map(([kind, mediaType, label]) => ({ reason, kind, mediaType, label })),
+    ),
+  )('renders a $kind carrying "$reason" as the plain filing it is', (c) => {
+    const listed = listedUnvouched({
+      id: `${c.kind}-1`,
+      kind: c.kind,
+      mediaType: c.mediaType,
+      label: c.label,
+      unvouchedReason: c.reason,
     })
-  })
-
-  it('never lets an after’s restart explain away a before whose file changed', () => {
-    const changedBefore = toEvidenceTile(
-      listedUnvouched({ id: 'b', phase: 'before', unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
-    )
-    const restartAfter = toEvidenceTile(
-      listedUnvouched({ id: 'a', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
-    )
-    expect(pairUnvouched({ before: changedBefore, after: restartAfter })).toEqual({
-      cause: 'file-changed',
-      label: UNVOUCHED_LABEL,
-      text: `${UNVOUCHED_SIDE_LEAD.before} ${EVIDENCE_FILE_CHANGED_REASON} ${UNVOUCHED_SIDE_LEAD.after} ${UNVOUCHED_RESTART_TEXT.capture}`,
-    })
-  })
-
-  it('keeps a before’s foreign capture record beside an after filed before the restart', () => {
-    const foreignBefore = toEvidenceTile(
-      listedUnvouched({
-        id: 'b',
-        phase: 'before',
-        unvouchedReason: CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
-      }),
-    )
-    const u = pairUnvouched({ before: foreignBefore, after: restart })
-    expect(u?.cause).toBe('capture-record')
-    expect(u?.text).toContain(CAPTURE_RECORD_NOT_THE_TOOLS_REASON)
-  })
-
-  it('names both sides, the after’s cause leading, when neither is a restart', () => {
-    const changedBefore = toEvidenceTile(
-      listedUnvouched({ id: 'b', phase: 'before', unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
-    )
-    const foreignAfter = toEvidenceTile(
-      listedUnvouched({ id: 'a', unvouchedReason: CAPTURE_RECORD_NOT_THE_TOOLS_REASON }),
-    )
-    expect(pairUnvouched({ before: changedBefore, after: foreignAfter })).toEqual({
-      cause: 'capture-record',
-      label: UNVOUCHED_LABEL,
-      text: `${UNVOUCHED_SIDE_LEAD.before} ${EVIDENCE_FILE_CHANGED_REASON} ${UNVOUCHED_SIDE_LEAD.after} ${CAPTURE_RECORD_NOT_THE_TOOLS_REASON}`,
-    })
-  })
-})
-
-describe('recordedEvidenceUnvouched', () => {
-  /** What `recordReviewEvidence` returns: the filed item's listing. */
-  const filed = {
-    id: 'ev-1',
-    runId: 'run1',
-    projectId: 'p1',
-    kind: 'screenshot',
-    path: '.factory/artifacts/review/run1/ev-1.png',
-    label: 'Login, after',
-    phase: 'after',
-    subject: 'login',
-    mediaType: 'image/png',
-    bytes: 618_269,
-    sha256: '9f2c4e0b7a1d3c5e8f60a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3',
-    createdAt: 1_790_156_833_451,
-  }
-
-  it('says why a filing whose capture record was not the tool’s never counts', () => {
-    expect(
-      recordedEvidenceUnvouched({ ...filed, unvouchedReason: CAPTURE_RECORD_NOT_THE_TOOLS_REASON }),
-    ).toEqual({
-      cause: 'capture-record',
-      label: UNVOUCHED_LABEL,
-      text: CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
-    })
-  })
-
-  it('words a restart by the kind the tool filed', () => {
-    const restart = (kind: string) =>
-      recordedEvidenceUnvouched({
-        ...filed,
-        kind,
-        unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
-      })?.text
-    expect(restart('recording')).toBe(UNVOUCHED_RESTART_TEXT.capture)
-    expect(restart('report')).toBe(UNVOUCHED_RESTART_TEXT.filing)
-  })
-
-  it('is undefined for a filing the backend vouches for, a failed call or no result', () => {
-    expect(recordedEvidenceUnvouched(filed)).toBeUndefined()
-    expect(recordedEvidenceUnvouched({ error: 'sourcePath does not exist' })).toBeUndefined()
-    expect(recordedEvidenceUnvouched(undefined)).toBeUndefined()
-    expect(recordedEvidenceUnvouched(null)).toBeUndefined()
-    expect(recordedEvidenceUnvouched('filed')).toBeUndefined()
-    expect(recordedEvidenceUnvouched({ ...filed, unvouchedReason: 42 })).toBeUndefined()
+    const plain: ReviewEvidenceRef = { ...listed, unvouchedReason: undefined }
+    const tile = toEvidenceTile(listed)
+    expect(tile).toEqual({ ref: listed, caption: toEvidenceTile(plain).caption })
+    expect(Object.keys(tile).sort()).toEqual(['caption', 'ref'])
   })
 })
 
 describe('screenPairs, with captures the backend cannot vouch for', () => {
-  const restartReason = { unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }
+  it.each(BACKEND_REASONS)('pairs a before carrying "%s" exactly as an ordinary one', (reason) => {
+    const before = toEvidenceTile(
+      listedUnvouched({ id: 'b', phase: 'before', createdAt: 1, unvouchedReason: reason }),
+    )
+    const after = toEvidenceTile(
+      ref({ id: 'a', subject: 'onsite-login', phase: 'after', createdAt: 2 }),
+    )
+    expect(screenPairs(groupEvidence([before, after]))).toEqual([
+      { index: 1, key: 'onsite-login', title: 'onsite-login', class: 'pair', before, after },
+    ])
+  })
 
-  it('keeps an unvouched pair as the pair it is, marked so it never reads as proof', () => {
-    const pairs = screenPairs(
+  it('keeps a lone capture carrying a reason as a plain single tile', () => {
+    const lone = toEvidenceTile(
+      listedUnvouched({
+        id: 'x',
+        phase: undefined,
+        subject: undefined,
+        unvouchedReason: EVIDENCE_FILE_CHANGED_REASON,
+      }),
+    )
+    expect(screenPairs(groupEvidence([lone]))).toEqual([
+      { index: 1, key: 'x', title: 'Onsite debug — login', class: 'single', after: lone },
+    ])
+  })
+
+  it('names the class of a tile both sides of which carry a reason', () => {
+    const [pair] = screenPairs(
       groupEvidence(
         [
-          listedUnvouched({ id: 'b', phase: 'before', createdAt: 1, ...restartReason }),
-          ref({ id: 'a', subject: 'onsite-login', phase: 'after', createdAt: 2 }),
+          listedUnvouched({
+            id: 'b',
+            phase: 'before',
+            createdAt: 1,
+            unvouchedReason: CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
+          }),
+          listedUnvouched({
+            id: 'a',
+            createdAt: 2,
+            unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
+          }),
         ].map(toEvidenceTile),
       ),
     )
-    expect(pairs).toHaveLength(1)
-    expect(pairs[0].class).toBe('pair')
-    expect(pairs[0].before?.ref.id).toBe('b')
-    expect(pairs[0].unvouched?.text).toBe(UNVOUCHED_RESTART_TEXT.capture)
-  })
-
-  it('marks a lone unvouched capture too', () => {
-    const [single] = screenPairs(
-      groupEvidence([
-        toEvidenceTile(listedUnvouched({ id: 'x', phase: undefined, ...restartReason })),
-      ]),
-    )
-    expect(single.class).toBe('single')
-    expect(single.unvouched?.cause).toBe('restart')
-  })
-
-  it('leaves a vouched pair unmarked', () => {
-    const pairs = screenPairs(
-      groupEvidence(
-        [
-          ref({ id: 'b', subject: 'login', phase: 'before', createdAt: 1 }),
-          ref({ id: 'a', subject: 'login', phase: 'after', createdAt: 2 }),
-          ref({ id: 's', createdAt: 3 }),
-        ].map(toEvidenceTile),
-      ),
-    )
-    expect(pairs.some((p) => 'unvouched' in p)).toBe(false)
+    expect(screenPairMeta(pair, { capturing: false })).toBe(SCREEN_PAIR_META.pair)
+    expect(comparisonPairFacts(pair)).toEqual([SCREEN_PAIR_FACT.pair])
   })
 })
 
@@ -655,26 +489,15 @@ describe('screenPairMeta', () => {
     class: 'pair',
     ...over,
   })
-  const unvouched = {
-    cause: 'restart' as const,
-    label: UNVOUCHED_LABEL,
-    text: UNVOUCHED_RESTART_TEXT.capture,
-  }
 
-  it('names the class of a tile the backend vouches for', () => {
+  it('names the class of a tile', () => {
     expect(screenPairMeta(pair({ class: 'removed' }), { capturing: false })).toBe(
       SCREEN_PAIR_META.removed,
     )
   })
 
-  it('says a tile cannot be vouched for in place of its class', () => {
-    expect(screenPairMeta(pair({ unvouched }), { capturing: false })).toBe(
-      SCREEN_PAIR_UNVOUCHED_META,
-    )
-  })
-
   it('draws no conclusion at all while the capture is still running', () => {
-    expect(screenPairMeta(pair({ unvouched, class: 'new' }), { capturing: true })).toBe(
+    expect(screenPairMeta(pair({ class: 'new' }), { capturing: true })).toBe(
       SCREEN_PAIR_CAPTURING_META,
     )
   })
@@ -692,24 +515,6 @@ describe('comparisonPairFacts', () => {
       'Shows the change · 92 px changed',
     ])
   })
-
-  it('adds why a side cannot be vouched for, in full', () => {
-    expect(
-      comparisonPairFacts({
-        ...base,
-        class: 'pair',
-        note: 'The gate counted this when it ran — it can’t be vouched for now · 92 px changed',
-        unvouched: {
-          cause: 'file-changed',
-          label: UNVOUCHED_LABEL,
-          text: EVIDENCE_FILE_CHANGED_REASON,
-        },
-      }),
-    ).toEqual([
-      'The gate counted this when it ran — it can’t be vouched for now · 92 px changed',
-      EVIDENCE_FILE_CHANGED_REASON,
-    ])
-  })
 })
 
 describe('reviewerVerdict, over a listing the backend cannot vouch for', () => {
@@ -723,32 +528,52 @@ describe('reviewerVerdict, over a listing the backend cannot vouch for', () => {
       ...over,
     })
 
-  it('reads unvouched, never none, since the backend drops a verdict it cannot vouch for', () => {
+  it('reads no conclusion when the only filing lost its verdict', () => {
     expect(
       reviewerVerdict([report({ id: 'rep', unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON })]),
-    ).toEqual({ state: 'unvouched' })
+    ).toEqual({ state: 'none' })
   })
 
-  it('never offers an older verdict as the conclusion over a newer filing that lost its own', () => {
+  it.each([
+    EVIDENCE_RECORD_UNVOUCHED_REASON,
+    EVIDENCE_FILE_CHANGED_REASON,
+    'The seal key rotated.',
+  ])(
+    'never offers an older verdict as the conclusion over a newer filing that lost its own ("%s")',
+    (reason) => {
+      expect(
+        reviewerVerdict([
+          report({ id: 'r2', createdAt: 300, unvouchedReason: reason }),
+          ref({
+            id: 'r1',
+            kind: 'report',
+            createdAt: 200,
+            verdict: 'approved',
+            verdictReason: 'Looks right',
+          }),
+        ]),
+      ).toEqual({ state: 'none' })
+    },
+  )
+
+  it('hides an older verdict behind a newer capture that lost what was filed with it', () => {
     expect(
       reviewerVerdict([
-        report({ id: 'r2', createdAt: 300, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON }),
-        ref({
-          id: 'r1',
-          kind: 'report',
-          createdAt: 200,
-          verdict: 'approved',
-          verdictReason: 'Looks right',
+        ref({ id: 'r1', kind: 'report', createdAt: 200, verdict: 'rejected' }),
+        listedUnvouched({
+          id: 'shot',
+          createdAt: 300,
+          unvouchedReason: EVIDENCE_FILE_CHANGED_REASON,
         }),
       ]),
-    ).toEqual({ state: 'unvouched' })
+    ).toEqual({ state: 'none' })
   })
 
-  it('reads it unvouched when that filing landed in the same millisecond — neither is newer', () => {
+  it('reads no conclusion when that filing landed in the same millisecond — neither is newer', () => {
     const verdict = ref({ id: 'r1', kind: 'report', createdAt: 300, verdict: 'approved' })
     const lost = report({ id: 'r2', createdAt: 300, unvouchedReason: EVIDENCE_FILE_CHANGED_REASON })
-    expect(reviewerVerdict([verdict, lost])).toEqual({ state: 'unvouched' })
-    expect(reviewerVerdict([lost, verdict])).toEqual({ state: 'unvouched' })
+    expect(reviewerVerdict([verdict, lost])).toEqual({ state: 'none' })
+    expect(reviewerVerdict([lost, verdict])).toEqual({ state: 'none' })
   })
 
   it('keeps a verdict filed after every filing that lost its own', () => {
@@ -758,6 +583,21 @@ describe('reviewerVerdict, over a listing the backend cannot vouch for', () => {
         ref({ id: 'r2', kind: 'report', createdAt: 200, verdict: 'changes-requested' }),
       ]),
     ).toEqual({ state: 'concluded', verdict: { verdict: 'changes-requested' } })
+  })
+
+  it('reads a verdict still carried by a filing with a reason like any other', () => {
+    expect(
+      reviewerVerdict([
+        ref({ id: 'r1', kind: 'report', createdAt: 100, verdict: 'approved' }),
+        report({
+          id: 'r2',
+          createdAt: 200,
+          verdict: 'rejected',
+          verdictReason: ' Wrong screen ',
+          unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON,
+        }),
+      ]),
+    ).toEqual({ state: 'concluded', verdict: { verdict: 'rejected', reason: 'Wrong screen' } })
   })
 
   it('keeps an older verdict over a newer capture whose own record was not the tool’s — that filing kept any verdict', () => {
@@ -873,13 +713,13 @@ describe('codeReviewVerdict', () => {
     })
   })
 
-  it('reads unvouched when the newest code review lost its verdict', () => {
+  it('reads no conclusion when the newest code review lost its verdict', () => {
     expect(
       codeReviewVerdict([
         review({ id: 'a', createdAt: 1, verdict: 'approved' }),
         review({ id: 'b', createdAt: 5, unvouchedReason: EVIDENCE_RECORD_UNVOUCHED_REASON }),
       ]),
-    ).toEqual({ state: 'unvouched' })
+    ).toEqual({ state: 'none' })
   })
 })
 

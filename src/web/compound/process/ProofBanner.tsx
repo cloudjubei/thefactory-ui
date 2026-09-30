@@ -125,31 +125,13 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
   )
 }
 
-function UnvouchedNote({ text }: { text: string }) {
-  return (
-    <span className="flex max-w-[72ch] items-start gap-1.5 text-[12px] text-(--text-primary)">
-      <IconInfo className="mt-px size-3.5 shrink-0 text-(--text-muted)" />
-      {text}
-    </span>
-  )
-}
-
 /**
  * What data a verification ran on, said before anything else it shows. A dry
  * attempt is one quiet line whose detail folds open — a caveat, not an alarm;
- * a live or unstated one keeps its banner. A proof the backend can no longer
- * vouch for any of says so here, so a pass with nothing under it that counts
- * is explained.
+ * a live or unstated one keeps its banner.
  */
 export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
-  if (header.dry) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <DryProofLine dry={header.dry} />
-        {header.unvouched ? <UnvouchedNote text={header.unvouched.text} /> : null}
-      </div>
-    )
-  }
+  if (header.dry) return <DryProofLine dry={header.dry} />
   const Icon = ICON[header.mode]
   return (
     <div
@@ -162,7 +144,6 @@ export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
           {header.title}
         </span>
         <span className="max-w-[72ch] text-[12px] text-(--text-secondary)">{header.detail}</span>
-        {header.unvouched ? <UnvouchedNote text={header.unvouched.text} /> : null}
         <ProofBuildLine header={header} />
       </div>
     </div>

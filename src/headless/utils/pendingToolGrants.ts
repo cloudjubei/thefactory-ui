@@ -6,6 +6,7 @@ import { getChatContext, getChatContextKey } from 'thefactory-tools/utils'
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
+import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
@@ -223,4 +224,30 @@ export function grantDecideErrorMessage(err: unknown): string {
     if (typeof body.message === 'string' && body.message.trim().length > 0) return body.message
   }
   return 'The decision could not be applied — it may already be decided or expired.'
+}
+
+const OPEN_WORK_CHOICES = ['extend', 'new-on-branch', 'fresh'] as const
+const OPEN_WORK_STATES = ['running', 'parked', 'awaiting-sign-off', 'unmerged'] as const
+
+/**
+ * The open-work choice an approval's metadata carries — how the person chose to
+ * start a story over its open work — or `undefined`. What an API chat's resume
+ * sends for the tool call it was made on; a CLI decision carries the metadata
+ * itself.
+ */
+export function openWorkDecisionOf(
+  metadata: Record<string, unknown> | undefined,
+): ProcessOpenWorkDecision | undefined {
+  const choice = metadata?.openWork
+  const runId = metadata?.runId
+  const state = metadata?.state
+  if (!OPEN_WORK_CHOICES.includes(choice as (typeof OPEN_WORK_CHOICES)[number])) return undefined
+  if (typeof runId !== 'string' || runId.length === 0) return undefined
+  return {
+    openWork: choice as ProcessOpenWorkDecision['openWork'],
+    runId,
+    ...(OPEN_WORK_STATES.includes(state as (typeof OPEN_WORK_STATES)[number])
+      ? { state: state as ProcessOpenWorkDecision['state'] }
+      : {}),
+  }
 }

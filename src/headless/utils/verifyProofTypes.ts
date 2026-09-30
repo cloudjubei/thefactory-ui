@@ -2,7 +2,7 @@ import type { ProcessLedgerEntry, ProcessRun, ProcessVerifyReview } from 'thefac
 
 import type { ReviewEvidenceVerdict } from '../api/generated'
 import type { VerifyReviewStatus } from './processView'
-import type { EvidenceTile, EvidenceUnvouched, ScreenPair } from './reviewEvidenceViewTypes'
+import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 
 /** What data a verification saw the change on: the real backend's, faked, or it did not say. */
 export type VerifyProofMode = 'live' | 'dry' | 'unknown'
@@ -48,18 +48,6 @@ export type VerifyProofDryLine = {
   rows: DryProofRow[]
 }
 
-/**
- * A proof whose every counted capture the backend can no longer vouch for —
- * after a restart, every proof filed before it. The gate's outcome is kept as
- * recorded; this says why nothing under it counts now.
- */
-export type VerifyProofUnvouched = {
-  /** A few words for a collapsed section's header. */
-  chip: string
-  /** The banner's line. */
-  text: string
-}
-
 /** The banner over a verify attempt's proof: what data it ran on, and against which builds. */
 export type VerifyProofHeader = {
   mode: VerifyProofMode
@@ -80,8 +68,6 @@ export type VerifyProofHeader = {
   headSha: string | undefined
   /** Test-seam commits the base was built with, shortened. */
   seams: string[]
-  /** Set when nothing the proof rested on can still be vouched for. */
-  unvouched: VerifyProofUnvouched | undefined
 }
 
 /** One before/after pair the gate judged, ready to render. */
@@ -91,11 +77,7 @@ export type ProofPairView = {
   /** Position in the overlay's paging order, 1-based. */
   index: number
   subject: string
-  /**
-   * Whether it shows the change: the gate counted it AND both sides can still be
-   * vouched for. One the gate counted whose capture cannot be is shown with what
-   * did not count.
-   */
+  /** Whether the gate counted it as showing the change. */
   counted: boolean
   /** The before is the entry point on the base a new screen opens from, not the same screen. */
   newScreen: boolean
@@ -113,8 +95,6 @@ export type ProofPairView = {
   sameScreen: string | undefined
   /** "Shows the change" for a counted pair; otherwise the reason it does not count. */
   verdict: string
-  /** Why a side cannot be vouched for — shown in full under the verdict. */
-  unvouched: EvidenceUnvouched | undefined
   /** The changed share of the screen for a thumbnail's corner — "8%", "<1%" — or "new"; absent when unmeasured. */
   marker: string | undefined
   /** The sides the loaded evidence genuinely does not hold — empty until it has loaded. */
@@ -136,10 +116,7 @@ export type ProofScreenView = {
   entryPointAbsent: string | undefined
 }
 
-/**
- * An after shown with what did not count: one the reviewer filed with no before
- * under its subject, or a screen the change adds that can no longer be vouched for.
- */
+/** An after shown with what did not count: one the reviewer filed with no before under its subject. */
 export type ProofUnpairedView = {
   key: string
   index: number
@@ -149,8 +126,6 @@ export type ProofUnpairedView = {
   afterAbsent: string | undefined
   /** Why it does not count. */
   reason: string
-  /** Why the after cannot be vouched for — shown in full under the reason. */
-  unvouched: EvidenceUnvouched | undefined
 }
 
 /** One line on what the proof amounts to, toned by what the attempt came to. */
@@ -170,10 +145,7 @@ export type VerifyProofView = {
   newScreens: ProofScreenView[]
   /** Afters shown alone — the last of what did not count. */
   unpaired: ProofUnpairedView[]
-  /**
-   * Whether the gate's outcome rested on a counted pair or a new screen, as the
-   * gate judged it — whether or not those can still be vouched for.
-   */
+  /** Whether the gate's outcome rested on a counted pair or a new screen, as the gate judged it. */
   restsOnScreens: boolean
   /** Recordings the approval covered, as far as they are loaded. */
   recordings: EvidenceTile[]
@@ -218,12 +190,6 @@ export type VerifyAttemptEvidence = {
   uncountedRecordings: EvidenceTile[]
   reports: EvidenceTile[]
   verdict: VerifyReviewerVerdict | undefined
-  /**
-   * No verdict is found and some of the attempt's filings cannot be vouched
-   * for: the backend drops the verdict of such a filing, so one may have been
-   * given and is not shown.
-   */
-  verdictUnvouched: boolean
 }
 
 /** One verify attempt, ready to render in a sign-off. */
@@ -251,14 +217,12 @@ export type FeatureVerifyView = {
   mode: VerifyProofMode
   /** The shown attempt stands, yet nobody said what data it ran on. */
   dataUnstated: boolean
-  /** Nothing the shown attempt's proof rested on can still be vouched for. */
-  proofUnvouched: boolean
 }
 
 /** One sign-off section's accepted verification, as the story-wide notice reads it. */
 export type StoryProofSection = { label: string } & Pick<
   FeatureVerifyView,
-  'mode' | 'standing' | 'dataUnstated' | 'proofUnvouched'
+  'mode' | 'standing' | 'dataUnstated'
 >
 
 /** The story-wide line naming what the gate did not pass, or not on live data. */
@@ -293,8 +257,6 @@ export type CaptureBuildCaption = {
   dirty: boolean
   /** The commit expected, shortened — present only when the record does not show it. */
   expectedSha: string | undefined
-  /** Said in place of a build when the backend cannot vouch for the capture. */
-  unvouched: string | undefined
 }
 
 /** One thumbnail in the Screens pane: a pair or new screen the proof rests on. */

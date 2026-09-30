@@ -52,14 +52,12 @@ const BASE_WIDTH = 240
 
 /**
  * A side's build, as its own record states it — the commit it was built from,
- * whether the tree was dirty — and, apart, the commit it was expected to be. A
- * capture the backend cannot vouch for has no build to show, and says so.
+ * whether the tree was dirty — and, apart, the commit it was expected to be.
  */
 function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
-      {build.unvouched ? <span className="text-(--text-muted)">{build.unvouched}</span> : null}
       {build.dirty ? (
         <span className="text-(--status-stuck-soft-fg)">uncommitted changes</span>
       ) : null}

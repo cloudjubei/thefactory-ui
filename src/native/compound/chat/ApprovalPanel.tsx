@@ -15,13 +15,20 @@ import {
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
-import { featuresToWork, useProcessProposal, useProjectNotes, useStories } from '../../../headless'
-import type { PendingToolGrant } from '../../../headless'
+import {
+  featuresToWork,
+  processOpenWorkMetadata,
+  useProcessProposal,
+  useProjectNotes,
+  useStories,
+} from '../../../headless'
+import type { PendingToolGrant, ProcessOpenWorkChoice } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
+import OpenWorkChooser from './OpenWorkChooser'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -74,11 +81,26 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
   const features = story ? featuresToWork(story) : []
   // The resolved plan the user reads before approving — the whole path per
   // feature, not just the list. A miss falls back to the plain list below.
-  const { proposal, refusal } = useProcessProposal({
+  const {
+    proposal,
+    refusal,
+    isLoaded: proposalLoaded,
+  } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
   })
   const proposalView = proposal ? processProposalView(proposal) : undefined
+  // The story's open work — a run still going, or finished and not merged. The
+  // launch waits for the person to choose how to proceed over it; the choice is
+  // theirs, carried on the decision on either transport.
+  const openWork = proposal?.openWork
+  const [openWorkChoice, setOpenWorkChoice] = useState<ProcessOpenWorkChoice | undefined>(undefined)
+  const openWorkMeta = openWork ? processOpenWorkMetadata(openWork, openWorkChoice) : undefined
+  // Until the preview has answered, whether the story has open work is unknown —
+  // a launch then would be refused for want of a choice nobody was shown.
+  const awaitingChoice =
+    (summary.storyId !== undefined && !proposalLoaded) ||
+    (openWork !== undefined && openWorkMeta === undefined)
 
   const resolvedBullet = (dep: string): ResolvedDependency => {
     const resolved = resolveDependency(dep)
@@ -130,6 +152,7 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
               // agent chose (its Verify → Report chain), so the launch carries
               // the agent's own choice unchanged rather than overriding it here.
               ...(trimmedNote ? { note: trimmedNote } : {}),
+              ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
             }
           : undefined,
       )
@@ -474,6 +497,15 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
         </View>
       )}
 
+      {openWork ? (
+        <OpenWorkChooser
+          openWork={openWork}
+          choice={openWorkChoice}
+          busy={busy}
+          onChoose={setOpenWorkChoice}
+        />
+      ) : null}
+
       <View
         style={{
           flexDirection: 'row',
@@ -694,9 +726,13 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
             onPress={() => decide('once')}
             loading={busy}
             // `features` is legitimately empty while the story loads.
-            disabled={refusal !== undefined || (story !== undefined && features.length === 0)}
+            disabled={
+              refusal !== undefined ||
+              awaitingChoice ||
+              (story !== undefined && features.length === 0)
+            }
           >
-            Start work
+            {openWorkChoice === 'extend' && openWorkMeta ? 'Add to that run' : 'Start work'}
           </Button>
         </Tooltip>
         <Tooltip

@@ -1,5 +1,7 @@
 import type { ProcessProposal, ProcessProposalNode } from 'thefactory-tools/types'
 
+import { ONLY_WHEN_SENT_BACK_SUFFIX } from './processProposalViewConstants'
+
 /** One step chip in a proposal chain — a name, and whether a model runs there. */
 export interface ProposalChip {
   id: string
@@ -27,17 +29,23 @@ export interface ProcessProposalView {
   features: ProposalFeatureRow[]
   /** Story-level steps that are not a feature expansion — the sign-off gate, a report. */
   tail: ProposalChip[]
-  /** How many steps across the whole plan spend a model. */
+  /**
+   * How many steps across the whole plan are sure to spend a model — never those
+   * of a step that runs only when work is sent back to it.
+   */
   agentStepCount: number
 }
 
+/** A chip, its name saying so when the step runs only when work is sent back to it. */
 function chip(node: ProcessProposalNode): ProposalChip {
-  return { id: node.id, name: node.name, agent: node.agent }
+  const name = node.onlyWhenSentBack ? `${node.name}${ONLY_WHEN_SENT_BACK_SUFFIX}` : node.name
+  return { id: node.id, name, agent: node.agent }
 }
 
 function countAgents(nodes: readonly ProcessProposalNode[]): number {
   let n = 0
   for (const node of nodes) {
+    if (node.onlyWhenSentBack) continue
     if (node.agent) n += 1
     if (node.children) n += countAgents(node.children)
   }

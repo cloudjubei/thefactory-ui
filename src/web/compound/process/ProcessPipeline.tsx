@@ -1,14 +1,18 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import {
+  choiceTakesNote,
   formatProcessDuration,
   gateSendsBack,
   hasIsolatedAttempts,
+  isIntegratingApproval,
   isProcessLeafOpenable,
   isReflectedPark,
   latestOpenableAttempt,
   parkedRunRef,
+  processAmendmentView,
   processAttemptLeaf,
   processLeafReview,
+  processLoopSenders,
   processNodeBadge,
   processNodeLook,
   processNodeState,
@@ -26,6 +30,7 @@ import {
   useAppSettings,
   useDurationTimer,
   useProcessRun,
+  type ProcessIntegrationMode,
   type ProcessNodeRunRef,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
@@ -39,6 +44,8 @@ import SegmentedControl from '../../primitives/SegmentedControl'
 import { IconChevronLeft } from '../../icons'
 import CostChip from '../chips/CostChip'
 import { DURATION_CHIP_CLASS } from '../chat/ToolCall/StatusIcon'
+import IntegrationResult from './IntegrationResult'
+import ParkNoteComposer from './ParkNoteComposer'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
@@ -87,8 +94,17 @@ export default function ProcessPipeline({
   const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
   const [leafView, setLeafView] = useState<'review' | 'transcript'>('review')
   const currentId = stack[stack.length - 1] ?? runId
-  const { isLoaded, loadError, run, resume, cancel, listBranches, deleteRun } =
-    useProcessRun(currentId)
+  const {
+    isLoaded,
+    loadError,
+    actionError,
+    run,
+    resume,
+    retryIntegration,
+    cancel,
+    listBranches,
+    deleteRun,
+  } = useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
 
@@ -193,6 +209,7 @@ export default function ProcessPipeline({
   }
 
   const states = processStepStates(run)
+  const amendments = processAmendmentView(run)
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
@@ -205,6 +222,33 @@ export default function ProcessPipeline({
         onDelete={openDelete}
       />
 
+      {actionError ? (
+        <div
+          role="alert"
+          className="mx-3 mt-3 rounded-md px-2.5 py-2 text-[12px]"
+          style={{
+            background: 'var(--status-stuck-soft-bg)',
+            border: '1px solid var(--status-stuck-soft-border)',
+            color: 'var(--status-stuck-soft-fg)',
+          }}
+        >
+          {actionError}
+        </div>
+      ) : null}
+
+      {amendments.notes.length > 0 ? (
+        <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            Work added to this run
+          </span>
+          {amendments.notes.map((note) => (
+            <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
+              {note}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
       <ol className="flex flex-col px-3 pb-4 pt-3">
         {states.map((state, index) => (
           <PipelineNode
@@ -214,13 +258,16 @@ export default function ProcessPipeline({
             ordinal={index + 1}
             isLast={index === states.length - 1}
             now={now}
-            onChoose={(choice, note) => void resume(choice, note)}
+            addedTag={amendments.addedSteps[state.step.id]}
+            onChoose={(choice, note, integration) => void resume(choice, note, integration)}
             onDrill={drillTo}
             onOpenLeaf={openLeafHere}
             canOpenTranscript={canOpenTranscript}
           />
         ))}
       </ol>
+
+      <IntegrationResult run={run} onRetry={retryIntegration} />
 
       <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
@@ -436,6 +483,7 @@ function PipelineNode({
   ordinal,
   isLast,
   now,
+  addedTag,
   onChoose,
   onDrill,
   onOpenLeaf,
@@ -446,7 +494,13 @@ function PipelineNode({
   ordinal: number
   isLast: boolean
   now: number
-  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  /** "Added <date>" when this step was added to the run after it started. */
+  addedTag: string | undefined
+  onChoose: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => void
   onDrill: (childRunId: string) => void
   onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
   canOpenTranscript: boolean
@@ -514,6 +568,11 @@ function PipelineNode({
           <span className="pointer-events-none inline-flex">
             <KindChip kind={state.step.kind} agent={isAgent} />
           </span>
+          {addedTag ? (
+            <span className="pointer-events-none inline-flex items-center rounded-full border border-dashed border-(--border-strong) px-2 py-px text-[10.5px] text-(--text-secondary)">
+              {addedTag}
+            </span>
+          ) : null}
           {iteration ? (
             <span
               className="pointer-events-none inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
@@ -686,10 +745,10 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
   const { run: child } = useProcessRun(childRunId)
   if (!child) return null
   const states = processStepStates(child)
-  const looped = Object.values(child.loopCounts ?? {}).some((n) => n > 0)
+  const sentBack = processLoopSenders(child)
   return (
     <div className="ml-1 mt-2 flex flex-col gap-1 rounded-r-lg border-l-2 border-(--border-default) bg-(--surface-overlay) px-3 py-2">
-      {looped ? (
+      {sentBack ? (
         <div
           className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]"
           style={{
@@ -698,7 +757,7 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
             border: '1px dashed var(--status-queued-soft-border)',
           }}
         >
-          ↺ Verification sent the work back — <b className="font-semibold">retried</b>
+          ↺ {sentBack} sent the work back — <b className="font-semibold">retried</b>
         </div>
       ) : null}
       {states.map((s, index) => {
@@ -736,19 +795,22 @@ function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
-  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onChoose: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => void
   /** Open the run that asked the question, to answer it in its chat. */
   onOpenAsked?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
 }) {
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const park = run.park
   if (!park) return null
   const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
   const reflected = isReflectedPark(park)
-  const choices = processParkChoices(park.reason, {
-    reflected,
-    sendsBack: park.stepId !== undefined && gateSendsBack(run.plan, park.stepId),
-  })
+  const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
+  const choices = processParkChoices(park.reason, { reflected, sendsBack })
   const tone = park.reason === 'gate' ? 'review' : 'on_hold'
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -765,6 +827,10 @@ function ParkBlock({
           storyId={run.storyId as string}
           storyRunId={run.id}
           choices={choices}
+          sendsBack={sendsBack}
+          {...(run.workBranch && isIntegratingApproval(run, 'approve')
+            ? { workBranch: run.workBranch }
+            : {})}
           onChoose={onChoose}
         />
       </div>
@@ -800,20 +866,32 @@ function ParkBlock({
           Open the run to answer →
         </button>
       ) : null}
-      <div className="flex flex-wrap gap-3">
-        {choices.map((choice) => (
-          <div key={choice.choice} className="flex flex-col gap-0.5">
-            <Button
-              size="sm"
-              variant={choice.primary ? 'primary' : 'secondary'}
-              onClick={() => onChoose(choice.choice)}
-            >
-              {choice.label}
-            </Button>
-            <span className="max-w-48 text-[10px] text-(--text-secondary)">{choice.detail}</span>
-          </div>
-        ))}
-      </div>
+      {noteFor ? (
+        <ParkNoteComposer
+          sendsBack={sendsBack}
+          onSend={(note) => onChoose(noteFor, note)}
+          onCancel={() => setNoteFor(undefined)}
+        />
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {choices.map((choice) => (
+            <div key={choice.choice} className="flex flex-col gap-0.5">
+              <Button
+                size="sm"
+                variant={choice.primary ? 'primary' : 'secondary'}
+                onClick={() =>
+                  choiceTakesNote(choice.choice)
+                    ? setNoteFor(choice.choice)
+                    : onChoose(choice.choice)
+                }
+              >
+                {choice.label}
+              </Button>
+              <span className="max-w-48 text-[10px] text-(--text-secondary)">{choice.detail}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

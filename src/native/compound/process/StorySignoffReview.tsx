@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import {
+  choiceTakesNote,
   EMPTY_SIGNOFF_SECTION,
   evidenceLoadState,
-  featureVerifyView,
   overlayPairsFor,
+  signoffFixSectionProps,
   signoffSectionProps,
   signoffSections,
+  signoffVerifyViews,
   SIGNOFF_LOAD_FAILED,
   SIGNOFF_LOADING,
   storyProofNotice,
@@ -15,10 +17,11 @@ import {
   useStories,
   useStorySignoff,
   type EvidenceLoadState,
-  type FeatureVerifyView,
   type OverallSignoff,
+  type ProcessIntegrationMode,
   type ProcessParkChoice,
   type ProcessResumeChoice,
+  type ProcessWorkBranch,
   type ScreenPair,
   type SignoffSection,
   type SignoffVerdict,
@@ -39,6 +42,8 @@ import {
   type SaveFileHandler,
 } from '../chat/signoff'
 import FeatureReviewSection from './FeatureReviewSection'
+import IntegrationChooser from './IntegrationChooser'
+import ParkNoteComposer from './ParkNoteComposer'
 
 export type StorySignoffReviewProps = {
   projectId: string
@@ -47,7 +52,15 @@ export type StorySignoffReviewProps = {
   storyRunId: string
   /** The gate's decision choices — the panel's decide bar acts on the whole story. */
   choices?: readonly ProcessParkChoice[]
-  onChoose?: (choice: ProcessResumeChoice) => void
+  /** The gate sends the story back to be fixed when changes are requested, rather than ending it. */
+  sendsBack?: boolean
+  /** Set when approving must say how the work comes in — the run's work branch. */
+  workBranch?: Pick<ProcessWorkBranch, 'name' | 'baseRef'>
+  onChoose?: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
   onSaveFile?: SaveFileHandler
 }
@@ -107,6 +120,8 @@ function StorySignoffPanel({
   projectId,
   storyId,
   choices,
+  sendsBack = false,
+  workBranch,
   onChoose,
   onSaveFile,
   signoff,
@@ -120,6 +135,8 @@ function StorySignoffPanel({
   const { theme, status } = useNativeTheme()
   const { getStory } = useStories()
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [choosingIntegration, setChoosingIntegration] = useState(false)
 
   const story = getStory(storyId)
   const features = story?.features ?? []
@@ -129,20 +146,10 @@ function StorySignoffPanel({
     [signoff, evidence.tiles],
   )
 
-  const verifyByFeature = useMemo(() => {
-    const m = new Map<string, FeatureVerifyView>()
-    for (const f of signoff.features) {
-      if (f.verify)
-        m.set(
-          f.featureId,
-          featureVerifyView(f.verify, evidence.tiles, {
-            keyPrefix: `${f.featureId}::`,
-            evidence: evidenceState,
-          }),
-        )
-    }
-    return m
-  }, [signoff.features, evidence.tiles, evidenceState])
+  const verifyBySection = useMemo(
+    () => signoffVerifyViews(signoff, evidence.tiles, evidenceState),
+    [signoff, evidence.tiles, evidenceState],
+  )
 
   const sectionOf = (id: string): SignoffSection => sections.get(id) ?? EMPTY_SIGNOFF_SECTION
 
@@ -155,18 +162,19 @@ function StorySignoffPanel({
   const pairGroups = useMemo(() => {
     const groups: ScreenPair[][] = []
     for (const [id, section] of sections) {
-      if (id !== '' && !verifyByFeature.has(id)) groups.push(section.pairs)
+      if (id !== '' && !verifyBySection.has(id)) groups.push(section.pairs)
     }
-    for (const v of verifyByFeature.values()) {
+    for (const v of verifyBySection.values()) {
       groups.push(v.accepted.evidence.pairs)
     }
     return groups
-  }, [sections, verifyByFeature])
+  }, [sections, verifyBySection])
   const overlayPairs = useMemo(
     () => overlayPairsFor(pairGroups, openPairKey),
     [pairGroups, openPairKey],
   )
-  const hasSignoff = signoff.features.length > 0 || signoff.overall !== undefined
+  const hasSignoff =
+    signoff.features.length > 0 || signoff.fixes.length > 0 || signoff.overall !== undefined
 
   if (!hasSignoff && evidence.tiles.length === 0) {
     return (
@@ -180,16 +188,21 @@ function StorySignoffPanel({
   const tone = VERDICT_TONE[verdict.key]
   const storyLabel = story?.title ? `Story · ${story.title}` : 'Story'
   const proofNotice = storyProofNotice(
-    signoff.features.flatMap((f) => {
-      const v = verifyByFeature.get(f.featureId)
+    [
+      ...signoff.fixes.map((f) => ({ id: f.sectionId, label: f.label })),
+      ...signoff.features.map((f) => ({
+        id: f.featureId,
+        label: `Feature #${featureIndex(f.featureId)}`,
+      })),
+    ].flatMap(({ id, label }) => {
+      const v = verifyBySection.get(id)
       return v
         ? [
             {
-              label: `Feature #${featureIndex(f.featureId)}`,
+              label,
               mode: v.mode,
               standing: v.standing,
               dataUnstated: v.dataUnstated,
-              proofUnvouched: v.proofUnvouched,
             },
           ]
         : []
@@ -300,7 +313,30 @@ function StorySignoffPanel({
             />
           ) : null}
 
-          {signoff.features.map((f, i) => (
+          {signoff.fixes.map((f) => (
+            <FeatureReviewSection
+              key={f.sectionId}
+              kind="feature"
+              idLabel={f.label}
+              idScope="story"
+              title={f.title}
+              facts={f.facts}
+              agents={f.agents}
+              rows={f.rows}
+              verification={f.verification}
+              statusLine={f.statusLine}
+              {...signoffFixSectionProps(
+                sectionOf(f.sectionId),
+                verifyBySection.get(f.sectionId),
+                f,
+              )}
+              onOpenPair={setOpenPairKey}
+              onRequestImage={evidence.requestImage}
+              onSaveFile={onSaveFile}
+            />
+          ))}
+
+          {signoff.features.map((f) => (
             <FeatureReviewSection
               key={f.featureId}
               kind="feature"
@@ -311,8 +347,11 @@ function StorySignoffPanel({
               rows={f.rows}
               verification={f.verification}
               statusLine={f.statusLine}
-              {...signoffSectionProps(sectionOf(f.featureId), verifyByFeature.get(f.featureId))}
-              defaultOpen={i === 0}
+              {...signoffSectionProps(
+                sectionOf(f.featureId),
+                verifyBySection.get(f.featureId),
+                f.codeReview,
+              )}
               onOpenPair={setOpenPairKey}
               onRequestImage={evidence.requestImage}
               onSaveFile={onSaveFile}
@@ -353,17 +392,37 @@ function StorySignoffPanel({
             borderTopColor: theme.border.subtle,
           }}
         >
-          {choices.map((c) => (
-            <Button
-              key={c.choice}
-              size="sm"
-              variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
-              accessibilityHint={c.detail}
-              onPress={() => onChoose(c.choice)}
-            >
-              {c.label}
-            </Button>
-          ))}
+          {noteFor ? (
+            <ParkNoteComposer
+              sendsBack={sendsBack}
+              onSend={(note) => onChoose(noteFor, note)}
+              onCancel={() => setNoteFor(undefined)}
+            />
+          ) : choosingIntegration && workBranch ? (
+            <IntegrationChooser
+              workBranch={workBranch}
+              onChoose={(mode) => onChoose('approve', undefined, mode)}
+              onCancel={() => setChoosingIntegration(false)}
+            />
+          ) : (
+            choices.map((c) => (
+              <Button
+                key={c.choice}
+                size="sm"
+                variant={c.primary ? 'primary' : c.choice === 'reject' ? 'ghost' : 'secondary'}
+                accessibilityHint={c.detail}
+                onPress={() =>
+                  c.choice === 'approve' && workBranch
+                    ? setChoosingIntegration(true)
+                    : choiceTakesNote(c.choice)
+                      ? setNoteFor(c.choice)
+                      : onChoose(c.choice)
+                }
+              >
+                {c.label}
+              </Button>
+            ))
+          )}
         </View>
       ) : null}
 

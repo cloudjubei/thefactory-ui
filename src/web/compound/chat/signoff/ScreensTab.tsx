@@ -215,10 +215,7 @@ export default function ScreensTab({
                   </span>{' '}
                   · {pair.title}
                 </span>
-                <span
-                  className="text-[10px] text-(--text-muted)"
-                  title={capturing ? undefined : pair.unvouched?.text}
-                >
+                <span className="text-[10px] text-(--text-muted)">
                   {screenPairMeta(pair, { capturing })}
                 </span>
               </div>

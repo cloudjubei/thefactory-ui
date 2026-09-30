@@ -136,7 +136,6 @@ export default function ScreensTab({
                 accessibilityLabel={
                   capturing ? `${pair.title} — still capturing` : `Compare ${pair.title}`
                 }
-                accessibilityHint={capturing ? undefined : pair.unvouched?.text}
                 onPress={() => onOpen(pair.key)}
                 style={({ pressed }) => ({
                   width: TILE_WIDTH,

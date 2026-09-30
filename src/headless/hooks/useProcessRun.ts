@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ProcessResumeChoice, ProcessRun } from 'thefactory-tools/types'
+import type {
+  ProcessIntegrationMode,
+  ProcessResumeChoice,
+  ProcessRun,
+} from 'thefactory-tools/types'
 import {
   cancelProcessRun,
   deleteProcessRun,
   getProcessRun,
   listProcessRunBranches,
   resumeProcessRun,
+  retryProcessRunIntegration,
 } from '../api'
-import { useApi, useAuth } from '../api'
+import { extractErrorMessage, useApi, useAuth } from '../api'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -23,10 +28,18 @@ export type DeleteProcessRunResult = {
 export type UseProcessRun = {
   isLoaded: boolean
   loadError: Error | null
+  /** Why the last answer or stop was refused — shown on the run, cleared by the next one. */
+  actionError: string | null
   run: ProcessRun | undefined
   refresh: () => Promise<void>
-  /** Answer the park this run is sitting on. */
-  resume: (choice: ProcessResumeChoice, note?: string) => Promise<void>
+  /** Answer the park this run is sitting on — an approval of a work branch says how it comes in. */
+  resume: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationMode,
+  ) => Promise<void>
+  /** Try again to bring in approved work that did not land, the same way or another. */
+  retryIntegration: (integration: ProcessIntegrationMode) => Promise<void>
   cancel: () => Promise<void>
   /** The review branches this run tree owns — for the delete confirm's list. */
   listBranches: () => Promise<ProcessRunBranch[]>
@@ -48,6 +61,9 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   const [run, setRun] = useState<ProcessRun | undefined>(undefined)
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  useEffect(() => setActionError(null), [runId])
 
   const refresh = useCallback(async () => {
     if (!runId) {
@@ -80,11 +96,29 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   }, [ws, runId])
 
   const resume = useCallback(
-    async (choice: ProcessResumeChoice, note?: string) => {
+    async (choice: ProcessResumeChoice, note?: string, integration?: ProcessIntegrationMode) => {
       if (!runId) return
-      const { data } = await resumeProcessRun({
+      setActionError(null)
+      try {
+        const { data } = await resumeProcessRun({
+          path: { runId },
+          body: { choice, ...(note ? { note } : {}), ...(integration ? { integration } : {}) },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The run could not be answered.'))
+      }
+    },
+    [runId],
+  )
+
+  const retryIntegration = useCallback(
+    async (integration: ProcessIntegrationMode) => {
+      if (!runId) return
+      const { data } = await retryProcessRunIntegration({
         path: { runId },
-        body: { choice, ...(note ? { note } : {}) },
+        body: { integration },
         throwOnError: true,
       })
       setRun(data as ProcessRun)
@@ -94,8 +128,13 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
 
   const cancel = useCallback(async () => {
     if (!runId) return
-    const { data } = await cancelProcessRun({ path: { runId }, throwOnError: true })
-    setRun(data as ProcessRun)
+    setActionError(null)
+    try {
+      const { data } = await cancelProcessRun({ path: { runId }, throwOnError: true })
+      setRun(data as ProcessRun)
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The run could not be stopped.'))
+    }
   }, [runId])
 
   const listBranches = useCallback(async (): Promise<ProcessRunBranch[]> => {
@@ -118,7 +157,29 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   )
 
   return useMemo<UseProcessRun>(
-    () => ({ isLoaded, loadError, run, refresh, resume, cancel, listBranches, deleteRun }),
-    [isLoaded, loadError, run, refresh, resume, cancel, listBranches, deleteRun],
+    () => ({
+      isLoaded,
+      loadError,
+      actionError,
+      run,
+      refresh,
+      resume,
+      retryIntegration,
+      cancel,
+      listBranches,
+      deleteRun,
+    }),
+    [
+      isLoaded,
+      loadError,
+      actionError,
+      run,
+      refresh,
+      resume,
+      retryIntegration,
+      cancel,
+      listBranches,
+      deleteRun,
+    ],
   )
 }

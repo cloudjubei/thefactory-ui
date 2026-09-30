@@ -21,6 +21,7 @@ import {
   processNodeGlyph,
   formatProcessDuration,
   processIterationBadge,
+  processLoopSenders,
   processRunBadge,
   processRunCardView,
   hasIsolatedAttempts,
@@ -658,6 +659,7 @@ describe('processNodeLook', () => {
 
 describe('processNodeBadge and processNodeSummary — a requeued step', () => {
   const plan = {
+    steps: [{ id: 'implement' }, { id: 'verify' }],
     loops: [
       {
         id: 'fix',
@@ -671,6 +673,8 @@ describe('processNodeBadge and processNodeSummary — a requeued step', () => {
   const verify = (
     over: Partial<{ attempts: number; requeued: boolean; outcome: ProcessStepOutcome }>,
   ) => ({
+    step: { id: 'verify' },
+    entries: [],
     attempts: over.attempts ?? 3,
     requeued: over.requeued ?? true,
     ...(over.outcome ? { outcome: over.outcome } : {}),
@@ -716,24 +720,153 @@ describe('formatProcessDuration', () => {
 
 describe('processIterationBadge', () => {
   const plan = {
+    steps: [{ id: 'i' }, { id: 'v' }, { id: 'r' }],
     loops: [
       { id: 'fix', from: 'v', to: 'i', when: ['failed'] as ProcessStepOutcome[], maxIterations: 3 },
     ],
   }
   it('says nothing on the first pass — a "1 of 3" on every step is noise', () => {
-    expect(processIterationBadge(1, { plan })).toBeUndefined()
+    expect(processIterationBadge(1, 'v', { plan })).toBeUndefined()
   })
   it('names the attempt and the cap once a loop has fired', () => {
-    expect(processIterationBadge(2, { plan })).toBe('attempt 2 of 3')
+    expect(processIterationBadge(2, 'v', { plan })).toBe('attempt 2 of 3')
   })
   it('drops the cap when the plan does not loop', () => {
-    expect(processIterationBadge(2, { plan: { loops: [] } })).toBe('attempt 2')
+    expect(processIterationBadge(2, 'v', { plan: { steps: plan.steps, loops: [] } })).toBe(
+      'attempt 2',
+    )
+  })
+  it('drops the cap on a step no loop goes back over', () => {
+    expect(processIterationBadge(2, 'r', { plan })).toBe('attempt 2')
   })
   it('counts the attempts the user granted at an exhausted loop into the cap', () => {
-    expect(processIterationBadge(4, { plan, iterationGrants: { fix: 1 } })).toBe('attempt 4 of 4')
+    expect(processIterationBadge(4, 'v', { plan, iterationGrants: { fix: 1 } })).toBe(
+      'attempt 4 of 4',
+    )
   })
   it('ignores a grant for a loop the plan does not have', () => {
-    expect(processIterationBadge(2, { plan, iterationGrants: { other: 5 } })).toBe('attempt 2 of 3')
+    expect(processIterationBadge(2, 'v', { plan, iterationGrants: { other: 5 } })).toBe(
+      'attempt 2 of 3',
+    )
+  })
+
+  describe('a step two loops go back over — a feature reviewed before it is verified', () => {
+    const feature = {
+      steps: [{ id: 'implement' }, { id: 'code-review' }, { id: 'verify' }, { id: 'report' }],
+      loops: [
+        {
+          id: 'review-fix',
+          from: 'code-review',
+          to: 'implement',
+          when: ['failed'] as ProcessStepOutcome[],
+          maxIterations: 3,
+        },
+        {
+          id: 'fix',
+          from: 'verify',
+          to: 'implement',
+          when: ['failed'] as ProcessStepOutcome[],
+          maxIterations: 3,
+        },
+      ],
+    }
+    it('caps a step both loops re-run at every pass either can send back', () => {
+      expect(processIterationBadge(4, 'implement', { plan: feature })).toBe('attempt 4 of 5')
+      expect(processIterationBadge(4, 'code-review', { plan: feature })).toBe('attempt 4 of 5')
+    })
+    it('caps a step only one loop re-runs at that loop’s passes', () => {
+      expect(processIterationBadge(2, 'verify', { plan: feature })).toBe('attempt 2 of 3')
+    })
+    it('adds each loop’s grants only to the steps it goes back over', () => {
+      const run = { plan: feature, iterationGrants: { 'review-fix': 2 } }
+      expect(processIterationBadge(6, 'implement', run)).toBe('attempt 6 of 7')
+      expect(processIterationBadge(2, 'verify', run)).toBe('attempt 2 of 3')
+    })
+  })
+})
+
+describe('processNodeBadge — a step that runs only when work is sent back to it', () => {
+  const plan = {
+    steps: [
+      { id: 'features', name: 'Features' },
+      { id: 'fix', name: 'Fix', onlyWhenSentBack: true },
+      { id: 'code-review', name: 'Code review' },
+      { id: 'sign-off', name: 'Sign-off' },
+    ],
+    loops: [
+      {
+        id: 'auto-fix',
+        from: 'code-review',
+        to: 'fix',
+        when: ['failed'] as ProcessStepOutcome[],
+        maxIterations: 3,
+      },
+      {
+        id: 'fix-findings',
+        from: 'sign-off',
+        to: 'fix',
+        when: ['failed'] as ProcessStepOutcome[],
+        maxIterations: 3,
+      },
+    ],
+  }
+  const passedThrough = { outcome: 'skipped' as const }
+  const sentBack = (loop: string) => ({ viaLoopId: loop })
+  const fix = (entries: { viaLoopId?: string; outcome?: ProcessStepOutcome }[]) => ({
+    step: { id: 'fix', onlyWhenSentBack: true },
+    attempts: entries.length,
+    requeued: false,
+    entries,
+  })
+
+  it('does not count the time it was only passed through', () => {
+    expect(processNodeBadge(fix([passedThrough, sentBack('auto-fix')]), { plan })).toBeUndefined()
+  })
+  it('counts the passes a send-back ran, capped at the passes its loops allow', () => {
+    expect(
+      processNodeBadge(fix([passedThrough, sentBack('auto-fix'), sentBack('fix-findings')]), {
+        plan,
+      }),
+    ).toBe('attempt 2 of 4')
+  })
+})
+
+describe('processLoopSenders', () => {
+  const plan = (loops: { id: string; from: string }[]) => ({
+    steps: [
+      { id: 'implement', name: 'Implement' },
+      { id: 'code-review', name: 'Code review' },
+      { id: 'verify', name: 'Verify' },
+    ],
+    loops: loops.map((l) => ({
+      ...l,
+      to: 'implement',
+      when: ['failed'] as ProcessStepOutcome[],
+      maxIterations: 3,
+    })),
+  })
+  const both = plan([
+    { id: 'fix', from: 'verify' },
+    { id: 'review-fix', from: 'code-review' },
+  ])
+
+  it('says nothing while no loop has fired', () => {
+    expect(processLoopSenders({ plan: both, loopCounts: {} })).toBeUndefined()
+    expect(processLoopSenders({ plan: both, loopCounts: { fix: 0 } })).toBeUndefined()
+  })
+  it('names the code review when it is what sent the work back', () => {
+    expect(processLoopSenders({ plan: both, loopCounts: { 'review-fix': 1 } })).toBe('Code review')
+  })
+  it('names the verify when it is what sent the work back', () => {
+    expect(processLoopSenders({ plan: both, loopCounts: { fix: 2 } })).toBe('Verify')
+  })
+  it('names every step that sent it back, in plan order', () => {
+    expect(processLoopSenders({ plan: both, loopCounts: { fix: 1, 'review-fix': 1 } })).toBe(
+      'Code review and Verify',
+    )
+  })
+  it('ignores a count for a loop the plan does not have', () => {
+    expect(processLoopSenders({ plan: both, loopCounts: { gone: 3 } })).toBeUndefined()
   })
 })
 
@@ -754,6 +887,28 @@ describe('processRunBadge', () => {
   })
   it('falls through to the plain status view when not parked', () => {
     expect(processRunBadge(run({ status: 'running' }))).toEqual(PROCESS_RUN_STATUS_VIEW.running)
+  })
+  it('says an approved run whose work did not land is not merged, not simply done', () => {
+    const r = run({
+      status: 'succeeded',
+      workBranch: { name: 'factory/x', baseRef: 'main', baseSha: 'a'.repeat(40) },
+      plan: {
+        ...run({}).plan,
+        steps: [...run({}).plan.steps, { id: 'g', name: 'G', kind: 'gate' }],
+      },
+      ledger: [
+        {
+          id: 'e',
+          stepId: 'g',
+          iteration: 1,
+          status: 'done',
+          startedAt: 0,
+          override: { choice: 'approve', at: 1, integration: 'merge' },
+        },
+      ],
+      integration: { mode: 'merge', status: 'failed', error: 'conflict', at: 2 },
+    })
+    expect(processRunBadge(r)).toEqual({ label: 'Approved — not merged', tone: 'on_hold' })
   })
 })
 

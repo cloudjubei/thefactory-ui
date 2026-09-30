@@ -69,18 +69,7 @@ function Frame({
   )
 }
 
-/**
- * Why a capture cannot be vouched for, in full, under what it did not count
- * for. Muted, not alarming: after a restart every earlier capture reads so.
- */
-function UnvouchedLine({ text }: { text: string | undefined }) {
-  return text ? <span className="text-[11px] text-(--text-muted)">{text}</span> : null
-}
-
-/**
- * A pair that did not count: small, muted, with its reason — secondary to the
- * proof — and, when a side cannot be vouched for, why.
- */
+/** A pair that did not count: small, muted, with its reason — secondary to the proof. */
 function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: string) => void }) {
   return (
     <button
@@ -117,7 +106,6 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
           />
           <span>{pair.verdict}</span>
         </span>
-        <UnvouchedLine text={pair.unvouched?.text} />
         <span className="text-[10.5px] text-(--text-muted)">
           {pair.change}
           {pair.sameScreen ? ` · ${pair.sameScreen}` : ''}
@@ -127,7 +115,7 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
   )
 }
 
-/** An after shown alone — no before of its subject, or a new screen that cannot be vouched for — with why, never as proof. */
+/** An after shown alone — no before of its subject — with why, never as proof. */
 function UnpairedAfter({
   item,
   onOpen,
@@ -164,7 +152,6 @@ function UnpairedAfter({
           />
           <span>{item.reason}</span>
         </span>
-        <UnvouchedLine text={item.unvouched?.text} />
       </span>
     </button>
   )
@@ -239,8 +226,7 @@ function Thumbnail({
  * per pair the proof rests on — then each screen the change adds — with a
  * Before/After toggle and a download for all of them. Everything that did not
  * count folds into one quiet line that opens the list, each with its reason,
- * so what was rejected is one click away without reading as proof. What the
- * gate counted but the backend can no longer vouch for is among it.
+ * so what was rejected is one click away without reading as proof.
  */
 export default function ProofScreens({
   view,

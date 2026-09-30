@@ -247,6 +247,20 @@ Three components, each with a `web/` + `native/` peer:
 - **`ProcessesView`** is the library screen. Web takes a `narrow` prop and
   collapses to one pane; native is always one pane.
 
+**Starting a story that has open work.** The launch preview carries the story's
+`openWork` (a run still going, parked, waiting at its sign-off, or finished and
+not merged). The launch `ApprovalPanel` then shows `OpenWorkChooser` (web +
+native): which run, where it stands, the warning for that state, and the three
+ways on — add to that run, a new process on its branch, a fresh branch (marked
+risky) — each with what it entails (`processOpenWorkView`). Start stays disabled
+until one is picked; the pick rides the decision as `{ openWork, runId, state }`
+(`processOpenWorkMetadata`). A CLI decision carries it as metadata; an API chat's
+resume sends it as `openWorkDecisions` keyed by the granted tool call
+(`openWorkDecisionOf`) — the only approval option an API run honours, because
+the choice is the person's and never the agent's. A run that took added work
+tags each added step "Added <date>" and lists what came in, and what it closed,
+set aside or reopened, above its pipeline (`processAmendmentView`).
+
 A park is answered with NAMED choices (`processParkChoices`), never a generic
 "resume": the reasons a run parks are not interchangeable — nothing was
 measured, the check said no, the retries ran out — and one button would hide
@@ -364,34 +378,20 @@ final report. The sections are bucketed once, headlessly (`signoffSections`,
 `signoffSectionProps` in `storySignoff.ts`), for both clients.
 
 An item the running backend cannot vouch for (`ReviewEvidenceRef.unvouchedReason`)
-lists with no build, device, screen or verdict. After any backend restart, every
-item filed before it lists this way. Every surface keeps the item's image and
-says why in place of what is missing (`evidenceUnvouched` in
-`headless/utils/reviewEvidenceView.ts`). The restart reason gets calm wording:
-filed before the backend last restarted, or edited since, so it doesn't count
-and the next verify run captures it again. Any other reason, such as a record
-or file changed on the host, is shown in the backend's own words, matched
-exactly against the tools' constants. When the two sides of a pair cannot be
-vouched for for different reasons, both are said, each naming its side, and the
-restart wording never stands for a side whose file or record changed
-(`pairUnvouched`). The chat row of a `recordReviewEvidence` call says it too,
-beside the filed image (`recordedEvidenceUnvouched`). A pair or new screen the
-gate counted but cannot now be vouched for is listed first under what did not
-count, marked "the gate counted this when it ran". It is never shown as showing
-the change. When nothing a proof rested on can still be vouched for, three
-places say so: the proof banner and its collapsed chip
-(`VerifyProofHeader.unvouched`), and the story notice. A reviewer verdict the
-backend dropped is noted instead of vanishing, and an older verdict is never
-shown as the conclusion once a filing at least as new lost its own
-(`reviewerVerdict`). The check chips (`checkMethodRows`) count such filings apart
-(`CheckMethodRow.unvouched`) and never as proof. They read as needing to be
-captured again, never as "never ran" — but what a chip offers stays what the
-host can do with nothing filed: the switch when the project withholds the
-capture, the set-up (with the host's install hints) when the toolchain is
-missing, never a capture that would be refused. A read-only record — the story
-sign-off, a report-only panel — passes no action host to `CheckChipRow` or
-`ChecksTab`, so its chips and check blocks offer only the proof
-(`checkActionOffer`), never a button that does nothing.
+is shown and counted as ordinary filed evidence. Seals are per backend process,
+so after any restart every earlier item carries a reason — noise to a person
+reading a sign-off. The protection lives where it matters: the backend's verify
+gate refuses unsealed captures for new decisions, and decisions already made are
+read from the process run ledger. No surface names the reason: captures, pairs,
+recordings and reports render as they would without it, pairs the gate counted
+render as counted, and such filings count toward their check chip
+(`checkMethodRows`) like any other. One rule stays, silently: a filing that lost
+its verdict and is at least as new keeps an older verdict from being read as the
+conclusion (`reviewerVerdict`, `codeReviewVerdict` read `none`).
+
+A read-only record — the story sign-off, a report-only panel — passes no action
+host to `CheckChipRow` or `ChecksTab`, so its chips and check blocks offer only
+the proof (`checkActionOffer`), never a button that does nothing.
 
 ### Project notes & secrets
 

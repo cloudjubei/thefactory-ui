@@ -74,13 +74,7 @@ function Frame({
   )
 }
 
-/** Why a capture cannot be vouched for, in full — see the web peer. */
-function UnvouchedLine({ text }: { text: string | undefined }) {
-  const { theme } = useNativeTheme()
-  return text ? <Text style={{ fontSize: 11, color: theme.text.muted }}>{text}</Text> : null
-}
-
-/** A pair that did not count — small, muted, with its reason and why a side cannot be vouched for. See the web peer. */
+/** A pair that did not count — small, muted, with its reason. See the web peer. */
 function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: string) => void }) {
   const { theme } = useNativeTheme()
   return (
@@ -126,7 +120,6 @@ function UncountedPair({ pair, onOpen }: { pair: ProofPairView; onOpen: (key: st
             {pair.verdict}
           </Text>
         </View>
-        <UnvouchedLine text={pair.unvouched?.text} />
         <Text style={{ fontSize: 10.5, color: theme.text.muted }}>
           {pair.sameScreen ? `${pair.change} · ${pair.sameScreen}` : pair.change}
         </Text>
@@ -186,7 +179,6 @@ function UnpairedAfter({
             {item.reason}
           </Text>
         </View>
-        <UnvouchedLine text={item.unvouched?.text} />
       </View>
     </Pressable>
   )

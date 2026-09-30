@@ -160,32 +160,14 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
   )
 }
 
-function UnvouchedNote({ text }: { text: string }) {
-  const { theme } = useNativeTheme()
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-      <IconInfo size={14} color={theme.text.muted} />
-      <Text style={{ flex: 1, fontSize: 12, color: theme.text.primary }}>{text}</Text>
-    </View>
-  )
-}
-
 /**
  * What data a verification ran on, said before anything else it shows — the
  * native peer of the web `ProofBanner`. A dry attempt is one quiet line whose
- * detail folds open; a live or unstated one keeps its banner. A proof the
- * backend can no longer vouch for any of says so.
+ * detail folds open; a live or unstated one keeps its banner.
  */
 export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
   const { theme, status } = useNativeTheme()
-  if (header.dry) {
-    return (
-      <View style={{ gap: 6 }}>
-        <DryProofLine dry={header.dry} />
-        {header.unvouched ? <UnvouchedNote text={header.unvouched.text} /> : null}
-      </View>
-    )
-  }
+  if (header.dry) return <DryProofLine dry={header.dry} />
   const tone = status[header.tone]
   const titleColor = header.tone === 'empty' ? theme.text.primary : tone.softFg
   const Icon = ICON[header.mode]
@@ -208,7 +190,6 @@ export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
       <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: titleColor }}>{header.title}</Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{header.detail}</Text>
-        {header.unvouched ? <UnvouchedNote text={header.unvouched.text} /> : null}
         <ProofBuildLine header={header} />
       </View>
     </View>

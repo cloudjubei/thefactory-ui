@@ -309,6 +309,11 @@ export type WebSearchApiKeys = {
   [key: string]: string
 }
 
+export type GitWorkBranch = {
+  name: string
+  baseSha: string
+}
+
 export type AgentRunParams = {
   agentType: AgentRunType
   chatContext: ChatContextAgentRunStory | ChatContextAgentRunFeature
@@ -321,6 +326,11 @@ export type AgentRunParams = {
   proofRequired?: boolean
   note?: string
   seedFromRunId?: string
+  workBranch?: {
+    name: string
+    baseSha: string
+  }
+  commitMessage?: string
 }
 
 export type PreviewToolNotSupportedResult = {
@@ -1814,6 +1824,11 @@ export type ProjectDataRoot =
       repoPath: string
     }
 
+export type ProjectRegistryMetadata = {
+  githubCredentialsId?: string
+  [key: string]: unknown
+}
+
 export type ProjectRegistryEntry = {
   id: string
   path: string
@@ -1827,6 +1842,7 @@ export type ProjectRegistryEntry = {
         repoPath: string
       }
   metadata?: {
+    githubCredentialsId?: string
     [key: string]: unknown
   }
   createdAt: string
@@ -2526,6 +2542,7 @@ export type CliRunReview = {
   baseSha: string
   headSha?: string
   seamSha?: string
+  carriedSeamSha?: string
   seamError?: string
   landedAt?: number
   reviewRunId?: string
@@ -2627,6 +2644,7 @@ export type CliRun = {
     baseSha: string
     headSha?: string
     seamSha?: string
+    carriedSeamSha?: string
     seamError?: string
     landedAt?: number
     reviewRunId?: string
@@ -2669,6 +2687,15 @@ export type CliRun = {
     summary?: string
     filesReviewed?: number
   }
+}
+
+export type CliRunArtifactCommit = {
+  baseSha: string
+  headSha?: string
+  seamSha?: string
+  seamError?: string
+  empty?: true
+  error?: string
 }
 
 export type CliRunFailure = {
@@ -2791,6 +2818,11 @@ export type PrepareIsolatedChatWorkspaceInput = {
   chatContextId: string
 }
 
+export type GitIdentity = {
+  name: string
+  email: string
+}
+
 export type FinalizeIsolatedChatTurnInput = {
   workspaceDir: string
   baseline: DirSnapshot
@@ -2800,6 +2832,10 @@ export type FinalizeIsolatedChatTurnInput = {
   repoPath: string
   chatContextId: string
   prompt?: string
+  identity?: {
+    name: string
+    email: string
+  }
 }
 
 export type ClaudeCodeInitMetadata = {
@@ -3138,6 +3174,7 @@ export type CliRunApproveResult = {
       baseSha: string
       headSha?: string
       seamSha?: string
+      carriedSeamSha?: string
       seamError?: string
       landedAt?: number
       reviewRunId?: string
@@ -3193,9 +3230,21 @@ export type ReplaceReviewTestSeamInput = {
   repoPath: string
   description: string
   files: Array<TestSeamFile>
+  identity?: {
+    name: string
+    email: string
+  }
 }
 
-export type ReplaceReviewTestSeamResult =
+export type AppendReviewTestSeamInput = {
+  runId: string
+  repoPath: string
+  workBranch: GitWorkBranch
+  description: string
+  files: Array<TestSeamFile>
+}
+
+export type ReviewTestSeamResult =
   | {
       ok: true
       review: CliRunReview
@@ -4972,6 +5021,27 @@ export type FlowRunPatch = {
   error?: string
 }
 
+export type AzureDevOpsRepository = {
+  organization: string
+  project: string
+  repository: string
+}
+
+export type CreateAzureDevOpsPullRequestInput = {
+  repository: AzureDevOpsRepository
+  sourceBranch: string
+  targetBranch: string
+  title: string
+  description: string
+  token: string
+  fetchImpl?: unknown
+}
+
+export type AzureDevOpsPullRequest = {
+  pullRequestId: number
+  url: string
+}
+
 export type GitExecResult = {
   code: number
   stdout: string
@@ -5042,11 +5112,6 @@ export type GitFeatureInfoResolverContext = {
   message?: string
   branch?: string
   repoRoot?: string
-}
-
-export type GitIdentity = {
-  name: string
-  email: string
 }
 
 export type GitFileStatus = 'A' | 'M' | 'D' | 'R' | 'C' | 'T' | 'U' | '?' | '!' | 'X'
@@ -5180,6 +5245,60 @@ export type GitApplyMergeOptions = {
   includeUntrackedInStash?: boolean
   confirmWhenDirty?: boolean
   dryRun?: boolean
+  identity?: {
+    name: string
+    email: string
+  }
+  squash?: boolean
+  fastForwardOnly?: boolean
+  message?: string
+}
+
+export type GitReplayedCommit = {
+  sha: string
+  subject: string
+  replayedSha?: string
+}
+
+export type GitReplayCommitRangeOptions = {
+  repoPath: string
+  onto: string
+  from: string
+  to: string
+  identity?: {
+    name: string
+    email: string
+  }
+  skipSubjectPrefix?: string
+}
+
+export type GitReplayCommitRangeResult =
+  | {
+      ok: true
+      head: string
+      commits: Array<GitReplayedCommit>
+    }
+  | {
+      ok: false
+      error: string
+      conflicts?: Array<string>
+    }
+
+export type GitFastForwardBranchOptions = {
+  repoPath: string
+  branch: string
+  from: string
+  to: string
+}
+
+export type GitPushRefWithCredentialOptions = {
+  repoPath: string
+  remoteUrl: string
+  username: string
+  token: string
+  source: string
+  branch: string
+  timeoutMs?: number
 }
 
 export type GitBuildMergeReportOptions = {
@@ -6766,6 +6885,7 @@ export type ProjectSpecCreateInput = {
   repo_url: string
 } & {
   metadata?: {
+    githubCredentialsId?: string
     [key: string]: unknown
   }
   active?: boolean
@@ -6821,6 +6941,7 @@ export type ProjectSpecEditInput = {
   repo_url?: string
 } & {
   metadata?: {
+    githubCredentialsId?: string
     [key: string]: unknown
   }
   active?: boolean
@@ -9063,6 +9184,7 @@ export type FeatureTransitionEvent =
   | 'signed-off'
   | 'not-accepted'
   | 'process-deleted'
+  | 'reopened'
 
 export type FeatureTransitionOptions = {
   note?: string
@@ -9397,6 +9519,7 @@ export type ToolName =
   | 'deleteCliAgentRun'
   | 'linkReviewRun'
   | 'replaceReviewTestSeam'
+  | 'appendReviewTestSeam'
   | 'recycleCliAgentSessions'
   | 'listCliAgentRuns'
   | 'getCliAgentRunSubscriptionStatus'
@@ -10323,6 +10446,7 @@ export type ProcessStep = {
   agentType?: string
   processId?: string
   expand?: 'features'
+  onlyWhenSentBack?: boolean
 }
 
 export type ProcessLoop = {
@@ -10365,10 +10489,67 @@ export type ProcessPlanStep = {
   agentType?: string
   processId?: string
   expand?: 'features'
+  onlyWhenSentBack?: boolean
   subject?: {
     kind: 'feature'
     id: string
     title: string
+  }
+}
+
+export type ProcessIntegrationMode = 'merge' | 'squash' | 'pull-request'
+
+export type ProcessRunIntegration = {
+  mode: ProcessIntegrationMode
+  status: 'integrating' | 'integrated' | 'failed'
+  sha?: string
+  pullRequestUrl?: string
+  compareUrl?: string
+  branch?: string
+  error?: string
+  at: number
+}
+
+export type ProcessRunReopening = {
+  status: 'succeeded' | 'failed'
+  endedAt?: number
+  error?: string
+  approvalEntryId?: string
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'failed'
+    sha?: string
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    at: number
+  }
+}
+
+export type ProcessPlanAmendment = {
+  at: number
+  stepIds: Array<string>
+  afterStepId: string
+  closedEntryId?: string
+  reopened?: {
+    status: 'succeeded' | 'failed'
+    endedAt?: number
+    error?: string
+    approvalEntryId?: string
+    integration?: {
+      mode: ProcessIntegrationMode
+      status: 'integrating' | 'integrated' | 'failed'
+      sha?: string
+      pullRequestUrl?: string
+      compareUrl?: string
+      branch?: string
+      error?: string
+      at: number
+    }
+  }
+  loopCountsReset?: {
+    [key: string]: number
   }
 }
 
@@ -10380,6 +10561,38 @@ export type ProcessPlan = {
   steps: Array<ProcessPlanStep>
   loops: Array<ProcessLoop>
   frozenAt: number
+  amendments?: Array<ProcessPlanAmendment>
+}
+
+export type ExtendProcessRunOptions = {
+  reopen?: boolean
+}
+
+export type ProcessOpenWorkState = 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+
+export type ProcessOpenWorkChoice = 'extend' | 'new-on-branch' | 'fresh'
+
+export type ProcessOpenWorkOption = {
+  choice: ProcessOpenWorkChoice
+  available: boolean
+  reason?: string
+}
+
+export type ProcessOpenWork = {
+  runId: string
+  state: ProcessOpenWorkState
+  title: string
+  branch?: string
+  features: Array<ProcessSubject>
+  newFeatures: Array<ProcessSubject>
+  options: Array<ProcessOpenWorkOption>
+  startedAt: number
+}
+
+export type ProcessOpenWorkDecision = {
+  openWork: ProcessOpenWorkChoice
+  runId: string
+  state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
 }
 
 export type ProcessBudget = {
@@ -10517,6 +10730,7 @@ export type ProcessLedgerEntry = {
     choice: ProcessResumeChoice
     at: number
     note?: string
+    integration?: 'merge' | 'squash' | 'pull-request'
   }
   proof?: {
     baseSha?: string
@@ -10547,6 +10761,58 @@ export type ProcessLedgerEntry = {
   startedAt: number
   endedAt?: number
   suspendedMs?: number
+}
+
+export type ProcessWorkBranchStack = {
+  runId: string
+  branch: string
+}
+
+export type ProcessWorkBranch = {
+  name: string
+  baseSha: string
+  baseRef: string
+  stackedOn?: {
+    runId: string
+    branch: string
+  }
+}
+
+export type ProcessIntegrationOutcome = {
+  status: 'integrated' | 'failed'
+  sha?: string
+  pullRequestUrl?: string
+  compareUrl?: string
+  branch?: string
+  error?: string
+}
+
+export type ProcessWorkBranchReplay = {
+  sha: string
+  commits: Array<GitReplayedCommit>
+}
+
+export type IntegrateProcessWorkBranchInput = {
+  workBranch: ProcessWorkBranch
+  mode: 'merge' | 'squash'
+  identity?: {
+    name: string
+    email: string
+  }
+  message: string
+  onto?: string
+}
+
+export type PushProcessWorkBranchInput = {
+  workBranch: ProcessWorkBranch
+  identity?: {
+    name: string
+    email: string
+  }
+  remoteUrl: string
+  username: string
+  token: string
+  onto?: string
 }
 
 export type ProcessAttemptTotals = {
@@ -10594,6 +10860,25 @@ export type ProcessRun = {
   title: string
   input?: {
     [key: string]: unknown
+  }
+  workBranch?: {
+    name: string
+    baseSha: string
+    baseRef: string
+    stackedOn?: {
+      runId: string
+      branch: string
+    }
+  }
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'failed'
+    sha?: string
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    at: number
   }
   plan: ProcessPlan
   status: ProcessRunStatus
@@ -10758,6 +11043,15 @@ export type StartProcessRunInput = {
   input?: {
     [key: string]: unknown
   }
+  workBranch?: {
+    name: string
+    baseSha: string
+    baseRef: string
+    stackedOn?: {
+      runId: string
+      branch: string
+    }
+  }
   budget?: {
     spendUsdCap?: number
     wallClockMs?: number
@@ -10807,6 +11101,7 @@ export type ProcessStepState = {
       choice: ProcessResumeChoice
       at: number
       note?: string
+      integration?: 'merge' | 'squash' | 'pull-request'
     }
     proof?: {
       baseSha?: string
@@ -12832,6 +13127,16 @@ export type PreviewProcessResponses = {
       children?: Array<unknown>
       maxIterations?: number
     }>
+    openWork?: {
+      runId: string
+      state: ProcessOpenWorkState
+      title: string
+      branch?: string
+      features: Array<ProcessSubject>
+      newFeatures: Array<ProcessSubject>
+      options: Array<ProcessOpenWorkOption>
+      startedAt: number
+    }
   }
 }
 
@@ -13080,6 +13385,7 @@ export type ResumeProcessRunData = {
   body: {
     choice: 'continue' | 'retry' | 'abandon' | 'approve' | 'request-changes' | 'reject'
     note?: string
+    integration?: 'merge' | 'squash' | 'pull-request'
   }
   path: {
     runId: string
@@ -13117,6 +13423,49 @@ export type ResumeProcessRunResponses = {
 }
 
 export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
+
+export type RetryProcessRunIntegrationData = {
+  body: {
+    integration: ProcessIntegrationMode
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/integrate'
+}
+
+export type RetryProcessRunIntegrationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RetryProcessRunIntegrationError =
+  RetryProcessRunIntegrationErrors[keyof RetryProcessRunIntegrationErrors]
+
+export type RetryProcessRunIntegrationResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type RetryProcessRunIntegrationResponse =
+  RetryProcessRunIntegrationResponses[keyof RetryProcessRunIntegrationResponses]
 
 export type CancelProcessRunData = {
   body?: never
@@ -18600,6 +18949,9 @@ export type ResumeCompletionData = {
     }
     settings: CompletionSettings
     toolsGranted: Array<string>
+    openWorkDecisions?: {
+      [key: string]: ProcessOpenWorkDecision
+    }
   }
   path?: never
   query?: never
@@ -19988,7 +20340,6 @@ export type StartAgentRunData = {
             featureId: string
           }
       llmConfig: LlmConfig
-      githubCredentials: GithubCredentials
       webSearchApiKeys?: {
         [key: string]: string
       }
@@ -20015,6 +20366,14 @@ export type StartAgentRunData = {
 }
 
 export type StartAgentRunErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */

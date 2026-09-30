@@ -12,7 +12,6 @@ import {
 } from '../api/generated'
 import { agentRunLlmConfig } from '../utils/llmConfigBilling'
 import { useChats } from './createChatsContext'
-import { useGitCredentials } from './GitCredentialsContext'
 import { useLLMConfigs } from './LLMConfigsContext'
 import { useWebSearchKeys } from './WebSearchKeysContext'
 
@@ -61,7 +60,8 @@ export type AgentsContextValue = {
 
   /**
    * Start an agent run for the given target. Resolves to the new agentRunId.
-   * Throws if an LLM config or git credentials are missing.
+   * Throws if an LLM config is missing, or when the backend refuses — e.g. the
+   * project has no git credential (the backend resolves it; none is sent).
    */
   startAgent: (params: {
     agentType: AgentType
@@ -100,7 +100,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
     activeRunnerKind,
     activeAgentRunCliModel,
   } = useLLMConfigs()
-  const { credentials } = useGitCredentials()
   const { keys } = useWebSearchKeys()
   const webSearchKeys = keys
 
@@ -134,9 +133,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
           )
         }
       }
-      const cred = credentials[0]
-      if (!cred) throw new Error('Add git credentials before starting an agent run.')
-
       const agentRunId = `${Date.now()}`
       const chatContext: ChatCtx = featureId
         ? { type: 'AGENT_RUN_FEATURE', projectId, storyId, featureId, agentRunId }
@@ -146,12 +142,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
         agentType,
         chatContext: chatContext as StartAgentRunData['body']['params']['chatContext'],
         llmConfig: agentRunLlmConfig(llmConfig),
-        githubCredentials: {
-          name: cred.name,
-          username: cred.username,
-          email: cred.email,
-          token: cred.token,
-        },
         webSearchApiKeys: webSearchKeys.length
           ? Object.fromEntries(webSearchKeys.map((k) => [k.provider, k.apiKey]))
           : undefined,
@@ -195,7 +185,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       activeAgentRunConfig,
       activeRunnerKind,
       activeAgentRunCliModel,
-      credentials,
       webSearchKeys,
       refreshChats,
     ],

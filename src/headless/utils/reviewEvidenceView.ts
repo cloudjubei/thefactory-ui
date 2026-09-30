@@ -1,3 +1,5 @@
+import { CAPTURE_RECORD_NOT_THE_TOOLS_REASON } from 'thefactory-tools/constants'
+
 import type { ReviewEvidenceRef } from '../api/generated'
 import {
   ELSEWHERE_REPORT_AUTHORS,
@@ -7,16 +9,10 @@ import {
   STEP_REPORT_AUTHORS,
   SCREEN_PAIR_FACT,
   SCREEN_PAIR_META,
-  SCREEN_PAIR_UNVOUCHED_META,
-  UNVOUCHED_CAUSE_BY_REASON,
-  UNVOUCHED_LABEL,
-  UNVOUCHED_RESTART_TEXT,
-  UNVOUCHED_SIDE_LEAD,
 } from './reviewEvidenceViewConstants'
 import type {
   EvidenceGroup,
   EvidenceTile,
-  EvidenceUnvouched,
   EvidenceViewerImage,
   EvidenceWindow,
   ReportAuthor,
@@ -56,71 +52,9 @@ function captionFor(ref: ReviewEvidenceRef): string {
   return ref.kind
 }
 
-/**
- * Why the running backend cannot vouch for an item, worded for a reviewer — or
- * `undefined` when it can.
- *
- * The restart reason gets the calm wording: after any restart every earlier
- * item reads that way, and it only needs capturing again. Any other reason —
- * a record or file changed on the host, or one this client does not know — is
- * shown in the backend's own words, so a forged record is never explained away
- * as a restart. Pure.
- */
-export function evidenceUnvouched(ref: {
-  kind: string
-  unvouchedReason?: string
-}): EvidenceUnvouched | undefined {
-  const reason = ref.unvouchedReason?.trim()
-  if (!reason) return undefined
-  const cause = UNVOUCHED_CAUSE_BY_REASON.get(reason) ?? 'other'
-  const captured = ref.kind === 'screenshot' || ref.kind === 'recording'
-  return {
-    cause,
-    label: UNVOUCHED_LABEL,
-    text: cause === 'restart' ? UNVOUCHED_RESTART_TEXT[captured ? 'capture' : 'filing'] : reason,
-  }
-}
-
-/**
- * Why a filing the `recordReviewEvidence` tool returned cannot be vouched for,
- * read from the tool's raw result — or `undefined` when it can, or the result
- * is no filing. The chat row shows the filed image beside the call; without
- * this it presented a capture that never counts as if it did. Pure.
- */
-export function recordedEvidenceUnvouched(result: unknown): EvidenceUnvouched | undefined {
-  if (typeof result !== 'object' || result === null) return undefined
-  const { kind, unvouchedReason } = result as Record<string, unknown>
-  if (typeof unvouchedReason !== 'string') return undefined
-  return evidenceUnvouched({ kind: typeof kind === 'string' ? kind : '', unvouchedReason })
-}
-
 /** Wrap a ref for rendering, without loading anything yet. */
 export function toEvidenceTile(ref: ReviewEvidenceRef): EvidenceTile {
-  const unvouched = evidenceUnvouched(ref)
-  return { ref, caption: captionFor(ref), ...(unvouched ? { unvouched } : {}) }
-}
-
-/**
- * Why a pair cannot be vouched for, or `undefined` when both sides can.
- *
- * One side's reason, or the one both share, stands as it is. Two different
- * reasons are both said, each naming its side: keeping only one let an after
- * filed before a restart speak for a before whose file was changed, in the calm
- * restart wording. The cause is the one that is not a restart — the after's
- * when neither is — so nothing downstream reads the pair as a restart alone.
- */
-export function pairUnvouched(pair: {
-  before?: Pick<EvidenceTile, 'unvouched'>
-  after?: Pick<EvidenceTile, 'unvouched'>
-}): EvidenceUnvouched | undefined {
-  const before = pair.before?.unvouched
-  const after = pair.after?.unvouched
-  if (!before || !after || before.text === after.text) return after ?? before
-  return {
-    cause: after.cause === 'restart' ? before.cause : after.cause,
-    label: after.label,
-    text: `${UNVOUCHED_SIDE_LEAD.before} ${before.text} ${UNVOUCHED_SIDE_LEAD.after} ${after.text}`,
-  }
+  return { ref, caption: captionFor(ref) }
 }
 
 /**
@@ -213,14 +147,12 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
     const before = group.before && isViewableImage(group.before.ref) ? group.before : undefined
     const after = group.after && isViewableImage(group.after.ref) ? group.after : undefined
     if (before || after) {
-      const unvouched = pairUnvouched({ before, after })
       raw.push({
         key: group.key,
         title: group.title,
         class: before && after ? 'pair' : after ? 'new' : 'removed',
         ...(before ? { before } : {}),
         ...(after ? { after } : {}),
-        ...(unvouched ? { unvouched } : {}),
       })
       timed.push(earliestCreatedAt({ ...group, singles: [] }))
     }
@@ -231,7 +163,6 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
         title: single.caption,
         class: 'single',
         after: single,
-        ...(single.unvouched ? { unvouched: single.unvouched } : {}),
       })
       timed.push(single.ref.createdAt)
     }
@@ -245,27 +176,18 @@ export function screenPairs(groups: readonly EvidenceGroup[]): ScreenPair[] {
 /**
  * The line under a tile in the Screens strip. No conclusion while the capture
  * is still running — "only on the base" mid-capture is just an after that has
- * not landed yet — and a tile that cannot be vouched for says so in place of
- * what it would otherwise be claimed to show.
+ * not landed yet.
  */
 export function screenPairMeta(
-  pair: Pick<ScreenPair, 'class' | 'unvouched'>,
+  pair: Pick<ScreenPair, 'class'>,
   opts: { capturing: boolean },
 ): string {
-  if (opts.capturing) return SCREEN_PAIR_CAPTURING_META
-  return pair.unvouched ? SCREEN_PAIR_UNVOUCHED_META : SCREEN_PAIR_META[pair.class]
+  return opts.capturing ? SCREEN_PAIR_CAPTURING_META : SCREEN_PAIR_META[pair.class]
 }
 
-/**
- * What the comparison overlay says under an open pair: the gate's note, else
- * what the pair is — then, in full, why a side cannot be vouched for, since
- * its build marks and device caption are gone and would otherwise look lost.
- */
-export function comparisonPairFacts(
-  pair: Pick<ScreenPair, 'class' | 'note' | 'unvouched'>,
-): string[] {
-  const fact = pair.note ?? SCREEN_PAIR_FACT[pair.class]
-  return pair.unvouched ? [fact, pair.unvouched.text] : [fact]
+/** What the comparison overlay says under an open pair: the gate's note, else what the pair is. */
+export function comparisonPairFacts(pair: Pick<ScreenPair, 'class' | 'note'>): string[] {
+  return [pair.note ?? SCREEN_PAIR_FACT[pair.class]]
 }
 
 /**
@@ -401,9 +323,9 @@ export function runReports(tiles: readonly EvidenceTile[]): EvidenceTile[] {
  * with it. A capture whose own record was not the tool's is not one: its filing
  * is vouched for, and keeps any verdict.
  */
-function lostItsVerdict(ref: Pick<ReviewEvidenceRef, 'kind' | 'unvouchedReason'>): boolean {
-  const unvouched = evidenceUnvouched(ref)
-  return unvouched !== undefined && unvouched.cause !== 'capture-record'
+function lostItsVerdict(ref: Pick<ReviewEvidenceRef, 'unvouchedReason'>): boolean {
+  const reason = ref.unvouchedReason?.trim()
+  return reason !== undefined && reason !== '' && reason !== CAPTURE_RECORD_NOT_THE_TOOLS_REASON
 }
 
 type VerdictFiling = Pick<
@@ -413,9 +335,8 @@ type VerdictFiling = Pick<
 
 /**
  * The newest conclusion among these filings — unless a filing that lost its
- * verdict is at least as new: it may have carried the newer conclusion, and the
- * older one shown in its place read as the answer beside a gate that had failed
- * on the newer.
+ * verdict is at least as new: it may have carried the newer conclusion, so no
+ * older one stands as the answer and the reading is no conclusion.
  */
 function newestVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
   let newest: VerdictFiling | undefined
@@ -426,8 +347,7 @@ function newestVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
       newest = r
     }
   }
-  if (!newest) return { state: 'none' }
-  if (!newest.verdict) return { state: 'unvouched' }
+  if (!newest?.verdict) return { state: 'none' }
   const reason = newest.verdictReason?.trim()
   return { state: 'concluded', verdict: { verdict: newest.verdict, ...(reason ? { reason } : {}) } }
 }

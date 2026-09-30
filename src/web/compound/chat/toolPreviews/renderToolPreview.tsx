@@ -18,7 +18,6 @@ import {
   safePreviewString,
   tryString,
 } from '../../../../headless/utils/toolPreview'
-import { recordedEvidenceUnvouched } from '../../../../headless/utils/reviewEvidenceView'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
@@ -585,20 +584,17 @@ export function renderToolPreview({
     const subject = tryString(extract(result, ['subject'])) ?? tryString(extract(args, ['subject']))
     const errorText = tryString(extract(result, ['error']))
     const isImage = (tryString(extract(result, ['mediaType'])) ?? '').startsWith('image/')
-    const unvouched = recordedEvidenceUnvouched(result)
     return (
       <div className="text-xs space-y-2">
         <div className="flex flex-wrap gap-1">
           {kind ? <SmallBadge>{kind}</SmallBadge> : null}
           {phase ? <SmallBadge>{phase}</SmallBadge> : null}
           {subject ? <SmallBadge>{subject}</SmallBadge> : null}
-          {unvouched ? <SmallBadge>{unvouched.label}</SmallBadge> : null}
         </div>
         {label ? <div className="text-[11px] text-(--text-secondary)">{label}</div> : null}
         {evidenceId && isImage && hooks?.renderEvidenceImage
           ? hooks.renderEvidenceImage({ evidenceId, ...(label ? { label } : {}) })
           : null}
-        {unvouched ? <div className="text-[11px] text-(--text-muted)">{unvouched.text}</div> : null}
         {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
       </div>
     )

@@ -8,6 +8,7 @@ import {
   isCliActionUpdateEvent,
   isCliRunLifecycleEvent,
   isToolGrantAction,
+  openWorkDecisionOf,
   pendingActionToolName,
   pickActiveCliRunId,
   pickActiveStoryRunId,
@@ -368,5 +369,34 @@ describe('grantDecideErrorMessage', () => {
     expect(grantDecideErrorMessage('plain refusal')).toBe('plain refusal')
     expect(grantDecideErrorMessage(undefined)).toMatch(/could not be applied/)
     expect(grantDecideErrorMessage({})).toMatch(/could not be applied/)
+  })
+})
+
+describe('openWorkDecisionOf', () => {
+  it('reads the choice, the run and where it stood', () => {
+    expect(openWorkDecisionOf({ openWork: 'extend', runId: 'r1', state: 'unmerged' })).toEqual({
+      openWork: 'extend',
+      runId: 'r1',
+      state: 'unmerged',
+    })
+  })
+
+  it('leaves out a state it does not know', () => {
+    expect(openWorkDecisionOf({ openWork: 'fresh', runId: 'r1', state: 'odd' })).toEqual({
+      openWork: 'fresh',
+      runId: 'r1',
+    })
+  })
+
+  it('is nothing for metadata without a choice', () => {
+    expect(openWorkDecisionOf({ note: 'hi' })).toBeUndefined()
+  })
+
+  it('is nothing without the run the choice was about', () => {
+    expect(openWorkDecisionOf({ openWork: 'extend' })).toBeUndefined()
+  })
+
+  it('is nothing without metadata', () => {
+    expect(openWorkDecisionOf(undefined)).toBeUndefined()
   })
 })

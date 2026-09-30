@@ -685,6 +685,9 @@ import type {
   ResumeProcessRunData,
   ResumeProcessRunErrors,
   ResumeProcessRunResponses,
+  RetryProcessRunIntegrationData,
+  RetryProcessRunIntegrationErrors,
+  RetryProcessRunIntegrationResponses,
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
@@ -1500,6 +1503,24 @@ export const resumeProcessRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>(
+  options: Options<RetryProcessRunIntegrationData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RetryProcessRunIntegrationResponses,
+    RetryProcessRunIntegrationErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/integrate',
     ...options,
     headers: {
       'Content-Type': 'application/json',

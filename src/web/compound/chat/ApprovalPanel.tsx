@@ -16,10 +16,17 @@ import {
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
-import { featuresToWork, useProcessProposal, useProjectNotes, useStories } from '../../../headless'
-import type { PendingToolGrant } from '../../../headless'
+import {
+  featuresToWork,
+  processOpenWorkMetadata,
+  useProcessProposal,
+  useProjectNotes,
+  useStories,
+} from '../../../headless'
+import type { PendingToolGrant, ProcessOpenWorkChoice } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
+import OpenWorkChooser from './OpenWorkChooser'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -125,11 +132,26 @@ export default function ApprovalPanel({
   // The resolved plan the user reads before approving — the whole path the run
   // will take, per feature, not just the feature list. Fetched only for a launch
   // grant that names a story; a miss falls back to the plain feature list below.
-  const { proposal, refusal } = useProcessProposal({
+  const {
+    proposal,
+    refusal,
+    isLoaded: proposalLoaded,
+  } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
   })
   const proposalView = proposal ? processProposalView(proposal) : undefined
+  // The story's open work — a run still going, or finished and not merged. The
+  // launch waits for the person to choose how to proceed over it; the choice is
+  // theirs, carried on the decision on either transport.
+  const openWork = proposal?.openWork
+  const [openWorkChoice, setOpenWorkChoice] = useState<ProcessOpenWorkChoice | undefined>(undefined)
+  const openWorkMeta = openWork ? processOpenWorkMetadata(openWork, openWorkChoice) : undefined
+  // Until the preview has answered, whether the story has open work is unknown —
+  // a launch then would be refused for want of a choice nobody was shown.
+  const awaitingChoice =
+    (summary.storyId !== undefined && !proposalLoaded) ||
+    (openWork !== undefined && openWorkMeta === undefined)
 
   const decide = (decision: 'once' | 'deny' | 'permanent') => {
     setBusy(true)
@@ -150,6 +172,7 @@ export default function ApprovalPanel({
               ...(runModel ? { cliModel: runModel } : {}),
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
+              ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
             }
           : undefined,
       )
@@ -302,6 +325,15 @@ export default function ApprovalPanel({
           )}
         </div>
       )}
+
+      {openWork ? (
+        <OpenWorkChooser
+          openWork={openWork}
+          choice={openWorkChoice}
+          busy={busy}
+          onChoose={setOpenWorkChoice}
+        />
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         {renderModelChip ? (
@@ -478,9 +510,13 @@ export default function ApprovalPanel({
             onClick={() => decide('once')}
             loading={busy}
             // `features` is legitimately empty while the story loads.
-            disabled={refusal !== undefined || (story !== undefined && features.length === 0)}
+            disabled={
+              refusal !== undefined ||
+              awaitingChoice ||
+              (story !== undefined && features.length === 0)
+            }
           >
-            Start work
+            {openWorkChoice === 'extend' && openWorkMeta ? 'Add to that run' : 'Start work'}
           </Button>
         </Tooltip>
         <Tooltip

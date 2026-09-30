@@ -4,7 +4,7 @@ import type { ReviewEvidenceVerdict } from '../api/generated'
 import type { CheckMethodId, ReviewTabId } from './checkMethodTypes'
 import type { ProcessStatusTone, VerifyReviewStatus } from './processView'
 import type { ReportAuthor } from './reviewEvidenceViewTypes'
-import type { SignoffSection, StoryStepKey } from './storySignoffTypes'
+import type { FixSentBy, SignoffSection, StoryStepKey } from './storySignoffTypes'
 import type { VerifyVerdictNote } from './verifyProofTypes'
 
 /**
@@ -70,6 +70,36 @@ export const CODE_REVIEW_SUMMARY_VERDICTS: Record<string, ReviewEvidenceVerdict>
   'changes requested': 'changes-requested',
   rejected: 'rejected',
 }
+
+/** The role a code review step's run is named by among a section's agents. */
+export const CODE_REVIEWER_ROLE = 'code reviewer'
+
+/** The role that ran a story's fix — its fix passes' own, never the Overall's. */
+export const FIXER_ROLE = 'fixer'
+
+/** What a fix pass's section is keyed under, before its process run's id. */
+export const FIX_SECTION_PREFIX = 'fix:'
+
+/** A fix pass's section title: what sent the work back to it. */
+export const FIX_SENT_BY_TITLE: Record<FixSentBy, string> = {
+  'code-review': 'Sent back by the code review',
+  'sign-off': 'Requested by you at sign-off',
+}
+
+/** A fix pass's title when its story run's ledger does not say what sent it. */
+export const FIX_SENT_BY_UNKNOWN = 'Sent back to be fixed'
+
+/** What a fix pass's section says when nothing was filed for it. */
+export const FIX_EMPTY_LABEL = 'No screens, walkthroughs or reports were filed for this fix.'
+
+/** The note a fix pass's section leads with when a person wrote what to fix. */
+export const FIX_NOTE_LABEL = 'Your note'
+
+/** A feature's verdict detail when its code review turned the change back without saying why. */
+export const FEATURE_REVIEW_TURNED_BACK = 'The feature’s code review turned the change back.'
+
+/** A feature's verdict title when a person carried it on past its code review. */
+export const FEATURE_REVIEW_ACCEPTED_SUFFIX = ' — accepted by you'
 
 /** The story headline's detail when its code review turned the change back without saying why. */
 export const STORY_REVIEW_TURNED_BACK = 'The story’s code review turned the change back.'

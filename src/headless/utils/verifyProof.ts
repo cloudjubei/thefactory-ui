@@ -12,7 +12,6 @@
 import type {
   ProcessLedgerEntry,
   ProcessProofPair,
-  ProcessResumeChoice,
   ProcessStepOutcome,
   ProcessVerifyProof,
 } from 'thefactory-tools/types'
@@ -25,24 +24,22 @@ import {
   groupEvidence,
   isVerifierFiling,
   latestReport,
-  pairUnvouched,
   reviewerVerdict,
   screenPairs,
 } from './reviewEvidenceView'
 import { REVIEWER_VERDICT_LABEL } from './reviewEvidenceViewConstants'
-import type { EvidenceTile, EvidenceUnvouched, ScreenPair } from './reviewEvidenceViewTypes'
+import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import { runReviewFacts } from './runReview'
 import type { RunReviewFacts } from './runReviewTypes'
-import { UNVOUCHED_LABEL } from './reviewEvidenceViewConstants'
 import {
   ACCEPTED_BY_YOU,
+  ACCEPTING_CHOICES,
   APPROVED_UNCONFIRMED,
   ATTEMPT_EMPTY,
   ATTEMPT_RUNNING_EMPTY,
   CAPTURE_LOAD_FAILED,
   CAPTURE_LOADING,
   CAPTURE_MISSING,
-  COUNTED_UNVOUCHED_VERDICT,
   DRY_BUILD_ARROW,
   DRY_BUILD_SEAM,
   DRY_FAKED_MISSING,
@@ -71,11 +68,7 @@ import {
   PROOF_NOT_COUNTED_TAIL,
   PROOF_THUMB_NEW_MARKER,
   PROOF_THUMB_UNDER_ONE,
-  REVIEWER_VERDICT_UNVOUCHED_LABEL,
-  REVIEWER_VERDICT_UNVOUCHED_REASON,
   VERDICT_NOTE_WHO,
-  UNVOUCHED_BASIS_BANNER,
-  UNVOUCHED_BASIS_SUMMARY,
 } from './verifyProofConstants'
 import type {
   CaptureBuildCaption,
@@ -104,7 +97,6 @@ import type {
   VerifyProofMode,
   VerifyProofSummary,
   VerifyProofTone,
-  VerifyProofUnvouched,
   VerifyProofView,
   VerifyReviewerVerdict,
   VerifySectionProps,
@@ -163,8 +155,6 @@ const trimmed = (text: string | undefined): string | undefined => {
   const t = text?.trim()
   return t ? t : undefined
 }
-
-const ACCEPTING_CHOICES: readonly ProcessResumeChoice[] = ['continue', 'approve']
 
 type GatedEntry = Pick<ProcessLedgerEntry, 'status' | 'outcome' | 'override' | 'proof'>
 
@@ -254,19 +244,6 @@ const ABSENT_CAPTURE: Record<EvidenceLoadState, string> = {
   loaded: CAPTURE_MISSING,
 }
 
-/**
- * What the banner says when nothing a proof rested on can still be vouched for
- * — `unvouchedBasis` is why, for each of those — or `undefined` while any of it
- * can. The restart wording only when a restart is the one cause.
- */
-function proofUnvouched(
-  unvouchedBasis: readonly EvidenceUnvouched[],
-): VerifyProofUnvouched | undefined {
-  if (unvouchedBasis.length === 0) return undefined
-  const restart = unvouchedBasis.every((u) => u.cause === 'restart')
-  return { chip: UNVOUCHED_LABEL, text: UNVOUCHED_BASIS_BANNER[restart ? 'restart' : 'other'] }
-}
-
 /** "Built from": the base, any seams it carried, then the branch the afters came from. */
 function dryBuildParts(
   baseSha: string | undefined,
@@ -311,15 +288,10 @@ function dryLine(
   }
 }
 
-/**
- * What data the attempt ran on and against which builds — the banner over its
- * proof. `unvouchedBasis` holds, when nothing the proof rested on can still be
- * vouched for, why each of those cannot.
- */
+/** What data the attempt ran on and against which builds — the banner over its proof. */
 export function verifyProofHeader(
   proof: Pick<ProcessVerifyProof, 'mode' | 'dryAssumptions' | 'baseSha' | 'headSha' | 'seams'>,
   standing: VerifyAttemptStanding,
-  unvouchedBasis: readonly EvidenceUnvouched[] = [],
 ): VerifyProofHeader {
   const mode: VerifyProofMode = proof.mode ?? 'unknown'
   const dryAssumptions = mode === 'dry' ? trimmed(proof.dryAssumptions) : undefined
@@ -340,7 +312,6 @@ export function verifyProofHeader(
     baseSha,
     headSha,
     seams,
-    unvouched: proofUnvouched(unvouchedBasis),
   }
 }
 
@@ -363,23 +334,18 @@ function proofSummary(
   newScreens: number,
   standing: VerifyAttemptStanding,
   judged: boolean,
-  basisUnvouched: boolean,
 ): VerifyProofSummary {
   const restsOnScreens = counted > 0 || newScreens > 0
   if (!judged) return { tone: summaryTone(false, standing), text: NOTHING_JUDGED }
   const parts: string[] = []
-  if (basisUnvouched) parts.push(UNVOUCHED_BASIS_SUMMARY)
-  else if (!restsOnScreens && standing === 'passed') parts.push(PASSED_WITHOUT_PAIR)
+  if (!restsOnScreens && standing === 'passed') parts.push(PASSED_WITHOUT_PAIR)
   else if (counted + notCounted === 0) parts.push(NO_PAIR_FILED)
   else if (counted === 0) parts.push(NO_PAIR_SHOWS_CHANGE)
   else parts.push(`${plural(counted, 'pair shows', 'pairs show')} the change`)
   if (notCounted > 0) parts.push(`${notCounted} did not count`)
   if (newScreens > 0)
     parts.push(`${plural(newScreens, 'new screen', 'new screens')} the change adds`)
-  return {
-    tone: basisUnvouched ? 'empty' : summaryTone(restsOnScreens, standing),
-    text: parts.join(' · '),
-  }
+  return { tone: summaryTone(restsOnScreens, standing), text: parts.join(' · ') }
 }
 
 function pairView(
@@ -391,8 +357,6 @@ function pairView(
 ): ProofPairView {
   const before = byId.get(pair.beforeId)
   const after = byId.get(pair.afterId)
-  const unvouched = pairUnvouched({ before, after })
-  const shows = pair.counted && !unvouched
   const missing: ProofPairView['missing'] = []
   if (evidence === 'loaded') {
     if (!before) missing.push('before')
@@ -403,7 +367,7 @@ function pairView(
     key,
     index,
     subject: pair.subject,
-    counted: shows,
+    counted: pair.counted,
     newScreen,
     beforeId: pair.beforeId,
     afterId: pair.afterId,
@@ -415,12 +379,9 @@ function pairView(
       ? NEW_SCREEN_PAIR_CHANGE
       : pixelChangeLabel(pair.changedPixels, pair.totalPixels),
     sameScreen: newScreen ? undefined : sameScreenLabel(pair.sameScreen),
-    verdict: shows
+    verdict: pair.counted
       ? PAIR_COUNTED_VERDICT
-      : pair.counted
-        ? COUNTED_UNVOUCHED_VERDICT
-        : (trimmed(pair.reason) ?? PAIR_NOT_COUNTED_VERDICT),
-    unvouched,
+      : (trimmed(pair.reason) ?? PAIR_NOT_COUNTED_VERDICT),
     marker: newScreen
       ? PROOF_THUMB_NEW_MARKER
       : proofChangeMarker(pair.changedPixels, pair.totalPixels),
@@ -437,7 +398,6 @@ function pairScreen(p: ProofPairView, shas: Partial<ScreenPair>): ScreenPair {
     ...(p.before ? { before: p.before } : {}),
     ...(p.after ? { after: p.after } : {}),
     note: [p.verdict, p.change, p.sameScreen].filter((t) => t !== undefined).join(' · '),
-    ...(p.unvouched ? { unvouched: p.unvouched } : {}),
     ...shas,
   }
 }
@@ -450,11 +410,6 @@ function pairScreen(p: ProofPairView, shas: Partial<ScreenPair>): ScreenPair {
  * overlay pages the way the page reads. Captures are found by id among `tiles`
  * — a before is often shared from another attempt's run, so the tiles must be
  * the story's, not the run's.
- *
- * A pair or new screen the gate counted but a side of which the backend can no
- * longer vouch for — after a restart, every one filed before it — leads what
- * did not count, saying the gate counted it then. It is never shown as showing
- * the change: nothing now says which build or device it is.
  */
 export function verifyProofView(
   proof: ProcessVerifyProof,
@@ -471,77 +426,47 @@ export function verifyProofView(
       .filter((p) => p.counted && p.newScreen && newScreenIds.has(p.afterId))
       .map((p) => [p.afterId, p]),
   )
-  const unvouchedOf = (p: Pick<ProcessProofPair, 'beforeId' | 'afterId'>) =>
-    pairUnvouched({ before: byId.get(p.beforeId), after: byId.get(p.afterId) })
-  const newScreenUnvouched = (id: string) => {
-    const entryPair = entryPairOf.get(id)
-    return entryPair ? unvouchedOf(entryPair) : byId.get(id)?.unvouched
-  }
-  const gateCounted = proof.pairs.filter((p) => p.counted && entryPairOf.get(p.afterId) !== p)
-  const counted = gateCounted
-    .filter((p) => !unvouchedOf(p))
+  const counted = proof.pairs
+    .filter((p) => p.counted && entryPairOf.get(p.afterId) !== p)
     .map((p, i) => pairView(p, byId, pairKey(p), i + 1, evidence))
-  const newScreens: ProofScreenView[] = proof.newScreenIds
-    .filter((id) => !newScreenUnvouched(id))
-    .map((id, i) => {
-      const tile = byId.get(id)
-      const entryPair = entryPairOf.get(id)
-      const entryPoint = entryPair ? byId.get(entryPair.beforeId) : undefined
-      return {
-        key: `${keyPrefix}new:${id}`,
-        index: counted.length + i + 1,
-        id,
-        title: tile?.ref.subject ?? entryPair?.subject ?? NEW_SCREEN_TITLE,
-        tile,
-        absent: absent(tile),
-        entryPoint,
-        entryPointAbsent: entryPair ? absent(entryPoint) : undefined,
-      }
-    })
-  const lostPairs = proof.pairs.filter((p) => p.counted && unvouchedOf(p))
-  const lostScreens = proof.newScreenIds.filter(
-    (id) => !entryPairOf.has(id) && byId.get(id)?.unvouched,
-  )
-  const firstUncounted = counted.length + newScreens.length + 1
-  const uncounted = [...lostPairs, ...proof.pairs.filter((p) => !p.counted)].map((p, i) =>
-    pairView(p, byId, pairKey(p), firstUncounted + i, evidence),
-  )
-  const firstUnpaired = firstUncounted + uncounted.length
-  const unpaired: ProofUnpairedView[] = [
-    ...lostScreens.map((id) => ({
+  const newScreens: ProofScreenView[] = proof.newScreenIds.map((id, i) => {
+    const tile = byId.get(id)
+    const entryPair = entryPairOf.get(id)
+    const entryPoint = entryPair ? byId.get(entryPair.beforeId) : undefined
+    return {
       key: `${keyPrefix}new:${id}`,
-      subject: byId.get(id)?.ref.subject ?? NEW_SCREEN_TITLE,
-      afterId: id,
-      reason: COUNTED_UNVOUCHED_VERDICT,
-    })),
-    ...(proof.unpaired ?? []).map((u) => ({
+      index: counted.length + i + 1,
+      id,
+      title: tile?.ref.subject ?? entryPair?.subject ?? NEW_SCREEN_TITLE,
+      tile,
+      absent: absent(tile),
+      entryPoint,
+      entryPointAbsent: entryPair ? absent(entryPoint) : undefined,
+    }
+  })
+  const firstUncounted = counted.length + newScreens.length + 1
+  const uncounted = proof.pairs
+    .filter((p) => !p.counted)
+    .map((p, i) => pairView(p, byId, pairKey(p), firstUncounted + i, evidence))
+  const firstUnpaired = firstUncounted + uncounted.length
+  const unpaired: ProofUnpairedView[] = (proof.unpaired ?? []).map((u, i) => {
+    const after = byId.get(u.afterId)
+    return {
       key: `${keyPrefix}unpaired:${u.afterId}`,
       subject: u.subject,
       afterId: u.afterId,
       reason: trimmed(u.reason) ?? PAIR_NOT_COUNTED_VERDICT,
-    })),
-  ].map((u, i) => {
-    const after = byId.get(u.afterId)
-    return {
-      ...u,
       index: firstUnpaired + i,
       after,
       afterAbsent: absent(after),
-      unvouched: after?.unvouched,
     }
   })
   const judged = proof.judged !== false
-  const restsOnScreens = gateCounted.length > 0 || proof.newScreenIds.length > 0
-  const basisUnvouched = restsOnScreens && counted.length === 0 && newScreens.length === 0
-  const unvouchedBasis = basisUnvouched
-    ? [...lostPairs.map(unvouchedOf), ...lostScreens.map((id) => byId.get(id)?.unvouched)].filter(
-        (u): u is EvidenceUnvouched => u !== undefined,
-      )
-    : []
+  const restsOnScreens = counted.length > 0 || proof.newScreenIds.length > 0
   const header =
     !judged || (standing === 'passed' && !restsOnScreens && proof.mode === undefined)
       ? undefined
-      : verifyProofHeader(proof, standing, unvouchedBasis)
+      : verifyProofHeader(proof, standing)
   const shas: Partial<ScreenPair> = {
     ...(header?.baseSha ? { expectedBaseSha: header.baseSha } : {}),
     ...(header?.headSha ? { expectedHeadSha: header.headSha } : {}),
@@ -569,7 +494,6 @@ export function verifyProofView(
         class: 'new',
         ...(u.after ? { after: u.after } : {}),
         note: u.reason,
-        ...(u.unvouched ? { unvouched: u.unvouched } : {}),
         ...shas,
       }),
     ),
@@ -590,7 +514,6 @@ export function verifyProofView(
       newScreens.length,
       standing,
       judged,
-      unvouchedBasis.length > 0,
     ),
     screens,
   }
@@ -661,7 +584,6 @@ export function verifyAttemptEvidence(
   const reports = filed.filter((t) => t.ref.kind === 'report' && isVerifierFiling(t.ref))
   const reading = reviewerVerdict(filed.map((t) => t.ref))
   const verdict = reading.state === 'concluded' ? reading.verdict : undefined
-  const verdictUnvouched = reading.state === 'unvouched'
   const entryProof = attempt.entry.proof
   if (!entryProof) {
     return {
@@ -671,7 +593,6 @@ export function verifyAttemptEvidence(
       uncountedRecordings: [],
       reports,
       verdict,
-      verdictUnvouched,
     }
   }
   const proof = verifyProofView(entryProof, tiles, {
@@ -687,7 +608,6 @@ export function verifyAttemptEvidence(
     uncountedRecordings: filedRecordings.filter((t) => !covered.has(t.ref.id)),
     reports,
     verdict,
-    verdictUnvouched,
   }
 }
 
@@ -769,20 +689,8 @@ function acceptanceNote(entry: ProcessLedgerEntry): VerifyVerdictNote {
   }
 }
 
-/**
- * Said where the reviewer's verdict would be when the filings it rode on cannot
- * be vouched for — the backend drops such a verdict, and a missing one would
- * otherwise read as a reviewer who never concluded anything.
- */
-const REVIEWER_VERDICT_UNVOUCHED_NOTE: VerifyVerdictNote = {
-  label: REVIEWER_VERDICT_UNVOUCHED_LABEL,
-  reason: REVIEWER_VERDICT_UNVOUCHED_REASON,
-  tone: 'review',
-}
-
 function reviewerNote(evidence: VerifyAttemptEvidence): VerifyVerdictNote | undefined {
-  if (evidence.verdict) return reviewerVerdictNote(evidence.verdict)
-  return evidence.verdictUnvouched ? REVIEWER_VERDICT_UNVOUCHED_NOTE : undefined
+  return evidence.verdict ? reviewerVerdictNote(evidence.verdict) : undefined
 }
 
 /**
@@ -876,7 +784,6 @@ export function featureVerifyView(
     standing: view.standing,
     mode: header?.mode ?? 'unknown',
     dataUnstated: view.evidence.proof ? (header?.unstated ?? false) : stands(view.standing),
-    proofUnvouched: header?.unvouched !== undefined,
   }
 }
 
@@ -913,13 +820,6 @@ export function storyProofNotice(
   }
   if (unstated.length > 0) {
     parts.push(`The reviewer did not say whether ${listNames(unstated)} ran on live data.`)
-  }
-  const unvouched = standing.filter((s) => s.proofUnvouched).map((s) => s.label)
-  if (unvouched.length > 0) {
-    const one = unvouched.length === 1
-    parts.push(
-      `${listNames(unvouched)} ${one ? 'rests' : 'rest'} only on captures that can’t be vouched for now — open ${one ? 'it' : 'each'} to see why; the next verify run captures them again.`,
-    )
   }
   if (parts.length === 0) return undefined
   return { tone: accepted.length + dry.length > 0 ? 'working' : 'empty', text: parts.join(' ') }
@@ -1029,7 +929,7 @@ export function captureBuildCaption(
   expected: string | undefined,
 ): CaptureBuildCaption {
   if (!tile) {
-    return { builtSha: undefined, dirty: false, expectedSha: undefined, unvouched: undefined }
+    return { builtSha: undefined, dirty: false, expectedSha: undefined }
   }
   const build = tile.ref.build
   const builtSha = build ? shortSha(build.sha) : undefined
@@ -1038,7 +938,6 @@ export function captureBuildCaption(
     builtSha,
     dirty: build?.dirty === true,
     expectedSha: expectedSha !== undefined && expectedSha !== builtSha ? expectedSha : undefined,
-    unvouched: tile.unvouched?.label,
   }
 }
 

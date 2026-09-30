@@ -51,9 +51,7 @@ function ReportCard({
             {reportProvenance(report.ref)}
           </Text>
           <Text style={{ fontSize: 12, color: theme.text.muted }}>
-            {report.unvouched
-              ? report.unvouched.text
-              : 'Filed as evidence on this run, so it cannot be edited afterwards.'}
+            Filed as evidence on this run, so it cannot be edited afterwards.
           </Text>
         </HelpChip>
         {onSaveFile && report.text ? (

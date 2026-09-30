@@ -17,6 +17,7 @@ import type {
   FeatureVerifySectionProps,
   VerifyAttempt,
   VerifyAttemptStanding,
+  VerifyReviewerVerdict,
   VerifyVerdictNote,
 } from './verifyProofTypes'
 
@@ -58,7 +59,7 @@ export type StorySignoffProcessRun = Pick<
   ProcessRun,
   'id' | 'featureId' | 'ledger' | 'plan' | 'startedAt'
 > &
-  Partial<Pick<ProcessRun, 'parentRunId' | 'totals'>>
+  Partial<Pick<ProcessRun, 'parentRunId' | 'parentStepId' | 'totals'>>
 
 export type BuildStorySignoffInput = {
   /** The story's features, in declaration order. */
@@ -91,9 +92,30 @@ export type SignoffScope = {
   storyRun: StorySignoffProcessRun | undefined
   /** Each feature's latest run, by feature id. */
   featureRuns: Map<string, StorySignoffProcessRun>
-  /** The ids of the story run and every feature's latest run. */
+  /** The story run's fix passes, in the order its ledger ran them. */
+  fixPasses: FixPass[]
+  /** The ids of the story run, every feature's latest run and every fix pass. */
   processRunIds: Set<string>
 }
+
+/**
+ * One pass of the story's fix: the nested process run a send-back launched, and
+ * the story run's ledger entry that launched it.
+ */
+export type FixPass = {
+  run: StorySignoffProcessRun
+  /** Its place among the story run's fix passes, from 1. */
+  pass: number
+  /** The fix step's name in the story's plan. */
+  stepName: string
+  /** What sent the work back to it, when the ledger says. */
+  sentBy: FixSentBy | undefined
+  /** What the person wrote when they requested changes at sign-off. */
+  note: string | undefined
+}
+
+/** What sends a story's work back to its fix: its code review, or a person at sign-off. */
+export type FixSentBy = 'code-review' | 'sign-off'
 
 /** An agent that ran a section — its role and the model it ran on. */
 export type SignoffAgent = {
@@ -103,9 +125,35 @@ export type SignoffAgent = {
 }
 
 /** One feature's contribution to the story sign-off. */
-export type FeatureSignoff = {
+export type FeatureSignoff = SectionSignoff & {
   featureId: string
   title: string
+}
+
+/**
+ * One pass of the story's fix, checked like a feature: a fixer changed the code,
+ * then it was reviewed, verified and written up in a process run of its own.
+ */
+export type FixSignoff = SectionSignoff & {
+  /** The fix pass's own process run. */
+  processRunId: string
+  /** The key its filings are routed under in {@link signoffSections}. */
+  sectionId: string
+  /** Its place among the story's fix passes, from 1. */
+  pass: number
+  /** "Fix · pass 2". */
+  label: string
+  /** What sent the work back to it, in words. */
+  title: string
+  sentBy: FixSentBy | undefined
+  /** What the person wrote when they sent it back from sign-off. */
+  note: string | undefined
+  /** The runs its ledger launched — whose filings are its own. */
+  runIds: string[]
+}
+
+/** What a feature section and a fix pass section both show. */
+export type SectionSignoff = {
   /** The run whose verification/verdict this section reflects, if one landed. */
   runId: string | undefined
   /** True when a verification record exists for the chosen run. */
@@ -121,7 +169,11 @@ export type FeatureSignoff = {
   verdict: SignoffVerdict
   /** The line beside the feature's title, in the same terms as its verdict. */
   statusLine: VerifyReviewStatus
-  /** Where the accepted verify attempt stands; absent when no verify attempt ran. */
+  /**
+   * Where the accepted verify attempt stands; absent when no verify attempt ran.
+   * `accepted` too when a person carried the feature on past a code review that
+   * turned it back.
+   */
   standing: VerifyAttemptStanding | undefined
   /** This feature's time and cost: its latest run's totals alone. */
   facts: RunReviewFacts
@@ -134,6 +186,25 @@ export type FeatureSignoff = {
    * entry carries the gate's proof. Absent when that run has not verified.
    */
   verify: VerifyAttempt | undefined
+  /**
+   * The section's own code review as its run's ledger keeps it. Absent when its
+   * run has no code review step, and what was filed decides instead.
+   */
+  codeReview: SectionCodeReview | undefined
+}
+
+/**
+ * A section's code review, read from its latest attempt on the section's run:
+ * the driver copies the verdict onto the ledger while the finding can still be
+ * vouched for, so a restart that strips the filing's verdict never loses it.
+ */
+export type SectionCodeReview = {
+  /** How the latest attempt came out; absent until the run reaches its code review. */
+  line: StoryStepLine | undefined
+  /** The verdict it reached; absent while it runs, or when it reached none. */
+  verdict: VerifyReviewerVerdict | undefined
+  /** A person carried the feature on past a review that turned it back. */
+  accepted: boolean
 }
 
 /**
@@ -207,6 +278,8 @@ export type SignoffHeadline = Pick<SignoffVerdict, 'title' | 'detail'>
 export type StorySignoff = {
   /** Features that produced a run, NEWEST FIRST. */
   features: FeatureSignoff[]
+  /** The story's fix passes, NEWEST FIRST — shown above the features. */
+  fixes: FixSignoff[]
   /**
    * The story-wide section, shown first — always there for a story run, and
    * without one whenever any story-wide check ran or a story-wide filing was made.
@@ -245,7 +318,8 @@ export type SignoffLoadStatus = 'loading' | 'failed' | 'ready'
 
 /**
  * What one sign-off section shows of the filings in scope, each routed by who
- * filed it — the story-wide Overall under `''`, a feature under its id.
+ * filed it — the story-wide Overall under `''`, a feature under its id, a fix
+ * pass under its `sectionId`.
  */
 export type SignoffSection = {
   pairs: ScreenPair[]
