@@ -44,3 +44,17 @@ export type ProjectNotePatchBody = {
   description?: string
   access?: ProjectNoteAccess
 }
+
+/** What a note's chip and its hover card show. */
+export type ProjectNoteChipView = {
+  label: string
+  kind: ProjectNoteKind
+  kindLabel: string
+  description?: string
+  accessLabel?: string
+  accessHelp?: string
+  /** A plain note's text may be shown; a secret's value never is. */
+  showsValue: boolean
+  /** Said in place of the value when it is never shown. */
+  hiddenValue?: string
+}

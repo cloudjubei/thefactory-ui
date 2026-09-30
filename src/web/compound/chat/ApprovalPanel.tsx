@@ -27,6 +27,7 @@ import type { PendingToolGrant, ProcessOpenWorkChoice } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
 import OpenWorkChooser from './OpenWorkChooser'
+import ProjectNoteChip from '../chips/ProjectNoteChip'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -102,7 +103,7 @@ export default function ApprovalPanel({
   // see exactly which stored notes (a login, a key) the run is sanctioned to read
   // before you approve. Only fetched for a launch that flagged some.
   const flaggedNoteIds = summary.relevantNoteIds ?? []
-  const { notes: projectNotes } = useProjectNotes(
+  const { notes: projectNotes, revealNote } = useProjectNotes(
     isLaunch && flaggedNoteIds.length > 0 ? projectId : undefined,
   )
   const flaggedNotes = flaggedNoteIds.map(
@@ -428,15 +429,7 @@ export default function ApprovalPanel({
           </span>
           <div className="flex flex-wrap gap-1.5">
             {flaggedNotes.map((n) => (
-              <span
-                key={n.id}
-                className="inline-flex items-center gap-1 rounded-full border border-(--border-default) bg-(--surface-base) px-2 py-0.5 text-[11.5px] text-(--text-secondary)"
-              >
-                {n.label}
-                <span className="text-[9px] uppercase tracking-wide text-(--text-muted)">
-                  {n.kind}
-                </span>
-              </span>
+              <ProjectNoteChip key={n.id} note={n} loadValue={() => revealNote(n.id)} />
             ))}
           </div>
         </div>

@@ -1380,6 +1380,7 @@ export {
   noteFormValues,
   noteKindLabel,
   notePatchBody,
+  projectNoteChipView,
   sortNotes,
 } from './utils/projectNotes'
 export {
@@ -1391,11 +1392,13 @@ export {
   NOTE_KIND_LABELS,
   NOTE_LABEL_REQUIRED,
   NOTE_REVEAL_TIMEOUT_MS,
+  NOTE_SECRET_HIDDEN,
   NOTE_VALUE_MASK,
   NOTE_VALUE_REQUIRED,
   NOTE_VALUE_UNCHANGED_HINT,
 } from './utils/projectNotesConstants'
 export type {
+  ProjectNoteChipView,
   ProjectNoteCreateBody,
   ProjectNoteFormErrors,
   ProjectNoteFormMode,

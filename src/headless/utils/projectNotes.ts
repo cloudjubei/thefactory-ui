@@ -10,9 +10,11 @@ import {
   NOTE_ACCESS_LABELS,
   NOTE_KIND_LABELS,
   NOTE_LABEL_REQUIRED,
+  NOTE_SECRET_HIDDEN,
   NOTE_VALUE_REQUIRED,
 } from './projectNotesConstants'
 import type {
+  ProjectNoteChipView,
   ProjectNoteCreateBody,
   ProjectNoteFormErrors,
   ProjectNoteFormMode,
@@ -117,4 +119,25 @@ export function noteAccessLabel(access: ProjectNoteSummary['access']): string {
 
 export function noteAccessHelp(access: ProjectNoteSummary['access']): string {
   return NOTE_ACCESS_HELP[access]
+}
+
+/**
+ * A note's chip and hover card. A note the project no longer has shows only its
+ * label; a plain note's text is shown on hover, a secret's value never.
+ */
+export function projectNoteChipView(
+  note: Pick<ProjectNoteSummary, 'label' | 'kind'> &
+    Partial<Pick<ProjectNoteSummary, 'access' | 'description'>>,
+): ProjectNoteChipView {
+  return {
+    label: note.label,
+    kind: note.kind,
+    kindLabel: NOTE_KIND_LABELS[note.kind],
+    ...(note.description ? { description: note.description } : {}),
+    ...(note.access
+      ? { accessLabel: NOTE_ACCESS_LABELS[note.access], accessHelp: NOTE_ACCESS_HELP[note.access] }
+      : {}),
+    showsValue: note.kind === 'note' && note.access !== undefined,
+    ...(note.kind === 'secret' ? { hiddenValue: NOTE_SECRET_HIDDEN } : {}),
+  }
 }

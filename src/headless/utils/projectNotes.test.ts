@@ -11,6 +11,7 @@ import {
   noteFormValues,
   noteKindLabel,
   notePatchBody,
+  projectNoteChipView,
   sortNotes,
 } from './projectNotes'
 import { NOTE_LABEL_REQUIRED, NOTE_VALUE_REQUIRED } from './projectNotesConstants'
@@ -211,5 +212,42 @@ describe('label helpers', () => {
       'Any agent working on this project can read this whenever it needs it.',
     )
     expect(noteAccessHelp('ask')).toBe('Every read asks you first.')
+  })
+})
+
+describe('projectNoteChipView', () => {
+  it('shows a plain note’s text, with what it is for and who may read it', () => {
+    expect(
+      projectNoteChipView({
+        label: 'Testing build',
+        kind: 'note',
+        access: 'open',
+        description: 'How to build each flavour',
+      }),
+    ).toEqual({
+      label: 'Testing build',
+      kind: 'note',
+      kindLabel: 'Note',
+      description: 'How to build each flavour',
+      accessLabel: 'Open',
+      accessHelp: 'Any agent working on this project can read this whenever it needs it.',
+      showsValue: true,
+    })
+  })
+
+  it('never shows a secret’s value — it says so instead', () => {
+    const view = projectNoteChipView({ label: 'API key', kind: 'secret', access: 'ask' })
+    expect(view.showsValue).toBe(false)
+    expect(view.hiddenValue).toBe('A secret — its value is never shown here.')
+    expect(view.accessLabel).toBe('Ask first')
+  })
+
+  it('names a note the project no longer has without inventing its details', () => {
+    expect(projectNoteChipView({ label: 'note-9', kind: 'note' })).toEqual({
+      label: 'note-9',
+      kind: 'note',
+      kindLabel: 'Note',
+      showsValue: false,
+    })
   })
 })

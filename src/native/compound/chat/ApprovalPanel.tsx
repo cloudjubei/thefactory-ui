@@ -29,6 +29,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
 import OpenWorkChooser from './OpenWorkChooser'
+import ProjectNoteChip from '../chips/ProjectNoteChip'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -61,7 +62,7 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
   // The notes this launch will point the run at — resolved to labels so the user
   // sees which stored notes (a login, a key) the run may read before approving.
   const flaggedNoteIds = summary.relevantNoteIds ?? []
-  const { notes: projectNotes } = useProjectNotes(
+  const { notes: projectNotes, revealNote } = useProjectNotes(
     isLaunch && flaggedNoteIds.length > 0 ? projectId : undefined,
   )
   const flaggedNotes = flaggedNoteIds.map(
@@ -618,32 +619,7 @@ export default function ApprovalPanel({ grant, projectId, onDecideLater }: Appro
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {flaggedNotes.map((n) => (
-              <View
-                key={n.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: nativeRadii.round,
-                  borderWidth: 1,
-                  borderColor: theme.border.default,
-                  backgroundColor: theme.surface.base,
-                }}
-              >
-                <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{n.label}</Text>
-                <Text
-                  style={{
-                    fontSize: 9,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.4,
-                    color: theme.text.muted,
-                  }}
-                >
-                  {n.kind}
-                </Text>
-              </View>
+              <ProjectNoteChip key={n.id} note={n} loadValue={() => revealNote(n.id)} />
             ))}
           </View>
         </View>

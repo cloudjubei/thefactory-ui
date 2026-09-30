@@ -26,6 +26,9 @@ export const NOTE_KIND_HELP: Record<ProjectNoteKind, string> = {
   secret: 'Stored encrypted and never shown in this list. Use Reveal to see it once.',
 }
 
+/** Said on a secret's chip in place of its value. */
+export const NOTE_SECRET_HIDDEN = 'A secret — its value is never shown here.'
+
 /** Stand-in for a stored value, which is never fetched to render a list. */
 export const NOTE_VALUE_MASK = '••••••••'
 
