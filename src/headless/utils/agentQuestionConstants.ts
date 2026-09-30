@@ -1,6 +1,13 @@
 /** Broker action `kind` raised by the agent-side `askUser` tool. */
 export const QUESTION_ACTION_KIND = 'question'
 
+/**
+ * Broker action `kind` a process step's agent raises with `reportBlocked`. It
+ * is answered like a question — with words, or "resolved" — so it takes the
+ * question card.
+ */
+export const BLOCKER_ACTION_KIND = 'blocker'
+
 /** Stand-in prompt when the payload carries no readable question text. */
 export const QUESTION_FALLBACK_PROMPT = 'The agent asked a question, but sent no question text.'
 

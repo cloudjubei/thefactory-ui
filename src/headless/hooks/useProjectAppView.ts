@@ -17,11 +17,10 @@ import { computeRefreshDelayMs } from '../utils/viewTokenSchedule'
  *     rotation would remount the surface and reset the embedded app.
  *   - Increments `key` (publishing the freshest minted URL alongside it)
  *     whenever the consumer should remount its iframe / WebView — on
- *     `files:changed` for this project (the agent edited a file; the App
- *     view should reflect it). The `files:changed` path is debounced to a
- *     single bump per burst so a fast cascade of agent writes doesn't
- *     thrash the iframe (a quality improvement over the un-debounced
- *     pattern in `FilesContext`).
+ *     `appView:changed` for this project, which the backend sends only
+ *     when a change touched what the App view serves (never on the general
+ *     `files:changed`, or every edit elsewhere in the checkout would reset
+ *     the embedded app). Debounced to a single bump per burst.
  */
 export interface UseProjectAppView {
   /** URL the consumer should point an iframe / WebView at. `undefined` until the first token is granted. */
@@ -38,8 +37,8 @@ export interface UseProjectAppView {
 const REFRESH_LEAD_MS = 60_000
 /** Back off this long before retrying after a failed mint, so a transient grant error doesn't stop rotation. */
 const MINT_RETRY_MS = 30_000
-/** Coalesce `files:changed` events into a single key bump per burst. */
-const FILES_CHANGED_DEBOUNCE_MS = 250
+/** Coalesce `appView:changed` events into a single key bump per burst. */
+const APP_VIEW_CHANGED_DEBOUNCE_MS = 250
 
 export function useProjectAppView(projectId: string | undefined): UseProjectAppView {
   const { token } = useAuth()
@@ -52,7 +51,7 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
   const latestUrlRef = useRef<string | undefined>(undefined)
   const latestExpiresAtRef = useRef<string | undefined>(undefined)
   // Monotonic per-remount nonce appended to the iframe URL. Some embedding WebViews hold the TOP-FRAME index.html
-  // stale across reloads even under `Cache-Control: no-store`, and a `files:changed` remount reuses the same
+  // stale across reloads even under `Cache-Control: no-store`, and an `appView:changed` remount reuses the same
   // viewToken URL (the token is still fresh) — so without this the iframe re-mounts on an identical `src` and the
   // WebView serves its cached copy, and an on-disk app edit never appears. A unique `_r` per (re)mount makes every
   // load a URL the cache has never seen (the same trick the viewer already uses to bust its own sub-resources).
@@ -146,17 +145,17 @@ export function useProjectAppView(projectId: string | undefined): UseProjectAppV
     }
   }, [token, projectId, apiBaseUrl, refresh, clearRefreshTimer])
 
-  // Debounced remount on this project's file changes, on the freshest
+  // Debounced remount on changes to this project's served app, on the freshest
   // minted URL so a late remount doesn't load an already-expired token.
   useEffect(() => {
     if (!projectId) return
-    const unsub = ws.on<{ projectId?: string }>('files:changed', (event) => {
+    const unsub = ws.on<{ projectId?: string }>('appView:changed', (event) => {
       if (event.projectId !== projectId) return
       clearDebounceTimer()
       debounceTimerRef.current = setTimeout(() => {
         void applyLatest()
         debounceTimerRef.current = null
-      }, FILES_CHANGED_DEBOUNCE_MS)
+      }, APP_VIEW_CHANGED_DEBOUNCE_MS)
     })
     return () => {
       unsub()

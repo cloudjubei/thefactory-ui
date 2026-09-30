@@ -1,30 +1,65 @@
 import { describe, expect, it } from 'vitest'
-import type { ProcessResumeChoice } from 'thefactory-tools/types'
+import type { ProcessParkAction } from 'thefactory-tools/types'
 
-import { choiceTakesNote, parkNoteCopy, parkNoteCounter, parkNoteToSend } from './processParkNote'
+import {
+  choiceTakesNote,
+  parkNoteCopy,
+  parkNoteCounter,
+  parkNoteRequired,
+  parkNoteToSend,
+  waitingNoteCopy,
+} from './processParkNote'
 import {
   PARK_NOTE_COPY,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
 } from './processParkNoteConstants'
 
-const EVERY_CHOICE: ProcessResumeChoice[] = [
+const EVERY_CHOICE: ProcessParkAction[] = [
   'continue',
   'retry',
   'abandon',
   'approve',
   'request-changes',
   'reject',
+  'allow',
+  'resolved',
+  'more-info',
+  'delegate',
 ]
 
 describe('choiceTakesNote', () => {
-  it('asks for a note only when changes are requested', () => {
-    expect(EVERY_CHOICE.filter(choiceTakesNote)).toEqual(['request-changes'])
+  it('asks for a note when changes are requested, and when a waiting agent is told more', () => {
+    expect(EVERY_CHOICE.filter(choiceTakesNote)).toEqual(['request-changes', 'more-info'])
   })
 
   it('lets every other choice act at once', () => {
-    for (const choice of EVERY_CHOICE.filter((c) => c !== 'request-changes')) {
+    for (const choice of EVERY_CHOICE.filter((c) => c !== 'request-changes' && c !== 'more-info')) {
       expect(choiceTakesNote(choice)).toBe(false)
+    }
+  })
+})
+
+describe('parkNoteRequired', () => {
+  it('will not send "more info" or an answer blank — the words are the answer', () => {
+    expect(EVERY_CHOICE.filter(parkNoteRequired)).toEqual(['more-info'])
+  })
+})
+
+describe('waitingNoteCopy', () => {
+  it('asks for an answer to a question', () => {
+    expect(waitingNoteCopy('question')).toEqual({
+      prompt: 'Your answer',
+      submitLabel: 'Send answer',
+    })
+  })
+
+  it('asks what the agent should know otherwise', () => {
+    for (const kind of ['permission', 'blocker'] as const) {
+      expect(waitingNoteCopy(kind)).toEqual({
+        prompt: 'What should the agent know?',
+        submitLabel: 'Send and continue',
+      })
     }
   })
 })

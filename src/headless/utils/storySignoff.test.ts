@@ -1656,6 +1656,68 @@ describe('buildStorySignoff — the Overall of a story run that filed nothing st
       evidence: extra,
     })
 
+  it('keeps what a walkthrough recorded before it waited on the person, beside what its continuation recorded', () => {
+    const root = storyRun({
+      id: 'e-wt-2',
+      continues: 'e-wt-1',
+      outcome: 'passed',
+      runRef: { runId: 'wt-2', runner: 'cli' },
+    }) as unknown as { ledger: unknown[] }
+    root.ledger.splice(2, 0, {
+      id: 'e-wt-1',
+      stepId: 'walkthrough',
+      iteration: 1,
+      status: 'done',
+      outcome: 'waiting',
+      runRef: { runId: 'wt-1', runner: 'cli' },
+      ask: {
+        kind: 'blocker',
+        agent: 'capture',
+        title: 'The capture agent is blocked',
+        detail: 'x',
+      },
+      startedAt: T_NEW + 100 * MIN,
+    })
+    const recordings = [
+      ev({
+        id: 'before-ask',
+        runId: 'wt-1',
+        storyId: 's',
+        kind: 'recording',
+        mediaType: 'video/mp4',
+        createdAt: T_NEW + 101 * MIN,
+      }),
+      ev({
+        id: 'after-answer',
+        runId: 'wt-2',
+        storyId: 's',
+        kind: 'recording',
+        mediaType: 'video/mp4',
+        createdAt: T_NEW + 130 * MIN,
+      }),
+    ]
+    const signoff = buildStorySignoff({
+      features: [
+        { id: 'f1', title: 'Bundled fonts drive the Compose UI' },
+        { id: 'f2', title: 'WebView HTML uses the bundled fonts' },
+      ],
+      processRuns: [
+        oldRoot,
+        root as unknown as StorySignoffProcessRun,
+        child('f1-new', 'f1', 'dev-1', 'ver-1', T_NEW),
+        child('f2-new', 'f2', 'dev-2', 'ver-2', T_NEW + 60 * MIN),
+      ],
+      storyRunId: 'root-new',
+      cliRuns,
+      evidence: [...evidence, ...recordings],
+    })
+    const overall = signoffSections(signoff, recordings.map(toEvidenceTile)).get('')
+    expect((overall?.recordings ?? []).map((t) => t.ref.id).sort()).toEqual([
+      'after-answer',
+      'before-ask',
+    ])
+  })
+
   it('keeps the Overall with its story-wide checks, none of which ran', () => {
     const overall = signoffOf({ outcome: 'skipped', summary: SKIPPED }).overall
     expect(overall).toBeDefined()

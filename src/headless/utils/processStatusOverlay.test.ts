@@ -13,9 +13,9 @@ describe('processStatusOverlay', () => {
   })
 
   it('parked for any OTHER reason → Blocked (it is stuck, not awaiting sign-off)', () => {
-    // A step-failed / step-question / step-errored park is not a sign-off — the
+    // A step-failed / step-waiting / step-errored park is not a sign-off — the
     // Reviewable word must be reserved for the gate, or it would mean "stuck".
-    for (const reason of ['step-failed', 'step-question', 'step-errored', 'loop-exhausted']) {
+    for (const reason of ['step-failed', 'step-waiting', 'step-errored', 'loop-exhausted']) {
       const o = processStatusOverlay(run({ status: 'parked', park: { reason } as never }))
       expect(o).toEqual({ label: 'Blocked', semantic: 'stuck', runId: 'run-1' })
     }

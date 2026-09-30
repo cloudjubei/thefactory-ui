@@ -16,6 +16,7 @@ import { DurCostChips } from '../compound/chat/signoff'
 import CostChip from '../compound/chips/CostChip'
 import { IconSettings } from '../icons'
 import { useNativeTheme } from '../hooks/useNativeTheme'
+import type { ChatContext } from '../../headless/api'
 
 export type ProcessRunsViewProps = {
   /** The project whose runs to list. */
@@ -30,6 +31,8 @@ export type ProcessRunsViewProps = {
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   /** Accepted for parity with the web peer; the drill is a pushed pipeline screen on mobile. */
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
+  /** Accepted for parity with the web peer; the pushed pipeline screen takes its own `onOpenChat`. */
+  onOpenChat?: (context: ChatContext) => void
   /** Accepted for parity; mobile is always single-pane (push-nav). */
   narrow?: boolean
 }

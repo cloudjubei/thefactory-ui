@@ -942,7 +942,7 @@ describe('verifyAttemptStanding', () => {
     ['a failure', verify('v', 'failed', 0), 'failed'],
     ['an errored step', verify('v', 'errored', 0), 'failed'],
     ['an unconfirmed proof', verify('v', 'unchecked', 0), 'unchecked'],
-    ['a step that asked a question', verify('v', 'question', 0), 'unchecked'],
+    ['a step waiting on the person', verify('v', 'waiting', 0), 'unchecked'],
     ['an entry that never recorded an outcome', entry({ id: 'v' }), 'unchecked'],
     [
       'an unconfirmed proof a person carried on past',

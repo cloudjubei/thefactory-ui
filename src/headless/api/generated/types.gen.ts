@@ -766,156 +766,13 @@ export type ToolApprovalDecision =
 
 export type AgentRunnerRunnerKind = 'api' | 'cli'
 
+export type CliNativeSessionDispatch = {
+  saveDir?: string
+  restoreDir?: string
+  resumePrompt?: string
+}
+
 export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
-
-export type ResearchSource = {
-  title: string
-  url: string
-}
-
-export type ChatContextType =
-  | 'GENERAL'
-  | 'GROUP'
-  | 'GROUP_TOPIC'
-  | 'PROJECT'
-  | 'STORY'
-  | 'FEATURE'
-  | 'AGENT_RUN_STORY'
-  | 'AGENT_RUN_FEATURE'
-  | 'PROJECT_TOPIC'
-  | 'FEATURE_REQUEST'
-
-export type ChatContext = {
-  type:
-    | 'GENERAL'
-    | 'GROUP'
-    | 'GROUP_TOPIC'
-    | 'PROJECT'
-    | 'STORY'
-    | 'FEATURE'
-    | 'AGENT_RUN_STORY'
-    | 'AGENT_RUN_FEATURE'
-    | 'PROJECT_TOPIC'
-    | 'FEATURE_REQUEST'
-  groupId?: string
-  projectId?: string
-  storyId?: string
-  featureId?: string
-  agentRunId?: string
-  topicId?: string
-  featureRequestId?: string
-  timestamp?: string
-}
-
-export type ResearchParams = {
-  query: string
-  instructions: string
-  llmConfig: LlmConfig
-  searchLimit?: number
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
-}
-
-export type ResearchResult = {
-  items: Array<unknown>
-  sources: Array<ResearchSource>
-}
-
-export type VoterPopulation = {
-  size: number
-  competence: number
-  correlation: number
-}
-
-export type CondorcetResult = {
-  panelAccuracy: number
-  expertAccuracy: number
-  panelWins: boolean
-  effectiveSize: number
-}
-
-export type CondorcetSetup = {
-  population: VoterPopulation
-  expertCompetence: number
-  sweepSizes: Array<number>
-}
-
-export type CondorcetSweepPoint = {
-  size: number
-  panelAccuracy: number
-}
-
-export type NumericAggregation = 'mean' | 'median' | 'trimmed'
-
-export type DiversityDecomposition = {
-  crowdError: number
-  avgIndividualError: number
-  diversity: number
-}
-
-export type RankedBallot = Array<string>
-
-export type VotingOutcome = {
-  plurality: string
-  borda: string
-  condorcet: string | unknown
-  irv: string
-  rulesAgree: boolean
-}
-
-export type DepthCount = {
-  depth: number
-  count: number
-}
-
-export type BeautyContestResult = {
-  guesses: Array<{
-    depth: number
-    guess: number
-    count: number
-  }>
-  meanGuess: number
-  target: number
-  winningDepth: number
-}
-
-export type CascadeResult = {
-  independentCorrect: boolean
-  cascadeCorrect: boolean
-  publicDecisions: Array<boolean>
-}
-
-export type ForecastAggregation = 'mean' | 'extremized'
-
-export type ArenaPanelQuestion = {
-  statement: string
-  correctAnswer?: boolean
-}
-
-export type ArenaPanelReaderVote = {
-  index: number
-  vote?: boolean
-}
-
-export type ArenaPanelResult = {
-  panelAnswer?: boolean
-  agreement: number
-  readers: number
-  votes: Array<ArenaPanelReaderVote>
-  correct?: boolean
-  status: 'consensus' | 'contested' | 'unjudged'
-  costUSD: number
-}
 
 export type CapabilityId =
   | 'java'
@@ -1032,6 +889,18 @@ export type CreateCapabilityToolsOptions = {
   }
 }
 
+export type ChatContextType =
+  | 'GENERAL'
+  | 'GROUP'
+  | 'GROUP_TOPIC'
+  | 'PROJECT'
+  | 'STORY'
+  | 'FEATURE'
+  | 'AGENT_RUN_STORY'
+  | 'AGENT_RUN_FEATURE'
+  | 'PROJECT_TOPIC'
+  | 'FEATURE_REQUEST'
+
 export type ChatContextGeneral = {
   type: 'GENERAL'
   timestamp: string
@@ -1076,6 +945,28 @@ export type ChatContextFeatureRequest = {
   type: 'FEATURE_REQUEST'
   projectId: string
   featureRequestId: string
+}
+
+export type ChatContext = {
+  type:
+    | 'GENERAL'
+    | 'GROUP'
+    | 'GROUP_TOPIC'
+    | 'PROJECT'
+    | 'STORY'
+    | 'FEATURE'
+    | 'AGENT_RUN_STORY'
+    | 'AGENT_RUN_FEATURE'
+    | 'PROJECT_TOPIC'
+    | 'FEATURE_REQUEST'
+  groupId?: string
+  projectId?: string
+  storyId?: string
+  featureId?: string
+  agentRunId?: string
+  topicId?: string
+  featureRequestId?: string
+  timestamp?: string
 }
 
 export type ResourceLink =
@@ -2792,6 +2683,7 @@ export type CliAgentPendingActionFilter = {
 
 export type PerCliRunnerExtra = {
   resumeSessionId?: string
+  nativeSessionRestoreDir?: string
   persistentSession?: {
     authDir: string
     workspaceDir: string
@@ -3257,6 +3149,17 @@ export type ReviewTestSeamResult =
 export type TestSeamManifest = {
   description: string
   paths: Array<string>
+}
+
+export type CliNativeSessionManifest = {
+  cli: CliTool
+  cliSessionId: string
+  savedAt: number
+}
+
+export type CliHomeFile = {
+  relPath: string
+  size: number
 }
 
 export type IdleWatchdogResult =
@@ -4261,69 +4164,6 @@ export type DataSort = {
   numeric?: boolean
 }
 
-export type OpenQuestion = {
-  id: string
-  prompt: string
-  answer?: string
-  status: 'open' | 'answered'
-  createdAt: string
-  answeredAt?: string
-}
-
-export type DecisionOption = {
-  id: string
-  title: string
-  summary: string
-  tradeoffs: Array<string>
-  risks: Array<string>
-}
-
-export type Decision = {
-  id: string
-  projectId?: string
-  title: string
-  brief: string
-  options: Array<DecisionOption>
-  selectedOptionId?: string
-  questions: Array<OpenQuestion>
-  signedOff: boolean
-  signedOffAt?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export type DecisionCreateInput = {
-  title: string
-  brief: string
-  projectId?: string
-}
-
-export type DecisionOptionInput = {
-  title: string
-  summary: string
-  tradeoffs?: Array<string>
-  risks?: Array<string>
-}
-
-export type DecisionReadiness = {
-  ready: boolean
-  unansweredQuestionIds: Array<string>
-  needsOptionSelection: boolean
-}
-
-export type SignOffDecisionResult =
-  | {
-      status: 'signed_off'
-      decision: Decision
-    }
-  | {
-      status: 'not_ready'
-      readiness: DecisionReadiness
-    }
-  | {
-      status: 'not_found'
-    }
-
 export type ResearchVerdictStatus =
   | 'confirmed'
   | 'implied'
@@ -4340,6 +4180,11 @@ export type RawReaderVerdict = {
     url: string
   }>
   derivation?: string
+}
+
+export type ResearchSource = {
+  title: string
+  url: string
 }
 
 export type EvidencePassage = {
@@ -4509,6 +4354,82 @@ export type RunDiagnostics = {
   truncated: boolean
 }
 
+export type VoterPopulation = {
+  size: number
+  competence: number
+  correlation: number
+}
+
+export type CondorcetResult = {
+  panelAccuracy: number
+  expertAccuracy: number
+  panelWins: boolean
+  effectiveSize: number
+}
+
+export type CondorcetSetup = {
+  population: VoterPopulation
+  expertCompetence: number
+  sweepSizes: Array<number>
+}
+
+export type CondorcetSweepPoint = {
+  size: number
+  panelAccuracy: number
+}
+
+export type NumericAggregation = 'mean' | 'median' | 'trimmed'
+
+export type DiversityDecomposition = {
+  crowdError: number
+  avgIndividualError: number
+  diversity: number
+}
+
+export type RankedBallot = Array<string>
+
+export type VotingOutcome = {
+  plurality: string
+  borda: string
+  condorcet: string | unknown
+  irv: string
+  rulesAgree: boolean
+}
+
+export type DepthCount = {
+  depth: number
+  count: number
+}
+
+export type BeautyContestResult = {
+  guesses: Array<{
+    depth: number
+    guess: number
+    count: number
+  }>
+  meanGuess: number
+  target: number
+  winningDepth: number
+}
+
+export type CascadeResult = {
+  independentCorrect: boolean
+  cascadeCorrect: boolean
+  publicDecisions: Array<boolean>
+}
+
+export type ForecastAggregation = 'mean' | 'extremized'
+
+export type ArenaPanelQuestion = {
+  statement: string
+  correctAnswer?: boolean
+}
+
+export type ArenaPanelReaderVote = {
+  index: number
+  vote?: boolean
+}
+
 export type ArenaEstimateQuestion = {
   question: string
   truth?: number
@@ -4621,6 +4542,79 @@ export type ArenaCascadeResult = {
   readers: number
   costUSD: number
 }
+
+export type ArenaPanelResult = {
+  panelAnswer?: boolean
+  agreement: number
+  readers: number
+  votes: Array<ArenaPanelReaderVote>
+  correct?: boolean
+  status: 'consensus' | 'contested' | 'unjudged'
+  costUSD: number
+}
+
+export type OpenQuestion = {
+  id: string
+  prompt: string
+  answer?: string
+  status: 'open' | 'answered'
+  createdAt: string
+  answeredAt?: string
+}
+
+export type DecisionOption = {
+  id: string
+  title: string
+  summary: string
+  tradeoffs: Array<string>
+  risks: Array<string>
+}
+
+export type Decision = {
+  id: string
+  projectId?: string
+  title: string
+  brief: string
+  options: Array<DecisionOption>
+  selectedOptionId?: string
+  questions: Array<OpenQuestion>
+  signedOff: boolean
+  signedOffAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type DecisionCreateInput = {
+  title: string
+  brief: string
+  projectId?: string
+}
+
+export type DecisionOptionInput = {
+  title: string
+  summary: string
+  tradeoffs?: Array<string>
+  risks?: Array<string>
+}
+
+export type DecisionReadiness = {
+  ready: boolean
+  unansweredQuestionIds: Array<string>
+  needsOptionSelection: boolean
+}
+
+export type SignOffDecisionResult =
+  | {
+      status: 'signed_off'
+      decision: Decision
+    }
+  | {
+      status: 'not_ready'
+      readiness: DecisionReadiness
+    }
+  | {
+      status: 'not_found'
+    }
 
 export type BuildStepKind = 'implement' | 'verify' | 'review' | 'evidence'
 
@@ -4968,57 +4962,6 @@ export type WatchGapSweeperOptions = {
   offsetsMs: Array<number>
   minIntervalMs: number
   concurrency: number
-}
-
-export type FlowStatus = 'running' | 'completed' | 'failed' | 'aborted'
-
-export type FlowStepState = {
-  key: string
-  status: FlowStatus
-  done: number
-  total: number
-}
-
-export type FlowRun = {
-  flowId: string
-  scope: string
-  recordType: string
-  status: FlowStatus
-  steps: Array<FlowStepState>
-  modelRef?: {
-    kind: 'api' | 'cli'
-    label: string
-  }
-  market?: string
-  resumeToken?: {
-    [key: string]: unknown
-  }
-  error?: string
-  startedAt: string
-  updatedAt: string
-}
-
-export type FlowRunInput = {
-  flowId: string
-  scope: string
-  recordType: string
-  steps: Array<{
-    key: string
-  }>
-  modelRef?: {
-    kind: 'api' | 'cli'
-    label: string
-  }
-  market?: string
-  resumeToken?: {
-    [key: string]: unknown
-  }
-}
-
-export type FlowRunPatch = {
-  status?: 'running' | 'completed' | 'failed' | 'aborted'
-  steps?: Array<FlowStepState>
-  error?: string
 }
 
 export type AzureDevOpsRepository = {
@@ -5962,66 +5905,6 @@ export type ProjectSearchIndexOptions = {
   flushDelayMs?: number
 }
 
-export type JobStatus = 'running' | 'completed' | 'failed' | 'aborted' | 'paused' | 'awaiting-input'
-
-export type JobStepKind = 'implement' | 'verify' | 'review' | 'evidence'
-
-export type JobStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'aborted'
-
-export type JobStep = {
-  kind: JobStepKind
-  status: JobStepStatus
-  costUSD?: number
-  estimatedMs?: number
-  startedAt?: string
-  endedAt?: string
-  artifactRef?: string
-  error?: string
-}
-
-export type JobRun = {
-  id: string
-  projectId?: string
-  decisionId: string
-  selectedOptionId?: string
-  title: string
-  status: JobStatus
-  steps: Array<JobStep>
-  budgetUsd?: number
-  costUSD: number
-  estimatedMs?: number
-  durationMs?: number
-  error?: string
-  createdAt: string
-  updatedAt: string
-  startedAt?: string
-  endedAt?: string
-}
-
-export type JobLaunchInput = {
-  decisionId: string
-  budgetUsd?: number
-}
-
-export type JobStepOutcome = {
-  status: 'completed' | 'failed'
-  costUSD?: number
-  artifactRef?: string
-  error?: string
-}
-
-export type LaunchJobResult =
-  | {
-      status: 'ok'
-      job: JobRun
-    }
-  | {
-      status: 'decision_not_found'
-    }
-  | {
-      status: 'decision_not_signed_off'
-    }
-
 export type HistoryPoint = {
   t: string
   v: number
@@ -6310,28 +6193,6 @@ export type LlmCostAggregateEntity = {
   metadata?: {
     [key: string]: unknown
   }
-}
-
-export type StepRequest = {
-  systemPrompt: string
-  userContent: string
-  model: ModelSelection
-  chatContext?: {
-    type: ChatContextType
-    groupId?: string
-    projectId?: string
-    storyId?: string
-    featureId?: string
-    agentRunId?: string
-    topicId?: string
-    featureRequestId?: string
-    timestamp?: string
-  }
-  abortSignal?: unknown
-}
-
-export type StepResult = {
-  text: string
 }
 
 export type LoggerConfig = {
@@ -7026,6 +6887,26 @@ export type ProjectsGroupUpdate = {
   groups: ProjectsGroups
 }
 
+export type CriterionKnowledgeEntry = {
+  subject: string
+  disposition: 'allowed' | 'disallowed'
+  reason?: string
+  source?: string
+  addedAt: string
+}
+
+export type CriterionKnowledge = {
+  criterionId: string
+  entries: Array<CriterionKnowledgeEntry>
+  undetermined?: Array<string>
+  updatedAt: string
+}
+
+export type SharedRulings = {
+  entries: Array<CriterionKnowledgeEntry>
+  undetermined?: Array<string>
+}
+
 export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist' | 'wholesale'
 
 export type KnownShop = {
@@ -7138,6 +7019,7 @@ export type CriterionVerdict = {
   criterionId: string
   variantKey?: string
   status: CriterionStatus
+  rulesVersion?: number
   confidence: number
   evidence: Array<CriterionEvidence>
   derivation?: string
@@ -8033,27 +7915,47 @@ export type BrandRecord = {
   updatedAt: string
 }
 
+export type CriterionBasis = 'materials' | 'other'
+
+export type MaterialRule = 'no-plastic'
+
 export type CriterionSpec = {
   id: string
   claim: string
   mode: 'gate' | 'grade' | 'info'
   positiveProxies?: Array<string>
+  basis?: 'materials' | 'other'
+  materialRule?: 'no-plastic'
   updatedAt: string
 }
 
-export type CriterionKnowledgeEntry = {
-  subject: string
-  disposition: 'allowed' | 'disallowed'
-  reason?: string
+export type ComponentRole = 'main' | 'minor' | 'separate'
+
+export type StatedMaterial = {
+  name: string
   source?: string
-  addedAt: string
+  percent?: number
+  quote?: string
+  part?: string
+  role?: 'main' | 'minor' | 'separate'
 }
 
-export type CriterionKnowledge = {
-  criterionId: string
-  entries: Array<CriterionKnowledgeEntry>
-  updatedAt: string
+export type MaterialRuling = {
+  material: string
+  canonical?: string
+  verdict: 'satisfies' | 'violates' | 'undetermined'
+  reason?: string
 }
+
+export type PageMemo = {
+  url: string
+  contentHash: string
+  instructionsHash: string
+  extractedAt: string
+  productKeys: Array<string>
+}
+
+export type MaterialJudgement = 'satisfies' | 'violates' | 'unknown'
 
 export type MaterialRecyclability = 'high' | 'medium' | 'low' | 'none' | 'unknown'
 
@@ -8467,6 +8369,8 @@ export type RegisterProductCriterionParams = {
   claim: string
   mode: 'gate' | 'grade' | 'info'
   positiveProxies?: Array<string>
+  basis?: 'materials' | 'other'
+  materialRule?: 'no-plastic'
 }
 
 export type RegisterCriterionKnowledgeParams = {
@@ -8586,7 +8490,7 @@ export type VerifyProductImageryParams = {
 }
 
 export type VerifyProductImageryResult = {
-  skipped?: 'model-not-vision'
+  skipped?: 'model-not-vision' | 'criterion-not-supported'
   checked: number
   changed: number
   refuted: number
@@ -8846,6 +8750,30 @@ export type ReplayLog = {
       [key: string]: SearchPageContent
     }
   }
+}
+
+export type ResearchParams = {
+  query: string
+  instructions: string
+  llmConfig: LlmConfig
+  searchLimit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type ResearchResult = {
+  items: Array<unknown>
+  sources: Array<ResearchSource>
 }
 
 export type CaptureSealDomain = 'capture' | 'evidence' | 'build'
@@ -9564,6 +9492,7 @@ export type ToolName =
   | 'requestExternalFetch'
   | 'requestWorkspaceLimitRaise'
   | 'askUser'
+  | 'reportBlocked'
   | 'scanDependencies'
   | 'getCode'
   | 'getCodeIntelCatalogue'
@@ -10431,7 +10360,7 @@ export type ProcessStepOutcome =
   | 'passed'
   | 'failed'
   | 'unchecked'
-  | 'question'
+  | 'waiting'
   | 'skipped'
   | 'errored'
 
@@ -10608,7 +10537,7 @@ export type ProcessRunCursor = {
 export type ProcessParkReason =
   | 'gate'
   | 'step-failed'
-  | 'step-question'
+  | 'step-waiting'
   | 'budget-spent'
   | 'time-spent'
   | 'step-unchecked'
@@ -10620,6 +10549,66 @@ export type ProcessParkReason =
 export type ProcessPendingEntry = {
   cursor: ProcessRunCursor
   viaLoopId?: string
+  continuesEntryId?: string
+}
+
+export type ProcessWaitingKind = 'permission' | 'question' | 'blocker'
+
+export type ProcessWaitingRequest = {
+  actionId: string
+  actionKind: string
+  toolName?: string
+  host?: string
+  packageName?: string
+  ecosystem?: string
+  url?: string
+  args?: {
+    [key: string]: unknown
+  }
+}
+
+export type ProcessWaitingDelegation = {
+  chatContextId: string
+  topicId: string
+  at: number
+}
+
+export type ProcessNodeRunRef = {
+  runId: string
+  agentRunId?: string
+  chatContextId?: string
+  runner?: 'api' | 'cli'
+}
+
+export type ProcessWaitingAsk = {
+  kind: ProcessWaitingKind
+  agent: string
+  title: string
+  detail: string
+  request?: {
+    actionId: string
+    actionKind: string
+    toolName?: string
+    host?: string
+    packageName?: string
+    ecosystem?: string
+    url?: string
+    args?: {
+      [key: string]: unknown
+    }
+  }
+  featureQuestionId?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+  delegatedTo?: {
+    chatContextId: string
+    topicId: string
+    at: number
+  }
 }
 
 export type ProcessPark = {
@@ -10631,7 +10620,39 @@ export type ProcessPark = {
   pending?: {
     cursor: ProcessRunCursor
     viaLoopId?: string
+    continuesEntryId?: string
   }
+  ask?: {
+    kind: ProcessWaitingKind
+    agent: string
+    title: string
+    detail: string
+    request?: {
+      actionId: string
+      actionKind: string
+      toolName?: string
+      host?: string
+      packageName?: string
+      ecosystem?: string
+      url?: string
+      args?: {
+        [key: string]: unknown
+      }
+    }
+    featureQuestionId?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    delegatedTo?: {
+      chatContextId: string
+      topicId: string
+      at: number
+    }
+  }
+  stepInFlight?: boolean
   childRunId?: string
 }
 
@@ -10642,6 +10663,13 @@ export type ProcessResumeChoice =
   | 'approve'
   | 'request-changes'
   | 'reject'
+  | 'allow'
+  | 'resolved'
+  | 'more-info'
+
+export type ProcessContinueChoice = 'allow' | 'resolved' | 'more-info'
+
+export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
 export type ProcessRunStatus =
   | 'pending'
@@ -10650,13 +10678,6 @@ export type ProcessRunStatus =
   | 'succeeded'
   | 'failed'
   | 'cancelled'
-
-export type ProcessNodeRunRef = {
-  runId: string
-  agentRunId?: string
-  chatContextId?: string
-  runner?: 'api' | 'cli'
-}
 
 export type ProcessVerifyReview = {
   reviewedRunId: string
@@ -10696,7 +10717,7 @@ export type ProcessVerifyProof = {
   recordingIds: Array<string>
   mode?: 'live' | 'dry'
   dryAssumptions?: string
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   reason?: string
   reasons?: Array<string>
   judged?: boolean
@@ -10716,7 +10737,7 @@ export type ProcessLedgerEntry = {
   stepId: string
   iteration: number
   status: 'running' | 'done'
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   summary?: string
   runRef?: {
     runId: string
@@ -10726,6 +10747,37 @@ export type ProcessLedgerEntry = {
   }
   childRunId?: string
   viaLoopId?: string
+  ask?: {
+    kind: ProcessWaitingKind
+    agent: string
+    title: string
+    detail: string
+    request?: {
+      actionId: string
+      actionKind: string
+      toolName?: string
+      host?: string
+      packageName?: string
+      ecosystem?: string
+      url?: string
+      args?: {
+        [key: string]: unknown
+      }
+    }
+    featureQuestionId?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    delegatedTo?: {
+      chatContextId: string
+      topicId: string
+      at: number
+    }
+  }
+  continues?: string
   override?: {
     choice: ProcessResumeChoice
     at: number
@@ -10741,7 +10793,7 @@ export type ProcessLedgerEntry = {
     recordingIds: Array<string>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
-    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     reason?: string
     reasons?: Array<string>
     judged?: boolean
@@ -10761,6 +10813,8 @@ export type ProcessLedgerEntry = {
   startedAt: number
   endedAt?: number
   suspendedMs?: number
+  waitedMs?: number
+  waitingSince?: number
 }
 
 export type ProcessWorkBranchStack = {
@@ -10913,7 +10967,39 @@ export type ProcessRun = {
     pending?: {
       cursor: ProcessRunCursor
       viaLoopId?: string
+      continuesEntryId?: string
     }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+    }
+    stepInFlight?: boolean
     childRunId?: string
   }
   startedAt: number
@@ -10941,7 +11027,16 @@ export type ProcessRunDecision =
     }
   | {
       kind: 'not-accepted'
-      choice?: 'continue' | 'retry' | 'abandon' | 'approve' | 'request-changes' | 'reject'
+      choice?:
+        | 'continue'
+        | 'retry'
+        | 'abandon'
+        | 'approve'
+        | 'request-changes'
+        | 'reject'
+        | 'allow'
+        | 'resolved'
+        | 'more-info'
       note?: string
     }
   | {
@@ -10953,6 +11048,7 @@ export type ProcessTransition =
       kind: 'enter'
       cursor: ProcessRunCursor
       viaLoopId?: string
+      continuesEntryId?: string
     }
   | {
       kind: 'finished'
@@ -10965,6 +11061,7 @@ export type ProcessTransition =
       pending?: {
         cursor: ProcessRunCursor
         viaLoopId?: string
+        continuesEntryId?: string
       }
     }
   | {
@@ -10976,7 +11073,7 @@ export type ProcessCursorState = {
     stepId: string
     iteration: number
   }
-  lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+  lastOutcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   loopCounts?: {
     [key: string]: number
   }
@@ -10990,6 +11087,29 @@ export type ProcessCursorState = {
   spentUsd?: number
   elapsedMs?: number
   cancelled?: boolean
+}
+
+export type ProcessStepContinuation = {
+  entryId: string
+  ask: ProcessWaitingAsk
+  choice: ProcessContinueChoice
+  note?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+  chainStartedAt: number
+  chainRunIds: Array<string>
+}
+
+export type ProcessWaitingAnswer = {
+  run: ProcessRun
+  entry: ProcessLedgerEntry
+  ask: ProcessWaitingAsk
+  choice: ProcessResumeChoice
+  note?: string
 }
 
 export type ProcessStepResult = {
@@ -11010,7 +11130,7 @@ export type ProcessStepResult = {
     recordingIds: Array<string>
     mode?: 'live' | 'dry'
     dryAssumptions?: string
-    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     reason?: string
     reasons?: Array<string>
     judged?: boolean
@@ -11026,6 +11146,36 @@ export type ProcessStepResult = {
     includedTokens?: number
     listCostUsd?: number
     byModel?: Array<ModelSpend>
+  }
+  ask?: {
+    kind: ProcessWaitingKind
+    agent: string
+    title: string
+    detail: string
+    request?: {
+      actionId: string
+      actionKind: string
+      toolName?: string
+      host?: string
+      packageName?: string
+      ecosystem?: string
+      url?: string
+      args?: {
+        [key: string]: unknown
+      }
+    }
+    featureQuestionId?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    delegatedTo?: {
+      chatContextId: string
+      topicId: string
+      at: number
+    }
   }
 }
 
@@ -11080,14 +11230,14 @@ export type FreezePlanOptions = {
 export type ProcessStepState = {
   step: ProcessPlanStep
   status: 'pending' | 'running' | 'done'
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   attempts: number
   latest?: {
     id: string
     stepId: string
     iteration: number
     status: 'running' | 'done'
-    outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     summary?: string
     runRef?: {
       runId: string
@@ -11097,6 +11247,37 @@ export type ProcessStepState = {
     }
     childRunId?: string
     viaLoopId?: string
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+    }
+    continues?: string
     override?: {
       choice: ProcessResumeChoice
       at: number
@@ -11112,7 +11293,7 @@ export type ProcessStepState = {
       recordingIds: Array<string>
       mode?: 'live' | 'dry'
       dryAssumptions?: string
-      outcome?: 'passed' | 'failed' | 'unchecked' | 'question' | 'skipped' | 'errored'
+      outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
       reason?: string
       reasons?: Array<string>
       judged?: boolean
@@ -11132,6 +11313,8 @@ export type ProcessStepState = {
     startedAt: number
     endedAt?: number
     suspendedMs?: number
+    waitedMs?: number
+    waitingSince?: number
   }
   entries: Array<ProcessLedgerEntry>
   current: boolean
@@ -11145,7 +11328,7 @@ export type ProcessRunProgress = {
 }
 
 export type ProcessParkChoice = {
-  choice: ProcessResumeChoice
+  choice: ProcessParkAction
   label: string
   detail: string
   primary?: boolean
@@ -13383,7 +13566,16 @@ export type GetRunDiagnosticsResponse = GetRunDiagnosticsResponses[keyof GetRunD
 
 export type ResumeProcessRunData = {
   body: {
-    choice: 'continue' | 'retry' | 'abandon' | 'approve' | 'request-changes' | 'reject'
+    choice:
+      | 'continue'
+      | 'retry'
+      | 'abandon'
+      | 'approve'
+      | 'request-changes'
+      | 'reject'
+      | 'allow'
+      | 'resolved'
+      | 'more-info'
     note?: string
     integration?: 'merge' | 'squash' | 'pull-request'
   }
@@ -13423,6 +13615,61 @@ export type ResumeProcessRunResponses = {
 }
 
 export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
+
+export type DelegateProcessRunAskData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/delegate'
+}
+
+export type DelegateProcessRunAskErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DelegateProcessRunAskError =
+  DelegateProcessRunAskErrors[keyof DelegateProcessRunAskErrors]
+
+export type DelegateProcessRunAskResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    run: ProcessRun
+    /**
+     * The unblocking chat’s context key.
+     */
+    chatContextId: string
+    /**
+     * The project topic the chat was opened under.
+     */
+    topicId: string
+    /**
+     * Whether the chat agent’s first turn was started; false leaves the ask in the chat for the user to send on.
+     */
+    turnStarted: boolean
+  }
+}
+
+export type DelegateProcessRunAskResponse =
+  DelegateProcessRunAskResponses[keyof DelegateProcessRunAskResponses]
 
 export type RetryProcessRunIntegrationData = {
   body: {

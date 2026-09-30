@@ -94,7 +94,7 @@ export const GATE_OUTCOME_SAID: Record<ProcessStepOutcome, string> = {
   passed: 'The gate passed it',
   failed: 'The gate did not pass it',
   unchecked: 'The gate could not confirm the proof',
-  question: 'The gate stopped to ask a question',
+  waiting: 'The verifier stopped to wait on you',
   skipped: 'The gate never concluded',
   errored: 'The verify step errored',
 }

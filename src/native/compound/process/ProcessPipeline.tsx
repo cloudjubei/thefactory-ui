@@ -20,8 +20,9 @@ import {
   isIntegratingApproval,
   isProcessLeafOpenable,
   isReflectedPark,
+  isResumeParkChoice,
   latestOpenableAttempt,
-  parkedRunRef,
+  parkNoteRequired,
   processAmendmentView,
   processAttemptLeaf,
   processLeafReview,
@@ -40,15 +41,19 @@ import {
   processStepWorkMs,
   processStepStates,
   processStepTone,
+  processWaitingView,
   useAppSettings,
   useProcessRun,
+  waitingNoteCopy,
   type ProcessIntegrationMode,
   type ProcessNodeRunRef,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
+  type ProcessWaitingView,
 } from '../../../headless'
+import type { ChatContext } from '../../../headless/api'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
@@ -81,6 +86,11 @@ export type ProcessPipelineProps = {
   /** Native host's file saver; enables the story gate's downloads when provided. */
   onSaveFile?: SaveFileHandler
   /**
+   * Open a chat by its context — where a waiting agent's ask went when the
+   * person handed it to another agent. The host owns chat navigation.
+   */
+  onOpenChat?: (context: ChatContext) => void
+  /**
    * Whether this pipeline's screen is the one on top. The system back button is
    * only claimed while it is — a chat pushed over the pipeline must get its own
    * first back press. Defaults to true for a host with no navigation stack.
@@ -100,6 +110,7 @@ export default function ProcessPipeline({
   onOpenAgentRun,
   renderAgentRun,
   onSaveFile,
+  onOpenChat,
   isFocused = true,
 }: ProcessPipelineProps) {
   const { theme, status } = useNativeTheme()
@@ -113,6 +124,7 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    delegate,
     retryIntegration,
     cancel,
     listBranches,
@@ -314,6 +326,8 @@ export default function ProcessPipeline({
             now={now}
             addedTag={amendments.addedSteps[state.step.id]}
             onChoose={(choice, note, integration) => void resume(choice, note, integration)}
+            onDelegate={() => delegate().then(() => undefined)}
+            {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={drillTo}
             onOpenLeaf={openLeafHere}
             canOpenTranscript={canOpenTranscript}
@@ -657,6 +671,8 @@ function PipelineNode({
   now,
   addedTag,
   onChoose,
+  onDelegate,
+  onOpenChat,
   onDrill,
   onOpenLeaf,
   canOpenTranscript,
@@ -674,6 +690,8 @@ function PipelineNode({
     note?: string,
     integration?: ProcessIntegrationMode,
   ) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
   onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
   canOpenTranscript: boolean
@@ -861,11 +879,13 @@ function PipelineNode({
           <ParkBlock
             run={run}
             onChoose={onChoose}
+            onDelegate={onDelegate}
+            {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={onDrill}
             {...(canOpenTranscript
               ? {
-                  onOpenAsked: (ref: ProcessNodeRunRef) =>
-                    onOpenLeaf({ ref, title: `${state.step.name} · question` }, false),
+                  onOpenTranscript: (ref: ProcessNodeRunRef) =>
+                    onOpenLeaf({ ref, title: `${state.step.name} · transcript` }, false),
                 }
               : {})}
             {...(onSaveFile ? { onSaveFile } : {})}
@@ -969,7 +989,9 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
 function ParkBlock({
   run,
   onChoose,
-  onOpenAsked,
+  onDelegate,
+  onOpenChat,
+  onOpenTranscript,
   onDrill,
   onSaveFile,
 }: {
@@ -979,8 +1001,10 @@ function ParkBlock({
     note?: string,
     integration?: ProcessIntegrationMode,
   ) => void
-  /** Open the run that asked the question, to answer it in its chat. */
-  onOpenAsked?: (ref: ProcessNodeRunRef) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
+  /** Open the agent run that is waiting, to read its transcript. */
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
   onSaveFile?: SaveFileHandler
 }) {
@@ -988,7 +1012,18 @@ function ParkBlock({
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const park = run.park
   if (!park) return null
-  const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
+  const waiting = processWaitingView(run)
+  if (waiting) {
+    return (
+      <WaitingCard
+        view={waiting}
+        onChoose={onChoose}
+        onDelegate={onDelegate}
+        {...(onOpenChat ? { onOpenChat } : {})}
+        {...(onOpenTranscript ? { onOpenTranscript } : {})}
+      />
+    )
+  }
   const reflected = isReflectedPark(park)
   const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
   const choices = processParkChoices(park.reason, { reflected, sendsBack })
@@ -1039,13 +1074,6 @@ function ParkBlock({
           </Text>
         </Pressable>
       ) : null}
-      {asked && onOpenAsked ? (
-        <Pressable onPress={() => onOpenAsked(asked)} accessibilityRole="button">
-          <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-            Open the run to answer →
-          </Text>
-        </Pressable>
-      ) : null}
       {noteFor ? (
         <ParkNoteComposer
           sendsBack={sendsBack}
@@ -1053,7 +1081,7 @@ function ParkBlock({
           onCancel={() => setNoteFor(undefined)}
         />
       ) : (
-        choices.map((choice) => (
+        choices.filter(isResumeParkChoice).map((choice) => (
           <View key={choice.choice} style={{ gap: 2 }}>
             <Button
               size="sm"
@@ -1061,6 +1089,124 @@ function ParkBlock({
               onPress={() =>
                 choiceTakesNote(choice.choice) ? setNoteFor(choice.choice) : onChoose(choice.choice)
               }
+            >
+              {choice.label}
+            </Button>
+            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{choice.detail}</Text>
+          </View>
+        ))
+      )}
+    </View>
+  )
+}
+
+/**
+ * An agent waiting on the person: what it needs, in its own words, exactly what
+ * it asked for, its transcript one tap away, and the answers it takes — each
+ * with one line on what it does.
+ */
+function WaitingCard({
+  view,
+  onChoose,
+  onDelegate,
+  onOpenChat,
+  onOpenTranscript,
+}: {
+  view: ProcessWaitingView
+  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
+}) {
+  const { theme, status } = useNativeTheme()
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [delegating, setDelegating] = useState(false)
+  const variant = status.on_hold
+  const transcript = view.transcript
+  const delegated = view.delegated
+  const delegate = () => {
+    setDelegating(true)
+    void onDelegate().finally(() => setDelegating(false))
+  }
+
+  return (
+    <View
+      style={{
+        marginTop: nativeSpace[2],
+        borderRadius: nativeRadii[3],
+        padding: nativeSpace[3],
+        backgroundColor: variant.softBg,
+        borderWidth: 1,
+        borderColor: variant.softBorder,
+        gap: nativeSpace[2],
+      }}
+    >
+      <View style={{ gap: 2 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: variant.softFg }}>
+          {view.heading}
+        </Text>
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.title}</Text>
+      </View>
+      <View
+        style={{
+          borderLeftWidth: 2,
+          borderLeftColor: theme.border.strong,
+          backgroundColor: theme.surface.base,
+          borderRadius: nativeRadii[2],
+          paddingHorizontal: nativeSpace[2],
+          paddingVertical: nativeSpace[1],
+        }}
+      >
+        <Text style={{ fontSize: 13, lineHeight: 19, color: theme.text.primary }}>
+          {view.words}
+        </Text>
+      </View>
+      {view.details.map((d) => (
+        <View key={d.label} style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{d.label}</Text>
+          <Text
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 12, fontFamily: 'Menlo', color: theme.text.primary }}
+          >
+            {d.value}
+          </Text>
+        </View>
+      ))}
+      {transcript && onOpenTranscript ? (
+        <Pressable onPress={() => onOpenTranscript(transcript)} accessibilityRole="button">
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.transcriptLabel}</Text>
+        </Pressable>
+      ) : null}
+      {delegated ? (
+        onOpenChat ? (
+          <Pressable onPress={() => onOpenChat(delegated.chatContext)} accessibilityRole="button">
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
+              {delegated.label} →
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{delegated.label}</Text>
+        )
+      ) : null}
+      {noteFor ? (
+        <ParkNoteComposer
+          copy={waitingNoteCopy(view.kind)}
+          required={parkNoteRequired(noteFor)}
+          onSend={(note) => onChoose(noteFor, note)}
+          onCancel={() => setNoteFor(undefined)}
+        />
+      ) : (
+        view.choices.map((choice) => (
+          <View key={choice.choice} style={{ gap: 2 }}>
+            <Button
+              size="sm"
+              variant={choice.primary ? 'primary' : 'secondary'}
+              disabled={choice.choice === 'delegate' && delegating}
+              onPress={() => {
+                if (!isResumeParkChoice(choice)) return delegate()
+                if (choiceTakesNote(choice.choice)) return setNoteFor(choice.choice)
+                onChoose(choice.choice)
+              }}
             >
               {choice.label}
             </Button>

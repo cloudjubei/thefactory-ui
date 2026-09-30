@@ -16,6 +16,7 @@ import { IconSettings, IconWorkflow } from '../icons'
 import CostChip from '../compound/chips/CostChip'
 import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
+import type { ChatContext } from '../../headless/api'
 
 export type ProcessRunsViewProps = {
   /** The project whose runs to list. */
@@ -33,6 +34,8 @@ export type ProcessRunsViewProps = {
    * routing away — threaded to the pipeline, where it wins over `onOpenAgentRun`.
    */
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
+  /** Open a chat by its context — where a waiting agent's ask was handed. Threaded to the pipeline. */
+  onOpenChat?: (context: ChatContext) => void
   /**
    * Collapse to one pane at a time (small screens): the list, or the detail when
    * a run is selected. A big-screen host omits it and keeps both panes.
@@ -56,6 +59,7 @@ export default function ProcessRunsView({
   onOpenSettings,
   onOpenAgentRun,
   renderAgentRun,
+  onOpenChat,
   narrow = false,
 }: ProcessRunsViewProps) {
   const { isLoaded, current, history } = useProcessRuns(projectId)
@@ -140,6 +144,7 @@ export default function ProcessRunsView({
         runId={selectedRunId}
         {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
         {...(renderAgentRun ? { renderAgentRun } : {})}
+        {...(onOpenChat ? { onOpenChat } : {})}
       />
     </div>
   ) : (

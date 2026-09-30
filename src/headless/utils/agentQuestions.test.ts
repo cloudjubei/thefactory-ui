@@ -25,6 +25,27 @@ describe('isQuestionAction', () => {
   })
 })
 
+describe('isQuestionAction — a reported blocker', () => {
+  it('takes the question card, answered with words', () => {
+    expect(isQuestionAction({ kind: 'blocker' } as never)).toBe(true)
+  })
+})
+
+describe('parseQuestionPayload — a reported blocker', () => {
+  it('asks what the agent needs, with what it tried as the background', () => {
+    expect(
+      parseQuestionPayload({
+        blocker: 'The emulator will not boot.',
+        tried: 'Cold boot twice.',
+        needFromPerson: 'Restart it on the host.',
+      }),
+    ).toEqual({
+      question: 'The emulator will not boot.\n\nWhat it needs from you: Restart it on the host.',
+      context: 'What it tried: Cold boot twice.',
+    })
+  })
+})
+
 describe('parseQuestionPayload', () => {
   it('reads question, context and options from a well-formed payload', () => {
     expect(

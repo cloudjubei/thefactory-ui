@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import {
   choiceTakesNote,
+  isResumeParkChoice,
   EMPTY_SIGNOFF_SECTION,
   evidenceLoadState,
   overlayPairsFor,
@@ -352,7 +353,7 @@ function StorySignoffPanel({
               onCancel={() => setChoosingIntegration(false)}
             />
           ) : (
-            choices.map((c) => (
+            choices.filter(isResumeParkChoice).map((c) => (
               <Button
                 key={c.choice}
                 size="sm"

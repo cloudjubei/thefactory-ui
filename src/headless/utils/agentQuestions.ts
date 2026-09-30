@@ -4,6 +4,7 @@
 
 import type { AgentQuestion, AgentQuestionDecision } from './agentQuestionTypes'
 import {
+  BLOCKER_ACTION_KIND,
   QUESTION_ACTION_KIND,
   QUESTION_DECLINED_ANSWER,
   QUESTION_FALLBACK_PROMPT,
@@ -12,9 +13,12 @@ import type { PendingQuestionGrant, PendingRemedyGrant, PendingToolGrant } from 
 import { isRemedyGrant } from './agentRemedy'
 import type { CliPendingActionLike } from './pendingToolGrants'
 
-/** True when a broker action is an `askUser` question rather than a permission request. */
+/**
+ * True when a broker action is answered with words — an `askUser` question or
+ * a `reportBlocked` blocker — rather than a permission request.
+ */
 export function isQuestionAction(action: CliPendingActionLike): boolean {
-  return action.kind === QUESTION_ACTION_KIND
+  return action.kind === QUESTION_ACTION_KIND || action.kind === BLOCKER_ACTION_KIND
 }
 
 function readText(value: unknown): string | undefined {
@@ -47,8 +51,17 @@ export function parseQuestionPayload(payload: unknown): AgentQuestion {
       ? (payload as Record<string, unknown>)
       : undefined
 
-  const question = readText(record?.question)
-  const context = readText(record?.context)
+  const blocker = readText(record?.blocker)
+  const needed = readText(record?.needFromPerson)
+  const tried = readText(record?.tried)
+  const question =
+    readText(record?.question) ??
+    (blocker || needed
+      ? [blocker, needed ? `What it needs from you: ${needed}` : undefined]
+          .filter((line): line is string => line !== undefined)
+          .join('\n\n')
+      : undefined)
+  const context = readText(record?.context) ?? (tried ? `What it tried: ${tried}` : undefined)
   const options = readOptions(record?.options)
 
   const parsed: AgentQuestion = { question: question ?? QUESTION_FALLBACK_PROMPT }

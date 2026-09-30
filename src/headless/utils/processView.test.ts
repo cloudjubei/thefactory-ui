@@ -166,14 +166,14 @@ describe('processRunChipLabel', () => {
   })
 })
 
-describe('the question outcome', () => {
-  it('reads as a question rather than a failure', () => {
-    expect(PROCESS_OUTCOME_VIEW.question.label).toMatch(/question/i)
+describe('the waiting outcome', () => {
+  it('reads as waiting on the person rather than a failure', () => {
+    expect(PROCESS_OUTCOME_VIEW.waiting.label).toBe('waiting on you')
   })
 
   it('is visually distinct from both a failure and an unmeasured step', () => {
-    expect(PROCESS_OUTCOME_VIEW.question.tone).not.toBe(PROCESS_OUTCOME_VIEW.failed.tone)
-    expect(PROCESS_OUTCOME_VIEW.question.tone).not.toBe(PROCESS_OUTCOME_VIEW.unchecked.tone)
+    expect(PROCESS_OUTCOME_VIEW.waiting.tone).not.toBe(PROCESS_OUTCOME_VIEW.failed.tone)
+    expect(PROCESS_OUTCOME_VIEW.waiting.tone).not.toBe(PROCESS_OUTCOME_VIEW.unchecked.tone)
   })
 
   it('does not count toward progress', () => {
@@ -183,7 +183,7 @@ describe('the question outcome', () => {
         stepId: 'a',
         iteration: 1,
         status: 'done' as const,
-        outcome: 'question' as const,
+        outcome: 'waiting' as const,
         startedAt: 0,
       },
     ]
@@ -416,7 +416,7 @@ describe('parkedRunRef', () => {
 
   it('finds the run the parked step owns', () => {
     const r = run({
-      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
       ledger: [entry('a', { runId: 'r1', chatContextId: '/projects/p/stories/s' })],
     })
     expect(parkedRunRef(r)?.runId).toBe('r1')
@@ -424,7 +424,7 @@ describe('parkedRunRef', () => {
 
   it('takes the NEWEST attempt when a step ran more than once', () => {
     const r = run({
-      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
       ledger: [
         entry('a', { runId: 'old', chatContextId: '/x' }),
         entry('a', { runId: 'new', chatContextId: '/y' }),
@@ -435,7 +435,7 @@ describe('parkedRunRef', () => {
 
   it('refuses a ref with no chat to open — a CTA that does nothing is worse than none', () => {
     const r = run({
-      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
       ledger: [entry('a', { runId: 'r1' })],
     })
     expect(parkedRunRef(r)).toBeUndefined()
@@ -443,7 +443,7 @@ describe('parkedRunRef', () => {
 
   it('ignores a run belonging to a different step', () => {
     const r = run({
-      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
       ledger: [entry('b', { runId: 'r1', chatContextId: '/x' })],
     })
     expect(parkedRunRef(r)).toBeUndefined()
@@ -878,10 +878,10 @@ describe('processRunBadge', () => {
     })
     expect(processRunBadge(r)).toEqual({ label: 'Ready for you', tone: 'review' })
   })
-  it('a run parked on a question is waiting-for-you (on-hold)', () => {
+  it('a run parked on an agent waiting on the person is waiting-for-you (on-hold)', () => {
     const r = run({
       status: 'parked',
-      park: { reason: 'step-question', stepId: 'a', message: '', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
     })
     expect(processRunBadge(r)).toEqual({ label: 'Waiting for you', tone: 'on_hold' })
   })
@@ -929,7 +929,7 @@ describe('processRunCardView', () => {
     const r = run({
       status: 'parked',
       cursor: { stepId: 'a', iteration: 1 },
-      park: { reason: 'step-question', stepId: 'a', message: 'q', parkedAt: 0 },
+      park: { reason: 'step-waiting', stepId: 'a', message: 'q', parkedAt: 0 },
       ledger: [{ id: 'a', stepId: 'a', iteration: 1, status: 'running', startedAt: 0 }],
     })
     const view = processRunCardView(r)

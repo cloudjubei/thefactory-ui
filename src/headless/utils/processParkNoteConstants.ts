@@ -1,4 +1,4 @@
-import type { ProcessResumeChoice } from 'thefactory-tools/types'
+import type { ProcessParkAction, ProcessWaitingKind } from 'thefactory-tools/types'
 
 import type { ParkNoteCopy } from './processParkNoteTypes'
 
@@ -9,7 +9,13 @@ export const PARK_NOTE_MAX_LENGTH = 2000
 export const PARK_NOTE_COUNTER_FROM = 1800
 
 /** The park choices that ask for a note before they are sent. */
-export const PARK_NOTE_CHOICES: ReadonlySet<ProcessResumeChoice> = new Set(['request-changes'])
+export const PARK_NOTE_CHOICES: ReadonlySet<ProcessParkAction> = new Set([
+  'request-changes',
+  'more-info',
+])
+
+/** The park choices whose note is the whole answer, so they cannot be sent empty. */
+export const PARK_NOTE_REQUIRED_CHOICES: ReadonlySet<ProcessParkAction> = new Set(['more-info'])
 
 /** The composer's words: a gate that sends work back to be fixed, or one that only ends the run. */
 export const PARK_NOTE_COPY: Record<'sendsBack' | 'endsRun', ParkNoteCopy> = {
@@ -25,3 +31,10 @@ export const PARK_NOTE_COPY: Record<'sendsBack' | 'endsRun', ParkNoteCopy> = {
 }
 
 export const PARK_NOTE_CANCEL = 'Cancel'
+
+/** The composer's words when a waiting agent is answered or told more, by what it asked. */
+export const WAITING_NOTE_COPY: Record<ProcessWaitingKind, ParkNoteCopy> = {
+  question: { prompt: 'Your answer', submitLabel: 'Send answer' },
+  permission: { prompt: 'What should the agent know?', submitLabel: 'Send and continue' },
+  blocker: { prompt: 'What should the agent know?', submitLabel: 'Send and continue' },
+}

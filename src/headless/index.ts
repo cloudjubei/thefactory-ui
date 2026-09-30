@@ -1184,6 +1184,7 @@ export {
   type UseProcessRun,
   type ProcessRunBranch,
   type DeleteProcessRunResult,
+  type ProcessRunDelegation,
 } from './hooks/useProcessRun'
 export { useRunDiagnostics, type UseRunDiagnostics } from './hooks/useRunDiagnostics'
 export {
@@ -1251,7 +1252,9 @@ export {
   choiceTakesNote,
   parkNoteCopy,
   parkNoteCounter,
+  parkNoteRequired,
   parkNoteToSend,
+  waitingNoteCopy,
 } from './utils/processParkNote'
 export {
   PARK_NOTE_CANCEL,
@@ -1259,7 +1262,21 @@ export {
   PARK_NOTE_COPY,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
+  PARK_NOTE_REQUIRED_CHOICES,
+  WAITING_NOTE_COPY,
 } from './utils/processParkNoteConstants'
+export {
+  isResumeParkChoice,
+  processWaitingDetails,
+  processWaitingHeading,
+  processWaitingView,
+} from './utils/processWaitingView'
+export { WAITING_DELEGATED_LABEL } from './utils/processWaitingViewConstants'
+export type {
+  ProcessWaitingDelegatedView,
+  ProcessWaitingDetail,
+  ProcessWaitingView,
+} from './utils/processWaitingViewTypes'
 export type { ParkNoteCopy } from './utils/processParkNoteTypes'
 export {
   isIntegratingApproval,
@@ -1337,9 +1354,12 @@ export type {
   ProcessParkReason,
   ProcessPlan,
   ProcessPlanStep,
+  ProcessParkAction,
   ProcessResumeChoice,
   ProcessRun,
   ProcessRunStatus,
+  ProcessWaitingAsk,
+  ProcessWaitingKind,
   RunDiagnostics,
   RunDiagnosticsEvent,
   ProcessScope,

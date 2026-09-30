@@ -6,6 +6,7 @@ import type {
 } from 'thefactory-tools/types'
 import {
   cancelProcessRun,
+  delegateProcessRunAsk,
   deleteProcessRun,
   getProcessRun,
   listProcessRunBranches,
@@ -16,6 +17,9 @@ import { extractErrorMessage, useApi, useAuth } from '../api'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
+
+/** The chat an ask was handed to. */
+export type ProcessRunDelegation = { chatContextId: string; topicId: string; turnStarted: boolean }
 
 /** What a cascade delete removed. */
 export type DeleteProcessRunResult = {
@@ -40,6 +44,12 @@ export type UseProcessRun = {
   ) => Promise<void>
   /** Try again to bring in approved work that did not land, the same way or another. */
   retryIntegration: (integration: ProcessIntegrationMode) => Promise<void>
+  /**
+   * Hand what the waiting agent asked for to another agent — a chat opened with
+   * the whole ask. The run keeps waiting. Resolves to the chat's topic, or
+   * `undefined` when it was refused (the reason is in `actionError`).
+   */
+  delegate: () => Promise<ProcessRunDelegation | undefined>
   cancel: () => Promise<void>
   /** The review branches this run tree owns — for the delete confirm's list. */
   listBranches: () => Promise<ProcessRunBranch[]>
@@ -126,6 +136,24 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     [runId],
   )
 
+  const delegate = useCallback(async (): Promise<ProcessRunDelegation | undefined> => {
+    if (!runId) return undefined
+    setActionError(null)
+    try {
+      const { data } = await delegateProcessRunAsk({ path: { runId }, throwOnError: true })
+      const result = data as { run: ProcessRun } & ProcessRunDelegation
+      setRun(result.run)
+      return {
+        chatContextId: result.chatContextId,
+        topicId: result.topicId,
+        turnStarted: result.turnStarted,
+      }
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The ask could not be handed on.'))
+      return undefined
+    }
+  }, [runId])
+
   const cancel = useCallback(async () => {
     if (!runId) return
     setActionError(null)
@@ -165,6 +193,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      delegate,
       cancel,
       listBranches,
       deleteRun,
@@ -177,6 +206,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      delegate,
       cancel,
       listBranches,
       deleteRun,

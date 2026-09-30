@@ -143,6 +143,9 @@ import type {
   DecideCliAgentActionData,
   DecideCliAgentActionErrors,
   DecideCliAgentActionResponses,
+  DelegateProcessRunAskData,
+  DelegateProcessRunAskErrors,
+  DelegateProcessRunAskResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -1508,6 +1511,20 @@ export const resumeProcessRun = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const delegateProcessRunAsk = <ThrowOnError extends boolean = false>(
+  options: Options<DelegateProcessRunAskData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DelegateProcessRunAskResponses,
+    DelegateProcessRunAskErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/delegate',
+    ...options,
   })
 
 export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>(

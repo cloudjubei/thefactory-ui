@@ -7,8 +7,9 @@ import {
   isIntegratingApproval,
   isProcessLeafOpenable,
   isReflectedPark,
+  isResumeParkChoice,
   latestOpenableAttempt,
-  parkedRunRef,
+  parkNoteRequired,
   processAmendmentView,
   processAttemptLeaf,
   processLeafReview,
@@ -27,15 +28,18 @@ import {
   processStepWorkMs,
   processStepStates,
   processStepTone,
+  processWaitingView,
   useAppSettings,
   useDurationTimer,
   useProcessRun,
+  waitingNoteCopy,
   type ProcessIntegrationMode,
   type ProcessNodeRunRef,
   type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
+  type ProcessWaitingView,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -50,6 +54,7 @@ import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
 import type { ProcessRunBranch } from '../../../headless'
+import type { ChatContext } from '../../../headless/api'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
@@ -69,6 +74,11 @@ export type ProcessPipelineProps = {
    * the render because the chat body lives in the client layer.
    */
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
+  /**
+   * Open a chat by its context — where a waiting agent's ask went when the
+   * person handed it to another agent. The host owns chat navigation.
+   */
+  onOpenChat?: (context: ChatContext) => void
 }
 
 /**
@@ -89,6 +99,7 @@ export default function ProcessPipeline({
   runId,
   onOpenAgentRun,
   renderAgentRun,
+  onOpenChat,
 }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
   const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
@@ -100,6 +111,7 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    delegate,
     retryIntegration,
     cancel,
     listBranches,
@@ -260,6 +272,8 @@ export default function ProcessPipeline({
             now={now}
             addedTag={amendments.addedSteps[state.step.id]}
             onChoose={(choice, note, integration) => void resume(choice, note, integration)}
+            onDelegate={() => delegate().then(() => undefined)}
+            {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={drillTo}
             onOpenLeaf={openLeafHere}
             canOpenTranscript={canOpenTranscript}
@@ -485,6 +499,8 @@ function PipelineNode({
   now,
   addedTag,
   onChoose,
+  onDelegate,
+  onOpenChat,
   onDrill,
   onOpenLeaf,
   canOpenTranscript,
@@ -501,6 +517,8 @@ function PipelineNode({
     note?: string,
     integration?: ProcessIntegrationMode,
   ) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
   onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
   canOpenTranscript: boolean
@@ -658,11 +676,13 @@ function PipelineNode({
           <ParkBlock
             run={run}
             onChoose={onChoose}
+            onDelegate={onDelegate}
+            {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={onDrill}
             {...(canOpenTranscript
               ? {
-                  onOpenAsked: (ref: ProcessNodeRunRef) =>
-                    onOpenLeaf({ ref, title: `${state.step.name} · question` }, false),
+                  onOpenTranscript: (ref: ProcessNodeRunRef) =>
+                    onOpenLeaf({ ref, title: `${state.step.name} · transcript` }, false),
                 }
               : {})}
           />
@@ -786,12 +806,15 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
 /**
  * The decision a parked node carries — named choices, inline on the node, never
  * a spinner and a hope. A reflected park is a statement, not a question: its
- * decision belongs to the nested run, so it offers the way there instead.
+ * decision belongs to the nested run, so it offers the way there instead. An
+ * agent waiting on the person gets its own card: what it needs, in its words.
  */
 function ParkBlock({
   run,
   onChoose,
-  onOpenAsked,
+  onDelegate,
+  onOpenChat,
+  onOpenTranscript,
   onDrill,
 }: {
   run: ProcessRun
@@ -800,14 +823,27 @@ function ParkBlock({
     note?: string,
     integration?: ProcessIntegrationMode,
   ) => void
-  /** Open the run that asked the question, to answer it in its chat. */
-  onOpenAsked?: (ref: ProcessNodeRunRef) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
+  /** Open the agent run that is waiting, to read its transcript. */
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const park = run.park
   if (!park) return null
-  const asked = park.reason === 'step-question' ? parkedRunRef(run) : undefined
+  const waiting = processWaitingView(run)
+  if (waiting) {
+    return (
+      <WaitingCard
+        view={waiting}
+        onChoose={onChoose}
+        onDelegate={onDelegate}
+        {...(onOpenChat ? { onOpenChat } : {})}
+        {...(onOpenTranscript ? { onOpenTranscript } : {})}
+      />
+    )
+  }
   const reflected = isReflectedPark(park)
   const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
   const choices = processParkChoices(park.reason, { reflected, sendsBack })
@@ -857,15 +893,6 @@ function ParkBlock({
           Open the nested run to decide →
         </button>
       ) : null}
-      {asked && onOpenAsked ? (
-        <button
-          type="button"
-          className="self-start text-[11px] underline text-(--text-secondary)"
-          onClick={() => onOpenAsked(asked)}
-        >
-          Open the run to answer →
-        </button>
-      ) : null}
       {noteFor ? (
         <ParkNoteComposer
           sendsBack={sendsBack}
@@ -874,7 +901,7 @@ function ParkBlock({
         />
       ) : (
         <div className="flex flex-wrap gap-3">
-          {choices.map((choice) => (
+          {choices.filter(isResumeParkChoice).map((choice) => (
             <div key={choice.choice} className="flex flex-col gap-0.5">
               <Button
                 size="sm"
@@ -884,6 +911,121 @@ function ParkBlock({
                     ? setNoteFor(choice.choice)
                     : onChoose(choice.choice)
                 }
+              >
+                {choice.label}
+              </Button>
+              <span className="max-w-48 text-[10px] text-(--text-secondary)">{choice.detail}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * An agent waiting on the person: what it needs, in its own words, exactly what
+ * it asked for, its transcript one click away, and the answers it takes — each
+ * with one line on what it does.
+ */
+function WaitingCard({
+  view,
+  onChoose,
+  onDelegate,
+  onOpenChat,
+  onOpenTranscript,
+}: {
+  view: ProcessWaitingView
+  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onDelegate: () => Promise<void>
+  onOpenChat?: (context: ChatContext) => void
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
+}) {
+  const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [delegating, setDelegating] = useState(false)
+  const transcript = view.transcript
+  const delegated = view.delegated
+  const delegate = () => {
+    setDelegating(true)
+    void onDelegate().finally(() => setDelegating(false))
+  }
+
+  return (
+    <div
+      className="mt-2 flex flex-col gap-2.5 rounded-lg p-3"
+      style={{
+        background: 'var(--status-on_hold-soft-bg)',
+        border: '1px solid var(--status-on_hold-soft-border)',
+      }}
+    >
+      <div className="flex flex-col gap-0.5">
+        <div
+          className="text-[13.5px] font-semibold"
+          style={{ color: 'var(--status-on_hold-soft-fg)' }}
+        >
+          {view.heading}
+        </div>
+        <div className="text-[12px] text-(--text-secondary)">{view.title}</div>
+      </div>
+      <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
+        {view.words}
+      </blockquote>
+      {view.details.length > 0 ? (
+        <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[11.5px]">
+          {view.details.map((d) => (
+            <div key={d.label} className="contents">
+              <dt className="text-(--text-muted)">{d.label}</dt>
+              <dd className="m-0 truncate font-mono text-(--text-primary)" title={d.value}>
+                {d.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {transcript && onOpenTranscript ? (
+          <button
+            type="button"
+            className="text-[11px] underline text-(--text-secondary)"
+            onClick={() => onOpenTranscript(transcript)}
+          >
+            {view.transcriptLabel}
+          </button>
+        ) : null}
+        {delegated ? (
+          onOpenChat ? (
+            <button
+              type="button"
+              className="text-[11px] font-medium underline text-(--text-primary)"
+              onClick={() => onOpenChat(delegated.chatContext)}
+            >
+              {delegated.label} →
+            </button>
+          ) : (
+            <span className="text-[11px] text-(--text-secondary)">{delegated.label}</span>
+          )
+        ) : null}
+      </div>
+      {noteFor ? (
+        <ParkNoteComposer
+          copy={waitingNoteCopy(view.kind)}
+          required={parkNoteRequired(noteFor)}
+          onSend={(note) => onChoose(noteFor, note)}
+          onCancel={() => setNoteFor(undefined)}
+        />
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {view.choices.map((choice) => (
+            <div key={choice.choice} className="flex flex-col gap-0.5">
+              <Button
+                size="sm"
+                variant={choice.primary ? 'primary' : 'secondary'}
+                disabled={choice.choice === 'delegate' && delegating}
+                onClick={() => {
+                  if (!isResumeParkChoice(choice)) return delegate()
+                  if (choiceTakesNote(choice.choice)) return setNoteFor(choice.choice)
+                  onChoose(choice.choice)
+                }}
               >
                 {choice.label}
               </Button>

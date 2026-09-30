@@ -46,9 +46,9 @@ export const PROCESS_OUTCOME_VIEW: Record<
   // Distinct from `failed` on purpose: nothing was measured, which is a reason
   // to stop and ask rather than a verdict against the work.
   unchecked: { label: 'nothing checked', tone: 'blocked' },
-  // Its own label because its answer is its own: the step asked something, and
-  // nothing moves until a person replies.
-  question: { label: 'asked a question', tone: 'queued' },
+  // Its own label because its answer is its own: the agent is waiting on a
+  // person, and nothing moves until they reply.
+  waiting: { label: 'waiting on you', tone: 'queued' },
   skipped: { label: 'skipped', tone: 'empty' },
   errored: { label: 'errored', tone: 'stuck' },
 }
@@ -615,8 +615,8 @@ export function verifyReviewStatus(
       return { tone: 'stuck', label: 'Verify failed' }
     case 'errored':
       return { tone: 'stuck', label: 'Verify errored' }
-    case 'question':
-      return { tone: 'review', label: 'Waiting on a question' }
+    case 'waiting':
+      return { tone: 'review', label: 'Waiting on you' }
     case 'skipped':
       return { tone: 'review', label: 'Skipped' }
     default:

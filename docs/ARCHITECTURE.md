@@ -266,6 +266,38 @@ A park is answered with NAMED choices (`processParkChoices`), never a generic
 measured, the check said no, the retries ran out — and one button would hide
 which one this is.
 
+**An agent waiting on you** (`step-waiting`, the ask on `park.ask`) gets its own
+card in `ParkBlock` (web + native `WaitingCard`), laid out by
+`headless/utils/processWaitingView.ts` → `processWaitingView(run)`: a heading by
+kind ("The verifier needs network access", "The developer has a question", "The
+developer is blocked"), the agent's own words, what exactly it asked for (host,
+package, URL, tool), a link to its transcript, and the answers its kind takes —
+each button with its one line (`allow` "Allow <host> and continue", `resolved`
+"Issue resolved — Continue", `more-info` "Provide more info" / "Answer",
+`delegate`, `abandon`). "Provide more info" and "Answer" open `ParkNoteComposer`
+with `waitingNoteCopy(kind)` and `required` (`parkNoteRequired`): the words ARE
+the answer, so it will not send blank. "Delegate to another agent" calls
+`useProcessRun().delegate()` (`POST /process-runs/:runId/delegate`); the run
+stays parked and the card then offers "Delegated to another agent — open the
+chat", opened through the host's `onOpenChat(context)` — a prop on
+`ProcessPipeline` and `ProcessRunsView` (web + native), wired by each client to
+its own chat navigation, since this package never navigates. A story's mirror of
+the park says "Waiting on you: <title>" and points into the nested run, where it
+is answered. `isResumeParkChoice` separates the choices that go through resume
+from `delegate`. A park reason this build no longer raises (an old
+`step-question`) renders its stored message with Try again / Stop. The same
+request also shows on the agent's chat composer; the backend resumes the run the
+matching way whichever surface it is decided on, so the two never disagree. A
+process agent's `reportBlocked` (its last-resort "I am blocked", which replaces
+`askUser` in every process step) is a `blocker` ask: the pipeline card shows its
+words — what blocks it, what it tried, what it needs from you — with no tool row,
+and the chat composer answers it on the question card (`isQuestionAction` takes
+the `blocker` kind, `parseQuestionPayload` reads its fields). An API step that
+waits MID-STEP (`park.stepInFlight`, its entry still running) shows the same card
+with the same choices; answering hands the decision to the same in-process agent.
+Captures an attempt filed before it waited stay on the sign-off: its scope is
+every ledger entry's run, waiting attempts included.
+
 `headless/utils/processView.ts` is what stops the two peers drifting: one place
 says what an outcome is called and which status tone it carries. The tones are
 the package's own semantic set (`--status-<key>-*` on web, `status[key]` on
