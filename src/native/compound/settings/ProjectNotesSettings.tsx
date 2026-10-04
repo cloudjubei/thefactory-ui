@@ -3,7 +3,12 @@ import { ScrollView, Text, View } from 'react-native'
 
 import { useProjectNotes, useProjectNoteReveal } from '../../../headless'
 import type { ProjectNoteSummary } from '../../../headless/api'
-import { canRevealNote, noteAccessLabel, noteKindLabel } from '../../../headless/utils/projectNotes'
+import {
+  canRevealNote,
+  noteAccessLabel,
+  noteAuthorLabel,
+  noteKindLabel,
+} from '../../../headless/utils/projectNotes'
 import { NOTE_ACCESS_NOTE, NOTE_VALUE_MASK } from '../../../headless/utils/projectNotesConstants'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -128,6 +133,11 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
                               {noteAccessLabel(note.access)}
                             </Text>
                           </View>
+                          {noteAuthorLabel(note) ? (
+                            <View style={chipPillStyle(theme)}>
+                              <Text style={chipPillTextStyle(theme)}>{noteAuthorLabel(note)}</Text>
+                            </View>
+                          ) : null}
                         </View>
                         {note.description ? (
                           <Text style={{ fontSize: 13, color: theme.text.secondary }}>

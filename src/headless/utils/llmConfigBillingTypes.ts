@@ -1,6 +1,6 @@
 import type { BillingBasis } from 'thefactory-tools/types'
 
-import type { GetLlmConfigResponse, LlmConfig } from '../api/generated'
+import type { GetLlmConfigResponse, StartAgentRunData } from '../api/generated'
 
 /** One way an API config's calls can be paid for, as the config form offers it. */
 export interface LlmConfigBillingOption {
@@ -20,12 +20,14 @@ export type StoredLlmConfig = Pick<
   | 'name'
   | 'provider'
   | 'model'
-  | 'apiKey'
   | 'apiUrlOverride'
   | 'costInputPerMTokensUSD'
   | 'costOutputPerMTokensUSD'
   | 'costCacheReadInputPerMTokensUSD'
 > & { billing?: BillingBasis }
 
-/** The LLM config an agent run is started with — the one its calls are priced and ledgered under. */
-export type AgentRunLlmConfig = LlmConfig & { billing?: BillingBasis }
+/**
+ * The LLM config an agent run is started with — the one its calls are priced
+ * and ledgered under. It carries no key: the backend looks the stored one up.
+ */
+export type AgentRunLlmConfig = StartAgentRunData['body']['params']['llmConfig']

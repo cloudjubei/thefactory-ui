@@ -1,6 +1,11 @@
 import type { ProcessRun } from 'thefactory-tools/types'
 
-import type { CliRun, ReviewEvidenceRef, RunVerification } from '../api/generated'
+import type {
+  CliRun,
+  ProjectChecksListing,
+  ReviewEvidenceRef,
+  RunVerification,
+} from '../api/generated'
 import type {
   CheckMethodRow,
   CheckMethodState,
@@ -8,6 +13,7 @@ import type {
   SignoffVerdict,
 } from './checkMethodTypes'
 import type { CliRunCostSource } from './costDetailsTypes'
+import type { DeveloperChecksNote } from './processChecksViewTypes'
 import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import type { RunModel } from './runModel'
@@ -82,6 +88,14 @@ export type BuildStorySignoffInput = {
    * a list of unfinished features.
    */
   storyIncomplete?: string
+  /**
+   * What a scan of the project found. Known, every section's command chips
+   * read detected-but-not-run as available, undetected as not set up, and
+   * drop a type check the build already does.
+   */
+  projectChecks?: ProjectChecksListing
+  /** Epoch ms now — what an available check's last run is told as "3 minutes ago" against. */
+  now?: number
 }
 
 /**
@@ -156,9 +170,12 @@ export type FixSignoff = SectionSignoff & {
 export type SectionSignoff = {
   /** The run whose verification/verdict this section reflects, if one landed. */
   runId: string | undefined
-  /** True when a verification record exists for the chosen run. */
+  /** True when a verification record exists for the chosen run, or its checks step recorded results. */
   verified: boolean
-  /** The chosen run's verification record — for the Tests/Build panes. */
+  /**
+   * The chosen run's verification record with its process run's newest checks
+   * step read over it (`withProcessChecks`) — for the chips and the Tests/Build panes.
+   */
   verification: RunVerification | undefined
   /** The "what was checked" chips for this feature. */
   rows: CheckMethodRow[]
@@ -181,6 +198,11 @@ export type SectionSignoff = {
   runModel: RunModel | undefined
   /** The agents that ran this feature — developer + verifier, newest per role. */
   agents: SignoffAgent[]
+  /**
+   * The checks its developer ran before handing over, as the host recorded
+   * them — or that a code-changing agent ran none. Absent when no such agent ran it.
+   */
+  developerChecks: DeveloperChecksNote | undefined
   /**
    * The verify attempt the feature's latest run was accepted on — its ledger
    * entry carries the gate's proof. Absent when that run has not verified.
@@ -296,6 +318,12 @@ export type StorySignoff = {
   /** Story-total time and cost — each feature's latest run and the story run's own steps. */
   facts: RunReviewFacts
   /**
+   * How the story's features were worked, in the launch approval's words —
+   * read from the plan the story run froze. Absent without a story run, or for
+   * one that nests a feature process the approval does not offer.
+   */
+  featureProcess: string | undefined
+  /**
    * The runs whose filings the sign-off shows — each feature's latest run and
    * the story run's own. Undefined when no process run scopes the story, so
    * everything filed for it shows.
@@ -311,6 +339,12 @@ export type SignoffSources = {
   runs: SignoffSourceState
   stories: SignoffSourceState
   evidence: SignoffSourceState
+  /**
+   * The project's checks scan. Waited for, so a chip never flips from "not set
+   * up" to "available" under a drawn verdict — but never fatal: without a scan
+   * the chips read as they always have.
+   */
+  checks?: SignoffSourceState
 }
 
 /** Whether a sign-off can be shown yet — never while any of what it is computed from is still loading. */

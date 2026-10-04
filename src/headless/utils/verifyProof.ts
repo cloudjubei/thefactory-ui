@@ -68,6 +68,7 @@ import {
   PROOF_NOT_COUNTED_TAIL,
   PROOF_THUMB_NEW_MARKER,
   PROOF_THUMB_UNDER_ONE,
+  PROVING_AGENT_TYPES,
   VERDICT_NOTE_WHO,
 } from './verifyProofConstants'
 import type {
@@ -398,6 +399,7 @@ function pairScreen(p: ProofPairView, shas: Partial<ScreenPair>): ScreenPair {
     ...(p.before ? { before: p.before } : {}),
     ...(p.after ? { after: p.after } : {}),
     note: [p.verdict, p.change, p.sameScreen].filter((t) => t !== undefined).join(' · '),
+    ...(p.counted ? { counted: true } : {}),
     ...shas,
   }
 }
@@ -519,10 +521,11 @@ export function verifyProofView(
   }
 }
 
+/** The agent steps whose attempts the verify gate judges — a verifier's, or a developer proving its own change. */
 function verifyStepIds(run: VerifyAttemptRun): Set<string> {
   return new Set(
     (run.plan?.steps ?? [])
-      .filter((s) => s.kind === 'agent' && s.agentType === 'verifier')
+      .filter((s) => s.kind === 'agent' && PROVING_AGENT_TYPES.includes(s.agentType ?? ''))
       .map((s) => s.id),
   )
 }
@@ -922,16 +925,32 @@ export function featureVerifySectionProps(view: FeatureVerifyView): FeatureVerif
 /**
  * One side of a comparison, captioned from its own build record. The expected
  * commit is named only where the record does not already show it — a before
- * rejected for being built from the wrong commit must read as that commit.
+ * rejected for being built from the wrong commit must read as that commit. A
+ * side of a pair the gate counted that was built from uncommitted work holding
+ * the expected code (its record names the tree it read) reads as that code.
  */
 export function captureBuildCaption(
   tile: EvidenceTile | undefined,
   expected: string | undefined,
+  opts: { counted?: boolean } = {},
 ): CaptureBuildCaption {
   if (!tile) {
     return { builtSha: undefined, dirty: false, expectedSha: undefined }
   }
   const build = tile.ref.build
+  if (
+    opts.counted &&
+    expected &&
+    build?.tree &&
+    (build.dirty || shortSha(build.sha) !== shortSha(expected))
+  ) {
+    return {
+      builtSha: shortSha(expected),
+      dirty: false,
+      expectedSha: undefined,
+      sameCodeAsExpected: true,
+    }
+  }
   const builtSha = build ? shortSha(build.sha) : undefined
   const expectedSha = expected ? shortSha(expected) : undefined
   return {

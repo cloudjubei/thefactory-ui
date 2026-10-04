@@ -2,7 +2,7 @@ import type { ComponentType } from 'react'
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import {
-  CHECK_STATE_LABELS,
+  checkChipFace,
   type CheckMethodId,
   type CheckMethodRow,
   type CheckMethodState,
@@ -41,19 +41,13 @@ const GLYPH: Record<CheckMethodId, ComponentType<{ size?: number; color?: string
   diff: IconDiff,
 }
 
-const MARK: Record<CheckMethodState, string> = {
-  passed: '✓',
-  failed: '✕',
-  unchecked: '?',
-  unconfigured: '+',
-}
-
 export type CheckChipPalette = { bg: string; border: string; fg: string; dashed: boolean }
 
 /**
- * Colour says only pass / fail / absent. The two absences draw dashed with no
- * fill — the treatment reserved for "nobody looked" — so neither can be read
- * as a verdict.
+ * Colour says only pass / fail / flagged / absent. Flagged — only advisory
+ * checks failed — is amber, never the red of a failure. The two absences draw
+ * dashed with no fill — the treatment reserved for "nobody looked" — so neither
+ * can be read as a verdict.
  */
 export function checkChipPalette(
   state: CheckMethodState,
@@ -73,6 +67,13 @@ export function checkChipPalette(
         bg: status.stuck.softBg,
         border: status.stuck.softBorder,
         fg: status.stuck.softFg,
+        dashed: false,
+      }
+    case 'flagged':
+      return {
+        bg: status.working.softBg,
+        border: status.working.softBorder,
+        fg: status.working.softFg,
         dashed: false,
       }
     case 'unchecked':
@@ -104,7 +105,7 @@ export function checkChipStyle(palette: CheckChipPalette): ViewStyle {
 }
 
 export type CheckChipProps = {
-  row: Pick<CheckMethodRow, 'id' | 'label' | 'state'>
+  row: Pick<CheckMethodRow, 'id' | 'label' | 'state' | 'available'>
   onPress?: () => void
   /** Renders the chip inert — for a block heading that is not a control. */
   inert?: boolean
@@ -119,10 +120,11 @@ export default function CheckChip({ row, onPress, inert, style }: CheckChipProps
   const { theme, status } = useNativeTheme()
   const palette = checkChipPalette(row.state, theme, status)
   const Glyph = GLYPH[row.id]
+  const face = checkChipFace(row)
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${row.label}: ${CHECK_STATE_LABELS[row.state]}`}
+      accessibilityLabel={`${row.label}: ${face.stateLabel}`}
       accessibilityState={{ disabled: !!inert }}
       disabled={inert}
       onPress={onPress}
@@ -140,7 +142,7 @@ export default function CheckChip({ row, onPress, inert, style }: CheckChipProps
         }}
       >
         <Text style={{ fontSize: 9, lineHeight: 11, fontWeight: '700', color: palette.fg }}>
-          {MARK[row.state]}
+          {face.mark}
         </Text>
       </View>
     </Pressable>

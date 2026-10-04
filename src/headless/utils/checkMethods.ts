@@ -4,14 +4,25 @@
  * verification plan and the filed evidence — no React, no I/O.
  */
 
-import { evidenceShowsNoChange, identicalPairExplanation } from 'thefactory-tools/utils'
+import {
+  evidenceShowsNoChange,
+  identicalPairExplanation,
+  projectCheckRanInOf,
+} from 'thefactory-tools/utils'
 import type {
+  ProjectCheckRunMemory,
+  ProjectChecksListing,
   ReviewEvidenceRef,
   RunVerification,
   VerificationApproachOption,
   VerificationCheckResult,
 } from '../api/generated'
 import {
+  CHECK_AVAILABLE_LABEL,
+  CHECK_AVAILABLE_SENTENCE,
+  CHECK_CHIP_MARKS,
+  CHECK_FLAGGED_DETAIL,
+  CHECK_LAST_RUN_VERBS,
   CHECK_METHOD_ABSENT_NOUNS,
   CHECK_METHOD_APPROACH,
   CHECK_METHOD_FILL,
@@ -20,6 +31,9 @@ import {
   IMPLEMENTED_CHECK_METHOD_ORDER,
   CHECK_METHOD_SETUP_VERBS,
   CHECK_METHOD_TAB,
+  CHECK_RAN_IN_SANDBOX_SENTENCE,
+  CHECK_RAN_ON_HOST_SENTENCE,
+  CHECK_STATE_LABELS,
   CHECK_STATE_SENTENCES,
   CHECK_STATE_TONES,
   CODE_REVIEW_DETAIL,
@@ -27,6 +41,7 @@ import {
   CODE_REVIEW_TAB,
   COLLAPSE_ABSENT_PAST,
   NOT_RUN_TITLE,
+  PROJECT_CHECK_METHOD,
   PROVEN_DETAIL,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
@@ -35,11 +50,13 @@ import {
   SIGNOFF_VERDICT_TONES,
   SIGNOFF_VERDICT_WORDS,
   VERDICT_BEARING_METHODS,
+  VERDICT_FLAGGED_NOTE,
 } from './checkMethodConstants'
 import type {
   CheckActionHost,
   CheckActionOffer,
   CheckCallout,
+  CheckChipFace,
   CheckMethodAction,
   CheckMethodId,
   CheckMethodRow,
@@ -53,7 +70,7 @@ import type {
 } from './checkMethodTypes'
 import { codeReviewVerdict, isCodeReview, reportAuthor } from './reviewEvidenceView'
 import { NOT_VERIFIED_DETAIL } from './runReviewConstants'
-import { formatDurationMs } from './time'
+import { formatDurationMs, timeAgo } from './time'
 
 type ApproachState = 'available' | 'unavailable' | 'missing'
 
@@ -78,10 +95,15 @@ function trimmedOrUndefined(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
-/** Which method a verification check rolls up into. */
+/**
+ * Which method a verification check rolls up into. A check that names its
+ * category — every project check does — is filed by it; the older heuristics
+ * read only what a check without one says about itself.
+ */
 export function checkMethodFor(
-  check: Pick<VerificationCheckResult, 'id' | 'label' | 'kind'>,
+  check: Pick<VerificationCheckResult, 'id' | 'label' | 'kind' | 'category'>,
 ): CheckMethodId {
+  if (check.category) return PROJECT_CHECK_METHOD[check.category]
   if (check.kind === 'compile') return 'types'
   if (check.kind === 'tests') return 'tests'
   const text = `${check.id} ${check.label}`.toLowerCase()
@@ -97,7 +119,9 @@ export function checkMethodFor(
  * Which method a piece of filed evidence proves; logs prove nothing by
  * themselves. A report proves what its author checked: a code review's finding
  * is the code review, and the story's final report — an account of the whole
- * run, written from its record — proves nothing on its own.
+ * run, written from its record — proves nothing on its own; nor does the
+ * developer's account of its own checks, whose proof is the checks the host
+ * recorded.
  */
 export function evidenceMethodFor(
   ref: Pick<ReviewEvidenceRef, 'kind' | 'approach'>,
@@ -112,6 +136,7 @@ export function evidenceMethodFor(
         case 'code-review':
           return 'diff'
         case 'final-report':
+        case 'developer-checks':
           return undefined
         default:
           return 'report'
@@ -186,10 +211,55 @@ function evidenceState(
     : 'unconfigured'
 }
 
+function isFailing(check: VerificationCheckResult): boolean {
+  return check.status === 'failed' || check.status === 'error'
+}
+
+/**
+ * A method's state from the checks that ran it. A failure only an ADVISORY
+ * check reported is flagged, not failed: the project's own checks step does not
+ * stop on it, so neither does the sign-off. One blocking failure beside it
+ * still fails the method.
+ */
 function rollUp(checks: readonly VerificationCheckResult[]): CheckMethodState {
-  if (checks.some((c) => c.status === 'failed' || c.status === 'error')) return 'failed'
+  const failing = checks.filter(isFailing)
+  if (failing.length > 0) return failing.every((c) => c.optional === true) ? 'flagged' : 'failed'
   if (checks.some((c) => c.status === 'passed')) return 'passed'
   return 'unchecked'
+}
+
+/** A ran method's line: what failed or was flagged when something did, else every check's summary. */
+/**
+ * Where checks ran, as a sentence: "Ran in the sandbox.", or "Ran on the host —
+ * why", folded over several to the host when any ran there. `undefined` when
+ * none of them says. Pure.
+ */
+export function checkRanInSentence(
+  checks: readonly Pick<VerificationCheckResult, 'ranIn' | 'hostReason'>[],
+): string | undefined {
+  const { ranIn, hostReason } = projectCheckRanInOf(checks)
+  if (ranIn === 'sandbox') return CHECK_RAN_IN_SANDBOX_SENTENCE
+  if (ranIn === 'host') {
+    return hostReason
+      ? `${CHECK_RAN_ON_HOST_SENTENCE} — ${hostReason}`
+      : `${CHECK_RAN_ON_HOST_SENTENCE}.`
+  }
+  return undefined
+}
+
+function checksDetail(
+  id: CheckMethodId,
+  state: CheckMethodState,
+  checks: readonly VerificationCheckResult[],
+): string {
+  const failing = state === 'failed' || state === 'flagged'
+  const summaries = checks
+    .filter((c) => (failing ? c.status !== 'passed' : true))
+    .map((c) => c.summary)
+    .filter((s) => s.trim().length > 0)
+  const lead = state === 'flagged' ? [`${CHECK_METHOD_LABELS[id]} ${CHECK_FLAGGED_DETAIL}`] : []
+  const where = checkRanInSentence(checks)
+  return [...lead, ...summaries, ...(where ? [where] : [])].join(' · ')
 }
 
 /**
@@ -208,7 +278,9 @@ function actionFor(
   if (finding && (state === 'passed' || state === 'failed')) {
     return { kind: 'open-proof', tab: finding }
   }
-  if (state === 'passed') return { kind: 'open-proof', tab: CHECK_METHOD_TAB[id] }
+  if (state === 'passed' || state === 'flagged') {
+    return { kind: 'open-proof', tab: CHECK_METHOD_TAB[id] }
+  }
   if (state === 'failed') return { kind: 'request', purpose: 'fix', approachId: known }
   if (state === 'unchecked') {
     return CHECK_METHOD_FILL[id] === 'run'
@@ -276,6 +348,45 @@ function diffState(
   }
 }
 
+/** The commands the project's scan found for each method, and the methods it deliberately leaves out. */
+function scannedMethods(scan: ProjectChecksListing): {
+  commands: Map<CheckMethodId, string[]>
+  hidden: Set<CheckMethodId>
+  lastRuns: Map<CheckMethodId, ProjectCheckRunMemory>
+} {
+  const commands = new Map<CheckMethodId, string[]>()
+  for (const check of scan.checks) {
+    const id = PROJECT_CHECK_METHOD[check.kind]
+    commands.set(id, [...(commands.get(id) ?? []), check.command])
+  }
+  const lastRuns = new Map(scan.lastRuns.map((run) => [PROJECT_CHECK_METHOD[run.check], run]))
+  return {
+    commands,
+    hidden: new Set(scan.hidden.map((h) => PROJECT_CHECK_METHOD[h.kind])),
+    lastRuns,
+  }
+}
+
+/** "Last passed 3 minutes ago in 2m 10s." — how the check last went in this project, on any branch. Pure. */
+export function projectCheckLastRunSentence(run: ProjectCheckRunMemory, now?: number): string {
+  const when = now !== undefined ? ` ${timeAgo(now, run.ranAt)}` : ''
+  const narrowed =
+    run.tests && run.tests.length > 0
+      ? `, narrowed to ${run.tests.length} test${run.tests.length === 1 ? '' : 's'}`
+      : ''
+  const where = checkRanInSentence([run])
+  return `Last ${CHECK_LAST_RUN_VERBS[run.status]}${when} in ${formatDurationMs(run.durationMs)}${narrowed}.${where ? ` ${where}` : ''}`
+}
+
+function availableDetail(
+  commands: readonly string[],
+  lastRun: ProjectCheckRunMemory | undefined,
+  now: number | undefined,
+): string {
+  const available = `Available — ${commands.map((c) => `\`${c}\``).join(', ')}. Not run on this branch.`
+  return lastRun ? `${available} ${projectCheckLastRunSentence(lastRun, now)}` : available
+}
+
 function absentDetail(
   id: CheckMethodId,
   state: CheckMethodState,
@@ -311,8 +422,18 @@ export function checkMethodRows(input: {
    * from before code reviews, which filed none.
    */
   diffReview?: { by?: string; summary?: string }
+  /**
+   * What a scan of the project found. Known, it decides a command check's
+   * absence: detected and not run is available, not detected is not set up,
+   * and a kind the scan hides — a type check the build already does — is no
+   * chip at all unless something ran it.
+   */
+  projectChecks?: ProjectChecksListing
+  /** Epoch ms now — what an available check's last run is told as "3 minutes ago" against. */
+  now?: number
 }): CheckMethodRow[] {
   const { verification, approaches, evidence } = input
+  const scanned = input.projectChecks ? scannedMethods(input.projectChecks) : undefined
   const checks = verification?.checks ?? []
   const byMethod = new Map<CheckMethodId, VerificationCheckResult[]>()
   for (const check of checks) {
@@ -334,7 +455,10 @@ export function checkMethodRows(input: {
   }
   const driven = (evidenceCounts.get('screens') ?? 0) + (evidenceCounts.get('walkthrough') ?? 0)
 
-  return IMPLEMENTED_CHECK_METHOD_ORDER.map((id) => {
+  const shown = IMPLEMENTED_CHECK_METHOD_ORDER.filter(
+    (id) => !scanned?.hidden.has(id) || byMethod.has(id),
+  )
+  return shown.map((id) => {
     const matched = byMethod.get(id) ?? []
     const captured = id === 'device' ? driven : (evidenceCounts.get(id) ?? 0)
     const isRun = CHECK_METHOD_FILL[id] === 'run'
@@ -342,16 +466,24 @@ export function checkMethodRows(input: {
     let state: CheckMethodState
     let detail: string
     let finding: ReviewTabId | undefined
+    let available: CheckMethodRow['available']
     if (isRun) {
-      state = matched.length > 0 ? rollUp(matched) : absentRunState(id, verification)
+      const commands = scanned?.commands.get(id) ?? []
+      state =
+        matched.length > 0
+          ? rollUp(matched)
+          : scanned
+            ? commands.length > 0
+              ? 'unchecked'
+              : 'unconfigured'
+            : absentRunState(id, verification)
+      available = state === 'unchecked' && commands.length > 0 ? { commands } : undefined
       detail =
         matched.length > 0 && state !== 'unchecked'
-          ? matched
-              .filter((c) => (state === 'failed' ? c.status !== 'passed' : true))
-              .map((c) => c.summary)
-              .filter((s) => s.trim().length > 0)
-              .join(' · ')
-          : absentDetail(id, state, approaches)
+          ? checksDetail(id, state, matched)
+          : available
+            ? availableDetail(available.commands, scanned?.lastRuns.get(id), input.now)
+            : absentDetail(id, state, approaches)
     } else if (id === 'diff') {
       const review = diffState(evidence, input.diffReview, approaches)
       state = review.state
@@ -363,11 +495,7 @@ export function checkMethodRows(input: {
       // Without this the evidence branch below (which ignores `matched`) read a
       // green — or red — UI-test run as "not set up".
       state = rollUp(matched)
-      detail = matched
-        .filter((c) => (state === 'failed' ? c.status !== 'passed' : true))
-        .map((c) => c.summary)
-        .filter((s) => s.trim().length > 0)
-        .join(' · ')
+      detail = checksDetail(id, state, matched)
     } else {
       state = evidenceState(id, captured, approaches)
       detail =
@@ -402,8 +530,16 @@ export function checkMethodRows(input: {
       fill: CHECK_METHOD_FILL[id],
       action: actionFor(id, state, approaches, finding),
       checkIds: matched.map((c) => c.id),
+      ...(available ? { available } : {}),
     }
   })
+}
+
+/** The mark and accessible state a chip shows, on every client. */
+export function checkChipFace(row: Pick<CheckMethodRow, 'state' | 'available'>): CheckChipFace {
+  return row.available && row.state === 'unchecked'
+    ? { mark: CHECK_CHIP_MARKS.available, stateLabel: CHECK_AVAILABLE_LABEL }
+    : { mark: CHECK_CHIP_MARKS[row.state], stateLabel: CHECK_STATE_LABELS[row.state] }
 }
 
 /** The rows' labels as a sentence names them: "Tests, Types and Build". */
@@ -411,6 +547,11 @@ export function joinNames(rows: readonly Pick<CheckMethodRow, 'label'>[]): strin
   const names = rows.map((r) => r.label)
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/** What a verdict adds about the methods only advisory checks flagged — nothing when none were. */
+function flaggedNote(flagged: readonly CheckMethodRow[]): string {
+  return flagged.length > 0 ? ` ${joinNames(flagged)} ${VERDICT_FLAGGED_NOTE}` : ''
 }
 
 /**
@@ -422,6 +563,9 @@ export function joinNames(rows: readonly Pick<CheckMethodRow, 'label'>[]): strin
  * A FAILURE counts from ANY implemented method, optional or not: OPTIONAL means
  * "its ABSENCE never demotes" (a change needing no UI test is not "partly"), NOT
  * "its failure is forgiven". A red UI-test chip must never sit under "proven".
+ *
+ * A FLAGGED method — only advisory checks failed it — is read as passed, and
+ * the detail names it.
  */
 export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   const bearing = input.rows.filter((r) => VERDICT_BEARING_METHODS.includes(r.id))
@@ -429,7 +573,9 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   // method (uitests) is the first that can actually reach `failed`, and swallowing
   // that would print "Every configured check passed" above a red chip.
   const failed = input.rows.filter((r) => r.state === 'failed')
+  const flagged = input.rows.filter((r) => r.state === 'flagged')
   const passed = bearing.filter((r) => r.state === 'passed')
+  const cleared = bearing.filter((r) => r.state === 'passed' || r.state === 'flagged')
   const unchecked = bearing.filter((r) => r.state === 'unchecked')
 
   let key: SignoffVerdictKey
@@ -439,15 +585,15 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
     key = 'failed'
     title = failed.length === 1 ? `${failed[0].label} failed` : `${failed.length} checks failed`
     detail = failed.map((r) => r.detail).join(' · ')
-  } else if (!input.verified && passed.length === 0) {
+  } else if (!input.verified && cleared.length === 0) {
     key = 'not-run'
     title = NOT_RUN_TITLE
     detail = NOT_VERIFIED_DETAIL
   } else if (unchecked.length > 0) {
     key = 'partly'
     title = `Passes what ran — ${joinNames(unchecked)} never ran`
-    detail = passed.length > 0 ? `${joinNames(passed)} passed.` : 'Nothing that ran failed.'
-  } else if (passed.length === 0) {
+    detail = `${passed.length > 0 ? `${joinNames(passed)} passed.` : 'Nothing that ran failed.'}${flaggedNote(flagged)}`
+  } else if (cleared.length === 0) {
     // Every verdict-bearing method is `unconfigured`: nothing was checked at all.
     // "Nothing to hold against the run" is not the same as proven, and saying
     // proven here would promote `merge` on a run with no evidence whatsoever.
@@ -463,7 +609,7 @@ export function signoffVerdict(input: SignoffVerdictInput): SignoffVerdict {
   } else {
     key = 'proven'
     title = PROVEN_TITLE
-    detail = PROVEN_DETAIL
+    detail = `${PROVEN_DETAIL}${flaggedNote(flagged)}`
   }
   return {
     key,
@@ -530,7 +676,9 @@ export function checkCallout(row: CheckMethodRow): CheckCallout {
   const lead =
     row.state === 'unconfigured'
       ? `There is no ${row.noun} in this project, so there is no tab for it. Ask for it here.`
-      : CHECK_STATE_SENTENCES[row.state]
+      : row.available && row.state === 'unchecked'
+        ? CHECK_AVAILABLE_SENTENCE
+        : CHECK_STATE_SENTENCES[row.state]
   return { lead, detail: row.state !== 'passed' && row.detail ? row.detail : undefined }
 }
 

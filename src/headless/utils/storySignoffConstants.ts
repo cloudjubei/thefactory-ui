@@ -141,3 +141,7 @@ export const EMPTY_SIGNOFF_SECTION: SignoffSection = {
   notes: [],
   leadTab: undefined,
 }
+
+/** The sign-off's line on how its features went through review, after how they were worked. */
+export const SIGNOFF_REVIEW_LINE =
+  'Each feature went through the review process — how it was checked, live or dry, is on the feature. Expand one to inspect its evidence.'

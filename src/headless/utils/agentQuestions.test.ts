@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  shownQuestionId,
   answerDecision,
   canSubmitAnswer,
   declineDecision,
@@ -179,5 +180,23 @@ describe('partitionGrants', () => {
       remedies: [],
       permissions: [],
     })
+  })
+})
+
+describe('shownQuestionId', () => {
+  it('shows the first question when none was chosen', () => {
+    expect(shownQuestionId(['q1', 'q2'], undefined)).toBe('q1')
+  })
+
+  it('keeps the chosen question while it is still open, wherever it moved', () => {
+    expect(shownQuestionId(['q0', 'q1', 'q2'], 'q2')).toBe('q2')
+  })
+
+  it('moves to the first open question once the chosen one is answered', () => {
+    expect(shownQuestionId(['q2'], 'q1')).toBe('q2')
+  })
+
+  it('shows nothing when no question is open', () => {
+    expect(shownQuestionId([], 'q1')).toBeUndefined()
   })
 })

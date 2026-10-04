@@ -23,3 +23,14 @@ export const CLI_ELAPSED_TICK_MS = 1000
  * few chats without losing any of their in-flight views.
  */
 export const CLI_TRANSCRIPT_CACHE_MAX_RUNS = 8
+
+/** Shown in a failed run's turn when the run recorded no reason of its own. */
+export const CLI_RUN_FAILED_FALLBACK_NOTICE = 'The agent run failed.'
+
+/** Host result `outcome`s that mean the call was answered without running the tool. */
+export const CLI_HOST_UNRUN_OUTCOMES: ReadonlySet<string> = new Set([
+  'pending',
+  'stopped',
+  'denied',
+  'expired',
+])

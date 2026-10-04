@@ -439,6 +439,7 @@ describe('verifyProofView', () => {
       'font-preview',
     ])
     expect(v.screens.map((s) => s.class)).toEqual(['pair', 'new', 'pair', 'pair'])
+    expect(v.screens.map((s) => s.counted === true)).toEqual([true, false, false, false])
     expect(v.screens.map((s) => s.index)).toEqual([1, 2, 3, 4])
     expect(v.screens[0].note).toBe(
       'Shows the change · 219,902 px changed (9.2%) · 84% of on-screen elements shared',
@@ -1102,6 +1103,22 @@ describe('verifyAttempts', () => {
       ['v2', 2, 2],
     ])
     expect(attempts[1].review).toEqual({ reviewedRunId: 'dev-2', filedSince: 40, filedUntil: 50 })
+  })
+
+  it('reads a self-verifying developer’s attempts as verify attempts, filed under its own run', () => {
+    const selfVerified = {
+      ...PLAN,
+      steps: [
+        { id: 'implement', name: 'Implement', kind: 'agent', agentType: 'developer-verifier' },
+      ],
+    } as unknown as ProcessPlan
+    const attempts = verifyAttempts({
+      featureId: 'f1',
+      plan: selfVerified,
+      ledger: [implement('i1', 'devver-1', 0)],
+    })
+    expect(attempts.map((a) => a.entry.id)).toEqual(['i1'])
+    expect(attempts[0].review?.reviewedRunId).toBe('devver-1')
   })
 
   it('finds nothing in a run with no verify step', () => {
@@ -1971,6 +1988,31 @@ describe('captureBuildCaption', () => {
       builtSha: undefined,
       dirty: false,
       expectedSha: 'be10edd8',
+    })
+  })
+
+  it('reads a counted side built from uncommitted work as the code it held', () => {
+    const workspace = tile({
+      id: 'w',
+      build: { sha: BASE, dirty: true, tree: 'e'.repeat(40) },
+    } as Partial<ReviewEvidenceRef> & { id: string })
+    expect(captureBuildCaption(workspace, HEAD, { counted: true })).toEqual({
+      builtSha: '38832196',
+      dirty: false,
+      expectedSha: undefined,
+      sameCodeAsExpected: true,
+    })
+  })
+
+  it('still reads an uncounted side built from uncommitted work as what its record says', () => {
+    const workspace = tile({
+      id: 'w',
+      build: { sha: BASE, dirty: true, tree: 'e'.repeat(40) },
+    } as Partial<ReviewEvidenceRef> & { id: string })
+    expect(captureBuildCaption(workspace, HEAD)).toEqual({
+      builtSha: 'be10edd8',
+      dirty: true,
+      expectedSha: '38832196',
     })
   })
 

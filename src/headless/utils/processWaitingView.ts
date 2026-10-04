@@ -1,10 +1,10 @@
-import type { ProcessResumeChoice, ProcessRun, ProcessWaitingAsk } from 'thefactory-tools/types'
-import {
-  isReflectedPark,
-  processAgentLabel,
-  processParkChoices,
-  type ProcessParkChoice,
-} from 'thefactory-tools/utils'
+import type {
+  ProcessParkChoice,
+  ProcessResumeChoice,
+  ProcessRun,
+  ProcessWaitingAsk,
+} from 'thefactory-tools/types'
+import { isReflectedPark, processAgentLabel, processParkChoices } from 'thefactory-tools/utils'
 
 import {
   WAITING_BLOCKER_HEADING,

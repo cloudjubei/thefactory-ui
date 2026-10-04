@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProcessRun } from 'thefactory-tools/types'
 import { censusFeatures, incompleteStoryReason } from 'thefactory-tools/utils'
 
-import type { CliRun, ReviewEvidenceRef } from '../api/generated'
+import type { CliRun, ProjectChecksListing, ReviewEvidenceRef } from '../api/generated'
 import { listCliAgentRuns, listProcessRuns, useApi, useAuth } from '../api'
 import { useStories } from '../contexts/StoriesContext'
 import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
@@ -53,6 +53,10 @@ export type UseStorySignoff = {
  *
  * Live: any run or process update re-joins — a verify finishing on a feature
  * moves that feature's verdict without a navigate-away.
+ *
+ * `projectChecks` is the project's checks scan (`useProjectChecks`), passed in
+ * like the evidence: waited for, so a chip never flips under a drawn verdict,
+ * but never fatal — without it the chips read as they always have.
  */
 export function useStorySignoff(
   projectId: string | undefined,
@@ -60,6 +64,7 @@ export function useStorySignoff(
   storyRunId: string | undefined,
   evidence: readonly ReviewEvidenceRef[],
   evidenceState: EvidenceLoadState,
+  projectChecks?: { scan: ProjectChecksListing | undefined; state: SignoffSourceState },
 ): UseStorySignoff {
   const { token } = useAuth()
   const { ws } = useApi()
@@ -144,9 +149,11 @@ export function useStorySignoff(
     runs: runsState,
     stories: storiesState,
     evidence: evidenceState,
+    ...(projectChecks ? { checks: projectChecks.state } : {}),
   })
   const ready = status === 'ready'
 
+  const scan = projectChecks?.scan
   const signoff = useMemo(
     () =>
       ready
@@ -157,9 +164,10 @@ export function useStorySignoff(
             evidence,
             ...(storyRunId ? { storyRunId } : {}),
             ...(storyIncomplete ? { storyIncomplete } : {}),
+            ...(scan ? { projectChecks: scan, now: Date.now() } : {}),
           })
         : undefined,
-    [ready, features, processRuns, cliRuns, evidence, storyRunId, storyIncomplete],
+    [ready, features, processRuns, cliRuns, evidence, storyRunId, storyIncomplete, scan],
   )
 
   return { signoff, status, loading, error: error ?? storiesError?.message, refresh }

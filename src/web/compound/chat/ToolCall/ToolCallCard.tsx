@@ -4,12 +4,18 @@ import { BottomSheet } from '../../../primitives/BottomSheet'
 import { Switch } from '../../../primitives/Switch'
 import Tooltip from '../../../primitives/Tooltip'
 import { IconChevron } from '../../../icons'
-import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
+import {
+  safePreviewString,
+  toolArgDisplay,
+  toolNotRunReason,
+} from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
+import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
 import StatusIcon, { StatusChip } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import ToolOriginBadge from './ToolOriginBadge'
+import ToolRowMilestoneLine from './ToolRowMilestoneLine'
 import type { ToolCall, ToolResultType } from './types'
 
 // Web small-screen breakpoint mirrors the rest of the package
@@ -70,6 +76,10 @@ export type ToolCallCardProps = {
   /** Whether the checkbox is checked. */
   selected?: boolean
   onToggleSelect?: () => void
+  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
+  alwaysAllowed?: boolean
+  /** Mark or unmark "Always allow" — offered beside the toggle. */
+  onAlwaysAllow?: () => void
 }
 
 function jsonString(v: unknown): string {
@@ -87,6 +97,8 @@ function ToolCallCardInner({
   selectable = false,
   selected = false,
   onToggleSelect,
+  alwaysAllowed = false,
+  onAlwaysAllow,
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
@@ -111,6 +123,12 @@ function ToolCallCardInner({
     )
   }, [hasArgs, toolCall])
   const timeLabel = durationMs ? formatDurationMs(durationMs) : ''
+  const milestone = toolRowMilestone(
+    toolCall.name,
+    result,
+    resultType,
+    toolCall.awaitingDecision === true,
+  )
 
   const hasPopup = resultType !== 'aborted'
   const isRequireConfirm = resultType === 'require_confirmation'
@@ -119,7 +137,13 @@ function ToolCallCardInner({
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
       : resultType === 'success'
         ? { code: jsonString(result), language: 'json' as const, label: 'View result' }
-        : null
+        : resultType === 'not_allowed' && result !== undefined
+          ? {
+              code: toolNotRunReason(result),
+              language: 'text' as const,
+              label: 'Why it did not run',
+            }
+          : null
 
   const anchorClassName = [
     'block w-full rounded-md border text-sm text-(--text-primary)',
@@ -138,9 +162,35 @@ function ToolCallCardInner({
         <span className="font-semibold shrink-0">{toolCall.name}</span>
         <ToolOriginBadge origin={toolCall.origin} />
         <ToolArgInline display={argDisplay} />
-        <StatusChip resultType={resultType} timeLabel={timeLabel} />
+        <StatusChip
+          resultType={resultType}
+          timeLabel={timeLabel}
+          awaitingDecision={toolCall.awaitingDecision === true}
+        />
         {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
             the user's approval — never for auto-call / already-running tools. */}
+        {selectable && onAlwaysAllow ? (
+          <button
+            type="button"
+            aria-pressed={alwaysAllowed}
+            className={`shrink-0 text-[11px] underline-offset-2 hover:underline ${
+              alwaysAllowed
+                ? 'font-semibold text-green-600 dark:text-green-400'
+                : 'text-(--text-secondary) hover:text-(--text-primary)'
+            }`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onAlwaysAllow()
+            }}
+            title={
+              alwaysAllowed
+                ? 'Resume will allow this tool from now on — click to undo'
+                : 'Allow this tool now and every time it is called from here on'
+            }
+          >
+            {alwaysAllowed ? 'Always allowed ✓' : 'Always allow'}
+          </button>
+        ) : null}
         {selectable ? (
           <span onClick={(e) => e.stopPropagation()}>
             <Switch checked={!!selected} onCheckedChange={() => onToggleSelect?.()} />
@@ -164,6 +214,8 @@ function ToolCallCardInner({
           </button>
         ) : null}
       </div>
+
+      {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
 
       {argsOpen && hasArgs ? (
         <div className="px-3 pb-2">

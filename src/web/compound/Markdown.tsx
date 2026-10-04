@@ -114,16 +114,21 @@ const components: Partial<Components> = {
       {children}
     </strong>
   ),
-  a: ({ children, ...props }) => (
-    <a
-      className="text-(--accent-primary) hover:underline"
-      target="_blank"
-      rel="noreferrer"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
+  // A link the sanitiser emptied (a scheme it does not allow, e.g. `overseer://` with no
+  // handler) would point at the page the user is on — it is shown as text instead.
+  a: ({ children, ...props }) =>
+    props.href ? (
+      <a
+        className="text-(--accent-primary) hover:underline"
+        target="_blank"
+        rel="noreferrer"
+        {...props}
+      >
+        {children}
+      </a>
+    ) : (
+      <span>{children}</span>
+    ),
   h1: ({ children, ...props }) => (
     <h1 className="text-2xl font-bold mt-4 mb-2 pb-1 border-b border-(--border-subtle)" {...props}>
       {children}
@@ -274,6 +279,7 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
             </a>
           )
         }
+        if (!href) return <span>{children}</span>
         return (
           <a
             className="text-(--accent-primary) hover:underline"

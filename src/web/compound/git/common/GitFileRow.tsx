@@ -11,6 +11,8 @@ export type GitLocalFileEntry = {
   status?: string
   patch?: string
   binary?: boolean
+  /** The diff was left out because of its size. */
+  patchSuppressed?: 'size'
   isConflicted?: boolean
 }
 

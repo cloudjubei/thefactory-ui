@@ -4,11 +4,13 @@ import {
   START_FEATURE_WORK_TOOL_NAME,
   formatGrantDetail,
   isStartFeatureWorkGrant,
+  isToolAskDecidedOnRow,
   launchOptionsAreHonoured,
   launchRefusalMessage,
   launchRunnerLabel,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
+  panelApprovalGrants,
 } from './approvalGrant'
 import type { PendingToolGrant } from './chatTypes'
 
@@ -89,6 +91,26 @@ describe('startFeatureWorkGrantSummary', () => {
       proofRequired: false,
       runner: 'cli',
     })
+  })
+
+  it('reads the process the agent chose, on either transport', () => {
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({ detail: { storyId: 's', processId: ' feature-self-verified ' } }),
+      ).processId,
+    ).toBe('feature-self-verified')
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({ detail: { tool: 'startFeatureWork', args: { storyId: 's', processId: 'mine' } } }),
+      ).processId,
+    ).toBe('mine')
+  })
+
+  it('leaves the process to the story when none, a blank one or a non-string was asked for', () => {
+    for (const processId of [undefined, '', '   ', 7, null]) {
+      const summary = startFeatureWorkGrantSummary(grant({ detail: { storyId: 's', processId } }))
+      expect(summary).not.toHaveProperty('processId')
+    }
   })
 
   it('prefers the wrapped args when both shapes could be read', () => {
@@ -186,6 +208,47 @@ describe('pendingApprovalGrants', () => {
   })
 })
 
+describe('panelApprovalGrants', () => {
+  const onRows = { apiAsksOnRows: true }
+
+  it('keeps requests of their own kind for the panel', () => {
+    expect(
+      panelApprovalGrants([grant({ id: 'launch' })], new Set(), onRows).map((g) => g.id),
+    ).toEqual(['launch'])
+  })
+
+  it('leaves out an ordinary ask a row on screen is already showing', () => {
+    const ask = grant({ id: 'a', toolName: 'addStory', inline: true })
+    expect(panelApprovalGrants([ask], new Set(['a']), onRows)).toEqual([])
+  })
+
+  it('keeps an ordinary ask no row claimed, so it can never go unseen', () => {
+    const ask = grant({ id: 'a', toolName: 'addStory', inline: true })
+    expect(panelApprovalGrants([ask], new Set(), onRows).map((g) => g.id)).toEqual(['a'])
+  })
+
+  it('leaves API asks to their rows on a client that shows them there', () => {
+    const api = grant({ id: 'tc', source: 'api', inline: true })
+    expect(panelApprovalGrants([api], new Set(), onRows)).toEqual([])
+  })
+
+  it('keeps API asks on a client that has no inline batch for them', () => {
+    const api = grant({ id: 'tc', source: 'api', inline: true })
+    expect(
+      panelApprovalGrants([api], new Set(), { apiAsksOnRows: false }).map((g) => g.id),
+    ).toEqual(['tc'])
+  })
+
+  it('leaves questions out', () => {
+    const question = grant({
+      id: 'q',
+      question: { id: 'q1', question: 'Which?', options: [] } as never,
+      answer: async () => {},
+    } as Partial<PendingToolGrant>)
+    expect(panelApprovalGrants([question], new Set(), onRows)).toEqual([])
+  })
+})
+
 describe('formatGrantDetail', () => {
   it('is undefined for nothing', () => {
     expect(formatGrantDetail(undefined)).toBeUndefined()
@@ -222,5 +285,15 @@ describe('launchRefusalMessage', () => {
     expect(launchRefusalMessage({ error: '   ' })).toBeUndefined()
     expect(launchRefusalMessage(undefined)).toBeUndefined()
     expect(launchRefusalMessage('boom')).toBeUndefined()
+  })
+})
+
+describe('isToolAskDecidedOnRow', () => {
+  it('decides an ordinary tool ask on its row', () => {
+    expect(isToolAskDecidedOnRow('addStory')).toBe(true)
+  })
+
+  it('leaves a feature-work launch to its own panel', () => {
+    expect(isToolAskDecidedOnRow('startFeatureWork')).toBe(false)
   })
 })

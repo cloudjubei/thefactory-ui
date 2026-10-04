@@ -6,6 +6,7 @@ import {
   IconStopCircle,
   IconXCircle,
 } from '../../../icons'
+import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless/utils/gitSetupApprovalConstants'
 import type { ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import { nativePalette, nativeRadii } from '../../../../tokens/native'
 
@@ -18,10 +19,29 @@ import { nativePalette, nativeRadii } from '../../../../tokens/native'
 export function StatusChip({
   resultType,
   timeLabel,
+  awaitingDecision = false,
 }: {
   resultType?: ToolResultTypeLike
   timeLabel?: string
+  /** The call waits on the user's decision elsewhere: say so rather than spin. */
+  awaitingDecision?: boolean
 }) {
+  if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
+    return (
+      <View
+        style={{
+          backgroundColor: nativePalette.teal[50],
+          borderRadius: nativeRadii.round,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+        }}
+      >
+        <Text style={{ fontSize: 10, fontWeight: '600', color: nativePalette.teal[700] }}>
+          {TOOL_AWAITING_DECISION_LABEL}
+        </Text>
+      </View>
+    )
+  }
   const wrap = {
     backgroundColor: 'rgba(59,130,246,0.12)',
     borderRadius: nativeRadii.round,

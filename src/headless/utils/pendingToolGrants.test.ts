@@ -1,3 +1,4 @@
+import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
 import { describe, it, expect } from 'vitest'
 import {
   apiToolCallToGrant,
@@ -8,10 +9,15 @@ import {
   isCliActionUpdateEvent,
   isCliRunLifecycleEvent,
   isToolGrantAction,
-  openWorkDecisionOf,
+  launchDecisionOf,
   pendingActionToolName,
   pickActiveCliRunId,
   pickActiveStoryRunId,
+  cliDecidedAsks,
+  withDecidedAction,
+  withAsksAwaitingOutcome,
+  cliRowAsks,
+  isAskOutcomeEvent,
 } from './pendingToolGrants'
 import type { ChatContextAgentRunStory } from '../api/generated'
 
@@ -25,7 +31,16 @@ describe('apiToolCallToGrant', () => {
       label: 'writeFile',
       detail: { path: 'a.ts' },
       toolName: 'writeFile',
+      inline: true,
+      args: { path: 'a.ts' },
     })
+  })
+})
+
+describe('apiToolCallToGrant — launches', () => {
+  it('keeps an API feature-work launch for its own panel', () => {
+    const grant = apiToolCallToGrant({ toolCallId: 'tc', name: 'startFeatureWork', arguments: {} })
+    expect(grant.inline).toBeUndefined()
   })
 })
 
@@ -65,7 +80,67 @@ describe('pendingActionToolName', () => {
   })
 })
 
+describe('cliPendingActionToGrant — ordinary tool asks are decided on their row', () => {
+  it("marks an ordinary tool ask inline and carries the call's arguments", () => {
+    expect(
+      cliPendingActionToGrant({
+        id: 'a-9',
+        kind: 'tool-call',
+        payload: { tool: 'addStory', args: { title: 'T' } },
+      }),
+    ).toMatchObject({ inline: true, toolName: 'addStory', args: { title: 'T' } })
+  })
+
+  it('leaves a request of its own kind for the approval panel', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a-8',
+      kind: 'start-feature-work',
+      payload: { tool: 'startFeatureWork', args: { storyId: 's' } },
+    })
+    expect(grant.inline).toBeUndefined()
+  })
+})
+
+describe('cliRowAsks', () => {
+  it('lists every CLI ask a row can be tied to, saying which are decided on the row', () => {
+    const grants = [
+      {
+        id: 'a',
+        source: 'cli' as const,
+        label: 'addStory',
+        toolName: 'addStory',
+        inline: true,
+        args: { t: 1 },
+      },
+      { id: 'b', source: 'cli' as const, label: 'Network unlock' },
+      { id: 'c', source: 'api' as const, label: 'writeFile', toolName: 'writeFile', inline: true },
+    ]
+    expect(cliRowAsks(grants)).toEqual([
+      { id: 'a', toolName: 'addStory', args: { t: 1 }, decidedOnRow: true },
+      { id: 'b', decidedOnRow: false },
+    ])
+  })
+})
+
 describe('cliPendingActionToGrant', () => {
+  it('decides an ordinary tool ask on its row', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a-1',
+      kind: MCP_TOOL_CALL_ACTION_KIND,
+      payload: { tool: 'addStory', args: {} },
+    })
+    expect(grant.inline).toBe(true)
+  })
+
+  it('keeps a feature-work launch for its own panel, though it is gated as a tool call', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a-1',
+      kind: MCP_TOOL_CALL_ACTION_KIND,
+      payload: { tool: 'startFeatureWork', args: { storyId: 's' } },
+    })
+    expect(grant.inline).toBeUndefined()
+  })
+
   it('maps a CLI PendingAction to a cli-source grant with a humanised label', () => {
     expect(
       cliPendingActionToGrant({ id: 'a-1', kind: 'network-unlock', payload: { host: 'x' } }),
@@ -372,31 +447,158 @@ describe('grantDecideErrorMessage', () => {
   })
 })
 
-describe('openWorkDecisionOf', () => {
-  it('reads the choice, the run and where it stood', () => {
-    expect(openWorkDecisionOf({ openWork: 'extend', runId: 'r1', state: 'unmerged' })).toEqual({
-      openWork: 'extend',
-      runId: 'r1',
-      state: 'unmerged',
+describe('launchDecisionOf', () => {
+  it('reads the open-work choice, the run and where it stood', () => {
+    expect(launchDecisionOf({ openWork: 'extend', runId: 'r1', state: 'unmerged' })).toEqual({
+      openWork: { openWork: 'extend', runId: 'r1', state: 'unmerged' },
     })
   })
 
   it('leaves out a state it does not know', () => {
-    expect(openWorkDecisionOf({ openWork: 'fresh', runId: 'r1', state: 'odd' })).toEqual({
-      openWork: 'fresh',
-      runId: 'r1',
+    expect(launchDecisionOf({ openWork: 'fresh', runId: 'r1', state: 'odd' })).toEqual({
+      openWork: { openWork: 'fresh', runId: 'r1' },
     })
   })
 
-  it('is nothing for metadata without a choice', () => {
-    expect(openWorkDecisionOf({ note: 'hi' })).toBeUndefined()
+  it('reads how the features are worked, beside or without an open-work choice', () => {
+    expect(launchDecisionOf({ featureProcessId: 'feature-self-verified' })).toEqual({
+      featureProcessId: 'feature-self-verified',
+    })
+    expect(
+      launchDecisionOf({ openWork: 'fresh', runId: 'r1', featureProcessId: 'feature-default' }),
+    ).toEqual({ openWork: { openWork: 'fresh', runId: 'r1' }, featureProcessId: 'feature-default' })
   })
 
-  it('is nothing without the run the choice was about', () => {
-    expect(openWorkDecisionOf({ openWork: 'extend' })).toBeUndefined()
+  it('is nothing for metadata without either choice', () => {
+    expect(launchDecisionOf({ note: 'hi', featureProcessId: '' })).toBeUndefined()
+  })
+
+  it('drops an open-work choice without the run it was about', () => {
+    expect(launchDecisionOf({ openWork: 'extend' })).toBeUndefined()
   })
 
   it('is nothing without metadata', () => {
-    expect(openWorkDecisionOf(undefined)).toBeUndefined()
+    expect(launchDecisionOf(undefined)).toBeUndefined()
+  })
+})
+
+describe('cliDecidedAsks', () => {
+  const action = {
+    id: 'a1',
+    runId: 'run-1',
+    kind: 'tool-call',
+    payload: { tool: 'addStory', args: { title: 'T' } },
+  }
+
+  it('turns decided actions into the asks their rows show', () => {
+    expect(
+      cliDecidedAsks([
+        {
+          ...action,
+          status: 'approved',
+          executedAt: 9,
+          executedInRun: 'run-2',
+          execution: { ok: true, result: '{}' },
+        },
+      ]),
+    ).toEqual([
+      {
+        id: 'a1',
+        runId: 'run-1',
+        status: 'approved',
+        toolName: 'addStory',
+        args: { title: 'T' },
+        executedAt: 9,
+        executedInRun: 'run-2',
+        execution: { ok: true, result: '{}' },
+      },
+    ])
+  })
+
+  it('prefers the tool the action names itself, and keeps why it expired', () => {
+    const [ask] = cliDecidedAsks([
+      {
+        ...action,
+        status: 'expired',
+        toolName: 'saveAgentNote',
+        toolArgs: { k: 1 },
+        decisionReason: 'cancelled',
+      },
+    ])
+    expect(ask).toMatchObject({
+      toolName: 'saveAgentNote',
+      args: { k: 1 },
+      decisionReason: 'cancelled',
+    })
+  })
+
+  it('carries the answer a question was decided with', () => {
+    const [ask] = cliDecidedAsks([
+      { ...action, kind: 'question', status: 'approved', decisionMetadata: { answer: 'A' } },
+    ])
+    expect(ask?.answer).toBe('A')
+  })
+
+  it('leaves out an action still pending', () => {
+    expect(cliDecidedAsks([{ ...action, status: 'pending' }])).toEqual([])
+  })
+})
+
+describe('isAskOutcomeEvent', () => {
+  it('is true for a decision and for an approval carried out', () => {
+    expect(isAskOutcomeEvent({ type: 'actionDecided' })).toBe(true)
+    expect(isAskOutcomeEvent({ type: 'actionExecuted' })).toBe(true)
+  })
+
+  it('is false for anything else', () => {
+    expect(isAskOutcomeEvent({ type: 'actionRequest' })).toBe(false)
+    expect(isAskOutcomeEvent({ type: 'transcriptAppend' })).toBe(false)
+    expect(isAskOutcomeEvent(undefined)).toBe(false)
+  })
+})
+
+describe('withDecidedAction', () => {
+  const action = {
+    id: 'a1',
+    runId: 'r1',
+    kind: 'tool-call',
+    payload: { tool: 'addStory', args: {} },
+    status: 'approved' as const,
+  }
+
+  it('adds an ask the moment its decision is announced', () => {
+    expect(withDecidedAction([], action).map((a) => [a.id, a.status])).toEqual([['a1', 'approved']])
+  })
+
+  it('replaces the copy it had — an approval later carried out', () => {
+    const before = withDecidedAction([], action)
+    const after = withDecidedAction(before, { ...action, execution: { ok: true, result: '{}' } })
+    expect(after).toHaveLength(1)
+    expect(after[0]?.execution).toEqual({ ok: true, result: '{}' })
+  })
+
+  it('leaves the list as it was for an action still pending', () => {
+    const list = withDecidedAction([], action)
+    expect(withDecidedAction(list, { ...action, id: 'a2', status: 'pending' })).toBe(list)
+  })
+})
+
+describe('withAsksAwaitingOutcome', () => {
+  const ask = (id: string) => ({ id, toolName: 'addStory', decidedOnRow: true })
+
+  it('keeps an ask that just left the pending list as under way until its decision is known', () => {
+    // Observed: approving flashed every row "did not run" — the pending list
+    // dropped the ask on click, before the decision itself arrived.
+    expect(withAsksAwaitingOutcome([], [ask('a1')], new Set())).toEqual([
+      { ...ask('a1'), decidedOnRow: false },
+    ])
+  })
+
+  it('lets it go once its decision is known', () => {
+    expect(withAsksAwaitingOutcome([], [ask('a1')], new Set(['a1']))).toEqual([])
+  })
+
+  it('leaves asks still pending as they are', () => {
+    expect(withAsksAwaitingOutcome([ask('a1')], [ask('a1')], new Set())).toEqual([ask('a1')])
   })
 })

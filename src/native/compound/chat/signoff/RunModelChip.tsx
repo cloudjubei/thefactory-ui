@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 
-import type { RunModel } from '../../../../headless'
+import { agentRoleLabel, type RunModel } from '../../../../headless'
 import { nativeAlpha, nativePalette, nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Tooltip from '../../../primitives/Tooltip'
@@ -22,11 +22,12 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
   if (!model) return null
   const line = model.model ?? model.tool
   if (!line) return null
+  const roleName = role ? agentRoleLabel(role) : undefined
   return (
     <Tooltip
       content={
         <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
-          {role ? `${role} · ` : ''}
+          {roleName ? `${roleName} · ` : ''}
           {model.model
             ? `Ran on ${model.tag} — model ${model.model}${model.effort ? `, ${model.effort} effort` : ''}.`
             : `Ran on ${model.tag}. The runner did not record a model for this run.`}
@@ -70,7 +71,7 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
             {model.tag}
           </Text>
         </View>
-        {role ? (
+        {roleName ? (
           <View style={{ flexDirection: 'column' }}>
             <Text
               style={{
@@ -80,7 +81,7 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
                 color: theme.text.muted,
               }}
             >
-              {role}
+              {roleName}
             </Text>
             <Text
               numberOfLines={1}

@@ -23,3 +23,18 @@ export const PROCESS_INTEGRATION_BADGE = {
   integrating: 'Bringing the work in',
   awaiting: 'Approved — not merged',
 } as const
+
+/**
+ * Approving work in a project with no git of its own — its history is one
+ * Overseer keeps privately — said without git words: there is nothing to merge
+ * into and nowhere to open a pull request, only the folder the work goes into.
+ */
+export const PROCESS_INTEGRATION_SHADOW = {
+  label: 'Approve',
+  detail: 'Brings the work into the project folder.',
+  busy: 'Bringing the work into the project folder…',
+  done: 'Brought into the project folder',
+  failed: 'Approved — not brought into the project folder',
+  neverTried: 'The story was approved, but its work was not brought into the project folder.',
+  awaitingBadge: 'Approved — not brought in',
+} as const

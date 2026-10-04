@@ -184,3 +184,20 @@ export function applyChatToolApprovalMode(runner: ChatToolRunner, auto: boolean)
   if (runner !== 'cli') return {}
   return { toolApprovalMode: auto ? 'auto' : 'ask' }
 }
+
+/**
+ * The settings patch "Always allow" makes on an API chat: each tool becomes
+ * available and auto-called, so the next call to it runs without asking. Pure.
+ */
+export function allowToolsAlways(
+  settings: ChatToolSettings | undefined,
+  toolNames: readonly string[],
+): ChatToolSettings {
+  const available = new Set(settings?.availableTools ?? [])
+  const auto = new Set(settings?.autoCallTools ?? [])
+  for (const name of toolNames) {
+    available.add(name)
+    auto.add(name)
+  }
+  return { availableTools: [...available], autoCallTools: [...auto] }
+}

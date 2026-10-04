@@ -22,12 +22,15 @@ export type CheckMethodId =
   | 'diff'
 
 /**
- * Four states. Two of them are ABSENCE and must never read as a verdict:
+ * Five states. Two of them are ABSENCE and must never read as a verdict:
  *  - `unchecked`    — the check exists (or the evidence is capturable) but nothing
  *                     ran on this branch.
  *  - `unconfigured` — the project has no such check, and no such evidence source.
+ *
+ * `flagged` is a method whose only failing results are ADVISORY (`optional`) —
+ * lint, format: reported, but it never fails a verdict or a status.
  */
-export type CheckMethodState = 'passed' | 'failed' | 'unchecked' | 'unconfigured'
+export type CheckMethodState = 'passed' | 'failed' | 'flagged' | 'unchecked' | 'unconfigured'
 
 /**
  * How a method's gap gets FILLED — the thing that decides which control is
@@ -104,6 +107,18 @@ export type CheckMethodRow = {
   action: CheckMethodAction
   /** Ids of the verification checks that rolled up into this row. */
   checkIds: string[]
+  /**
+   * The project's scan detected this check, but nothing ran it on this branch —
+   * set only on an `unchecked` row, with the commands that would run it.
+   */
+  available?: { commands: string[] }
+}
+
+/** What a chip shows for its state: an available check that never ran reads apart from one nobody knows about. */
+export type CheckChipFace = {
+  mark: string
+  /** The state as an accessible name reads it: "passed", "available". */
+  stateLabel: string
 }
 
 export type ReviewTab = {

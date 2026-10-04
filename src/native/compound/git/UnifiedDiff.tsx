@@ -1,3 +1,4 @@
+import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import {
@@ -19,6 +20,8 @@ export interface UnifiedDiffProps {
   path?: string
   /** When true, renders the binary-diff view (Before → After bytes) instead of the diff. */
   binary?: boolean
+  /** The host left this file's diff out because of its size: say so instead. */
+  suppressed?: boolean
   /** Byte size of the before side — shown in the binary-diff view. */
   beforeSize?: number
   /** Byte size of the after side — shown in the binary-diff view. */
@@ -109,6 +112,7 @@ export default function UnifiedDiff({
   patch,
   path,
   binary,
+  suppressed,
   beforeSize,
   afterSize,
   onRecoverText,
@@ -149,6 +153,7 @@ export default function UnifiedDiff({
   // Per-mount bypass — navigating to a new diff resets the gate.
   const [guardBypass, setGuardBypass] = useState(false)
 
+  if (suppressed) return <Placeholder text={GIT_DIFF_SUPPRESSED_MESSAGE} />
   if (binary) {
     return (
       <BinaryDiffView

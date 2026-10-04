@@ -6,6 +6,7 @@ import {
   PROCESS_INTEGRATION_RETRY,
   PROCESS_INTEGRATION_RETRY_HEAD,
   processIntegrationView,
+  soleIntegrationMode,
   type ProcessIntegrationMode,
   type ProcessRun,
 } from '../../../headless'
@@ -33,6 +34,7 @@ export default function IntegrationResult({ run, onRetry }: IntegrationResultPro
   const view = processIntegrationView(run)
   if (!view || !run.workBranch) return null
   const workBranch = run.workBranch
+  const soleMode = soleIntegrationMode(workBranch)
   const variant = status[view.tone]
   const link = view.link
 
@@ -111,7 +113,11 @@ export default function IntegrationResult({ run, onRetry }: IntegrationResultPro
           />
         ) : (
           <View style={{ flexDirection: 'row' }}>
-            <Button size="sm" variant="primary" onPress={() => setChoosing(true)}>
+            <Button
+              size="sm"
+              variant="primary"
+              onPress={() => (soleMode ? retry(soleMode) : setChoosing(true))}
+            >
               {PROCESS_INTEGRATION_RETRY}
             </Button>
           </View>

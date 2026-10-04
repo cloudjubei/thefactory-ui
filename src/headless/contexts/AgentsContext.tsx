@@ -13,7 +13,6 @@ import {
 import { agentRunLlmConfig } from '../utils/llmConfigBilling'
 import { useChats } from './createChatsContext'
 import { useLLMConfigs } from './LLMConfigsContext'
-import { useWebSearchKeys } from './WebSearchKeysContext'
 
 export type AgentType = StartAgentRunData['body']['params']['agentType']
 
@@ -100,8 +99,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
     activeRunnerKind,
     activeAgentRunCliModel,
   } = useLLMConfigs()
-  const { keys } = useWebSearchKeys()
-  const webSearchKeys = keys
 
   const runs = useMemo<RunChat[]>(() => chats.filter(isAgentRunChat), [chats])
 
@@ -142,9 +139,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
         agentType,
         chatContext: chatContext as StartAgentRunData['body']['params']['chatContext'],
         llmConfig: agentRunLlmConfig(llmConfig),
-        webSearchApiKeys: webSearchKeys.length
-          ? Object.fromEntries(webSearchKeys.map((k) => [k.provider, k.apiKey]))
-          : undefined,
       }
 
       await startAgentRun({
@@ -180,14 +174,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
 
       return { agentRunId, chatContext }
     },
-    [
-      llmConfigs,
-      activeAgentRunConfig,
-      activeRunnerKind,
-      activeAgentRunCliModel,
-      webSearchKeys,
-      refreshChats,
-    ],
+    [llmConfigs, activeAgentRunConfig, activeRunnerKind, activeAgentRunCliModel, refreshChats],
   )
 
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(

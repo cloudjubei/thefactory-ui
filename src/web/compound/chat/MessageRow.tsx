@@ -185,6 +185,10 @@ export type MessageRowProps = {
   /** When true, the checkbox is checked. */
   toolSelected?: boolean
   onToggleToolSelect?: () => void
+  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
+  toolAlwaysAllowed?: boolean
+  /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
+  onAlwaysAllowTool?: () => void
   /**
    * Replaces the whole tool card for this row. Used by a tool the user has to
    * answer in place (the in-chat credential form), which must read as the tool
@@ -223,6 +227,8 @@ function MessageRow({
   toolSelectable,
   toolSelected,
   onToggleToolSelect,
+  toolAlwaysAllowed,
+  onAlwaysAllowTool,
   toolRowOverride,
   thinkingLabel,
   setLastMessageRef,
@@ -536,6 +542,8 @@ function MessageRow({
                 selectable={toolSelectable}
                 selected={toolSelected}
                 onToggleSelect={onToggleToolSelect}
+                alwaysAllowed={toolAlwaysAllowed}
+                onAlwaysAllow={onAlwaysAllowTool}
               />
             </div>
           ) : null}

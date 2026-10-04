@@ -79,6 +79,8 @@ export type ChatBadgeCountMode = 'chats_with_unread' | 'total_messages'
 export type BadgeChatInput = {
   /** Per-chat unread message count. */
   unreadMessages: number
+  /** Asks the chat has waiting on the user — unread news like a reply. */
+  pendingAsks?: number
   /** True for chats that are currently streaming. */
   isThinking: boolean
 }
@@ -111,6 +113,29 @@ export type UseBadgeCountsCoreInput = {
   chatBadgeCountMode?: ChatBadgeCountMode
 }
 
+/**
+ * The chat badge of a set of chats: how many have news (or, in the
+ * `total_messages` mode, how much news there is) and whether any is streaming.
+ * An ask waiting on the user is news like an unread reply.
+ */
+export function chatBadgeTally(
+  chats: ReadonlyArray<BadgeChatInput>,
+  mode: ChatBadgeCountMode = 'chats_with_unread',
+): { unread: number; thinking: boolean } {
+  let chatsWithNews = 0
+  let totalNews = 0
+  let thinking = false
+  for (const c of chats) {
+    const news = c.unreadMessages + (c.pendingAsks ?? 0)
+    if (news > 0) {
+      chatsWithNews += 1
+      totalNews += news
+    }
+    if (c.isThinking) thinking = true
+  }
+  return { unread: mode === 'total_messages' ? totalNews : chatsWithNews, thinking }
+}
+
 export function computeBadgeCounts(input: UseBadgeCountsCoreInput): BadgeCounts {
   const enabled = {
     chat: input.enabled?.chat !== false,
@@ -123,18 +148,9 @@ export function computeBadgeCounts(input: UseBadgeCountsCoreInput): BadgeCounts 
   const out: BadgeCounts = { ...ZERO_BADGE_COUNTS }
 
   if (enabled.chat) {
-    let chatsWithUnread = 0
-    let totalUnread = 0
-    let anyThinking = false
-    for (const c of input.chats) {
-      if (c.unreadMessages > 0) {
-        chatsWithUnread += 1
-        totalUnread += c.unreadMessages
-      }
-      if (!anyThinking && c.isThinking) anyThinking = true
-    }
-    out.chat = input.chatBadgeCountMode === 'total_messages' ? totalUnread : chatsWithUnread
-    out.chatThinking = anyThinking
+    const chat = chatBadgeTally(input.chats, input.chatBadgeCountMode)
+    out.chat = chat.unread
+    out.chatThinking = chat.thinking
   }
 
   if (enabled.git && input.git) {

@@ -1,17 +1,28 @@
 // Pure CLI-runner helpers — the testable core behind CliConfigsContext,
 // useChatCliRunner, and the runner-aware chat dispatch. No React, no I/O.
 
+import { DEFAULT_CHAT_CLI_EXEC_MODE } from 'thefactory-tools/constants'
+import { stableStringify } from 'thefactory-tools/utils'
 import type {
   ChatCliRunner,
   CliConfigsActiveState,
   CliRunArtifact,
   CliRunnerDispatchOptions,
+  CliRunStatus,
   CliRunTranscriptEntry,
   CliTool,
   FilesEmittedArtifact,
   StartCliAgentRunData,
 } from '../api/generated'
 import type { ChatMessageLike, MessageUsageLike, ToolOrigin } from './chatTypes'
+import { CLI_HOST_UNRUN_OUTCOMES, CLI_RUN_FAILED_FALLBACK_NOTICE } from './cliRunActivityConstants'
+import type { CliDecidedAsk, CliHostCallOutcome, CliPendingAsk } from './cliRunActivityTypes'
+import {
+  ASK_CANCELLED_REASON,
+  ASK_CARRIED_OUT_NOTE,
+  ASK_DECLINED_REASON,
+  ASK_EXPIRED_REASON,
+} from './cliRunnerConstants'
 
 export type StartCliRunBodyInput = {
   projectId: string
@@ -71,13 +82,10 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { model: runner.model } : {}),
     ...(cliEffort(runner.effort) ? { effort: cliEffort(runner.effort) } : {}),
-    // Default to resident (the session-warm process — no per-turn container/CLI
-    // boot). An unset execMode means the user never touched the toggle; resident
-    // is the better default and `isResidentEligible` degrades to per-turn when
-    // the chat can't run resident (no manager / no chatContextId / no credential).
-    // Explicit 'per-turn' still forces the cold path. Server-side default so
-    // mobile (no toggle) inherits it too.
-    execMode: runner.execMode ?? 'resident',
+    // An unset execMode means the user never touched the toggle. The default is
+    // the one the server applies to every chat turn it starts itself, so a
+    // resume lands in the same session as the user's own messages.
+    execMode: runner.execMode ?? DEFAULT_CHAT_CLI_EXEC_MODE,
   }
 }
 
@@ -187,22 +195,27 @@ export function classifyToolOrigin(rawName: string | undefined): ToolOrigin {
 /** Lifecycle/outcome class for a CLI tool step. A CLI tool is `running` from the
  * moment its call is seen until its result arrives (CLI tools execute when
  * called — they're never "queued"); then `success` / `errored`. */
-export type CliToolStepResultType = 'success' | 'errored' | 'running'
+export type CliToolStepResultType = 'success' | 'errored' | 'running' | 'not_allowed'
 
 /**
- * True when a tool result is the host's "raised with the user, not yet answered"
- * reply rather than the tool's own output. The call has NOT run.
+ * The host's answer to a call it did NOT run — waiting for approval, stopped by
+ * a latch, declined or expired — read from the tool result (an object, or the
+ * JSON string a CLI hands back), or `undefined` for a call that ran.
  */
-export function isAwaitingApprovalResult(result: unknown): boolean {
-  const record = asTranscriptRecord(result)
-  if (record?.outcome === 'pending') return true
-  const text = typeof result === 'string' ? result : undefined
-  if (text === undefined) return false
-  try {
-    return asTranscriptRecord(JSON.parse(text))?.outcome === 'pending'
-  } catch {
-    return false
+export function hostCallOutcomeOf(result: unknown): CliHostCallOutcome | undefined {
+  let body: unknown = result
+  if (typeof result === 'string') {
+    try {
+      body = JSON.parse(result)
+    } catch {
+      return undefined
+    }
   }
+  const record = asTranscriptRecord(body)
+  const outcome = record?.outcome
+  return typeof outcome === 'string' && CLI_HOST_UNRUN_OUTCOMES.has(outcome)
+    ? (record as CliHostCallOutcome)
+    : undefined
 }
 
 /**
@@ -231,10 +244,11 @@ export type CliTranscriptStep =
       result?: unknown
       resultType: CliToolStepResultType
       /**
-       * The host raised this call with the user and is waiting on them. The tool
-       * has NOT run, so the step is neither finished nor merely in flight.
+       * The host answered this call without running the tool. Whether the user
+       * is still being asked about it is not the transcript's to say — see
+       * `cliTranscriptToMessages`' `pendingAsks`.
        */
-      awaitingApproval?: boolean
+      hostOutcome?: CliHostCallOutcome
     }
   | { kind: 'result'; at: number; durationMs?: number; summary: string; raw: string }
   | { kind: 'raw'; at: number; durationMs?: number; raw: string }
@@ -498,10 +512,13 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       ...(rawInput !== undefined && Object.keys(rawInput).length > 0
         ? { input: rawInput.args ?? acp.rawInput }
         : {}),
-      result: acp.rawOutput ?? acp.content,
+      // The host's own outcome wins: cursor reports every answered MCP call as
+      // `{success: true}`, so a call the host never ran — waiting for approval,
+      // refused, stopped — would otherwise read as done.
+      result: p?.hostOutcome ?? acp.rawOutput ?? acp.content,
       // Only a terminal status ends the call; `pending` / `in_progress` are
       // progress reports and must leave the spinner alone.
-      resultType: acpResultType(status),
+      resultType: p?.hostOutcome !== undefined ? 'errored' : acpResultType(status),
     }
   }
   // MCP tool result (any CLI): read the real tool name from the envelope and
@@ -772,18 +789,15 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         break
       }
       case 'tool-result': {
-        const res = extractCliToolResult(entry)
-        // A gated call that returned "pending" is NOT finished: the host asked
-        // the user and the tool did not run. Reading this off the transcript
-        // means the chat shows the wait even when the approval never reached
-        // the client any other way — the failure mode where an agent announces
-        // "waiting for your approval" over a spinner and nothing is on screen.
-        if (isAwaitingApprovalResult(res.result)) {
-          const idx = res.toolCallId ? toolIndexById.get(res.toolCallId) : undefined
-          const step = idx != null ? steps[idx] : undefined
-          if (step && step.kind === 'tool') step.awaitingApproval = true
-          break
-        }
+        const extracted = extractCliToolResult(entry)
+        // A call the host answered without running the tool — sent for
+        // approval, stopped, declined — did not run, whatever status the CLI
+        // gave it. Read off the transcript so the row says so even when the
+        // client reported a success.
+        const hostOutcome = hostCallOutcomeOf(extracted.result)
+        const res = hostOutcome
+          ? { ...extracted, result: hostOutcome, resultType: 'not_allowed' as const }
+          : extracted
         const idx = res.toolCallId ? toolIndexById.get(res.toolCallId) : undefined
         const existing = idx != null ? steps[idx] : undefined
         if (existing && existing.kind === 'tool') {
@@ -805,6 +819,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
           if (res.resultType !== 'running') {
             existing.result = res.result
             existing.resultType = res.resultType
+            if (hostOutcome) existing.hostOutcome = hostOutcome
             if (entry.at > existing.at) existing.durationMs = entry.at - existing.at
           }
         } else if (res.resultType !== 'running') {
@@ -817,6 +832,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
             input: undefined,
             result: res.result,
             resultType: res.resultType,
+            ...(hostOutcome ? { hostOutcome } : {}),
           })
         }
         break
@@ -872,23 +888,32 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  * repeats a message's usage on every line it streams, so the sum counts each
  * message once per line (covision-android/88342735: $0.76 against $0.32).
  *
- * `opts.awaitingApprovalToolNames` re-types an in-flight tool step the run is
- * BLOCKED on from `running` to `require_confirmation`, so it borrows the API
- * path's existing "needs confirmation" vocabulary (teal hourglass + pill)
- * instead of spinning as though the agent were working on it.
+ * `opts.pendingAsks` — the undecided asks of this chat — decides which rows the
+ * user is being asked about: a row whose host outcome names a pending ask, or a
+ * call still held open whose name and arguments match one, becomes
+ * `require_confirmation` (the API path's "needs confirmation") and carries the
+ * ask as `toolCall.approvalId`. Any other call the host answered without
+ * running stays `not_allowed`, so an ask decided long ago no longer reads as
+ * waiting. Each ask is tied to one row at most.
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
   opts?: {
     model?: string
     showThinking?: boolean
-    awaitingApprovalToolNames?: readonly string[]
+    pendingAsks?: readonly CliPendingAsk[]
+    decidedAsks?: readonly CliDecidedAsk[]
+    /** The run these entries are from — what tells a later call that carried an approval out. */
+    runId?: string
     usage?: MessageUsageLike
   },
 ): ChatMessageLike[] {
   const showThinking = opts?.showThinking ?? true
-  const awaitingApproval = new Set(opts?.awaitingApprovalToolNames ?? [])
   const steps = normalizeCliTranscript(entries)
+  const askByStep = tieAsksToSteps(steps, opts?.pendingAsks ?? [])
+  const decidedById = new Map((opts?.decidedAsks ?? []).map((a) => [a.id, a]))
+  const recalls = carryingOutCalls(steps, opts?.decidedAsks ?? [], opts?.runId)
+  const approvedInRun = approvedWhileHeld(steps, opts?.decidedAsks ?? [], opts?.runId)
   const messages: ChatMessageLike[] = []
   for (const step of steps) {
     const startedAt = new Date(step.at).toISOString()
@@ -915,24 +940,38 @@ export function cliTranscriptToMessages(
         ...(model ? { model } : {}),
       })
     } else if (step.kind === 'tool') {
-      const blocked =
-        step.awaitingApproval === true ||
-        (step.resultType === 'running' && awaitingApproval.has(step.toolName))
+      if (recalls.has(step)) continue
+      const ask = askByStep.get(step)
+      const approvalId = ask?.decidedOnRow === true ? ask.id : undefined
+      const actionId = step.hostOutcome?.actionId
+      const decidedAsk =
+        ask === undefined && actionId !== undefined ? decidedById.get(actionId) : undefined
+      const decided = decidedAsk ? decidedRowResult(decidedAsk, step.hostOutcome) : undefined
+      // An approved call is timed by the call itself: the step's own span runs
+      // from the ask to the result and counts the user's time deciding.
+      const durationMs =
+        (decidedAsk ?? approvedInRun.get(step))?.execution?.durationMs ?? step.durationMs
       messages.push({
         role: 'tool',
         content: '',
         startedAt,
-        ...(step.durationMs != null ? { durationMs: step.durationMs } : {}),
+        ...(durationMs != null ? { durationMs } : {}),
         toolCall: {
           toolCallId: step.toolCallId ?? `cli-${step.at}`,
           name: step.toolName,
           arguments: step.input,
           origin: step.origin,
+          ...(approvalId !== undefined ? { approvalId } : {}),
+          ...(ask && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
         },
         toolResult: {
-          result: step.result,
-          type: blocked ? 'require_confirmation' : step.resultType,
-          durationMs: step.durationMs ?? 0,
+          result: decided ? decided.result : step.result,
+          type: ask
+            ? ask.decidedOnRow
+              ? 'require_confirmation'
+              : 'running'
+            : (decided?.type ?? step.resultType),
+          durationMs: durationMs ?? 0,
         },
       })
     }
@@ -1122,10 +1161,13 @@ export function parseCliAuthLoginEvent(data: unknown): CliAuthLoginParsed | null
 /**
  * CLIs whose login runs in the sandbox container and therefore can't open the
  * host's browser itself — the client auto-opens the printed sign-in URL for
- * these. Host logins (claude-code, codex) open the browser themselves, so the
- * client must NOT, or it would open a duplicate tab.
+ * these (thefactory-tools `CLI_CONTAINER_LOGIN`). A host login (codex) opens the
+ * browser itself, so the client must NOT, or it would open a duplicate tab.
  */
-export const CLI_CLIENT_OPENS_LOGIN_URL: ReadonlySet<string> = new Set(['cursor-agent'])
+export const CLI_CLIENT_OPENS_LOGIN_URL: ReadonlySet<string> = new Set([
+  'cursor-agent',
+  'claude-code',
+])
 
 /**
  * Extract the first sign-in URL from a CLI login's streamed output, so the UI
@@ -1203,4 +1245,185 @@ export function deriveCliAuthWarning(
     ...(status.reason ? { reason: status.reason } : {}),
     ...(status.message ? { message: status.message } : {}),
   }
+}
+
+/**
+ * What a failed run's turn says about the failure, or `undefined` for a run
+ * that did not fail. A run that failed before the agent spoke — a login that
+ * could not be refreshed, a sandbox that would not start — has an empty
+ * transcript, and its turn used to render as an empty block with only a delete
+ * control. The reason is the run record's own, so it survives a reload.
+ */
+export function cliRunFailureNotice(
+  status: CliRunStatus | undefined,
+  abortReason: string | undefined,
+): string | undefined {
+  if (status !== 'errored') return undefined
+  const reason = abortReason?.trim()
+  return reason ? reason : CLI_RUN_FAILED_FALLBACK_NOTICE
+}
+
+/**
+ * A run's messages with its failure as the last of them — see
+ * {@link cliRunFailureNotice} — unless one of them already shows an error.
+ */
+export function withCliRunFailure<M extends ChatMessageLike>(
+  messages: M[],
+  status: CliRunStatus | undefined,
+  abortReason: string | undefined,
+): (M | ChatMessageLike)[] {
+  const notice = cliRunFailureNotice(status, abortReason)
+  if (notice === undefined || messages.some((m) => m.error)) return messages
+  return [...messages, { role: 'assistant', content: '', error: notice }]
+}
+
+/**
+ * A CLI turn's messages, or — until its run record arrives — the reply the chat
+ * stored for the turn, so the turn is never blank while the record loads. A run
+ * still going shows only its own steps; its activity line covers the wait.
+ */
+export function withStoredCliReply<M extends ChatMessageLike>(
+  runMessages: M[],
+  stored: { content?: string; model?: string } | undefined,
+  active: boolean,
+): (M | ChatMessageLike)[] {
+  if (runMessages.length > 0 || active || !stored?.content?.trim()) return runMessages
+  return [
+    {
+      role: 'assistant',
+      content: stored.content,
+      ...(stored.model ? { model: stored.model } : {}),
+    },
+  ]
+}
+
+/**
+ * What a row whose ask has since been decided shows: an approval carried out —
+ * in a later turn, the agent calling again — as that call's outcome, one not
+ * carried out yet as under way, and a declined or expired ask as not run, and
+ * why. `undefined` when the ask is not among the decided ones at hand.
+ */
+function decidedRowResult(
+  ask: CliDecidedAsk | undefined,
+  hostOutcome: CliHostCallOutcome | undefined,
+): { type: CliToolStepResultType; result: unknown } | undefined {
+  if (!ask) return undefined
+  if (ask.status === 'approved') {
+    if (ask.answer !== undefined) return { type: 'success', result: { answer: ask.answer } }
+    if (!ask.execution) {
+      return ask.executedAt === undefined
+        ? { type: 'running', result: undefined }
+        : { type: 'success', result: { outcome: 'approved', reason: ASK_CARRIED_OUT_NOTE } }
+    }
+    return {
+      type: ask.execution.ok ? 'success' : 'errored',
+      result: parsedResultText(ask.execution.result),
+    }
+  }
+  const reason =
+    ask.status === 'denied'
+      ? ASK_DECLINED_REASON
+      : ask.decisionReason === 'cancelled'
+        ? ASK_CANCELLED_REASON
+        : ASK_EXPIRED_REASON
+  return { type: 'not_allowed', result: { ...hostOutcome, outcome: ask.status, reason } }
+}
+
+function parsedResultText(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+/**
+ * The calls in this run that carried out an approval asked for in an EARLIER
+ * run — the agent calling again after the decision. The ask's own row shows
+ * that outcome, so these are left out rather than shown twice. Matched by tool
+ * and arguments, one call per approval.
+ */
+function carryingOutCalls(
+  steps: readonly CliTranscriptStep[],
+  asks: readonly CliDecidedAsk[],
+  runId: string | undefined,
+): Set<CliTranscriptStep> {
+  if (runId === undefined) return new Set()
+  const carried = asks.filter(
+    (a) => a.status === 'approved' && a.executedInRun === runId && a.runId !== runId,
+  )
+  return new Set(callsCarryingOut(steps, carried).keys())
+}
+
+/**
+ * The calls in this run the user approved while the call was still held open —
+ * asked and carried out in the same run — by tool and arguments, one call per
+ * approval. Their transcript span includes the user's time deciding.
+ */
+function approvedWhileHeld(
+  steps: readonly CliTranscriptStep[],
+  asks: readonly CliDecidedAsk[],
+  runId: string | undefined,
+): Map<CliTranscriptStep, CliDecidedAsk> {
+  if (runId === undefined) return new Map()
+  const held = asks.filter(
+    (a) => a.status === 'approved' && a.runId === runId && a.executedInRun === runId,
+  )
+  return callsCarryingOut(steps, held)
+}
+
+/**
+ * The tool steps that ran each approval — a call the host answered by running
+ * it (no host outcome), with the approval's tool and arguments, in order; one
+ * step per approval.
+ */
+function callsCarryingOut(
+  steps: readonly CliTranscriptStep[],
+  approvals: readonly CliDecidedAsk[],
+): Map<CliTranscriptStep, CliDecidedAsk> {
+  const tied = new Map<CliTranscriptStep, CliDecidedAsk>()
+  const open = [...approvals]
+  for (const step of steps) {
+    if (open.length === 0) break
+    if (step.kind !== 'tool' || step.hostOutcome !== undefined) continue
+    const args = stableStringify(step.input ?? {})
+    const i = open.findIndex(
+      (a) => a.toolName === step.toolName && stableStringify(a.args ?? {}) === args,
+    )
+    if (i >= 0) tied.set(step, open.splice(i, 1)[0]!)
+  }
+  return tied
+}
+
+/**
+ * Which pending ask each tool step is waiting on: first the steps whose host
+ * outcome names the ask, then calls still held open, by name and arguments.
+ * Each ask goes to one step at most.
+ */
+function tieAsksToSteps(
+  steps: readonly CliTranscriptStep[],
+  asks: readonly CliPendingAsk[],
+): Map<CliTranscriptStep, CliPendingAsk> {
+  const tied = new Map<CliTranscriptStep, CliPendingAsk>()
+  const open = [...asks]
+  const take = (matches: (ask: CliPendingAsk) => boolean): CliPendingAsk | undefined => {
+    const i = open.findIndex(matches)
+    return i < 0 ? undefined : open.splice(i, 1)[0]
+  }
+  for (const step of steps) {
+    const actionId = step.kind === 'tool' ? step.hostOutcome?.actionId : undefined
+    if (actionId === undefined) continue
+    const ask = take((a) => a.id === actionId)
+    if (ask !== undefined) tied.set(step, ask)
+  }
+  for (const step of steps) {
+    if (step.kind !== 'tool' || step.resultType !== 'running') continue
+    const args = stableStringify(step.input ?? {})
+    const ask = take(
+      (a) =>
+        a.toolName === step.toolName && (a.args === undefined || stableStringify(a.args) === args),
+    )
+    if (ask !== undefined) tied.set(step, ask)
+  }
+  return tied
 }

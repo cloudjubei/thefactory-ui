@@ -9,6 +9,7 @@ import {
   noteCreateBody,
   noteFormErrors,
   noteFormValues,
+  noteAuthorLabel,
   noteKindLabel,
   notePatchBody,
   projectNoteChipView,
@@ -26,6 +27,7 @@ function summary(overrides: Partial<ProjectNoteSummary> = {}): ProjectNoteSummar
     kind: 'secret',
     description: 'Account for the app under test',
     access: 'ask',
+    author: 'user',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
     ...overrides,
@@ -249,5 +251,17 @@ describe('projectNoteChipView', () => {
       kindLabel: 'Note',
       showsValue: false,
     })
+  })
+})
+
+describe('noteAuthorLabel', () => {
+  it('marks a note an agent wrote', () => {
+    expect(noteAuthorLabel(summary({ author: 'agent', kind: 'note', access: 'open' }))).toBe(
+      'By an agent',
+    )
+  })
+
+  it('adds nothing to a note the user wrote — that is every note but an agent’s', () => {
+    expect(noteAuthorLabel(summary({ author: 'user' }))).toBeUndefined()
   })
 })

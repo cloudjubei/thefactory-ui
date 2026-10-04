@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  CAPTURE_SAME_CODE_LABEL,
   captureBuildCaption,
   capturedOnLabel,
   comparisonPairFacts,
@@ -58,6 +59,9 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.sameCodeAsExpected ? (
+        <span className="text-(--text-muted)">{CAPTURE_SAME_CODE_LABEL}</span>
+      ) : null}
       {build.dirty ? (
         <span className="text-(--status-stuck-soft-fg)">uncommitted changes</span>
       ) : null}
@@ -171,8 +175,12 @@ export default function ComparisonOverlay({
   const cut = holdBase ? 100 : slidePct
 
   const pairFacts = pair ? comparisonPairFacts(pair) : []
-  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
-  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
+  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha, {
+    counted: pair?.counted === true,
+  })
+  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha, {
+    counted: pair?.counted === true,
+  })
 
   const hint =
     effectiveMode === 'mirror'

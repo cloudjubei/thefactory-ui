@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { deleteWebSearchKey, listWebSearchKeys, updateWebSearchKeys } from '../api'
-import type { WebSearchKeyEntry, WebSearchKeyUpsertInput } from '../api'
+import type { RedactedWebSearchKeyEntry, WebSearchKeyUpsertInput } from '../api'
 import { useAuth } from '../api/AuthContext'
 
 export type WebSearchKeysContextValue = {
   isLoaded: boolean
   loadError: Error | null
-  keys: WebSearchKeyEntry[]
+  keys: RedactedWebSearchKeyEntry[]
   upsertKey: (input: WebSearchKeyUpsertInput) => Promise<void>
   deleteKey: (provider: string) => Promise<void>
   refresh: () => Promise<void>
@@ -17,7 +17,7 @@ const WebSearchKeysContext = createContext<WebSearchKeysContextValue | null>(nul
 
 export function WebSearchKeysProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
-  const [keys, setKeys] = useState<WebSearchKeyEntry[]>([])
+  const [keys, setKeys] = useState<RedactedWebSearchKeyEntry[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
 

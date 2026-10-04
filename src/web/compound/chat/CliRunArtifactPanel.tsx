@@ -1,3 +1,5 @@
+import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
+import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
@@ -5,6 +7,7 @@ import { answerFeatureQuestion, getGitLog } from '../../../headless/api'
 import {
   aggregateTestCounts,
   approveActionDescriptors,
+  PROCESS_INTEGRATION_SHADOW,
   censusFeatures,
   checkMethodRows,
   earnedApproveActions,
@@ -40,6 +43,7 @@ import {
   type BranchCommit,
   type ReviewTabId,
   type SignoffVerdict,
+  processStepFinishedView,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
 import { Button } from '../../primitives/Button'
@@ -131,7 +135,15 @@ function toChangeFile(file: GitDiffSummary['files'][number]): ChangeFile {
     path: file.path,
     status,
     ...(file.patch ? { patch: file.patch } : {}),
-    ...(file.patch ? {} : { note: file.binary ? 'Binary file.' : 'No textual diff.' }),
+    ...(file.patch
+      ? {}
+      : {
+          note: file.patchSuppressed
+            ? GIT_DIFF_SUPPRESSED_MESSAGE
+            : file.binary
+              ? 'Binary file.'
+              : 'No textual diff.',
+        }),
   }
 }
 
@@ -184,6 +196,7 @@ export default function CliRunArtifactPanel({
     reviewInProgress,
     storyId,
     processRunId,
+    processRole,
     landFailure,
     runModel,
     cancelWork,
@@ -201,11 +214,14 @@ export default function CliRunArtifactPanel({
     reviewDiff,
     reviewLoading,
     loadReviewDiff,
+    viewedFiles,
+    setFileViewed,
     merging,
     mergeResult,
     verify,
     verifying,
     verificationApproaches,
+    projectChecks,
     loadVerificationPlan,
     planLoading,
     requestReview,
@@ -243,7 +259,15 @@ export default function CliRunArtifactPanel({
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
   const [cancelling, setCancelling] = useState(false)
   const { getStory } = useStories()
-  const evidence = useReviewEvidence(projectId, { runId, ...(storyId ? { storyId } : {}) })
+  // Only a run with something to sign off loads its proof. Most of a chat's
+  // turns change nothing, and each one fetching its evidence and the
+  // verification plan — again on every chat update — held up the turns' own
+  // transcripts behind a queue of requests whose answer was never shown.
+  const reviewable = artifact !== undefined || landFailure !== undefined || reportOnly
+  const evidence = useReviewEvidence(reviewable ? projectId : undefined, {
+    runId,
+    ...(storyId ? { storyId } : {}),
+  })
 
   useEffect(() => {
     if (error) return
@@ -253,7 +277,7 @@ export default function CliRunArtifactPanel({
     if (review) {
       // Report-only (process-owned) loads the diff for VIEWING but never records
       // it as reviewed — the pipeline owns this run's verdict.
-      if (!reviewDiff && !reviewLoading) void loadReviewDiff(!reportOnly)
+      if (!reviewDiff && !reviewLoading) void loadReviewDiff()
     } else if (artifact && !preview && !previewLoading) {
       void loadPreview()
     }
@@ -273,9 +297,10 @@ export default function CliRunArtifactPanel({
   // The verification plan is what tells "not run" apart from "not set up", so
   // it loads with the panel rather than behind a link.
   useEffect(() => {
-    if (verificationApproaches.length === 0 && !planLoading) void loadVerificationPlan()
+    if (reviewable && verificationApproaches.length === 0 && !planLoading)
+      void loadVerificationPlan()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [reviewable])
 
   const census = storyId ? censusFeatures(getStory(storyId)?.features ?? []) : undefined
   const storyIncomplete = census ? incompleteStoryReason(census) : undefined
@@ -294,8 +319,9 @@ export default function CliRunArtifactPanel({
         // `reviewer-agent`, so `diff` could never pass and the headline could
         // never reach `proven` in any client however much evidence a run made.
         ...(diffReview ? { diffReview } : {}),
+        ...(projectChecks ? { projectChecks, now: Date.now() } : {}),
       }),
-    [verification, verificationApproaches, evidence.refs, verdict?.by, diffReview],
+    [verification, verificationApproaches, evidence.refs, verdict?.by, diffReview, projectChecks],
   )
   const headline = useMemo(
     () =>
@@ -381,7 +407,11 @@ export default function CliRunArtifactPanel({
   // screens/report evidence are the VERIFIER's, filed against this run's id; they
   // belong on the verifier's own report-only panel (a fileless process run), not
   // stacked onto the developer's as a second "sign off".
-  const isHandoffRun = reportOnly && artifact !== undefined
+  const finishedView = processStepFinishedView({
+    changedFiles: artifact !== undefined,
+    ...(processRole ? { role: processRole } : {}),
+  })
+  const isHandoffRun = reportOnly && finishedView.kind === 'handoff'
   const applyResultData = applyResult?.kind === 'files-emitted' ? applyResult : undefined
   const appliedOk =
     !!applyResultData &&
@@ -398,6 +428,18 @@ export default function CliRunArtifactPanel({
     ? (reviewDiff?.files ?? []).map(toChangeFile)
     : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
   const changesKnown = review ? reviewDiff !== undefined : preview !== undefined
+  // GitHub's "Viewed": the user marks each file read; the change is read once all are.
+  const viewedChanges =
+    review?.headSha && reviewDiff
+      ? {
+          progress: viewedFilesProgress(
+            changeFiles.map((f) => f.path),
+            viewedFiles,
+            review.headSha,
+          ),
+          onToggle: (path: string, viewed: boolean) => void setFileViewed(path, viewed),
+        }
+      : undefined
   const tabs = reviewTabs({
     screens: pairs.length,
     walkthroughs: recordings.length,
@@ -411,6 +453,7 @@ export default function CliRunArtifactPanel({
     activeTab && tabs.some((t) => t.id === activeTab) ? activeTab : (tabs[0]?.id ?? 'changes')
 
   const approveOptions = approveActionDescriptors({
+    shadow: review?.shadow === true,
     branch: review?.branch ?? 'the review branch',
     baseBranch: 'the working branch',
     hasRemote: true,
@@ -418,7 +461,7 @@ export default function CliRunArtifactPanel({
   })
   const earned = earnedApproveActions(approveOptions, headline.key)
   const facts = runReviewFacts({ cost, durationMs })
-  const notice = mergeNotice(mergeResult)
+  const notice = mergeNotice(mergeResult, { shadow: review?.shadow === true })
   const decided = verdict ? verdictSummary(verdict) : undefined
   const landing = landFailure ? landFailureSummary(landFailure) : undefined
   const actionMode = reviewActionMode({
@@ -572,7 +615,7 @@ export default function CliRunArtifactPanel({
         <span className="text-[13px] font-semibold text-(--text-primary)">
           {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not landed'}
         </span>
-        {review ? (
+        {review && !review.shadow ? (
           <Tooltip
             placement="bottom"
             content={
@@ -688,14 +731,10 @@ export default function CliRunArtifactPanel({
               <div className="flex flex-col gap-2 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
                 <div className="flex flex-col gap-1">
                   <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
-                    {isHandoffRun
-                      ? 'Implemented — handed to Verify'
-                      : 'This stage is finished here'}
+                    {finishedView.title}
                   </span>
                   <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
-                    {isHandoffRun
-                      ? 'This step wrote the change and handed it to the verifier. Its diff is below; whether it is proven is decided by Verify in the pipeline, not here.'
-                      : 'This run is one step of a process. What it did and changed is shown below; its outcome and sign-off are decided in the pipeline, not here.'}
+                    {finishedView.detail}
                   </p>
                 </div>
                 {onBackToPipeline && processRunId ? (
@@ -807,6 +846,7 @@ export default function CliRunArtifactPanel({
             {isHandoffRun ? (
               // Developer hand-off: show ONLY its diff, not the verifier's review tabs.
               <ChangesTab
+                {...(viewedChanges ? { viewed: viewedChanges } : {})}
                 review={review}
                 files={changeFiles}
                 commits={commits}
@@ -814,12 +854,12 @@ export default function CliRunArtifactPanel({
                 error={error}
                 onRetry={
                   review && !reviewDiff && !reviewLoading
-                    ? () => void loadReviewDiff(!reportOnly)
+                    ? () => void loadReviewDiff()
                     : !review && !preview && !previewLoading
                       ? () => void loadPreview()
                       : undefined
                 }
-                onOpenGit={onOpenGit}
+                onOpenGit={review?.shadow ? undefined : onOpenGit}
               />
             ) : tabs.length > 0 ? (
               <div className="flex flex-col gap-2.5">
@@ -860,6 +900,7 @@ export default function CliRunArtifactPanel({
                   <ReportTab reports={reports} />
                 ) : (
                   <ChangesTab
+                    {...(viewedChanges ? { viewed: viewedChanges } : {})}
                     review={review}
                     files={changeFiles}
                     commits={commits}
@@ -867,12 +908,12 @@ export default function CliRunArtifactPanel({
                     error={error}
                     onRetry={
                       review && !reviewDiff && !reviewLoading
-                        ? () => void loadReviewDiff(!reportOnly)
+                        ? () => void loadReviewDiff()
                         : !review && !preview && !previewLoading
                           ? () => void loadPreview()
                           : undefined
                     }
-                    onOpenGit={onOpenGit}
+                    onOpenGit={review?.shadow ? undefined : onOpenGit}
                   />
                 )}
               </div>
@@ -921,7 +962,7 @@ export default function CliRunArtifactPanel({
                   <span className={`text-[12px] ${TONE_TEXT[notice.tone]}`}>{notice.message}</span>
                 ) : actionMode === 'actions' && isMerged ? (
                   <span className="text-[12px] text-(--text-secondary)">
-                    Merged into your branch
+                    {review?.shadow ? PROCESS_INTEGRATION_SHADOW.done : 'Merged into your branch'}
                   </span>
                 ) : applyResultData ? (
                   <span className="text-[12px] text-(--text-secondary)">

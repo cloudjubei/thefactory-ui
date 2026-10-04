@@ -6,8 +6,11 @@ import {
   processIntegrationBadge,
   processIntegrationChoices,
   processIntegrationView,
+  soleIntegrationMode,
 } from './processIntegration'
 import { PROCESS_INTEGRATION_NEVER_TRIED } from './processIntegrationConstants'
+
+const GIT_WORDS = /merge|branch|commit|pull request|\bPR\b|push|squash|git/i
 
 const workBranch = { name: 'factory/fonts-1a2b3c4d', baseRef: 'main', baseSha: 'a'.repeat(40) }
 const SHA = 'c0ffee1234567890c0ffee1234567890c0ffee12'
@@ -63,6 +66,54 @@ describe('processIntegrationChoices', () => {
       'Squashes the work into a single commit on main.',
       'Pushes factory/fonts-1a2b3c4d and opens a PR for review on GitHub / Azure DevOps; nothing lands on main until it is merged there.',
     ])
+  })
+})
+
+describe('a project with no git of its own', () => {
+  const shadowBranch = { ...workBranch, shadow: true }
+  const shadowRun = (over: Partial<ProcessRun> = {}) => run({ workBranch: shadowBranch, ...over })
+
+  it('offers one way in — plain approval — in words without git in them', () => {
+    const choices = processIntegrationChoices(shadowBranch)
+    expect(choices.map((c) => [c.mode, c.label])).toEqual([['merge', 'Approve']])
+    expect(choices[0]!.detail).toMatch(/project folder/)
+    expect(choices[0]!.detail).not.toMatch(GIT_WORDS)
+  })
+
+  it('has approval bring the work in at once, with no question of how', () => {
+    expect(soleIntegrationMode(shadowBranch)).toBe('merge')
+    expect(soleIntegrationMode(workBranch)).toBeUndefined()
+  })
+
+  it('tells how bringing the work in went without git words or a sha', () => {
+    const views = [
+      processIntegrationView(shadowRun()),
+      processIntegrationView(
+        shadowRun({ integration: { mode: 'merge', status: 'integrating', at: 1 } }),
+      ),
+      processIntegrationView(
+        shadowRun({ integration: { mode: 'merge', status: 'integrated', sha: SHA, at: 1 } }),
+      ),
+      processIntegrationView(
+        shadowRun({ integration: { mode: 'merge', status: 'failed', error: 'x', at: 1 } }),
+      ),
+    ]
+    for (const view of views) {
+      expect(view).toBeDefined()
+      expect(view!.title).not.toMatch(GIT_WORDS)
+      expect(view!.detail ?? '').not.toMatch(GIT_WORDS)
+      expect(view!.sha).toBeUndefined()
+    }
+    expect(views[2]).toMatchObject({ tone: 'done', title: 'Brought into the project folder' })
+    expect(views[3]).toMatchObject({ tone: 'stuck', detail: 'x', canRetry: true })
+  })
+
+  it('badges an approved run whose work has not come in without git words', () => {
+    const badge = processIntegrationBadge(
+      shadowRun({ integration: { mode: 'merge', status: 'failed', at: 1 } }),
+    )
+    expect(badge?.tone).toBe('on_hold')
+    expect(badge?.label).not.toMatch(GIT_WORDS)
   })
 })
 

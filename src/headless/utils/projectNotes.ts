@@ -8,6 +8,7 @@ import {
   EMPTY_NOTE_FORM,
   NOTE_ACCESS_HELP,
   NOTE_ACCESS_LABELS,
+  NOTE_AGENT_AUTHOR_LABEL,
   NOTE_KIND_LABELS,
   NOTE_LABEL_REQUIRED,
   NOTE_SECRET_HIDDEN,
@@ -115,6 +116,11 @@ export function noteKindLabel(kind: ProjectNoteSummary['kind']): string {
 
 export function noteAccessLabel(access: ProjectNoteSummary['access']): string {
   return NOTE_ACCESS_LABELS[access]
+}
+
+/** The row's authorship mark: set for a note an agent wrote, absent for the user's own. */
+export function noteAuthorLabel(note: Pick<ProjectNoteSummary, 'author'>): string | undefined {
+  return note.author === 'agent' ? NOTE_AGENT_AUTHOR_LABEL : undefined
 }
 
 export function noteAccessHelp(access: ProjectNoteSummary['access']): string {

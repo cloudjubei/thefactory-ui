@@ -257,6 +257,12 @@ export type CaptureBuildCaption = {
   dirty: boolean
   /** The commit expected, shortened — present only when the record does not show it. */
   expectedSha: string | undefined
+  /**
+   * Built from uncommitted work the gate counted as exactly the expected
+   * commit's code — a developer-verifier's capture of its own workspace, which
+   * holds the same tree as what then landed. `builtSha` then names that commit.
+   */
+  sameCodeAsExpected?: boolean
 }
 
 /** One thumbnail in the Screens pane: a pair or new screen the proof rests on. */

@@ -102,6 +102,21 @@ export function blockedOnFromGrants(
   return out
 }
 
+/**
+ * What a turn is parked on: the chat's feed when it names anything, else the
+ * asks this turn's own rows show. A resumed turn can be parked on asks the feed
+ * has not tied to it yet, and its line must still say it is waiting, not working.
+ */
+export function turnBlockedOn(
+  feed: readonly CliRunBlockedOn[] | undefined,
+  cliAsks: readonly PendingToolGrantData[] | undefined,
+  shownAskIds: readonly string[],
+): CliRunBlockedOn[] {
+  if (feed && feed.length > 0) return [...feed]
+  const shown = new Set(shownAskIds)
+  return blockedOnFromGrants((cliAsks ?? []).filter((g) => shown.has(g.id)))
+}
+
 /** Tool names the run is blocked on — what a transcript row should badge as awaiting approval. */
 export function blockedToolNames(blocked: readonly CliRunBlockedOn[]): string[] {
   const names: string[] = []

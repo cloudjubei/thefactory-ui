@@ -19,9 +19,33 @@ export function approveActionDescriptors(input: {
   hasRemote: boolean
   /** How many files the run changed. */
   fileCount: number
+  /**
+   * The project has no git of its own — Overseer keeps its history privately —
+   * so there is one way to approve, said without git words: the work goes into
+   * the project folder.
+   */
+  shadow?: boolean
 }): ApproveActionDescriptor[] {
   const { branch, baseBranch, hasRemote, fileCount } = input
   const files = `${fileCount} file${fileCount === 1 ? '' : 's'}`
+
+  if (input.shadow) {
+    return [
+      {
+        action: 'merge',
+        label: 'Approve',
+        hint: 'Bring the work into the project folder.',
+        title: 'Approve the work',
+        effects: [
+          'Records your approval on this run.',
+          `Brings the ${files} it changed into the project folder.`,
+          'Edits you made in the folder meanwhile are kept.',
+          'Blocked if this project requires passing verification and it has not passed.',
+        ],
+        confirmLabel: 'Approve',
+      },
+    ]
+  }
 
   return [
     {

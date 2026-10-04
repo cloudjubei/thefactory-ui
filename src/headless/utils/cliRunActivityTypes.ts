@@ -37,3 +37,45 @@ export type CliRunActivity = {
   label: string
   sublabel?: string
 }
+
+/**
+ * What the host answered a call with when it did NOT run the tool — waiting
+ * for approval, refused by a latch, declined or expired. The JSON body the
+ * agent received.
+ */
+export type CliHostCallOutcome = Record<string, unknown> & {
+  outcome: string
+  actionId?: string
+}
+
+/** An undecided ask a transcript row can be tied to. */
+export type CliPendingAsk = {
+  id: string
+  toolName?: string
+  args?: unknown
+  /**
+   * Decided on the row itself — an ordinary tool ask. Otherwise it is answered
+   * in a panel of its own (a question, a launch) and the row only waits.
+   */
+  decidedOnRow: boolean
+}
+
+/** An ask that has been decided — what a transcript row that once waited on it shows now. */
+export type CliDecidedAsk = {
+  id: string
+  /** The run that raised it. */
+  runId: string
+  status: 'approved' | 'denied' | 'expired'
+  toolName?: string
+  args?: unknown
+  /** Why it expired — `cancelled` when its run was stopped. */
+  decisionReason?: string
+  /** What the user answered, for a question. */
+  answer?: string
+  /** When the approval was carried out — set with or without a kept result. */
+  executedAt?: number
+  /** The run whose call carried the approval out, once one has. */
+  executedInRun?: string
+  /** What that call returned. */
+  execution?: { ok: boolean; result: string; durationMs?: number }
+}

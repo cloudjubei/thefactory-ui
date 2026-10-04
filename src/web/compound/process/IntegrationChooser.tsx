@@ -10,7 +10,7 @@ import { Button } from '../../primitives/Button'
 
 export type IntegrationChooserProps = {
   /** The branch the work is on, and the branch it goes back to. */
-  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef'>
+  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>
   /** The question heading the choices. */
   head?: string
   busy?: boolean

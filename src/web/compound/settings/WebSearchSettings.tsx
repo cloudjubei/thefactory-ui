@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useWebSearchKeys, useWebSearchBrowserSetting } from '../../../headless'
-import { Alert, SecretInput, Switch } from '../..'
+import { Alert, Button, SecretInput, Switch } from '../..'
 
 // Three fixed providers we surface (same set as `overseer-local`'s
 // WebSearchSettings). Other provider names backed by the backend are still
@@ -20,38 +20,25 @@ export default function WebSearchSettings() {
     setHeaded,
   } = useWebSearchBrowserSetting()
 
-  const byProvider = useMemo(() => {
-    const m: Record<string, string> = {}
-    for (const k of keys) m[k.provider] = k.apiKey
-    return m
-  }, [keys])
+  // Keys never come back from the backend — only whether one is stored. A
+  // field therefore starts blank; typing a key and leaving the field saves it,
+  // and Remove deletes the stored one.
+  const stored = useMemo(
+    () => new Set(keys.filter((k) => k.hasApiKey).map((k) => k.provider)),
+    [keys],
+  )
 
   // Sparse local drafts so typing doesn't fire one upsert per keystroke.
-  // Only providers the user has typed into appear here; everything else
-  // falls through to `byProvider` so newly-loaded keys appear immediately.
-  // The previous eager-init `useEffect` set every draft to `''` on first
-  // render — once `byProvider` loaded, the `!== undefined` guard kept the
-  // drafts stuck at empty.
   const [drafts, setDrafts] = useState<Record<string, string>>({})
-
-  const valueFor = (provider: string) =>
-    Object.prototype.hasOwnProperty.call(drafts, provider)
-      ? drafts[provider]
-      : (byProvider[provider] ?? '')
 
   const onChange = (provider: string, value: string) =>
     setDrafts((prev) => ({ ...prev, [provider]: value }))
 
   const onBlur = async (provider: string) => {
-    if (!Object.prototype.hasOwnProperty.call(drafts, provider)) return
-    const value = drafts[provider].trim()
-    const existing = byProvider[provider] ?? ''
-    if (value === existing) return
-    if (value.length === 0) {
-      if (existing.length > 0) await deleteKey(provider)
-      return
-    }
+    const value = (drafts[provider] ?? '').trim()
+    if (!value) return
     await upsertKey({ provider, apiKey: value })
+    setDrafts((prev) => ({ ...prev, [provider]: '' }))
   }
 
   return (
@@ -69,17 +56,26 @@ export default function WebSearchSettings() {
               <label htmlFor={`websearch-${p.key}`} className="block text-sm font-medium mb-1">
                 {p.label}
               </label>
-              <SecretInput
-                id={`websearch-${p.key}`}
-                value={valueFor(p.key)}
-                onChange={(e) => onChange(p.key, e.target.value)}
-                onBlur={() => void onBlur(p.key)}
-                wrapperClassName="max-w-md"
-                placeholder={p.placeholder}
-                autoComplete="off"
-                spellCheck={false}
-                revealConfirmDescription={`The ${p.label} will be visible until you leave this page.`}
-              />
+              <div className="flex items-center gap-2">
+                <SecretInput
+                  id={`websearch-${p.key}`}
+                  value={drafts[p.key] ?? ''}
+                  onChange={(e) => onChange(p.key, e.target.value)}
+                  onBlur={() => void onBlur(p.key)}
+                  wrapperClassName="max-w-md flex-1"
+                  placeholder={
+                    stored.has(p.key) ? 'Stored — type a new key to replace it' : p.placeholder
+                  }
+                  autoComplete="off"
+                  spellCheck={false}
+                  revealConfirmDescription={`The ${p.label} will be visible until you leave this page.`}
+                />
+                {stored.has(p.key) ? (
+                  <Button variant="outline" size="sm" onClick={() => void deleteKey(p.key)}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))
         )}

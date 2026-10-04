@@ -28,6 +28,15 @@ export function isStartFeatureWorkGrant(grant: Pick<PendingToolGrant, 'toolName'
   return grant.toolName === START_FEATURE_WORK_TOOL_NAME
 }
 
+/**
+ * Whether a tool call's ask is decided on the row that shows it. A feature-work
+ * launch is not, though it is gated like any tool call: approving it starts a
+ * separate run, and the panel is where its launch options are chosen.
+ */
+export function isToolAskDecidedOnRow(toolName: string | undefined): boolean {
+  return toolName !== START_FEATURE_WORK_TOOL_NAME
+}
+
 export type StartFeatureWorkRunner = 'cli' | 'api'
 
 /**
@@ -113,6 +122,12 @@ export type StartFeatureWorkGrantSummary = {
    * sanctions the run to read — the ids resolve to labels where they render.
    */
   relevantNoteIds?: string[]
+  /**
+   * The process the agent chose to run instead of the story's own — what the
+   * launch preview must resolve, so the plan read before approving is the one
+   * that runs.
+   */
+  processId?: string
 }
 
 /**
@@ -138,6 +153,7 @@ export function startFeatureWorkGrantSummary(
   const storyId = record.storyId
   const note = record.note
   const runner = record.runner
+  const processId = typeof record.processId === 'string' ? record.processId.trim() : ''
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
@@ -147,6 +163,7 @@ export function startFeatureWorkGrantSummary(
     proofRequired: record.proofRequired !== false,
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(relevantNoteIds.length > 0 ? { relevantNoteIds } : {}),
+    ...(processId.length > 0 ? { processId } : {}),
   }
 }
 
@@ -176,6 +193,25 @@ export function launchRefusalMessage(err: unknown): string | undefined {
  */
 export function pendingApprovalGrants(grants?: PendingToolGrant[]): PendingToolGrant[] {
   return partitionGrants(grants).permissions
+}
+
+/**
+ * The approvals the bottom panel shows: requests of their own kind (a launch, a
+ * sandbox boundary, a credential), plus any ordinary tool ask no row on screen
+ * has claimed — an ask must never go unseen. An ordinary ask a row is showing
+ * is decided there; `apiAsksOnRows` says whether this client shows an API
+ * turn's asks on their rows (its inline batch) rather than here.
+ */
+export function panelApprovalGrants(
+  grants: PendingToolGrant[] | undefined,
+  claimedIds: ReadonlySet<string>,
+  opts: { apiAsksOnRows: boolean },
+): PendingToolGrant[] {
+  return pendingApprovalGrants(grants).filter((g) => {
+    if (g.inline !== true) return true
+    if (g.source === 'api') return !opts.apiAsksOnRows
+    return !claimedIds.has(g.id)
+  })
 }
 
 /**

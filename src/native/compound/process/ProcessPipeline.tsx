@@ -39,6 +39,7 @@ import {
   processStepCostLabel,
   processStepCostTitle,
   processStepWorkMs,
+  processTimeDetailsView,
   processStepStates,
   processStepTone,
   processWaitingView,
@@ -59,11 +60,13 @@ import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
+import ProcessCheckList from './ProcessCheckList'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
 import { DurCostChips, type SaveFileHandler } from '../chat/signoff'
 import CostChip from '../chips/CostChip'
+import DurationChip from '../chips/DurationChip'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
@@ -190,15 +193,18 @@ export default function ProcessPipeline({
       .catch(() => setBranches([]))
   }, [listBranches])
 
+  // A project with no git of its own has no branches of the user's to keep: the
+  // run's are Overseer's private history, so they go with the run.
+  const shadowWork = run?.workBranch?.shadow === true
   const runDelete = useCallback(() => {
     setDeleting(true)
-    void deleteRun({ deleteBranches: alsoBranches })
+    void deleteRun({ deleteBranches: shadowWork || alsoBranches })
       .then(() => {
         setConfirmDelete(false)
         setDeleted(true)
       })
       .finally(() => setDeleting(false))
-  }, [deleteRun, alsoBranches])
+  }, [deleteRun, alsoBranches, shadowWork])
 
   if (deleted) {
     return (
@@ -359,7 +365,7 @@ export default function ProcessPipeline({
               This removes the run and everything it produced — every step’s agent-run chat and its
               record. This cannot be undone.
             </Text>
-            {branches.length > 0 ? (
+            {shadowWork ? null : branches.length > 0 ? (
               <View
                 style={{
                   flexDirection: 'row',
@@ -498,8 +504,11 @@ function RunHead({
           durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
           costLabel: spend?.label,
           cost: run.totals,
+          timeDetails:
+            workMs !== undefined ? processTimeDetailsView(run.totals?.time, workMs) : undefined,
         }}
         costTitle={spend?.title}
+        timeTitle="Time spent working, across every attempt"
       />
       {stoppable ? (
         <Button size="sm" variant="secondary" onPress={onCancel}>
@@ -802,7 +811,18 @@ function PipelineNode({
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               accessibilityLabel={total > 1 ? `${meta}, all ${total} attempts` : meta}
             >
-              {duration ? <Text style={metaStyle}>{duration}</Text> : null}
+              {duration ? (
+                <DurationChip
+                  label={duration}
+                  details={processTimeDetailsView(
+                    run.totals?.steps[state.step.id]?.time,
+                    workMs ?? 0,
+                  )}
+                  title={processStepCostTitle(state.step.name, total)}
+                  appearance="text"
+                  textStyle={metaStyle}
+                />
+              ) : null}
               {duration && cost ? <Text style={metaStyle}>·</Text> : null}
               {cost ? (
                 <CostChip
@@ -828,6 +848,8 @@ function PipelineNode({
             {summary.text}
           </Text>
         ) : null}
+
+        <ProcessCheckList step={state.step} latest={state.latest} />
 
         {/* A fix loop runs an agent step several times; the row above opens the
             LATEST. Earlier attempts get chips only when each is its OWN run — a
@@ -978,7 +1000,15 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
             </Text>
             {iter ? <Text style={{ fontSize: 11, color: theme.text.muted }}>· {iter}</Text> : null}
             <View style={{ flex: 1 }} />
-            {dur ? <Text style={{ fontSize: 10.5, color: theme.text.muted }}>{dur}</Text> : null}
+            {dur ? (
+              <DurationChip
+                label={dur}
+                details={processTimeDetailsView(child.totals?.steps[s.step.id]?.time, workMs ?? 0)}
+                title={s.step.name}
+                appearance="text"
+                textStyle={{ fontSize: 10.5, color: theme.text.muted }}
+              />
+            ) : null}
           </View>
         )
       })}

@@ -17,10 +17,15 @@ import {
   Textarea,
   renderProjectIcon,
 } from '../..'
-import type { GetProjectResponse, UpdateProjectData } from '../../../headless/api'
+import type {
+  GetProjectResponse,
+  TicketConnectionBinding,
+  ProjectCodeInfo,
+} from '../../../headless/api'
 import { useGitCredentials, type UseProjectGithubRepoResult } from '../../../headless'
 import { useProjectsGroups } from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
+import TicketConnectionPicker from './TicketConnectionPicker'
 
 export type ProjectFormState = {
   id: string
@@ -28,8 +33,15 @@ export type ProjectFormState = {
   description: string
   repo_url: string
   active: boolean
-  metadata: { icon: string; githubCredentialsId?: string; hasApp?: boolean; appDir?: string }
-  codeInfo?: NonNullable<UpdateProjectData['body']['codeInfo']>
+  metadata: {
+    icon: string
+    githubCredentialsId?: string
+    hasApp?: boolean
+    appDir?: string
+    /** The project's own Jira binding, or `'none'` to opt out of its main group's; absent = inherit. */
+    ticketConnection?: TicketConnectionBinding | 'none'
+  }
+  codeInfo?: ProjectCodeInfo
   /**
    * `null` is the explicit "no main group" choice — must round-trip to
    * the backend as `null` so the spec actually clears (the backend
@@ -58,6 +70,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const credsId = typeof md.githubCredentialsId === 'string' ? md.githubCredentialsId : undefined
   const hasApp = md.hasApp === true
   const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
+  const ticketConnection = readTicketConnection(md.ticketConnection)
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -65,11 +78,25 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
     description: p.description ?? '',
     repo_url: p.repo_url ?? '',
     active: p.active !== false,
-    metadata: { icon: iconKey, githubCredentialsId: credsId, hasApp, appDir },
+    metadata: {
+      icon: iconKey,
+      githubCredentialsId: credsId,
+      hasApp,
+      appDir,
+      ...(ticketConnection ? { ticketConnection } : {}),
+    },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
     scopeGroupIds: Array.isArray(anyP.scopeGroupIds) ? (anyP.scopeGroupIds as string[]) : [],
   }
+}
+
+function readTicketConnection(value: unknown): TicketConnectionBinding | 'none' | undefined {
+  if (value === 'none') return 'none'
+  const binding = value as Partial<TicketConnectionBinding> | null | undefined
+  return typeof binding?.connectionId === 'string' && typeof binding.access === 'string'
+    ? (binding as TicketConnectionBinding)
+    : undefined
 }
 
 export type ProjectEditorFormProps = {
@@ -98,6 +125,7 @@ export function ProjectEditorForm({
   const [codeInfoOpen, setCodeInfoOpen] = useState(false)
 
   const mainGroups = useMemo(() => groups.filter((g) => g.type === 'MAIN'), [groups])
+  const mainGroup = groups.find((g) => g.id === form.mainGroupId)
   const scopeGroups = useMemo(() => groups.filter((g) => g.type === 'SCOPE'), [groups])
 
   const toggleScopeGroup = (groupId: string) => {
@@ -280,6 +308,18 @@ export function ProjectEditorForm({
           </SelectContent>
         </Select>
       </Field>
+
+      {mode === 'edit' ? (
+        <TicketConnectionPicker
+          value={form.metadata.ticketConnection}
+          onChange={(next) =>
+            setForm((s) => ({ ...s, metadata: { ...s.metadata, ticketConnection: next } }))
+          }
+          {...(mainGroup
+            ? { inherited: { groupTitle: mainGroup.title, binding: mainGroup.ticketConnection } }
+            : {})}
+        />
+      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">Coding Project</span>

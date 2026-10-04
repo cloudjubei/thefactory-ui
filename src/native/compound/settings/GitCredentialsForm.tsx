@@ -89,7 +89,10 @@ export default function GitCredentialsForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [username, setUsername] = useState(initial?.username ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
-  const [token, setToken] = useState(initial?.token ?? '')
+  // The stored token never comes back from the backend: on edit the field
+  // starts blank, and blank means "keep the stored token".
+  const [token, setToken] = useState('')
+  const hasStoredToken = initial?.hasToken === true
   const [host, setHost] = useState(initial?.host ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,7 +120,7 @@ export default function GitCredentialsForm({
     name.trim().length > 0 &&
     username.trim().length > 0 &&
     email.trim().length > 0 &&
-    token.trim().length > 0
+    (token.trim().length > 0 || hasStoredToken)
 
   const handleSubmitPat = useCallback(async () => {
     if (!patCanSubmit || submitting) return
@@ -125,13 +128,14 @@ export default function GitCredentialsForm({
     setError(null)
     try {
       const normalizedHost = normalizeGitCredentialHost(host)
-      await mode.onSubmit({
+      const fields = {
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
-        token: token.trim(),
         ...(normalizedHost ? { host: normalizedHost } : {}),
-      })
+      }
+      if (mode.kind === 'create') await mode.onSubmit({ ...fields, token: token.trim() })
+      else await mode.onSubmit(token.trim() ? { ...fields, token: token.trim() } : fields)
       onCancel()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save credentials')
@@ -267,7 +271,11 @@ export default function GitCredentialsForm({
           <SecretInput
             value={token}
             onChangeText={setToken}
-            placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
+            placeholder={
+              hasStoredToken
+                ? 'Stored — type a new token to replace it'
+                : GIT_CREDENTIAL_TOKEN_PLACEHOLDER
+            }
           />
         </Field>
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 4 }}>
@@ -388,7 +396,11 @@ export default function GitCredentialsForm({
               <SecretInput
                 value={token}
                 onChangeText={setToken}
-                placeholder={GIT_CREDENTIAL_TOKEN_PLACEHOLDER}
+                placeholder={
+                  hasStoredToken
+                    ? 'Stored — type a new token to replace it'
+                    : GIT_CREDENTIAL_TOKEN_PLACEHOLDER
+                }
               />
             </Field>
             <View

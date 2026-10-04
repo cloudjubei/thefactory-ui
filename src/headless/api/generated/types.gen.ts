@@ -41,9 +41,10 @@ export type ActionRequest = {
   payload: ActionPayload
   grantPayload?: unknown
   credentialId?: string
-  timeoutMs?: number
-  neverExpires?: boolean
   toolName?: string
+  toolArgs?: {
+    [key: string]: unknown
+  }
   chatContextId?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
@@ -75,9 +76,15 @@ export type ActionDecision =
     }
   | {
       outcome: 'expired'
-      reason: 'timeout' | 'cancelled'
+      reason: 'cancelled'
       message?: string
     }
+
+export type ActionExecution = {
+  ok: boolean
+  result: string
+  durationMs?: number
+}
 
 export type PendingAction = {
   id: string
@@ -88,9 +95,10 @@ export type PendingAction = {
   credentialId?: string
   noPermanentGrant?: boolean
   idempotencyKey?: string
-  timeoutMs?: number
-  neverExpires?: boolean
   toolName?: string
+  toolArgs?: {
+    [key: string]: unknown
+  }
   chatContextId?: string
   status: PendingActionStatus
   createdAt: number
@@ -98,6 +106,14 @@ export type PendingAction = {
   decisionMetadata?: unknown
   decisionReason?: string
   executedAt?: number
+  executedInRun?: string
+  execution?: {
+    ok: boolean
+    result: string
+    durationMs?: number
+  }
+  deliveredInRun?: boolean
+  carriedToAgentAt?: number
 }
 
 export type DecideResult = {
@@ -118,6 +134,10 @@ export type ActionChangeEvent =
     }
   | {
       type: 'decided'
+      action: PendingAction
+    }
+  | {
+      type: 'executed'
       action: PendingAction
     }
 
@@ -270,6 +290,7 @@ export type WorkItemProgress = {
 
 export type AgentRunType =
   | 'developer'
+  | 'developer-verifier'
   | 'verifier'
   | 'capture'
   | 'judge'
@@ -330,6 +351,7 @@ export type AgentRunParams = {
     name: string
     baseSha: string
   }
+  workBranchStartSha?: string
   commitMessage?: string
 }
 
@@ -743,6 +765,52 @@ export type AgentTaskResult = {
   costUSD: number
 }
 
+export type ProcessStepRetry = {
+  at: number
+  retry: number
+  of: number
+  kind: string
+  reason: string
+  delayMs: number
+}
+
+export type AgentRunRetryEvent = {
+  runId: string
+  retry: ProcessStepRetry
+}
+
+export type CliRunFailureKind =
+  | 'auth-expired'
+  | 'rate-limited'
+  | 'quota-exceeded'
+  | 'account-disabled'
+  | 'model-unavailable'
+  | 'provider-error'
+  | 'network-unreachable'
+  | 'sandbox-killed'
+  | 'tool-protocol'
+  | 'native-tool-used'
+  | 'unknown'
+
+export type CliRunFailure = {
+  kind: CliRunFailureKind
+  message: string
+  retryable: boolean
+  retryAfterSec?: number
+}
+
+export type ProcessAgentRunner = {
+  name: string
+  kind: 'cli' | 'api'
+}
+
+export type AgentRunFailureEvent = {
+  runId: string
+  failure: CliRunFailure
+  attempts: number
+  runner: ProcessAgentRunner
+}
+
 export type CapturePlatform = 'android' | 'ios' | 'web'
 
 export type AgentRunCaptureAccess = {
@@ -760,7 +828,7 @@ export type ToolApprovalDecision =
     }
   | {
       outcome: 'expired'
-      reason: 'timeout' | 'cancelled'
+      reason: 'cancelled'
       message?: string
     }
 
@@ -1291,6 +1359,51 @@ export type Chat = {
   updatedAt?: string
 }
 
+export type ChatSummary = {
+  title?: string
+  dynamicContext?: {
+    task: string
+    plan: string
+    pending: Array<string>
+    done: Array<string>
+    contextFiles: Array<ChatDynamicContextContextFile>
+    constraints: Array<string>
+    assumptions: Array<string>
+    risks: Array<string>
+    openQuestions: Array<string>
+    repoMap: Array<ChatDynamicContextRepoMapEntry>
+    lastUpdated: string
+  }
+  context: ChatContext
+  settings?: {
+    systemPrompt: string
+    completionSettings: CompletionSettings
+  }
+  state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
+  rating?: {
+    score: number
+    comment?: string
+    createdAt: string
+  }
+  metadata?: {
+    [key: string]: unknown
+  }
+  cliRunner?: {
+    tool: string
+    credentialId?: string
+    apiKeyCredentialId?: string
+    model?: string
+    effort?: string
+    execMode?: 'per-turn' | 'resident'
+  }
+  archivedAt?: string
+  createdAt: string
+  updatedAt: string
+} & {
+  messageCount: number
+  messageTimes: Array<string | unknown>
+}
+
 export type ChatCreateInput = {
   context: ChatContext
   title?: string
@@ -1492,12 +1605,25 @@ export type ChatsSettings = {
 
 export type ProjectsGroupType = 'MAIN' | 'SCOPE'
 
+export type TicketConnectionAccess = 'read' | 'read-write'
+
+export type TicketConnectionBinding = {
+  connectionId: string
+  access: TicketConnectionAccess
+  projectKeys?: Array<string>
+}
+
 export type ProjectsGroup = {
   id: string
   title: string
   type: ProjectsGroupType
   active: boolean
   projects: Array<string>
+  ticketConnection?: {
+    connectionId: string
+    access: TicketConnectionAccess
+    projectKeys?: Array<string>
+  }
   createdAt: string
   updatedAt: string
 }
@@ -1715,8 +1841,11 @@ export type ProjectDataRoot =
       repoPath: string
     }
 
+export type ProjectTicketConnectionSetting = TicketConnectionBinding | 'none'
+
 export type ProjectRegistryMetadata = {
   githubCredentialsId?: string
+  ticketConnection?: TicketConnectionBinding | 'none'
   [key: string]: unknown
 }
 
@@ -1734,6 +1863,7 @@ export type ProjectRegistryEntry = {
       }
   metadata?: {
     githubCredentialsId?: string
+    ticketConnection?: TicketConnectionBinding | 'none'
     [key: string]: unknown
   }
   createdAt: string
@@ -1823,6 +1953,11 @@ export type ChatContextArguments = {
     type: ProjectsGroupType
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -1857,7 +1992,15 @@ export type ChatContextArguments = {
     updatedAt: string
     completedAt?: string
   }
-  agentRunType?: 'developer' | 'verifier' | 'capture' | 'judge' | 'remedy' | 'report' | 'fixer'
+  agentRunType?:
+    | 'developer'
+    | 'developer-verifier'
+    | 'verifier'
+    | 'capture'
+    | 'judge'
+    | 'remedy'
+    | 'report'
+    | 'fixer'
 }
 
 export type ChatContextArgumentsGeneral = {
@@ -1874,6 +2017,11 @@ export type ChatContextArgumentsGroup = {
     type: ProjectsGroupType
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -1889,6 +2037,11 @@ export type ChatContextArgumentsGroupTopic = {
     type: ProjectsGroupType
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -2033,27 +2186,17 @@ export type GlobalChatLike = {
   createdAt?: string
 }
 
-export type CheckEcosystem =
-  | 'node'
-  | 'python'
-  | 'android'
-  | 'ios'
-  | 'jvm'
-  | 'go'
-  | 'rust'
-  | 'unknown'
-
-export type PackageScripts = {
-  [key: string]: string
-}
-
 export type VerificationCheckKind = 'compile' | 'tests' | 'command'
 
 export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
 
+export type VerificationCheckRanIn = 'sandbox' | 'host'
+
 export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
 
 export type VerificationPolicy = 'require' | 'warn' | 'off'
+
+export type ProjectCheckKind = 'build' | 'lint' | 'typecheck' | 'format' | 'test'
 
 export type VerificationCheck = {
   id: string
@@ -2068,6 +2211,7 @@ export type VerificationCheck = {
   requires?: Array<string>
   source?: 'declared' | 'derived'
   derivedFrom?: string
+  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
 }
 
 export type VerificationCheckResult = {
@@ -2079,6 +2223,9 @@ export type VerificationCheckResult = {
   summary: string
   details?: string
   optional?: boolean
+  category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
+  ranIn?: 'sandbox' | 'host'
+  hostReason?: string
 }
 
 export type VerificationUncheckedReason = {
@@ -2114,6 +2261,20 @@ export type VerificationConfig = {
 export type SignOffDecision = {
   allowed: boolean
   reason?: string
+}
+
+export type CheckEcosystem =
+  | 'node'
+  | 'python'
+  | 'android'
+  | 'ios'
+  | 'jvm'
+  | 'go'
+  | 'rust'
+  | 'unknown'
+
+export type PackageScripts = {
+  [key: string]: string
 }
 
 export type CliRunTranscriptEntry = {
@@ -2160,27 +2321,43 @@ export type CodexTokenCountEvents = {
   }>
 }
 
-export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
+export type CliSandboxBoundaryToolName =
+  | 'requestNetworkUnlock'
+  | 'requestInstallPackage'
+  | 'requestExternalFetch'
 
-export type CliAuthStatusSource = 'run-failure' | 'probe' | 'login'
+export type CliPackageEcosystem = 'npm' | 'pip' | 'cargo' | 'go' | 'gem' | 'maven' | 'gradle'
 
-export type CliAuthStatus = {
-  authenticated: boolean
-  reason?: 'auth-expired' | 'missing' | 'unknown'
-  message?: string
-  checkedAt: string
-  source: CliAuthStatusSource
+export type CliPackageRequest = {
+  ecosystem: CliPackageEcosystem
+  name: string
+  version?: string
 }
 
-export type CliAuthVerdict = {
-  authenticated: boolean
-  reason?: 'auth-expired' | 'missing' | 'unknown'
-  message?: string
+export type HostAddress = {
+  address: string
+  family: number
 }
 
-export type SecurityRunResult = {
-  status: number | unknown
-  stdout: string
+export type HostFetchResponse = {
+  finalUrl: string
+  status: number
+  contentType?: string
+  body: unknown
+}
+
+export type ExternalFetchResult = {
+  outcome: 'approved'
+  url: string
+  finalUrl: string
+  status: number
+  contentType?: string
+  bytes: number
+  encoding: 'utf8' | 'base64'
+  body?: string
+  bodyTruncated?: boolean
+  path?: string
+  note?: string
 }
 
 export type CliChatSessionPolicy = {
@@ -2386,16 +2563,6 @@ export type SandboxPolicy = {
   workspaceSizeCapBytes?: number
 }
 
-export type CliRunFailureKind =
-  | 'auth-expired'
-  | 'rate-limited'
-  | 'quota-exceeded'
-  | 'network-unreachable'
-  | 'sandbox-killed'
-  | 'tool-protocol'
-  | 'native-tool-used'
-  | 'unknown'
-
 export type CliRunSpend = {
   usage?: {
     tokensIn: number
@@ -2436,6 +2603,7 @@ export type CliRunReview = {
   carriedSeamSha?: string
   seamError?: string
   landedAt?: number
+  shadow?: boolean
   reviewRunId?: string
   mergedAt?: number
   mergeCommit?: string
@@ -2469,6 +2637,12 @@ export type CliRunDiffReview = {
   at: number
   summary?: string
   filesReviewed?: number
+}
+
+export type CliRunViewedFile = {
+  path: string
+  headSha: string
+  at: number
 }
 
 export type CliRun = {
@@ -2538,6 +2712,7 @@ export type CliRun = {
     carriedSeamSha?: string
     seamError?: string
     landedAt?: number
+    shadow?: boolean
     reviewRunId?: string
     mergedAt?: number
     mergeCommit?: string
@@ -2578,6 +2753,7 @@ export type CliRun = {
     summary?: string
     filesReviewed?: number
   }
+  viewedFiles?: Array<CliRunViewedFile>
 }
 
 export type CliRunArtifactCommit = {
@@ -2589,13 +2765,6 @@ export type CliRunArtifactCommit = {
   error?: string
 }
 
-export type CliRunFailure = {
-  kind: CliRunFailureKind
-  message: string
-  retryable: boolean
-  retryAfterSec?: number
-}
-
 export type CliRunFailurePolicy = {
   rateLimited?: 'retry' | 'pause' | 'abort'
   authExpired?: 'pause' | 'abort'
@@ -2603,6 +2772,9 @@ export type CliRunFailurePolicy = {
   toolProtocol?: 'retry' | 'abort'
   nativeToolUsed?: 'retry' | 'abort'
   quotaExceeded?: 'pause' | 'abort'
+  accountDisabled?: 'abort'
+  modelUnavailable?: 'abort'
+  providerError?: 'retry' | 'abort'
   sandboxKilled?: 'abort'
   unknown?: 'abort'
 }
@@ -2944,6 +3116,13 @@ export type RefreshTokenOutcome =
       message: string
     }
 
+export type ClaudeCodeRunAuth = {
+  runId: string
+  cli: CliTool
+  authCredentialId: string
+  authDir: string
+}
+
 export type CliAgentRunFilter = {
   projectId?: string
   storyId?: string
@@ -3069,6 +3248,7 @@ export type CliRunApproveResult = {
       carriedSeamSha?: string
       seamError?: string
       landedAt?: number
+      shadow?: boolean
       reviewRunId?: string
       mergedAt?: number
       mergeCommit?: string
@@ -3109,6 +3289,7 @@ export type CliRunApproveResult = {
       summary?: string
       filesReviewed?: number
     }
+    viewedFiles?: Array<CliRunViewedFile>
   }
 }
 
@@ -3134,6 +3315,10 @@ export type AppendReviewTestSeamInput = {
   workBranch: GitWorkBranch
   description: string
   files: Array<TestSeamFile>
+  identity?: {
+    name: string
+    email: string
+  }
 }
 
 export type ReviewTestSeamResult =
@@ -3149,6 +3334,24 @@ export type ReviewTestSeamResult =
 export type TestSeamManifest = {
   description: string
   paths: Array<string>
+}
+
+export type CliAuthUnauthenticatedReason = 'auth-expired' | 'missing' | 'unknown'
+
+export type CliAuthStatusSource = 'run-failure' | 'probe' | 'login' | 'refresh'
+
+export type CliAuthStatus = {
+  authenticated: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
+  checkedAt: string
+  source: CliAuthStatusSource
+}
+
+export type CliAuthVerdict = {
+  authenticated: boolean
+  reason?: 'auth-expired' | 'missing' | 'unknown'
+  message?: string
 }
 
 export type CliNativeSessionManifest = {
@@ -3171,26 +3374,22 @@ export type IdleWatchdogResult =
       kind: 'idle-timeout'
     }
 
-export type CodexResidentProtocolOptions = {
-  cwd: string
-  modelId?: string
+export type ResidentTurnSpend = {
+  tokens?: Array<CliModelTokens>
+  reportedModel?: string
+  authSource?: string
+  cliVersion?: string
 }
 
-export type CursorResidentProtocolOptions = {
-  cwd: string
-  mcpServers?: Array<unknown>
-}
-
-export type JsonRpcMessage = {
-  jsonrpc: '2.0'
-  id?: number | string
-  method?: string
-  params?: unknown
-  result?: unknown
-  error?: {
-    code: number
-    message: string
-    data?: unknown
+export type ResidentTurnResult = {
+  transcript: Array<CliRunTranscriptEntry>
+  status: 'succeeded' | 'errored'
+  resultSubtype?: string
+  spend?: {
+    tokens?: Array<CliModelTokens>
+    reportedModel?: string
+    authSource?: string
+    cliVersion?: string
   }
 }
 
@@ -3211,21 +3410,45 @@ export type ResidentProfileInput = {
   effort?: string
 }
 
-export type ResidentTurnSpend = {
-  tokens?: Array<CliModelTokens>
-  reportedModel?: string
-  authSource?: string
+export type JsonRpcMessage = {
+  jsonrpc: '2.0'
+  id?: number | string
+  method?: string
+  params?: unknown
+  result?: unknown
+  error?: {
+    code: number
+    message: string
+    data?: unknown
+  }
 }
 
-export type ResidentTurnResult = {
-  transcript: Array<CliRunTranscriptEntry>
-  status: 'succeeded' | 'errored'
-  resultSubtype?: string
-  spend?: {
-    tokens?: Array<CliModelTokens>
-    reportedModel?: string
-    authSource?: string
+export type CodexResidentProtocolOptions = {
+  cwd: string
+  modelId?: string
+}
+
+export type CursorResidentProtocolOptions = {
+  cwd: string
+  mcpServers?: Array<unknown>
+}
+
+export type AcpHostToolCall = {
+  toolName: string
+  args: {
+    [key: string]: unknown
   }
+}
+
+export type CliStagedFile = {
+  hostPath: string
+  workspacePath: string
+}
+
+export type CliChatAttachment = {
+  file: string
+  staged: CliStagedFile
+  sandboxPath: string
 }
 
 export type CliImageReleaseSource =
@@ -3592,6 +3815,20 @@ export type CodeIntelPackageDetection = {
   evidence: Array<string>
 }
 
+export type CodeIntelMemberMatch = {
+  name: string
+  kind: CodeIntelMemberKind
+  node: Node
+  range: {
+    start: number
+    end: number
+  }
+  description?: string
+  dependencies: Array<string>
+}
+
+export type SupportedLanguage = 'javascript' | 'typescript' | 'tsx' | 'python'
+
 export type CodeIntelDetectedEnvironment = {
   isCodeProject: boolean
   language: ProgrammingLanguage | 'other' | ''
@@ -3614,21 +3851,7 @@ export type CodeIntelPackageJson = {
   }
 }
 
-export type CodeIntelMemberMatch = {
-  name: string
-  kind: CodeIntelMemberKind
-  node: Node
-  range: {
-    start: number
-    end: number
-  }
-  description?: string
-  dependencies: Array<string>
-}
-
 export type PackLanguages = 'javascript' | 'typescript' | 'tsx'
-
-export type SupportedLanguage = 'javascript' | 'typescript' | 'tsx' | 'python'
 
 export type CompileSeverity = 'error' | 'warning'
 
@@ -3776,7 +3999,9 @@ export type TokenizableMessage = {
   content: string
 }
 
-export type CustomProviderEndpointKind = 'openai-responses' | 'openai-chat' | 'anthropic-messages'
+export type StructuredOutputSchema = {
+  [key: string]: unknown
+}
 
 export type NormalizedUsage = {
   promptTokens?: number
@@ -3787,9 +4012,7 @@ export type NormalizedUsage = {
   reasoningTokens?: number
 }
 
-export type StructuredOutputSchema = {
-  [key: string]: unknown
-}
+export type CustomProviderEndpointKind = 'openai-responses' | 'openai-chat' | 'anthropic-messages'
 
 export type ComputeRepoRef =
   | {
@@ -3872,15 +4095,270 @@ export type ConnectorHttpRequest = {
   headers?: {
     [key: string]: string
   }
-  body?: string
+  body?: string | unknown
+  responseType?: 'text' | 'bytes'
 }
 
 export type ConnectorHttpResponse = {
   status: number
   body: string
+  bytes?: unknown
   headers?: {
     [key: string]: string
   }
+}
+
+export type TicketConnectionSource = 'project' | 'group' | 'none'
+
+export type ResolvedTicketConnection = {
+  binding?: {
+    connectionId: string
+    access: TicketConnectionAccess
+    projectKeys?: Array<string>
+  }
+  source: TicketConnectionSource
+  groupId?: string
+}
+
+export type QueryValue = string | number | boolean | Array<string> | unknown
+
+export type JiraUser = {
+  accountId: string
+  displayName: string
+  emailAddress?: string
+  active?: boolean
+}
+
+export type JiraIssueSummary = {
+  key: string
+  id: string
+  summary: string
+  status?: string
+  issueType?: string
+  priority?: string
+  assignee?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  reporter?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  labels?: Array<string>
+  parentKey?: string
+  updated?: string
+  url: string
+}
+
+export type JiraIssueSearchPage = {
+  issues: Array<JiraIssueSummary>
+  nextPageToken?: string
+}
+
+export type JiraComment = {
+  id: string
+  author?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  body: string
+  created?: string
+  updated?: string
+}
+
+export type JiraIssueLink = {
+  id: string
+  type: string
+  relation: string
+  issueKey: string
+  summary?: string
+  status?: string
+}
+
+export type JiraAttachment = {
+  id: string
+  filename: string
+  mimeType?: string
+  size?: number
+  created?: string
+  author?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+}
+
+export type JiraFieldValue = {
+  id: string
+  name: string
+  value: unknown
+}
+
+export type JiraIssueDetail = {
+  key: string
+  id: string
+  summary: string
+  status?: string
+  issueType?: string
+  priority?: string
+  assignee?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  reporter?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  labels?: Array<string>
+  parentKey?: string
+  updated?: string
+  url: string
+  description: string
+  created?: string
+  components?: Array<string>
+  fixVersions?: Array<string>
+  subtasks: Array<{
+    key: string
+    summary: string
+    status?: string
+  }>
+  links: Array<JiraIssueLink>
+  comments: Array<JiraComment>
+  attachments: Array<JiraAttachment>
+  otherFields: Array<JiraFieldValue>
+}
+
+export type JiraChangelogEntry = {
+  id: string
+  author?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  created: string
+  items: Array<{
+    field: string
+    from?: string
+    to?: string
+  }>
+}
+
+export type JiraTransition = {
+  id: string
+  name: string
+  toStatus?: string
+}
+
+export type JiraProject = {
+  id: string
+  key: string
+  name: string
+  projectTypeKey?: string
+}
+
+export type JiraIssueType = {
+  id: string
+  name: string
+  subtask?: boolean
+}
+
+export type JiraFieldOption = {
+  id: string
+  name: string
+  required: boolean
+  type?: string
+  itemType?: string
+  allowedValues?: Array<string>
+}
+
+export type JiraCreateFields = {
+  issueTypes: Array<JiraIssueType>
+  fields?: Array<JiraFieldOption>
+}
+
+export type JiraLinkType = {
+  id: string
+  name: string
+  inward: string
+  outward: string
+}
+
+export type JiraBoard = {
+  id: number
+  name: string
+  type?: string
+  projectKey?: string
+}
+
+export type JiraSprint = {
+  id: number
+  name: string
+  state: string
+  startDate?: string
+  endDate?: string
+  goal?: string
+}
+
+export type JiraWorklog = {
+  id: string
+  author?: {
+    accountId: string
+    displayName: string
+    emailAddress?: string
+    active?: boolean
+  }
+  timeSpent?: string
+  timeSpentSeconds?: number
+  started?: string
+  comment?: string
+}
+
+export type JiraCreatedIssue = {
+  key: string
+  id: string
+  url: string
+}
+
+export type JiraDownloadedAttachment = {
+  path: string
+  size: number
+}
+
+export type JiraFieldsInput = {
+  [key: string]: unknown
+}
+
+export type JiraUpdateOperations = {
+  [key: string]: Array<{
+    [key: string]: unknown
+  }>
+}
+
+export type JiraIssueCreateInput = {
+  projectKey: string
+  issueType: string
+  summary: string
+  description?: string
+  parentKey?: string
+  fields?: {
+    [key: string]: unknown
+  }
+}
+
+export type JsonObject = {
+  [key: string]: unknown
 }
 
 export type IdentifiedEntity = {
@@ -3987,42 +4465,6 @@ export type ProviderConnectionCreateInput = {
   }
 }
 
-export type ProjectNoteKind = 'note' | 'secret'
-
-export type ProjectNoteAccess = 'open' | 'ask'
-
-export type ProjectNoteEntry = {
-  id: string
-  projectId: string
-  label: string
-  kind: ProjectNoteKind
-  value: string
-  description?: string
-  access: ProjectNoteAccess
-  createdAt: string
-  updatedAt: string
-}
-
-export type ProjectNoteCreateInput = {
-  projectId: string
-  label: string
-  kind: ProjectNoteKind
-  value: string
-  description?: string
-  access: ProjectNoteAccess
-}
-
-export type ProjectNoteSummary = {
-  id: string
-  projectId: string
-  label: string
-  kind: ProjectNoteKind
-  description?: string
-  access: ProjectNoteAccess
-  createdAt: string
-  updatedAt: string
-}
-
 export type CliAuthCacheEntry = {
   id: string
   name: string
@@ -4085,6 +4527,111 @@ export type AgentRunnerKind = 'api' | 'cli'
 
 export type AgentRunnerSelectionState = {
   activeRunnerKind?: 'api' | 'cli'
+}
+
+export type RedactedLlmConfigEntry = {
+  id: string
+  name: string
+  provider: LlmProvider
+  model: string
+  apiUrlOverride?: string
+  costInputPerMTokensUSD?: number
+  costOutputPerMTokensUSD?: number
+  costCacheReadInputPerMTokensUSD?: number
+  billing?: 'subscription' | 'metered' | 'free'
+  createdAt: string
+  updatedAt: string
+} & {
+  hasApiKey: boolean
+}
+
+export type RedactedGitCredentialEntry = {
+  id: string
+  name: string
+  username: string
+  email: string
+  host?: string
+  tokenSource?: 'pat' | 'oauth'
+  expiresAt?: string
+  scopes?: Array<string>
+  createdAt: string
+  updatedAt: string
+} & {
+  hasToken: boolean
+  hasRefreshToken: boolean
+}
+
+export type RedactedProviderConnectionEntry = {
+  id: string
+  name: string
+  provider: string
+  username?: string
+  tokenSource?: 'api-key' | 'oauth'
+  expiresAt?: string
+  scopes?: Array<string>
+  baseUrl?: string
+  config?: {
+    [key: string]: string
+  }
+  createdAt: string
+  updatedAt: string
+} & {
+  hasToken: boolean
+  hasRefreshToken: boolean
+}
+
+export type RedactedWebSearchKeyEntry = {
+  provider: string
+  createdAt: string
+  updatedAt: string
+} & {
+  hasApiKey: boolean
+}
+
+export type RedactedCliAuthCacheEntry = {
+  id: string
+  name: string
+  cli: string
+  authStatus?: {
+    authenticated: boolean
+    reason?: 'auth-expired' | 'missing' | 'unknown'
+    message?: string
+    checkedAt: string
+    source: CliAuthStatusSource
+  }
+  createdAt: string
+  updatedAt: string
+} & {
+  fileNames: Array<string>
+}
+
+export type CliAuthEventSource = 'login' | 'host-refresh' | 'write-back' | 'api'
+
+export type CliAuthWriteCause = {
+  source: CliAuthEventSource
+  runId?: string
+}
+
+export type CliAuthFileFingerprint = {
+  file: string
+  refreshToken?: string
+  accessToken?: string
+  expiresAt?: string
+}
+
+export type CliAuthEvent = {
+  at: string
+  credentialId: string
+  kind: 'stored' | 'refresh-refused'
+  source?: 'login' | 'host-refresh' | 'write-back' | 'api'
+  runId?: string
+  before?: {
+    [key: string]: CliAuthFileFingerprint
+  }
+  after?: {
+    [key: string]: CliAuthFileFingerprint
+  }
+  message?: string
 }
 
 export type EnsureDataFilesResult = {
@@ -5010,6 +5557,13 @@ export type GitOpResult =
       }
     }
 
+export type GitRunOptions = {
+  env?: {
+    [key: string]: string
+  }
+  allowConfigWrite?: boolean
+}
+
 export type GitStatusPorcelain = {
   staged: Array<string>
   unstaged: Array<string>
@@ -5097,6 +5651,7 @@ export type GitFileChange = {
   patch?: string
   patchHunks?: Array<GitPatchHunk>
   patchTruncated?: boolean
+  patchSuppressed?: 'size'
   binary?: boolean
   beforeSize?: number
   afterSize?: number
@@ -5138,6 +5693,7 @@ export type GitMergePlan = {
     patch?: string
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
+    patchSuppressed?: 'size'
     binary?: boolean
     beforeSize?: number
     afterSize?: number
@@ -5208,10 +5764,7 @@ export type GitReplayCommitRangeOptions = {
   onto: string
   from: string
   to: string
-  identity?: {
-    name: string
-    email: string
-  }
+  identity: GitIdentity
   skipSubjectPrefix?: string
 }
 
@@ -5427,6 +5980,7 @@ export type GitLocalDiffOptions = {
   includeStructured?: boolean
   maxPatchedFiles?: number
   maxPatchBytes?: number
+  maxFilePatchBytes?: number
 }
 
 export type GitTextRecoveryReason = 'nul-bytes' | 'invalid-utf8' | 'unknown'
@@ -5717,6 +6271,15 @@ export type GitMonitorRegistryMetrics = {
   lastHotSweepAt?: string
   lastColdSweepAt?: string
 }
+
+export type ShadowGitState =
+  | {
+      kind: 'own'
+    }
+  | {
+      kind: 'shadow'
+      created: boolean
+    }
 
 export type HostPathMarker = {
   path: string
@@ -6200,6 +6763,12 @@ export type LoggerConfig = {
   redactSecrets: boolean
 }
 
+export type McpUnrunCallOutcome = {
+  [key: string]: unknown
+} & {
+  outcome: string
+}
+
 export type MemorySample = {
   heapUsedBytes: number
   heapLimitBytes: number
@@ -6348,6 +6917,7 @@ export type MobileBuildProvenance = {
   root: string
   sha: string
   dirty: boolean
+  tree?: string
   module: string
   flavor?: string
   buildType: string
@@ -6417,6 +6987,23 @@ export type MobileBuildVariant =
       scheme: string
       configuration: string
     }
+
+export type MobileProjectTree = {
+  root: Array<string>
+  android?: Array<string>
+  ios?: Array<string>
+}
+
+export type ReactNativeApp = {
+  expo: boolean
+}
+
+export type MobileCheckout = {
+  tree: MobileProjectTree
+  app?: {
+    expo: boolean
+  }
+}
 
 export type XcodeContainer = {
   kind: 'project' | 'workspace'
@@ -6560,6 +7147,7 @@ export type MobileDeviceInstall = {
     root: string
     sha: string
     dirty: boolean
+    tree?: string
     module: string
     flavor?: string
     buildType: string
@@ -6747,6 +7335,7 @@ export type ProjectSpecCreateInput = {
 } & {
   metadata?: {
     githubCredentialsId?: string
+    ticketConnection?: TicketConnectionBinding | 'none'
     [key: string]: unknown
   }
   active?: boolean
@@ -6803,6 +7392,7 @@ export type ProjectSpecEditInput = {
 } & {
   metadata?: {
     githubCredentialsId?: string
+    ticketConnection?: TicketConnectionBinding | 'none'
     [key: string]: unknown
   }
   active?: boolean
@@ -6864,6 +7454,383 @@ export type TestFrameworksByLanguage = {
   other: [unknown]
 }
 
+export type SandboxImageToolchain = {
+  image: string
+  imageId: string
+  arch: string
+  tools: {
+    [key: string]: string
+  }
+}
+
+export type SandboxImageInspection =
+  | {
+      id: string
+    }
+  | {
+      missing: true
+    }
+  | {
+      dockerUnavailable: string
+    }
+
+export type SandboxDependencyManager =
+  | 'npm'
+  | 'yarn'
+  | 'pnpm'
+  | 'bun'
+  | 'pip'
+  | 'uv'
+  | 'poetry'
+  | 'go'
+  | 'cargo'
+
+export type SandboxDependencyFacts = {
+  files: Array<string>
+  digests: {
+    [key: string]: string
+  }
+  texts: {
+    [key: string]: string
+  }
+}
+
+export type SandboxDependencyPlan = {
+  manager: SandboxDependencyManager
+  command: string
+  keyFiles: Array<string>
+  tools: Array<string>
+  registryHosts: Array<string>
+  layout: 'node-modules' | 'env-dir'
+  env: {
+    [key: string]: string
+  }
+  runEnv: {
+    [key: string]: string
+  }
+  pathPrepend: Array<string>
+}
+
+export type SandboxDependencyOutcome =
+  | {
+      kind: 'plan'
+      plan: SandboxDependencyPlan
+    }
+  | {
+      kind: 'none'
+    }
+  | {
+      kind: 'refused'
+      reason: string
+    }
+
+export type SandboxDependencyManifest = {
+  key: string
+  manager: SandboxDependencyManager
+  command: string
+  image: string
+  imageId: string
+  arch: string
+  layout: 'node-modules' | 'env-dir'
+  dirs: Array<string>
+  installedAt: number
+}
+
+export type SandboxDependencyInstallOutcome =
+  | {
+      ok: true
+      manifest: SandboxDependencyManifest
+    }
+  | {
+      ok: false
+      reason: string
+      aborted?: boolean
+    }
+
+export type SandboxCheckRunRequest = {
+  treeRoot: string
+  ecosystem: CheckEcosystem
+  image: SandboxImageToolchain
+  plan?: {
+    manager: SandboxDependencyManager
+    command: string
+    keyFiles: Array<string>
+    tools: Array<string>
+    registryHosts: Array<string>
+    layout: 'node-modules' | 'env-dir'
+    env: {
+      [key: string]: string
+    }
+    runEnv: {
+      [key: string]: string
+    }
+    pathPrepend: Array<string>
+  }
+  dependencies?: {
+    dir: string
+    manifest: SandboxDependencyManifest
+  }
+  signal?: unknown
+}
+
+export type ProjectCheckPlacementDecision =
+  | {
+      runsIn: 'host'
+      hostReason: string
+    }
+  | {
+      runsIn: 'sandbox'
+      image: SandboxImageToolchain
+      plan?: {
+        manager: SandboxDependencyManager
+        command: string
+        keyFiles: Array<string>
+        tools: Array<string>
+        registryHosts: Array<string>
+        layout: 'node-modules' | 'env-dir'
+        env: {
+          [key: string]: string
+        }
+        runEnv: {
+          [key: string]: string
+        }
+        pathPrepend: Array<string>
+      }
+    }
+
+export type ProjectCheckTestFilter = {
+  lead: Array<string>
+  each: Array<string>
+  join?: string
+  describe: string
+}
+
+export type ProjectCheck = {
+  id: string
+  kind: ProjectCheckKind
+  label: string
+  argv: Array<string>
+  command: string
+  source: string
+  perVariant?: boolean
+  testFilter?: {
+    lead: Array<string>
+    each: Array<string>
+    join?: string
+    describe: string
+  }
+  requires?: Array<string>
+  optional?: boolean
+  timeoutMs?: number
+}
+
+export type ProjectCheckHidden = {
+  kind: ProjectCheckKind
+  reason: string
+}
+
+export type ProjectChecksScan = {
+  ecosystem: CheckEcosystem
+  checks: Array<ProjectCheck>
+  hidden: Array<ProjectCheckHidden>
+  variants: Array<string>
+  defaultVariant?: string
+  notes: Array<string>
+  scannedAt: number
+}
+
+export type ProjectCheckFacts = {
+  files: Array<string>
+  texts: {
+    [key: string]: string
+  }
+  xcodeContainers: Array<string>
+  xcodeSchemes: Array<{
+    name: string
+    xml: string
+  }>
+}
+
+export type ProjectCheckProbe = {
+  path: string
+  probe: 'exists' | 'text' | 'list'
+  suffixes?: Array<string>
+}
+
+export type ProjectCheckObservation = {
+  path: string
+  probe: 'exists' | 'text' | 'list'
+  suffixes?: Array<string>
+  seen: string
+}
+
+export type ObservedProjectCheckFacts = {
+  facts: ProjectCheckFacts
+  observations: Array<ProjectCheckObservation>
+}
+
+export type ProjectChecksFingerprint = {
+  head: string
+  fingerprint: string
+}
+
+export type FingerprintedProjectChecksScan = {
+  ecosystem: 'node' | 'python' | 'android' | 'ios' | 'jvm' | 'go' | 'rust' | 'unknown'
+  checks: Array<ProjectCheck>
+  hidden: Array<ProjectCheckHidden>
+  variants: Array<string>
+  defaultVariant?: string
+  notes: Array<string>
+  scannedAt: number
+  head: string
+  fingerprint: string
+  probes: Array<ProjectCheckProbe>
+}
+
+export type ProjectCheckRunMemory = {
+  check: ProjectCheckKind
+  status: 'passed' | 'failed' | 'error'
+  summary: string
+  durationMs: number
+  ranAt: number
+  variant?: string
+  tests?: Array<string>
+  fullRunMs?: number
+  ranIn?: 'sandbox' | 'host'
+  hostReason?: string
+}
+
+export type ProjectChecksRecord = {
+  ecosystem: 'node' | 'python' | 'android' | 'ios' | 'jvm' | 'go' | 'rust' | 'unknown'
+  checks: Array<ProjectCheck>
+  hidden: Array<ProjectCheckHidden>
+  variants: Array<string>
+  defaultVariant?: string
+  notes: Array<string>
+  scannedAt: number
+  head: string
+  fingerprint: string
+  probes: Array<ProjectCheckProbe>
+  lastRuns: Array<ProjectCheckRunMemory>
+}
+
+export type ProjectCheckPlacement = {
+  id: string
+  kind: ProjectCheckKind
+  runsIn: VerificationCheckRanIn
+  hostReason?: string
+  image?: string
+  install?: string
+}
+
+export type ProjectChecksListing = {
+  ecosystem: 'node' | 'python' | 'android' | 'ios' | 'jvm' | 'go' | 'rust' | 'unknown'
+  checks: Array<ProjectCheck>
+  hidden: Array<ProjectCheckHidden>
+  variants: Array<string>
+  defaultVariant?: string
+  notes: Array<string>
+  scannedAt: number
+  head: string
+  fingerprint: string
+  lastRuns: Array<ProjectCheckRunMemory>
+  freshness: 'stored' | 'scanned'
+  placements?: Array<ProjectCheckPlacement>
+}
+
+export type ReadProjectChecksOptions = {
+  rescan?: boolean
+  treeRoot?: string
+}
+
+export type RunProjectCheckInput = {
+  check: ProjectCheckKind
+  variant?: string
+  tests?: Array<string>
+}
+
+export type ProjectCheckRunResult = {
+  check: ProjectCheckKind
+  status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+  summary: string
+  commands: Array<string>
+  results: Array<VerificationCheckResult>
+  durationMs: number
+  variant?: string
+  tests?: Array<string>
+  ranIn?: 'sandbox' | 'host'
+  hostReason?: string
+}
+
+export type ProjectChecksGateResult = {
+  scan: ProjectChecksScan
+  verification: RunVerification
+}
+
+export type ProjectNoteKind = 'note' | 'secret'
+
+export type ProjectNoteAccess = 'open' | 'ask'
+
+export type ProjectNoteAuthor = 'user' | 'agent'
+
+export type ProjectNoteEntry = {
+  id: string
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  value: string
+  description?: string
+  access: ProjectNoteAccess
+  author: ProjectNoteAuthor
+  createdAt: string
+  updatedAt: string
+}
+
+export type StoredProjectNoteEntry = {
+  id: string
+  label: string
+  kind: ProjectNoteKind
+  value: string
+  description?: string
+  access: ProjectNoteAccess
+  author: ProjectNoteAuthor
+  createdAt: string
+  updatedAt: string
+}
+
+export type ProjectNoteCreateInput = {
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  value: string
+  description?: string
+  access: ProjectNoteAccess
+  author: ProjectNoteAuthor
+}
+
+export type ProjectNoteUpdateInput = {
+  label?: string
+  kind?: 'note' | 'secret'
+  value?: string
+  description?: string
+  access?: 'open' | 'ask'
+  author?: 'user' | 'agent'
+}
+
+export type ProjectNoteSummary = {
+  id: string
+  projectId: string
+  label: string
+  kind: ProjectNoteKind
+  description?: string
+  access: ProjectNoteAccess
+  author: ProjectNoteAuthor
+  createdAt: string
+  updatedAt: string
+}
+
+export type ProjectNoteFile = 'secrets' | 'user' | 'agent'
+
 export type ProjectsGroups = Array<ProjectsGroup>
 
 export type ProjectsGroupCreateInput = {
@@ -6871,6 +7838,11 @@ export type ProjectsGroupCreateInput = {
   type?: 'MAIN' | 'SCOPE'
   active?: boolean
   projects?: Array<string>
+  ticketConnection?: {
+    connectionId: string
+    access: TicketConnectionAccess
+    projectKeys?: Array<string>
+  }
 }
 
 export type ProjectsGroupEditInput = {
@@ -6878,6 +7850,7 @@ export type ProjectsGroupEditInput = {
   type?: 'MAIN' | 'SCOPE'
   active?: boolean
   projects?: Array<string>
+  ticketConnection?: TicketConnectionBinding | unknown
 }
 
 export type ProjectsGroupUpdateType = 'change'
@@ -6885,57 +7858,6 @@ export type ProjectsGroupUpdateType = 'change'
 export type ProjectsGroupUpdate = {
   type: ProjectsGroupUpdateType
   groups: ProjectsGroups
-}
-
-export type CriterionKnowledgeEntry = {
-  subject: string
-  disposition: 'allowed' | 'disallowed'
-  reason?: string
-  source?: string
-  addedAt: string
-}
-
-export type CriterionKnowledge = {
-  criterionId: string
-  entries: Array<CriterionKnowledgeEntry>
-  undetermined?: Array<string>
-  updatedAt: string
-}
-
-export type SharedRulings = {
-  entries: Array<CriterionKnowledgeEntry>
-  undetermined?: Array<string>
-}
-
-export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist' | 'wholesale'
-
-export type KnownShop = {
-  host: string
-  markets?: Array<string>
-  class: ShopClass
-  discoveryOnly?: boolean
-  gridHeavy?: boolean
-  notASeed?: boolean
-  note?: string
-}
-
-export type ProvenancedField = {
-  value: string
-  sourceUrl?: string
-  sourceKind: 'manufacturer' | 'document' | 'open-db' | 'retailer'
-  confidence: number
-}
-
-export type OpenFactsResult = {
-  productName?: string
-  brand?: string
-  ingredients: Array<ProvenancedField>
-  materials: Array<ProvenancedField>
-}
-
-export type OpenFactsIdentityMatch = {
-  status: 'confirmed' | 'conflicting' | 'unknown'
-  matchedOn?: 'brand' | 'name'
 }
 
 export type EvalGoal = {
@@ -7112,6 +8034,13 @@ export type SupportDocType =
 export type SupportDocumentRef = {
   url: string
   docType: SupportDocType
+}
+
+export type ProvenancedField = {
+  value: string
+  sourceUrl?: string
+  sourceKind: 'manufacturer' | 'document' | 'open-db' | 'retailer'
+  confidence: number
 }
 
 export type SupportInfo = {
@@ -7957,6 +8886,21 @@ export type PageMemo = {
 
 export type MaterialJudgement = 'satisfies' | 'violates' | 'unknown'
 
+export type CriterionKnowledgeEntry = {
+  subject: string
+  disposition: 'allowed' | 'disallowed'
+  reason?: string
+  source?: string
+  addedAt: string
+}
+
+export type CriterionKnowledge = {
+  criterionId: string
+  entries: Array<CriterionKnowledgeEntry>
+  undetermined?: Array<string>
+  updatedAt: string
+}
+
 export type MaterialRecyclability = 'high' | 'medium' | 'low' | 'none' | 'unknown'
 
 export type MaterialKnowledge = {
@@ -8362,6 +9306,32 @@ export type ListProductBrandsParams = {
   recordType: string
 }
 
+export type StockFromLibraryParams = {
+  scope: string
+  recordType: string
+  spec: ProductTypeSpec
+  market: string
+  model: ModelSelection
+  categoryPaths?: Array<Array<string>>
+  limit?: number
+  chatContext?: {
+    type: ChatContextType
+    groupId?: string
+    projectId?: string
+    storyId?: string
+    featureId?: string
+    agentRunId?: string
+    topicId?: string
+    featureRequestId?: string
+    timestamp?: string
+  }
+  abortSignal?: unknown
+}
+
+export type StockFromLibraryResult = {
+  stocked: number
+}
+
 export type RegisterProductCriterionParams = {
   scope: string
   recordType: string
@@ -8653,6 +9623,23 @@ export type RankProductCandidatesParams = {
   abortSignal?: unknown
 }
 
+export type SharedRulings = {
+  entries: Array<CriterionKnowledgeEntry>
+  undetermined?: Array<string>
+}
+
+export type ShopClass = 'marketplace' | 'aggregator' | 'big-box' | 'specialist' | 'wholesale'
+
+export type KnownShop = {
+  host: string
+  markets?: Array<string>
+  class: ShopClass
+  discoveryOnly?: boolean
+  gridHeavy?: boolean
+  notASeed?: boolean
+  note?: string
+}
+
 export type RefutationGroup = {
   material: string
   slug: string
@@ -8664,6 +9651,18 @@ export type RefutationGroup = {
 }
 
 export type EscalationTrigger = 'abstain' | 'low-agreement'
+
+export type OpenFactsResult = {
+  productName?: string
+  brand?: string
+  ingredients: Array<ProvenancedField>
+  materials: Array<ProvenancedField>
+}
+
+export type OpenFactsIdentityMatch = {
+  status: 'confirmed' | 'conflicting' | 'unknown'
+  matchedOn?: 'brand' | 'name'
+}
 
 export type RemedyOptionKind = 'hint' | 'agent' | 'manual'
 
@@ -8789,6 +9788,7 @@ export type ReviewEvidenceBuild = {
   dirty: boolean
   variant?: string
   overlays?: Array<string>
+  tree?: string
 }
 
 export type ReviewEvidenceCaptureDescription = {
@@ -8800,6 +9800,7 @@ export type ReviewEvidenceCaptureDescription = {
     dirty: boolean
     variant?: string
     overlays?: Array<string>
+    tree?: string
   }
   screen?: {
     ids: Array<string>
@@ -8843,6 +9844,15 @@ export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected
 
 export type ReviewEvidenceVerificationMode = 'live' | 'dry'
 
+export type ReviewEvidenceCheckRun = {
+  check: ProjectCheckKind
+  status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+  summary: string
+  commands: Array<string>
+  variant?: string
+  tests?: Array<string>
+}
+
 export type ReviewEvidenceRef = {
   runId: string
   projectId: string
@@ -8880,11 +9890,20 @@ export type ReviewEvidenceRef = {
     dirty: boolean
     variant?: string
     overlays?: Array<string>
+    tree?: string
   }
   screen?: {
     ids: Array<string>
     texts: Array<string>
     activity?: string
+  }
+  checkRun?: {
+    check: ProjectCheckKind
+    status: 'passed' | 'failed' | 'error' | 'skipped' | 'not-detected' | 'refused' | 'running'
+    summary: string
+    commands: Array<string>
+    variant?: string
+    tests?: Array<string>
   }
   unvouchedReason?: string
   mediaType: string
@@ -9019,6 +10038,20 @@ export type SandboxDockerVolume = {
   readOnly?: boolean
 }
 
+export type SandboxScriptOptions = {
+  runId: string
+  image: string
+  script: string
+  policy: SandboxPolicy
+  bindMounts?: Array<SandboxBindMount>
+  env?: {
+    [key: string]: string
+  }
+  timeoutMs: number
+  signal?: unknown
+  maxOutputChars?: number
+}
+
 export type SandboxProxyForRunOptions = {
   runId: string
   policy: SandboxPolicy
@@ -9033,20 +10066,6 @@ export type SandboxProxySidecarOptions = {
   allowlist?: Array<string>
   imageName?: string
   readyTimeoutMs?: number
-}
-
-export type CliRunFilter = {
-  projectId?: string
-  storyId?: string
-  status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
-  chatContextId?: string
-}
-
-export type CliRunFilterable = {
-  projectId: string
-  storyId?: string
-  status: CliRunStatus
-  chatContextId?: string
 }
 
 export type CliRunIndexEntry = {
@@ -9071,39 +10090,18 @@ export type CliRunFileStat = {
   size: number
 }
 
-export type StoryFeatureCensus = {
-  total: number
-  done: number
-  reviewable: number
-  pending: number
-  inProgress: number
-  blocked: number
-  deferred: number
-  outstanding: number
-  signOffReady: boolean
-  label: string
+export type CliRunFilter = {
+  projectId?: string
+  storyId?: string
+  status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+  chatContextId?: string
 }
 
-export type WorkHandoverInput = {
-  storyTitle?: string
-  census?: {
-    total: number
-    done: number
-    reviewable: number
-    pending: number
-    inProgress: number
-    blocked: number
-    deferred: number
-    outstanding: number
-    signOffReady: boolean
-    label: string
-  }
-  changedFileCount?: number
-  verificationStatus?: string
-  verificationSummary?: string
-  evidenceCount?: number
-  branch?: string
-  verdict?: string
+export type CliRunFilterable = {
+  projectId: string
+  storyId?: string
+  status: CliRunStatus
+  chatContextId?: string
 }
 
 export type FeatureTransitionEvent =
@@ -9113,6 +10111,7 @@ export type FeatureTransitionEvent =
   | 'not-accepted'
   | 'process-deleted'
   | 'reopened'
+  | 'sent-back'
 
 export type FeatureTransitionOptions = {
   note?: string
@@ -9150,6 +10149,33 @@ export type FeatureEditInput = {
   rejection?: string
   questions?: Array<FeatureQuestion>
   externalIds?: Array<ExternalRef>
+}
+
+export type FeatureSummary = {
+  id: string
+  title: string
+  status: Status
+}
+
+export type StorySummary = {
+  id: string
+  title: string
+  status: Status
+} & {
+  features: Array<FeatureSummary>
+}
+
+export type StoryFeatureCensus = {
+  total: number
+  done: number
+  reviewable: number
+  pending: number
+  inProgress: number
+  blocked: number
+  deferred: number
+  outstanding: number
+  signOffReady: boolean
+  label: string
 }
 
 export type StoryCreateInput = {
@@ -9196,6 +10222,28 @@ export type StoryUpdate = {
 export type StoryOrderRecord = {
   ids: Array<string>
   updatedAt: string
+}
+
+export type WorkHandoverInput = {
+  storyTitle?: string
+  census?: {
+    total: number
+    done: number
+    reviewable: number
+    pending: number
+    inProgress: number
+    blocked: number
+    deferred: number
+    outstanding: number
+    signOffReady: boolean
+    label: string
+  }
+  changedFileCount?: number
+  verificationStatus?: string
+  verificationSummary?: string
+  evidenceCount?: number
+  branch?: string
+  verdict?: string
 }
 
 export type CreateTestTempDirOptions = {
@@ -9419,6 +10467,8 @@ export type ToolName =
   | 'getVerificationOptions'
   | 'getChatsDir'
   | 'listChats'
+  | 'listChatSummaries'
+  | 'getChatSummary'
   | 'listChatsByType'
   | 'updateChatMetadata'
   | 'rateChat'
@@ -9460,6 +10510,10 @@ export type ToolName =
   | 'forkCliAgentRun'
   | 'abortCliAgentRun'
   | 'listPendingCliAgentActions'
+  | 'listCliAgentRunActions'
+  | 'listDecidedCliAgentActions'
+  | 'markCliAgentActionsCarried'
+  | 'countPendingCliAgentActionsByChat'
   | 'requestCliAgentAction'
   | 'requestPendingCliAgentAction'
   | 'decideCliAgentAction'
@@ -9467,6 +10521,7 @@ export type ToolName =
   | 'subscribeCliAgentActions'
   | 'getCliAgentAction'
   | 'claimCliAgentActionExecution'
+  | 'recordCliAgentActionExecution'
   | 'releaseCliAgentActionExecution'
   | 'applyCliAgentArtifact'
   | 'previewCliAgentArtifact'
@@ -9478,6 +10533,7 @@ export type ToolName =
   | 'verifyCliRunReview'
   | 'setCliRunVerdict'
   | 'recordCliRunDiffReview'
+  | 'setCliRunFileViewed'
   | 'rejectCliRunReview'
   | 'approveCliRunReview'
   | 'planCliRunVerification'
@@ -9506,6 +10562,39 @@ export type ToolName =
   | 'sendCompletion'
   | 'listConnectionItems'
   | 'getConnectionItem'
+  | 'searchJiraIssues'
+  | 'getJiraIssue'
+  | 'getJiraIssueChangelog'
+  | 'listJiraTransitions'
+  | 'listJiraProjects'
+  | 'getJiraCreateFields'
+  | 'getJiraEditFields'
+  | 'searchJiraUsers'
+  | 'listJiraLinkTypes'
+  | 'listJiraBoards'
+  | 'listJiraSprints'
+  | 'listJiraWorklogs'
+  | 'listJiraWatchers'
+  | 'downloadJiraAttachment'
+  | 'createJiraIssue'
+  | 'updateJiraIssue'
+  | 'transitionJiraIssue'
+  | 'assignJiraIssue'
+  | 'addJiraComment'
+  | 'updateJiraComment'
+  | 'deleteJiraComment'
+  | 'linkJiraIssues'
+  | 'deleteJiraIssueLink'
+  | 'deleteJiraIssue'
+  | 'moveJiraIssuesToSprint'
+  | 'moveJiraIssuesToBacklog'
+  | 'addJiraWorklog'
+  | 'updateJiraWorklog'
+  | 'deleteJiraWorklog'
+  | 'addJiraWatcher'
+  | 'removeJiraWatcher'
+  | 'addJiraAttachment'
+  | 'deleteJiraAttachment'
   | 'listLLMConfigs'
   | 'getLLMConfig'
   | 'addLLMConfig'
@@ -9529,6 +10618,8 @@ export type ToolName =
   | 'getCliAuthCache'
   | 'addCliAuthCache'
   | 'updateCliAuthCache'
+  | 'recordCliAuthEvent'
+  | 'listCliAuthEvents'
   | 'removeCliAuthCache'
   | 'getActiveCliState'
   | 'setActiveCli'
@@ -9542,12 +10633,6 @@ export type ToolName =
   | 'setWebSearchKey'
   | 'removeWebSearchKey'
   | 'getWebSearchApiKeys'
-  | 'listProjectNoteEntries'
-  | 'listProjectNoteSummaries'
-  | 'getProjectNote'
-  | 'addProjectNote'
-  | 'updateProjectNote'
-  | 'removeProjectNote'
   | 'planResearch'
   | 'discoverSources'
   | 'gather'
@@ -9690,6 +10775,14 @@ export type ToolName =
   | 'getProjectDataLocation'
   | 'setProjectDataLocation'
   | 'guessCodeProjectInfo'
+  | 'listProjectChecks'
+  | 'runProjectCheck'
+  | 'listProjectNoteEntries'
+  | 'listProjectNoteSummaries'
+  | 'getProjectNote'
+  | 'addProjectNote'
+  | 'updateProjectNote'
+  | 'removeProjectNote'
   | 'getProjectsGroups'
   | 'getProjectsGroup'
   | 'createProjectsGroup'
@@ -9713,6 +10806,7 @@ export type ToolName =
   | 'reverifyProductCriterion'
   | 'discoverProductBrands'
   | 'listProductBrands'
+  | 'stockFromLibrary'
   | 'registerProductCriterion'
   | 'listProductCriteria'
   | 'removeProductCriterion'
@@ -9751,7 +10845,6 @@ export type ToolName =
   | 'getStoriesOrder'
   | 'getStoryIdFromIndex'
   | 'reorderStory'
-  | 'listStories'
   | 'getStory'
   | 'addStory'
   | 'deleteStory'
@@ -9766,6 +10859,7 @@ export type ToolName =
   | 'blockFeature'
   | 'answerFeatureQuestion'
   | 'completeAssignment'
+  | 'listStories'
   | 'listTests'
   | 'runTests'
   | 'runAllTests'
@@ -9930,6 +11024,7 @@ export type UiBuildProvenance = {
   sha: string
   dirty: boolean
   overlays?: Array<string>
+  tree?: string
   recipe: string
   origin: string
 }
@@ -9978,6 +11073,7 @@ export type UiTreeSnapshot = {
   head: string
   commit: string
   dirty: boolean
+  tree?: string
 }
 
 export type UiServeStep =
@@ -10041,6 +11137,7 @@ export type UiCaptureBuildState = {
     sha: string
     dirty: boolean
     overlays?: Array<string>
+    tree?: string
     recipe: string
     origin: string
   }
@@ -10341,6 +11438,8 @@ export type HostReadHealth = {
   action: string
 }
 
+export type ProcessScope = 'global' | 'project'
+
 export type ProcessStepKind =
   | 'agent'
   | 'check'
@@ -10349,12 +11448,6 @@ export type ProcessStepKind =
   | 'report'
   | 'gate'
   | 'process'
-
-export type ValidateProcessOptions = {
-  implementedKinds?: Array<ProcessStepKind>
-}
-
-export type ProcessScope = 'global' | 'project'
 
 export type ProcessStepOutcome =
   | 'passed'
@@ -10407,6 +11500,7 @@ export type ProcessSubject = {
 
 export type ProcessLaunchContext = {
   features?: Array<ProcessSubject>
+  featureProcessId?: string
 }
 
 export type ProcessPlanStep = {
@@ -10522,6 +11616,15 @@ export type ProcessOpenWorkDecision = {
   openWork: ProcessOpenWorkChoice
   runId: string
   state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+}
+
+export type ProcessLaunchDecision = {
+  openWork?: {
+    openWork: ProcessOpenWorkChoice
+    runId: string
+    state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
+  }
+  featureProcessId?: string
 }
 
 export type ProcessBudget = {
@@ -10732,6 +11835,21 @@ export type ProcessEntryCost = {
   byModel?: Array<ModelSpend>
 }
 
+export type ProcessToolTime = {
+  name: string
+  calls: number
+  ms: number
+}
+
+export type ProcessEntryTime = {
+  agentMs: number
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  tools: Array<ProcessToolTime>
+}
+
 export type ProcessLedgerEntry = {
   id: string
   stepId: string
@@ -10803,6 +11921,7 @@ export type ProcessLedgerEntry = {
     verdict: ReviewEvidenceVerdict
     reason?: string
   }
+  checks?: Array<VerificationCheckResult>
   cost?: {
     costUsd?: number
     unpricedTokens?: number
@@ -10810,11 +11929,29 @@ export type ProcessLedgerEntry = {
     listCostUsd?: number
     byModel?: Array<ModelSpend>
   }
+  time?: {
+    agentMs: number
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    tools: Array<ProcessToolTime>
+  }
   startedAt: number
   endedAt?: number
   suspendedMs?: number
   waitedMs?: number
   waitingSince?: number
+  retries?: Array<ProcessStepRetry>
+  backoffMs?: number
+  backoffSince?: number
+}
+
+export type ProcessRetryPolicy = {
+  maxRetries: number
+  initialDelayMs: number
+  factor: number
+  maxDelayMs: number
 }
 
 export type ProcessWorkBranchStack = {
@@ -10830,7 +11967,18 @@ export type ProcessWorkBranch = {
     runId: string
     branch: string
   }
+  shadow?: boolean
 }
+
+export type ProcessWorkBranchHostLinkRepair =
+  | {
+      repaired: false
+    }
+  | {
+      repaired: true
+      sha: string
+      paths: Array<string>
+    }
 
 export type ProcessIntegrationOutcome = {
   status: 'integrated' | 'failed'
@@ -10869,6 +12017,16 @@ export type PushProcessWorkBranchInput = {
   onto?: string
 }
 
+export type ProcessTimeBreakdown = {
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  runningMs: number
+  waitingMs: number
+  tools: Array<ProcessToolTime>
+}
+
 export type ProcessAttemptTotals = {
   costUsd?: number
   unpricedTokens?: number
@@ -10877,6 +12035,15 @@ export type ProcessAttemptTotals = {
   byModel?: Array<ModelSpend>
   entryId: string
   workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
 }
 
 export type ProcessStepTotals = {
@@ -10886,6 +12053,15 @@ export type ProcessStepTotals = {
   listCostUsd?: number
   byModel?: Array<ModelSpend>
   workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
   attempts: Array<ProcessAttemptTotals>
 }
 
@@ -10896,6 +12072,15 @@ export type ProcessRunTotals = {
   listCostUsd?: number
   byModel?: Array<ModelSpend>
   workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
   ticking: boolean
   at: number
   steps: {
@@ -10923,6 +12108,7 @@ export type ProcessRun = {
       runId: string
       branch: string
     }
+    shadow?: boolean
   }
   integration?: {
     mode: ProcessIntegrationMode
@@ -11013,6 +12199,15 @@ export type ProcessRun = {
     listCostUsd?: number
     byModel?: Array<ModelSpend>
     workMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      tools: Array<ProcessToolTime>
+    }
     ticking: boolean
     at: number
     steps: {
@@ -11102,6 +12297,7 @@ export type ProcessStepContinuation = {
   }
   chainStartedAt: number
   chainRunIds: Array<string>
+  chainGrantedHosts: Array<string>
 }
 
 export type ProcessWaitingAnswer = {
@@ -11140,12 +12336,21 @@ export type ProcessStepResult = {
     verdict: ReviewEvidenceVerdict
     reason?: string
   }
+  checks?: Array<VerificationCheckResult>
   cost?: {
     costUsd?: number
     unpricedTokens?: number
     includedTokens?: number
     listCostUsd?: number
     byModel?: Array<ModelSpend>
+  }
+  time?: {
+    agentMs: number
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    tools: Array<ProcessToolTime>
   }
   ask?: {
     kind: ProcessWaitingKind
@@ -11179,6 +12384,24 @@ export type ProcessStepResult = {
   }
 }
 
+export type ProcessTimeInterval = {
+  start: number
+  end: number
+}
+
+export type ProcessToolCallInterval = {
+  start: number
+  end: number
+  name: string
+}
+
+export type AgentRunTimeline = {
+  span: ProcessTimeInterval
+  thinking: Array<ProcessTimeInterval>
+  toolCalls: Array<ProcessToolCallInterval>
+  system: Array<ProcessTimeInterval>
+}
+
 export type StartProcessRunInput = {
   id?: string
   projectId: string
@@ -11189,6 +12412,7 @@ export type StartProcessRunInput = {
   chatContextId?: string
   context?: {
     features?: Array<ProcessSubject>
+    featureProcessId?: string
   }
   input?: {
     [key: string]: unknown
@@ -11201,6 +12425,7 @@ export type StartProcessRunInput = {
       runId: string
       branch: string
     }
+    shadow?: boolean
   }
   budget?: {
     spendUsdCap?: number
@@ -11219,11 +12444,16 @@ export type ProcessRunQuery = {
   limit?: number
 }
 
+export type ValidateProcessOptions = {
+  implementedKinds?: Array<ProcessStepKind>
+}
+
 export type FreezePlanOptions = {
   scope: ProcessScope
   now: number
   context?: {
     features?: Array<ProcessSubject>
+    featureProcessId?: string
   }
 }
 
@@ -11303,6 +12533,7 @@ export type ProcessStepState = {
       verdict: ReviewEvidenceVerdict
       reason?: string
     }
+    checks?: Array<VerificationCheckResult>
     cost?: {
       costUsd?: number
       unpricedTokens?: number
@@ -11310,11 +12541,22 @@ export type ProcessStepState = {
       listCostUsd?: number
       byModel?: Array<ModelSpend>
     }
+    time?: {
+      agentMs: number
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      tools: Array<ProcessToolTime>
+    }
     startedAt: number
     endedAt?: number
     suspendedMs?: number
     waitedMs?: number
     waitingSince?: number
+    retries?: Array<ProcessStepRetry>
+    backoffMs?: number
+    backoffSince?: number
   }
   entries: Array<ProcessLedgerEntry>
   current: boolean
@@ -12171,39 +13413,13 @@ export type UpdateProjectData = {
     metadata?: {
       [key: string]: JsonValue
     }
-    codeInfo?: {
-      language: ProgrammingLanguage
-      framework?:
-        | JavaScriptFramework
-        | PythonFramework
-        | JavaFramework
-        | GoFramework
-        | RubyFramework
-        | PhpFramework
-        | CSharpFramework
-        | CppFramework
-        | RustFramework
-        | KotlinFramework
-        | SwiftFramework
-      testFramework?:
-        | JavaScriptTestFramework
-        | PythonTestFramework
-        | JavaTestFramework
-        | GoTestFramework
-        | RubyTestFramework
-        | PhpTestFramework
-        | CSharpTestFramework
-        | CppTestFramework
-        | RustTestFramework
-        | KotlinTestFramework
-        | SwiftTestFramework
-    }
     mainGroupId?: string | unknown
     scopeGroupIds?: Array<string>
     overrides?: {
       title?: string
       description?: string
     }
+    codeInfo?: ProjectCodeInfo | unknown
   }
   path: {
     id: string
@@ -12241,6 +13457,47 @@ export type UpdateProjectResponses = {
 }
 
 export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses]
+
+export type ListProjectChecksData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    rescan?: boolean
+  }
+  url: '/api/v1/projects/{projectId}/checks'
+}
+
+export type ListProjectChecksErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProjectChecksError = ListProjectChecksErrors[keyof ListProjectChecksErrors]
+
+export type ListProjectChecksResponses = {
+  /**
+   * Default Response
+   */
+  200: ProjectChecksListing
+}
+
+export type ListProjectChecksResponse = ListProjectChecksResponses[keyof ListProjectChecksResponses]
 
 export type CreateProjectFromTemplateData = {
   body: {
@@ -12636,6 +13893,11 @@ export type ListProjectsGroupsResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -12674,6 +13936,11 @@ export type CreateProjectsGroupResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -12701,6 +13968,11 @@ export type DeleteProjectsGroupResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -12741,6 +14013,11 @@ export type GetProjectsGroupResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -12758,6 +14035,14 @@ export type UpdateProjectsGroupData = {
 }
 
 export type UpdateProjectsGroupErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -12780,6 +14065,11 @@ export type UpdateProjectsGroupResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -12821,6 +14111,11 @@ export type ReorderProjectInGroupResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }
@@ -12860,6 +14155,11 @@ export type ReorderProjectsGroupsResponses = {
     type: 'MAIN' | 'SCOPE'
     active: boolean
     projects: Array<string>
+    ticketConnection?: {
+      connectionId: string
+      access: TicketConnectionAccess
+      projectKeys?: Array<string>
+    }
     createdAt: string
     updatedAt: string
   }>
@@ -13259,6 +14559,10 @@ export type PreviewProcessData = {
      * The story whose features the process would work — the proposal expands one node per ready feature.
      */
     storyId: string
+    /**
+     * How each feature is worked, as the launch approval chose it — the process every feature node nests in place of the one the story process names.
+     */
+    featureProcessId?: string
   }
   path?: never
   query?: never
@@ -13266,6 +14570,14 @@ export type PreviewProcessData = {
 }
 
 export type PreviewProcessErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -13307,6 +14619,8 @@ export type PreviewProcessResponses = {
         id: string
         title: string
       }
+      processId?: string
+      onlyWhenSentBack?: boolean
       children?: Array<unknown>
       maxIterations?: number
     }>
@@ -13857,7 +15171,7 @@ export type ListLlmConfigsResponses = {
   /**
    * Default Response
    */
-  200: Array<LlmConfigEntry>
+  200: Array<RedactedLlmConfigEntry>
 }
 
 export type ListLlmConfigsResponse = ListLlmConfigsResponses[keyof ListLlmConfigsResponses]
@@ -13873,7 +15187,7 @@ export type CreateLlmConfigResponses = {
   /**
    * Default Response
    */
-  201: LlmConfigEntry
+  201: RedactedLlmConfigEntry
 }
 
 export type CreateLlmConfigResponse = CreateLlmConfigResponses[keyof CreateLlmConfigResponses]
@@ -13935,7 +15249,7 @@ export type GetLlmConfigResponses = {
   /**
    * Default Response
    */
-  200: LlmConfigEntry
+  200: RedactedLlmConfigEntry
 }
 
 export type GetLlmConfigResponse = GetLlmConfigResponses[keyof GetLlmConfigResponses]
@@ -13966,7 +15280,7 @@ export type UpdateLlmConfigResponses = {
   /**
    * Default Response
    */
-  200: LlmConfigEntry
+  200: RedactedLlmConfigEntry
 }
 
 export type UpdateLlmConfigResponse = UpdateLlmConfigResponses[keyof UpdateLlmConfigResponses]
@@ -13974,7 +15288,8 @@ export type UpdateLlmConfigResponse = UpdateLlmConfigResponses[keyof UpdateLlmCo
 export type ListLlmModelsData = {
   body: {
     provider: LlmProvider
-    apiKey: string
+    apiKey?: string
+    configId?: string
     apiUrlOverride?: string
   }
   path?: never
@@ -14015,7 +15330,7 @@ export type ListGitCredentialsResponses = {
   /**
    * Default Response
    */
-  200: Array<GitCredentialEntry>
+  200: Array<RedactedGitCredentialEntry>
 }
 
 export type ListGitCredentialsResponse =
@@ -14032,7 +15347,7 @@ export type CreateGitCredentialResponses = {
   /**
    * Default Response
    */
-  201: GitCredentialEntry
+  201: RedactedGitCredentialEntry
 }
 
 export type CreateGitCredentialResponse =
@@ -14096,7 +15411,7 @@ export type GetGitCredentialResponses = {
   /**
    * Default Response
    */
-  200: GitCredentialEntry
+  200: RedactedGitCredentialEntry
 }
 
 export type GetGitCredentialResponse = GetGitCredentialResponses[keyof GetGitCredentialResponses]
@@ -14127,7 +15442,7 @@ export type UpdateGitCredentialResponses = {
   /**
    * Default Response
    */
-  200: GitCredentialEntry
+  200: RedactedGitCredentialEntry
 }
 
 export type UpdateGitCredentialResponse =
@@ -14144,7 +15459,7 @@ export type ListProviderConnectionsResponses = {
   /**
    * Default Response
    */
-  200: Array<ProviderConnectionEntry>
+  200: Array<RedactedProviderConnectionEntry>
 }
 
 export type ListProviderConnectionsResponse =
@@ -14161,7 +15476,7 @@ export type CreateProviderConnectionResponses = {
   /**
    * Default Response
    */
-  201: ProviderConnectionEntry
+  201: RedactedProviderConnectionEntry
 }
 
 export type CreateProviderConnectionResponse =
@@ -14227,7 +15542,7 @@ export type GetProviderConnectionResponses = {
   /**
    * Default Response
    */
-  200: ProviderConnectionEntry
+  200: RedactedProviderConnectionEntry
 }
 
 export type GetProviderConnectionResponse =
@@ -14273,7 +15588,7 @@ export type UpdateProviderConnectionResponses = {
   /**
    * Default Response
    */
-  200: ProviderConnectionEntry
+  200: RedactedProviderConnectionEntry
 }
 
 export type UpdateProviderConnectionResponse =
@@ -14290,7 +15605,7 @@ export type ListCliAuthCachesResponses = {
   /**
    * Default Response
    */
-  200: Array<CliAuthCacheEntry>
+  200: Array<RedactedCliAuthCacheEntry>
 }
 
 export type ListCliAuthCachesResponse = ListCliAuthCachesResponses[keyof ListCliAuthCachesResponses]
@@ -14306,7 +15621,7 @@ export type CreateCliAuthCacheResponses = {
   /**
    * Default Response
    */
-  201: CliAuthCacheEntry
+  201: RedactedCliAuthCacheEntry
 }
 
 export type CreateCliAuthCacheResponse =
@@ -14370,7 +15685,7 @@ export type GetCliAuthCacheResponses = {
   /**
    * Default Response
    */
-  200: CliAuthCacheEntry
+  200: RedactedCliAuthCacheEntry
 }
 
 export type GetCliAuthCacheResponse = GetCliAuthCacheResponses[keyof GetCliAuthCacheResponses]
@@ -14414,7 +15729,7 @@ export type UpdateCliAuthCacheResponses = {
   /**
    * Default Response
    */
-  200: CliAuthCacheEntry
+  200: RedactedCliAuthCacheEntry
 }
 
 export type UpdateCliAuthCacheResponse =
@@ -14633,7 +15948,7 @@ export type CompleteGitCredentialGithubRedirectResponses = {
    * Default Response
    */
   200: {
-    credential: GitCredentialEntry
+    credential: RedactedGitCredentialEntry
   }
 }
 
@@ -14731,7 +16046,7 @@ export type PollGitCredentialGithubDeviceResponses = {
       }
     | {
         status: 'authorized'
-        credential: GitCredentialEntry
+        credential: RedactedGitCredentialEntry
       }
 }
 
@@ -14768,14 +16083,22 @@ export type ListCredentialCapturesResponses = {
   200: Array<{
     id: string
     purpose: string
-    provider: 'git'
-    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    provider:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
+    status: 'requested' | 'submitted' | 'cancelled'
     requestedAt: string
-    expiresAt: string
     resolvedAt?: string
     credentialId?: string
     credentialName?: string
     chatContextKey?: string
+    replacesId?: string
   }>
 }
 
@@ -14785,7 +16108,15 @@ export type ListCredentialCapturesResponse =
 export type OpenCredentialCaptureData = {
   body: {
     purpose: string
-    provider?: 'git'
+    provider?:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
     chatContextKey?: string
   }
   path?: never
@@ -14814,14 +16145,22 @@ export type OpenCredentialCaptureResponses = {
   201: {
     id: string
     purpose: string
-    provider: 'git'
-    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    provider:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
+    status: 'requested' | 'submitted' | 'cancelled'
     requestedAt: string
-    expiresAt: string
     resolvedAt?: string
     credentialId?: string
     credentialName?: string
     chatContextKey?: string
+    replacesId?: string
   }
 }
 
@@ -14865,14 +16204,22 @@ export type GetCredentialCaptureResponses = {
   200: {
     id: string
     purpose: string
-    provider: 'git'
-    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    provider:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
+    status: 'requested' | 'submitted' | 'cancelled'
     requestedAt: string
-    expiresAt: string
     resolvedAt?: string
     credentialId?: string
     credentialName?: string
     chatContextKey?: string
+    replacesId?: string
   }
 }
 
@@ -14880,13 +16227,44 @@ export type GetCredentialCaptureResponse =
   GetCredentialCaptureResponses[keyof GetCredentialCaptureResponses]
 
 export type SubmitCredentialCaptureData = {
-  body: {
-    name: string
-    username: string
-    email: string
-    token: string
-    host?: string
-  }
+  body:
+    | {
+        kind: 'git'
+        name: string
+        username: string
+        email: string
+        token: string
+        host?: string
+      }
+    | {
+        kind: 'ticket-connection'
+        name: string
+        provider: 'jira' | 'github'
+        username?: string
+        baseUrl?: string
+        token: string
+        access?: 'read' | 'read-write'
+        projectKeys?: Array<string>
+      }
+    | {
+        kind: 'web-search-key'
+        provider: string
+        apiKey: string
+      }
+    | {
+        kind: 'llm-key'
+        name: string
+        provider: LlmProvider
+        model: string
+        apiKey: string
+        apiUrlOverride?: string
+      }
+    | {
+        kind: 'project-note'
+        label: string
+        value: string
+        description?: string
+      }
   path: {
     id: string
   }
@@ -14895,6 +16273,14 @@ export type SubmitCredentialCaptureData = {
 }
 
 export type SubmitCredentialCaptureErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -14931,14 +16317,22 @@ export type SubmitCredentialCaptureResponses = {
   200: {
     id: string
     purpose: string
-    provider: 'git'
-    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    provider:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
+    status: 'requested' | 'submitted' | 'cancelled'
     requestedAt: string
-    expiresAt: string
     resolvedAt?: string
     credentialId?: string
     credentialName?: string
     chatContextKey?: string
+    replacesId?: string
   }
 }
 
@@ -14991,14 +16385,22 @@ export type CancelCredentialCaptureResponses = {
   200: {
     id: string
     purpose: string
-    provider: 'git'
-    status: 'requested' | 'submitted' | 'cancelled' | 'expired'
+    provider:
+      | 'git'
+      | 'ticket-connection'
+      | 'web-search-key'
+      | 'llm-key'
+      | 'cli-login'
+      | 'project-note'
+    preset?: string
+    projectId?: string
+    status: 'requested' | 'submitted' | 'cancelled'
     requestedAt: string
-    expiresAt: string
     resolvedAt?: string
     credentialId?: string
     credentialName?: string
     chatContextKey?: string
+    replacesId?: string
   }
 }
 
@@ -15183,6 +16585,137 @@ export type CreateChatResponses = {
 }
 
 export type CreateChatResponse = CreateChatResponses[keyof CreateChatResponses]
+
+export type ListChatSummariesData = {
+  body?: never
+  path?: never
+  query?: {
+    projectId?: string
+  }
+  url: '/api/v1/chats/summaries'
+}
+
+export type ListChatSummariesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    title?: string
+    dynamicContext?: {
+      task: string
+      plan: string
+      pending: Array<string>
+      done: Array<string>
+      contextFiles: Array<ChatDynamicContextContextFile>
+      constraints: Array<string>
+      assumptions: Array<string>
+      risks: Array<string>
+      openQuestions: Array<string>
+      repoMap: Array<ChatDynamicContextRepoMapEntry>
+      lastUpdated: string
+    }
+    context: ChatContext
+    settings?: {
+      systemPrompt: string
+      completionSettings: CompletionSettings
+    }
+    state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
+    rating?: {
+      score: number
+      comment?: string
+      createdAt: string
+    }
+    metadata?: {
+      [key: string]: JsonValue
+    }
+    cliRunner?: {
+      tool: string
+      credentialId?: string
+      apiKeyCredentialId?: string
+      model?: string
+      effort?: string
+      execMode?: 'per-turn' | 'resident'
+    }
+    archivedAt?: string
+    createdAt?: string
+    updatedAt?: string
+    messageCount: number
+    messageTimes: Array<string | unknown>
+  }>
+}
+
+export type ListChatSummariesResponse = ListChatSummariesResponses[keyof ListChatSummariesResponses]
+
+export type GetChatSummaryData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/summary'
+}
+
+export type GetChatSummaryErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetChatSummaryError = GetChatSummaryErrors[keyof GetChatSummaryErrors]
+
+export type GetChatSummaryResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    title?: string
+    dynamicContext?: {
+      task: string
+      plan: string
+      pending: Array<string>
+      done: Array<string>
+      contextFiles: Array<ChatDynamicContextContextFile>
+      constraints: Array<string>
+      assumptions: Array<string>
+      risks: Array<string>
+      openQuestions: Array<string>
+      repoMap: Array<ChatDynamicContextRepoMapEntry>
+      lastUpdated: string
+    }
+    context: ChatContext
+    settings?: {
+      systemPrompt: string
+      completionSettings: CompletionSettings
+    }
+    state?: 'created' | 'running' | 'completed' | 'cancelled' | 'error'
+    rating?: {
+      score: number
+      comment?: string
+      createdAt: string
+    }
+    metadata?: {
+      [key: string]: JsonValue
+    }
+    cliRunner?: {
+      tool: string
+      credentialId?: string
+      apiKeyCredentialId?: string
+      model?: string
+      effort?: string
+      execMode?: 'per-turn' | 'resident'
+    }
+    archivedAt?: string
+    createdAt?: string
+    updatedAt?: string
+    messageCount: number
+    messageTimes: Array<string | unknown>
+  }
+}
+
+export type GetChatSummaryResponse = GetChatSummaryResponses[keyof GetChatSummaryResponses]
 
 export type GetChatData = {
   body: ChatContextBody
@@ -17108,6 +18641,7 @@ export type GetGitDiffResponses = {
     patch?: string
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
+    patchSuppressed?: 'size'
     binary?: boolean
     beforeSize?: number
     afterSize?: number
@@ -17162,6 +18696,7 @@ export type GetGitLocalDiffResponses = {
     patch?: string
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
+    patchSuppressed?: 'size'
     binary?: boolean
     beforeSize?: number
     afterSize?: number
@@ -18452,7 +19987,26 @@ export type SendCompletionData = {
   body: {
     request: {
       chatContext: ChatContext
-      llmConfig: LlmConfig
+      llmConfig: {
+        model: string
+        provider:
+          | 'openai'
+          | 'anthropic'
+          | 'gemini'
+          | 'deepseek'
+          | 'xai'
+          | 'qwen'
+          | 'llama'
+          | 'custom'
+        id?: string
+        name?: string
+        apiUrlOverride?: string
+        costInputPerMTokensUSD?: number
+        costOutputPerMTokensUSD?: number
+        costCacheReadInputPerMTokensUSD?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        apiKey?: string
+      }
       systemPrompt?: string
       messages: Array<{
         role: 'system' | 'user' | 'assistant' | 'tool'
@@ -18612,7 +20166,26 @@ export type SendCompletionWithToolsData = {
   body: {
     request: {
       chatContext: ChatContext
-      llmConfig: LlmConfig
+      llmConfig: {
+        model: string
+        provider:
+          | 'openai'
+          | 'anthropic'
+          | 'gemini'
+          | 'deepseek'
+          | 'xai'
+          | 'qwen'
+          | 'llama'
+          | 'custom'
+        id?: string
+        name?: string
+        apiUrlOverride?: string
+        costInputPerMTokensUSD?: number
+        costOutputPerMTokensUSD?: number
+        costCacheReadInputPerMTokensUSD?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        apiKey?: string
+      }
       systemPrompt?: string
       messages: Array<{
         role: 'system' | 'user' | 'assistant' | 'tool'
@@ -18791,7 +20364,18 @@ export type SendCompletionWithToolsResponse =
 export type SendChatCompletionWithToolsData = {
   body: {
     chatContext: ChatContext
-    llmConfig: LlmConfig
+    llmConfig: {
+      model: string
+      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
+      id?: string
+      name?: string
+      apiUrlOverride?: string
+      costInputPerMTokensUSD?: number
+      costOutputPerMTokensUSD?: number
+      costCacheReadInputPerMTokensUSD?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      apiKey?: string
+    }
     message: {
       role: 'system' | 'user' | 'assistant' | 'tool'
       content: string
@@ -18963,7 +20547,18 @@ export type SendChatCompletionWithToolsResponse =
 export type SendChatWithCliData = {
   body: {
     chatContext: ChatContext
-    llmConfig: LlmConfig
+    llmConfig: {
+      model: string
+      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
+      id?: string
+      name?: string
+      apiUrlOverride?: string
+      costInputPerMTokensUSD?: number
+      costOutputPerMTokensUSD?: number
+      costCacheReadInputPerMTokensUSD?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      apiKey?: string
+    }
     message: {
       role: 'system' | 'user' | 'assistant' | 'tool'
       content: string
@@ -19064,7 +20659,18 @@ export type SendChatWithCliResponse = SendChatWithCliResponses[keyof SendChatWit
 export type RestartChatWithCliData = {
   body: {
     chatContext: ChatContext
-    llmConfig: LlmConfig
+    llmConfig: {
+      model: string
+      provider: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
+      id?: string
+      name?: string
+      apiUrlOverride?: string
+      costInputPerMTokensUSD?: number
+      costOutputPerMTokensUSD?: number
+      costCacheReadInputPerMTokensUSD?: number
+      billing?: 'subscription' | 'metered' | 'free'
+      apiKey?: string
+    }
     settings: CompletionSettings
     systemPrompt?: string
     runner?: 'api' | 'cli'
@@ -19128,7 +20734,26 @@ export type ResumeCompletionData = {
   body: {
     request: {
       chatContext: ChatContext
-      llmConfig: LlmConfig
+      llmConfig: {
+        model: string
+        provider:
+          | 'openai'
+          | 'anthropic'
+          | 'gemini'
+          | 'deepseek'
+          | 'xai'
+          | 'qwen'
+          | 'llama'
+          | 'custom'
+        id?: string
+        name?: string
+        apiUrlOverride?: string
+        costInputPerMTokensUSD?: number
+        costOutputPerMTokensUSD?: number
+        costCacheReadInputPerMTokensUSD?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        apiKey?: string
+      }
       systemPrompt?: string
       messages: Array<{
         role: 'system' | 'user' | 'assistant' | 'tool'
@@ -19196,8 +20821,8 @@ export type ResumeCompletionData = {
     }
     settings: CompletionSettings
     toolsGranted: Array<string>
-    openWorkDecisions?: {
-      [key: string]: ProcessOpenWorkDecision
+    launchDecisions?: {
+      [key: string]: ProcessLaunchDecision
     }
   }
   path?: never
@@ -20320,7 +21945,7 @@ export type ListWebSearchKeysResponses = {
   /**
    * Default Response
    */
-  200: Array<WebSearchKeyEntry>
+  200: Array<RedactedWebSearchKeyEntry>
 }
 
 export type ListWebSearchKeysResponse = ListWebSearchKeysResponses[keyof ListWebSearchKeysResponses]
@@ -20352,7 +21977,7 @@ export type UpdateWebSearchKeysResponses = {
   /**
    * Default Response
    */
-  200: WebSearchKeyEntry
+  200: RedactedWebSearchKeyEntry
 }
 
 export type UpdateWebSearchKeysResponse =
@@ -20571,7 +22196,15 @@ export type PreviewToolResponse = PreviewToolResponses[keyof PreviewToolResponse
 export type StartAgentRunData = {
   body: {
     params: {
-      agentType: AgentRunType
+      agentType:
+        | 'developer'
+        | 'developer-verifier'
+        | 'verifier'
+        | 'capture'
+        | 'judge'
+        | 'remedy'
+        | 'report'
+        | 'fixer'
       chatContext:
         | {
             type: 'AGENT_RUN_STORY'
@@ -20586,13 +22219,32 @@ export type StartAgentRunData = {
             agentRunId: string
             featureId: string
           }
-      llmConfig: LlmConfig
       webSearchApiKeys?: {
         [key: string]: string
       }
       dbConnectionString?: string
       proofRequired?: boolean
       note?: string
+      llmConfig: {
+        model: string
+        provider:
+          | 'openai'
+          | 'anthropic'
+          | 'gemini'
+          | 'deepseek'
+          | 'xai'
+          | 'qwen'
+          | 'llama'
+          | 'custom'
+        id?: string
+        name?: string
+        apiUrlOverride?: string
+        costInputPerMTokensUSD?: number
+        costOutputPerMTokensUSD?: number
+        costCacheReadInputPerMTokensUSD?: number
+        billing?: 'subscription' | 'metered' | 'free'
+        apiKey?: string
+      }
     }
     settings: CompletionSettings
     isolated?: boolean
@@ -21081,6 +22733,47 @@ export type ListPendingCliAgentActionsResponses = {
 
 export type ListPendingCliAgentActionsResponse =
   ListPendingCliAgentActionsResponses[keyof ListPendingCliAgentActionsResponses]
+
+export type ListDecidedCliAgentActionsData = {
+  body?: never
+  path?: never
+  query: {
+    chatContextId: string
+    limit?: number
+  }
+  url: '/api/v1/cli-runs/actions/decided'
+}
+
+export type ListDecidedCliAgentActionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<PendingAction>
+}
+
+export type ListDecidedCliAgentActionsResponse =
+  ListDecidedCliAgentActionsResponses[keyof ListDecidedCliAgentActionsResponses]
+
+export type CountPendingCliAgentActionsByChatData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/cli-runs/actions/pending-by-chat'
+}
+
+export type CountPendingCliAgentActionsByChatResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    counts: {
+      [key: string]: number
+    }
+  }
+}
+
+export type CountPendingCliAgentActionsByChatResponse =
+  CountPendingCliAgentActionsByChatResponses[keyof CountPendingCliAgentActionsByChatResponses]
 
 export type DecideCliAgentActionData = {
   body: {
@@ -21811,22 +23504,31 @@ export type VerifyCliRunReviewResponses = {
 export type VerifyCliRunReviewResponse =
   VerifyCliRunReviewResponses[keyof VerifyCliRunReviewResponses]
 
-export type RecordCliRunDiffReviewData = {
+export type SetCliRunFileViewedData = {
   body: {
-    filesReviewed?: number
+    path: string
+    viewed: boolean
   }
   path: {
     runId: string
   }
   query?: never
-  url: '/api/v1/cli-runs/{runId}/diff-review'
+  url: '/api/v1/cli-runs/{runId}/viewed-files'
 }
 
-export type RecordCliRunDiffReviewErrors = {
+export type SetCliRunFileViewedErrors = {
   /**
    * Default Response
    */
   404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
     error: string
     code?: string
     requestId?: string
@@ -21841,18 +23543,29 @@ export type RecordCliRunDiffReviewErrors = {
   }
 }
 
-export type RecordCliRunDiffReviewError =
-  RecordCliRunDiffReviewErrors[keyof RecordCliRunDiffReviewErrors]
+export type SetCliRunFileViewedError = SetCliRunFileViewedErrors[keyof SetCliRunFileViewedErrors]
 
-export type RecordCliRunDiffReviewResponses = {
+export type SetCliRunFileViewedResponses = {
   /**
    * Default Response
    */
-  204: void
+  200: {
+    viewedFiles: Array<{
+      path: string
+      headSha: string
+      at: number
+    }>
+    diffReview?: {
+      by: 'user' | 'reviewer-agent'
+      at: number
+      summary?: string
+      filesReviewed?: number
+    }
+  }
 }
 
-export type RecordCliRunDiffReviewResponse =
-  RecordCliRunDiffReviewResponses[keyof RecordCliRunDiffReviewResponses]
+export type SetCliRunFileViewedResponse =
+  SetCliRunFileViewedResponses[keyof SetCliRunFileViewedResponses]
 
 export type GetCliRunVerificationPlanData = {
   body?: never
@@ -21894,6 +23607,7 @@ export type GetCliRunVerificationPlanResponses = {
     checks: Array<VerificationCheck>
     platform: ProjectPlatform
     approaches: Array<VerificationApproachOption>
+    projectChecks: ProjectChecksListing
   }
 }
 
@@ -22116,6 +23830,7 @@ export type StartCliAuthLoginData = {
     cli: CliTool
     label: string
     credentialId?: string
+    captureId?: string
   }
   path?: never
   query?: never
@@ -22123,6 +23838,14 @@ export type StartCliAuthLoginData = {
 }
 
 export type StartCliAuthLoginErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -24324,6 +26047,7 @@ export type GetOverseerGitDiffResponses = {
     patch?: string
     patchHunks?: Array<GitPatchHunk>
     patchTruncated?: boolean
+    patchSuppressed?: 'size'
     binary?: boolean
     beforeSize?: number
     afterSize?: number

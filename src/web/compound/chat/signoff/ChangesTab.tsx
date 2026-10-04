@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { CliRunReview } from '../../../../headless/api'
 import { formatTime, type BranchCommit } from '../../../../headless'
+import type { ViewedFilesProgress } from '../../../../headless/utils/runReviewTypes'
 import { Button } from '../../../primitives/Button'
 import { IconChevron, IconExternalLink } from '../../../icons'
 import { StructuredUnifiedDiff } from '../../diff'
@@ -32,36 +33,67 @@ export type ChangesTabProps = {
   onRetry: (() => void) | undefined
   /** Opens this branch in the app's Git view, when the host wires it. */
   onOpenGit: (() => void) | undefined
+  /**
+   * GitHub's "Viewed": which files the user has read at the change's head, and
+   * how to mark one. Absent where there is no landed change to mark.
+   */
+  viewed?: { progress: ViewedFilesProgress; onToggle: (path: string, viewed: boolean) => void }
 }
 
-function FileRow({ file, defaultOpen }: { file: ChangeFile; defaultOpen: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
+function FileRow({
+  file,
+  defaultOpen,
+  viewed,
+  onToggleViewed,
+}: {
+  file: ChangeFile
+  defaultOpen: boolean
+  viewed?: boolean
+  onToggleViewed?: (viewed: boolean) => void
+}) {
+  const [open, setOpen] = useState(defaultOpen && !viewed)
   return (
     <div className="border-b border-(--border-subtle) last:border-b-0">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 bg-(--surface-overlay) px-2 py-1.5 text-left text-xs hover:bg-(--surface-raised)"
-      >
-        <IconChevron
-          className="w-3.5 h-3.5 text-(--text-muted) transition-transform"
-          style={{ transform: open ? 'rotate(90deg)' : undefined }}
-        />
-        <GitFileStatusIcon status={file.status} isConflicted={file.warning !== undefined} />
-        <div className="min-w-0 flex-1">
-          <PathDisplay path={file.path} />
-        </div>
-        {file.warning ? (
-          <span
-            className="text-[11px] font-medium text-red-700 dark:text-red-400"
-            title={file.warning}
-          >
-            {file.warning}
-          </span>
+      <div className="flex items-center bg-(--surface-overlay) hover:bg-(--surface-raised)">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-xs"
+        >
+          <IconChevron
+            className="w-3.5 h-3.5 text-(--text-muted) transition-transform"
+            style={{ transform: open ? 'rotate(90deg)' : undefined }}
+          />
+          <GitFileStatusIcon status={file.status} isConflicted={file.warning !== undefined} />
+          <div className="min-w-0 flex-1">
+            <PathDisplay path={file.path} />
+          </div>
+          {file.warning ? (
+            <span
+              className="text-[11px] font-medium text-red-700 dark:text-red-400"
+              title={file.warning}
+            >
+              {file.warning}
+            </span>
+          ) : null}
+          <GitFileChangesPills patch={file.patch} />
+        </button>
+        {onToggleViewed ? (
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 px-2 text-[11px] text-(--text-secondary)">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 cursor-pointer accent-(--accent-primary)"
+              checked={viewed === true}
+              onChange={(e) => {
+                if (e.target.checked) setOpen(false)
+                onToggleViewed(e.target.checked)
+              }}
+            />
+            Viewed
+          </label>
         ) : null}
-        <GitFileChangesPills patch={file.patch} />
-      </button>
+      </div>
       {open ? (
         <div className="max-h-[270px] overflow-auto bg-(--surface-raised)">
           {file.patch ? (
@@ -90,11 +122,12 @@ export default function ChangesTab({
   onRetry,
   onOpenGit,
   commits = [],
+  viewed,
 }: ChangesTabProps) {
   const [commitsOpen, setCommitsOpen] = useState(false)
   return (
     <div className="flex flex-col gap-2">
-      {review ? (
+      {review && !review.shadow ? (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {commits.length > 0 ? (
             <>
@@ -133,7 +166,7 @@ export default function ChangesTab({
         </div>
       ) : null}
 
-      {review && commitsOpen && commits.length > 0 ? (
+      {review && !review.shadow && commitsOpen && commits.length > 0 ? (
         <div className="flex flex-col rounded-md border border-(--border-subtle) bg-(--surface-raised)">
           {commits.map((commit) => (
             <div
@@ -166,10 +199,27 @@ export default function ChangesTab({
       ) : null}
       {loading ? <div className="text-[12px] text-(--text-secondary)">Loading diff…</div> : null}
 
+      {viewed && files.length > 0 ? (
+        <div className="text-[12px] text-(--text-secondary)">
+          {viewed.progress.all
+            ? `All ${viewed.progress.total} files viewed — you read the change.`
+            : `${viewed.progress.count} of ${viewed.progress.total} files viewed`}
+        </div>
+      ) : null}
       {files.length > 0 ? (
         <div className="overflow-hidden rounded-md border border-(--border-subtle) bg-(--surface-base)">
           {files.map((file, i) => (
-            <FileRow key={file.path} file={file} defaultOpen={i === 0 && files.length <= 3} />
+            <FileRow
+              key={file.path}
+              file={file}
+              defaultOpen={i === 0 && files.length <= 3}
+              {...(viewed
+                ? {
+                    viewed: viewed.progress.viewed.has(file.path),
+                    onToggleViewed: (v: boolean) => viewed.onToggle(file.path, v),
+                  }
+                : {})}
+            />
           ))}
         </div>
       ) : !loading && !error ? (

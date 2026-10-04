@@ -3,11 +3,13 @@ import { useMemo, useState } from 'react'
 import {
   choiceTakesNote,
   isResumeParkChoice,
+  soleIntegrationMode,
   EMPTY_SIGNOFF_SECTION,
   evidenceLoadState,
   overlayPairsFor,
   signoffFixSectionProps,
   signoffSectionProps,
+  signoffReviewLine,
   signoffSections,
   signoffVerifyViews,
   SIGNOFF_LOAD_FAILED,
@@ -15,6 +17,7 @@ import {
   storyProofNotice,
   useReviewEvidence,
   useStories,
+  useProjectChecks,
   useStorySignoff,
   type EvidenceLoadState,
   type OverallSignoff,
@@ -46,7 +49,7 @@ export type StorySignoffReviewProps = {
   /** The gate sends the story back to be fixed when changes are requested, rather than ending it. */
   sendsBack?: boolean
   /** Set when approving must say how the work comes in — the run's work branch. */
-  workBranch?: Pick<ProcessWorkBranch, 'name' | 'baseRef'>
+  workBranch?: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>
   onChoose?: (
     choice: ProcessResumeChoice,
     note?: string,
@@ -92,12 +95,14 @@ export default function StorySignoffReview(props: StorySignoffReviewProps) {
   const { projectId, storyId, storyRunId } = props
   const evidence = useReviewEvidence(projectId, { storyId })
   const evidenceState = evidenceLoadState(evidence)
+  const projectChecks = useProjectChecks(projectId)
   const { signoff, status, error } = useStorySignoff(
     projectId,
     storyId,
     storyRunId,
     evidence.refs,
     evidenceState,
+    projectChecks,
   )
   if (!signoff) {
     return (
@@ -137,6 +142,7 @@ function StorySignoffPanel({
   const [openPairKey, setOpenPairKey] = useState<string | undefined>()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [choosingIntegration, setChoosingIntegration] = useState(false)
+  const soleMode = workBranch ? soleIntegrationMode(workBranch) : undefined
 
   const story = getStory(storyId)
   const features = story?.features ?? []
@@ -255,10 +261,7 @@ function StorySignoffPanel({
 
         <div className="flex items-start gap-1.5 text-[11.5px] text-(--text-muted)">
           <IconShield className="mt-px size-3.5 shrink-0" />
-          <span>
-            Each feature went through the review process — how it was checked, live or dry, is on
-            the feature. Expand one to inspect its evidence.
-          </span>
+          <span>{signoffReviewLine(signoff)}</span>
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -285,6 +288,7 @@ function StorySignoffPanel({
               rows={f.rows}
               verification={f.verification}
               statusLine={f.statusLine}
+              {...(f.developerChecks ? { developerChecks: f.developerChecks } : {})}
               {...signoffFixSectionProps(
                 sectionOf(f.sectionId),
                 verifyBySection.get(f.sectionId),
@@ -307,6 +311,7 @@ function StorySignoffPanel({
               rows={f.rows}
               verification={f.verification}
               statusLine={f.statusLine}
+              {...(f.developerChecks ? { developerChecks: f.developerChecks } : {})}
               {...signoffSectionProps(
                 sectionOf(f.featureId),
                 verifyBySection.get(f.featureId),
@@ -362,7 +367,9 @@ function StorySignoffPanel({
                 title={c.detail}
                 onClick={() =>
                   c.choice === 'approve' && workBranch
-                    ? setChoosingIntegration(true)
+                    ? soleMode
+                      ? onChoose('approve', undefined, soleMode)
+                      : setChoosingIntegration(true)
                     : choiceTakesNote(c.choice)
                       ? setNoteFor(c.choice)
                       : onChoose(c.choice)

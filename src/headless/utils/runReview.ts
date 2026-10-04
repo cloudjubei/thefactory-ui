@@ -20,6 +20,8 @@ import {
   NO_SOURCE_CHANGES_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
+  SHADOW_MERGE_BLOCKED_FALLBACK,
+  SHADOW_MERGE_FAILED_FALLBACK,
   VERDICT_AUTHOR_LABELS,
   VERDICT_LABELS,
   VERDICT_TONES,
@@ -35,6 +37,8 @@ import type {
   ReviewTone,
   ReviewVerdictSummary,
   RunReviewFacts,
+  ViewedFile,
+  ViewedFilesProgress,
 } from './runReviewTypes'
 import { costChipLabel } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
@@ -108,26 +112,36 @@ export function landFailureSummary(failure: CliRunLandFailure): ReviewLandFailur
  * policy refusal (`aborted`, nothing merged) reads as a warning the user can
  * clear by re-running checks.
  */
-export function mergeNotice(result: GitMergeResult | undefined): ReviewMergeNotice | undefined {
+export function mergeNotice(
+  result: GitMergeResult | undefined,
+  opts: { shadow?: boolean } = {},
+): ReviewMergeNotice | undefined {
   if (!result || result.ok) return undefined
   const conflictCount = result.conflicts?.length ?? 0
+  const conflicts = `${conflictCount} conflict${conflictCount === 1 ? '' : 's'}`
   if (conflictCount > 0) {
     return {
       tone: 'danger',
-      message: `${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — resolve in the Git tab`,
+      message: opts.shadow
+        ? `${conflicts} with edits made in the project folder since the work began`
+        : `${conflicts} — resolve in the Git tab`,
       blocked: false,
     }
   }
   if (result.aborted) {
     return {
       tone: 'warning',
-      message: trimmedOrUndefined(result.message) ?? MERGE_BLOCKED_FALLBACK,
+      message:
+        trimmedOrUndefined(result.message) ??
+        (opts.shadow ? SHADOW_MERGE_BLOCKED_FALLBACK : MERGE_BLOCKED_FALLBACK),
       blocked: true,
     }
   }
   return {
     tone: 'danger',
-    message: trimmedOrUndefined(result.message) ?? MERGE_FAILED_FALLBACK,
+    message:
+      trimmedOrUndefined(result.message) ??
+      (opts.shadow ? SHADOW_MERGE_FAILED_FALLBACK : MERGE_FAILED_FALLBACK),
     blocked: false,
   }
 }
@@ -185,4 +199,27 @@ export function formatChangeRequestMessage(notes: string): string | undefined {
   const trimmed = notes.trim()
   if (trimmed.length === 0) return undefined
   return `${CHANGE_REQUEST_MESSAGE_PREFIX}\n\n${trimmed}`
+}
+
+/**
+ * Which of a run's changed files the user has viewed at the commit the change is
+ * at now — one viewed at an older commit has changed since, so it is unread.
+ */
+export function viewedFilesProgress(
+  changedPaths: readonly string[],
+  viewedFiles: readonly ViewedFile[] | undefined,
+  headSha: string | undefined,
+): ViewedFilesProgress {
+  const atHead = new Set(
+    (viewedFiles ?? [])
+      .filter((f) => headSha !== undefined && f.headSha === headSha)
+      .map((f) => f.path),
+  )
+  const viewed = new Set(changedPaths.filter((p) => atHead.has(p)))
+  return {
+    viewed,
+    count: viewed.size,
+    total: changedPaths.length,
+    all: changedPaths.length > 0 && viewed.size === changedPaths.length,
+  }
 }

@@ -4,7 +4,7 @@
 // fields exist only as `CredentialCaptureFields`, which is the submit body and
 // nothing else.
 
-import type { GetCredentialCaptureResponse, SubmitCredentialCaptureData } from '../api'
+import type { CliTool, GetCredentialCaptureResponse, SubmitCredentialCaptureData } from '../api'
 
 /**
  * The capture handshake as the backend reports it — what the agent asked for,
@@ -15,19 +15,25 @@ export type CredentialCapture = GetCredentialCaptureResponse
 
 export type CredentialCaptureStatus = CredentialCapture['status']
 
+/** What a capture collects — git credentials, a ticket connection, a web-search key, an LLM key, a CLI sign-in or a secret note. */
+export type CredentialCaptureKind = CredentialCapture['provider']
+
 /**
- * The credential fields posted to `…/submit`. The only shape in this package
- * that holds the secret, and it exists solely to be handed to the API.
+ * The fields posted to `…/submit`, tagged with the capture's kind. The only
+ * shape in this package that holds the secret, and it exists solely to be
+ * handed to the API.
  */
 export type CredentialCaptureFields = SubmitCredentialCaptureData['body']
 
-export type CredentialCaptureFieldName = keyof CredentialCaptureFields
+export type CredentialCaptureFieldName = string
 
-/** How a field is entered — decides masking and keyboard on both peers. */
-export type CredentialCaptureFieldType = 'text' | 'email' | 'secret'
+/** How a field is entered — decides masking, keyboard, and whether it is a choice. */
+export type CredentialCaptureFieldType = 'text' | 'email' | 'secret' | 'select'
+
+export type CredentialCaptureFieldOption = { value: string; label: string }
 
 /**
- * One row of the capture form. Both card peers render this list rather than
+ * One row of a capture form. Both card peers render this list rather than
  * hard-coding inputs, so web and native cannot drift apart on which fields
  * exist, what they are called, or which one is masked.
  */
@@ -38,6 +44,28 @@ export type CredentialCaptureFieldSpec = {
   type: CredentialCaptureFieldType
   /** Left off the submit body when blank, and never blocks the submit button. */
   optional?: boolean
+  /** The choices of a `'select'`; the first is the default unless the capture's `preset` names another. */
+  options?: readonly CredentialCaptureFieldOption[]
+  /** Shown only while another field holds one of these values. */
+  shownWhen?: { field: CredentialCaptureFieldName; in: readonly string[] }
+  /** Shown only on a capture opened in a project chat. */
+  projectOnly?: boolean
+  /** Filled from the capture's `preset` when the form opens. */
+  fromPreset?: boolean
+  /** Shown only on a capture that adds a credential, not on one that replaces a stored one. */
+  newOnly?: boolean
+}
+
+/**
+ * The sign-in a CLI sign-in card starts — the Settings sign-in, carrying the
+ * card it answers. The backend answers the card itself once it succeeds.
+ */
+export type CliSignInRequest = {
+  cli: CliTool
+  label: string
+  /** The stored login signed in again. */
+  credentialId?: string
+  captureId: string
 }
 
 /** Editable form state — the raw strings, before trimming into a submit body. */

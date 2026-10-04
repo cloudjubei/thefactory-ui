@@ -3,11 +3,12 @@ import {
   applyCliAgentArtifact,
   abortCliAgentRun,
   getCliAgentRun,
+  getProcessRun,
   approveCliRunReview,
   requestCliRunReview,
   getCliRunVerificationPlan,
   getGitBranchDiffSummary,
-  recordCliRunDiffReview,
+  setCliRunFileViewed,
   mergeCliRunReview,
   previewCliAgentArtifact,
   rejectCliRunReview,
@@ -24,6 +25,7 @@ import {
   type FilesEmittedPreview,
   type GitDiffSummary,
   type GitMergeResult,
+  type ProjectChecksListing,
   type RunVerification,
   type CliRunApproveAction,
   type CliRunApproveResult,
@@ -33,7 +35,10 @@ import { useApi } from '../api/ApiContext'
 import { appendCliRunTranscript, mergeCliRunTranscript } from '../utils/cliRunActivity'
 import { CLI_TRANSCRIPT_FLUSH_MS } from '../utils/cliRunActivityConstants'
 import { cliRunTranscripts } from '../utils/cliRunTranscriptCache'
+import { InflightRequests } from '../utils/inflightRequests'
+import type { ViewedFile } from '../utils/runReviewTypes'
 import { filesEmittedArtifactOf } from '../utils/cliRunner'
+import { processStepAgentTypeOfRun } from '../utils/processView'
 import type { MessageUsageLike } from '../utils/chatTypes'
 import { cliRunCost, cliRunMessageUsage, cliRunSpendRecord } from '../utils/costDetails'
 import type { CostSource } from '../utils/costDetailsTypes'
@@ -45,6 +50,18 @@ import { isReviewInProgress } from '../utils/reviewProgress'
 // being written (≈ container auth/workspace prep before the first writeRun).
 const CLI_RUN_NOT_READY_RETRY_MS = 800
 const CLI_RUN_NOT_READY_MAX_RETRIES = 10
+
+/**
+ * A run's record, fetched once however many views of the run ask at the same
+ * moment — a chat's turn and its review panel each read it as the chat opens.
+ */
+const runRecordRequests = new InflightRequests<CliRun>()
+function fetchRunRecord(runId: string): Promise<CliRun> {
+  return runRecordRequests.run(runId, async () => {
+    const { data } = await getCliAgentRun({ path: { runId }, throwOnError: true })
+    return data
+  })
+}
 
 /**
  * Whether an API error is a 404 — i.e. the run record doesn't exist YET (a
@@ -73,6 +90,11 @@ export type UseCliRunArtifact = {
    * while the run is active (`running` / `awaiting-approval` / `paused`).
    */
   status: CliRunStatus | undefined
+  /**
+   * Why the run ended early, from its record — e.g. a login that could not be
+   * refreshed. What a failed run's turn shows when the agent never spoke.
+   */
+  abortReason: string | undefined
   /**
    * Branch-landing state when the run was committed to a per-run branch (git
    * projects). When present the panel is in PR-review mode (review the branch
@@ -113,6 +135,12 @@ export type UseCliRunArtifact = {
    * and sign-off belong to the pipeline. `undefined` for standalone runs.
    */
   processRunId: string | undefined
+  /**
+   * The agent role of the process step this run is (`developer`,
+   * `developer-verifier`, `verifier`…), read from the owning process run.
+   * `undefined` for a standalone run, or until the process run is read.
+   */
+  processRole: string | undefined
   /**
    * Set when the run produced changes that could NOT be landed on a review
    * branch (no git repo, detached HEAD, failed commit). The changes exist but
@@ -169,12 +197,15 @@ export type UseCliRunArtifact = {
   reviewDiff: GitDiffSummary | undefined
   /** True while the branch diff is being fetched. */
   reviewLoading: boolean
+  /** Fetch (or refresh) the run-branch diff. Viewing it records nothing. */
+  loadReviewDiff: () => Promise<void>
+  /** The files of the diff the user marked as viewed, each at the commit it was read at. */
+  viewedFiles: ViewedFile[]
   /**
-   * Fetch (or refresh) the run-branch diff. `record` (default `true`) files the
-   * human half of the `diff` review method; a process-owned run passes `false`
-   * to VIEW the diff without recording a sign-off it did not make.
+   * Mark one changed file viewed, or unmark it — GitHub's "Viewed". The change
+   * is read once every file is viewed at the run's head.
    */
-  loadReviewDiff: (record?: boolean) => Promise<void>
+  setFileViewed: (path: string, viewed: boolean) => Promise<void>
   /**
    * Approve & merge: merge the run branch into the current working branch. The
    * optional note is recorded with the approval. When the project's
@@ -206,6 +237,12 @@ export type UseCliRunArtifact = {
    * {@link loadVerificationPlan} has run.
    */
   verificationApproaches: VerificationApproachOption[]
+  /**
+   * What a scan of the project found it can check — build, lint, type check,
+   * format, unit tests — loaded with {@link verificationApproaches}. Undefined
+   * until then, and from a backend that does not scan.
+   */
+  projectChecks: ProjectChecksListing | undefined
   /** Fetch {@link verificationApproaches}. Idempotent; safe to call on click. */
   loadVerificationPlan: () => Promise<void>
   /** True while the plan is loading. */
@@ -244,10 +281,12 @@ export function useCliRunArtifact(
   const [artifact, setArtifact] = useState<FilesEmittedArtifact | undefined>(undefined)
   const [transcript, setTranscript] = useState<CliRunTranscriptEntry[]>([])
   const [status, setStatus] = useState<CliRunStatus | undefined>(undefined)
+  const [abortReason, setAbortReason] = useState<string | undefined>(undefined)
   const [review, setReview] = useState<CliRunReview | undefined>(undefined)
   const [verification, setVerification] = useState<RunVerification | undefined>(undefined)
   const [verdict, setVerdict] = useState<CliRunVerdict | undefined>(undefined)
   const [diffReview, setDiffReview] = useState<CliRunDiffReview | undefined>(undefined)
+  const [viewedFiles, setViewedFiles] = useState<ViewedFile[]>([])
   // The story this run executes a FEATURE of, when it is a story sub-run. Drives the
   // suppression of the direct-apply path — see `reviewActionMode`.
   const [storyId, setStoryId] = useState<string | undefined>(undefined)
@@ -256,6 +295,8 @@ export function useCliRunArtifact(
   // is shown, but the verdict + sign-off belong to the pipeline, never to a
   // second free-standing decision here.
   const [processRunId, setProcessRunId] = useState<string | undefined>(undefined)
+  const [processRole, setProcessRole] = useState<string | undefined>(undefined)
+  const [chatContextId, setChatContextId] = useState<string | undefined>(undefined)
   const [landFailure, setLandFailure] = useState<CliRunLandFailure | undefined>(undefined)
   const [runModel, setRunModel] = useState<RunModel | undefined>(undefined)
   const [startedAtMs, setStartedAtMs] = useState<number | undefined>(undefined)
@@ -275,6 +316,7 @@ export function useCliRunArtifact(
   const [verificationApproaches, setVerificationApproaches] = useState<
     VerificationApproachOption[]
   >([])
+  const [projectChecks, setProjectChecks] = useState<ProjectChecksListing | undefined>(undefined)
   const [planLoading, setPlanLoading] = useState(false)
   const [requestingReview, setRequestingReview] = useState<string | undefined>(undefined)
   const [approving, setApproving] = useState(false)
@@ -392,12 +434,15 @@ export function useCliRunArtifact(
       // the user is watching.
       commitTranscript(mergeCliRunTranscript(transcriptRef.current, run.transcript ?? []))
       setStatus(run.status)
+      setAbortReason(run.abortReason ?? undefined)
       setReview(run.review ?? undefined)
       setVerification(run.verification ?? undefined)
       setVerdict(run.verdict ?? undefined)
       setDiffReview(run.diffReview ?? undefined)
+      setViewedFiles(run.viewedFiles ?? [])
       setStoryId(run.storyId ?? undefined)
       setProcessRunId(run.processRunId ?? undefined)
+      setChatContextId(run.chatContextId ?? undefined)
       setRunModel(runModelOf(run))
       setLandFailure(run.landFailure ?? undefined)
       setStartedAtMs(run.createdAt)
@@ -424,10 +469,12 @@ export function useCliRunArtifact(
     setArtifact(undefined)
     setTranscript(remembered ?? [])
     setStatus(undefined)
+    setAbortReason(undefined)
     setReview(undefined)
     setVerification(undefined)
     setVerdict(undefined)
     setDiffReview(undefined)
+    setViewedFiles([])
     // Cleared on a change of run so a process-owned run's report-only flag never
     // leaks onto the next (standalone) run before its record has loaded.
     setProcessRunId(undefined)
@@ -451,8 +498,8 @@ export function useCliRunArtifact(
     const epoch = epochRef.current
     setLoading(true)
     let retryTimer: ReturnType<typeof setTimeout> | undefined
-    void getCliAgentRun({ path: { runId }, throwOnError: true })
-      .then(({ data }) => {
+    void fetchRunRecord(runId)
+      .then((data) => {
         if (epoch !== epochRef.current) return
         setNotReady(false)
         applyRunRecord(data)
@@ -507,8 +554,8 @@ export function useCliRunArtifact(
         // so the final reconcile compares against everything that streamed.
         flushPendingEntries()
         const epoch = epochRef.current
-        void getCliAgentRun({ path: { runId }, throwOnError: true })
-          .then(({ data: run }) => {
+        void fetchRunRecord(runId)
+          .then((run) => {
             if (epoch !== epochRef.current) return
             applyRunRecord(run)
           })
@@ -564,47 +611,47 @@ export function useCliRunArtifact(
     }
   }, [runId, projectId, artifact])
 
-  const loadReviewDiff = useCallback(
-    async (record = true) => {
-      if (!projectId || !review) return
+  const loadReviewDiff = useCallback(async () => {
+    if (!projectId || !review) return
+    const epoch = epochRef.current
+    setReviewLoading(true)
+    setError(undefined)
+    try {
+      const { data } = await getGitBranchDiffSummary({
+        path: { projectId },
+        body: {
+          baseRef: review.baseSha,
+          headRef: review.headSha ?? review.branch,
+          includePatch: true,
+        },
+        throwOnError: true,
+      })
+      if (epoch === epochRef.current) setReviewDiff(data)
+    } catch (err: unknown) {
+      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReviewLoading(false)
+    }
+  }, [projectId, review])
+
+  const setFileViewed = useCallback(
+    async (path: string, viewed: boolean) => {
+      if (!runId) return
       const epoch = epochRef.current
-      setReviewLoading(true)
-      setError(undefined)
       try {
-        const { data } = await getGitBranchDiffSummary({
-          path: { projectId },
-          body: {
-            baseRef: review.baseSha,
-            headRef: review.headSha ?? review.branch,
-            includePatch: true,
-          },
+        const { data } = await setCliRunFileViewed({
+          path: { runId },
+          body: { path, viewed },
           throwOnError: true,
         })
-        if (epoch === epochRef.current) setReviewDiff(data)
-        // Opening the Changes tab IS somebody reading the change — the human half
-        // of the `diff` review method. Recorded, never inferred: a reviewer who
-        // read the diff and a run nobody looked at must not present identically.
-        // A process-owned run passes `record: false` — viewing its diff there is
-        // not a sign-off act, and filing "diff reviewed" would be a proof nobody
-        // gave (the pipeline owns this run's verdict).
-        if (record && runId) {
-          await recordCliRunDiffReview({
-            path: { runId },
-            body: { filesReviewed: data?.files?.length ?? 0 },
-            throwOnError: true,
-          })
-            .then(() => {
-              if (epoch === epochRef.current) setDiffReview({ by: 'user', at: Date.now() })
-            })
-            .catch(() => undefined)
-        }
+        if (epoch !== epochRef.current) return
+        setViewedFiles(data.viewedFiles)
+        setDiffReview(data.diffReview ?? undefined)
       } catch (err: unknown) {
         if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setReviewLoading(false)
       }
     },
-    [projectId, review, runId],
+    [runId],
   )
 
   const merge = useCallback(
@@ -648,6 +695,7 @@ export function useCliRunArtifact(
       if (epoch === epochRef.current && data) {
         planRef.current = true
         setVerificationApproaches(data.approaches ?? [])
+        setProjectChecks(data.projectChecks)
       }
     } catch {
       // A plan we could not load must not break the review surface: the chip and
@@ -806,6 +854,31 @@ export function useCliRunArtifact(
    * verifier reaches a terminal status (regardless of evidence), when its record
    * is unreadable, or when this run is process-owned (the pipeline verifies).
    */
+  // Which role ran this step decides what its finished view says: a developer
+  // hands its change on, a developer-verifier proved its own.
+  useEffect(() => {
+    if (!processRunId || !runId) {
+      setProcessRole(undefined)
+      return
+    }
+    const agentRunId = runId
+    let live = true
+    getProcessRun({ path: { runId: processRunId } })
+      .then(({ data }) => {
+        if (!live || !data) return
+        setProcessRole(
+          processStepAgentTypeOfRun(data, {
+            runId: agentRunId,
+            ...(chatContextId ? { chatContextId } : {}),
+          }),
+        )
+      })
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [processRunId, runId, chatContextId])
+
   const reviewInProgress = isReviewInProgress({
     processRunId,
     reviewRunId,
@@ -832,12 +905,14 @@ export function useCliRunArtifact(
     cancelWork,
     transcript,
     status,
+    abortReason,
     review,
     verification,
     verdict,
     reviewInProgress,
     storyId,
     processRunId,
+    processRole,
     landFailure,
     runModel,
     startedAtMs,
@@ -856,6 +931,8 @@ export function useCliRunArtifact(
     reviewDiff,
     reviewLoading,
     loadReviewDiff,
+    viewedFiles,
+    setFileViewed,
     merge,
     merging,
     mergeResult,
@@ -865,6 +942,7 @@ export function useCliRunArtifact(
     verify,
     verifying,
     verificationApproaches,
+    projectChecks,
     loadVerificationPlan,
     planLoading,
     requestReview,

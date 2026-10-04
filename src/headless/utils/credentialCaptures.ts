@@ -8,16 +8,23 @@
 // it, or embeds it in a message, and `credentialCaptures.test.ts` pins that.
 
 import {
+  CAPTURE_CARD_TITLES,
+  CAPTURE_REPLACING_CARD_TITLE,
+  CAPTURE_REPLACING_CARD_TITLES,
+  CAPTURE_STATUS_DISPLAY_BY_KIND,
   CAPTURE_CREDENTIAL_NAME_PREFIX,
   CAPTURE_FIELD_REQUIRED,
   CREDENTIAL_CAPTURE_FIELDS,
   CREDENTIAL_CAPTURE_PURPOSE_ARG,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
-  CREDENTIAL_CAPTURE_TOOL_NAME,
-  EMPTY_CREDENTIAL_CAPTURE_FORM,
+  CREDENTIAL_CAPTURE_TOOL_NAMES,
 } from './credentialCaptureConstants'
+import { cliLabel } from './cliRunner'
+import { parseJiraProjectKeys } from './ticketConnection'
+import type { CliTool } from '../api'
 import type { ChatMessageLike, ToolCallLike } from './chatTypes'
 import type {
+  CliSignInRequest,
   CredentialCapture,
   CredentialCaptureFieldName,
   CredentialCaptureFields,
@@ -87,57 +94,139 @@ export function upsertCapture(
   return next
 }
 
-export function emptyCaptureForm(): CredentialCaptureFormValues {
-  return { ...EMPTY_CREDENTIAL_CAPTURE_FORM }
-}
-
-/** The form's fields, in render order. */
-export function captureFields(): readonly CredentialCaptureFieldSpec[] {
-  return CREDENTIAL_CAPTURE_FIELDS
-}
-
-/** Whether a field must be masked. Both card peers ask rather than deciding. */
-export function isCaptureSecretField(name: CredentialCaptureFieldName): boolean {
-  return CREDENTIAL_CAPTURE_FIELDS.some((field) => field.name === name && field.type === 'secret')
+/** Every field of a capture's kind, whether or not it is shown right now. */
+function kindFields(capture: CredentialCapture): readonly CredentialCaptureFieldSpec[] {
+  return CREDENTIAL_CAPTURE_FIELDS[capture.provider]
 }
 
 /**
- * Per-field validation. A required field left blank would fail the submit
- * schema's `minLength` server-side, so it fails here too; an optional one is
- * simply omitted. Messages are fixed copy — no entered value is ever echoed.
+ * A capture's form as it opens: blank, a choice on its first option, and the
+ * field the agent pre-filled (`preset`) on what it asked for — a choice only
+ * when the preset is one of its options.
+ */
+export function emptyCaptureForm(capture: CredentialCapture): CredentialCaptureFormValues {
+  const values: CredentialCaptureFormValues = {}
+  for (const field of kindFields(capture)) {
+    const preset = field.fromPreset ? capture.preset : undefined
+    if (field.type === 'select') {
+      const options = field.options ?? []
+      values[field.name] =
+        preset && options.some((o) => o.value === preset) ? preset : (options[0]?.value ?? '')
+    } else {
+      values[field.name] = preset ?? ''
+    }
+  }
+  return values
+}
+
+/**
+ * The fields shown right now, in render order: a project-only field only on a
+ * capture opened in a project, a dependent field only while what it depends on
+ * holds a matching value.
+ */
+export function captureFields(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): readonly CredentialCaptureFieldSpec[] {
+  return kindFields(capture).filter(
+    (field) =>
+      (!field.projectOnly || !!capture.projectId) &&
+      (!field.newOnly || !capture.replacesId) &&
+      (!field.shownWhen || field.shownWhen.in.includes(values[field.shownWhen.field] ?? '')),
+  )
+}
+
+/** Whether a field must be masked. Both card peers ask rather than deciding. */
+export function isCaptureSecretField(
+  capture: CredentialCapture,
+  name: CredentialCaptureFieldName,
+): boolean {
+  return kindFields(capture).some((field) => field.name === name && field.type === 'secret')
+}
+
+/**
+ * Per-field validation of the shown fields. A required field left blank would
+ * fail the submit schema's `minLength` server-side, so it fails here too; an
+ * optional one is simply omitted. Messages are fixed copy — no entered value is
+ * ever echoed.
  */
 export function captureFormErrors(
+  capture: CredentialCapture,
   values: CredentialCaptureFormValues,
 ): CredentialCaptureFormErrors {
   const errors: CredentialCaptureFormErrors = {}
-  for (const field of CREDENTIAL_CAPTURE_FIELDS) {
+  for (const field of captureFields(capture, values)) {
     if (field.optional) continue
-    if (!values[field.name].trim()) errors[field.name] = CAPTURE_FIELD_REQUIRED
+    if (!(values[field.name] ?? '').trim()) errors[field.name] = CAPTURE_FIELD_REQUIRED
   }
   return errors
 }
 
 /** Whether the form can be submitted — drives the submit button's disabled state. */
-export function isCaptureFormValid(values: CredentialCaptureFormValues): boolean {
-  return Object.keys(captureFormErrors(values)).length === 0
+export function isCaptureFormValid(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): boolean {
+  return Object.keys(captureFormErrors(capture, values)).length === 0
 }
 
 /**
- * The submit body. The one place a credential value leaves the form — it goes
- * straight into the request and is never retained. A blank optional field is
- * left out entirely rather than sent as an empty string, which the schema's
- * `minLength` would reject.
+ * The submit body: the capture's kind and its shown fields. The one place a
+ * credential value leaves the form — it goes straight into the request and is
+ * never retained. A blank optional field is left out entirely rather than sent
+ * as an empty string, which the schema's `minLength` would reject; Jira project
+ * keys go as a list.
  */
-export function captureSubmitBody(values: CredentialCaptureFormValues): CredentialCaptureFields {
-  const host = values.host.trim()
+export function captureSubmitBody(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+): CredentialCaptureFields {
+  const body: Record<string, unknown> = { kind: capture.provider }
+  for (const field of captureFields(capture, values)) {
+    const value = (values[field.name] ?? '').trim()
+    if (!value) continue
+    body[field.name] = field.name === 'projectKeys' ? parseJiraProjectKeys(value) : value
+  }
+  return body as CredentialCaptureFields
+}
+
+/** The tool that opened a capture — the name its card is headed with. */
+export function captureToolName(capture: CredentialCapture): string {
+  return CREDENTIAL_CAPTURE_TOOL_NAMES[capture.provider]
+}
+
+/** What the card says the agent is asking for. */
+export function captureCardTitle(capture: CredentialCapture): string {
+  if (!capture.replacesId) return CAPTURE_CARD_TITLES[capture.provider]
+  return CAPTURE_REPLACING_CARD_TITLES[capture.provider] ?? CAPTURE_REPLACING_CARD_TITLE
+}
+
+/** Whether a capture is a CLI sign-in — signed in on the card, not typed into a form. */
+export function isCliSignInCapture(capture: CredentialCapture): boolean {
+  return capture.provider === 'cli-login'
+}
+
+/**
+ * The sign-in a CLI sign-in card starts: a new login on the CLI chosen, named as
+ * typed or after its CLI; or the stored login it names, again, under its own
+ * name (`storedName`, from the logins list) with the CLI that login is for.
+ */
+export function cliSignInRequest(
+  capture: CredentialCapture,
+  values: CredentialCaptureFormValues,
+  storedName?: string,
+): CliSignInRequest {
+  const cli = (capture.replacesId ? capture.preset : values.cli || capture.preset) as CliTool
+  const label = capture.replacesId ? storedName : (values.label ?? '').trim()
   return {
-    name: values.name.trim(),
-    username: values.username.trim(),
-    email: values.email.trim(),
-    token: values.token.trim(),
-    ...(host ? { host } : {}),
+    cli,
+    label: label || cliLabel(cli),
+    ...(capture.replacesId ? { credentialId: capture.replacesId } : {}),
+    captureId: capture.id,
   }
 }
+
+const CAPTURE_TOOL_NAME_SET = new Set(Object.values(CREDENTIAL_CAPTURE_TOOL_NAMES))
 
 function argumentsRecord(args: unknown): Record<string, unknown> | undefined {
   if (typeof args === 'string') {
@@ -158,7 +247,7 @@ function argumentsRecord(args: unknown): Record<string, unknown> | undefined {
  * both sides carry. Anything that is not a capture-opening call yields nothing.
  */
 export function captureToolCallPurpose(toolCall: ToolCallLike | undefined): string | undefined {
-  if (!toolCall || toolCall.name !== CREDENTIAL_CAPTURE_TOOL_NAME) return undefined
+  if (!toolCall || !CAPTURE_TOOL_NAME_SET.has(toolCall.name)) return undefined
   const purpose = argumentsRecord(toolCall.arguments)?.[CREDENTIAL_CAPTURE_PURPOSE_ARG]
   if (typeof purpose !== 'string') return undefined
   const trimmed = purpose.trim()
@@ -208,7 +297,9 @@ export function bindCapturesToToolCalls(
  * the conversation reads correctly on scrollback.
  */
 export function captureStatusDisplay(capture: CredentialCapture): CredentialCaptureStatusDisplay {
-  const base = CREDENTIAL_CAPTURE_STATUS_DISPLAY[capture.status]
+  const base =
+    CAPTURE_STATUS_DISPLAY_BY_KIND[capture.provider]?.[capture.status] ??
+    CREDENTIAL_CAPTURE_STATUS_DISPLAY[capture.status]
   if (capture.status !== 'submitted' || !capture.credentialName) return base
   return {
     ...base,

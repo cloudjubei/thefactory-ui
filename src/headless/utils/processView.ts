@@ -11,9 +11,14 @@ import type {
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
 import { processIntegrationBadge } from './processIntegration'
-import { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './processViewConstants'
+import {
+  PROCESS_SPEND_CAP_TITLE,
+  PROCESS_SPEND_TITLE,
+  PROCESS_STEP_FINISHED_COPY,
+} from './processViewConstants'
+import { PROVING_AGENT_TYPES } from './verifyProofConstants'
 import type { ProcessNodeLook, ProcessNodeSummary } from './processViewTypes'
-import type { ProcessStepState } from 'thefactory-tools/utils'
+import type { ProcessStepState } from 'thefactory-tools/types'
 import { processRunProgress, processStepStates, processVerifyReview } from 'thefactory-tools/utils'
 
 /**
@@ -222,7 +227,8 @@ export function processStepCostLabel(
  */
 export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   agent: 'An agent run in an isolated copy of the project.',
-  check: "The project's verification checks, over what the previous step landed.",
+  check:
+    'Build, type check, lint, format and unit tests the project has, run as plain commands over what the previous step landed — no agent, no judgement.',
   capture: 'Drive the app and file screenshots as evidence.',
   judge: 'Read the evidence and the diff, and return a verdict.',
   report: 'One model pass over the ledger. No tools, no workspace.',
@@ -691,4 +697,43 @@ export function latestOpenableAttempt(
     if (isProcessLeafOpenable(run, leaf, canOpenTranscript)) return leaf
   }
   return undefined
+}
+
+/**
+ * The agent role that ran a step of `run`, found by the agent run's chat (a CLI
+ * run is a sibling of the step's own run, sharing its chat) or its run id.
+ * `undefined` when the run is not one of the process's steps or the step runs
+ * no agent. Pure.
+ */
+export function processStepAgentTypeOfRun(
+  run: Pick<ProcessRun, 'plan' | 'ledger'>,
+  agentRun: { runId: string; chatContextId?: string },
+): string | undefined {
+  const entry = run.ledger.find(
+    (e) =>
+      e.runRef &&
+      (e.runRef.runId === agentRun.runId ||
+        (agentRun.chatContextId !== undefined &&
+          e.runRef.chatContextId === agentRun.chatContextId)),
+  )
+  const step = entry ? run.plan.steps.find((s) => s.id === entry.stepId) : undefined
+  return step?.kind === 'agent' ? (step.agentType ?? 'developer') : undefined
+}
+
+/**
+ * How a finished process step's own view reads: a step that changed files and
+ * proves its own work (a developer-verifier) shows its proof; one that only
+ * changed files hands them to the verifier; anything else just finished. Pure.
+ */
+export function processStepFinishedView(input: { changedFiles: boolean; role?: string }): {
+  kind: keyof typeof PROCESS_STEP_FINISHED_COPY
+  title: string
+  detail: string
+} {
+  const kind = !input.changedFiles
+    ? 'finished'
+    : input.role !== undefined && PROVING_AGENT_TYPES.includes(input.role)
+      ? 'selfProven'
+      : 'handoff'
+  return { kind, ...PROCESS_STEP_FINISHED_COPY[kind] }
 }

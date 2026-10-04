@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CODE_REVIEW_APPROACH,
+  DEVELOPER_CHECKS_APPROACH,
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
@@ -24,10 +25,12 @@ import {
   signoffEvidence,
   signoffFixSectionProps,
   signoffLoadStatus,
+  signoffReviewLine,
   signoffSectionProps,
   signoffSections,
   signoffVerifyViews,
 } from './storySignoff'
+import { agentRoleLabel } from './agentRole'
 import { toEvidenceTile } from './reviewEvidenceView'
 import { featureVerifyView } from './verifyProof'
 import { costDetailsView } from './costDetails'
@@ -156,6 +159,32 @@ describe('aggregateStoryVerdict', () => {
         key: 'failed',
         title: 'Build failed',
         detail: 'tsc exited 2',
+      })
+    })
+
+    it('never fails the story over a story-wide flag, naming it apart from what passed', () => {
+      const overall = {
+        rows: [
+          { id: 'tests', label: 'Tests', state: 'passed', detail: '10 passed' },
+          { id: 'lint', label: 'Lint', state: 'flagged', detail: 'Exited 1' },
+        ],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        key: 'partly',
+        title: 'No feature has been verified',
+        detail: 'Tests passed story-wide. Lint flagged issues (advisory).',
+      })
+    })
+
+    it('reads a story-wide check only advisory checks flagged as something that ran', () => {
+      const overall = {
+        rows: [{ id: 'lint', label: 'Lint', state: 'flagged', detail: 'Exited 1' }],
+        steps: [],
+      } as unknown as Pick<OverallSignoff, 'rows' | 'steps'>
+      expect(aggregateStoryVerdict([], undefined, overall)).toMatchObject({
+        key: 'partly',
+        detail: 'Lint flagged issues (advisory).',
       })
     })
 
@@ -554,6 +583,70 @@ describe('buildStorySignoff — the Overall section', () => {
     expect(signoff.overall?.rows.find((r) => r.id === 'tests')?.state).toBe('failed')
   })
 
+  const advisoryLint = (over: Partial<VerificationCheckResult> = {}) =>
+    check({
+      id: 'lint',
+      kind: 'command',
+      category: 'lint',
+      status: 'failed',
+      summary: 'Exited 1',
+      optional: true,
+      ...over,
+    })
+  const overallOf = (checks: VerificationCheckResult[]) =>
+    buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1')],
+      cliRuns: [
+        run({ id: 'ra', processRunId: 'pr1', createdAt: 1, verification: verifWith(checks) }),
+      ],
+      evidence: [],
+    }).overall
+
+  it('keeps the Overall green over a story-wide check only advisory checks flagged', () => {
+    const overall = overallOf([
+      check({ id: 'unit', kind: 'tests', status: 'passed' }),
+      advisoryLint(),
+    ])
+    expect(overall?.statusLine).toEqual({ tone: 'done', label: 'All green' })
+    expect(overall?.rows.find((r) => r.id === 'lint')).toMatchObject({
+      state: 'flagged',
+      tone: 'warning',
+    })
+    expect(overall?.verification?.status).toBe('passed')
+  })
+
+  it('heads the Overall as failed when a blocking failure sits beside the advisory one', () => {
+    const overall = overallOf([
+      check({ id: 'unit', kind: 'tests', status: 'passed' }),
+      advisoryLint(),
+      advisoryLint({ id: 'lint:strict', optional: false }),
+    ])
+    expect(overall?.statusLine).toEqual({ tone: 'stuck', label: 'Checks failed' })
+    expect(overall?.rows.find((r) => r.id === 'lint')?.state).toBe('failed')
+    expect(overall?.verification?.status).toBe('failed')
+  })
+
+  it('never heads a feature as failed over a check only advisory checks flagged', () => {
+    const feature = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1', ['ra'])],
+      cliRuns: [
+        run({
+          id: 'ra',
+          verification: verifWith([
+            check({ id: 'unit', kind: 'tests', status: 'passed' }),
+            advisoryLint(),
+          ]),
+        }),
+      ],
+      evidence: [],
+    }).features[0]
+    expect(feature.verdict.key).not.toBe('failed')
+    expect(feature.statusLine.label).not.toBe('Checks failed')
+    expect(feature.verdict.detail).toContain('Lint flagged issues (advisory).')
+  })
+
   it('routes a story-scoped run and walkthrough to the Overall, not to any feature', () => {
     const signoff = buildStorySignoff({
       features: [{ id: 'f1', title: 'One' }],
@@ -604,9 +697,10 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
       steps: steps.map((s) => ({ ...s, name: s.id })),
       loops: [],
     }) as unknown as ProcessRun['plan']
-  const totals = (
-    over: Partial<NonNullable<ProcessRun['totals']>>,
-  ): NonNullable<ProcessRun['totals']> => ({ workMs: 0, ticking: false, at: 0, steps: {}, ...over })
+  const totals = (over: Record<string, unknown>): NonNullable<ProcessRun['totals']> =>
+    ({ workMs: 0, ticking: false, at: 0, steps: {}, ...over }) as unknown as NonNullable<
+      ProcessRun['totals']
+    >
 
   const featureStep = (id: string, featureId: string) => ({
     id,
@@ -681,6 +775,72 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
       durationLabel: '6m 00s',
       costLabel: '$0.19',
       cost: { costUsd: 0.19 },
+    })
+  })
+
+  describe('where the time went', () => {
+    const split = (thinking: number, tools: number, system: number) => ({
+      thinkingMs: thinking * MIN,
+      toolMs: tools * MIN,
+      systemMs: system * MIN,
+      otherMs: 0,
+      runningMs: 0,
+      waitingMs: 0,
+      tools: [{ name: 'mobileTestBuildApp', calls: 2, ms: tools * MIN }],
+    })
+    const timedRoot = {
+      ...root,
+      totals: totals({
+        workMs: 53 * MIN,
+        steps: {
+          'features:f1': { workMs: 47 * MIN, time: split(20, 20, 7), attempts: [] },
+          walkthrough: { workMs: 6 * MIN, time: split(1, 4, 1), attempts: [] },
+          'sign-off': {
+            workMs: 0,
+            time: { ...split(0, 0, 0), tools: [], waitingMs: 30 * MIN },
+            attempts: [],
+          },
+        },
+      }),
+    } as unknown as StorySignoffProcessRun
+    const timedFeature = {
+      ...child('pr1', 44 * MIN, 2),
+      totals: totals({ workMs: 44 * MIN, time: split(20, 20, 4) }),
+    } as StorySignoffProcessRun
+    const timed = () =>
+      buildStorySignoff({
+        features: [{ id: 'f1', title: 'One' }],
+        processRuns: [timedRoot, timedFeature],
+        cliRuns: [run({ id: 'ra', processRunId: 'pr1', durationMs: 9 * MIN })],
+        evidence: [],
+        storyRunId: 'root',
+      })
+
+    it("splits the Overall's own steps, its gate's wait beside the total", () => {
+      expect(timed().overall?.facts.timeDetails).toEqual({
+        total: '6m 00s',
+        rows: [
+          expect.objectContaining({ key: 'thinking', value: '1m 00s', share: '17%' }),
+          expect.objectContaining({ key: 'tools', value: '4m 00s', share: '67%' }),
+          expect.objectContaining({ key: 'system', value: '1m 00s', share: '17%' }),
+        ],
+        tools: [{ label: 'mobileTestBuildApp ×2', value: '4m 00s' }],
+        waiting: '30m 00s',
+      })
+    })
+
+    it("splits a feature by its run's own breakdown", () => {
+      expect(timed().features[0].facts.timeDetails?.rows.map((r) => r.value)).toEqual([
+        '20m 00s',
+        '20m 00s',
+        '4m 00s',
+      ])
+    })
+
+    it("adds the head's scopes together, their tools merged", () => {
+      const head = timed().facts.timeDetails
+      expect(head?.total).toBe('50m 00s')
+      expect(head?.tools).toEqual([{ label: 'mobileTestBuildApp ×4', value: '24m 00s' }])
     })
   })
 
@@ -3627,5 +3787,484 @@ describe('buildStorySignoff — the story’s fix passes', () => {
     const views = signoffVerifyViews(s, [], 'loaded')
     expect([...views.keys()]).toEqual(['fix:fix-2', 'fix:fix-1', 'f1'])
     expect(views.get('fix:fix-2')?.accepted.entry.id).toBe('fv2')
+  })
+})
+
+// --- the non-agentic checks step, the project's scan, and the developer's own checks ---
+
+describe('buildStorySignoff — the checks step and the project scan', () => {
+  const kotlinScan = {
+    ecosystem: 'kotlin',
+    checks: [
+      {
+        id: 'build',
+        kind: 'build',
+        label: 'Build',
+        argv: ['./gradlew'],
+        command: './gradlew :app:assembleCovisionTestDebug',
+        source: 'app/build.gradle',
+      },
+      {
+        id: 'test',
+        kind: 'test',
+        label: 'Unit tests',
+        argv: ['./gradlew'],
+        command: './gradlew :app:testCovisionTestDebugUnitTest',
+        source: 'app/build.gradle',
+      },
+      {
+        id: 'lint:android',
+        kind: 'lint',
+        label: 'Lint',
+        argv: ['./gradlew'],
+        command: './gradlew :app:lintCovisionTestDebug',
+        source: 'app/build.gradle',
+        optional: true,
+      },
+    ],
+    hidden: [{ kind: 'typecheck', reason: 'Kotlin is type-checked by the build.' }],
+    variants: ['covisionTestDebug'],
+    notes: [],
+    scannedAt: 1,
+    head: 'abc123',
+    fingerprint: 'f1',
+    lastRuns: [],
+    freshness: 'stored',
+  } as unknown as NonNullable<Parameters<typeof buildStorySignoff>[0]['projectChecks']>
+
+  const checksProc = (
+    checks: VerificationCheckResult[] | undefined,
+    endedAt = 50,
+  ): StorySignoffProcessRun =>
+    ({
+      id: 'pr1',
+      featureId: 'f1',
+      startedAt: 1,
+      plan: {
+        steps: [
+          { id: 'implement', kind: 'agent', agentType: 'developer' },
+          { id: 'checks', kind: 'check' },
+        ],
+      },
+      ledger: [
+        { id: 'l1', stepId: 'implement', status: 'done', startedAt: 1, runRef: { runId: 'dev' } },
+        { id: 'l2', stepId: 'checks', status: 'done', startedAt: 40, endedAt, checks },
+      ],
+    }) as unknown as StorySignoffProcessRun
+
+  const buildPassed = check({
+    id: 'build',
+    label: 'Build',
+    kind: 'command',
+    status: 'passed',
+    category: 'build',
+    summary: 'Build passed',
+  })
+  const testsPassed = check({
+    id: 'test',
+    label: 'Unit tests',
+    kind: 'tests',
+    status: 'passed',
+    category: 'test',
+    summary: '12 passed',
+  })
+
+  it('reads a feature’s chips from its checks step when its run stamped no record', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc([buildPassed, testsPassed])],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [],
+      projectChecks: kotlinScan,
+    })
+    const f = signoff.features[0]
+    const state = (id: string) => f.rows.find((r) => r.id === id)?.state
+    expect(state('build')).toBe('passed')
+    expect(state('tests')).toBe('passed')
+    expect(f.rows.map((r) => r.id)).not.toContain('types')
+    expect(f.rows.find((r) => r.id === 'lint')).toMatchObject({
+      state: 'unchecked',
+      available: { commands: ['./gradlew :app:lintCovisionTestDebug'] },
+    })
+    expect(state('format')).toBe('unconfigured')
+    expect(f.verified).toBe(true)
+    expect(f.verification?.checks.map((c) => c.id)).toEqual(['build', 'test'])
+  })
+
+  it('tells an available chip, in a feature and story-wide, how it last went against the clock it is given', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc([buildPassed, testsPassed])],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [],
+      projectChecks: {
+        ...kotlinScan,
+        lastRuns: [
+          {
+            check: 'lint',
+            status: 'failed',
+            summary: 'Lint failed',
+            durationMs: 45_000,
+            ranAt: 1_000,
+          },
+        ],
+      },
+      now: 1_000 + 2 * 3_600_000,
+    })
+    const lint = (rows: readonly { id: string; detail: string }[] | undefined) =>
+      rows?.find((r) => r.id === 'lint')?.detail
+    expect(lint(signoff.features[0].rows)).toMatch(/Last failed 2 hours ago in 45s\.$/)
+    expect(lint(signoff.overall?.rows)).toMatch(/Last failed 2 hours ago in 45s\.$/)
+  })
+
+  it('prefers a newer checks step over the run’s own record of the same check', () => {
+    const staleFailure = check({
+      id: 'compile',
+      label: 'Build',
+      kind: 'command',
+      status: 'failed',
+      category: 'build',
+      summary: 'Build failed',
+    })
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc([buildPassed], 50)],
+      cliRuns: [
+        run({
+          id: 'dev',
+          processRunId: 'pr1',
+          verification: { ...verifWith([staleFailure]), finishedAt: 10 },
+        }),
+      ],
+      evidence: [],
+    })
+    expect(signoff.features[0].rows.find((r) => r.id === 'build')?.state).toBe('passed')
+  })
+
+  it('carries the checks step’s results into the story-wide chips', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc([buildPassed, testsPassed])],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [],
+      projectChecks: kotlinScan,
+    })
+    const rows = signoff.overall?.rows ?? []
+    expect(rows.find((r) => r.id === 'build')?.state).toBe('passed')
+    expect(rows.map((r) => r.id)).not.toContain('types')
+  })
+
+  it('leaves the chips as the record says without a scan or a checks step', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc(undefined)],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [],
+    })
+    const f = signoff.features[0]
+    expect(f.verified).toBe(false)
+    expect(f.rows.find((r) => r.id === 'build')?.state).toBe('unchecked')
+    expect(f.rows.find((r) => r.id === 'build')?.available).toBeUndefined()
+    expect(f.rows.map((r) => r.id)).toContain('types')
+  })
+
+  it('says what the developer ran before handing over', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc(undefined)],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [
+        ev({
+          id: 'log',
+          kind: 'log',
+          runId: 'dev',
+          featureId: 'f1',
+          approach: DEVELOPER_CHECKS_APPROACH,
+          checkRun: {
+            check: 'build',
+            status: 'passed',
+            summary: 'Build passed',
+            commands: [],
+            variant: 'covisionTestDebug',
+          },
+        }),
+      ],
+    })
+    expect(signoff.features[0].developerChecks).toEqual({
+      text: 'Developer verified: Build ✓ (covisionTestDebug)',
+      ran: true,
+    })
+  })
+
+  it('says the developer ran no checks when it filed none', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [checksProc(undefined)],
+      cliRuns: [run({ id: 'dev', processRunId: 'pr1' })],
+      evidence: [],
+    })
+    expect(signoff.features[0].developerChecks).toEqual({
+      text: 'Developer ran no checks',
+      ran: false,
+    })
+  })
+
+  it('reads the checks step and the developer note on a fix pass too', () => {
+    const story = {
+      id: 'story',
+      startedAt: 1,
+      plan: { steps: [{ id: 'fix', name: 'Fix', kind: 'process' }] },
+      ledger: [{ id: 's1', stepId: 'fix', status: 'done', startedAt: 1, childRunId: 'fixrun' }],
+    } as unknown as StorySignoffProcessRun
+    const fixRun = {
+      id: 'fixrun',
+      parentRunId: 'story',
+      startedAt: 2,
+      plan: {
+        steps: [
+          { id: 'implement', kind: 'agent', agentType: 'fixer' },
+          { id: 'checks', kind: 'check' },
+        ],
+      },
+      ledger: [
+        { id: 'f1', stepId: 'implement', status: 'done', startedAt: 2, runRef: { runId: 'fx' } },
+        {
+          id: 'f2',
+          stepId: 'checks',
+          status: 'done',
+          startedAt: 3,
+          endedAt: 4,
+          checks: [buildPassed],
+        },
+      ],
+    } as unknown as StorySignoffProcessRun
+    const signoff = buildStorySignoff({
+      features: [],
+      processRuns: [story, fixRun],
+      storyRunId: 'story',
+      cliRuns: [run({ id: 'fx', processRunId: 'fixrun' })],
+      evidence: [],
+    })
+    expect(signoff.fixes[0].rows.find((r) => r.id === 'build')?.state).toBe('passed')
+    expect(signoff.fixes[0].developerChecks?.text).toBe('Developer ran no checks')
+  })
+})
+
+describe('signoffSections — the developer’s account of its checks', () => {
+  it('shows the developer’s newest checks report in its section’s Report tab, after the verifier’s', () => {
+    const evidence = [
+      ev({ id: 'ver', runId: 'r', featureId: 'f1', kind: 'report', createdAt: 1 }),
+      ev({
+        id: 'dev-old',
+        runId: 'r',
+        featureId: 'f1',
+        kind: 'report',
+        approach: DEVELOPER_CHECKS_APPROACH,
+        createdAt: 2,
+      }),
+      ev({
+        id: 'dev',
+        runId: 'r',
+        featureId: 'f1',
+        kind: 'report',
+        approach: DEVELOPER_CHECKS_APPROACH,
+        createdAt: 3,
+      }),
+    ]
+    const section = signoffSections(
+      { evidenceRunIds: undefined, fixes: [] },
+      evidence.map(toEvidenceTile),
+    ).get('f1')
+    expect(section?.reports.map((t) => t.ref.id)).toEqual(['ver', 'dev'])
+    expect(signoffSectionProps(section ?? EMPTY_SIGNOFF_SECTION, undefined).reports).toHaveLength(2)
+  })
+})
+
+describe('signoffLoadStatus — the project scan', () => {
+  it('waits for the scan, but signs off without one when it cannot be read', () => {
+    const loaded = { runs: 'loaded', stories: 'loaded', evidence: 'loaded' } as const
+    expect(signoffLoadStatus({ ...loaded, checks: 'loading' })).toBe('loading')
+    expect(signoffLoadStatus({ ...loaded, checks: 'failed' })).toBe('ready')
+    expect(signoffLoadStatus({ ...loaded, checks: 'loaded' })).toBe('ready')
+  })
+})
+
+describe('buildStorySignoff — a feature its developer-verifier implemented and proved', () => {
+  const T = 1_790_347_372_871
+  const BASE = 'a'.repeat(40)
+  const HEAD = 'b'.repeat(40)
+  const storyRun = {
+    id: 'story-run',
+    startedAt: T,
+    plan: {
+      steps: [
+        {
+          id: 'features:f1',
+          name: 'Fonts',
+          kind: 'process',
+          processId: 'feature-self-verified',
+          subject: { kind: 'feature', id: 'f1', title: 'Fonts' },
+        },
+        { id: 'fix', name: 'Fix', kind: 'process', processId: 'fix-default' },
+        { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
+      ],
+      loops: [],
+    },
+    ledger: [
+      {
+        id: 's-f1',
+        stepId: 'features:f1',
+        iteration: 1,
+        status: 'done',
+        outcome: 'passed',
+        childRunId: 'f1-run',
+        startedAt: T,
+      },
+    ],
+  } as unknown as StorySignoffProcessRun
+  const proof = {
+    baseSha: BASE,
+    headSha: HEAD,
+    mode: 'live',
+    outcome: 'passed',
+    judged: true,
+    pairs: [{ subject: 'event-home', beforeId: 'before', afterId: 'after', counted: true }],
+    newScreenIds: [],
+    recordingIds: [],
+  }
+  const featureRun = {
+    id: 'f1-run',
+    featureId: 'f1',
+    parentRunId: 'story-run',
+    parentStepId: 'features:f1',
+    startedAt: T,
+    plan: {
+      steps: [
+        {
+          id: 'implement',
+          name: 'Implement and prove',
+          kind: 'agent',
+          agentType: 'developer-verifier',
+        },
+        { id: 'checks', name: 'Checks', kind: 'check' },
+        { id: 'code-review', name: 'Code review', kind: 'judge' },
+        { id: 'report', name: 'Report', kind: 'report' },
+      ],
+      loops: [],
+    },
+    ledger: [
+      {
+        id: 'e-i',
+        stepId: 'implement',
+        iteration: 1,
+        status: 'done',
+        outcome: 'passed',
+        summary: '1 before/after pair shows the change (event-home), approved by the reviewer.',
+        runRef: { runId: 'dv' },
+        proof,
+        startedAt: T,
+        endedAt: T + 10,
+      },
+      {
+        id: 'e-c',
+        stepId: 'checks',
+        iteration: 1,
+        status: 'done',
+        outcome: 'passed',
+        startedAt: T + 11,
+      },
+      {
+        id: 'e-r',
+        stepId: 'code-review',
+        iteration: 1,
+        status: 'done',
+        outcome: 'passed',
+        review: { verdict: 'approved', reason: 'In scope, proven.' },
+        runRef: { runId: 'cr', runner: 'api' },
+        startedAt: T + 12,
+      },
+    ],
+  } as unknown as StorySignoffProcessRun
+  const shot = (id: string, phase: 'before' | 'after') =>
+    ev({
+      id,
+      runId: 'dv',
+      featureId: 'f1',
+      kind: 'screenshot',
+      phase,
+      subject: 'event-home',
+      mediaType: 'image/png',
+      createdAt: T + 2,
+      build: { platform: 'android', sha: BASE, dirty: true, variant: 'android:app:debug' },
+    })
+  const evidence = [
+    shot('before', 'before'),
+    shot('after', 'after'),
+    ev({
+      id: 'dev-report',
+      runId: 'dv',
+      featureId: 'f1',
+      approach: DEVELOPER_CHECKS_APPROACH,
+      label: 'Developer verification',
+      verdict: 'approved',
+      verdictScreens: ['event-home'],
+      verificationMode: 'live',
+      createdAt: T + 3,
+    }),
+    ev({
+      id: 'review',
+      runId: 'dv',
+      featureId: 'f1',
+      approach: CODE_REVIEW_APPROACH,
+      verdict: 'approved',
+      createdAt: T + 12,
+    }),
+  ]
+  const signoff = buildStorySignoff({
+    features: [{ id: 'f1', title: 'Fonts' }],
+    processRuns: [storyRun, featureRun],
+    storyRunId: 'story-run',
+    cliRuns: [run({ id: 'dv', processRunId: 'f1-run', createdAt: T })],
+    evidence,
+  })
+  const feature = signoff.features[0]!
+
+  it('says the story’s features were worked by one agent that proved its own change', () => {
+    expect(signoff.featureProcess).toBe('Developer + verifier in one')
+    expect(signoffReviewLine(signoff)).toMatch(
+      /^Features worked by: Developer \+ verifier in one\./,
+    )
+  })
+
+  it('reads the feature’s proof from its developer-verifier’s own attempt', () => {
+    expect(feature.verify?.entry.id).toBe('e-i')
+    expect(feature.verify?.review).toMatchObject({ reviewedRunId: 'dv' })
+    expect(feature.verdict.key).toBe('proven')
+    expect(feature.standing).toBe('passed')
+  })
+
+  it('names the one agent that ran it as the developer + verifier', () => {
+    expect(feature.agents.map((a) => agentRoleLabel(a.role))).toEqual(['developer + verifier'])
+  })
+
+  it('shows the pair the proof counted, its report and its code review', () => {
+    const tiles = evidence.map(toEvidenceTile)
+    const view = featureVerifyView(feature.verify!, tiles)
+    expect(view.accepted.evidence.proof?.countedCount).toBe(1)
+    const props = signoffSectionProps(signoffSections(signoff, tiles).get('f1')!, view)
+    expect(props.pairs).toHaveLength(1)
+    expect(props.reports.map((t) => t.ref.id)).toContain('dev-report')
+    expect(props.codeReviews.map((t) => t.ref.id)).toEqual(['review'])
+  })
+
+  it('names no way of working for a story run without a feature process the approval offers', () => {
+    const plain = buildStorySignoff({
+      features: [{ id: 'f1', title: 'Fonts' }],
+      processRuns: [featureRun],
+      cliRuns: [run({ id: 'dv', processRunId: 'f1-run', createdAt: T })],
+      evidence,
+    })
+    expect(plain.featureProcess).toBeUndefined()
+    expect(signoffReviewLine(plain)).toMatch(/^Each feature went through the review process/)
   })
 })

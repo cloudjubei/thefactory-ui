@@ -122,6 +122,7 @@ export {
 export {
   CheckChip,
   CostChip,
+  DurationChip,
   HandoffButton,
   HelpChip,
   ProjectChip,
@@ -133,6 +134,7 @@ export {
   type CheckChipProps,
   type ChipState,
   type CostChipProps,
+  type DurationChipProps,
   type HandoffButtonProps,
   type HelpChipProps,
   type ProjectChipProps,
@@ -602,6 +604,11 @@ export {
   type ProjectEditorFormProps,
   type ProjectFormState,
 } from './compound/projects/ProjectEditorForm'
+export {
+  default as TicketConnectionPicker,
+  type TicketConnectionPickerProps,
+  type TicketConnectionPickerValue,
+} from './compound/projects/TicketConnectionPicker'
 
 // Settings panels — all wired to the lifted headless contexts.
 export {

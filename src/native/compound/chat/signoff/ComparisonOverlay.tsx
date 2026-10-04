@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
+  CAPTURE_SAME_CODE_LABEL,
   captureBuildCaption,
   capturedOnLabel,
   comparisonPairFacts,
@@ -72,6 +73,9 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
   return (
     <>
       {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.sameCodeAsExpected ? (
+        <Text style={{ fontSize: 12, color: theme.text.muted }}>{CAPTURE_SAME_CODE_LABEL}</Text>
+      ) : null}
       {build.dirty ? (
         <Text style={{ fontSize: 12, color: status.stuck.softFg }}>uncommitted changes</Text>
       ) : null}
@@ -192,8 +196,12 @@ export default function ComparisonOverlay({
   const iconColor = theme.text.primary
 
   const pairFacts = pair ? comparisonPairFacts(pair) : []
-  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha)
-  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha)
+  const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha, {
+    counted: pair?.counted === true,
+  })
+  const afterBuild = captureBuildCaption(pair?.after, pair?.expectedHeadSha ?? headSha, {
+    counted: pair?.counted === true,
+  })
 
   const diff = useEvidenceDiff(
     projectId,

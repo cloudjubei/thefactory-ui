@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
-import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
+import type { ProcessLaunchDecision } from 'thefactory-tools/types'
 import {
   cancelCliAgentAction,
   decideCliAgentAction,
@@ -15,7 +15,7 @@ import { useChats } from '../contexts/createChatsContext'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../utils/chatTypes'
 import {
   apiToolCallToGrant,
-  openWorkDecisionOf,
+  launchDecisionOf,
   cliDecideOutcome,
   cliPendingActionToGrant,
   isCliActionUpdateEvent,
@@ -76,9 +76,31 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   const chatContextId = getChatContextKey(ctx)
   const apiToolCalls = getChatLiveState(ctx).pendingToolConfirmation?.toolCalls ?? []
   const [apiDecisions, setApiDecisions] = useState<Record<string, boolean>>({})
-  const [apiOpenWork, setApiOpenWork] = useState<Record<string, ProcessOpenWorkDecision>>({})
-  const [cliActions, setCliActions] = useState<PendingAction[]>([])
-  const [discoveredRunId, setDiscoveredRunId] = useState<string>()
+  const [apiLaunchDecisions, setApiLaunchDecisions] = useState<
+    Record<string, ProcessLaunchDecision>
+  >({})
+  // The asks as loaded for one chat — another chat's never show while this
+  // chat's own load is on its way.
+  const [loadedActions, setLoadedActions] = useState<{
+    chatContextId: string
+    actions: PendingAction[]
+  }>()
+  const cliActions = useMemo(
+    () => (loadedActions?.chatContextId === chatContextId ? loadedActions.actions : []),
+    [loadedActions, chatContextId],
+  )
+  const setCliActions = useCallback(
+    (next: PendingAction[] | ((prev: PendingAction[]) => PendingAction[])) =>
+      setLoadedActions((prev) => {
+        const current = prev?.chatContextId === chatContextId ? prev.actions : []
+        return { chatContextId, actions: typeof next === 'function' ? next(current) : next }
+      }),
+    [chatContextId],
+  )
+  // Kept WITH the chat it was found for: after a switch, the previous chat's
+  // run stayed the answer until the new lookup returned, and a view that
+  // holds a run past its end held the other chat's run for good.
+  const [discovered, setDiscovered] = useState<{ chatContextId: string; runId?: string }>()
 
   // Always ask the backend which run this chat has GENUINELY executing, even
   // when the caller passed a runId. Two reasons: a reload or remount drops the
@@ -122,13 +144,14 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
           throwOnError: true,
         })
         if (cancelled) return
-        setDiscoveredRunId(
-          storyChat
+        setDiscovered({
+          chatContextId,
+          runId: storyChat
             ? pickActiveStoryRunId(data, storyChat)
             : pickActiveCliRunId(data, chatContextId),
-        )
+        })
       } catch {
-        if (!cancelled) setDiscoveredRunId(undefined)
+        if (!cancelled) setDiscovered({ chatContextId })
       }
     }
     void discover()
@@ -141,6 +164,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     }
   }, [chatContextId, storyChat, ws])
 
+  const discoveredRunId = discovered?.chatContextId === chatContextId ? discovered.runId : undefined
   const activeRunId = runId ?? discoveredRunId
 
   // CLI gated actions for this CHAT — initial fetch + refresh only when an action
@@ -185,12 +209,12 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     const grantedIds = apiToolCalls
       .filter((tc) => apiDecisions[tc.toolCallId])
       .map((tc) => tc.toolCallId)
-    const openWork = Object.fromEntries(
-      grantedIds.flatMap((id) => (apiOpenWork[id] ? [[id, apiOpenWork[id]]] : [])),
+    const launchDecisions = Object.fromEntries(
+      grantedIds.flatMap((id) => (apiLaunchDecisions[id] ? [[id, apiLaunchDecisions[id]]] : [])),
     )
     setApiDecisions({})
-    setApiOpenWork({})
-    void confirmTools(ctx, grantedIds, openWork)
+    setApiLaunchDecisions({})
+    void confirmTools(ctx, grantedIds, launchDecisions)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allApiDecided])
 
@@ -203,10 +227,11 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       if (decision === 'permanent') {
         throw new Error('Permanent grants are CLI-only')
       }
-      // A story launch over open work carries the person's choice on the API
-      // transport too; nothing else an approval sets reaches an API run.
-      const openWork = decision === 'once' ? openWorkDecisionOf(metadata) : undefined
-      if (openWork) setApiOpenWork((prev) => ({ ...prev, [toolCallId]: openWork }))
+      // A story launch carries the person's own choices — over open work, and
+      // how its features are worked — on the API transport too; nothing else an
+      // approval sets reaches an API run.
+      const launch = decision === 'once' ? launchDecisionOf(metadata) : undefined
+      if (launch) setApiLaunchDecisions((prev) => ({ ...prev, [toolCallId]: launch }))
       setApiDecisions((prev) => ({ ...prev, [toolCallId]: decision === 'once' }))
     },
     [],
@@ -241,7 +266,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         throw err
       }
     },
-    [loadCliActions],
+    [loadCliActions, setCliActions],
   )
 
   const answerCli = useCallback(
@@ -258,7 +283,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         throw err
       }
     },
-    [loadCliActions],
+    [loadCliActions, setCliActions],
   )
 
   /**
@@ -279,7 +304,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         throw err
       }
     },
-    [loadCliActions],
+    [loadCliActions, setCliActions],
   )
 
   const resolveRemedyCli = useCallback(
@@ -292,7 +317,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
         throw err
       }
     },
-    [loadCliActions],
+    [loadCliActions, setCliActions],
   )
 
   const grants = useMemo<PendingToolGrant[]>(() => {

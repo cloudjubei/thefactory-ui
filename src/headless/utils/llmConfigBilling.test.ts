@@ -15,7 +15,6 @@ const anthropicKey: StoredLlmConfig = {
   name: 'Claude Sonnet (work)',
   provider: 'anthropic',
   model: 'claude-sonnet-4-6',
-  apiKey: 'sk-ant-test-placeholder',
   costCacheReadInputPerMTokensUSD: 0.3,
 }
 
@@ -24,19 +23,21 @@ const localOllama: StoredLlmConfig = {
   name: 'Qwen 3 (local)',
   provider: 'custom',
   model: 'qwen3:32b',
-  apiKey: '',
   apiUrlOverride: 'http://localhost:11434/v1',
   billing: 'free',
 }
 
 describe('agentRunLlmConfig', () => {
+  it('carries no key — the backend looks the stored one up', () => {
+    expect(agentRunLlmConfig(anthropicKey)).not.toHaveProperty('apiKey')
+  })
+
   it('carries the billing a config declares into the run, so its calls are ledgered as it is paid for', () => {
     expect(agentRunLlmConfig(localOllama)).toEqual({
       id: localOllama.id,
       name: 'Qwen 3 (local)',
       provider: 'custom',
       model: 'qwen3:32b',
-      apiKey: '',
       apiUrlOverride: 'http://localhost:11434/v1',
       costInputPerMTokensUSD: undefined,
       costOutputPerMTokensUSD: undefined,

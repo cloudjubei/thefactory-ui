@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun, ProcessStepOutcome } from 'thefactory-tools/types'
 import { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
+import { emptyProcessTimeBreakdown } from 'thefactory-tools/utils'
 import {
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
@@ -39,7 +40,11 @@ import {
   processStepWorkMs,
   processStepCostLabel,
   processStepCostTitle,
+  processStepAgentTypeOfRun,
+  processStepFinishedView,
 } from './processView'
+
+const NO_TIME = emptyProcessTimeBreakdown()
 
 const TOKEN_STATUSES = [
   'empty',
@@ -194,6 +199,7 @@ describe('the waiting outcome', () => {
 describe('processRunSpend', () => {
   const totals = (over: Partial<NonNullable<ProcessRun['totals']>> = {}) => ({
     workMs: 0,
+    time: NO_TIME,
     ticking: false,
     at: 0,
     steps: {},
@@ -305,15 +311,18 @@ describe('run and step work time', () => {
   const MIN = 60_000
   const verifyStep = { id: 'b', name: 'Verify', kind: 'agent' as const, agentType: 'developer' }
   const gateStep = { id: 'g', name: 'Sign-off', kind: 'gate' as const }
-  const attempts = (...ms: number[]) => ms.map((workMs, i) => ({ entryId: `e${i}`, workMs }))
+  const attempts = (...ms: number[]) =>
+    ms.map((workMs, i) => ({ entryId: `e${i}`, workMs, time: NO_TIME }))
 
   it('is the ledger total when nothing is running, whatever the clock says', () => {
-    const r = run({ totals: { workMs: 9 * MIN, ticking: false, at: 100, steps: {} } })
+    const r = run({
+      totals: { workMs: 9 * MIN, time: NO_TIME, ticking: false, at: 100, steps: {} },
+    })
     expect(processRunWorkMs(r, 100 + 60 * MIN)).toBe(9 * MIN)
   })
 
   it('carries the clock on from when the totals were read while a step runs', () => {
-    const r = run({ totals: { workMs: 9 * MIN, ticking: true, at: 100, steps: {} } })
+    const r = run({ totals: { workMs: 9 * MIN, time: NO_TIME, ticking: true, at: 100, steps: {} } })
     expect(processRunWorkMs(r, 100 + 2 * MIN)).toBe(11 * MIN)
   })
 
@@ -323,7 +332,7 @@ describe('run and step work time', () => {
   })
 
   it('labels the live work time', () => {
-    const r = run({ totals: { workMs: 9 * MIN, ticking: true, at: 0, steps: {} } })
+    const r = run({ totals: { workMs: 9 * MIN, time: NO_TIME, ticking: true, at: 0, steps: {} } })
     expect(processRunWorkLabel(r, 90_000)).toBe('10m 30s')
   })
 
@@ -331,9 +340,12 @@ describe('run and step work time', () => {
     const r = run({
       totals: {
         workMs: 43 * MIN,
+        time: NO_TIME,
         ticking: false,
         at: 0,
-        steps: { b: { workMs: 43 * MIN, attempts: attempts(21 * MIN, 13 * MIN, 9 * MIN) } },
+        steps: {
+          b: { workMs: 43 * MIN, time: NO_TIME, attempts: attempts(21 * MIN, 13 * MIN, 9 * MIN) },
+        },
       },
     })
     const state = { step: verifyStep, latest: { status: 'done' as const } }
@@ -344,11 +356,12 @@ describe('run and step work time', () => {
     const r = run({
       totals: {
         workMs: 38 * MIN,
+        time: NO_TIME,
         ticking: true,
         at: 10,
         steps: {
-          a: { workMs: 8 * MIN, attempts: attempts(8 * MIN) },
-          b: { workMs: 30 * MIN, attempts: attempts(21 * MIN, 9 * MIN) },
+          a: { workMs: 8 * MIN, time: NO_TIME, attempts: attempts(8 * MIN) },
+          b: { workMs: 30 * MIN, time: NO_TIME, attempts: attempts(21 * MIN, 9 * MIN) },
         },
       },
     })
@@ -359,7 +372,7 @@ describe('run and step work time', () => {
   })
 
   it('is unknown for a step that has not run', () => {
-    const r = run({ totals: { workMs: 0, ticking: false, at: 0, steps: {} } })
+    const r = run({ totals: { workMs: 0, time: NO_TIME, ticking: false, at: 0, steps: {} } })
     expect(processStepWorkMs(r, { step: verifyStep }, 0)).toBeUndefined()
   })
 
@@ -367,9 +380,10 @@ describe('run and step work time', () => {
     const r = run({
       totals: {
         workMs: 0,
+        time: NO_TIME,
         ticking: false,
         at: 0,
-        steps: { g: { workMs: 0, attempts: attempts(0) } },
+        steps: { g: { workMs: 0, time: NO_TIME, attempts: attempts(0) } },
       },
     })
     const waiting = { step: gateStep, latest: { status: 'running' as const } }
@@ -380,9 +394,18 @@ describe('run and step work time', () => {
     const r = run({
       totals: {
         workMs: 0,
+        time: NO_TIME,
         ticking: false,
         at: 0,
-        steps: { b: { workMs: 0, costUsd: 1.25, unpricedTokens: 4_000, attempts: attempts(0, 0) } },
+        steps: {
+          b: {
+            workMs: 0,
+            time: NO_TIME,
+            costUsd: 1.25,
+            unpricedTokens: 4_000,
+            attempts: attempts(0, 0),
+          },
+        },
       },
     })
     expect(processStepCostLabel(r, 'b')).toBe('$1.25')
@@ -1144,5 +1167,61 @@ describe('latestOpenableAttempt', () => {
     const r = run({ plan, ledger: [v2NoRun] })
     expect(latestOpenableAttempt(r, [v2NoRun], 'Verify', true)).toBeUndefined()
     expect(latestOpenableAttempt(r, [], 'Verify', true)).toBeUndefined()
+  })
+})
+
+describe('processStepAgentTypeOfRun', () => {
+  const run = {
+    plan: {
+      steps: [
+        {
+          id: 'implement',
+          name: 'Implement and prove',
+          kind: 'agent',
+          agentType: 'developer-verifier',
+        },
+        { id: 'code-review', name: 'Code review', kind: 'judge' },
+      ],
+    },
+    ledger: [
+      { id: 'e1', stepId: 'implement', runRef: { runId: 'orch-1', chatContextId: 'chat-dev' } },
+      {
+        id: 'e2',
+        stepId: 'code-review',
+        runRef: { runId: 'review-1', chatContextId: 'chat-review' },
+      },
+    ],
+  } as unknown as ProcessRun
+
+  it('names the role of the step whose chat the run belongs to', () => {
+    expect(processStepAgentTypeOfRun(run, { runId: 'cli-1', chatContextId: 'chat-dev' })).toBe(
+      'developer-verifier',
+    )
+  })
+
+  it('matches the step’s own run id when the chat is not known', () => {
+    expect(processStepAgentTypeOfRun(run, { runId: 'orch-1' })).toBe('developer-verifier')
+  })
+
+  it('is undefined for a step that runs no agent, or a run the process does not hold', () => {
+    expect(processStepAgentTypeOfRun(run, { runId: 'review-1' })).toBeUndefined()
+    expect(processStepAgentTypeOfRun(run, { runId: 'other', chatContextId: 'x' })).toBeUndefined()
+  })
+})
+
+describe('processStepFinishedView', () => {
+  it('hands a developer’s change to the verifier', () => {
+    expect(processStepFinishedView({ changedFiles: true, role: 'developer' }).kind).toBe('handoff')
+  })
+
+  it('never says a developer-verifier handed its work on — it proved it itself', () => {
+    const view = processStepFinishedView({ changedFiles: true, role: 'developer-verifier' })
+    expect(view.kind).toBe('selfProven')
+    expect(view.title).not.toMatch(/handed to Verify/)
+  })
+
+  it('reads as a hand-off while the role is not yet known, and as finished when nothing changed', () => {
+    expect(processStepFinishedView({ changedFiles: true }).kind).toBe('handoff')
+    expect(processStepFinishedView({ changedFiles: false, role: 'verifier' }).kind).toBe('finished')
   })
 })

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
+import { DEFAULT_CHAT_CLI_EXEC_MODE } from 'thefactory-tools/constants'
 
 import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
@@ -250,7 +251,7 @@ function ModelChipWithCli({
     selectedCli === 'claude-code' || selectedCli === 'codex' || selectedCli === 'cursor-agent'
   // Resident is the DEFAULT (unset execMode → resident at dispatch), so the
   // toggle reflects on unless the user explicitly forced 'per-turn'.
-  const residentMode = (cliRunner?.execMode ?? 'resident') === 'resident'
+  const residentMode = (cliRunner?.execMode ?? DEFAULT_CHAT_CLI_EXEC_MODE) === 'resident'
   const onToggleResident = useCallback(
     (next: boolean) => {
       if (!selectedCli) return

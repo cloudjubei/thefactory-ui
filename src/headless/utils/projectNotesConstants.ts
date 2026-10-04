@@ -17,6 +17,9 @@ export const NOTE_ACCESS_HELP: Record<ProjectNoteAccess, string> = {
   ask: 'Every read asks you first.',
 }
 
+/** Marks a note an agent saved for later runs; a user's note carries no mark. */
+export const NOTE_AGENT_AUTHOR_LABEL = 'By an agent'
+
 /** Section-level explanation of the two access modes. */
 export const NOTE_ACCESS_NOTE =
   'Access decides how an agent reaches a value. Open — any agent working on this project can read it whenever it needs it. Ask first — every read asks you first.'

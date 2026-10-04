@@ -199,10 +199,9 @@ Read-mostly first; write-back after. All connector credentials via the provider-
 
 **4.1 Azure DevOps connector** — third implementation of the existing `Connector` interface (GitHub Issues + Jira exist); work-items → `ExternalItem` → import-as-story with `externalIds` back-link + dedupe-on-import.
 **4.2 Generic provider OAuth** — promote the GitHub-only OAuth service into a provider registry (authorize/token URLs, scopes, client creds per provider) with refresh-before-expiry rotation for provider connections (today only git credentials rotate).
-**4.3 Write-back** — extend `Connector` with comment/status ops: on sign-off, post the evidence summary (+ artifact links once hosted) back to the ticket; ticket status transitions per policy.
+**4.3 Write-back** — on sign-off, post the evidence summary (+ artifact links once hosted) back to the ticket; ticket status transitions per policy. For Jira, the agent tools already write (`createJiraTools` in `thefactory-tools` `src/connectors/jira/`, bound per group / project with `read` / `read-write` access); what is left is the sign-off trigger, and GitHub / Azure write ops.
 **4.4 Slack / Teams ingest** — greenfield: a comms connector shape (channel/thread/message, not ticket-shaped), watch-list subscriptions, thread → knowledge attachment + optional task intake. Polling first; events API when hosted.
 **4.5 Sync scheduler** — background refresh of assigned items with badge on new intake (today: fetch only when a modal opens).
-**4.6 Agent access** — register `ConnectorTools` in the agent tool registry (schemas exist, wiring doesn't) so a task chat can pull its own ticket context — read-only, per-project opt-in.
 
 **Done when:** a Jira/ADO ticket lands as a task with context ingested into knowledge, and on sign-off the ticket carries the evidence summary — without leaving the app.
 

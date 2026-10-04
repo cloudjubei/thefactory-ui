@@ -62,6 +62,28 @@ describe('approveActionDescriptors', () => {
   })
 })
 
+describe('approveActionDescriptors — a project with no git of its own', () => {
+  const GIT_WORDS = /merge|branch|commit|pull request|\bPR\b|push|squash|git/i
+  const shadow = approveActionDescriptors({ ...base, shadow: true })
+
+  it('offers one way to approve — bringing the work into the project folder', () => {
+    expect(shadow.map((d) => [d.action, d.label])).toEqual([['merge', 'Approve']])
+    expect(shadow[0]!.effects.join(' ')).toMatch(/3 files/)
+    expect(shadow[0]!.effects.join(' ')).toMatch(/project folder/)
+  })
+
+  it('says it without a word of git', () => {
+    const d = shadow[0]!
+    for (const text of [d.label, d.hint, d.title, d.confirmLabel, ...d.effects]) {
+      expect(text).not.toMatch(GIT_WORDS)
+    }
+  })
+
+  it('leads with it whatever the evidence says', () => {
+    expect(earnedApproveActions(shadow, 'partly')?.primary.action).toBe('merge')
+  })
+})
+
 describe('earnedApproveActions', () => {
   const all = approveActionDescriptors(base)
 

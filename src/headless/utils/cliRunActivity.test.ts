@@ -8,6 +8,7 @@ import {
   lastCliActionAtMs,
   mergeCliRunTranscript,
   runningCliToolNames,
+  turnBlockedOn,
 } from './cliRunActivity'
 import {
   CLI_BLOCKED_SUBLABEL,
@@ -341,5 +342,22 @@ describe('describeCliRunActivity', () => {
       }),
     )
     expect(many.label).toBe('Waiting for you on 2 actions')
+  })
+})
+
+describe('turnBlockedOn', () => {
+  const ask = { id: 'a1', source: 'cli' as const, label: 'addStory', toolName: 'addStory' }
+
+  it("uses the chat's feed when it names anything", () => {
+    const feed = [{ toolName: 'saveAgentNote', label: 'saveAgentNote' }]
+    expect(turnBlockedOn(feed, [ask], ['a1'])).toEqual(feed)
+  })
+
+  it('falls back to the asks this turn shows, so a resumed turn still reads as waiting', () => {
+    expect(turnBlockedOn([], [ask], ['a1'])).toEqual([{ toolName: 'addStory', label: 'addStory' }])
+  })
+
+  it('is empty when the turn shows no ask', () => {
+    expect(turnBlockedOn(undefined, [ask], [])).toEqual([])
   })
 })

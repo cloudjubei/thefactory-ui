@@ -54,6 +54,13 @@ export const MERGE_FAILED_FALLBACK = 'Merge failed'
 
 export const MERGE_BLOCKED_FALLBACK = 'Verification must pass before this run can be merged'
 
+/** {@link MERGE_FAILED_FALLBACK} for a project with no git of its own. */
+export const SHADOW_MERGE_FAILED_FALLBACK = 'The work could not be brought into the project folder'
+
+/** {@link MERGE_BLOCKED_FALLBACK} for a project with no git of its own. */
+export const SHADOW_MERGE_BLOCKED_FALLBACK =
+  'Verification must pass before this work can be approved'
+
 /**
  * Preface for the message a change request sends into the chat.
  *

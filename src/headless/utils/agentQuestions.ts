@@ -111,3 +111,16 @@ export function partitionGrants(grants: PendingToolGrant[] | undefined): {
   }
   return { questions, remedies, permissions }
 }
+
+/**
+ * Which of the open questions to show — one at a time, as a pager does: the one
+ * chosen while it is still open, else the first. Answering one moves on to the
+ * next instead of stacking every question at once.
+ */
+export function shownQuestionId(
+  openIds: readonly string[],
+  chosenId: string | undefined,
+): string | undefined {
+  if (chosenId !== undefined && openIds.includes(chosenId)) return chosenId
+  return openIds[0]
+}

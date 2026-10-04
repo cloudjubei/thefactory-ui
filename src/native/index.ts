@@ -136,6 +136,7 @@ export {
   type ActionMenuProps,
 } from './compound/ActionMenu'
 export { default as CostChip, type CostChipProps } from './compound/chips/CostChip'
+export { default as DurationChip, type DurationChipProps } from './compound/chips/DurationChip'
 export { default as ProjectChip, type ProjectChipProps } from './compound/chips/ProjectChip'
 export {
   default as StatusChip,
@@ -448,6 +449,11 @@ export {
   type ProjectGithubRepoFieldProps,
 } from './compound/projects/ProjectGithubRepoField'
 export {
+  default as TicketConnectionPicker,
+  type TicketConnectionPickerProps,
+  type TicketConnectionPickerValue,
+} from './compound/projects/TicketConnectionPicker'
+export {
   default as GithubConnectModal,
   type GithubConnectModalProps,
 } from './compound/projects/GithubConnectModal'
@@ -466,6 +472,14 @@ export {
   default as GitCredentialsForm,
   type GitCredentialsFormProps,
 } from './compound/settings/GitCredentialsForm'
+export {
+  default as ProviderConnectionsForm,
+  type ProviderConnectionsFormProps,
+} from './compound/settings/ProviderConnectionsForm'
+export {
+  default as ImportTicketsModal,
+  type ImportTicketsModalProps,
+} from './compound/settings/ImportTicketsModal'
 export {
   default as LLMConfigForm,
   type LLMConfigFormHandle,

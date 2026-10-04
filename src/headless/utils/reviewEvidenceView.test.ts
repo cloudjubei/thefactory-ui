@@ -1,6 +1,7 @@
 import {
   CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
   CODE_REVIEW_APPROACH,
+  DEVELOPER_CHECKS_APPROACH,
   EVIDENCE_FILE_CHANGED_REASON,
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
@@ -614,6 +615,16 @@ describe('reviewerVerdict, over a listing the backend cannot vouch for', () => {
   })
 })
 
+describe('latestReport, beside the developer’s account of its checks', () => {
+  it('never takes the developer’s report for the verifier’s, however new', () => {
+    const verifier = toEvidenceTile(ref({ id: 'ver', kind: 'report', createdAt: 1 }))
+    const developer = toEvidenceTile(
+      ref({ id: 'dev', kind: 'report', approach: DEVELOPER_CHECKS_APPROACH, createdAt: 9 }),
+    )
+    expect(latestReport([verifier, developer]).map((t) => t.ref.id)).toEqual(['ver'])
+  })
+})
+
 describe('latestReport', () => {
   it('keeps only the newest report, wherever it sits in the listing', () => {
     const reports = [
@@ -640,6 +651,9 @@ describe('reportAuthor', () => {
     expect(reportAuthor(ref({ kind: 'report', approach: FEATURE_REPORT_APPROACH }))).toBe(
       'feature-report',
     )
+    expect(reportAuthor(ref({ kind: 'report', approach: DEVELOPER_CHECKS_APPROACH }))).toBe(
+      'developer-checks',
+    )
   })
 
   it('reads every other report as the verifier’s — as every report was before', () => {
@@ -656,7 +670,12 @@ describe('isVerifierFiling', () => {
   })
 
   it('never counts a step’s own report as the verifier’s', () => {
-    for (const approach of [CODE_REVIEW_APPROACH, FINAL_REPORT_APPROACH, FEATURE_REPORT_APPROACH]) {
+    for (const approach of [
+      CODE_REVIEW_APPROACH,
+      FINAL_REPORT_APPROACH,
+      FEATURE_REPORT_APPROACH,
+      DEVELOPER_CHECKS_APPROACH,
+    ]) {
       expect(isVerifierFiling(ref({ kind: 'report', approach }))).toBe(false)
     }
   })
@@ -784,6 +803,14 @@ describe('runReports', () => {
     ]
     expect(runReports(tiles).map((t) => t.ref.id)).toEqual(['ver', 'feat'])
   })
+
+  it('keeps the developer’s account of its checks in the run’s own Report tab', () => {
+    const tiles = [
+      toEvidenceTile(ref({ id: 'ver', kind: 'report' })),
+      toEvidenceTile(ref({ id: 'dev', kind: 'report', approach: DEVELOPER_CHECKS_APPROACH })),
+    ]
+    expect(runReports(tiles).map((t) => t.ref.id)).toEqual(['ver', 'dev'])
+  })
 })
 
 describe('reportProvenance', () => {
@@ -797,5 +824,7 @@ describe('reportProvenance', () => {
       expect(said(approach)).not.toContain('The verifier agent wrote')
     }
     expect(said(CODE_REVIEW_APPROACH)).toContain('code review step')
+    expect(said(DEVELOPER_CHECKS_APPROACH)).toContain('recorded by the host')
+    expect(said(DEVELOPER_CHECKS_APPROACH)).toContain('not the verifier agent’s account')
   })
 })

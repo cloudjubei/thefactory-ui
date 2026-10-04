@@ -1,4 +1,4 @@
-import type { RunModel } from '../../../../headless'
+import { agentRoleLabel, type RunModel } from '../../../../headless'
 import Tooltip from '../../../primitives/Tooltip'
 
 export type RunModelChipProps = {
@@ -19,13 +19,14 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
   if (!model) return null
   const line = model.model ?? model.tool
   if (!line) return null
+  const roleName = role ? agentRoleLabel(role) : undefined
   return (
     <Tooltip
       placement="bottom"
       content={
         <div className="max-w-[260px] text-xs">
           <b className="mb-0.5 block font-semibold">
-            {role ? `${role} · ` : ''}Ran on {model.tag}
+            {roleName ? `${roleName} · ` : ''}Ran on {model.tag}
           </b>
           <span>
             {model.model
@@ -44,9 +45,11 @@ export default function RunModelChip({ model, role }: RunModelChipProps) {
         <span className="rounded-[3px] bg-purple-500/20 px-1 text-[8.5px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-200">
           {model.tag}
         </span>
-        {role ? (
+        {roleName ? (
           <span className="flex flex-col leading-tight">
-            <span className="text-[9px] uppercase tracking-wide text-(--text-muted)">{role}</span>
+            <span className="text-[9px] uppercase tracking-wide text-(--text-muted)">
+              {roleName}
+            </span>
             <span className="max-w-[128px] truncate text-[11.5px] font-medium text-(--text-primary)">
               {line}
             </span>

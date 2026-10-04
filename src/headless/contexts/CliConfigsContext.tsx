@@ -22,7 +22,7 @@ import {
   updateCliAuthCache,
   type CheckCliAuthStatusResponse,
   type CliAuthCacheCreateInput,
-  type CliAuthCacheEntry,
+  type RedactedCliAuthCacheEntry,
   type CliConfigsActiveState,
   type CliReasoningEffort,
   type CliTool,
@@ -33,6 +33,7 @@ import {
 } from '../api/generated'
 import type { ListCliImageVersionsResponse } from '../api/generated'
 import { useApi, useAuth } from '../api'
+import { useOnWsReopen } from '../hooks/useOnWsReopen'
 
 export type CliImageVersion = ListCliImageVersionsResponse['images'][number]
 
@@ -82,8 +83,8 @@ export type CliLiveModelsResult =
 export type CliConfigsContextValue = {
   isLoaded: boolean
   loadError: Error | null
-  caches: CliAuthCacheEntry[]
-  cachesByCli: Record<string, CliAuthCacheEntry[]>
+  caches: RedactedCliAuthCacheEntry[]
+  cachesByCli: Record<string, RedactedCliAuthCacheEntry[]>
   activeState: CliConfigsActiveState
   activeCli: string | null
   activeCliCredentialId: string | null
@@ -92,8 +93,11 @@ export type CliConfigsContextValue = {
   defaultModel: Record<string, string>
   /** Per-CLI default reasoning effort the user picked in settings (keyed by CLI tool). */
   effort: Record<string, string>
-  createCache: (input: CliAuthCacheCreateInput) => Promise<CliAuthCacheEntry>
-  updateCache: (id: string, patch: Partial<CliAuthCacheCreateInput>) => Promise<CliAuthCacheEntry>
+  createCache: (input: CliAuthCacheCreateInput) => Promise<RedactedCliAuthCacheEntry>
+  updateCache: (
+    id: string,
+    patch: Partial<CliAuthCacheCreateInput>,
+  ) => Promise<RedactedCliAuthCacheEntry>
   deleteCache: (id: string) => Promise<void>
   setActiveCli: (cli: string, credentialId: string) => Promise<void>
   setCliEnabled: (cli: string, enabled: boolean) => Promise<void>
@@ -143,9 +147,14 @@ export type CliConfigsContextValue = {
   /**
    * Start a CLI login. Pass `credentialId` to RE-AUTHENTICATE that credential in
    * place (same id, so every binding to it keeps working); omit it to create a new
-   * credential. Returns the `loginId` to correlate streamed output + the result.
+   * credential. Pass `captureId` for the agent's sign-in card it answers. Returns
+   * the `loginId` to correlate streamed output + the result.
    */
-  startAuthLogin: (cli: CliTool, label: string, credentialId?: string) => Promise<string>
+  startAuthLogin: (
+    cli: CliTool,
+    label: string,
+    options?: { credentialId?: string; captureId?: string },
+  ) => Promise<string>
   cancelAuthLogin: (loginId: string) => Promise<void>
   /** Feed a line (e.g. a pasted OAuth code) to a login subprocess's stdin. */
   submitLoginInput: (loginId: string, text: string) => Promise<void>
@@ -165,7 +174,7 @@ export type CliConfigsProviderProps = {
 export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
   const { token } = useAuth()
   const { ws } = useApi()
-  const [caches, setCaches] = useState<CliAuthCacheEntry[]>([])
+  const [caches, setCaches] = useState<RedactedCliAuthCacheEntry[]>([])
   const [activeState, setActiveState] = useState<CliConfigsActiveState>({})
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -182,21 +191,31 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     setLiveModelsCache({})
   }, [])
 
+  // Refreshes overlap (a login completing and its status broadcast arrive
+  // together); only the newest may land, or an older read puts a cleared
+  // "Needs re-auth" back.
+  const refreshSeqRef = useRef(0)
   const refresh = useCallback(async () => {
+    const seq = ++refreshSeqRef.current
     try {
       const [{ data: cacheList }, { data: state }] = await Promise.all([
         listCliAuthCaches({ throwOnError: true }),
         getActiveCliState({ throwOnError: true }),
       ])
+      if (seq !== refreshSeqRef.current) return
       setCaches(cacheList)
       setActiveState(state)
       setLoadError(null)
     } catch (err) {
+      if (seq !== refreshSeqRef.current) return
       setLoadError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoaded(true)
     }
   }, [])
+
+  // A status change broadcast while the socket was down is lost: read again on reconnect.
+  useOnWsReopen(() => void refresh())
 
   useEffect(() => {
     if (!token) return
@@ -382,13 +401,20 @@ export function CliConfigsProvider({ children }: CliConfigsProviderProps) {
     [refresh],
   )
 
-  const startAuthLogin = useCallback(async (cli: CliTool, label: string, credentialId?: string) => {
-    const { data } = await startCliAuthLogin({
-      body: { cli, label, ...(credentialId ? { credentialId } : {}) },
-      throwOnError: true,
-    })
-    return data.loginId
-  }, [])
+  const startAuthLogin = useCallback(
+    async (
+      cli: CliTool,
+      label: string,
+      options: { credentialId?: string; captureId?: string } = {},
+    ) => {
+      const { data } = await startCliAuthLogin({
+        body: { cli, label, ...options },
+        throwOnError: true,
+      })
+      return data.loginId
+    },
+    [],
+  )
 
   const cancelAuthLogin = useCallback(async (loginId: string) => {
     await cancelCliAuthLogin({ path: { loginId }, throwOnError: true })

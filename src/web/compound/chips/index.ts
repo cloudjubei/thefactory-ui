@@ -1,4 +1,5 @@
 export { default as CostChip, type CostChipProps } from './CostChip'
+export { default as DurationChip, type DurationChipProps } from './DurationChip'
 export { default as ProjectChip, type ProjectChipProps } from './ProjectChip'
 export {
   default as StatusChip,

@@ -50,6 +50,13 @@ export type ToolCallLike = {
   /** Provenance of the tool (drives the origin badge). Defaults to `internal`
    * when unset — every API-agent tool is one of ours. */
   origin?: ToolOrigin
+  /** The ask awaiting the user's decision on this call, when there is one. */
+  approvalId?: string
+  /**
+   * The call waits on a decision the user makes elsewhere — in the approval
+   * panel or a question card — so its row says so instead of spinning.
+   */
+  awaitingDecision?: boolean
 }
 
 // Web's backend currently emits a free-form string; desktop's agent loop has
@@ -155,6 +162,14 @@ export type PendingToolGrantData = {
    * say WHICH tool is waiting.
    */
   toolName?: string
+  /**
+   * An ordinary tool call awaiting approval — decided on the call's own row
+   * (toggle + Resume), not in the approval panel, which is kept for requests of
+   * their own kind (a launch, a sandbox boundary, a credential).
+   */
+  inline?: boolean
+  /** The call's arguments, so its row can be told apart from another call of the same tool. */
+  args?: unknown
   /**
    * Set when the CLI action is an `askUser` question rather than a permission
    * request. Such a grant is answered with text (`answer`), not approved — the

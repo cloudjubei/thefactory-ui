@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   AGENT_RUN_TYPES,
   PROCESS_KIND_BLURB,
+  agentRoleLabel,
   blankProcessDefinition,
   blankProcessStep,
   copyProcessDefinition,
@@ -233,7 +234,9 @@ function ProcessDetail({
                 {step.kind}
               </span>
               {step.agentType ? (
-                <span className="text-[10px] text-(--text-secondary)">{step.agentType}</span>
+                <span className="text-[10px] text-(--text-secondary)">
+                  {agentRoleLabel(step.agentType)}
+                </span>
               ) : null}
               {step.processId ? (
                 <span className="text-[10px] text-(--text-secondary)">→ {step.processId}</span>
@@ -391,7 +394,7 @@ function ProcessEditor({
                 >
                   {AGENT_RUN_TYPES.map((agentType) => (
                     <option key={agentType} value={agentType}>
-                      {agentType}
+                      {agentRoleLabel(agentType)}
                     </option>
                   ))}
                 </NativeSelect>

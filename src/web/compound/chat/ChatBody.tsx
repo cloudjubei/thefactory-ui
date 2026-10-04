@@ -1,13 +1,18 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import Alert from '../../primitives/Alert'
+import { Button } from '../../primitives/Button'
+import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
 import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
-import { partitionGrants } from '../../../headless/utils/agentQuestions'
-import { pendingApprovalGrants } from '../../../headless/utils/approvalGrant'
+import { partitionGrants, shownQuestionId } from '../../../headless/utils/agentQuestions'
+import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
+import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
+import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
+import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -164,6 +169,8 @@ export type ChatBodyProps = {
   previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
   /** Inline batch resume callback — see `MessageList.onResumeTools`. */
   onResumeTools?: (toolCallIds: string[]) => Promise<void> | void
+  /** An API row's "Always allow", applied as the batch resumes — see `MessageList.onAlwaysAllowApiTools`. */
+  onAlwaysAllowApiTools?: (toolNames: string[]) => Promise<void> | void
 
   /** Forwarded to the lifted `ChatInput`. */
   inputProps?: Omit<
@@ -218,6 +225,7 @@ export default function ChatBody({
   emptyStateContent,
   previewTool,
   onResumeTools,
+  onAlwaysAllowApiTools,
   grants,
   credentialCaptures,
   onSubmitCredentialCapture,
@@ -232,8 +240,17 @@ export default function ChatBody({
   // into the final message). The panel renders the streaming transcript with the
   // current operation expanded. Falls back to the run the SERVER reports for this
   // chat, so a reload keeps watching a turn this session never started.
-  const cliRunId = liveState.cliRunId ?? activeCliRunId
+  // Held past the run's end until the persisted reply carries it — see
+  // `useShownLiveRun`.
+  const cliRunId = useShownLiveRun(chatId, liveState.cliRunId ?? activeCliRunId, messages)
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
+  const [chosenQuestionId, setChosenQuestionId] = useState<string>()
+  const shownQuestionKey = shownQuestionId(
+    questionGrants.map((g) => g.id),
+    chosenQuestionId,
+  )
+  const shownIndex = questionGrants.findIndex((g) => g.id === shownQuestionKey)
+  const shownQuestion = shownIndex >= 0 ? questionGrants[shownIndex] : undefined
   const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
   // EVERY pending approval takes the composer's place so the asks are unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
@@ -241,7 +258,16 @@ export default function ChatBody({
   // — that pile-up used to fall back to a modal covering the chat. `Decide later`
   // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
   // (changing the id set) re-shows it, because the dismissed key no longer matches.
-  const approvalGrants = useMemo(() => pendingApprovalGrants(grants), [grants])
+  // Ordinary tool asks are decided on the rows that show them; each CLI turn
+  // reports which asks it shows, and the panel keeps only the rest.
+  const cliAsks = useMemo(() => (grants ?? []).filter((g) => g.source === 'cli'), [grants])
+  const { claimedAskIds, onClaimAsks } = useClaimedAsks()
+  const pendingAskIds = useMemo(() => cliAsks.map((g) => g.id), [cliAsks])
+  const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
+  const approvalGrants = useMemo(
+    () => panelApprovalGrants(grants, claimedAskIds, { apiAsksOnRows: true }),
+    [grants, claimedAskIds],
+  )
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
   const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
   const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
@@ -299,6 +325,9 @@ export default function ChatBody({
           pendingCliModel={liveState.cliModel ?? undefined}
           pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           cliBlockedOn={cliBlockedOn}
+          cliAsks={cliAsks}
+          decidedAsks={decidedAsks}
+          onClaimAsks={onClaimAsks}
           renderToolResult={renderToolResult}
           getToolHeaderPath={getToolHeaderPath}
           renderToolRowOverride={renderToolRowOverride}
@@ -318,6 +347,7 @@ export default function ChatBody({
           onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
           previewTool={previewTool}
           onResumeTools={onResumeTools ?? onConfirmTools}
+          onAlwaysAllowApiTools={onAlwaysAllowApiTools}
           isSending={isSending}
           isDeleting={liveState.isDeleting === true}
           emptyStateContent={emptyStateContent}
@@ -355,11 +385,36 @@ export default function ChatBody({
           It outranks `hideInput` deliberately. A parked ask now waits forever
           by design, so a surface that hides the composer must NOT also hide the
           one control that can release it. */}
-      {questionGrants.length > 0 ? (
+      {shownQuestion ? (
         <div className="flex flex-col gap-2 border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-          {questionGrants.map((grant) => (
-            <AgentQuestionCard key={grant.id} grant={grant} />
-          ))}
+          {questionGrants.length > 1 ? (
+            // One question at a time, paged — several stacked filled the screen
+            // and read as the same question asked twice.
+            <div className="flex items-center justify-end gap-2 text-xs text-(--text-secondary)">
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Previous question"
+                onClick={() => setChosenQuestionId(questionGrants[shownIndex - 1]?.id)}
+                disabled={shownIndex === 0}
+              >
+                <IconChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="tabular-nums">
+                Question {shownIndex + 1} of {questionGrants.length}
+              </span>
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Next question"
+                onClick={() => setChosenQuestionId(questionGrants[shownIndex + 1]?.id)}
+                disabled={shownIndex === questionGrants.length - 1}
+              >
+                <IconChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : null}
+          <AgentQuestionCard key={shownQuestion.id} grant={shownQuestion} />
         </div>
       ) : hideInput ? null : showApprovalPanel ? (
         <div className="flex flex-col">

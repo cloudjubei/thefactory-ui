@@ -236,7 +236,7 @@ export default function CommitDiffViewer({
     if (!summary) return m
     const combined = summary.patch ?? ''
     for (const f of summary.files) {
-      m.set(f.path, f.patch || getFilePatch(combined, f.path) || '')
+      m.set(f.path, f.patchSuppressed ? '' : f.patch || getFilePatch(combined, f.path) || '')
     }
     return m
   }, [summary])
@@ -273,6 +273,7 @@ export default function CommitDiffViewer({
           <DiffViewer
             path={activeFile.path}
             patch={filePatch}
+            suppressed={activeFile.patchSuppressed === 'size'}
             wrap={wrap}
             ignoreWS={ignoreWS}
             intra={intra}
@@ -350,6 +351,7 @@ export default function CommitDiffViewer({
           <DiffViewer
             path={desktopActiveFile.path}
             patch={desktopPatch}
+            suppressed={desktopActiveFile.patchSuppressed === 'size'}
             wrap={wrap}
             ignoreWS={ignoreWS}
             intra={intra}

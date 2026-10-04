@@ -10,6 +10,7 @@ import {
   verificationCheckRows,
   type CheckMethodId,
   type CheckMethodRow,
+  type DeveloperChecksNote,
   type EvidenceTile,
   type FeatureSignoff,
   type RunReviewFacts,
@@ -83,6 +84,8 @@ export type FeatureReviewSectionProps = {
   proof?: VerifyProofView
   /** Which verify attempt the section shows, and why it is that one. */
   attemptLabel?: string
+  /** "Developer verified: Build ✓, Lint ✗" — or that the developer ran no checks. */
+  developerChecks?: DeveloperChecksNote
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -208,6 +211,7 @@ export default function FeatureReviewSection({
   emptyLabel,
   proof,
   attemptLabel,
+  developerChecks,
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
@@ -386,6 +390,17 @@ export default function FeatureReviewSection({
       ) : null}
 
       <AgentRow agents={agents} />
+
+      {developerChecks ? (
+        <Text
+          style={{
+            fontSize: 12,
+            color: developerChecks.ran ? theme.text.secondary : theme.text.muted,
+          }}
+        >
+          {developerChecks.text}
+        </Text>
+      ) : null}
 
       {rows.length > 0 ? (
         <CheckChipRow

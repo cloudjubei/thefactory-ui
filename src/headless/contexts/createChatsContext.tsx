@@ -11,9 +11,10 @@ import {
   deleteChat as deleteChatApi,
   deleteLastChatMessage,
   getChat as getChatApi,
+  getChatSummary as getChatSummaryApi,
   getChatsSettings,
   getCliAgentRun,
-  listChats,
+  listChatSummaries,
   restartChatWithCli,
   resumeCompletion,
   sendChatWithCli,
@@ -31,9 +32,20 @@ import type {
   UpdateChatData,
 } from '../api'
 import { useApi, useAuth } from '../api'
+import { errorStatus } from '../api/errorMessage'
 import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
-import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
+import type { ProcessLaunchDecision } from 'thefactory-tools/types'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
+import { chatUpdateTarget, withChat, withFullRefresh } from '../utils/chatUpdates'
+import {
+  isChatLoaded,
+  withAppendedMessage,
+  withSummary,
+  type ChatListEntry,
+  type ChatSummaryLike,
+} from '../utils/chatListEntry'
+import { InflightRequests } from '../utils/inflightRequests'
+import { createCoalescedRefresh } from '../utils/runUpdateRefresh'
 import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
@@ -116,15 +128,23 @@ export type ChatsContextValue = {
   isLoaded: boolean
   loadError: Error | null
 
-  /** Every chat belonging to the active project (any context type). */
-  chats: GetChatResponse[]
+  /**
+   * Every chat — as a summary (no `messages`; see `chatMessageCount` /
+   * `chatMessageTimes`) until it is opened or read whole (`loadChat`).
+   */
+  chats: ChatListEntry[]
   /** The project-level chat for the active project (context type `PROJECT`, no sub-ids). */
-  projectChat: GetChatResponse | null
+  projectChat: ChatListEntry | null
   /** The LLM config currently being used; `null` if none are configured. */
   activeLLMConfig: GetLlmConfigResponse | null
 
   /** Look up a chat by its `ChatContext`. Returns `null` if not yet created. */
-  getChat: (ctx: ChatCtx) => GetChatResponse | null
+  getChat: (ctx: ChatCtx) => ChatListEntry | null
+  /**
+   * Read a chat's messages when the list holds only its summary — what an open
+   * chat calls. A no-op for a chat already loaded.
+   */
+  loadChat: (ctx: ChatCtx) => Promise<void>
   /**
    * Per-chat live state. Always returns a defaulted shape — never `null` —
    * so consumers can destructure directly.
@@ -168,14 +188,14 @@ export type ChatsContextValue = {
   /**
    * Resume the in-flight completion for `ctx`, granting the listed
    * tool-call ids. Tools not in `grantedToolCallIds` come back as
-   * `not_allowed`. Pass `[]` to deny everything. `openWorkDecisions` carries,
-   * by granted tool-call id, how the person chose to start a story over its
-   * open work.
+   * `not_allowed`. Pass `[]` to deny everything. `launchDecisions` carries,
+   * by granted tool-call id, what the person chose on a story launch — how to
+   * start it over its open work, how its features are worked.
    */
   confirmTools: (
     ctx: ChatCtx,
     grantedToolCallIds: string[],
-    openWorkDecisions?: Record<string, ProcessOpenWorkDecision>,
+    launchDecisions?: Record<string, ProcessLaunchDecision>,
   ) => Promise<void>
   /** Drop the pending tool confirmation for `ctx` without resuming. */
   cancelToolConfirmation: (ctx: ChatCtx) => void
@@ -309,10 +329,14 @@ function collectProposedToolCalls(result: SendCompletionWithToolsResponse): Prop
  * (observed: an agent-run chat stamped 'PROJECT') would otherwise break every
  * type-guarded consumer (grouping, agent-run detection, delete guards).
  */
-function healChatContexts(chats: GetChatResponse[]): GetChatResponse[] {
+function chatKeyOf(chat: { context: GetChatResponse['context'] }): string {
+  return getChatContextKey(chat.context)
+}
+
+function healChatContexts<T extends { context: GetChatResponse['context'] }>(chats: T[]): T[] {
   return chats.map((c) => {
     const healed = normalizeChatContext(c.context as Parameters<typeof normalizeChatContext>[0])
-    return healed === c.context ? c : { ...c, context: healed as GetChatResponse['context'] }
+    return healed === c.context ? c : { ...c, context: healed as T['context'] }
   })
 }
 
@@ -343,12 +367,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const { getStory, getFeature } = useStories()
     const { getGroupById } = useProjectsGroups()
 
-    const [chats, setChats] = useState<GetChatResponse[]>([])
+    const [chats, setChats] = useState<ChatListEntry[]>([])
     // Mirror of `chats` kept in sync SYNCHRONOUSLY (in `refresh`), so code that `await`s a refresh
     // — e.g. createProjectTopic → updateChatSettings → refresh, then sends — reads the just-persisted
     // per-chat system prompt immediately, instead of the stale render-state (which lagged the prompt
     // to the SECOND message).
-    const chatsRef = useRef<GetChatResponse[]>([])
+    const chatsRef = useRef<ChatListEntry[]>([])
     const [chatSettings, setChatSettings] = useState<GetChatsSettingsResponse | null>(null)
     const [isLoaded, setIsLoaded] = useState(false)
     const [loadError, setLoadError] = useState<Error | null>(null)
@@ -438,6 +462,10 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // first request as the second takes over, plus WS-driven refreshes
     // don't pile up if one is already in flight.
     const abortRef = useRef<AbortController | null>(null)
+    // When each chat was last read on its own, on a counter shared with the full
+    // read — so a full read that began earlier keeps the newer copy.
+    const chatUpdateSeqRef = useRef(0)
+    const chatUpdatedAtRef = useRef(new Map<string, number>())
     const refresh = useCallback(async () => {
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -449,15 +477,24 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         return
       }
       try {
-        // Load ALL chats (no projectId filter) so the sidebar can render
+        // Summaries of ALL chats (no projectId filter) so the sidebar can render
         // per-project unread / thinking badges for every project, not just
-        // the active one. Without this the badges flash on project switch
-        // and never settle for non-active projects.
-        const { data } = await listChats({ signal: controller.signal, throwOnError: true })
+        // the active one. Summaries, not chats: every chat's messages ran to
+        // megabytes, and only the open chat shows them (`loadChat`).
+        const startedAt = chatUpdateSeqRef.current
+        const { data } = await listChatSummaries({
+          signal: controller.signal,
+          throwOnError: true,
+        })
         if (controller.signal.aborted) return
-        const healed = healChatContexts(data)
-        chatsRef.current = healed
-        setChats(healed)
+        const healed = healChatContexts(data as ChatSummaryLike[])
+        const fresher = new Set<string>()
+        for (const [key, at] of chatUpdatedAtRef.current) if (at > startedAt) fresher.add(key)
+        setChats((prev) => {
+          const byKey = new Map(prev.map((c) => [chatKeyOf(c), c]))
+          const merged = healed.map((sm) => withSummary(byKey.get(chatKeyOf(sm)), sm))
+          return withFullRefresh(prev, merged, fresher, chatKeyOf)
+        })
         setLoadError(null)
       } catch (err) {
         if (controller.signal.aborted) return
@@ -485,7 +522,111 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       return () => abortRef.current?.abort()
     }, [token, refresh])
 
-    useEffect(() => ws.on('chats:updated', () => void refresh()), [ws, refresh])
+    // A chat changing reads that chat alone. Reading every chat with every
+    // message — megabytes — on each update, aborting the read before it, meant
+    // a turn streaming updates kept cancelling its own refresh: replies and
+    // their asks appeared only seconds after the stream went quiet.
+    const refreshAllCoalesced = useMemo(() => createCoalescedRefresh(refresh), [refresh])
+    const stampChatUpdate = useCallback((ctx: ChatCtx) => {
+      chatUpdateSeqRef.current += 1
+      chatUpdatedAtRef.current.set(getChatContextKey(ctx), chatUpdateSeqRef.current)
+    }, [])
+    /** Read one chat whole and put it in the list — in place, or added. Returns it. */
+    const fetchChat = useCallback(
+      async (ctx: ChatCtx): Promise<GetChatResponse> => {
+        const { data } = await getChatApi({ body: { context: ctx }, throwOnError: true })
+        const [healed] = healChatContexts([data])
+        stampChatUpdate(ctx)
+        setChats((prev) => withChat<ChatListEntry>(prev, healed, chatKeyOf))
+        return healed
+      },
+      [stampChatUpdate],
+    )
+    /**
+     * Read one chat's summary into the list — for a chat whose messages are not
+     * loaded, which a change must not pull in whole. Gone from the server: gone
+     * from the list.
+     */
+    const fetchChatSummary = useCallback(
+      async (ctx: ChatCtx): Promise<void> => {
+        let data: unknown
+        try {
+          ;({ data } = await getChatSummaryApi({ body: { context: ctx }, throwOnError: true }))
+        } catch (err) {
+          if (errorStatus(err) !== 404) throw err
+          setChats((prev) => prev.filter((c) => !sameContext(c.context, ctx)))
+          return
+        }
+        const [healed] = healChatContexts([data as ChatSummaryLike])
+        stampChatUpdate(ctx)
+        setChats((prev) => {
+          const current = prev.find((c) => sameContext(c.context, ctx))
+          return withChat(prev, withSummary(current, healed), chatKeyOf)
+        })
+      },
+      [stampChatUpdate],
+    )
+    const chatLoadsRef = useRef(new InflightRequests<GetChatResponse>())
+    /** The chat whole — as the list holds it when loaded, else read once however many ask. */
+    const ensureChatLoaded = useCallback(
+      async (ctx: ChatCtx): Promise<GetChatResponse> => {
+        const current = chatsRef.current.find((c) => sameContext(c.context, ctx))
+        if (current && isChatLoaded(current)) return current
+        return chatLoadsRef.current.run(getChatContextKey(ctx), () => fetchChat(ctx))
+      },
+      [fetchChat],
+    )
+    const loadChat = useCallback(
+      async (ctx: ChatCtx): Promise<void> => {
+        await ensureChatLoaded(ctx)
+      },
+      [ensureChatLoaded],
+    )
+    /**
+     * What a change to ONE chat reloads: that chat. The whole list — every chat
+     * with every message — is read again only if it cannot be.
+     */
+    const reloadChat = useCallback(
+      async (ctx: ChatCtx): Promise<void> => {
+        try {
+          await fetchChat(ctx)
+        } catch {
+          await refresh()
+        }
+      },
+      [fetchChat, refresh],
+    )
+    const chatRefreshersRef = useRef(new Map<string, () => Promise<void>>())
+    const refreshChat = useCallback(
+      (ctx: ChatCtx): Promise<void> => {
+        const key = getChatContextKey(ctx)
+        let refreshOne = chatRefreshersRef.current.get(key)
+        if (!refreshOne) {
+          // A loaded chat is read whole — it is on screen, or was; any other
+          // only as a summary, which is all the lists show of it.
+          refreshOne = createCoalescedRefresh(async () => {
+            const current = chatsRef.current.find((c) => sameContext(c.context, ctx))
+            if (current && isChatLoaded(current)) await fetchChat(ctx)
+            else await fetchChatSummary(ctx)
+          })
+          chatRefreshersRef.current.set(key, refreshOne)
+        }
+        return refreshOne()
+      },
+      [fetchChat, fetchChatSummary],
+    )
+    useEffect(
+      () =>
+        ws.on('chats:updated', (data: unknown) => {
+          const target = chatUpdateTarget(data)
+          if (!target) {
+            void refreshAllCoalesced()
+            return
+          }
+          void refreshChat(target).catch(() => void refreshAllCoalesced())
+        }),
+      [ws, refreshAllCoalesced, refreshChat],
+    )
 
     // Load chat settings once auth lands. The map is keyed by ChatContextType
     // (PROJECT, STORY, …) and supplies the systemPrompt + completionSettings
@@ -541,6 +682,24 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       })
     }, [ws, updateLiveState])
 
+    // The chat whose CLI run is starting — its id not known until the start
+    // call answers. An update for a run no chat has claimed goes to it, and only
+    // then: falling back to whichever chat was sending lasted a whole API turn,
+    // and adopted any run streaming meanwhile — a resume in another chat, a
+    // process step — as that chat's own.
+    const cliStartingCtxRef = useRef<ChatCtx | null>(null)
+    const whileCliRunStarts = useCallback(
+      async <T,>(ctx: ChatCtx, start: () => Promise<T>): Promise<T> => {
+        cliStartingCtxRef.current = ctx
+        try {
+          return await start()
+        } finally {
+          if (cliStartingCtxRef.current === ctx) cliStartingCtxRef.current = null
+        }
+      },
+      [],
+    )
+
     // Stream a CLI-backed run's transcript into the same `pendingAssistant`
     // live preview (the API path uses `completion:progress`; CLI runs broadcast
     // on `cli:run-update`). Routed to the in-flight chat via `inFlightCtxRef`.
@@ -557,7 +716,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // never mapped — and never stamp an error through that fallback, since
         // it may resolve to a different chat (a second send in the race window).
         const mapped = cliRunCtxByRunIdRef.current.get(parsed.runId)
-        const target = mapped ?? inFlightCtxRef.current
+        const target = mapped ?? cliStartingCtxRef.current
         if (!target) return
         if (parsed.kind === 'terminal') {
           // Mark the run finalized so the post-202 registration doesn't re-add a
@@ -708,7 +867,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // we return a synthetic, sendable one (empty messages) rather than null —
     // every client then renders a tappable Project-chat row, and post-delete
     // navigation always has a concrete target.
-    const projectChat = useMemo<GetChatResponse | null>(() => {
+    const projectChat = useMemo<ChatListEntry | null>(() => {
       if (!projectId) return null
       const existing = chats.find(
         (c) =>
@@ -725,7 +884,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const activeLLMConfig = activeChatConfig ?? llmConfigs[0] ?? null
 
     const getChat = useCallback(
-      (ctx: ChatCtx): GetChatResponse | null =>
+      (ctx: ChatCtx): ChatListEntry | null =>
         chats.find((c) => sameContext(c.context, ctx)) ?? null,
       [chats],
     )
@@ -832,26 +991,26 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               cliStartedAt: new Date().toISOString(),
             })
             // Optimistically show the user's message right away (the route also
-            // persists it; `refresh()` reconciles the copy).
+            // persists it; `reloadChat` reconciles the copy).
             setChats((prev) =>
               prev.map((c) =>
-                sameContext(c.context, ctx)
-                  ? { ...c, messages: [...(c.messages ?? []), userMessage] }
-                  : c,
+                sameContext(c.context, ctx) ? withAppendedMessage(c, userMessage) : c,
               ),
             )
-            const { data } = await sendChatWithCli({
-              body: {
-                chatContext: ctx,
-                llmConfig: activeLLMConfig,
-                message: userMessage,
-                settings,
-                ...(systemPrompt ? { systemPrompt } : {}),
-                runner: 'cli',
-                cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
-              },
-              throwOnError: true,
-            })
+            const { data } = await whileCliRunStarts(ctx, () =>
+              sendChatWithCli({
+                body: {
+                  chatContext: ctx,
+                  llmConfig: activeLLMConfig,
+                  message: userMessage,
+                  settings,
+                  ...(systemPrompt ? { systemPrompt } : {}),
+                  runner: 'cli',
+                  cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
+                },
+                throwOnError: true,
+              }),
+            )
             // The run is now detached server-side: route its `cli:run-update`
             // stream to this chat by runId, and mount the live run view. The run
             // keeps `isSending` true (the spinner / Stop button stay) until its
@@ -860,19 +1019,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             detachedCli = true
             registerDetachedCliRun(ctx, data?.runId)
             // Reconcile the optimistic user message with the persisted copy.
-            await refresh()
+            await reloadChat(ctx)
             return
           }
 
           // Optimistically show the user's message immediately (mirrors the CLI
           // path) so the list never flashes empty / the system-prompt bubble in
-          // the window before the persisted copy is pulled in by refresh().
-          const priorMessages = getChat(ctx)?.messages ?? []
+          // the window before the persisted copy is pulled in by `reloadChat`.
+          const priorMessages = (await ensureChatLoaded(ctx)).messages ?? []
           setChats((prev) =>
             prev.map((c) =>
-              sameContext(c.context, ctx)
-                ? { ...c, messages: [...(c.messages ?? []), userMessage] }
-                : c,
+              sameContext(c.context, ctx) ? withAppendedMessage(c, userMessage) : c,
             ),
           )
 
@@ -907,7 +1064,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               })
             }
           }
-          await refresh()
+          await reloadChat(ctx)
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[chat] send failed:', err)
@@ -941,8 +1098,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [
         activeLLMConfig,
         buildToolSettings,
+        ensureChatLoaded,
         getChat,
-        refresh,
+        reloadChat,
         registerDetachedCliRun,
         updateLiveState,
       ],
@@ -958,7 +1116,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // chat means two placeholders and two transcripts racing into the same
         // view, and on the API path the second request aborts the first.
         if (getChatLiveState(ctx).isSending) return
-        const messages = getChat(ctx)?.messages ?? []
+        const messages = (await ensureChatLoaded(ctx)).messages ?? []
         if (!isRestartableChatTail(messages)) return
 
         updateLiveState(ctx, {
@@ -980,20 +1138,22 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             })
             // The CLI route appends the message on a normal send, so a restart
             // needs its own entry point rather than a second POST to that one.
-            const { data } = await restartChatWithCli({
-              body: {
-                chatContext: ctx,
-                llmConfig: activeLLMConfig,
-                settings,
-                ...(systemPrompt ? { systemPrompt } : {}),
-                runner: 'cli',
-                cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
-              },
-              throwOnError: true,
-            })
+            const { data } = await whileCliRunStarts(ctx, () =>
+              restartChatWithCli({
+                body: {
+                  chatContext: ctx,
+                  llmConfig: activeLLMConfig,
+                  settings,
+                  ...(systemPrompt ? { systemPrompt } : {}),
+                  runner: 'cli',
+                  cliRunner: chatCliRunnerToDispatchOptions(cliRunner),
+                },
+                throwOnError: true,
+              }),
+            )
             detachedCli = true
             registerDetachedCliRun(ctx, data?.runId)
-            await refresh()
+            await reloadChat(ctx)
             return
           }
 
@@ -1023,7 +1183,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               })
             }
           }
-          await refresh()
+          await reloadChat(ctx)
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[chat] restart failed:', err)
@@ -1048,8 +1208,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [
         activeLLMConfig,
         buildToolSettings,
+        ensureChatLoaded,
         getChat,
-        refresh,
+        reloadChat,
         registerDetachedCliRun,
         updateLiveState,
       ],
@@ -1059,7 +1220,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       async (
         ctx: ChatCtx,
         grantedToolCallIds: string[],
-        openWorkDecisions?: Record<string, ProcessOpenWorkDecision>,
+        launchDecisions?: Record<string, ProcessLaunchDecision>,
       ) => {
         const live = getChatLiveState(ctx)
         const pending = live.pendingToolConfirmation
@@ -1076,20 +1237,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // Pull the latest chat so trailing `require_confirmation` tool
           // messages are included in the resume request — the backend's resume
           // flow scans messages from the end backwards.
-          const { data: latest } = await listChats({
-            query: projectId ? { projectId } : {},
-            throwOnError: true,
-          })
-          const healedLatest = healChatContexts(latest)
-          // The query may be project-filtered — merge over the full list rather
-          // than replacing it, or every OTHER project's rows (and their unread
-          // badges) vanish until the next full refresh.
-          setChats((prev) =>
-            projectId
-              ? [...prev.filter((c) => c.context.projectId !== projectId), ...healedLatest]
-              : healedLatest,
-          )
-          const target = latest.find((c) => sameContext(c.context, pending.context))
+          const target = await fetchChat(pending.context).catch(() => undefined)
           if (!target) throw new Error('Chat for pending confirmation no longer exists')
 
           const { data: result } = await resumeCompletion({
@@ -1102,8 +1250,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
               },
               settings: pending.settings,
               toolsGranted: grantedToolCallIds,
-              ...(openWorkDecisions && Object.keys(openWorkDecisions).length > 0
-                ? { openWorkDecisions }
+              ...(launchDecisions && Object.keys(launchDecisions).length > 0
+                ? { launchDecisions }
                 : {}),
             },
             throwOnError: true,
@@ -1118,7 +1266,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           } else {
             updateLiveState(ctx, { pendingToolConfirmation: null })
           }
-          await refresh()
+          await reloadChat(ctx)
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[chat] send failed:', err)
@@ -1132,7 +1280,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           updateLiveState(ctx, { isSending: false, pendingAssistant: null })
         }
       },
-      [activeLLMConfig, getChatLiveState, projectId, refresh, updateLiveState],
+      [activeLLMConfig, fetchChat, getChatLiveState, reloadChat, updateLiveState],
     )
 
     const cancelToolConfirmation = useCallback(
@@ -1212,17 +1360,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           pendingToolConfirmation: null,
         })
         await clearChatApi({ body: { context: ctx }, throwOnError: true })
-        await refresh()
+        await reloadChat(ctx)
       },
-      [refresh, getChatLiveState, updateLiveState],
+      [reloadChat, getChatLiveState, updateLiveState],
     )
 
     const archiveChat = useCallback(
       async (ctx: ChatCtx) => {
         await archiveChatApi({ body: { context: ctx }, throwOnError: true })
-        await refresh()
+        await reloadChat(ctx)
       },
-      [refresh],
+      [reloadChat],
     )
 
     /**
@@ -1237,19 +1385,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           body: { context: ctx },
           throwOnError: true,
         })
-        await refresh()
+        await reloadChat(ctx)
+        if (data?.successorContext) await reloadChat(data.successorContext)
         return data?.successorContext
       },
-      [refresh],
+      [reloadChat],
     )
 
-    const deleteChat = useCallback(
-      async (ctx: ChatCtx) => {
-        await deleteChatApi({ body: { context: ctx }, throwOnError: true })
-        await refresh()
-      },
-      [refresh],
-    )
+    const deleteChat = useCallback(async (ctx: ChatCtx) => {
+      await deleteChatApi({ body: { context: ctx }, throwOnError: true })
+      setChats((prev) => prev.filter((c) => !sameContext(c.context, ctx)))
+    }, [])
 
     const deleteLastMessage = useCallback(
       async (ctx: ChatCtx) => {
@@ -1324,7 +1470,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             body: { context: ctx, patch: { settings: merged } },
             throwOnError: true,
           })
-          await refresh()
+          await reloadChat(ctx)
           // A newer edit landed mid-flight — its own flush owns the key now.
           if (settingsPersistSeqRef.current[key] !== seq) return
           delete pendingSettingsRef.current[key]
@@ -1343,7 +1489,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           }, SETTINGS_PERSIST_RETRY_MS)
         }
       },
-      [refresh],
+      [reloadChat],
     )
 
     const updateChatSettings = useCallback(
@@ -1380,30 +1526,27 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           body: { type: 'project', entityId: entityProjectId, title: trimmed },
           throwOnError: true,
         })
-        // The backend broadcasts `chats:updated`, but we refresh inline so
-        // the caller can navigate to the new chat without waiting for the WS.
-        await refresh()
+        // The backend broadcasts `chats:updated`, but the new chat goes in the
+        // list inline so the caller can navigate to it without waiting for the WS.
+        if (data) setChats((prev) => withChat(prev, healChatContexts([data])[0], chatKeyOf))
         if (systemPrompt && systemPrompt.trim() && data?.context) {
           await updateChatSettings(data.context, { systemPrompt: systemPrompt.trim() })
         }
         return data
       },
-      [refresh, updateChatSettings],
+      [updateChatSettings],
     )
 
-    const createGroupTopic = useCallback(
-      async (groupId: string, title: string) => {
-        const trimmed = title.trim()
-        if (trimmed.length === 0) throw new Error('Title required')
-        const { data } = await createTopicChat({
-          body: { type: 'group', entityId: groupId, title: trimmed },
-          throwOnError: true,
-        })
-        await refresh()
-        return data
-      },
-      [refresh],
-    )
+    const createGroupTopic = useCallback(async (groupId: string, title: string) => {
+      const trimmed = title.trim()
+      if (trimmed.length === 0) throw new Error('Title required')
+      const { data } = await createTopicChat({
+        body: { type: 'group', entityId: groupId, title: trimmed },
+        throwOnError: true,
+      })
+      if (data) setChats((prev) => withChat(prev, healChatContexts([data])[0], chatKeyOf))
+      return data
+    }, [])
 
     const value = useMemo<ChatsContextValue>(
       () => ({
@@ -1413,6 +1556,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         projectChat,
         activeLLMConfig,
         getChat,
+        loadChat,
         getChatLiveState,
         getDraft,
         setDraft,
@@ -1441,6 +1585,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         projectChat,
         activeLLMConfig,
         getChat,
+        loadChat,
         getChatLiveState,
         getDraft,
         setDraft,

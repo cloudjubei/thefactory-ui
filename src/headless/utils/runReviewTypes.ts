@@ -4,6 +4,7 @@ import type {
   VerificationCheckStatus,
 } from '../api/generated'
 import type { CostSource } from './costDetailsTypes'
+import type { ProcessTimeDetailsView } from './processTimeDetailsTypes'
 
 /**
  * Semantic colour role for a run-review surface. Platform-neutral: web maps it
@@ -78,6 +79,8 @@ export type RunReviewFacts = {
   durationLabel: string | undefined
   /** The cost behind the label, for its details view. Present whenever `costLabel` is. */
   cost?: CostSource
+  /** Where the time behind `durationLabel` went, when the work recorded it. */
+  timeDetails?: ProcessTimeDetailsView
 }
 
 /** Per-status file tallies for the "what changed" line. */
@@ -107,4 +110,16 @@ export type ApproveActionDescriptor = {
   safest?: boolean
   /** Carries a "not proven" marker in the menu on any verdict but `proven`. */
   warnUnlessProven?: boolean
+}
+
+/** One file of a run's diff the user marked as viewed, at the commit it was read at. */
+export type ViewedFile = { path: string; headSha: string; at: number }
+
+/** How far the user is through a run's diff — GitHub's "N of M files viewed". */
+export type ViewedFilesProgress = {
+  viewed: Set<string>
+  count: number
+  total: number
+  /** Every changed file is viewed: the change is read. */
+  all: boolean
 }

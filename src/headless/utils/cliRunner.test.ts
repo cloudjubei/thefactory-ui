@@ -1,8 +1,12 @@
+import type { CliDecidedAsk } from './cliRunActivityTypes'
 import { describe, it, expect } from 'vitest'
 import {
   chatCliRunnerToDispatchOptions,
   chatCliRunnerToStartRunBody,
   cliAssistantTextFromEntry,
+  cliRunFailureNotice,
+  withCliRunFailure,
+  withStoredCliReply,
   cliToolNameFromEntry,
   cleanCliToolName,
   classifyToolOrigin,
@@ -22,7 +26,7 @@ import {
   parseCliAuthLoginEvent,
   parseCliRunUpdateEvent,
   parseLoginUrl,
-  isAwaitingApprovalResult,
+  hostCallOutcomeOf,
   isPlaceholderCliToolName,
   isEmptyToolInput,
   acpToolOrigin,
@@ -958,65 +962,262 @@ describe('normalizeCliTranscript', () => {
     })
   })
 
-  it('re-types an in-flight tool the run is blocked on as require_confirmation', () => {
-    const messages = cliTranscriptToMessages(
+  const call = (id: string, name: string, input: unknown, at = 1) =>
+    entry({
+      at,
+      kind: 'tool-call',
+      payload: { message: { content: [{ type: 'tool_use', id, name, input }] } },
+    })
+  const answered = (id: string, body: unknown, at = 2) =>
+    entry({
+      at,
+      kind: 'tool-result',
+      payload: {
+        message: {
+          content: [{ type: 'tool_result', tool_use_id: id, content: JSON.stringify(body) }],
+        },
+      },
+    })
+
+  it('marks the call a pending ask names as needing confirmation, and carries the ask', () => {
+    const [row] = cliTranscriptToMessages(
       [
-        entry({
-          at: 1,
-          kind: 'tool-call',
-          payload: {
-            message: {
-              content: [{ type: 'tool_use', id: 't1', name: 'inspectProjectPath', input: {} }],
-            },
-          },
-        }),
+        call('t1', 'addStory', { title: 'T' }),
+        answered('t1', { outcome: 'pending', actionId: 'a1' }),
       ],
-      { awaitingApprovalToolNames: ['inspectProjectPath'] },
+      {
+        pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+      },
     )
-    expect(messages[0].toolResult?.type).toBe('require_confirmation')
+    expect(row.toolResult?.type).toBe('require_confirmation')
+    expect(row.toolCall?.approvalId).toBe('a1')
   })
 
-  it('leaves an in-flight tool nobody is waiting on as running', () => {
-    const messages = cliTranscriptToMessages(
-      [
-        entry({
-          at: 1,
-          kind: 'tool-call',
-          payload: {
-            message: { content: [{ type: 'tool_use', id: 't1', name: 'readPaths', input: {} }] },
-          },
-        }),
-      ],
-      { awaitingApprovalToolNames: ['inspectProjectPath'] },
-    )
-    expect(messages[0].toolResult?.type).toBe('running')
+  it('marks a call still held open for approval by its name and arguments', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'addStory', { title: 'T' })], {
+      pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+    })
+    expect(row.toolResult?.type).toBe('require_confirmation')
+    expect(row.toolCall?.approvalId).toBe('a1')
   })
 
-  it('leaves a completed tool alone even when its name matches a pending approval', () => {
-    const messages = cliTranscriptToMessages(
-      [
-        entry({
-          at: 1,
-          kind: 'tool-call',
-          payload: {
-            message: {
-              content: [{ type: 'tool_use', id: 't1', name: 'inspectProjectPath', input: {} }],
-            },
-          },
-        }),
-        entry({
-          at: 2,
-          kind: 'tool-result',
-          payload: {
-            message: {
-              content: [{ type: 'tool_result', tool_use_id: 't1', content: '{"ok":true}' }],
-            },
-          },
-        }),
-      ],
-      { awaitingApprovalToolNames: ['inspectProjectPath'] },
+  it('does not tie an in-flight call to an ask for different arguments', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'addStory', { title: 'Other' })], {
+      pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+    })
+    expect(row.toolResult?.type).toBe('running')
+    expect(row.toolCall?.approvalId).toBeUndefined()
+  })
+
+  it('shows a call whose ask is answered in its own panel as waiting, not as not run', () => {
+    // Observed: an askUser whose question was open below read "Why it did not run".
+    const [row] = cliTranscriptToMessages(
+      [call('t1', 'askUser', { q: 1 }), answered('t1', { outcome: 'pending', actionId: 'q1' })],
+      { pendingAsks: [{ id: 'q1', decidedOnRow: false }] },
     )
-    expect(messages[0].toolResult?.type).toBe('success')
+    expect(row.toolResult?.type).toBe('running')
+    expect(row.toolCall?.approvalId).toBeUndefined()
+    expect(row.toolCall?.awaitingDecision).toBe(true)
+  })
+
+  it('does not mark a call decided on its own row as awaiting a decision elsewhere', () => {
+    const [row] = cliTranscriptToMessages(
+      [
+        call('t1', 'addStory', { title: 'T' }),
+        answered('t1', { outcome: 'pending', actionId: 'a1' }),
+      ],
+      {
+        pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+      },
+    )
+    expect(row.toolCall?.awaitingDecision).toBeUndefined()
+  })
+
+  it('shows a call still held open for a panel ask as waiting, without claiming it', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'startFeatureWork', { s: 1 })], {
+      pendingAsks: [
+        { id: 'l1', toolName: 'startFeatureWork', args: { s: 1 }, decidedOnRow: false },
+      ],
+    })
+    expect(row.toolResult?.type).toBe('running')
+    expect(row.toolCall?.approvalId).toBeUndefined()
+  })
+
+  it('shows a call whose ask was since decided as not run, not as waiting', () => {
+    // Observed: a saveAgentNote approved minutes earlier still showed as
+    // needing confirmation, indistinguishable from the ask still open below it.
+    const [row] = cliTranscriptToMessages(
+      [call('t1', 'saveAgentNote', {}), answered('t1', { outcome: 'pending', actionId: 'a1' })],
+      { pendingAsks: [] },
+    )
+    expect(row.toolResult?.type).toBe('not_allowed')
+    expect(row.toolResult?.result).toMatchObject({ outcome: 'pending', actionId: 'a1' })
+  })
+
+  const askedThen = (tool: string, actionId: string) => [
+    call('t1', tool, { title: 'T' }),
+    answered('t1', { outcome: 'pending', actionId }),
+  ]
+  const decided = (over: Partial<CliDecidedAsk> = {}): CliDecidedAsk => ({
+    id: 'a1',
+    runId: 'run-1',
+    status: 'approved',
+    toolName: 'addStory',
+    args: { title: 'T' },
+    ...over,
+  })
+
+  it('shows an approved ask the agent then carried out as done, with what it returned', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [
+        decided({ executedInRun: 'run-2', execution: { ok: true, result: '{"id":"s1"}' } }),
+      ],
+    })
+    expect(row.toolResult).toMatchObject({ type: 'success', result: { id: 's1' } })
+  })
+
+  it('shows an approved ask whose call then failed as errored, with why', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [
+        decided({ execution: { ok: false, result: 'addStory was approved but failed: x' } }),
+      ],
+    })
+    expect(row.toolResult).toMatchObject({
+      type: 'errored',
+      result: 'addStory was approved but failed: x',
+    })
+  })
+
+  it('shows an approved ask not carried out yet as under way, not as not run', () => {
+    // Observed: approving a batch turned every row into "did not run" until the
+    // agent's next turn had called them all again.
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided()],
+    })
+    expect(row.toolResult?.type).toBe('running')
+  })
+
+  it('shows an approval carried out before results were kept as done, not as under way', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ executedAt: 5 })],
+    })
+    expect(row.toolResult?.type).toBe('success')
+  })
+
+  it('shows an answered question as done, with the answer the user gave', () => {
+    const [row] = cliTranscriptToMessages(askedThen('askUser', 'a1'), {
+      decidedAsks: [decided({ toolName: 'askUser', answer: 'A — Reviewed feature work' })],
+    })
+    expect(row.toolResult).toMatchObject({
+      type: 'success',
+      result: { answer: 'A — Reviewed feature work' },
+    })
+  })
+
+  it('times an approved row by the call itself, not by how long the user took to decide', () => {
+    // Observed: addFeature read 13s — 12.8s of it was the user deciding.
+    const rows = cliTranscriptToMessages(
+      [call('t1', 'addFeature', { title: 'T' }, 1000), answered('t1', { id: 'f1' }, 14_000)],
+      {
+        runId: 'run-1',
+        decidedAsks: [
+          decided({
+            toolName: 'addFeature',
+            executedInRun: 'run-1',
+            execution: { ok: true, result: '{}', durationMs: 120 },
+          }),
+        ],
+      },
+    )
+    expect(rows[0].durationMs).toBe(120)
+    expect(rows[0].toolResult?.durationMs).toBe(120)
+  })
+
+  it('times a row carried out in a later turn by that call', () => {
+    const [row] = cliTranscriptToMessages(
+      [
+        call('t1', 'addStory', { title: 'T' }, 1000),
+        answered('t1', { outcome: 'pending', actionId: 'a1' }, 21_000),
+      ],
+      {
+        decidedAsks: [
+          decided({
+            executedInRun: 'run-2',
+            execution: { ok: true, result: '{}', durationMs: 90 },
+          }),
+        ],
+      },
+    )
+    expect(row.toolResult?.durationMs).toBe(90)
+  })
+
+  it('shows a declined ask as not run, saying the user declined it', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'denied' })],
+    })
+    expect(row.toolResult?.type).toBe('not_allowed')
+    expect(row.toolResult?.result).toMatchObject({ outcome: 'denied', reason: 'You declined it.' })
+  })
+
+  it('shows an expired ask as not run, saying so', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'expired' })],
+    })
+    expect(row.toolResult?.result).toMatchObject({ outcome: 'expired' })
+  })
+
+  it('folds the later call that carried an approval out into the ask’s own row', () => {
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'addStory', { title: 'T' }),
+        answered('t1', { id: 's1' }),
+        call('t2', 'addStory', { title: 'Other' }, 3),
+        answered('t2', { id: 's2' }, 4),
+      ],
+      { runId: 'run-2', decidedAsks: [decided({ executedInRun: 'run-2' })] },
+    )
+    expect(rows.map((r) => r.toolCall?.arguments)).toEqual([{ title: 'Other' }])
+  })
+
+  it('keeps a call carried out in the run that asked — it is the ask’s own row', () => {
+    const rows = cliTranscriptToMessages(
+      [call('t1', 'addStory', { title: 'T' }), answered('t1', { id: 's1' })],
+      { runId: 'run-1', decidedAsks: [decided({ executedInRun: 'run-1' })] },
+    )
+    expect(rows).toHaveLength(1)
+  })
+
+  it('shows a call the host stopped as not run, with the reason it gave', () => {
+    const [row] = cliTranscriptToMessages([
+      call('t1', 'addStory', {}),
+      answered('t1', { outcome: 'stopped', agentInstruction: '`addStory` was REFUSED' }),
+    ])
+    expect(row.toolResult).toMatchObject({
+      type: 'not_allowed',
+      result: { agentInstruction: '`addStory` was REFUSED' },
+    })
+  })
+
+  it('ties each ask to one row only, preferring the row that names it', () => {
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'addStory', { title: 'T' }),
+        call('t2', 'addStory', { title: 'T' }, 3),
+        answered('t2', { outcome: 'pending', actionId: 'a1' }, 4),
+      ],
+      {
+        pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+      },
+    )
+    expect(rows.map((r) => r.toolCall?.approvalId)).toEqual([undefined, 'a1'])
+  })
+
+  it('leaves a completed tool alone even when an ask names the same tool', () => {
+    const [row] = cliTranscriptToMessages(
+      [call('t1', 'inspectProjectPath', {}), answered('t1', { ok: true })],
+      { pendingAsks: [{ id: 'a1', toolName: 'inspectProjectPath', args: {}, decidedOnRow: true }] },
+    )
+    expect(row.toolResult?.type).toBe('success')
   })
 
   it('propagates the tool origin onto the derived tool message', () => {
@@ -1460,6 +1661,51 @@ describe('normalizeCliTranscript — streamed reasoning and ACP tool results', (
     expect(steps[0]).toMatchObject({ kind: 'tool', resultType: 'success', durationMs: 4 })
   })
 
+  it("records a host tool call left waiting for approval as not run, not as cursor's success", () => {
+    // Cursor reports every answered MCP call as `{success: true}`; a saveProcess
+    // that was only waiting for approval read as done.
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { acp: { toolCallId: 't1', title: 'MCP: tool' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          acp: { toolCallId: 't1', status: 'completed', rawOutput: { success: true } },
+          hostOutcome: { outcome: 'pending', actionId: 'a1' },
+        },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({
+      kind: 'tool',
+      resultType: 'not_allowed',
+      hostOutcome: { outcome: 'pending', actionId: 'a1' },
+    })
+  })
+
+  it('shows a host tool call the host refused as not run, with the reason it gave', () => {
+    const refusal = { outcome: 'stopped', agentInstruction: 'was REFUSED and did not run' }
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { acp: { toolCallId: 't1', title: 'MCP: tool' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          acp: { toolCallId: 't1', status: 'completed', rawOutput: { success: true } },
+          hostOutcome: refusal,
+        },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({ kind: 'tool', resultType: 'not_allowed', result: refusal })
+  })
+
   it('marks a failed tool as errored', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'tool-call', payload: { acp: { toolCallId: 't1', title: 'Read' } } }),
@@ -1499,8 +1745,8 @@ describe('normalizeCliTranscript — streamed reasoning and ACP tool results', (
   })
 })
 
-describe('a gated call that returned "pending" reads as waiting, not finished', () => {
-  it('marks the step awaiting approval from the tool result alone', () => {
+describe('a call the host answered without running reads as not run, not finished', () => {
+  it('records the host outcome from the tool result alone', () => {
     const steps = normalizeCliTranscript([
       entry({
         at: 1,
@@ -1514,27 +1760,39 @@ describe('a gated call that returned "pending" reads as waiting, not finished', 
           acp: {
             toolCallId: 't1',
             status: 'completed',
-            rawOutput: { outcome: 'pending', retryAfterSec: 30 },
+            rawOutput: { outcome: 'pending', actionId: 'a1' },
           },
         },
       }),
     ])
-
     // The agent announced "waiting for your approval" while the row showed a
     // finished call — the transcript already knew, nothing was reading it.
     expect(steps).toHaveLength(1)
-    expect(steps[0]).toMatchObject({ kind: 'tool', awaitingApproval: true })
-    expect((steps[0] as { resultType: string }).resultType).not.toBe('success')
+    expect(steps[0]).toMatchObject({
+      kind: 'tool',
+      resultType: 'not_allowed',
+      hostOutcome: { outcome: 'pending', actionId: 'a1' },
+    })
   })
 
-  it('reads a pending result delivered as a JSON string', () => {
-    expect(isAwaitingApprovalResult(JSON.stringify({ outcome: 'pending' }))).toBe(true)
+  it('reads a host outcome delivered as a JSON string', () => {
+    expect(hostCallOutcomeOf(JSON.stringify({ outcome: 'stopped' }))).toEqual({
+      outcome: 'stopped',
+    })
+  })
+
+  it('reads every outcome that means the call did not run', () => {
+    for (const outcome of ['pending', 'stopped', 'denied', 'expired']) {
+      expect(hostCallOutcomeOf({ outcome })?.outcome).toBe(outcome)
+    }
   })
 
   it('leaves an ordinary result alone', () => {
-    expect(isAwaitingApprovalResult({ ok: true })).toBe(false)
-    expect(isAwaitingApprovalResult('plain text')).toBe(false)
-    expect(isAwaitingApprovalResult(undefined)).toBe(false)
+    expect(hostCallOutcomeOf({ ok: true })).toBeUndefined()
+    expect(hostCallOutcomeOf({ outcome: 'approved' })).toBeUndefined()
+    expect(hostCallOutcomeOf('plain text')).toBeUndefined()
+    expect(hostCallOutcomeOf('[1]')).toBeUndefined()
+    expect(hostCallOutcomeOf(undefined)).toBeUndefined()
   })
 })
 
@@ -1706,5 +1964,81 @@ describe('normalizeCliTranscript — ACP tool identity', () => {
     }
     const tool = normalizeCliTranscript([call, vague]).find((s) => s.kind === 'tool')
     expect(tool && tool.kind === 'tool' && tool.toolName).toBe('grep "fontFamily|FontFamily"')
+  })
+})
+
+describe('cliRunFailureNotice', () => {
+  const reason =
+    'startCliAgentRun: auth refresh failed — token refresh returned status 400. Re-login may be required.'
+
+  it('says why a run that failed to start produced nothing, so its turn is not left empty', () => {
+    expect(cliRunFailureNotice('errored', reason)).toBe(reason)
+  })
+
+  it('says nothing for a run that did not fail', () => {
+    expect(cliRunFailureNotice('succeeded', reason)).toBeUndefined()
+    expect(cliRunFailureNotice('running', undefined)).toBeUndefined()
+    expect(cliRunFailureNotice(undefined, undefined)).toBeUndefined()
+  })
+
+  it('still marks a failed run whose reason was not recorded', () => {
+    expect(cliRunFailureNotice('errored', undefined)).toBe('The agent run failed.')
+    expect(cliRunFailureNotice('errored', '   ')).toBe('The agent run failed.')
+  })
+})
+
+describe('withCliRunFailure', () => {
+  const reason = 'auth refresh failed — Re-login may be required.'
+
+  it('gives an empty failed turn one assistant message carrying the failure', () => {
+    expect(withCliRunFailure([], 'errored', reason)).toEqual([
+      { role: 'assistant', content: '', error: reason },
+    ])
+  })
+
+  it('appends the failure after what the agent did before it failed', () => {
+    const said = { role: 'assistant' as const, content: 'Looking at the files…' }
+    expect(withCliRunFailure([said], 'errored', reason)).toEqual([
+      said,
+      { role: 'assistant', content: '', error: reason },
+    ])
+  })
+
+  it('does not repeat a failure the transcript already shows', () => {
+    const shown = [{ role: 'assistant' as const, content: '', error: 'Failed' }]
+    expect(withCliRunFailure(shown, 'errored', reason)).toBe(shown)
+  })
+
+  it('leaves a run that did not fail untouched', () => {
+    const said = [{ role: 'assistant' as const, content: 'done' }]
+    expect(withCliRunFailure(said, 'succeeded', undefined)).toBe(said)
+  })
+})
+
+describe('withStoredCliReply', () => {
+  const stored = { content: 'Story created. Adding its features.', model: 'cli:claude-code:opus' }
+
+  it('shows the reply the chat stored while the run record has not arrived', () => {
+    expect(withStoredCliReply([], stored, false)).toEqual([
+      {
+        role: 'assistant',
+        content: 'Story created. Adding its features.',
+        model: 'cli:claude-code:opus',
+      },
+    ])
+  })
+
+  it('gives way to the run’s own steps once they are in', () => {
+    const steps = [{ role: 'assistant', content: 'Story created.' }]
+    expect(withStoredCliReply(steps, stored, false)).toBe(steps)
+  })
+
+  it('shows nothing stored for a run still going — its activity line speaks for it', () => {
+    expect(withStoredCliReply([], stored, true)).toEqual([])
+  })
+
+  it('shows nothing when the chat stored no reply', () => {
+    expect(withStoredCliReply([], { content: '  ' }, false)).toEqual([])
+    expect(withStoredCliReply([], undefined, false)).toEqual([])
   })
 })

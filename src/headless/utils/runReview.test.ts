@@ -19,6 +19,7 @@ import {
   verdictSummary,
   verificationCheckRows,
   formatChangeRequestMessage,
+  viewedFilesProgress,
 } from './runReview'
 import {
   CHANGE_REQUEST_MESSAGE_PREFIX,
@@ -179,6 +180,18 @@ describe('mergeNotice', () => {
   it('is silent without a result or on success', () => {
     expect(mergeNotice(undefined)).toBeUndefined()
     expect(mergeNotice(ok)).toBeUndefined()
+  })
+
+  it('names conflicts without git words for a project with no git of its own', () => {
+    const notice = mergeNotice(
+      { ok: false, conflicts: [{ path: 'a.ts' }, { path: 'b.ts' }] } as GitMergeResult,
+      {
+        shadow: true,
+      },
+    )
+    expect(notice?.tone).toBe('danger')
+    expect(notice?.message).toMatch(/2 conflicts/)
+    expect(notice?.message).not.toMatch(/git|merge|branch/i)
   })
 
   it('reports conflicts ahead of everything else', () => {
@@ -358,5 +371,27 @@ describe('formatChangeRequestMessage', () => {
 
   it('trims the notes so a stray newline is not sent as content', () => {
     expect(formatChangeRequestMessage('  fix it  ')?.endsWith('fix it')).toBe(true)
+  })
+})
+
+describe('viewedFilesProgress', () => {
+  const viewed = [
+    { path: 'src/a.ts', headSha: 'h1', at: 1 },
+    { path: 'src/b.ts', headSha: 'h0', at: 1 },
+  ]
+
+  it('counts a file viewed only at the commit the change is at now', () => {
+    expect(viewedFilesProgress(['src/a.ts', 'src/b.ts'], viewed, 'h1')).toEqual({
+      viewed: new Set(['src/a.ts']),
+      count: 1,
+      total: 2,
+      all: false,
+    })
+  })
+
+  it('is all viewed once every changed file is, and never for an empty change', () => {
+    expect(viewedFilesProgress(['src/a.ts'], viewed, 'h1').all).toBe(true)
+    expect(viewedFilesProgress([], viewed, 'h1').all).toBe(false)
+    expect(viewedFilesProgress(['src/a.ts'], undefined, undefined).count).toBe(0)
   })
 })

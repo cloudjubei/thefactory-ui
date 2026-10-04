@@ -14,7 +14,8 @@ export type UseProcessProposal = {
 
 /**
  * The launch PROPOSAL for a story — the resolved plan a user reads before
- * approving `startFeatureWork`. Fetched once per (project, story, process),
+ * approving `startFeatureWork`. Fetched once per (project, story, process, the
+ * way its features are worked),
  * because a definition does not change under a pending approval; the dock reads
  * it to show the whole path the run will take, not just the feature list.
  *
@@ -26,8 +27,10 @@ export function useProcessProposal(input: {
   projectId: string | undefined
   storyId: string | undefined
   processId?: string
+  /** How each feature is worked, as the approval chose it — the proposal then nests that process. */
+  featureProcessId?: string
 }): UseProcessProposal {
-  const { projectId, storyId, processId } = input
+  const { projectId, storyId, processId, featureProcessId } = input
   const { token } = useAuth()
   const [proposal, setProposal] = useState<ProcessProposal | undefined>(undefined)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -46,7 +49,12 @@ export function useProcessProposal(input: {
     setLoadError(null)
     setRefusal(undefined)
     void previewProcess({
-      body: { projectId, storyId, ...(processId ? { processId } : {}) },
+      body: {
+        projectId,
+        storyId,
+        ...(processId ? { processId } : {}),
+        ...(featureProcessId ? { featureProcessId } : {}),
+      },
       throwOnError: true,
     })
       .then(({ data }) => {
@@ -64,7 +72,7 @@ export function useProcessProposal(input: {
     return () => {
       live = false
     }
-  }, [token, projectId, storyId, processId])
+  }, [token, projectId, storyId, processId, featureProcessId])
 
   return useMemo<UseProcessProposal>(
     () => ({ isLoaded, loadError, proposal, refusal }),

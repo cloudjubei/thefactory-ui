@@ -84,8 +84,8 @@ export function useCredentialCaptures(ctx: ChatContext): UseCredentialCaptures {
     setCaptures((prev) => upsertCapture(prev, data))
   }, [])
 
-  // A refused submit/cancel means the capture moved on without us (expired, or
-  // already resolved elsewhere). Pull its real status so the card stops offering
+  // A refused submit/cancel means the capture moved on without us (answered
+  // elsewhere, or gone after a restart). Pull its real status so the card stops offering
   // a form, then let the original failure surface.
   const reconcile = useCallback(
     async (id: string) => {

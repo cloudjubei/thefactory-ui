@@ -247,6 +247,51 @@ Three components, each with a `web/` + `native/` peer:
 - **`ProcessesView`** is the library screen. Web takes a `narrow` prop and
   collapses to one pane; native is always one pane.
 
+**The checks step.** A `check`-kind step — the seeded `checks` step right after
+the implementing agent in `feature-default`, `fix-default` and
+`feature-self-verified` — runs the project's non-agentic checks (build, type
+check, lint, format, unit tests) as plain commands, no agent and no judgement.
+Its node lists each command of its newest attempt under it (`ProcessCheckList`,
+web + native, from `processCheckRows` in `headless/utils/processChecksView.ts`):
+the label, ✓ / ✗ / ! / –, an "advisory" marker on a command whose failure does
+not stop the step (lint, format), where it ran — a "sandbox" / "host" chip whose
+hover (web) or accessibility label (native) says why a host run could not use the
+sandbox (`ranInLabel` / `ranInDetail`) — and its duration. The sign-off's check
+chips say the same at the end of their detail and of an available check's last
+run (`checkRanInSentence` in `checkMethods.ts`: "Ran in the sandbox." / "Ran on
+the host — why"). A `developer-verifier` step —
+the self-verified process's one agent, which implements and proves the change
+itself — is read as a verify attempt filed under its own run, exactly as the
+tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`). Every surface that
+names a role does it through `agentRoleLabel` ("developer + verifier").
+
+**The process the agent chose.** `startFeatureWork` may name a `processId`;
+`startFeatureWorkGrantSummary` reads it (trimmed, on either transport) and both
+`ApprovalPanel`s hand it to `useProcessProposal`, so the plan read before
+approving is the one the launch will run — a story process forked to nest
+`feature-self-verified`, or any definition.
+
+**How features are worked — the person's choice.** When the proposal works
+features one by one (`proposalFeatureProcessId`), the launch `ApprovalPanel`
+shows `FeatureProcessChooser` (web + native): "How features are worked", with
+"Developer, then Verifier" and "Developer + verifier in one", each with its one
+plain line (`featureProcessOptions`, copy in `processFeatureProcessConstants`),
+and a line saying a fix is made by a fixer and proven by a verifier either way.
+It shows the story process's own feature process until the person picks
+(`featureProcessChoice`); a pick re-fetches the proposal with
+`featureProcessId`, so the nested pipeline shows the self-verified shape before
+anything runs. The pick rides the decision as `{ featureProcessId }`
+(`featureProcessMetadata`) on both transports — an API chat's resume sends it in
+`launchDecisions` beside the open-work choice (`launchDecisionOf`) — and the
+server validates it against the definitions that exist. Over open work, "add to
+that process" hides the choice: the added features are worked the way that run
+works its own. The sign-off names the shape that ran ("Features worked by:
+Developer + verifier in one", `signoffReviewLine` over `StorySignoff.featureProcess`,
+read from the story run's plan), and a pair the gate counted from a
+developer-verifier's capture of its uncommitted workspace is captioned as the
+code it held (`captureBuildCaption` with the pair's `counted`,
+`CAPTURE_SAME_CODE_LABEL`), never as a wrong commit.
+
 **Starting a story that has open work.** The launch preview carries the story's
 `openWork` (a run still going, parked, waiting at its sign-off, or finished and
 not merged). The launch `ApprovalPanel` then shows `OpenWorkChooser` (web +
@@ -255,9 +300,9 @@ ways on — add to that run, a new process on its branch, a fresh branch (marked
 risky) — each with what it entails (`processOpenWorkView`). Start stays disabled
 until one is picked; the pick rides the decision as `{ openWork, runId, state }`
 (`processOpenWorkMetadata`). A CLI decision carries it as metadata; an API chat's
-resume sends it as `openWorkDecisions` keyed by the granted tool call
-(`openWorkDecisionOf`) — the only approval option an API run honours, because
-the choice is the person's and never the agent's. A run that took added work
+resume sends it in `launchDecisions` keyed by the granted tool call
+(`launchDecisionOf`) — with how features are worked, the only approval options
+an API run honours, because those choices are the person's and never the agent's. A run that took added work
 tags each added step "Added <date>" and lists what came in, and what it closed,
 set aside or reopened, above its pipeline (`processAmendmentView`).
 
@@ -311,6 +356,23 @@ Time and cost are never computed in a view. Every run arrives with `totals`
 step's time is every attempt's, and a clock ticks only while `totals.ticking`.
 Each surface once had its own formula, and they disagreed by hours and by
 dollars.
+
+A time CHIP says the total; where it went is ONE details view,
+`headless/utils/processTimeDetails.ts` → `processTimeDetailsView(time, workMs)`,
+read off the `time` breakdown every total carries (`ProcessRunTotals.time`, a
+step's, an attempt's — thefactory-tools splits each attempt from what its agent
+runs recorded): **Agent thinking** and **Tools & commands** always, then
+**Setup, checks & landing**, **Other** (time no record could place — never
+forced into a part) and **Still running** when non-zero, each with its duration
+and share, the three slowest tools (`mobileTestBuildApp ×3 — 4m 12s`), and time
+**waiting on a person** beside the total, never in it. While a step runs, the
+clock carried on since the totals were read is still running, so the parts
+always add up to the chip. Every time chip opens it through `DurationChip` — a
+hover/focus/pinned popover on web (`TimeDetailsPanel`), a long press opening a
+bottom sheet on native (`TimeDetailsSheet`, so a press on the row still does
+what it did): the pipeline's run head, each step and each inline sub-step, and
+the sign-off's head, Overall and every feature (`RunReviewFacts.timeDetails`,
+summed across scopes by `storySignoff` with the tools' `sumProcessTimeBreakdowns`).
 
 A cost CHIP says one thing: the charge, in dollars (`costChipLabel`) — `$0.00`
 is a real value for work a subscription covered, and a spend cap reads
@@ -395,13 +457,18 @@ sign-off (it stays on the attempt's own view).
 
 Reports are routed by the `approach` they were filed under (`reportAuthor` in
 `headless/utils/reviewEvidenceView.ts`; the approaches are the tools'
-`CODE_REVIEW_APPROACH`, `FINAL_REPORT_APPROACH`, `FEATURE_REPORT_APPROACH`). The
+`CODE_REVIEW_APPROACH`, `FINAL_REPORT_APPROACH`, `FEATURE_REPORT_APPROACH`,
+`DEVELOPER_CHECKS_APPROACH`). The
 story's final report leads the Overall's Report tab, which the Overall opens on;
 a feature's report leads that feature's Report tab, the verifier's newest after
 it. A code review has its own Code review tab (Overall, or a feature when it was
 reviewed on its own), and its verdict is the `diff` method's state — the "Code
-review" chip — falling back to `CliRun.diffReview` only for a run from before
-code reviews filed any. The Overall's notes say how the story run's walkthrough,
+review" chip — falling back to `CliRun.diffReview` for a run with no code
+review report: the reviewer agent's record, or the user's read. The user reads
+a change as on GitHub — the Changes tab's "Viewed" mark per file (`setFileViewed`
+→ `POST /cli-runs/:runId/viewed-files`, `viewedFilesProgress`), each at the
+run's head commit, and the change is read only once every changed file is;
+opening or loading the diff records nothing. The Overall's notes say how the story run's walkthrough,
 code review and report steps ended, a finished code review by its verdict. None
 of these reports is ever the verifier's: `reviewerVerdict`, `latestReport` and
 `verifyAttemptEvidence` read only the verifier's filings (`isVerifierFiling`),
@@ -421,13 +488,67 @@ render as counted, and such filings count toward their check chip
 its verdict and is at least as new keeps an older verdict from being read as the
 conclusion (`reviewerVerdict`, `codeReviewVerdict` read `none`).
 
+**What the project can check, before anything ran.** `checkMethodRows` takes the
+project's checks scan (`projectChecks`, the tools' `ProjectChecksListing`: the
+story sign-off loads it with `useProjectChecks(projectId)` → `listProjectChecks`,
+`CliRunArtifactPanel` reads it off the verification plan). Known, it decides a
+command method's absence: detected and not run is `unchecked` carrying
+`available.commands` — the chip draws ○ ("available", `checkChipFace`), never
+the unknown `?`, and its callout names the command — not detected is
+`unconfigured` ("This project has no lint."), and a kind the scan hides (a type
+check Kotlin's or Swift's build already does) is no chip at all unless something
+ran it. The scan is the backend's stored record (`ProjectChecksListing`), so it
+carries `lastRuns`; an available chip's detail ends with how that kind last ran in
+the project, on any branch — "Last passed 3 minutes ago in 2m 10s."
+(`projectCheckLastRunSentence`, against the `now` the caller passes; both
+`CliRunArtifactPanel`s and `useStorySignoff` pass `Date.now()`). An available check that never ran still demotes a verdict to partly,
+exactly as an unchecked one does. Without a scan nothing changes. A check that
+names its `category` — every project check does — is filed by it before any
+heuristic (`checkMethodFor`). The sign-off waits for the scan
+(`signoffLoadStatus`'s `checks`) but never fails for want of one.
+
+**The checks step reaches the chips.** Each feature and fix-pass section reads
+its chosen run's `verification` with its own process run's newest finished
+`check` entry read over it (`latestProcessChecks`, `withProcessChecks`): per
+method, a checks step that finished after the record was stamped replaces the
+record's results — it ran against the landed head — while an older one only
+fills the methods the record lacks; the Overall merges those per-feature
+results as it always merged the records. So a Kotlin story's chips read Build ✓
+/ Tests ✓ from its checks step even when no run stamped a record.
+
+**Advisory checks flag; they never fail.** A method whose only failing results
+are advisory (`optional: true` — lint and format, as the project checks scan and
+the checks step mark them) is `flagged`, not `failed` (`checkMethodRows`): its
+chip draws an amber `!` in the warning tone (`--status-working-soft-*` on web,
+`status.working` on native), reads "flagged (advisory)" to a screen reader
+(`checkChipFace`), its line says "Lint flagged issues — advisory, does not
+block", and `checkCallout` says it does not block sign-off. One blocking failure
+beside it keeps the method `failed`. `signoffVerdict` reads a flagged method as
+passed and names it in the detail ("… Lint flagged issues (advisory)."); the
+Overall's status and story-wide verdict treat it the same way, so the checks
+step passing and the sign-off agree. `ProcessCheckList` flags the advisory
+command the same way — `!`, "flagged", amber (`processCheckRows`). A failure
+from any method that is NOT advisory — an optional UI-test method included —
+still fails the verdict.
+
+**What the developer ran.** Each feature and fix-pass section says what its
+developer ran before handing over, from the runs the host recorded as they ran
+(`kind: 'log'` evidence filed under `DEVELOPER_CHECKS_APPROACH`):
+"Developer verified: Build ✓ (covisionTestDebug), Lint ✗" (the tools'
+`developerChecksLine`), or "Developer ran no checks" for a section a developer,
+fixer or developer-verifier ran (`developerChecksNote`, rendered by
+`FeatureReviewSection` web + native). The developer's own account — its
+`developer-checks` report — is its own `reportAuthor`: it shows in the section's
+Report tab after the verifier's newest, is never read as the verifier's, and
+never counts as the Report chip's proof.
+
 A read-only record — the story sign-off, a report-only panel — passes no action
 host to `CheckChipRow` or `ChecksTab`, so its chips and check blocks offer only
 the proof (`checkActionOffer`), never a button that does nothing.
 
 ### Project notes & secrets
 
-`useProjectNotes(projectId)` + `useProjectNoteReveal` front the per-project encrypted store of standing context an agent reaches for (logins for an app under test, API keys, conventions). The list surface (`ProjectNotesSettings` / `ProjectNotesForm`, web + native) **never renders a stored value** — `GET …/notes` returns summaries only, and `…/notes/:id/reveal` is called solely from an explicit per-note Reveal, which masks itself again after `NOTE_REVEAL_TIMEOUT_MS`. `access: 'open'` means any agent on the project can read the value whenever it needs it; `access: 'ask'` means every read asks the user first.
+`useProjectNotes(projectId)` + `useProjectNoteReveal` front the per-project encrypted store of standing context an agent reaches for (logins for an app under test, API keys, conventions). The list surface (`ProjectNotesSettings` / `ProjectNotesForm`, web + native) **never renders a stored value** — `GET …/notes` returns summaries only, and `…/notes/:id/reveal` is called solely from an explicit per-note Reveal, which masks itself again after `NOTE_REVEAL_TIMEOUT_MS`. `access: 'open'` means any agent on the project can read the value whenever it needs it; `access: 'ask'` means every read asks the user first. A note an agent saved for later runs (`author: 'agent'`) carries a "By an agent" pill in its row (`noteAuthorLabel`); a note the user creates or edits here is the user's — the backend records it so.
 
 A capture the project withholds — device automation is a per-project backend setting, on by default and switched off only by the project's own record; no client exposes it — reaches the sign-off as the approach status `not-allowed` (or `unavailable` carrying `withheld`, when the host also lacks its toolchain — the chip names both); `checkMethodRows` gives its chip the `allow` action — the backend's reason — instead of offering the agent a set-up it cannot do (`checkCallout` words every chip's callout on both clients).
 

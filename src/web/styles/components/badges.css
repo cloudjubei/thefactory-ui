@@ -411,7 +411,8 @@
 
 /* ─────────────────────────────────────────────────────────────────────────
  * Check chip — one per verification method, same 24 px recipe as `.chip`.
- * State is carried on `data-state`; the two absence states share a dashed
+ * State is carried on `data-state`; flagged (only advisory checks failed) is
+ * amber, never the red of a failure; the two absence states share a dashed
  * edge and differ only in hue (an open question in review-blue, "nothing
  * here" in neutral). */
 .check-chip {
@@ -463,6 +464,11 @@
   background: var(--status-stuck-soft-bg);
   border-color: var(--status-stuck-soft-border);
   color: var(--status-stuck-soft-fg);
+}
+.check-chip[data-state='flagged'] {
+  background: var(--status-working-soft-bg);
+  border-color: var(--status-working-soft-border);
+  color: var(--status-working-soft-fg);
 }
 .check-chip[data-state='unchecked'] {
   background: transparent;

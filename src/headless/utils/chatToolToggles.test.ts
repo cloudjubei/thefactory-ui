@@ -7,6 +7,7 @@ import {
   filterChatToolToggles,
   groupChatToolToggles,
   resetChatToolToggles,
+  allowToolsAlways,
 } from './chatToolToggles'
 import type { ChatToolCatalogEntry } from './chatToolTogglesTypes'
 
@@ -305,5 +306,27 @@ describe('applyChatToolApprovalMode', () => {
 
   it('is a no-op on the API transport', () => {
     expect(applyChatToolApprovalMode('api', true)).toEqual({})
+  })
+})
+
+describe('allowToolsAlways — "Always allow" on an API chat', () => {
+  it('makes each tool available and auto-called, keeping what the chat already had', () => {
+    expect(
+      allowToolsAlways({ availableTools: ['readFile'], autoCallTools: ['readFile'] }, ['addStory']),
+    ).toEqual({ availableTools: ['readFile', 'addStory'], autoCallTools: ['readFile', 'addStory'] })
+  })
+
+  it('does not list a tool twice', () => {
+    expect(allowToolsAlways({ availableTools: ['addStory'] }, ['addStory', 'addStory'])).toEqual({
+      availableTools: ['addStory'],
+      autoCallTools: ['addStory'],
+    })
+  })
+
+  it('starts from nothing for a chat with no settings yet', () => {
+    expect(allowToolsAlways(undefined, ['addStory'])).toEqual({
+      availableTools: ['addStory'],
+      autoCallTools: ['addStory'],
+    })
   })
 })

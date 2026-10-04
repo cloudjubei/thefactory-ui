@@ -17,7 +17,11 @@ import {
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import {
+  featureProcessChoice,
+  featureProcessMetadata,
   featuresToWork,
+  isGitSetupGrant,
+  proposalFeatureProcessId,
   processOpenWorkMetadata,
   useProcessProposal,
   useProjectNotes,
@@ -26,8 +30,10 @@ import {
 import type { PendingToolGrant, ProcessOpenWorkChoice } from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
+import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
+import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -87,7 +93,21 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
  * chat is sending" made the buttons permanently dead exactly when they were
  * needed. The only disable is the local one while THIS decision is in flight.
  */
-export default function ApprovalPanel({
+export default function ApprovalPanel(props: ApprovalPanelProps) {
+  // Putting a project on GitHub names an account, a repository and a
+  // visibility the user must see and may change — it has its own card.
+  return isGitSetupGrant(props.grant) ? (
+    <GitSetupApprovalPanel
+      grant={props.grant}
+      {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
+      onDecideLater={props.onDecideLater}
+    />
+  ) : (
+    <ToolApprovalPanel {...props} />
+  )
+}
+
+function ToolApprovalPanel({
   grant,
   projectId,
   onDecideLater,
@@ -130,6 +150,9 @@ export default function ApprovalPanel({
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
   const features = story ? featuresToWork(story) : []
+  // How each feature is worked — the person's pick, never the agent's. Until
+  // they pick, the story process's own; the proposal nests whichever is picked.
+  const [featureProcessPick, setFeatureProcessPick] = useState<string | undefined>(undefined)
   // The resolved plan the user reads before approving — the whole path the run
   // will take, per feature, not just the feature list. Fetched only for a launch
   // grant that names a story; a miss falls back to the plain feature list below.
@@ -140,7 +163,10 @@ export default function ApprovalPanel({
   } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
+    ...(summary.processId ? { processId: summary.processId } : {}),
+    ...(featureProcessPick ? { featureProcessId: featureProcessPick } : {}),
   })
+  const featureProcess = featureProcessChoice(proposal, featureProcessPick)
   const proposalView = proposal ? processProposalView(proposal) : undefined
   // The story's open work — a run still going, or finished and not merged. The
   // launch waits for the person to choose how to proceed over it; the choice is
@@ -148,6 +174,9 @@ export default function ApprovalPanel({
   const openWork = proposal?.openWork
   const [openWorkChoice, setOpenWorkChoice] = useState<ProcessOpenWorkChoice | undefined>(undefined)
   const openWorkMeta = openWork ? processOpenWorkMetadata(openWork, openWorkChoice) : undefined
+  // Work added to an open run is worked the way that run works its own.
+  const joinsOpenRun = openWorkChoice === 'extend' && openWorkMeta !== undefined
+  const featureProcessMeta = joinsOpenRun ? undefined : featureProcessMetadata(featureProcess)
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.
   const awaitingChoice =
@@ -174,6 +203,7 @@ export default function ApprovalPanel({
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
+              ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
             }
           : undefined,
       )
@@ -333,6 +363,15 @@ export default function ApprovalPanel({
           choice={openWorkChoice}
           busy={busy}
           onChoose={setOpenWorkChoice}
+        />
+      ) : null}
+
+      {proposalFeatureProcessId(proposal) !== undefined ? (
+        <FeatureProcessChooser
+          choice={featureProcess}
+          joinsOpenRun={joinsOpenRun}
+          busy={busy}
+          onChoose={setFeatureProcessPick}
         />
       ) : null}
 
@@ -531,6 +570,9 @@ export default function ApprovalPanel({
             No — cancel
           </Button>
         </Tooltip>
+        <Button variant="ghost" size="sm" onClick={onDecideLater} disabled={busy}>
+          Decide later
+        </Button>
       </div>
     </div>
   )

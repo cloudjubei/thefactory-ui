@@ -12,15 +12,22 @@
  * what the list endpoints returned.
  */
 
-import type { ProcessRunTotals } from 'thefactory-tools/types'
+import type { ProcessRunTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
+import { sumProcessTimeBreakdowns } from 'thefactory-tools/utils'
 
-import type { ReviewEvidenceRef, RunVerification, VerificationCheckResult } from '../api/generated'
+import type {
+  ProjectChecksListing,
+  ReviewEvidenceRef,
+  RunVerification,
+  VerificationCheckResult,
+} from '../api/generated'
 import {
   CHECK_STATE_TONES,
   NOT_RUN_TITLE,
   SIGNOFF_VERDICT_TONES,
   SIGNOFF_VERDICT_WORDS,
   STORY_UNFINISHED_TITLE,
+  VERDICT_FLAGGED_NOTE,
 } from './checkMethodConstants'
 import { checkMethodRows, joinNames, signoffVerdict } from './checkMethods'
 import type {
@@ -31,6 +38,14 @@ import type {
 } from './checkMethodTypes'
 import { addCost, cliRunCost, pickCost } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
+import {
+  developerChecksNote,
+  latestProcessChecks,
+  verificationStatusOf,
+  withProcessChecks,
+} from './processChecksView'
+import { featureProcessLabel } from './processFeatureProcess'
+import { processTimeDetailsView } from './processTimeDetails'
 import { formatProcessDuration, PROCESS_OUTCOME_VIEW, type VerifyReviewStatus } from './processView'
 import { runModelOf } from './runModel'
 import {
@@ -61,6 +76,7 @@ import {
   FEATURE_REVIEW_TURNED_BACK,
   OVERALL_STATUS,
   SECTION_STEP_REPORT,
+  SIGNOFF_REVIEW_LINE,
   STORY_STEP_KINDS,
   STORY_STEP_METHODS,
   STORY_STEP_NOT_RUN,
@@ -130,7 +146,13 @@ const OVERALL_METHODS: readonly CheckMethodId[] = [
 ]
 
 /** Whoever changed the code, then whoever read it, then whoever checked it — the order work happens in. */
-const ROLE_ORDER: readonly string[] = ['developer', FIXER_ROLE, CODE_REVIEWER_ROLE, 'verifier']
+const ROLE_ORDER: readonly string[] = [
+  'developer',
+  'developer-verifier',
+  FIXER_ROLE,
+  CODE_REVIEWER_ROLE,
+  'verifier',
+]
 function roleRank(role: string): number {
   const i = ROLE_ORDER.indexOf(role)
   return i === -1 ? ROLE_ORDER.length : i
@@ -325,6 +347,14 @@ function agentsFor(runs: readonly StorySignoffRun[], roleOf: Map<string, string>
     .map(([role, run]) => ({ role, model: runModelOf(run) }))
 }
 
+/** The roles a set of runs was launched as. */
+function rolesOf(runs: readonly StorySignoffRun[], roleOf: Map<string, string>): string[] {
+  return runs.flatMap((r) => {
+    const role = roleOf.get(r.id)
+    return role ? [role] : []
+  })
+}
+
 /** The runs a code review step launched — a reading of the change, never the change. */
 function codeReviewRuns(processRuns: readonly StorySignoffProcessRun[]): Set<string> {
   const ids = new Set<string>()
@@ -427,6 +457,16 @@ function reviewedStanding(
   }
 }
 
+/**
+ * What a section reads its checks from: its chosen run's record with its own
+ * process run's checks step read over it, the project's scan, and what its
+ * developer ran before handing over.
+ */
+type SectionChecks = Pick<SectionSignoff, 'verification' | 'developerChecks'> & {
+  projectChecks: ProjectChecksListing | undefined
+  now: number | undefined
+}
+
 /** What a feature's or a fix pass's section shows, from its chosen run, its filings and its own run's ledger. */
 function sectionSignoffFor(
   run: StorySignoffRun | undefined,
@@ -435,9 +475,10 @@ function sectionSignoffFor(
   verify: VerifyAttempt | undefined,
   codeReview: SectionCodeReview | undefined,
   facts: RunReviewFacts,
+  { verification, projectChecks, developerChecks, now }: SectionChecks,
 ): SectionSignoff {
   const filedRows = checkMethodRows({
-    verification: run?.verification,
+    verification,
     // The story gate is read-only: it never offers to run or request a check, so
     // it does not need the per-run verification PLAN that tells "not run" from
     // "not set up" — the chips still colour by state from the record + evidence.
@@ -445,6 +486,8 @@ function sectionSignoffFor(
     evidence,
     ...(run?.verdict?.by ? { verdictBy: run.verdict.by } : {}),
     ...(run?.diffReview ? { diffReview: run.diffReview } : {}),
+    ...(projectChecks ? { projectChecks } : {}),
+    ...(now !== undefined ? { now } : {}),
   })
   const rows = codeReview
     ? filedRows.map((row) =>
@@ -453,7 +496,7 @@ function sectionSignoffFor(
           : row,
       )
     : filedRows
-  const verified = run?.verification !== undefined
+  const verified = verification !== undefined
   const verdict = verify ? gateVerdict(verify) : signoffVerdict({ rows, verified })
   const standing = reviewedStanding(
     {
@@ -466,35 +509,49 @@ function sectionSignoffFor(
   return {
     runId: run?.id,
     verified,
-    verification: run?.verification,
+    verification,
     rows,
     ...standing,
     facts,
     runModel: run ? runModelOf(run) : undefined,
     agents,
+    developerChecks,
     verify,
     codeReview,
   }
 }
 
-/** A scope's work time and cost, as the pipeline sums them. */
-type Measure = { workMs: number; cost?: CostSource }
+/** A scope's work time, where it went, and its cost, as the pipeline sums them. */
+type Measure = { workMs: number; time?: ProcessTimeBreakdown; cost?: CostSource }
 
 function addMeasure(sum: Measure | undefined, m: Measure): Measure {
   const cost = addCost(sum?.cost, m.cost)
-  return { workMs: (sum?.workMs ?? 0) + m.workMs, ...(cost ? { cost } : {}) }
+  const times = [sum?.time, m.time].filter((t): t is ProcessTimeBreakdown => t !== undefined)
+  return {
+    workMs: (sum?.workMs ?? 0) + m.workMs,
+    ...(times.length > 0 ? { time: sumProcessTimeBreakdowns(times) } : {}),
+    ...(cost ? { cost } : {}),
+  }
 }
 
-/** The measure a totals record holds — its cost fields only, not its step bookkeeping. */
-function measureOf(totals: Pick<ProcessRunTotals, 'workMs'> & CostSource): Measure {
+/** The measure a totals record holds — its time and cost fields only, not its step bookkeeping. */
+function measureOf(
+  totals: Pick<ProcessRunTotals, 'workMs'> & { time?: ProcessTimeBreakdown } & CostSource,
+): Measure {
   const cost = pickCost(totals)
-  return { workMs: totals.workMs, ...(cost ? { cost } : {}) }
+  return {
+    workMs: totals.workMs,
+    ...(totals.time ? { time: totals.time } : {}),
+    ...(cost ? { cost } : {}),
+  }
 }
 
 function measuredFacts(m: Measure | undefined): RunReviewFacts {
+  const timeDetails = m ? processTimeDetailsView(m.time, m.workMs) : undefined
   return {
     ...runReviewFacts({ cost: m?.cost, durationMs: undefined }),
     durationLabel: m ? formatProcessDuration(m.workMs) : undefined,
+    ...(timeDetails ? { timeDetails } : {}),
   }
 }
 
@@ -767,14 +824,20 @@ function stepRow(
   }
 }
 
+/** A chip that counts toward green: it passed, or only advisory checks flagged it — never the report. */
+function clearsStoryWide(row: CheckMethodRow): boolean {
+  return (row.state === 'passed' || row.state === 'flagged') && row.id !== 'report'
+}
+
 /**
  * What the story-wide checks came to: any failure fails them; green only over
  * something that passed. A written report is an account of the run, not a check
- * of it, so on its own it never makes them green.
+ * of it, so on its own it never makes them green. A flagged chip is not a
+ * failure — its chip carries the flag.
  */
 function overallStatus(rows: readonly CheckMethodRow[]): VerifyReviewStatus {
   if (rows.some((r) => r.state === 'failed')) return OVERALL_STATUS.failed
-  if (rows.some((r) => r.state === 'passed' && r.id !== 'report')) return OVERALL_STATUS.green
+  if (rows.some(clearsStoryWide)) return OVERALL_STATUS.green
   return OVERALL_STATUS.unchecked
 }
 
@@ -794,16 +857,17 @@ function buildOverall(
   storyEvidence: readonly ReviewEvidenceRef[],
   roleOf: Map<string, string>,
   facts: RunReviewFacts,
+  projectChecks: ProjectChecksListing | undefined,
+  now: number | undefined,
 ): OverallSignoff | undefined {
   const mergedChecks = mergeChecks(featureRuns)
   const hasEvidence = storyEvidence.length > 0
   if (!storyRun && mergedChecks.length === 0 && !hasEvidence) return undefined
 
-  const failed = mergedChecks.some((c) => c.status === 'failed' || c.status === 'error')
   const verification: RunVerification | undefined =
     mergedChecks.length > 0
       ? ({
-          status: failed ? 'failed' : 'passed',
+          status: verificationStatusOf(mergedChecks),
           checks: mergedChecks,
           startedAt: 0,
           finishedAt: 0,
@@ -817,6 +881,8 @@ function buildOverall(
     approaches: [],
     evidence: storyEvidence,
     ...(diffReview ? { diffReview } : {}),
+    ...(projectChecks ? { projectChecks } : {}),
+    ...(now !== undefined ? { now } : {}),
   })
 
   const planned = storyRun ? storyStepsOf(storyRun) : []
@@ -1021,9 +1087,17 @@ function storyWideVerdict(
       failed.map((r) => r.detail).join(' · '),
     )
   }
-  const passed = overall.rows.filter((r) => r.state === 'passed' && r.id !== 'report')
-  if (passed.length === 0) return undefined
-  return makeVerdict('partly', STORY_WIDE_ONLY_TITLE, `${joinNames(passed)} passed story-wide.`)
+  const cleared = overall.rows.filter(clearsStoryWide)
+  if (cleared.length === 0) return undefined
+  const passed = cleared.filter((r) => r.state === 'passed')
+  const flagged = cleared.filter((r) => r.state === 'flagged')
+  const detail = [
+    passed.length > 0 ? `${joinNames(passed)} passed story-wide.` : undefined,
+    flagged.length > 0 ? `${joinNames(flagged)} ${VERDICT_FLAGGED_NOTE}` : undefined,
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(' ')
+  return makeVerdict('partly', STORY_WIDE_ONLY_TITLE, detail)
 }
 
 /** The proven features over those shown — what the verdict word is counted against. */
@@ -1067,7 +1141,7 @@ function headlineOf(verdict: SignoffVerdict): SignoffHeadline | undefined {
  */
 export function signoffLoadStatus(sources: SignoffSources): SignoffLoadStatus {
   if (sources.runs === 'failed' || sources.stories === 'failed') return 'failed'
-  const states = [sources.runs, sources.stories, sources.evidence]
+  const states = [sources.runs, sources.stories, sources.evidence, sources.checks]
   return states.includes('loading') ? 'loading' : 'ready'
 }
 
@@ -1121,8 +1195,9 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     // unfinished state is carried by `storyIncomplete`, not an empty section.
     if (runs.length === 0) continue
     const run = pickImplementingRun(runs, reviewRuns)
-    if (run) chosenRuns.push(run)
     const featureRun = scope?.featureRuns.get(feature.id)
+    const verification = withProcessChecks(run?.verification, latestProcessChecks(featureRun))
+    if (run) chosenRuns.push(verification === run.verification ? run : { ...run, verification })
     const agents = agentsFor(runs, roleOf)
     featureAgents.push(agents)
     const featureEvidence = evidence.filter((e) => (e.featureId ?? '') === feature.id)
@@ -1141,6 +1216,12 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
               cost: run ? cliRunCost(run) : undefined,
               durationMs: run?.durationMs,
             }),
+        {
+          verification,
+          projectChecks: input.projectChecks,
+          now: input.now,
+          developerChecks: developerChecksNote(featureEvidence, rolesOf(runs, roleOf)),
+        },
       ),
     })
   }
@@ -1150,7 +1231,8 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
   for (const fix of [...fixPasses].reverse()) {
     const runs = runsByFix.get(fix.run.id) ?? []
     const run = pickImplementingRun(runs, reviewRuns)
-    if (run) chosenRuns.push(run)
+    const verification = withProcessChecks(run?.verification, latestProcessChecks(fix.run))
+    if (run) chosenRuns.push(verification === run.verification ? run : { ...run, verification })
     const runIds = [...new Set(fix.run.ledger.flatMap((e) => (e.runRef ? [e.runRef.runId] : [])))]
     for (const id of runIds) fixRunIds.add(id)
     const owned = new Set(runIds)
@@ -1176,6 +1258,12 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
               cost: run ? cliRunCost(run) : undefined,
               durationMs: run?.durationMs,
             }),
+        {
+          verification,
+          projectChecks: input.projectChecks,
+          now: input.now,
+          developerChecks: developerChecksNote(fixEvidence, rolesOf(runs, roleOf)),
+        },
       ),
     })
   }
@@ -1189,6 +1277,8 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     storyEvidence,
     roleOf,
     pipeline ? measuredFacts(pipeline.own) : runReviewFacts(sumFacts(storyRuns)),
+    input.projectChecks,
+    input.now,
   )
 
   const verdict = aggregateStoryVerdict(featureSignoffs, storyIncomplete, overall, fixSignoffs)
@@ -1205,12 +1295,29 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     facts: pipeline
       ? measuredFacts(pipeline.story)
       : runReviewFacts(sumFacts([...chosenRuns, ...storyRuns])),
+    featureProcess: storySignoffFeatureProcess(scope),
     evidenceRunIds,
   }
 }
 
+function storySignoffFeatureProcess(scope: SignoffScope | undefined): string | undefined {
+  const storyRun = storyRunOf(scope)
+  return storyRun ? featureProcessLabel(storyRun.plan) : undefined
+}
+
+/** The sign-off's line on how its features were worked and reviewed. Pure. */
+export function signoffReviewLine(signoff: Pick<StorySignoff, 'featureProcess'>): string {
+  return signoff.featureProcess
+    ? `Features worked by: ${signoff.featureProcess}. ${SIGNOFF_REVIEW_LINE}`
+    : SIGNOFF_REVIEW_LINE
+}
+
 function isStepReport(t: EvidenceTile): boolean {
   return STEP_REPORT_AUTHORS.includes(reportAuthor(t.ref))
+}
+
+function isDeveloperReport(t: EvidenceTile): boolean {
+  return reportAuthor(t.ref) === 'developer-checks'
 }
 
 function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): SignoffSection {
@@ -1226,7 +1333,11 @@ function signoffSection(sectionId: string, tiles: readonly EvidenceTile[]): Sign
   return {
     pairs: screenPairs(groupEvidence(tiles)).map((p) => ({ ...p, key: `${sectionId}::${p.key}` })),
     recordings: tiles.filter((t) => t.ref.kind === 'recording'),
-    reports: [...stepReport, ...latestReport(reports)],
+    reports: [
+      ...stepReport,
+      ...latestReport(reports),
+      ...newestOnly(reports.filter(isDeveloperReport)),
+    ],
     codeReviews: newestOnly(reviews),
     notes:
       !isStory && reading.state === 'concluded' ? [codeReviewVerdictNote(reading.verdict)] : [],
@@ -1293,7 +1404,11 @@ export function signoffSectionProps(
   const verified = featureVerifySectionProps(view)
   return {
     ...verified,
-    reports: [...section.reports.filter(isStepReport), ...verified.reports],
+    reports: [
+      ...section.reports.filter(isStepReport),
+      ...verified.reports,
+      ...section.reports.filter(isDeveloperReport),
+    ],
     notes: [...verified.notes, ...reviewNotes],
     ...tabs,
   }

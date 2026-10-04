@@ -1,10 +1,11 @@
+import type { ResourceLink } from 'thefactory-tools/types'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
-import { useAppSettings, useCliRunArtifact } from '../../../headless'
+import { useAppSettings, useCliRunArtifact, useInlineApprovals } from '../../../headless'
 import {
-  blockedToolNames,
   describeCliRunActivity,
+  turnBlockedOn,
   lastCliActionAtMs,
   runningCliToolNames,
 } from '../../../headless/utils/cliRunActivity'
@@ -14,12 +15,12 @@ import {
   cliLabel,
   cliTranscriptToMessages,
   parseCliAgentModelTag,
+  withCliRunFailure,
+  withStoredCliReply,
 } from '../../../headless/utils/cliRunner'
-import type {
-  ChatMessageLike,
-  ToolCallLike,
-  ToolResultTypeLike,
-} from '../../../headless/utils/chatTypes'
+import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
+import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
+import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import { refuseWhileRunActive } from '../../../headless/utils/chatMessageDelete'
 import { CLI_TURN_DELETE_ACTION_LABEL } from '../../../headless/utils/chatMessageDeleteConstants'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
@@ -28,7 +29,9 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconDelete } from '../../icons'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import MessageRow from './MessageRow'
+import ToolApprovalFooter from './ToolApprovalFooter'
 import ThinkingRow from './ThinkingRow'
+import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 
 export type CliRunMessagesProps = {
   /** The CLI run whose transcript to render as normal chat messages. */
@@ -37,12 +40,7 @@ export type CliRunMessagesProps = {
   model?: string
   /** Index of this run's first derived message in the overall list. */
   baseIndex: number
-  renderToolCall?: (args: {
-    toolCall: ToolCallLike
-    result?: unknown
-    resultType?: ToolResultTypeLike
-    durationMs?: number
-  }) => ReactNode
+  renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
   /** Renders the workspace diff/apply panel for the run (host-wired, carries projectId). */
@@ -54,12 +52,27 @@ export type CliRunMessagesProps = {
   /** True only for the chat's first CLI run (turn 1, cold boot). Gates the
    * "Preparing …/first message slowest" copy; warm turns show a plain start line. */
   coldStart?: boolean
+  /** The reply the chat stored for this turn — shown until the run record arrives. */
+  storedReply?: string
+  /** Route an in-app `overseer://…` link (or a link into this app) the agent wrote, in place. */
+  onResourceLink?: (link: ResourceLink) => void
   /**
    * What THIS run is waiting on the human for, from the chat's unified grant
    * feed. Drives the blocked activity line and re-types the tool row the run is
    * parked on, so "waiting for you" never renders identically to "working".
    */
   blockedOn?: readonly CliRunBlockedOn[]
+  /**
+   * The chat's undecided CLI asks. An ordinary tool ask this run's rows show is
+   * decided on its row — toggle, "Always allow", one Resume — and reported
+   * through {@link onClaimAsks} so the approval panel leaves it out; the row of a
+   * call waiting on a question or a launch just reads as waiting. Mirrors web.
+   */
+  cliAsks?: readonly PendingToolGrant[]
+  /** The chat's decided asks — what a row that once waited on one shows now. */
+  decidedAsks?: readonly CliDecidedAsk[]
+  /** Which of {@link cliAsks} this run's rows show; `[]` once it no longer shows any. */
+  onClaimAsks?: (runId: string, askIds: string[]) => void
   /**
    * Removes the whole turn — the stored assistant message that owns this run.
    * The rows above are derived from the run record and have no message of their
@@ -95,7 +108,12 @@ export default function CliRunMessages({
   renderProcessRun,
   onShowUsage,
   coldStart = false,
+  storedReply,
+  onResourceLink,
   blockedOn,
+  cliAsks,
+  decidedAsks,
+  onClaimAsks,
   onDeleteTurn,
   deleteControl,
   deletePreview = false,
@@ -103,10 +121,8 @@ export default function CliRunMessages({
   deleting = false,
 }: CliRunMessagesProps) {
   const { theme } = useNativeTheme()
-  const { transcript, status, notReady, startedAtMs, error, usage } = useCliRunArtifact(
-    runId,
-    undefined,
-  )
+  const { transcript, status, abortReason, notReady, startedAtMs, error, usage } =
+    useCliRunArtifact(runId, undefined)
   const showThinking = useAppSettings().settings.userPreferences.cliShowThinking ?? true
   const streaming = status === 'running' || status === 'awaiting-approval' || status === 'paused'
   // Active = booting (record not written yet, the container spin-up) or
@@ -115,18 +131,39 @@ export default function CliRunMessages({
   const active = notReady || streaming
   const booting = active && transcript.length === 0
   const cli = parseCliAgentModelTag(model)?.cli
-  const awaitingApprovalToolNames = useMemo(() => blockedToolNames(blockedOn ?? []), [blockedOn])
+  const rowAsks = useMemo(() => cliRowAsks(cliAsks), [cliAsks])
+  const decidedIds = useMemo(() => new Set((decidedAsks ?? []).map((a) => a.id)), [decidedAsks])
+  // An ask leaves the pending list the moment it is decided here, before its
+  // decision arrives — held as under way meanwhile (see withAsksAwaitingOutcome).
+  const shownAsksRef = useRef<CliPendingAsk[]>([])
+  const pendingAsks = useMemo(
+    () => withAsksAwaitingOutcome(rowAsks, shownAsksRef.current, decidedIds),
+    [rowAsks, decidedIds],
+  )
+  shownAsksRef.current = pendingAsks
   const messages = useMemo(
     () =>
-      cliTranscriptToMessages(transcript, {
-        ...(model ? { model } : {}),
-        showThinking,
-        awaitingApprovalToolNames,
-        ...(usage ? { usage } : {}),
-      }),
-    [transcript, model, showThinking, awaitingApprovalToolNames, usage],
+      withCliRunFailure(
+        cliTranscriptToMessages(transcript, {
+          ...(model ? { model } : {}),
+          showThinking,
+          pendingAsks,
+          ...(decidedAsks ? { decidedAsks } : {}),
+          runId,
+          ...(usage ? { usage } : {}),
+        }),
+        status,
+        abortReason,
+      ),
+    [transcript, model, showThinking, pendingAsks, decidedAsks, runId, usage, status, abortReason],
   )
-  const total = baseIndex + messages.length + 1
+  const approvals = useInlineApprovals(runId, messages, cliAsks, onClaimAsks)
+  const shown = useMemo(
+    () =>
+      withStoredCliReply(messages, { content: storedReply, ...(model ? { model } : {}) }, active),
+    [messages, storedReply, model, active],
+  )
+  const total = baseIndex + shown.length + 1
   let shownModel = false
 
   // Since-last-action readout, ticking once a second while active: times the
@@ -159,7 +196,7 @@ export default function CliRunMessages({
     coldStart,
     ...(cli ? { agentLabel: cliLabel(cli) } : {}),
     sinceLastActionMs,
-    blocked: blockedOn ?? [],
+    blocked: turnBlockedOn(blockedOn, cliAsks, approvals.askIds),
   })
 
   return (
@@ -180,13 +217,15 @@ export default function CliRunMessages({
             : {}),
         }}
       >
-        {messages.map((m, i) => {
+        {shown.map((m, i) => {
           const showModel = !!model && m.role === 'assistant' && !shownModel
           if (showModel) shownModel = true
           return (
             <MessageRow
               key={`cli-${runId}-${i}`}
+              {...approvals.rowProps(m)}
               msg={{ ...m, showModel, isFirstInGroup: true }}
+              onResourceLink={onResourceLink}
               globalIndex={baseIndex + i}
               totalMessages={total}
               isThinking={false}
@@ -201,6 +240,16 @@ export default function CliRunMessages({
             />
           )
         })}
+        {approvals.askIds.length > 0 ? (
+          <ToolApprovalFooter
+            total={approvals.askIds.length}
+            selectedCount={approvals.selectedCount}
+            allSelected={approvals.allSelected}
+            onToggleAll={approvals.toggleAll}
+            onResume={() => void approvals.resume()}
+            resuming={approvals.resuming}
+          />
+        ) : null}
         {active ? (
           <ThinkingRow
             spinnerLabel={activity.label}

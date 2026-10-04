@@ -20,7 +20,7 @@ export function llmConfigBilling(config: StoredLlmConfig | null | undefined): Bi
  * and price overrides, and its billing — without it, the backend ledgers a
  * free or subscription config's calls as metered at list price and counts them
  * toward a spend cap. The entry's own bookkeeping (when it was created) stays
- * behind.
+ * behind, and so does any key: the backend looks the stored one up by `id`.
  */
 export function agentRunLlmConfig(config: StoredLlmConfig): AgentRunLlmConfig {
   return {
@@ -28,7 +28,6 @@ export function agentRunLlmConfig(config: StoredLlmConfig): AgentRunLlmConfig {
     name: config.name,
     provider: config.provider,
     model: config.model,
-    apiKey: config.apiKey,
     apiUrlOverride: config.apiUrlOverride,
     costInputPerMTokensUSD: config.costInputPerMTokensUSD,
     costOutputPerMTokensUSD: config.costOutputPerMTokensUSD,

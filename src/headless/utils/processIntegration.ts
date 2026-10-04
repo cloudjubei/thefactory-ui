@@ -13,18 +13,29 @@ import {
   PROCESS_INTEGRATION_COMPARE_LINK,
   PROCESS_INTEGRATION_NEVER_TRIED,
   PROCESS_INTEGRATION_PR_LINK,
+  PROCESS_INTEGRATION_SHADOW,
 } from './processIntegrationConstants'
 import type { ProcessIntegrationChoice, ProcessIntegrationView } from './processIntegrationTypes'
 import type { ProcessStatusTone } from './processView'
 
 /**
  * The three ways Approve can bring a story's work in, each with the one line a
- * person reads before choosing — naming the branches it touches.
+ * person reads before choosing — naming the branches it touches. A project with
+ * no git of its own has the one: approving brings the work into its folder.
  */
 export function processIntegrationChoices(
-  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef'>,
+  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
 ): ProcessIntegrationChoice[] {
   const { name, baseRef } = workBranch
+  if (workBranch.shadow) {
+    return [
+      {
+        mode: 'merge',
+        label: PROCESS_INTEGRATION_SHADOW.label,
+        detail: PROCESS_INTEGRATION_SHADOW.detail,
+      },
+    ]
+  }
   return [
     {
       mode: 'merge',
@@ -42,6 +53,17 @@ export function processIntegrationChoices(
       detail: `Pushes ${name} and opens a PR for review on GitHub / Azure DevOps; nothing lands on ${baseRef} until it is merged there.`,
     },
   ]
+}
+
+/**
+ * The way approved work comes in when there is only one, so approving needs no
+ * choice; `undefined` when the person picks.
+ */
+export function soleIntegrationMode(
+  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
+): ProcessIntegrationMode | undefined {
+  const choices = processIntegrationChoices(workBranch)
+  return choices.length === 1 ? choices[0]!.mode : undefined
 }
 
 /** Whether answering the run's park with `choice` must also say how the work comes in. */
@@ -78,6 +100,7 @@ const short = (sha: string | undefined) => (sha ? sha.slice(0, 7) : undefined)
 export function processIntegrationView(run: ProcessRun): ProcessIntegrationView | undefined {
   const { workBranch, integration } = run
   if (!workBranch || run.parentRunId) return undefined
+  if (workBranch.shadow) return shadowIntegrationView(run)
   if (!integration) {
     return isProcessRunAwaitingIntegration(run)
       ? {
@@ -146,6 +169,35 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
   }
 }
 
+/** {@link processIntegrationView} for a project with no git of its own — no git words, no sha. */
+function shadowIntegrationView(run: ProcessRun): ProcessIntegrationView | undefined {
+  const { integration } = run
+  if (!integration) {
+    return isProcessRunAwaitingIntegration(run)
+      ? {
+          tone: 'on_hold',
+          title: PROCESS_INTEGRATION_SHADOW.awaitingBadge,
+          detail: PROCESS_INTEGRATION_SHADOW.neverTried,
+          canRetry: true,
+          busy: false,
+        }
+      : undefined
+  }
+  if (integration.status === 'integrating') {
+    return { tone: 'working', title: PROCESS_INTEGRATION_SHADOW.busy, canRetry: false, busy: true }
+  }
+  if (integration.status === 'failed') {
+    return {
+      tone: 'stuck',
+      title: PROCESS_INTEGRATION_SHADOW.failed,
+      ...(integration.error ? { detail: integration.error } : {}),
+      canRetry: true,
+      busy: false,
+    }
+  }
+  return { tone: 'done', title: PROCESS_INTEGRATION_SHADOW.done, canRetry: false, busy: false }
+}
+
 /** The run badge while approved work is being brought in, or has not landed. */
 export function processIntegrationBadge(
   run: ProcessRun,
@@ -153,7 +205,11 @@ export function processIntegrationBadge(
   if (run.integration?.status === 'integrating') {
     return { label: PROCESS_INTEGRATION_BADGE.integrating, tone: 'working' }
   }
-  return isProcessRunAwaitingIntegration(run)
-    ? { label: PROCESS_INTEGRATION_BADGE.awaiting, tone: 'on_hold' }
-    : undefined
+  if (!isProcessRunAwaitingIntegration(run)) return undefined
+  return {
+    label: run.workBranch?.shadow
+      ? PROCESS_INTEGRATION_SHADOW.awaitingBadge
+      : PROCESS_INTEGRATION_BADGE.awaiting,
+    tone: 'on_hold',
+  }
 }

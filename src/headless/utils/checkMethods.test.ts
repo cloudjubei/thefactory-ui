@@ -1,6 +1,7 @@
 import {
   CAPTURE_RECORD_NOT_THE_TOOLS_REASON,
   CODE_REVIEW_APPROACH,
+  DEVELOPER_CHECKS_APPROACH,
   EVIDENCE_FILE_CHANGED_REASON,
   EVIDENCE_RECORD_UNVOUCHED_REASON,
   FEATURE_REPORT_APPROACH,
@@ -9,6 +10,9 @@ import {
 import { describe, expect, it } from 'vitest'
 
 import type {
+  ProjectCheck,
+  ProjectCheckRunMemory,
+  ProjectChecksListing,
   ReviewEvidenceRef,
   RunVerification,
   VerificationApproachOption,
@@ -17,20 +21,29 @@ import type {
 import {
   checkActionOffer,
   checkCallout,
+  checkChipFace,
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
   reviewTabOrder,
   evidenceMethodFor,
+  projectCheckLastRunSentence,
   reviewTabs,
   signoffVerdict,
   tabForMethod,
+  checkRanInSentence,
 } from './checkMethods'
 import {
+  CHECK_AVAILABLE_LABEL,
+  CHECK_AVAILABLE_SENTENCE,
+  CHECK_CHIP_MARKS,
+  CHECK_FLAGGED_DETAIL,
   CHECK_METHOD_ABSENT_NOUNS,
+  CHECK_STATE_LABELS,
   CHECK_STATE_SENTENCES,
   IMPLEMENTED_CHECK_METHOD_ORDER,
   NOT_RUN_TITLE,
+  PROVEN_DETAIL,
   PROVEN_TITLE,
   STORY_UNFINISHED_TITLE,
   UNIMPLEMENTED_CHECK_METHODS,
@@ -145,6 +158,18 @@ describe('checkMethodFor', () => {
   it('maps every other command check to build', () => {
     expect(checkMethodFor(check({ kind: 'command', id: 'webpack', label: 'Bundle' }))).toBe('build')
   })
+
+  it('files a check by its category before anything its id or kind suggests', () => {
+    expect(checkMethodFor(check({ kind: 'compile', id: 'build', category: 'build' }))).toBe('build')
+    expect(checkMethodFor(check({ kind: 'command', id: 'ktlint', category: 'lint' }))).toBe('lint')
+    expect(checkMethodFor(check({ kind: 'command', id: 'tsc', category: 'typecheck' }))).toBe(
+      'types',
+    )
+    expect(checkMethodFor(check({ kind: 'command', id: 'lint-ish', category: 'format' }))).toBe(
+      'format',
+    )
+    expect(checkMethodFor(check({ kind: 'command', id: 'gradle', category: 'test' }))).toBe('tests')
+  })
 })
 
 describe('evidenceMethodFor', () => {
@@ -189,6 +214,23 @@ describe('checkMethodRows', () => {
     expect(r.detail).toBe('no type errors')
     expect(r.durationLabel).toBe('1.2s')
     expect(r.checkIds).toEqual(['typecheck'])
+  })
+
+  it('ends a ran check’s detail with where it ran', () => {
+    const inSandbox = row(
+      rows({ verification: verification({ checks: [check({ ranIn: 'sandbox' })] }) }),
+      'types',
+    )
+    expect(inSandbox.detail).toBe('no type errors · Ran in the sandbox.')
+    const onHost = row(
+      rows({
+        verification: verification({
+          checks: [check({ ranIn: 'host', hostReason: 'No sandbox image has python3.' })],
+        }),
+      }),
+      'types',
+    )
+    expect(onHost.detail).toBe('no type errors · Ran on the host — No sandbox image has python3.')
   })
 
   it('a single failed check among matched checks makes the method failed', () => {
@@ -1428,6 +1470,12 @@ describe('evidenceMethodFor, for a report', () => {
     expect(evidenceMethodFor({ kind: 'report', approach: FEATURE_REPORT_APPROACH })).toBe('report')
     expect(evidenceMethodFor({ kind: 'report' })).toBe('report')
   })
+
+  it('counts the developer’s account of its own checks as no proof of the report method', () => {
+    expect(
+      evidenceMethodFor({ kind: 'report', approach: DEVELOPER_CHECKS_APPROACH }),
+    ).toBeUndefined()
+  })
 })
 
 describe('reviewTabs, with a code review', () => {
@@ -1461,5 +1509,509 @@ describe('reviewTabs, with a code review', () => {
     expect(reviewTabs({ ...none, walkthroughs: 1, lead: 'report' }).map((t) => t.id)).toEqual([
       'walkthrough',
     ])
+  })
+})
+
+function projectCheck(over: Partial<ProjectCheck> = {}): ProjectCheck {
+  return {
+    id: 'build',
+    kind: 'build',
+    label: 'Build',
+    argv: ['./gradlew', ':app:assembleCovisionTestDebug'],
+    command: './gradlew :app:assembleCovisionTestDebug',
+    source: 'app/build.gradle',
+    ...over,
+  }
+}
+
+function scan(over: Partial<ProjectChecksListing> = {}): ProjectChecksListing {
+  return {
+    ecosystem: 'kotlin' as ProjectChecksListing['ecosystem'],
+    checks: [projectCheck()],
+    hidden: [],
+    variants: [],
+    notes: [],
+    scannedAt: 1,
+    head: 'abc123',
+    fingerprint: 'f1',
+    lastRuns: [],
+    freshness: 'stored',
+    ...over,
+  }
+}
+
+function scannedRows(over: {
+  verification?: RunVerification
+  projectChecks: ProjectChecksListing
+  now?: number
+}): CheckMethodRow[] {
+  return checkMethodRows({
+    verification: over.verification,
+    approaches: [],
+    evidence: [],
+    projectChecks: over.projectChecks,
+    ...(over.now !== undefined ? { now: over.now } : {}),
+  })
+}
+
+function lastRun(over: Partial<ProjectCheckRunMemory> = {}): ProjectCheckRunMemory {
+  return {
+    check: 'build',
+    status: 'passed',
+    summary: 'Build passed',
+    durationMs: 130_000,
+    ranAt: 1_000_000,
+    ...over,
+  }
+}
+
+describe('checkMethodRows › with a scan of the project', () => {
+  const kotlin = scan({
+    checks: [
+      projectCheck(),
+      projectCheck({
+        id: 'test',
+        kind: 'test',
+        label: 'Unit tests',
+        command: './gradlew :app:testCovisionTestDebugUnitTest',
+      }),
+    ],
+    hidden: [{ kind: 'typecheck', reason: 'Kotlin is type-checked by the build.' }],
+  })
+
+  it('reads a detected check that nothing ran as available, with the command that would run it', () => {
+    const build = row(scannedRows({ projectChecks: kotlin }), 'build')
+    expect(build.state).toBe('unchecked')
+    expect(build.available).toEqual({ commands: ['./gradlew :app:assembleCovisionTestDebug'] })
+    expect(build.detail).toBe(
+      'Available — `./gradlew :app:assembleCovisionTestDebug`. Not run on this branch.',
+    )
+    expect(build.action).toEqual({ kind: 'run' })
+  })
+
+  it('says how an available check last went in the project, and how long it took', () => {
+    const build = row(
+      scannedRows({
+        projectChecks: scan({ lastRuns: [lastRun()] }),
+        now: 1_000_000 + 3 * 60_000,
+      }),
+      'build',
+    )
+    expect(build.detail).toBe(
+      'Available — `./gradlew :app:assembleCovisionTestDebug`. Not run on this branch. Last passed 3 minutes ago in 2m 10s.',
+    )
+  })
+
+  it('leaves out when it last ran with no clock to tell it against', () => {
+    const build = row(
+      scannedRows({ projectChecks: scan({ lastRuns: [lastRun({ status: 'error' })] }) }),
+      'build',
+    )
+    expect(build.detail).toMatch(/Not run on this branch\. Last could not finish in 2m 10s\.$/)
+  })
+
+  it('does not tell a check that ran on this branch by its last run elsewhere', () => {
+    const build = row(
+      scannedRows({
+        verification: verification({
+          checks: [
+            {
+              id: 'build',
+              label: 'Build',
+              kind: 'command',
+              status: 'passed',
+              durationMs: 1,
+              summary: 'Built.',
+              category: 'build',
+            },
+          ],
+        }),
+        projectChecks: scan({ lastRuns: [lastRun({ status: 'failed' })] }),
+        now: 2_000_000,
+      }),
+      'build',
+    )
+    expect(build.detail).not.toContain('Last failed')
+  })
+
+  it('lists every command a method was detected with', () => {
+    const lint = row(
+      scannedRows({
+        projectChecks: scan({
+          checks: [
+            projectCheck({ id: 'lint:ktlint', kind: 'lint', command: './gradlew ktlintCheck' }),
+            projectCheck({ id: 'lint:android', kind: 'lint', command: './gradlew lint' }),
+          ],
+        }),
+      }),
+      'lint',
+    )
+    expect(lint.available?.commands).toEqual(['./gradlew ktlintCheck', './gradlew lint'])
+    expect(lint.detail).toBe(
+      'Available — `./gradlew ktlintCheck`, `./gradlew lint`. Not run on this branch.',
+    )
+  })
+
+  it('reads a command check the scan did not find as not set up — even with no run record', () => {
+    const lint = row(scannedRows({ projectChecks: kotlin }), 'lint')
+    expect(lint.state).toBe('unconfigured')
+    expect(lint.available).toBeUndefined()
+    expect(lint.detail).toBe(`This project has no ${CHECK_METHOD_ABSENT_NOUNS.lint}.`)
+  })
+
+  it('upgrades a declared-nothing record to available when the scan found the check', () => {
+    const lint = row(
+      scannedRows({
+        verification: verification({ checks: [] }),
+        projectChecks: scan({
+          checks: [projectCheck({ id: 'lint', kind: 'lint', command: 'npm run lint' })],
+        }),
+      }),
+      'lint',
+    )
+    expect(lint.state).toBe('unchecked')
+    expect(lint.available).toEqual({ commands: ['npm run lint'] })
+  })
+
+  it('drops the type check the scan hides when nothing ran one', () => {
+    const list = scannedRows({ projectChecks: kotlin })
+    expect(list.map((r) => r.id)).not.toContain('types')
+  })
+
+  it('keeps a hidden type check that DID run — a result is never hidden', () => {
+    const types = row(
+      scannedRows({
+        verification: verification({ checks: [check({ category: 'typecheck' })] }),
+        projectChecks: kotlin,
+      }),
+      'types',
+    )
+    expect(types.state).toBe('passed')
+  })
+
+  it('lets a result win over the scan', () => {
+    const build = row(
+      scannedRows({
+        verification: verification({
+          checks: [check({ id: 'build', label: 'Build', category: 'build', summary: 'Built' })],
+        }),
+        projectChecks: kotlin,
+      }),
+      'build',
+    )
+    expect(build.state).toBe('passed')
+    expect(build.available).toBeUndefined()
+    expect(build.detail).toBe('Built')
+  })
+
+  it('reads a detected check whose only run was skipped as available', () => {
+    const build = row(
+      scannedRows({
+        verification: verification({
+          checks: [check({ id: 'build', category: 'build', status: 'skipped' })],
+        }),
+        projectChecks: kotlin,
+      }),
+      'build',
+    )
+    expect(build.state).toBe('unchecked')
+    expect(build.available?.commands).toEqual(['./gradlew :app:assembleCovisionTestDebug'])
+  })
+
+  it('leaves every row as it was without a scan', () => {
+    const list = rows({})
+    expect(list.map((r) => r.id)).toContain('types')
+    expect(list.every((r) => r.available === undefined)).toBe(true)
+    expect(row(list, 'lint').state).toBe('unchecked')
+  })
+
+  it('demotes the verdict for an available check that never ran, exactly like an unchecked one', () => {
+    const list = scannedRows({
+      verification: verification({
+        checks: [check({ id: 'test', label: 'Unit tests', kind: 'tests', category: 'test' })],
+      }),
+      projectChecks: kotlin,
+    })
+    const verdict = signoffVerdict({ rows: list, verified: true })
+    expect(verdict.key).toBe('partly')
+    expect(verdict.title).toContain('Build')
+  })
+})
+
+describe('checkChipFace', () => {
+  it('marks an available check that never ran apart from an unknown one', () => {
+    expect(checkChipFace({ state: 'unchecked', available: { commands: ['x'] } })).toEqual({
+      mark: CHECK_CHIP_MARKS.available,
+      stateLabel: CHECK_AVAILABLE_LABEL,
+    })
+    expect(checkChipFace({ state: 'unchecked' }).mark).toBe('?')
+    expect(CHECK_CHIP_MARKS.available).not.toBe(CHECK_CHIP_MARKS.unchecked)
+  })
+
+  it('reads every other state from its own mark and label', () => {
+    for (const state of ['passed', 'failed', 'flagged', 'unchecked', 'unconfigured'] as const) {
+      expect(checkChipFace({ state })).toEqual({
+        mark: CHECK_CHIP_MARKS[state],
+        stateLabel: CHECK_STATE_LABELS[state],
+      })
+    }
+  })
+
+  it('ignores an available marker on a row that is not unchecked', () => {
+    expect(checkChipFace({ state: 'passed', available: { commands: ['x'] } }).mark).toBe('✓')
+  })
+})
+
+describe('checkCallout › an available check', () => {
+  it('says it is available and not run, with the command beneath', () => {
+    const build = row(scannedRows({ projectChecks: scan() }), 'build')
+    expect(checkCallout(build)).toEqual({ lead: CHECK_AVAILABLE_SENTENCE, detail: build.detail })
+  })
+})
+
+describe('checkMethodRows › an advisory-only failure is flagged', () => {
+  const lint = (over: Partial<VerificationCheckResult> = {}): VerificationCheckResult =>
+    check({
+      id: 'lint',
+      label: 'Lint',
+      kind: 'command',
+      category: 'lint',
+      status: 'failed',
+      summary: 'Exited 1',
+      optional: true,
+      ...over,
+    })
+
+  it('flags a method whose only failing result is advisory, saying what was flagged', () => {
+    const flagged = row(rows({ verification: verification({ checks: [check(), lint()] }) }), 'lint')
+    expect(flagged).toMatchObject({
+      state: 'flagged',
+      tone: 'warning',
+      detail: `Lint ${CHECK_FLAGGED_DETAIL} · Exited 1`,
+      action: { kind: 'open-proof', tab: 'build' },
+    })
+  })
+
+  it('flags an advisory check that errored, as it flags one that failed', () => {
+    const flagged = row(
+      rows({ verification: verification({ checks: [lint({ status: 'error' })] }) }),
+      'lint',
+    )
+    expect(flagged.state).toBe('flagged')
+  })
+
+  it('keeps a method failed when a blocking failure sits beside the advisory one', () => {
+    const mixed = row(
+      rows({
+        verification: verification({
+          checks: [lint(), lint({ id: 'lint:strict', optional: false, summary: 'Exited 2' })],
+        }),
+      }),
+      'lint',
+    )
+    expect(mixed).toMatchObject({
+      state: 'failed',
+      tone: 'danger',
+      detail: 'Exited 1 · Exited 2',
+      action: { kind: 'request', purpose: 'fix' },
+    })
+  })
+
+  it('keeps a non-advisory failure failed', () => {
+    const blocking = row(
+      rows({ verification: verification({ checks: [lint({ optional: undefined })] }) }),
+      'lint',
+    )
+    expect(blocking.state).toBe('failed')
+  })
+
+  it('flags an agent-filled method a command proves (uitests) only when its failure is advisory', () => {
+    const uiTests = (optional: boolean) =>
+      row(
+        rows({
+          verification: verification({
+            checks: [
+              check({
+                id: 'e2e',
+                label: 'Playwright',
+                kind: 'command',
+                status: 'failed',
+                summary: '2 failed',
+                optional,
+              }),
+            ],
+          }),
+        }),
+        'uitests',
+      )
+    expect(uiTests(true).state).toBe('flagged')
+    expect(uiTests(false).state).toBe('failed')
+  })
+
+  it('never folds a flagged chip away with the absent ones', () => {
+    const list = rows({ verification: verification({ checks: [lint()] }) })
+    expect(checkRowLayout(list, false).visible.map((r) => r.id)).toContain('lint')
+  })
+})
+
+describe('signoffVerdict › flagged methods', () => {
+  const mk = (over: Partial<CheckMethodRow>): CheckMethodRow => ({
+    id: 'types',
+    label: 'Types',
+    noun: 'the typecheck',
+    setupVerb: 'wire up a typecheck',
+    state: 'passed',
+    tone: 'positive',
+    detail: 'ok',
+    durationLabel: undefined,
+    output: undefined,
+    fill: 'run',
+    action: { kind: 'open-proof', tab: 'build' },
+    checkIds: [],
+    ...over,
+  })
+  const flaggedLint = mk({ id: 'lint', label: 'Lint', state: 'flagged', tone: 'warning' })
+
+  it('reads a flagged method as passed: proven, the flag named in the detail', () => {
+    const v = signoffVerdict({
+      rows: VERDICT_BEARING_METHODS.map((id) => (id === 'lint' ? flaggedLint : mk({ id }))),
+      verified: true,
+    })
+    expect(v).toMatchObject({
+      key: 'proven',
+      title: PROVEN_TITLE,
+      detail: `${PROVEN_DETAIL} Lint flagged issues (advisory).`,
+    })
+  })
+
+  it('names every flagged method together', () => {
+    const v = signoffVerdict({
+      rows: [
+        mk({}),
+        flaggedLint,
+        mk({ id: 'format', label: 'Format', state: 'flagged', tone: 'warning' }),
+      ],
+      verified: true,
+    })
+    expect(v.detail).toBe(`${PROVEN_DETAIL} Lint and Format flagged issues (advisory).`)
+  })
+
+  it('says nothing of flags when none were raised', () => {
+    expect(signoffVerdict({ rows: [mk({})], verified: true }).detail).toBe(PROVEN_DETAIL)
+  })
+
+  it('never lets a flag hide a blocking failure beside it', () => {
+    const v = signoffVerdict({
+      rows: [flaggedLint, mk({ id: 'tests', label: 'Tests', state: 'failed', detail: '1 failed' })],
+      verified: true,
+    })
+    expect(v).toMatchObject({ key: 'failed', title: 'Tests failed', detail: '1 failed' })
+  })
+
+  it('counts a flagged method as something that was checked, on an unverified run', () => {
+    expect(signoffVerdict({ rows: [flaggedLint], verified: false }).key).toBe('proven')
+  })
+
+  it('counts a flagged method as checked when every other bearing method is not set up', () => {
+    const v = signoffVerdict({
+      rows: VERDICT_BEARING_METHODS.map((id) =>
+        id === 'lint' ? flaggedLint : mk({ id, state: 'unconfigured', tone: 'neutral' }),
+      ),
+      verified: true,
+    })
+    expect(v.key).toBe('proven')
+  })
+
+  it('names the flag beside what passed when the verdict is partly', () => {
+    const v = signoffVerdict({
+      rows: [mk({}), flaggedLint, mk({ id: 'tests', label: 'Tests', state: 'unchecked' })],
+      verified: true,
+    })
+    expect(v).toMatchObject({
+      key: 'partly',
+      detail: 'Types passed. Lint flagged issues (advisory).',
+    })
+  })
+})
+
+describe('checkChipFace › flagged', () => {
+  it('draws an amber mark that reads as an advisory flag, never a failure', () => {
+    expect(checkChipFace({ state: 'flagged' })).toEqual({
+      mark: '!',
+      stateLabel: 'flagged (advisory)',
+    })
+    expect(CHECK_CHIP_MARKS.flagged).not.toBe(CHECK_CHIP_MARKS.failed)
+  })
+})
+
+describe('checkCallout › flagged', () => {
+  it('explains that the flag is advisory, with what was flagged beneath', () => {
+    const lint = row(
+      rows({
+        verification: verification({
+          checks: [
+            check({
+              id: 'lint',
+              label: 'Lint',
+              kind: 'command',
+              category: 'lint',
+              status: 'failed',
+              summary: 'Exited 1',
+              optional: true,
+            }),
+          ],
+        }),
+      }),
+      'lint',
+    )
+    expect(checkCallout(lint)).toEqual({
+      lead: CHECK_STATE_SENTENCES.flagged,
+      detail: `Lint ${CHECK_FLAGGED_DETAIL} · Exited 1`,
+    })
+  })
+})
+
+describe('checkRanInSentence', () => {
+  it('says the sandbox when every check that says ran there', () => {
+    expect(checkRanInSentence([{ ranIn: 'sandbox' }, {}])).toBe('Ran in the sandbox.')
+  })
+
+  it('says the host with the reason, folding to the host when any ran there', () => {
+    expect(
+      checkRanInSentence([
+        { ranIn: 'sandbox' },
+        { ranIn: 'host', hostReason: 'Xcode needs macOS.' },
+      ]),
+    ).toBe('Ran on the host — Xcode needs macOS.')
+    expect(checkRanInSentence([{ ranIn: 'host' }])).toBe('Ran on the host.')
+  })
+
+  it('says nothing when no check says where it ran', () => {
+    expect(checkRanInSentence([{}])).toBeUndefined()
+    expect(checkRanInSentence([])).toBeUndefined()
+  })
+})
+
+describe('projectCheckLastRunSentence', () => {
+  it('says a narrowed run was narrowed', () => {
+    expect(
+      projectCheckLastRunSentence(
+        lastRun({ check: 'test', status: 'failed', durationMs: 4_000, tests: ['A', 'B'] }),
+        1_000_000,
+      ),
+    ).toBe('Last failed just now in 4.0s, narrowed to 2 tests.')
+  })
+
+  it('says where the last run ran', () => {
+    expect(
+      projectCheckLastRunSentence(
+        lastRun({
+          status: 'passed',
+          durationMs: 4_000,
+          ranIn: 'host',
+          hostReason: 'Android needs the SDK.',
+        }),
+      ),
+    ).toBe('Last passed in 4.0s. Ran on the host — Android needs the SDK.')
   })
 })

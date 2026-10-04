@@ -15,13 +15,21 @@ import {
 import {
   IconArrowLeftMini,
   IconArrowRightMini,
+  IconBoard,
   IconDelete,
   IconEdit,
   IconPlus,
   IconSave,
 } from '../../icons'
-import { useProjectsGroups, type GroupType, type ProjectsGroup } from '../../../headless'
+import {
+  useProjectsGroups,
+  useProviderConnections,
+  type GroupType,
+  type ProjectsGroup,
+} from '../../../headless'
 import { extractErrorMessage } from '../../../headless/api'
+import { describeTicketBinding } from '../../../headless/utils/ticketConnection'
+import TicketConnectionPicker, { type TicketConnectionPickerValue } from './TicketConnectionPicker'
 
 function GroupNameModal({
   title,
@@ -97,9 +105,64 @@ function GroupNameModal({
   )
 }
 
+function GroupJiraModal({
+  group,
+  onSave,
+  onClose,
+}: {
+  group: ProjectsGroup
+  onSave: (value: TicketConnectionPickerValue) => Promise<void>
+  onClose: () => void
+}) {
+  const [value, setValue] = useState<TicketConnectionPickerValue>(group.ticketConnection)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const save = async () => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onSave(value)
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Could not save the Jira connection. Try again.'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      isOpen
+      onClose={submitting ? () => undefined : onClose}
+      title={`Jira for ${group.title}`}
+      size="md"
+    >
+      <div className="flex flex-col gap-3">
+        <div className="text-sm text-(--text-secondary)">
+          Projects whose main group is {group.title} use this connection unless they choose their
+          own in their settings.
+        </div>
+        {error && <Alert>{error}</Alert>}
+        <TicketConnectionPicker value={value} onChange={setValue} />
+        <div className="flex justify-end gap-2 mt-1">
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button onClick={() => void save()} loading={submitting} disabled={submitting}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export default function ProjectGroupsEditor() {
   const { groups, createGroup, updateGroup, deleteGroup, reorderGroup } = useProjectsGroups()
+  const { connections } = useProviderConnections()
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [jiraTargetId, setJiraTargetId] = useState<string | null>(null)
+  const jiraTarget = groups.find((g) => g.id === jiraTargetId) ?? null
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
   const [deleteCandidate, setDeleteCandidate] = useState<ProjectsGroup | null>(null)
   const renameTarget = groups.find((g) => g.id === renameTargetId) ?? null
@@ -132,9 +195,17 @@ export default function ProjectGroupsEditor() {
             className="flex flex-col py-2 gap-2 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              <strong className="truncate max-w-[200px]" title={g.title}>
-                {g.title}
-              </strong>
+              <div className="flex flex-col min-w-0">
+                <strong className="truncate max-w-[200px]" title={g.title}>
+                  {g.title}
+                </strong>
+                {g.ticketConnection ? (
+                  <span className="text-xs text-(--text-secondary) truncate">
+                    Jira: {describeTicketBinding(g.ticketConnection, connections)}
+                    {g.type === 'SCOPE' ? ' — unused: only a main group passes Jira on' : ''}
+                  </span>
+                ) : null}
+              </div>
               <div className="flex items-center gap-3">
                 <Select
                   value={g.type || 'MAIN'}
@@ -174,6 +245,17 @@ export default function ProjectGroupsEditor() {
               >
                 <IconArrowRightMini className="w-4 h-4 rotate-90" />
               </Button>
+              {g.type !== 'SCOPE' || g.ticketConnection ? (
+                <Button
+                  variant={g.ticketConnection ? 'secondary' : 'outline'}
+                  size="icon"
+                  onClick={() => setJiraTargetId(g.id)}
+                  title={g.ticketConnection ? 'Change Jira connection' : 'Connect Jira'}
+                  aria-label={g.ticketConnection ? 'Change Jira connection' : 'Connect Jira'}
+                >
+                  <IconBoard className="w-4 h-4" />
+                </Button>
+              ) : null}
               <Button
                 variant="outline"
                 size="icon"
@@ -219,6 +301,19 @@ export default function ProjectGroupsEditor() {
             setRenameTargetId(null)
           }}
           onClose={() => setRenameTargetId(null)}
+        />
+      )}
+
+      {jiraTarget && (
+        <GroupJiraModal
+          group={jiraTarget}
+          onSave={async (value) => {
+            await updateGroup(jiraTarget.id, {
+              ticketConnection: value === undefined || value === 'none' ? null : value,
+            })
+            setJiraTargetId(null)
+          }}
+          onClose={() => setJiraTargetId(null)}
         />
       )}
 

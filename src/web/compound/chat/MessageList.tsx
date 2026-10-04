@@ -12,12 +12,20 @@ import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
-import { Switch } from '../../primitives/Switch'
+import ToolApprovalFooter from './ToolApprovalFooter'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
-import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
+import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
+import type { CliDecidedAsk } from '../../../headless/utils/cliRunActivityTypes'
+import { isToolAskDecidedOnRow } from '../../../headless/utils/approvalGrant'
+import {
+  CHAT_OPEN_ANCHOR_CONTEXT_MESSAGES,
+  CHAT_OPEN_ANCHOR_HEADROOM,
+  CHAT_OPEN_SETTLE_MAX_MS,
+} from '../../../headless/utils/chatUnreadConstants'
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
@@ -74,6 +82,12 @@ export type MessageListProps = {
    * turn must never claim to be blocked on today's approval.
    */
   cliBlockedOn?: readonly CliRunBlockedOn[]
+  /** The chat's undecided CLI asks — the ordinary tool asks decided on the rows that show them. */
+  cliAsks?: readonly PendingToolGrant[]
+  /** The chat's decided asks — what a row that once waited on one shows now. */
+  decidedAsks?: readonly CliDecidedAsk[]
+  /** Reported by each CLI turn: the asks its rows show — see `CliRunMessages.onClaimAsks`. */
+  onClaimAsks?: (runId: string, askIds: string[]) => void
   /** When the last user message exceeds this offset from the top, the list
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */
@@ -135,6 +149,11 @@ export type MessageListProps = {
    * `toolCallId`s the user approved. Host wires it to the chats
    * resume-completion call. */
   onResumeTools?: (toolCallIds: string[]) => Promise<void> | void
+  /**
+   * Allow these tools on every later call — what an API row's "Always allow"
+   * does once the batch resumes. Without it API rows offer no "Always allow".
+   */
+  onAlwaysAllowApiTools?: (toolNames: string[]) => Promise<void> | void
   /** True while a send/resume is in flight — drives the inline "Resume" button's
    * spinner + disabled state so the user sees the tools are running. */
   isSending?: boolean
@@ -165,6 +184,9 @@ export default function MessageList({
   pendingCliRunId,
   pendingCliModel,
   cliBlockedOn,
+  cliAsks,
+  decidedAsks,
+  onClaimAsks,
   numberMessagesToSend,
   lastReadIso,
   onAtBottomChange,
@@ -184,6 +206,7 @@ export default function MessageList({
   renderProcessRun,
   previewTool,
   onResumeTools,
+  onAlwaysAllowApiTools,
   isSending = false,
   isDeleting = false,
   isBusy,
@@ -252,6 +275,13 @@ export default function MessageList({
     prevUserMessagesLenRef.current = messagesToDisplay.length
   }, [messages])
 
+  // Where the open is anchored while the chat SETTLES. A CLI reply renders its
+  // run's transcript, which loads seconds after the chat itself, so every
+  // reply above the anchor grows after the first scroll; the anchor is
+  // re-applied on each growth until the user scrolls or the cap runs out.
+  const openAnchorRef = useRef<{ target: 'bottom' | number } | null>(null)
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
   // At-bottom tracking.
   const isAtBottomRef = useRef(true)
   const computeIsNearBottom = useCallback((): boolean => {
@@ -271,6 +301,10 @@ export default function MessageList({
   const lastFiredReadIsoRef = useRef<string | undefined>(undefined)
 
   const updateAtBottomState = useCallback(() => {
+    // Opening on an unread reply: the page is still filling in beneath the
+    // user, so "at the bottom" says nothing about what they have read.
+    const anchor = openAnchorRef.current
+    if (anchor && anchor.target !== 'bottom') return
     const nearBottom = computeIsNearBottom()
     if (nearBottom !== isAtBottomRef.current) {
       isAtBottomRef.current = nearBottom
@@ -315,51 +349,70 @@ export default function MessageList({
   const turnInFlight = (isBusy ?? false) || isThinking || pending !== null || isSending
   const deleting = isDeleting
 
-  // Last-unread positioning on chat open.
-  const lastMessageIsoMemo = useMemo(() => lastMessageIso(messagesToDisplay), [messagesToDisplay])
-  const hasUnreadOnOpen = useMemo(() => {
-    if (!lastReadIso || !lastMessageIsoMemo) return false
-    return lastMessageIsoMemo.localeCompare(lastReadIso) > 0
-  }, [lastReadIso, lastMessageIsoMemo])
+  // ---- Opening a chat where reading resumes ------------------------------
+  // The last-read mark as it stood when the chat opened. It moves as soon as
+  // the list reports being at the bottom, which a chat whose replies are still
+  // loading always is — judged against the live mark, nothing was ever unread.
+  // Taken once the messages are here, so a mark that loads with them counts.
+  const openedRef = useRef<{ chatId?: string; lastReadIso?: string }>({})
+  if (openedRef.current.chatId !== chatId || messagesToDisplay.length === 0)
+    openedRef.current = { chatId, lastReadIso }
+  const openLastReadIso = openedRef.current.lastReadIso
 
-  const lastUnreadIndex = useMemo(() => {
-    if (!hasUnreadOnOpen || !lastReadIso) return null
-    for (let i = messagesToDisplay.length - 1; i >= 0; i--) {
-      const iso = messageIso(messagesToDisplay[i])
-      if (iso && iso.localeCompare(lastReadIso) > 0) return i
+  // The FIRST reply the user has not read — where reading resumes — or `null`
+  // to open at the bottom.
+  const firstUnreadIndex = useMemo(
+    () => firstUnreadMessageIndex(messagesToDisplay, openLastReadIso),
+    [messagesToDisplay, openLastReadIso],
+  )
+
+  const applyOpenAnchor = useCallback(() => {
+    const anchor = openAnchorRef.current
+    const c = messageListRef.current
+    if (!anchor || !c) return
+    if (anchor.target === 'bottom') {
+      scrollToBottom('auto')
+      return
     }
-    return null
-  }, [messagesToDisplay, hasUnreadOnOpen, lastReadIso])
+    const el = c.querySelector(`[data-msg-anchor='${anchor.target}']`) as HTMLElement | null
+    if (!el) return
+    const headroom = Math.floor(c.clientHeight * CHAT_OPEN_ANCHOR_HEADROOM)
+    const top = c.scrollTop + el.getBoundingClientRect().top - c.getBoundingClientRect().top
+    c.scrollTo({ top: Math.max(0, top - headroom), behavior: 'auto' })
+  }, [scrollToBottom])
+
+  const endOpenSettle = useCallback(() => {
+    if (!openAnchorRef.current) return
+    openAnchorRef.current = null
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
+    settleTimerRef.current = undefined
+    updateAtBottomState()
+  }, [updateAtBottomState])
+  useEffect(() => () => clearTimeout(settleTimerRef.current), [])
 
   const positionedChatIdRef = useRef<string | undefined>(undefined)
   useLayoutEffect(() => {
     const container = messageListRef.current
     if (!container) return
     if (chatId && positionedChatIdRef.current === chatId) return
+    // Wait for the chat's messages. Positioning an empty list spent the one
+    // chance this chat gets, and when the messages arrived the list stayed at
+    // the top — every chat opened at its first message.
+    if (!messagesToDisplay.length) return
     positionedChatIdRef.current = chatId
 
-    const openAtBottom = () => {
-      scrollToBottom('auto')
-      updateAtBottomState()
+    const target = firstUnreadIndex ?? 'bottom'
+    // An unread reply above the loaded window: widen the window to reach it.
+    if (target !== 'bottom' && target < startIndex) {
+      setVisibleCount(messagesToDisplay.length - target + CHAT_OPEN_ANCHOR_CONTEXT_MESSAGES)
     }
-    if (!messagesToDisplay.length) return openAtBottom()
-    if (!lastReadIso || !hasUnreadOnOpen) return openAtBottom()
-
-    if (typeof lastUnreadIndex === 'number') {
-      const target = container.querySelector(
-        `[data-msg-idx='${lastUnreadIndex}']`,
-      ) as HTMLElement | null
-      if (target) {
-        const headroom = Math.floor(container.clientHeight * 0.3)
-        const top = Math.max(0, target.offsetTop - headroom)
-        container.scrollTo({ top, behavior: 'auto' })
-        updateAtBottomState()
-        return
-      }
-    }
-    openAtBottom()
+    openAnchorRef.current = { target }
+    applyOpenAnchor()
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
+    settleTimerRef.current = setTimeout(endOpenSettle, CHAT_OPEN_SETTLE_MAX_MS)
+    if (target === 'bottom') updateAtBottomState()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId])
+  }, [chatId, messagesToDisplay.length > 0])
 
   // Auto-scroll only when near bottom (matches desktop's behavior).
   const prevLenForScrollRef = useRef<number>(messages.length)
@@ -432,13 +485,17 @@ export default function MessageList({
     const content = contentRef.current
     if (!container || !content) return
     const ro = new ResizeObserver(() => {
+      if (openAnchorRef.current) {
+        applyOpenAnchor()
+        return
+      }
       if (!computeIsNearBottom()) return
       scrollToBottom('auto')
       updateAtBottomState()
     })
     ro.observe(content)
     return () => ro.disconnect()
-  }, [computeIsNearBottom, scrollToBottom, updateAtBottomState])
+  }, [computeIsNearBottom, scrollToBottom, updateAtBottomState, applyOpenAnchor])
 
   // Limit system bubble to ~half the viewport so it never floods the canvas.
   const [systemMaxHeight, setSystemMaxHeight] = useState<number | undefined>(undefined)
@@ -522,6 +579,7 @@ export default function MessageList({
       if (m.role !== 'tool') continue
       const type = m.toolResult?.type
       if (!(type === 'require_confirmation' || type === 'not_allowed')) continue
+      if (!isToolAskDecidedOnRow(m.toolCall?.name)) continue
       const id = String(m.toolCall?.toolCallId ?? '')
       if (id) set.add(id)
     }
@@ -529,10 +587,21 @@ export default function MessageList({
   }, [messagesToDisplay, pendingTail.start, pendingTail.end])
 
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
+  const [alwaysToolIds, setAlwaysToolIds] = useState<string[]>([])
   // Reset selection when the chat changes or the message list changes.
   useEffect(() => {
     setSelectedToolIds([])
+    setAlwaysToolIds([])
   }, [chatId, messagesToDisplay.length])
+  // Marking "Always allow" toggles the row on too; unmarking leaves the toggle.
+  const toggleAlwaysTool = useCallback(
+    (id: string) => {
+      const marking = !alwaysToolIds.includes(id)
+      setAlwaysToolIds((prev) => (marking ? [...prev, id] : prev.filter((x) => x !== id)))
+      if (marking) setSelectedToolIds((sel) => (sel.includes(id) ? sel : [...sel, id]))
+    },
+    [alwaysToolIds],
+  )
   const toggleToolSelected = useCallback((id: string) => {
     if (!id) return
     setSelectedToolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -606,6 +675,10 @@ export default function MessageList({
       ref={messageListRef}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
       onScroll={handleScroll}
+      onWheel={endOpenSettle}
+      onTouchStart={endOpenSettle}
+      onPointerDown={endOpenSettle}
+      onKeyDown={endOpenSettle}
     >
       {/* The system-prompt preview is for an IDLE, empty chat. During a run it
           was pure noise: a CLI run streams through CliRunMessages, not the chat
@@ -687,7 +760,10 @@ export default function MessageList({
             // live (trailing) block and the persisted (inline) block share ONE
             // key — React moves the mounted CliRunMessages in place across the
             // live→persisted handoff instead of unmounting it (no finish flash).
-            <div key={msg.cliRunId ? `cli-${msg.cliRunId}` : globalIndex}>
+            <div
+              key={msg.cliRunId ? `cli-${msg.cliRunId}` : globalIndex}
+              data-msg-anchor={globalIndex}
+            >
               {showCutoff ? (
                 <div
                   className="relative text-center my-4 group"
@@ -710,6 +786,7 @@ export default function MessageList({
                 // to an API run, no bespoke transcript view.
                 <CliRunMessages
                   runId={msg.cliRunId}
+                  onResourceLink={onResourceLink}
                   model={messageModelTag(msg.model)}
                   baseIndex={globalIndex}
                   renderToolResult={renderToolResult}
@@ -719,9 +796,13 @@ export default function MessageList({
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   coldStart={msg.cliRunId === firstCliRunId}
+                  storedReply={msg.content}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
                     : {})}
+                  cliAsks={cliAsks}
+                  decidedAsks={decidedAsks}
+                  onClaimAsks={onClaimAsks}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
                   deletePreview={isInDeleteRange(globalIndex, deleteFromIndex, deletePreview)}
@@ -771,6 +852,18 @@ export default function MessageList({
                       ? () => toggleToolSelected(String(msg.toolCall!.toolCallId))
                       : undefined
                   }
+                  toolAlwaysAllowed={
+                    msg.role === 'tool' &&
+                    alwaysToolIds.includes(String(msg.toolCall?.toolCallId ?? ''))
+                  }
+                  onAlwaysAllowTool={
+                    onAlwaysAllowApiTools &&
+                    msg.role === 'tool' &&
+                    msg.toolCall?.toolCallId &&
+                    confirmableIds.has(String(msg.toolCall.toolCallId))
+                      ? () => toggleAlwaysTool(String(msg.toolCall!.toolCallId))
+                      : undefined
+                  }
                   toolRowOverride={
                     msg.toolCall && renderToolRowOverride
                       ? renderToolRowOverride(msg.toolCall)
@@ -788,38 +881,24 @@ export default function MessageList({
 
         {/* Inline confirmation footer — desktop's "Toggle all + Resume X/Y Tools". */}
         {onResumeTools && pendingTail.ids.length > 0 && confirmableIds.size > 0 ? (
-          <div className="pt-1 flex items-center justify-between">
-            {confirmableIds.size > 1 ? (
-              <div className="flex items-center gap-2 text-[12px] text-(--text-secondary)">
-                <span>Toggle all</span>
-                <Switch checked={allSelected} onCheckedChange={(c) => toggleAllSelected(c)} />
-              </div>
-            ) : (
-              <div />
-            )}
-            <button
-              type="button"
-              className={
-                selectedCount > 0 && !isSending
-                  ? 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium bg-green-600 hover:bg-green-700 text-white'
-                  : 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) cursor-not-allowed opacity-70'
-              }
-              disabled={selectedCount === 0 || isSending}
-              onClick={() => {
-                const ok = selectedToolIds.filter((id) => confirmableIds.has(id))
-                void onResumeTools(ok)
-              }}
-            >
-              {isSending ? (
-                <>
-                  <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                  Resuming…
-                </>
-              ) : (
-                `Resume ${selectedCount}/${confirmableIds.size} Tools`
-              )}
-            </button>
-          </div>
+          <ToolApprovalFooter
+            total={confirmableIds.size}
+            selectedCount={selectedCount}
+            allSelected={allSelected}
+            onToggleAll={toggleAllSelected}
+            onResume={() => {
+              const ok = selectedToolIds.filter((id) => confirmableIds.has(id))
+              const always = apiToolNamesFor(
+                messagesToDisplay,
+                ok.filter((id) => alwaysToolIds.includes(id)),
+              )
+              void (async () => {
+                if (always.length > 0) await onAlwaysAllowApiTools?.(always)
+                await onResumeTools(ok)
+              })()
+            }}
+            resuming={isSending}
+          />
         ) : null}
 
         {/* Live CLI run: stream it AS normal chat messages (assistant + tool
@@ -831,6 +910,7 @@ export default function MessageList({
           <div key={`cli-${pendingCliRunId}`}>
             <CliRunMessages
               runId={pendingCliRunId}
+              onResourceLink={onResourceLink}
               model={pendingCliModel}
               baseIndex={messagesToDisplay.length}
               renderToolResult={renderToolResult}
@@ -841,6 +921,9 @@ export default function MessageList({
               renderProcessRun={renderProcessRun}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
+              cliAsks={cliAsks}
+              decidedAsks={decidedAsks}
+              onClaimAsks={onClaimAsks}
             />
           </div>
         ) : pending?.role === 'assistant' ? (
@@ -884,4 +967,20 @@ export default function MessageList({
       </div>
     </div>
   )
+}
+
+/** The tool names of the given API tool calls, each once. */
+function apiToolNamesFor(
+  messages: readonly ChatMessageLike[],
+  toolCallIds: readonly string[],
+): string[] {
+  const ids = new Set(toolCallIds)
+  const names = new Set<string>()
+  for (const m of messages) {
+    const id = m.toolCall?.toolCallId
+    if (m.role === 'tool' && id !== undefined && ids.has(String(id)) && m.toolCall?.name) {
+      names.add(m.toolCall.name)
+    }
+  }
+  return [...names]
 }

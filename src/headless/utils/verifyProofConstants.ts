@@ -104,3 +104,9 @@ export const VERDICT_NOTE_WHO: Record<'reviewer' | 'codeReview', string> = {
   reviewer: 'Reviewer',
   codeReview: 'Code review',
 }
+
+/** The agent roles whose attempts the verify gate judges: the verifier, and a developer proving its own change. */
+export const PROVING_AGENT_TYPES: readonly string[] = ['verifier', 'developer-verifier']
+
+/** Beside a counted capture of uncommitted work: it held exactly the commit it is named by. */
+export const CAPTURE_SAME_CODE_LABEL = 'built before it landed — the same code'

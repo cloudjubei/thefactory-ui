@@ -298,3 +298,18 @@ export function canonicalToolPreviewName(name: string | undefined): string {
   if (!name) return 'tool'
   return TOOL_PREVIEW_ALIASES[name.toLowerCase()] ?? name
 }
+
+/**
+ * Why a call did not run, for its row: the reason a decided ask records (you
+ * declined it, it expired), else what the host told the agent (a call left
+ * waiting for approval, stopped), else the raw result.
+ */
+export function toolNotRunReason(result: unknown): string {
+  const body =
+    typeof result === 'object' && result !== null
+      ? (result as { reason?: unknown; agentInstruction?: unknown })
+      : undefined
+  if (typeof body?.reason === 'string') return body.reason
+  if (typeof body?.agentInstruction === 'string') return body.agentInstruction
+  return safePreviewString(result).text
+}

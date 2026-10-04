@@ -5,11 +5,7 @@ import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { IconDelete, IconRefreshChat, IconToolbox } from '../../icons'
-import type {
-  ChatMessageLike,
-  ToolCallLike,
-  ToolResultTypeLike,
-} from '../../../headless/utils/chatTypes'
+import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
 import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
@@ -28,6 +24,7 @@ import {
   parseCliAgentModelTag,
   shortCliModelLabel,
 } from '../../../headless/utils/cliRunner'
+import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -165,12 +162,16 @@ export interface MessageRowProps {
 
   /** Render the tool-call card. RN's `ToolCallCard` peer isn't shipped yet —
    * pass a host renderer here to surface tool calls until it lands. */
-  renderToolCall?: (args: {
-    toolCall: ToolCallLike
-    result?: unknown
-    resultType?: ToolResultTypeLike
-    durationMs?: number
-  }) => ReactNode
+  renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
+  /** When true, the tool card shows a toggle in a batch awaiting approval. */
+  toolSelectable?: boolean
+  /** Whether the toggle is on. */
+  toolSelected?: boolean
+  onToggleToolSelect?: () => void
+  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
+  toolAlwaysAllowed?: boolean
+  /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
+  onAlwaysAllowTool?: () => void
   /**
    * Replaces the whole tool card for this row. Used by a tool the user has to
    * answer in place (the in-chat credential form), which must read as the tool
@@ -278,6 +279,11 @@ function MessageRow({
   isLast,
   isThinking,
   renderToolCall,
+  toolSelectable,
+  toolSelected,
+  onToggleToolSelect,
+  toolAlwaysAllowed,
+  onAlwaysAllowTool,
   toolRowOverride,
   onDeleteLastMessage,
   deleteControl,
@@ -651,6 +657,19 @@ function MessageRow({
                 result: msg.toolResult?.result,
                 resultType: msg.toolResult?.type ?? (msg.error ? 'errored' : undefined),
                 durationMs: msg.toolResult?.durationMs ?? msg.durationMs,
+                ...(toolSelectable
+                  ? {
+                      selectable: true,
+                      selected: toolSelected === true,
+                      ...(onToggleToolSelect ? { onToggleSelect: onToggleToolSelect } : {}),
+                      ...(onAlwaysAllowTool
+                        ? {
+                            onAlwaysAllow: onAlwaysAllowTool,
+                            alwaysAllowed: toolAlwaysAllowed === true,
+                          }
+                        : {}),
+                    }
+                  : {}),
               })
             ) : (
               <View

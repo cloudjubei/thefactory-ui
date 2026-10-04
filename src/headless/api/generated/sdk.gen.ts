@@ -84,6 +84,8 @@ import type {
   ConsolidateChatData,
   ConsolidateChatErrors,
   ConsolidateChatResponses,
+  CountPendingCliAgentActionsByChatData,
+  CountPendingCliAgentActionsByChatResponses,
   CountProjectDataData,
   CountProjectDataErrors,
   CountProjectDataResponses,
@@ -240,6 +242,9 @@ import type {
   GetChatResponses,
   GetChatsSettingsData,
   GetChatsSettingsResponses,
+  GetChatSummaryData,
+  GetChatSummaryErrors,
+  GetChatSummaryResponses,
   GetCliAgentRunData,
   GetCliAgentRunErrors,
   GetCliAgentRunResponses,
@@ -457,6 +462,8 @@ import type {
   ListActivitiesResponses,
   ListChatsData,
   ListChatsResponses,
+  ListChatSummariesData,
+  ListChatSummariesResponses,
   ListChatToolCatalogData,
   ListChatToolCatalogErrors,
   ListChatToolCatalogResponses,
@@ -483,6 +490,8 @@ import type {
   ListDataSourcesData,
   ListDataSourcesErrors,
   ListDataSourcesResponses,
+  ListDecidedCliAgentActionsData,
+  ListDecidedCliAgentActionsResponses,
   ListDocumentsData,
   ListDocumentsErrors,
   ListDocumentsResponses,
@@ -517,6 +526,9 @@ import type {
   ListProcessRunBranchesResponses,
   ListProcessRunsData,
   ListProcessRunsResponses,
+  ListProjectChecksData,
+  ListProjectChecksErrors,
+  ListProjectChecksResponses,
   ListProjectDataData,
   ListProjectDataErrors,
   ListProjectDataResponses,
@@ -632,9 +644,6 @@ import type {
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
-  RecordCliRunDiffReviewData,
-  RecordCliRunDiffReviewErrors,
-  RecordCliRunDiffReviewResponses,
   RefreshDataSourceData,
   RefreshDataSourceErrors,
   RefreshDataSourceResponses,
@@ -757,6 +766,9 @@ import type {
   SetCliEffortResponses,
   SetCliEnabledData,
   SetCliEnabledResponses,
+  SetCliRunFileViewedData,
+  SetCliRunFileViewedErrors,
+  SetCliRunFileViewedResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
   SetProjectActiveData,
@@ -998,6 +1010,18 @@ export const updateProject = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   })
+
+export const listProjectChecks = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectChecksData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListProjectChecksResponses, ListProjectChecksErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/projects/{projectId}/checks',
+      ...options,
+    },
+  )
 
 export const createProjectFromTemplate = <ThrowOnError extends boolean = false>(
   options: Options<CreateProjectFromTemplateData, ThrowOnError>,
@@ -2174,6 +2198,30 @@ export const createChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const listChatSummaries = <ThrowOnError extends boolean = false>(
+  options?: Options<ListChatSummariesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListChatSummariesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/summaries',
+    ...options,
+  })
+
+export const getChatSummary = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatSummaryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<GetChatSummaryResponses, GetChatSummaryErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/summary',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -3986,6 +4034,30 @@ export const listPendingCliAgentActions = <ThrowOnError extends boolean = false>
     ...options,
   })
 
+export const listDecidedCliAgentActions = <ThrowOnError extends boolean = false>(
+  options: Options<ListDecidedCliAgentActionsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListDecidedCliAgentActionsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/actions/decided',
+    ...options,
+  })
+
+export const countPendingCliAgentActionsByChat = <ThrowOnError extends boolean = false>(
+  options?: Options<CountPendingCliAgentActionsByChatData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    CountPendingCliAgentActionsByChatResponses,
+    unknown,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/actions/pending-by-chat',
+    ...options,
+  })
+
 export const decideCliAgentAction = <ThrowOnError extends boolean = false>(
   options: Options<DecideCliAgentActionData, ThrowOnError>,
 ) =>
@@ -4232,16 +4304,17 @@ export const verifyCliRunReview = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const recordCliRunDiffReview = <ThrowOnError extends boolean = false>(
-  options: Options<RecordCliRunDiffReviewData, ThrowOnError>,
+export const setCliRunFileViewed = <ThrowOnError extends boolean = false>(
+  options: Options<SetCliRunFileViewedData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    RecordCliRunDiffReviewResponses,
-    RecordCliRunDiffReviewErrors,
+    SetCliRunFileViewedResponses,
+    SetCliRunFileViewedErrors,
     ThrowOnError
   >({
+    responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/cli-runs/{runId}/diff-review',
+    url: '/api/v1/cli-runs/{runId}/viewed-files',
     ...options,
     headers: {
       'Content-Type': 'application/json',

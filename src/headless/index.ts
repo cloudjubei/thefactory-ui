@@ -45,6 +45,7 @@ export {
 } from './hooks/useStoryForm'
 export {
   useBadgeCountsCore,
+  chatBadgeTally,
   ZERO_BADGE_COUNTS,
   type BadgeChannelToggles,
   type BadgeCounts,
@@ -77,6 +78,7 @@ export {
 export { useChatToolCatalog } from './hooks/useChatToolCatalog'
 export {
   applyChatToolApprovalMode,
+  allowToolsAlways,
   applyChatToolToggle,
   buildChatToolApprovalToggle,
   buildChatToolToggles,
@@ -154,12 +156,21 @@ export {
 // and mobile's `ChatRow`. Each host wraps it in a thin hook that supplies
 // `chat` + `isSending` (from `useChats`) and `seen` (from `useChatsSeen`).
 export {
+  chatUnreadMessages,
   computeChatRowStatus,
   isChatUnread,
   markSeen,
   type ChatRowStatus,
   type ChatsSeenMap,
 } from './utils/chatRowStatus'
+export { useOpenChat } from './hooks/useOpenChat'
+export {
+  chatMessageCount,
+  chatMessageTimes,
+  isChatLoaded,
+  type ChatListEntry,
+  type ChatMessagesShape,
+} from './utils/chatListEntry'
 
 // Badge aggregation
 export {
@@ -339,6 +350,22 @@ export type {
   CostSpend,
 } from './utils/costDetailsTypes'
 
+// Where a time chip's time went — agent thinking, tools & commands, setup, and
+// waiting beside it — worded once for the web popover and the native sheet.
+export { processTimeDetailsView } from './utils/processTimeDetails'
+export {
+  PROCESS_TIME_PART_HINTS,
+  PROCESS_TIME_PART_LABELS,
+  PROCESS_TIME_TOOLS_SHOWN,
+  PROCESS_TIME_WAITING_LABEL,
+} from './utils/processTimeDetailsConstants'
+export type {
+  ProcessTimeDetailsRow,
+  ProcessTimeDetailsTool,
+  ProcessTimeDetailsView,
+  ProcessTimePart,
+} from './utils/processTimeDetailsTypes'
+
 // The model price list, worded once for every client's pricing panel: each
 // price's source, and every rate it is billed at, cache writes included.
 export { formatRatePerMTokens, priceListEntryView } from './utils/priceList'
@@ -369,6 +396,7 @@ export {
   launchOptionsAreHonoured,
   launchRefusalMessage,
   isStartFeatureWorkGrant,
+  isToolAskDecidedOnRow,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
 } from './utils/approvalGrant'
@@ -378,6 +406,8 @@ export type { EarnedApproveActions } from './utils/approveActions'
 export {
   checkActionOffer,
   checkCallout,
+  checkChipFace,
+  checkRanInSentence,
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
@@ -388,6 +418,27 @@ export {
   tabForMethod,
 } from './utils/checkMethods'
 export type { CheckRowLayout } from './utils/checkMethods'
+export {
+  developerChecksNote,
+  latestProcessChecks,
+  processCheckRows,
+  withProcessChecks,
+} from './utils/processChecksView'
+export {
+  DEVELOPER_CHECK_ROLES,
+  DEVELOPER_RAN_NO_CHECKS,
+  DEVELOPER_VERIFIED_LABEL,
+  CHECK_RAN_IN_LABELS,
+  PROCESS_CHECK_ADVISORY_LABEL,
+  PROCESS_CHECK_MARKS,
+} from './utils/processChecksViewConstants'
+export type {
+  DeveloperChecksNote,
+  ProcessCheckRow,
+  ProcessChecksResult,
+} from './utils/processChecksViewTypes'
+export { agentRoleLabel } from './utils/agentRole'
+export { AGENT_ROLE_LABELS } from './utils/agentRoleConstants'
 export { isReviewInProgress } from './utils/reviewProgress'
 export type { ReviewInProgressInput } from './utils/reviewProgress'
 export { handoffRequest } from './utils/handoffRequests'
@@ -396,6 +447,7 @@ export type {
   CheckActionHost,
   CheckActionOffer,
   CheckCallout,
+  CheckChipFace,
   CheckMethodAction,
   CheckMethodFill,
   CheckMethodId,
@@ -409,8 +461,12 @@ export type {
   SignoffVerdictKey,
 } from './utils/checkMethodTypes'
 export {
+  CHECK_AVAILABLE_LABEL,
+  CHECK_AVAILABLE_SENTENCE,
+  CHECK_CHIP_MARKS,
   CHECK_METHOD_LABELS,
   CHECK_METHOD_ORDER,
+  PROJECT_CHECK_METHOD,
   AGENT_UNREACHABLE,
   CHECK_STATE_LABELS,
   MORE_APPROVE_OPTIONS_LABEL,
@@ -491,6 +547,8 @@ export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
 export { useStorySignoff } from './hooks/useStorySignoff'
+export { useProjectChecks } from './hooks/useProjectChecks'
+export type { UseProjectChecks } from './hooks/useProjectChecks'
 export type { UseStorySignoff } from './hooks/useStorySignoff'
 export { useVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
 export type { UseVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
@@ -563,9 +621,11 @@ export {
   signoffFixSectionProps,
   signoffLoadStatus,
   signoffSectionProps,
+  signoffReviewLine,
   signoffSections,
   signoffVerifyViews,
 } from './utils/storySignoff'
+export { CAPTURE_SAME_CODE_LABEL } from './utils/verifyProofConstants'
 export {
   EMPTY_SIGNOFF_SECTION,
   SIGNOFF_LOAD_FAILED,
@@ -942,6 +1002,14 @@ export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunne
 export { useActivityChipCli, type ActivityChipCliWiring } from './hooks/useActivityChipCli'
 export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgentRunChipCli'
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
+export { usePendingAsksByChat } from './hooks/usePendingAsksByChat'
+export {
+  useClaimedAsks,
+  useInlineApprovals,
+  type InlineApprovalRowProps,
+  type UseInlineApprovals,
+} from './hooks/useInlineApprovals'
+export { claimedAskIds, inlineApprovalDecisions } from './utils/inlineApprovals'
 export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 
 // The chat-rendering diagnostic: one bounded JSON document pairing the chat's
@@ -1062,11 +1130,13 @@ export {
   awaitingCaptures,
   belongsToChat,
   bindCapturesToToolCalls,
+  captureCardTitle,
   captureFields,
   captureFormErrors,
   captureStatusDisplay,
   captureSubmitBody,
   captureToolCallPurpose,
+  captureToolName,
   emptyCaptureForm,
   isAwaitingUser,
   isCaptureFormValid,
@@ -1078,7 +1148,7 @@ export {
   CAPTURE_CANCEL_ERROR,
   CAPTURE_CANCEL_LABEL,
   CAPTURE_CARD_PRIVACY_NOTE,
-  CAPTURE_CARD_TITLE,
+  CAPTURE_CARD_TITLES,
   CAPTURE_CREDENTIAL_NAME_PREFIX,
   CAPTURE_FIELD_REQUIRED,
   CAPTURE_PURPOSE_LABEL,
@@ -1088,15 +1158,16 @@ export {
   CREDENTIAL_CAPTURE_FIELDS,
   CREDENTIAL_CAPTURE_PURPOSE_ARG,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
-  CREDENTIAL_CAPTURE_TOOL_NAME,
-  EMPTY_CREDENTIAL_CAPTURE_FORM,
+  CREDENTIAL_CAPTURE_TOOL_NAMES,
 } from './utils/credentialCaptureConstants'
 export type {
   CredentialCapture,
   CredentialCaptureFieldName,
+  CredentialCaptureFieldOption,
   CredentialCaptureFields,
   CredentialCaptureFieldSpec,
   CredentialCaptureFieldType,
+  CredentialCaptureKind,
   CredentialCaptureFormErrors,
   CredentialCaptureFormValues,
   CredentialCaptureStatus,
@@ -1127,6 +1198,14 @@ export {
   type ProviderConnectionsContextValue,
   type ProviderConnectionEditInput,
 } from './contexts/ProviderConnectionsContext'
+// Binding a Jira connection to a group or project: key parsing and the one-line summary.
+export {
+  describeTicketBinding,
+  formatJiraProjectKeys,
+  jiraConnectionsOf,
+  parseJiraProjectKeys,
+} from './utils/ticketConnection'
+export { TICKET_ACCESS_DESCRIPTIONS, TICKET_ACCESS_LABELS } from './utils/ticketConnectionConstants'
 
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
@@ -1217,6 +1296,8 @@ export {
   processRunChipLabel,
   processRunSpend,
   processStepTone,
+  processStepFinishedView,
+  processStepAgentTypeOfRun,
   processNodeState,
   processNodeTone,
   processNodeGlyph,
@@ -1283,6 +1364,7 @@ export {
   processIntegrationBadge,
   processIntegrationChoices,
   processIntegrationView,
+  soleIntegrationMode,
 } from './utils/processIntegration'
 export {
   PROCESS_INTEGRATION_BADGE,
@@ -1291,6 +1373,7 @@ export {
   PROCESS_INTEGRATION_CHOOSER_NOTE,
   PROCESS_INTEGRATION_COMPARE_LINK,
   PROCESS_INTEGRATION_NEVER_TRIED,
+  PROCESS_INTEGRATION_SHADOW,
   PROCESS_INTEGRATION_PR_LINK,
   PROCESS_INTEGRATION_RETRY,
   PROCESS_INTEGRATION_RETRY_HEAD,
@@ -1299,6 +1382,23 @@ export type {
   ProcessIntegrationChoice,
   ProcessIntegrationView,
 } from './utils/processIntegrationTypes'
+export {
+  featureProcessChoice,
+  featureProcessLabel,
+  featureProcessMetadata,
+  featureProcessOptions,
+  proposalFeatureProcessId,
+} from './utils/processFeatureProcess'
+export {
+  FEATURE_PROCESS_COPY,
+  FEATURE_PROCESS_EXTEND_NOTE,
+  FEATURE_PROCESS_FIX_NOTE,
+  FEATURE_PROCESS_QUESTION,
+} from './utils/processFeatureProcessConstants'
+export type {
+  FeatureProcessMetadata,
+  FeatureProcessOptionView,
+} from './utils/processFeatureProcessTypes'
 export {
   processAmendmentView,
   processOpenWorkMetadata,
@@ -1332,16 +1432,19 @@ export {
   processStepStates,
   processVerifyReview,
   stepChainSummary,
-  type ProcessParkChoice,
-  type ProcessStepState,
 } from 'thefactory-tools/utils'
-export type { ProcessVerifyReview } from 'thefactory-tools/types'
+export type {
+  ProcessParkChoice,
+  ProcessStepState,
+  ProcessVerifyReview,
+} from 'thefactory-tools/types'
 export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
   ProcessIntegrationMode,
   ProcessOpenWork,
+  ProcessLaunchDecision,
   ProcessOpenWorkChoice,
   ProcessOpenWorkDecision,
   ProcessProposal,
@@ -1375,6 +1478,7 @@ export {
   isNoteFormValid,
   noteAccessHelp,
   noteAccessLabel,
+  noteAuthorLabel,
   noteCreateBody,
   noteFormErrors,
   noteFormValues,
@@ -1388,6 +1492,7 @@ export {
   NOTE_ACCESS_HELP,
   NOTE_ACCESS_LABELS,
   NOTE_ACCESS_NOTE,
+  NOTE_AGENT_AUTHOR_LABEL,
   NOTE_KIND_HELP,
   NOTE_KIND_LABELS,
   NOTE_LABEL_REQUIRED,
@@ -1567,3 +1672,23 @@ export type { RunCliCapabilityCheckResponse } from './api/generated/types.gen.js
 export { parseLiteLLMPrices } from 'thefactory-tools/utils'
 export { EMPTY_TREE_SHA } from 'thefactory-tools/constants'
 export type { FeatureRequestAcceptance } from 'thefactory-tools/types'
+
+export { isWsReopen } from './utils/wsReconnect'
+export { useOnWsReopen } from './hooks/useOnWsReopen'
+export {
+  gitSetupArgs,
+  gitSetupDecisionMetadata,
+  gitSetupFormFor,
+  gitSetupFormProblem,
+  gitSetupMilestone,
+  gitSetupPlan,
+  isGitSetupGrant,
+  toolRowMilestone,
+} from './utils/gitSetupApproval'
+export {
+  GIT_SETUP_COPY,
+  GIT_SETUP_TOOL_NAME,
+  TOOL_AWAITING_DECISION_LABEL,
+} from './utils/gitSetupApprovalConstants'
+export { GIT_DIFF_SUPPRESSED_MESSAGE } from './utils/gitDiffConstants'
+export type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './utils/gitSetupApprovalTypes'

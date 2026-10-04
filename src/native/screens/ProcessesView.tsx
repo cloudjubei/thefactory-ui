@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import {
   AGENT_RUN_TYPES,
   PROCESS_KIND_BLURB,
+  agentRoleLabel,
   blankProcessDefinition,
   blankProcessStep,
   copyProcessDefinition,
@@ -225,7 +226,9 @@ function ProcessDetail({
             </Text>
             <Text style={{ fontSize: 11, color: theme.text.muted }}>{step.kind}</Text>
             {step.agentType ? (
-              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{step.agentType}</Text>
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+                {agentRoleLabel(step.agentType)}
+              </Text>
             ) : null}
             {step.processId ? (
               <Text style={{ fontSize: 11, color: theme.text.secondary }}>→ {step.processId}</Text>
@@ -393,7 +396,7 @@ function ProcessEditor({
                 <SelectContent>
                   {AGENT_RUN_TYPES.map((agentType) => (
                     <SelectItem key={agentType} value={agentType}>
-                      {agentType}
+                      {agentRoleLabel(agentType)}
                     </SelectItem>
                   ))}
                 </SelectContent>

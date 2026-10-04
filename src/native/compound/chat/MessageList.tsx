@@ -14,8 +14,8 @@ import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type {
   ChatMessageLike,
+  PendingToolGrant,
   ToolCallLike,
-  ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
@@ -24,6 +24,10 @@ import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityType
 import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import type { NativeToolCallRenderArgs } from './chatNativeTypes'
+import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
+import type { CliDecidedAsk } from '../../../headless/utils/cliRunActivityTypes'
+import { CHAT_OPEN_SETTLE_MAX_MS } from '../../../headless/utils/chatUnreadConstants'
 
 const AT_BOTTOM_THRESHOLD = 32
 const DEFAULT_VISIBLE = 30
@@ -78,6 +82,12 @@ export interface MessageListProps {
    * turn must never claim to be blocked on today's approval.
    */
   cliBlockedOn?: readonly CliRunBlockedOn[]
+  /** The chat's undecided CLI asks — the ordinary tool asks decided on the rows that show them. */
+  cliAsks?: readonly PendingToolGrant[]
+  /** The chat's decided asks — what a row that once waited on one shows now. */
+  decidedAsks?: readonly CliDecidedAsk[]
+  /** Reported by each CLI turn: the asks its rows show — see `CliRunMessages.onClaimAsks`. */
+  onClaimAsks?: (runId: string, askIds: string[]) => void
   /** Optional system prompt rendered above the message list. */
   systemPrompt?: string
   systemPromptTimestamp?: string
@@ -110,12 +120,7 @@ export interface MessageListProps {
   onRestartTurn?: () => void
 
   /** Host renderer for a tool call. */
-  renderToolCall?: (args: {
-    toolCall: ToolCallLike
-    result?: unknown
-    resultType?: ToolResultTypeLike
-    durationMs?: number
-  }) => ReactNode
+  renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
   /**
    * Replaces a tool row's card outright — see `MessageRow.toolRowOverride`.
    * Returning nothing leaves the host renderer in place. Deliberately not
@@ -154,6 +159,9 @@ export default function MessageList({
   pendingCliRunId,
   pendingCliModel,
   cliBlockedOn,
+  cliAsks,
+  decidedAsks,
+  onClaimAsks,
   systemPrompt,
   systemPromptTimestamp,
   numberMessagesToSend,
@@ -180,12 +188,22 @@ export default function MessageList({
   const scrollRef = useRef<RNScrollView>(null)
   const [atBottom, setAtBottom] = useState(true)
   const lastAtBottomRef = useRef(true)
-  // First-unread positioning: the y-offset of the unread divider, the chat
-  // we've already positioned, and the current first-unread window index
-  // (mirrored into a ref so the chatId effect can read it without a dep).
+  // First-unread positioning: the y-offset of the unread divider and the
+  // current first-unread window index (mirrored into a ref so the open effect
+  // can read it without a dep).
   const anchorYRef = useRef<number | null>(null)
-  const positionedChatRef = useRef<string | undefined>(undefined)
   const firstUnreadRef = useRef<number | null>(null)
+  // Where the open is held while the chat SETTLES. A CLI reply renders its
+  // run's transcript, which loads seconds after the chat itself, so content
+  // keeps growing after the first scroll; the hold is re-applied on each
+  // growth until the user drags or the cap runs out.
+  const settleRef = useRef<'bottom' | 'unread' | null>(null)
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const endOpenSettle = useCallback(() => {
+    clearTimeout(settleTimerRef.current)
+    settleRef.current = null
+  }, [])
+  useEffect(() => endOpenSettle, [endOpenSettle])
 
   // Latest message iso — kept in a ref so onScroll can fire `onReadLatest`
   // without re-binding on every render.
@@ -193,6 +211,7 @@ export default function MessageList({
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (settleRef.current === 'unread') return
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
       const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height)
       const nextAtBottom = distanceFromBottom <= AT_BOTTOM_THRESHOLD
@@ -206,20 +225,43 @@ export default function MessageList({
     [onAtBottomChange, onReadLatest],
   )
 
-  // On chat change: open at the first unread message when there is one
-  // (the unread anchor's `onLayout` does the scroll); otherwise open pinned
-  // to the bottom.
+  // On chat change: forget the previous chat's positioning.
+  const openedChatRef = useRef<string | undefined>(undefined)
   useEffect(() => {
-    positionedChatRef.current = undefined
+    endOpenSettle()
     anchorYRef.current = null
+    openedChatRef.current = undefined
+  }, [chatId, endOpenSettle])
+
+  /** Holds the unread divider near the top while the chat settles. */
+  const positionToUnread = useCallback(() => {
+    if (settleRef.current !== 'unread' || anchorYRef.current == null) return
+    scrollRef.current?.scrollTo({ y: Math.max(0, anchorYRef.current - 12), animated: false })
+  }, [])
+
+  // Once the chat's messages are here: open at the first unread message when
+  // there is one (the unread anchor's `onLayout` does the scroll); otherwise
+  // open pinned to the bottom. Deciding before they arrived found nothing
+  // unread, reported the chat read, and erased where reading should resume.
+  const hasMessages = messages.length > 0
+  useEffect(() => {
+    if (!hasMessages || openedChatRef.current === chatId) return
+    openedChatRef.current = chatId
     const hasUnread = firstUnreadRef.current != null
-    if (!hasUnread) {
-      scrollRef.current?.scrollToEnd({ animated: false })
-    }
+    clearTimeout(settleTimerRef.current)
+    settleRef.current = hasUnread ? 'unread' : 'bottom'
+    settleTimerRef.current = setTimeout(endOpenSettle, CHAT_OPEN_SETTLE_MAX_MS)
     lastAtBottomRef.current = !hasUnread
     setAtBottom(!hasUnread)
     onAtBottomChange?.(!hasUnread)
-  }, [chatId, onAtBottomChange])
+    if (hasUnread) positionToUnread()
+    else scrollRef.current?.scrollToEnd({ animated: false })
+  }, [chatId, hasMessages, onAtBottomChange, endOpenSettle, positionToUnread])
+
+  /** Keeps a bottom open pinned while the chat's replies grow in. */
+  const onContentSizeChange = useCallback(() => {
+    if (settleRef.current === 'bottom') scrollRef.current?.scrollToEnd({ animated: false })
+  }, [])
 
   useEffect(() => {
     if (lastAtBottomRef.current) {
@@ -263,23 +305,17 @@ export default function MessageList({
   const windowed = useMemo(() => renderable.slice(startIndex), [renderable, startIndex])
 
   // ---- First-unread positioning ------------------------------------------
-  const firstUnreadInWindow = useMemo(() => {
-    if (!lastReadIso) return null
-    for (let i = 0; i < windowed.length; i++) {
-      const iso = messageIso(windowed[i])
-      if (iso && iso > lastReadIso) return i
-    }
-    return null
-  }, [windowed, lastReadIso])
+  // Judged against the last-read mark as it stood when the chat opened: the
+  // live mark moves the moment the list reports reaching the bottom.
+  const openedReadRef = useRef<{ chatId?: string; lastReadIso?: string }>({})
+  if (openedReadRef.current.chatId !== chatId || renderable.length === 0)
+    openedReadRef.current = { chatId, lastReadIso }
+  const openLastReadIso = openedReadRef.current.lastReadIso
+  const firstUnreadInWindow = useMemo(
+    () => firstUnreadMessageIndex(windowed, openLastReadIso),
+    [windowed, openLastReadIso],
+  )
   firstUnreadRef.current = firstUnreadInWindow
-
-  /** Scroll to the unread divider once per chat, after it has laid out. */
-  const positionToUnread = useCallback(() => {
-    if (positionedChatRef.current === chatId) return
-    if (firstUnreadRef.current == null || anchorYRef.current == null) return
-    positionedChatRef.current = chatId
-    scrollRef.current?.scrollTo({ y: Math.max(0, anchorYRef.current - 12), animated: false })
-  }, [chatId])
 
   // ---- Context cut-off divider -------------------------------------------
   const cutoffIndex = useMemo(() => {
@@ -328,6 +364,8 @@ export default function MessageList({
         ref={scrollRef}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        onScrollBeginDrag={endOpenSettle}
+        onContentSizeChange={onContentSizeChange}
         contentContainerStyle={{
           padding: nativeSpace[6],
           gap: nativeSpace[6],
@@ -405,6 +443,7 @@ export default function MessageList({
               {msg.cliRunId ? (
                 <CliRunMessages
                   runId={msg.cliRunId}
+                  onResourceLink={onResourceLink}
                   model={messageModelTag(msg.model)}
                   baseIndex={i}
                   renderToolCall={renderToolCall}
@@ -414,9 +453,13 @@ export default function MessageList({
                   renderProcessRun={renderProcessRun}
                   onShowUsage={onShowUsage}
                   coldStart={msg.cliRunId === firstCliRunId}
+                  storedReply={msg.content}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
                     ? { blockedOn: cliBlockedOn }
                     : {})}
+                  cliAsks={cliAsks}
+                  decidedAsks={decidedAsks}
+                  onClaimAsks={onClaimAsks}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
                   deletePreview={isInDeleteRange(i, deleteFromIndex, deletePreview)}
@@ -494,6 +537,7 @@ export default function MessageList({
           <View key={`cli-${pendingCliRunId}`}>
             <CliRunMessages
               runId={pendingCliRunId}
+              onResourceLink={onResourceLink}
               model={pendingCliModel}
               baseIndex={windowed.length}
               renderToolCall={renderToolCall}
@@ -504,6 +548,9 @@ export default function MessageList({
               onShowUsage={onShowUsage}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
+              cliAsks={cliAsks}
+              decidedAsks={decidedAsks}
+              onClaimAsks={onClaimAsks}
             />
           </View>
         ) : null}
@@ -535,7 +582,10 @@ export default function MessageList({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Scroll to latest"
-          onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          onPress={() => {
+            endOpenSettle()
+            scrollRef.current?.scrollToEnd({ animated: true })
+          }}
           style={({ pressed }) => ({
             position: 'absolute',
             bottom: nativeSpace[6],

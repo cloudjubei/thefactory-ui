@@ -26,6 +26,7 @@ import {
   processStepCostLabel,
   processStepCostTitle,
   processStepWorkMs,
+  processTimeDetailsView,
   processStepStates,
   processStepTone,
   processWaitingView,
@@ -47,9 +48,10 @@ import { Modal } from '../../primitives/Modal'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { IconChevronLeft } from '../../icons'
 import CostChip from '../chips/CostChip'
-import { DURATION_CHIP_CLASS } from '../chat/ToolCall/StatusIcon'
+import DurationChip from '../chips/DurationChip'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
+import ProcessCheckList from './ProcessCheckList'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
@@ -166,15 +168,18 @@ export default function ProcessPipeline({
       .catch(() => setBranches([]))
   }, [listBranches])
 
+  // A project with no git of its own has no branches of the user's to keep: the
+  // run's are Overseer's private history, so they go with the run.
+  const shadowWork = run?.workBranch?.shadow === true
   const runDelete = useCallback(() => {
     setDeleting(true)
-    void deleteRun({ deleteBranches: alsoBranches })
+    void deleteRun({ deleteBranches: shadowWork || alsoBranches })
       .then(() => {
         setConfirmDelete(false)
         setDeleted(true)
       })
       .finally(() => setDeleting(false))
-  }, [deleteRun, alsoBranches])
+  }, [deleteRun, alsoBranches, shadowWork])
 
   if (deleted) {
     return (
@@ -301,7 +306,7 @@ export default function ProcessPipeline({
               This removes the run and everything it produced — every step’s agent-run chat and its
               record. This cannot be undone.
             </p>
-            {branches.length > 0 ? (
+            {shadowWork ? null : branches.length > 0 ? (
               <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
                 <input
                   type="checkbox"
@@ -421,9 +426,11 @@ function RunHead({
       <span className="grow" />
       <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
       {workMs !== undefined ? (
-        <span className={DURATION_CHIP_CLASS} title="Time spent working, across every attempt">
-          {formatProcessDuration(workMs)}
-        </span>
+        <DurationChip
+          label={formatProcessDuration(workMs)}
+          details={processTimeDetailsView(run.totals?.time, workMs)}
+          title="Time spent working, across every attempt"
+        />
       ) : null}
       {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
       {stoppable ? (
@@ -607,11 +614,16 @@ function PipelineNode({
             {duration || cost ? (
               <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-(--text-muted)">
                 {duration ? (
-                  <span
-                    title={total > 1 ? `All ${total} attempts` : undefined}
-                    className={total > 1 ? 'pointer-events-auto' : undefined}
-                  >
-                    {duration}
+                  <span className="pointer-events-auto relative inline-flex">
+                    <DurationChip
+                      label={duration}
+                      details={processTimeDetailsView(
+                        run.totals?.steps[state.step.id]?.time,
+                        workMs ?? 0,
+                      )}
+                      title={processStepCostTitle(state.step.name, total)}
+                      appearance="text"
+                    />
                   </span>
                 ) : null}
                 {duration && cost ? <span aria-hidden>·</span> : null}
@@ -638,6 +650,8 @@ function PipelineNode({
             {summary.text}
           </div>
         ) : null}
+
+        <ProcessCheckList step={state.step} latest={state.latest} />
 
         {/* A fix loop runs an agent step several times; the button above opens the
             LATEST. Earlier attempts get chips only when each is its OWN run — a
@@ -795,7 +809,19 @@ function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }
             <b className="font-semibold text-(--text-primary)">{s.step.name}</b>
             {line ? <span className="truncate text-(--text-muted)">· {line.text}</span> : null}
             {iter ? <span className="text-(--text-muted)">· {iter}</span> : null}
-            {dur ? <span className="ml-auto tabular-nums text-(--text-muted)">{dur}</span> : null}
+            {dur ? (
+              <span className="ml-auto inline-flex tabular-nums text-(--text-muted)">
+                <DurationChip
+                  label={dur}
+                  details={processTimeDetailsView(
+                    child.totals?.steps[s.step.id]?.time,
+                    workMs ?? 0,
+                  )}
+                  title={s.step.name}
+                  appearance="text"
+                />
+              </span>
+            ) : null}
           </div>
         )
       })}

@@ -1,4 +1,8 @@
-import type { ReviewEvidenceVerdict } from '../api/generated'
+import type {
+  ProjectCheckKind,
+  ProjectCheckRunMemory,
+  ReviewEvidenceVerdict,
+} from '../api/generated'
 import type {
   CheckMethodFill,
   CheckMethodId,
@@ -198,12 +202,46 @@ export const CHECK_METHOD_APPROACH: Partial<Record<CheckMethodId, string>> = {
 export const CHECK_STATE_SENTENCES: Record<Exclude<CheckMethodState, 'unconfigured'>, string> = {
   passed: 'Passed. The proof is filed on this run.',
   failed: 'Failed on this branch.',
+  flagged: 'Flagged on this branch — advisory, so it does not block sign-off.',
   unchecked: 'Configured for this project, but never run on this branch.',
+}
+
+/** The method chip each kind of detected project check fills. */
+export const PROJECT_CHECK_METHOD: Record<ProjectCheckKind, CheckMethodId> = {
+  build: 'build',
+  lint: 'lint',
+  typecheck: 'types',
+  format: 'format',
+  test: 'tests',
+}
+
+/** How an available chip's detail says the check's last run in this project went. */
+export const CHECK_LAST_RUN_VERBS: Record<ProjectCheckRunMemory['status'], string> = {
+  passed: 'passed',
+  failed: 'failed',
+  error: 'could not finish',
+}
+
+/** A chip's callout lead when the project's scan found the check but this branch never ran it. */
+export const CHECK_AVAILABLE_SENTENCE = 'Available in this project, but not run on this branch.'
+
+/** The state an available-but-not-run chip reads as, to a screen reader. */
+export const CHECK_AVAILABLE_LABEL = 'available'
+
+/** The mark a chip draws for its state; an available check that never ran is not an unknown one. */
+export const CHECK_CHIP_MARKS: Record<CheckMethodState | 'available', string> = {
+  passed: '✓',
+  failed: '✕',
+  flagged: '!',
+  unchecked: '?',
+  unconfigured: '+',
+  available: '○',
 }
 
 export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
   passed: 'positive',
   failed: 'danger',
+  flagged: 'warning',
   unchecked: 'absent',
   unconfigured: 'neutral',
 }
@@ -211,6 +249,7 @@ export const CHECK_STATE_TONES: Record<CheckMethodState, ReviewTone> = {
 export const CHECK_STATE_LABELS: Record<CheckMethodState, string> = {
   passed: 'passed',
   failed: 'failed',
+  flagged: 'flagged (advisory)',
   unchecked: 'not run',
   unconfigured: 'not set up',
 }
@@ -320,6 +359,12 @@ export const PROVEN_TITLE = 'Every configured check passed'
 export const PROVEN_DETAIL = 'Built, checked, and captured. Nothing outstanding.'
 export const NOT_RUN_TITLE = 'Nothing has been checked'
 
+/** A flagged chip's line, after its label: "Lint flagged issues — advisory, does not block". */
+export const CHECK_FLAGGED_DETAIL = 'flagged issues — advisory, does not block'
+
+/** A verdict's note on the flagged methods, after their names: "Lint flagged issues (advisory)." */
+export const VERDICT_FLAGGED_NOTE = 'flagged issues (advisory).'
+
 /** Verdict headline when the checks pass but the story itself is not finished. */
 export const STORY_UNFINISHED_TITLE = 'Checks pass — but the story is not finished'
 
@@ -335,3 +380,9 @@ export const CODE_REVIEW_DETAIL: Record<ReviewEvidenceVerdict, string> = {
 
 /** The Code review chip's line over a review that concluded nothing. */
 export const CODE_REVIEW_NO_VERDICT = 'The code review filed no verdict.'
+
+/** How a check's detail says it ran in a sandbox container. */
+export const CHECK_RAN_IN_SANDBOX_SENTENCE = 'Ran in the sandbox.'
+
+/** How a check's detail starts when it ran on the machine hosting the backend. */
+export const CHECK_RAN_ON_HOST_SENTENCE = 'Ran on the host'

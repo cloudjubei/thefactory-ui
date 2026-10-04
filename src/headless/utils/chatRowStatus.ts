@@ -1,4 +1,5 @@
-import type { ChatContextLike, ChatMessageLike } from './chatTypes'
+import type { ChatContextLike } from './chatTypes'
+import { chatMessageTimes, type ChatMessagesShape } from './chatListEntry'
 
 export type ChatsSeenMap = Record<string, string>
 
@@ -41,6 +42,20 @@ export function markSeen(map: ChatsSeenMap, key: string, at: string): ChatsSeenM
 }
 
 /**
+ * How many of a chat's messages arrived after it was last seen — every one, for
+ * a chat never seen. Messages without a time are not counted then.
+ */
+export function chatUnreadMessages(
+  times: readonly (string | null)[],
+  seenAt: string | undefined,
+): number {
+  if (!seenAt) return times.length
+  let count = 0
+  for (const ts of times) if (ts && ts > seenAt) count += 1
+  return count
+}
+
+/**
  * Pure computation behind each platform's `useChatRowStatus` hook. The
  * thin per-app wrapper reads `chat` + `isSending` via the host's
  * `useChats()` and `seen` via the host's `useChatsSeen()`, then calls this
@@ -52,30 +67,26 @@ export function markSeen(map: ChatsSeenMap, key: string, at: string): ChatsSeenM
 export function computeChatRowStatus(input: {
   context: ChatContextLike
   contextKey: string
-  chat: { messages?: ChatMessageLike[]; state?: string } | null | undefined
+  chat: (ChatMessagesShape & { state?: string }) | null | undefined
   isSending: boolean
   seen: ChatsSeenMap
+  /** Asks this chat has waiting on the user — each one counts as unread news. */
+  pendingAsks?: number
 }): ChatRowStatus {
   const { context, contextKey, chat, isSending, seen } = input
+  const pendingAsks = input.pendingAsks ?? 0
   const isAgentContext = context.type === 'AGENT_RUN_STORY' || context.type === 'AGENT_RUN_FEATURE'
   const isAgentRunning = Boolean(
     isAgentContext && (chat?.state === 'running' || chat?.state === 'created'),
   )
-  const messages = chat?.messages ?? []
-  const last = messages[messages.length - 1]
-  const latest = last ? (last.completedAt ?? last.startedAt) : undefined
+  const times = chat ? chatMessageTimes(chat) : []
+  const latest = times[times.length - 1] ?? undefined
   const isUnread = isChatUnread(seen, contextKey, latest)
-  let unreadCount = 0
-  if (isUnread) {
-    const since = seen[contextKey]
-    if (since) {
-      for (const m of messages) {
-        const ts = m.completedAt ?? m.startedAt
-        if (ts && ts > since) unreadCount += 1
-      }
-    } else {
-      unreadCount = messages.length
-    }
+  const unreadCount = isUnread ? chatUnreadMessages(times, seen[contextKey]) : 0
+  return {
+    isThinking: isSending,
+    isUnread: isUnread || pendingAsks > 0,
+    unreadCount: unreadCount + pendingAsks,
+    isAgentRunning,
   }
-  return { isThinking: isSending, isUnread, unreadCount, isAgentRunning }
 }

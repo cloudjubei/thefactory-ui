@@ -18,6 +18,11 @@ function asAxiosLike(err: unknown): AxiosLikeError | null {
   return err as AxiosLikeError
 }
 
+/** The HTTP status a failed backend call answered with, or `undefined` when there was none. */
+export function errorStatus(err: unknown): number | undefined {
+  return asAxiosLike(err)?.response?.status
+}
+
 export function extractErrorMessage(err: unknown, fallback: string): string {
   const ax = asAxiosLike(err)
   if (ax) {

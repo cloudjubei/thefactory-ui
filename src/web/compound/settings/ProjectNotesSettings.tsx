@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useProjectNotes, useProjectNoteReveal } from '../../../headless'
 import type { ProjectNoteSummary } from '../../../headless/api'
-import { canRevealNote, noteAccessLabel, noteKindLabel } from '../../../headless/utils/projectNotes'
+import {
+  canRevealNote,
+  noteAccessLabel,
+  noteAuthorLabel,
+  noteKindLabel,
+} from '../../../headless/utils/projectNotes'
 import { NOTE_ACCESS_NOTE, NOTE_VALUE_MASK } from '../../../headless/utils/projectNotesConstants'
 import { Alert, Button, ConfirmDialog, Modal } from '../..'
 import { CHIP_PILL_NEUTRAL } from '../chips/pillStyles'
@@ -73,6 +78,9 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
                     <span className="font-medium truncate">{note.label}</span>
                     <span className={CHIP_PILL_NEUTRAL}>{noteKindLabel(note.kind)}</span>
                     <span className={CHIP_PILL_NEUTRAL}>{noteAccessLabel(note.access)}</span>
+                    {noteAuthorLabel(note) && (
+                      <span className={CHIP_PILL_NEUTRAL}>{noteAuthorLabel(note)}</span>
+                    )}
                   </div>
                   {note.description && (
                     <div className="text-sm text-(--text-secondary) wrap-break-word">

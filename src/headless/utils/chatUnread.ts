@@ -39,6 +39,23 @@ export function assistantTimestamp(msg: UnreadChatMessageLike): string | undefin
 }
 
 /**
+ * Where reading resumes in a chat: the index of the first reply newer than the
+ * last read, or `null` when there is none (or nothing was ever read). Replies
+ * only, as unread counting does — the user's own messages are never unread.
+ */
+export function firstUnreadMessageIndex(
+  messages: ReadonlyArray<UnreadChatMessageLike>,
+  lastReadIso: string | undefined,
+): number | null {
+  if (!lastReadIso) return null
+  for (let i = 0; i < messages.length; i++) {
+    const ts = assistantTimestamp(messages[i]!)
+    if (ts && ts.localeCompare(lastReadIso) > 0) return i
+  }
+  return null
+}
+
+/**
  * Compute the set of chat keys whose latest assistant message is newer than
  * the caller-tracked "last read" timestamp. Chats never opened (no lastRead)
  * count as unread when they contain any assistant message.

@@ -4,7 +4,7 @@ import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
 
 import { extractErrorMessage } from '../../../headless/api'
 import type {
-  CliAuthCacheEntry,
+  RedactedCliAuthCacheEntry,
   CliReasoningEffort,
   CliTool,
   ModelInfo,
@@ -94,7 +94,7 @@ export function CliConfigForm() {
   const [modelsProbe, setModelsProbe] = useState<Record<string, ModelsProbeState>>({})
   const [liveModelsProbe, setLiveModelsProbe] = useState<Record<string, LiveModelsProbeState>>({})
   const [liveProbe, setLiveProbe] = useState<Record<string, LiveProbeState>>({})
-  const [pendingDelete, setPendingDelete] = useState<CliAuthCacheEntry | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<RedactedCliAuthCacheEntry | null>(null)
   const [deleting, setDeleting] = useState(false)
   // Per-credential "Check now" auth probe in flight.
   const [checking, setChecking] = useState<Record<string, boolean>>({})
@@ -122,9 +122,9 @@ export function CliConfigForm() {
     }
   }
 
-  const startReauth = async (cli: CliTool, cache: CliAuthCacheEntry) => {
+  const startReauth = async (cli: CliTool, cache: RedactedCliAuthCacheEntry) => {
     try {
-      const loginId = await startAuthLogin(cli, cache.name, cache.id)
+      const loginId = await startAuthLogin(cli, cache.name, { credentialId: cache.id })
       setReauth({ credentialId: cache.id, loginId })
       setPasteCode('')
     } catch {

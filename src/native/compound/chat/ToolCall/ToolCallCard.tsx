@@ -1,14 +1,21 @@
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
+import { Switch } from '../../../primitives/Switch'
 import { IconChevronDown, IconChevronRight } from '../../../icons'
-import { safePreviewString, toolArgDisplay } from '../../../../headless/utils/toolPreview'
+import {
+  safePreviewString,
+  toolArgDisplay,
+  toolNotRunReason,
+} from '../../../../headless/utils/toolPreview'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolOriginBadge from './ToolOriginBadge'
+import ToolRowMilestoneLine from './ToolRowMilestoneLine'
+import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
 
 function formatDurationLabel(ms?: number): string | undefined {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return undefined
@@ -40,6 +47,15 @@ export type ToolCallCardProps = {
    * touches and do NOT bubble to this handler.
    */
   onPreview?: () => void
+  /** When true, the card shows a toggle granting this call inside a batch awaiting approval. */
+  selectable?: boolean
+  /** Whether the toggle is on. */
+  selected?: boolean
+  onToggleSelect?: () => void
+  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
+  alwaysAllowed?: boolean
+  /** Mark or unmark "Always allow" — offered beside the toggle. */
+  onAlwaysAllow?: () => void
 }
 
 function jsonString(v: unknown): string {
@@ -58,6 +74,11 @@ function ToolCallCardInner({
   durationMs,
   renderResult,
   onPreview,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+  alwaysAllowed = false,
+  onAlwaysAllow,
 }: ToolCallCardProps) {
   const { theme } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
@@ -81,6 +102,12 @@ function ToolCallCardInner({
     )
   }, [hasArgs, toolCall])
   const timeLabel = formatDurationLabel(durationMs)
+  const milestone = toolRowMilestone(
+    toolCall.name,
+    result,
+    resultType,
+    toolCall.awaitingDecision === true,
+  )
 
   const status = statusVisual(resultType)
   const isRequireConfirm = resultType === 'require_confirmation'
@@ -89,7 +116,13 @@ function ToolCallCardInner({
       ? { code: jsonString(result), language: 'text' as const, label: 'View error' }
       : resultType === 'success'
         ? { code: jsonString(result), language: 'json' as const, label: 'View result' }
-        : null
+        : resultType === 'not_allowed' && result !== undefined
+          ? {
+              code: toolNotRunReason(result),
+              language: 'text' as const,
+              label: 'Why it did not run',
+            }
+          : null
 
   const custom = renderResult ? renderResult({ toolCall, result, resultType }) : null
 
@@ -140,7 +173,33 @@ function ToolCallCardInner({
         </Text>
         <ToolOriginBadge origin={toolCall.origin} />
         <ToolArgInline display={argDisplay} />
-        <StatusChip resultType={resultType} timeLabel={timeLabel} />
+        <StatusChip
+          resultType={resultType}
+          timeLabel={timeLabel}
+          awaitingDecision={toolCall.awaitingDecision === true}
+        />
+        {selectable && onAlwaysAllow ? (
+          <Pressable
+            onPress={onAlwaysAllow}
+            accessibilityRole="button"
+            accessibilityLabel={`Always allow ${toolCall.name}`}
+            accessibilityState={{ selected: alwaysAllowed }}
+            hitSlop={8}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: alwaysAllowed ? '600' : '400',
+                color: alwaysAllowed ? nativePalette.green[600] : theme.text.secondary,
+              }}
+            >
+              {alwaysAllowed ? 'Always allowed ✓' : 'Always allow'}
+            </Text>
+          </Pressable>
+        ) : null}
+        {selectable ? (
+          <Switch checked={selected} onCheckedChange={() => onToggleSelect?.()} />
+        ) : null}
         {hasArgs ? (
           <Pressable
             onPress={() => setArgsOpen((v) => !v)}
@@ -157,6 +216,8 @@ function ToolCallCardInner({
           </Pressable>
         ) : null}
       </View>
+
+      {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
 
       {argsOpen && hasArgs ? (
         <View

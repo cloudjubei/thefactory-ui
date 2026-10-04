@@ -5,6 +5,7 @@ import {
   IconStopCircle,
   IconXCircle,
 } from '../../../icons'
+import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless'
 import type { ToolResultType } from './types'
 
 /**
@@ -25,11 +26,21 @@ export const DURATION_CHIP_CLASS =
 export function StatusChip({
   resultType,
   timeLabel,
+  awaitingDecision = false,
 }: {
   resultType?: ToolResultType
   timeLabel?: string
+  /** The call waits on the user's decision elsewhere: say so rather than spin. */
+  awaitingDecision?: boolean
 }) {
   const chip = DURATION_CHIP_CLASS
+  if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
+    return (
+      <span className="inline-flex items-center text-[11px] font-medium text-teal-700 dark:text-teal-300 bg-teal-500/15 rounded-full px-2 py-0.5 shrink-0">
+        {TOOL_AWAITING_DECISION_LABEL}
+      </span>
+    )
+  }
   if (resultType === 'pending') return <span className={chip}>Queued</span>
   if (resultType === 'running') {
     return (

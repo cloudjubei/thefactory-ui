@@ -7,6 +7,8 @@ import { nativeFontFamilies, nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconChevron, IconExternalLink } from '../../../icons'
 import { Button } from '../../../primitives/Button'
+import { Switch } from '../../../primitives/Switch'
+import type { ViewedFilesProgress } from '../../../../headless/utils/runReviewTypes'
 import RefChip from '../../chips/RefChip'
 import { GitFileChangesPills } from '../../git/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/GitFileStatusIcon'
@@ -36,6 +38,11 @@ export type ChangesTabProps = {
   onRetry: (() => void) | undefined
   /** Opens this branch in the app's Git view, when the host wires it. */
   onOpenGit: (() => void) | undefined
+  /**
+   * GitHub's "Viewed": which files the user has read at the change's head, and
+   * how to mark one. Absent where there is no landed change to mark.
+   */
+  viewed?: { progress: ViewedFilesProgress; onToggle: (path: string, viewed: boolean) => void }
 }
 
 const DIFF_MAX_HEIGHT = 270
@@ -44,13 +51,17 @@ function FileRow({
   file,
   defaultOpen,
   last,
+  viewed,
+  onToggleViewed,
 }: {
   file: ChangeFile
   defaultOpen: boolean
   last: boolean
+  viewed?: boolean
+  onToggleViewed?: (viewed: boolean) => void
 }) {
   const { theme } = useNativeTheme()
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(defaultOpen && !viewed)
   return (
     <View style={{ borderBottomWidth: last ? 0 : 1, borderBottomColor: theme.border.subtle }}>
       <Pressable
@@ -88,6 +99,19 @@ function FileRow({
         ) : null}
         <GitFileChangesPills patch={file.patch} />
       </Pressable>
+      {onToggleViewed ? (
+        <View style={{ paddingHorizontal: 8, paddingBottom: 6, alignItems: 'flex-end' }}>
+          <Switch
+            label="Viewed"
+            accessibilityLabel={`Viewed ${file.path}`}
+            checked={viewed === true}
+            onCheckedChange={(checked) => {
+              if (checked) setOpen(false)
+              onToggleViewed(checked)
+            }}
+          />
+        </View>
+      ) : null}
       {open ? (
         <View style={{ backgroundColor: theme.surface.raised }}>
           {file.patch ? (
@@ -116,12 +140,13 @@ export default function ChangesTab({
   onRetry,
   onOpenGit,
   commits = [],
+  viewed,
 }: ChangesTabProps) {
   const { theme } = useNativeTheme()
   const [commitsOpen, setCommitsOpen] = useState(false)
   return (
     <View style={{ gap: 8 }}>
-      {review ? (
+      {review && !review.shadow ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           {commits.length > 0 ? (
             <>
@@ -167,7 +192,7 @@ export default function ChangesTab({
         </View>
       ) : null}
 
-      {review && commitsOpen && commits.length > 0 ? (
+      {review && !review.shadow && commitsOpen && commits.length > 0 ? (
         <View
           style={{
             borderRadius: nativeRadii[2],
@@ -223,6 +248,13 @@ export default function ChangesTab({
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>Loading diff…</Text>
       ) : null}
 
+      {viewed && files.length > 0 ? (
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+          {viewed.progress.all
+            ? `All ${viewed.progress.total} files viewed — you read the change.`
+            : `${viewed.progress.count} of ${viewed.progress.total} files viewed`}
+        </Text>
+      ) : null}
       {files.length > 0 ? (
         <View
           style={{
@@ -239,6 +271,12 @@ export default function ChangesTab({
               file={file}
               defaultOpen={i === 0 && files.length <= 3}
               last={i === files.length - 1}
+              {...(viewed
+                ? {
+                    viewed: viewed.progress.viewed.has(file.path),
+                    onToggleViewed: (v: boolean) => viewed.onToggle(file.path, v),
+                  }
+                : {})}
             />
           ))}
         </View>

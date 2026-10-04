@@ -124,7 +124,11 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
   const [name, setName] = useState(initial?.name ?? '')
   const [provider, setProvider] = useState<Provider>(initial?.provider ?? 'openai')
   const [model, setModel] = useState(initial?.model ?? '')
-  const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
+  // The stored key never comes back from the backend: on edit the field starts
+  // blank, and blank means "keep the stored key".
+  const [apiKey, setApiKey] = useState('')
+  const hasStoredKey = initial?.hasApiKey === true
+  const canListModels = (key: string) => key.trim().length > 0 || hasStoredKey
   const [apiUrlOverride, setApiUrlOverride] = useState(initial?.apiUrlOverride ?? '')
   const [billing, setBilling] = useState<BillingBasis>(() => llmConfigBilling(initial))
   const [submitting, setSubmitting] = useState(false)
@@ -184,7 +188,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
     const reconcileModeForList = (list: ReadonlyArray<string>) => {
       if (currentModel && !list.includes(currentModel)) setModelMode('custom')
     }
-    if (!PROVIDERS_WITH_MODEL_LISTING.has(p) || key.trim().length === 0) {
+    if (!PROVIDERS_WITH_MODEL_LISTING.has(p) || !canListModels(key)) {
       const fallback = Array.from(PROVIDER_FALLBACK_MODELS[p])
       setAvailableModels(fallback)
       reconcileModeForList(fallback)
@@ -197,7 +201,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
       const { data } = await listLlmModels({
         body: {
           provider: p,
-          apiKey: key,
+          ...(key.trim() ? { apiKey: key } : { configId: initial?.id }),
           apiUrlOverride: urlOverride.trim() || undefined,
         },
         throwOnError: true,
@@ -234,7 +238,8 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const canSubmit = name.trim().length > 0 && model.trim().length > 0 && apiKey.trim().length > 0
+  const canSubmit =
+    name.trim().length > 0 && model.trim().length > 0 && (apiKey.trim().length > 0 || hasStoredKey)
 
   const onProviderChange = (next: Provider) => {
     if (next === provider) return // synced — not a real user change
@@ -271,11 +276,11 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
         name: name.trim(),
         provider,
         model: model.trim(),
-        apiKey: apiKey.trim(),
         apiUrlOverride: apiUrlOverride.trim() || undefined,
         billing,
       }
-      await mode.onSubmit(payload)
+      if (mode.kind === 'create') await mode.onSubmit({ ...payload, apiKey: apiKey.trim() })
+      else await mode.onSubmit(apiKey.trim() ? { ...payload, apiKey: apiKey.trim() } : payload)
       onCancel()
     } catch (err) {
       setError(
@@ -414,7 +419,13 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             markDirty()
             setApiKey(v)
           }}
-          placeholder={provider === 'custom' ? 'Optional bearer token' : 'sk-...'}
+          placeholder={
+            hasStoredKey
+              ? 'Stored — type a new key to replace it'
+              : provider === 'custom'
+                ? 'Optional bearer token'
+                : 'sk-...'
+          }
         />
       </Field>
 
@@ -448,7 +459,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
               size="sm"
               onPress={() => void loadModels(provider, apiKey, apiUrlOverride, model)}
               loading={modelsLoading}
-              disabled={apiKey.trim().length === 0}
+              disabled={!canListModels(apiKey)}
             >
               <Text
                 style={{
@@ -462,7 +473,7 @@ const LLMConfigForm = forwardRef<LLMConfigFormHandle, LLMConfigFormProps>(functi
             </Button>
           ) : null}
         </View>
-        {providerSupportsRefresh && apiKey.trim().length === 0 ? (
+        {providerSupportsRefresh && !canListModels(apiKey) ? (
           <Text
             style={{
               fontSize: 12,

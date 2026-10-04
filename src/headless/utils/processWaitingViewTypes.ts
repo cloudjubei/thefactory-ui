@@ -1,5 +1,5 @@
 import type { ProcessNodeRunRef, ProcessWaitingKind } from 'thefactory-tools/types'
-import type { ProcessParkChoice } from 'thefactory-tools/utils'
+import type { ProcessParkChoice } from 'thefactory-tools/types'
 
 import type { ChatContext } from '../api'
 

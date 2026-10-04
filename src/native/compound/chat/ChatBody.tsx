@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import Alert from '../../primitives/Alert'
+import { Button } from '../../primitives/Button'
+import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
 import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
@@ -9,8 +11,11 @@ import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
-import { partitionGrants } from '../../../headless/utils/agentQuestions'
-import { pendingApprovalGrants } from '../../../headless/utils/approvalGrant'
+import { partitionGrants, shownQuestionId } from '../../../headless/utils/agentQuestions'
+import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
+import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
+import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
+import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
 import type {
@@ -18,7 +23,6 @@ import type {
   ChatMessageLike,
   PendingToolGrant,
   ToolCallLike,
-  ToolResultTypeLike,
 } from '../../../headless/utils/chatTypes'
 import type {
   CredentialCapture,
@@ -26,6 +30,7 @@ import type {
 } from '../../../headless/utils/credentialCaptureTypes'
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 
 export interface ChatBodyProps {
   chatId?: string
@@ -70,12 +75,7 @@ export interface ChatBodyProps {
   lastReadIso?: string
 
   /** Host renderer for a tool call until `ToolCallCard`'s native peer lands. */
-  renderToolCall?: (args: {
-    toolCall: ToolCallLike
-    result?: unknown
-    resultType?: ToolResultTypeLike
-    durationMs?: number
-  }) => ReactNode
+  renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
 
   onResolveFile?: (token: string) => UikitFileMeta | null
   renderDependency?: (dep: string) => ReactNode
@@ -200,6 +200,13 @@ export default function ChatBody({
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
   const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
+  const [chosenQuestionId, setChosenQuestionId] = useState<string>()
+  const shownQuestionKey = shownQuestionId(
+    questionGrants.map((g) => g.id),
+    chosenQuestionId,
+  )
+  const shownIndex = questionGrants.findIndex((g) => g.id === shownQuestionKey)
+  const shownQuestion = shownIndex >= 0 ? questionGrants[shownIndex] : undefined
   const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
   // EVERY pending approval takes the composer's place so the asks are unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
@@ -207,7 +214,17 @@ export default function ChatBody({
   // — that pile-up used to fall back to a modal covering the chat. `Decide later`
   // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
   // (changing the id set) re-shows it, because the dismissed key no longer matches.
-  const approvalGrants = useMemo(() => pendingApprovalGrants(grants), [grants])
+  // Ordinary CLI tool asks are decided on the rows that show them; each CLI turn
+  // reports which asks it shows, and the panel keeps only the rest. API asks
+  // have no inline batch on native yet, so they stay with the panel.
+  const cliAsks = useMemo(() => (grants ?? []).filter((g) => g.source === 'cli'), [grants])
+  const { claimedAskIds, onClaimAsks } = useClaimedAsks()
+  const pendingAskIds = useMemo(() => cliAsks.map((g) => g.id), [cliAsks])
+  const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
+  const approvalGrants = useMemo(
+    () => panelApprovalGrants(grants, claimedAskIds, { apiAsksOnRows: false }),
+    [grants, claimedAskIds],
+  )
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
   const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
   const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
@@ -243,7 +260,9 @@ export default function ChatBody({
   // of the raw-text pending bubble (which flashed into the final message). Falls
   // back to the run the SERVER reports for this chat, so a reload keeps watching
   // a turn this session never started.
-  const cliRunId = liveState.cliRunId ?? activeCliRunId
+  // Held past the run's end until the persisted reply carries it — see
+  // `useShownLiveRun`.
+  const cliRunId = useShownLiveRun(chatId, liveState.cliRunId ?? activeCliRunId, messages)
   // Everything the active run is parked on — permission grants AND questions.
   // Both stop the agent dead, so both belong on the live activity line.
   const cliBlockedOn = useMemo(() => blockedOnFromGrants(grants), [grants])
@@ -277,6 +296,9 @@ export default function ChatBody({
           pendingCliModel={liveState.cliModel ?? undefined}
           pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           cliBlockedOn={cliBlockedOn}
+          cliAsks={cliAsks}
+          decidedAsks={decidedAsks}
+          onClaimAsks={onClaimAsks}
           systemPrompt={systemPrompt}
           systemPromptTimestamp={systemPromptTimestamp}
           numberMessagesToSend={numberMessagesToSend}
@@ -338,7 +360,7 @@ export default function ChatBody({
 
           It outranks `hideInput` deliberately: a parked ask waits forever, so a
           surface that hides the composer must not hide its only release. */}
-      {questionGrants.length > 0 ? (
+      {shownQuestion ? (
         <View
           style={{
             paddingHorizontal: nativeSpace[3],
@@ -348,9 +370,46 @@ export default function ChatBody({
             borderTopColor: theme.border.subtle,
           }}
         >
-          {questionGrants.map((grant) => (
-            <AgentQuestionCard key={grant.id} grant={grant} />
-          ))}
+          {questionGrants.length > 1 ? (
+            // One question at a time, paged — mirrors web.
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: nativeSpace[2],
+              }}
+            >
+              <Button
+                variant="secondary"
+                size="icon"
+                accessibilityLabel="Previous question"
+                onPress={() => setChosenQuestionId(questionGrants[shownIndex - 1]?.id)}
+                disabled={shownIndex === 0}
+              >
+                <IconChevronLeft size={16} color={theme.text.primary} />
+              </Button>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontVariant: ['tabular-nums'],
+                  color: theme.text.secondary,
+                }}
+              >
+                Question {shownIndex + 1} of {questionGrants.length}
+              </Text>
+              <Button
+                variant="secondary"
+                size="icon"
+                accessibilityLabel="Next question"
+                onPress={() => setChosenQuestionId(questionGrants[shownIndex + 1]?.id)}
+                disabled={shownIndex === questionGrants.length - 1}
+              >
+                <IconChevronRight size={16} color={theme.text.primary} />
+              </Button>
+            </View>
+          ) : null}
+          <AgentQuestionCard key={shownQuestion.id} grant={shownQuestion} />
         </View>
       ) : hideInput ? null : showApprovalPanel ? (
         <View>

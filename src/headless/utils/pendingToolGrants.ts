@@ -2,12 +2,15 @@
 // PendingActions into the unified PendingToolGrantData shape, and route a
 // decision to the right CLI broker outcome. No React, no I/O.
 
+import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
 import { getChatContext, getChatContextKey } from 'thefactory-tools/utils'
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
+import { isToolAskDecidedOnRow } from './approvalGrant'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
-import type { ProcessOpenWorkDecision } from 'thefactory-tools/types'
+import type { ProcessLaunchDecision, ProcessOpenWorkDecision } from 'thefactory-tools/types'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
+import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
 export type CliPendingActionLike = {
@@ -16,6 +19,20 @@ export type CliPendingActionLike = {
   payload?: unknown
   /** Server-side refusal of standing grants; every call asks again. */
   noPermanentGrant?: boolean
+}
+
+/** A CLI action as a decided ask's row needs it — see {@link cliDecidedAsks}. */
+export type CliDecidedActionLike = CliPendingActionLike & {
+  runId: string
+  chatContextId?: string
+  status: 'pending' | 'approved' | 'denied' | 'expired'
+  toolName?: string
+  toolArgs?: unknown
+  decisionReason?: string
+  decisionMetadata?: unknown
+  executedAt?: number
+  executedInRun?: string
+  execution?: { ok: boolean; result: string; durationMs?: number }
 }
 
 /** Subset of a `CliRun` needed to pick the run a chat's approvals belong to. */
@@ -44,6 +61,9 @@ export function isToolGrantAction(action: CliPendingActionLike): boolean {
 /** `cli:run-update` types that change a run's set of pending actions. */
 const ACTION_UPDATE_EVENT_TYPES: ReadonlySet<string> = new Set(['actionRequest', 'actionDecided'])
 
+/** `cli:run-update` types that change what a decided ask's row shows. */
+const ASK_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(['actionDecided', 'actionExecuted'])
+
 /**
  * `cli:run-update` types that can change WHICH run a chat has active. `started`
  * / `finished` / `error` / `statusChanged` bracket a run's life; `actionRequest`
@@ -61,6 +81,11 @@ const RUN_LIFECYCLE_EVENT_TYPES: ReadonlySet<string> = new Set([
 function cliRunUpdateType(data: unknown): string {
   const type = (data as { type?: unknown } | null | undefined)?.type
   return typeof type === 'string' ? type : ''
+}
+
+/** True when a `cli:run-update` payload says an ask was decided or an approval carried out. */
+export function isAskOutcomeEvent(data: unknown): boolean {
+  return ASK_OUTCOME_EVENT_TYPES.has(cliRunUpdateType(data))
 }
 
 /** True when a `cli:run-update` payload means the run's pending actions should be re-read. */
@@ -147,14 +172,16 @@ export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData
     label: toolCall.name,
     detail: toolCall.arguments,
     toolName: toolCall.name,
+    ...(isToolAskDecidedOnRow(toolCall.name) ? { inline: true } : {}),
+    args: toolCall.arguments,
   }
 }
 
 /**
- * The tool a CLI gated action is blocked on. `registerGatedExecutableMcpTools`
- * builds the broker payload as `{ tool, args }`, so the name is there for a
- * host-dispatched tool; a broker-only action (a sandbox-boundary request with a
- * hand-built payload) names none and falls back to its kind label.
+ * The tool a CLI gated action is blocked on. A tool the host carries out on
+ * approval — a host-dispatched tool, and the sandbox-boundary requests — raises
+ * its payload as `{ tool, args, detail? }`, so the name is there; a payload that
+ * names none (a cap raise, an older action) falls back to its kind label.
  */
 export function pendingActionToolName(action: CliPendingActionLike): string | undefined {
   const payload = action.payload
@@ -172,6 +199,7 @@ export function pendingActionToolName(action: CliPendingActionLike): string | un
  */
 export function cliPendingActionToGrant(action: CliPendingActionLike): PendingToolGrantData {
   const toolName = pendingActionToolName(action)
+  const args = pendingActionArgs(action)
   const grant: PendingToolGrantData = {
     id: action.id,
     source: 'cli',
@@ -179,10 +207,108 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
     detail: action.payload,
     canGrantPermanently: action.noPermanentGrant !== true,
     ...(toolName ? { toolName } : {}),
+    ...(action.kind === MCP_TOOL_CALL_ACTION_KIND && isToolAskDecidedOnRow(toolName)
+      ? { inline: true }
+      : {}),
+    ...(args !== undefined ? { args } : {}),
   }
   if (isQuestionAction(action)) grant.question = parseQuestionPayload(action.payload)
   if (isRemedyAction(action)) grant.remedy = parseRemedyPayload(action.payload)
   return grant
+}
+
+/** The arguments of the call a CLI action was raised for, from its `{ tool, args }` payload. */
+function pendingActionArgs(action: CliPendingActionLike): unknown {
+  const payload = action.payload
+  if (typeof payload !== 'object' || payload === null) return undefined
+  return (payload as { args?: unknown }).args
+}
+
+/**
+ * The CLI asks a transcript row can be tied to: every one, so the row of a call
+ * waiting on a question or a launch reads as waiting too — only the ordinary
+ * tool asks are decided on the row.
+ */
+export function cliRowAsks(grants: readonly PendingToolGrantData[] | undefined): CliPendingAsk[] {
+  const asks: CliPendingAsk[] = []
+  for (const grant of grants ?? []) {
+    if (grant.source !== 'cli') continue
+    asks.push({
+      id: grant.id,
+      ...(grant.toolName !== undefined ? { toolName: grant.toolName } : {}),
+      ...(grant.args !== undefined ? { args: grant.args } : {}),
+      decidedOnRow: grant.inline === true,
+    })
+  }
+  return asks
+}
+
+/**
+ * A chat's decided CLI actions as the asks their rows show — named by the tool
+ * the action records, or the one its payload names. Pending ones are left out.
+ */
+export function cliDecidedAsks(actions: readonly CliDecidedActionLike[]): CliDecidedAsk[] {
+  const asks: CliDecidedAsk[] = []
+  for (const action of actions) {
+    if (action.status === 'pending') continue
+    const toolName = action.toolName ?? pendingActionToolName(action)
+    const args = action.toolArgs ?? pendingActionArgs(action)
+    const answer = answerOf(action.decisionMetadata)
+    asks.push({
+      id: action.id,
+      runId: action.runId,
+      status: action.status,
+      ...(toolName !== undefined ? { toolName } : {}),
+      ...(args !== undefined ? { args } : {}),
+      ...(action.decisionReason !== undefined ? { decisionReason: action.decisionReason } : {}),
+      ...(answer !== undefined ? { answer } : {}),
+      ...(action.executedAt !== undefined ? { executedAt: action.executedAt } : {}),
+      ...(action.executedInRun !== undefined ? { executedInRun: action.executedInRun } : {}),
+      ...(action.execution !== undefined ? { execution: action.execution } : {}),
+    })
+  }
+  return asks
+}
+
+function answerOf(metadata: unknown): string | undefined {
+  if (typeof metadata !== 'object' || metadata === null) return undefined
+  const answer = (metadata as { answer?: unknown }).answer
+  return typeof answer === 'string' ? answer : undefined
+}
+
+/**
+ * The decided asks with one action's latest state folded in — added, or in
+ * place of the copy held. What the decision event itself carries, so a row
+ * turns the moment the decision lands instead of after a re-read.
+ */
+export function withDecidedAction(
+  asks: readonly CliDecidedAsk[],
+  action: CliDecidedActionLike,
+): readonly CliDecidedAsk[] {
+  const [ask] = cliDecidedAsks([action])
+  if (!ask) return asks
+  const i = asks.findIndex((a) => a.id === ask.id)
+  if (i < 0) return [ask, ...asks]
+  const next = [...asks]
+  next[i] = ask
+  return next
+}
+
+/**
+ * The asks a turn's rows tie to: those pending now, plus any that just left
+ * the pending list but whose decision has not arrived — those read as under
+ * way (`decidedOnRow: false`), not as "did not run", for that moment.
+ */
+export function withAsksAwaitingOutcome(
+  pending: readonly CliPendingAsk[],
+  previous: readonly CliPendingAsk[],
+  decidedIds: ReadonlySet<string>,
+): CliPendingAsk[] {
+  const pendingIds = new Set(pending.map((a) => a.id))
+  const awaiting = previous
+    .filter((a) => !pendingIds.has(a.id) && !decidedIds.has(a.id))
+    .map((a) => ({ ...a, decidedOnRow: false }))
+  return [...pending, ...awaiting]
 }
 
 /** Humanise an action `kind` discriminator: `'network-unlock'` → `'Network unlock'`. */
@@ -230,12 +356,24 @@ const OPEN_WORK_CHOICES = ['extend', 'new-on-branch', 'fresh'] as const
 const OPEN_WORK_STATES = ['running', 'parked', 'awaiting-sign-off', 'unmerged'] as const
 
 /**
- * The open-work choice an approval's metadata carries — how the person chose to
- * start a story over its open work — or `undefined`. What an API chat's resume
- * sends for the tool call it was made on; a CLI decision carries the metadata
- * itself.
+ * The choices an approval's metadata carries that only the person makes — how
+ * to start a story over its open work, and how its features are worked — or
+ * `undefined` when it carries neither. What an API chat's resume sends for the
+ * tool call it was made on; a CLI decision carries the metadata itself.
  */
-export function openWorkDecisionOf(
+export function launchDecisionOf(
+  metadata: Record<string, unknown> | undefined,
+): ProcessLaunchDecision | undefined {
+  const openWork = openWorkDecisionOf(metadata)
+  const featureProcessId =
+    typeof metadata?.featureProcessId === 'string' && metadata.featureProcessId.trim()
+      ? metadata.featureProcessId.trim()
+      : undefined
+  if (!openWork && !featureProcessId) return undefined
+  return { ...(openWork ? { openWork } : {}), ...(featureProcessId ? { featureProcessId } : {}) }
+}
+
+function openWorkDecisionOf(
   metadata: Record<string, unknown> | undefined,
 ): ProcessOpenWorkDecision | undefined {
   const choice = metadata?.openWork

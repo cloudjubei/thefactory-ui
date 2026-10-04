@@ -15,7 +15,13 @@ export type ReviewerVerdictReading =
  * it under its own approach; `verifier` is every other report, the verifier's
  * account included, as every report was read before those steps existed.
  */
-export type ReportAuthor = 'verifier' | 'code-review' | 'final-report' | 'feature-report'
+export type ReportAuthor =
+  | 'verifier'
+  | 'code-review'
+  | 'final-report'
+  | 'feature-report'
+  /** The developer's own account of the checks it ran before handing over. */
+  | 'developer-checks'
 
 /** One evidence item ready to render, with its bytes resolved when it is an image. */
 export type EvidenceTile = {
@@ -75,6 +81,8 @@ export type ScreenPair = {
    */
   expectedBaseSha?: string
   expectedHeadSha?: string
+  /** The gate counted this pair as showing the change. */
+  counted?: boolean
 }
 
 /** A time window over filings — one review attempt's, typically. */

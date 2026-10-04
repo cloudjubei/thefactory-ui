@@ -218,6 +218,7 @@ export function useReviewEvidence(
   // entry, which files no evidence and arrives several times a second per running run.
   const reloadCoalesced = useMemo(() => createCoalescedRefresh(reload), [reload])
   useEffect(() => {
+    if (!projectId) return
     const offRun = ws.on('cli:run-update', (data: unknown) => {
       if (isRunStateUpdate(data)) void reloadCoalesced()
     })
@@ -226,7 +227,7 @@ export function useReviewEvidence(
       offRun()
       offChat()
     }
-  }, [ws, reloadCoalesced])
+  }, [ws, reloadCoalesced, projectId])
 
   const tiles = useMemo(
     () =>

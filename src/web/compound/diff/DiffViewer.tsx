@@ -1,3 +1,4 @@
+import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
 import {
   useEffect,
   useMemo,
@@ -59,6 +60,8 @@ export interface DiffViewerProps {
   beforeSize?: number
   /** Byte size of the after side. */
   afterSize?: number
+  /** The host left this file's diff out because of its size: say so instead of rendering it. */
+  suppressed?: boolean
   /**
    * On-demand recovery for a binary / unparseable file: sanitize both sides in
    * memory and return a text diff. Wiring this in enables the "quick fix" button.
@@ -90,6 +93,7 @@ export function DiffViewer({
   binary,
   beforeSize,
   afterSize,
+  suppressed,
   onRecoverText,
   onApplyTextRecovery,
 }: DiffViewerProps) {
@@ -492,7 +496,11 @@ export function DiffViewer({
         onContextMenu={onDiffContextMenu}
       >
         {path ? (
-          showBinaryView ? (
+          suppressed ? (
+            <div className="text-xs text-(--text-muted) flex items-center justify-center h-full p-4">
+              {GIT_DIFF_SUPPRESSED_MESSAGE}
+            </div>
+          ) : showBinaryView ? (
             <BinaryDiffView
               path={path}
               reason={binary ? 'binary' : 'unparseable'}

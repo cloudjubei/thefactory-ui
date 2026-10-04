@@ -7,6 +7,7 @@ import {
   isFilePathTool,
   safePreviewString,
   toolArgDisplay,
+  toolNotRunReason,
 } from './toolPreview'
 
 describe('safePreviewString', () => {
@@ -206,5 +207,27 @@ describe('canonicalToolPreviewName', () => {
 
   it('falls back to a stable placeholder for a missing name', () => {
     expect(canonicalToolPreviewName(undefined)).toBe('tool')
+  })
+})
+
+describe('toolNotRunReason', () => {
+  it('gives the reason a decided ask records over what the agent was told while it waited', () => {
+    expect(
+      toolNotRunReason({
+        outcome: 'denied',
+        reason: 'You declined it.',
+        agentInstruction: 'Waiting for approval — stop.',
+      }),
+    ).toBe('You declined it.')
+  })
+
+  it('gives what the host told the agent about the call', () => {
+    expect(toolNotRunReason({ outcome: 'stopped', agentInstruction: 'It was REFUSED.' })).toBe(
+      'It was REFUSED.',
+    )
+  })
+
+  it('falls back to the raw result', () => {
+    expect(toolNotRunReason({ outcome: 'denied' })).toContain('denied')
   })
 })

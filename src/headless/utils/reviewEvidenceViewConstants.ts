@@ -1,5 +1,6 @@
 import {
   CODE_REVIEW_APPROACH,
+  DEVELOPER_CHECKS_APPROACH,
   FEATURE_REPORT_APPROACH,
   FINAL_REPORT_APPROACH,
 } from 'thefactory-tools/constants'
@@ -42,6 +43,7 @@ export const REPORT_AUTHOR_BY_APPROACH: ReadonlyMap<string, ReportAuthor> = new 
   [CODE_REVIEW_APPROACH, 'code-review'],
   [FINAL_REPORT_APPROACH, 'final-report'],
   [FEATURE_REPORT_APPROACH, 'feature-report'],
+  [DEVELOPER_CHECKS_APPROACH, 'developer-checks'],
 ])
 
 /** Reports a step writes as its own account — they lead the Report tab they belong to. */
@@ -60,4 +62,6 @@ export const REPORT_PROVENANCE: Record<ReportAuthor, string> = {
     'The feature’s report step wrote it from the feature run’s record — what was done, how it was checked and what was decided. It is not the verifier agent’s account, and not written by the agent that made the change.',
   'code-review':
     'The code review step wrote it after reading the change and its evidence against what was asked. Its verdict is the reviewer’s finding — the sign-off is still yours.',
+  'developer-checks':
+    'The agent that made the change wrote it when it handed over — the checks it ran and why it is satisfied with the work. The check results themselves were recorded by the host as they ran, not typed by the agent. It is not the verifier agent’s account.',
 }
