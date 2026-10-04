@@ -2,7 +2,7 @@
 // useChatCliRunner, and the runner-aware chat dispatch. No React, no I/O.
 
 import { DEFAULT_CHAT_CLI_EXEC_MODE } from 'thefactory-tools/constants'
-import { stableStringify } from 'thefactory-tools/utils'
+import { stableStringify, withoutNudgedReanswer } from 'thefactory-tools/utils'
 import type {
   ChatCliRunner,
   CliConfigsActiveState,
@@ -745,7 +745,8 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
   const steps: CliTranscriptStep[] = []
   const toolIndexById = new Map<string, number>()
 
-  for (const entry of entries) {
+  // A reply the CLI nudged the agent into writing again is the same reply twice.
+  for (const entry of withoutNudgedReanswer(entries)) {
     switch (entry.kind) {
       case 'assistant': {
         // Reasoning streams in chunks exactly like prose does, so it is coalesced

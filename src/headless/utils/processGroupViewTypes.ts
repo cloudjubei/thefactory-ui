@@ -1,0 +1,41 @@
+import type {
+  ProcessGroupLeg,
+  ProcessGroupParkChoice,
+  ProcessIntegrationMode,
+  ProcessRunTotals,
+} from 'thefactory-tools/types'
+import type { ProcessStatusTone } from './processView'
+
+/** One leg as the group pipeline draws it. */
+export interface ProcessGroupLegRow {
+  leg: ProcessGroupLeg
+  label: string
+  tone: ProcessStatusTone
+  /** What it waits for, while it waits. */
+  waitsFor?: string
+  /** Its runs' totals, every retry counted. */
+  totals?: ProcessRunTotals
+  /** Why its prerequisite build failed, when it did. */
+  error?: string
+}
+
+/** The chat card of a group run — reports, never decides. */
+export interface ProcessGroupCardView {
+  title: string
+  badge: { label: string; tone: ProcessStatusTone }
+  sub: string
+  body?: { text: string; tone: ProcessStatusTone }
+  cta: string
+}
+
+/** What the group run is waiting on the person for, and how they may answer. */
+export interface ProcessGroupParkView {
+  message: string
+  /** The leg the park is about, when it is about one. */
+  leg?: ProcessGroupLeg
+  choices: ProcessGroupParkChoice[]
+  /** The legs an approval merges, each with the mode it starts on. */
+  toMerge: Array<{ leg: ProcessGroupLeg; mode: ProcessIntegrationMode }>
+  /** The merge modes this park's approval may choose between. */
+  modes: readonly ProcessIntegrationMode[]
+}

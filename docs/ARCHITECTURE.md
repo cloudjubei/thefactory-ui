@@ -128,7 +128,7 @@ Two distinct runner shapes exist and must be mapped at the dispatch boundary: th
 
 The unified `usePendingToolGrants(ctx, runId?)` merges API `require_confirmation` tool-calls (resolved as a batch via `confirmTools`) and CLI gated `PendingAction`s (resolved individually via `decideCliAgentAction`) into one `PendingToolGrant[]`; only CLI grants expose `decide('permanent')` (→ `approved-permanent`).
 
-**CLI grants are read per CHAT, not per run** — `listPendingCliAgentActions({ chatContextId })`. A gated tool call no longer holds its run open while it waits: the SDK raises the approval, waits ~20 s, and returns "still pending, call the same tool again", so the agent routinely finishes its turn with the prompt still waiting and retries on a LATER run. Reading approvals from one runId would make the prompt vanish the moment its run went terminal — i.e. hide exactly the thing the agent just told the user about. `runId` is still resolved (`listCliAgentRuns({ chatContextId, status: 'running' })`) and returned as `cliRunId`, but only to say which run is currently EXECUTING; **consumers gate the run view on the returned id, never on their own live state**, which a reload loses. CLI configs (auth-cache CRUD, default CLI, enabled set, login streaming, probes) live in `CliConfigsContext`/`useCliConfigs`, mirroring `LLMConfigsContext`.
+**CLI grants are read per CHAT, not per run** — `listPendingCliAgentActions({ chatContextId })`. A gated tool call no longer holds its run open while it waits: the SDK raises the approval, waits ~20 s, and returns "still pending, call the same tool again", so the agent routinely finishes its turn with the prompt still waiting and retries on a LATER run. Reading approvals from one runId would make the prompt vanish the moment its run went terminal — i.e. hide exactly the thing the agent just told the user about. `runId` is still resolved (`listCliAgentRunSummaries({ chatContextId, status: 'running' })` — ids only, never transcripts) and returned as `cliRunId`, but only to say which run is currently EXECUTING; **consumers gate the run view on the returned id, never on their own live state**, which a reload loses. CLI configs (auth-cache CRUD, default CLI, enabled set, login streaming, probes) live in `CliConfigsContext`/`useCliConfigs`, mirroring `LLMConfigsContext`.
 
 ### Which tools a chat's agent may use
 
@@ -259,7 +259,15 @@ hover (web) or accessibility label (native) says why a host run could not use th
 sandbox (`ranInLabel` / `ranInDetail`) — and its duration. The sign-off's check
 chips say the same at the end of their detail and of an available check's last
 run (`checkRanInSentence` in `checkMethods.ts`: "Ran in the sandbox." / "Ran on
-the host — why"). A `developer-verifier` step —
+the host — why"). A test command that counted its tests says so on its row
+("Unit tests ✓ passed — 14 tests", `testCountLabel` in `testCounts.ts`, read from
+the result's `testCount` before its summary); one that ran none is `skipped` by
+tools with "0 tests ran", so its chip is never green. **A chip opens the tab its
+check is in**: `reviewCheckGroups` (`runReview.ts`) splits a run's checks by the
+method each rolls up into (`checkMethodFor`), so a project's unit-test COMMAND
+sits in the Tests tab beside `tests` checks — split by `kind`, a green Tests chip
+opened a tab its check was not in. Each check there shows its command, and
+`reviewCheckMeta`'s line — variant, test count, where it ran — over its output tail. A `developer-verifier` step —
 the self-verified process's one agent, which implements and proves the change
 itself — is read as a verify attempt filed under its own run, exactly as the
 tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`). Every surface that
@@ -435,6 +443,18 @@ screens (each beside its entry point on the base), then what did not count and
 why. A dry verification always says what the live backend must send. Each side
 of a pair is captioned from its own build record, never from the commit it was
 supposed to be built from.
+
+**Instant re-entry.** What the Processes tab and a sign-off last read outlives
+the view: `headless/hooks/processViewCache.ts` holds bounded LRU caches
+(`BoundedCache`) of process-run lists by scope, single runs by id (falling back to
+the row a list holds), each story sign-off's sources, evidence listings with their
+note text, and project check scans. `useProcessRuns`, `useProcessRun`,
+`useStorySignoff`, `useReviewEvidence` and `useProjectChecks` start from it —
+loaded — and re-read behind it; only a list read whole is cached. The sign-off
+joins CLI runs from `listCliAgentRunSummaries` (`GET /cli-runs/summaries`: no
+transcripts, prompts or artifact contents — 385 MB → well under 1 MB for one
+story), and an evidence listing counts as loaded when it arrives, its notes
+fetched a few at a time after.
 
 The sign-off reads each feature's LATEST run only — its run under the story run
 being signed off, else its newest run — so a relaunched story is judged on

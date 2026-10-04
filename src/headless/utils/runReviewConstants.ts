@@ -35,6 +35,7 @@ export const LAND_FAILURE_REASON_LABELS: Record<CliRunLandFailureReason, string>
   'detached-head': 'the project checkout is on a detached HEAD',
   'commit-failed': 'the review commit could not be created',
   'no-source-changes': 'the run only touched files the repository ignores',
+  'changes-not-applied': 'part of the run’s change could not be applied, so none of it was landed',
   error: 'the review branch could not be created',
 }
 

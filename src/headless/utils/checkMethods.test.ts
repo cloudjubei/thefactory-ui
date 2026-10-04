@@ -1718,6 +1718,29 @@ describe('checkMethodRows › with a scan of the project', () => {
     expect(build.available?.commands).toEqual(['./gradlew :app:assembleCovisionTestDebug'])
   })
 
+  it('reads a unit-test run that ran no test as not proven, saying 0 tests ran', () => {
+    const tests = row(
+      scannedRows({
+        verification: verification({
+          checks: [
+            check({
+              id: 'test',
+              label: 'Unit tests',
+              category: 'test',
+              status: 'skipped',
+              summary: '0 tests ran — the test command found nothing to run',
+              testCount: { total: 0, passed: 0, failed: 0, skipped: 0 },
+            }),
+          ],
+        }),
+        projectChecks: kotlin,
+      }),
+      'tests',
+    )
+    expect(tests.state).toBe('unchecked')
+    expect(tests.detail).toMatch(/^0 tests ran/)
+  })
+
   it('leaves every row as it was without a scan', () => {
     const list = rows({})
     expect(list.map((r) => r.id)).toContain('types')

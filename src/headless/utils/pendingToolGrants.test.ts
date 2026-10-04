@@ -473,6 +473,14 @@ describe('launchDecisionOf', () => {
     expect(launchDecisionOf({ note: 'hi', featureProcessId: '' })).toBeUndefined()
   })
 
+  it('reads a group launch’s merge mode for each prerequisite, dropping what is not a mode', () => {
+    expect(launchDecisionOf({ legIntegrationModes: { tools: 'squash', ui: 'rebase' } })).toEqual({
+      legIntegrationModes: { tools: 'squash' },
+    })
+    expect(launchDecisionOf({ legIntegrationModes: { ui: 'rebase' } })).toBeUndefined()
+    expect(launchDecisionOf({ legIntegrationModes: ['merge'] })).toBeUndefined()
+  })
+
   it('drops an open-work choice without the run it was about', () => {
     expect(launchDecisionOf({ openWork: 'extend' })).toBeUndefined()
   })

@@ -1,5 +1,6 @@
 import { partitionGrants } from './agentQuestions'
 import type { PendingToolGrant } from './chatTypes'
+import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 
 /**
  * The tool that launches an isolated feature-work run. Kept as a named constant
@@ -30,11 +31,11 @@ export function isStartFeatureWorkGrant(grant: Pick<PendingToolGrant, 'toolName'
 
 /**
  * Whether a tool call's ask is decided on the row that shows it. A feature-work
- * launch is not, though it is gated like any tool call: approving it starts a
+ * or group launch is not, though it is gated like any tool call: approving it starts a
  * separate run, and the panel is where its launch options are chosen.
  */
 export function isToolAskDecidedOnRow(toolName: string | undefined): boolean {
-  return toolName !== START_FEATURE_WORK_TOOL_NAME
+  return toolName !== START_FEATURE_WORK_TOOL_NAME && toolName !== START_GROUP_WORK_TOOL_NAME
 }
 
 export type StartFeatureWorkRunner = 'cli' | 'api'

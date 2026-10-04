@@ -386,6 +386,8 @@ export {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
+  reviewCheckGroups,
+  reviewCheckMeta,
   formatChangeRequestMessage,
 } from './utils/runReview'
 export {
@@ -532,7 +534,17 @@ export type {
   EvidenceWindow,
 } from './utils/reviewEvidenceViewTypes'
 export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
-export { aggregateTestCounts, parseTestCounts, type TestCounts } from './utils/testCounts'
+export {
+  aggregateTestCounts,
+  checkTestCounts,
+  parseTestCounts,
+  testCountLabel,
+  testTotalsHeadline,
+  type TestCountSource,
+  type TestCounts,
+  type TestTotalsOutcome,
+} from './utils/testCounts'
+export { TEST_COUNT_NONE_RAN, TEST_TOTALS_TITLES } from './utils/testCountsConstants'
 export { parseTestFailures, type TestFailure } from './utils/testFailures'
 export { commitsSinceBase, type BranchCommit } from './utils/branchCommits'
 export {
@@ -678,6 +690,7 @@ export type {
   ReviewChangeCounts,
   ApproveActionDescriptor,
   ReviewCheckRow,
+  ReviewCheckGroups,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
   ReviewTone,
@@ -1274,6 +1287,60 @@ export {
 } from './hooks/useProcessRuns'
 export { useProcessProposal, type UseProcessProposal } from './hooks/useProcessProposal'
 export {
+  useProcessGroupRun,
+  type UseProcessGroupRun,
+  type ProcessGroupRunUpdate,
+} from './hooks/useProcessGroupRun'
+export {
+  useProcessGroupRuns,
+  shouldTrackProcessGroupRunUpdate,
+  type UseProcessGroupRuns,
+} from './hooks/useProcessGroupRuns'
+export {
+  useProcessGroupLaunchPreview,
+  type UseProcessGroupLaunchPreview,
+} from './hooks/useProcessGroupLaunchPreview'
+export {
+  defaultProcessGroupLegModes,
+  isStartGroupWorkGrant,
+  processGroupLaunchMetadata,
+  processGroupLegWaitsFor,
+  startGroupWorkGrantSummary,
+} from './utils/processGroupLaunch'
+export {
+  PROCESS_GROUP_EARLY_MERGE_LABEL,
+  PROCESS_GROUP_LAUNCH_BLURB,
+  PROCESS_GROUP_PREREQUISITE_MODES,
+  START_GROUP_WORK_TOOL_NAME,
+} from './utils/processGroupLaunchConstants'
+export type {
+  ProcessGroupLaunchLeg,
+  ProcessGroupLaunchPreview,
+  ProcessGroupLegModes,
+  ProcessGroupLegRequest,
+  StartGroupWorkGrantSummary,
+} from './utils/processGroupLaunchTypes'
+export {
+  processGroupBadge,
+  processGroupCardView,
+  processGroupLegRows,
+  processGroupParkView,
+  processGroupProgress,
+  processGroupResumeInput,
+  processGroupWorkMs,
+} from './utils/processGroupView'
+export {
+  PROCESS_GROUP_CARD_CTA,
+  PROCESS_GROUP_HELD_SIGN_OFF,
+  PROCESS_GROUP_LEG_STATUS_VIEW,
+  PROCESS_GROUP_MODE_LABELS,
+} from './utils/processGroupViewConstants'
+export type {
+  ProcessGroupCardView,
+  ProcessGroupLegRow,
+  ProcessGroupParkView,
+} from './utils/processGroupViewTypes'
+export {
   processProposalView,
   type ProcessProposalView,
   type ProposalChip,
@@ -1442,6 +1509,14 @@ export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
+  ProcessGroupLeg,
+  ProcessGroupLegStatus,
+  ProcessGroupPark,
+  ProcessGroupParkReason,
+  ProcessGroupResumeChoice,
+  ProcessGroupResumeInput,
+  ProcessGroupRun,
+  ProcessGroupRunTotals,
   ProcessIntegrationMode,
   ProcessOpenWork,
   ProcessLaunchDecision,

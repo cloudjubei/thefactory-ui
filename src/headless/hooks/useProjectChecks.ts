@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { listProjectChecks, type ProjectChecksListing } from '../api'
 import { useAuth } from '../api/AuthContext'
 import type { EvidenceLoadState } from '../utils/verifyProofTypes'
+import { projectChecksCache } from './processViewCache'
 
 export type UseProjectChecks = {
   /** What the scan found the project can check; undefined until it answers, or when it could not. */
@@ -21,12 +22,15 @@ export type UseProjectChecks = {
  *
  * Standalone hook: the scan is per project and cheap to repeat (the backend
  * caches it). Pass `projectId === undefined` to idle. A refresh keeps the last
- * scan while it reads, so nothing drawn from it flickers back to loading.
+ * scan while it reads, so nothing drawn from it flickers back to loading — and
+ * the last scan of a project outlives the view (`processViewCache`), so a
+ * reopened sign-off is not held waiting for it.
  */
 export function useProjectChecks(projectId: string | undefined): UseProjectChecks {
   const { token } = useAuth()
-  const [scan, setScan] = useState<ProjectChecksListing | undefined>(undefined)
-  const [loadedFor, setLoadedFor] = useState<string | undefined>(undefined)
+  const [cached] = useState(() => (projectId ? projectChecksCache.get(projectId) : undefined))
+  const [scan, setScan] = useState<ProjectChecksListing | undefined>(cached)
+  const [loadedFor, setLoadedFor] = useState<string | undefined>(cached ? projectId : undefined)
   const [error, setError] = useState<Error | null>(null)
   const projectRef = useRef(projectId)
   projectRef.current = projectId
@@ -45,6 +49,7 @@ export function useProjectChecks(projectId: string | undefined): UseProjectCheck
           ...(rescan ? { query: { rescan: true } } : {}),
           throwOnError: true,
         })
+        if (data) projectChecksCache.set(projectId, data)
         if (projectRef.current !== projectId) return
         setScan(data)
         setError(null)
@@ -64,12 +69,16 @@ export function useProjectChecks(projectId: string | undefined): UseProjectCheck
     void refresh()
   }, [token, refresh])
 
+  const fallback =
+    projectId && loadedFor !== projectId ? projectChecksCache.get(projectId) : undefined
   const state: EvidenceLoadState = !projectId
     ? 'loaded'
     : loadedFor !== projectId
-      ? 'loading'
+      ? fallback
+        ? 'loaded'
+        : 'loading'
       : error
         ? 'failed'
         : 'loaded'
-  return { scan: loadedFor === projectId ? scan : undefined, state, error, refresh }
+  return { scan: loadedFor === projectId ? scan : fallback, state, error, refresh }
 }

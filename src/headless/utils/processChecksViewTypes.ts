@@ -28,6 +28,8 @@ export type ProcessCheckRow = {
   ranInLabel: string | undefined
   /** "Ran in the sandbox." or "Ran on the host — why it could not run in the sandbox." */
   ranInDetail: string | undefined
+  /** "14 tests" — how many tests a test command ran, when it said; never set for a run of none, whose summary says so. */
+  testCountLabel: string | undefined
 }
 
 /** What a sign-off section says about the checks its developer ran before handing over. */

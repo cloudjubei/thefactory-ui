@@ -6,9 +6,11 @@ import {
   type ReviewEvidenceRef,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
+import { EVIDENCE_NOTE_FETCH_CONCURRENCY } from '../utils/processViewCacheConstants'
 import { notesToRead, toEvidenceTile } from '../utils/reviewEvidenceView'
 import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
 import type { EvidenceTile } from '../utils/reviewEvidenceViewTypes'
+import { reviewEvidenceCache } from './processViewCache'
 
 /** Turn a fetched body into a data URI usable by both `<img>` and RN `<Image>`. */
 function toDataUri(data: unknown, mediaType: string): string | undefined {
@@ -89,31 +91,43 @@ export type UseReviewEvidence = {
  * the panel: a tile asks for its own image as it renders, so nothing off screen
  * is held in memory and nothing on screen is left blank. An evidence id is
  * immutable, so the cache survives the live re-pulls below without a flicker.
+ *
+ * The listing counts as loaded the moment it arrives; note text follows, a few
+ * at a time. The listing and the text it has read outlive the panel
+ * (`processViewCache`), so reopening it is drawn at once and re-pulled behind.
  */
 export function useReviewEvidence(
   projectId: string | undefined,
   query: EvidenceQuery,
 ): UseReviewEvidence {
-  const [refs, setRefs] = useState<ReviewEvidenceRef[]>([])
+  const { runId, storyId, featureId } = query
+  const queryKey = evidenceQueryKey(projectId, { runId, storyId, featureId })
+  const [cached] = useState(() => reviewEvidenceCache.get(queryKey))
+  const [refs, setRefs] = useState<ReviewEvidenceRef[]>(() => cached?.refs ?? [])
   const [images, setImages] = useState<Record<string, string>>({})
-  const [notes, setNotes] = useState<Record<string, string>>({})
+  const [notes, setNotes] = useState<Record<string, string>>(() => cached?.notes ?? {})
   const [loading, setLoading] = useState(false)
-  const [loadedKey, setLoadedKey] = useState<string | undefined>()
+  const [loadedKey, setLoadedKey] = useState<string | undefined>(() =>
+    cached ? queryKey : undefined,
+  )
   const [error, setError] = useState<string | undefined>()
   const epochRef = useRef(0)
   // An id is requested at most once per hook instance — its bytes never change,
   // so a re-pull that leaves the id present must not refetch it.
   const requestedRef = useRef<Set<string>>(new Set())
   // The notes whose text is held or on its way — the same rule for text.
-  const notesHeldRef = useRef<Set<string>>(new Set())
+  const notesHeldRef = useRef<Set<string>>(new Set(Object.keys(cached?.notes ?? {})))
   // A live mirror of the cache so `loadImage` can answer from it without taking
   // the cache as a dependency (which would rebuild the callback every decode).
   const imagesRef = useRef(images)
   imagesRef.current = images
   const { ws } = useApi()
 
-  const { runId, storyId, featureId } = query
-  const loaded = loadedKey === evidenceQueryKey(projectId, { runId, storyId, featureId })
+  const loaded = loadedKey === queryKey
+
+  useEffect(() => {
+    if (loadedKey !== undefined) reviewEvidenceCache.set(loadedKey, { refs, notes })
+  }, [loadedKey, refs, notes])
 
   const loadImage = useCallback(
     async (id: string, mediaType: string): Promise<string | undefined> => {
@@ -179,18 +193,28 @@ export function useReviewEvidence(
       if (epoch !== epochRef.current) return
       const found = data ?? []
       setRefs(found)
+      setLoadedKey(key)
 
       // Fetch note/report text so the verifier's written findings are READABLE
       // inline — not just a labelled tile. This is the whole evidence when a
       // screenshot could not be captured, so it must be visible, not a dead link.
-      // Notes are small, so they load eagerly; images wait for a tile to ask.
+      // Notes are small, so they load eagerly — a few at a time, and AFTER the
+      // listing counts as loaded: one at a time before it held a story sign-off
+      // on hundreds of sequential reads. Images wait for a tile to ask.
       const held = notesHeldRef.current
-      for (const note of notesToRead(found, held)) {
-        held.add(note.id)
-        const text = await readNoteText(projectId, note.id)
-        if (text === undefined) held.delete(note.id)
-        else setNotes((prev) => ({ ...prev, [note.id]: text }))
+      const pending = notesToRead(found, held)
+      for (const note of pending) held.add(note.id)
+      for (let i = 0; i < pending.length; i += EVIDENCE_NOTE_FETCH_CONCURRENCY) {
+        const batch = pending.slice(i, i + EVIDENCE_NOTE_FETCH_CONCURRENCY)
+        const texts = await Promise.all(batch.map((note) => readNoteText(projectId, note.id)))
         if (epoch !== epochRef.current) return
+        const read: Record<string, string> = {}
+        batch.forEach((note, n) => {
+          const text = texts[n]
+          if (text === undefined) held.delete(note.id)
+          else read[note.id] = text
+        })
+        if (Object.keys(read).length > 0) setNotes((prev) => ({ ...prev, ...read }))
       }
     } catch (err: unknown) {
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))

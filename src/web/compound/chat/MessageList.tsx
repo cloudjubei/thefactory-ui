@@ -138,6 +138,8 @@ export type MessageListProps = {
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /** Forwarded to each row: the live group run an announcement launched. */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (desktop parity) -----
   /** Host-supplied tool-preview fetcher — called for each
@@ -204,6 +206,7 @@ export default function MessageList({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   previewTool,
   onResumeTools,
   onAlwaysAllowApiTools,
@@ -795,6 +798,7 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
+                  renderProcessGroupRun={renderProcessGroupRun}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
                   {...(cliBlockedOn && msg.cliRunId === pendingCliRunId
@@ -832,6 +836,7 @@ export default function MessageList({
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
+                  renderProcessGroupRun={renderProcessGroupRun}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]
@@ -919,6 +924,7 @@ export default function MessageList({
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
               renderProcessRun={renderProcessRun}
+              renderProcessGroupRun={renderProcessGroupRun}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
               cliAsks={cliAsks}

@@ -20,6 +20,7 @@ import {
   featureProcessMetadata,
   featuresToWork,
   isGitSetupGrant,
+  isStartGroupWorkGrant,
   processOpenWorkMetadata,
   proposalFeatureProcessId,
   useProcessProposal,
@@ -36,6 +37,7 @@ import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
+import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -45,6 +47,8 @@ export type ApprovalPanelProps = {
    * dock falls back to the plain feature list.
    */
   projectId?: string
+  /** The chat's group, for a launch across the group's projects. */
+  groupId?: string
   onDecideLater: () => void
 }
 
@@ -60,6 +64,15 @@ export type ApprovalPanelProps = {
 export default function ApprovalPanel(props: ApprovalPanelProps) {
   // Putting a project on GitHub names an account, a repository and a
   // visibility the user must see and may change — it has its own card.
+  if (isStartGroupWorkGrant(props.grant)) {
+    return (
+      <GroupWorkLaunchPanel
+        grant={props.grant}
+        {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
+        onDecideLater={props.onDecideLater}
+      />
+    )
+  }
   return isGitSetupGrant(props.grant) ? (
     <GitSetupApprovalPanel
       grant={props.grant}

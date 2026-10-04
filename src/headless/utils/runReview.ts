@@ -27,10 +27,12 @@ import {
   VERDICT_TONES,
   CHANGE_REQUEST_MESSAGE_PREFIX,
 } from './runReviewConstants'
+import { checkMethodFor, checkRanInSentence } from './checkMethods'
 import type {
   ReviewActionInput,
   ReviewActionMode,
   ReviewChangeCounts,
+  ReviewCheckGroups,
   ReviewCheckRow,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
@@ -42,6 +44,7 @@ import type {
 } from './runReviewTypes'
 import { costChipLabel } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
+import { checkTestCounts, testCountLabel } from './testCounts'
 import { formatDurationMs } from './time'
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
@@ -76,17 +79,56 @@ export function checkTone(status: VerificationCheckStatus): ReviewTone {
 
 /** Per-check rows for the summary head, pre-toned and pre-formatted. */
 export function verificationCheckRows(verification: RunVerification | undefined): ReviewCheckRow[] {
-  return (verification?.checks ?? []).map((check) => ({
-    id: check.id,
-    label: check.label,
-    kind: check.kind,
-    status: check.status,
-    tone: checkTone(check.status),
-    summary: check.summary,
-    durationLabel: formatDurationMs(check.durationMs),
-    details: trimmedOrUndefined(check.details),
-    optional: check.optional === true,
-  }))
+  return (verification?.checks ?? []).map((check) => {
+    const testCount = checkTestCounts(check)
+    return {
+      id: check.id,
+      label: check.label,
+      kind: check.kind,
+      status: check.status,
+      tone: checkTone(check.status),
+      summary: check.summary,
+      durationLabel: formatDurationMs(check.durationMs),
+      details: trimmedOrUndefined(check.details),
+      optional: check.optional === true,
+      method: checkMethodFor(check),
+      command: trimmedOrUndefined(check.command),
+      variant: trimmedOrUndefined(check.variant),
+      ranInDetail: checkRanInSentence([check]),
+      testCount,
+      testCountLabel: testCountLabel(testCount),
+    }
+  })
+}
+
+/**
+ * The line under a check's command: the variant it ran on, how many tests it
+ * ran, and where it ran — "Variant debug · 14 tests · Ran on the host — why".
+ * `undefined` when the check said none of them.
+ */
+export function reviewCheckMeta(
+  row: Pick<ReviewCheckRow, 'variant' | 'testCountLabel' | 'ranInDetail'>,
+): string | undefined {
+  const parts = [
+    row.variant ? `Variant ${row.variant}` : undefined,
+    row.testCountLabel,
+    row.ranInDetail,
+  ].filter((part): part is string => part !== undefined)
+  return parts.length > 0 ? parts.join(' · ') : undefined
+}
+
+/**
+ * A run's check rows, split the way its chips are: whatever rolls up into the
+ * Tests chip goes to the Tests tab — a project's unit-test COMMAND as much as a
+ * `tests` check — and everything else to the Build tab. Split by kind instead,
+ * a green Tests chip opened a tab its check was not in.
+ */
+export function reviewCheckGroups(verification: RunVerification | undefined): ReviewCheckGroups {
+  const rows = verificationCheckRows(verification)
+  return {
+    tests: rows.filter((row) => row.method === 'tests'),
+    build: rows.filter((row) => row.method !== 'tests'),
+  }
 }
 
 export function verdictSummary(verdict: CliRunVerdict): ReviewVerdictSummary {

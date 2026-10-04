@@ -47,6 +47,8 @@ export type CliRunMessagesProps = {
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /** Forwarded to each row: the live group run an announcement launched. */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
   /** Opens a message's usage sheet from its `$` chip — a CLI turn's usage, $0 or not, included. */
   onShowUsage?: (msg: ChatMessageLike) => void
   /** True only for the chat's first CLI run (turn 1, cold boot). Gates the
@@ -106,6 +108,7 @@ export default function CliRunMessages({
   renderDependency,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   onShowUsage,
   coldStart = false,
   storedReply,
@@ -234,6 +237,7 @@ export default function CliRunMessages({
               enhancedTotalLength={total}
               renderToolCall={renderToolCall}
               renderProcessRun={renderProcessRun}
+              renderProcessGroupRun={renderProcessGroupRun}
               onResolveFile={onResolveFile}
               renderDependency={renderDependency}
               onShowUsage={onShowUsage}

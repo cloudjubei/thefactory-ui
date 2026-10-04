@@ -540,6 +540,7 @@ export type DirSnapshotChange = {
   hashAfter?: string
   contentAfter?: string
   contentAfterBase64?: string
+  gitBlobId?: string
   omittedReason?: 'oversized' | 'unreadable'
 }
 
@@ -1230,6 +1231,7 @@ export type CompletionAssistantMessage = {
   cliRunId?: string
   featureRequestId?: string
   processRunId?: string
+  processGroupRunId?: string
 }
 
 export type CompletionToolMessage = {
@@ -2214,6 +2216,13 @@ export type VerificationCheck = {
   category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
 }
 
+export type VerificationTestCount = {
+  total: number
+  passed: number
+  failed: number
+  skipped: number
+}
+
 export type VerificationCheckResult = {
   id: string
   label: string
@@ -2222,10 +2231,19 @@ export type VerificationCheckResult = {
   durationMs: number
   summary: string
   details?: string
+  command?: string
+  variant?: string
+  testCount?: {
+    total: number
+    passed: number
+    failed: number
+    skipped: number
+  }
   optional?: boolean
   category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
+  environmentReason?: string
 }
 
 export type VerificationUncheckedReason = {
@@ -2499,6 +2517,7 @@ export type FilesEmittedFile = {
   hashAfter?: string
   contentAfter?: string
   contentAfterBase64?: string
+  gitBlobId?: string
   omittedReason?: 'oversized' | 'unreadable'
 }
 
@@ -2615,6 +2634,7 @@ export type CliRunLandFailureReason =
   | 'detached-head'
   | 'commit-failed'
   | 'no-source-changes'
+  | 'changes-not-applied'
   | 'error'
 
 export type CliRunLandFailure = {
@@ -2756,12 +2776,136 @@ export type CliRun = {
   viewedFiles?: Array<CliRunViewedFile>
 }
 
+export type CliRunArtifactFile = {
+  path: string
+  status?: 'added' | 'modified' | 'deleted'
+}
+
+export type CliRunArtifactSummary = {
+  id: string
+  kind: 'files-emitted' | 'proposed-commit' | 'proposed-pr'
+  at: number
+  appliedAt?: number
+  files: Array<CliRunArtifactFile>
+}
+
+export type CliRunSummary = {
+  id: string
+  projectId: string
+  chatContextId?: string
+  storyId?: string
+  processRunId?: string
+  status: CliRunStatus
+  cli?: {
+    tool: CliTool
+    version: string
+  }
+  cliSessionId?: string
+  modelId?: string
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+  workspaceHostPath?: string
+  parent?: {
+    runId: string
+    via: 'resume' | 'fork'
+    notes?: string
+  }
+  policy: SandboxPolicy
+  usage?: {
+    tokensIn: number
+    tokensOut: number
+    cacheReadTokens?: number
+    cacheCreationTokens?: number
+    cacheCreation1hTokens?: number
+    outputTokensNotReported?: true
+  }
+  costUSD?: number
+  modelUsage?: Array<ModelSpend>
+  billing?: 'subscription' | 'metered' | 'free'
+  authSource?: string
+  reportedModel?: string
+  tokensNotReported?: true
+  mirrorOf?: string
+  durationMs?: number
+  firstByteMs?: number
+  subscription?: {
+    plan?: string
+    tokensRemainingPerWindow?: number
+    windowResetAt?: number
+    [key: string]: unknown
+  }
+  retryAttempts?: number
+  nextRetryAt?: number
+  retryHistory?: Array<CliRunRetryHistoryEntry>
+  createdAt: number
+  updatedAt: number
+  exitCode?: number
+  abortReason?: string
+  review?: {
+    branch: string
+    baseSha: string
+    headSha?: string
+    seamSha?: string
+    carriedSeamSha?: string
+    seamError?: string
+    landedAt?: number
+    shadow?: boolean
+    reviewRunId?: string
+    mergedAt?: number
+    mergeCommit?: string
+    rejectedAt?: number
+  }
+  landFailure?: {
+    reason: CliRunLandFailureReason
+    message?: string
+    at: number
+  }
+  verification?: {
+    status: VerificationStatus
+    checks: Array<VerificationCheckResult>
+    uncheckedReason?: {
+      kind:
+        | 'policy-off'
+        | 'nothing-declared'
+        | 'no-applicable-checks'
+        | 'all-skipped'
+        | 'only-optional'
+      summary: string
+      extensions?: Array<string>
+    }
+    startedAt: number
+    finishedAt: number
+    sha?: string
+    changedPaths?: Array<string>
+  }
+  verdict?: {
+    decision: 'approved' | 'changes-requested' | 'rejected'
+    by: CliRunVerdictAuthor
+    notes?: string
+    at: number
+  }
+  diffReview?: {
+    by: CliRunVerdictAuthor
+    at: number
+    summary?: string
+    filesReviewed?: number
+  }
+  viewedFiles?: Array<CliRunViewedFile>
+} & {
+  artifacts: Array<CliRunArtifactSummary>
+}
+
 export type CliRunArtifactCommit = {
   baseSha: string
   headSha?: string
   seamSha?: string
   seamError?: string
   empty?: true
+  unapplied?: Array<{
+    path: string
+    reason: string
+  }>
   error?: string
 }
 
@@ -7493,6 +7637,7 @@ export type SandboxDependencyFacts = {
   texts: {
     [key: string]: string
   }
+  outOfTreeLinks?: Array<string>
 }
 
 export type SandboxDependencyPlan = {
@@ -10090,6 +10235,13 @@ export type CliRunFileStat = {
   size: number
 }
 
+export type CliRunSummaryFile = {
+  version: number
+  mtimeMs: number
+  size: number
+  summary: CliRunSummary
+}
+
 export type CliRunFilter = {
   projectId?: string
   storyId?: string
@@ -10500,6 +10652,7 @@ export type ToolName =
   | 'appendReviewTestSeam'
   | 'recycleCliAgentSessions'
   | 'listCliAgentRuns'
+  | 'listCliAgentRunSummaries'
   | 'getCliAgentRunSubscriptionStatus'
   | 'listAvailableModels'
   | 'listAvailableEfforts'
@@ -10906,6 +11059,8 @@ export type ToolName =
   | 'validateProcess'
   | 'getProcessRun'
   | 'listProcessRuns'
+  | 'getProcessGroupRun'
+  | 'listProcessGroupRuns'
   | 'deleteProcessRun'
   | 'getRunDiagnostics'
 
@@ -11625,6 +11780,9 @@ export type ProcessLaunchDecision = {
     state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
   }
   featureProcessId?: string
+  legIntegrationModes?: {
+    [key: string]: ProcessIntegrationMode
+  }
 }
 
 export type ProcessBudget = {
@@ -12096,6 +12254,8 @@ export type ProcessRun = {
   chatContextId?: string
   parentRunId?: string
   parentStepId?: string
+  groupRunId?: string
+  groupLegId?: string
   title: string
   input?: {
     [key: string]: unknown
@@ -12433,12 +12593,15 @@ export type StartProcessRunInput = {
   }
   parentRunId?: string
   parentStepId?: string
+  groupRunId?: string
+  groupLegId?: string
 }
 
 export type ProcessRunQuery = {
   projectId?: string
   storyId?: string
   chatContextId?: string
+  groupRunId?: string
   status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
   rootOnly?: boolean
   limit?: number
@@ -12574,6 +12737,235 @@ export type ProcessParkChoice = {
   label: string
   detail: string
   primary?: boolean
+}
+
+export type ProcessResumeOptions = {
+  byGroupRunId?: string
+}
+
+export type ProcessGroupLegStatus =
+  | 'blocked'
+  | 'starting'
+  | 'start-failed'
+  | 'running'
+  | 'needs-you'
+  | 'at-sign-off'
+  | 'integrating'
+  | 'integrated'
+  | 'rebuilding'
+  | 'rebuild-failed'
+  | 'integration-failed'
+  | 'failed'
+  | 'cancelled'
+  | 'skipped'
+
+export type ProcessGroupLeg = {
+  id: string
+  projectId: string
+  storyId: string
+  title: string
+  dependsOn: Array<string>
+  processId?: string
+  integrationMode?: 'merge' | 'squash' | 'pull-request'
+  runId?: string
+  previousRunIds?: Array<string>
+  status: ProcessGroupLegStatus
+  approvedAt?: number
+  integratedEarlyAt?: number
+  rebuiltAt?: number
+  rebuildError?: string
+  noticedParkAt?: number
+  startedAt?: number
+}
+
+export type ProcessGroupParkReason =
+  | 'sign-off'
+  | 'prerequisite-review'
+  | 'prerequisite-build-failed'
+  | 'leg-failed'
+  | 'leg-start-failed'
+  | 'integration-failed'
+
+export type ProcessGroupPark = {
+  reason: ProcessGroupParkReason
+  legId?: string
+  message: string
+  parkedAt: number
+}
+
+export type ProcessGroupResumeChoice =
+  | 'approve'
+  | 'request-changes'
+  | 'reject'
+  | 'approve-early'
+  | 'retry-leg'
+  | 'skip-leg'
+  | 'retry-rebuild'
+  | 'retry-integration'
+  | 'abandon'
+
+export type ProcessGroupParkChoice = {
+  choice: ProcessGroupResumeChoice
+  label: string
+  detail: string
+  primary?: boolean
+}
+
+export type ProcessGroupResumeInput = {
+  choice: ProcessGroupResumeChoice
+  note?: string
+  legIds?: Array<string>
+  integration?: {
+    [key: string]: ProcessIntegrationMode
+  }
+}
+
+export type ProcessGroupSignOff = {
+  choice: 'approve' | 'reject'
+  note?: string
+  integration?: {
+    [key: string]: ProcessIntegrationMode
+  }
+  at: number
+}
+
+export type ProcessGroupRunTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
+  elapsedMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
+  ticking: boolean
+  at: number
+  legs: {
+    [key: string]: ProcessRunTotals
+  }
+}
+
+export type ProcessGroupRun = {
+  id: string
+  groupId: string
+  title: string
+  chatContextId?: string
+  input?: {
+    [key: string]: unknown
+  }
+  status: ProcessRunStatus
+  legs: Array<ProcessGroupLeg>
+  park?: {
+    reason: ProcessGroupParkReason
+    legId?: string
+    message: string
+    parkedAt: number
+  }
+  signOff?: {
+    choice: 'approve' | 'reject'
+    note?: string
+    integration?: {
+      [key: string]: ProcessIntegrationMode
+    }
+    at: number
+  }
+  parkedMs?: number
+  startedAt: number
+  updatedAt: number
+  endedAt?: number
+  error?: string
+  totals?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    workMs: number
+    elapsedMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      tools: Array<ProcessToolTime>
+    }
+    ticking: boolean
+    at: number
+    legs: {
+      [key: string]: ProcessRunTotals
+    }
+  }
+}
+
+export type StartProcessGroupRunInput = {
+  id?: string
+  groupId: string
+  title: string
+  chatContextId?: string
+  input?: {
+    [key: string]: unknown
+  }
+  legs: Array<{
+    id: string
+    projectId: string
+    storyId: string
+    title: string
+    dependsOn: Array<string>
+    processId?: string
+    integrationMode?: 'merge' | 'squash' | 'pull-request'
+  }>
+}
+
+export type ProcessGroupRunQuery = {
+  groupId?: string
+  status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  chatContextId?: string
+  limit?: number
+}
+
+export type ProcessGroupAction =
+  | {
+      kind: 'start-leg'
+      legId: string
+    }
+  | {
+      kind: 'integrate-leg'
+      legId: string
+      mode: ProcessIntegrationMode
+    }
+  | {
+      kind: 'rebuild-leg'
+      legId: string
+    }
+  | {
+      kind: 'notify-leg'
+      legId: string
+    }
+  | {
+      kind: 'park'
+      reason: ProcessGroupParkReason
+      legId?: string
+    }
+  | {
+      kind: 'finish'
+      status: 'succeeded' | 'failed'
+    }
+
+export type ProcessGroupDecision = {
+  legStatuses: {
+    [key: string]: ProcessGroupLegStatus
+  }
+  actions: Array<ProcessGroupAction>
 }
 
 export type BuiltQuery = {
@@ -14798,6 +15190,14 @@ export type DeleteProcessRunErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type DeleteProcessRunError = DeleteProcessRunErrors[keyof DeleteProcessRunErrors]
@@ -15080,6 +15480,280 @@ export type ListProcessRunBranchesResponses = {
 
 export type ListProcessRunBranchesResponse =
   ListProcessRunBranchesResponses[keyof ListProcessRunBranchesResponses]
+
+export type ListProcessGroupRunsData = {
+  body?: never
+  path?: never
+  query?: {
+    groupId?: string
+    status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+    chatContextId?: string
+    limit?: number
+  }
+  url: '/api/v1/process-group-runs'
+}
+
+export type ListProcessGroupRunsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<ProcessGroupRun>
+}
+
+export type ListProcessGroupRunsResponse =
+  ListProcessGroupRunsResponses[keyof ListProcessGroupRunsResponses]
+
+export type DeleteProcessGroupRunData = {
+  body: {
+    deleteBranches?: boolean
+  }
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}'
+}
+
+export type DeleteProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteProcessGroupRunError =
+  DeleteProcessGroupRunErrors[keyof DeleteProcessGroupRunErrors]
+
+export type DeleteProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    deletedRuns: number
+    deletedChats: number
+    deletedCliRuns: number
+    deletedBranches: Array<string>
+  }
+}
+
+export type DeleteProcessGroupRunResponse =
+  DeleteProcessGroupRunResponses[keyof DeleteProcessGroupRunResponses]
+
+export type GetProcessGroupRunData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}'
+}
+
+export type GetProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessGroupRunError = GetProcessGroupRunErrors[keyof GetProcessGroupRunErrors]
+
+export type GetProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessGroupRun
+}
+
+export type GetProcessGroupRunResponse =
+  GetProcessGroupRunResponses[keyof GetProcessGroupRunResponses]
+
+export type PreviewProcessGroupRunData = {
+  body: {
+    groupId: string
+    legs: Array<{
+      projectId: string
+      storyId: string
+      /**
+       * Projects of this launch whose leg must be merged before this one starts.
+       */
+      dependsOn?: Array<string>
+      processId?: string
+    }>
+    /**
+     * Each prerequisite’s merge mode, as the launch card chose it.
+     */
+    integration?: {
+      [key: string]: ProcessIntegrationMode
+    }
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/process-group-runs/preview'
+}
+
+export type PreviewProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    groupId: string
+    groupTitle?: string
+    legs: Array<{
+      projectId: string
+      projectTitle: string
+      storyId: string
+      storyTitle?: string
+      dependsOn: Array<string>
+      processId?: string
+      /**
+       * How many of the story’s features the leg would work.
+       */
+      features: number
+      /**
+       * Another leg needs this one merged first, so its early merge is asked about.
+       */
+      isPrerequisite: boolean
+      /**
+       * Why this leg cannot start.
+       */
+      problem?: string
+    }>
+    /**
+     * Leg ids by dependency level: each level starts once the one before is merged.
+     */
+    waves: Array<Array<string>>
+    problems: Array<string>
+  }
+}
+
+export type PreviewProcessGroupRunResponse =
+  PreviewProcessGroupRunResponses[keyof PreviewProcessGroupRunResponses]
+
+export type ResumeProcessGroupRunData = {
+  body: ProcessGroupResumeInput
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/resume'
+}
+
+export type ResumeProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ResumeProcessGroupRunError =
+  ResumeProcessGroupRunErrors[keyof ResumeProcessGroupRunErrors]
+
+export type ResumeProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessGroupRun
+}
+
+export type ResumeProcessGroupRunResponse =
+  ResumeProcessGroupRunResponses[keyof ResumeProcessGroupRunResponses]
+
+export type CancelProcessGroupRunData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/cancel'
+}
+
+export type CancelProcessGroupRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CancelProcessGroupRunError =
+  CancelProcessGroupRunErrors[keyof CancelProcessGroupRunErrors]
+
+export type CancelProcessGroupRunResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessGroupRun
+}
+
+export type CancelProcessGroupRunResponse =
+  CancelProcessGroupRunResponses[keyof CancelProcessGroupRunResponses]
+
+export type ListProcessGroupRunBranchesData = {
+  body?: never
+  path: {
+    groupRunId: string
+  }
+  query?: never
+  url: '/api/v1/process-group-runs/{groupRunId}/branches'
+}
+
+export type ListProcessGroupRunBranchesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListProcessGroupRunBranchesError =
+  ListProcessGroupRunBranchesErrors[keyof ListProcessGroupRunBranchesErrors]
+
+export type ListProcessGroupRunBranchesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    projectId: string
+    branch: string
+  }>
+}
+
+export type ListProcessGroupRunBranchesResponse =
+  ListProcessGroupRunBranchesResponses[keyof ListProcessGroupRunBranchesResponses]
 
 export type ListReviewEvidenceData = {
   body?: never
@@ -22713,6 +23387,28 @@ export type ListCliAgentRunsResponses = {
 }
 
 export type ListCliAgentRunsResponse = ListCliAgentRunsResponses[keyof ListCliAgentRunsResponses]
+
+export type ListCliAgentRunSummariesData = {
+  body?: never
+  path?: never
+  query?: {
+    projectId?: string
+    storyId?: string
+    status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
+    chatContextId?: string
+  }
+  url: '/api/v1/cli-runs/summaries'
+}
+
+export type ListCliAgentRunSummariesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<CliRunSummary>
+}
+
+export type ListCliAgentRunSummariesResponse =
+  ListCliAgentRunSummariesResponses[keyof ListCliAgentRunSummariesResponses]
 
 export type ListPendingCliAgentActionsData = {
   body?: never

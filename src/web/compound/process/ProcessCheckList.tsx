@@ -38,6 +38,9 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
           <span className="shrink-0" style={{ color: `var(--status-${row.tone}-soft-fg)` }}>
             {row.word}
           </span>
+          {row.testCountLabel ? (
+            <span className="shrink-0 text-(--text-secondary)">— {row.testCountLabel}</span>
+          ) : null}
           {row.advisory ? (
             <span className="shrink-0 rounded-full border border-dashed border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)">
               {PROCESS_CHECK_ADVISORY_LABEL}

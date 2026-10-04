@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ProcessRun, ProcessRunStatus } from 'thefactory-tools/types'
 import { listProcessRuns } from '../api'
 import { useApi, useAuth } from '../api'
+import { processRunListCache, processRunListKey } from './processViewCache'
 
 /**
  * The statuses a run is still LIVE in — "Current" in the Processes view, and the
@@ -66,6 +67,14 @@ export type UseProcessRuns = {
 
 const byStartedDesc = (a: ProcessRun, b: ProcessRun) => (b.startedAt ?? 0) - (a.startedAt ?? 0)
 
+/** One scope's list as this instance holds it — `runs` undefined until a read or the cache has it. */
+type ScopedRuns = { key: string; runs: ProcessRun[] | undefined; settled: boolean }
+
+function cachedScope(key: string): ScopedRuns {
+  const runs = processRunListCache.get(key)
+  return { key, runs, settled: runs !== undefined }
+}
+
 /**
  * Every process run for a scope, kept live.
  *
@@ -80,13 +89,34 @@ const byStartedDesc = (a: ProcessRun, b: ProcessRun) => (b.startedAt ?? 0) - (a.
  * every project the user can see (the nav badge, which sums across projects).
  * `rootOnly` keeps it to the runs a chat launched — a child run drilled into is
  * reached through its parent, never double-counted here.
+ *
+ * What it last read for a scope outlives the view (`processRunListCache`): a
+ * return to the tab paints that list at once, loaded, and re-reads behind it.
  */
 export function useProcessRuns(projectId?: string): UseProcessRuns {
   const { token } = useAuth()
   const { ws } = useApi()
-  const [runs, setRuns] = useState<ProcessRun[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
+  const key = processRunListKey(projectId)
+  const [scoped, setScoped] = useState<ScopedRuns>(() => cachedScope(key))
   const [loadError, setLoadError] = useState<Error | null>(null)
+  const current = scoped.key === key ? scoped : cachedScope(key)
+  const runs = useMemo(() => current.runs ?? [], [current.runs])
+  const isLoaded = current.settled
+
+  const updateRuns = useCallback(
+    (next: (prev: ProcessRun[]) => ProcessRun[], settles: boolean) =>
+      setScoped((prev) => {
+        const base = prev.key === key ? prev : cachedScope(key)
+        return { key, runs: next(base.runs ?? []), settled: settles || base.settled }
+      }),
+    [key],
+  )
+
+  // Only a list that has been read whole is kept: a live event landing before
+  // the first read would otherwise be remembered as the scope's entire history.
+  useEffect(() => {
+    if (scoped.settled && scoped.runs) processRunListCache.set(scoped.key, scoped.runs)
+  }, [scoped])
 
   const refresh = useCallback(async () => {
     try {
@@ -94,14 +124,15 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
         query: { rootOnly: true, ...(projectId ? { projectId } : {}) },
         throwOnError: true,
       })
-      setRuns(((data as ProcessRun[] | undefined) ?? []).slice().sort(byStartedDesc))
+      updateRuns(() => ((data as ProcessRun[] | undefined) ?? []).slice().sort(byStartedDesc), true)
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
-      setIsLoaded(true)
+      setScoped((prev) =>
+        prev.key === key ? { ...prev, settled: true } : { ...cachedScope(key), settled: true },
+      )
     }
-  }, [projectId])
+  }, [projectId, key, updateRuns])
 
   useEffect(() => {
     if (!token) return
@@ -115,17 +146,17 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
       // A deletion carries no record — just drop the run (and it is the only
       // event that removes one, so it is handled before the upsert guard).
       if (update?.deleted && update.runId) {
-        setRuns((prev) => prev.filter((r) => r.id !== update.runId))
+        updateRuns((prev) => prev.filter((r) => r.id !== update.runId), false)
         return
       }
       if (!shouldTrackProcessRunUpdate(update, projectId)) return
-      setRuns((prev) => {
+      updateRuns((prev) => {
         const next = prev.filter((r) => r.id !== update.runId)
         next.push(update.run)
         return next.sort(byStartedDesc)
-      })
+      }, false)
     })
-  }, [ws, token, projectId])
+  }, [ws, token, projectId, updateRuns])
 
   return useMemo<UseProcessRuns>(() => {
     const current = runs.filter(isProcessRunActive)

@@ -3,8 +3,10 @@ import type {
   VerificationCheckKind,
   VerificationCheckStatus,
 } from '../api/generated'
+import type { CheckMethodId } from './checkMethodTypes'
 import type { CostSource } from './costDetailsTypes'
 import type { ProcessTimeDetailsView } from './processTimeDetailsTypes'
+import type { TestCounts } from './testCounts'
 
 /**
  * Semantic colour role for a run-review surface. Platform-neutral: web maps it
@@ -25,6 +27,24 @@ export type ReviewCheckRow = {
   /** Expandable raw output — `undefined` when the check carried none. */
   details: string | undefined
   optional: boolean
+  /** The chip it rolls up into — what decides which tab shows it. */
+  method: CheckMethodId
+  /** The shell command it ran, when it was a command. */
+  command: string | undefined
+  /** The build variant it ran on, for a per-variant project check. */
+  variant: string | undefined
+  /** "Ran in the sandbox." or "Ran on the host — why", when the result says. */
+  ranInDetail: string | undefined
+  /** How many tests it ran, when it was a test run that said. */
+  testCount: TestCounts | undefined
+  /** "14 tests", "0 tests ran" — {@link testCount} as a reader is told it. */
+  testCountLabel: string | undefined
+}
+
+/** A run's checks split between the sign-off's Tests tab and its Build tab, by the chip each rolls up into. */
+export type ReviewCheckGroups = {
+  tests: ReviewCheckRow[]
+  build: ReviewCheckRow[]
 }
 
 /** The decided-review banner shown in place of the action row. */

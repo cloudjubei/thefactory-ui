@@ -57,6 +57,9 @@ import type {
   CancelCredentialCaptureData,
   CancelCredentialCaptureErrors,
   CancelCredentialCaptureResponses,
+  CancelProcessGroupRunData,
+  CancelProcessGroupRunErrors,
+  CancelProcessGroupRunResponses,
   CancelProcessRunData,
   CancelProcessRunErrors,
   CancelProcessRunResponses,
@@ -191,6 +194,9 @@ import type {
   DeleteLlmConfigErrors,
   DeleteLlmConfigResponses,
   DeleteProcessData,
+  DeleteProcessGroupRunData,
+  DeleteProcessGroupRunErrors,
+  DeleteProcessGroupRunResponses,
   DeleteProcessResponses,
   DeleteProcessRunData,
   DeleteProcessRunErrors,
@@ -352,6 +358,9 @@ import type {
   GetProcessCapabilitiesResponses,
   GetProcessData,
   GetProcessErrors,
+  GetProcessGroupRunData,
+  GetProcessGroupRunErrors,
+  GetProcessGroupRunResponses,
   GetProcessResponses,
   GetProcessRunData,
   GetProcessRunErrors,
@@ -472,6 +481,8 @@ import type {
   ListCliAgentModelsResponses,
   ListCliAgentRunsData,
   ListCliAgentRunsResponses,
+  ListCliAgentRunSummariesData,
+  ListCliAgentRunSummariesResponses,
   ListCliAuthCachesData,
   ListCliAuthCachesResponses,
   ListCliCapabilityScorecardsData,
@@ -522,6 +533,11 @@ import type {
   ListPendingCliAgentActionsResponses,
   ListProcessesData,
   ListProcessesResponses,
+  ListProcessGroupRunBranchesData,
+  ListProcessGroupRunBranchesErrors,
+  ListProcessGroupRunBranchesResponses,
+  ListProcessGroupRunsData,
+  ListProcessGroupRunsResponses,
   ListProcessRunBranchesData,
   ListProcessRunBranchesResponses,
   ListProcessRunsData,
@@ -612,6 +628,8 @@ import type {
   PreviewCliAgentArtifactResponses,
   PreviewProcessData,
   PreviewProcessErrors,
+  PreviewProcessGroupRunData,
+  PreviewProcessGroupRunResponses,
   PreviewProcessResponses,
   PreviewToolData,
   PreviewToolErrors,
@@ -694,6 +712,9 @@ import type {
   ResumeCompletionData,
   ResumeCompletionErrors,
   ResumeCompletionResponses,
+  ResumeProcessGroupRunData,
+  ResumeProcessGroupRunErrors,
+  ResumeProcessGroupRunResponses,
   ResumeProcessRunData,
   ResumeProcessRunErrors,
   ResumeProcessRunResponses,
@@ -1586,6 +1607,108 @@ export const listProcessRunBranches = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/branches',
+    ...options,
+  })
+
+export const listProcessGroupRuns = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProcessGroupRunsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListProcessGroupRunsResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs',
+    ...options,
+  })
+
+export const deleteProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteProcessGroupRunResponses,
+    DeleteProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessGroupRunResponses,
+    GetProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}',
+    ...options,
+  })
+
+export const previewProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<PreviewProcessGroupRunResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/preview',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const resumeProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResumeProcessGroupRunResponses,
+    ResumeProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const cancelProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<CancelProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CancelProcessGroupRunResponses,
+    CancelProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/cancel',
+    ...options,
+  })
+
+export const listProcessGroupRunBranches = <ThrowOnError extends boolean = false>(
+  options: Options<ListProcessGroupRunBranchesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProcessGroupRunBranchesResponses,
+    ListProcessGroupRunBranchesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/branches',
     ...options,
   })
 
@@ -4021,6 +4144,16 @@ export const listCliAgentRuns = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs',
+    ...options,
+  })
+
+export const listCliAgentRunSummaries = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCliAgentRunSummariesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListCliAgentRunSummariesResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/summaries',
     ...options,
   })
 

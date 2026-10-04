@@ -2,13 +2,17 @@
 // PendingActions into the unified PendingToolGrantData shape, and route a
 // decision to the right CLI broker outcome. No React, no I/O.
 
-import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
+import { MCP_TOOL_CALL_ACTION_KIND, PROCESS_INTEGRATION_MODES } from 'thefactory-tools/constants'
 import { getChatContext, getChatContextKey } from 'thefactory-tools/utils'
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
-import type { ProcessLaunchDecision, ProcessOpenWorkDecision } from 'thefactory-tools/types'
+import type {
+  ProcessIntegrationMode,
+  ProcessLaunchDecision,
+  ProcessOpenWorkDecision,
+} from 'thefactory-tools/types'
 import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
 
@@ -357,9 +361,10 @@ const OPEN_WORK_STATES = ['running', 'parked', 'awaiting-sign-off', 'unmerged'] 
 
 /**
  * The choices an approval's metadata carries that only the person makes — how
- * to start a story over its open work, and how its features are worked — or
- * `undefined` when it carries neither. What an API chat's resume sends for the
- * tool call it was made on; a CLI decision carries the metadata itself.
+ * to start a story over its open work, how its features are worked, and how a
+ * group launch merges each prerequisite — or `undefined` when it carries none.
+ * What an API chat's resume sends for the tool call it was made on; a CLI
+ * decision carries the metadata itself.
  */
 export function launchDecisionOf(
   metadata: Record<string, unknown> | undefined,
@@ -369,8 +374,26 @@ export function launchDecisionOf(
     typeof metadata?.featureProcessId === 'string' && metadata.featureProcessId.trim()
       ? metadata.featureProcessId.trim()
       : undefined
-  if (!openWork && !featureProcessId) return undefined
-  return { ...(openWork ? { openWork } : {}), ...(featureProcessId ? { featureProcessId } : {}) }
+  const legIntegrationModes = legIntegrationModesOf(metadata)
+  if (!openWork && !featureProcessId && !legIntegrationModes) return undefined
+  return {
+    ...(openWork ? { openWork } : {}),
+    ...(featureProcessId ? { featureProcessId } : {}),
+    ...(legIntegrationModes ? { legIntegrationModes } : {}),
+  }
+}
+
+function legIntegrationModesOf(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, ProcessIntegrationMode> | undefined {
+  const raw = metadata?.legIntegrationModes
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
+  const modes = Object.fromEntries(
+    Object.entries(raw).filter(([, mode]) =>
+      PROCESS_INTEGRATION_MODES.includes(mode as ProcessIntegrationMode),
+    ),
+  ) as Record<string, ProcessIntegrationMode>
+  return Object.keys(modes).length > 0 ? modes : undefined
 }
 
 function openWorkDecisionOf(

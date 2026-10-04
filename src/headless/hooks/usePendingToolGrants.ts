@@ -4,7 +4,7 @@ import type { ProcessLaunchDecision } from 'thefactory-tools/types'
 import {
   cancelCliAgentAction,
   decideCliAgentAction,
-  listCliAgentRuns,
+  listCliAgentRunSummaries,
   listPendingCliAgentActions,
   type ChatContext,
   type ChatContextAgentRunStory,
@@ -137,7 +137,7 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     let cancelled = false
     const discover = async () => {
       try {
-        const { data } = await listCliAgentRuns({
+        const { data } = await listCliAgentRunSummaries({
           query: storyChat
             ? { storyId: storyChat.storyId, status: ACTIVE_CLI_RUN_STATUS }
             : { chatContextId, status: ACTIVE_CLI_RUN_STATUS },

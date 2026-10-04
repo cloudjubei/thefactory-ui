@@ -184,6 +184,47 @@ describe('verificationStatusOf', () => {
 describe('processCheckRows', () => {
   const checkStep = { kind: 'check' as const }
 
+  it('says how many tests a test command ran', () => {
+    const [row] = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({
+            id: 'test',
+            label: 'Unit tests',
+            category: 'test',
+            testCount: { total: 14, passed: 14, failed: 0, skipped: 0 },
+          }),
+        ],
+      }),
+    })
+    expect(row.testCountLabel).toBe('14 tests')
+  })
+
+  it('leaves a run of no test to its summary, which says so', () => {
+    const [row] = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({
+            id: 'test',
+            category: 'test',
+            status: 'skipped',
+            summary: '0 tests ran — the test command found nothing to run',
+            testCount: { total: 0, passed: 0, failed: 0, skipped: 0 },
+          }),
+        ],
+      }),
+    })
+    expect(row.testCountLabel).toBeUndefined()
+    expect(row.summary).toMatch(/^0 tests ran/)
+  })
+
+  it('counts nothing for a check that did not count', () => {
+    const [row] = processCheckRows({ step: checkStep, latest: entry({ checks: [result()] }) })
+    expect(row.testCountLabel).toBeUndefined()
+  })
+
   it('says where each command ran: the sandbox, or the host with the reason', () => {
     const rows = processCheckRows({
       step: checkStep,

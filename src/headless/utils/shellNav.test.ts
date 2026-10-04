@@ -39,8 +39,8 @@ describe('SHELL_TAB_DEFS', () => {
 })
 
 describe('GROUP_TAB_DEFS', () => {
-  it('lists only the three group-scope surfaces', () => {
-    expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual(['home', 'chat', 'tools'])
+  it('lists only the group-scope surfaces', () => {
+    expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual(['home', 'chat', 'tools', 'processes'])
   })
 })
 
@@ -72,6 +72,7 @@ describe('projectTabToGroupTab', () => {
   it('carries shared surfaces across scopes', () => {
     expect(projectTabToGroupTab('chat')).toBe('chat')
     expect(projectTabToGroupTab('tools')).toBe('tools')
+    expect(projectTabToGroupTab('processes')).toBe('processes')
   })
 
   it('falls back to "home" for project-only surfaces', () => {
@@ -85,6 +86,7 @@ describe('groupTabToProjectTab', () => {
   it('carries shared surfaces across scopes', () => {
     expect(groupTabToProjectTab('chat')).toBe('chat')
     expect(groupTabToProjectTab('tools')).toBe('tools')
+    expect(groupTabToProjectTab('processes')).toBe('processes')
   })
 
   it('maps the group landing page to the project landing page', () => {

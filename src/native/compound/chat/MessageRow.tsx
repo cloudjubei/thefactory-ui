@@ -217,6 +217,12 @@ export interface MessageRowProps {
    * pipeline, where their context is.
    */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /**
+   * Render the live state of the group run this message announced
+   * (`msg.processGroupRunId`). A group notice about one project's run carries
+   * that run too, and shows the run — where the ask is answered — instead.
+   */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   /**
    * Fired when the user taps the per-message usage `$` chip. The host
@@ -298,6 +304,7 @@ function MessageRow({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   onShowUsage,
   thinkingLabel,
 }: MessageRowProps) {
@@ -642,6 +649,10 @@ function MessageRow({
         {isAssistant && msg.processRunId && renderProcessRun ? (
           <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
             {renderProcessRun(msg.processRunId)}
+          </View>
+        ) : isAssistant && msg.processGroupRunId && renderProcessGroupRun ? (
+          <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
+            {renderProcessGroupRun(msg.processGroupRunId)}
           </View>
         ) : null}
 

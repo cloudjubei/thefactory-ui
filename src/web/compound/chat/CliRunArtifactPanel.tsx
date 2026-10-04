@@ -33,7 +33,7 @@ import {
   useReviewEvidence,
   useStories,
   verdictSummary,
-  verificationCheckRows,
+  reviewCheckGroups,
   type ApproveActionDescriptor,
   type CheckMethodId,
   type CheckActionHost,
@@ -336,12 +336,9 @@ export default function CliRunArtifactPanel({
   const pairs = useMemo(() => screenPairs(evidenceGroups), [evidenceGroups])
   const recordings = evidence.tiles.filter((t) => t.ref.kind === 'recording')
   const reports = runReports(evidence.tiles)
-  const checkRows = verificationCheckRows(verification)
-  const testChecks = checkRows.filter((c) => c.kind === 'tests')
-  // The Tests badge counts TESTS, not layers — the number comes out of each
-  // layer's own summary line.
-  const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
-  const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
+  const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
+  // The Tests badge counts TESTS, not layers.
+  const testTotals = aggregateTestCounts(testChecks)
 
   // The completion moment: the evidence changes underneath the reader. Say so in
   // a line at the top rather than yanking them anywhere — the chips above may
@@ -396,7 +393,9 @@ export default function CliRunArtifactPanel({
   // (process-owned) runs must still render that review surface, or opening one
   // falls back to the raw transcript instead of the agreed report view.
   const hasReviewContent =
-    verification !== undefined || checkRows.length > 0 || evidence.refs.length > 0
+    verification !== undefined ||
+    testChecks.length + buildChecks.length > 0 ||
+    evidence.refs.length > 0
   if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
 
   const files = artifact?.payload.files ?? []

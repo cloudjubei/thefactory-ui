@@ -408,6 +408,25 @@ describe('cliThinkingTextFromEntry', () => {
 })
 
 describe('normalizeCliTranscript', () => {
+  it('shows a reply once when the CLI nudged the agent into writing it again', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'The reply.' }] } },
+      }),
+      entry({ at: 2, kind: 'other', payload: { type: 'user', isSynthetic: true } }),
+      entry({
+        at: 3,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'text', text: 'The reply, again.' }] } },
+      }),
+    ])
+    expect(steps.filter((s) => s.kind === 'assistant')).toEqual([
+      expect.objectContaining({ text: 'The reply.' }),
+    ])
+  })
+
   it('coalesces consecutive assistant deltas (streaming CLIs) into one growing message', () => {
     const steps = normalizeCliTranscript([
       entry({

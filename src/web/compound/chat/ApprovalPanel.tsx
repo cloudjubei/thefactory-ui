@@ -21,6 +21,7 @@ import {
   featureProcessMetadata,
   featuresToWork,
   isGitSetupGrant,
+  isStartGroupWorkGrant,
   proposalFeatureProcessId,
   processOpenWorkMetadata,
   useProcessProposal,
@@ -34,6 +35,7 @@ import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
+import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -45,6 +47,8 @@ export type ApprovalPanelProps = {
    * the dock falls back to the plain feature list.
    */
   projectId?: string
+  /** The chat's group, for a launch across the group's projects. */
+  groupId?: string
   /**
    * The app's own model chip, wired to THIS chat. Rendered in place of the
    * static executor label so the model can be picked before the run starts —
@@ -96,6 +100,16 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
 export default function ApprovalPanel(props: ApprovalPanelProps) {
   // Putting a project on GitHub names an account, a repository and a
   // visibility the user must see and may change — it has its own card.
+  if (isStartGroupWorkGrant(props.grant)) {
+    return (
+      <GroupWorkLaunchPanel
+        grant={props.grant}
+        {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
+        {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
+        onDecideLater={props.onDecideLater}
+      />
+    )
+  }
   return isGitSetupGrant(props.grant) ? (
     <GitSetupApprovalPanel
       grant={props.grant}

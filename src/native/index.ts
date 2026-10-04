@@ -76,6 +76,22 @@ export {
 } from './compound/process/ProcessRunChip'
 export { default as ProcessesView } from './screens/ProcessesView'
 export { default as ProcessRunsView, type ProcessRunsViewProps } from './screens/ProcessRunsView'
+export {
+  default as ProcessGroupRunsView,
+  type ProcessGroupRunsViewProps,
+} from './screens/ProcessGroupRunsView'
+export {
+  default as ProcessGroupPipeline,
+  type ProcessGroupPipelineProps,
+} from './compound/process/ProcessGroupPipeline'
+export {
+  default as ProcessGroupRunChip,
+  type ProcessGroupRunChipProps,
+} from './compound/process/ProcessGroupRunChip'
+export {
+  default as ProcessGroupSignoffReview,
+  type ProcessGroupSignoffReviewProps,
+} from './compound/process/ProcessGroupSignoffReview'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {

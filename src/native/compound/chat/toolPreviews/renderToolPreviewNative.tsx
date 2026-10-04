@@ -7,6 +7,7 @@ import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
 import { nativeFontFamilies, nativeSpace } from '../../../../tokens/native'
+import { red } from '../../../../tokens/colors'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Code from '../../Code'
 import {
@@ -64,6 +65,8 @@ export type ToolPreviewHooks = {
    * every choice is made where its context is, which is the pipeline.
    */
   renderProcessRunLink?: (args: { processRunId: string }) => ReactNode
+  /** Render the LIVE state of the group run `startGroupWork` launched, and the way into it. */
+  renderProcessGroupRunLink?: (args: { groupRunId: string }) => ReactNode
 }
 
 export type RenderToolPreviewArgs = {
@@ -109,6 +112,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeFile',
   'updateStory',
   'startFeatureWork',
+  'startGroupWork',
   'updateFeature',
   'addStory',
   'addFeature',
@@ -694,6 +698,45 @@ export function renderToolPreviewNative({
         {errorText ? <SecondaryText>{errorText}</SecondaryText> : null}
         {hooks?.renderProcessRunLink && processRunId
           ? hooks.renderProcessRunLink({ processRunId })
+          : null}
+      </View>
+    )
+  }
+
+  // ---- work across a group's projects (each project's story + live group run) ----
+  if (name === 'startGroupWork') {
+    const legs = extract(args, ['legs'])
+    const legLines = Array.isArray(legs)
+      ? legs.flatMap((leg) => {
+          const projectId = tryString(extract(leg, ['projectId']))
+          if (!projectId) return []
+          const deps = extract(leg, ['dependsOn'])
+          const after = Array.isArray(deps)
+            ? deps.filter((d): d is string => typeof d === 'string')
+            : []
+          return [after.length > 0 ? `${projectId} (after ${after.join(', ')})` : projectId]
+        })
+      : []
+    const note = tryString(extract(args, ['note']))
+    const groupRunId = tryString(extract(result, ['processGroupRunId']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <View style={{ gap: 8 }}>
+        {legLines.length > 0 ? (
+          <View>
+            <SectionTitle>Projects</SectionTitle>
+            <SecondaryText>{legLines.join(' · ')}</SecondaryText>
+          </View>
+        ) : null}
+        {note ? (
+          <View>
+            <SectionTitle>Note to the agents</SectionTitle>
+            <SecondaryText>{note}</SecondaryText>
+          </View>
+        ) : null}
+        {errorText ? <Text style={{ fontSize: 11, color: red[500] }}>{errorText}</Text> : null}
+        {hooks?.renderProcessGroupRunLink && groupRunId
+          ? hooks.renderProcessGroupRunLink({ groupRunId })
           : null}
       </View>
     )

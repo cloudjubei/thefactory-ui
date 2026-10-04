@@ -23,6 +23,7 @@ import {
   isResumeParkChoice,
   latestOpenableAttempt,
   parkNoteRequired,
+  PROCESS_GROUP_HELD_SIGN_OFF,
   processAmendmentView,
   processAttemptLeaf,
   processLeafReview,
@@ -93,6 +94,8 @@ export type ProcessPipelineProps = {
    * person handed it to another agent. The host owns chat navigation.
    */
   onOpenChat?: (context: ChatContext) => void
+  /** Open the group run a project's run is a leg of — where it is signed off. */
+  onOpenGroupRun?: (groupRunId: string) => void
   /**
    * Whether this pipeline's screen is the one on top. The system back button is
    * only claimed while it is — a chat pushed over the pipeline must get its own
@@ -114,6 +117,7 @@ export default function ProcessPipeline({
   renderAgentRun,
   onSaveFile,
   onOpenChat,
+  onOpenGroupRun,
   isFocused = true,
 }: ProcessPipelineProps) {
   const { theme, status } = useNativeTheme()
@@ -269,6 +273,33 @@ export default function ProcessPipeline({
         onCancel={() => void cancel()}
         onDelete={openDelete}
       />
+      {run.groupRunId && stack.length === 0 ? (
+        <View
+          style={{
+            marginHorizontal: nativeSpace[3],
+            marginTop: nativeSpace[3],
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: nativeSpace[2],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            borderRadius: nativeRadii[2],
+            backgroundColor: theme.surface.base,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ flex: 1, minWidth: 0, fontSize: 12, color: theme.text.secondary }}>
+            {PROCESS_GROUP_HELD_SIGN_OFF}
+          </Text>
+          {onOpenGroupRun ? (
+            <Button size="sm" variant="secondary" onPress={() => onOpenGroupRun(run.groupRunId!)}>
+              Open the group run
+            </Button>
+          ) : null}
+        </View>
+      ) : null}
       {actionError ? (
         <View
           accessibilityRole="alert"

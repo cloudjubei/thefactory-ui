@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProcessRun } from 'thefactory-tools/types'
 import { censusFeatures, incompleteStoryReason } from 'thefactory-tools/utils'
 
-import type { CliRun, ProjectChecksListing, ReviewEvidenceRef } from '../api/generated'
-import { listCliAgentRuns, listProcessRuns, useApi, useAuth } from '../api'
+import type { ProjectChecksListing, ReviewEvidenceRef } from '../api/generated'
+import { listCliAgentRunSummaries, listProcessRuns, useApi, useAuth } from '../api'
 import { useStories } from '../contexts/StoriesContext'
+import type { StorySignoffSources } from '../utils/processViewCacheTypes'
+import { storySignoffSourceCache } from './processViewCache'
 import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
 import { buildStorySignoff, signoffLoadStatus } from '../utils/storySignoff'
 import type {
@@ -13,6 +15,9 @@ import type {
   StorySignoff,
 } from '../utils/storySignoffTypes'
 import type { EvidenceLoadState } from '../utils/verifyProofTypes'
+
+const EMPTY_PROCESS_RUNS: ProcessRun[] = []
+const EMPTY_CLI_RUNS: StorySignoffSources['cliRuns'] = []
 
 export type UseStorySignoff = {
   /**
@@ -26,13 +31,22 @@ export type UseStorySignoff = {
   refresh: () => Promise<void>
 }
 
+/** The sources this instance holds, for the `projectId|storyId` they were read for. */
+type HeldSources = StorySignoffSources & { key: string }
+
+function cachedSources(key: string): HeldSources | undefined {
+  const cached = storySignoffSourceCache.get(key)
+  return cached ? { key, ...cached } : undefined
+}
+
 /**
  * The story's sign-off, kept live.
  *
  * A story's per-feature verification cannot be read in one shot — no endpoint
  * aggregates it — but it can be JOINED from two list calls: every process run
- * (which carries the feature↔run attribution) and every CLI run (which carries
- * each run's verification/verdict/cost). The join + the aggregate verdict are
+ * (which carries the feature↔run attribution) and every CLI run's SUMMARY
+ * (which carries each run's verification/verdict/cost, without the transcript
+ * and artifact contents that made the full listing hundreds of MB). The join + the aggregate verdict are
  * pure ({@link buildStorySignoff}); this hook only feeds it what those endpoints
  * returned, plus the evidence the caller already loaded and the story's own
  * feature list (for titles and the "unfinished" reason).
@@ -57,6 +71,9 @@ export type UseStorySignoff = {
  * `projectChecks` is the project's checks scan (`useProjectChecks`), passed in
  * like the evidence: waited for, so a chip never flips under a drawn verdict,
  * but never fatal — without it the chips read as they always have.
+ *
+ * What it last joined from outlives the view (`processViewCache`): reopening a
+ * sign-off draws from that at once and re-reads behind it.
  */
 export function useStorySignoff(
   projectId: string | undefined,
@@ -69,21 +86,20 @@ export function useStorySignoff(
   const { token } = useAuth()
   const { ws } = useApi()
   const { getStory, isLoaded: storiesLoaded, loadError: storiesError } = useStories()
-  const [processRuns, setProcessRuns] = useState<ProcessRun[]>([])
-  const [cliRuns, setCliRuns] = useState<CliRun[]>([])
-  const [loading, setLoading] = useState(false)
-  const [loadedKey, setLoadedKey] = useState<string | undefined>()
-  const [failure, setFailure] = useState<{ key: string; message: string } | undefined>()
   const key = `${projectId ?? ''}|${storyId ?? ''}`
+  const [held, setHeld] = useState<HeldSources | undefined>(() => cachedSources(key))
+  const [loading, setLoading] = useState(false)
+  const [failure, setFailure] = useState<{ key: string; message: string } | undefined>()
   const keyRef = useRef(key)
   keyRef.current = key
+  const sources = held?.key === key ? held : cachedSources(key)
+  const processRuns = sources?.processRuns ?? EMPTY_PROCESS_RUNS
+  const cliRuns = sources?.cliRuns ?? EMPTY_CLI_RUNS
 
   const refresh = useCallback(async () => {
     const requestKey = `${projectId ?? ''}|${storyId ?? ''}`
     if (!projectId || !storyId) {
-      setProcessRuns([])
-      setCliRuns([])
-      setLoadedKey(requestKey)
+      setHeld({ key: requestKey, processRuns: [], cliRuns: [] })
       return
     }
     setLoading(true)
@@ -93,12 +109,15 @@ export function useStorySignoff(
       // `featureId`, so the attribution comes from them, not the root run.
       const [proc, cli] = await Promise.all([
         listProcessRuns({ query: { projectId, storyId }, throwOnError: true }),
-        listCliAgentRuns({ query: { projectId, storyId }, throwOnError: true }),
+        listCliAgentRunSummaries({ query: { projectId, storyId }, throwOnError: true }),
       ])
+      const read: StorySignoffSources = {
+        processRuns: (proc.data as ProcessRun[] | undefined) ?? [],
+        cliRuns: cli.data ?? [],
+      }
+      storySignoffSourceCache.set(requestKey, read)
       if (keyRef.current !== requestKey) return
-      setProcessRuns((proc.data as ProcessRun[] | undefined) ?? [])
-      setCliRuns((cli.data as CliRun[] | undefined) ?? [])
-      setLoadedKey(requestKey)
+      setHeld({ key: requestKey, ...read })
     } catch (err) {
       if (keyRef.current !== requestKey) return
       setFailure({ key: requestKey, message: err instanceof Error ? err.message : String(err) })
@@ -139,7 +158,7 @@ export function useStorySignoff(
 
   const error = failure?.key === key ? failure.message : undefined
   const runsState: SignoffSourceState =
-    loadedKey === key ? 'loaded' : error !== undefined ? 'failed' : 'loading'
+    sources !== undefined ? 'loaded' : error !== undefined ? 'failed' : 'loading'
   const storiesState: SignoffSourceState = storiesLoaded
     ? 'loaded'
     : storiesError

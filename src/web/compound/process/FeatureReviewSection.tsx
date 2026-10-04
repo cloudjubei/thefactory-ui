@@ -6,7 +6,7 @@ import {
   reviewTabOrder,
   reviewTabs,
   screenPairFileStem,
-  verificationCheckRows,
+  reviewCheckGroups,
   type CheckMethodId,
   type CheckMethodRow,
   type DeveloperChecksNote,
@@ -248,10 +248,8 @@ export default function FeatureReviewSection({
 }: FeatureReviewSectionProps) {
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
-  const checkRows = verificationCheckRows(verification)
-  const testChecks = checkRows.filter((c) => c.kind === 'tests')
-  const buildChecks = checkRows.filter((c) => c.kind !== 'tests')
-  const testTotals = aggregateTestCounts(testChecks.map((c) => c.summary))
+  const { tests: testChecks, build: buildChecks } = reviewCheckGroups(verification)
+  const testTotals = aggregateTestCounts(testChecks)
 
   const tabs = reviewTabs({
     screens: proof ? proof.screens.length : pairs.length,

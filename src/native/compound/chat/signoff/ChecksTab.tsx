@@ -7,6 +7,8 @@ import {
   checkActionOffer,
   handoffRequest,
   parseTestFailures,
+  reviewCheckMeta,
+  testTotalsHeadline,
   type TestFailure,
   type CheckActionHost,
   type CheckMethodId,
@@ -141,6 +143,7 @@ function CheckBlock({
   row,
   title,
   command,
+  meta,
   failed,
   summary,
   durationLabel,
@@ -153,6 +156,8 @@ function CheckBlock({
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
+  /** The variant it ran on, the tests it counted, where it ran. */
+  meta: string | undefined
   failed: boolean
   summary: string
   durationLabel: string | undefined
@@ -190,6 +195,8 @@ function CheckBlock({
       {command && summary ? (
         <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{summary}</Text>
       ) : null}
+
+      {meta ? <Text style={{ fontSize: 11, color: theme.text.muted }}>{meta}</Text> : null}
 
       {failures.length > 0 ? (
         <View style={{ gap: 6 }}>
@@ -287,13 +294,19 @@ export default function ChecksTab({
   }
   const testsRow = methods.length === 1 && methods[0]?.id === 'tests' ? methods[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
-  const totals = testsRow ? aggregateTestCounts(layers.map((l) => l.summary)) : undefined
+  const totals = testsRow ? aggregateTestCounts(layers) : undefined
   const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
-  const agg = anyFailed ? status.stuck : status.done
+  const headline = totals ? testTotalsHeadline(totals, anyFailed) : undefined
+  const agg =
+    headline?.outcome === 'failed'
+      ? status.stuck
+      : headline?.outcome === 'none'
+        ? status.review
+        : status.done
 
   return (
     <View style={{ gap: 8 }}>
-      {totals ? (
+      {totals && headline ? (
         <View
           style={{
             flexDirection: 'row',
@@ -309,7 +322,7 @@ export default function ChecksTab({
           }}
         >
           <Text style={{ fontSize: 12, fontWeight: '600', color: agg.softFg }}>
-            {anyFailed ? 'Test run completed with failures' : 'All configured layers passed'}
+            {headline.title}
           </Text>
           <View style={{ flex: 1 }} />
           <Text style={{ fontSize: 12, color: agg.softFg }}>{`✓ ${totals.passed}`}</Text>
@@ -333,7 +346,8 @@ export default function ChecksTab({
                   {layer.label}
                 </Text>
               }
-              command={undefined}
+              command={layer.command}
+              meta={reviewCheckMeta(layer)}
               failed={layer.status !== 'passed' && layer.status !== 'skipped'}
               summary={layer.summary}
               durationLabel={layer.durationLabel}
@@ -351,7 +365,8 @@ export default function ChecksTab({
                 key={row.id}
                 row={row}
                 title={<CheckChip row={row} inert />}
-                command={mine.length === 1 ? mine[0].label : undefined}
+                command={mine.length === 1 ? (mine[0].command ?? mine[0].label) : undefined}
+                meta={mine.length === 1 ? reviewCheckMeta(mine[0]) : undefined}
                 failed={row.state === 'failed'}
                 summary={row.detail}
                 durationLabel={row.durationLabel}

@@ -16,6 +16,8 @@ import {
   reviewActionMode,
   reviewChangeCounts,
   runReviewFacts,
+  reviewCheckGroups,
+  reviewCheckMeta,
   verdictSummary,
   verificationCheckRows,
   formatChangeRequestMessage,
@@ -116,6 +118,67 @@ describe('verificationCheckRows', () => {
     expect(rows[1]).toMatchObject({ tone: 'neutral', details: undefined, optional: true })
     expect(rows[2]).toMatchObject({ tone: 'positive', durationLabel: '500ms', details: undefined })
   })
+
+  it('carries what a command check ran, on which variant, where, and how many tests', () => {
+    const [row] = verificationCheckRows(
+      verification({
+        checks: [
+          check({
+            id: 'test',
+            label: 'Unit tests',
+            kind: 'command',
+            category: 'test',
+            command: ' ./gradlew testDebugUnitTest ',
+            variant: 'debug',
+            ranIn: 'host',
+            hostReason: 'No sandbox image has the Android SDK.',
+            testCount: { total: 14, passed: 14, failed: 0, skipped: 0 },
+          }),
+        ],
+      }),
+    )
+    expect(row).toMatchObject({
+      method: 'tests',
+      command: './gradlew testDebugUnitTest',
+      variant: 'debug',
+      ranInDetail: 'Ran on the host — No sandbox image has the Android SDK.',
+      testCount: { total: 14 },
+      testCountLabel: '14 tests',
+    })
+  })
+
+  it('leaves a check that said none of that without it', () => {
+    const [row] = verificationCheckRows(verification())
+    expect(row).toMatchObject({
+      method: 'types',
+      command: undefined,
+      variant: undefined,
+      ranInDetail: undefined,
+      testCount: undefined,
+      testCountLabel: undefined,
+    })
+  })
+})
+
+describe('reviewCheckGroups', () => {
+  it('puts a project’s unit-test command under Tests, with the tests checks, and the rest under Build', () => {
+    const groups = reviewCheckGroups(
+      verification({
+        checks: [
+          check({ id: 'build', label: 'Build', kind: 'command', category: 'build' }),
+          check({ id: 'test', label: 'Unit tests', kind: 'command', category: 'test' }),
+          check({ id: 'unit', label: 'Unit', kind: 'tests' }),
+          check({ id: 'typecheck' }),
+        ],
+      }),
+    )
+    expect(groups.tests.map((r) => r.id)).toEqual(['test', 'unit'])
+    expect(groups.build.map((r) => r.id)).toEqual(['build', 'typecheck'])
+  })
+
+  it('is empty without a verification', () => {
+    expect(reviewCheckGroups(undefined)).toEqual({ tests: [], build: [] })
+  })
 })
 
 describe('verdictSummary', () => {
@@ -158,6 +221,9 @@ describe('landFailureSummary', () => {
     )
     expect(landFailureSummary({ ...base, reason: 'commit-failed' }).message).toBe(
       'the review commit could not be created',
+    )
+    expect(landFailureSummary({ ...base, reason: 'changes-not-applied' }).message).toBe(
+      'part of the run’s change could not be applied, so none of it was landed',
     )
     expect(landFailureSummary({ ...base, reason: 'error' }).message).toBe(
       'the review branch could not be created',
@@ -393,5 +459,33 @@ describe('viewedFilesProgress', () => {
     expect(viewedFilesProgress(['src/a.ts'], viewed, 'h1').all).toBe(true)
     expect(viewedFilesProgress([], viewed, 'h1').all).toBe(false)
     expect(viewedFilesProgress(['src/a.ts'], undefined, undefined).count).toBe(0)
+  })
+})
+
+describe('reviewCheckMeta', () => {
+  it('names the variant, the test count and where it ran, in that order', () => {
+    expect(
+      reviewCheckMeta({
+        variant: 'debug',
+        testCountLabel: '14 tests',
+        ranInDetail: 'Ran on the host — no sandbox.',
+      }),
+    ).toBe('Variant debug · 14 tests · Ran on the host — no sandbox.')
+  })
+
+  it('leaves out what the check did not say', () => {
+    expect(
+      reviewCheckMeta({
+        variant: undefined,
+        testCountLabel: '0 tests ran',
+        ranInDetail: undefined,
+      }),
+    ).toBe('0 tests ran')
+  })
+
+  it('is undefined when the check said none of it', () => {
+    expect(
+      reviewCheckMeta({ variant: undefined, testCountLabel: undefined, ranInDetail: undefined }),
+    ).toBeUndefined()
   })
 })

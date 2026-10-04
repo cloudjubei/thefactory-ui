@@ -73,6 +73,8 @@ export type ToolPreviewHooks = {
    * decision is how two surfaces drift apart.
    */
   renderProcessRunLink?: (args: { processRunId: string }) => ReactNode
+  /** Render the LIVE state of the group run `startGroupWork` launched, and the way into it. */
+  renderProcessGroupRunLink?: (args: { groupRunId: string }) => ReactNode
   /** Render a story-and-feature callout (used for `completeAssignment` /
    * `blockFeature`). Host wires its own component. */
   renderStoryAndFeatureCallout?: (args: { storyId?: string; featureId?: string }) => ReactNode
@@ -154,6 +156,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'writeFile',
   'updateStory',
   'startFeatureWork',
+  'startGroupWork',
   'mobileTestDoctor',
   'mobileTestBuildApp',
   'mobileTestBootDevice',
@@ -645,6 +648,47 @@ export function renderToolPreview({
         {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
         {hooks?.renderProcessRunLink && processRunId
           ? hooks.renderProcessRunLink({ processRunId })
+          : null}
+      </div>
+    )
+  }
+
+  // ---- work across a group's projects (each project's story + live group run) ----
+  if (name === 'startGroupWork') {
+    const legs = extract(args, ['legs'])
+    const legLines = Array.isArray(legs)
+      ? legs.flatMap((leg) => {
+          const projectId = tryString(extract(leg, ['projectId']))
+          if (!projectId) return []
+          const deps = extract(leg, ['dependsOn'])
+          const after = Array.isArray(deps)
+            ? deps.filter((d): d is string => typeof d === 'string')
+            : []
+          return [after.length > 0 ? `${projectId} (after ${after.join(', ')})` : projectId]
+        })
+      : []
+    const note = tryString(extract(args, ['note']))
+    const groupRunId = tryString(extract(result, ['processGroupRunId']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <div className="text-xs space-y-2">
+        {legLines.length > 0 ? (
+          <div>
+            <SectionTitle>Projects</SectionTitle>
+            <div className="text-[11px] text-(--text-secondary)">{legLines.join(' · ')}</div>
+          </div>
+        ) : null}
+        {note ? (
+          <div>
+            <SectionTitle>Note to the agents</SectionTitle>
+            <div className="whitespace-pre-wrap break-words text-[11px] text-(--text-secondary)">
+              {note}
+            </div>
+          </div>
+        ) : null}
+        {errorText ? <div className="text-[11px] text-red-500">{errorText}</div> : null}
+        {hooks?.renderProcessGroupRunLink && groupRunId
+          ? hooks.renderProcessGroupRunLink({ groupRunId })
           : null}
       </div>
     )

@@ -176,6 +176,12 @@ export type MessageRowProps = {
    * surfaces drift apart.
    */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /**
+   * Render the live state of the group run this message announced
+   * (`msg.processGroupRunId`). A group notice about one project's run carries
+   * that run too, and shows the run — where the ask is answered — instead.
+   */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
@@ -223,6 +229,7 @@ function MessageRow({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -525,6 +532,8 @@ function MessageRow({
               started" and what the work is now DOING read as one thing. */}
           {isAssistant && msg.processRunId && renderProcessRun ? (
             <div className="mt-1.5 w-full">{renderProcessRun(msg.processRunId)}</div>
+          ) : isAssistant && msg.processGroupRunId && renderProcessGroupRun ? (
+            <div className="mt-1.5 w-full">{renderProcessGroupRun(msg.processGroupRunId)}</div>
           ) : null}
 
           {isTool && msg.toolCall && toolRowOverride ? (

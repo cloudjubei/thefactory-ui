@@ -138,6 +138,8 @@ export interface MessageListProps {
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /** Forwarded to each row: the live group run an announcement launched. */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   /** Forwards to `MessageRow.onShowUsage`. */
   onShowUsage?: (msg: ChatMessageLike) => void
@@ -180,6 +182,7 @@ export default function MessageList({
   renderDependency,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   onShowUsage,
   emptyStateContent,
   thinkingLabel,
@@ -451,6 +454,7 @@ export default function MessageList({
                   renderDependency={renderDependency}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
+                  renderProcessGroupRun={renderProcessGroupRun}
                   onShowUsage={onShowUsage}
                   coldStart={msg.cliRunId === firstCliRunId}
                   storedReply={msg.content}
@@ -494,6 +498,7 @@ export default function MessageList({
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
+                  renderProcessGroupRun={renderProcessGroupRun}
                   onShowUsage={onShowUsage}
                   thinkingLabel={perMsgThinking}
                 />
@@ -545,6 +550,7 @@ export default function MessageList({
               renderDependency={renderDependency}
               renderCliRunArtifact={renderCliRunArtifact}
               renderProcessRun={renderProcessRun}
+              renderProcessGroupRun={renderProcessGroupRun}
               onShowUsage={onShowUsage}
               coldStart={firstCliRunId === undefined || firstCliRunId === pendingCliRunId}
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}

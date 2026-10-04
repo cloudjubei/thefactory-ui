@@ -55,7 +55,7 @@ import ProcessCheckList from './ProcessCheckList'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import VerificationReview from './VerificationReview'
-import type { ProcessRunBranch } from '../../../headless'
+import { PROCESS_GROUP_HELD_SIGN_OFF, type ProcessRunBranch } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 
 export type ProcessPipelineProps = {
@@ -81,6 +81,8 @@ export type ProcessPipelineProps = {
    * person handed it to another agent. The host owns chat navigation.
    */
   onOpenChat?: (context: ChatContext) => void
+  /** Open the group run a project's run is a leg of — where it is signed off. */
+  onOpenGroupRun?: (groupRunId: string) => void
 }
 
 /**
@@ -102,6 +104,7 @@ export default function ProcessPipeline({
   onOpenAgentRun,
   renderAgentRun,
   onOpenChat,
+  onOpenGroupRun,
 }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
   const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
@@ -238,6 +241,17 @@ export default function ProcessPipeline({
         onCancel={() => void cancel()}
         onDelete={openDelete}
       />
+
+      {run.groupRunId && stack.length === 0 ? (
+        <div className="mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2 text-[12px] text-(--text-secondary)">
+          <span className="min-w-0 flex-1">{PROCESS_GROUP_HELD_SIGN_OFF}</span>
+          {onOpenGroupRun ? (
+            <Button size="sm" variant="secondary" onClick={() => onOpenGroupRun(run.groupRunId!)}>
+              Open the group run
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {actionError ? (
         <div

@@ -36,6 +36,8 @@ export type ProcessRunsViewProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open a chat by its context — where a waiting agent's ask was handed. Threaded to the pipeline. */
   onOpenChat?: (context: ChatContext) => void
+  /** Open the group run a selected run is a leg of. Threaded to the pipeline. */
+  onOpenGroupRun?: (groupRunId: string) => void
   /**
    * Collapse to one pane at a time (small screens): the list, or the detail when
    * a run is selected. A big-screen host omits it and keeps both panes.
@@ -60,6 +62,7 @@ export default function ProcessRunsView({
   onOpenAgentRun,
   renderAgentRun,
   onOpenChat,
+  onOpenGroupRun,
   narrow = false,
 }: ProcessRunsViewProps) {
   const { isLoaded, current, history } = useProcessRuns(projectId)
@@ -145,6 +148,7 @@ export default function ProcessRunsView({
         {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
         {...(renderAgentRun ? { renderAgentRun } : {})}
         {...(onOpenChat ? { onOpenChat } : {})}
+        {...(onOpenGroupRun ? { onOpenGroupRun } : {})}
       />
     </div>
   ) : (

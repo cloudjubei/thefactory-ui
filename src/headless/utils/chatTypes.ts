@@ -130,6 +130,8 @@ export type ChatMessageLike = {
    * only place the run reaches the chat, and it is what the row's live process chip reads.
    */
   processRunId?: string
+  /** Set on a message announcing a group run — the id of that group run. */
+  processGroupRunId?: string
   /**
    * Set on a user-role turn authored by ANOTHER AGENT handing work back (e.g. the verifier
    * returning its report to the developer). Names the handing-off agent. The row still sits on

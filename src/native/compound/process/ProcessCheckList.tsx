@@ -33,6 +33,7 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
             accessibilityLabel={[
               row.label,
               row.word,
+              row.testCountLabel,
               row.advisory ? PROCESS_CHECK_ADVISORY_LABEL : undefined,
               row.ranInDetail,
               row.durationLabel,
@@ -50,6 +51,11 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
               {row.label}
             </Text>
             <Text style={{ fontSize: 12, color: fg }}>{row.word}</Text>
+            {row.testCountLabel ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {`— ${row.testCountLabel}`}
+              </Text>
+            ) : null}
             {row.advisory ? (
               <View
                 style={{

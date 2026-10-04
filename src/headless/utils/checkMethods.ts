@@ -479,7 +479,7 @@ export function checkMethodRows(input: {
             : absentRunState(id, verification)
       available = state === 'unchecked' && commands.length > 0 ? { commands } : undefined
       detail =
-        matched.length > 0 && state !== 'unchecked'
+        matched.length > 0
           ? checksDetail(id, state, matched)
           : available
             ? availableDetail(available.commands, scanned?.lastRuns.get(id), input.now)

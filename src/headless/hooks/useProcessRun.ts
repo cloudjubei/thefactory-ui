@@ -14,6 +14,7 @@ import {
   retryProcessRunIntegration,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
+import { cachedProcessRun, processRunCache } from './processViewCache'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -57,6 +58,14 @@ export type UseProcessRun = {
   deleteRun: (opts?: { deleteBranches?: boolean }) => Promise<DeleteProcessRunResult | undefined>
 }
 
+/** The run this instance holds, for the id it was read for. */
+type HeldRun = { runId: string | undefined; run: ProcessRun | undefined; settled: boolean }
+
+function cachedHeldRun(runId: string | undefined): HeldRun {
+  const run = cachedProcessRun(runId)
+  return { runId, run, settled: runId === undefined || run !== undefined }
+}
+
 /**
  * One process run, kept live.
  *
@@ -64,21 +73,34 @@ export type UseProcessRun = {
  * moves without re-fetching — a pipeline that re-fetched per step would flicker
  * through a loading state on every node, which is most of what the user is
  * watching.
+ *
+ * Opening a run it has read before — or one a Processes list holds — paints
+ * that record at once from `processViewCache`, and re-reads it behind.
  */
 export function useProcessRun(runId: string | undefined): UseProcessRun {
   const { token } = useAuth()
   const { ws } = useApi()
-  const [run, setRun] = useState<ProcessRun | undefined>(undefined)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [held, setHeld] = useState<HeldRun>(() => cachedHeldRun(runId))
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const current = held.runId === runId ? held : cachedHeldRun(runId)
+  const run = current.run
+  const isLoaded = current.settled
+
+  const setRun = useCallback(
+    (next: ProcessRun) => setHeld({ runId, run: next, settled: true }),
+    [runId],
+  )
+
+  useEffect(() => {
+    if (held.runId && held.run) processRunCache.set(held.runId, held.run)
+  }, [held])
 
   useEffect(() => setActionError(null), [runId])
 
   const refresh = useCallback(async () => {
     if (!runId) {
-      setRun(undefined)
-      setIsLoaded(true)
+      setHeld({ runId, run: undefined, settled: true })
       return
     }
     try {
@@ -87,10 +109,13 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
-      setIsLoaded(true)
+      setHeld((prev) =>
+        prev.runId === runId
+          ? { ...prev, settled: true }
+          : { ...cachedHeldRun(runId), settled: true },
+      )
     }
-  }, [runId])
+  }, [runId, setRun])
 
   useEffect(() => {
     if (!token) return
@@ -103,7 +128,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       const update = data as { runId?: string; run?: ProcessRun }
       if (update?.runId === runId && update.run) setRun(update.run)
     })
-  }, [ws, runId])
+  }, [ws, runId, setRun])
 
   const resume = useCallback(
     async (choice: ProcessResumeChoice, note?: string, integration?: ProcessIntegrationMode) => {
@@ -120,7 +145,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         setActionError(extractErrorMessage(err, 'The run could not be answered.'))
       }
     },
-    [runId],
+    [runId, setRun],
   )
 
   const retryIntegration = useCallback(
@@ -133,7 +158,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       })
       setRun(data as ProcessRun)
     },
-    [runId],
+    [runId, setRun],
   )
 
   const delegate = useCallback(async (): Promise<ProcessRunDelegation | undefined> => {
@@ -152,7 +177,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       setActionError(extractErrorMessage(err, 'The ask could not be handed on.'))
       return undefined
     }
-  }, [runId])
+  }, [runId, setRun])
 
   const cancel = useCallback(async () => {
     if (!runId) return
@@ -163,7 +188,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     } catch (err) {
       setActionError(extractErrorMessage(err, 'The run could not be stopped.'))
     }
-  }, [runId])
+  }, [runId, setRun])
 
   const listBranches = useCallback(async (): Promise<ProcessRunBranch[]> => {
     if (!runId) return []
@@ -179,6 +204,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         body: { ...(opts?.deleteBranches ? { deleteBranches: true } : {}) },
         throwOnError: true,
       })
+      processRunCache.delete(runId)
       return data as DeleteProcessRunResult | undefined
     },
     [runId],

@@ -32,6 +32,7 @@ import type {
   ProcessCheckRow,
   ProcessChecksResult,
 } from './processChecksViewTypes'
+import { checkTestCounts, testCountLabel } from './testCounts'
 import { formatDurationMs } from './time'
 
 type ChecksRun = {
@@ -133,6 +134,7 @@ export function processCheckRows(state: {
     const concluded = check.status === 'passed' || check.status === 'skipped'
     const flagged = advisory && !concluded
     const summary = check.summary.trim()
+    const counts = checkTestCounts(check)
     return {
       id: check.id,
       label: check.label,
@@ -145,6 +147,7 @@ export function processCheckRows(state: {
       durationLabel: check.durationMs > 0 ? formatDurationMs(check.durationMs) : undefined,
       ranInLabel: check.ranIn ? CHECK_RAN_IN_LABELS[check.ranIn] : undefined,
       ranInDetail: checkRanInSentence([check]),
+      testCountLabel: counts && counts.total > 0 ? testCountLabel(counts) : undefined,
     }
   })
 }

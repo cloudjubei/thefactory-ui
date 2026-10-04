@@ -37,6 +37,8 @@ export interface ChatBodyProps {
   /** The chat's project, forwarded to the launch approval so it can resolve the
    * process proposal a user reads before approving. */
   projectId?: string
+  /** The chat's group, forwarded to a launch across the group's projects. */
+  groupId?: string
   /** Caller-rendered header (typically `<ChatHeader />`). When omitted no
    * header section is rendered. */
   header?: ReactNode
@@ -85,6 +87,8 @@ export interface ChatBodyProps {
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to the message list: the live process run an announcement message launched. */
   renderProcessRun?: (processRunId: string) => ReactNode
+  /** Forwarded to the message list: the live group run an announcement launched. */
+  renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
   /** Fired when the user taps the per-message `$` usage chip. Host opens
    *  a `MessageUsageSheet` with the full breakdown. */
@@ -176,7 +180,9 @@ export default function ChatBody({
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
+  renderProcessGroupRun,
   projectId,
+  groupId,
   onShowUsage,
   emptyStateContent,
   grants,
@@ -310,6 +316,7 @@ export default function ChatBody({
           onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
           renderProcessRun={renderProcessRun}
+          renderProcessGroupRun={renderProcessGroupRun}
           onShowUsage={onShowUsage}
           emptyStateContent={emptyStateContent}
           historyLocked={historyLocked}
@@ -418,6 +425,7 @@ export default function ChatBody({
               key={grant.id}
               grant={grant}
               {...(projectId ? { projectId } : {})}
+              {...(groupId ? { groupId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
             />
           ))}

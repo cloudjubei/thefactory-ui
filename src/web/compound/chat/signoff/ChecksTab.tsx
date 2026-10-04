@@ -6,11 +6,14 @@ import {
   checkActionOffer,
   handoffRequest,
   parseTestFailures,
+  reviewCheckMeta,
+  testTotalsHeadline,
   type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
   type ReviewCheckRow,
   type TestFailure,
+  type TestTotalsOutcome,
 } from '../../../../headless'
 import { CheckChip, HandoffButton, RunActionButton } from '../../chips'
 import { DURATION_CHIP_CLASS } from '../ToolCall/StatusIcon'
@@ -62,11 +65,20 @@ function Failure({ path, name, message }: TestFailure) {
   )
 }
 
+const TOTALS_TONE: Record<TestTotalsOutcome, string> = {
+  failed:
+    'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
+  none: 'border-(--status-review-soft-border) bg-(--status-review-soft-bg) text-(--status-review-soft-fg)',
+  passed:
+    'border-(--status-done-soft-border) bg-(--status-done-soft-bg) text-(--status-done-soft-fg)',
+}
+
 /** One block — the same shape for a build method and for a single test layer. */
 function CheckBlock({
   row,
   title,
   command,
+  meta,
   failed,
   summary,
   durationLabel,
@@ -79,6 +91,8 @@ function CheckBlock({
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
+  /** The variant it ran on, the tests it counted, where it ran. */
+  meta: string | undefined
   failed: boolean
   summary: string
   durationLabel: string | undefined
@@ -105,6 +119,8 @@ function CheckBlock({
       {command && summary ? (
         <span className="text-[11.5px] text-(--text-secondary)">{summary}</span>
       ) : null}
+
+      {meta ? <span className="text-[11px] text-(--text-muted)">{meta}</span> : null}
 
       {failures.length > 0 ? (
         <div className="flex flex-col gap-1.5">
@@ -202,22 +218,17 @@ export default function ChecksTab({
 
   const testsRow = methods.length === 1 && methods[0]?.id === 'tests' ? methods[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
-  const totals = testsRow ? aggregateTestCounts(layers.map((l) => l.summary)) : undefined
+  const totals = testsRow ? aggregateTestCounts(layers) : undefined
   const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
+  const headline = totals ? testTotalsHeadline(totals, anyFailed) : undefined
 
   return (
     <div className="flex flex-col gap-2">
-      {totals ? (
+      {totals && headline ? (
         <div
-          className={`flex flex-wrap items-center gap-3 rounded-md border px-2.5 py-1.5 text-[12px] ${
-            anyFailed
-              ? 'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)'
-              : 'border-(--status-done-soft-border) bg-(--status-done-soft-bg) text-(--status-done-soft-fg)'
-          }`}
+          className={`flex flex-wrap items-center gap-3 rounded-md border px-2.5 py-1.5 text-[12px] ${TOTALS_TONE[headline.outcome]}`}
         >
-          <span className="font-semibold">
-            {anyFailed ? 'Test run completed with failures' : 'All configured layers passed'}
-          </span>
+          <span className="font-semibold">{headline.title}</span>
           <span className="flex-1" />
           <span className="tabular-nums">✓ {totals.passed}</span>
           <span className="tabular-nums">✗ {totals.failed}</span>
@@ -238,7 +249,8 @@ export default function ChecksTab({
                   {layer.label}
                 </span>
               }
-              command={undefined}
+              command={layer.command}
+              meta={reviewCheckMeta(layer)}
               failed={layer.status !== 'passed' && layer.status !== 'skipped'}
               summary={layer.summary}
               durationLabel={layer.durationLabel}
@@ -256,7 +268,8 @@ export default function ChecksTab({
                 key={row.id}
                 row={row}
                 title={<CheckChip row={row} inert />}
-                command={mine.length === 1 ? mine[0].label : undefined}
+                command={mine.length === 1 ? (mine[0].command ?? mine[0].label) : undefined}
+                meta={mine.length === 1 ? reviewCheckMeta(mine[0]) : undefined}
                 failed={row.state === 'failed'}
                 summary={row.detail}
                 durationLabel={row.durationLabel}

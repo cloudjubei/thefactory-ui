@@ -293,7 +293,8 @@ describe('isToolAskDecidedOnRow', () => {
     expect(isToolAskDecidedOnRow('addStory')).toBe(true)
   })
 
-  it('leaves a feature-work launch to its own panel', () => {
+  it('leaves a feature-work or group launch to its own panel', () => {
     expect(isToolAskDecidedOnRow('startFeatureWork')).toBe(false)
+    expect(isToolAskDecidedOnRow('startGroupWork')).toBe(false)
   })
 })

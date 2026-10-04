@@ -68,7 +68,7 @@ export function isShellTabKey(v: string | undefined): v is ShellTabKey {
 }
 
 /** Per-group shell surface keys. Map to URL segments `/groups/:id/{key}`. */
-export type GroupTabKey = 'home' | 'chat' | 'tools'
+export type GroupTabKey = 'home' | 'chat' | 'tools' | 'processes'
 
 export type GroupTabDef = {
   key: GroupTabKey
@@ -77,13 +77,15 @@ export type GroupTabDef = {
 }
 
 /**
- * Per-group shell surfaces — only the three that make sense at the group
- * scope (a group spans multiple repos, so no Files / Git / etc.).
+ * Per-group shell surfaces — only those that make sense at the group scope (a
+ * group spans multiple repos, so no Files / Git / etc.). Its Processes are the
+ * group runs: one piece of work carried across several of its projects.
  */
 export const GROUP_TAB_DEFS: readonly GroupTabDef[] = [
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
   { key: 'tools', label: 'Tools', icon: 'tools' },
+  { key: 'processes', label: 'Processes', icon: 'processes' },
 ]
 
 export function isGroupTabKey(v: string | undefined): v is GroupTabKey {
@@ -93,22 +95,24 @@ export function isGroupTabKey(v: string | undefined): v is GroupTabKey {
 /**
  * Map a project tab to its closest group equivalent — used when switching
  * from a project to a group. Surfaces with a group counterpart (`chat`,
- * `tools`) carry over; everything else falls back to `home`.
+ * `tools`, `processes`) carry over; everything else falls back to `home`.
  */
 export function projectTabToGroupTab(tab: ShellTabKey | undefined): GroupTabKey {
   if (tab === 'chat') return 'chat'
   if (tab === 'tools') return 'tools'
+  if (tab === 'processes') return 'processes'
   return 'home'
 }
 
 /**
  * Map a group tab to its closest project equivalent — used when switching
  * from a group to a project. `home` becomes the project landing page
- * (`stories`); `chat`/`tools` carry over verbatim.
+ * (`stories`); `chat`/`tools`/`processes` carry over verbatim.
  */
 export function groupTabToProjectTab(tab: GroupTabKey | undefined): ShellTabKey {
   if (tab === 'chat') return 'chat'
   if (tab === 'tools') return 'tools'
+  if (tab === 'processes') return 'processes'
   return 'stories'
 }
 
