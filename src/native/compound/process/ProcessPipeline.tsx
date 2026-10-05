@@ -15,7 +15,6 @@ import {
   choiceTakesNote,
   useDurationTimer,
   formatProcessDuration,
-  gateSendsBack,
   hasIsolatedAttempts,
   isIntegratingApproval,
   isProcessLeafOpenable,
@@ -35,6 +34,9 @@ import {
   type ProcessNodeLook,
   processParkChoices,
   processRunBadge,
+  processRunPersonEnding,
+  processRunSendBackGateId,
+  PROCESS_SEND_BACK_COPY,
   processRunSpend,
   processRunWorkMs,
   processStepCostLabel,
@@ -133,6 +135,7 @@ export default function ProcessPipeline({
     resume,
     delegate,
     retryIntegration,
+    sendBack,
     cancel,
     listBranches,
     deleteRun,
@@ -377,17 +380,7 @@ export default function ProcessPipeline({
 
       <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
-      {run.error ? (
-        <Text
-          style={{
-            paddingHorizontal: nativeSpace[4],
-            fontSize: 11,
-            color: theme.text.secondary,
-          }}
-        >
-          {run.error}
-        </Text>
-      ) : null}
+      <RunEnding run={run} onSendBack={sendBack} />
 
       {confirmDelete ? (
         <Modal isOpen onClose={() => setConfirmDelete(false)} title="Delete this process run?">
@@ -1086,8 +1079,7 @@ function ParkBlock({
     )
   }
   const reflected = isReflectedPark(park)
-  const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
-  const choices = processParkChoices(park.reason, { reflected, sendsBack })
+  const choices = processParkChoices(park.reason, { reflected })
   const variant = park.reason === 'gate' ? status.review : status.on_hold
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -1104,7 +1096,6 @@ function ParkBlock({
           storyId={run.storyId as string}
           storyRunId={run.id}
           choices={choices}
-          sendsBack={sendsBack}
           {...(run.workBranch && isIntegratingApproval(run, 'approve')
             ? { workBranch: run.workBranch }
             : {})}
@@ -1137,7 +1128,6 @@ function ParkBlock({
       ) : null}
       {noteFor ? (
         <ParkNoteComposer
-          sendsBack={sendsBack}
           onSend={(note) => onChoose(noteFor, note)}
           onCancel={() => setNoteFor(undefined)}
         />
@@ -1275,6 +1265,43 @@ function WaitingCard({
           </View>
         ))
       )}
+    </View>
+  )
+}
+
+/**
+ * Native peer of web's `RunEnding`: a person's decision in their words — with
+ * the way to send a request for changes back for them — or the error.
+ */
+function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Promise<void> }) {
+  const { theme } = useNativeTheme()
+  const [sending, setSending] = useState(false)
+  const ending = processRunPersonEnding(run)
+  const line = ending?.line ?? run.error
+  if (!line) return null
+  return (
+    <View
+      style={{ paddingHorizontal: nativeSpace[4], gap: nativeSpace[2], alignItems: 'flex-start' }}
+    >
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>{line}</Text>
+      {processRunSendBackGateId(run) ? (
+        <View style={{ gap: nativeSpace[1], alignItems: 'flex-start' }}>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={sending}
+            onPress={() => {
+              setSending(true)
+              void onSendBack().finally(() => setSending(false))
+            }}
+          >
+            {PROCESS_SEND_BACK_COPY.label}
+          </Button>
+          <Text style={{ fontSize: 10, color: theme.text.secondary }}>
+            {PROCESS_SEND_BACK_COPY.detail}
+          </Text>
+        </View>
+      ) : null}
     </View>
   )
 }

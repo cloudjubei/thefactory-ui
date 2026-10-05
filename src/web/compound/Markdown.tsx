@@ -1,11 +1,17 @@
-import { memo, useMemo, type FC } from 'react'
+import { memo, useMemo, type FC, type ReactNode } from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components, type Options } from 'react-markdown'
 import rehypeExternalLinks from 'rehype-external-links'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
-import { parseAppUrlAsResourceLink, parseResourceLink } from 'thefactory-tools/utils'
-import type { ResourceLink } from 'thefactory-tools/types'
+import {
+  parseAppUrlAsResourceLink,
+  parseReferenceToken,
+  parseResourceLink,
+  withReferencesAsCode,
+} from 'thefactory-tools/utils'
+import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
+import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
 
 // Markdown renderer for chat / story content.
 //
@@ -175,7 +181,7 @@ const components: Partial<Components> = {
 
 const MemoizedReactMarkdown: FC<Options> = memo(
   ReactMarkdown as FC<Options>,
-  (prev, next) => prev.children === next.children,
+  (prev, next) => prev.children === next.children && prev.components === next.components,
 )
 
 // Allow `className`, `target`, and `rel` attributes after the sanitize pass —
@@ -224,9 +230,28 @@ export type MarkdownProps = {
    * externally.
    */
   onResourceLink?: (link: ResourceLink) => void
+  /**
+   * Shows what the text points at as chips: a reference token (`#<storyId>`,
+   * `&<noteId>`, `@path`, or a backticked project path) and an `overseer://`
+   * link. Returning `undefined` leaves it as code or a plain link.
+   */
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
+  /**
+   * Chip what was typed (`#3.2`, `&qa-login`) as well as what was sent as ids.
+   * For text people write references into — a chat, a story. Off, a `#12` in a
+   * document or a log stays text.
+   */
+  typedReferences?: boolean
 }
 
-export default function Markdown({ text, allowHtml = false, onResourceLink }: MarkdownProps) {
+export default function Markdown({
+  text,
+  allowHtml = false,
+  onResourceLink,
+  renderReference: ownRenderReference,
+  typedReferences = false,
+}: MarkdownProps) {
+  const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const rehypePlugins = useMemo(() => {
     const plugins: NonNullable<Options['rehypePlugins']> = []
     if (allowHtml) {
@@ -243,10 +268,10 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
   // (XSS protection) for every other scheme.
   const urlTransform = useMemo<NonNullable<Options['urlTransform']>>(
     () =>
-      onResourceLink
+      onResourceLink || renderReference
         ? (url) => (url.startsWith('overseer://') ? url : defaultUrlTransform(url))
         : defaultUrlTransform,
-    [onResourceLink],
+    [onResourceLink, renderReference],
   )
 
   // A model that has seen the app's own URLs writes `http://localhost:5173/projects/x`
@@ -255,15 +280,42 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
   const appOrigin = typeof window !== 'undefined' ? window.location.origin : ''
 
   const activeComponents = useMemo<Partial<Components>>(() => {
-    if (!onResourceLink) return components
+    const base: Partial<Components> = renderReference
+      ? {
+          ...components,
+          code: (props) => {
+            const inline = !/language-(\w+)/.exec(props.className || '')
+            const token = typeof props.children === 'string' ? props.children : undefined
+            const parsed = inline && token !== undefined ? parseReferenceToken(token) : undefined
+            const chip = parsed ? renderReference(parsed) : undefined
+            if (chip !== undefined) return <>{chip}</>
+            const Code = components.code as FC<typeof props>
+            return <Code {...props} />
+          },
+          a: (props) => {
+            const link =
+              typeof props.href === 'string'
+                ? (parseResourceLink(props.href) ??
+                  parseAppUrlAsResourceLink(props.href, appOrigin))
+                : undefined
+            const chip = link ? renderReference({ type: 'link', link }) : undefined
+            if (chip !== undefined) return <>{chip}</>
+            const A = components.a as FC<typeof props>
+            return <A {...props} />
+          },
+        }
+      : components
+    if (!onResourceLink) return base
     return {
-      ...components,
+      ...base,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       a: ({ children, href, target: _target, rel: _rel, ...props }) => {
         const link =
           typeof href === 'string'
             ? (parseResourceLink(href) ?? parseAppUrlAsResourceLink(href, appOrigin))
             : undefined
+        const chip = link && renderReference ? renderReference({ type: 'link', link }) : undefined
+        if (chip !== undefined) return <>{chip}</>
         if (link) {
           return (
             <a
@@ -293,7 +345,7 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
         )
       },
     }
-  }, [onResourceLink, appOrigin])
+  }, [onResourceLink, renderReference, appOrigin])
 
   return (
     <div className="markdown-content">
@@ -303,7 +355,7 @@ export default function Markdown({ text, allowHtml = false, onResourceLink }: Ma
         urlTransform={urlTransform}
         components={activeComponents}
       >
-        {text}
+        {renderReference ? withReferencesAsCode(text) : text}
       </MemoizedReactMarkdown>
     </div>
   )

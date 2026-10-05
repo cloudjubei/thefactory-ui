@@ -78,3 +78,10 @@ export const SHADOW_MERGE_BLOCKED_FALLBACK =
  */
 export const CHANGE_REQUEST_MESSAGE_PREFIX =
   'Requested changes on your last run (its work is carried into the next one, so build on it):'
+
+/**
+ * What a command result recorded before checks kept their command and output
+ * says in place of them — so it never reads as an empty success.
+ */
+export const LEGACY_CHECK_RECORD_NOTE =
+  'This result was recorded before checks kept their command and output, so it cannot show what ran or what it printed. Run the checks again to see both.'

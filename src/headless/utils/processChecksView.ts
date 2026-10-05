@@ -5,7 +5,11 @@
  */
 
 import type { ProcessLedgerEntry, ProcessPlanStep } from 'thefactory-tools/types'
-import { developerChecksLine } from 'thefactory-tools/utils'
+import {
+  checkBaselineLine,
+  dependencyRevisionsLine,
+  developerChecksLine,
+} from 'thefactory-tools/utils'
 
 import type {
   ReviewEvidenceRef,
@@ -21,6 +25,7 @@ import {
   DEVELOPER_RAN_NO_CHECKS,
   DEVELOPER_VERIFIED_LABEL,
   PROCESS_CHECK_ADVISORY_TONE,
+  PROCESS_CHECK_BASELINE_LABELS,
   PROCESS_CHECK_FLAGGED_MARK,
   PROCESS_CHECK_FLAGGED_WORD,
   PROCESS_CHECK_MARKS,
@@ -148,6 +153,11 @@ export function processCheckRows(state: {
       ranInLabel: check.ranIn ? CHECK_RAN_IN_LABELS[check.ranIn] : undefined,
       ranInDetail: checkRanInSentence([check]),
       testCountLabel: counts && counts.total > 0 ? testCountLabel(counts) : undefined,
+      baselineLabel: check.baseline
+        ? PROCESS_CHECK_BASELINE_LABELS[check.baseline.verdict]
+        : undefined,
+      baselineDetail: checkBaselineLine(check),
+      dependencyDetail: dependencyRevisionsLine(check.dependencyRevisions),
     }
   })
 }

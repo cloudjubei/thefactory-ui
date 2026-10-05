@@ -15,6 +15,7 @@ import type {
 
 import type { ReviewEvidenceRef } from '../api/generated'
 import { comparisonPairFacts, toEvidenceTile } from './reviewEvidenceView'
+import { REVIEWER_PROOF_IMPOSSIBLE_LABEL } from './reviewEvidenceViewConstants'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 import {
   ATTEMPT_EMPTY,
@@ -1611,6 +1612,28 @@ describe('reviewerVerdictNote', () => {
       tone: 'stuck',
     })
     expect(reviewerVerdictNote({ verdict: 'rejected' }).tone).toBe('stuck')
+  })
+})
+
+describe('reviewerVerdictNote — a proof that cannot be produced', () => {
+  it('says the proof could not be produced, not that changes were requested', () => {
+    expect(
+      reviewerVerdictNote({
+        verdict: 'changes-requested',
+        reason: 'No screen shows agent tool output.',
+        cause: 'proof-impossible',
+      }),
+    ).toEqual({
+      label: `Reviewer · ${REVIEWER_PROOF_IMPOSSIBLE_LABEL}`,
+      reason: 'No screen shows agent tool output.',
+      tone: 'stuck',
+    })
+  })
+
+  it('still says changes were requested for a defect', () => {
+    expect(reviewerVerdictNote({ verdict: 'changes-requested', cause: 'defect' }).label).toBe(
+      'Reviewer · Changes requested',
+    )
   })
 })
 

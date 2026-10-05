@@ -1,5 +1,6 @@
 import { getUserSetting, putUserSetting, type PutUserSettingData } from './generated'
 import { APP_SETTINGS_TYPE } from 'thefactory-tools/constants'
+import { projectAppSettingsKeyOf, projectAppSettingsPutOf } from 'thefactory-tools/utils'
 import { queryProjectData, putProjectDataRecord, deleteProjectDataRecord } from './projectData'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
@@ -36,11 +37,10 @@ export async function dispatchAppSettingsBridge(
 
   switch (name) {
     case 'settings.get': {
-      const p = (req.payload ?? {}) as { key?: string }
-      if (!p.key) throw new Error('settings.get requires a key')
+      const key = projectAppSettingsKeyOf(req.payload, 'settings.get')
       const [appRecs, globalRes] = await Promise.all([
-        queryProjectData(projectId, { type: APP_SETTINGS_TYPE, key: p.key }),
-        getUserSetting({ path: { key: p.key }, throwOnError: true }),
+        queryProjectData(projectId, { type: APP_SETTINGS_TYPE, key }),
+        getUserSetting({ path: { key }, throwOnError: true }),
       ])
       const layers: AppSettingsLayers = {
         global: (globalRes.data?.value as AppSettingsValue | undefined) ?? null,
@@ -49,18 +49,7 @@ export async function dispatchAppSettingsBridge(
       return layers
     }
     case 'settings.put': {
-      const p = (req.payload ?? {}) as {
-        key?: string
-        level?: AppSettingsLevel
-        value?: AppSettingsValue
-      }
-      if (!p.key) throw new Error('settings.put requires a key')
-      if (p.level !== 'global' && p.level !== 'app') {
-        throw new Error("settings.put requires level 'global' or 'app'")
-      }
-      if (typeof p.value !== 'object' || p.value === null || Array.isArray(p.value)) {
-        throw new Error('settings.put requires an object value')
-      }
+      const p = projectAppSettingsPutOf(req.payload)
       if (p.level === 'global') {
         const res = await putUserSetting({
           path: { key: p.key },
@@ -77,9 +66,8 @@ export async function dispatchAppSettingsBridge(
       return { value: rec.content as AppSettingsValue }
     }
     case 'settings.delete': {
-      const p = (req.payload ?? {}) as { key?: string }
-      if (!p.key) throw new Error('settings.delete requires a key')
-      await deleteProjectDataRecord(projectId, { type: APP_SETTINGS_TYPE, key: p.key })
+      const key = projectAppSettingsKeyOf(req.payload, 'settings.delete')
+      await deleteProjectDataRecord(projectId, { type: APP_SETTINGS_TYPE, key })
       return { deleted: true }
     }
     default:

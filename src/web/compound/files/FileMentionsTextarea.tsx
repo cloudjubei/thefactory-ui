@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { applyMention, parseMention } from '../../../headless/utils/mention'
 import { applyReference, parseReference, type ReferenceSuggestion } from './reference'
+import type { ReferenceSigil } from '../../../headless/utils/reference'
 
 export type FileMentionsTextareaProps = {
   value: string
@@ -31,16 +32,21 @@ export type FileMentionsTextareaProps = {
    */
   onSearchReferences?: (token: string) => ReferenceSuggestion[]
   /**
+   * Returns ranked suggestions for the active `&<token>` — notes and the chat's
+   * attachments. When omitted, `&` opens no dropdown.
+   */
+  onSearchHandles?: (token: string) => ReferenceSuggestion[]
+  /**
    * Fires AFTER the user accepts an `@`-file mention from the dropdown (via
    * Enter, Tab, or click). Useful for consumer-side side effects such as
    * tracking which files are now referenced in the text.
    */
   onAcceptFileMention?: (path: string) => void
   /**
-   * Fires AFTER the user accepts a `#`-reference from the dropdown. Receives
-   * the suggestion's `value` (the canonical reference string).
+   * Fires AFTER the user accepts a `#` or `&` suggestion from the dropdown.
+   * Receives the suggestion's `value` and which sigil it was picked under.
    */
-  onAcceptReference?: (value: string) => void
+  onAcceptReference?: (value: string, sigil: ReferenceSigil) => void
   /** Submit on Enter (without Shift). Omitted → Enter inserts a newline. */
   onSubmit?: () => void
   placeholder?: string
@@ -53,6 +59,7 @@ export type FileMentionsTextareaProps = {
   id?: string
   ariaLabel?: string
   autoFocus?: boolean
+  maxLength?: number
   /** Forwarded textarea event handlers. Library handlers run first. */
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   onSelect?: ReactEventHandler<HTMLTextAreaElement>
@@ -66,6 +73,7 @@ function FileMentionsTextareaInner(
     onChange,
     onSearchFiles,
     onSearchReferences,
+    onSearchHandles,
     onAcceptFileMention,
     onAcceptReference,
     onSubmit,
@@ -77,6 +85,7 @@ function FileMentionsTextareaInner(
     id,
     ariaLabel,
     autoFocus,
+    maxLength,
     onKeyDown,
     onSelect,
     onMouseUp,
@@ -103,16 +112,21 @@ function FileMentionsTextareaInner(
   // and `parseReference` are mutually exclusive by construction. We pick
   // whichever matches and feed the matching dropdown.
   const mentionParse = useMemo(() => parseMention(value, cursor), [value, cursor])
-  const referenceParse = useMemo(() => parseReference(value, cursor), [value, cursor])
+  const referenceParse = useMemo(
+    () =>
+      parseReference(value, cursor) ??
+      (onSearchHandles ? parseReference(value, cursor, '&') : null),
+    [value, cursor, onSearchHandles],
+  )
 
   const fileSuggestions = useMemo(
     () => (mentionParse && onSearchFiles ? onSearchFiles(mentionParse.token) : []),
     [mentionParse, onSearchFiles],
   )
-  const refSuggestions = useMemo(
-    () => (referenceParse && onSearchReferences ? onSearchReferences(referenceParse.token) : []),
-    [referenceParse, onSearchReferences],
-  )
+  const refSuggestions = useMemo(() => {
+    const search = referenceParse?.sigil === '&' ? onSearchHandles : onSearchReferences
+    return referenceParse && search ? search(referenceParse.token) : []
+  }, [referenceParse, onSearchReferences, onSearchHandles])
 
   const showFileMenu = !!mentionParse && fileSuggestions.length > 0
   const showRefMenu = !showFileMenu && !!referenceParse && refSuggestions.length > 0
@@ -155,7 +169,7 @@ function FileMentionsTextareaInner(
       pendingCursor.current = next.cursor
       onChange(next.text)
       setCursor(next.cursor)
-      onAcceptReference?.(refValue)
+      onAcceptReference?.(refValue, referenceParse.sigil)
     },
     [referenceParse, value, onChange, onAcceptReference],
   )
@@ -291,6 +305,7 @@ function FileMentionsTextareaInner(
         style={style}
         aria-label={ariaLabel}
         autoFocus={autoFocus}
+        maxLength={maxLength}
       />
     </div>
   )

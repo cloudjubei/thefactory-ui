@@ -8,6 +8,7 @@ import {
   AMENDMENT_CLOSED_SIGN_OFF,
   AMENDMENT_REOPENED_APPROVED,
   AMENDMENT_REOPENED_ENDED,
+  AMENDMENT_SEND_BACK,
   AMENDMENT_SET_ASIDE_PARK,
   OPEN_WORK_EXTEND_LABEL,
   OPEN_WORK_FRESH_LABEL,
@@ -131,6 +132,13 @@ export function processAmendmentView(
     const closedStep = closed ? run.plan.steps.find((s) => s.id === closed.stepId) : undefined
     if (closedStep) {
       lines.push(closedStep.kind === 'gate' ? AMENDMENT_CLOSED_SIGN_OFF : AMENDMENT_SET_ASIDE_PARK)
+    }
+    const sentBackFrom = amendment.sendBackLoopId
+      ? run.plan.loops.find((l) => l.id === amendment.sendBackLoopId)?.from
+      : undefined
+    if (sentBackFrom) {
+      const gate = run.plan.steps.find((s) => s.id === sentBackFrom)?.name ?? sentBackFrom
+      lines.push(AMENDMENT_SEND_BACK.replaceAll('{gate}', gate))
     }
     if (amendment.reopened) {
       lines.push(

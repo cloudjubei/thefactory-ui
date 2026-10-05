@@ -27,7 +27,10 @@ import {
   reviewerVerdict,
   screenPairs,
 } from './reviewEvidenceView'
-import { REVIEWER_VERDICT_LABEL } from './reviewEvidenceViewConstants'
+import {
+  REVIEWER_PROOF_IMPOSSIBLE_LABEL,
+  REVIEWER_VERDICT_LABEL,
+} from './reviewEvidenceViewConstants'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import { runReviewFacts } from './runReview'
 import type { RunReviewFacts } from './runReviewTypes'
@@ -616,7 +619,7 @@ export function verifyAttemptEvidence(
 
 function verdictNote(who: string, verdict: VerifyReviewerVerdict): VerifyVerdictNote {
   return {
-    label: `${who} · ${REVIEWER_VERDICT_LABEL[verdict.verdict]}`,
+    label: `${who} · ${verdict.cause === 'proof-impossible' ? REVIEWER_PROOF_IMPOSSIBLE_LABEL : REVIEWER_VERDICT_LABEL[verdict.verdict]}`,
     ...(verdict.reason ? { reason: verdict.reason } : {}),
     tone: verdict.verdict === 'approved' ? 'done' : 'stuck',
   }

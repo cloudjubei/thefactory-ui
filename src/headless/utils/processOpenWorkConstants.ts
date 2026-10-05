@@ -22,3 +22,7 @@ export const AMENDMENT_REOPENED_APPROVED =
   'The run had finished and was reopened: its earlier approval was set aside (kept in its history), and it comes back for one new sign-off.'
 export const AMENDMENT_REOPENED_ENDED =
   'The run had ended and was reopened; it comes back for one new sign-off.'
+
+/** What a fix added at a request for changes reads as; `{gate}` is the gate's name. */
+export const AMENDMENT_SEND_BACK =
+  'You requested changes at {gate}, which had no fix step of its own, so one was added: the work comes back to {gate} once it is fixed.'

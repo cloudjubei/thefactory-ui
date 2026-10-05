@@ -15,14 +15,13 @@ import {
   CAPTURE_CREDENTIAL_NAME_PREFIX,
   CAPTURE_FIELD_REQUIRED,
   CREDENTIAL_CAPTURE_FIELDS,
-  CREDENTIAL_CAPTURE_PURPOSE_ARG,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
   CREDENTIAL_CAPTURE_TOOL_NAMES,
 } from './credentialCaptureConstants'
 import { cliLabel } from './cliRunner'
 import { parseJiraProjectKeys } from './ticketConnection'
 import type { CliTool } from '../api'
-import type { ChatMessageLike, ToolCallLike } from './chatTypes'
+import type { CliRunBlockedOn } from './cliRunActivityTypes'
 import type {
   CliSignInRequest,
   CredentialCapture,
@@ -226,70 +225,17 @@ export function cliSignInRequest(
   }
 }
 
-const CAPTURE_TOOL_NAME_SET = new Set(Object.values(CREDENTIAL_CAPTURE_TOOL_NAMES))
-
-function argumentsRecord(args: unknown): Record<string, unknown> | undefined {
-  if (typeof args === 'string') {
-    try {
-      return argumentsRecord(JSON.parse(args))
-    } catch {
-      return undefined
-    }
-  }
-  if (typeof args !== 'object' || args === null || Array.isArray(args)) return undefined
-  return args as Record<string, unknown>
-}
-
 /**
- * The `purpose` a capture-opening tool call was made with — the join between a
- * transcript row and the capture it opened. While the call is still blocked
- * there is no result to read a captureId out of, and `purpose` is the one field
- * both sides carry. Anything that is not a capture-opening call yields nothing.
+ * What each open form has the agent parked on, for the run's activity line: a
+ * form is answered by the user like a question, so the line reads as waiting on
+ * them rather than on an approval.
  */
-export function captureToolCallPurpose(toolCall: ToolCallLike | undefined): string | undefined {
-  if (!toolCall || !CAPTURE_TOOL_NAME_SET.has(toolCall.name)) return undefined
-  const purpose = argumentsRecord(toolCall.arguments)?.[CREDENTIAL_CAPTURE_PURPOSE_ARG]
-  if (typeof purpose !== 'string') return undefined
-  const trimmed = purpose.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-/**
- * Where each still-open capture's form belongs. A capture binds to the LAST
- * transcript row that opened it — an older row asking the same thing has
- * already been answered — and each row takes at most one capture, so two
- * concurrent requests never collapse onto the same place.
- *
- * `unbound` is the remainder: captures with no row of their own in `messages` —
- * most often one opened by a CLI run, whose transcript is fetched and rendered
- * by its own component rather than living here. They have no row to sit at, so
- * the caller renders them somewhere the user can still reach; a form with
- * nowhere to appear is a hung agent.
- */
-export function bindCapturesToToolCalls(
-  messages: readonly ChatMessageLike[],
-  captures: readonly CredentialCapture[],
-): { byToolCallId: Record<string, CredentialCapture>; unbound: CredentialCapture[] } {
-  const byToolCallId: Record<string, CredentialCapture> = {}
-  const unbound: CredentialCapture[] = []
-  const taken = new Set<string>()
-  for (const capture of awaitingCaptures(captures)) {
-    let boundTo: string | undefined
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const toolCallId = messages[i].toolCall?.toolCallId
-      if (!toolCallId || taken.has(toolCallId)) continue
-      if (captureToolCallPurpose(messages[i].toolCall) !== capture.purpose) continue
-      boundTo = toolCallId
-      break
-    }
-    if (boundTo === undefined) {
-      unbound.push(capture)
-      continue
-    }
-    taken.add(boundTo)
-    byToolCallId[boundTo] = capture
-  }
-  return { byToolCallId, unbound }
+export function capturesBlockedOn(captures: readonly CredentialCapture[]): CliRunBlockedOn[] {
+  return awaitingCaptures(captures).map((capture) => ({
+    toolName: captureToolName(capture),
+    label: captureCardTitle(capture),
+    isQuestion: true,
+  }))
 }
 
 /**

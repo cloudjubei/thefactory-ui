@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '../../primitives/Button'
-import { Textarea } from '../../primitives/Textarea'
+import RichText from '../files/RichText'
+import ReferenceTextarea from '../files/ReferenceTextarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import Surface from '../../primitives/Surface'
 import { IconChat } from '../../icons'
 import { canSubmitAnswer } from '../../../headless/utils/agentQuestions'
@@ -41,6 +43,9 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
   const [answer, setAnswer] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const canonicalize = useCanonicalizeReferences()
+  // What the agent itself wrote — an option's "PR #12" — is answered as written.
+  const asked = [question, context ?? '', ...(options ?? [])].join('\n')
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -66,10 +71,12 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
       </div>
 
       <div className="flex flex-col gap-1">
-        <p className="text-sm whitespace-pre-wrap wrap-break-word">{question}</p>
+        <p className="text-sm whitespace-pre-wrap wrap-break-word">
+          <RichText text={question} />
+        </p>
         {context ? (
           <p className="text-[12px] text-(--text-secondary) whitespace-pre-wrap wrap-break-word">
-            {context}
+            <RichText text={context} />
           </p>
         ) : null}
         {raw !== undefined ? (
@@ -95,12 +102,12 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
         </div>
       ) : null}
 
-      <Textarea
+      <ReferenceTextarea
         rows={3}
         value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
+        onChange={setAnswer}
         placeholder={QUESTION_ANSWER_PLACEHOLDER}
-        aria-label={question}
+        ariaLabel={question}
         disabled={locked}
       />
 
@@ -132,7 +139,7 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
           size="sm"
           loading={busy}
           disabled={locked || !canSubmitAnswer(answer)}
-          onClick={() => void run(() => grant.answer(answer))}
+          onClick={() => void run(() => grant.answer(canonicalize(answer, asked)))}
         >
           {QUESTION_SUBMIT_LABEL}
         </Button>

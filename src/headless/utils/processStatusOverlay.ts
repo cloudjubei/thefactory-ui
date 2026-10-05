@@ -1,6 +1,7 @@
 import type { ProcessRun } from 'thefactory-tools/types'
-import { processRunDecision } from 'thefactory-tools/utils'
 
+import { processRunPersonEnding } from './processView'
+import { PROCESS_STATUS_OVERLAY_TITLES } from './processStatusOverlayConstants'
 import type { StatusSemanticKey } from './status'
 
 /**
@@ -12,14 +13,17 @@ import type { StatusSemanticKey } from './status'
  *   - parked at the sign-off gate  → Reviewable (go decide the sign-off)
  *   - running / pending            → Crunching (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
+ *   - ended on a request for changes → Changes requested (open it to send it back)
  * A finished (succeeded / cancelled) or absent run yields no overlay — the stored
  * status stands and the row shows its normal Run affordance. So does a run a
- * person ended — rejected, sent back or abandoned: its features are pending again,
- * and the next step is a new run, not this one.
+ * person rejected or abandoned: its features are pending again, and the next
+ * step is a new run, not this one.
  */
 export type ProcessStatusOverlay = {
   label: string
   semantic: StatusSemanticKey
+  /** What pressing the chip does, for its tooltip. */
+  title: string
   /** The process run to open — the whole-story pipeline. */
   runId: string
 }
@@ -44,23 +48,42 @@ export function processStatusOverlay(
   switch (run.status) {
     case 'running':
     case 'pending':
-      return { label: 'Crunching', semantic: 'working', runId: run.id }
+      return {
+        label: 'Crunching',
+        semantic: 'working',
+        title: PROCESS_STATUS_OVERLAY_TITLES.working,
+        runId: run.id,
+      }
     case 'parked':
       return isReviewable(run)
-        ? { label: 'Reviewable', semantic: 'review', runId: run.id }
-        : { label: 'Blocked', semantic: 'stuck', runId: run.id }
-    case 'failed':
-      return endedByPerson(run) ? undefined : { label: 'Blocked', semantic: 'stuck', runId: run.id }
+        ? {
+            label: 'Reviewable',
+            semantic: 'review',
+            title: PROCESS_STATUS_OVERLAY_TITLES.review,
+            runId: run.id,
+          }
+        : blocked(run.id)
+    case 'failed': {
+      const ending =
+        run.plan && run.ledger
+          ? processRunPersonEnding({ status: run.status, plan: run.plan, ledger: run.ledger })
+          : undefined
+      if (!ending) return blocked(run.id)
+      return ending.choice === 'request-changes'
+        ? {
+            label: ending.label,
+            semantic: 'onhold',
+            title: PROCESS_STATUS_OVERLAY_TITLES.changesRequested,
+            runId: run.id,
+          }
+        : undefined
+    }
     default:
       // succeeded / cancelled — the process is over; the stored status stands.
       return undefined
   }
 }
 
-function endedByPerson(
-  run: Pick<ProcessRun, 'status'> & Partial<Pick<ProcessRun, 'plan' | 'ledger'>>,
-) {
-  if (!run.plan || !run.ledger) return false
-  const decision = processRunDecision({ status: run.status, plan: run.plan, ledger: run.ledger })
-  return decision.kind === 'not-accepted' && decision.choice !== undefined
+function blocked(runId: string): ProcessStatusOverlay {
+  return { label: 'Blocked', semantic: 'stuck', title: PROCESS_STATUS_OVERLAY_TITLES.stuck, runId }
 }

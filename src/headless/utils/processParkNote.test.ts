@@ -3,7 +3,6 @@ import type { ProcessParkAction } from 'thefactory-tools/types'
 
 import {
   choiceTakesNote,
-  parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
@@ -64,21 +63,10 @@ describe('waitingNoteCopy', () => {
   })
 })
 
-describe('parkNoteCopy', () => {
-  it('says the review findings go to the fix either way when the gate sends work back', () => {
-    const copy = parkNoteCopy(true)
-    expect(copy).toBe(PARK_NOTE_COPY.sendsBack)
-    expect(copy.prompt).toBe(
-      'What should change? Optional — the code review’s findings are sent to the fix either way.',
-    )
-    expect(copy.submitLabel).toBe('Send back to be fixed')
-  })
-
-  it('asks what needs to change when the gate only ends the run', () => {
-    const copy = parkNoteCopy(false)
-    expect(copy).toBe(PARK_NOTE_COPY.endsRun)
-    expect(copy.prompt).toBe('What needs to change?')
-    expect(copy.submitLabel).toBe('Request changes')
+describe('PARK_NOTE_COPY', () => {
+  it('says the work is sent back to be fixed and comes back here', () => {
+    expect(PARK_NOTE_COPY.submitLabel).toBe('Send back to be fixed')
+    expect(PARK_NOTE_COPY.prompt).toMatch(/comes back here/)
   })
 })
 

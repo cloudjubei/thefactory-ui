@@ -22,3 +22,17 @@ export const PROCESS_STEP_FINISHED_COPY = {
       'This run is one step of a process. What it did and changed is shown below; its outcome and sign-off are decided in the pipeline, not here.',
   },
 } as const
+
+/** What a run a person ended is called, and its tone: their decision, never a crash. */
+export const PROCESS_RUN_PERSON_ENDING_VIEW = {
+  'request-changes': { label: 'Changes requested', tone: 'on_hold' },
+  reject: { label: 'Rejected', tone: 'empty' },
+  abandon: { label: 'Abandoned', tone: 'empty' },
+} as const
+
+/** The action on a run that ended on a request for changes, and what it does. */
+export const PROCESS_SEND_BACK_COPY = {
+  label: 'Send back for changes',
+  detail:
+    'Reopens this run: your note goes to a fix pass, which is checked, reviewed and written up, then the work comes back to you to decide again.',
+} as const

@@ -15,7 +15,8 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { Switch } from '../../primitives/Switch'
-import { Textarea } from '../../primitives/Textarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
+import ReferenceTextarea from '../files/ReferenceTextarea'
 
 export type ProcessGroupSignoffReviewProps = {
   group: ProcessGroupRun
@@ -40,6 +41,7 @@ export default function ProcessGroupSignoffReview({
   const [modes, setModes] = useState<Record<string, ProcessIntegrationMode>>({})
   const [sendBack, setSendBack] = useState<string[] | undefined>(undefined)
   const [note, setNote] = useState('')
+  const canonicalize = useCanonicalizeReferences()
   const [busy, setBusy] = useState(false)
   if (!view) return null
 
@@ -59,7 +61,7 @@ export default function ProcessGroupSignoffReview({
     const taken = await onResume(
       processGroupResumeInput(choice, {
         modes: chosenModes,
-        note,
+        note: canonicalize(note),
         ...(sendBack ? { legIds: sendBack } : {}),
       }),
     )
@@ -153,13 +155,12 @@ export default function ProcessGroupSignoffReview({
         </View>
       ) : null}
 
-      <Textarea
+      <ReferenceTextarea
         rows={2}
         value={note}
         onChangeText={setNote}
         placeholder="A note for the agents (optional)"
-        accessibilityLabel="A note for the agents"
-        style={{ fontSize: 12.5 }}
+        textInputProps={{ accessibilityLabel: 'A note for the agents' }}
       />
 
       <View

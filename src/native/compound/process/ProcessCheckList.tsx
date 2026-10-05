@@ -16,8 +16,9 @@ export type ProcessCheckListProps = {
 /**
  * Native peer of the web `ProcessCheckList`: under a checks step's node, each
  * command its newest attempt ran, how it came out, whether it was only
- * advisory, where it ran (sandbox or host, the reason read aloud), and how long
- * it took. Nothing for any other step.
+ * advisory, where it ran (sandbox or host, the reason and the code outside the
+ * checkout it built against read aloud), whether its failure already fails at
+ * the change's base, and how long it took. Nothing for any other step.
  */
 export default function ProcessCheckList({ step, latest }: ProcessCheckListProps) {
   const { theme, status } = useNativeTheme()
@@ -36,6 +37,8 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
               row.testCountLabel,
               row.advisory ? PROCESS_CHECK_ADVISORY_LABEL : undefined,
               row.ranInDetail,
+              row.dependencyDetail,
+              row.baselineDetail,
               row.durationLabel,
             ]
               .filter(Boolean)
@@ -81,6 +84,21 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
                 }}
               >
                 <Text style={{ fontSize: 10, color: theme.text.secondary }}>{row.ranInLabel}</Text>
+              </View>
+            ) : null}
+            {row.baselineLabel ? (
+              <View
+                style={{
+                  borderColor: theme.border.strong,
+                  borderStyle: 'dashed',
+                  borderWidth: 1,
+                  borderRadius: 999,
+                  paddingHorizontal: 5,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: theme.text.secondary }}>
+                  {row.baselineLabel}
+                </Text>
               </View>
             ) : null}
             {row.status !== 'passed' && row.summary ? (

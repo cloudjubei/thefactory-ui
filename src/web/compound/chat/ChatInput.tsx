@@ -1,3 +1,4 @@
+import { attachmentDisplayName } from 'thefactory-tools/utils'
 import {
   useCallback,
   useEffect,
@@ -56,6 +57,9 @@ export type ChatInputProps = {
    * suggestions; library doesn't know the source. When omitted, the
    * #-dropdown is disabled. */
   onSearchReferences?: (token: string) => ReferenceSuggestion[]
+  /** Optional `&` suggestions — notes and the chat's attachments. When
+   * omitted, the &-dropdown is disabled. */
+  onSearchHandles?: (token: string) => ReferenceSuggestion[]
   /** Fires after the user accepts a `#`-reference from the dropdown. */
   onAcceptReference?: (value: string) => void
 
@@ -98,6 +102,7 @@ export default function ChatInput({
   suggestedActions,
   filePaths,
   onSearchReferences,
+  onSearchHandles,
   onAcceptReference,
   onUploadAttachment,
   autoFocus,
@@ -429,9 +434,13 @@ export default function ChatInput({
     placeholder ??
     (isConfigured
       ? 'Type your message…'
-      : 'You can compose a message and reference files (@) and stories/features (#) even before configuring. Configure LLM to send.')
+      : 'You can compose a message and reference files (@), stories/features (#) and notes/attachments (&) even before configuring. Configure LLM to send.')
 
-  const defaultLeftHints = ['Use @ for file references', 'Use # for stories & features']
+  const defaultLeftHints = [
+    'Use @ for file references',
+    'Use # for stories & features',
+    ...(onSearchHandles ? ['Use & for notes & attachments'] : []),
+  ]
   const defaultRightHints = [`${modifierSymbol} + Enter to send`]
   const lh = leftHints === null ? [] : (leftHints ?? defaultLeftHints)
   const rh = rightHints === null ? [] : (rightHints ?? defaultRightHints)
@@ -517,6 +526,7 @@ export default function ChatInput({
                 }}
                 onSearchFiles={onSearchFiles}
                 onSearchReferences={onSearchReferences}
+                onSearchHandles={onSearchHandles}
                 onAcceptReference={onAcceptReference}
                 placeholder={
                   isDictating
@@ -547,7 +557,7 @@ export default function ChatInput({
                         className="inline-flex items-center gap-1 text-[11px] rounded-full border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) px-2 py-[1px]"
                         title={p}
                       >
-                        <span className="truncate max-w-[140px]">{p.split('/').pop() ?? p}</span>
+                        <span className="truncate max-w-[140px]">{attachmentDisplayName(p)}</span>
                         {onChangeAttachments ? (
                           <button
                             type="button"

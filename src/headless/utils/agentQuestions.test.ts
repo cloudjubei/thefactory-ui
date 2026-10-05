@@ -8,9 +8,11 @@ import {
   isQuestionGrant,
   parseQuestionPayload,
   partitionGrants,
+  userAsks,
 } from './agentQuestions'
 import { QUESTION_DECLINED_ANSWER, QUESTION_FALLBACK_PROMPT } from './agentQuestionConstants'
-import type { PendingToolGrant } from './chatTypes'
+import type { PendingQuestionGrant, PendingToolGrant } from './chatTypes'
+import type { CredentialCapture } from './credentialCaptureTypes'
 
 const noop = async () => {}
 
@@ -198,5 +200,39 @@ describe('shownQuestionId', () => {
 
   it('shows nothing when no question is open', () => {
     expect(shownQuestionId([], 'q1')).toBeUndefined()
+  })
+})
+
+describe('userAsks', () => {
+  const question = (id: string) =>
+    ({
+      ...grant({ id }),
+      question: { question: 'Which one?' },
+      answer: noop,
+    }) as PendingQuestionGrant
+  const form = (
+    id: string,
+    status: CredentialCapture['status'] = 'requested',
+  ): CredentialCapture => ({
+    id,
+    purpose: 'Connect Jira',
+    provider: 'ticket-connection',
+    status,
+    requestedAt: '2026-10-05T10:00:00.000Z',
+  })
+
+  it('puts open questions and open credential forms in one list, questions first', () => {
+    expect(userAsks([question('q1')], [form('c1')])).toEqual([
+      { kind: 'question', id: 'q1', grant: question('q1') },
+      { kind: 'capture', id: 'c1', capture: form('c1') },
+    ])
+  })
+
+  it('leaves out a form the user already answered or dismissed', () => {
+    expect(userAsks([], [form('c1', 'submitted'), form('c2', 'cancelled')])).toEqual([])
+  })
+
+  it('is empty when nothing waits on the user', () => {
+    expect(userAsks([], [])).toEqual([])
   })
 })

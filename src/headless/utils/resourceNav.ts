@@ -24,6 +24,16 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
       const base = `/projects/${enc(link.projectId)}/app`
       return { type: 'path', path: query ? `${base}?${query}` : base }
     }
+    case 'note':
+      return {
+        type: 'path',
+        path: `/projects/${enc(link.projectId)}/notes?note=${enc(link.noteId)}`,
+      }
+    case 'file':
+      return {
+        type: 'path',
+        path: `/projects/${enc(link.projectId)}/files/${link.path.split('/').map(enc).join('/')}`,
+      }
     case 'chat':
       return { type: 'chat', context: link.context }
   }

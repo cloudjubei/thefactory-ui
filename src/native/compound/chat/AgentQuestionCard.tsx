@@ -3,7 +3,9 @@ import { ScrollView, Text, View } from 'react-native'
 
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
-import { Textarea } from '../../primitives/Textarea'
+import RichText from '../files/RichText'
+import ReferenceTextarea from '../files/ReferenceTextarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import { IconChat } from '../../icons'
 import { canSubmitAnswer } from '../../../headless/utils/agentQuestions'
 import {
@@ -45,6 +47,9 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
   const [answer, setAnswer] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const canonicalize = useCanonicalizeReferences()
+  // What the agent itself wrote — an option's "PR #12" — is answered as written.
+  const asked = [question, context ?? '', ...(options ?? [])].join('\n')
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -83,14 +88,8 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
       </View>
 
       <View style={{ gap: nativeSpace[1] }}>
-        <Text selectable style={{ fontSize: 14, color: theme.text.primary }}>
-          {question}
-        </Text>
-        {context ? (
-          <Text selectable style={{ fontSize: 12, color: theme.text.secondary }}>
-            {context}
-          </Text>
-        ) : null}
+        <RichText text={question} textColor={theme.text.primary} />
+        {context ? <RichText text={context} textColor={theme.text.secondary} /> : null}
         {raw !== undefined ? (
           <ScrollView style={{ maxHeight: 140 }}>
             <Text
@@ -119,13 +118,13 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
         </View>
       ) : null}
 
-      <Textarea
+      <ReferenceTextarea
         rows={3}
         value={answer}
         onChangeText={setAnswer}
         placeholder={QUESTION_ANSWER_PLACEHOLDER}
-        accessibilityLabel={question}
         disabled={locked}
+        textInputProps={{ accessibilityLabel: question }}
       />
 
       {error ? <Alert variant="error">{error}</Alert> : null}
@@ -163,7 +162,7 @@ export default function AgentQuestionCard({ grant, disabled }: AgentQuestionCard
           size="sm"
           loading={busy}
           disabled={locked || !canSubmitAnswer(answer)}
-          onPress={() => void run(() => grant.answer(answer))}
+          onPress={() => void run(() => grant.answer(canonicalize(answer, asked)))}
         >
           {QUESTION_SUBMIT_LABEL}
         </Button>

@@ -526,6 +526,35 @@
   color: var(--status-on_hold-soft-fg);
 }
 
+/* A reference in a message — story, feature, note, attachment, file, in-app
+ * link — read inline with the text around it. */
+.ref-chip--reference {
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  max-width: 100%;
+  padding: 0 7px;
+  vertical-align: middle;
+  font-family: inherit;
+  font-size: 12px;
+}
+.ref-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ref-chip--link {
+  cursor: pointer;
+  color: var(--accent-primary);
+}
+.ref-chip--link:hover {
+  background: var(--surface-hover);
+}
+.ref-chip--missing {
+  border-style: dashed;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
 /* Help chip — explains where a thing came from, never how to use the screen. */
 .help-chip {
   width: 16px;

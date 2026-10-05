@@ -1,10 +1,18 @@
-import { forwardRef, useImperativeHandle, useMemo, useState, type ReactNode } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
   useFeatureForm,
   type FeatureFormInitialValues,
   type FeatureFormValues,
+  type ProofPlan,
   type ReferenceSuggestion,
   type StoryLike,
 } from '../../../headless'
@@ -12,10 +20,12 @@ import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
 import FileMentionsTextarea from '../files/FileMentionsTextarea'
+import type { ReferenceSigil } from '../../../headless/utils/reference'
 import FileSelector from '../files/FileSelector'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import ContextFileChip from './ContextFileChip'
 import DependencySelector from './DependencySelector'
+import ProofPlanEditor from './ProofPlanEditor'
 import StatusControl from '../StatusControl'
 import { IconClose, IconPlus } from '../../icons'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -43,10 +53,16 @@ export interface FeatureFormProps {
   normalizeDependency?: (raw: string) => string
   onSearchFiles?: (token: string) => ReadonlyArray<string>
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** `&` suggestions — the project's notes. */
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
+  canonicalize?: (text: string, before?: string) => string
   /** Render a single blocker chip. */
   renderBlocker?: (dep: string, idx: number, onRemove: () => void) => ReactNode
   /** Project files — feed the context-files picker + chip metadata. */
   files?: ReadonlyArray<UikitFileMeta>
+  /** The parent story's proof plan — what a feature with none of its own inherits. */
+  inheritedProofPlan?: ProofPlan
 
   /**
    * Kept for symmetry with web's `FeatureForm`. The native form currently
@@ -107,8 +123,9 @@ function AddChip({
  * [web's `FeatureForm`](../../../../../thefactory-overseer-web/src/ui/components/stories/FeatureForm.tsx).
  * Same `useFeatureForm` hook, same field flow: a header with the status pill,
  * the project chip, and the parent-story chip; then title, description,
- * rejection reason (always shown, matching web), a bordered context-files
- * box and a bordered blockers box — each with an inline "+ Add".
+ * acceptance criteria, the proof plan, rejection reason (always shown,
+ * matching web), a bordered context-files box and a bordered blockers box —
+ * each with an inline "+ Add".
  */
 const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function FeatureForm(
   {
@@ -122,8 +139,11 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     normalizeDependency,
     onSearchFiles,
     onSearchReferences,
+    onSearchHandles,
+    canonicalize,
     renderBlocker,
     files,
+    inheritedProofPlan,
     // Accepted for API symmetry with the web form; not currently consumed.
     isCreate: _isCreate = false,
     initialValues,
@@ -139,7 +159,16 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     onSubmit,
     onDirty: onDirtyChange,
     normalizeDependency,
+    ...(canonicalize ? { canonicalize } : {}),
   })
+  // A `#` pick is a story or feature this one may depend on; an `&` pick is a note.
+  const { addBlocker } = form
+  const onAcceptReference = useCallback(
+    (value: string, sigil: ReferenceSigil) => {
+      if (sigil === '#') addBlocker(value)
+    },
+    [addBlocker],
+  )
 
   useImperativeHandle(ref, () => ({ submit: () => void form.handleSubmit() }), [form])
 
@@ -221,14 +250,39 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           onChangeText={form.setDescription}
           onSearchFiles={onSearchFiles}
           onSearchReferences={onSearchReferences}
+          onSearchHandles={onSearchHandles}
           onAcceptFileMention={form.addContextFile}
-          onAcceptReference={form.addBlocker}
-          placeholder="Optional details or acceptance criteria. Tip: @ to reference files, # to reference stories/features"
+          onAcceptReference={onAcceptReference}
+          placeholder="Optional details. Tip: @ to reference files, # to reference stories/features"
           rows={4}
           disabled={submitting}
           textInputProps={{ style: { maxHeight: textareaMaxHeight } }}
         />
       </Field>
+
+      <Field label="Acceptance Criteria">
+        <FileMentionsTextarea
+          value={form.values.acceptance}
+          onChangeText={form.setAcceptance}
+          onSearchFiles={onSearchFiles}
+          onSearchReferences={onSearchReferences}
+          onSearchHandles={onSearchHandles}
+          onAcceptFileMention={form.addContextFile}
+          onAcceptReference={onAcceptReference}
+          placeholder="What done means — what a reviewer checks the change against"
+          rows={3}
+          disabled={submitting}
+          textInputProps={{ style: { maxHeight: textareaMaxHeight } }}
+        />
+      </Field>
+
+      <ProofPlanEditor
+        draft={form.proofPlanDraft}
+        onToggleKind={form.toggleProofKind}
+        onNotesChange={form.setProofNotes}
+        {...(inheritedProofPlan ? { inherited: inheritedProofPlan } : {})}
+        disabled={submitting}
+      />
 
       <Field label="Rejection Reason">
         <FileMentionsTextarea
@@ -236,8 +290,9 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           onChangeText={form.setRejection}
           onSearchFiles={onSearchFiles}
           onSearchReferences={onSearchReferences}
+          onSearchHandles={onSearchHandles}
           onAcceptFileMention={form.addContextFile}
-          onAcceptReference={form.addBlocker}
+          onAcceptReference={onAcceptReference}
           placeholder="Optional reason for rejection (leave blank to remove). Tip: @ files, # stories/features"
           rows={3}
           disabled={submitting}

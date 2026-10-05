@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 
 import { Button } from '../../primitives/Button'
 import Surface from '../../primitives/Surface'
@@ -22,17 +23,26 @@ import {
   featuresToWork,
   isGitSetupGrant,
   isStartGroupWorkGrant,
+  launchProofPlanRows,
+  proofPlanMetadata,
   proposalFeatureProcessId,
   processOpenWorkMetadata,
+  setLaunchProofNotes,
+  toggleLaunchProofKind,
   useProcessProposal,
   useProjectNotes,
   useStories,
 } from '../../../headless'
-import type { PendingToolGrant, ProcessOpenWorkChoice } from '../../../headless'
+import type {
+  LaunchProofPlanEdits,
+  PendingToolGrant,
+  ProcessOpenWorkChoice,
+} from '../../../headless'
 import DependencyBullet from '../stories/DependencyBullet'
 import ChainChip from '../process/ChainChip'
 import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
+import ProofPlanConfirm from './ProofPlanConfirm'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
@@ -191,6 +201,18 @@ function ToolApprovalPanel({
   // Work added to an open run is worked the way that run works its own.
   const joinsOpenRun = openWorkChoice === 'extend' && openWorkMeta !== undefined
   const featureProcessMeta = joinsOpenRun ? undefined : featureProcessMetadata(featureProcess)
+  // How each feature is proven — its requestor's plan, confirmed or added to
+  // here. Work joining an open run reads the features' own plans, so it saves.
+  const [proofPlanEdits, setProofPlanEdits] = useState<LaunchProofPlanEdits>({})
+  const [saveProofPlans, setSaveProofPlans] = useState(false)
+  const proofPlanRows = launchProofPlanRows(proposal, proofPlanEdits)
+  const canonicalize = useCanonicalizeReferences()
+  const proofPlanMeta = proofPlanMetadata(
+    proposal,
+    proofPlanEdits,
+    joinsOpenRun || saveProofPlans,
+    canonicalize,
+  )
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.
   const awaitingChoice =
@@ -218,6 +240,7 @@ function ToolApprovalPanel({
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
+              ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
             }
           : undefined,
       )
@@ -386,6 +409,22 @@ function ToolApprovalPanel({
           joinsOpenRun={joinsOpenRun}
           busy={busy}
           onChoose={setFeatureProcessPick}
+        />
+      ) : null}
+
+      {proofPlanRows.length > 0 ? (
+        <ProofPlanConfirm
+          rows={proofPlanRows}
+          save={saveProofPlans}
+          joinsOpenRun={joinsOpenRun}
+          busy={busy}
+          onToggleKind={(featureId, kind) =>
+            setProofPlanEdits((prev) => toggleLaunchProofKind(proposal, prev, featureId, kind))
+          }
+          onNotesChange={(featureId, notes) =>
+            setProofPlanEdits((prev) => setLaunchProofNotes(proposal, prev, featureId, notes))
+          }
+          onSaveChange={setSaveProofPlans}
         />
       ) : null}
 

@@ -30,6 +30,12 @@ export type ProcessCheckRow = {
   ranInDetail: string | undefined
   /** "14 tests" — how many tests a test command ran, when it said; never set for a run of none, whose summary says so. */
   testCountLabel: string | undefined
+  /** "pre-existing" / "partly pre-existing" — a failure its base shares, in full or in part; else unset. */
+  baselineLabel: string | undefined
+  /** "Already failing at the base 28cf012 in the same environment — not caused by this change." — when it was compared. */
+  baselineDetail: string | undefined
+  /** "Built against thefactory-tools at 1a2b3c4 with uncommitted changes" — the code outside the checkout it ran against. */
+  dependencyDetail: string | undefined
 }
 
 /** What a sign-off section says about the checks its developer ran before handing over. */

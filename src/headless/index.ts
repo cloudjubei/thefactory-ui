@@ -546,6 +546,9 @@ export {
 } from './utils/testCounts'
 export { TEST_COUNT_NONE_RAN, TEST_TOTALS_TITLES } from './utils/testCountsConstants'
 export { parseTestFailures, type TestFailure } from './utils/testFailures'
+export { testSuitesView } from './utils/testSuites'
+export { TEST_SUITE_MARKS, TEST_SUITE_NO_TESTS } from './utils/testSuitesConstants'
+export type { TestSuiteOutcome, TestSuiteRow, TestSuitesView } from './utils/testSuitesTypes'
 export { commitsSinceBase, type BranchCommit } from './utils/branchCommits'
 export {
   isInDeleteRange,
@@ -672,6 +675,7 @@ export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
 export type { StoryFeatureCensus } from 'thefactory-tools/types'
+export type { ProofKind, ProofPlan } from 'thefactory-tools/types'
 export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
@@ -712,6 +716,7 @@ export {
 } from './utils/status'
 export { isReviewable, processStatusOverlay } from './utils/processStatusOverlay'
 export type { ProcessStatusOverlay } from './utils/processStatusOverlay'
+export { PROCESS_STATUS_OVERLAY_TITLES } from './utils/processStatusOverlayConstants'
 
 // Story / feature list options (sorts + status filter) and the shared
 // filter / sort operations both clients' list screens run on.
@@ -802,7 +807,6 @@ export {
 } from './utils/path'
 
 // Rich-text tokeniser (@file + #dep mentions)
-export { tokenizeRichText, type RichTextSegment } from './utils/richTextTokenize'
 
 // Chat system-prompt `{{placeholder}}` interpolation
 export {
@@ -864,6 +868,12 @@ export {
   type UseFileMentions,
   type UseFileMentionsOptions,
 } from './hooks/useFileMentions'
+export {
+  invalidateReferenceProject,
+  useReferences,
+  type References,
+  type ReferenceScope,
+} from './hooks/useReferences'
 
 // File-extension → renderer-kind classifier (markdown / html / image / pdf / text / binary).
 export { classifyFileByExtension, type FilePaneKind } from './utils/filePaneKind'
@@ -875,6 +885,7 @@ export type {
   ChatMessageLike,
   MessageUsageLike,
   PendingQuestionGrant,
+  UserAsk,
   PendingToolConfirmationLike,
   PendingToolGrant,
   PendingToolGrantData,
@@ -1119,6 +1130,7 @@ export {
   isQuestionGrant,
   parseQuestionPayload,
   partitionGrants,
+  userAsks,
 } from './utils/agentQuestions'
 export {
   QUESTION_ACTION_KIND,
@@ -1142,13 +1154,12 @@ export { useCredentialCaptures, type UseCredentialCaptures } from './hooks/useCr
 export {
   awaitingCaptures,
   belongsToChat,
-  bindCapturesToToolCalls,
   captureCardTitle,
+  capturesBlockedOn,
   captureFields,
   captureFormErrors,
   captureStatusDisplay,
   captureSubmitBody,
-  captureToolCallPurpose,
   captureToolName,
   emptyCaptureForm,
   isAwaitingUser,
@@ -1169,7 +1180,6 @@ export {
   CAPTURE_SUBMIT_LABEL,
   CREDENTIAL_CAPTURE_EVENT,
   CREDENTIAL_CAPTURE_FIELDS,
-  CREDENTIAL_CAPTURE_PURPOSE_ARG,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
   CREDENTIAL_CAPTURE_TOOL_NAMES,
 } from './utils/credentialCaptureConstants'
@@ -1270,6 +1280,13 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // conventions) an agent can reach for, plus the deliberate one-at-a-time
 // reveal of a stored value.
 export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+export {
+  ReferenceRenderingContext,
+  useCanonicalizeReferences,
+  useEffectiveReferenceRenderer,
+  useReferenceRendering,
+  type ReferenceRendering,
+} from './contexts/ReferenceRenderingContext'
 export { useProcesses, type UseProcesses } from './hooks/useProcesses'
 export {
   useProcessRun,
@@ -1301,22 +1318,17 @@ export {
   type UseProcessGroupLaunchPreview,
 } from './hooks/useProcessGroupLaunchPreview'
 export {
-  defaultProcessGroupLegModes,
   isStartGroupWorkGrant,
-  processGroupLaunchMetadata,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
 } from './utils/processGroupLaunch'
 export {
-  PROCESS_GROUP_EARLY_MERGE_LABEL,
   PROCESS_GROUP_LAUNCH_BLURB,
-  PROCESS_GROUP_PREREQUISITE_MODES,
   START_GROUP_WORK_TOOL_NAME,
 } from './utils/processGroupLaunchConstants'
 export type {
   ProcessGroupLaunchLeg,
   ProcessGroupLaunchPreview,
-  ProcessGroupLegModes,
   ProcessGroupLegRequest,
   StartGroupWorkGrantSummary,
 } from './utils/processGroupLaunchTypes'
@@ -1334,6 +1346,7 @@ export {
   PROCESS_GROUP_HELD_SIGN_OFF,
   PROCESS_GROUP_LEG_STATUS_VIEW,
   PROCESS_GROUP_MODE_LABELS,
+  PROCESS_GROUP_PREREQUISITE_MODES,
 } from './utils/processGroupViewConstants'
 export type {
   ProcessGroupCardView,
@@ -1361,6 +1374,7 @@ export {
   processStepName,
   processRunChain,
   processRunChipLabel,
+  processRunPersonEnding,
   processRunSpend,
   processStepTone,
   processStepFinishedView,
@@ -1394,11 +1408,19 @@ export {
   type VerifyReviewStatus,
   type ProcessOpenLeaf,
 } from './utils/processView'
-export type { ProcessNodeLook, ProcessNodeSummary } from './utils/processViewTypes'
-export { PROCESS_SPEND_CAP_TITLE, PROCESS_SPEND_TITLE } from './utils/processViewConstants'
+export type {
+  ProcessNodeLook,
+  ProcessNodeSummary,
+  ProcessRunPersonEnding,
+} from './utils/processViewTypes'
+export {
+  PROCESS_RUN_PERSON_ENDING_VIEW,
+  PROCESS_SEND_BACK_COPY,
+  PROCESS_SPEND_CAP_TITLE,
+  PROCESS_SPEND_TITLE,
+} from './utils/processViewConstants'
 export {
   choiceTakesNote,
-  parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
@@ -1467,6 +1489,47 @@ export type {
   FeatureProcessOptionView,
 } from './utils/processFeatureProcessTypes'
 export {
+  launchProofPlanRows,
+  proofKindOptions,
+  proofPlanDraftOf,
+  proofPlanDraftsEqual,
+  proofPlanFieldText,
+  proofPlanMarkRows,
+  proofPlanMetadata,
+  proofPlanOfDraft,
+  proofPlanSummaryLine,
+  setLaunchProofNotes,
+  toggleLaunchProofKind,
+  toggleProofPlanDraftKind,
+} from './utils/proofPlanView'
+export {
+  PROOF_KIND_STATUS_TONES,
+  PROOF_KIND_STATUS_WORDS,
+  PROOF_PLAN_AUTOMATIC_LABEL,
+  PROOF_PLAN_CONFIRM_DETAIL,
+  PROOF_PLAN_CONFIRM_HEADING,
+  PROOF_PLAN_EDITED_LABEL,
+  PROOF_PLAN_EDITOR_HINT,
+  PROOF_PLAN_EDITOR_LABEL,
+  PROOF_PLAN_EMPTY_LABEL,
+  PROOF_PLAN_EXTEND_NOTE,
+  PROOF_PLAN_INHERITS_PREFIX,
+  PROOF_PLAN_NOTES_PLACEHOLDER,
+  PROOF_PLAN_SAVE_LABEL,
+  PROOF_PLAN_SIGNOFF_HEADING,
+  PROOF_PLAN_SOURCE_LABELS,
+} from './utils/proofPlanViewConstants'
+export type {
+  LaunchProofFlag,
+  LaunchProofKindView,
+  LaunchProofPlanEdits,
+  LaunchProofPlanRow,
+  ProofKindOptionView,
+  ProofPlanDraft,
+  ProofPlanLaunchMetadata,
+  ProofPlanMarkRow,
+} from './utils/proofPlanViewTypes'
+export {
   processAmendmentView,
   processOpenWorkMetadata,
   processOpenWorkView,
@@ -1491,11 +1554,11 @@ export type {
 // onto the plan the DRIVER froze, so a client-side re-implementation would
 // render a pipeline the backend does not agree with.
 export {
-  gateSendsBack,
   isProcessParkChoiceOffered,
   isReflectedPark,
   processParkChoices,
   processRunProgress,
+  processRunSendBackGateId,
   processStepStates,
   processVerifyReview,
   stepChainSummary,

@@ -1,3 +1,4 @@
+import type { ReferenceTarget } from 'thefactory-tools/types'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import type {
@@ -12,11 +13,7 @@ import CliRunMessages from './CliRunMessages'
 import { formatDurationMs } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
-import type {
-  ChatMessageLike,
-  PendingToolGrant,
-  ToolCallLike,
-} from '../../../headless/utils/chatTypes'
+import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
@@ -121,19 +118,10 @@ export interface MessageListProps {
 
   /** Host renderer for a tool call. */
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
-  /**
-   * Replaces a tool row's card outright — see `MessageRow.toolRowOverride`.
-   * Returning nothing leaves the host renderer in place. Deliberately not
-   * forwarded to `CliRunMessages`: a CLI run's rows are not in `messages`, so
-   * the host cannot tell whether one was rendered and would show its fallback
-   * as well.
-   */
-  renderToolRowOverride?: (toolCall: ToolCallLike) => ReactNode
-
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
@@ -176,10 +164,9 @@ export default function MessageList({
   onRetry,
   onRestartTurn,
   renderToolCall,
-  renderToolRowOverride,
   onResolveFile,
   onResourceLink,
-  renderDependency,
+  renderReference,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -451,7 +438,7 @@ export default function MessageList({
                   baseIndex={i}
                   renderToolCall={renderToolCall}
                   onResolveFile={onResolveFile}
-                  renderDependency={renderDependency}
+                  renderReference={renderReference}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}
@@ -480,11 +467,6 @@ export default function MessageList({
                   prevUserMessagesLen={prevUserCount}
                   enhancedTotalLength={windowed.length}
                   renderToolCall={renderToolCall}
-                  toolRowOverride={
-                    msg.toolCall && renderToolRowOverride
-                      ? renderToolRowOverride(msg.toolCall)
-                      : undefined
-                  }
                   onDeleteLastMessage={onDeleteLastMessage}
                   deleteControl={deleteControl}
                   deletePreview={isInDeleteRange(i, deleteFromIndex, deletePreview)}
@@ -494,7 +476,7 @@ export default function MessageList({
                   restartControl={restartControl}
                   onRetry={onRetry}
                   onResolveFile={onResolveFile}
-                  renderDependency={renderDependency}
+                  renderReference={renderReference}
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
@@ -529,7 +511,7 @@ export default function MessageList({
             prevUserMessagesLen={prevUserCount}
             enhancedTotalLength={windowed.length + 1}
             onResolveFile={onResolveFile}
-            renderDependency={renderDependency}
+            renderReference={renderReference}
             onResourceLink={onResourceLink}
             thinkingLabel={thinkingLabel}
           />
@@ -547,7 +529,7 @@ export default function MessageList({
               baseIndex={windowed.length}
               renderToolCall={renderToolCall}
               onResolveFile={onResolveFile}
-              renderDependency={renderDependency}
+              renderReference={renderReference}
               renderCliRunArtifact={renderCliRunArtifact}
               renderProcessRun={renderProcessRun}
               renderProcessGroupRun={renderProcessGroupRun}

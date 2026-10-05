@@ -1,4 +1,7 @@
 import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
+import RichText from '../files/RichText'
+import ReferenceTextarea from '../files/ReferenceTextarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -222,6 +225,7 @@ export default function CliRunArtifactPanel({
 
   const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
+  const canonicalize = useCanonicalizeReferences()
   // Every hook stays ABOVE the early returns below — React counts hooks per
   // render, and a hook after `if (loading) return null` is the "rendered more
   // hooks than during the previous render" crash.
@@ -537,7 +541,7 @@ export default function CliRunArtifactPanel({
   }
 
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
-    const answer = (answers[q.questionId] ?? '').trim()
+    const answer = canonicalize((answers[q.questionId] ?? '').trim())
     if (!projectId || !storyId || answer.length === 0) return
     setAnswering(q.questionId)
     try {
@@ -560,7 +564,7 @@ export default function CliRunArtifactPanel({
   const submitReason = () => {
     if (!reasonFor || !reasonValid) return
     const decision = reasonFor
-    const text = reason
+    const text = canonicalize(reason)
     setReasonFor(undefined)
     setReason('')
     if (decision === 'rejected') {
@@ -702,20 +706,20 @@ export default function CliRunArtifactPanel({
               </Text>
               {openQuestions.map((q) => (
                 <View key={q.questionId} style={{ gap: 4 }}>
-                  <Text style={{ fontSize: 12, color: theme.text.primary }}>{q.question}</Text>
+                  <RichText text={q.question} textColor={theme.text.primary} />
                   <Text style={{ fontSize: 11, color: theme.text.secondary }}>
                     {`on ${q.featureTitle}`}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ flex: 1 }}>
-                      <Input
-                        size="sm"
+                      <ReferenceTextarea
+                        rows={1}
                         value={answers[q.questionId] ?? ''}
                         placeholder="Your answer — this unblocks the feature"
                         onChangeText={(text) =>
                           setAnswers((prev) => ({ ...prev, [q.questionId]: text }))
                         }
-                        onSubmitEditing={() => void submitAnswer(q)}
+                        onSubmit={() => void submitAnswer(q)}
                       />
                     </View>
                     <Button
@@ -967,7 +971,7 @@ export default function CliRunArtifactPanel({
                 {`${decided.label} by ${decided.byLabel}`}
               </Text>
               {decided.notes ? (
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>{decided.notes}</Text>
+                <RichText text={decided.notes} typedReferences textColor={theme.text.secondary} />
               ) : null}
             </View>
           ) : working ? (
@@ -1043,15 +1047,15 @@ export default function CliRunArtifactPanel({
           {reasonFor ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Input
-                  size="sm"
+                <ReferenceTextarea
+                  rows={1}
                   autoFocus
                   value={reason}
                   placeholder={
                     reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
                   }
                   onChangeText={setReason}
-                  onSubmitEditing={submitReason}
+                  onSubmit={submitReason}
                 />
               </View>
               <Button size="sm" onPress={submitReason} disabled={!reasonValid || busy}>

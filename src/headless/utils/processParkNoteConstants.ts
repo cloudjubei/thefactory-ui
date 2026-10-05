@@ -17,17 +17,11 @@ export const PARK_NOTE_CHOICES: ReadonlySet<ProcessParkAction> = new Set([
 /** The park choices whose note is the whole answer, so they cannot be sent empty. */
 export const PARK_NOTE_REQUIRED_CHOICES: ReadonlySet<ProcessParkAction> = new Set(['more-info'])
 
-/** The composer's words: a gate that sends work back to be fixed, or one that only ends the run. */
-export const PARK_NOTE_COPY: Record<'sendsBack' | 'endsRun', ParkNoteCopy> = {
-  sendsBack: {
-    prompt:
-      'What should change? Optional — the code review’s findings are sent to the fix either way.',
-    submitLabel: 'Send back to be fixed',
-  },
-  endsRun: {
-    prompt: 'What needs to change?',
-    submitLabel: 'Request changes',
-  },
+/** The composer's words at a gate: a request for changes always sends the work back to be fixed. */
+export const PARK_NOTE_COPY: ParkNoteCopy = {
+  prompt:
+    'What should change? Optional — the code review’s findings are sent to the fix either way, and the work comes back here.',
+  submitLabel: 'Send back to be fixed',
 }
 
 export const PARK_NOTE_CANCEL = 'Cancel'

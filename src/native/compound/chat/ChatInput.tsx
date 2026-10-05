@@ -1,3 +1,4 @@
+import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { IconAttach, IconMic, IconSend } from '../../icons'
@@ -51,6 +52,8 @@ export interface ChatInputProps {
   filePaths?: string[]
   /** `#`-reference search. When omitted the `#` autocomplete is disabled. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** `&`-search over notes and the chat's attachments. When omitted the `&` autocomplete is disabled. */
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
   /** Fires after the user accepts a `#`-reference suggestion. */
   onAcceptReference?: (value: string) => void
 
@@ -77,6 +80,7 @@ export default function ChatInput({
   onPickAttachment,
   filePaths,
   onSearchReferences,
+  onSearchHandles,
   onAcceptReference,
   autoFocus = false,
   clearOnSend = true,
@@ -236,7 +240,7 @@ export default function ChatInput({
               }}
             >
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                {path.split('/').pop() ?? path}
+                {attachmentDisplayName(path)}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -355,6 +359,7 @@ export default function ChatInput({
             onChangeText={onChange}
             onSearchFiles={filePaths ? onSearchFiles : undefined}
             onSearchReferences={onSearchReferences}
+            onSearchHandles={onSearchHandles}
             onAcceptReference={onAcceptReference}
             placeholder={
               isDictating

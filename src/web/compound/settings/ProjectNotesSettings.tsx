@@ -1,5 +1,13 @@
-import { useState } from 'react'
-import { useProjectNotes, useProjectNoteReveal } from '../../../headless'
+import { useCallback, useState } from 'react'
+import type { ResourceLink } from 'thefactory-tools/types'
+import {
+  rankMentionMatches,
+  useFiles,
+  useProjectNotes,
+  useProjectNoteReveal,
+} from '../../../headless'
+import { useProjectReferenceRenderer } from '../../hooks/useReferenceRenderer'
+import RichText from '../files/RichText'
 import type { ProjectNoteSummary } from '../../../headless/api'
 import {
   canRevealNote,
@@ -16,6 +24,8 @@ import ProjectNotesForm from './ProjectNotesForm'
 export type ProjectNotesSettingsProps = {
   /** Project whose notes are managed. Undefined renders an idle empty state. */
   projectId: string | undefined
+  /** Opens what a note points at — a story, feature, note or file. */
+  onOpenReference?: (link: ResourceLink) => void
 }
 
 type ModalRoute =
@@ -33,12 +43,26 @@ function formatUpdated(iso: string): string {
  * app under test, API keys, conventions. A stored value is never rendered in
  * the list; Reveal fetches one on demand and masks it again shortly after.
  */
-export default function ProjectNotesSettings({ projectId }: ProjectNotesSettingsProps) {
+export default function ProjectNotesSettings({
+  projectId,
+  onOpenReference,
+}: ProjectNotesSettingsProps) {
   const { isLoaded, loadError, notes, createNote, updateNote, deleteNote, revealNote } =
     useProjectNotes(projectId)
   const { revealedNoteId, revealedValue, revealingNoteId, revealError, reveal, hide } =
     useProjectNoteReveal(revealNote)
   const [modal, setModal] = useState<ModalRoute | null>(null)
+  const { references, renderReference } = useProjectReferenceRenderer({
+    projectId,
+    ...(onOpenReference ? { onOpen: onOpenReference } : {}),
+  })
+  const { paths } = useFiles()
+  const onSearchFiles = useCallback((token: string) => rankMentionMatches(paths, token, 8), [paths])
+  const mentions = {
+    onSearchFiles,
+    onSearchReferences: references.searchWork,
+    onSearchHandles: references.searchHandles,
+  }
 
   return (
     <div className="max-w-4xl">
@@ -84,7 +108,11 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
                   </div>
                   {note.description && (
                     <div className="text-sm text-(--text-secondary) wrap-break-word">
-                      {note.description}
+                      <RichText
+                        text={note.description}
+                        renderReference={renderReference}
+                        typedReferences
+                      />
                     </div>
                   )}
                   <div className="font-mono text-xs text-(--text-secondary) wrap-break-word">
@@ -143,6 +171,8 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
           <ProjectNotesForm
             mode={{ kind: 'create', onSubmit: createNote }}
             onClose={() => setModal(null)}
+            mentions={mentions}
+            canonicalize={references.canonicalize}
           />
         </Modal>
       )}
@@ -155,6 +185,8 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
               onSubmit: (patch) => updateNote(modal.note.id, patch),
             }}
             onClose={() => setModal(null)}
+            mentions={mentions}
+            canonicalize={references.canonicalize}
           />
         </Modal>
       )}

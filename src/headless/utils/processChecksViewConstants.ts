@@ -1,4 +1,8 @@
-import type { VerificationCheckRanIn, VerificationCheckStatus } from '../api/generated'
+import type {
+  VerificationBaselineVerdict,
+  VerificationCheckRanIn,
+  VerificationCheckStatus,
+} from '../api/generated'
 import { CHECK_CHIP_MARKS } from './checkMethodConstants'
 import type { ProcessStatusTone } from './processView'
 
@@ -47,3 +51,9 @@ export const DEVELOPER_CHECK_ROLES: readonly string[] = ['developer', 'fixer', '
 export const DEVELOPER_VERIFIED_LABEL = 'Developer verified'
 
 export const DEVELOPER_RAN_NO_CHECKS = 'Developer ran no checks'
+
+/** The short word on a failed check row for how it compares with the change's base — only when it is not the change's alone. */
+export const PROCESS_CHECK_BASELINE_LABELS: Partial<Record<VerificationBaselineVerdict, string>> = {
+  'pre-existing': 'pre-existing',
+  'partly-pre-existing': 'partly pre-existing',
+}

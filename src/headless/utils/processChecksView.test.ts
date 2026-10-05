@@ -243,6 +243,63 @@ describe('processCheckRows', () => {
     ])
   })
 
+  it('labels a failure its base shares, in full or in part, and says how it compared', () => {
+    const rows = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({ status: 'failed', baseline: { sha: '28cf0124f4', verdict: 'pre-existing' } }),
+          result({
+            id: 'typecheck',
+            status: 'failed',
+            baseline: {
+              sha: '28cf0124f4',
+              verdict: 'partly-pre-existing',
+              preExistingLines: ['x'],
+            },
+          }),
+          result({ id: 'test', status: 'failed', baseline: { sha: '28cf0124f4', verdict: 'new' } }),
+          result({ id: 'format' }),
+        ],
+      }),
+    })
+    expect(rows.map((r) => r.baselineLabel)).toEqual([
+      'pre-existing',
+      'partly pre-existing',
+      undefined,
+      undefined,
+    ])
+    expect(rows[0]?.baselineDetail).toBe(
+      'Already failing at the base 28cf012 in the same environment — not caused by this change.',
+    )
+    expect(rows[2]?.baselineDetail).toBe(
+      'Not failing this way at the base 28cf012 — caused by this change.',
+    )
+    expect(rows[3]?.baselineDetail).toBeUndefined()
+  })
+
+  it('names the code outside the checkout a command built against', () => {
+    const [built, plain] = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({
+            ranIn: 'host',
+            dependencyRevisions: [
+              { label: 'tools', path: '/w/thefactory-tools', sha: '1a2b3c4d5e', dirty: true },
+              { label: 'db', path: '/w/thefactory-db', sha: '9f8e7d6c5b', dirty: false },
+            ],
+          }),
+          result({ id: 'lint' }),
+        ],
+      }),
+    })
+    expect(built?.dependencyDetail).toBe(
+      'Built against thefactory-tools at 1a2b3c4 with uncommitted changes, thefactory-db at 9f8e7d6',
+    )
+    expect(plain?.dependencyDetail).toBeUndefined()
+  })
+
   it('lists each command of a checks step with its mark, word and time', () => {
     const rows = processCheckRows({
       step: checkStep,

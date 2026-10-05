@@ -7,6 +7,11 @@ import {
   type ListProjectDataData,
 } from './generated'
 import type { DataFilter, DataSort } from 'thefactory-tools/types'
+import {
+  projectAppDataPutOf,
+  projectAppDataQueryOf,
+  projectAppDataRefOf,
+} from 'thefactory-tools/utils'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
 export interface ProjectDataQuery {
@@ -133,21 +138,10 @@ export async function dispatchProjectDataBridge(
   if (!projectId) throw new Error('Cannot handle a data bridge request without an active project')
 
   switch (name) {
-    case 'data.query': {
-      const p = (req.payload ?? {}) as ProjectDataQuery
-      return queryProjectData(projectId, {
-        type: p.type,
-        key: p.key,
-        where: p.where,
-        orderBy: p.orderBy,
-        limit: p.limit,
-        offset: p.offset,
-        select: p.select,
-        omit: p.omit,
-      })
-    }
+    case 'data.query':
+      return queryProjectData(projectId, projectAppDataQueryOf(req.payload))
     case 'data.count': {
-      const p = (req.payload ?? {}) as ProjectDataQuery
+      const p = projectAppDataQueryOf(req.payload)
       return {
         count: await countProjectDataRecords(projectId, {
           type: p.type,
@@ -156,32 +150,11 @@ export async function dispatchProjectDataBridge(
         }),
       }
     }
-    case 'data.put': {
-      const p = (req.payload ?? {}) as Partial<ProjectDataPutInput>
-      if (typeof p.type !== 'string' || p.type.length === 0) {
-        throw new Error('data.put requires a non-empty `type`')
-      }
-      if (typeof p.content !== 'object' || p.content === null) {
-        throw new Error('data.put requires object or array `content`')
-      }
-      return putProjectDataRecord(projectId, {
-        type: p.type,
-        key: p.key ?? null,
-        content: p.content,
-        metadata: p.metadata,
-      })
-    }
-    case 'data.delete': {
-      const p = (req.payload ?? {}) as Partial<ProjectDataRef>
-      if (typeof p.type !== 'string' || p.type.length === 0) {
-        throw new Error('data.delete requires a non-empty `type`')
-      }
-      if (typeof p.key !== 'string' || p.key.length === 0) {
-        throw new Error('data.delete requires a non-empty `key`')
-      }
-      await deleteProjectDataRecord(projectId, { type: p.type, key: p.key })
+    case 'data.put':
+      return putProjectDataRecord(projectId, projectAppDataPutOf(req.payload))
+    case 'data.delete':
+      await deleteProjectDataRecord(projectId, projectAppDataRefOf(req.payload))
       return { deleted: true }
-    }
     default:
       throw new Error(`Unknown data bridge op: ${name}`)
   }

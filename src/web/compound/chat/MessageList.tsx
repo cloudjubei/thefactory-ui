@@ -1,3 +1,4 @@
+import type { ReferenceTarget } from 'thefactory-tools/types'
 import {
   useCallback,
   useEffect,
@@ -117,21 +118,12 @@ export type MessageListProps = {
     sideBySide?: boolean
   }) => ReactNode
   getToolHeaderPath?: (toolCall: ToolCall) => string | undefined
-  /**
-   * Replaces a tool row's card outright — see `MessageRow.toolRowOverride`.
-   * Returning nothing leaves the standard card in place. Deliberately not
-   * forwarded to `CliRunMessages`: a CLI run's rows are not in `messages`, so
-   * the host cannot tell whether one was rendered and would show its fallback
-   * as well.
-   */
-  renderToolRowOverride?: (toolCall: ToolCall) => ReactNode
-
   /** Resolve an `@<path>` inline file mention to file metadata. Forwarded
    * to each MessageRow's RichText so user bubbles render file chips. */
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render an inline `#<id>` reference (story / feature). Forwarded to
    * MessageRow's RichText. */
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
@@ -200,9 +192,8 @@ export default function MessageList({
   onRestartTurn,
   renderToolResult,
   getToolHeaderPath,
-  renderToolRowOverride,
   onResolveFile,
-  renderDependency,
+  renderReference,
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
@@ -795,7 +786,7 @@ export default function MessageList({
                   renderToolResult={renderToolResult}
                   getToolHeaderPath={getToolHeaderPath}
                   onResolveFile={onResolveFile}
-                  renderDependency={renderDependency}
+                  renderReference={renderReference}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}
@@ -832,7 +823,7 @@ export default function MessageList({
                   renderToolResult={renderToolResult}
                   getToolHeaderPath={getToolHeaderPath}
                   onResolveFile={onResolveFile}
-                  renderDependency={renderDependency}
+                  renderReference={renderReference}
                   onResourceLink={onResourceLink}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
@@ -867,11 +858,6 @@ export default function MessageList({
                     msg.toolCall?.toolCallId &&
                     confirmableIds.has(String(msg.toolCall.toolCallId))
                       ? () => toggleAlwaysTool(String(msg.toolCall!.toolCallId))
-                      : undefined
-                  }
-                  toolRowOverride={
-                    msg.toolCall && renderToolRowOverride
-                      ? renderToolRowOverride(msg.toolCall)
                       : undefined
                   }
                   thinkingLabel={thinkingLabel}
@@ -921,7 +907,7 @@ export default function MessageList({
               renderToolResult={renderToolResult}
               getToolHeaderPath={getToolHeaderPath}
               onResolveFile={onResolveFile}
-              renderDependency={renderDependency}
+              renderReference={renderReference}
               renderCliRunArtifact={renderCliRunArtifact}
               renderProcessRun={renderProcessRun}
               renderProcessGroupRun={renderProcessGroupRun}
@@ -944,7 +930,7 @@ export default function MessageList({
             renderToolResult={renderToolResult}
             getToolHeaderPath={getToolHeaderPath}
             onResolveFile={onResolveFile}
-            renderDependency={renderDependency}
+            renderReference={renderReference}
           />
         ) : null}
         {turnInFlight && !pending && !pendingCliRunId ? (

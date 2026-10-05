@@ -20,6 +20,12 @@ export type UseStoryFormOptions = {
   initialValues?: StoryFormInitialValues
   onSubmit: (values: StoryFormValues) => unknown | Promise<unknown>
   onDirty?: (dirty: boolean) => void
+  /**
+   * Turns what was typed (`#3.2`, `&qa-login`) into ids on save —
+   * `References.canonicalize`. Given the description as it was, so only what is
+   * new is turned.
+   */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 export type UseStoryForm = {
@@ -47,8 +53,10 @@ function seed(v?: StoryFormInitialValues): StoryFormValues {
   }
 }
 
+const asTyped = (text: string): string => text
+
 export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
-  const { initialValues, onSubmit, onDirty } = opts
+  const { initialValues, onSubmit, onDirty, canonicalize = asTyped } = opts
   const initial = useMemo(() => seed(initialValues), [initialValues])
   const baselineRef = useRef<StoryFormValues>(initial)
 
@@ -80,12 +88,12 @@ export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
       await onSubmit({
         title: title.trim(),
         status,
-        description: description.trim(),
+        description: canonicalize(description.trim(), baselineRef.current.description),
       })
     } finally {
       setSubmitting(false)
     }
-  }, [title, status, description, onSubmit, submitting])
+  }, [title, status, description, onSubmit, submitting, canonicalize])
 
   const onKeyDown = useCallback(
     (e: { key: string; metaKey?: boolean; ctrlKey?: boolean; preventDefault: () => void }) => {

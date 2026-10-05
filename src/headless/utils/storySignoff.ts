@@ -21,6 +21,7 @@ import type {
   RunVerification,
   VerificationCheckResult,
 } from '../api/generated'
+import { proofPlanMarkRows } from './proofPlanView'
 import {
   CHECK_STATE_TONES,
   NOT_RUN_TITLE,
@@ -1201,9 +1202,11 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     const agents = agentsFor(runs, roleOf)
     featureAgents.push(agents)
     const featureEvidence = evidence.filter((e) => (e.featureId ?? '') === feature.id)
+    const proofPlan = featureRun ? proofPlanMarkRows(featureRun) : undefined
     featureSignoffs.push({
       featureId: feature.id,
       title: feature.title,
+      ...(proofPlan ? { proofPlan } : {}),
       ...sectionSignoffFor(
         run,
         featureEvidence,

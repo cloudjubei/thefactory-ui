@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Linking, Pressable, Text, View } from 'react-native'
+import { Linking, Text, View } from 'react-native'
 
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../primitives/Select'
-import { IconChevronDown, IconChevronRight, IconKey } from '../../icons'
+import { IconKey } from '../../icons'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
 import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
@@ -24,7 +24,6 @@ import {
   captureFormErrors,
   captureStatusDisplay,
   captureSubmitBody,
-  captureToolName,
   emptyCaptureForm,
   isAwaitingUser,
   isCaptureFormValid,
@@ -35,6 +34,7 @@ import {
   CAPTURE_CANCEL_LABEL,
   CAPTURE_CARD_PRIVACY_NOTE,
   CAPTURE_SUBMIT_ERROR,
+  CAPTURE_PURPOSE_LABEL,
   CAPTURE_SUBMIT_LABEL,
   CLI_SIGN_IN_AUTHORIZE_HINT,
   CLI_SIGN_IN_CODE_LABEL,
@@ -86,14 +86,13 @@ export default function CredentialCaptureCard({
   const [error, setError] = useState<string | null>(null)
   // The agent is parked on this form, so it opens showing what it needs; the
   // chevron is for getting it out of the way, not for finding it.
-  const [expanded, setExpanded] = useState(true)
 
   const status = captureStatusDisplay(capture)
   const open = isAwaitingUser(capture)
   const errors = captureFormErrors(capture, values)
   const locked = busy || disabled === true
   const canSubmit = isCaptureFormValid(capture, values)
-  const showForm = open && expanded
+  const showForm = open
   const accent = statusTokens.working.bg
 
   const signInCard = isCliSignInCapture(capture)
@@ -156,40 +155,26 @@ export default function CredentialCaptureCard({
       <View
         style={{
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: nativeSpace[2],
           paddingHorizontal: PAD,
           paddingVertical: PAD,
         }}
       >
-        <IconKey size={14} color={accent} />
-        <Text
-          style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}
-          numberOfLines={1}
-        >
-          {captureToolName(capture)}
-        </Text>
-        <Text style={{ flex: 1, fontSize: 11, color: theme.text.secondary }} numberOfLines={1}>
-          {capture.purpose}
-        </Text>
+        <View style={{ paddingTop: 2 }}>
+          <IconKey size={14} color={accent} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+            {captureCardTitle(capture)}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {CAPTURE_PURPOSE_LABEL}: {capture.purpose}
+          </Text>
+        </View>
         <Text style={{ fontSize: 11, fontWeight: '500', color: accent }} numberOfLines={1}>
           {status.label}
         </Text>
-        {open ? (
-          <Pressable
-            onPress={() => setExpanded((v) => !v)}
-            accessibilityRole="button"
-            accessibilityLabel={captureCardTitle(capture)}
-            hitSlop={8}
-            style={{ padding: 2 }}
-          >
-            {expanded ? (
-              <IconChevronDown size={14} color={theme.text.secondary} />
-            ) : (
-              <IconChevronRight size={14} color={theme.text.secondary} />
-            )}
-          </Pressable>
-        ) : null}
       </View>
 
       {showForm ? (

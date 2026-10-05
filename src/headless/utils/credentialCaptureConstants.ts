@@ -22,9 +22,6 @@ export const CREDENTIAL_CAPTURE_TOOL_NAMES: Record<CredentialCaptureKind, string
   'project-note': 'requestSecretNote',
 }
 
-/** The tool argument a capture's `purpose` is recorded from — the join between the two. */
-export const CREDENTIAL_CAPTURE_PURPOSE_ARG = 'purpose'
-
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },

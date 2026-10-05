@@ -3,6 +3,7 @@ import { View } from 'react-native'
 
 import type { ProjectNoteSummary } from '../../../headless/api'
 import {
+  canonicalNoteValues,
   emptyNoteForm,
   isEmptyNotePatch,
   isNoteFormValid,
@@ -30,6 +31,15 @@ import { Input } from '../../primitives/Input'
 import { SecretInput } from '../../primitives/SecretInput'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
+import FileMentionsTextarea from '../files/FileMentionsTextarea'
+import type { ReferenceSuggestion } from '../../../headless/utils/reference'
+
+/** A note's `@` / `#` / `&` suggestions. */
+export type ProjectNotesFormMentions = {
+  onSearchFiles?: (token: string) => ReadonlyArray<string>
+  onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+}
 import { IconSave } from '../../icons'
 import { nativeSpace } from '../../../tokens/native'
 
@@ -45,6 +55,10 @@ export interface ProjectNotesFormProps {
   mode: ProjectNotesFormMode
   /** Fired when the form is finished — after a successful save. The modal owns dismissal. */
   onClose: () => void
+  /** What a plain note's text can point at. Omitted, it is plain text. */
+  mentions?: ProjectNotesFormMentions
+  /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save — never in a secret. */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 const KIND_OPTIONS = [
@@ -62,7 +76,12 @@ const ACCESS_OPTIONS = [
  * [web's `ProjectNotesForm`](../../../web/compound/settings/ProjectNotesForm.tsx).
  * Same prop surface; a stored value is never read back to pre-fill the form.
  */
-export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProps) {
+export default function ProjectNotesForm({
+  mode,
+  onClose,
+  mentions,
+  canonicalize,
+}: ProjectNotesFormProps) {
   const isEdit = mode.kind === 'edit'
   const [values, setValues] = useState<ProjectNoteFormValues>(() =>
     mode.kind === 'edit' ? noteFormValues(mode.note) : emptyNoteForm(),
@@ -79,11 +98,14 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
     if (!isNoteFormValid(values, formMode) || submitting) return
     setSubmitting(true)
     setError(null)
+    const saved = canonicalize
+      ? canonicalNoteValues(values, canonicalize, mode.kind === 'edit' ? mode.note : undefined)
+      : values
     try {
       if (mode.kind === 'create') {
-        await mode.onSubmit(noteCreateBody(values))
+        await mode.onSubmit(noteCreateBody(saved))
       } else {
-        const patch = notePatchBody(values, mode.note)
+        const patch = notePatchBody(saved, mode.note)
         if (!isEmptyNotePatch(patch)) await mode.onSubmit(patch)
       }
       onClose()
@@ -125,6 +147,18 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
             invalid={Boolean(errors.value)}
             accessibilityLabel="Value"
           />
+        ) : mentions ? (
+          <FileMentionsTextarea
+            rows={3}
+            value={values.value}
+            onChangeText={(text) => set('value', text)}
+            placeholder={
+              isEdit
+                ? ''
+                : 'The standing context an agent should have — @ files, # stories, & notes'
+            }
+            {...mentions}
+          />
         ) : (
           <Textarea
             rows={3}
@@ -138,12 +172,22 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
       </Field>
 
       <Field label="Description" hint="Optional — when an agent should reach for this.">
-        <Input
-          value={values.description}
-          onChangeText={(text) => set('description', text)}
-          placeholder="Account for the app under test"
-          accessibilityLabel="Description"
-        />
+        {mentions ? (
+          <FileMentionsTextarea
+            rows={1}
+            value={values.description}
+            onChangeText={(text) => set('description', text)}
+            placeholder="Account for the app under test"
+            {...mentions}
+          />
+        ) : (
+          <Input
+            value={values.description}
+            onChangeText={(text) => set('description', text)}
+            placeholder="Account for the app under test"
+            accessibilityLabel="Description"
+          />
+        )}
       </Field>
 
       <Field label="Access" hint={noteAccessHelp(values.access)}>

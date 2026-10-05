@@ -46,8 +46,6 @@ export type StorySignoffReviewProps = {
   storyRunId: string
   /** The gate's decision choices — the panel's decide bar acts on the whole story. */
   choices?: readonly ProcessParkChoice[]
-  /** The gate sends the story back to be fixed when changes are requested, rather than ending it. */
-  sendsBack?: boolean
   /** Set when approving must say how the work comes in — the run's work branch. */
   workBranch?: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>
   onChoose?: (
@@ -127,7 +125,6 @@ function StorySignoffPanel({
   projectId,
   storyId,
   choices,
-  sendsBack = false,
   workBranch,
   onChoose,
   signoff,
@@ -312,6 +309,7 @@ function StorySignoffPanel({
               verification={f.verification}
               statusLine={f.statusLine}
               {...(f.developerChecks ? { developerChecks: f.developerChecks } : {})}
+              {...(f.proofPlan ? { proofPlan: f.proofPlan } : {})}
               {...signoffSectionProps(
                 sectionOf(f.featureId),
                 verifyBySection.get(f.featureId),
@@ -347,7 +345,6 @@ function StorySignoffPanel({
         <div className="flex flex-wrap items-center gap-2 border-t border-(--border-subtle) px-3.5 py-2.5">
           {noteFor ? (
             <ParkNoteComposer
-              sendsBack={sendsBack}
               onSend={(note) => onChoose(noteFor, note)}
               onCancel={() => setNoteFor(undefined)}
             />

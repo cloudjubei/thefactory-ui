@@ -1,4 +1,7 @@
 import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffConstants'
+import RichText from '../files/RichText'
+import ReferenceTextarea from '../files/ReferenceTextarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -244,6 +247,7 @@ export default function CliRunArtifactPanel({
 
   const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
+  const canonicalize = useCanonicalizeReferences()
   // Every hook stays ABOVE the early returns below — React counts hooks per
   // render, and a hook after `if (loading) return null` is the "rendered more
   // hooks than during the previous render" crash.
@@ -553,7 +557,7 @@ export default function CliRunArtifactPanel({
   }
 
   const submitAnswer = async (q: { questionId: string; featureId: string }) => {
-    const answer = (answers[q.questionId] ?? '').trim()
+    const answer = canonicalize((answers[q.questionId] ?? '').trim())
     if (!projectId || !storyId || answer.length === 0) return
     setAnswering(q.questionId)
     try {
@@ -576,7 +580,7 @@ export default function CliRunArtifactPanel({
   const submitReason = () => {
     if (!reasonFor || !reasonValid) return
     const decision = reasonFor
-    const text = reason
+    const text = canonicalize(reason)
     setReasonFor(undefined)
     setReason('')
     if (decision === 'rejected') {
@@ -677,20 +681,23 @@ export default function CliRunArtifactPanel({
               </span>
               {openQuestions.map((q) => (
                 <div key={q.questionId} className="flex flex-col gap-1">
-                  <span className="text-[12px] text-(--text-primary)">{q.question}</span>
+                  <span className="text-[12px] text-(--text-primary)">
+                    <RichText text={q.question} />
+                  </span>
                   <span className="text-[11px] text-(--text-secondary)">on {q.featureTitle}</span>
                   <div className="flex items-center gap-2">
-                    <Input
-                      size="sm"
-                      value={answers[q.questionId] ?? ''}
-                      placeholder="Your answer — this unblocks the feature"
-                      onChange={(e) =>
-                        setAnswers((prev) => ({ ...prev, [q.questionId]: e.target.value }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') void submitAnswer(q)
-                      }}
-                    />
+                    <div className="min-w-0 flex-1">
+                      <ReferenceTextarea
+                        rows={1}
+                        value={answers[q.questionId] ?? ''}
+                        placeholder="Your answer — this unblocks the feature"
+                        onChange={(next) =>
+                          setAnswers((prev) => ({ ...prev, [q.questionId]: next }))
+                        }
+                        onSubmit={() => void submitAnswer(q)}
+                        className="text-[12px] py-1"
+                      />
+                    </div>
                     <Button
                       size="sm"
                       disabled={
@@ -943,7 +950,7 @@ export default function CliRunArtifactPanel({
               </div>
               {decided.notes ? (
                 <div className="wrap-break-word text-[12px] text-(--text-secondary)">
-                  {decided.notes}
+                  <RichText text={decided.notes} typedReferences />
                 </div>
               ) : null}
             </div>
@@ -1008,19 +1015,22 @@ export default function CliRunArtifactPanel({
 
           {reasonFor ? (
             <div className="flex items-center gap-2">
-              <Input
-                size="sm"
-                autoFocus
-                value={reason}
-                placeholder={
-                  reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
-                }
-                onChange={(e) => setReason(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') submitReason()
-                  if (e.key === 'Escape') setReasonFor(undefined)
-                }}
-              />
+              <div className="min-w-0 flex-1">
+                <ReferenceTextarea
+                  rows={1}
+                  autoFocus
+                  value={reason}
+                  placeholder={
+                    reasonFor === 'rejected' ? 'Why is this rejected?' : 'What needs to change?'
+                  }
+                  onChange={setReason}
+                  onSubmit={submitReason}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setReasonFor(undefined)
+                  }}
+                  className="text-[12px] py-1"
+                />
+              </div>
               <Button size="sm" onClick={submitReason} disabled={!reasonValid || busy}>
                 {reasonFor === 'rejected' ? 'Reject' : 'Send'}
               </Button>

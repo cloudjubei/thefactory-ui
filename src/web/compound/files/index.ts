@@ -26,6 +26,7 @@ export { default as HtmlEditor, type HtmlEditorPaneView, type HtmlEditorProps } 
 export { default as ImageViewer, type ImageViewerProps } from './ImageViewer'
 export { default as PdfViewer, type PdfViewerProps } from './PdfViewer'
 export { default as RichText, type RichTextProps } from './RichText'
+export { default as ReferenceTextarea, type ReferenceTextareaProps } from './ReferenceTextarea'
 export {
   applyReference,
   parseReference,

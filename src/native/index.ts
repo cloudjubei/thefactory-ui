@@ -10,6 +10,8 @@ export * from '../tokens/native'
 // Hooks — runtime theme accessor (NativeWind-driven). Every chrome / surface
 // component that switches colours on theme change reads through this hook.
 export { useNativeTheme, type NativeThemeValue } from './hooks/useNativeTheme'
+export { useProjectReferenceRenderer, useReferenceRenderer } from './hooks/useReferenceRenderer'
+export { default as ReferenceRenderingProvider } from './compound/ReferenceRenderingProvider'
 
 // Primitives
 export { default as Alert, type AlertProps, type AlertVariant } from './primitives/Alert'
@@ -164,6 +166,7 @@ export { default as CheckChip, type CheckChipProps } from './compound/chips/Chec
 export { default as HandoffButton, type HandoffButtonProps } from './compound/chips/HandoffButton'
 export { default as HelpChip, type HelpChipProps } from './compound/chips/HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './compound/chips/RefChip'
+export { default as ReferenceChip, type ReferenceChipProps } from './compound/chips/ReferenceChip'
 export {
   default as RunActionButton,
   type RunActionButtonProps,
@@ -230,6 +233,10 @@ export {
   type ContextFileChipProps,
 } from './compound/stories/ContextFileChip'
 export { default as RichText, type RichTextProps } from './compound/files/RichText'
+export {
+  default as ReferenceTextarea,
+  type ReferenceTextareaProps,
+} from './compound/files/ReferenceTextarea'
 export {
   default as GroupHome,
   type GroupHomeProjectCard,

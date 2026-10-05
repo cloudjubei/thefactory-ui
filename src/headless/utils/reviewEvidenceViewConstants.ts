@@ -15,6 +15,9 @@ export const REVIEWER_VERDICT_LABEL: Record<ReviewEvidenceVerdict, string> = {
   rejected: 'Rejected',
 }
 
+/** A non-approval that says the proof asked for cannot be produced — not that the change is wrong. */
+export const REVIEWER_PROOF_IMPOSSIBLE_LABEL = 'Could not be proven here'
+
 /** What a tile in the Screens strip is, under its title. */
 export const SCREEN_PAIR_META: Record<ScreenPairClass, string> = {
   pair: 'before / after',

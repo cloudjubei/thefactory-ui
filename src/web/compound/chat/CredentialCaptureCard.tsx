@@ -6,7 +6,7 @@ import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
 import { SecretInput } from '../SecretInput'
-import { IconChevron, IconKey } from '../../icons'
+import { IconKey } from '../../icons'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
 import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
@@ -17,7 +17,6 @@ import {
   captureFormErrors,
   captureStatusDisplay,
   captureSubmitBody,
-  captureToolName,
   emptyCaptureForm,
   isAwaitingUser,
   isCaptureFormValid,
@@ -85,14 +84,13 @@ export default function CredentialCaptureCard({
   const [error, setError] = useState<string | null>(null)
   // The agent is parked on this form, so it opens showing what it needs; the
   // chevron is for getting it out of the way, not for finding it.
-  const [expanded, setExpanded] = useState(true)
 
   const status = captureStatusDisplay(capture)
   const open = isAwaitingUser(capture)
   const errors = captureFormErrors(capture, values)
   const locked = busy || disabled === true
   const canSubmit = isCaptureFormValid(capture, values)
-  const showForm = open && expanded
+  const showForm = open
 
   const signInCard = isCliSignInCapture(capture)
   const { caches } = useCliConfigs()
@@ -150,32 +148,17 @@ export default function CredentialCaptureCard({
 
   return (
     <div className="block w-full rounded-md border text-sm text-(--text-primary) bg-amber-500/10 border-amber-500/60">
-      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
-        <IconKey className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <span className="font-semibold shrink-0">{captureToolName(capture)}</span>
-        <code
-          className="font-mono text-[11px] text-(--text-secondary) bg-(--surface-base) border border-(--border-subtle) rounded px-1.5 py-0.5 truncate min-w-0 flex-1"
-          title={`${CAPTURE_PURPOSE_LABEL}: ${capture.purpose}`}
-        >
-          {capture.purpose}
-        </code>
+      <div className="flex items-start gap-2 px-3 py-2 min-w-0">
+        <IconKey className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="min-w-0 flex-1 flex flex-col">
+          <span className="font-semibold">{captureCardTitle(capture)}</span>
+          <span className="text-[12px] text-(--text-secondary) wrap-break-word">
+            {CAPTURE_PURPOSE_LABEL}: {capture.purpose}
+          </span>
+        </div>
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/15 rounded-full px-1.5 py-0.5 shrink-0">
           {status.label}
         </span>
-        {open ? (
-          <button
-            type="button"
-            className="p-1 rounded hover:bg-(--surface-raised) shrink-0"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            aria-label={captureCardTitle(capture)}
-          >
-            <IconChevron
-              className="w-4 h-4 transition-transform"
-              style={{ transform: `rotate(${expanded ? 90 : 0}deg)` }}
-            />
-          </button>
-        ) : null}
       </div>
 
       {showForm ? (

@@ -1,9 +1,12 @@
 import { useMemo, type ReactNode } from 'react'
 import { SimpleSplitText } from '../../diff/SimpleUnifiedDiff'
 import { InlineTextDiff } from '../../diff/InlineTextDiff'
+import { proofPlanFieldText } from '../../../../headless'
 import { SectionTitle } from './components'
 
 function formatValue(value: unknown): string {
+  const plan = proofPlanFieldText(value)
+  if (plan !== undefined) return plan
   if (Array.isArray(value)) {
     if (value.length === 0) return '(empty)'
     return value.map((item) => `- ${String(item)}`).join('\n')

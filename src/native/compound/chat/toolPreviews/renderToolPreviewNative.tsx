@@ -82,6 +82,7 @@ const STORY_FIELDS = [
   'status',
   'blockers',
   'rejection',
+  'proofPlan',
   'completedAt',
 ] as const
 const FEATURE_FIELDS = [
@@ -91,6 +92,7 @@ const FEATURE_FIELDS = [
   'context',
   'plan',
   'acceptance',
+  'proofPlan',
   'blockers',
   'rejection',
   'completedAt',

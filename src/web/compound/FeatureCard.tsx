@@ -89,7 +89,7 @@ export function FeatureCard({
 
       {feature.description && (
         <div className="text-sm text-(--text-secondary) mb-2 overflow-hidden text-ellipsis">
-          <Markdown text={feature.description} />
+          <Markdown text={feature.description} typedReferences />
         </div>
       )}
 

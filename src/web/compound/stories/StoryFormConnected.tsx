@@ -1,13 +1,15 @@
-import type { RefObject } from 'react'
+import { useCallback, type RefObject } from 'react'
 import { ProjectChip, StoryForm as PackageStoryForm, type StoryFormValues } from '../..'
-import { useProjects } from '../../../headless'
+import { rankMentionMatches, useActiveProject, useFiles, useProjects } from '../../../headless'
+import { useReferences } from '../../../headless/hooks/useReferences'
 
 /**
- * Connected wrapper around the shared `StoryForm`. Owns only the web/desktop
- * concern: resolving `projectId` to a project title via `ProjectsContext` and
- * rendering the `ProjectChip` in the form header. Everything else (fields,
- * validation, dirty tracking) lives in the primitive so every client stays in
- * lock-step.
+ * Connected wrapper around the shared `StoryForm`. Owns the web/desktop
+ * concerns: resolving `projectId` to a project title via `ProjectsContext` and
+ * rendering the `ProjectChip` in the form header, and the description's `@` /
+ * `#` / `&` dropdowns with what was typed saved as ids. Everything else
+ * (fields, validation, dirty tracking) lives in the primitive so every client
+ * stays in lock-step.
  */
 export type StoryFormConnectedProps = {
   initialValues?: Partial<StoryFormValues>
@@ -32,6 +34,13 @@ export default function StoryFormConnected({
 }: StoryFormConnectedProps) {
   const { projects } = useProjects()
   const project = projects.find((p) => p.id === projectId)
+  const { paths } = useFiles()
+  const { projectId: activeProjectId } = useActiveProject()
+  const scopeProjectId = projectId ?? activeProjectId
+  const references = useReferences({
+    scope: scopeProjectId ? { projectId: scopeProjectId } : undefined,
+  })
+  const onSearchFiles = useCallback((token: string) => rankMentionMatches(paths, token, 8), [paths])
 
   return (
     <PackageStoryForm
@@ -42,6 +51,12 @@ export default function StoryFormConnected({
       titleRef={titleRef}
       onDirtyChange={onDirtyChange}
       formId={formId}
+      mentions={{
+        onSearchFiles,
+        onSearchReferences: references.searchWork,
+        onSearchHandles: references.searchHandles,
+      }}
+      canonicalize={references.canonicalize}
       renderProjectChip={
         project
           ? () => (

@@ -1,3 +1,4 @@
+import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
@@ -161,6 +162,7 @@ function DepRow({
   matches: boolean
 }) {
   const { theme } = useNativeTheme()
+  const asText = useReferenceRendering()?.references?.asText
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -210,7 +212,7 @@ function DepRow({
         </Text>
         {description ? (
           <Text style={{ fontSize: 12, color: theme.text.muted, marginTop: 2 }} numberOfLines={1}>
-            {description}
+            {asText ? asText(description) : description}
           </Text>
         ) : null}
       </View>

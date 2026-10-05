@@ -14,6 +14,15 @@ import Field from '../primitives/Field'
 import { Input } from '../primitives/Input'
 import { Textarea } from '../primitives/Textarea'
 import StatusControl from './StatusControl'
+import FileMentionsTextarea from './files/FileMentionsTextarea'
+import type { ReferenceSuggestion } from '../../headless/utils/reference'
+
+/** The description's `@` / `#` / `&` suggestions. */
+export type StoryFormMentions = {
+  onSearchFiles?: (token: string) => ReadonlyArray<string>
+  onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+}
 
 export type { StoryFormValues }
 
@@ -30,13 +39,31 @@ export interface StoryFormProps {
   onDirtyChange?: (dirty: boolean) => void
   /** Slot for the host's `ProjectChip` (or other context chip). */
   renderProjectChip?: () => ReactNode
+  /** Files, stories, features and notes the description can point at. Omitted, it is plain text. */
+  mentions?: StoryFormMentions
+  /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm(
-  { initialValues, onSubmit, submitting = false, titleRef, onDirtyChange, renderProjectChip },
+  {
+    initialValues,
+    onSubmit,
+    submitting = false,
+    titleRef,
+    onDirtyChange,
+    renderProjectChip,
+    mentions,
+    canonicalize,
+  },
   ref,
 ) {
-  const form = useStoryForm({ initialValues, onSubmit, onDirty: onDirtyChange })
+  const form = useStoryForm({
+    initialValues,
+    onSubmit,
+    onDirty: onDirtyChange,
+    ...(canonicalize ? { canonicalize } : {}),
+  })
   const localTitleRef = useRef<RNTextInput>(null)
   const titleInputRef = titleRef ?? localTitleRef
 
@@ -77,14 +104,25 @@ const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm
       </Field>
 
       <Field label="Description">
-        <Textarea
-          value={form.values.description}
-          placeholder="Optional description or details"
-          onChangeText={form.setDescription}
-          disabled={submitting}
-          rows={4}
-          accessibilityLabel="Story description"
-        />
+        {mentions ? (
+          <FileMentionsTextarea
+            value={form.values.description}
+            placeholder="Optional description — @ files, # stories and features, & notes"
+            onChangeText={form.setDescription}
+            disabled={submitting}
+            rows={4}
+            {...mentions}
+          />
+        ) : (
+          <Textarea
+            value={form.values.description}
+            placeholder="Optional description or details"
+            onChangeText={form.setDescription}
+            disabled={submitting}
+            rows={4}
+            accessibilityLabel="Story description"
+          />
+        )}
       </Field>
     </View>
   )

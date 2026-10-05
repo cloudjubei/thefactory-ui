@@ -4268,3 +4268,72 @@ describe('buildStorySignoff — a feature its developer-verifier implemented and
     expect(signoffReviewLine(plain)).toMatch(/^Each feature went through the review process/)
   })
 })
+
+describe('buildStorySignoff — a feature’s proof plan', () => {
+  const featureRun = (input: Record<string, unknown> | undefined): StorySignoffProcessRun =>
+    ({
+      id: 'f1-run',
+      featureId: 'f1',
+      startedAt: 1,
+      status: 'succeeded',
+      ...(input ? { input } : {}),
+      plan: {
+        definitionId: 'feature-default',
+        definitionScope: 'global',
+        definitionVersion: 4,
+        name: 'Feature',
+        steps: [
+          { id: 'implement', name: 'Implement', kind: 'agent', agentType: 'developer' },
+          { id: 'code-review', name: 'Code review', kind: 'judge' },
+        ],
+        loops: [],
+        frozenAt: 0,
+      },
+      ledger: [
+        {
+          id: 'i1',
+          stepId: 'implement',
+          iteration: 1,
+          status: 'done',
+          outcome: 'passed',
+          runRef: { runId: 'dev' },
+          startedAt: 2,
+        },
+        {
+          id: 'cr1',
+          stepId: 'code-review',
+          iteration: 1,
+          status: 'done',
+          outcome: 'passed',
+          review: { verdict: 'approved' },
+          startedAt: 3,
+        },
+      ],
+    }) as unknown as StorySignoffProcessRun
+  const signoff = (input?: Record<string, unknown>) =>
+    buildStorySignoff({
+      features: [{ id: 'f1', title: 'ISO dates' }],
+      processRuns: [featureRun(input)],
+      cliRuns: [run({ id: 'dev', processRunId: 'f1-run', createdAt: 2 })],
+      evidence: [],
+    })
+
+  it('marks each kind of the plan its run was launched with', () => {
+    expect(
+      signoff({ proofPlans: { f1: { kinds: ['code-review', 'manual'] } } }).features[0]?.proofPlan,
+    ).toEqual([
+      { kind: 'code-review', label: 'Code review', word: 'Met', detail: 'Approved.', tone: 'done' },
+      {
+        kind: 'manual',
+        label: 'Manual check',
+        word: 'Yours to check',
+        detail: 'Left for you to check at sign-off.',
+        tone: 'neutral',
+      },
+    ])
+  })
+
+  it('shows no plan for a run launched without one', () => {
+    expect(signoff().features[0]).not.toHaveProperty('proofPlan')
+  })
+})

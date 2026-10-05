@@ -58,6 +58,24 @@ export function isNoteFormValid(values: ProjectNoteFormValues, mode: ProjectNote
   return Object.keys(noteFormErrors(values, mode)).length === 0
 }
 
+/**
+ * A note's form values with what was typed (`#3.2`, `&qa-login`) turned into
+ * ids, so the note keeps pointing at the same thing. A secret's value is left
+ * exactly as entered — it is a credential, not text that refers to anything.
+ */
+export function canonicalNoteValues(
+  values: ProjectNoteFormValues,
+  canonicalize: (text: string, before?: string) => string,
+  /** The note being edited: what its description already said stays as written. */
+  note?: Pick<ProjectNoteSummary, 'description'>,
+): ProjectNoteFormValues {
+  return {
+    ...values,
+    value: values.kind === 'secret' ? values.value : canonicalize(values.value),
+    description: canonicalize(values.description, note?.description ?? undefined),
+  }
+}
+
 /** POST body for a new note; a blank description is omitted rather than sent empty. */
 export function noteCreateBody(values: ProjectNoteFormValues): ProjectNoteCreateBody {
   const body: ProjectNoteCreateBody = {

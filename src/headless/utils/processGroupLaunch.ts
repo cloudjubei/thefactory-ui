@@ -2,7 +2,6 @@ import type { PendingToolGrant } from './chatTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 import type {
   ProcessGroupLaunchPreview,
-  ProcessGroupLegModes,
   ProcessGroupLegRequest,
   StartGroupWorkGrantSummary,
 } from './processGroupLaunchTypes'
@@ -53,22 +52,6 @@ export function startGroupWorkGrantSummary(
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(typeof spendCapUsd === 'number' && spendCapUsd > 0 ? { spendCapUsd } : {}),
   }
-}
-
-/** Each prerequisite merged by default — the person may squash instead. */
-export function defaultProcessGroupLegModes(
-  preview: Pick<ProcessGroupLaunchPreview, 'legs'> | undefined,
-): ProcessGroupLegModes {
-  return Object.fromEntries(
-    (preview?.legs ?? []).filter((l) => l.isPrerequisite).map((l) => [l.projectId, 'merge']),
-  )
-}
-
-/** The decision metadata a group launch's approval carries. */
-export function processGroupLaunchMetadata(modes: ProcessGroupLegModes): {
-  legIntegrationModes?: ProcessGroupLegModes
-} {
-  return Object.keys(modes).length > 0 ? { legIntegrationModes: modes } : {}
 }
 
 /** The project titles of what a leg waits for, in the card's words. */

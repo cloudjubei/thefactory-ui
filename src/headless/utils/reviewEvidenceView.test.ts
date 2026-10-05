@@ -351,6 +351,30 @@ describe('reviewerVerdict', () => {
   })
 })
 
+describe('reviewerVerdict — what a non-approval is about', () => {
+  it('carries the cause a non-approval was filed with', () => {
+    expect(
+      reviewerVerdict([
+        ref({
+          verdict: 'changes-requested',
+          verdictReason: 'no screen',
+          verdictCause: 'proof-impossible',
+        }),
+      ]),
+    ).toEqual({
+      state: 'concluded',
+      verdict: { verdict: 'changes-requested', reason: 'no screen', cause: 'proof-impossible' },
+    })
+  })
+
+  it('carries no cause beside an approval', () => {
+    expect(reviewerVerdict([ref({ verdict: 'approved', verdictCause: 'defect' })])).toEqual({
+      state: 'concluded',
+      verdict: { verdict: 'approved' },
+    })
+  })
+})
+
 describe('notesToRead', () => {
   const note = (id: string, mediaType = 'text/markdown') =>
     ref({ id, kind: 'report', mediaType, path: `${id}.md` })

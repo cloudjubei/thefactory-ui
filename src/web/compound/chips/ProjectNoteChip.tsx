@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { projectNoteChipView } from '../../../headless'
 import type { ProjectNoteSummary } from '../../../headless/api'
 import Tooltip from '../../primitives/Tooltip'
+import RichText from '../files/RichText'
 import { IconDocument, IconKey } from '../../icons'
 
 export type ProjectNoteChipProps = {
@@ -30,7 +31,11 @@ export default function ProjectNoteChip({ note, loadValue }: ProjectNoteChipProp
             <span className="truncate">{view.label}</span>
             <span className="font-normal text-(--text-muted)">· {view.kindLabel}</span>
           </div>
-          {view.description ? <p className="text-(--text-secondary)">{view.description}</p> : null}
+          {view.description ? (
+            <p className="text-(--text-secondary)">
+              <RichText text={view.description} typedReferences />
+            </p>
+          ) : null}
           {view.accessLabel ? (
             <p className="text-(--text-secondary)">
               <span className="font-medium">{view.accessLabel}</span> — {view.accessHelp}
@@ -66,7 +71,7 @@ function NoteText({ load }: { load: () => Promise<string> }) {
   if (failed) return <p className="text-(--text-muted)">The note could not be read.</p>
   return (
     <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-(--surface-muted) p-2 font-mono text-[11px] text-(--text-secondary)">
-      {text ?? 'Loading…'}
+      {text === undefined ? 'Loading…' : <RichText text={text} typedReferences />}
     </pre>
   )
 }

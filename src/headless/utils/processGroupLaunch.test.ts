@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  defaultProcessGroupLegModes,
   isStartGroupWorkGrant,
-  processGroupLaunchMetadata,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
 } from './processGroupLaunch'
@@ -67,22 +65,6 @@ const PREVIEW = {
     { projectId: 'ui', projectTitle: 'UI', isPrerequisite: false },
   ],
 } as never
-
-describe('defaultProcessGroupLegModes', () => {
-  it('merges every prerequisite unless the person picks otherwise', () => {
-    expect(defaultProcessGroupLegModes(PREVIEW)).toEqual({ tools: 'merge', db: 'merge' })
-    expect(defaultProcessGroupLegModes(undefined)).toEqual({})
-  })
-})
-
-describe('processGroupLaunchMetadata', () => {
-  it('carries the modes only when there are some', () => {
-    expect(processGroupLaunchMetadata({ tools: 'squash' })).toEqual({
-      legIntegrationModes: { tools: 'squash' },
-    })
-    expect(processGroupLaunchMetadata({})).toEqual({})
-  })
-})
 
 describe('processGroupLegWaitsFor', () => {
   it('names what a leg waits for by project title', () => {

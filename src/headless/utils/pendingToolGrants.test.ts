@@ -469,16 +469,23 @@ describe('launchDecisionOf', () => {
     ).toEqual({ openWork: { openWork: 'fresh', runId: 'r1' }, featureProcessId: 'feature-default' })
   })
 
-  it('is nothing for metadata without either choice', () => {
-    expect(launchDecisionOf({ note: 'hi', featureProcessId: '' })).toBeUndefined()
+  it('reads the proof plans the person confirmed, and whether to save them', () => {
+    expect(
+      launchDecisionOf({
+        proofPlans: { f1: { kinds: ['manual', 'unit-tests'] } },
+        saveProofPlans: true,
+      }),
+    ).toEqual({ proofPlans: { f1: { kinds: ['unit-tests', 'manual'] } }, saveProofPlans: true })
   })
 
-  it('reads a group launch’s merge mode for each prerequisite, dropping what is not a mode', () => {
-    expect(launchDecisionOf({ legIntegrationModes: { tools: 'squash', ui: 'rebase' } })).toEqual({
-      legIntegrationModes: { tools: 'squash' },
-    })
-    expect(launchDecisionOf({ legIntegrationModes: { ui: 'rebase' } })).toBeUndefined()
-    expect(launchDecisionOf({ legIntegrationModes: ['merge'] })).toBeUndefined()
+  it('drops malformed plans and a save with nothing to save', () => {
+    expect(
+      launchDecisionOf({ proofPlans: { f1: { kinds: ['screens'] } }, saveProofPlans: true }),
+    ).toBeUndefined()
+  })
+
+  it('is nothing for metadata without either choice', () => {
+    expect(launchDecisionOf({ note: 'hi', featureProcessId: '' })).toBeUndefined()
   })
 
   it('drops an open-work choice without the run it was about', () => {

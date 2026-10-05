@@ -12,14 +12,24 @@ import type {
 import { costChipLabel, formatCostUSD } from './costDetails'
 import { processIntegrationBadge } from './processIntegration'
 import {
+  PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_SPEND_TITLE,
   PROCESS_STEP_FINISHED_COPY,
 } from './processViewConstants'
 import { PROVING_AGENT_TYPES } from './verifyProofConstants'
-import type { ProcessNodeLook, ProcessNodeSummary } from './processViewTypes'
+import type {
+  ProcessNodeLook,
+  ProcessNodeSummary,
+  ProcessRunPersonEnding,
+} from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/types'
-import { processRunProgress, processStepStates, processVerifyReview } from 'thefactory-tools/utils'
+import {
+  processRunDecision,
+  processRunProgress,
+  processStepStates,
+  processVerifyReview,
+} from 'thefactory-tools/utils'
 
 /**
  * How a process reads on screen — shared by the `web/` and `native/` peers so
@@ -80,6 +90,31 @@ export const PROCESS_RUN_STATUS_VIEW: Record<
   cancelled: { label: 'Cancelled', tone: 'empty' },
 }
 
+/**
+ * How a run that a PERSON ended reads — a request for changes, a rejection, or
+ * a stop — named as their decision, with where it was made and their words,
+ * instead of the "Stopped" a run that broke shows. `undefined` for every other run.
+ */
+export function processRunPersonEnding(
+  run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'>,
+): ProcessRunPersonEnding | undefined {
+  if (run.status !== 'failed') return undefined
+  const decision = processRunDecision(run)
+  if (decision.kind !== 'not-accepted') return undefined
+  const choice = decision.choice
+  if (choice !== 'request-changes' && choice !== 'reject' && choice !== 'abandon') return undefined
+  const decidedAt = [...run.ledger].reverse().find((e) => e.override?.choice === choice)
+  const stepName = run.plan.steps.find((s) => s.id === decidedAt?.stepId)?.name
+  const { label, tone } = PROCESS_RUN_PERSON_ENDING_VIEW[choice]
+  const where = stepName ? ` at ${stepName}` : ''
+  return {
+    choice,
+    label,
+    tone,
+    line: `${label}${where}${decision.note ? ` — “${decision.note}”` : '.'}`,
+  }
+}
+
 /** The tone a step node shows, given where it is and how it ended. */
 export function processStepTone(
   status: 'pending' | 'running' | 'done',
@@ -118,7 +153,7 @@ export function processRunChipLabel(run: ProcessRun): string {
     case 'succeeded':
       return `Finished · ${steps}`
     case 'failed':
-      return `Stopped · ${steps}`
+      return `${processRunPersonEnding(run)?.label ?? 'Stopped'} · ${steps}`
     case 'cancelled':
       return 'Cancelled'
     default:
@@ -524,6 +559,8 @@ export function processRunBadge(run: ProcessRun): { label: string; tone: Process
       ? { label: 'Ready for you', tone: 'review' }
       : { label: 'Waiting for you', tone: 'on_hold' }
   }
+  const ending = processRunPersonEnding(run)
+  if (ending) return { label: ending.label, tone: ending.tone }
   return PROCESS_RUN_STATUS_VIEW[run.status]
 }
 
@@ -578,7 +615,14 @@ export function processRunCardView(run: ProcessRun): ProcessRunCardView {
     }
   }
   if (run.status === 'failed' || run.status === 'cancelled') {
-    return { title, badge, sub: `${completed}/${total} steps`, cta }
+    const ending = processRunPersonEnding(run)
+    return {
+      title,
+      badge,
+      sub: `${completed}/${total} steps`,
+      ...(ending ? { body: { text: ending.line, tone: ending.tone } } : {}),
+      cta,
+    }
   }
   return {
     title,

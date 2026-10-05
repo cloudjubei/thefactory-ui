@@ -19,3 +19,13 @@ export interface ProcessNodeSummary {
   text: string
   muted: boolean
 }
+
+/** How a run a person ended reads — see `processRunPersonEnding`. */
+export interface ProcessRunPersonEnding {
+  choice: 'request-changes' | 'reject' | 'abandon'
+  /** One word or two for a badge: "Changes requested", "Rejected", "Abandoned". */
+  label: string
+  tone: ProcessStatusTone
+  /** The decision as a sentence: where it was made, and the person's words. */
+  line: string
+}

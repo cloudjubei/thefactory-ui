@@ -2,7 +2,6 @@ import { useCallback, useState, type ReactNode } from 'react'
 import {
   choiceTakesNote,
   formatProcessDuration,
-  gateSendsBack,
   hasIsolatedAttempts,
   isIntegratingApproval,
   isProcessLeafOpenable,
@@ -21,6 +20,9 @@ import {
   type ProcessNodeLook,
   processParkChoices,
   processRunBadge,
+  processRunPersonEnding,
+  processRunSendBackGateId,
+  PROCESS_SEND_BACK_COPY,
   processRunSpend,
   processRunWorkMs,
   processStepCostLabel,
@@ -118,6 +120,7 @@ export default function ProcessPipeline({
     resume,
     delegate,
     retryIntegration,
+    sendBack,
     cancel,
     listBranches,
     deleteRun,
@@ -304,9 +307,7 @@ export default function ProcessPipeline({
 
       <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
-      {run.error ? (
-        <div className="px-4 pb-3 text-[11px] text-(--text-secondary)">{run.error}</div>
-      ) : null}
+      <RunEnding run={run} onSendBack={sendBack} />
 
       {confirmDelete ? (
         <Modal
@@ -885,8 +886,7 @@ function ParkBlock({
     )
   }
   const reflected = isReflectedPark(park)
-  const sendsBack = park.stepId !== undefined && gateSendsBack(run.plan, park.stepId)
-  const choices = processParkChoices(park.reason, { reflected, sendsBack })
+  const choices = processParkChoices(park.reason, { reflected })
   const tone = park.reason === 'gate' ? 'review' : 'on_hold'
   // The story sign-off is ONE decision over the whole run — show every feature's
   // proof here, so the reviewer signs off on what they can see, not on trust.
@@ -903,7 +903,6 @@ function ParkBlock({
           storyId={run.storyId as string}
           storyRunId={run.id}
           choices={choices}
-          sendsBack={sendsBack}
           {...(run.workBranch && isIntegratingApproval(run, 'approve')
             ? { workBranch: run.workBranch }
             : {})}
@@ -935,7 +934,6 @@ function ParkBlock({
       ) : null}
       {noteFor ? (
         <ParkNoteComposer
-          sendsBack={sendsBack}
           onSend={(note) => onChoose(noteFor, note)}
           onCancel={() => setNoteFor(undefined)}
         />
@@ -959,6 +957,40 @@ function ParkBlock({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * How a finished run ended: a person's decision in their words — with the way to
+ * send a request for changes back for them — or the error a run that broke left.
+ */
+function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Promise<void> }) {
+  const [sending, setSending] = useState(false)
+  const ending = processRunPersonEnding(run)
+  const line = ending?.line ?? run.error
+  if (!line) return null
+  return (
+    <div className="flex flex-col items-start gap-2 px-4 pb-3">
+      <div className="text-[11px] text-(--text-secondary)">{line}</div>
+      {processRunSendBackGateId(run) ? (
+        <div className="flex flex-col gap-0.5">
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={sending}
+            onClick={() => {
+              setSending(true)
+              void onSendBack().finally(() => setSending(false))
+            }}
+          >
+            {PROCESS_SEND_BACK_COPY.label}
+          </Button>
+          <span className="max-w-72 text-[10px] text-(--text-secondary)">
+            {PROCESS_SEND_BACK_COPY.detail}
+          </span>
+        </div>
+      ) : null}
     </div>
   )
 }

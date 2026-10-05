@@ -7,6 +7,7 @@ import type { CheckMethodId } from './checkMethodTypes'
 import type { CostSource } from './costDetailsTypes'
 import type { ProcessTimeDetailsView } from './processTimeDetailsTypes'
 import type { TestCounts } from './testCounts'
+import type { TestSuitesView } from './testSuitesTypes'
 
 /**
  * Semantic colour role for a run-review surface. Platform-neutral: web maps it
@@ -33,12 +34,26 @@ export type ReviewCheckRow = {
   command: string | undefined
   /** The build variant it ran on, for a per-variant project check. */
   variant: string | undefined
+  /** Why that variant — the default, or the flavor source set the change touched. */
+  variantReason: string | undefined
+  /** The build modules it covered, when the project has several. */
+  modules: string[] | undefined
+  /** What it could not cover, and why — tests in a directory no module includes. */
+  coverageNote: string | undefined
   /** "Ran in the sandbox." or "Ran on the host — why", when the result says. */
   ranInDetail: string | undefined
+  /** "Built against thefactory-tools at 1a2b3c4 with uncommitted changes" — the code outside the checkout it ran against. */
+  dependencyDetail: string | undefined
+  /** How a failure compares with the same check at the change's base — "Already failing at the base 28cf012 …". */
+  baselineDetail: string | undefined
   /** How many tests it ran, when it was a test run that said. */
   testCount: TestCounts | undefined
   /** "14 tests", "0 tests ran" — {@link testCount} as a reader is told it. */
   testCountLabel: string | undefined
+  /** Each suite it ran, with its counts and failing tests, when its reports were read. */
+  suites: TestSuitesView | undefined
+  /** Set on a command result recorded before commands and output were kept — it cannot say what ran. */
+  legacyNote: string | undefined
 }
 
 /** A run's checks split between the sign-off's Tests tab and its Build tab, by the chip each rolls up into. */

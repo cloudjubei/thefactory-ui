@@ -7,8 +7,11 @@ import type {
   ProcessIntegrationMode,
 } from 'thefactory-tools/types'
 import { processGroupLegWaves, processGroupParkChoices } from 'thefactory-tools/utils'
-import { PROCESS_GROUP_PREREQUISITE_MODES } from './processGroupLaunchConstants'
-import { PROCESS_GROUP_CARD_CTA, PROCESS_GROUP_LEG_STATUS_VIEW } from './processGroupViewConstants'
+import {
+  PROCESS_GROUP_CARD_CTA,
+  PROCESS_GROUP_LEG_STATUS_VIEW,
+  PROCESS_GROUP_PREREQUISITE_MODES,
+} from './processGroupViewConstants'
 import type {
   ProcessGroupCardView,
   ProcessGroupLegRow,

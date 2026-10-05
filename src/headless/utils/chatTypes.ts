@@ -12,6 +12,7 @@ import type { BillingBasis } from 'thefactory-tools/types'
 import type { AgentQuestion } from './agentQuestionTypes'
 import type { AgentRemedy } from './agentRemedyTypes'
 import type { CostSpend } from './costDetailsTypes'
+import type { CredentialCapture } from './credentialCaptureTypes'
 
 export type ChatContextLike = {
   type:
@@ -226,6 +227,15 @@ export type PendingQuestionGrant = PendingToolGrant & {
   question: AgentQuestion
   answer: (answer: string) => Promise<void>
 }
+
+/**
+ * Something the agent is parked on that only the user's answer releases: an
+ * `askUser` question, or a credential form a request tool opened. Each takes the
+ * composer's place until it is answered or withdrawn.
+ */
+export type UserAsk =
+  | { kind: 'question'; id: string; grant: PendingQuestionGrant }
+  | { kind: 'capture'; id: string; capture: CredentialCapture }
 
 /** A grant the remedy card can render: a parsed remedy plus a resolve channel. */
 export type PendingRemedyGrant = PendingToolGrant & {

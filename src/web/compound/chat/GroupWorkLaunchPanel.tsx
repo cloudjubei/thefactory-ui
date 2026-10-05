@@ -3,23 +3,15 @@ import { useState, type ReactNode } from 'react'
 import {
   LAUNCH_NOTE_MAX_CHARS,
   LAUNCH_OPTIONS_READ_ONLY,
-  PROCESS_GROUP_EARLY_MERGE_LABEL,
   PROCESS_GROUP_LAUNCH_BLURB,
-  PROCESS_GROUP_MODE_LABELS,
-  PROCESS_GROUP_PREREQUISITE_MODES,
-  defaultProcessGroupLegModes,
   launchOptionsAreHonoured,
-  processGroupLaunchMetadata,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
-  type ProcessGroupLegModes,
-  type ProcessIntegrationMode,
 } from '../../../headless'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { Button } from '../../primitives/Button'
-import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
 import { IconChevron } from '../../icons'
 
@@ -57,7 +49,6 @@ export default function GroupWorkLaunchPanel({
     legs: summary.legs,
   })
   const optionsHonoured = launchOptionsAreHonoured(grant)
-  const [modes, setModes] = useState<ProcessGroupLegModes>({})
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
@@ -67,7 +58,6 @@ export default function GroupWorkLaunchPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const chosenModes = { ...defaultProcessGroupLegModes(preview), ...modes }
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
 
@@ -84,7 +74,6 @@ export default function GroupWorkLaunchPanel({
               ...(runModel ? { cliModel: runModel } : {}),
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
-              ...processGroupLaunchMetadata(chosenModes),
             }
           : undefined,
       )
@@ -140,28 +129,6 @@ export default function GroupWorkLaunchPanel({
                       {leg.features} feature{leg.features === 1 ? '' : 's'}
                     </span>
                   </div>
-                  {leg.isPrerequisite ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] text-(--text-secondary)">
-                        {PROCESS_GROUP_EARLY_MERGE_LABEL}
-                      </span>
-                      <SegmentedControl
-                        size="sm"
-                        ariaLabel={`How ${leg.projectTitle} is merged early`}
-                        value={chosenModes[leg.projectId] ?? 'merge'}
-                        onChange={(v) =>
-                          setModes((prev) => ({
-                            ...prev,
-                            [leg.projectId]: v as ProcessIntegrationMode,
-                          }))
-                        }
-                        options={PROCESS_GROUP_PREREQUISITE_MODES.map((m) => ({
-                          value: m,
-                          label: PROCESS_GROUP_MODE_LABELS[m],
-                        }))}
-                      />
-                    </div>
-                  ) : null}
                   {processGroupLegWaitsFor(preview, leg.dependsOn) ? (
                     <span className="text-[11px] text-(--text-muted)">
                       {processGroupLegWaitsFor(preview, leg.dependsOn)}

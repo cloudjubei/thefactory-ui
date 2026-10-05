@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   awaitingCaptures,
   belongsToChat,
-  bindCapturesToToolCalls,
   captureCardTitle,
+  capturesBlockedOn,
   captureFields,
-  captureToolCallPurpose,
   captureToolName,
   cliSignInRequest,
   captureFormErrors,
@@ -23,7 +22,6 @@ import { CAPTURE_REPLACING_CARD_TITLE } from './credentialCaptureConstants'
 import {
   CAPTURE_FIELD_REQUIRED,
   CREDENTIAL_CAPTURE_STATUS_DISPLAY,
-  CREDENTIAL_CAPTURE_TOOL_NAMES,
 } from './credentialCaptureConstants'
 import type {
   CredentialCapture,
@@ -50,18 +48,6 @@ function form(overrides: Partial<CredentialCaptureFormValues> = {}): CredentialC
     host: '',
     token: 'ghp_example',
     ...overrides,
-  }
-}
-
-function toolMessage(
-  toolCallId: string,
-  purpose: unknown,
-  name = CREDENTIAL_CAPTURE_TOOL_NAMES.git,
-) {
-  return {
-    role: 'tool' as const,
-    content: '',
-    toolCall: { toolCallId, name, arguments: { purpose } },
   }
 }
 
@@ -331,108 +317,6 @@ describe('captureSubmitBody', () => {
   })
 })
 
-describe('captureToolCallPurpose', () => {
-  it('reads the purpose off a capture-opening tool call', () => {
-    expect(captureToolCallPurpose(toolMessage('t1', 'Push the release branch').toolCall)).toBe(
-      'Push the release branch',
-    )
-  })
-
-  it('parses arguments a CLI transcript carries as a JSON string', () => {
-    expect(
-      captureToolCallPurpose({
-        toolCallId: 't1',
-        name: CREDENTIAL_CAPTURE_TOOL_NAMES.git,
-        arguments: JSON.stringify({ purpose: 'Clone the repo' }),
-      }),
-    ).toBe('Clone the repo')
-  })
-
-  it('trims the purpose so it joins against the record the backend trimmed', () => {
-    expect(captureToolCallPurpose(toolMessage('t1', '  Clone the repo  ').toolCall)).toBe(
-      'Clone the repo',
-    )
-  })
-
-  it('ignores a different tool entirely', () => {
-    expect(captureToolCallPurpose(toolMessage('t1', 'p', 'readPaths').toolCall)).toBeUndefined()
-  })
-
-  it('ignores a call with no purpose to join on', () => {
-    expect(captureToolCallPurpose(toolMessage('t1', undefined).toolCall)).toBeUndefined()
-    expect(captureToolCallPurpose(toolMessage('t1', 7).toolCall)).toBeUndefined()
-    expect(captureToolCallPurpose(toolMessage('t1', '  ').toolCall)).toBeUndefined()
-  })
-
-  it('ignores unparseable arguments instead of throwing mid-render', () => {
-    expect(
-      captureToolCallPurpose({
-        toolCallId: 't1',
-        name: CREDENTIAL_CAPTURE_TOOL_NAMES.git,
-        arguments: '{not json',
-      }),
-    ).toBeUndefined()
-  })
-
-  it('ignores an absent tool call', () => {
-    expect(captureToolCallPurpose(undefined)).toBeUndefined()
-  })
-})
-
-describe('bindCapturesToToolCalls', () => {
-  it('binds an open capture to the row that opened it', () => {
-    const open = capture({ purpose: 'Clone the repo' })
-    const bound = bindCapturesToToolCalls([toolMessage('t1', 'Clone the repo')], [open])
-    expect(bound.byToolCallId).toEqual({ t1: open })
-    expect(bound.unbound).toEqual([])
-  })
-
-  it('binds to the LAST matching row, since an earlier identical ask is already answered', () => {
-    const open = capture({ purpose: 'Clone the repo' })
-    const bound = bindCapturesToToolCalls(
-      [toolMessage('t1', 'Clone the repo'), toolMessage('t2', 'Clone the repo')],
-      [open],
-    )
-    expect(Object.keys(bound.byToolCallId)).toEqual(['t2'])
-  })
-
-  it('gives two concurrent captures two different rows', () => {
-    const first = capture({ id: 'cap-1', purpose: 'Clone the repo' })
-    const second = capture({ id: 'cap-2', purpose: 'Clone the repo' })
-    const bound = bindCapturesToToolCalls(
-      [toolMessage('t1', 'Clone the repo'), toolMessage('t2', 'Clone the repo')],
-      [first, second],
-    )
-    expect(bound.byToolCallId).toEqual({ t2: first, t1: second })
-    expect(bound.unbound).toEqual([])
-  })
-
-  it('reports a capture with no row of its own as unbound, so it still gets rendered', () => {
-    const open = capture({ purpose: 'Clone the repo' })
-    expect(bindCapturesToToolCalls([toolMessage('t1', 'Something else')], [open])).toEqual({
-      byToolCallId: {},
-      unbound: [open],
-    })
-  })
-
-  it('binds nothing for a capture the user already answered', () => {
-    const resolved = capture({ status: 'submitted', purpose: 'Clone the repo' })
-    expect(bindCapturesToToolCalls([toolMessage('t1', 'Clone the repo')], [resolved])).toEqual({
-      byToolCallId: {},
-      unbound: [],
-    })
-  })
-
-  it('ignores rows whose tool is not the capture tool', () => {
-    const open = capture({ purpose: 'Clone the repo' })
-    const bound = bindCapturesToToolCalls(
-      [toolMessage('t1', 'Clone the repo', 'readPaths')],
-      [open],
-    )
-    expect(bound).toEqual({ byToolCallId: {}, unbound: [open] })
-  })
-})
-
 describe('captureStatusDisplay', () => {
   it('maps each status onto its label, description and tone', () => {
     const statuses: CredentialCaptureStatus[] = ['requested', 'submitted', 'cancelled']
@@ -618,16 +502,6 @@ describe('the other capture kinds', () => {
       'The agent needs an LLM API key',
     )
   })
-
-  it('binds a form to the transcript row of any capture-opening tool', () => {
-    expect(
-      captureToolCallPurpose({
-        toolCallId: 't1',
-        name: 'requestTicketConnection',
-        arguments: { purpose: 'read tickets' },
-      }),
-    ).toBe('read tickets')
-  })
 })
 
 describe('a CLI sign-in card', () => {
@@ -686,5 +560,23 @@ describe('a CLI sign-in card', () => {
     expect(captureStatusDisplay(capture({ status: 'submitted' })).label).toBe(
       CREDENTIAL_CAPTURE_STATUS_DISPLAY.submitted.label,
     )
+  })
+})
+
+describe('capturesBlockedOn', () => {
+  it('reads an open form as the agent waiting on the user, named after its tool', () => {
+    expect(capturesBlockedOn([capture({ provider: 'ticket-connection' })])).toEqual([
+      {
+        toolName: 'requestTicketConnection',
+        label: 'The agent needs a ticket connection',
+        isQuestion: true,
+      },
+    ])
+  })
+
+  it('leaves out a form the user already answered or dismissed', () => {
+    expect(
+      capturesBlockedOn([capture({ status: 'submitted' }), capture({ status: 'cancelled' })]),
+    ).toEqual([])
   })
 })

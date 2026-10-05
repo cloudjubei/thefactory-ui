@@ -1,4 +1,5 @@
-import type { ReviewEvidenceRef, ReviewEvidenceVerdict } from '../api/generated'
+import type { ReviewEvidenceRef } from '../api/generated'
+import type { VerifyReviewerVerdict } from './verifyProofTypes'
 
 /**
  * The reviewer's conclusion as a listing lets it be read. `concluded` is the
@@ -6,7 +7,7 @@ import type { ReviewEvidenceRef, ReviewEvidenceVerdict } from '../api/generated'
  * newest filing lost whatever was filed with it, so no older verdict can stand.
  */
 export type ReviewerVerdictReading =
-  | { state: 'concluded'; verdict: { verdict: ReviewEvidenceVerdict; reason?: string } }
+  | { state: 'concluded'; verdict: VerifyReviewerVerdict }
   | { state: 'none' }
 
 /**

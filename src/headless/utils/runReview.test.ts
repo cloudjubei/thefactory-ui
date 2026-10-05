@@ -28,6 +28,7 @@ import {
   LAND_FAILURE_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
+  LEGACY_CHECK_RECORD_NOTE,
 } from './runReviewConstants'
 
 function check(over: Partial<VerificationCheckResult> = {}): VerificationCheckResult {
@@ -119,6 +120,34 @@ describe('verificationCheckRows', () => {
     expect(rows[2]).toMatchObject({ tone: 'positive', durationLabel: '500ms', details: undefined })
   })
 
+  it('carries the code outside the checkout a check built against, and how it compares with the base', () => {
+    const [row] = verificationCheckRows(
+      verification({
+        checks: [
+          check({
+            status: 'failed',
+            dependencyRevisions: [
+              { label: 'tools', path: '/w/thefactory-tools', sha: '1a2b3c4d5e', dirty: true },
+            ],
+            baseline: { sha: '28cf0124f4', status: 'failed', verdict: 'pre-existing' },
+          }),
+        ],
+      }),
+    )
+    expect(row.dependencyDetail).toBe(
+      'Built against thefactory-tools at 1a2b3c4 with uncommitted changes',
+    )
+    expect(row.baselineDetail).toBe(
+      'Already failing at the base 28cf012 in the same environment — not caused by this change.',
+    )
+  })
+
+  it('carries neither for a check that resolved nothing outside its checkout and was not compared', () => {
+    const [row] = verificationCheckRows(verification({ checks: [check({})] }))
+    expect(row.dependencyDetail).toBeUndefined()
+    expect(row.baselineDetail).toBeUndefined()
+  })
+
   it('carries what a command check ran, on which variant, where, and how many tests', () => {
     const [row] = verificationCheckRows(
       verification({
@@ -153,10 +182,67 @@ describe('verificationCheckRows', () => {
       method: 'types',
       command: undefined,
       variant: undefined,
+      variantReason: undefined,
+      modules: undefined,
+      coverageNote: undefined,
       ranInDetail: undefined,
       testCount: undefined,
       testCountLabel: undefined,
+      suites: undefined,
+      legacyNote: undefined,
     })
+  })
+
+  it('carries why its variant, the modules it covered, what it could not, and each suite', () => {
+    const [row] = verificationCheckRows(
+      verification({
+        checks: [
+          check({
+            kind: 'command',
+            category: 'test',
+            command: './gradlew :app:testMckinseyOnsiteDebugUnitTest :library:testDebugUnitTest',
+            variant: 'mckinseyOnsiteDebug',
+            variantReason: 'the change touches app/src/mckinseyOnsite',
+            modules: ['app', 'library'],
+            coverageNote: 'data/src/test is not run.',
+            testSuites: [
+              { name: 'a.ATest', module: 'app', tests: 1, passed: 1, failed: 0, skipped: 0 },
+            ],
+            testSuitesOmitted: 2,
+          }),
+        ],
+      }),
+    )
+    expect(row).toMatchObject({
+      variantReason: 'the change touches app/src/mckinseyOnsite',
+      modules: ['app', 'library'],
+      coverageNote: 'data/src/test is not run.',
+      suites: {
+        rows: [{ name: 'a.ATest', module: 'app' }],
+        omittedLabel: '2 more suites not kept',
+      },
+      legacyNote: undefined,
+    })
+  })
+
+  it('says a command result kept no command because it predates them, never an empty success', () => {
+    const [legacy, modern] = verificationCheckRows(
+      verification({
+        checks: [
+          check({ id: 'test', kind: 'command', category: 'test', summary: 'Command succeeded' }),
+          check({ id: 'lint', kind: 'command', command: 'npm run lint' }),
+        ],
+      }),
+    )
+    expect(legacy?.legacyNote).toBe(LEGACY_CHECK_RECORD_NOTE)
+    expect(modern?.legacyNote).toBeUndefined()
+  })
+
+  it('reads a blank command as none kept', () => {
+    const [row] = verificationCheckRows(
+      verification({ checks: [check({ kind: 'command', command: '   ' })] }),
+    )
+    expect(row?.legacyNote).toBe(LEGACY_CHECK_RECORD_NOTE)
   })
 })
 
@@ -463,29 +549,57 @@ describe('viewedFilesProgress', () => {
 })
 
 describe('reviewCheckMeta', () => {
-  it('names the variant, the test count and where it ran, in that order', () => {
+  const none = {
+    variant: undefined,
+    variantReason: undefined,
+    modules: undefined,
+    testCountLabel: undefined,
+    ranInDetail: undefined,
+    dependencyDetail: undefined,
+    baselineDetail: undefined,
+  }
+
+  it('names the variant and why, the modules, the test count and where it ran, in that order', () => {
     expect(
       reviewCheckMeta({
-        variant: 'debug',
+        variant: 'mckinseyOnsiteDebug',
+        variantReason: 'the change touches app/src/mckinseyOnsite',
+        modules: ['app', 'library'],
         testCountLabel: '14 tests',
         ranInDetail: 'Ran on the host — no sandbox.',
+        dependencyDetail: undefined,
+        baselineDetail: undefined,
       }),
-    ).toBe('Variant debug · 14 tests · Ran on the host — no sandbox.')
+    ).toBe(
+      'Variant mckinseyOnsiteDebug (the change touches app/src/mckinseyOnsite) · Modules app, library · 14 tests · Ran on the host — no sandbox.',
+    )
   })
 
-  it('leaves out what the check did not say', () => {
+  it('ends with the code outside the checkout it built against, then how it compares with the base', () => {
     expect(
       reviewCheckMeta({
-        variant: undefined,
-        testCountLabel: '0 tests ran',
-        ranInDetail: undefined,
+        ...none,
+        ranInDetail: 'Ran on the host — siblings.',
+        dependencyDetail: 'Built against thefactory-tools at 1a2b3c4 with uncommitted changes',
+        baselineDetail:
+          'Already failing at the base 28cf012 in the same environment — not caused by this change.',
       }),
-    ).toBe('0 tests ran')
+    ).toBe(
+      'Ran on the host — siblings. · Built against thefactory-tools at 1a2b3c4 with uncommitted changes · Already failing at the base 28cf012 in the same environment — not caused by this change.',
+    )
+  })
+
+  it('names a variant without a reason plainly', () => {
+    expect(reviewCheckMeta({ ...none, variant: 'debug' })).toBe('Variant debug')
+  })
+
+  it('leaves out what the check did not say, an empty module list included', () => {
+    expect(reviewCheckMeta({ ...none, modules: [], testCountLabel: '0 tests ran' })).toBe(
+      '0 tests ran',
+    )
   })
 
   it('is undefined when the check said none of it', () => {
-    expect(
-      reviewCheckMeta({ variant: undefined, testCountLabel: undefined, ranInDetail: undefined }),
-    ).toBeUndefined()
+    expect(reviewCheckMeta(none)).toBeUndefined()
   })
 })

@@ -1,3 +1,5 @@
+import type { ReferenceTarget } from 'thefactory-tools/types'
+import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
@@ -159,7 +161,7 @@ export type MessageRowProps = {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render an inline `#<id>` reference. Host wires this against its
    * StoriesContext-equivalent. */
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). Host wires this to
    * its `navigateToResource`; omitted ⇒ such links open externally like any other. */
   onResourceLink?: (link: ResourceLink) => void
@@ -195,13 +197,6 @@ export type MessageRowProps = {
   toolAlwaysAllowed?: boolean
   /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
   onAlwaysAllowTool?: () => void
-  /**
-   * Replaces the whole tool card for this row. Used by a tool the user has to
-   * answer in place (the in-chat credential form), which must read as the tool
-   * call it is rather than as a second panel elsewhere in the chat. Row-level
-   * rather than routed through `renderToolResult`, which only reaches the
-   * hover/sheet preview and so can never host an input. */
-  toolRowOverride?: ReactNode
 
   thinkingLabel?: string
   setLastMessageRef?: (el: HTMLDivElement | null) => void
@@ -225,7 +220,7 @@ function MessageRow({
   restartControl,
   onRetry,
   onResolveFile,
-  renderDependency,
+  renderReference,
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
@@ -236,7 +231,6 @@ function MessageRow({
   onToggleToolSelect,
   toolAlwaysAllowed,
   onAlwaysAllowTool,
-  toolRowOverride,
   thinkingLabel,
   setLastMessageRef,
 }: MessageRowProps) {
@@ -517,12 +511,18 @@ function MessageRow({
                   <RichText
                     text={msg.content}
                     onResolveFile={onResolveFile}
-                    renderDependency={renderDependency}
+                    renderReference={renderReference}
+                    typedReferences
                   />
                 </CollapsibleContent>
               ) : (
                 <CollapsibleContent maxHeight={600}>
-                  <Markdown text={msg.content} onResourceLink={onResourceLink} />
+                  <Markdown
+                    text={msg.content}
+                    onResourceLink={onResourceLink}
+                    renderReference={renderReference}
+                    typedReferences
+                  />
                 </CollapsibleContent>
               )}
             </div>
@@ -536,9 +536,7 @@ function MessageRow({
             <div className="mt-1.5 w-full">{renderProcessGroupRun(msg.processGroupRunId)}</div>
           ) : null}
 
-          {isTool && msg.toolCall && toolRowOverride ? (
-            <div className="w-full">{toolRowOverride}</div>
-          ) : isTool && msg.toolCall ? (
+          {isTool && msg.toolCall ? (
             <div className="w-full">
               <ToolCallCard
                 toolCall={msg.toolCall}
@@ -567,7 +565,7 @@ function MessageRow({
               ].join(' ')}
             >
               {(msg as unknown as { files: string[] }).files.map((path, i) => {
-                const name = path.split('/').pop() || path
+                const name = attachmentDisplayName(path)
                 return (
                   <FileDisplay
                     key={`${globalIndex}-att-${i}-${path}`}

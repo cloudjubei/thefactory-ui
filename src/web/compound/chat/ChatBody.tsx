@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import type { ReferenceTarget } from 'thefactory-tools/types'
+import { useMemo, useState, type ReactNode } from 'react'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
@@ -8,13 +9,13 @@ import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
-import { partitionGrants, shownQuestionId } from '../../../headless/utils/agentQuestions'
+import { partitionGrants, shownQuestionId, userAsks } from '../../../headless/utils/agentQuestions'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
-import { bindCapturesToToolCalls } from '../../../headless/utils/credentialCaptures'
+import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -89,7 +90,7 @@ export type ChatBodyProps = {
   /** Resolve `@<path>` inline file mentions. Forwarded to MessageList. */
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render `#<id>` inline references. Forwarded to MessageList. */
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted. Forwarded to MessageList (F.2). */
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageList. */
@@ -122,17 +123,18 @@ export type ChatBodyProps = {
    * modal renders these per-grant (with the CLI-only "allow permanently"
    * option) instead of the {@link onConfirmTools} batch path. Host computes them
    * via `usePendingToolGrants`. `askUser` question grants are split out of this
-   * feed and render inline above the composer as question cards.
+   * feed and take the composer's place as question cards.
    */
   grants?: PendingToolGrant[]
 
   /**
    * In-chat credential captures for this chat, from `useCredentialCaptures`.
-   * Only the ones still awaiting the user render, and each renders IN the
-   * transcript, in place of the tool row that opened it — an answered capture
-   * has a tool result of its own to speak for it. The typed fields go from the
-   * card straight to the credentials API via {@link onSubmitCredentialCapture} —
-   * never through chat state and never into the transcript.
+   * Only the ones still awaiting the user render, and each takes the composer's
+   * place exactly as an `askUser` question does — paged with the questions — so
+   * the agent parked on it is answered before anything else is typed. The typed
+   * fields go from the card straight to the credentials API via
+   * {@link onSubmitCredentialCapture} — never through chat state and never into
+   * the transcript.
    */
   credentialCaptures?: CredentialCapture[]
   onSubmitCredentialCapture?: (id: string, fields: CredentialCaptureFields) => Promise<void>
@@ -207,7 +209,7 @@ export default function ChatBody({
   renderToolResult,
   getToolHeaderPath,
   onResolveFile,
-  renderDependency,
+  renderReference,
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
@@ -249,14 +251,24 @@ export default function ChatBody({
   // Held past the run's end until the persisted reply carries it — see
   // `useShownLiveRun`.
   const cliRunId = useShownLiveRun(chatId, liveState.cliRunId ?? activeCliRunId, messages)
-  const questionGrants = useMemo(() => partitionGrants(grants).questions, [grants])
-  const [chosenQuestionId, setChosenQuestionId] = useState<string>()
-  const shownQuestionKey = shownQuestionId(
-    questionGrants.map((g) => g.id),
-    chosenQuestionId,
+  // A capture is only actionable when the host wired both resolutions, so an
+  // unwired ChatBody shows no form rather than one that cannot be answered.
+  const answerableCaptures = useMemo(
+    () =>
+      onSubmitCredentialCapture && onCancelCredentialCapture ? (credentialCaptures ?? []) : [],
+    [credentialCaptures, onSubmitCredentialCapture, onCancelCredentialCapture],
   )
-  const shownIndex = questionGrants.findIndex((g) => g.id === shownQuestionKey)
-  const shownQuestion = shownIndex >= 0 ? questionGrants[shownIndex] : undefined
+  const asks = useMemo(
+    () => userAsks(partitionGrants(grants).questions, answerableCaptures),
+    [grants, answerableCaptures],
+  )
+  const [chosenAskId, setChosenAskId] = useState<string>()
+  const shownAskKey = shownQuestionId(
+    asks.map((a) => a.id),
+    chosenAskId,
+  )
+  const shownIndex = asks.findIndex((a) => a.id === shownAskKey)
+  const shownAsk = shownIndex >= 0 ? asks[shownIndex] : undefined
   const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
   // EVERY pending approval takes the composer's place so the asks are unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
@@ -279,34 +291,9 @@ export default function ChatBody({
   const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
   // Everything the active run is parked on — permission grants AND questions.
   // Both stop the agent dead, so both belong on the live activity line.
-  const cliBlockedOn = useMemo(() => blockedOnFromGrants(grants), [grants])
-  // A capture is only actionable when the host wired both resolutions, so an
-  // unwired ChatBody shows no form rather than one that cannot be answered.
-  const captureBinding = useMemo(() => {
-    if (!onSubmitCredentialCapture || !onCancelCredentialCapture) {
-      return { byToolCallId: {}, unbound: [] }
-    }
-    return bindCapturesToToolCalls(messages, credentialCaptures ?? [])
-  }, [messages, credentialCaptures, onSubmitCredentialCapture, onCancelCredentialCapture])
-
-  const renderCaptureCard = useCallback(
-    (capture: CredentialCapture) => (
-      <CredentialCaptureCard
-        key={capture.id}
-        capture={capture}
-        onSubmit={(fields) => onSubmitCredentialCapture!(capture.id, fields)}
-        onCancel={() => onCancelCredentialCapture!(capture.id)}
-      />
-    ),
-    [onSubmitCredentialCapture, onCancelCredentialCapture],
-  )
-
-  const renderToolRowOverride = useCallback(
-    (toolCall: ToolCall) => {
-      const capture = captureBinding.byToolCallId[toolCall.toolCallId]
-      return capture ? renderCaptureCard(capture) : undefined
-    },
-    [captureBinding, renderCaptureCard],
+  const cliBlockedOn = useMemo(
+    () => [...blockedOnFromGrants(grants), ...capturesBlockedOn(answerableCaptures)],
+    [grants, answerableCaptures],
   )
   const pendingForList = useMemo(
     () =>
@@ -336,9 +323,8 @@ export default function ChatBody({
           onClaimAsks={onClaimAsks}
           renderToolResult={renderToolResult}
           getToolHeaderPath={getToolHeaderPath}
-          renderToolRowOverride={renderToolRowOverride}
           onResolveFile={onResolveFile}
-          renderDependency={renderDependency}
+          renderReference={renderReference}
           onResourceLink={onResourceLink}
           renderCliRunArtifact={renderCliRunArtifact}
           renderProcessRun={renderProcessRun}
@@ -375,53 +361,53 @@ export default function ChatBody({
         </div>
       ) : null}
 
-      {/* Captures with no tool row of their own here — most often one opened by
-          a CLI run, whose transcript renders itself. They still have to be
-          answerable, or the agent waits on a form nobody can see. */}
-      {captureBinding.unbound.length > 0 ? (
-        <div className="px-4 py-2 shrink-0 flex flex-col gap-2">
-          {captureBinding.unbound.map(renderCaptureCard)}
-        </div>
-      ) : null}
-
-      {/* A question TAKES the composer rather than sitting above a live one: the
-          agent's next step depends on the answer, so a free-text message sent
-          past it would be typed into a conversation that is not listening.
-          Cancelling the question is the way back to typing anything.
+      {/* A question or a credential form TAKES the composer rather than sitting
+          above a live one: the agent's next step depends on the answer, so a
+          free-text message sent past it would be typed into a conversation that
+          is not listening. Cancelling it is the way back to typing anything.
 
           It outranks `hideInput` deliberately. A parked ask now waits forever
           by design, so a surface that hides the composer must NOT also hide the
           one control that can release it. */}
-      {shownQuestion ? (
+      {shownAsk ? (
         <div className="flex flex-col gap-2 border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-          {questionGrants.length > 1 ? (
-            // One question at a time, paged — several stacked filled the screen
+          {asks.length > 1 ? (
+            // One ask at a time, paged — several stacked filled the screen
             // and read as the same question asked twice.
             <div className="flex items-center justify-end gap-2 text-xs text-(--text-secondary)">
               <Button
                 variant="secondary"
                 size="icon"
-                aria-label="Previous question"
-                onClick={() => setChosenQuestionId(questionGrants[shownIndex - 1]?.id)}
+                aria-label="Previous"
+                onClick={() => setChosenAskId(asks[shownIndex - 1]?.id)}
                 disabled={shownIndex === 0}
               >
                 <IconChevronLeft className="w-4 h-4" />
               </Button>
               <span className="tabular-nums">
-                Question {shownIndex + 1} of {questionGrants.length}
+                {shownIndex + 1} of {asks.length} waiting on you
               </span>
               <Button
                 variant="secondary"
                 size="icon"
-                aria-label="Next question"
-                onClick={() => setChosenQuestionId(questionGrants[shownIndex + 1]?.id)}
-                disabled={shownIndex === questionGrants.length - 1}
+                aria-label="Next"
+                onClick={() => setChosenAskId(asks[shownIndex + 1]?.id)}
+                disabled={shownIndex === asks.length - 1}
               >
                 <IconChevronRight className="w-4 h-4" />
               </Button>
             </div>
           ) : null}
-          <AgentQuestionCard key={shownQuestion.id} grant={shownQuestion} />
+          {shownAsk.kind === 'question' ? (
+            <AgentQuestionCard key={shownAsk.id} grant={shownAsk.grant} />
+          ) : (
+            <CredentialCaptureCard
+              key={shownAsk.id}
+              capture={shownAsk.capture}
+              onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
+              onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+            />
+          )}
         </div>
       ) : hideInput ? null : showApprovalPanel ? (
         <div className="flex flex-col">

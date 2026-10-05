@@ -82,7 +82,7 @@ export function FeatureCard({
       >
         {feature.title}
       </Text>
-      {feature.description ? <Markdown text={feature.description} /> : null}
+      {feature.description ? <Markdown text={feature.description} typedReferences /> : null}
       {feature.blockers && feature.blockers.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[3] }}>
           {feature.blockers.map((b) =>

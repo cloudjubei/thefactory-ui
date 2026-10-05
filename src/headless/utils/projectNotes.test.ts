@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  canonicalNoteValues,
   canRevealNote,
   emptyNoteForm,
   isEmptyNotePatch,
@@ -263,5 +264,37 @@ describe('noteAuthorLabel', () => {
 
   it('adds nothing to a note the user wrote — that is every note but an agent’s', () => {
     expect(noteAuthorLabel(summary({ author: 'user' }))).toBeUndefined()
+  })
+})
+
+describe('canonicalNoteValues', () => {
+  const upper = (text: string) => text.toUpperCase()
+  const form = { ...emptyNoteForm(), value: 'see #3', description: 'for #2' }
+
+  it('rewrites a plain note’s text and description', () => {
+    expect(canonicalNoteValues({ ...form, kind: 'note' }, upper)).toMatchObject({
+      value: 'SEE #3',
+      description: 'FOR #2',
+    })
+  })
+
+  it('hands the edited note’s old description along, so only what is new is turned', () => {
+    const seen: Array<string | undefined> = []
+    canonicalNoteValues(
+      { ...form, kind: 'note' },
+      (text, before) => {
+        seen.push(before)
+        return text
+      },
+      { description: 'was #2' },
+    )
+    expect(seen).toEqual([undefined, 'was #2'])
+  })
+
+  it('never touches a secret’s value', () => {
+    expect(canonicalNoteValues({ ...form, kind: 'secret' }, upper)).toMatchObject({
+      value: 'see #3',
+      description: 'FOR #2',
+    })
   })
 })

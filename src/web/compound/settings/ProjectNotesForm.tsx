@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ProjectNoteSummary } from '../../../headless/api'
 import {
+  canonicalNoteValues,
   emptyNoteForm,
   isEmptyNotePatch,
   isNoteFormValid,
@@ -24,6 +25,15 @@ import type {
 } from '../../../headless/utils/projectNotesTypes'
 import { Alert, Button, Field, Input, SecretInput, SegmentedControl, Textarea } from '../..'
 import { IconSave } from '../../icons'
+import FileMentionsTextarea from '../files/FileMentionsTextarea'
+import type { ReferenceSuggestion } from '../files/reference'
+
+/** A note's `@` / `#` / `&` dropdowns. */
+export type ProjectNotesFormMentions = {
+  onSearchFiles?: (token: string) => string[]
+  onSearchReferences?: (token: string) => ReferenceSuggestion[]
+  onSearchHandles?: (token: string) => ReferenceSuggestion[]
+}
 
 export type ProjectNotesFormMode =
   | { kind: 'create'; onSubmit: (body: ProjectNoteCreateBody) => Promise<unknown> }
@@ -37,6 +47,10 @@ export type ProjectNotesFormProps = {
   mode: ProjectNotesFormMode
   /** Fired when the form is finished — after a successful save. The modal owns dismissal. */
   onClose: () => void
+  /** What a plain note's text can point at. Omitted, it is plain text. */
+  mentions?: ProjectNotesFormMentions
+  /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save — never in a secret. */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 const KIND_OPTIONS = [
@@ -54,7 +68,12 @@ const ACCESS_OPTIONS = [
  * this form: on edit the value field starts empty and an empty value on submit
  * leaves the stored one untouched.
  */
-export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProps) {
+export default function ProjectNotesForm({
+  mode,
+  onClose,
+  mentions,
+  canonicalize,
+}: ProjectNotesFormProps) {
   const isEdit = mode.kind === 'edit'
   const [values, setValues] = useState<ProjectNoteFormValues>(() =>
     mode.kind === 'edit' ? noteFormValues(mode.note) : emptyNoteForm(),
@@ -72,11 +91,14 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
     if (!isNoteFormValid(values, formMode) || submitting) return
     setSubmitting(true)
     setError(null)
+    const saved = canonicalize
+      ? canonicalNoteValues(values, canonicalize, mode.kind === 'edit' ? mode.note : undefined)
+      : values
     try {
       if (mode.kind === 'create') {
-        await mode.onSubmit(noteCreateBody(values))
+        await mode.onSubmit(noteCreateBody(saved))
       } else {
-        const patch = notePatchBody(values, mode.note)
+        const patch = notePatchBody(saved, mode.note)
         if (!isEmptyNotePatch(patch)) await mode.onSubmit(patch)
       }
       onClose()
@@ -118,6 +140,19 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
             invalid={Boolean(errors.value)}
             autoComplete="off"
           />
+        ) : mentions ? (
+          <FileMentionsTextarea
+            rows={3}
+            value={values.value}
+            onChange={(next) => set('value', next)}
+            placeholder={
+              isEdit
+                ? ''
+                : 'The standing context an agent should have — @ files, # stories, & notes'
+            }
+            className="rounded-md border border-(--border-default) bg-(--surface-raised) px-3 py-2 text-sm"
+            {...mentions}
+          />
         ) : (
           <Textarea
             rows={3}
@@ -130,11 +165,22 @@ export default function ProjectNotesForm({ mode, onClose }: ProjectNotesFormProp
       </Field>
 
       <Field label="Description" hint="Optional — when an agent should reach for this.">
-        <Input
-          value={values.description}
-          onChange={(e) => set('description', e.target.value)}
-          placeholder="Account for the app under test"
-        />
+        {mentions ? (
+          <FileMentionsTextarea
+            rows={1}
+            value={values.description}
+            onChange={(next) => set('description', next)}
+            placeholder="Account for the app under test"
+            className="rounded-md border border-(--border-default) bg-(--surface-raised) px-3 py-2 text-sm"
+            {...mentions}
+          />
+        ) : (
+          <Input
+            value={values.description}
+            onChange={(e) => set('description', e.target.value)}
+            placeholder="Account for the app under test"
+          />
+        )}
       </Field>
 
       <Field label="Access" hint={noteAccessHelp(values.access)}>

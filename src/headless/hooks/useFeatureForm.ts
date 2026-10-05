@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ProofKind, ProofPlan } from 'thefactory-tools/types'
+
+import {
+  proofPlanDraftOf,
+  proofPlanDraftsEqual,
+  proofPlanOfDraft,
+  toggleProofPlanDraftKind,
+} from '../utils/proofPlanView'
+import type { ProofPlanDraft } from '../utils/proofPlanViewTypes'
 import type { StoryStatus } from '../utils/status'
 
 /**
  * Headless state machine for the "create / edit feature" form used by both
  * overseer-local and the web client (and the upcoming RN target). Owns:
- *   - field state for title / description / rejection / status / blockers /
- *     context-files
+ *   - field state for title / description / acceptance / proof plan /
+ *     rejection / status / blockers / context-files
  *   - dirty tracking (compared against an initial snapshot)
  *   - validation (title required)
  *   - canSubmit + handleSubmit (calls back into the host)
@@ -21,6 +30,8 @@ import type { StoryStatus } from '../utils/status'
 export type FeatureFormInitialValues = {
   title?: string
   description?: string
+  acceptance?: string
+  proofPlan?: ProofPlan
   rejection?: string
   status?: StoryStatus
   blockers?: ReadonlyArray<string>
@@ -30,6 +41,10 @@ export type FeatureFormInitialValues = {
 export type FeatureFormValues = {
   title: string
   description: string
+  /** What done means — empty when cleared. */
+  acceptance: string
+  /** How it will be shown to be right — `undefined` when no kind is picked. */
+  proofPlan: ProofPlan | undefined
   rejection: string
   status: StoryStatus
   blockers: string[]
@@ -44,12 +59,23 @@ export type UseFeatureFormOptions = {
   /** Optional — host-side resolver for `#3.2` → canonical blocker id. Used
    *  when the user types a `#` reference in the description / rejection. */
   normalizeDependency?: (raw: string) => string
+  /**
+   * Turns what was typed (`#3.2`, `&qa-login`) into ids on save —
+   * `References.canonicalize`. Given each field as it was, so only what is new
+   * is turned.
+   */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 export type UseFeatureForm = {
   values: FeatureFormValues
   setTitle: (v: string) => void
   setDescription: (v: string) => void
+  setAcceptance: (v: string) => void
+  /** The proof plan as the editor toggles it — kinds in canonical order, notes as typed. */
+  proofPlanDraft: ProofPlanDraft
+  toggleProofKind: (kind: ProofKind) => void
+  setProofNotes: (notes: string) => void
   setRejection: (v: string) => void
   setStatus: (v: StoryStatus) => void
   setBlockers: (v: string[]) => void
@@ -77,6 +103,8 @@ export type UseFeatureForm = {
 const DEFAULTS: FeatureFormValues = {
   title: '',
   description: '',
+  acceptance: '',
+  proofPlan: undefined,
   rejection: '',
   status: 'pending',
   blockers: [],
@@ -87,6 +115,8 @@ function seedValues(v?: FeatureFormInitialValues): FeatureFormValues {
   return {
     title: v?.title ?? DEFAULTS.title,
     description: v?.description ?? DEFAULTS.description,
+    acceptance: v?.acceptance ?? DEFAULTS.acceptance,
+    proofPlan: v?.proofPlan,
     rejection: v?.rejection ?? DEFAULTS.rejection,
     status: (v?.status as StoryStatus) ?? DEFAULTS.status,
     blockers: v?.blockers ? [...v.blockers] : [],
@@ -98,14 +128,20 @@ function arraysEqual(a: ReadonlyArray<string>, b: ReadonlyArray<string>) {
   return a.length === b.length && a.every((x, i) => x === b[i])
 }
 
+const asTyped = (text: string): string => text
+
 export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
-  const { initialValues, onSubmit, onDirty, normalizeDependency } = opts
+  const { initialValues, onSubmit, onDirty, normalizeDependency, canonicalize = asTyped } = opts
 
   const seed = useMemo(() => seedValues(initialValues), [initialValues])
   const baselineRef = useRef<FeatureFormValues>(seed)
 
   const [title, setTitle] = useState(seed.title)
   const [description, setDescription] = useState(seed.description)
+  const [acceptance, setAcceptance] = useState(seed.acceptance)
+  const [proofPlanDraft, setProofPlanDraft] = useState<ProofPlanDraft>(() =>
+    proofPlanDraftOf(seed.proofPlan),
+  )
   const [rejection, setRejection] = useState(seed.rejection)
   const [status, setStatus] = useState<StoryStatus>(seed.status)
   const [blockers, setBlockers] = useState<string[]>(seed.blockers)
@@ -113,7 +149,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const combinedText = `${title}\n${description}\n${rejection}`
+  const combinedText = `${title}\n${description}\n${acceptance}\n${rejection}`
 
   const mentionedPaths = useMemo(() => {
     const out = new Set<string>()
@@ -132,6 +168,8 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   const dirty =
     title !== baseline.title ||
     description !== baseline.description ||
+    acceptance !== baseline.acceptance ||
+    !proofPlanDraftsEqual(proofPlanDraft, proofPlanDraftOf(baseline.proofPlan)) ||
     rejection !== baseline.rejection ||
     status !== baseline.status ||
     !arraysEqual(blockers, baseline.blockers) ||
@@ -164,6 +202,16 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     [],
   )
 
+  const toggleProofKind = useCallback(
+    (kind: ProofKind) => setProofPlanDraft((prev) => toggleProofPlanDraftKind(prev, kind)),
+    [],
+  )
+
+  const setProofNotes = useCallback(
+    (notes: string) => setProofPlanDraft((prev) => ({ ...prev, notes })),
+    [],
+  )
+
   const canSubmit = title.trim().length > 0 && !submitting
 
   const handleSubmit = useCallback(async () => {
@@ -177,8 +225,13 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     try {
       await onSubmit({
         title: title.trim(),
-        description: description.trim(),
-        rejection: rejection.trim(),
+        description: canonicalize(description.trim(), baselineRef.current.description),
+        acceptance: canonicalize(acceptance.trim(), baselineRef.current.acceptance),
+        proofPlan: proofPlanOfDraft({
+          ...proofPlanDraft,
+          notes: canonicalize(proofPlanDraft.notes, baselineRef.current.proofPlan?.notes),
+        }),
+        rejection: canonicalize(rejection.trim(), baselineRef.current.rejection),
         status,
         blockers,
         context,
@@ -186,7 +239,19 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     } finally {
       setSubmitting(false)
     }
-  }, [title, description, rejection, status, blockers, context, onSubmit, submitting])
+  }, [
+    title,
+    description,
+    acceptance,
+    proofPlanDraft,
+    rejection,
+    status,
+    blockers,
+    context,
+    onSubmit,
+    canonicalize,
+    submitting,
+  ])
 
   const onKeyDown = useCallback(
     (e: { key: string; metaKey?: boolean; ctrlKey?: boolean; preventDefault: () => void }) => {
@@ -199,9 +264,22 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   )
 
   return {
-    values: { title, description, rejection, status, blockers, context },
+    values: {
+      title,
+      description,
+      acceptance,
+      proofPlan: proofPlanOfDraft(proofPlanDraft),
+      rejection,
+      status,
+      blockers,
+      context,
+    },
     setTitle,
     setDescription,
+    setAcceptance,
+    proofPlanDraft,
+    toggleProofKind,
+    setProofNotes,
     setRejection,
     setStatus,
     setBlockers,

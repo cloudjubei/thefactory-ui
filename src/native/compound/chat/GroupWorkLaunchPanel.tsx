@@ -4,26 +4,18 @@ import { Text, View } from 'react-native'
 import {
   LAUNCH_NOTE_MAX_CHARS,
   LAUNCH_OPTIONS_READ_ONLY,
-  PROCESS_GROUP_EARLY_MERGE_LABEL,
   PROCESS_GROUP_LAUNCH_BLURB,
-  PROCESS_GROUP_MODE_LABELS,
-  PROCESS_GROUP_PREREQUISITE_MODES,
-  defaultProcessGroupLegModes,
   launchOptionsAreHonoured,
-  processGroupLaunchMetadata,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
-  type ProcessGroupLegModes,
-  type ProcessIntegrationMode,
 } from '../../../headless'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
-import SegmentedControl from '../../primitives/SegmentedControl'
 import { Textarea } from '../../primitives/Textarea'
 
 export type GroupWorkLaunchPanelProps = {
@@ -63,7 +55,6 @@ export default function GroupWorkLaunchPanel({
     legs: summary.legs,
   })
   const optionsHonoured = launchOptionsAreHonoured(grant)
-  const [modes, setModes] = useState<ProcessGroupLegModes>({})
   const [note, setNote] = useState('')
   const [runModel, setRunModel] = useState<string | undefined>(undefined)
   const [runCli, setRunCli] = useState<string | undefined>(undefined)
@@ -71,7 +62,6 @@ export default function GroupWorkLaunchPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const chosenModes = { ...defaultProcessGroupLegModes(preview), ...modes }
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
 
@@ -88,7 +78,6 @@ export default function GroupWorkLaunchPanel({
               ...(runModel ? { cliModel: runModel } : {}),
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
-              ...processGroupLaunchMetadata(chosenModes),
             }
           : undefined,
       )
@@ -218,28 +207,6 @@ export default function GroupWorkLaunchPanel({
                         {`${leg.features} feature${leg.features === 1 ? '' : 's'}`}
                       </Text>
                     </View>
-                    {leg.isPrerequisite ? (
-                      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                        {PROCESS_GROUP_EARLY_MERGE_LABEL}
-                      </Text>
-                    ) : null}
-                    {leg.isPrerequisite ? (
-                      <SegmentedControl
-                        size="sm"
-                        ariaLabel={`How ${leg.projectTitle} is merged early`}
-                        value={chosenModes[leg.projectId] ?? 'merge'}
-                        onChange={(v) =>
-                          setModes((prev) => ({
-                            ...prev,
-                            [leg.projectId]: v as ProcessIntegrationMode,
-                          }))
-                        }
-                        options={PROCESS_GROUP_PREREQUISITE_MODES.map((m) => ({
-                          value: m,
-                          label: PROCESS_GROUP_MODE_LABELS[m],
-                        }))}
-                      />
-                    ) : null}
                     {waitsFor ? (
                       <Text style={{ fontSize: 11, color: theme.text.muted }}>{waitsFor}</Text>
                     ) : null}

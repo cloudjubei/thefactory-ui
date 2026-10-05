@@ -2,6 +2,15 @@ import React, { useEffect, useRef, type ReactNode } from 'react'
 import StatusControl from './StatusControl'
 import { useStoryForm } from '../../headless/hooks/useStoryForm'
 import type { StoryFormValues } from '../../headless/hooks/useStoryForm'
+import FileMentionsTextarea from './files/FileMentionsTextarea'
+import type { ReferenceSuggestion } from './files/reference'
+
+/** The description's `@` / `#` / `&` dropdowns. */
+export type StoryFormMentions = {
+  onSearchFiles?: (token: string) => string[]
+  onSearchReferences?: (token: string) => ReferenceSuggestion[]
+  onSearchHandles?: (token: string) => ReferenceSuggestion[]
+}
 
 /**
  * Story form (presentational). Renders the same fields on both web and
@@ -29,6 +38,10 @@ export type StoryFormProps = {
   formId?: string
   /** Slot for the host's `ProjectChip` (or any other context-aware chip). */
   renderProjectChip?: () => ReactNode
+  /** Files, stories, features and notes the description can point at. Omitted, it is plain text. */
+  mentions?: StoryFormMentions
+  /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
+  canonicalize?: (text: string, before?: string) => string
 }
 
 export default function StoryForm({
@@ -40,11 +53,14 @@ export default function StoryForm({
   onDirtyChange,
   formId,
   renderProjectChip,
+  mentions,
+  canonicalize,
 }: StoryFormProps) {
   const form = useStoryForm({
     initialValues,
     onSubmit,
     onDirty: onDirtyChange,
+    ...(canonicalize ? { canonicalize } : {}),
   })
 
   const localTitleRef = useRef<HTMLInputElement>(null)
@@ -119,20 +135,38 @@ export default function StoryForm({
           >
             Description
           </label>
-          <textarea
-            id="story-description"
-            rows={4}
-            placeholder="Optional description or details"
-            value={form.values.description}
-            onChange={(e) => form.setDescription(e.target.value)}
-            disabled={submitting}
-            className="w-full rounded-md border px-3 py-2 text-sm disabled:opacity-60 resize-y max-h-64"
-            style={{
-              background: 'var(--surface-raised)',
-              borderColor: 'var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-          />
+          {mentions ? (
+            <FileMentionsTextarea
+              id="story-description"
+              rows={4}
+              placeholder="Optional description — @ files, # stories and features, & notes"
+              value={form.values.description}
+              onChange={form.setDescription}
+              disabled={submitting}
+              className="rounded-md border px-3 py-2 text-sm disabled:opacity-60 resize-y max-h-64"
+              style={{
+                background: 'var(--surface-raised)',
+                borderColor: 'var(--border-default)',
+                color: 'var(--text-primary)',
+              }}
+              {...mentions}
+            />
+          ) : (
+            <textarea
+              id="story-description"
+              rows={4}
+              placeholder="Optional description or details"
+              value={form.values.description}
+              onChange={(e) => form.setDescription(e.target.value)}
+              disabled={submitting}
+              className="w-full rounded-md border px-3 py-2 text-sm disabled:opacity-60 resize-y max-h-64"
+              style={{
+                background: 'var(--surface-raised)',
+                borderColor: 'var(--border-default)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          )}
         </div>
       </div>
     </form>

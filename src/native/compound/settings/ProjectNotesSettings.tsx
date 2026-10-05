@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import type { ResourceLink } from 'thefactory-tools/types'
 
-import { useProjectNotes, useProjectNoteReveal } from '../../../headless'
+import {
+  rankMentionMatches,
+  useFiles,
+  useProjectNotes,
+  useProjectNoteReveal,
+} from '../../../headless'
+import { useProjectReferenceRenderer } from '../../hooks/useReferenceRenderer'
+import RichText from '../files/RichText'
 import type { ProjectNoteSummary } from '../../../headless/api'
 import {
   canRevealNote,
@@ -22,6 +30,8 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 export interface ProjectNotesSettingsProps {
   /** Project whose notes are managed. Undefined renders an idle empty state. */
   projectId: string | undefined
+  /** Opens what a note points at — a story, feature, note or file. */
+  onOpenReference?: (link: ResourceLink) => void
 }
 
 type ModalRoute =
@@ -40,13 +50,27 @@ function formatUpdated(iso: string): string {
  * Same prop surface. A stored value is never rendered in the list; Reveal
  * fetches one on demand and masks it again shortly after.
  */
-export default function ProjectNotesSettings({ projectId }: ProjectNotesSettingsProps) {
+export default function ProjectNotesSettings({
+  projectId,
+  onOpenReference,
+}: ProjectNotesSettingsProps) {
   const { theme } = useNativeTheme()
   const { isLoaded, loadError, notes, createNote, updateNote, deleteNote, revealNote } =
     useProjectNotes(projectId)
   const { revealedNoteId, revealedValue, revealingNoteId, revealError, reveal, hide } =
     useProjectNoteReveal(revealNote)
   const [modal, setModal] = useState<ModalRoute | null>(null)
+  const { references, renderReference } = useProjectReferenceRenderer({
+    projectId,
+    ...(onOpenReference ? { onOpen: onOpenReference } : {}),
+  })
+  const { paths } = useFiles()
+  const onSearchFiles = useCallback((token: string) => rankMentionMatches(paths, token, 5), [paths])
+  const mentions = {
+    onSearchFiles,
+    onSearchReferences: references.searchWork,
+    onSearchHandles: references.searchHandles,
+  }
 
   const placeholder = (text: string) => (
     <View style={{ padding: nativeSpace[5] }}>
@@ -140,9 +164,12 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
                           ) : null}
                         </View>
                         {note.description ? (
-                          <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-                            {note.description}
-                          </Text>
+                          <RichText
+                            text={note.description}
+                            renderReference={renderReference}
+                            typedReferences
+                            textColor={theme.text.secondary}
+                          />
                         ) : null}
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                           <Text
@@ -201,6 +228,8 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
           <ProjectNotesForm
             mode={{ kind: 'create', onSubmit: createNote }}
             onClose={() => setModal(null)}
+            mentions={mentions}
+            canonicalize={references.canonicalize}
           />
         </Modal>
       ) : null}
@@ -213,6 +242,8 @@ export default function ProjectNotesSettings({ projectId }: ProjectNotesSettings
               onSubmit: (patch) => updateNote(modal.note.id, patch),
             }}
             onClose={() => setModal(null)}
+            mentions={mentions}
+            canonicalize={references.canonicalize}
           />
         </Modal>
       ) : null}

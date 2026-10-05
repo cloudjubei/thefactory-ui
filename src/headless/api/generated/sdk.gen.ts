@@ -777,6 +777,9 @@ import type {
   SendCompletionWithToolsData,
   SendCompletionWithToolsErrors,
   SendCompletionWithToolsResponses,
+  SendProcessRunBackForChangesData,
+  SendProcessRunBackForChangesErrors,
+  SendProcessRunBackForChangesResponses,
   SetActiveCliData,
   SetActiveCliResponses,
   SetActiveRunnerKindData,
@@ -894,6 +897,9 @@ import type {
   UpdateWebSearchKeysData,
   UpdateWebSearchKeysErrors,
   UpdateWebSearchKeysResponses,
+  UploadChatAttachmentData,
+  UploadChatAttachmentErrors,
+  UploadChatAttachmentResponses,
   UploadFileData,
   UploadFileErrors,
   UploadFileResponses,
@@ -1588,6 +1594,20 @@ export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const sendProcessRunBackForChanges = <ThrowOnError extends boolean = false>(
+  options: Options<SendProcessRunBackForChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendProcessRunBackForChangesResponses,
+    SendProcessRunBackForChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/send-back',
+    ...options,
   })
 
 export const cancelProcessRun = <ThrowOnError extends boolean = false>(
@@ -2515,6 +2535,24 @@ export const updateChatDynamicContext = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/dynamic-context',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const uploadChatAttachment = <ThrowOnError extends boolean = false>(
+  options: Options<UploadChatAttachmentData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    UploadChatAttachmentResponses,
+    UploadChatAttachmentErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/chat-attachments',
     ...options,
     headers: {
       'Content-Type': 'application/json',

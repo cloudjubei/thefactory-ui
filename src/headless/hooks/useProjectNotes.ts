@@ -8,6 +8,7 @@ import {
   type ProjectNoteSummary,
 } from '../api'
 import { useAuth } from '../api/AuthContext'
+import { invalidateReferenceProject } from './useReferences'
 import { sortNotes } from '../utils/projectNotes'
 import type { ProjectNoteCreateBody, ProjectNotePatchBody } from '../utils/projectNotesTypes'
 
@@ -78,6 +79,7 @@ export function useProjectNotes(projectId: string | undefined): UseProjectNotes 
         body: input,
         throwOnError: true,
       })
+      invalidateReferenceProject(requireProject())
       await refresh()
     },
     [requireProject, refresh],
@@ -90,6 +92,7 @@ export function useProjectNotes(projectId: string | undefined): UseProjectNotes 
         body: patch,
         throwOnError: true,
       })
+      invalidateReferenceProject(requireProject())
       await refresh()
     },
     [requireProject, refresh],
@@ -101,6 +104,7 @@ export function useProjectNotes(projectId: string | undefined): UseProjectNotes 
         path: { projectId: requireProject(), noteId },
         throwOnError: true,
       })
+      invalidateReferenceProject(requireProject())
       await refresh()
     },
     [requireProject, refresh],

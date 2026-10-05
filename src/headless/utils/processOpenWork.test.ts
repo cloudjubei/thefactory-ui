@@ -14,6 +14,7 @@ import { formatDateShort } from './time'
 import {
   AMENDMENT_CLOSED_SIGN_OFF,
   AMENDMENT_REOPENED_ENDED,
+  AMENDMENT_SEND_BACK,
   AMENDMENT_SET_ASIDE_PARK,
   OPEN_WORK_EXTEND_LABEL,
   OPEN_WORK_FRESH_LABEL,
@@ -252,5 +253,32 @@ describe('processAmendmentView', () => {
       ]),
     )
     expect(view.notes[0]).toContain(AMENDMENT_REOPENED_ENDED)
+  })
+
+  it('says a fix added at a request for changes came from that gate, and brings the work back to it', () => {
+    const base = run([
+      { at, stepIds: ['fix'], afterStepId: 'walkthrough', sendBackLoopId: 'fix-findings' },
+    ])
+    const view = processAmendmentView({
+      ...base,
+      plan: {
+        ...base.plan,
+        steps: [...base.plan.steps.slice(0, 3), step('fix', 'Fix'), ...base.plan.steps.slice(3)],
+        loops: [
+          { id: 'fix-findings', from: 'sign-off', to: 'fix', when: ['failed'], maxIterations: 3 },
+        ],
+      },
+    })
+    expect(view.addedSteps).toEqual({ fix: `Added ${date}` })
+    expect(view.notes).toEqual([
+      `Added ${date}: Fix. ${AMENDMENT_SEND_BACK.replaceAll('{gate}', 'Sign-off')}`,
+    ])
+  })
+
+  it('says nothing of a send-back whose edge the plan does not carry', () => {
+    const view = processAmendmentView(
+      run([{ at, stepIds: ['features:f3'], afterStepId: 'features:f1', sendBackLoopId: 'gone' }]),
+    )
+    expect(view.notes).toEqual([`Added ${date}: Icon font.`])
   })
 })

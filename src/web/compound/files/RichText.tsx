@@ -1,6 +1,13 @@
 import { Fragment, useMemo, type ReactNode } from 'react'
+import { splitReferences } from 'thefactory-tools/utils'
+import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
+import type { ReferenceSegment, ReferenceTarget } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
-import { tokenizeRichText } from '../../../headless/utils/richTextTokenize'
+
+/** The project path of a segment that names a file, else `undefined`. */
+function filePath(seg: ReferenceSegment): string | undefined {
+  return seg.type === 'reference' && seg.reference.kind === 'file' ? seg.reference.path : undefined
+}
 
 export type RichTextProps = {
   text: string | null | undefined
@@ -22,10 +29,13 @@ export type RichTextProps = {
    */
   onResolveFile?: (token: string) => UikitFileMeta | null
   /**
-   * Renders a `#<dep>` reference. Receives the dep value (without the leading `#`).
-   * When omitted, renders the raw token as text.
+   * Renders every reference other than a file — a story, feature, note or
+   * attachment, or what was typed for one (`#3.2`, `&qa-login`). Returning
+   * `undefined`, or omitting it, renders the token as text.
    */
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
+  /** Chip what was typed (`#3.2`, `&qa-login`) as well as what was sent as ids. */
+  typedReferences?: boolean
   /** Async preview loader forwarded to inline `FileDisplay`. Optional. */
   onReadPreview?: (relativePath: string) => Promise<string | null>
 }
@@ -35,10 +45,12 @@ export default function RichText({
   variant = 'display',
   inputEditRange,
   onResolveFile,
-  renderDependency,
+  renderReference: ownRenderReference,
+  typedReferences = false,
   onReadPreview,
 }: RichTextProps) {
-  const segments = useMemo(() => tokenizeRichText(text ?? ''), [text])
+  const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
+  const segments = useMemo(() => splitReferences(text ?? ''), [text])
 
   if (variant === 'input') {
     let pos = 0
@@ -58,7 +70,7 @@ export default function RichText({
             Math.max(start, inputEditRange.start) < Math.min(end, inputEditRange.end)
           )
           if (isEditing) return <Fragment key={idx}>{seg.raw}</Fragment>
-          const isFile = seg.type === 'file'
+          const isFile = filePath(seg) !== undefined
           return (
             <span
               key={idx}
@@ -81,22 +93,21 @@ export default function RichText({
     <>
       {segments.map((seg, idx) => {
         if (seg.type === 'text') return <Fragment key={idx}>{seg.value}</Fragment>
-        if (seg.type === 'dep') {
-          return (
-            <Fragment key={idx}>
-              {renderDependency ? renderDependency(seg.value) : seg.raw}
-            </Fragment>
-          )
+        const path = filePath(seg)
+        // Without a file resolver of its own, a file goes to the app's renderer,
+        // which knows the project's files; one it does not know reads as written.
+        if (path === undefined || !onResolveFile) {
+          return <Fragment key={idx}>{renderReference?.(seg) ?? seg.raw}</Fragment>
         }
-        const meta = onResolveFile?.(seg.value) ?? null
+        const meta = onResolveFile?.(path) ?? null
         if (!meta) {
           return (
             <span
               key={idx}
               className="inline rounded-sm px-1 py-px border border-dashed border-(--border-subtle) text-(--text-secondary)"
-              title={`File not found: ${seg.value}`}
+              title={`File not found: ${path}`}
             >
-              @{seg.value}
+              @{path}
             </span>
           )
         }

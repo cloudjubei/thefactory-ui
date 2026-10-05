@@ -1,3 +1,5 @@
+import type { ReferenceTarget } from 'thefactory-tools/types'
+import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { memo, useMemo, useState, type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import RichText from '../files/RichText'
@@ -172,12 +174,6 @@ export interface MessageRowProps {
   toolAlwaysAllowed?: boolean
   /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
   onAlwaysAllowTool?: () => void
-  /**
-   * Replaces the whole tool card for this row. Used by a tool the user has to
-   * answer in place (the in-chat credential form), which must read as the tool
-   * call it is rather than as a second panel elsewhere in the chat.
-   */
-  toolRowOverride?: ReactNode
 
   onDeleteLastMessage?: () => void
   /**
@@ -204,7 +200,7 @@ export interface MessageRowProps {
   /** Resolve an `@<path>` inline file mention to file metadata. */
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Render an inline `#<id>` reference. */
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). */
   onResourceLink?: (link: ResourceLink) => void
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
@@ -290,7 +286,6 @@ function MessageRow({
   onToggleToolSelect,
   toolAlwaysAllowed,
   onAlwaysAllowTool,
-  toolRowOverride,
   onDeleteLastMessage,
   deleteControl,
   deletePreview = false,
@@ -300,7 +295,7 @@ function MessageRow({
   restartControl,
   onRetry,
   onResolveFile,
-  renderDependency,
+  renderReference,
   onResourceLink,
   renderCliRunArtifact,
   renderProcessRun,
@@ -632,13 +627,19 @@ function MessageRow({
                 <RichText
                   text={msg.content}
                   onResolveFile={onResolveFile}
-                  renderDependency={renderDependency}
+                  renderReference={renderReference}
+                  typedReferences
                   // User bubble is blue → text must be white to read against it.
                   // A hand-off bubble is review-soft, so its text takes that fg.
                   textColor={isHandoff ? status.review.softFg : theme.text.inverted}
                 />
               ) : (
-                <Markdown text={msg.content} onResourceLink={onResourceLink} />
+                <Markdown
+                  text={msg.content}
+                  onResourceLink={onResourceLink}
+                  renderReference={renderReference}
+                  typedReferences
+                />
               )}
             </CollapsibleContent>
           </View>
@@ -656,11 +657,7 @@ function MessageRow({
           </View>
         ) : null}
 
-        {isTool && msg.toolCall && toolRowOverride ? (
-          <View style={{ width: '100%' }}>{toolRowOverride}</View>
-        ) : null}
-
-        {isTool && msg.toolCall && !toolRowOverride && (
+        {isTool && msg.toolCall && (
           <View style={{ width: '100%' }}>
             {renderToolCall ? (
               renderToolCall({
@@ -718,7 +715,7 @@ function MessageRow({
             }}
           >
             {files.map((path, i) => {
-              const name = path.split('/').pop() ?? path
+              const name = attachmentDisplayName(path)
               return (
                 <FileDisplay
                   key={`att-${i}-${path}`}

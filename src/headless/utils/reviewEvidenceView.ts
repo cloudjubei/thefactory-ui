@@ -330,7 +330,13 @@ function lostItsVerdict(ref: Pick<ReviewEvidenceRef, 'unvouchedReason'>): boolea
 
 type VerdictFiling = Pick<
   ReviewEvidenceRef,
-  'kind' | 'approach' | 'verdict' | 'verdictReason' | 'createdAt' | 'unvouchedReason'
+  | 'kind'
+  | 'approach'
+  | 'verdict'
+  | 'verdictReason'
+  | 'verdictCause'
+  | 'createdAt'
+  | 'unvouchedReason'
 >
 
 /**
@@ -349,7 +355,15 @@ function newestVerdict(refs: readonly VerdictFiling[]): ReviewerVerdictReading {
   }
   if (!newest?.verdict) return { state: 'none' }
   const reason = newest.verdictReason?.trim()
-  return { state: 'concluded', verdict: { verdict: newest.verdict, ...(reason ? { reason } : {}) } }
+  const cause = newest.verdict === 'approved' ? undefined : newest.verdictCause
+  return {
+    state: 'concluded',
+    verdict: {
+      verdict: newest.verdict,
+      ...(reason ? { reason } : {}),
+      ...(cause ? { cause } : {}),
+    },
+  }
 }
 
 /**

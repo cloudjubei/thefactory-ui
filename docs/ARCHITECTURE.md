@@ -61,7 +61,7 @@ A project can ship its own **app surface** — a self-contained web app the Over
 comes from `useProjectAppView`, which mints a short-lived **view token** and points the frame at the
 host route `…/projects/<id>/view/<file>?viewToken=…`. The host serves the project's `metadata.appDir`
 (falling back to the checkout root) with `Cache-Control: no-store`. The app talks back to the host only
-through the **`OverseerBridge` postMessage protocol** (`headless/utils/appBridge.ts`) — `data.*`,
+through the **`OverseerBridge` postMessage protocol** (`headless/utils/appBridge.ts`; the `data.*` / `settings.*` payloads are read by thefactory-tools' `projectAppDataQueryOf` / `projectAppDataPutOf` / `projectAppDataRefOf` / `projectAppSettings*Of`, the same readers the backend's App capture harness answers with) — `data.*`,
 `activities.*`, `settings.*`, `chat.discuss`/`chat.requestSidebar`, `story.create`, etc.; the host holds
 every credential, the app never does.
 
@@ -196,13 +196,11 @@ An agent that needs credentials never asks for them in the conversation — the 
 
 Every client feeds this into `ChatBody` next to `grants` — `credentialCaptures` + `onSubmitCredentialCapture` + `onCancelCredentialCapture`. The card is gated on both resolutions being wired, so a client that passes none of the three renders no form at all and the agent waits on a capture the user can never see.
 
-The pure half lives in `headless/utils/credentialCaptures.ts`: the WS-payload guard, the awaiting/chat predicates, the feed upsert, form validation, the status → display mapping, and `bindCapturesToToolCalls`. **`captureSubmitBody` is the only function anywhere in the package that touches the secret**, and only to build the request body; `credentialCaptures.test.ts` pins that with a sentinel token asserted absent from every other helper's output. The capture record itself has no field a secret could serialize into — confirm against the generated type before adding to this flow.
+The pure half lives in `headless/utils/credentialCaptures.ts`: the WS-payload guard, the awaiting/chat predicates, the feed upsert, form validation, the status → display mapping, and `capturesBlockedOn`; `userAsks` (in `agentQuestions.ts`) merges open forms with questions. **`captureSubmitBody` is the only function anywhere in the package that touches the secret**, and only to build the request body; `credentialCaptures.test.ts` pins that with a sentinel token asserted absent from every other helper's output. The capture record itself has no field a secret could serialize into — confirm against the generated type before adding to this flow.
 
-**The card is the tool row.** `CredentialCaptureCard` (web + native peers, same props) matches `ToolCallCard`'s vocabulary — same container, border and ~38px header row, with the form as the expandable section a tool card would put its arguments in — and mounts **in the transcript, replacing the row for the call that opened it**, so one request reads as one event instead of a tool row plus an unrelated full-width panel. `ChatBody` computes the placement with `bindCapturesToToolCalls(messages, captures)`, joining a capture to the last row whose `purpose` argument matches it (while the call is blocked there is no result to read a `captureId` out of), and threads a `renderToolRowOverride` down through `MessageList` to `MessageRow`'s tool branch. It is a **row-level** override on purpose: web's `renderResult` seam only reaches the hover card / bottom sheet, which can never host an input.
+**The card takes the composer's place, like an `askUser` question.** A capture parks the agent on the user exactly as a question does, so it is answered the same way: no approval in front of it (the backend auto-approves every capture tool — the form carries its purpose and IS the consent), and the card replaces the composer until it is saved or dismissed. `ChatBody` (web + native) builds one list of everything waiting on the user with `userAsks(questionGrants, captures)` — questions first, then open forms — and pages through it one at a time ("1 of 2 waiting on you"), rendering `AgentQuestionCard` or `CredentialCaptureCard` for the shown entry. It outranks `hideInput`, as a question does: a parked ask waits forever, so the one control that releases it must stay reachable. The same placement covers every runner, CLI included, since nothing depends on finding the call's transcript row. `capturesBlockedOn` adds open forms to the live run's activity line, so it reads as waiting on the user rather than working.
 
-Anything `bindCapturesToToolCalls` cannot place — most often a capture opened by a CLI run, whose transcript `CliRunMessages` fetches and renders itself — comes back as `unbound` and renders above the composer instead. A form with nowhere to appear is a hung agent, so the fallback is not optional; `renderToolRowOverride` is deliberately NOT forwarded into `CliRunMessages`, because the host cannot see those rows and would then render the card twice.
-
-Only captures still awaiting the user render at all. A resolved one is dropped: the tool call it belongs to now has a real result in the transcript, which says what happened better than a spent form would.
+Only captures still awaiting the user render at all. A resolved one is dropped: the tool call it belongs to has a real result in the transcript, which says what happened better than a spent form would.
 
 Both peers map over the single `CREDENTIAL_CAPTURE_FIELDS` spec rather than hard-coding inputs, so they cannot drift on which fields exist, which are optional, or which one is masked (`type="password"` on web via `SecretInput`, `secureTextEntry` on native). `host` is the one optional field — it scopes the stored credential to a git host (`dev.azure.com`) and is omitted from the submit body when blank.
 
@@ -232,6 +230,20 @@ would refuse must never be selectable.
 change, on purpose: a client that re-fetched per step would flicker through a
 loading state on every node, which is most of what the user is watching.
 
+**A run a person ended reads as their decision, never as a crash.**
+`processRunPersonEnding(run)` (`processView.ts`) names a run that failed on a
+person's "no" — "Changes requested", "Rejected" or "Abandoned", with where and
+their words — and `processRunBadge`, `processRunChipLabel` and
+`processRunCardView` use it in place of "Stopped", so the run rows, chat cards
+and pipeline headers agree; the pipeline's ended line (`RunEnding`) says it
+too. A request for changes at a gate always sends the work back (the engine
+adds a fix in front of a gate with none), so the park note composer has one
+copy (`PARK_NOTE_COPY`, "Send back to be fixed"). A run an earlier build ended
+on such a request (`processRunSendBackGateId`) offers **Send back for changes**
+on its pipeline — `useProcessRun().sendBack()`, `POST /process-runs/:runId/send-back`
+— and the story chip shows "Changes requested →" for it (`processStatusOverlay`,
+which also carries the chip's `title`).
+
 Three components, each with a `web/` + `native/` peer:
 
 - **`ProcessPipeline`** REPLACES the message list for a run — the plan, where it
@@ -256,7 +268,12 @@ web + native, from `processCheckRows` in `headless/utils/processChecksView.ts`):
 the label, ✓ / ✗ / ! / –, an "advisory" marker on a command whose failure does
 not stop the step (lint, format), where it ran — a "sandbox" / "host" chip whose
 hover (web) or accessibility label (native) says why a host run could not use the
-sandbox (`ranInLabel` / `ranInDetail`) — and its duration. The sign-off's check
+sandbox (`ranInLabel` / `ranInDetail`) and, for a host run, which revision of
+each dependency outside the checkout it built against ("Built against
+thefactory-tools at 1a2b3c4 with uncommitted changes", `dependencyDetail`) — a
+dashed "pre-existing" / "partly pre-existing" chip on a failure the change's base
+shares, its hover or label saying how it compared (`baselineLabel` /
+`baselineDetail`) — and its duration. The sign-off's check
 chips say the same at the end of their detail and of an available check's last
 run (`checkRanInSentence` in `checkMethods.ts`: "Ran in the sandbox." / "Ran on
 the host — why"). A test command that counted its tests says so on its row
@@ -267,7 +284,17 @@ check is in**: `reviewCheckGroups` (`runReview.ts`) splits a run's checks by the
 method each rolls up into (`checkMethodFor`), so a project's unit-test COMMAND
 sits in the Tests tab beside `tests` checks — split by `kind`, a green Tests chip
 opened a tab its check was not in. Each check there shows its command, and
-`reviewCheckMeta`'s line — variant, test count, where it ran — over its output tail. A `developer-verifier` step —
+`reviewCheckMeta`'s line — variant and why (`variantReason`: the default, or the
+flavor source set the change touched), the modules it covered, test count, where
+it ran, the out-of-tree revisions it built against and how a failure compares with
+the base (`dependencyDetail`, `baselineDetail`) — then, when its JUnit reports were read, a **Suites** list
+(`testSuitesView` in `testSuites.ts`: each suite's module, name, non-zero counts,
+time and ✓ ✗ ○, its failing tests with their messages under it, and how many
+suites the bounded record left out) above its output tail. What a run could not
+cover (`coverageNote` — tests in a directory no Gradle module includes) is said
+in a note, and a command result recorded before checks kept their command and
+output says so (`legacyNote`, `LEGACY_CHECK_RECORD_NOTE`) instead of reading as
+an empty success. A `developer-verifier` step —
 the self-verified process's one agent, which implements and proves the change
 itself — is read as a verify attempt filed under its own run, exactly as the
 tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`). Every surface that
@@ -299,6 +326,30 @@ read from the story run's plan), and a pair the gate counted from a
 developer-verifier's capture of its uncommitted workspace is captioned as the
 code it held (`captureBuildCaption` with the pair's `counted`,
 `CAPTURE_SAME_CODE_LABEL`), never as a wrong commit.
+
+**How each feature is proven — the proof plan.** Whoever asks for a feature
+decides what proves it: its `proofPlan` (thefactory-tools' kinds — unit tests,
+checks, code review, before/after screens, live backend, manual — and notes on
+what must be shown). The feature editor sets it beside the new Acceptance
+Criteria field: `useFeatureForm` holds it as a `ProofPlanDraft`
+(`toggleProofKind`, `setProofNotes`) and submits it canonical, an edit clearing
+it with `{ kinds: [] }`; `ProofPlanEditor` (web, exported for both web clients'
+`FeatureForm`s; native inside `FeatureForm`) says when the feature inherits its
+story's plan or has none. The launch `ApprovalPanel` shows `ProofPlanConfirm`
+(web + native) from the preview's `proofPlans`
+(`headless/utils/proofPlanView.ts` → `launchProofPlanRows`): each feature's
+plan, where it came from ("Suggested — the feature has no plan" when today's
+automatic choice stands in), every kind toggleable, a kind the host or process
+cannot prove struck through with why and flagged when picked, notes, and "Save
+these plans to the features" (forced, with a line saying why, when the work
+joins an open run), and a warning on a feature the preview marks `looksUi`
+while its plan asks for no before/after screens. `proofPlanMetadata` rides the decision as `{ proofPlans,
+saveProofPlans }`, which `launchDecisionOf` carries for an API chat. The story
+sign-off marks each feature's plan per kind (`proofPlanMarkRows` over the
+tools' `processRunProofPlanStanding`, on `FeatureSignoff.proofPlan`), drawn by
+`ProofPlanMarks` (web + native) in `FeatureReviewSection`: met, not met,
+unchecked with the reason, not judged yet, or yours to check. Tool previews
+print a plan in a line (`proofPlanFieldText`).
 
 **Starting a story that has open work.** The launch preview carries the story's
 `openWork` (a run still going, parked, waiting at its sign-off, or finished and
@@ -507,6 +558,12 @@ render as counted, and such filings count toward their check chip
 (`checkMethodRows`) like any other. One rule stays, silently: a filing that lost
 its verdict and is at least as new keeps an older verdict from being read as the
 conclusion (`reviewerVerdict`, `codeReviewVerdict` read `none`).
+
+A reviewer's non-approval carries what it is about (`ReviewEvidenceRef.verdictCause`,
+kept on `VerifyReviewerVerdict.cause`): one filed `proof-impossible` — the proof asked
+for cannot be produced, so the backend parks the step for the person instead of sending
+it back to the developer — reads "Reviewer · Could not be proven here"
+(`REVIEWER_PROOF_IMPOSSIBLE_LABEL`), never "Changes requested".
 
 **What the project can check, before anything ran.** `checkMethodRows` takes the
 project's checks scan (`projectChecks`, the tools' `ProjectChecksListing`: the

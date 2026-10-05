@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 
 import { useFileMentions, type ReferenceSuggestion } from '../../../headless'
+import type { ReferenceSigil } from '../../../headless/utils/reference'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -29,10 +30,13 @@ export interface FileMentionsTextareaProps {
   /** Returns ranked reference suggestions for the active `#<token>`. When
    *  omitted, the `#`-suggestion strip stays hidden. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** Returns ranked suggestions for the active `&<token>` — notes and the
+   *  chat's attachments. When omitted, `&` shows no suggestions. */
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
   /** Fires AFTER the user taps an `@`-file suggestion. */
   onAcceptFileMention?: (path: string) => void
-  /** Fires AFTER the user taps a `#`-reference suggestion. */
-  onAcceptReference?: (value: string) => void
+  /** Fires AFTER the user taps a `#` or `&` suggestion, with the sigil it was picked under. */
+  onAcceptReference?: (value: string, sigil: ReferenceSigil) => void
   /** Submit on the keyboard's return key when the suggestion strip is hidden. */
   onSubmit?: () => void
   placeholder?: string
@@ -74,6 +78,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
       onChangeText,
       onSearchFiles,
       onSearchReferences,
+      onSearchHandles,
       onAcceptFileMention,
       onAcceptReference,
       onSubmit,
@@ -112,6 +117,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
       onChange: onChangeText,
       onSearchFiles,
       onSearchReferences,
+      onSearchHandles,
       onAcceptFileMention,
       onAcceptReference,
       maxSuggestions,

@@ -814,9 +814,26 @@ export type AgentRunFailureEvent = {
 
 export type CapturePlatform = 'android' | 'ios' | 'web'
 
+export type ProofKind =
+  | 'unit-tests'
+  | 'checks'
+  | 'code-review'
+  | 'ui-before-after'
+  | 'live-backend'
+  | 'manual'
+
+export type ProofPlan = {
+  kinds: Array<ProofKind>
+  notes?: string
+}
+
 export type AgentRunCaptureAccess = {
   deviceAutomation: boolean
   platforms: Array<CapturePlatform>
+  proofPlan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+  }
 }
 
 export type ToolApprovalDecision =
@@ -892,6 +909,23 @@ export type ProjectPlatformInput = {
   language?: string
   framework?: string
   webRecipe?: string
+  projectApp?: string
+}
+
+export type ProjectAppDeclaration = {
+  hasApp?: unknown
+  appDir?: unknown
+}
+
+export type ProjectPlatformSource = {
+  codeInfo?: {
+    language?: string
+    framework?: string
+  }
+  metadata?: {
+    hasApp?: unknown
+    appDir?: unknown
+  }
 }
 
 export type VerificationApproachSpec = {
@@ -1065,6 +1099,16 @@ export type ResourceLink =
       params?: {
         [key: string]: string
       }
+    }
+  | {
+      kind: 'note'
+      projectId: string
+      noteId: string
+    }
+  | {
+      kind: 'file'
+      projectId: string
+      path: string
     }
 
 export type CompletionHistorySummarization = {
@@ -1320,6 +1364,7 @@ export type Chat = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processGroupRunId?: string
     handoffFrom?: string
     toolCall?: {
       toolCallId: string
@@ -1441,6 +1486,7 @@ export type ChatCreateInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processGroupRunId?: string
     handoffFrom?: string
     toolCall?: {
       toolCallId: string
@@ -1513,6 +1559,7 @@ export type ChatEditInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processGroupRunId?: string
     handoffFrom?: string
     toolCall?: {
       toolCallId: string
@@ -1848,6 +1895,9 @@ export type ProjectTicketConnectionSetting = TicketConnectionBinding | 'none'
 export type ProjectRegistryMetadata = {
   githubCredentialsId?: string
   ticketConnection?: TicketConnectionBinding | 'none'
+  hasApp?: boolean
+  appDir?: string
+  workspaceIncludes?: Array<string>
   [key: string]: unknown
 }
 
@@ -1866,6 +1916,9 @@ export type ProjectRegistryEntry = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    hasApp?: boolean
+    appDir?: string
+    workspaceIncludes?: Array<string>
     [key: string]: unknown
   }
   createdAt: string
@@ -1906,6 +1959,12 @@ export type Feature = {
   files?: Array<string>
   plan?: string
   acceptance?: string
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
   blockers?: Array<string>
   rejection?: string
   questions?: Array<FeatureQuestion>
@@ -1923,6 +1982,12 @@ export type Story = {
   features: Array<Feature>
   blockers?: Array<string>
   rejection?: string
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
   externalIds?: Array<ExternalRef>
   createdAt: string
   updatedAt: string
@@ -1972,6 +2037,12 @@ export type ChatContextArguments = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -1986,6 +2057,12 @@ export type ChatContextArguments = {
     files?: Array<string>
     plan?: string
     acceptance?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     blockers?: Array<string>
     rejection?: string
     questions?: Array<FeatureQuestion>
@@ -2075,6 +2152,12 @@ export type ChatContextArgumentsStory = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -2096,6 +2179,12 @@ export type ChatContextArgumentsFeature = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -2110,6 +2199,12 @@ export type ChatContextArgumentsFeature = {
     files?: Array<string>
     plan?: string
     acceptance?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     blockers?: Array<string>
     rejection?: string
     questions?: Array<FeatureQuestion>
@@ -2133,6 +2228,12 @@ export type ChatContextArgumentsAgentRun = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -2155,6 +2256,12 @@ export type ChatContextArgumentsAgentRunFeature = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -2169,6 +2276,12 @@ export type ChatContextArgumentsAgentRunFeature = {
     files?: Array<string>
     plan?: string
     acceptance?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     blockers?: Array<string>
     rejection?: string
     questions?: Array<FeatureQuestion>
@@ -2193,6 +2306,27 @@ export type VerificationCheckKind = 'compile' | 'tests' | 'command'
 export type VerificationCheckStatus = 'passed' | 'failed' | 'skipped' | 'error'
 
 export type VerificationCheckRanIn = 'sandbox' | 'host'
+
+export type VerificationDependencyRevision = {
+  label: string
+  path: string
+  sha?: string
+  dirty?: boolean
+}
+
+export type VerificationBaselineVerdict =
+  | 'pre-existing'
+  | 'partly-pre-existing'
+  | 'new'
+  | 'not-comparable'
+
+export type VerificationCheckBaseline = {
+  sha: string
+  status?: 'passed' | 'failed' | 'skipped' | 'error'
+  verdict: VerificationBaselineVerdict
+  preExistingLines?: Array<string>
+  reason?: string
+}
 
 export type VerificationStatus = 'passed' | 'failed' | 'error' | 'unchecked'
 
@@ -2223,6 +2357,28 @@ export type VerificationTestCount = {
   skipped: number
 }
 
+export type VerificationTestFailure = {
+  name: string
+  message?: string
+}
+
+export type VerificationTestSuite = {
+  name: string
+  module?: string
+  tests: number
+  passed: number
+  failed: number
+  skipped: number
+  durationMs?: number
+  failures?: Array<VerificationTestFailure>
+}
+
+export type VerificationTestReport = {
+  count: VerificationTestCount
+  suites: Array<VerificationTestSuite>
+  suitesOmitted: number
+}
+
 export type VerificationCheckResult = {
   id: string
   label: string
@@ -2233,17 +2389,30 @@ export type VerificationCheckResult = {
   details?: string
   command?: string
   variant?: string
+  variantReason?: string
   testCount?: {
     total: number
     passed: number
     failed: number
     skipped: number
   }
+  testSuites?: Array<VerificationTestSuite>
+  testSuitesOmitted?: number
+  modules?: Array<string>
+  coverageNote?: string
   optional?: boolean
   category?: 'build' | 'lint' | 'typecheck' | 'format' | 'test'
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
   environmentReason?: string
+  dependencyRevisions?: Array<VerificationDependencyRevision>
+  baseline?: {
+    sha: string
+    status?: 'passed' | 'failed' | 'skipped' | 'error'
+    verdict: VerificationBaselineVerdict
+    preExistingLines?: Array<string>
+    reason?: string
+  }
 }
 
 export type VerificationUncheckedReason = {
@@ -4090,16 +4259,6 @@ export type CompletionResponseTurns = {
   error?: unknown
 }
 
-export type ExternalFilesResult = {
-  [key: string]: {
-    contentType?: string
-    bytes?: number
-    truncated?: boolean
-    content?: string
-    note?: string
-  }
-}
-
 export type JsonSchema = unknown
 
 export type AgentToolSchema = {
@@ -5530,6 +5689,14 @@ export type FeatureRequestCandidate = {
 
 export type FilesResult = {
   [key: string]: string | Array<string>
+}
+
+export type ViewedImage = {
+  viewedImage: {
+    path: string
+    mediaType: string
+    base64?: string
+  }
 }
 
 export type WriteExactReplaceQuery = {
@@ -7480,6 +7647,9 @@ export type ProjectSpecCreateInput = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    hasApp?: boolean
+    appDir?: string
+    workspaceIncludes?: Array<string>
     [key: string]: unknown
   }
   active?: boolean
@@ -7537,6 +7707,9 @@ export type ProjectSpecEditInput = {
   metadata?: {
     githubCredentialsId?: string
     ticketConnection?: TicketConnectionBinding | 'none'
+    hasApp?: boolean
+    appDir?: string
+    workspaceIncludes?: Array<string>
     [key: string]: unknown
   }
   active?: boolean
@@ -7597,6 +7770,98 @@ export type TestFrameworksByLanguage = {
   swift: Array<SwiftTestFramework>
   other: [unknown]
 }
+
+export type ProjectAppBridgeRequest = {
+  id?: string
+  type: string
+  payload?: unknown
+}
+
+export type ProjectAppBridgeResponse = {
+  overseerBridgeResponse: true
+  id?: string
+  ok: boolean
+  result?: unknown
+  error?: string
+}
+
+export type ProjectAppDataPut = {
+  type: string
+  key: string | unknown
+  content:
+    | {
+        [key: string]: unknown
+      }
+    | Array<unknown>
+  metadata?: {
+    [key: string]: unknown
+  }
+}
+
+export type ProjectAppDataRef = {
+  type: string
+  key: string
+}
+
+export type ProjectAppSettingsLevel = 'global' | 'app'
+
+export type ProjectAppSettingsPut = {
+  key: string
+  level: ProjectAppSettingsLevel
+  value: {
+    [key: string]: unknown
+  }
+}
+
+export type ProjectAppSettingsLayers = {
+  global:
+    | {
+        [key: string]: unknown
+      }
+    | unknown
+  app:
+    | {
+        [key: string]: unknown
+      }
+    | unknown
+}
+
+export type OutOfTreeDependency = {
+  label: string
+  path: string
+}
+
+export type ProjectCheckMirrorLink = {
+  at: string
+  target: string
+  label: string
+}
+
+export type ProjectCheckMirrorExpansion = {
+  at: string
+  target: string
+  keep: string
+  label: string
+}
+
+export type ProjectCheckMirrorPlan = {
+  treePath: string
+  links: Array<ProjectCheckMirrorLink>
+  expansions: Array<ProjectCheckMirrorExpansion>
+}
+
+export type ProjectCheckHostTreeOptions = {
+  branch?: string
+  isolate?: boolean
+}
+
+export type ProjectCheckScratchOwner = {
+  pid: number
+  hostname: string
+  createdAt: number
+}
+
+export type ProjectCheckBaselineCache = unknown
 
 export type SandboxImageToolchain = {
   image: string
@@ -7715,6 +7980,8 @@ export type SandboxCheckRunRequest = {
     dir: string
     manifest: SandboxDependencyManifest
   }
+  reportDir?: string
+  copyPaths?: Array<string>
   signal?: unknown
 }
 
@@ -7743,6 +8010,18 @@ export type ProjectCheckPlacementDecision =
       }
     }
 
+export type ProjectCheckTestReportFormat =
+  | 'junit-xml'
+  | 'jest-json'
+  | 'go-test-json'
+  | 'cargo-test-text'
+
+export type ProjectCheckTestReportPlan = {
+  format: ProjectCheckTestReportFormat
+  args: Array<string>
+  lead: Array<string>
+}
+
 export type ProjectCheckTestFilter = {
   lead: Array<string>
   each: Array<string>
@@ -7764,9 +8043,43 @@ export type ProjectCheck = {
     join?: string
     describe: string
   }
+  testReport?: {
+    format: ProjectCheckTestReportFormat
+    args: Array<string>
+    lead: Array<string>
+  }
   requires?: Array<string>
   optional?: boolean
   timeoutMs?: number
+  fullRunArgvByVariant?: {
+    [key: string]: Array<string>
+  }
+  modules?: Array<string>
+  coverageNote?: string
+}
+
+export type AndroidBuildVariant = {
+  name: string
+  flavors: Array<string>
+  buildType: string
+}
+
+export type AndroidVariantSet = {
+  variants: Array<AndroidBuildVariant>
+  defaultVariant: string
+  buildTypes: Array<string>
+  defaultBuildType: string
+  flavorGroups: Array<
+    Array<{
+      name: string
+      isDefault: boolean
+    }>
+  >
+}
+
+export type ProjectCheckVariantChoice = {
+  variant: string
+  reason: string
 }
 
 export type ProjectCheckHidden = {
@@ -7780,6 +8093,9 @@ export type ProjectChecksScan = {
   hidden: Array<ProjectCheckHidden>
   variants: Array<string>
   defaultVariant?: string
+  variantSourceDirs?: {
+    [key: string]: Array<string>
+  }
   notes: Array<string>
   scannedAt: number
 }
@@ -7798,13 +8114,13 @@ export type ProjectCheckFacts = {
 
 export type ProjectCheckProbe = {
   path: string
-  probe: 'exists' | 'text' | 'list'
+  probe: 'exists' | 'text' | 'list' | 'dirs'
   suffixes?: Array<string>
 }
 
 export type ProjectCheckObservation = {
   path: string
-  probe: 'exists' | 'text' | 'list'
+  probe: 'exists' | 'text' | 'list' | 'dirs'
   suffixes?: Array<string>
   seen: string
 }
@@ -7825,6 +8141,9 @@ export type FingerprintedProjectChecksScan = {
   hidden: Array<ProjectCheckHidden>
   variants: Array<string>
   defaultVariant?: string
+  variantSourceDirs?: {
+    [key: string]: Array<string>
+  }
   notes: Array<string>
   scannedAt: number
   head: string
@@ -7851,6 +8170,9 @@ export type ProjectChecksRecord = {
   hidden: Array<ProjectCheckHidden>
   variants: Array<string>
   defaultVariant?: string
+  variantSourceDirs?: {
+    [key: string]: Array<string>
+  }
   notes: Array<string>
   scannedAt: number
   head: string
@@ -7874,6 +8196,9 @@ export type ProjectChecksListing = {
   hidden: Array<ProjectCheckHidden>
   variants: Array<string>
   defaultVariant?: string
+  variantSourceDirs?: {
+    [key: string]: Array<string>
+  }
   notes: Array<string>
   scannedAt: number
   head: string
@@ -7905,6 +8230,12 @@ export type ProjectCheckRunResult = {
   tests?: Array<string>
   ranIn?: 'sandbox' | 'host'
   hostReason?: string
+}
+
+export type RunProjectChecksAtRefOptions = {
+  baseRef?: string
+  compareFailuresWithBase?: boolean
+  baselineCache?: unknown
 }
 
 export type ProjectChecksGateResult = {
@@ -8003,6 +8334,167 @@ export type ProjectsGroupUpdateType = 'change'
 export type ProjectsGroupUpdate = {
   type: ProjectsGroupUpdateType
   groups: ProjectsGroups
+}
+
+export type ProofPlanSource = 'feature' | 'story' | 'suggested'
+
+export type ResolvedProofPlan = {
+  plan: ProofPlan
+  source: ProofPlanSource
+}
+
+export type ProofKindStatus = 'met' | 'unmet' | 'unchecked' | 'pending' | 'at-sign-off'
+
+export type ProofKindStanding = {
+  kind: ProofKind
+  status: ProofKindStatus
+  detail: string
+}
+
+export type ProofKindUnavailable = {
+  kind: ProofKind
+  reason: string
+}
+
+export type LaunchProofPlan = {
+  featureId: string
+  title: string
+  plan: ProofPlan
+  source: ProofPlanSource
+  unavailable?: Array<ProofKindUnavailable>
+  looksUi?: boolean
+}
+
+export type ProofPlanJudgement = {
+  kinds: Array<ProofKindStanding>
+  changeTests?: Array<string>
+  captureUnavailable?: string
+}
+
+export type ProofPlanStepFact = {
+  outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+}
+
+export type ProofPlanChecksFact = {
+  outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+  results: Array<VerificationCheckResult>
+}
+
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+
+export type ProofPlanReviewFact = {
+  outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+  verdict?: 'approved' | 'changes-requested' | 'rejected'
+}
+
+export type ProofPlanProverFact = {
+  outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+  judged: boolean
+  countedSubjects: Array<string>
+  newScreenSubjects: Array<string>
+  mode?: 'live' | 'dry'
+  dryAssumptions?: string
+  seamed: boolean
+  reason?: string
+}
+
+export type ProofPlanStepsAhead = {
+  checks?: boolean
+  review?: boolean
+  prover?: boolean
+}
+
+export type ProofPlanFacts = {
+  checks?: {
+    outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+    summary?: string
+    results: Array<VerificationCheckResult>
+  }
+  review?: {
+    outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+    summary?: string
+    verdict?: 'approved' | 'changes-requested' | 'rejected'
+  }
+  proof?: {
+    outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+    summary?: string
+    judged: boolean
+    countedSubjects: Array<string>
+    newScreenSubjects: Array<string>
+    mode?: 'live' | 'dry'
+    dryAssumptions?: string
+    seamed: boolean
+    reason?: string
+  }
+  changeTests?: Array<string>
+  captureUnavailable?: string
+  ahead?: {
+    checks?: boolean
+    review?: boolean
+    prover?: boolean
+  }
+}
+
+export type ProofPlanVerdict = {
+  outcome: 'passed' | 'failed' | 'unchecked'
+  summary: string
+}
+
+export type ProofPlanBriefRole = 'developer' | 'developer-verifier' | 'verifier' | 'reviewer'
+
+export type ProofPlanStepShape = {
+  checksStep: boolean
+  reviewStep: boolean
+  proverStep: boolean
+}
+
+export type ProofPlanCapacity = {
+  checksStep: boolean
+  reviewStep: boolean
+  proverStep: boolean
+  screensUnavailable?: string
+  detectedChecks?: Array<ProjectCheckKind>
+}
+
+export type UiChangeScope = {
+  appDir?: string
+}
+
+export type UiChangeFeature = {
+  title: string
+  description: string
+} & {
+  acceptance?: string
+  files?: Array<string>
+  context?: Array<string>
+}
+
+export type ChangeScreensNeed = 'required' | 'not-required' | 'unknown'
+
+export type ChangeScreensInput = {
+  plan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+  }
+  uiPaths?: Array<string>
+  features?: Array<UiChangeFeature>
+  requestNote?: string
+  scope?: {
+    appDir?: string
+  }
+}
+
+export type JudgingProofPlanInput = {
+  plan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+  }
+  screensRequired: boolean
+  shape: ProofPlanStepShape
 }
 
 export type EvalGoal = {
@@ -9809,6 +10301,136 @@ export type OpenFactsIdentityMatch = {
   matchedOn?: 'brand' | 'name'
 }
 
+export type ChatReference =
+  | {
+      kind: 'file'
+      path: string
+    }
+  | {
+      kind: 'story'
+      projectId?: string
+      storyId: string
+    }
+  | {
+      kind: 'feature'
+      projectId?: string
+      storyId: string
+      featureId: string
+    }
+  | {
+      kind: 'note'
+      projectId?: string
+      noteId: string
+    }
+  | {
+      kind: 'attachment'
+      path: string
+    }
+
+export type TypedReference =
+  | {
+      kind: 'position'
+      projectId?: string
+      story: number
+      feature?: number
+    }
+  | {
+      kind: 'handle'
+      projectId?: string
+      name: string
+    }
+
+export type ParsedReference =
+  | {
+      type: 'reference'
+      reference: ChatReference
+    }
+  | {
+      type: 'typed'
+      typed: TypedReference
+    }
+
+export type ReferenceSegment =
+  | {
+      type: 'text'
+      value: string
+    }
+  | ({
+      raw: string
+    } & ParsedReference)
+
+export type FoundReference = ParsedReference & {
+  start: number
+  end: number
+  raw: string
+}
+
+export type ReferenceOptions = {
+  attachments?: Array<string>
+}
+
+export type ChatAttachmentsOwner = {
+  chatKey: string
+}
+
+export type ReferenceDescription = {
+  kind: 'file' | 'story' | 'feature' | 'note' | 'attachment' | 'project' | 'chat' | 'app'
+  label: string
+  detail?: string
+  missing?: boolean
+  link?:
+    | {
+        kind: 'project'
+        projectId: string
+      }
+    | {
+        kind: 'story'
+        projectId: string
+        storyId: string
+      }
+    | {
+        kind: 'feature'
+        projectId: string
+        storyId: string
+        featureId: string
+      }
+    | {
+        kind: 'chat'
+        context: ChatContext
+      }
+    | {
+        kind: 'app'
+        projectId: string
+        view?: string
+        params?: {
+          [key: string]: string
+        }
+      }
+    | {
+        kind: 'note'
+        projectId: string
+        noteId: string
+      }
+    | {
+        kind: 'file'
+        projectId: string
+        path: string
+      }
+}
+
+export type ReferenceSuggestion = {
+  value: string
+  label: string
+  description?: string
+}
+
+export type ReferenceTarget =
+  | ParsedReference
+  | {
+      type: 'link'
+      link: ResourceLink
+    }
+
 export type RemedyOptionKind = 'hint' | 'agent' | 'manual'
 
 export type RemedyOption = {
@@ -9985,7 +10607,7 @@ export type ReviewEvidenceComparison = {
   beforeId?: string
 }
 
-export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+export type ReviewEvidenceVerdictCause = 'defect' | 'proof-impossible'
 
 export type ReviewEvidenceVerificationMode = 'live' | 'dry'
 
@@ -10025,6 +10647,7 @@ export type ReviewEvidenceRef = {
   inline?: boolean
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
   verdictScreens?: Array<string>
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
@@ -10139,6 +10762,7 @@ export type RecordReviewEvidenceInput = {
   capturedOn?: string
   verdict?: 'approved' | 'changes-requested' | 'rejected'
   verdictReason?: string
+  verdictCause?: 'defect' | 'proof-impossible'
   verdictScreens?: Array<string>
   verdictNewScreens?: Array<string>
   verificationMode?: 'live' | 'dry'
@@ -10283,6 +10907,12 @@ export type FeatureCreateInput = {
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
   blockers?: Array<string>
   rejection?: string
   questions?: Array<FeatureQuestion>
@@ -10297,6 +10927,12 @@ export type FeatureEditInput = {
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
   acceptance?: string
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
   blockers?: Array<string>
   rejection?: string
   questions?: Array<FeatureQuestion>
@@ -10337,6 +10973,12 @@ export type StoryCreateInput = {
   blockers?: Array<string>
   rejection?: string
   externalIds?: Array<ExternalRef>
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
 }
 
 export type StoryEditInput = {
@@ -10345,6 +10987,12 @@ export type StoryEditInput = {
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   blockers?: Array<string>
   rejection?: string
+  proofPlan?: {
+    kinds: Array<
+      'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+    >
+    notes?: string
+  }
   externalIds?: Array<ExternalRef>
   completedAt?: string
 }
@@ -10363,6 +11011,12 @@ export type StoryUpdate = {
     features: Array<Feature>
     blockers?: Array<string>
     rejection?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
     externalIds?: Array<ExternalRef>
     createdAt: string
     updatedAt: string
@@ -10821,6 +11475,7 @@ export type ToolName =
   | 'searchFilesByKeywords'
   | 'searchFilesByExact'
   | 'uploadFile'
+  | 'viewImage'
   | 'getAbsolutePath'
   | 'gitStatus'
   | 'listRemotes'
@@ -11074,6 +11729,12 @@ export type ReorderPayload = {
   toIndex: number
 }
 
+export type UiProjectAppFixtureCommits = {
+  base: string
+  seam: string
+  head: string
+}
+
 export type UiServeFixtureCommits = {
   base: string
   seam: string
@@ -11146,6 +11807,7 @@ export type ScreenshotUiOptions = {
 export type UiWebFramework = 'next' | 'vite'
 
 export type UiServeRecipe = {
+  projectApp?: string
   package?: string
   framework?: 'next' | 'vite'
   build?: string
@@ -11161,6 +11823,7 @@ export type UiServeAppOptions = {
   ref?: string
   overlayRefs?: Array<string>
   recipe?: {
+    projectApp?: string
     package?: string
     framework?: 'next' | 'vite'
     build?: string
@@ -11205,23 +11868,6 @@ export type UiStopAppResult = {
   ok: boolean
   appId: string
   stopped: boolean
-}
-
-export type UiServeRequest = {
-  ref?: string
-  overlayRefs?: Array<string>
-  recipe?: {
-    package?: string
-    framework?: 'next' | 'vite'
-    build?: string
-    serve?: string
-    portEnv?: string
-    envFiles?: Array<string>
-    readyPath?: string
-    locale?: string
-    timezoneId?: string
-  }
-  root: string
 }
 
 export type UiTreeSnapshot = {
@@ -11708,7 +12354,8 @@ export type ProcessRunReopening = {
 export type ProcessPlanAmendment = {
   at: number
   stepIds: Array<string>
-  afterStepId: string
+  afterStepId?: string
+  sendBackLoopId?: string
   closedEntryId?: string
   reopened?: {
     status: 'succeeded' | 'failed'
@@ -11780,9 +12427,10 @@ export type ProcessLaunchDecision = {
     state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
   }
   featureProcessId?: string
-  legIntegrationModes?: {
-    [key: string]: ProcessIntegrationMode
+  proofPlans?: {
+    [key: string]: ProofPlan
   }
+  saveProofPlans?: boolean
 }
 
 export type ProcessBudget = {
@@ -11983,6 +12631,11 @@ export type ProcessVerifyProof = {
   reasons?: Array<string>
   judged?: boolean
   unpaired?: Array<ProcessProofUnpaired>
+  plan?: {
+    kinds: Array<ProofKindStanding>
+    changeTests?: Array<string>
+    captureUnavailable?: string
+  }
 }
 
 export type ProcessEntryCost = {
@@ -12074,6 +12727,11 @@ export type ProcessLedgerEntry = {
     reasons?: Array<string>
     judged?: boolean
     unpaired?: Array<ProcessProofUnpaired>
+    plan?: {
+      kinds: Array<ProofKindStanding>
+      changeTests?: Array<string>
+      captureUnavailable?: string
+    }
   }
   review?: {
     verdict: ReviewEvidenceVerdict
@@ -12491,6 +13149,11 @@ export type ProcessStepResult = {
     reasons?: Array<string>
     judged?: boolean
     unpaired?: Array<ProcessProofUnpaired>
+    plan?: {
+      kinds: Array<ProofKindStanding>
+      changeTests?: Array<string>
+      captureUnavailable?: string
+    }
   }
   review?: {
     verdict: ReviewEvidenceVerdict
@@ -12691,6 +13354,11 @@ export type ProcessStepState = {
       reasons?: Array<string>
       judged?: boolean
       unpaired?: Array<ProcessProofUnpaired>
+      plan?: {
+        kinds: Array<ProofKindStanding>
+        changeTests?: Array<string>
+        captureUnavailable?: string
+      }
     }
     review?: {
       verdict: ReviewEvidenceVerdict
@@ -13234,6 +13902,7 @@ export type AddMessagesInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processGroupRunId?: string
     handoffFrom?: string
     toolCall?: {
       toolCallId: string
@@ -15026,6 +15695,7 @@ export type PreviewProcessResponses = {
       options: Array<ProcessOpenWorkOption>
       startedAt: number
     }
+    proofPlans?: Array<LaunchProofPlan>
   }
 }
 
@@ -15428,6 +16098,47 @@ export type RetryProcessRunIntegrationResponses = {
 export type RetryProcessRunIntegrationResponse =
   RetryProcessRunIntegrationResponses[keyof RetryProcessRunIntegrationResponses]
 
+export type SendProcessRunBackForChangesData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/send-back'
+}
+
+export type SendProcessRunBackForChangesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SendProcessRunBackForChangesError =
+  SendProcessRunBackForChangesErrors[keyof SendProcessRunBackForChangesErrors]
+
+export type SendProcessRunBackForChangesResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type SendProcessRunBackForChangesResponse =
+  SendProcessRunBackForChangesResponses[keyof SendProcessRunBackForChangesResponses]
+
 export type CancelProcessRunData = {
   body?: never
   path: {
@@ -15595,12 +16306,6 @@ export type PreviewProcessGroupRunData = {
       dependsOn?: Array<string>
       processId?: string
     }>
-    /**
-     * Each prerequisite’s merge mode, as the launch card chose it.
-     */
-    integration?: {
-      [key: string]: ProcessIntegrationMode
-    }
   }
   path?: never
   query?: never
@@ -17695,6 +18400,60 @@ export type UpdateChatDynamicContextResponses = {
 
 export type UpdateChatDynamicContextResponse =
   UpdateChatDynamicContextResponses[keyof UpdateChatDynamicContextResponses]
+
+export type UploadChatAttachmentData = {
+  body: {
+    context: ChatContext
+    name: string
+    contentBase64: string
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/chat-attachments'
+}
+
+export type UploadChatAttachmentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  413: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UploadChatAttachmentError = UploadChatAttachmentErrors[keyof UploadChatAttachmentErrors]
+
+export type UploadChatAttachmentResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    path: string
+  }
+}
+
+export type UploadChatAttachmentResponse =
+  UploadChatAttachmentResponses[keyof UploadChatAttachmentResponses]
 
 export type GetChatsSettingsData = {
   body?: never
@@ -20714,6 +21473,7 @@ export type SendCompletionData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        processGroupRunId?: string
         handoffFrom?: string
         toolCall?: {
           toolCallId: string
@@ -20810,6 +21570,7 @@ export type SendCompletionResponses = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processGroupRunId?: string
       handoffFrom?: string
       toolCall?: {
         toolCallId: string
@@ -20893,6 +21654,7 @@ export type SendCompletionWithToolsData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        processGroupRunId?: string
         handoffFrom?: string
         toolCall?: {
           toolCallId: string
@@ -20994,6 +21756,7 @@ export type SendCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processGroupRunId?: string
           handoffFrom?: string
           toolCall?: {
             toolCallId: string
@@ -21082,6 +21845,7 @@ export type SendChatCompletionWithToolsData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processGroupRunId?: string
       handoffFrom?: string
       toolCall?: {
         toolCallId: string
@@ -21177,6 +21941,7 @@ export type SendChatCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processGroupRunId?: string
           handoffFrom?: string
           toolCall?: {
             toolCallId: string
@@ -21265,6 +22030,7 @@ export type SendChatWithCliData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processGroupRunId?: string
       handoffFrom?: string
       toolCall?: {
         toolCallId: string
@@ -21429,53 +22195,6 @@ export type ResumeCompletionData = {
         apiKey?: string
       }
       systemPrompt?: string
-      messages: Array<{
-        role: 'system' | 'user' | 'assistant' | 'tool'
-        content: string
-        startedAt?: string
-        completedAt?: string
-        durationMs?: number
-        files?: Array<string>
-        usage?: {
-          promptTokens: number
-          completionTokens: number
-          inputTokens?: number
-          totalTokens?: number
-          cachedReadInputTokens?: number
-          cacheWriteInputTokens?: number
-          cacheWrite1hInputTokens?: number
-          reasoningTokens?: number
-          cost?: number
-          costInput?: number
-          costOutput?: number
-          billing?: 'subscription' | 'metered' | 'free'
-          listCostUsd?: number
-          byModel?: Array<ModelSpend>
-        }
-        model?: {
-          model: string
-          provider: LlmProvider
-        }
-        suggestedActions?: Array<string>
-        thinking?: string
-        cliRunId?: string
-        featureRequestId?: string
-        processRunId?: string
-        handoffFrom?: string
-        toolCall?: {
-          toolCallId: string
-          name: string
-          arguments?: unknown
-          providerState?: unknown
-        }
-        toolResult?: {
-          type: string
-          result?: unknown
-          durationMs?: number
-        }
-        error?: string
-        providerState?: unknown
-      }>
       availableTools?: Array<string>
       numberMessagesToSend?: number
       historySummarization?: {
@@ -21509,6 +22228,14 @@ export type ResumeCompletionErrors = {
    * Default Response
    */
   400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
     error: string
     code?: string
     requestId?: string
@@ -21565,6 +22292,7 @@ export type ResumeCompletionResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processGroupRunId?: string
           handoffFrom?: string
           toolCall?: {
             toolCallId: string

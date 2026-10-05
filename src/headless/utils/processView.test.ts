@@ -42,6 +42,7 @@ import {
   processStepCostTitle,
   processStepAgentTypeOfRun,
   processStepFinishedView,
+  processRunPersonEnding,
 } from './processView'
 
 const NO_TIME = emptyProcessTimeBreakdown()
@@ -164,6 +165,10 @@ describe('processRunChipLabel', () => {
 
   it('reads as stopped for a failed run', () => {
     expect(processRunChipLabel(run({ status: 'failed' }))).toMatch(/^Stopped/)
+  })
+
+  it('names the decision of a run a person ended, not that it stopped', () => {
+    expect(processRunChipLabel(decided('reject'))).toBe('Rejected · 2/3 steps')
   })
 
   it('says only "Cancelled" — a step count on abandoned work is noise', () => {
@@ -935,7 +940,109 @@ describe('processRunBadge', () => {
   })
 })
 
+/** A run a person ended at its gate `g`, the way the driver records the decision. */
+function decided(
+  choice: 'request-changes' | 'reject' | 'abandon',
+  note?: string,
+  over: Partial<ProcessRun> = {},
+): ProcessRun {
+  const base = run({})
+  return run({
+    status: 'failed',
+    plan: {
+      ...base.plan,
+      steps: [...base.plan.steps, { id: 'g', name: 'Sign-off', kind: 'gate' }],
+    },
+    ledger: [
+      passed('a'),
+      passed('b'),
+      {
+        id: 'g',
+        stepId: 'g',
+        iteration: 1,
+        status: 'done',
+        outcome: 'failed',
+        startedAt: 0,
+        override: { choice, at: 1, ...(note ? { note } : {}) },
+      },
+    ],
+    ...over,
+  })
+}
+
+describe('processRunPersonEnding', () => {
+  it('names a request for changes, where it was made and what was asked', () => {
+    expect(processRunPersonEnding(decided('request-changes', 'Fix the format.'))).toEqual({
+      choice: 'request-changes',
+      label: 'Changes requested',
+      tone: 'on_hold',
+      line: 'Changes requested at Sign-off — “Fix the format.”',
+    })
+  })
+
+  it('names a rejection, as an ending a person chose rather than a failure', () => {
+    expect(processRunPersonEnding(decided('reject'))).toEqual({
+      choice: 'reject',
+      label: 'Rejected',
+      tone: 'empty',
+      line: 'Rejected at Sign-off.',
+    })
+  })
+
+  it('names a run a person stopped as abandoned, with their words', () => {
+    expect(processRunPersonEnding(decided('abandon', 'Not now.'))?.line).toBe(
+      'Abandoned at Sign-off — “Not now.”',
+    )
+    expect(processRunPersonEnding(decided('abandon'))?.label).toBe('Abandoned')
+  })
+
+  it('is nothing for a run that failed with nobody deciding', () => {
+    expect(processRunPersonEnding(run({ status: 'failed', ledger: [passed('a')] }))).toBeUndefined()
+  })
+
+  it.each(['succeeded', 'cancelled', 'running', 'parked'] as const)(
+    'is nothing for a run that is %s',
+    (status) => {
+      expect(processRunPersonEnding(decided('reject', undefined, { status }))).toBeUndefined()
+    },
+  )
+
+  it('only ever names a status the package has tokens for', () => {
+    for (const choice of ['request-changes', 'reject', 'abandon'] as const) {
+      expect(TOKEN_STATUSES).toContain(processRunPersonEnding(decided(choice))?.tone)
+    }
+  })
+})
+
+describe('processRunBadge — a run a person ended', () => {
+  it('says the person’s decision, never "Stopped"', () => {
+    expect(processRunBadge(decided('request-changes', 'x'))).toEqual({
+      label: 'Changes requested',
+      tone: 'on_hold',
+    })
+    expect(processRunBadge(decided('reject')).label).toBe('Rejected')
+    expect(processRunBadge(decided('abandon')).label).toBe('Abandoned')
+  })
+
+  it('still says Stopped for a run that failed on its own', () => {
+    expect(processRunBadge(run({ status: 'failed' }))).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
+  })
+})
+
 describe('processRunCardView', () => {
+  it('ended by a person: says their decision in the strip, in its own tone', () => {
+    const view = processRunCardView(decided('request-changes', 'Fix the format.'))
+    expect(view.badge.label).toBe('Changes requested')
+    expect(view.body).toEqual({
+      text: 'Changes requested at Sign-off — “Fix the format.”',
+      tone: 'on_hold',
+    })
+  })
+
+  it('failed on its own: no strip, as before', () => {
+    expect(processRunCardView(run({ status: 'failed' })).body).toBeUndefined()
+  })
+
   it('running: shows the current step and no decision strip', () => {
     const r = run({
       status: 'running',

@@ -11,7 +11,8 @@ import {
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import SegmentedControl from '../../primitives/SegmentedControl'
-import { Textarea } from '../../primitives/Textarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
+import ReferenceTextarea from '../files/ReferenceTextarea'
 
 export type ProcessGroupSignoffReviewProps = {
   group: ProcessGroupRun
@@ -33,6 +34,7 @@ export default function ProcessGroupSignoffReview({
   const [modes, setModes] = useState<Record<string, ProcessIntegrationMode>>({})
   const [sendBack, setSendBack] = useState<string[] | undefined>(undefined)
   const [note, setNote] = useState('')
+  const canonicalize = useCanonicalizeReferences()
   const [busy, setBusy] = useState(false)
   if (!view) return null
 
@@ -52,7 +54,7 @@ export default function ProcessGroupSignoffReview({
     const taken = await onResume(
       processGroupResumeInput(choice, {
         modes: chosenModes,
-        note,
+        note: canonicalize(note),
         ...(sendBack ? { legIds: sendBack } : {}),
       }),
     )
@@ -124,12 +126,12 @@ export default function ProcessGroupSignoffReview({
         </fieldset>
       ) : null}
 
-      <Textarea
+      <ReferenceTextarea
         rows={2}
         value={note}
-        onChange={(e) => setNote(e.target.value)}
+        onChange={setNote}
         placeholder="A note for the agents (optional)"
-        aria-label="A note for the agents"
+        ariaLabel="A note for the agents"
         className="text-[12.5px]"
       />
 

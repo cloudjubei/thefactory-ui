@@ -1,12 +1,10 @@
-import React, { useCallback, useMemo } from 'react'
-import {
-  FileMentionsTextarea as FileMentionsTextareaPackage,
-  type ReferenceSuggestion,
-} from '../..'
+import React, { useCallback } from 'react'
+import { FileMentionsTextarea as FileMentionsTextareaPackage } from '../..'
 import { rankMentionMatches } from '../../../headless'
 import { useFiles } from '../../../headless'
-import { useStories } from '../../../headless'
 import { useActiveProject } from '../../../headless'
+import { useReferences } from '../../../headless/hooks/useReferences'
+import type { ReferenceSigil } from '../../../headless/utils/reference'
 
 export type FileMentionsTextareaConnectedProps = {
   id?: string
@@ -33,8 +31,9 @@ const MAX_REF_SUGGESTIONS = 20
 
 /**
  * Connected wrapper around the shared `FileMentionsTextarea` primitive. Wires
- * the active project's file paths and story / feature references into the
- * primitive's `@file` + `#dep` autocomplete searches.
+ * the active project's file paths, stories and features, and notes into the
+ * primitive's `@file`, `#` and `&` autocomplete searches. `onReferenceSelected`
+ * hears a `#` pick only — a story or feature, never a note.
  */
 export default function FileMentionsTextareaConnected({
   id,
@@ -56,53 +55,29 @@ export default function FileMentionsTextareaConnected({
   onFocus,
 }: FileMentionsTextareaConnectedProps) {
   const { paths } = useFiles()
-  const { project, projectId } = useActiveProject()
-  const { stories, storyDisplayIndex, featureDisplayIndex } = useStories()
-
-  const references = useMemo<ReferenceSuggestion[]>(() => {
-    if (!project) return []
-    const out: ReferenceSuggestion[] = []
-    for (const story of stories) {
-      const storyDisplay = `${storyDisplayIndex(story.id)}`
-      const storyTitle = story.title || ''
-      out.push({
-        value: storyDisplay,
-        label: `#${storyDisplay} ${storyTitle}`.trim(),
-        description: 'Story',
-      })
-      for (const f of story.features || []) {
-        const featureDisplay = `${storyDisplay}.${featureDisplayIndex(story.id, f.id)}`
-        out.push({
-          value: featureDisplay,
-          label: `#${featureDisplay} ${f.title || ''}`.trim(),
-          description: `Feature of "${storyTitle}"`,
-        })
-      }
-    }
-    return out
-  }, [stories, project, projectId, storyDisplayIndex, featureDisplayIndex])
+  const { projectId } = useActiveProject()
+  const references = useReferences({ scope: projectId ? { projectId } : undefined })
+  const { searchWork, searchHandles } = references
 
   const onSearchFiles = useCallback(
     (token: string) =>
       disableAutocomplete ? [] : rankMentionMatches(paths, token, MAX_FILE_SUGGESTIONS),
     [paths, disableAutocomplete],
   )
-
   const onSearchReferences = useCallback(
-    (token: string) => {
-      if (disableAutocomplete) return []
-      if (token.length === 0) return references.slice(0, MAX_REF_SUGGESTIONS)
-      const q = token.toLowerCase()
-      const out: ReferenceSuggestion[] = []
-      for (const ref of references) {
-        if (ref.value.toLowerCase().startsWith(q) || ref.label.toLowerCase().includes(q)) {
-          out.push(ref)
-          if (out.length >= MAX_REF_SUGGESTIONS) break
-        }
-      }
-      return out
+    (token: string) => (disableAutocomplete ? [] : searchWork(token).slice(0, MAX_REF_SUGGESTIONS)),
+    [searchWork, disableAutocomplete],
+  )
+  const onSearchHandles = useCallback(
+    (token: string) =>
+      disableAutocomplete ? [] : searchHandles(token).slice(0, MAX_REF_SUGGESTIONS),
+    [searchHandles, disableAutocomplete],
+  )
+  const onAcceptReference = useCallback(
+    (refValue: string, sigil: ReferenceSigil) => {
+      if (sigil === '#') onReferenceSelected?.(refValue)
     },
-    [references, disableAutocomplete],
+    [onReferenceSelected],
   )
 
   return (
@@ -113,8 +88,9 @@ export default function FileMentionsTextareaConnected({
       onChange={onChange}
       onSearchFiles={onSearchFiles}
       onSearchReferences={onSearchReferences}
+      onSearchHandles={onSearchHandles}
       onAcceptFileMention={onFileMentionSelected}
-      onAcceptReference={onReferenceSelected}
+      onAcceptReference={onAcceptReference}
       placeholder={placeholder}
       rows={rows}
       disabled={disabled}

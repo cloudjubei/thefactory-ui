@@ -97,6 +97,7 @@ export {
   ImageViewer,
   parseReference,
   PdfViewer,
+  ReferenceTextarea,
   RichText,
   type FileDisplayProps,
   type FileInfoButtonProps,
@@ -116,6 +117,7 @@ export {
   type PdfViewerProps,
   type ReferenceParse,
   type ReferenceSuggestion,
+  type ReferenceTextareaProps,
   type RichTextProps,
   type UikitFileMeta,
 } from './compound/files'
@@ -127,6 +129,7 @@ export {
   HelpChip,
   ProjectChip,
   RefChip,
+  ReferenceChip,
   RunActionButton,
   StatusChip,
   StatusIcon,
@@ -140,6 +143,7 @@ export {
   type ProjectChipProps,
   type RefChipKind,
   type RefChipProps,
+  type ReferenceChipProps,
   type RunActionButtonProps,
   type StatusChipProps,
 } from './compound/chips'
@@ -266,6 +270,10 @@ export {
   type ResolvedDependency,
 } from './compound/stories'
 export { default as BlockersField, type BlockersFieldProps } from './compound/stories/BlockersField'
+export {
+  default as ProofPlanEditor,
+  type ProofPlanEditorProps,
+} from './compound/stories/ProofPlanEditor'
 export { default as ScreenErrorBoundary } from './compound/shell/ScreenErrorBoundary'
 export {
   default as ShellTabs,
@@ -716,6 +724,8 @@ export {
 // Drives the narrow / master-detail layout switches in `CommitDiffViewer`
 // and any other layout that flips at the same width.
 export { useIsNarrowViewport } from './hooks/useIsNarrowViewport'
+export { useProjectReferenceRenderer, useReferenceRenderer } from './hooks/useReferenceRenderer'
+export { default as ReferenceRenderingProvider } from './compound/ReferenceRenderingProvider'
 
 // App-view surface (iframe) + template picker for the from-template
 // wizard. Headless data + scheduling live in `useProjectAppView` and

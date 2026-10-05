@@ -2,7 +2,6 @@ import type { ProcessParkAction, ProcessWaitingKind } from 'thefactory-tools/typ
 
 import {
   PARK_NOTE_CHOICES,
-  PARK_NOTE_COPY,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
   PARK_NOTE_REQUIRED_CHOICES,
@@ -23,10 +22,6 @@ export function parkNoteRequired(choice: ProcessParkAction): boolean {
 /** The composer's words for answering a waiting agent: an answer to a question, else more info. */
 export function waitingNoteCopy(kind: ProcessWaitingKind): ParkNoteCopy {
   return WAITING_NOTE_COPY[kind]
-}
-
-export function parkNoteCopy(sendsBack: boolean): ParkNoteCopy {
-  return sendsBack ? PARK_NOTE_COPY.sendsBack : PARK_NOTE_COPY.endsRun
 }
 
 /** `1850 / 2000` once a draft nears the limit; nothing before then. */

@@ -7,6 +7,7 @@ import { nativeFontFamilies, nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconDocument, IconKey } from '../../icons'
 import Tooltip from '../../primitives/Tooltip'
+import RichText from '../files/RichText'
 
 export type ProjectNoteChipProps = {
   note: Pick<ProjectNoteSummary, 'label' | 'kind'> &
@@ -38,7 +39,7 @@ export default function ProjectNoteChip({ note, loadValue }: ProjectNoteChipProp
             <Text style={{ fontSize: 12, color: theme.text.muted }}>· {view.kindLabel}</Text>
           </View>
           {view.description ? (
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.description}</Text>
+            <RichText text={view.description} typedReferences textColor={theme.text.secondary} />
           ) : null}
           {view.accessLabel ? (
             <Text style={{ fontSize: 12, color: theme.text.secondary }}>
@@ -98,11 +99,15 @@ function NoteText({ load }: { load: () => Promise<string> }) {
       style={{ maxHeight: 200, borderRadius: nativeRadii[2], backgroundColor: theme.surface.muted }}
       contentContainerStyle={{ padding: 8 }}
     >
-      <Text
-        style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: theme.text.secondary }}
-      >
-        {text ?? 'Loading…'}
-      </Text>
+      {text === undefined ? (
+        <Text
+          style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: theme.text.secondary }}
+        >
+          Loading…
+        </Text>
+      ) : (
+        <RichText text={text} typedReferences textColor={theme.text.secondary} />
+      )}
     </ScrollView>
   )
 }

@@ -12,6 +12,7 @@ import {
   listProcessRunBranches,
   resumeProcessRun,
   retryProcessRunIntegration,
+  sendProcessRunBackForChanges,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
 import { cachedProcessRun, processRunCache } from './processViewCache'
@@ -45,6 +46,11 @@ export type UseProcessRun = {
   ) => Promise<void>
   /** Try again to bring in approved work that did not land, the same way or another. */
   retryIntegration: (integration: ProcessIntegrationMode) => Promise<void>
+  /**
+   * Send a run that ended on a request for changes back for them: it is
+   * reopened into the fix with that note and comes back to the same sign-off.
+   */
+  sendBack: () => Promise<void>
   /**
    * Hand what the waiting agent asked for to another agent — a chat opened with
    * the whole ask. The run keeps waiting. Resolves to the chat's topic, or
@@ -161,6 +167,17 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     [runId, setRun],
   )
 
+  const sendBack = useCallback(async () => {
+    if (!runId) return
+    setActionError(null)
+    try {
+      const { data } = await sendProcessRunBackForChanges({ path: { runId }, throwOnError: true })
+      setRun(data as ProcessRun)
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The run could not be sent back.'))
+    }
+  }, [runId, setRun])
+
   const delegate = useCallback(async (): Promise<ProcessRunDelegation | undefined> => {
     if (!runId) return undefined
     setActionError(null)
@@ -219,6 +236,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      sendBack,
       delegate,
       cancel,
       listBranches,
@@ -232,6 +250,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      sendBack,
       delegate,
       cancel,
       listBranches,

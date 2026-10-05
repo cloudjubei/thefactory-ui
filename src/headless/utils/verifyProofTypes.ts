@@ -1,6 +1,6 @@
 import type { ProcessLedgerEntry, ProcessRun, ProcessVerifyReview } from 'thefactory-tools/types'
 
-import type { ReviewEvidenceVerdict } from '../api/generated'
+import type { ReviewEvidenceVerdict, ReviewEvidenceVerdictCause } from '../api/generated'
 import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 
@@ -168,7 +168,12 @@ export type VerifyAttempt = {
 export type VerifyAttemptRun = Pick<ProcessRun, 'featureId' | 'ledger' | 'plan'>
 
 /** The reviewer's own conclusion among an attempt's filings. */
-export type VerifyReviewerVerdict = { verdict: ReviewEvidenceVerdict; reason?: string }
+export type VerifyReviewerVerdict = {
+  verdict: ReviewEvidenceVerdict
+  reason?: string
+  /** What a non-approval is about: the change is wrong, or the proof asked for cannot be produced. */
+  cause?: ReviewEvidenceVerdictCause
+}
 
 /** A conclusion shown above the evidence — the gate's, a person's, or the reviewer's. */
 export type VerifyVerdictNote = {

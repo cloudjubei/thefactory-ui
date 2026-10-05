@@ -1,3 +1,4 @@
+import type { ReferenceTarget } from 'thefactory-tools/types'
 import type { ResourceLink } from 'thefactory-tools/types'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
@@ -42,7 +43,7 @@ export type CliRunMessagesProps = {
   baseIndex: number
   renderToolCall?: (args: NativeToolCallRenderArgs) => ReactNode
   onResolveFile?: (token: string) => UikitFileMeta | null
-  renderDependency?: (dep: string) => ReactNode
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Renders the workspace diff/apply panel for the run (host-wired, carries projectId). */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /** Forwarded to each row: the live process run an announcement message launched. */
@@ -105,7 +106,7 @@ export default function CliRunMessages({
   baseIndex,
   renderToolCall,
   onResolveFile,
-  renderDependency,
+  renderReference,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -239,7 +240,7 @@ export default function CliRunMessages({
               renderProcessRun={renderProcessRun}
               renderProcessGroupRun={renderProcessGroupRun}
               onResolveFile={onResolveFile}
-              renderDependency={renderDependency}
+              renderReference={renderReference}
               onShowUsage={onShowUsage}
             />
           )

@@ -59,4 +59,15 @@ describe('resolveResourceNav', () => {
       context: { type: 'STORY', projectId: 'p1', storyId: 's2' },
     })
   })
+
+  it('opens a note in its project’s notes, and a file in its project’s files', () => {
+    expect(resolveResourceNav({ kind: 'note', projectId: 'p1', noteId: 'n1' })).toEqual({
+      type: 'path',
+      path: '/projects/p1/notes?note=n1',
+    })
+    expect(resolveResourceNav({ kind: 'file', projectId: 'p1', path: 'docs/a b.md' })).toEqual({
+      type: 'path',
+      path: '/projects/p1/files/docs/a%20b.md',
+    })
+  })
 })

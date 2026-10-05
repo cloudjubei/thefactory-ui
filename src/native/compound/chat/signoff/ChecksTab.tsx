@@ -10,6 +10,7 @@ import {
   reviewCheckMeta,
   testTotalsHeadline,
   type TestFailure,
+  type TestSuitesView,
   type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
@@ -139,6 +140,111 @@ function Failure({ path, name, message }: TestFailure) {
   )
 }
 
+/** Each suite the run executed — module, name, counts, time — with its failing tests under it. */
+function SuiteList({ suites }: { suites: TestSuitesView }) {
+  const { theme, status } = useNativeTheme()
+  const markColor = {
+    passed: status.done.softFg,
+    failed: status.stuck.softFg,
+    skipped: theme.text.muted,
+  }
+  return (
+    <View style={{ gap: 4 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: theme.text.muted,
+        }}
+      >
+        Suites
+      </Text>
+      <View
+        style={{
+          borderRadius: nativeRadii[1],
+          borderWidth: 1,
+          borderColor: theme.border.subtle,
+        }}
+      >
+        {suites.rows.map((suite, index) => (
+          <View
+            key={suite.key}
+            style={{
+              gap: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 6,
+              borderTopWidth: index === 0 ? 0 : 1,
+              borderTopColor: theme.border.subtle,
+            }}
+          >
+            <View
+              style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}
+            >
+              <Text style={{ fontSize: 12, color: markColor[suite.outcome] }}>{suite.mark}</Text>
+              {suite.module ? (
+                <Text
+                  style={{
+                    fontFamily: nativeFontFamilies.mono,
+                    fontSize: 11,
+                    color: theme.text.muted,
+                  }}
+                >
+                  {suite.module}
+                </Text>
+              ) : null}
+              <Text
+                selectable
+                style={{
+                  flexShrink: 1,
+                  fontFamily: nativeFontFamilies.mono,
+                  fontSize: 11.5,
+                  color: theme.text.primary,
+                }}
+              >
+                {suite.name}
+              </Text>
+              <View style={{ flex: 1 }} />
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{suite.countsLabel}</Text>
+              {suite.durationLabel ? (
+                <Text style={{ fontSize: 11, color: theme.text.muted }}>{suite.durationLabel}</Text>
+              ) : null}
+            </View>
+            {suite.failures.map((f, i) => (
+              <Failure key={`${f.name}-${i}`} {...f} />
+            ))}
+          </View>
+        ))}
+      </View>
+      {suites.omittedLabel ? (
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{suites.omittedLabel}</Text>
+      ) : null}
+    </View>
+  )
+}
+
+/** A plain note about the record itself — what it cannot show, or what the run could not cover. */
+function RecordNote({ text }: { text: string }) {
+  const { status } = useNativeTheme()
+  return (
+    <Text
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderRadius: nativeRadii[1],
+        borderWidth: 1,
+        borderColor: status.review.softBorder,
+        backgroundColor: status.review.softBg,
+        fontSize: 11.5,
+        color: status.review.softFg,
+      }}
+    >
+      {text}
+    </Text>
+  )
+}
+
 function CheckBlock({
   row,
   title,
@@ -149,6 +255,9 @@ function CheckBlock({
   durationLabel,
   output,
   failures,
+  suites,
+  legacyNote,
+  coverageNote,
   branch,
   busy,
   actions,
@@ -156,13 +265,19 @@ function CheckBlock({
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
-  /** The variant it ran on, the tests it counted, where it ran. */
+  /** The variant it ran on and why, the modules, the tests it counted, where it ran. */
   meta: string | undefined
   failed: boolean
   summary: string
   durationLabel: string | undefined
   output: string | undefined
   failures: readonly TestFailure[]
+  /** Each suite it ran, when its reports were read — listed above the output tail. */
+  suites: TestSuitesView | undefined
+  /** Why the record cannot say what ran — it predates commands and output being kept. */
+  legacyNote: string | undefined
+  /** What the run could not cover, and why. */
+  coverageNote: string | undefined
   branch: string | undefined
   busy: boolean
   actions: CheckActionHost | undefined
@@ -198,7 +313,15 @@ function CheckBlock({
 
       {meta ? <Text style={{ fontSize: 11, color: theme.text.muted }}>{meta}</Text> : null}
 
-      {failures.length > 0 ? (
+      {legacyNote ? <RecordNote text={legacyNote} /> : null}
+      {coverageNote ? <RecordNote text={coverageNote} /> : null}
+
+      {suites ? (
+        <>
+          <SuiteList suites={suites} />
+          {output ? <Output text={output} stream={failed ? 'stderr' : 'stdout'} /> : null}
+        </>
+      ) : failures.length > 0 ? (
         <View style={{ gap: 6 }}>
           {failures.map((f, i) => (
             <Failure key={`${f.path}-${f.name}-${i}`} {...f} />
@@ -353,6 +476,9 @@ export default function ChecksTab({
               durationLabel={layer.durationLabel}
               output={layer.details}
               failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
+              suites={layer.suites}
+              legacyNote={layer.legacyNote}
+              coverageNote={layer.coverageNote}
               branch={branch}
               busy={busyId === testsRow.id}
               actions={actions}
@@ -372,6 +498,9 @@ export default function ChecksTab({
                 durationLabel={row.durationLabel}
                 output={row.output}
                 failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
+                suites={mine.length === 1 ? mine[0].suites : undefined}
+                legacyNote={mine.length === 1 ? mine[0].legacyNote : undefined}
+                coverageNote={mine.length === 1 ? mine[0].coverageNote : undefined}
                 branch={branch}
                 busy={busyId === row.id}
                 actions={actions}

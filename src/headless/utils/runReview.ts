@@ -6,6 +6,8 @@
  * so a badge or a wording change lands on both clients at once.
  */
 
+import { checkBaselineLine, dependencyRevisionsLine } from 'thefactory-tools/utils'
+
 import type {
   CliRunLandFailure,
   CliRunVerdict,
@@ -26,6 +28,7 @@ import {
   VERDICT_LABELS,
   VERDICT_TONES,
   CHANGE_REQUEST_MESSAGE_PREFIX,
+  LEGACY_CHECK_RECORD_NOTE,
 } from './runReviewConstants'
 import { checkMethodFor, checkRanInSentence } from './checkMethods'
 import type {
@@ -45,6 +48,7 @@ import type {
 import { costChipLabel } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
 import { checkTestCounts, testCountLabel } from './testCounts'
+import { testSuitesView } from './testSuites'
 import { formatDurationMs } from './time'
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
@@ -94,25 +98,52 @@ export function verificationCheckRows(verification: RunVerification | undefined)
       method: checkMethodFor(check),
       command: trimmedOrUndefined(check.command),
       variant: trimmedOrUndefined(check.variant),
+      variantReason: trimmedOrUndefined(check.variantReason),
+      modules: check.modules && check.modules.length > 0 ? check.modules : undefined,
+      coverageNote: trimmedOrUndefined(check.coverageNote),
       ranInDetail: checkRanInSentence([check]),
+      dependencyDetail: dependencyRevisionsLine(check.dependencyRevisions),
+      baselineDetail: checkBaselineLine(check),
       testCount,
       testCountLabel: testCountLabel(testCount),
+      suites: testSuitesView(check),
+      legacyNote:
+        check.kind === 'command' && !check.command?.trim() ? LEGACY_CHECK_RECORD_NOTE : undefined,
     }
   })
 }
 
 /**
- * The line under a check's command: the variant it ran on, how many tests it
- * ran, and where it ran — "Variant debug · 14 tests · Ran on the host — why".
+ * The line under a check's command: the variant it ran on and why, the modules
+ * it covered, how many tests it ran, where it ran, the code outside the
+ * checkout it built against, and how a failure compares with the base —
+ * "Variant debug (the default variant) · Modules app, library · 14 tests · Ran
+ * on the host — why · Built against thefactory-tools at 1a2b3c4 with
+ * uncommitted changes · Already failing at the base 28cf012 …".
  * `undefined` when the check said none of them.
  */
 export function reviewCheckMeta(
-  row: Pick<ReviewCheckRow, 'variant' | 'testCountLabel' | 'ranInDetail'>,
+  row: Pick<
+    ReviewCheckRow,
+    | 'variant'
+    | 'variantReason'
+    | 'modules'
+    | 'testCountLabel'
+    | 'ranInDetail'
+    | 'dependencyDetail'
+    | 'baselineDetail'
+  >,
 ): string | undefined {
+  const variant = row.variant
+    ? `Variant ${row.variant}${row.variantReason ? ` (${row.variantReason})` : ''}`
+    : undefined
   const parts = [
-    row.variant ? `Variant ${row.variant}` : undefined,
+    variant,
+    row.modules && row.modules.length > 0 ? `Modules ${row.modules.join(', ')}` : undefined,
     row.testCountLabel,
     row.ranInDetail,
+    row.dependencyDetail,
+    row.baselineDetail,
   ].filter((part): part is string => part !== undefined)
   return parts.length > 0 ? parts.join(' · ') : undefined
 }

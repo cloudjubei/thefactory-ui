@@ -13,6 +13,8 @@ import {
   type CheckMethodRow,
   type ReviewCheckRow,
   type TestFailure,
+  type TestSuiteOutcome,
+  type TestSuitesView,
   type TestTotalsOutcome,
 } from '../../../../headless'
 import { CheckChip, HandoffButton, RunActionButton } from '../../chips'
@@ -65,6 +67,60 @@ function Failure({ path, name, message }: TestFailure) {
   )
 }
 
+const SUITE_MARK_TONE: Record<TestSuiteOutcome, string> = {
+  passed: 'text-(--status-done-soft-fg)',
+  failed: 'text-(--status-stuck-soft-fg)',
+  skipped: 'text-(--text-muted)',
+}
+
+/** Each suite the run executed — module, name, counts, time — with its failing tests under it. */
+function SuiteList({ suites }: { suites: TestSuitesView }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+        Suites
+      </div>
+      <ul className="flex flex-col divide-y divide-(--border-subtle) rounded border border-(--border-subtle)">
+        {suites.rows.map((suite) => (
+          <li key={suite.key} className="flex flex-col gap-1.5 px-2 py-1.5">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className={`text-[12px] ${SUITE_MARK_TONE[suite.outcome]}`}>{suite.mark}</span>
+              {suite.module ? (
+                <span className="font-mono text-[11px] text-(--text-muted)">{suite.module}</span>
+              ) : null}
+              <span className="min-w-0 font-mono text-[11.5px] break-all text-(--text-primary)">
+                {suite.name}
+              </span>
+              <span className="flex-1" />
+              <span className="text-[11px] text-(--text-secondary)">{suite.countsLabel}</span>
+              {suite.durationLabel ? (
+                <span className="text-[11px] tabular-nums text-(--text-muted)">
+                  {suite.durationLabel}
+                </span>
+              ) : null}
+            </div>
+            {suite.failures.map((f, i) => (
+              <Failure key={`${f.name}-${i}`} {...f} />
+            ))}
+          </li>
+        ))}
+      </ul>
+      {suites.omittedLabel ? (
+        <span className="text-[11px] text-(--text-muted)">{suites.omittedLabel}</span>
+      ) : null}
+    </div>
+  )
+}
+
+/** A plain note about the record itself — what it cannot show, or what the run could not cover. */
+function RecordNote({ text }: { text: string }) {
+  return (
+    <p className="rounded border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2 py-1.5 text-[11.5px] text-(--status-review-soft-fg)">
+      {text}
+    </p>
+  )
+}
+
 const TOTALS_TONE: Record<TestTotalsOutcome, string> = {
   failed:
     'border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
@@ -84,6 +140,9 @@ function CheckBlock({
   durationLabel,
   output,
   failures,
+  suites,
+  legacyNote,
+  coverageNote,
   branch,
   busy,
   actions,
@@ -91,13 +150,19 @@ function CheckBlock({
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
-  /** The variant it ran on, the tests it counted, where it ran. */
+  /** The variant it ran on and why, the modules, the tests it counted, where it ran. */
   meta: string | undefined
   failed: boolean
   summary: string
   durationLabel: string | undefined
   output: string | undefined
   failures: readonly TestFailure[]
+  /** Each suite it ran, when its reports were read — listed above the output tail. */
+  suites: TestSuitesView | undefined
+  /** Why the record cannot say what ran — it predates commands and output being kept. */
+  legacyNote: string | undefined
+  /** What the run could not cover, and why. */
+  coverageNote: string | undefined
   branch: string | undefined
   busy: boolean
   actions: CheckActionHost | undefined
@@ -122,7 +187,15 @@ function CheckBlock({
 
       {meta ? <span className="text-[11px] text-(--text-muted)">{meta}</span> : null}
 
-      {failures.length > 0 ? (
+      {legacyNote ? <RecordNote text={legacyNote} /> : null}
+      {coverageNote ? <RecordNote text={coverageNote} /> : null}
+
+      {suites ? (
+        <>
+          <SuiteList suites={suites} />
+          {output ? <Console text={output} stream={failed ? 'stderr' : 'stdout'} /> : null}
+        </>
+      ) : failures.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           {failures.map((f, i) => (
             <Failure key={`${f.path}-${f.name}-${i}`} {...f} />
@@ -256,6 +329,9 @@ export default function ChecksTab({
               durationLabel={layer.durationLabel}
               output={layer.details}
               failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
+              suites={layer.suites}
+              legacyNote={layer.legacyNote}
+              coverageNote={layer.coverageNote}
               branch={branch}
               busy={busyId === testsRow.id}
               actions={actions}
@@ -275,6 +351,9 @@ export default function ChecksTab({
                 durationLabel={row.durationLabel}
                 output={row.output}
                 failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
+                suites={mine.length === 1 ? mine[0].suites : undefined}
+                legacyNote={mine.length === 1 ? mine[0].legacyNote : undefined}
+                coverageNote={mine.length === 1 ? mine[0].coverageNote : undefined}
                 branch={branch}
                 busy={busyId === row.id}
                 actions={actions}

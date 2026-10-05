@@ -35,3 +35,9 @@ export const PROCESS_GROUP_MODE_LABELS: Record<ProcessIntegrationMode, string> =
 /** What a leg's own pipeline says where its sign-off would be. */
 export const PROCESS_GROUP_HELD_SIGN_OFF =
   'This project is part of a group run, which is signed off as a whole.'
+
+/** How a prerequisite may be merged early: never a pull request, its dependents build on it. */
+export const PROCESS_GROUP_PREREQUISITE_MODES: readonly ProcessIntegrationMode[] = [
+  'merge',
+  'squash',
+]

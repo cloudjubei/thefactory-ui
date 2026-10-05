@@ -1,8 +1,16 @@
-import { useMemo } from 'react'
-import { Linking, StyleSheet, View } from 'react-native'
-import MarkdownDisplay, { type MarkdownProps as DisplayProps } from 'react-native-markdown-display'
-import { parseResourceLink } from 'thefactory-tools/utils'
-import type { ResourceLink } from 'thefactory-tools/types'
+import { useMemo, type ReactNode } from 'react'
+import { Linking, StyleSheet, Text, View } from 'react-native'
+import MarkdownDisplay, {
+  type MarkdownProps as DisplayProps,
+  type RenderRules,
+} from 'react-native-markdown-display'
+import {
+  parseReferenceToken,
+  parseResourceLink,
+  withReferencesAsCode,
+} from 'thefactory-tools/utils'
+import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
+import { useEffectiveReferenceRenderer } from '../../headless/contexts/ReferenceRenderingContext'
 
 import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
@@ -14,6 +22,18 @@ export type MarkdownProps = {
   allowHtml?: boolean
   /** Route an in-app `overseer://…` resource link here instead of opening it externally (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /**
+   * Shows what the text points at as chips: a reference token (`#<storyId>`,
+   * `&<noteId>`, `@path`, or a backticked project path) and an `overseer://`
+   * link. Returning `undefined` leaves it as code or a plain link.
+   */
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
+  /**
+   * Chip what was typed (`#3.2`, `&qa-login`) as well as what was sent as ids.
+   * For text people write references into — a chat, a story. Off, a `#12` in a
+   * document or a log stays text.
+   */
+  typedReferences?: boolean
 }
 
 /**
@@ -23,11 +43,16 @@ export type MarkdownProps = {
  * weights, list indentation, code-block chrome. Styles route through the
  * runtime-reactive `useNativeTheme` hook for parity with sibling compounds.
  *
- * External links open via `Linking.openURL`. Inline `@<path>` /
- * `#<dep>` mentions are not interpreted here — render the source through
- * [`RichText`](./files/RichText.tsx) for the mention-aware variant.
+ * External links open via `Linking.openURL`. With `renderReference`, the
+ * references in the text and its `overseer://` links show as chips.
  */
-export default function Markdown({ text, onResourceLink }: MarkdownProps) {
+export default function Markdown({
+  text,
+  onResourceLink,
+  renderReference: ownRenderReference,
+  typedReferences = false,
+}: MarkdownProps) {
+  const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const { theme } = useNativeTheme()
   const styles = useMemo(() => makeStyles(theme), [theme])
 
@@ -44,10 +69,37 @@ export default function Markdown({ text, onResourceLink }: MarkdownProps) {
     [onResourceLink],
   )
 
+  const rules = useMemo<RenderRules | undefined>(() => {
+    if (!renderReference) return undefined
+    return {
+      code_inline: (node, _children, _parent, ruleStyles, inheritedStyles = {}) => {
+        const parsed = parseReferenceToken(node.content)
+        const chip = parsed ? renderReference(parsed) : undefined
+        if (chip !== undefined) return <Text key={node.key}>{chip}</Text>
+        return (
+          <Text key={node.key} style={[inheritedStyles, ruleStyles.code_inline]}>
+            {node.content}
+          </Text>
+        )
+      },
+      link: (node, children, _parent, ruleStyles) => {
+        const href = String(node.attributes.href ?? '')
+        const link = parseResourceLink(href)
+        const chip = link ? renderReference({ type: 'link', link }) : undefined
+        if (chip !== undefined) return <Text key={node.key}>{chip}</Text>
+        return (
+          <Text key={node.key} style={ruleStyles.link} onPress={() => onLinkPress?.(href)}>
+            {children}
+          </Text>
+        )
+      },
+    }
+  }, [renderReference, onLinkPress])
+
   return (
     <View>
-      <MarkdownDisplay style={styles} onLinkPress={onLinkPress}>
-        {text}
+      <MarkdownDisplay style={styles} onLinkPress={onLinkPress} {...(rules ? { rules } : {})}>
+        {renderReference ? withReferencesAsCode(text) : text}
       </MarkdownDisplay>
     </View>
   )

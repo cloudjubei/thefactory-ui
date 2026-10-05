@@ -20,6 +20,7 @@ import {
   sendChatWithCli,
   sendCompletionWithTools,
   updateChat,
+  uploadChatAttachment,
 } from '../api'
 import type {
   ChatContext as ChatCtx,
@@ -166,9 +167,9 @@ export type ChatsContextValue = {
    * persistence callbacks write the assistant + tool messages into the
    * chat, so the call is followed by a `refresh()` to pull them in.
    *
-   * `attachments` are project-relative paths of files uploaded via the
-   * Files API; they ride on the user message's `files` field, which the
-   * backend's `sendCompletionWithFiles` fetches and folds into the prompt.
+   * `attachments` are the project-relative paths {@link uploadAttachment}
+   * returned; they ride on the user message's `files` field, and the agent is
+   * told their paths to read when it needs them — never their contents.
    */
   sendMessage: (ctx: ChatCtx, content: string, attachments?: string[]) => Promise<void>
   /**
@@ -219,6 +220,14 @@ export type ChatsContextValue = {
   /** Delete the last message in the chat. Used by the message-hover delete
    * affordance. */
   deleteLastMessage: (ctx: ChatCtx) => Promise<void>
+  /**
+   * Keep a file attached to a project chat in the project's attachment store,
+   * for the chat's agent to read when it needs it. The bytes go base64-encoded,
+   * so a binary file arrives intact. Resolves to the path to send in the
+   * message's `attachments`. The store is temporary: it goes with the chat, or
+   * after 30 days unused.
+   */
+  uploadAttachment: (ctx: ChatCtx, name: string, contentBase64: string) => Promise<string>
   /**
    * Cancel the in-flight chat completion for `ctx`. No-op when nothing is
    * in flight. The HTTP call resolves with `resultType: 'aborted'` rather
@@ -1234,18 +1243,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         })
         inFlightCtxRef.current = ctx
         try {
-          // Pull the latest chat so trailing `require_confirmation` tool
-          // messages are included in the resume request — the backend's resume
-          // flow scans messages from the end backwards.
-          const target = await fetchChat(pending.context).catch(() => undefined)
-          if (!target) throw new Error('Chat for pending confirmation no longer exists')
-
+          // The backend resumes on the conversation in its chat store — the
+          // trailing tool calls being granted are there. Uploading the chat
+          // here hit the request size limit once a chat held large tool results.
           const { data: result } = await resumeCompletion({
             body: {
               request: {
-                chatContext: target.context,
+                chatContext: pending.context,
                 llmConfig: activeLLMConfig,
-                messages: target.messages ?? [],
                 ...(pending.systemPrompt ? { systemPrompt: pending.systemPrompt } : {}),
               },
               settings: pending.settings,
@@ -1396,6 +1401,19 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       await deleteChatApi({ body: { context: ctx }, throwOnError: true })
       setChats((prev) => prev.filter((c) => !sameContext(c.context, ctx)))
     }, [])
+
+    const uploadAttachment = useCallback(
+      async (ctx: ChatCtx, name: string, contentBase64: string): Promise<string> => {
+        if (!ctx.projectId) throw new Error('Files can be attached in a project’s chats only.')
+        const { data } = await uploadChatAttachment({
+          path: { projectId: ctx.projectId },
+          body: { context: ctx, name, contentBase64 },
+          throwOnError: true,
+        })
+        return data.path
+      },
+      [],
+    )
 
     const deleteLastMessage = useCallback(
       async (ctx: ChatCtx) => {
@@ -1571,6 +1589,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         consolidateChat,
         deleteChat,
         deleteLastMessage,
+        uploadAttachment,
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,
@@ -1600,6 +1619,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         consolidateChat,
         deleteChat,
         deleteLastMessage,
+        uploadAttachment,
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,

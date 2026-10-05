@@ -4,6 +4,7 @@ import {
   applyReference,
   parseReference,
   type ReferenceParse,
+  type ReferenceSigil,
   type ReferenceSuggestion,
 } from '../utils/reference'
 
@@ -29,10 +30,13 @@ export interface UseFileMentionsOptions {
   /** Returns ranked reference suggestions for the active `#<token>`. When
    *  omitted, the `#`-dropdown stays empty. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
+  /** Returns ranked suggestions for the active `&<token>` — notes and the
+   *  chat's attachments. When omitted, `&` opens no dropdown. */
+  onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
   /** Fires AFTER the user accepts an `@`-file mention. */
   onAcceptFileMention?: (path: string) => void
-  /** Fires AFTER the user accepts a `#`-reference. */
-  onAcceptReference?: (value: string) => void
+  /** Fires AFTER the user accepts a `#` or `&` suggestion, with the sigil it was picked under. */
+  onAcceptReference?: (value: string, sigil: ReferenceSigil) => void
   /** Cap on suggestions rendered. Default `5` — matches the
    *  "5 items max above the keyboard" rule for mobile suggestions. */
   maxSuggestions?: number
@@ -75,6 +79,7 @@ export function useFileMentions({
   onChange,
   onSearchFiles,
   onSearchReferences,
+  onSearchHandles,
   onAcceptFileMention,
   onAcceptReference,
   maxSuggestions = 5,
@@ -84,7 +89,12 @@ export function useFileMentions({
   const [pendingCursor, setPendingCursor] = useState<number | null>(null)
 
   const mentionParse = useMemo(() => parseMention(value, cursor), [value, cursor])
-  const referenceParse = useMemo(() => parseReference(value, cursor), [value, cursor])
+  const referenceParse = useMemo(
+    () =>
+      parseReference(value, cursor) ??
+      (onSearchHandles ? parseReference(value, cursor, '&') : null),
+    [value, cursor, onSearchHandles],
+  )
 
   const fileSuggestions = useMemo<ReadonlyArray<string>>(() => {
     if (!mentionParse || !onSearchFiles) return []
@@ -93,10 +103,10 @@ export function useFileMentions({
   }, [mentionParse, onSearchFiles, maxSuggestions])
 
   const refSuggestions = useMemo<ReadonlyArray<ReferenceSuggestion>>(() => {
-    if (!referenceParse || !onSearchReferences) return []
-    const raw = onSearchReferences(referenceParse.token)
-    return raw.slice(0, maxSuggestions)
-  }, [referenceParse, onSearchReferences, maxSuggestions])
+    const search = referenceParse?.sigil === '&' ? onSearchHandles : onSearchReferences
+    if (!referenceParse || !search) return []
+    return search(referenceParse.token).slice(0, maxSuggestions)
+  }, [referenceParse, onSearchReferences, onSearchHandles, maxSuggestions])
 
   const showFileMenu = !!mentionParse && fileSuggestions.length > 0
   const showRefMenu = !showFileMenu && !!referenceParse && refSuggestions.length > 0
@@ -136,7 +146,7 @@ export function useFileMentions({
       setPendingCursor(next.cursor)
       onChange(next.text)
       setCursor(next.cursor)
-      onAcceptReference?.(refValue)
+      onAcceptReference?.(refValue, referenceParse.sigil)
     },
     [referenceParse, value, onChange, onAcceptReference],
   )

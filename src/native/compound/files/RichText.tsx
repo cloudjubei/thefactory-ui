@@ -1,6 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { tokenizeRichText } from '../../../headless/utils/richTextTokenize'
+import { splitReferences } from 'thefactory-tools/utils'
+import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
+import type { ReferenceTarget } from 'thefactory-tools/types'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
@@ -9,9 +11,12 @@ export interface RichTextProps {
   text: string | null | undefined
   /** Resolves `@<token>` to a file. Returning `null` renders an unresolved pill. */
   onResolveFile?: (token: string) => UikitFileMeta | null
-  /** Renders `#<dep>`. Receives the value without the leading `#`. When
-   * omitted, the raw token renders as plain text. */
-  renderDependency?: (dep: string) => ReactNode
+  /** Renders every reference other than a file — a story, feature, note or
+   * attachment, or what was typed for one. Returning `undefined`, or omitting
+   * it, renders the token as plain text. */
+  renderReference?: (target: ReferenceTarget) => ReactNode | undefined
+  /** Chip what was typed (`#3.2`, `&qa-login`) as well as what was sent as ids. */
+  typedReferences?: boolean
   /**
    * Overrides the default text color. Used by the user-bubble in chat
    * messages to render white text on the blue background (matches web).
@@ -22,7 +27,8 @@ export interface RichTextProps {
 export default function RichText({
   text,
   onResolveFile,
-  renderDependency,
+  renderReference: ownRenderReference,
+  typedReferences = false,
   textColor,
 }: RichTextProps) {
   const { theme } = useNativeTheme()
@@ -33,7 +39,8 @@ export default function RichText({
     borderWidth: 1,
     borderColor: theme.border.subtle,
   }
-  const segments = useMemo(() => tokenizeRichText(text ?? ''), [text])
+  const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
+  const segments = useMemo(() => splitReferences(text ?? ''), [text])
   const baseColor = textColor ?? theme.text.primary
 
   return (
@@ -46,27 +53,29 @@ export default function RichText({
             </Text>
           )
         }
-        if (seg.type === 'dep') {
-          if (renderDependency) return <View key={idx}>{renderDependency(seg.value)}</View>
+        if (seg.type !== 'reference' || seg.reference.kind !== 'file' || !onResolveFile) {
+          const chip = renderReference?.(seg)
+          if (chip) return <View key={idx}>{chip}</View>
           return (
             <Text key={idx} style={{ fontSize: 14, color: baseColor }}>
               {seg.raw}
             </Text>
           )
         }
-        const meta = onResolveFile?.(seg.value) ?? null
+        const path = seg.reference.path
+        const meta = onResolveFile?.(path) ?? null
         if (!meta) {
           return (
             <View
               key={idx}
-              accessibilityLabel={`File not found: ${seg.value}`}
+              accessibilityLabel={`File not found: ${path}`}
               style={{
                 ...TOKEN_PILL_STYLE,
                 borderStyle: 'dashed',
                 backgroundColor: 'transparent',
               }}
             >
-              <Text style={{ fontSize: 13, color: theme.text.secondary }}>@{seg.value}</Text>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>@{path}</Text>
             </View>
           )
         }

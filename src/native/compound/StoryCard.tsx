@@ -84,7 +84,7 @@ export function StoryCard({
       >
         {story.title}
       </Text>
-      {story.description ? <Markdown text={story.description} /> : null}
+      {story.description ? <Markdown text={story.description} typedReferences /> : null}
       {story.blockers && story.blockers.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[3] }}>
           {story.blockers.map((b) =>

@@ -6,6 +6,7 @@ import type {
   ReviewEvidenceRef,
   RunVerification,
 } from '../api/generated'
+import type { ProofPlanMarkRow } from './proofPlanViewTypes'
 import type {
   CheckMethodRow,
   CheckMethodState,
@@ -65,7 +66,7 @@ export type StorySignoffProcessRun = Pick<
   ProcessRun,
   'id' | 'featureId' | 'ledger' | 'plan' | 'startedAt'
 > &
-  Partial<Pick<ProcessRun, 'parentRunId' | 'parentStepId' | 'totals'>>
+  Partial<Pick<ProcessRun, 'parentRunId' | 'parentStepId' | 'totals' | 'input' | 'status'>>
 
 export type BuildStorySignoffInput = {
   /** The story's features, in declaration order. */
@@ -142,6 +143,8 @@ export type SignoffAgent = {
 export type FeatureSignoff = SectionSignoff & {
   featureId: string
   title: string
+  /** Its run's proof plan, kind by kind, met or not — absent for a run launched without one. */
+  proofPlan?: ProofPlanMarkRow[]
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   type DeveloperChecksNote,
   type EvidenceTile,
   type FeatureSignoff,
+  type ProofPlanMarkRow,
   type RunReviewFacts,
   type ReviewTabId,
   type ScreenPair,
@@ -40,6 +41,7 @@ import {
   type SaveFileHandler,
 } from '../chat/signoff'
 import ProofBanner from './ProofBanner'
+import ProofPlanMarks from './ProofPlanMarks'
 import ProofScreens from './ProofScreens'
 
 /** The right-of-header line: a verify verdict ("Verify passed") toned by state. */
@@ -86,6 +88,8 @@ export type FeatureReviewSectionProps = {
   attemptLabel?: string
   /** "Developer verified: Build ✓, Lint ✗" — or that the developer ran no checks. */
   developerChecks?: DeveloperChecksNote
+  /** The feature's proof plan, kind by kind, met or not — absent for a run launched without one. */
+  proofPlan?: readonly ProofPlanMarkRow[]
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -212,6 +216,7 @@ export default function FeatureReviewSection({
   proof,
   attemptLabel,
   developerChecks,
+  proofPlan,
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
@@ -371,6 +376,8 @@ export default function FeatureReviewSection({
       ))}
 
       {steps.length > 0 ? <StepSummary steps={steps} /> : null}
+
+      {proofPlan && proofPlan.length > 0 ? <ProofPlanMarks rows={proofPlan} /> : null}
 
       {proof && proof.screens.length === 0 ? (
         <Text

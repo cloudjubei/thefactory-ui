@@ -9,7 +9,14 @@ import {
   QUESTION_DECLINED_ANSWER,
   QUESTION_FALLBACK_PROMPT,
 } from './agentQuestionConstants'
-import type { PendingQuestionGrant, PendingRemedyGrant, PendingToolGrant } from './chatTypes'
+import type {
+  PendingQuestionGrant,
+  PendingRemedyGrant,
+  PendingToolGrant,
+  UserAsk,
+} from './chatTypes'
+import type { CredentialCapture } from './credentialCaptureTypes'
+import { awaitingCaptures } from './credentialCaptures'
 import { isRemedyGrant } from './agentRemedy'
 import type { CliPendingActionLike } from './pendingToolGrants'
 
@@ -110,6 +117,23 @@ export function partitionGrants(grants: PendingToolGrant[] | undefined): {
     else permissions.push(grant)
   }
   return { questions, remedies, permissions }
+}
+
+/**
+ * Everything waiting on the user's answer, in the order it is paged through:
+ * the open questions, then the credential forms still open. Both park the agent
+ * the same way, so both take the composer's place the same way.
+ */
+export function userAsks(
+  questions: readonly PendingQuestionGrant[],
+  captures: readonly CredentialCapture[],
+): UserAsk[] {
+  return [
+    ...questions.map((grant): UserAsk => ({ kind: 'question', id: grant.id, grant })),
+    ...awaitingCaptures(captures).map(
+      (capture): UserAsk => ({ kind: 'capture', id: capture.id, capture }),
+    ),
+  ]
 }
 
 /**

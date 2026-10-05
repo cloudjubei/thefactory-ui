@@ -13,8 +13,9 @@ export type ProcessCheckListProps = {
 /**
  * Under a checks step's node: each command its newest attempt ran — build,
  * type check, lint, format, unit tests — with how it came out, whether it was
- * only advisory, where it ran (sandbox or host, the reason on hover), and how
- * long it took. Nothing for any other step.
+ * only advisory, where it ran (sandbox or host, the reason and the code outside
+ * the checkout it built against on hover), whether its failure already fails at
+ * the change's base, and how long it took. Nothing for any other step.
  */
 export default function ProcessCheckList({ step, latest }: ProcessCheckListProps) {
   const rows = processCheckRows({ step, ...(latest ? { latest } : {}) })
@@ -49,9 +50,17 @@ export default function ProcessCheckList({ step, latest }: ProcessCheckListProps
           {row.ranInLabel ? (
             <span
               className="shrink-0 rounded-full border border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)"
-              title={row.ranInDetail}
+              title={[row.ranInDetail, row.dependencyDetail].filter(Boolean).join(' · ')}
             >
               {row.ranInLabel}
+            </span>
+          ) : null}
+          {row.baselineLabel ? (
+            <span
+              className="shrink-0 rounded-full border border-dashed border-(--border-strong) px-1.5 text-[10px] text-(--text-secondary)"
+              title={row.baselineDetail}
+            >
+              {row.baselineLabel}
             </span>
           ) : null}
           {row.status !== 'passed' && row.summary ? (

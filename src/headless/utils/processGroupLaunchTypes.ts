@@ -1,5 +1,3 @@
-import type { ProcessIntegrationMode } from 'thefactory-tools/types'
-
 /** One project's part of a group run, as a launch asks for it. */
 export interface ProcessGroupLegRequest {
   projectId: string
@@ -41,6 +39,3 @@ export interface StartGroupWorkGrantSummary {
   runner?: 'cli' | 'api'
   spendCapUsd?: number
 }
-
-/** Each prerequisite's merge mode, by leg id, as the launch card chose it. */
-export type ProcessGroupLegModes = Record<string, ProcessIntegrationMode>

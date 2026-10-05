@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 
 import { isReviewable, processStatusOverlay } from './processStatusOverlay'
+import { PROCESS_STATUS_OVERLAY_TITLES } from './processStatusOverlayConstants'
 
 const run = (over: Partial<ProcessRun>): Pick<ProcessRun, 'id' | 'status' | 'park'> =>
   ({ id: 'run-1', status: 'running', ...over }) as Pick<ProcessRun, 'id' | 'status' | 'park'>
@@ -9,7 +10,12 @@ const run = (over: Partial<ProcessRun>): Pick<ProcessRun, 'id' | 'status' | 'par
 describe('processStatusOverlay', () => {
   it('parked at the SIGN-OFF gate → Reviewable, linking to the run', () => {
     const o = processStatusOverlay(run({ status: 'parked', park: { reason: 'gate' } as never }))
-    expect(o).toEqual({ label: 'Reviewable', semantic: 'review', runId: 'run-1' })
+    expect(o).toEqual({
+      label: 'Reviewable',
+      semantic: 'review',
+      title: PROCESS_STATUS_OVERLAY_TITLES.review,
+      runId: 'run-1',
+    })
   })
 
   it('parked for any OTHER reason → Blocked (it is stuck, not awaiting sign-off)', () => {
@@ -17,7 +23,12 @@ describe('processStatusOverlay', () => {
     // Reviewable word must be reserved for the gate, or it would mean "stuck".
     for (const reason of ['step-failed', 'step-waiting', 'step-errored', 'loop-exhausted']) {
       const o = processStatusOverlay(run({ status: 'parked', park: { reason } as never }))
-      expect(o).toEqual({ label: 'Blocked', semantic: 'stuck', runId: 'run-1' })
+      expect(o).toEqual({
+        label: 'Blocked',
+        semantic: 'stuck',
+        title: PROCESS_STATUS_OVERLAY_TITLES.stuck,
+        runId: 'run-1',
+      })
     }
   })
 
@@ -25,12 +36,16 @@ describe('processStatusOverlay', () => {
     expect(processStatusOverlay(run({ status: 'running' }))?.label).toBe('Crunching')
     expect(processStatusOverlay(run({ status: 'pending' }))?.label).toBe('Crunching')
     expect(processStatusOverlay(run({ status: 'running' }))?.semantic).toBe('working')
+    expect(processStatusOverlay(run({ status: 'running' }))?.title).toBe(
+      PROCESS_STATUS_OVERLAY_TITLES.working,
+    )
   })
 
   it('failed → Blocked', () => {
     expect(processStatusOverlay(run({ status: 'failed' }))).toEqual({
       label: 'Blocked',
       semantic: 'stuck',
+      title: PROCESS_STATUS_OVERLAY_TITLES.stuck,
       runId: 'run-1',
     })
   })
@@ -52,10 +67,19 @@ describe('processStatusOverlay', () => {
       ],
     }) as unknown as ProcessRun
 
-  it('a run a PERSON ended — rejected, sent back, abandoned — yields NO overlay: its features are pending again', () => {
-    for (const choice of ['reject', 'request-changes', 'abandon'] as const) {
+  it('a run a PERSON rejected or abandoned yields NO overlay: its features are pending again', () => {
+    for (const choice of ['reject', 'abandon'] as const) {
       expect(processStatusOverlay(decidedRun(choice))).toBeUndefined()
     }
+  })
+
+  it('a run ended on a request for changes says so and links to it, where it is sent back', () => {
+    expect(processStatusOverlay(decidedRun('request-changes'))).toEqual({
+      label: 'Changes requested',
+      semantic: 'onhold',
+      title: PROCESS_STATUS_OVERLAY_TITLES.changesRequested,
+      runId: 'run-1',
+    })
   })
 
   it('a run that failed with nobody deciding stays Blocked — it is stuck', () => {

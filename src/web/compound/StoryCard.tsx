@@ -106,7 +106,7 @@ export function StoryCard({
 
       {story.description && (
         <div className="text-sm text-(--text-secondary) mb-2 overflow-hidden text-ellipsis">
-          <Markdown text={story.description} />
+          <Markdown text={story.description} typedReferences />
         </div>
       )}
 

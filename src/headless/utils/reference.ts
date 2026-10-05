@@ -7,10 +7,15 @@
  * reference source — the consumer supplies suggestions via `onSearchReferences`.
  */
 
+/** What starts a reference token: `#` a story or feature, `&` a note or attachment. */
+export type ReferenceSigil = '#' | '&'
+
 export type ReferenceParse = {
-  /** Token that follows `#`, used for filtering candidates. */
+  /** The sigil the token starts with. */
+  sigil: ReferenceSigil
+  /** Token that follows the sigil, used for filtering candidates. */
   token: string
-  /** Index of the `#` itself (inclusive). */
+  /** Index of the sigil itself (inclusive). */
   start: number
   /** Index just past the cursor (exclusive); typically equals `cursor`. */
   end: number
@@ -25,15 +30,19 @@ export type ReferenceSuggestion = {
   description?: string
 }
 
-export function parseReference(text: string, cursor: number): ReferenceParse | null {
+export function parseReference(
+  text: string,
+  cursor: number,
+  sigil: ReferenceSigil = '#',
+): ReferenceParse | null {
   if (cursor < 0 || cursor > text.length) return null
 
   let i = cursor - 1
   while (i >= 0) {
     const c = text[i]
-    if (c === '#') {
+    if (c === sigil) {
       if (i === 0 || /\s/.test(text[i - 1])) {
-        return { token: text.slice(i + 1, cursor), start: i, end: cursor }
+        return { sigil, token: text.slice(i + 1, cursor), start: i, end: cursor }
       }
       return null
     }
@@ -43,7 +52,7 @@ export function parseReference(text: string, cursor: number): ReferenceParse | n
   return null
 }
 
-/** Replaces the `#token` range with `#<value> ` and returns the new text + cursor. */
+/** Replaces the `<sigil>token` range with `<sigil><value> ` and returns the new text + cursor. */
 export function applyReference(
   text: string,
   parse: ReferenceParse,
@@ -51,6 +60,6 @@ export function applyReference(
 ): { text: string; cursor: number } {
   const before = text.slice(0, parse.start)
   const after = text.slice(parse.end)
-  const insert = `#${value} `
+  const insert = `${parse.sigil}${value} `
   return { text: before + insert + after, cursor: before.length + insert.length }
 }

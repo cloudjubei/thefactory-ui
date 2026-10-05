@@ -3,8 +3,8 @@ import { Text, View } from 'react-native'
 
 import {
   PARK_NOTE_CANCEL,
+  PARK_NOTE_COPY,
   PARK_NOTE_MAX_LENGTH,
-  parkNoteCopy,
   parkNoteCounter,
   parkNoteToSend,
   type ParkNoteCopy,
@@ -12,11 +12,10 @@ import {
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
-import { Textarea } from '../../primitives/Textarea'
+import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
+import ReferenceTextarea from '../files/ReferenceTextarea'
 
 export type ParkNoteComposerProps = {
-  /** The gate sends the work back to be fixed rather than ending the run. */
-  sendsBack?: boolean
   /** The composer's words, when they are not a gate's — an answer to a waiting agent. */
   copy?: ParkNoteCopy
   /** The note is the answer: it cannot be sent blank. */
@@ -27,7 +26,6 @@ export type ParkNoteComposerProps = {
 
 /** The note a choice like "Request changes" carries, written in place of the choice row. */
 export default function ParkNoteComposer({
-  sendsBack = false,
   copy: givenCopy,
   required = false,
   onSend,
@@ -35,28 +33,27 @@ export default function ParkNoteComposer({
 }: ParkNoteComposerProps) {
   const { theme } = useNativeTheme()
   const [draft, setDraft] = useState('')
-  const copy = givenCopy ?? parkNoteCopy(sendsBack)
+  const copy = givenCopy ?? PARK_NOTE_COPY
   const counter = parkNoteCounter(draft)
   const note = parkNoteToSend(draft)
+  const canonicalize = useCanonicalizeReferences()
 
   return (
     <View style={{ width: '100%', gap: nativeSpace[2] }}>
-      <Textarea
+      <ReferenceTextarea
         rows={3}
         autoFocus
         value={draft}
         onChangeText={setDraft}
-        maxLength={PARK_NOTE_MAX_LENGTH}
         placeholder={copy.prompt}
-        accessibilityLabel={copy.prompt}
-        style={{ fontSize: 13 }}
+        textInputProps={{ maxLength: PARK_NOTE_MAX_LENGTH, accessibilityLabel: copy.prompt }}
       />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
         <Button
           size="sm"
           variant="primary"
           disabled={required && note === undefined}
-          onPress={() => onSend(note)}
+          onPress={() => onSend(note === undefined ? undefined : canonicalize(note))}
         >
           {copy.submitLabel}
         </Button>

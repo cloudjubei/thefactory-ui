@@ -1,11 +1,14 @@
 import { useMemo, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 
+import { proofPlanFieldText } from '../../../../headless'
 import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { MonoText, SectionTitle, SecondaryText } from './components'
 
 function formatValue(value: unknown): string {
+  const plan = proofPlanFieldText(value)
+  if (plan !== undefined) return plan
   if (Array.isArray(value)) {
     if (value.length === 0) return '(empty)'
     return value.map((item) => `- ${String(item)}`).join('\n')
