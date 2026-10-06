@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ProcessGroupRun } from 'thefactory-tools/types'
 import { listProcessGroupRuns, useApi, useAuth } from '../api'
 import type { ProcessGroupRunUpdate } from './useProcessGroupRun'
-import { isProcessRunActive } from './useProcessRuns'
+import { isProcessRunActive } from '../utils/processRunCurrent'
 
 /**
  * Whether a live `process:group-run-update` belongs in a list scoped to

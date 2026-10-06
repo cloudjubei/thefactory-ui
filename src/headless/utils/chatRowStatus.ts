@@ -1,15 +1,19 @@
 import type { ChatContextLike } from './chatTypes'
 import { chatMessageTimes, type ChatMessagesShape } from './chatListEntry'
+import { formatBadgeCount } from './badgeAggregation'
+import { CHAT_AWAITING_ANSWER_LABEL } from './chatUnreadConstants'
 
 export type ChatsSeenMap = Record<string, string>
 
 export type ChatRowStatus = {
   /** True when an LLM request is in flight for this chat. */
   isThinking: boolean
-  /** True when the chat has messages newer than the stored last-seen ts. */
+  /** True when the chat has messages newer than the stored last-seen ts, or waits on the user. */
   isUnread: boolean
   /** Approximate count of unread messages — used in the row badge. */
   unreadCount: number
+  /** An ask of the agent's waits on the user's answer or decision. */
+  awaitingAnswer: boolean
   /** True for agent-run chats currently running. */
   isAgentRunning: boolean
 }
@@ -70,7 +74,7 @@ export function computeChatRowStatus(input: {
   chat: (ChatMessagesShape & { state?: string }) | null | undefined
   isSending: boolean
   seen: ChatsSeenMap
-  /** Asks this chat has waiting on the user — each one counts as unread news. */
+  /** Asks this chat has waiting on the user — news even once every message is read. */
   pendingAsks?: number
 }): ChatRowStatus {
   const { context, contextKey, chat, isSending, seen } = input
@@ -86,7 +90,25 @@ export function computeChatRowStatus(input: {
   return {
     isThinking: isSending,
     isUnread: isUnread || pendingAsks > 0,
-    unreadCount: unreadCount + pendingAsks,
+    unreadCount,
+    awaitingAnswer: pendingAsks > 0,
     isAgentRunning,
   }
+}
+
+/**
+ * What a chat row's badge shows: how many messages are unread, or — once every
+ * one is — "!" while the agent waits on the user. Nothing for a chat with no news.
+ */
+export function chatRowBadge(
+  status: Pick<ChatRowStatus, 'unreadCount' | 'awaitingAnswer'>,
+): { text: string; label: string } | undefined {
+  if (status.unreadCount > 0) {
+    return {
+      text: formatBadgeCount(status.unreadCount),
+      label: `${status.unreadCount} unread messages`,
+    }
+  }
+  if (status.awaitingAnswer) return { text: '!', label: CHAT_AWAITING_ANSWER_LABEL }
+  return undefined
 }

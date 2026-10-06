@@ -21,6 +21,26 @@ import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/s
  *  project we've already seen this session. */
 const filesCache = new ProjectResourceCache<FileMeta[]>(16)
 
+/**
+ * A project's file paths, revalidated against the same cache the provider
+ * keeps — what a chat over several projects offers after `@`.
+ */
+export async function loadProjectFilePaths(projectId: string): Promise<string[]> {
+  const cached = filesCache.get(projectId)
+  const res = await getAllFileStats({
+    path: { projectId },
+    headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined,
+    validateStatus: acceptOkOr304,
+    throwOnError: true,
+  })
+  let files = cached?.data ?? []
+  if (res.status !== 304) {
+    files = (res.data ?? []) as FileMeta[]
+    filesCache.set(projectId, files, readEtagHeader(res.headers))
+  }
+  return files.map((f) => f.relativePath ?? f.absolutePath).filter(Boolean) as string[]
+}
+
 /** Coalesce window for `files:changed`-driven refreshes. */
 const FILES_CHANGED_DEBOUNCE_MS = 250
 

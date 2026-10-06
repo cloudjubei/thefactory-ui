@@ -29,7 +29,11 @@ export function useReferenceRenderer({
   return useCallback(
     (target: ReferenceTarget) => {
       if (target.type === 'typed' && !typed) return undefined
-      if (target.type === 'reference' && target.reference.kind === 'file') {
+      if (
+        target.type === 'reference' &&
+        target.reference.kind === 'file' &&
+        !target.reference.projectId
+      ) {
         const meta = onResolveFile?.(target.reference.path) ?? null
         if (!meta) return undefined
         return (
@@ -61,17 +65,22 @@ export function useReferenceRenderer({
  */
 export function useProjectReferenceRenderer({
   projectId,
+  groupId,
   onOpen,
   typed = true,
 }: {
   projectId: string | null | undefined
+  /** A group's page, outside any project: references resolve across its projects. */
+  groupId?: string | null
   onOpen?: (link: ResourceLink) => void
   typed?: boolean
 }): {
   references: References
   renderReference: (target: ReferenceTarget) => ReactNode | undefined
 } {
-  const references = useReferences({ scope: projectId ? { projectId } : undefined })
+  const references = useReferences({
+    scope: projectId ? { projectId } : groupId ? { groupId } : undefined,
+  })
   const rendering = useReferenceRendering()
   const open = onOpen ?? rendering?.onOpen
   const { files } = useFiles()

@@ -9,7 +9,12 @@ import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { ProcessLaunchDecision, ProcessOpenWorkDecision } from 'thefactory-tools/types'
-import type { PendingToolGrantData, PendingToolGrantDecision, ToolCallLike } from './chatTypes'
+import type {
+  ChatMessageLike,
+  PendingToolGrantData,
+  PendingToolGrantDecision,
+  ToolCallLike,
+} from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
@@ -165,6 +170,22 @@ export function pickActiveStoryRunId(
 }
 
 /** Map an API `require_confirmation` tool-call to a grant (id = toolCallId). */
+/**
+ * The calls a stored chat still waits to have confirmed: those of its trailing
+ * run of tool messages that need confirmation. What the page that sent the turn
+ * remembers is gone after a reload; the chat itself still says.
+ */
+export function storedToolCallsAwaitingConfirmation(
+  messages: readonly Pick<ChatMessageLike, 'role' | 'toolCall' | 'toolResult'>[],
+): ToolCallLike[] {
+  const calls: ToolCallLike[] = []
+  for (let i = messages.length - 1; i >= 0 && messages[i].role === 'tool'; i--) {
+    const { toolCall, toolResult } = messages[i]
+    if (toolCall && toolResult?.type === 'require_confirmation') calls.unshift(toolCall)
+  }
+  return calls
+}
+
 export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData {
   return {
     id: toolCall.toolCallId,
@@ -307,7 +328,7 @@ export function withAsksAwaitingOutcome(
   const pendingIds = new Set(pending.map((a) => a.id))
   const awaiting = previous
     .filter((a) => !pendingIds.has(a.id) && !decidedIds.has(a.id))
-    .map((a) => ({ ...a, decidedOnRow: false }))
+    .map((a) => ({ ...a, decidedOnRow: false, awaitingOutcome: true }))
   return [...pending, ...awaiting]
 }
 

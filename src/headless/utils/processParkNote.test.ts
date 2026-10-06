@@ -6,6 +6,9 @@ import {
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
+  requestChangesProofPreset,
+  toggleRequestedProof,
+  uiChangeScopeOf,
   waitingNoteCopy,
 } from './processParkNote'
 import {
@@ -118,5 +121,68 @@ describe('parkNoteToSend', () => {
     expect(parkNoteToSend(`  ${'z'.repeat(PARK_NOTE_MAX_LENGTH)}  `)).toBe(
       'z'.repeat(PARK_NOTE_MAX_LENGTH),
     )
+  })
+})
+
+describe('requestChangesProofPreset', () => {
+  const feature = (over: object = {}) => ({
+    title: 'Parse ISO dates',
+    description: 'Accept ISO 8601 in the importer.',
+    ...over,
+  })
+
+  it('starts out requiring on-screen proof for a story whose change is to what users see', () => {
+    expect(
+      requestChangesProofPreset({
+        features: [feature(), feature({ title: 'North Star progress on the Overview dashboard' })],
+      }),
+    ).toEqual(['ui-before-after'])
+  })
+
+  it('reads a feature’s files against the project’s app folder', () => {
+    expect(
+      requestChangesProofPreset({
+        features: [feature({ files: ['viewer/app.js'] })],
+        scope: { appDir: 'viewer' },
+      }),
+    ).toEqual(['ui-before-after'])
+  })
+
+  it('starts out requiring it when a plan already asks for screens', () => {
+    expect(
+      requestChangesProofPreset({ features: [feature()], plannedKinds: ['ui-before-after'] }),
+    ).toEqual(['ui-before-after'])
+  })
+
+  it('requires nothing for a change nobody sees', () => {
+    expect(
+      requestChangesProofPreset({ features: [feature({ files: ['src/importer.ts'] })] }),
+    ).toEqual([])
+  })
+})
+
+describe('toggleRequestedProof', () => {
+  it('switches a kind on, in canonical order, once', () => {
+    expect(toggleRequestedProof(['live-backend'], 'unit-tests', true)).toEqual([
+      'unit-tests',
+      'live-backend',
+    ])
+    expect(toggleRequestedProof(['unit-tests'], 'unit-tests', true)).toEqual(['unit-tests'])
+  })
+
+  it('switches a kind off', () => {
+    expect(toggleRequestedProof(['unit-tests', 'ui-before-after'], 'unit-tests', false)).toEqual([
+      'ui-before-after',
+    ])
+  })
+})
+
+describe('uiChangeScopeOf', () => {
+  it('reads the project’s app folder, trimmed', () => {
+    expect(uiChangeScopeOf({ appDir: ' viewer ' })).toEqual({ appDir: 'viewer' })
+  })
+
+  it.each([undefined, {}, { appDir: '  ' }, { appDir: 3 }])('is no folder for %j', (metadata) => {
+    expect(uiChangeScopeOf(metadata)).toEqual({})
   })
 })

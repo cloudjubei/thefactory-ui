@@ -49,7 +49,6 @@ import {
   proofThumbnailFrame,
   reviewerVerdictNote,
   shortSha,
-  storyProofNotice,
   verifyAttemptEvidence,
   verifyAttemptFacts,
   verifyAttempts,
@@ -60,7 +59,8 @@ import {
   verifyProofView,
   verifySectionProps,
 } from './verifyProof'
-import type { StoryProofSection, VerifyAttemptRun } from './verifyProofTypes'
+import { signoffAttentionItems } from './signoffPage'
+import type { VerifyAttemptRun } from './verifyProofTypes'
 
 const BASE = 'be10edd81166b5878c831d33ac7383850a7feefc'
 const HEAD = '388321962476f808733fa3f379e94d14820b1679'
@@ -135,7 +135,6 @@ describe('verifyProofHeader', () => {
       tone: 'done',
       title: 'Verified on live data',
       chip: 'Live data',
-      unstated: false,
       dry: undefined,
       baseSha: 'be10edd8',
       headSha: '38832196',
@@ -237,28 +236,24 @@ describe('verifyProofHeader', () => {
     expect(verifyProofHeader(proof({ dryAssumptions: 'x' }), 'passed').dry).toBeUndefined()
   })
 
-  it('flags an unstated data mode on an attempt that stands, so a collapsed header shows it', () => {
-    for (const standing of ['passed', 'accepted'] as const) {
-      const h = verifyProofHeader(proof(), standing)
+  it('says nothing about the data of a proof that never named it, however the attempt stood', () => {
+    for (const standing of ['passed', 'accepted', 'failed', 'unchecked', 'running'] as const) {
+      const h = verifyProofHeader(proof({ baseSha: BASE }), standing)
       expect(h).toMatchObject({
         mode: 'unknown',
         tone: 'empty',
-        title: 'The reviewer did not say whether this ran on live data',
-        chip: 'Data not stated',
-        unstated: true,
-        baseSha: undefined,
-        headSha: undefined,
+        title: undefined,
+        detail: undefined,
+        chip: undefined,
+        dry: undefined,
+        baseSha: 'be10edd8',
       })
     }
   })
 
-  it('does not flag the data mode of an attempt that did not stand', () => {
-    for (const standing of ['failed', 'unchecked', 'running'] as const) {
-      const h = verifyProofHeader(proof(), standing)
-      expect(h.chip).toBeUndefined()
-      expect(h.unstated).toBe(false)
-    }
+  it('flags a named data mode whether or not the attempt stood', () => {
     expect(verifyProofHeader(proof({ mode: 'live' }), 'failed').chip).toBe('Live data')
+    expect(verifyProofHeader(proof({ mode: 'dry' }), 'unchecked').chip).toBe('Dry run')
   })
 })
 
@@ -540,15 +535,19 @@ describe('verifyProofView', () => {
     expect(v.summary.tone).toBe('done')
   })
 
-  it('keeps a flagged banner on a pass that rests on screens but never named its data', () => {
+  it('never flags a pass that rests on screens for not naming its data', () => {
     const v = verifyProofView(proof({ newScreenIds: ['a-roles'] }), tiles, { standing: 'passed' })
-    expect(v.header?.unstated).toBe(true)
-    expect(v.header?.chip).toBe('Data not stated')
+    expect(v.header).toMatchObject({ mode: 'unknown', title: undefined, chip: undefined })
   })
 
-  it('keeps the unstated-data banner on a screen-less attempt that did not pass', () => {
-    expect(verifyProofView(proof(), tiles, { standing: 'unchecked' }).header?.mode).toBe('unknown')
-    expect(verifyProofView(proof(), tiles, { standing: 'accepted' }).header?.unstated).toBe(true)
+  it('never flags a screen-less attempt that did not pass for not naming its data', () => {
+    for (const standing of ['unchecked', 'accepted'] as const) {
+      expect(verifyProofView(proof(), tiles, { standing }).header).toMatchObject({
+        mode: 'unknown',
+        title: undefined,
+        chip: undefined,
+      })
+    }
   })
 
   describe('a new screen shown against its entry point', () => {
@@ -1343,7 +1342,6 @@ describe('featureVerifyView', () => {
     expect(view.acceptedLabel).toBe('Verify attempt 3 of 3 — the one the gate passed')
     expect(view.standing).toBe('passed')
     expect(view.mode).toBe('dry')
-    expect(view.dataUnstated).toBe(false)
     expect(view.accepted.status).toEqual({ tone: 'done', label: 'Verify passed' })
     expect(view.accepted.running).toBe(false)
     expect(view.accepted.notes).toEqual([
@@ -1386,7 +1384,7 @@ describe('featureVerifyView', () => {
     )
   })
 
-  it('flags an accepted attempt whose reviewer never said what data it ran on', () => {
+  it('says nothing about the data of an accepted attempt whose reviewer never named it', () => {
     const view = featureVerifyView(
       acceptedVerifyAttempt(
         childRun([
@@ -1399,8 +1397,8 @@ describe('featureVerifyView', () => {
     expect(view.acceptedLabel).toBe(
       'Verify attempt 1 of 1 — accepted by you; the gate did not pass it',
     )
-    expect(view.dataUnstated).toBe(true)
-    expect(view.accepted.evidence.proof?.header?.chip).toBe('Data not stated')
+    expect(view.mode).toBe('unknown')
+    expect(view.accepted.evidence.proof?.header?.chip).toBeUndefined()
   })
 
   it('does not flag the data of a pass that rested on no screen', () => {
@@ -1412,15 +1410,15 @@ describe('featureVerifyView', () => {
     )
     expect(view.standing).toBe('passed')
     expect(view.mode).toBe('unknown')
-    expect(view.dataUnstated).toBe(false)
   })
 
-  it('flags a pass with no proof on record, since nothing says what data it ran on', () => {
+  it('reads a pass with no proof on record as an unknown mode, which says nothing', () => {
     const view = featureVerifyView(
       acceptedVerifyAttempt(childRun([implement('i1', 'dev-1', 0), verify('v1', 'passed', 10)]))!,
       tiles,
     )
-    expect(view.dataUnstated).toBe(true)
+    expect(view.mode).toBe('unknown')
+    expect(view.accepted.evidence.proof).toBeUndefined()
   })
 
   it('says when no attempt passed', () => {
@@ -1431,7 +1429,6 @@ describe('featureVerifyView', () => {
     expect(lastOnly.acceptedLabel).toBe('Verify attempt 1 of 1 — the latest; none passed')
     expect(lastOnly.standing).toBe('failed')
     expect(lastOnly.mode).toBe('unknown')
-    expect(lastOnly.dataUnstated).toBe(false)
   })
 
   it('says the gate could not confirm the latest attempt when that is what it concluded', () => {
@@ -1473,89 +1470,6 @@ describe('featureVerifyView', () => {
       { evidence: 'failed' },
     )
     expect(view.accepted.evidence.proof?.newScreens[0].absent).toBe(CAPTURE_LOAD_FAILED)
-  })
-})
-
-describe('storyProofNotice', () => {
-  const section = (over: Partial<StoryProofSection> & { label: string }): StoryProofSection => ({
-    mode: 'live',
-    standing: 'passed',
-    dataUnstated: false,
-    ...over,
-  })
-
-  it('names every feature that passed only on faked data', () => {
-    expect(
-      storyProofNotice([
-        section({ label: 'Feature #1', mode: 'dry' }),
-        section({ label: 'Feature #2' }),
-        section({ label: 'Feature #3', mode: 'dry' }),
-      ]),
-    ).toEqual({
-      tone: 'working',
-      text: 'Feature #1 and Feature #3 were verified dry — not against the live backend. Open each to see what the live backend must send.',
-    })
-  })
-
-  it('names a feature whose reviewer did not say what data it ran on', () => {
-    expect(
-      storyProofNotice([
-        section({ label: 'Feature #1', mode: 'unknown', dataUnstated: true }),
-        section({ label: 'Feature #2' }),
-      ]),
-    ).toEqual({
-      tone: 'empty',
-      text: 'The reviewer did not say whether Feature #1 ran on live data.',
-    })
-  })
-
-  it('names a feature a person accepted without the gate passing it', () => {
-    expect(
-      storyProofNotice([
-        section({ label: 'Feature #1' }),
-        section({ label: 'Feature #2', standing: 'accepted', mode: 'unknown', dataUnstated: true }),
-      ]),
-    ).toEqual({
-      tone: 'working',
-      text: 'Feature #2 was accepted by you without the gate passing it — open it to see what the gate said. The reviewer did not say whether Feature #2 ran on live data.',
-    })
-  })
-
-  it('names an accepted dry feature both ways, and several accepted features naturally', () => {
-    const notice = storyProofNotice([
-      section({ label: 'Feature #1', standing: 'accepted', mode: 'dry' }),
-      section({ label: 'Feature #2', standing: 'accepted' }),
-    ])
-    expect(notice?.tone).toBe('working')
-    expect(notice?.text).toBe(
-      'Feature #1 and Feature #2 were accepted by you without the gate passing them — open each to see what the gate said. Feature #1 was verified dry — not against the live backend. Open it to see what the live backend must send.',
-    )
-  })
-
-  it('joins dry and unstated, listing three names naturally', () => {
-    const notice = storyProofNotice([
-      section({ label: 'Feature #1', mode: 'dry' }),
-      section({ label: 'Feature #2', mode: 'unknown', dataUnstated: true }),
-      section({ label: 'Feature #3', mode: 'unknown', dataUnstated: true }),
-      section({ label: 'Feature #4', mode: 'unknown', dataUnstated: true }),
-    ])
-    expect(notice?.tone).toBe('working')
-    expect(notice?.text).toBe(
-      'Feature #1 was verified dry — not against the live backend. Open it to see what the live backend must send. The reviewer did not say whether Feature #2, Feature #3 and Feature #4 ran on live data.',
-    )
-  })
-
-  it('is silent when every standing feature ran live or needed no data, and ignores ones that did not stand', () => {
-    expect(
-      storyProofNotice([
-        section({ label: 'Feature #1' }),
-        section({ label: 'Feature #2', mode: 'unknown' }),
-        section({ label: 'Feature #3', mode: 'dry', standing: 'failed' }),
-        section({ label: 'Feature #4', mode: 'dry', standing: 'unchecked' }),
-        section({ label: 'Feature #5', mode: 'unknown', standing: 'running', dataUnstated: true }),
-      ]),
-    ).toBeUndefined()
-    expect(storyProofNotice([])).toBeUndefined()
   })
 })
 
@@ -2312,19 +2226,14 @@ describe('featureVerifyView, over captures the backend cannot vouch for', () => 
     const view = featureVerifyView(acceptedVerifyAttempt(run)!, [
       unvouchedTile({ id: 'a-new', phase: 'after', subject: 'picker' }),
     ])
-    expect(view).toMatchObject({ standing: 'passed', mode: 'live', dataUnstated: false })
+    expect(view).toMatchObject({ standing: 'passed', mode: 'live' })
     expect(Object.keys(view)).not.toContain('proofUnvouched')
     expect(view.accepted.evidence.proof?.newScreens.map((s) => s.id)).toEqual(['a-new'])
     expect(
-      storyProofNotice([
-        {
-          label: 'Feature #1',
-          standing: view.standing,
-          mode: view.mode,
-          dataUnstated: view.dataUnstated,
-        },
+      signoffAttentionItems([
+        { id: 'f1', dependency: undefined, label: 'f1', standing: view.standing, mode: view.mode },
       ]),
-    ).toBeUndefined()
+    ).toEqual([])
   })
 })
 

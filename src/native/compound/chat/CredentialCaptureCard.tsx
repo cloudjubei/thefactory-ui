@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from '../../primitives/Select'
 import { IconKey } from '../../icons'
+import { captureHelp } from '../../../headless/utils/credentialCaptureHelp'
+import CredentialHelpPanel from './CredentialHelpPanel'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
 import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
@@ -93,6 +95,7 @@ export default function CredentialCaptureCard({
   const locked = busy || disabled === true
   const canSubmit = isCaptureFormValid(capture, values)
   const showForm = open
+  const help = captureHelp(capture, values)
   const accent = statusTokens.working.bg
 
   const signInCard = isCliSignInCapture(capture)
@@ -232,6 +235,8 @@ export default function CredentialCaptureCard({
               )}
             </Field>
           ))}
+
+          {help ? <CredentialHelpPanel help={help} /> : null}
 
           {signIn.loginId ? (
             <View

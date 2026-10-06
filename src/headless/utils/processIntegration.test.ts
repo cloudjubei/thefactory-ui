@@ -6,6 +6,7 @@ import {
   processIntegrationBadge,
   processIntegrationChoices,
   processIntegrationView,
+  processRunIntegrationModes,
   soleIntegrationMode,
 } from './processIntegration'
 import { PROCESS_INTEGRATION_NEVER_TRIED } from './processIntegrationConstants'
@@ -66,6 +67,40 @@ describe('processIntegrationChoices', () => {
       'Squashes the work into a single commit on main.',
       'Pushes factory/fonts-1a2b3c4d and opens a PR for review on GitHub / Azure DevOps; nothing lands on main until it is merged there.',
     ])
+  })
+})
+
+describe('the ways a group leg may be brought in', () => {
+  const leg = (id: string, dependsOn: string[] = []) => ({ id, dependsOn }) as never
+  const group = { legs: [leg('tools'), leg('backend', ['tools'])] }
+
+  it('narrows a leg other legs build on to merge or squash', () => {
+    expect(processRunIntegrationModes({ groupLegId: 'tools' }, group)).toEqual(['merge', 'squash'])
+  })
+
+  it('leaves every way open for a leg nothing builds on', () => {
+    expect(processRunIntegrationModes({ groupLegId: 'backend' }, group)).toEqual([
+      'merge',
+      'squash',
+      'pull-request',
+    ])
+  })
+
+  it('does not narrow a run that is not a group leg, or whose group is not loaded', () => {
+    expect(processRunIntegrationModes({}, group)).toBeUndefined()
+    expect(processRunIntegrationModes({ groupLegId: 'tools' }, undefined)).toBeUndefined()
+  })
+
+  it('offers only the narrowed ways, and none of the others', () => {
+    expect(processIntegrationChoices(workBranch, ['merge', 'squash']).map((c) => c.mode)).toEqual([
+      'merge',
+      'squash',
+    ])
+  })
+
+  it('needs no choice when one way is left', () => {
+    expect(soleIntegrationMode(workBranch, ['squash'])).toBe('squash')
+    expect(soleIntegrationMode(workBranch, ['merge', 'squash'])).toBeUndefined()
   })
 })
 
@@ -276,6 +311,34 @@ describe('processIntegrationView', () => {
     })
   })
 
+  it('offers an agent to resolve work that conflicts with its base', () => {
+    expect(
+      processIntegrationView(
+        run({
+          integration: {
+            mode: 'squash',
+            status: 'failed',
+            error: 'The work conflicts with main in src/file/fileConstants.ts',
+            conflict: {
+              baseRef: 'main',
+              baseSha: SHA,
+              commits: 2,
+              paths: ['src/file/fileConstants.ts'],
+            },
+            at: 1,
+          },
+        }),
+      ),
+    ).toEqual({
+      tone: 'stuck',
+      title: 'Approved — not merged into main',
+      detail: 'The work conflicts with main in src/file/fileConstants.ts',
+      conflict: { baseRef: 'main', paths: ['src/file/fileConstants.ts'] },
+      canRetry: true,
+      busy: false,
+    })
+  })
+
   it('says a failed pull request was not opened', () => {
     expect(
       processIntegrationView(
@@ -308,5 +371,98 @@ describe('processIntegrationBadge', () => {
 
   it('has nothing to say for a run without a work branch', () => {
     expect(processIntegrationBadge(run({ workBranch: undefined }))).toBeUndefined()
+  })
+})
+
+describe('processIntegrationView — a conflict on landing sent to an agent', () => {
+  const conflict = {
+    baseRef: 'main',
+    baseSha: SHA,
+    commits: 2,
+    paths: ['src/file/fileConstants.ts'],
+  }
+  const resolving = (over: Partial<ProcessRun> = {}): ProcessRun => {
+    const base = run()
+    return run({
+      status: 'running',
+      plan: {
+        ...base.plan,
+        steps: [
+          ...base.plan.steps,
+          {
+            id: 'resolve-conflict',
+            name: 'Resolve conflict',
+            kind: 'agent',
+            agentType: 'developer',
+          },
+          { id: 'conflict-checks', name: 'Checks', kind: 'check' },
+          { id: 'confirm-landing', name: 'Confirm landing', kind: 'gate' },
+        ],
+        amendments: [
+          {
+            at: 2,
+            stepIds: ['resolve-conflict', 'conflict-checks', 'confirm-landing'],
+            integrationConflict: conflict,
+          },
+        ],
+      },
+      ...over,
+    })
+  }
+
+  it('says an agent is resolving it while the run works', () => {
+    expect(processIntegrationView(resolving())).toEqual({
+      tone: 'working',
+      title: 'An agent is resolving the conflict with main',
+      detail:
+        'It resolves the files, main is merged into the work and the checks run — then the work comes back to you to confirm how it lands.',
+      files: ['src/file/fileConstants.ts'],
+      canRetry: false,
+      busy: true,
+    })
+  })
+
+  it('shows what changed when the work is back for the person to confirm', () => {
+    const checked: ProcessLedgerEntry = {
+      id: 'c',
+      stepId: 'conflict-checks',
+      iteration: 1,
+      status: 'done',
+      outcome: 'passed',
+      summary: 'Build ✓ · Unit tests ✓',
+      startedAt: 3,
+      baseUpdate: { baseRef: 'main', baseSha: SHA, commits: 2, sha: 'm'.repeat(40), at: 4 },
+    }
+    const parked = resolving({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'confirm-landing', message: 'Confirm', parkedAt: 5 },
+      ledger: [approved, checked],
+    })
+    expect(processIntegrationView(parked)).toEqual({
+      tone: 'review',
+      title: 'The conflict with main is resolved — confirm how the work lands',
+      detail:
+        'main was merged into the work, resolving the files below, and the checks ran on it: Build ✓ · Unit tests ✓. Approve to land it — the way, identity and message you chose before are kept.',
+      sha: 'mmmmmmm',
+      files: ['src/file/fileConstants.ts'],
+      canRetry: false,
+      busy: false,
+    })
+  })
+
+  it('leaves a park on the way to the person, who answers it there', () => {
+    const stuck = resolving({
+      status: 'parked',
+      park: { reason: 'step-errored', stepId: 'conflict-checks', message: 'x', parkedAt: 5 },
+    })
+    expect(processIntegrationView(stuck)).toBeUndefined()
+  })
+
+  it('reports the landing as usual once it is confirmed and lands', () => {
+    const landed = resolving({
+      status: 'succeeded',
+      integration: { mode: 'squash', status: 'integrated', sha: SHA, at: 6 },
+    })
+    expect(processIntegrationView(landed)?.title).toBe('Merged into main as one commit')
   })
 })

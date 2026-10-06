@@ -19,6 +19,7 @@ import type { VerifyReviewStatus } from './processView'
 import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 import type { RunModel } from './runModel'
 import type { RunReviewFacts } from './runReviewTypes'
+import type { SignoffWork } from './signoffWorkTypes'
 import type {
   EvidenceLoadState,
   FeatureVerifySectionProps,
@@ -167,6 +168,10 @@ export type FixSignoff = SectionSignoff & {
   note: string | undefined
   /** The runs its ledger launched — whose filings are its own. */
   runIds: string[]
+  /** The proof its request required, each kind marked — absent when it required none. */
+  proofPlan?: ProofPlanMarkRow[]
+  /** Why the person's request is not met, when the fix found it unmet. */
+  unmetRequest?: string
 }
 
 /** What a feature section and a fix pass section both show. */
@@ -250,6 +255,11 @@ export type OverallSignoff = {
    * walkthrough, the code review, the final report) came out, in plan order.
    */
   steps: StoryStepLine[]
+  /**
+   * The story run's code review verdict as its ledger kept it — what the Code
+   * review tab's badge says, since a restart strips the filing's own verdict.
+   */
+  codeReview: VerifyReviewerVerdict | undefined
   /** The verifier(s)/capture agent(s) that produced the story-wide checks. */
   agents: SignoffAgent[]
   /** Time and cost of the story run's own steps (the walkthrough capture, etc.). */
@@ -297,7 +307,8 @@ export type StoryDigest = {
 export type SignoffTally = { label: string; title: string }
 
 /** The verdict's own line under the badge, for an outcome the tally alone does not explain. */
-export type SignoffHeadline = Pick<SignoffVerdict, 'title' | 'detail'>
+/** The sign-off's headline; `detail` only when it says something the ⚠ notice does not. */
+export type SignoffHeadline = Pick<SignoffVerdict, 'title'> & { detail: string | undefined }
 
 /** The whole story's sign-off: an aggregate verdict, a digest, and the features. */
 export type StorySignoff = {
@@ -321,17 +332,17 @@ export type StorySignoff = {
   /** Story-total time and cost — each feature's latest run and the story run's own steps. */
   facts: RunReviewFacts
   /**
-   * How the story's features were worked, in the launch approval's words —
-   * read from the plan the story run froze. Absent without a story run, or for
-   * one that nests a feature process the approval does not offer.
-   */
-  featureProcess: string | undefined
-  /**
    * The runs whose filings the sign-off shows — each feature's latest run and
    * the story run's own. Undefined when no process run scopes the story, so
    * everything filed for it shows.
    */
   evidenceRunIds: ReadonlySet<string> | undefined
+  /**
+   * The time and spend behind those runs, step by step and role by role — what
+   * the report's Time and Cost tiles break down. Undefined when no process run
+   * carries totals.
+   */
+  work: SignoffWork | undefined
 }
 
 /** Where one of the sources a sign-off is computed from stands. */

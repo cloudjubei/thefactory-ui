@@ -13,4 +13,8 @@ export { default as HandoffButton, type HandoffButtonProps } from './HandoffButt
 export { default as HelpChip, type HelpChipProps } from './HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './RefChip'
 export { default as RunActionButton, type RunActionButtonProps } from './RunActionButton'
+export {
+  default as SetUpWithAgentButton,
+  type SetUpWithAgentButtonProps,
+} from './SetUpWithAgentButton'
 export { default as ReferenceChip, type ReferenceChipProps } from './ReferenceChip'

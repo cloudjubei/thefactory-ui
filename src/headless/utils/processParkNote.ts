@@ -1,4 +1,11 @@
-import type { ProcessParkAction, ProcessWaitingKind } from 'thefactory-tools/types'
+import type {
+  ProcessParkAction,
+  ProcessWaitingKind,
+  ProofKind,
+  UiChangeFeature,
+  UiChangeScope,
+} from 'thefactory-tools/types'
+import { canonicalProofKinds, likelyUiChange } from 'thefactory-tools/utils'
 
 import {
   PARK_NOTE_CHOICES,
@@ -28,6 +35,37 @@ export function waitingNoteCopy(kind: ProcessWaitingKind): ParkNoteCopy {
 export function parkNoteCounter(draft: string): string | undefined {
   if (draft.length < PARK_NOTE_COUNTER_FROM) return undefined
   return `${draft.length} / ${PARK_NOTE_MAX_LENGTH}`
+}
+
+/**
+ * The proof a request for changes starts out requiring: on-screen proof when
+ * the story's change is to what users see — a feature that looks like one, or
+ * a proof plan that already asks for screens. Pure.
+ */
+export function requestChangesProofPreset(input: {
+  features: readonly UiChangeFeature[]
+  scope?: UiChangeScope
+  plannedKinds?: readonly ProofKind[]
+}): ProofKind[] {
+  const ui =
+    (input.plannedKinds ?? []).includes('ui-before-after') ||
+    input.features.some((f) => likelyUiChange(f, input.scope))
+  return ui ? ['ui-before-after'] : []
+}
+
+/** Where a project's own app lives, read from its metadata — what a change to it alters. Pure. */
+export function uiChangeScopeOf(metadata: unknown): UiChangeScope {
+  const appDir = (metadata as { appDir?: unknown } | undefined)?.appDir
+  return typeof appDir === 'string' && appDir.trim() ? { appDir: appDir.trim() } : {}
+}
+
+/** The proof a request requires once one kind is switched on or off, canonical. Pure. */
+export function toggleRequestedProof(
+  kinds: readonly ProofKind[],
+  kind: ProofKind,
+  on: boolean,
+): ProofKind[] {
+  return canonicalProofKinds(on ? [...kinds, kind] : kinds.filter((k) => k !== kind))
 }
 
 /** The note a draft sends: trimmed, within the limit, and none at all when blank. */

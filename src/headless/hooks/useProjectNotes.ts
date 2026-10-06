@@ -12,11 +12,12 @@ import { invalidateReferenceProject } from './useReferences'
 import { sortNotes } from '../utils/projectNotes'
 import type { ProjectNoteCreateBody, ProjectNotePatchBody } from '../utils/projectNotesTypes'
 
-export type UseProjectNotes = {
+/** A notes store — a project's or a group's — as the notes UI drives it. */
+export type UseNotes<N> = {
   isLoaded: boolean
   loadError: Error | null
   /** Note summaries in display order. Never carries a stored value. */
-  notes: ProjectNoteSummary[]
+  notes: N[]
   refresh: () => Promise<void>
   createNote: (input: ProjectNoteCreateBody) => Promise<void>
   updateNote: (noteId: string, patch: ProjectNotePatchBody) => Promise<void>
@@ -28,6 +29,8 @@ export type UseProjectNotes = {
    */
   revealNote: (noteId: string) => Promise<string>
 }
+
+export type UseProjectNotes = UseNotes<ProjectNoteSummary>
 
 /**
  * Per-project store of standing context an agent can reach for — logins for an

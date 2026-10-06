@@ -16,8 +16,10 @@ import {
   reviewActionMode,
   reviewChangeCounts,
   runReviewFacts,
+  ranReviewChecks,
   reviewCheckGroups,
   reviewCheckMeta,
+  testLayerLines,
   verdictSummary,
   verificationCheckRows,
   formatChangeRequestMessage,
@@ -188,7 +190,7 @@ describe('verificationCheckRows', () => {
       ranInDetail: undefined,
       testCount: undefined,
       testCountLabel: undefined,
-      suites: undefined,
+      testResults: undefined,
       legacyNote: undefined,
     })
   })
@@ -217,8 +219,8 @@ describe('verificationCheckRows', () => {
       variantReason: 'the change touches app/src/mckinseyOnsite',
       modules: ['app', 'library'],
       coverageNote: 'data/src/test is not run.',
-      suites: {
-        rows: [{ name: 'a.ATest', module: 'app' }],
+      testResults: {
+        results: { tests: [{ filePath: 'app › a.ATest' }] },
         omittedLabel: '2 more suites not kept',
       },
       legacyNote: undefined,
@@ -243,6 +245,22 @@ describe('verificationCheckRows', () => {
       verification({ checks: [check({ kind: 'command', command: '   ' })] }),
     )
     expect(row?.legacyNote).toBe(LEGACY_CHECK_RECORD_NOTE)
+  })
+})
+
+describe('ranReviewChecks', () => {
+  it('leaves out a check that was skipped and keeps every one that ran, however it ended', () => {
+    const rows = verificationCheckRows(
+      verification({
+        checks: [
+          check({ id: 'a', status: 'passed' }),
+          check({ id: 'b', status: 'skipped' }),
+          check({ id: 'c', status: 'failed' }),
+          check({ id: 'd', status: 'error' }),
+        ],
+      }),
+    )
+    expect(ranReviewChecks(rows).map((r) => r.id)).toEqual(['a', 'c', 'd'])
   })
 })
 
@@ -601,5 +619,46 @@ describe('reviewCheckMeta', () => {
 
   it('is undefined when the check said none of it', () => {
     expect(reviewCheckMeta(none)).toBeUndefined()
+  })
+})
+
+describe('testLayerLines', () => {
+  const layer = {
+    summary: '13111/13111 passed',
+    testCount: { total: 13111, passed: 13111, failed: 0, skipped: 0 },
+    variant: undefined,
+    variantReason: undefined,
+    modules: undefined,
+    testCountLabel: '13111 tests',
+    ranInDetail: 'Ran on the host — siblings.',
+    dependencyDetail: undefined,
+    baselineDetail: undefined,
+  }
+
+  it('leaves a lone layer’s totals to the bar above it, and never repeats its count in the meta', () => {
+    expect(testLayerLines(layer, 1)).toEqual({
+      summary: undefined,
+      meta: 'Ran on the host — siblings.',
+    })
+  })
+
+  it('keeps each layer’s summary when there are several, its count said once', () => {
+    expect(testLayerLines(layer, 2)).toEqual({
+      summary: '13111/13111 passed',
+      meta: 'Ran on the host — siblings.',
+    })
+  })
+
+  it('keeps the count in the meta when the summary does not say it', () => {
+    expect(testLayerLines({ ...layer, summary: 'Command succeeded' }, 2)).toEqual({
+      summary: 'Command succeeded',
+      meta: '13111 tests · Ran on the host — siblings.',
+    })
+  })
+
+  it('keeps an uncounted layer’s summary, even alone', () => {
+    expect(
+      testLayerLines({ ...layer, testCount: undefined, testCountLabel: undefined }, 1),
+    ).toEqual({ summary: '13111/13111 passed', meta: 'Ran on the host — siblings.' })
   })
 })

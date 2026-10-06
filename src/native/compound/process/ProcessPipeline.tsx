@@ -13,27 +13,33 @@ import {
 
 import {
   choiceTakesNote,
+  computeChatRowStatus,
+  processRunChatContext,
+  RUN_CHAT_OPEN_LABEL,
+  RunChatDraftProvider,
+  RunNeedsYouProvider,
+  runNeedsYouDiscussDraft,
+  useChats,
+  usePendingAsksByChat,
+  type ChatsSeenMap,
+  type RunNeedsYouActions,
+  fileNameSlug,
   useDurationTimer,
   formatProcessDuration,
-  hasIsolatedAttempts,
   isIntegratingApproval,
-  isProcessLeafOpenable,
   isReflectedPark,
   isResumeParkChoice,
-  latestOpenableAttempt,
+  REQUEST_PROOF_CHOICES,
   parkNoteRequired,
-  PROCESS_GROUP_HELD_SIGN_OFF,
   processAmendmentView,
-  processAttemptLeaf,
-  processLeafReview,
-  processLoopSenders,
   processNodeBadge,
   processNodeLook,
   processNodeState,
-  processNodeSummary,
   type ProcessNodeLook,
-  processParkChoices,
+  processRunParkChoices,
+  processRunIntegrationModes,
   processRunBadge,
+  processRunHeaderModel,
   processRunPersonEnding,
   processRunSendBackGateId,
   PROCESS_SEND_BACK_COPY,
@@ -41,17 +47,24 @@ import {
   processRunWorkMs,
   processStepCostLabel,
   processStepCostTitle,
+  processStepModelChip,
+  processStepRowView,
   processStepWorkMs,
   processTimeDetailsView,
   processStepStates,
-  processStepTone,
   processWaitingView,
+  signoffMergeHold,
+  SIGNOFF_GROUP_CHIP_LABEL,
+  SIGNOFF_GROUP_CHIP_TITLE,
   useAppSettings,
+  useProcessGroupRun,
   useProcessRun,
+  useProjects,
+  useStories,
   waitingNoteCopy,
-  type ProcessIntegrationMode,
+  type ProcessIntegrationDecision,
+  type ProofKind,
   type ProcessNodeRunRef,
-  type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
@@ -61,43 +74,56 @@ import type { ChatContext } from '../../../headless/api'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
+import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
+import BaseMovedNote from './BaseMovedNote'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
-import ProcessCheckList from './ProcessCheckList'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
-import VerificationReview from './VerificationReview'
-import { DurCostChips, type SaveFileHandler } from '../chat/signoff'
+import StepPreview from './pipeline/StepPreview'
+import StepScreen, { type StepPanelTarget } from './pipeline/StepScreen'
+import { DurCostChips, RunModelChip, type SaveFileHandler } from '../chat/signoff'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
+import DependencyRef from '../stories/DependencyRef'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
-import SegmentedControl from '../../primitives/SegmentedControl'
-import { IconChevronLeft } from '../../icons/IconChevronLeft'
+import {
+  IconChat,
+  IconChevronLeft,
+  IconChevronRight,
+  IconDotsVertical,
+  IconGroup,
+} from '../../icons'
+import { getChatContextKey } from 'thefactory-tools/utils'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
   runId: string
-  /** Open the agent-run chat a leaf owns. A leaf IS a chat, one level down. */
+  /** Open the agent-run chat a step owns as a full page — the step screen's ↗. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   /**
-   * Render a leaf's agent-run chat inside the pipeline (drill-down) rather than
-   * routing away. When provided it wins over `onOpenAgentRun`: opening a leaf
-   * swaps the pipeline body for a drill with a "‹ Pipeline" head and this content
-   * below it; `onBack` returns to the spine. A verify attempt opens in place as
-   * its small sign-off either way.
+   * Render a step's agent-run chat on its pushed step screen; `onBack` returns
+   * to the pipeline.
    */
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
-  /** Native host's file saver; enables the story gate's downloads when provided. */
+  /** Native host's file saver; enables the sign-off's downloads when provided. */
   onSaveFile?: SaveFileHandler
   /**
    * Open a chat by its context — where a waiting agent's ask went when the
    * person handed it to another agent. The host owns chat navigation.
    */
   onOpenChat?: (context: ChatContext) => void
-  /** Open the group run a project's run is a leg of — where it is signed off. */
+  /** Open the group run a project's run is a leg of. */
   onOpenGroupRun?: (groupRunId: string) => void
+  /**
+   * Push the run's own chat — native's form of web's chat drawer. Its draft is
+   * already set when a "Needs you" item is being discussed.
+   */
+  onOpenRunChat?: (context: ChatContext) => void
+  /** The host's map of when each chat was last seen — the run chat's unread dot. */
+  chatsSeen?: ChatsSeenMap
   /**
    * Whether this pipeline's screen is the one on top. The system back button is
    * only claimed while it is — a chat pushed over the pipeline must get its own
@@ -106,12 +132,22 @@ export type ProcessPipelineProps = {
   isFocused?: boolean
 }
 
+/** The run sits at its story's sign-off — the screen leads with the decision. */
+function isStorySignoff(run: ProcessRun): boolean {
+  return (
+    run.status === 'parked' &&
+    run.park?.reason === 'gate' &&
+    !!run.storyId &&
+    !isReflectedPark(run.park)
+  )
+}
+
 /**
  * Native peer of
  * [web's `ProcessPipeline`](../../../web/compound/process/ProcessPipeline.tsx).
- * Same spine-and-marker design, same navigation rule. On a small screen the
- * pipeline matters more, not less — a transcript is the least readable way to
- * answer "where is this" on a phone.
+ * At a story's sign-off the decision leads; each step is one line with a
+ * chevron to a preview of its output, and a preview opens the full view on a
+ * pushed step screen — native's form of web's side panel.
  */
 export default function ProcessPipeline({
   runId,
@@ -120,12 +156,14 @@ export default function ProcessPipeline({
   onSaveFile,
   onOpenChat,
   onOpenGroupRun,
+  onOpenRunChat,
+  chatsSeen,
   isFocused = true,
 }: ProcessPipelineProps) {
   const { theme, status } = useNativeTheme()
   const [stack, setStack] = useState<string[]>([])
-  const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
-  const [leafView, setLeafView] = useState<'review' | 'transcript'>('review')
+  const [panel, setPanel] = useState<StepPanelTarget | null>(null)
+  const [reportText, setReportText] = useState<string | undefined>()
   const currentId = stack[stack.length - 1] ?? runId
   const {
     isLoaded,
@@ -135,13 +173,43 @@ export default function ProcessPipeline({
     resume,
     delegate,
     retryIntegration,
+    resolveIntegrationConflict,
     sendBack,
     cancel,
     listBranches,
     deleteRun,
+    openChat,
+    resolveNeedsYou,
   } = useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
+  const { group } = useProcessGroupRun(run?.groupRunId)
+  const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
+  const { projects } = useProjects()
+  const { getChat, setDraft } = useChats()
+  const runChat = processRunChatContext({ id: runId, projectId: run?.projectId ?? '' })
+  const runChatKey = getChatContextKey(runChat)
+  const runChatAsks = usePendingAsksByChat().get(runChatKey) ?? 0
+  const runChatUnread =
+    !!chatsSeen &&
+    computeChatRowStatus({
+      context: runChat,
+      contextKey: runChatKey,
+      chat: getChat(runChat),
+      isSending: false,
+      seen: chatsSeen,
+      pendingAsks: runChatAsks,
+    }).isUnread
+  const canChat = stack.length === 0 && !run?.parentRunId && !!onOpenRunChat
+  const openRunChat = useCallback(
+    async (draft?: string) => {
+      const opened = await openChat()
+      if (!opened) return
+      if (draft) setDraft(opened.context, draft)
+      onOpenRunChat?.(opened.context)
+    },
+    [openChat, setDraft, onOpenRunChat],
+  )
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
@@ -149,47 +217,26 @@ export default function ProcessPipeline({
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
-  // One 1s clock for the whole pipeline — ticks while a step is working, so its
-  // time advances in real time; stops while the run waits on a person or ends.
   const now = useDurationTimer(run?.totals?.ticking === true)
 
   const drillTo = useCallback((childId: string) => {
-    setOpenLeaf(null)
+    setPanel(null)
     setStack((s) => [...s, childId])
   }, [])
   const popTo = useCallback((depth: number) => {
-    setOpenLeaf(null)
+    setPanel(null)
     setStack((s) => s.slice(0, depth))
   }, [])
 
-  // A leaf opens IN PLACE: a verify attempt as its small sign-off, any other as
-  // its chat when the host renders one. Otherwise the host routes to it (the
-  // native host pushes the chat screen).
-  const canOpenTranscript = renderAgentRun !== undefined || onOpenAgentRun !== undefined
-  const openLeafHere = useCallback(
-    (leaf: ProcessOpenLeaf, hasReview: boolean) => {
-      if (hasReview || renderAgentRun) {
-        setOpenLeaf(leaf)
-        setLeafView(hasReview ? 'review' : 'transcript')
-        return
-      }
-      onOpenAgentRun?.(leaf.ref)
-    },
-    [renderAgentRun, onOpenAgentRun],
-  )
-
-  // The system back gesture/button steps back out of an opened leaf or drill
-  // level first — the same as its "‹ Pipeline" head — instead of leaving the
-  // pipeline screen altogether and losing where the user was.
   useEffect(() => {
-    if (!isFocused || (!openLeaf && stack.length === 0)) return
+    if (!isFocused || (!panel && stack.length === 0)) return
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (openLeaf) setOpenLeaf(null)
+      if (panel) setPanel(null)
       else setStack((s) => s.slice(0, -1))
       return true
     })
     return () => sub.remove()
-  }, [isFocused, openLeaf, stack.length])
+  }, [isFocused, panel, stack.length])
 
   const openDelete = useCallback(() => {
     setAlsoBranches(false)
@@ -200,8 +247,6 @@ export default function ProcessPipeline({
       .catch(() => setBranches([]))
   }, [listBranches])
 
-  // A project with no git of its own has no branches of the user's to keep: the
-  // run's are Overseer's private history, so they go with the run.
   const shadowWork = run?.workBranch?.shadow === true
   const runDelete = useCallback(() => {
     setDeleting(true)
@@ -230,217 +275,281 @@ export default function ProcessPipeline({
   }
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
-  if (openLeaf) {
-    const back = () => setOpenLeaf(null)
-    const review = processLeafReview(run, openLeaf)
-    const showReview = review !== undefined && leafView === 'review'
-    const hasTranscript = openLeaf.ref.chatContextId !== undefined && canOpenTranscript
-    const pickView = (view: 'review' | 'transcript') => {
-      if (view === 'transcript' && !renderAgentRun) onOpenAgentRun?.(openLeaf.ref)
-      else setLeafView(view)
-    }
+  const openDraft = canChat ? (draft: string) => void openRunChat(draft) : undefined
+  if (panel) {
     return (
-      <View style={{ flex: 1 }}>
-        <LeafHead
-          title={openLeaf.title}
-          onBack={back}
-          {...(review && hasTranscript ? { view: leafView, onView: pickView } : {})}
+      <RunChatDraftScope open={openDraft}>
+        <StepScreen
+          target={panel}
+          onBack={() => setPanel(null)}
+          {...(renderAgentRun ? { renderAgentRun } : {})}
+          {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+          {...(onSaveFile ? { onSaveFile } : {})}
         />
-        {showReview ? (
-          <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
-            <VerificationReview
-              projectId={run.projectId}
-              review={review.scope}
-              entry={review.entry}
-              title={openLeaf.title}
-              {...(onSaveFile ? { onSaveFile } : {})}
-            />
-          </ScrollView>
-        ) : (
-          <View style={{ flex: 1 }}>{renderAgentRun?.(openLeaf.ref, back)}</View>
-        )}
-      </View>
+      </RunChatDraftScope>
     )
   }
 
+  const needsYouActions: RunNeedsYouActions | undefined = canChat
+    ? {
+        resolutions: run.needsYouResolutions,
+        onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
+        onResolve: (card) => void resolveNeedsYou(card.id),
+      }
+    : undefined
   const states = processStepStates(run)
   const amendments = processAmendmentView(run)
+  const signoff = isStorySignoff(run)
+  const mergeHold =
+    signoff && group
+      ? signoffMergeHold(
+          group,
+          run.projectId,
+          (id) => projects.find((p) => p.id === id)?.title ?? id,
+        )
+      : undefined
+  const choose = (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+  ) => resume(choice, note, integration, requestedProof)
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
-      <RunHead
-        run={run}
-        depth={stack.length}
-        now={now}
-        onCrumb={popTo}
-        onCancel={() => void cancel()}
-        onDelete={openDelete}
-      />
-      {run.groupRunId && stack.length === 0 ? (
-        <View
-          style={{
-            marginHorizontal: nativeSpace[3],
-            marginTop: nativeSpace[3],
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: nativeSpace[2],
-            borderWidth: 1,
-            borderColor: theme.border.subtle,
-            borderRadius: nativeRadii[2],
-            backgroundColor: theme.surface.base,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-          }}
-        >
-          <Text style={{ flex: 1, minWidth: 0, fontSize: 12, color: theme.text.secondary }}>
-            {PROCESS_GROUP_HELD_SIGN_OFF}
-          </Text>
-          {onOpenGroupRun ? (
-            <Button size="sm" variant="secondary" onPress={() => onOpenGroupRun(run.groupRunId!)}>
-              Open the group run
-            </Button>
-          ) : null}
-        </View>
-      ) : null}
-      {actionError ? (
-        <View
-          accessibilityRole="alert"
-          style={{
-            marginHorizontal: nativeSpace[3],
-            marginTop: nativeSpace[3],
-            paddingHorizontal: nativeSpace[2],
-            paddingVertical: nativeSpace[2],
-            borderRadius: nativeRadii[2],
-            borderWidth: 1,
-            backgroundColor: status.stuck.softBg,
-            borderColor: status.stuck.softBorder,
-          }}
-        >
-          <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
-        </View>
-      ) : null}
-      {amendments.notes.length > 0 ? (
-        <View
-          style={{
-            marginHorizontal: nativeSpace[3],
-            marginTop: nativeSpace[3],
-            gap: 4,
-            borderWidth: 1,
-            borderColor: theme.border.subtle,
-            borderRadius: nativeRadii[2],
-            backgroundColor: theme.surface.base,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-          }}
-        >
-          <Text
+    <RunChatDraftScope open={openDraft}>
+      <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
+        <RunHead
+          run={run}
+          depth={stack.length}
+          now={now}
+          onCrumb={popTo}
+          onCancel={() => void cancel()}
+          onDelete={openDelete}
+          {...(signoff && reportText && onSaveFile
+            ? {
+                onDownloadReport: () =>
+                  void onSaveFile({
+                    name: `${fileNameSlug(run.title, 'report')}.md`,
+                    dataUri: `data:text/markdown;charset=utf-8,${encodeURIComponent(reportText)}`,
+                  }),
+              }
+            : {})}
+          {...(run.groupRunId && onOpenGroupRun
+            ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+            : {})}
+          {...(canChat
+            ? { chat: { onOpen: () => void openRunChat(), unread: runChatUnread } }
+            : {})}
+        />
+        {actionError && !signoff ? (
+          <View
+            accessibilityRole="alert"
             style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: theme.text.muted,
+              marginHorizontal: nativeSpace[3],
+              marginTop: nativeSpace[3],
+              paddingHorizontal: nativeSpace[2],
+              paddingVertical: nativeSpace[2],
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              backgroundColor: status.stuck.softBg,
+              borderColor: status.stuck.softBorder,
             }}
           >
-            Work added to this run
-          </Text>
-          {amendments.notes.map((note) => (
+            <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
+          </View>
+        ) : null}
+        {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => void resume(choice)} />}
+        {amendments.notes.length > 0 ? (
+          <View
+            style={{
+              marginHorizontal: nativeSpace[3],
+              marginTop: nativeSpace[3],
+              gap: 4,
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+              borderRadius: nativeRadii[2],
+              backgroundColor: theme.surface.base,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+            }}
+          >
             <Text
-              key={note}
-              style={{ fontSize: 11.5, lineHeight: 17, color: theme.text.secondary }}
+              style={{
+                fontSize: 10,
+                fontWeight: '600',
+                letterSpacing: 0.6,
+                textTransform: 'uppercase',
+                color: theme.text.muted,
+              }}
             >
-              {note}
+              Work added to this run
             </Text>
+            {amendments.notes.map((note) => (
+              <Text
+                key={note}
+                style={{ fontSize: 11.5, lineHeight: 17, color: theme.text.secondary }}
+              >
+                {note}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        <View
+          style={{
+            marginHorizontal: nativeSpace[3],
+            marginTop: nativeSpace[3],
+            borderRadius: nativeRadii[3],
+            borderWidth: 1,
+            borderColor: theme.border.subtle,
+            backgroundColor: theme.surface.raised,
+            paddingVertical: 4,
+          }}
+        >
+          {states.map((state, index) => (
+            <PipelineNode
+              key={state.step.id}
+              run={run}
+              state={state}
+              isLast={index === states.length - 1}
+              now={now}
+              addedTag={amendments.addedSteps[state.step.id]}
+              onChoose={choose}
+              onDelegate={() => delegate().then(() => undefined)}
+              {...(onOpenChat ? { onOpenChat } : {})}
+              onDrill={drillTo}
+              onOpenPanel={setPanel}
+              {...(renderAgentRun || onOpenAgentRun
+                ? {
+                    onOpenTranscript: (ref: ProcessNodeRunRef) => {
+                      if (!renderAgentRun) return onOpenAgentRun?.(ref)
+                      const entryId = state.entries.find((e) => e.runRef?.runId === ref.runId)?.id
+                      setPanel({
+                        runId: run.id,
+                        stepId: state.step.id,
+                        ...(entryId ? { entryId } : {}),
+                      })
+                    },
+                  }
+                : {})}
+            />
           ))}
         </View>
-      ) : null}
-      <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
-        {states.map((state, index) => (
-          <PipelineNode
-            key={state.step.id}
-            run={run}
-            state={state}
-            ordinal={index + 1}
-            isLast={index === states.length - 1}
-            now={now}
-            addedTag={amendments.addedSteps[state.step.id]}
-            onChoose={(choice, note, integration) => void resume(choice, note, integration)}
-            onDelegate={() => delegate().then(() => undefined)}
-            {...(onOpenChat ? { onOpenChat } : {})}
-            onDrill={drillTo}
-            onOpenLeaf={openLeafHere}
-            canOpenTranscript={canOpenTranscript}
-            {...(onSaveFile ? { onSaveFile } : {})}
-          />
-        ))}
-      </View>
-
-      <IntegrationResult run={run} onRetry={retryIntegration} />
-
-      <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
-
-      <RunEnding run={run} onSendBack={sendBack} />
-
-      {confirmDelete ? (
-        <Modal isOpen onClose={() => setConfirmDelete(false)} title="Delete this process run?">
-          <View style={{ gap: nativeSpace[3] }}>
-            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-              This removes the run and everything it produced — every step’s agent-run chat and its
-              record. This cannot be undone.
-            </Text>
-            {shadowWork ? null : branches.length > 0 ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: nativeSpace[2],
-                  borderRadius: nativeRadii[2],
-                  borderWidth: 1,
-                  borderColor: theme.border.subtle,
-                  backgroundColor: theme.surface.muted,
-                  padding: nativeSpace[3],
-                }}
-              >
-                <Switch value={alsoBranches} onValueChange={setAlsoBranches} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-                    {`Also delete ${branches.length} git branch${branches.length === 1 ? '' : 'es'}`}
-                  </Text>
-                  {branches.map((b) => (
-                    <Text
-                      key={`${b.projectId}:${b.branch}`}
-                      numberOfLines={1}
-                      style={{ fontSize: 11, color: theme.text.muted }}
-                    >
-                      {b.branch}
-                    </Text>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <Text style={{ fontSize: 12, color: theme.text.muted }}>
-                No review branches were found for this run.
-              </Text>
-            )}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button size="sm" variant="danger" onPress={runDelete} disabled={deleting}>
-                {deleting ? 'Deleting…' : 'Delete run'}
-              </Button>
-            </View>
+        <IntegrationResult
+          run={run}
+          {...(integrationModes ? { modes: integrationModes } : {})}
+          onRetry={retryIntegration}
+          onResolve={resolveIntegrationConflict}
+          error={signoff ? null : actionError}
+        />
+        {signoff ? (
+          <View style={{ paddingHorizontal: nativeSpace[3], paddingTop: nativeSpace[3] }}>
+            <NeedsYouScope value={needsYouActions}>
+              <StorySignoffReview
+                projectId={run.projectId}
+                storyId={run.storyId as string}
+                storyRunId={run.id}
+                choices={processRunParkChoices(run)}
+                {...(run.workBranch && isIntegratingApproval(run, 'approve')
+                  ? { workBranch: run.workBranch }
+                  : {})}
+                {...(integrationModes ? { integrationModes } : {})}
+                onChoose={choose}
+                error={actionError}
+                {...(mergeHold
+                  ? {
+                      mergeHold: {
+                        ...mergeHold,
+                        ...(onOpenGroupRun
+                          ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+                          : {}),
+                      },
+                    }
+                  : {})}
+                onReportText={setReportText}
+                onOpenStep={setPanel}
+                {...(onSaveFile ? { onSaveFile } : {})}
+              />
+            </NeedsYouScope>
           </View>
-        </Modal>
-      ) : null}
-    </ScrollView>
+        ) : null}
+
+        <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
+
+        <RunEnding run={run} onSendBack={sendBack} />
+
+        {confirmDelete ? (
+          <Modal isOpen onClose={() => setConfirmDelete(false)} title="Delete this process run?">
+            <View style={{ gap: nativeSpace[3] }}>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+                This removes the run and everything it produced — every step’s agent-run chat and
+                its record. This cannot be undone.
+              </Text>
+              {shadowWork ? null : branches.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: nativeSpace[2],
+                    borderRadius: nativeRadii[2],
+                    borderWidth: 1,
+                    borderColor: theme.border.subtle,
+                    backgroundColor: theme.surface.muted,
+                    padding: nativeSpace[3],
+                  }}
+                >
+                  <Switch value={alsoBranches} onValueChange={setAlsoBranches} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+                      {`Also delete ${branches.length} git branch${branches.length === 1 ? '' : 'es'}`}
+                    </Text>
+                    {branches.map((b) => (
+                      <Text
+                        key={`${b.projectId}:${b.branch}`}
+                        numberOfLines={1}
+                        style={{ fontSize: 11, color: theme.text.muted }}
+                      >
+                        {b.branch}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <Text style={{ fontSize: 12, color: theme.text.muted }}>
+                  No review branches were found for this run.
+                </Text>
+              )}
+              <View
+                style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}
+              >
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button size="sm" variant="danger" onPress={runDelete} disabled={deleting}>
+                  {deleting ? 'Deleting…' : 'Delete run'}
+                </Button>
+              </View>
+            </View>
+          </Modal>
+        ) : null}
+      </ScrollView>
+    </RunChatDraftScope>
   )
+}
+
+/** Anything inside the run — its sign-off, a step's screen — can open the run's chat with a draft. */
+function RunChatDraftScope({
+  open,
+  children,
+}: {
+  open: ((draft: string) => void) | undefined
+  children: ReactNode
+}) {
+  return open ? <RunChatDraftProvider value={open}>{children}</RunChatDraftProvider> : children
 }
 
 function ToneBadge({ tone, label }: { tone: ProcessStatusTone; label: string }) {
@@ -462,6 +571,59 @@ function ToneBadge({ tone, label }: { tone: ProcessStatusTone; label: string }) 
   )
 }
 
+/** The sign-off's "Needs you" cards can be discussed and settled — when the run has a chat to discuss them in. */
+function NeedsYouScope({
+  value,
+  children,
+}: {
+  value: RunNeedsYouActions | undefined
+  children: ReactNode
+}) {
+  return value ? <RunNeedsYouProvider value={value}>{children}</RunNeedsYouProvider> : children
+}
+
+/** A square icon action in the run head. */
+function HeadAction({
+  label,
+  onPress,
+  children,
+}: {
+  label: string
+  onPress: () => void
+  children: ReactNode
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => ({
+        minWidth: 32,
+        height: 32,
+        paddingHorizontal: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        borderRadius: nativeRadii[2],
+        borderWidth: 1,
+        borderColor: theme.border.default,
+        backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
+      })}
+    >
+      {children}
+    </Pressable>
+  )
+}
+
+/**
+ * The run head: where you are, the state, time and spend — then icon-only
+ * actions: the Group chip for a group's leg, Stop while the run can still do
+ * work, and ⋯ for the rare ones (download the report, delete — which still
+ * asks first).
+ */
 function RunHead({
   run,
   depth,
@@ -469,23 +631,55 @@ function RunHead({
   onCrumb,
   onCancel,
   onDelete,
+  onOpenGroup,
+  onDownloadReport,
+  chat,
 }: {
   run: ProcessRun
   depth: number
-  /** The pipeline's live clock — so a running run's elapsed ticks in the head. */
   now: number
   onCrumb: (depth: number) => void
   onCancel: () => void
-  /** Delete the WHOLE run — offered only at the top level (not a drilled child). */
   onDelete?: () => void
+  onOpenGroup?: () => void
+  onDownloadReport?: () => void
+  /** The run's own chat: open it, and whether it has news. */
+  chat?: { onOpen: () => void; unread: boolean }
 }) {
   const { theme } = useNativeTheme()
+  const [menuOpen, setMenuOpen] = useState(false)
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
-  // Work time from the ledger: every attempt of every step, nested runs
-  // included, and never the time spent waiting on a person.
   const workMs = processRunWorkMs(run, now)
+  const model = processRunHeaderModel(run, run.ledger)
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
+  const actions: ActionMenuItem[] = [
+    ...(onDownloadReport
+      ? [
+          {
+            key: 'download-report',
+            label: 'Download report',
+            onPress: () => {
+              setMenuOpen(false)
+              onDownloadReport()
+            },
+          },
+        ]
+      : []),
+    ...(depth === 0 && onDelete
+      ? [
+          {
+            key: 'delete',
+            label: 'Delete run…',
+            destructive: true,
+            onPress: () => {
+              setMenuOpen(false)
+              onDelete()
+            },
+          },
+        ]
+      : []),
+  ]
   return (
     <View
       style={{
@@ -503,7 +697,12 @@ function RunHead({
       <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
         {depth > 0 ? (
           <>
-            <Pressable onPress={() => onCrumb(0)} accessibilityRole="button">
+            <Pressable
+              onPress={() => onCrumb(0)}
+              accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+            >
+              <IconChevronLeft size={14} color={theme.text.muted} />
               <Text style={{ fontSize: 12, color: theme.text.muted }}>Top</Text>
             </Pressable>
             {Array.from({ length: depth - 1 }).map((_, i) => (
@@ -523,6 +722,7 @@ function RunHead({
       </View>
       <View style={{ flex: 1 }} />
       <ToneBadge tone={badge.tone} label={badge.label} />
+      {model ? <RunModelChip model={model} /> : null}
       <DurCostChips
         facts={{
           durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
@@ -534,30 +734,65 @@ function RunHead({
         costTitle={spend?.title}
         timeTitle="Time spent working, across every attempt"
       />
+      {onOpenGroup && depth === 0 ? (
+        <HeadAction label={SIGNOFF_GROUP_CHIP_TITLE} onPress={onOpenGroup}>
+          <IconGroup size={16} color={theme.text.secondary} />
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {SIGNOFF_GROUP_CHIP_LABEL}
+          </Text>
+        </HeadAction>
+      ) : null}
+      {chat && depth === 0 ? (
+        <HeadAction label={RUN_CHAT_OPEN_LABEL} onPress={chat.onOpen}>
+          <IconChat size={16} color={theme.text.secondary} />
+          {chat.unread ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: theme.accent.primary,
+              }}
+            />
+          ) : null}
+        </HeadAction>
+      ) : null}
       {stoppable ? (
-        <Button size="sm" variant="secondary" onPress={onCancel}>
-          Stop
-        </Button>
+        <HeadAction label="Stop the run" onPress={onCancel}>
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 2,
+              backgroundColor: theme.text.secondary,
+            }}
+          />
+        </HeadAction>
       ) : null}
-      {depth === 0 && onDelete ? (
-        <Button size="sm" variant="ghost" onPress={onDelete}>
-          Delete
-        </Button>
+      {actions.length > 0 ? (
+        <HeadAction label="More actions" onPress={() => setMenuOpen(true)}>
+          <View style={{ transform: [{ rotate: '90deg' }] }}>
+            <IconDotsVertical size={16} color={theme.text.secondary} />
+          </View>
+        </HeadAction>
       ) : null}
+      <ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} actions={actions} />
     </View>
   )
 }
 
 /**
- * Native peer of the web Marker: a filled mark for a verdict, a dashed numbered
- * outline for what has not run yet, and — only for running work — a green ring
+ * Native peer of the web Marker: a filled mark for a verdict, a dashed outline
+ * for what has not run or was skipped, and — only for running work — a ring
  * that spins (held still when the device asks for reduced motion).
  */
-function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' }) {
+function Marker({ look }: { look: ProcessNodeLook }) {
   const { status, theme } = useNativeTheme()
   const variant = status[look.tone]
-  const box = size === 'node' ? 26 : 15
-  const glyph = size === 'sub' && look.shape !== 'solid' ? '' : look.glyph
+  const box = 22
   const rotation = useRef(new Animated.Value(0)).current
   useEffect(() => {
     if (!look.spin) return
@@ -594,7 +829,7 @@ function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' })
         borderWidth: 1.5,
         borderColor:
           look.shape === 'dashed'
-            ? theme.border.default
+            ? theme.border.strong
             : look.shape === 'ring'
               ? variant.softBorder
               : variant.bg,
@@ -618,20 +853,15 @@ function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' })
           }}
         />
       ) : null}
-      {glyph ? (
+      {look.shape !== 'dashed' && look.glyph ? (
         <Text
           style={{
-            fontSize: size === 'node' ? 10 : 8,
+            fontSize: 10,
             fontWeight: '700',
-            color:
-              look.shape === 'dashed'
-                ? theme.text.muted
-                : look.shape === 'ring'
-                  ? variant.bg
-                  : variant.fg,
+            color: look.shape === 'ring' ? variant.bg : variant.fg,
           }}
         >
-          {glyph}
+          {look.glyph}
         </Text>
       ) : null}
     </View>
@@ -639,67 +869,13 @@ function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' })
 }
 
 /**
- * The head of an opened leaf: the ONE way back to the spine, the leaf's name,
- * and — for a verify attempt — the switch between its proof and its transcript.
+ * One step: status, name (a feature by its chip alone), one result line, time
+ * and cost, and a chevron when it produced something — tapping it shows a
+ * preview whose tap pushes the step screen. Skipped steps are grey and inert.
  */
-function LeafHead({
-  title,
-  onBack,
-  view,
-  onView,
-}: {
-  title: string
-  onBack: () => void
-  view?: 'review' | 'transcript'
-  onView?: (view: 'review' | 'transcript') => void
-}) {
-  const { theme } = useNativeTheme()
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: nativeSpace[2],
-        paddingHorizontal: nativeSpace[3],
-        paddingVertical: nativeSpace[2],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border.subtle,
-      }}
-    >
-      <Pressable
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel="Back to the pipeline"
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-      >
-        <IconChevronLeft size={16} color={theme.text.secondary} />
-        <Text style={{ fontSize: 13, color: theme.text.secondary }}>Pipeline</Text>
-      </Pressable>
-      <Text
-        numberOfLines={1}
-        style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: '500', color: theme.text.primary }}
-      >
-        {title}
-      </Text>
-      {view && onView ? (
-        <SegmentedControl
-          size="sm"
-          value={view}
-          onChange={(v) => onView(v === 'transcript' ? 'transcript' : 'review')}
-          options={[
-            { value: 'review', label: 'Review' },
-            { value: 'transcript', label: 'Transcript' },
-          ]}
-        />
-      ) : null}
-    </View>
-  )
-}
-
 function PipelineNode({
   run,
   state,
-  ordinal,
   isLast,
   now,
   addedTag,
@@ -707,134 +883,135 @@ function PipelineNode({
   onDelegate,
   onOpenChat,
   onDrill,
-  onOpenLeaf,
-  canOpenTranscript,
-  onSaveFile,
+  onOpenPanel,
+  onOpenTranscript,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
-  ordinal: number
   isLast: boolean
   now: number
-  /** "Added <date>" when this step was added to the run after it started. */
   addedTag: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
-    integration?: ProcessIntegrationMode,
-  ) => void
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+  ) => Promise<boolean>
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
-  onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
-  canOpenTranscript: boolean
-  onSaveFile?: SaveFileHandler
+  onOpenPanel: (target: StepPanelTarget) => void
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
   const { theme, status } = useNativeTheme()
+  const { resolveDependency } = useStories()
   const parkStepId = run.park?.stepId
+  const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
-  const look = processNodeLook(nodeState, state.step.kind === 'gate', ordinal)
-  const summary = processNodeSummary(state)
-  const chip = status[look.tone]
-  const childRunId = state.latest?.childRunId
+  const look = processNodeLook(nodeState, state.step.kind === 'gate', 0)
+  const row = processStepRowView(state, parkStepId)
   const isFeature = state.step.kind === 'process'
-  const isAgent = state.step.kind === 'agent'
-  const total = state.entries.length
-  const leafAt = (index: number) =>
-    processAttemptLeaf(state.entries[index], state.step.name, { index: index + 1, total })
-  const openAttempt = (index: number) => {
-    const leaf = leafAt(index)
-    if (!isProcessLeafOpenable(run, leaf, canOpenTranscript)) return undefined
-    return () => onOpenLeaf(leaf, processLeafReview(run, leaf) !== undefined)
-  }
-  const latest = latestOpenableAttempt(run, state.entries, state.step.name, canOpenTranscript)
-  const open = childRunId
-    ? () => onDrill(childRunId)
-    : latest
-      ? () => onOpenLeaf(latest, processLeafReview(run, latest) !== undefined)
-      : undefined
+  const [open, setOpen] = useState(isFeature && (state.current || parked))
   const iteration = processNodeBadge(state, run)
+  const chip = status[look.tone]
   const workMs = processStepWorkMs(run, state, now)
   const duration = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
   const cost = processStepCostLabel(run, state.step.id)
-  const meta = [duration, cost].filter(Boolean).join(' · ')
-  const metaStyle = { fontSize: 11, color: theme.text.muted } as const
-  const expanded = isFeature && (state.current || parkStepId === state.step.id)
-  const parked = parkStepId === state.step.id
+  const stepModel = processStepModelChip(state.latest, run)
+  const featureRef =
+    isFeature && run.storyId && state.step.subject?.kind === 'feature'
+      ? `${run.storyId}.${state.step.subject.id}`
+      : undefined
+  const resolves = featureRef ? !('code' in resolveDependency(featureRef)) : false
+  const signoffGate = parked && isStorySignoff(run)
 
   return (
-    <View style={{ flexDirection: 'row', gap: nativeSpace[3] }}>
-      <View style={{ width: 26, alignItems: 'center' }}>
-        <Marker look={look} size="node" />
-        {!isLast ? (
-          <View
-            style={{
-              flex: 1,
-              width: 1,
-              marginTop: 2,
-              backgroundColor: nodeState === 'done' ? status.done.softBorder : theme.border.default,
-            }}
-          />
-        ) : null}
-      </View>
-      <View style={{ flex: 1, paddingBottom: nativeSpace[3], minWidth: 0 }}>
-        <Pressable
-          onPress={open}
-          disabled={!open}
-          accessibilityRole={open ? 'button' : undefined}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: nativeSpace[2],
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 13.5,
-              fontWeight: '600',
-              color: nodeState === 'queued' ? theme.text.muted : theme.text.primary,
-            }}
-          >
-            {state.step.name}
-          </Text>
-          <KindChip kind={state.step.kind} agent={isAgent} />
-          {addedTag ? (
-            <View
-              style={{
-                borderColor: theme.border.strong,
-                borderStyle: 'dashed',
-                borderWidth: 1,
-                borderRadius: 999,
-                paddingHorizontal: 6,
-                paddingVertical: 1,
-              }}
-            >
-              <Text style={{ fontSize: 10.5, color: theme.text.secondary }}>{addedTag}</Text>
-            </View>
-          ) : null}
-          {iteration ? (
-            <View
-              style={{
-                backgroundColor: chip.softBg,
-                borderColor: chip.softBorder,
-                borderWidth: 1,
-                borderRadius: 999,
-                paddingHorizontal: 6,
-                paddingVertical: 1,
-              }}
-            >
-              <Text style={{ fontSize: 10.5, fontWeight: '600', color: chip.softFg }}>
-                {iteration}
+    <View
+      style={{
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: theme.border.subtle,
+        backgroundColor: row.waitingOnYou && signoffGate ? status.review.softBg : 'transparent',
+      }}
+    >
+      <Pressable
+        disabled={!row.expandable}
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole={row.expandable ? 'button' : undefined}
+        accessibilityState={row.expandable ? { expanded: open } : undefined}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+        }}
+      >
+        <Marker look={look} />
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+            {featureRef && resolves ? (
+              <DependencyRef dependency={featureRef} projectId={run.projectId} />
+            ) : (
+              <Text
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: row.inert ? '400' : '600',
+                  color: row.inert ? theme.text.muted : theme.text.primary,
+                }}
+              >
+                {state.step.name}
               </Text>
-            </View>
-          ) : null}
-          <View style={{ flex: 1 }} />
-          {meta ? (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-              accessibilityLabel={total > 1 ? `${meta}, all ${total} attempts` : meta}
+            )}
+            {addedTag ? (
+              <View
+                style={{
+                  borderColor: theme.border.strong,
+                  borderStyle: 'dashed',
+                  borderWidth: 1,
+                  borderRadius: 999,
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text style={{ fontSize: 10.5, color: theme.text.secondary }}>{addedTag}</Text>
+              </View>
+            ) : null}
+            {iteration && !row.inert ? (
+              <View
+                style={{
+                  backgroundColor: chip.softBg,
+                  borderColor: chip.softBorder,
+                  borderWidth: 1,
+                  borderRadius: 999,
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text style={{ fontSize: 10.5, fontWeight: '600', color: chip.softFg }}>
+                  {iteration}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          {row.result ? (
+            <Text
+              numberOfLines={1}
+              style={{
+                fontSize: 12.5,
+                fontWeight: row.waitingOnYou ? '600' : '400',
+                color: row.waitingOnYou
+                  ? theme.accent.primary
+                  : row.inert
+                    ? theme.text.muted
+                    : theme.text.secondary,
+              }}
             >
+              {row.result}
+            </Text>
+          ) : null}
+          {!row.inert && (duration || cost || stepModel) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {stepModel ? <RunModelChip model={stepModel} /> : null}
               {duration ? (
                 <DurationChip
                   label={duration}
@@ -842,200 +1019,52 @@ function PipelineNode({
                     run.totals?.steps[state.step.id]?.time,
                     workMs ?? 0,
                   )}
-                  title={processStepCostTitle(state.step.name, total)}
-                  appearance="text"
-                  textStyle={metaStyle}
+                  title={processStepCostTitle(state.step.name, state.entries.length)}
                 />
               ) : null}
-              {duration && cost ? <Text style={metaStyle}>·</Text> : null}
               {cost ? (
                 <CostChip
                   label={cost}
                   cost={run.totals?.steps[state.step.id]}
-                  title={processStepCostTitle(state.step.name, total)}
-                  appearance="text"
-                  textStyle={metaStyle}
+                  title={processStepCostTitle(state.step.name, state.entries.length)}
                 />
               ) : null}
             </View>
           ) : null}
-          {open ? <Text style={{ fontSize: 11, color: theme.text.muted }}>open ›</Text> : null}
-        </Pressable>
-
-        {summary ? (
-          <Text
-            style={{
-              fontSize: 12,
-              color: summary.muted ? theme.text.muted : theme.text.secondary,
-            }}
-          >
-            {summary.text}
-          </Text>
-        ) : null}
-
-        <ProcessCheckList step={state.step} latest={state.latest} />
-
-        {/* A fix loop runs an agent step several times; the row above opens the
-            LATEST. Earlier attempts get chips only when each is its OWN run — a
-            developer's fix loop resumes one chat, so its chips would all open
-            the same place. */}
-        {isAgent && hasIsolatedAttempts(state.entries) ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 10.5, color: theme.text.muted }}>Attempts</Text>
-            {state.entries.map((e, i) => {
-              const openThis = openAttempt(i)
-              const canOpen = openThis !== undefined
-              const variant =
-                status[processStepTone(e.status === 'running' ? 'running' : 'done', e.outcome)]
-              return (
-                <Pressable
-                  key={e.id ?? i}
-                  disabled={!canOpen}
-                  onPress={openThis}
-                  accessibilityRole="button"
-                  style={{
-                    borderRadius: nativeRadii.round,
-                    paddingHorizontal: 8,
-                    paddingVertical: 1,
-                    borderWidth: 1,
-                    borderColor: variant.softBorder,
-                    backgroundColor: variant.softBg,
-                    opacity: canOpen ? 1 : 0.6,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: '600',
-                      color: variant.softFg,
-                      fontVariant: ['tabular-nums'],
-                    }}
-                  >
-                    #{i + 1}
-                  </Text>
-                </Pressable>
-              )
-            })}
+        </View>
+        {row.expandable ? (
+          <View style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}>
+            <IconChevronRight size={14} color={theme.text.secondary} />
           </View>
-        ) : null}
+        ) : (
+          <View style={{ width: 14 }} />
+        )}
+      </Pressable>
 
-        {expanded && childRunId ? <InlineSubSteps childRunId={childRunId} now={now} /> : null}
+      {open && row.expandable ? (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 12, paddingLeft: 44 }}>
+          <StepPreview
+            run={run}
+            state={state}
+            kind={row.preview}
+            onOpen={onOpenPanel}
+            onDrill={onDrill}
+          />
+        </View>
+      ) : null}
 
-        {parked ? (
+      {parked && !signoffGate ? (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
           <ParkBlock
             run={run}
             onChoose={onChoose}
             onDelegate={onDelegate}
             {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={onDrill}
-            {...(canOpenTranscript
-              ? {
-                  onOpenTranscript: (ref: ProcessNodeRunRef) =>
-                    onOpenLeaf({ ref, title: `${state.step.name} · transcript` }, false),
-                }
-              : {})}
-            {...(onSaveFile ? { onSaveFile } : {})}
+            {...(onOpenTranscript ? { onOpenTranscript } : {})}
           />
-        ) : null}
-      </View>
-    </View>
-  )
-}
-
-function KindChip({ kind, agent }: { kind: string; agent: boolean }) {
-  const { theme } = useNativeTheme()
-  return (
-    <View
-      style={{
-        borderRadius: nativeRadii[1],
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderWidth: 1,
-        borderColor: agent ? 'rgba(162,93,220,0.45)' : theme.border.subtle,
-        backgroundColor: agent ? 'rgba(162,93,220,0.12)' : 'transparent',
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 9.5,
-          fontWeight: '600',
-          letterSpacing: 0.6,
-          textTransform: 'uppercase',
-          color: agent ? '#A25DDC' : theme.text.muted,
-        }}
-      >
-        {kind}
-      </Text>
-    </View>
-  )
-}
-
-function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }) {
-  const { theme, status } = useNativeTheme()
-  const { run: child } = useProcessRun(childRunId)
-  if (!child) return null
-  const states = processStepStates(child)
-  const sentBack = processLoopSenders(child)
-  return (
-    <View
-      style={{
-        marginTop: nativeSpace[2],
-        marginLeft: 2,
-        paddingHorizontal: nativeSpace[3],
-        paddingVertical: nativeSpace[2],
-        borderLeftWidth: 2,
-        borderLeftColor: theme.border.default,
-        backgroundColor: theme.surface.overlay,
-        borderTopRightRadius: nativeRadii[3],
-        borderBottomRightRadius: nativeRadii[3],
-        gap: 4,
-      }}
-    >
-      {sentBack ? (
-        <View
-          style={{
-            backgroundColor: status.queued.softBg,
-            borderColor: status.queued.softBorder,
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderRadius: nativeRadii[2],
-            paddingHorizontal: nativeSpace[2],
-            paddingVertical: 2,
-          }}
-        >
-          <Text style={{ fontSize: 11, color: status.queued.softFg }}>
-            ↺ {sentBack} sent the work back — retried
-          </Text>
         </View>
       ) : null}
-      {states.map((s, index) => {
-        const st = processNodeState(s, child.park?.stepId)
-        const workMs = processStepWorkMs(child, s, now)
-        const dur = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
-        const iter = processNodeBadge(s, child)
-        return (
-          <View
-            key={s.step.id}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
-          >
-            <Marker look={processNodeLook(st, s.step.kind === 'gate', index + 1)} size="sub" />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.primary }}>
-              {s.step.name}
-            </Text>
-            {iter ? <Text style={{ fontSize: 11, color: theme.text.muted }}>· {iter}</Text> : null}
-            <View style={{ flex: 1 }} />
-            {dur ? (
-              <DurationChip
-                label={dur}
-                details={processTimeDetailsView(child.totals?.steps[s.step.id]?.time, workMs ?? 0)}
-                title={s.step.name}
-                appearance="text"
-                textStyle={{ fontSize: 10.5, color: theme.text.muted }}
-              />
-            ) : null}
-          </View>
-        )
-      })}
     </View>
   )
 }
@@ -1047,20 +1076,19 @@ function ParkBlock({
   onOpenChat,
   onOpenTranscript,
   onDrill,
-  onSaveFile,
 }: {
   run: ProcessRun
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
-    integration?: ProcessIntegrationMode,
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
   ) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   /** Open the agent run that is waiting, to read its transcript. */
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
-  onSaveFile?: SaveFileHandler
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
@@ -1079,32 +1107,8 @@ function ParkBlock({
     )
   }
   const reflected = isReflectedPark(park)
-  const choices = processParkChoices(park.reason, { reflected })
+  const choices = processRunParkChoices(run)
   const variant = park.reason === 'gate' ? status.review : status.on_hold
-  // The story sign-off is ONE decision over the whole run — show every feature's
-  // proof here, so the reviewer signs off on what they can see, not on trust.
-  const isSignoffGate = park.reason === 'gate' && !!run.storyId
-
-  // The story sign-off owns its own panel (head + verdict + digest + sections +
-  // decide bar). Hand it the gate's choices so its decide bar acts on the whole
-  // story, and drop the outer park chrome that would frame it twice.
-  if (isSignoffGate) {
-    return (
-      <View style={{ marginTop: nativeSpace[2] }}>
-        <StorySignoffReview
-          projectId={run.projectId}
-          storyId={run.storyId as string}
-          storyRunId={run.id}
-          choices={choices}
-          {...(run.workBranch && isIntegratingApproval(run, 'approve')
-            ? { workBranch: run.workBranch }
-            : {})}
-          onChoose={onChoose}
-          {...(onSaveFile ? { onSaveFile } : {})}
-        />
-      </View>
-    )
-  }
 
   return (
     <View
@@ -1128,7 +1132,8 @@ function ParkBlock({
       ) : null}
       {noteFor ? (
         <ParkNoteComposer
-          onSend={(note) => onChoose(noteFor, note)}
+          {...(noteFor === 'request-changes' ? { proofChoices: REQUEST_PROOF_CHOICES } : {})}
+          onSend={(note, requestedProof) => onChoose(noteFor, note, undefined, requestedProof)}
           onCancel={() => setNoteFor(undefined)}
         />
       ) : (

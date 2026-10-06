@@ -25,6 +25,12 @@ export type TestResultsListProps = {
   style?: StyleProp<ViewStyle>
   /** Forwarded to the underlying SectionList's content container. */
   contentContainerStyle?: StyleProp<ViewStyle>
+  /**
+   * Lays the sections out as plain views inside a parent that already scrolls
+   * (a sign-off, a review panel) — a virtualized list nested in a scroll view
+   * of the same direction cannot virtualize.
+   */
+  inline?: boolean
 }
 
 type Tone = 'failure' | 'pass' | 'skip'
@@ -53,6 +59,7 @@ export function TestResultsList({
   ListHeaderComponent,
   style,
   contentContainerStyle,
+  inline = false,
 }: TestResultsListProps) {
   const { theme } = useNativeTheme()
   const tests = Array.isArray(results.tests) ? results.tests : []
@@ -134,7 +141,7 @@ export function TestResultsList({
   )
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionListData<TestResultLike, Section> }) => (
+    ({ section }: { section: SectionListData<TestResultLike, Section> | Section }) => (
       <View style={{ backgroundColor: theme.surface.base }}>
         <SectionHeader
           title={section.title}
@@ -171,6 +178,27 @@ export function TestResultsList({
       <View>
         {ListHeaderComponent}
         <Text style={{ fontSize: 12, color: theme.text.muted }}>No tests found.</Text>
+      </View>
+    )
+  }
+
+  if (inline) {
+    return (
+      <View style={[{ gap: 8 }, style]}>
+        {ListHeaderComponent}
+        {sections.map((section) => (
+          <View key={section.key} style={{ gap: 8 }}>
+            {renderSectionHeader({ section })}
+            {section.data.map((item, idx) => (
+              <FileCard
+                key={keyExtractor(item, idx)}
+                test={item}
+                tone={section.tone}
+                readFile={readFile}
+              />
+            ))}
+          </View>
+        ))}
       </View>
     )
   }

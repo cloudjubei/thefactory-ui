@@ -25,6 +25,7 @@ import type {
 } from './processViewTypes'
 import type { ProcessStepState } from 'thefactory-tools/types'
 import {
+  isProcessGateLoop,
   processRunDecision,
   processRunProgress,
   processStepStates,
@@ -490,7 +491,7 @@ export function formatProcessDuration(ms: number): string {
 
 type IterationRun = {
   plan: {
-    steps: readonly Pick<ProcessStep, 'id' | 'onlyWhenSentBack'>[]
+    steps: readonly Pick<ProcessStep, 'id' | 'kind' | 'onlyWhenSentBack'>[]
     loops: ProcessPlan['loops']
   }
 } & Pick<ProcessRun, 'iterationGrants'>
@@ -503,7 +504,9 @@ type IterationRun = {
  * the work back for — the extra attempts the user granted included, as the
  * driver counts them. A feature reviewed before it is verified is sent back by
  * both, so its implement step can run more often than either loop allows alone.
- * A step that runs only when work is sent back to it has no pass of its own.
+ * A step that runs only when work is sent back to it has no pass of its own. A
+ * step a person can send work back over at a gate has no cap: a person's
+ * request for changes is never counted against a loop limit.
  */
 export function processIterationBadge(
   attempts: number,
@@ -515,13 +518,17 @@ export function processIterationBadge(
   const at = order.indexOf(stepId)
   const own = run.plan.steps[at]?.onlyWhenSentBack ? 0 : 1
   let retries: number | undefined
+  let uncapped = false
   for (const loop of run.plan.loops) {
     const from = order.indexOf(loop.from)
     const to = order.indexOf(loop.to)
     if (at === -1 || from === -1 || to === -1 || at < to || at > from) continue
+    if (isProcessGateLoop(run.plan, loop)) uncapped = true
     retries = (retries ?? 0) + loop.maxIterations - 1 + (run.iterationGrants?.[loop.id] ?? 0)
   }
-  return retries === undefined ? `attempt ${attempts}` : `attempt ${attempts} of ${retries + own}`
+  return retries === undefined || uncapped
+    ? `attempt ${attempts}`
+    : `attempt ${attempts} of ${retries + own}`
 }
 
 /**

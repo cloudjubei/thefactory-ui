@@ -70,4 +70,11 @@ describe('resolveResourceNav', () => {
       path: '/projects/p1/files/docs/a%20b.md',
     })
   })
+
+  it('opens a group’s note in that group’s notes', () => {
+    expect(resolveResourceNav({ kind: 'groupNote', groupId: 'g 1', noteId: 'n1' })).toEqual({
+      type: 'path',
+      path: '/groups/g%201/notes?note=n1',
+    })
+  })
 })

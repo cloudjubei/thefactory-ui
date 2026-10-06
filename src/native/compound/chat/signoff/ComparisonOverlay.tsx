@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Image,
+  PixelRatio,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native'
 
 import {
   CAPTURE_SAME_CODE_LABEL,
@@ -7,11 +15,18 @@ import {
   capturedOnLabel,
   comparisonPairFacts,
   useEvidenceDiff,
+  canPairViewerZoomIn,
+  canPairViewerZoomOut,
+  framePane,
+  pairFitScale,
+  pairViewerZoomFloor,
+  pairViewerZoomIn,
+  pairViewerZoomLabel,
+  pairViewerZoomOut,
+  resolveViewerScale,
   screenPairFileStem,
-  zoomIn,
-  zoomLabel,
-  zoomOut,
   type CaptureBuildCaption,
+  type PairViewerSize,
   type ScreenPair,
 } from '../../../../headless'
 import { nativePalette, nativeRadii } from '../../../../tokens/native'
@@ -25,7 +40,14 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from '../../../icons'
+import {
+  PAIR_CAPTION_RESERVE,
+  PAIR_LOADING_FRAME,
+  PAIR_STAGE_GAP,
+  PAIR_STAGE_PADDING,
+} from './comparisonOverlayConstants'
 import type { SaveFileHandler } from './signoffTypes'
+import { useImageNaturalSize } from './useImageNaturalSize'
 import { Button } from '../../../primitives/Button'
 import FullScreenOverlay from '../../../primitives/FullScreenOverlay'
 import SegmentedControl from '../../../primitives/SegmentedControl'
@@ -51,12 +73,6 @@ export type ComparisonOverlayProps = {
 }
 
 type Mode = 'mirror' | 'slide' | 'diff'
-
-const BASE_WIDTH = 240
-/** Overlay padding, stage padding and the gap between two mirrored frames. */
-const MIRROR_CHROME = 16 * 2 + 8 * 2 + 24
-/** A phone screenshot, until the real size arrives with the bytes. */
-const DEFAULT_ASPECT = 0.5
 
 function Pill({ word }: { word: 'Before' | 'After' }) {
   const { theme } = useNativeTheme()
@@ -106,21 +122,28 @@ function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuil
   )
 }
 
-function Frame({ src, width }: { src: string | undefined; width: number }) {
+/** A frame at `width`, its height from its own natural aspect; the loading box until that is known. */
+function Frame({
+  src,
+  width,
+  natural,
+  loading,
+}: {
+  src: string | undefined
+  width: number
+  natural: PairViewerSize | undefined
+  loading: PairViewerSize
+}) {
   const { theme } = useNativeTheme()
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
-  const height = Math.round(width / aspect)
+  const box = natural
+    ? { width, height: Math.round((width * natural.h) / natural.w) }
+    : { width: loading.w, height: loading.h }
   return src ? (
     <Image
       source={{ uri: src }}
       resizeMode="contain"
-      onLoad={(e) => {
-        const { width: w, height: h } = e.nativeEvent.source
-        if (w > 0 && h > 0) setAspect(w / h)
-      }}
       style={{
-        width,
-        height,
+        ...box,
         borderRadius: nativeRadii[2],
         borderWidth: 1,
         borderColor: theme.border.default,
@@ -130,8 +153,7 @@ function Frame({ src, width }: { src: string | undefined; width: number }) {
   ) : (
     <View
       style={{
-        width,
-        height,
+        ...box,
         borderRadius: nativeRadii[2],
         borderWidth: 1,
         borderColor: theme.border.default,
@@ -161,7 +183,8 @@ export default function ComparisonOverlay({
   const { theme } = useNativeTheme()
   const { width: screenWidth } = useWindowDimensions()
   const [mode, setMode] = useState<Mode>('slide')
-  const [zoom, setZoom] = useState(1)
+  const [manualScale, setManualScale] = useState<number | undefined>(undefined)
+  const [stage, setStage] = useState<PairViewerSize | undefined>(undefined)
   const [slidePct, setSlidePct] = useState(50)
   const [holdBase, setHoldBase] = useState(false)
   const [position, setPosition] = useState(0)
@@ -174,16 +197,15 @@ export default function ComparisonOverlay({
   }, [openIndex])
 
   const pair = pairs[position]
+  useEffect(() => {
+    setManualScale(undefined)
+  }, [openKey, position])
   // Decode the open pair's frames on demand — the strip only decoded thumbnails.
   useEffect(() => {
     if (!isOpen || !pair) return
     if (pair.before) onRequestImage(pair.before.ref.id, pair.before.ref.mediaType)
     if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
   }, [isOpen, pair, onRequestImage])
-  // Both mirrored frames must fit at 100% on a phone, and Slide shares the same
-  // base so one zoom means one scale in either mode.
-  const base = Math.min(BASE_WIDTH, Math.floor((screenWidth - MIRROR_CHROME) / 2))
-  const width = Math.round(base * zoom)
   const before = pair?.before?.dataUri
   const after = pair?.after?.dataUri
   const canSlide = Boolean(pair?.before && pair?.after)
@@ -209,6 +231,41 @@ export default function ComparisonOverlay({
     pair?.after?.ref.id,
     effectiveMode === 'diff',
   )
+
+  const beforeNatural = useImageNaturalSize(before)
+  const afterNatural = useImageNaturalSize(after)
+  const diffNatural = useImageNaturalSize(effectiveMode === 'diff' ? diff.dataUri : undefined)
+  const showBefore = Boolean(pair?.before || !pair?.after)
+  const showAfter = Boolean(pair?.after)
+  // Slide's reveal controls sit outside the stage, so only Mirror/Diff keep caption room.
+  const pane = framePane(
+    stage && { w: stage.w - PAIR_STAGE_PADDING, h: stage.h - PAIR_STAGE_PADDING },
+    {
+      columns: effectiveMode === 'mirror' && showBefore && showAfter ? 2 : 1,
+      gap: PAIR_STAGE_GAP,
+      reserveHeight: effectiveMode === 'slide' ? 0 : PAIR_CAPTION_RESERVE,
+    },
+  )
+  const naturals =
+    effectiveMode === 'diff'
+      ? [diffNatural]
+      : effectiveMode === 'slide'
+        ? [beforeNatural, afterNatural]
+        : [showBefore ? beforeNatural : undefined, showAfter ? afterNatural : undefined]
+  const fit = pairFitScale({ naturals, pane, pixelRatio: PixelRatio.get() })
+  const scale = resolveViewerScale(manualScale, fit)
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+  const floor = pairViewerZoomFloor(fit)
+  const loading: PairViewerSize = {
+    w: Math.min(PAIR_LOADING_FRAME.w, pane?.w ?? PAIR_LOADING_FRAME.w),
+    h: Math.min(PAIR_LOADING_FRAME.h, pane?.h ?? PAIR_LOADING_FRAME.h),
+  }
+  const widthOf = (natural: PairViewerSize | undefined) =>
+    natural ? Math.round(natural.w * scale) : loading.w
+  const slideWidth = widthOf(beforeNatural ?? afterNatural)
+  const zoomTo = (next: (current: number) => number) =>
+    setManualScale((m) => next(m ?? scaleRef.current))
 
   const hint =
     effectiveMode === 'mirror'
@@ -272,7 +329,8 @@ export default function ComparisonOverlay({
             variant="secondary"
             size="icon"
             accessibilityLabel="Zoom out"
-            onPress={() => setZoom(zoomOut)}
+            disabled={!canPairViewerZoomOut(scale, floor)}
+            onPress={() => zoomTo((s) => pairViewerZoomOut(s, floor))}
           >
             <IconZoomOut size={16} color={iconColor} />
           </Button>
@@ -285,27 +343,35 @@ export default function ComparisonOverlay({
               color: theme.text.muted,
             }}
           >
-            {zoomLabel(zoom)}
+            {pairViewerZoomLabel(scale)}
           </Text>
           <Button
             variant="secondary"
             size="icon"
             accessibilityLabel="Zoom in"
-            onPress={() => setZoom(zoomIn)}
+            disabled={!canPairViewerZoomIn(scale)}
+            onPress={() => zoomTo((s) => pairViewerZoomIn(s, floor))}
           >
             <IconZoomIn size={16} color={iconColor} />
           </Button>
           <Button
             variant="secondary"
             size="icon"
-            accessibilityLabel="Reset zoom"
-            onPress={() => setZoom(1)}
+            accessibilityLabel="Fit to screen"
+            onPress={() => setManualScale(undefined)}
           >
             <IconRefresh size={16} color={iconColor} />
           </Button>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, padding: 8 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, padding: 8 }}
+          onLayout={(e) => {
+            const { width: w, height: h } = e.nativeEvent.layout
+            setStage((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }))
+          }}
+        >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -319,11 +385,16 @@ export default function ComparisonOverlay({
             {effectiveMode === 'diff' ? (
               <View style={{ alignItems: 'center', gap: 8 }}>
                 {diff.dataUri ? (
-                  <Frame src={diff.dataUri} width={width} />
+                  <Frame
+                    src={diff.dataUri}
+                    width={widthOf(diffNatural)}
+                    natural={diffNatural}
+                    loading={loading}
+                  />
                 ) : (
                   <View
                     style={{
-                      width,
+                      width: loading.w,
                       minHeight: 160,
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -346,23 +417,38 @@ export default function ComparisonOverlay({
               </View>
             ) : effectiveMode === 'mirror' ? (
               <>
-                {pair?.before || !pair?.after ? (
+                {showBefore ? (
                   <View style={{ alignItems: 'center', gap: 8 }}>
-                    <Frame src={before} width={width} />
+                    <Frame
+                      src={before}
+                      width={widthOf(beforeNatural)}
+                      natural={beforeNatural}
+                      loading={loading}
+                    />
                     <Caption word="Before" build={beforeBuild} />
                   </View>
                 ) : null}
                 {pair?.after ? (
                   <View style={{ alignItems: 'center', gap: 8 }}>
-                    <Frame src={after} width={width} />
+                    <Frame
+                      src={after}
+                      width={widthOf(afterNatural)}
+                      natural={afterNatural}
+                      loading={loading}
+                    />
                     <Caption word="After" build={afterBuild} />
                   </View>
                 ) : null}
               </>
             ) : (
               <View style={{ alignItems: 'center', gap: 8 }}>
-                <View style={{ width }}>
-                  <Frame src={before} width={width} />
+                <View style={{ width: slideWidth }}>
+                  <Frame
+                    src={before}
+                    width={slideWidth}
+                    natural={beforeNatural}
+                    loading={loading}
+                  />
                   <View
                     pointerEvents="none"
                     style={{
@@ -374,8 +460,13 @@ export default function ComparisonOverlay({
                       overflow: 'hidden',
                     }}
                   >
-                    <View style={{ position: 'absolute', top: 0, left: -(width * cut) / 100 }}>
-                      <Frame src={after} width={width} />
+                    <View style={{ position: 'absolute', top: 0, left: -(slideWidth * cut) / 100 }}>
+                      <Frame
+                        src={after}
+                        width={slideWidth}
+                        natural={afterNatural}
+                        loading={loading}
+                      />
                     </View>
                   </View>
                   <View
@@ -416,7 +507,7 @@ export default function ComparisonOverlay({
               <Pill word="After" />
               <BuildMarks build={afterBuild} />
             </View>
-            <View style={{ width: Math.min(width, screenWidth - 32) }}>
+            <View style={{ width: Math.min(slideWidth, screenWidth - 32) }}>
               <Slider value={slidePct} min={0} max={100} onChange={setSlidePct} />
             </View>
             <Pressable

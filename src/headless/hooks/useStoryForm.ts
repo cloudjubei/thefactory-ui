@@ -26,6 +26,12 @@ export type UseStoryFormOptions = {
    * new is turned.
    */
   canonicalize?: (text: string, before?: string) => string
+  /**
+   * Stored text as a person edits it — `#3.2`, `&qa-login` instead of ids —
+   * `References.toTyped`. An untouched description follows it as the project's
+   * stories and notes load.
+   */
+  toTyped?: (text: string) => string
 }
 
 export type UseStoryForm = {
@@ -56,8 +62,13 @@ function seed(v?: StoryFormInitialValues): StoryFormValues {
 const asTyped = (text: string): string => text
 
 export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
-  const { initialValues, onSubmit, onDirty, canonicalize = asTyped } = opts
-  const initial = useMemo(() => seed(initialValues), [initialValues])
+  const { initialValues, onSubmit, onDirty, canonicalize = asTyped, toTyped = asTyped } = opts
+  const stored = useMemo(() => seed(initialValues), [initialValues])
+  const shownDescription = useMemo(() => toTyped(stored.description), [stored, toTyped])
+  const initial = useMemo(
+    () => ({ ...stored, description: shownDescription }),
+    [stored, shownDescription],
+  )
   const baselineRef = useRef<StoryFormValues>(initial)
 
   const [title, setTitle] = useState(initial.title)
@@ -65,6 +76,17 @@ export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
   const [description, setDescription] = useState(initial.description)
   const [errors, setErrors] = useState<{ title?: string }>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // The stored description reads differently once the project's stories and
+  // notes load; untouched, it follows — edited, the person's words stay.
+  const shownRef = useRef(shownDescription)
+  useEffect(() => {
+    const before = shownRef.current
+    if (before === shownDescription) return
+    shownRef.current = shownDescription
+    baselineRef.current = { ...baselineRef.current, description: shownDescription }
+    setDescription((v) => (v === before ? shownDescription : v))
+  }, [shownDescription])
 
   const baseline = baselineRef.current
   const dirty =
@@ -88,12 +110,12 @@ export function useStoryForm(opts: UseStoryFormOptions): UseStoryForm {
       await onSubmit({
         title: title.trim(),
         status,
-        description: canonicalize(description.trim(), baselineRef.current.description),
+        description: canonicalize(description.trim(), stored.description),
       })
     } finally {
       setSubmitting(false)
     }
-  }, [title, status, description, onSubmit, submitting, canonicalize])
+  }, [title, status, description, onSubmit, submitting, canonicalize, stored])
 
   const onKeyDown = useCallback(
     (e: { key: string; metaKey?: boolean; ctrlKey?: boolean; preventDefault: () => void }) => {

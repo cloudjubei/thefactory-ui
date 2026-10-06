@@ -158,6 +158,7 @@ export {
 export {
   chatUnreadMessages,
   computeChatRowStatus,
+  chatRowBadge,
   isChatUnread,
   markSeen,
   type ChatRowStatus,
@@ -167,6 +168,8 @@ export { useOpenChat } from './hooks/useOpenChat'
 export {
   chatMessageCount,
   chatMessageTimes,
+  chatLastActivityAt,
+  byLastActivity,
   isChatLoaded,
   type ChatListEntry,
   type ChatMessagesShape,
@@ -386,8 +389,10 @@ export {
   runReviewFacts,
   verdictSummary,
   verificationCheckRows,
+  ranReviewChecks,
   reviewCheckGroups,
   reviewCheckMeta,
+  testLayerLines,
   formatChangeRequestMessage,
 } from './utils/runReview'
 export {
@@ -413,6 +418,8 @@ export {
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
+  isAbsentCheck,
+  ranCheckMethods,
   reviewTabOrder,
   evidenceMethodFor,
   reviewTabs,
@@ -491,6 +498,29 @@ export {
   zoomLabel,
   zoomOut,
 } from './utils/imageZoom'
+export {
+  canPairViewerZoomIn,
+  canPairViewerZoomOut,
+  effectivePercent,
+  fitScale,
+  framePane,
+  isPannable,
+  pairFitScale,
+  pairViewerZoomByWheel,
+  pairViewerZoomFloor,
+  pairViewerZoomIn,
+  pairViewerZoomLabel,
+  pairViewerZoomOut,
+  resolveViewerScale,
+  scaledSize,
+} from './utils/pairViewerFit'
+export { PAIR_VIEWER_MAX_FIT_UPSCALE, PAIR_VIEWER_MIN_SCALE } from './utils/pairViewerFitConstants'
+export type {
+  PairViewerFitInput,
+  PairViewerPairFitInput,
+  PairViewerPaneLayout,
+  PairViewerSize,
+} from './utils/pairViewerFitTypes'
 export { censusFeatures, featuresToWork, incompleteStoryReason } from 'thefactory-tools/utils'
 export { storyFeatureCounts } from './utils/storyFeatureCounts'
 export type { StoryFeatureCounts } from './utils/storyFeatureCountsTypes'
@@ -533,7 +563,18 @@ export type {
   ScreenPairClass,
   EvidenceWindow,
 } from './utils/reviewEvidenceViewTypes'
-export { runModelLabel, runModelOf, type RunModel } from './utils/runModel'
+export {
+  entryReportedModel,
+  modelDisplayName,
+  processRunHeaderModel,
+  processRunModelChip,
+  processStepModelChip,
+  runModelKey,
+  runModelLabel,
+  runModelOf,
+  uniqueRunModels,
+  type RunModel,
+} from './utils/runModel'
 export {
   aggregateTestCounts,
   checkTestCounts,
@@ -546,9 +587,21 @@ export {
 } from './utils/testCounts'
 export { TEST_COUNT_NONE_RAN, TEST_TOTALS_TITLES } from './utils/testCountsConstants'
 export { parseTestFailures, type TestFailure } from './utils/testFailures'
-export { testSuitesView } from './utils/testSuites'
-export { TEST_SUITE_MARKS, TEST_SUITE_NO_TESTS } from './utils/testSuitesConstants'
-export type { TestSuiteOutcome, TestSuiteRow, TestSuitesView } from './utils/testSuitesTypes'
+export { checkTestResults } from './utils/testResults'
+export { TEST_SUITE_MODULE_SEPARATOR } from './utils/testResultsConstants'
+export type { CheckTestResults } from './utils/testResultsTypes'
+export { terminalOutputView, terminalPlainText } from './utils/terminalOutput'
+export {
+  TERMINAL_BACKGROUND,
+  TERMINAL_BORDER,
+  TERMINAL_DIM_OPACITY,
+  TERMINAL_FOREGROUND,
+  TERMINAL_MAX_HEIGHT,
+  TERMINAL_OUTPUT_LABEL,
+  TERMINAL_PALETTE,
+  TERMINAL_RAW_OUTPUT_LABEL,
+} from './utils/terminalOutputConstants'
+export type { TerminalColor, TerminalOutputView, TerminalSpan } from './utils/terminalOutputTypes'
 export { commitsSinceBase, type BranchCommit } from './utils/branchCommits'
 export {
   isInDeleteRange,
@@ -560,6 +613,7 @@ export type { UseEvidenceDiff } from './hooks/useEvidenceDiff'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
+export { useStepFiling } from './hooks/useStepFiling'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
 export { useStorySignoff } from './hooks/useStorySignoff'
 export { useProjectChecks } from './hooks/useProjectChecks'
@@ -585,7 +639,6 @@ export {
   proofThumbnailFrame,
   reviewerVerdictNote,
   shortSha,
-  storyProofNotice,
   verifyAttemptEvidence,
   verifyAttemptFacts,
   verifyAttempts,
@@ -611,8 +664,7 @@ export type {
   ProofThumbnailFrame,
   ProofThumbnailSide,
   ProofUnpairedView,
-  StoryProofNotice,
-  StoryProofSection,
+  StatedProofMode,
   VerifyAttempt,
   VerifyAttemptEvidence,
   VerifyAttemptRun,
@@ -636,7 +688,6 @@ export {
   signoffFixSectionProps,
   signoffLoadStatus,
   signoffSectionProps,
-  signoffReviewLine,
   signoffSections,
   signoffVerifyViews,
 } from './utils/storySignoff'
@@ -671,6 +722,149 @@ export type {
   StoryStepLine,
   StoryStepTone,
 } from './utils/storySignoffTypes'
+export {
+  codeReviewFindingGroups,
+  codeReviewFindingPlace,
+  codeReviewFindingTitle,
+  codeReviewFindingsSummary,
+  codeReviewPreview,
+  codeReviewSectionsOf,
+  codeReviewVerdictBadge,
+  codeReviewVerdictOf,
+  codeReviewView,
+  codeReviewWhere,
+} from './utils/signoffCodeReview'
+export {
+  CODE_REVIEW_GROUP_BY_LABEL,
+  CODE_REVIEW_GROUP_BY_OPTIONS,
+  CODE_REVIEW_HOW_SHOWN_LABEL,
+  CODE_REVIEW_SECTION_TITLES,
+  CODE_REVIEW_UNPROVEN_CHIPS,
+  CODE_REVIEW_WORTH_A_LOOK_LABEL,
+} from './utils/signoffCodeReviewConstants'
+export type {
+  CodeReviewCriterionRow,
+  CodeReviewFindingGroup,
+  CodeReviewFindingPlace,
+  CodeReviewFindingRow,
+  CodeReviewFindingsGroupBy,
+  CodeReviewPreview,
+  CodeReviewRecordedVerdict,
+  CodeReviewTile,
+  CodeReviewTone,
+  CodeReviewUnproven,
+  CodeReviewVerdictBadge,
+  CodeReviewView,
+  CodeReviewWhere,
+} from './utils/signoffCodeReviewTypes'
+export { signoffCostView, signoffTimeView, signoffWorkOf } from './utils/signoffWork'
+export { SIGNOFF_TIME_PARTS, SIGNOFF_TIME_PART_LABELS } from './utils/signoffWorkConstants'
+export type {
+  SignoffCostRow,
+  SignoffCostTokens,
+  SignoffCostView,
+  SignoffTimePart,
+  SignoffTimeRow,
+  SignoffTimeSegment,
+  SignoffTimeView,
+  SignoffWork,
+  SignoffWorkRole,
+  SignoffWorkScope,
+  SignoffWorkStep,
+} from './utils/signoffWorkTypes'
+export { signoffSpecCriteria } from './utils/signoffSpec'
+export {
+  SIGNOFF_SPEC_CRITERIA_CAPTION,
+  SIGNOFF_SPEC_CRITERIA_CHIP,
+  SIGNOFF_SPEC_DESCRIPTION_LINES,
+  SIGNOFF_SPEC_DESCRIPTION_TOGGLE,
+} from './utils/signoffSpecConstants'
+export type { SignoffSpecCriteriaGroup } from './utils/signoffSpecTypes'
+export { signoffDecisionItems } from './utils/signoffDecision'
+export {
+  SIGNOFF_DECISION_PAIR_LABEL,
+  SIGNOFF_DECISION_STEP_LABEL,
+} from './utils/signoffDecisionConstants'
+export type {
+  SignoffDecisionAction,
+  SignoffDecisionFix,
+  SignoffDecisionInput,
+  SignoffDecisionItem,
+  SignoffDecisionTone,
+  SignoffStepTarget,
+} from './utils/signoffDecisionTypes'
+export {
+  reportBodyView,
+  reportPreviewTiles,
+  reportSectionsOf,
+  reportTiles,
+  signoffProofRows,
+  signoffReportView,
+} from './utils/signoffReport'
+export type {
+  ReportPreviewTile,
+  ReportProofRow,
+  ReportSectionView,
+  ReportTile,
+  ReportTileDetail,
+  SignoffProofInput,
+  SignoffProofStepLine,
+  SignoffReportInput,
+  SignoffReportView,
+} from './utils/signoffReportTypes'
+export {
+  acceptanceCriteriaLine,
+  acceptanceDeliveredLine,
+  judgeAcceptance,
+  matchAcceptanceLines,
+  sumAcceptanceJudgements,
+} from './utils/acceptanceJudgement'
+export type {
+  AcceptanceDeliveredLine,
+  AcceptanceJudgement,
+  AcceptanceLineJudgement,
+  JudgedCriterion,
+} from './utils/acceptanceJudgementTypes'
+export {
+  acceptanceCriteriaLines,
+  evidenceChipForTab,
+  isEvidenceChipSelected,
+  signoffAttentionItems,
+  signoffEvidenceChips,
+  signoffFeatureRow,
+  signoffFeaturesDelivered,
+  signoffMergeHold,
+  signoffProofChips,
+  signoffRequestOutcome,
+} from './utils/signoffPage'
+export {
+  SIGNOFF_APPROVE_LABEL,
+  SIGNOFF_CANCEL_LABEL,
+  SIGNOFF_DECISION_LABEL,
+  SIGNOFF_GROUP_CHIP_LABEL,
+  SIGNOFF_GROUP_CHIP_TITLE,
+  SIGNOFF_REJECT_CONFIRM,
+  SIGNOFF_REJECT_CONFIRM_LABEL,
+  SIGNOFF_SECTION_TITLES,
+} from './utils/signoffPageConstants'
+export type {
+  SignoffAttentionInput,
+  SignoffAttentionItem,
+  SignoffEvidenceChip,
+  SignoffEvidenceTarget,
+  SignoffFeatureRowView,
+  SignoffMergeHold,
+  SignoffMergeHoldLeg,
+  SignoffProofChip,
+  SignoffRequestOutcome,
+} from './utils/signoffPageTypes'
+export { processStageChips, processStepRowView, stepFilingOf } from './utils/processStepRow'
+export type {
+  ProcessStageChip,
+  ProcessStepPreviewKind,
+  ProcessStepRowView,
+} from './utils/processStepRowTypes'
+export { clipLine, firstSentence, plainMarkdownLine } from './utils/textLine'
 export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
@@ -695,6 +889,7 @@ export type {
   ApproveActionDescriptor,
   ReviewCheckRow,
   ReviewCheckGroups,
+  TestLayerLines,
   ReviewLandFailureSummary,
   ReviewMergeNotice,
   ReviewTone,
@@ -869,6 +1064,7 @@ export {
   type UseFileMentionsOptions,
 } from './hooks/useFileMentions'
 export {
+  invalidateReferenceGroup,
   invalidateReferenceProject,
   useReferences,
   type References,
@@ -1151,6 +1347,7 @@ export type { AgentQuestion, AgentQuestionDecision } from './utils/agentQuestion
 // Only `captureSubmitBody` ever touches the secret, and only to build that
 // request; the capture record the hook holds is secret-free by construction.
 export { useCredentialCaptures, type UseCredentialCaptures } from './hooks/useCredentialCaptures'
+export { captureHelp } from './utils/credentialCaptureHelp'
 export {
   awaitingCaptures,
   belongsToChat,
@@ -1189,6 +1386,7 @@ export type {
   CredentialCaptureFieldOption,
   CredentialCaptureFields,
   CredentialCaptureFieldSpec,
+  CredentialHelp,
   CredentialCaptureFieldType,
   CredentialCaptureKind,
   CredentialCaptureFormErrors,
@@ -1212,6 +1410,11 @@ export {
   GIT_CREDENTIALS_TITLE,
   GIT_CREDENTIAL_HOST_UNKNOWN,
 } from './utils/gitCredentialConstants'
+export {
+  LLM_CONFIGS_EVENT,
+  PROVIDER_CONNECTIONS_EVENT,
+  WEB_SEARCH_KEYS_EVENT,
+} from './utils/credentialStoreEventConstants'
 
 // Provider connections (Jira / GitHub Issues / … ticket providers) CRUD + the
 // B3 connectors: list assigned items + import a ticket into a project as a Story.
@@ -1223,11 +1426,16 @@ export {
 } from './contexts/ProviderConnectionsContext'
 // Binding a Jira connection to a group or project: key parsing and the one-line summary.
 export {
+  describeEffectiveTicketBinding,
   describeTicketBinding,
+  effectiveTicketBinding,
+  readTicketConnection,
+  withTicketConnection,
   formatJiraProjectKeys,
   jiraConnectionsOf,
   parseJiraProjectKeys,
 } from './utils/ticketConnection'
+export type { EffectiveTicketBinding } from './utils/ticketConnectionTypes'
 export { TICKET_ACCESS_DESCRIPTIONS, TICKET_ACCESS_LABELS } from './utils/ticketConnectionConstants'
 
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
@@ -1279,7 +1487,10 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // Per-project encrypted store of standing context (logins, API keys,
 // conventions) an agent can reach for, plus the deliberate one-at-a-time
 // reveal of a stored value.
-export { useProjectNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+export { useProjectNotes, type UseNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+export { useGroupNotes } from './hooks/useGroupNotes'
+export { referenceGroupId } from './utils/referenceScope'
+export { useProjectNoteTexts } from './hooks/useProjectNoteTexts'
 export {
   ReferenceRenderingContext,
   useCanonicalizeReferences,
@@ -1294,14 +1505,16 @@ export {
   type ProcessRunBranch,
   type DeleteProcessRunResult,
   type ProcessRunDelegation,
+  type ProcessRunChatOpened,
 } from './hooks/useProcessRun'
 export { useRunDiagnostics, type UseRunDiagnostics } from './hooks/useRunDiagnostics'
+export { useProcessRuns, type UseProcessRuns } from './hooks/useProcessRuns'
 export {
-  useProcessRuns,
   isProcessRunActive,
+  isProcessRunCurrent,
   PROCESS_RUN_ACTIVE_STATUSES,
-  type UseProcessRuns,
-} from './hooks/useProcessRuns'
+  splitProcessRunsByCurrent,
+} from './utils/processRunCurrent'
 export { useProcessProposal, type UseProcessProposal } from './hooks/useProcessProposal'
 export {
   useProcessGroupRun,
@@ -1341,12 +1554,13 @@ export {
   processGroupResumeInput,
   processGroupWorkMs,
 } from './utils/processGroupView'
+export { processGroupLegIntegrationModes, processGroupLegMergeGate } from 'thefactory-tools/utils'
 export {
   PROCESS_GROUP_CARD_CTA,
-  PROCESS_GROUP_HELD_SIGN_OFF,
+  PROCESS_GROUP_LEG_OPEN_LABEL,
+  PROCESS_GROUP_LEG_OPEN_LABELS,
   PROCESS_GROUP_LEG_STATUS_VIEW,
   PROCESS_GROUP_MODE_LABELS,
-  PROCESS_GROUP_PREREQUISITE_MODES,
 } from './utils/processGroupViewConstants'
 export type {
   ProcessGroupCardView,
@@ -1414,6 +1628,7 @@ export type {
   ProcessRunPersonEnding,
 } from './utils/processViewTypes'
 export {
+  PROCESS_GATE_LOOP_NO_LIMIT,
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_SEND_BACK_COPY,
   PROCESS_SPEND_CAP_TITLE,
@@ -1424,6 +1639,9 @@ export {
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
+  requestChangesProofPreset,
+  toggleRequestedProof,
+  uiChangeScopeOf,
   waitingNoteCopy,
 } from './utils/processParkNote'
 export {
@@ -1433,6 +1651,8 @@ export {
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
   PARK_NOTE_REQUIRED_CHOICES,
+  REQUEST_PROOF_CHOICES,
+  REQUEST_PROOF_HEADING,
   WAITING_NOTE_COPY,
 } from './utils/processParkNoteConstants'
 export {
@@ -1447,12 +1667,13 @@ export type {
   ProcessWaitingDetail,
   ProcessWaitingView,
 } from './utils/processWaitingViewTypes'
-export type { ParkNoteCopy } from './utils/processParkNoteTypes'
+export type { ParkNoteCopy, RequestProofChoice } from './utils/processParkNoteTypes'
 export {
   isIntegratingApproval,
   processIntegrationBadge,
   processIntegrationChoices,
   processIntegrationView,
+  processRunIntegrationModes,
   soleIntegrationMode,
 } from './utils/processIntegration'
 export {
@@ -1461,6 +1682,8 @@ export {
   PROCESS_INTEGRATION_CHOOSER_HEAD,
   PROCESS_INTEGRATION_CHOOSER_NOTE,
   PROCESS_INTEGRATION_COMPARE_LINK,
+  PROCESS_INTEGRATION_CONFLICT,
+  PROCESS_INTEGRATION_DETAILS_HEAD,
   PROCESS_INTEGRATION_NEVER_TRIED,
   PROCESS_INTEGRATION_SHADOW,
   PROCESS_INTEGRATION_PR_LINK,
@@ -1471,6 +1694,30 @@ export type {
   ProcessIntegrationChoice,
   ProcessIntegrationView,
 } from './utils/processIntegrationTypes'
+export {
+  processIntegrationAccountLabel,
+  processIntegrationFormDecision,
+  processIntegrationFormPreview,
+  processIntegrationFormStart,
+  processIntegrationIdentityLabel,
+} from './utils/processIntegrationForm'
+export {
+  PROCESS_INTEGRATION_FORM_LABELS,
+  PROCESS_INTEGRATION_FORM_NO_ACCOUNT,
+  PROCESS_INTEGRATION_FORM_NO_IDENTITY,
+  PROCESS_INTEGRATION_FORM_NO_MESSAGE,
+  PROCESS_INTEGRATION_FORM_NO_TITLE,
+} from './utils/processIntegrationFormConstants'
+export type {
+  ProcessIntegrationForm,
+  ProcessIntegrationFormResult,
+  ProcessIntegrationPreview,
+  ProcessIntegrationPreviewEntry,
+} from './utils/processIntegrationFormTypes'
+export {
+  useProcessIntegrationOptions,
+  type UseProcessIntegrationOptions,
+} from './hooks/useProcessIntegrationOptions'
 export {
   featureProcessChoice,
   featureProcessLabel,
@@ -1554,9 +1801,13 @@ export type {
 // onto the plan the DRIVER froze, so a client-side re-implementation would
 // render a pipeline the backend does not agree with.
 export {
+  isProcessGateLoop,
   isProcessParkChoiceOffered,
+  isProcessRunParkChoiceOffered,
   isReflectedPark,
+  processBaseMovedNote,
   processParkChoices,
+  processRunParkChoices,
   processRunProgress,
   processRunSendBackGateId,
   processStepStates,
@@ -1564,15 +1815,81 @@ export {
   stepChainSummary,
 } from 'thefactory-tools/utils'
 export type {
+  ProcessBaseConflict,
+  ProcessBaseMoved,
+  ProcessBaseUpdate,
   ProcessParkChoice,
   ProcessStepState,
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
+export {
+  processNeedsYouItemId,
+  processNeedsYouItems,
+  processNeedsYouOpenCount,
+  processRunChatContext,
+  processRunIdOfChatContext,
+} from 'thefactory-tools/utils'
+export type { ProcessNeedsYouItem, ProcessNeedsYouResolution } from 'thefactory-tools/types'
+export { runNeedsYouDiscussDraft, runNeedsYouView } from './utils/runNeedsYouView'
+export {
+  NEEDS_YOU_DISCUSS_LABEL,
+  NEEDS_YOU_FINE_LABEL,
+  RUN_CHAT_CLOSE_LABEL,
+  RUN_CHAT_INTRO,
+  RUN_CHAT_OPEN_LABEL,
+  RUN_CHAT_OPENING,
+  RUN_CHAT_PLACEHOLDER,
+  RUN_CHAT_TITLE,
+} from './utils/runNeedsYouViewConstants'
+export type {
+  NeedsYouCard,
+  NeedsYouCardsView,
+  RunNeedsYouActions,
+} from './utils/runNeedsYouViewTypes'
+export { RunNeedsYouProvider, useRunNeedsYou } from './contexts/RunNeedsYouContext'
+export {
+  RunChatDraftProvider,
+  useRunChatDraft,
+  type OpenRunChatDraft,
+} from './contexts/RunChatDraftContext'
+export {
+  capabilityChatDraft,
+  capabilitySetupHandler,
+  capabilitySetupOffered,
+  isCapabilityMethod,
+} from './utils/capabilityChatDraft'
+export { CAPABILITY_SETUP_LABEL } from './utils/capabilityChatDraftConstants'
+export type {
+  CapabilityDraftContext,
+  CapabilityDraftTarget,
+  CapabilityKind,
+  CapabilityMethodId,
+} from './utils/capabilityChatDraftTypes'
+export {
+  isRunProposalGrant,
+  runProposalArgs,
+  runProposalToolName,
+  runProposalView,
+} from './utils/runProposalView'
+export {
+  RUN_PROPOSAL_DECLINE_LABEL,
+  RUN_PROPOSAL_LATER_LABEL,
+  RUN_PROPOSAL_TOOL_NAMES,
+} from './utils/runProposalViewConstants'
+export type {
+  RunProposalKind,
+  RunProposalLine,
+  RunProposalView,
+} from './utils/runProposalViewTypes'
+export { processBaseMovedView } from './utils/processBaseMovedView'
+export type { ProcessBaseMovedView } from './utils/processBaseMovedViewTypes'
 export { isAgentRunChatContext } from 'thefactory-tools/utils'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
   ProcessGroupLeg,
+  ProcessGroupLegMergeGate,
+  ProcessGroupLegRef,
   ProcessGroupLegStatus,
   ProcessGroupPark,
   ProcessGroupParkReason,
@@ -1580,7 +1897,11 @@ export type {
   ProcessGroupResumeInput,
   ProcessGroupRun,
   ProcessGroupRunTotals,
+  ProcessIntegrationAccountOption,
+  ProcessIntegrationDecision,
+  ProcessIntegrationIdentityOption,
   ProcessIntegrationMode,
+  ProcessIntegrationOptions,
   ProcessOpenWork,
   ProcessLaunchDecision,
   ProcessOpenWorkChoice,

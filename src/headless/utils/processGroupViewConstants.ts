@@ -19,8 +19,18 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   'integration-failed': { label: 'Merge failed', tone: 'stuck' },
   failed: { label: 'Stopped', tone: 'stuck' },
   cancelled: { label: 'Cancelled', tone: 'empty' },
+  rejected: { label: 'Rejected', tone: 'empty' },
   skipped: { label: 'Skipped', tone: 'empty' },
 }
+
+/** What opening a leg's own run is for, by where the leg stands; anything else just opens it. */
+export const PROCESS_GROUP_LEG_OPEN_LABELS: Partial<Record<ProcessGroupLegStatus, string>> = {
+  'at-sign-off': 'Sign it off',
+  'needs-you': 'Answer it',
+}
+
+/** The label for opening a leg's own run when it waits on nothing of yours. */
+export const PROCESS_GROUP_LEG_OPEN_LABEL = 'Open its pipeline'
 
 /** The one action a group run's chat card offers. */
 export const PROCESS_GROUP_CARD_CTA = 'Open the group run'
@@ -31,13 +41,3 @@ export const PROCESS_GROUP_MODE_LABELS: Record<ProcessIntegrationMode, string> =
   squash: 'One commit',
   'pull-request': 'Pull request',
 }
-
-/** What a leg's own pipeline says where its sign-off would be. */
-export const PROCESS_GROUP_HELD_SIGN_OFF =
-  'This project is part of a group run, which is signed off as a whole.'
-
-/** How a prerequisite may be merged early: never a pull request, its dependents build on it. */
-export const PROCESS_GROUP_PREREQUISITE_MODES: readonly ProcessIntegrationMode[] = [
-  'merge',
-  'squash',
-]

@@ -68,12 +68,14 @@ export function isShellTabKey(v: string | undefined): v is ShellTabKey {
 }
 
 /** Per-group shell surface keys. Map to URL segments `/groups/:id/{key}`. */
-export type GroupTabKey = 'home' | 'chat' | 'tools' | 'processes'
+export type GroupTabKey = 'home' | 'chat' | 'notes' | 'tools' | 'processes' | 'settings'
 
 export type GroupTabDef = {
   key: GroupTabKey
   label: string
   icon: NavIconKey
+  /** Routable but not listed among the group's tabs — like a project's Settings, the footer row reaches it. */
+  hiddenInSidebar?: boolean
 }
 
 /**
@@ -84,8 +86,10 @@ export type GroupTabDef = {
 export const GROUP_TAB_DEFS: readonly GroupTabDef[] = [
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
+  { key: 'notes', label: 'Notes', icon: 'notes' },
   { key: 'tools', label: 'Tools', icon: 'tools' },
   { key: 'processes', label: 'Processes', icon: 'processes' },
+  { key: 'settings', label: 'Settings', icon: 'settings', hiddenInSidebar: true },
 ]
 
 export function isGroupTabKey(v: string | undefined): v is GroupTabKey {
@@ -99,8 +103,10 @@ export function isGroupTabKey(v: string | undefined): v is GroupTabKey {
  */
 export function projectTabToGroupTab(tab: ShellTabKey | undefined): GroupTabKey {
   if (tab === 'chat') return 'chat'
+  if (tab === 'notes') return 'notes'
   if (tab === 'tools') return 'tools'
   if (tab === 'processes') return 'processes'
+  if (tab === 'settings') return 'settings'
   return 'home'
 }
 
@@ -111,8 +117,10 @@ export function projectTabToGroupTab(tab: ShellTabKey | undefined): GroupTabKey 
  */
 export function groupTabToProjectTab(tab: GroupTabKey | undefined): ShellTabKey {
   if (tab === 'chat') return 'chat'
+  if (tab === 'notes') return 'notes'
   if (tab === 'tools') return 'tools'
   if (tab === 'processes') return 'processes'
+  if (tab === 'settings') return 'settings'
   return 'stories'
 }
 

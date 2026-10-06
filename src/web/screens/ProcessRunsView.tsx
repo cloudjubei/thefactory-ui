@@ -36,6 +36,8 @@ export type ProcessRunsViewProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open a chat by its context — where a waiting agent's ask was handed. Threaded to the pipeline. */
   onOpenChat?: (context: ChatContext) => void
+  /** Render a run's own chat in the run's chat drawer. Threaded to the pipeline. */
+  renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
   /** Open the group run a selected run is a leg of. Threaded to the pipeline. */
   onOpenGroupRun?: (groupRunId: string) => void
   /**
@@ -62,6 +64,7 @@ export default function ProcessRunsView({
   onOpenAgentRun,
   renderAgentRun,
   onOpenChat,
+  renderChat,
   onOpenGroupRun,
   narrow = false,
 }: ProcessRunsViewProps) {
@@ -148,6 +151,7 @@ export default function ProcessRunsView({
         {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
         {...(renderAgentRun ? { renderAgentRun } : {})}
         {...(onOpenChat ? { onOpenChat } : {})}
+        {...(renderChat ? { renderChat } : {})}
         {...(onOpenGroupRun ? { onOpenGroupRun } : {})}
       />
     </div>

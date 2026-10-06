@@ -350,22 +350,24 @@ describe('shellTabIndicator — other tabs keep their behaviour', () => {
 })
 
 describe('groupTabIndicator', () => {
-  it('Chat follows the chat rule', () => {
-    expect(groupTabIndicator('chat', counts({ chat: 1, chatThinking: true }))).toEqual({
+  it('Chat follows the chat rule, on the GROUP’s own chats', () => {
+    expect(groupTabIndicator('chat', { unread: 1, thinking: true })).toEqual({
       kind: 'spinner',
       dot: { count: 1, category: 'chat' },
     })
-    expect(groupTabIndicator('chat', counts({ chat: 4 }))).toEqual({
+    expect(groupTabIndicator('chat', { unread: 4, thinking: false })).toEqual({
       kind: 'badge',
       count: 4,
       category: 'chat',
     })
   })
 
+  it('clears once the group’s chats are read, whatever a project’s chats hold', () => {
+    expect(groupTabIndicator('chat', { unread: 0, thinking: false })).toEqual({ kind: 'none' })
+  })
+
   it.each<GroupTabKey>(['home', 'tools'])('%s carries no indicator', (tab) => {
-    expect(
-      groupTabIndicator(tab, counts({ chat: 1, chatThinking: true, processesWaiting: 1 })),
-    ).toEqual({ kind: 'none' })
+    expect(groupTabIndicator(tab, { unread: 1, thinking: true })).toEqual({ kind: 'none' })
   })
 })
 

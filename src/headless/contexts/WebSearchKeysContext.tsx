@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { deleteWebSearchKey, listWebSearchKeys, updateWebSearchKeys } from '../api'
+import { deleteWebSearchKey, listWebSearchKeys, updateWebSearchKeys, useApi } from '../api'
 import type { RedactedWebSearchKeyEntry, WebSearchKeyUpsertInput } from '../api'
 import { useAuth } from '../api/AuthContext'
+import { WEB_SEARCH_KEYS_EVENT } from '../utils/credentialStoreEventConstants'
 
 export type WebSearchKeysContextValue = {
   isLoaded: boolean
@@ -17,6 +18,7 @@ const WebSearchKeysContext = createContext<WebSearchKeysContextValue | null>(nul
 
 export function WebSearchKeysProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
+  const { ws } = useApi()
   const [keys, setKeys] = useState<RedactedWebSearchKeyEntry[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -37,6 +39,9 @@ export function WebSearchKeysProvider({ children }: { children: ReactNode }) {
     if (!token) return
     void refresh()
   }, [token, refresh])
+  // Whoever wrote it — another window, an agent's credential form or admin
+  // tool — the list refetches, instead of staying the snapshot taken at login.
+  useEffect(() => ws.on(WEB_SEARCH_KEYS_EVENT, () => void refresh()), [ws, refresh])
 
   const upsertKey = useCallback(
     async (input: WebSearchKeyUpsertInput) => {

@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   AGENT_UNREACHABLE,
+  capabilitySetupOffered,
   checkActionOffer,
   checkCallout,
   checkRowLayout,
@@ -18,6 +19,7 @@ import { Button } from '../../../primitives/Button'
 import CheckChip, { checkChipPalette, checkChipStyle } from '../../chips/CheckChip'
 import HandoffButton from '../../chips/HandoffButton'
 import RunActionButton from '../../chips/RunActionButton'
+import SetUpWithAgentButton from '../../chips/SetUpWithAgentButton'
 
 export type CheckChipRowProps = {
   rows: readonly CheckMethodRow[]
@@ -29,6 +31,8 @@ export type CheckChipRowProps = {
   tabOrder?: readonly ReviewTabId[]
   /** What this panel can do about a chip; absent on a read-only record, which offers only the proof. */
   actions?: CheckActionHost
+  /** Opens a chat drafted to set a missing capability up; without it a missing chip offers the hand-off, if any. */
+  onSetUp?: (row: CheckMethodRow) => void
 }
 
 /**
@@ -44,6 +48,7 @@ export default function CheckChipRow({
   onOpenProof,
   tabOrder,
   actions,
+  onSetUp,
 }: CheckChipRowProps) {
   const { theme, status } = useNativeTheme()
   const [expanded, setExpanded] = useState(false)
@@ -60,6 +65,16 @@ export default function CheckChipRow({
 
   const renderAction = (row: CheckMethodRow) => {
     const busy = busyId === row.id
+    if (onSetUp && capabilitySetupOffered(row)) {
+      return (
+        <SetUpWithAgentButton
+          onPress={() => {
+            close()
+            onSetUp(row)
+          }}
+        />
+      )
+    }
     const offer = checkActionOffer(row.action, actions)
     if (offer.kind === 'open-proof') {
       return (

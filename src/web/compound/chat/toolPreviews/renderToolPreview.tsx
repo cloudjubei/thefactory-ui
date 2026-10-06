@@ -19,6 +19,8 @@ import {
   tryString,
 } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
+import { runProposalView } from '../../../../headless/utils/runProposalView'
+import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 
@@ -222,6 +224,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
+  ...RUN_PROPOSAL_TOOL_NAMES,
 ])
 
 /** Compact one-line summary of a training experiment spec ({sweep?, fixed?, seeds?, environments?,
@@ -651,6 +654,32 @@ export function renderToolPreview({
         {hooks?.renderProcessRunLink && processRunId
           ? hooks.renderProcessRunLink({ processRunId })
           : null}
+      </div>
+    )
+  }
+
+  // ---- a run chat's proposals, each approved on its own card ----
+  const proposal = runProposalView(name, args)
+  if (proposal) {
+    const message = tryString(extract(result, ['message']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <div className="text-xs space-y-2">
+        <div>
+          <SectionTitle>{proposal.kindLabel}</SectionTitle>
+          <div className="text-[11px] text-(--text-secondary)">{proposal.title}</div>
+        </div>
+        {proposal.lines.map((line) => (
+          <div key={line.label}>
+            <SectionTitle>{line.label}</SectionTitle>
+            <div className="text-[11px] text-(--text-secondary)">{line.text}</div>
+          </div>
+        ))}
+        {errorText ? (
+          <div className="text-[11px] text-(--status-stuck-soft-fg)">{errorText}</div>
+        ) : message ? (
+          <div className="text-[11px] text-(--text-secondary)">{message}</div>
+        ) : null}
       </div>
     )
   }

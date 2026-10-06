@@ -58,6 +58,8 @@ export type CliPendingAsk = {
    * in a panel of its own (a question, a launch) and the row only waits.
    */
   decidedOnRow: boolean
+  /** Decided here a moment ago; what came of it has not arrived yet. */
+  awaitingOutcome?: boolean
 }
 
 /** An ask that has been decided — what a transcript row that once waited on it shows now. */

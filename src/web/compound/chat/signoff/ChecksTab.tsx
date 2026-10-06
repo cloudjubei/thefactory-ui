@@ -3,21 +3,24 @@ import type { ReactNode } from 'react'
 import {
   AGENT_UNREACHABLE,
   aggregateTestCounts,
+  capabilitySetupOffered,
   checkActionOffer,
   handoffRequest,
-  parseTestFailures,
+  ranCheckMethods,
   reviewCheckMeta,
+  testLayerLines,
   testTotalsHeadline,
+  TERMINAL_RAW_OUTPUT_LABEL,
   type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
+  type CheckTestResults,
   type ReviewCheckRow,
-  type TestFailure,
-  type TestSuiteOutcome,
-  type TestSuitesView,
   type TestTotalsOutcome,
 } from '../../../../headless'
-import { CheckChip, HandoffButton, RunActionButton } from '../../chips'
+import { CheckChip, HandoffButton, RunActionButton, SetUpWithAgentButton } from '../../chips'
+import { TerminalOutput } from '../../TerminalOutput'
+import { TestResultsList } from '../../tests'
 import { DURATION_CHIP_CLASS } from '../ToolCall/StatusIcon'
 import { TONE_TEXT } from './tones'
 
@@ -32,84 +35,8 @@ export type ChecksTabProps = {
   actions?: CheckActionHost
   /** Shown when the tab owns no method with anything to say — e.g. no tests at all. */
   emptyState?: { title: string; body: string }
-}
-
-/**
- * The command output, always visible. The 132px cap IS the containment — hiding
- * it behind a toggle meant the one thing a reviewer opens this tab to read was
- * the one thing they had to go looking for.
- */
-function Console({ text, stream }: { text: string; stream: 'stdout' | 'stderr' }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-        {stream}
-      </div>
-      <pre className="max-h-[132px] overflow-auto rounded border border-(--border-subtle) bg-(--surface-overlay) p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap wrap-break-word text-(--text-secondary)">
-        {text}
-      </pre>
-    </div>
-  )
-}
-
-/** A failing test, laid out so the assertion is readable without opening a log. */
-function Failure({ path, name, message }: TestFailure) {
-  return (
-    <div className="flex flex-col gap-0.5 rounded border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) p-2">
-      {path ? <span className="font-mono text-[11px] text-(--text-muted)">{path}</span> : null}
-      {name ? <span className="text-[12px] font-medium text-(--text-primary)">{name}</span> : null}
-      {message ? (
-        <span className="font-mono text-[11px] whitespace-pre-wrap text-(--status-stuck-soft-fg)">
-          {message}
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-const SUITE_MARK_TONE: Record<TestSuiteOutcome, string> = {
-  passed: 'text-(--status-done-soft-fg)',
-  failed: 'text-(--status-stuck-soft-fg)',
-  skipped: 'text-(--text-muted)',
-}
-
-/** Each suite the run executed — module, name, counts, time — with its failing tests under it. */
-function SuiteList({ suites }: { suites: TestSuitesView }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-        Suites
-      </div>
-      <ul className="flex flex-col divide-y divide-(--border-subtle) rounded border border-(--border-subtle)">
-        {suites.rows.map((suite) => (
-          <li key={suite.key} className="flex flex-col gap-1.5 px-2 py-1.5">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className={`text-[12px] ${SUITE_MARK_TONE[suite.outcome]}`}>{suite.mark}</span>
-              {suite.module ? (
-                <span className="font-mono text-[11px] text-(--text-muted)">{suite.module}</span>
-              ) : null}
-              <span className="min-w-0 font-mono text-[11.5px] break-all text-(--text-primary)">
-                {suite.name}
-              </span>
-              <span className="flex-1" />
-              <span className="text-[11px] text-(--text-secondary)">{suite.countsLabel}</span>
-              {suite.durationLabel ? (
-                <span className="text-[11px] tabular-nums text-(--text-muted)">
-                  {suite.durationLabel}
-                </span>
-              ) : null}
-            </div>
-            {suite.failures.map((f, i) => (
-              <Failure key={`${f.name}-${i}`} {...f} />
-            ))}
-          </li>
-        ))}
-      </ul>
-      {suites.omittedLabel ? (
-        <span className="text-[11px] text-(--text-muted)">{suites.omittedLabel}</span>
-      ) : null}
-    </div>
-  )
+  /** Opens a chat drafted to set a missing capability up, in place of the hand-off. */
+  onSetUp?: (row: CheckMethodRow) => void
 }
 
 /** A plain note about the record itself — what it cannot show, or what the run could not cover. */
@@ -135,30 +62,27 @@ function CheckBlock({
   title,
   command,
   meta,
-  failed,
   summary,
   durationLabel,
   output,
-  failures,
-  suites,
+  testResults,
   legacyNote,
   coverageNote,
   branch,
   busy,
   actions,
+  onSetUp,
 }: {
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
   /** The variant it ran on and why, the modules, the tests it counted, where it ran. */
   meta: string | undefined
-  failed: boolean
   summary: string
   durationLabel: string | undefined
   output: string | undefined
-  failures: readonly TestFailure[]
-  /** Each suite it ran, when its reports were read — listed above the output tail. */
-  suites: TestSuitesView | undefined
+  /** Its test run, drawn by the Tests display above its raw output, which stays folded. */
+  testResults: CheckTestResults | undefined
   /** Why the record cannot say what ran — it predates commands and output being kept. */
   legacyNote: string | undefined
   /** What the run could not cover, and why. */
@@ -166,8 +90,10 @@ function CheckBlock({
   branch: string | undefined
   busy: boolean
   actions: CheckActionHost | undefined
+  onSetUp: ((row: CheckMethodRow) => void) | undefined
 }) {
   const offer = checkActionOffer(row.action, actions)
+  const setUp = onSetUp && capabilitySetupOffered(row) ? onSetUp : undefined
   return (
     <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -190,19 +116,19 @@ function CheckBlock({
       {legacyNote ? <RecordNote text={legacyNote} /> : null}
       {coverageNote ? <RecordNote text={coverageNote} /> : null}
 
-      {suites ? (
+      {testResults ? (
         <>
-          <SuiteList suites={suites} />
-          {output ? <Console text={output} stream={failed ? 'stderr' : 'stdout'} /> : null}
+          {testResults.unrecordedNote ? <RecordNote text={testResults.unrecordedNote} /> : null}
+          {testResults.results ? <TestResultsList results={testResults.results} /> : null}
+          {testResults.omittedLabel ? (
+            <span className="text-[11px] text-(--text-muted)">{testResults.omittedLabel}</span>
+          ) : null}
+          {output ? (
+            <TerminalOutput text={output} label={TERMINAL_RAW_OUTPUT_LABEL} collapsed />
+          ) : null}
         </>
-      ) : failures.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          {failures.map((f, i) => (
-            <Failure key={`${f.path}-${f.name}-${i}`} {...f} />
-          ))}
-        </div>
       ) : output ? (
-        <Console text={output} stream={failed ? 'stderr' : 'stdout'} />
+        <TerminalOutput text={output} />
       ) : null}
 
       {/* The action is the card's LAST element, always, on its own line.
@@ -228,7 +154,9 @@ function CheckBlock({
               {row.detail} Setting it up is a code change, so it is work for the agent.
             </span>
           ) : null}
-          {offer.kind === 'request' && actions ? (
+          {setUp ? (
+            <SetUpWithAgentButton onClick={() => setUp(row)} />
+          ) : offer.kind === 'request' && actions ? (
             <>
               {offer.unreachable ? (
                 <span className="text-[11px] text-(--text-muted)">{AGENT_UNREACHABLE}</span>
@@ -248,10 +176,11 @@ function CheckBlock({
 }
 
 /**
- * One block per method — and, for tests, one block PER LAYER, because unit,
- * integration and end-to-end each carry their own state, their own time and
- * their own way to be filled. Above them sits the run's aggregate, so the pane
- * answers "did the tests pass" before it answers "which ones".
+ * One block per method that ran — what did not is the chips' to say — and, for
+ * tests, one block PER LAYER, because unit, integration and end-to-end each
+ * carry their own state, their own time and their own way to be filled. Above
+ * them sits the run's aggregate, so the pane answers "did the tests pass"
+ * before it answers "which ones".
  */
 export default function ChecksTab({
   methods,
@@ -260,6 +189,7 @@ export default function ChecksTab({
   busyId,
   actions,
   emptyState,
+  onSetUp,
 }: ChecksTabProps) {
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
   if (emptyState && allUnconfigured) {
@@ -272,7 +202,11 @@ export default function ChecksTab({
       <section className="flex flex-col gap-2 rounded-md border border-(--border-subtle) bg-(--surface-raised) p-3">
         <div className="text-[13px] font-semibold text-(--text-primary)">{emptyState.title}</div>
         <p className="max-w-[64ch] text-[12px] text-(--text-secondary)">{emptyState.body}</p>
-        {setup.kind === 'request' && actions ? (
+        {onSetUp && first && capabilitySetupOffered(first) ? (
+          <div>
+            <SetUpWithAgentButton onClick={() => onSetUp(first)} />
+          </div>
+        ) : setup.kind === 'request' && actions ? (
           <div className="flex flex-wrap items-center gap-2">
             <HandoffButton
               disabled={setup.unreachable}
@@ -289,7 +223,8 @@ export default function ChecksTab({
     )
   }
 
-  const testsRow = methods.length === 1 && methods[0]?.id === 'tests' ? methods[0] : undefined
+  const ran = ranCheckMethods(methods)
+  const testsRow = ran.length === 1 && ran[0]?.id === 'tests' ? ran[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
   const totals = testsRow ? aggregateTestCounts(layers) : undefined
   const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
@@ -313,31 +248,33 @@ export default function ChecksTab({
       ) : null}
 
       {testsRow && layers.length > 0
-        ? layers.map((layer) => (
-            <CheckBlock
-              key={layer.id}
-              row={testsRow}
-              title={
-                <span className={`text-[12px] font-semibold ${TONE_TEXT[layer.tone]}`}>
-                  {layer.label}
-                </span>
-              }
-              command={layer.command}
-              meta={reviewCheckMeta(layer)}
-              failed={layer.status !== 'passed' && layer.status !== 'skipped'}
-              summary={layer.summary}
-              durationLabel={layer.durationLabel}
-              output={layer.details}
-              failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
-              suites={layer.suites}
-              legacyNote={layer.legacyNote}
-              coverageNote={layer.coverageNote}
-              branch={branch}
-              busy={busyId === testsRow.id}
-              actions={actions}
-            />
-          ))
-        : methods.map((row) => {
+        ? layers.map((layer) => {
+            const lines = testLayerLines(layer, layers.length)
+            return (
+              <CheckBlock
+                key={layer.id}
+                row={testsRow}
+                title={
+                  <span className={`text-[12px] font-semibold ${TONE_TEXT[layer.tone]}`}>
+                    {layer.label}
+                  </span>
+                }
+                command={layer.command}
+                meta={lines.meta}
+                summary={lines.summary ?? ''}
+                durationLabel={layer.durationLabel}
+                output={layer.details}
+                testResults={layer.testResults}
+                legacyNote={layer.legacyNote}
+                coverageNote={layer.coverageNote}
+                branch={branch}
+                busy={busyId === testsRow.id}
+                actions={actions}
+                onSetUp={onSetUp}
+              />
+            )
+          })
+        : ran.map((row) => {
             const mine = checks.filter((c) => row.checkIds.includes(c.id))
             return (
               <CheckBlock
@@ -346,17 +283,16 @@ export default function ChecksTab({
                 title={<CheckChip row={row} inert />}
                 command={mine.length === 1 ? (mine[0].command ?? mine[0].label) : undefined}
                 meta={mine.length === 1 ? reviewCheckMeta(mine[0]) : undefined}
-                failed={row.state === 'failed'}
                 summary={row.detail}
                 durationLabel={row.durationLabel}
                 output={row.output}
-                failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
-                suites={mine.length === 1 ? mine[0].suites : undefined}
+                testResults={mine.length === 1 ? mine[0].testResults : undefined}
                 legacyNote={mine.length === 1 ? mine[0].legacyNote : undefined}
                 coverageNote={mine.length === 1 ? mine[0].coverageNote : undefined}
                 branch={branch}
                 busy={busyId === row.id}
                 actions={actions}
+                onSetUp={onSetUp}
               />
             )
           })}

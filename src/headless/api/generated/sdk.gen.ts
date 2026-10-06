@@ -116,6 +116,9 @@ import type {
   CreateGitBranchResponses,
   CreateGitCredentialData,
   CreateGitCredentialResponses,
+  CreateGroupNoteData,
+  CreateGroupNoteErrors,
+  CreateGroupNoteResponses,
   CreateLlmConfigData,
   CreateLlmConfigResponses,
   CreateOverseerGithubRepoData,
@@ -187,6 +190,9 @@ import type {
   DeleteGitCredentialData,
   DeleteGitCredentialErrors,
   DeleteGitCredentialResponses,
+  DeleteGroupNoteData,
+  DeleteGroupNoteErrors,
+  DeleteGroupNoteResponses,
   DeleteLastChatMessageData,
   DeleteLastChatMessageErrors,
   DeleteLastChatMessageResponses,
@@ -364,6 +370,9 @@ import type {
   GetProcessResponses,
   GetProcessRunData,
   GetProcessRunErrors,
+  GetProcessRunIntegrationOptionsData,
+  GetProcessRunIntegrationOptionsErrors,
+  GetProcessRunIntegrationOptionsResponses,
   GetProcessRunResponses,
   GetProjectData,
   GetProjectErrors,
@@ -522,6 +531,9 @@ import type {
   ListGitStashesData,
   ListGitStashesErrors,
   ListGitStashesResponses,
+  ListGroupNotesData,
+  ListGroupNotesErrors,
+  ListGroupNotesResponses,
   ListLlmConfigsData,
   ListLlmConfigsResponses,
   ListLlmModelsData,
@@ -605,6 +617,9 @@ import type {
   OpenCredentialCaptureData,
   OpenCredentialCaptureErrors,
   OpenCredentialCaptureResponses,
+  OpenProcessRunChatData,
+  OpenProcessRunChatErrors,
+  OpenProcessRunChatResponses,
   PairRunnerData,
   PairRunnerErrors,
   PairRunnerResponses,
@@ -700,6 +715,12 @@ import type {
   RequestCliRunReviewResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResolveProcessRunIntegrationConflictData,
+  ResolveProcessRunIntegrationConflictErrors,
+  ResolveProcessRunIntegrationConflictResponses,
+  ResolveProcessRunNeedsYouItemData,
+  ResolveProcessRunNeedsYouItemErrors,
+  ResolveProcessRunNeedsYouItemResponses,
   RestartChatWithCliData,
   RestartChatWithCliErrors,
   RestartChatWithCliResponses,
@@ -724,6 +745,9 @@ import type {
   RevealDatabaseCredentialsData,
   RevealDatabaseCredentialsErrors,
   RevealDatabaseCredentialsResponses,
+  RevealGroupNoteData,
+  RevealGroupNoteErrors,
+  RevealGroupNoteResponses,
   RevealProjectNoteData,
   RevealProjectNoteErrors,
   RevealProjectNoteResponses,
@@ -873,6 +897,9 @@ import type {
   UpdateGitCredentialData,
   UpdateGitCredentialErrors,
   UpdateGitCredentialResponses,
+  UpdateGroupNoteData,
+  UpdateGroupNoteErrors,
+  UpdateGroupNoteResponses,
   UpdateLlmConfigData,
   UpdateLlmConfigErrors,
   UpdateLlmConfigResponses,
@@ -1578,6 +1605,38 @@ export const delegateProcessRunAsk = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const openProcessRunChat = <ThrowOnError extends boolean = false>(
+  options: Options<OpenProcessRunChatData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    OpenProcessRunChatResponses,
+    OpenProcessRunChatErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/chat',
+    ...options,
+  })
+
+export const resolveProcessRunNeedsYouItem = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveProcessRunNeedsYouItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveProcessRunNeedsYouItemResponses,
+    ResolveProcessRunNeedsYouItemErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/needs-you',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>(
   options: Options<RetryProcessRunIntegrationData, ThrowOnError>,
 ) =>
@@ -1594,6 +1653,34 @@ export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const getProcessRunIntegrationOptions = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunIntegrationOptionsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunIntegrationOptionsResponses,
+    GetProcessRunIntegrationOptionsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/integration-options',
+    ...options,
+  })
+
+export const resolveProcessRunIntegrationConflict = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveProcessRunIntegrationConflictData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveProcessRunIntegrationConflictResponses,
+    ResolveProcessRunIntegrationConflictErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/resolve-integration-conflict',
+    ...options,
   })
 
 export const sendProcessRunBackForChanges = <ThrowOnError extends boolean = false>(
@@ -4699,6 +4786,63 @@ export const revealProjectNote = <ThrowOnError extends boolean = false>(
       ...options,
     },
   )
+
+export const listGroupNotes = <ThrowOnError extends boolean = false>(
+  options: Options<ListGroupNotesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListGroupNotesResponses, ListGroupNotesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/notes',
+    ...options,
+  })
+
+export const createGroupNote = <ThrowOnError extends boolean = false>(
+  options: Options<CreateGroupNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateGroupNoteResponses, CreateGroupNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/notes',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteGroupNote = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteGroupNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<DeleteGroupNoteResponses, DeleteGroupNoteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/notes/{noteId}',
+    ...options,
+  })
+
+export const updateGroupNote = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateGroupNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<UpdateGroupNoteResponses, UpdateGroupNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/notes/{noteId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const revealGroupNote = <ThrowOnError extends boolean = false>(
+  options: Options<RevealGroupNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<RevealGroupNoteResponses, RevealGroupNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/groups/{groupId}/notes/{noteId}/reveal',
+    ...options,
+  })
 
 export const ingestAll = <ThrowOnError extends boolean = false>(
   options?: Options<IngestAllData, ThrowOnError>,

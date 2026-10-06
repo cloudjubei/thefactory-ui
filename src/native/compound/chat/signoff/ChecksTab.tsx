@@ -1,19 +1,21 @@
 import { type ReactNode } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
 import {
   AGENT_UNREACHABLE,
   aggregateTestCounts,
+  capabilitySetupOffered,
   checkActionOffer,
   handoffRequest,
-  parseTestFailures,
+  ranCheckMethods,
   reviewCheckMeta,
+  testLayerLines,
   testTotalsHeadline,
-  type TestFailure,
-  type TestSuitesView,
+  TERMINAL_RAW_OUTPUT_LABEL,
   type CheckActionHost,
   type CheckMethodId,
   type CheckMethodRow,
+  type CheckTestResults,
   type ReviewCheckRow,
 } from '../../../../headless'
 import { nativeFontFamilies, nativeRadii } from '../../../../tokens/native'
@@ -21,6 +23,9 @@ import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import CheckChip from '../../chips/CheckChip'
 import HandoffButton from '../../chips/HandoffButton'
 import RunActionButton from '../../chips/RunActionButton'
+import SetUpWithAgentButton from '../../chips/SetUpWithAgentButton'
+import { TerminalOutput } from '../../TerminalOutput'
+import { TestResultsList } from '../../tests/TestResultsList'
 import DurationPill from './DurationPill'
 import { toneText } from './tones'
 
@@ -35,9 +40,9 @@ export type ChecksTabProps = {
   actions?: CheckActionHost
   /** Shown when the tab owns no method with anything to say — e.g. no tests at all. */
   emptyState?: { title: string; body: string }
+  /** Opens a chat drafted to set a missing capability up, in place of the hand-off. */
+  onSetUp?: (row: CheckMethodRow) => void
 }
-
-const OUTPUT_MAX_HEIGHT = 132
 
 function Card({ children, padding = 10 }: { children: ReactNode; padding?: number }) {
   const { theme } = useNativeTheme()
@@ -53,173 +58,6 @@ function Card({ children, padding = 10 }: { children: ReactNode; padding?: numbe
       }}
     >
       {children}
-    </View>
-  )
-}
-
-/**
- * The command output, always visible. The 132px cap IS the containment — hiding
- * it behind a toggle meant the one thing a reviewer opens this tab to read was
- * the one thing they had to go looking for.
- */
-function Output({ text, stream }: { text: string; stream: 'stdout' | 'stderr' }) {
-  const { theme } = useNativeTheme()
-  return (
-    <View style={{ gap: 4 }}>
-      <Text
-        style={{
-          fontSize: 10,
-          fontWeight: '600',
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
-          color: theme.text.muted,
-        }}
-      >
-        {stream}
-      </Text>
-      <ScrollView
-        nestedScrollEnabled
-        style={{
-          maxHeight: OUTPUT_MAX_HEIGHT,
-          borderRadius: nativeRadii[1],
-          borderWidth: 1,
-          borderColor: theme.border.subtle,
-          backgroundColor: theme.surface.overlay,
-        }}
-        contentContainerStyle={{ padding: 8 }}
-      >
-        <Text
-          selectable
-          style={{
-            fontFamily: nativeFontFamilies.mono,
-            fontSize: 11,
-            lineHeight: 17,
-            color: theme.text.secondary,
-          }}
-        >
-          {text}
-        </Text>
-      </ScrollView>
-    </View>
-  )
-}
-
-/** A failing test, laid out so the assertion is readable without opening a log. */
-function Failure({ path, name, message }: TestFailure) {
-  const { theme, status } = useNativeTheme()
-  return (
-    <View
-      style={{
-        gap: 2,
-        padding: 8,
-        borderRadius: nativeRadii[1],
-        borderWidth: 1,
-        borderColor: status.stuck.softBorder,
-        backgroundColor: status.stuck.softBg,
-      }}
-    >
-      {path ? (
-        <Text
-          style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: theme.text.muted }}
-        >
-          {path}
-        </Text>
-      ) : null}
-      {name ? (
-        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>{name}</Text>
-      ) : null}
-      {message ? (
-        <Text
-          selectable
-          style={{ fontFamily: nativeFontFamilies.mono, fontSize: 11, color: status.stuck.softFg }}
-        >
-          {message}
-        </Text>
-      ) : null}
-    </View>
-  )
-}
-
-/** Each suite the run executed — module, name, counts, time — with its failing tests under it. */
-function SuiteList({ suites }: { suites: TestSuitesView }) {
-  const { theme, status } = useNativeTheme()
-  const markColor = {
-    passed: status.done.softFg,
-    failed: status.stuck.softFg,
-    skipped: theme.text.muted,
-  }
-  return (
-    <View style={{ gap: 4 }}>
-      <Text
-        style={{
-          fontSize: 10,
-          fontWeight: '600',
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
-          color: theme.text.muted,
-        }}
-      >
-        Suites
-      </Text>
-      <View
-        style={{
-          borderRadius: nativeRadii[1],
-          borderWidth: 1,
-          borderColor: theme.border.subtle,
-        }}
-      >
-        {suites.rows.map((suite, index) => (
-          <View
-            key={suite.key}
-            style={{
-              gap: 6,
-              paddingHorizontal: 8,
-              paddingVertical: 6,
-              borderTopWidth: index === 0 ? 0 : 1,
-              borderTopColor: theme.border.subtle,
-            }}
-          >
-            <View
-              style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}
-            >
-              <Text style={{ fontSize: 12, color: markColor[suite.outcome] }}>{suite.mark}</Text>
-              {suite.module ? (
-                <Text
-                  style={{
-                    fontFamily: nativeFontFamilies.mono,
-                    fontSize: 11,
-                    color: theme.text.muted,
-                  }}
-                >
-                  {suite.module}
-                </Text>
-              ) : null}
-              <Text
-                selectable
-                style={{
-                  flexShrink: 1,
-                  fontFamily: nativeFontFamilies.mono,
-                  fontSize: 11.5,
-                  color: theme.text.primary,
-                }}
-              >
-                {suite.name}
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{suite.countsLabel}</Text>
-              {suite.durationLabel ? (
-                <Text style={{ fontSize: 11, color: theme.text.muted }}>{suite.durationLabel}</Text>
-              ) : null}
-            </View>
-            {suite.failures.map((f, i) => (
-              <Failure key={`${f.name}-${i}`} {...f} />
-            ))}
-          </View>
-        ))}
-      </View>
-      {suites.omittedLabel ? (
-        <Text style={{ fontSize: 11, color: theme.text.muted }}>{suites.omittedLabel}</Text>
-      ) : null}
     </View>
   )
 }
@@ -250,30 +88,27 @@ function CheckBlock({
   title,
   command,
   meta,
-  failed,
   summary,
   durationLabel,
   output,
-  failures,
-  suites,
+  testResults,
   legacyNote,
   coverageNote,
   branch,
   busy,
   actions,
+  onSetUp,
 }: {
   row: CheckMethodRow
   title: ReactNode
   command: string | undefined
   /** The variant it ran on and why, the modules, the tests it counted, where it ran. */
   meta: string | undefined
-  failed: boolean
   summary: string
   durationLabel: string | undefined
   output: string | undefined
-  failures: readonly TestFailure[]
-  /** Each suite it ran, when its reports were read — listed above the output tail. */
-  suites: TestSuitesView | undefined
+  /** Its test run, drawn by the Tests display above its raw output, which stays folded. */
+  testResults: CheckTestResults | undefined
   /** Why the record cannot say what ran — it predates commands and output being kept. */
   legacyNote: string | undefined
   /** What the run could not cover, and why. */
@@ -281,9 +116,11 @@ function CheckBlock({
   branch: string | undefined
   busy: boolean
   actions: CheckActionHost | undefined
+  onSetUp: ((row: CheckMethodRow) => void) | undefined
 }) {
   const { theme } = useNativeTheme()
   const offer = checkActionOffer(row.action, actions)
+  const setUp = onSetUp && capabilitySetupOffered(row) ? onSetUp : undefined
 
   return (
     <Card>
@@ -316,19 +153,21 @@ function CheckBlock({
       {legacyNote ? <RecordNote text={legacyNote} /> : null}
       {coverageNote ? <RecordNote text={coverageNote} /> : null}
 
-      {suites ? (
+      {testResults ? (
         <>
-          <SuiteList suites={suites} />
-          {output ? <Output text={output} stream={failed ? 'stderr' : 'stdout'} /> : null}
+          {testResults.unrecordedNote ? <RecordNote text={testResults.unrecordedNote} /> : null}
+          {testResults.results ? <TestResultsList results={testResults.results} inline /> : null}
+          {testResults.omittedLabel ? (
+            <Text style={{ fontSize: 11, color: theme.text.muted }}>
+              {testResults.omittedLabel}
+            </Text>
+          ) : null}
+          {output ? (
+            <TerminalOutput text={output} label={TERMINAL_RAW_OUTPUT_LABEL} collapsed />
+          ) : null}
         </>
-      ) : failures.length > 0 ? (
-        <View style={{ gap: 6 }}>
-          {failures.map((f, i) => (
-            <Failure key={`${f.path}-${f.name}-${i}`} {...f} />
-          ))}
-        </View>
       ) : output ? (
-        <Output text={output} stream={failed ? 'stderr' : 'stdout'} />
+        <TerminalOutput text={output} />
       ) : null}
 
       {/* The action is the card's LAST element, always, on its own line — see
@@ -352,7 +191,9 @@ function CheckBlock({
               {`${row.detail} Setting it up is a code change, so it is work for the agent.`}
             </Text>
           ) : null}
-          {offer.kind === 'request' && actions ? (
+          {setUp ? (
+            <SetUpWithAgentButton onPress={() => setUp(row)} />
+          ) : offer.kind === 'request' && actions ? (
             <>
               {offer.unreachable ? (
                 <Text style={{ fontSize: 11, color: theme.text.muted }}>{AGENT_UNREACHABLE}</Text>
@@ -372,10 +213,10 @@ function CheckBlock({
 }
 
 /**
- * One block per method — the same block for Build and for Tests — with the
- * method's chip, its command, its time in the standard duration pill, its
- * output behind a toggle (capped and scrollable, so a long log cannot inflate
- * the row), and the one action its state allows.
+ * One block per method that ran — what did not is the chips' to say — the same
+ * block for Build and for Tests, with the method's chip, its command, its time
+ * in the standard duration pill, its tests through the Tests display, its output
+ * in the terminal block, and the one action its state allows.
  */
 export default function ChecksTab({
   methods,
@@ -384,6 +225,7 @@ export default function ChecksTab({
   busyId,
   actions,
   emptyState,
+  onSetUp,
 }: ChecksTabProps) {
   const { theme, status } = useNativeTheme()
   const allUnconfigured = methods.length > 0 && methods.every((m) => m.state === 'unconfigured')
@@ -399,7 +241,11 @@ export default function ChecksTab({
           {emptyState.title}
         </Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{emptyState.body}</Text>
-        {setup.kind === 'request' && actions ? (
+        {onSetUp && first && capabilitySetupOffered(first) ? (
+          <View style={{ alignItems: 'flex-start' }}>
+            <SetUpWithAgentButton onPress={() => onSetUp(first)} />
+          </View>
+        ) : setup.kind === 'request' && actions ? (
           <View style={{ alignItems: 'flex-start', gap: 6 }}>
             <HandoffButton
               disabled={setup.unreachable}
@@ -415,7 +261,8 @@ export default function ChecksTab({
       </Card>
     )
   }
-  const testsRow = methods.length === 1 && methods[0]?.id === 'tests' ? methods[0] : undefined
+  const ran = ranCheckMethods(methods)
+  const testsRow = ran.length === 1 && ran[0]?.id === 'tests' ? ran[0] : undefined
   const layers = testsRow ? checks.filter((c) => testsRow.checkIds.includes(c.id)) : []
   const totals = testsRow ? aggregateTestCounts(layers) : undefined
   const anyFailed = layers.some((l) => l.status === 'failed' || l.status === 'error')
@@ -458,33 +305,35 @@ export default function ChecksTab({
       ) : null}
 
       {testsRow && layers.length > 0
-        ? layers.map((layer) => (
-            <CheckBlock
-              key={layer.id}
-              row={testsRow}
-              title={
-                <Text
-                  style={{ fontSize: 12, fontWeight: '600', color: toneText(layer.tone, theme) }}
-                >
-                  {layer.label}
-                </Text>
-              }
-              command={layer.command}
-              meta={reviewCheckMeta(layer)}
-              failed={layer.status !== 'passed' && layer.status !== 'skipped'}
-              summary={layer.summary}
-              durationLabel={layer.durationLabel}
-              output={layer.details}
-              failures={layer.status === 'passed' ? [] : parseTestFailures(layer.details)}
-              suites={layer.suites}
-              legacyNote={layer.legacyNote}
-              coverageNote={layer.coverageNote}
-              branch={branch}
-              busy={busyId === testsRow.id}
-              actions={actions}
-            />
-          ))
-        : methods.map((row) => {
+        ? layers.map((layer) => {
+            const lines = testLayerLines(layer, layers.length)
+            return (
+              <CheckBlock
+                key={layer.id}
+                row={testsRow}
+                title={
+                  <Text
+                    style={{ fontSize: 12, fontWeight: '600', color: toneText(layer.tone, theme) }}
+                  >
+                    {layer.label}
+                  </Text>
+                }
+                command={layer.command}
+                meta={lines.meta}
+                summary={lines.summary ?? ''}
+                durationLabel={layer.durationLabel}
+                output={layer.details}
+                testResults={layer.testResults}
+                legacyNote={layer.legacyNote}
+                coverageNote={layer.coverageNote}
+                branch={branch}
+                busy={busyId === testsRow.id}
+                actions={actions}
+                onSetUp={onSetUp}
+              />
+            )
+          })
+        : ran.map((row) => {
             const mine = checks.filter((c) => row.checkIds.includes(c.id))
             return (
               <CheckBlock
@@ -493,17 +342,16 @@ export default function ChecksTab({
                 title={<CheckChip row={row} inert />}
                 command={mine.length === 1 ? (mine[0].command ?? mine[0].label) : undefined}
                 meta={mine.length === 1 ? reviewCheckMeta(mine[0]) : undefined}
-                failed={row.state === 'failed'}
                 summary={row.detail}
                 durationLabel={row.durationLabel}
                 output={row.output}
-                failures={row.state === 'failed' ? parseTestFailures(row.output) : []}
-                suites={mine.length === 1 ? mine[0].suites : undefined}
+                testResults={mine.length === 1 ? mine[0].testResults : undefined}
                 legacyNote={mine.length === 1 ? mine[0].legacyNote : undefined}
                 coverageNote={mine.length === 1 ? mine[0].coverageNote : undefined}
                 branch={branch}
                 busy={busyId === row.id}
                 actions={actions}
+                onSetUp={onSetUp}
               />
             )
           })}

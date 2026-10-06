@@ -25,6 +25,8 @@ import {
   checkMethodFor,
   checkMethodRows,
   checkRowLayout,
+  isAbsentCheck,
+  ranCheckMethods,
   reviewTabOrder,
   evidenceMethodFor,
   projectCheckLastRunSentence,
@@ -1131,13 +1133,33 @@ describe('checkRowLayout', () => {
   const mk = (id: CheckMethodRow['id'], state: CheckMethodRow['state']): CheckMethodRow =>
     ({ id, state }) as CheckMethodRow
 
-  it('keeps the rows in the order given and a few absent ones visible', () => {
+  it('keeps the rows in the order given, what ran first, and a few absent ones visible last', () => {
     const layout = checkRowLayout(
       [mk('lint', 'unchecked'), mk('types', 'passed'), mk('tests', 'failed')],
       false,
     )
-    expect(layout.visible.map((r) => r.id)).toEqual(['lint', 'types', 'tests'])
+    expect(layout.visible.map((r) => r.id)).toEqual(['types', 'tests', 'lint'])
     expect(layout.collapsed).toEqual([])
+  })
+
+  it('puts every checked state — passed, failed, flagged — before every absent one', () => {
+    const layout = checkRowLayout(
+      [
+        mk('walkthrough', 'unchecked'),
+        mk('report', 'passed'),
+        mk('uitests', 'unconfigured'),
+        mk('tests', 'failed'),
+        mk('lint', 'flagged'),
+      ],
+      true,
+    )
+    expect(layout.visible.map((r) => r.id)).toEqual([
+      'report',
+      'tests',
+      'lint',
+      'walkthrough',
+      'uitests',
+    ])
   })
 
   const opening = (
@@ -1168,17 +1190,48 @@ describe('checkRowLayout', () => {
     ])
   })
 
-  it('places a chip with no proof yet where its method’s tab would be, and one with no tab last', () => {
+  it('places a chip with no tab last among what ran, and the absent ones after, in tab order', () => {
     const layout = checkRowLayout(
       [
         opening('lint', 'unchecked'),
-        opening('screens', 'passed', 'screens'),
         opening('tests', 'passed', 'tests'),
+        opening('screens', 'passed', 'screens'),
+        opening('walkthrough', 'unchecked'),
       ],
       true,
-      ['screens', 'build'],
+      ['screens', 'walkthrough', 'build'],
     )
-    expect(layout.visible.map((r) => r.id)).toEqual(['screens', 'lint', 'tests'])
+    expect(layout.visible.map((r) => r.id)).toEqual(['screens', 'tests', 'walkthrough', 'lint'])
+  })
+
+  it('lays out the story sign-off’s chips with the skipped and missing ones last', () => {
+    const layout = checkRowLayout(
+      [
+        opening('report', 'passed', 'report'),
+        opening('walkthrough', 'unchecked'),
+        opening('tests', 'passed', 'tests'),
+        opening('uitests', 'unconfigured'),
+        opening('types', 'passed', 'build'),
+        opening('lint', 'unconfigured'),
+        opening('format', 'passed', 'build'),
+        opening('build', 'passed', 'build'),
+        opening('diff', 'passed', 'code-review'),
+      ],
+      false,
+      ['report', 'walkthrough', 'tests', 'build', 'code-review'],
+    )
+    expect(layout.visible.map((r) => r.id)).toEqual([
+      'report',
+      'tests',
+      'types',
+      'format',
+      'build',
+      'diff',
+      'walkthrough',
+      'uitests',
+      'lint',
+    ])
+    expect(layout.collapsed).toEqual([])
   })
 
   it('keeps tab order when absent chips fold away', () => {
@@ -1225,6 +1278,39 @@ describe('checkRowLayout', () => {
     )
     expect(layout.visible).toHaveLength(4)
     expect(layout.collapsed).toEqual([])
+  })
+})
+
+describe('ranCheckMethods', () => {
+  it('keeps only what ran, in order — never an available or a missing method', () => {
+    const rows = [
+      { id: 'types', state: 'passed' },
+      { id: 'uitests', state: 'unconfigured' },
+      { id: 'lint', state: 'unchecked' },
+      { id: 'format', state: 'flagged' },
+      { id: 'build', state: 'failed' },
+    ] as CheckMethodRow[]
+    expect(ranCheckMethods(rows).map((r) => r.id)).toEqual(['types', 'format', 'build'])
+  })
+
+  it('is empty when nothing ran', () => {
+    expect(ranCheckMethods([{ state: 'unchecked' }, { state: 'unconfigured' }])).toEqual([])
+  })
+})
+
+describe('isAbsentCheck', () => {
+  it('reads only unchecked and unconfigured as absent', () => {
+    const states: CheckMethodRow['state'][] = [
+      'passed',
+      'failed',
+      'flagged',
+      'unchecked',
+      'unconfigured',
+    ]
+    expect(states.filter((state) => isAbsentCheck({ state }))).toEqual([
+      'unchecked',
+      'unconfigured',
+    ])
   })
 })
 

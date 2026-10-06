@@ -6,6 +6,7 @@ import {
   reviewTabOrder,
   reviewTabs,
   screenPairFileStem,
+  ranReviewChecks,
   reviewCheckGroups,
   type CheckMethodId,
   type CheckMethodRow,
@@ -46,8 +47,11 @@ export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: strin
 
 export type FeatureReviewSectionProps = {
   projectId: string
-  /** An overall (story-wide) section is always open; a feature is collapsible. */
-  kind: 'overall' | 'feature'
+  /**
+   * An overall (story-wide) section is always open; a feature is collapsible;
+   * an embedded one is the body alone, inside a row that already names it.
+   */
+  kind: 'overall' | 'feature' | 'embedded'
   /** The section id label, e.g. "Feature #1.2" or "Fix · pass 2" — collapsible sections only. */
   idLabel?: string
   /** The id chip's scope tint — a story-level section (a fix pass) is the story's blue. */
@@ -70,6 +74,8 @@ export type FeatureReviewSectionProps = {
   leadTab?: ReviewTabId
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
+  /** Opens the run's chat drafted to set a missing capability up — offered on its chip. */
+  onSetUp?: (row: CheckMethodRow) => void
   /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
   badge?: { label: string; tone: ReviewStatusLine['tone'] }
   /** A person's acceptance or the gate's conclusion, then the reviewer's — above the evidence. */
@@ -250,6 +256,7 @@ export default function FeatureReviewSection({
   attemptLabel,
   developerChecks,
   proofPlan,
+  onSetUp,
 }: FeatureReviewSectionProps) {
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
 
@@ -262,8 +269,8 @@ export default function FeatureReviewSection({
     walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
-    testChecks: testChecks.length,
-    buildChecks: buildChecks.length,
+    testChecks: ranReviewChecks(testChecks).length,
+    buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: undefined,
     codeReviews: codeReviews.length,
     ...(leadTab ? { lead: leadTab } : {}),
@@ -288,7 +295,7 @@ export default function FeatureReviewSection({
   }
 
   const body = (
-    <div className="flex flex-col gap-2.5 px-3 pb-3 pt-2.5">
+    <div className={`flex flex-col gap-2.5 ${kind === 'embedded' ? '' : 'px-3 pb-3 pt-2.5'}`}>
       {attemptLabel ? (
         <span className="text-[11px] text-(--text-muted)">{attemptLabel}</span>
       ) : null}
@@ -339,6 +346,7 @@ export default function FeatureReviewSection({
           branch={undefined}
           busyId={undefined}
           onOpenProof={openProof}
+          {...(onSetUp ? { onSetUp } : {})}
         />
       ) : null}
 
@@ -424,6 +432,8 @@ export default function FeatureReviewSection({
       {proof.header.chip}
     </span>
   ) : null
+
+  if (kind === 'embedded') return body
 
   if (kind === 'overall') {
     return (

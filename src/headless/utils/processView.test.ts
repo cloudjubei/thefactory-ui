@@ -687,7 +687,10 @@ describe('processNodeLook', () => {
 
 describe('processNodeBadge and processNodeSummary — a requeued step', () => {
   const plan = {
-    steps: [{ id: 'implement' }, { id: 'verify' }],
+    steps: [
+      { id: 'implement', kind: 'agent' as const },
+      { id: 'verify', kind: 'agent' as const },
+    ],
     loops: [
       {
         id: 'fix',
@@ -748,7 +751,11 @@ describe('formatProcessDuration', () => {
 
 describe('processIterationBadge', () => {
   const plan = {
-    steps: [{ id: 'i' }, { id: 'v' }, { id: 'r' }],
+    steps: [
+      { id: 'i', kind: 'agent' as const },
+      { id: 'v', kind: 'agent' as const },
+      { id: 'r', kind: 'agent' as const },
+    ],
     loops: [
       { id: 'fix', from: 'v', to: 'i', when: ['failed'] as ProcessStepOutcome[], maxIterations: 3 },
     ],
@@ -772,6 +779,50 @@ describe('processIterationBadge', () => {
       'attempt 4 of 4',
     )
   })
+  it('drops the cap on a step a person sends work back over at a gate — their requests have no limit', () => {
+    const story = {
+      steps: [
+        { id: 'fix', kind: 'process' as const, onlyWhenSentBack: true },
+        { id: 'code-review', kind: 'judge' as const },
+        { id: 'sign-off', kind: 'gate' as const },
+      ],
+      loops: [
+        {
+          id: 'auto-fix',
+          from: 'code-review',
+          to: 'fix',
+          when: ['failed'] as ProcessStepOutcome[],
+          maxIterations: 3,
+        },
+        {
+          id: 'fix-findings',
+          from: 'sign-off',
+          to: 'fix',
+          when: ['failed'] as ProcessStepOutcome[],
+          maxIterations: 3,
+        },
+      ],
+    }
+    expect(processIterationBadge(6, 'fix', { plan: story })).toBe('attempt 6')
+  })
+  it('keeps the cap on the same plan when the step the edge leaves is not a person', () => {
+    const story = {
+      steps: [
+        { id: 'fix', kind: 'process' as const, onlyWhenSentBack: true },
+        { id: 'sign-off', kind: 'check' as const },
+      ],
+      loops: [
+        {
+          id: 'fix-findings',
+          from: 'sign-off',
+          to: 'fix',
+          when: ['failed'] as ProcessStepOutcome[],
+          maxIterations: 3,
+        },
+      ],
+    }
+    expect(processIterationBadge(2, 'fix', { plan: story })).toBe('attempt 2 of 2')
+  })
   it('ignores a grant for a loop the plan does not have', () => {
     expect(processIterationBadge(2, 'v', { plan, iterationGrants: { other: 5 } })).toBe(
       'attempt 2 of 3',
@@ -780,7 +831,12 @@ describe('processIterationBadge', () => {
 
   describe('a step two loops go back over — a feature reviewed before it is verified', () => {
     const feature = {
-      steps: [{ id: 'implement' }, { id: 'code-review' }, { id: 'verify' }, { id: 'report' }],
+      steps: [
+        { id: 'implement', kind: 'agent' as const },
+        { id: 'code-review', kind: 'judge' as const },
+        { id: 'verify', kind: 'agent' as const },
+        { id: 'report', kind: 'report' as const },
+      ],
       loops: [
         {
           id: 'review-fix',
@@ -816,10 +872,10 @@ describe('processIterationBadge', () => {
 describe('processNodeBadge — a step that runs only when work is sent back to it', () => {
   const plan = {
     steps: [
-      { id: 'features', name: 'Features' },
-      { id: 'fix', name: 'Fix', onlyWhenSentBack: true },
-      { id: 'code-review', name: 'Code review' },
-      { id: 'sign-off', name: 'Sign-off' },
+      { id: 'features', name: 'Features', kind: 'process' as const },
+      { id: 'fix', name: 'Fix', kind: 'process' as const, onlyWhenSentBack: true },
+      { id: 'code-review', name: 'Code review', kind: 'judge' as const },
+      { id: 'sign-off', name: 'Sign-off', kind: 'gate' as const },
     ],
     loops: [
       {
@@ -850,12 +906,12 @@ describe('processNodeBadge — a step that runs only when work is sent back to i
   it('does not count the time it was only passed through', () => {
     expect(processNodeBadge(fix([passedThrough, sentBack('auto-fix')]), { plan })).toBeUndefined()
   })
-  it('counts the passes a send-back ran, capped at the passes its loops allow', () => {
+  it('counts the passes a send-back ran, with no cap while a person can send it back at sign-off', () => {
     expect(
       processNodeBadge(fix([passedThrough, sentBack('auto-fix'), sentBack('fix-findings')]), {
         plan,
       }),
-    ).toBe('attempt 2 of 4')
+    ).toBe('attempt 2')
   })
 })
 

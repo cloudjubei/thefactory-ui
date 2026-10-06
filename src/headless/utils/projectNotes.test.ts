@@ -212,7 +212,7 @@ describe('label helpers', () => {
 
   it('explains each access mode honestly', () => {
     expect(noteAccessHelp('open')).toBe(
-      'Any agent working on this project can read this whenever it needs it.',
+      'Any agent that reaches these notes can read this whenever it needs it.',
     )
     expect(noteAccessHelp('ask')).toBe('Every read asks you first.')
   })
@@ -233,7 +233,7 @@ describe('projectNoteChipView', () => {
       kindLabel: 'Note',
       description: 'How to build each flavour',
       accessLabel: 'Open',
-      accessHelp: 'Any agent working on this project can read this whenever it needs it.',
+      accessHelp: 'Any agent that reaches these notes can read this whenever it needs it.',
       showsValue: true,
     })
   })
@@ -296,5 +296,19 @@ describe('canonicalNoteValues', () => {
       value: 'see #3',
       description: 'FOR #2',
     })
+  })
+})
+
+describe('noteFormValues with references', () => {
+  it('shows the stored description as a person edits it', () => {
+    const note = {
+      id: 'n',
+      projectId: 'p',
+      label: 'L',
+      kind: 'note',
+      access: 'ask',
+      description: 'see #ID',
+    } as unknown as ProjectNoteSummary
+    expect(noteFormValues(note, (t) => t.replace('#ID', '#3')).description).toBe('see #3')
   })
 })

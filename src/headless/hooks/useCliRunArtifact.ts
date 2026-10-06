@@ -26,6 +26,7 @@ import {
   type GitDiffSummary,
   type GitMergeResult,
   type ProjectChecksListing,
+  type ProjectPlatform,
   type RunVerification,
   type CliRunApproveAction,
   type CliRunApproveResult,
@@ -243,6 +244,8 @@ export type UseCliRunArtifact = {
    * until then, and from a backend that does not scan.
    */
   projectChecks: ProjectChecksListing | undefined
+  /** The project's platform as the verification plan read it; undefined until it loads. */
+  verificationPlatform: ProjectPlatform | undefined
   /** Fetch {@link verificationApproaches}. Idempotent; safe to call on click. */
   loadVerificationPlan: () => Promise<void>
   /** True while the plan is loading. */
@@ -317,6 +320,9 @@ export function useCliRunArtifact(
     VerificationApproachOption[]
   >([])
   const [projectChecks, setProjectChecks] = useState<ProjectChecksListing | undefined>(undefined)
+  const [verificationPlatform, setVerificationPlatform] = useState<ProjectPlatform | undefined>(
+    undefined,
+  )
   const [planLoading, setPlanLoading] = useState(false)
   const [requestingReview, setRequestingReview] = useState<string | undefined>(undefined)
   const [approving, setApproving] = useState(false)
@@ -696,6 +702,7 @@ export function useCliRunArtifact(
         planRef.current = true
         setVerificationApproaches(data.approaches ?? [])
         setProjectChecks(data.projectChecks)
+        setVerificationPlatform(data.platform)
       }
     } catch {
       // A plan we could not load must not break the review surface: the chip and
@@ -943,6 +950,7 @@ export function useCliRunArtifact(
     verifying,
     verificationApproaches,
     projectChecks,
+    verificationPlatform,
     loadVerificationPlan,
     planLoading,
     requestReview,

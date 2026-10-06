@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import {
   AGENT_UNREACHABLE,
+  capabilitySetupOffered,
   checkActionOffer,
   checkCallout,
   checkRowLayout,
@@ -12,7 +13,7 @@ import {
   type ReviewTabId,
 } from '../../../../headless'
 import { Button } from '../../../primitives/Button'
-import { CheckChip, HandoffButton, RunActionButton } from '../../chips'
+import { CheckChip, HandoffButton, RunActionButton, SetUpWithAgentButton } from '../../chips'
 
 export type CheckChipRowProps = {
   rows: readonly CheckMethodRow[]
@@ -24,6 +25,8 @@ export type CheckChipRowProps = {
   tabOrder?: readonly ReviewTabId[]
   /** What this panel can do about a chip; absent on a read-only record, which offers only the proof. */
   actions?: CheckActionHost
+  /** Opens a chat drafted to set a missing capability up; without it a missing chip offers the hand-off, if any. */
+  onSetUp?: (row: CheckMethodRow) => void
 }
 
 /**
@@ -39,6 +42,7 @@ export default function CheckChipRow({
   onOpenProof,
   tabOrder,
   actions,
+  onSetUp,
 }: CheckChipRowProps) {
   const [expanded, setExpanded] = useState(false)
   const [openId, setOpenId] = useState<CheckMethodId | undefined>()
@@ -66,6 +70,16 @@ export default function CheckChipRow({
 
   const renderAction = (row: CheckMethodRow) => {
     const busy = busyId === row.id
+    if (onSetUp && capabilitySetupOffered(row)) {
+      return (
+        <SetUpWithAgentButton
+          onClick={() => {
+            setOpenId(undefined)
+            onSetUp(row)
+          }}
+        />
+      )
+    }
     const offer = checkActionOffer(row.action, actions)
     if (offer.kind === 'open-proof') {
       return (

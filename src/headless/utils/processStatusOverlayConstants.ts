@@ -4,4 +4,12 @@ export const PROCESS_STATUS_OVERLAY_TITLES = {
   working: 'The process is running — open the pipeline',
   stuck: 'The process is stuck — open the pipeline to unblock it',
   changesRequested: 'You requested changes — open the pipeline to send the work back to be fixed',
+  notLanded: 'Approved, but its work has not landed — open the pipeline to bring it in',
+  landing: 'Its approved work is being brought in — open the pipeline',
+} as const
+
+/** The chip on approved work that has not landed: with git words, and without them. */
+export const PROCESS_STATUS_OVERLAY_NOT_LANDED = {
+  git: 'Not merged',
+  shadow: 'Not brought in',
 } as const

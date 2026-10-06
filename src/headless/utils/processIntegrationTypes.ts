@@ -20,6 +20,10 @@ export interface ProcessIntegrationView {
   sha?: string
   /** A page to open in the browser: the pull request, or where to open one. */
   link?: { url: string; label: string }
+  /** The work conflicts with its base branch in these files — an agent can be sent to resolve them. */
+  conflict?: { baseRef: string; paths: string[] }
+  /** The files a conflict on landing is being, or was, resolved in. */
+  files?: string[]
   /** The work did not land — the sign-off offers to try again. */
   canRetry: boolean
   /** It is happening now. */

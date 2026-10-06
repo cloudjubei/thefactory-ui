@@ -36,3 +36,6 @@ export const PROCESS_SEND_BACK_COPY = {
   detail:
     'Reopens this run: your note goes to a fix pass, which is checked, reviewed and written up, then the work comes back to you to decide again.',
 } as const
+
+/** What the loop editor says of a loop that leaves a gate: a person's send-backs are never capped. */
+export const PROCESS_GATE_LOOP_NO_LIMIT = 'a person’s send-back — no limit'

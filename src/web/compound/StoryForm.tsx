@@ -42,6 +42,8 @@ export type StoryFormProps = {
   mentions?: StoryFormMentions
   /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
   canonicalize?: (text: string, before?: string) => string
+  /** Stored text as a person edits it — `#3.2` instead of ids. */
+  toTyped?: (text: string) => string
 }
 
 export default function StoryForm({
@@ -55,12 +57,14 @@ export default function StoryForm({
   renderProjectChip,
   mentions,
   canonicalize,
+  toTyped,
 }: StoryFormProps) {
   const form = useStoryForm({
     initialValues,
     onSubmit,
     onDirty: onDirtyChange,
     ...(canonicalize ? { canonicalize } : {}),
+    ...(toTyped ? { toTyped } : {}),
   })
 
   const localTitleRef = useRef<HTMLInputElement>(null)

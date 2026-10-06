@@ -42,6 +42,37 @@ export function chatMessageTimes(entry: ChatMessagesShape): readonly (string | n
   return entry.messageTimes ?? []
 }
 
+/** What a chat's last activity is read from: its messages' times and its own. */
+export type ChatTimesShape = ChatMessagesShape & {
+  updatedAt?: string | null
+  createdAt?: string | null
+}
+
+/** When a chat last had a message — its newest one — else when it was updated, else created. */
+export function chatLastActivityAt(entry: ChatTimesShape): string | undefined {
+  let newest: string | undefined
+  let newestMs = -Infinity
+  for (const at of chatMessageTimes(entry)) {
+    const ms = at ? Date.parse(at) : NaN
+    if (!Number.isNaN(ms) && ms > newestMs) {
+      newest = at as string
+      newestMs = ms
+    }
+  }
+  return newest ?? entry.updatedAt ?? entry.createdAt ?? undefined
+}
+
+/** Order chats by their last activity, the newest first. */
+export function byLastActivity(a: ChatTimesShape, b: ChatTimesShape): number {
+  const at = (entry: ChatTimesShape) => {
+    const ms = Date.parse(chatLastActivityAt(entry) ?? '')
+    return Number.isNaN(ms) ? -Infinity : ms
+  }
+  const ta = at(a)
+  const tb = at(b)
+  return ta === tb ? 0 : tb > ta ? 1 : -1
+}
+
 /**
  * A fresh summary over what the list holds for that chat. A loaded chat keeps
  * its messages while the summary says nothing changed (same count, same

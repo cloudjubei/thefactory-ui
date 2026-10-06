@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
 import type { FormEvent } from 'react'
 
 import Alert from '../../primitives/Alert'
@@ -96,9 +97,37 @@ export function FilePane({
     setSaveError(null)
   }, [filePath])
 
+  // A markdown file is edited with its references as a person types them —
+  // `#3.2`, `&qa-login` — and saved with them as ids again. What the file
+  // already said in typed form (a `#12` meaning an issue) is left as it is.
+  const references = useReferenceRendering()?.references
+  const typesReferences = kind === 'markdown' && references !== undefined
+  const shown = useMemo(
+    () => (content === null || !typesReferences ? content : references.toTyped(content)),
+    [content, typesReferences, references],
+  )
+  const toSave = useCallback(
+    (text: string) =>
+      typesReferences && content !== null ? references.canonicalize(text, content) : text,
+    [typesReferences, references, content],
+  )
+
+  // A new version of the file replaces the draft; the same file reading
+  // differently once its references load leaves an edited draft alone.
+  const shownRef = useRef<{ content: string | null; shown: string | null }>({
+    content: null,
+    shown: null,
+  })
   useEffect(() => {
-    if (content !== null) setDraft(content)
-  }, [content])
+    shownRef.current = { content: null, shown: null }
+  }, [filePath])
+  useEffect(() => {
+    const before = shownRef.current
+    shownRef.current = { content, shown }
+    if (shown === null) return
+    if (before.content !== content) setDraft(shown)
+    else setDraft((d) => (d === before.shown ? shown : d))
+  }, [filePath, content, shown])
 
   useEffect(() => {
     if (!filePath || !getBinaryUrl) return
@@ -135,13 +164,13 @@ export function FilePane({
     setSaving(true)
     setSaveError(null)
     try {
-      await onWrite(filePath, draft)
+      await onWrite(filePath, toSave(draft))
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save file')
     } finally {
       setSaving(false)
     }
-  }, [filePath, draft, onWrite])
+  }, [filePath, draft, onWrite, toSave])
 
   if (!filePath) {
     return (
@@ -153,7 +182,11 @@ export function FilePane({
 
   const isText = kind === 'text' || kind === 'markdown' || kind === 'html'
   const hasPaneToggle = kind === 'markdown' || kind === 'html'
-  const isDirty = isText && content !== null && draft !== content
+  const isDirty = isText && shown !== null && draft !== shown
+  const previewText = useMemo(
+    () => (typesReferences ? toSave(draft) : undefined),
+    [typesReferences, toSave, draft],
+  )
 
   const copyAll = async () => {
     try {
@@ -251,6 +284,7 @@ export function FilePane({
               view={paneView}
               onViewChange={setPaneView}
               hideHeader
+              {...(previewText !== undefined ? { previewText } : {})}
             />
           </div>
         </div>

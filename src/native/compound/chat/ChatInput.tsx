@@ -50,6 +50,10 @@ export interface ChatInputProps {
 
   /** `@`-file mention paths. When omitted the `@` autocomplete is disabled. */
   filePaths?: string[]
+  /** `@` search in place of `filePaths` — a chat over several projects offers all their files. */
+  searchFiles?: (token: string) => string[]
+  /** An `@` suggestion as its row shows it — the path, and its project in a chat over several. */
+  describeFile?: (value: string) => { path: string; project?: string }
   /** `#`-reference search. When omitted the `#` autocomplete is disabled. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
   /** `&`-search over notes and the chat's attachments. When omitted the `&` autocomplete is disabled. */
@@ -79,6 +83,8 @@ export default function ChatInput({
   suggestedActions,
   onPickAttachment,
   filePaths,
+  searchFiles,
+  describeFile,
   onSearchReferences,
   onSearchHandles,
   onAcceptReference,
@@ -199,8 +205,9 @@ export default function ChatInput({
   }
 
   const onSearchFiles = useCallback(
-    (token: string) => (filePaths ? rankMentionMatches(filePaths, token, 8) : []),
-    [filePaths],
+    (token: string) =>
+      searchFiles?.(token) ?? (filePaths ? rankMentionMatches(filePaths, token, 8) : []),
+    [searchFiles, filePaths],
   )
 
   const resolvedPlaceholder =
@@ -357,7 +364,8 @@ export default function ChatInput({
                 : value
             }
             onChangeText={onChange}
-            onSearchFiles={filePaths ? onSearchFiles : undefined}
+            onSearchFiles={filePaths || searchFiles ? onSearchFiles : undefined}
+            describeFile={describeFile}
             onSearchReferences={onSearchReferences}
             onSearchHandles={onSearchHandles}
             onAcceptReference={onAcceptReference}

@@ -60,11 +60,26 @@ export function runningCliToolNames(messages: readonly ChatMessageLike[]): strin
   const names: string[] = []
   for (const message of messages) {
     if (message.role !== 'tool') continue
-    if (message.toolResult?.type !== 'running') continue
     const name = message.toolCall?.name
-    if (typeof name === 'string' && name.length > 0) names.push(name)
+    if (message.toolResult?.type === 'running' && typeof name === 'string' && name.length > 0)
+      names.push(name)
+    if (message.subagentMessages) names.push(...runningCliToolNames(message.subagentMessages))
   }
   return names
+}
+
+/**
+ * The one line a collapsed subagent shows: how much it has done, and the call
+ * it is on right now — the innermost one when it started a subagent of its own.
+ */
+export function describeSubagentSteps(messages: readonly ChatMessageLike[]): string {
+  const calls = messages.filter((m) => m.role === 'tool').length
+  const parts = [
+    `${messages.length} ${messages.length === 1 ? 'step' : 'steps'}`,
+    ...(calls > 0 ? [`${calls} ${calls === 1 ? 'tool call' : 'tool calls'}`] : []),
+  ]
+  const now = runningCliToolNames(messages).at(-1)
+  return [...parts, ...(now ? [`now ${now}`] : [])].join(' · ')
 }
 
 /**

@@ -3,6 +3,8 @@ import { Pressable, Text, View } from 'react-native'
 
 import { extract, tryString } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
+import { runProposalView } from '../../../../headless/utils/runProposalView'
+import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
@@ -169,6 +171,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
+  ...RUN_PROPOSAL_TOOL_NAMES,
 ])
 
 /** Compact one-line summary of a training experiment spec — mirrors web's `summarizeExperimentSpec`. */
@@ -706,6 +709,31 @@ export function renderToolPreviewNative({
   }
 
   // ---- work across a group's projects (each project's story + live group run) ----
+  const proposal = runProposalView(name, args)
+  if (proposal) {
+    const message = tryString(extract(result, ['message']))
+    const errorText = tryString(extract(result, ['error']))
+    return (
+      <View style={{ gap: 8 }}>
+        <View>
+          <SectionTitle>{proposal.kindLabel}</SectionTitle>
+          <SecondaryText>{proposal.title}</SecondaryText>
+        </View>
+        {proposal.lines.map((line) => (
+          <View key={line.label}>
+            <SectionTitle>{line.label}</SectionTitle>
+            <SecondaryText>{line.text}</SecondaryText>
+          </View>
+        ))}
+        {errorText ? (
+          <Text style={{ fontSize: 11, color: red[500] }}>{errorText}</Text>
+        ) : message ? (
+          <SecondaryText>{message}</SecondaryText>
+        ) : null}
+      </View>
+    )
+  }
+
   if (name === 'startGroupWork') {
     const legs = extract(args, ['legs'])
     const legLines = Array.isArray(legs)

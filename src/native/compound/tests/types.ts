@@ -1,45 +1,14 @@
-// Structural types the native test-view compounds consume. Mirrors the web
-// peer field-for-field. Both renderers consume the OpenAPI surface stripped
-// of cross-cutting tool deps — duplicated here so the native layer stays
-// independent of `src/web/`.
+// Structural types the native test-view compounds consume. The test-run
+// shapes are shared with the web peer from `headless/utils/testResultsTypes`.
 
-export type TestStatusLike = 'ok' | 'fail' | 'error' | 'skipped'
-
-export type TestFailureLike = {
-  testName?: string
-  message?: string
-  line?: number | null
-  column?: number | null
-  stack?: string
-}
-
-export type TestNameLike = {
-  testName: string
-}
-
-export type TestSummaryLike = {
-  total: number
-  passed: number
-  failed: number
-  skipped: number
-  durationMs?: number | null
-}
-
-export type TestResultLike = {
-  filePath: string
-  status: TestStatusLike
-  summary: TestSummaryLike
-  failures: TestFailureLike[]
-  passes: TestNameLike[]
-  skips: TestNameLike[]
-  rawText?: string
-}
-
-export type TestsResultLike = {
-  status: TestStatusLike
-  summary: TestSummaryLike
-  tests: TestResultLike[]
-}
+export type {
+  TestFailureLike,
+  TestNameLike,
+  TestResultLike,
+  TestStatusLike,
+  TestSummaryLike,
+  TestsResultLike,
+} from '../../../headless/utils/testResultsTypes'
 
 export type CoverageFileStatsLike = {
   pct_lines: number

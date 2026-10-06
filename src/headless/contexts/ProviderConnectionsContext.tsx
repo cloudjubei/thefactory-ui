@@ -13,7 +13,9 @@ import {
   type ProviderConnectionCreateInput,
   type UpdateProviderConnectionData,
 } from '../api/generated'
+import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
+import { PROVIDER_CONNECTIONS_EVENT } from '../utils/credentialStoreEventConstants'
 
 /** PATCH body for a provider connection (every create field, all optional). */
 export type ProviderConnectionEditInput = UpdateProviderConnectionData['body']
@@ -43,6 +45,7 @@ const ProviderConnectionsContext = createContext<ProviderConnectionsContextValue
 
 export function ProviderConnectionsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
+  const { ws } = useApi()
   const [connections, setConnections] = useState<GetProviderConnectionResponse[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -63,6 +66,9 @@ export function ProviderConnectionsProvider({ children }: { children: ReactNode 
     if (!token) return
     void refresh()
   }, [token, refresh])
+  // Whoever wrote it — another window, an agent's credential form or admin
+  // tool — the list refetches, instead of staying the snapshot taken at login.
+  useEffect(() => ws.on(PROVIDER_CONNECTIONS_EVENT, () => void refresh()), [ws, refresh])
 
   const createConnection = useCallback(
     async (input: ProviderConnectionCreateInput) => {

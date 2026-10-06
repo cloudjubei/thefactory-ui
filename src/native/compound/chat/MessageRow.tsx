@@ -27,6 +27,7 @@ import {
   shortCliModelLabel,
 } from '../../../headless/utils/cliRunner'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
+import SubagentSteps from './ToolCall/SubagentSteps'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -701,6 +702,14 @@ function MessageRow({
                 </Text>
               </View>
             )}
+            {msg.subagentMessages?.length ? (
+              <SubagentSteps
+                messages={msg.subagentMessages}
+                renderToolCall={renderToolCall}
+                renderReference={renderReference}
+                onResourceLink={onResourceLink}
+              />
+            ) : null}
           </View>
         )}
 

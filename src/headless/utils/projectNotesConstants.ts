@@ -1,5 +1,5 @@
 import type { ProjectNoteAccess, ProjectNoteKind } from '../api'
-import type { ProjectNoteFormValues } from './projectNotesTypes'
+import type { NotesOwner, ProjectNoteFormValues } from './projectNotesTypes'
 
 export const NOTE_KIND_LABELS: Record<ProjectNoteKind, string> = {
   note: 'Note',
@@ -13,7 +13,7 @@ export const NOTE_ACCESS_LABELS: Record<ProjectNoteAccess, string> = {
 
 /** Honest, per-mode description of who can read the value and when. */
 export const NOTE_ACCESS_HELP: Record<ProjectNoteAccess, string> = {
-  open: 'Any agent working on this project can read this whenever it needs it.',
+  open: 'Any agent that reaches these notes can read this whenever it needs it.',
   ask: 'Every read asks you first.',
 }
 
@@ -22,7 +22,7 @@ export const NOTE_AGENT_AUTHOR_LABEL = 'By an agent'
 
 /** Section-level explanation of the two access modes. */
 export const NOTE_ACCESS_NOTE =
-  'Access decides how an agent reaches a value. Open — any agent working on this project can read it whenever it needs it. Ask first — every read asks you first.'
+  'Access decides how an agent reaches a value. Open — any agent that reaches these notes can read it whenever it needs it. Ask first — every read asks you first.'
 
 export const NOTE_KIND_HELP: Record<ProjectNoteKind, string> = {
   note: 'Plain standing context — conventions, environments, how to run things.',
@@ -50,4 +50,23 @@ export const EMPTY_NOTE_FORM: ProjectNoteFormValues = {
   value: '',
   description: '',
   access: 'ask',
+}
+
+/** What a notes screen says, by whose notes it manages. `addWhat` finishes "add …" in the empty state. */
+export const NOTES_SCREEN_COPY: Record<
+  NotesOwner['kind'],
+  { title: string; intro?: string; idle: string; addWhat: string }
+> = {
+  project: {
+    title: 'Project notes & secrets',
+    idle: 'Pick a project to manage its notes and secrets.',
+    addWhat: 'a note or a secret an agent can reach for',
+  },
+  group: {
+    title: 'Group notes & secrets',
+    intro:
+      'Context for the whole group. Its chats, and every agent working in a project whose main group this is, can read these.',
+    idle: 'Pick a group to manage its notes and secrets.',
+    addWhat: 'a note or a secret every agent in this group can reach for',
+  },
 }

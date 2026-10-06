@@ -7,6 +7,9 @@ import type { EvidenceTile, ScreenPair } from './reviewEvidenceViewTypes'
 /** What data a verification saw the change on: the real backend's, faked, or it did not say. */
 export type VerifyProofMode = 'live' | 'dry' | 'unknown'
 
+/** A mode the reviewer named — `unknown` is a proof that never said, and is shown as nothing. */
+export type StatedProofMode = Exclude<VerifyProofMode, 'unknown'>
+
 /** The status palette a proof element is toned with — a subset of the package's status keys. */
 export type VerifyProofTone = 'done' | 'working' | 'stuck' | 'empty'
 
@@ -52,12 +55,11 @@ export type VerifyProofDryLine = {
 export type VerifyProofHeader = {
   mode: VerifyProofMode
   tone: VerifyProofTone
-  title: string
-  detail: string
+  /** What data it ran on; absent when the reviewer never named it — nothing is said then. */
+  title: string | undefined
+  detail: string | undefined
   /** A few words for a collapsed section's header; absent when there is nothing to flag. */
   chip: string | undefined
-  /** The attempt stands (passed, or accepted by a person) but its reviewer never said what data it ran on. */
-  unstated: boolean
   /** The reviewer's own account of what was faked, verbatim. */
   dryAssumptions: string | undefined
   /** The one line a dry attempt shows in place of a banner; absent unless dry. */
@@ -220,19 +222,9 @@ export type FeatureVerifyView = {
   standing: VerifyAttemptStanding
   /** What data the shown attempt ran on — unknown when its entry records no proof. */
   mode: VerifyProofMode
-  /** The shown attempt stands, yet nobody said what data it ran on. */
-  dataUnstated: boolean
 }
 
 /** One sign-off section's accepted verification, as the story-wide notice reads it. */
-export type StoryProofSection = { label: string } & Pick<
-  FeatureVerifyView,
-  'mode' | 'standing' | 'dataUnstated'
->
-
-/** The story-wide line naming what the gate did not pass, or not on live data. */
-export type StoryProofNotice = { tone: VerifyProofTone; text: string }
-
 /** What a sign-off section is handed for one verify attempt. */
 export type VerifySectionProps = {
   pairs: ScreenPair[]

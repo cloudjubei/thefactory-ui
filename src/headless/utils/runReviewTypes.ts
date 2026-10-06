@@ -7,7 +7,7 @@ import type { CheckMethodId } from './checkMethodTypes'
 import type { CostSource } from './costDetailsTypes'
 import type { ProcessTimeDetailsView } from './processTimeDetailsTypes'
 import type { TestCounts } from './testCounts'
-import type { TestSuitesView } from './testSuitesTypes'
+import type { CheckTestResults } from './testResultsTypes'
 
 /**
  * Semantic colour role for a run-review surface. Platform-neutral: web maps it
@@ -50,10 +50,16 @@ export type ReviewCheckRow = {
   testCount: TestCounts | undefined
   /** "14 tests", "0 tests ran" — {@link testCount} as a reader is told it. */
   testCountLabel: string | undefined
-  /** Each suite it ran, with its counts and failing tests, when its reports were read. */
-  suites: TestSuitesView | undefined
+  /** Its test run as the Tests display reads it — suites, failing tests, counts — when it counted or named any. */
+  testResults: CheckTestResults | undefined
   /** Set on a command result recorded before commands and output were kept — it cannot say what ran. */
   legacyNote: string | undefined
+}
+
+/** A test layer's lines under its command: its summary (absent when the totals bar says it) and its meta. */
+export type TestLayerLines = {
+  summary: string | undefined
+  meta: string | undefined
 }
 
 /** A run's checks split between the sign-off's Tests tab and its Build tab, by the chip each rolls up into. */

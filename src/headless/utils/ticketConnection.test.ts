@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  describeEffectiveTicketBinding,
   describeTicketBinding,
+  effectiveTicketBinding,
   formatJiraProjectKeys,
   jiraConnectionsOf,
   parseJiraProjectKeys,
+  readTicketConnection,
+  withTicketConnection,
 } from './ticketConnection'
 
 const connection = (id: string, provider: string, name = id) => ({
@@ -66,5 +70,97 @@ describe('describeTicketBinding', () => {
     expect(describeTicketBinding({ connectionId: 'gone', access: 'read' }, connections)).toBe(
       'A deleted connection · Read only · all Jira projects',
     )
+  })
+})
+
+const BINDING = { connectionId: 'c1', access: 'read' as const }
+const OWN = { connectionId: 'c2', access: 'read-write' as const, projectKeys: ['ENG'] }
+const OSC = { id: 'g1', title: 'OSC', ticketConnection: BINDING }
+
+describe('readTicketConnection', () => {
+  it('reads a stored binding, an explicit opt-out, or nothing', () => {
+    expect(readTicketConnection(BINDING)).toEqual(BINDING)
+    expect(readTicketConnection('none')).toBe('none')
+    expect(readTicketConnection(undefined)).toBeUndefined()
+  })
+
+  it('reads a malformed value as nothing, so the project follows its group', () => {
+    expect(readTicketConnection({ connectionId: 'c1' })).toBeUndefined()
+    expect(readTicketConnection('nope')).toBeUndefined()
+  })
+})
+
+describe('effectiveTicketBinding', () => {
+  it('follows the main group when the project chose nothing', () => {
+    expect(effectiveTicketBinding({ mainGroupId: 'g1', metadata: {} }, [OSC])).toEqual({
+      source: 'group',
+      binding: BINDING,
+      groupTitle: 'OSC',
+    })
+  })
+
+  it('uses the project’s own binding over its group’s', () => {
+    expect(
+      effectiveTicketBinding({ mainGroupId: 'g1', metadata: { ticketConnection: OWN } }, [OSC]),
+    ).toEqual({ source: 'project', binding: OWN })
+  })
+
+  it('keeps a project that opted out off Jira, even under a connected group', () => {
+    expect(
+      effectiveTicketBinding({ mainGroupId: 'g1', metadata: { ticketConnection: 'none' } }, [OSC]),
+    ).toEqual({ source: 'off' })
+  })
+
+  it('is unconnected when neither the project nor its group has a binding', () => {
+    expect(
+      effectiveTicketBinding({ mainGroupId: 'g1', metadata: {} }, [{ id: 'g1', title: 'OSC' }]),
+    ).toEqual({ source: 'none' })
+    expect(effectiveTicketBinding({ metadata: undefined }, [OSC])).toEqual({ source: 'none' })
+  })
+})
+
+describe('describeEffectiveTicketBinding', () => {
+  const conns = [connection('c1', 'jira', 'Zenor Jira'), connection('c2', 'jira', 'Other')]
+
+  it('names the group a project follows, and what that gives it', () => {
+    expect(
+      describeEffectiveTicketBinding(
+        { source: 'group', binding: BINDING, groupTitle: 'OSC' },
+        conns,
+      ),
+    ).toBe('Same as OSC — Zenor Jira · Read only · all Jira projects')
+  })
+
+  it('says a project chose its own', () => {
+    expect(describeEffectiveTicketBinding({ source: 'project', binding: OWN }, conns)).toBe(
+      'Its own — Other · Read & write · ENG',
+    )
+  })
+
+  it('says plainly when a project has no Jira', () => {
+    expect(describeEffectiveTicketBinding({ source: 'off' }, conns)).toBe('Jira turned off here')
+    expect(describeEffectiveTicketBinding({ source: 'none' }, conns)).toBe('Not connected')
+  })
+})
+
+describe('withTicketConnection', () => {
+  it('stores a binding, keeping the rest of the metadata', () => {
+    expect(withTicketConnection({ icon: 'rocket' }, OWN)).toEqual({
+      icon: 'rocket',
+      ticketConnection: OWN,
+    })
+  })
+
+  it('stores an opt-out', () => {
+    expect(withTicketConnection({ ticketConnection: OWN }, 'none')).toEqual({
+      ticketConnection: 'none',
+    })
+  })
+
+  it('drops the key to follow the group again — the update replaces metadata whole', () => {
+    expect(withTicketConnection({ icon: 'rocket', ticketConnection: OWN }, undefined)).toEqual({
+      icon: 'rocket',
+    })
+    expect(withTicketConnection(undefined, undefined)).toEqual({})
   })
 })

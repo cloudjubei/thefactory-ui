@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { useReferenceRendering } from '../../../../headless/contexts/ReferenceRenderingContext'
 import { Text, View } from 'react-native'
 
 import { proofPlanFieldText } from '../../../../headless'
@@ -48,8 +49,11 @@ export function FieldDiff({
   sideBySide?: boolean
 }) {
   const { theme } = useNativeTheme()
-  const beforeText = formatValue(before)
-  const afterText = formatValue(after)
+  // A story's or note's text points at things by id; it reads here as it does
+  // everywhere else — `#3.2`, a note's label.
+  const asText = useReferenceRendering()?.references?.asText
+  const beforeText = asText ? asText(formatValue(before)) : formatValue(before)
+  const afterText = asText ? asText(formatValue(after)) : formatValue(after)
   const hasChanges = beforeText !== afterText
   const { added, removed } = useMemo(
     () => diffLines(beforeText, afterText),

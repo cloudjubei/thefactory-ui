@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { applyMention, parseMention, rankMentionMatches } from './mention'
+import {
+  applyMention,
+  parseMention,
+  projectFileMention,
+  rankMentionMatches,
+  rankProjectMentionMatches,
+} from './mention'
 
 describe('parseMention', () => {
   it('returns null when cursor is out of range', () => {
@@ -65,5 +71,51 @@ describe('applyMention', () => {
     const out = applyMention(text, parse, 'bar')
     expect(out.text).toBe('hi @bar  world')
     expect(out.cursor).toBe(8)
+  })
+})
+
+describe('rankProjectMentionMatches', () => {
+  const projects = [
+    { projectId: 'tools', paths: ['docs/DESIGN_TASK.md', 'src/deepResearch/a.ts'] },
+    { projectId: 'ui', paths: ['docs/README.md', 'src/x.ts'] },
+  ]
+
+  it("offers every project's files, written project:path, best match first", () => {
+    expect(rankProjectMentionMatches(projects, 'docs')).toEqual([
+      'ui:docs/README.md',
+      'tools:docs/DESIGN_TASK.md',
+    ])
+  })
+
+  it('narrows to one project when the token names it before a colon', () => {
+    expect(rankProjectMentionMatches(projects, 'ui:')).toEqual(['ui:docs/README.md', 'ui:src/x.ts'])
+    expect(rankProjectMentionMatches(projects, 'UI:src')).toEqual(['ui:src/x.ts'])
+  })
+
+  it('keeps project order for equal matches, and the limit', () => {
+    const same = [
+      { projectId: 'b', paths: ['a.md'] },
+      { projectId: 'a', paths: ['a.md'] },
+    ]
+    expect(rankProjectMentionMatches(same, 'a.md')).toEqual(['b:a.md', 'a:a.md'])
+    expect(rankProjectMentionMatches(same, '', 1)).toEqual(['b:a.md'])
+    expect(rankProjectMentionMatches(projects, '', 2)).toEqual([
+      'tools:docs/DESIGN_TASK.md',
+      'tools:src/deepResearch/a.ts',
+    ])
+  })
+})
+
+describe('projectFileMention', () => {
+  it("splits another project's file into the project and the path", () => {
+    expect(projectFileMention('thefactory-ui:src/a.ts')).toEqual({
+      projectId: 'thefactory-ui',
+      path: 'src/a.ts',
+    })
+  })
+
+  it('is the path alone for a file of the chat’s own project', () => {
+    expect(projectFileMention('src/a.ts')).toEqual({ path: 'src/a.ts' })
+    expect(projectFileMention('ui:')).toEqual({ path: 'ui:' })
   })
 })

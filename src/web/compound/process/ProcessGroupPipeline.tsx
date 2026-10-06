@@ -18,11 +18,11 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
-import ProcessGroupSignoffReview from './ProcessGroupSignoffReview'
+import ProcessGroupParkReview from './ProcessGroupParkReview'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
-  /** Open one project's own pipeline — where its asks are answered. */
+  /** Open one project's own pipeline — where it is signed off and its asks are answered. */
   onOpenLegRun: (runId: string, projectId: string) => void
 }
 
@@ -31,9 +31,10 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
 /**
  * One group run: every project's leg, drawn by dependency level — what needs
  * nothing first, then what builds on it — with where each stands, what it
- * waits for and what it has cost. The group's own decisions (its one sign-off,
- * an early merge, a project that stopped) are answered here; a project's own
- * asks are answered in its pipeline, one click away.
+ * waits for and what it has cost. Each project is signed off and merged in its
+ * own pipeline, one click away — a project only once the ones it builds on are
+ * merged; only what the group alone can answer (a project that stopped, a
+ * merged project that does not build, a failed merge) is answered here.
  */
 export default function ProcessGroupPipeline({
   groupRunId,
@@ -140,7 +141,7 @@ export default function ProcessGroupPipeline({
 
       {group.park ? (
         <div className="mx-3 mt-3">
-          <ProcessGroupSignoffReview key={group.park.parkedAt} group={group} onResume={resume} />
+          <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
         </div>
       ) : null}
 
@@ -260,9 +261,18 @@ function LegCard({
           <button
             type="button"
             className="rounded-md border border-(--border-default) bg-(--surface-base) px-2.5 py-1 text-[11px] font-medium text-(--text-primary) hover:border-(--border-strong)"
+            style={
+              row.readyForSignOff
+                ? {
+                    background: 'var(--status-review-soft-bg)',
+                    borderColor: 'var(--status-review-soft-border)',
+                    color: 'var(--status-review-soft-fg)',
+                  }
+                : undefined
+            }
             onClick={() => onOpen(leg.runId!, leg.projectId)}
           >
-            Open its pipeline ›
+            {row.openLabel} ›
           </button>
         ) : null}
         <span className="ml-auto flex items-center gap-2 text-[11px] tabular-nums text-(--text-muted)">

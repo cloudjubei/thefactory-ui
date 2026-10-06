@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 
-import { agentRoleLabel, type RunModel } from '../../../../headless'
+import { agentRoleLabel, runModelLabel, type RunModel } from '../../../../headless'
 import { nativeAlpha, nativePalette, nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import Tooltip from '../../../primitives/Tooltip'
@@ -20,7 +20,7 @@ export type RunModelChipProps = {
 export default function RunModelChip({ model, role }: RunModelChipProps) {
   const { theme } = useNativeTheme()
   if (!model) return null
-  const line = model.model ?? model.tool
+  const line = runModelLabel(model)
   if (!line) return null
   const roleName = role ? agentRoleLabel(role) : undefined
   return (

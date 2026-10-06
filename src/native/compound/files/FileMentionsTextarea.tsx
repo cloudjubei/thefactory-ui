@@ -27,6 +27,8 @@ export interface FileMentionsTextareaProps {
   /** Returns ranked path suggestions for the active `@<token>`. When
    *  omitted, the `@`-suggestion strip stays hidden. */
   onSearchFiles?: (token: string) => ReadonlyArray<string>
+  /** An `@` suggestion as its row shows it — the path, and its project in a chat over several. */
+  describeFile?: (value: string) => { path: string; project?: string }
   /** Returns ranked reference suggestions for the active `#<token>`. When
    *  omitted, the `#`-suggestion strip stays hidden. */
   onSearchReferences?: (token: string) => ReadonlyArray<ReferenceSuggestion>
@@ -47,6 +49,8 @@ export interface FileMentionsTextareaProps {
   /** Cap on the suggestion list, default `5` — matches the
    *  "above-the-keyboard 5-item" rule. */
   maxSuggestions?: number
+  /** Fill the space it is given — a full-height editor — instead of growing with its text. */
+  fill?: boolean
   /** Optional pass-through. The mention machinery wraps these so its own
    *  caret-tracking + accept-suggestion handlers run first. */
   textInputProps?: Omit<
@@ -77,6 +81,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
       value,
       onChangeText,
       onSearchFiles,
+      describeFile,
       onSearchReferences,
       onSearchHandles,
       onAcceptFileMention,
@@ -88,6 +93,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
       autoFocus,
       maxSuggestions = 5,
       textInputProps,
+      fill = false,
     },
     ref,
   ) {
@@ -139,11 +145,12 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
     }, [pendingCursor, clearPendingCursor])
 
     return (
-      <View style={{ width: '100%' }}>
+      <View style={fill ? { width: '100%', flex: 1, minHeight: 0 } : { width: '100%' }}>
         {(showFileMenu || showRefMenu) && (
           <SuggestionsStrip
             mode={showFileMenu ? 'file' : 'reference'}
             files={fileSuggestions}
+            describeFile={describeFile}
             references={refSuggestions}
             onPickFile={(p) => acceptFileSuggestion(p)}
             onPickReference={(v) => acceptRefSuggestion(v)}
@@ -151,7 +158,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
         )}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ width: '100%' }}
+          style={fill ? { width: '100%', flex: 1, minHeight: 0 } : { width: '100%' }}
         >
           <TextInput
             {...textInputProps}
@@ -185,6 +192,7 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
                 fontSize: 14,
                 lineHeight: 20,
               },
+              fill ? { flex: 1, minHeight: 0, maxHeight: undefined } : null,
               textInputProps?.style,
             ]}
             placeholderTextColor={theme.text.muted}
@@ -200,12 +208,14 @@ export default FileMentionsTextarea
 function SuggestionsStrip({
   mode,
   files,
+  describeFile,
   references,
   onPickFile,
   onPickReference,
 }: {
   mode: 'file' | 'reference'
   files: ReadonlyArray<string>
+  describeFile?: (value: string) => { path: string; project?: string }
   references: ReadonlyArray<ReferenceSuggestion>
   onPickFile: (path: string) => void
   onPickReference: (value: string) => void
@@ -238,13 +248,23 @@ function SuggestionsStrip({
                 backgroundColor: pressed ? theme.surface.hover : 'transparent',
               })}
             >
-              <Text
-                style={{ fontSize: 13, color: theme.text.primary }}
-                numberOfLines={1}
-                ellipsizeMode="middle"
-              >
-                {path}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+                <Text
+                  style={{ flexShrink: 1, fontSize: 13, color: theme.text.primary }}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {describeFile?.(path).path ?? path}
+                </Text>
+                {describeFile?.(path).project ? (
+                  <Text
+                    style={{ marginLeft: 'auto', fontSize: 12, color: theme.text.secondary }}
+                    numberOfLines={1}
+                  >
+                    {describeFile(path).project}
+                  </Text>
+                ) : null}
+              </View>
             </Pressable>
           ))
         : references.map((sug, idx) => (

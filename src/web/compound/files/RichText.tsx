@@ -4,9 +4,14 @@ import { useEffectiveReferenceRenderer } from '../../../headless/contexts/Refere
 import type { ReferenceSegment, ReferenceTarget } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from './FileDisplay'
 
-/** The project path of a segment that names a file, else `undefined`. */
+/**
+ * The path of a segment that names a file of this project, else `undefined` —
+ * another project's file is a reference chip, not a file of this one.
+ */
 function filePath(seg: ReferenceSegment): string | undefined {
-  return seg.type === 'reference' && seg.reference.kind === 'file' ? seg.reference.path : undefined
+  return seg.type === 'reference' && seg.reference.kind === 'file' && !seg.reference.projectId
+    ? seg.reference.path
+    : undefined
 }
 
 export type RichTextProps = {

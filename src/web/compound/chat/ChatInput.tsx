@@ -53,6 +53,10 @@ export type ChatInputProps = {
 
   /** Optional file mentions (@). When omitted, the @ autocomplete is disabled. */
   filePaths?: string[]
+  /** `@` search in place of `filePaths` — a chat over several projects offers all their files. */
+  searchFiles?: (token: string) => string[]
+  /** An `@` suggestion as its row shows it — the path, and its project in a chat over several. */
+  describeFile?: (value: string) => { path: string; project?: string }
   /** Optional reference suggestions (#). Consumers feed in story/feature
    * suggestions; library doesn't know the source. When omitted, the
    * #-dropdown is disabled. */
@@ -101,6 +105,8 @@ export default function ChatInput({
   isConfigured = true,
   suggestedActions,
   filePaths,
+  searchFiles,
+  describeFile,
   onSearchReferences,
   onSearchHandles,
   onAcceptReference,
@@ -424,8 +430,8 @@ export default function ChatInput({
   }
 
   const onSearchFiles = useCallback(
-    (token: string) => rankMentionMatches(filePaths ?? [], token, 8),
-    [filePaths],
+    (token: string) => searchFiles?.(token) ?? rankMentionMatches(filePaths ?? [], token, 8),
+    [searchFiles, filePaths],
   )
 
   const canSend = (safeValue.trim().length > 0 || safeAttachments.length > 0) && isConfigured
@@ -453,7 +459,7 @@ export default function ChatInput({
       ) : (
         <>
           <div className="col-start-1 row-start-1 truncate">{lh[0]}</div>
-          <div className="col-start-1 row-start-2 truncate">{lh[1]}</div>
+          <div className="col-start-1 row-start-2 truncate">{lh.slice(1).join(' · ')}</div>
         </>
       )}
       {rh.length <= 1 ? (
@@ -525,6 +531,7 @@ export default function ChatInput({
                   requestAutosize()
                 }}
                 onSearchFiles={onSearchFiles}
+                describeFile={describeFile}
                 onSearchReferences={onSearchReferences}
                 onSearchHandles={onSearchHandles}
                 onAcceptReference={onAcceptReference}

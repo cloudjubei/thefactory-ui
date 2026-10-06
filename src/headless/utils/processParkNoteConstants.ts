@@ -1,6 +1,6 @@
 import type { ProcessParkAction, ProcessWaitingKind } from 'thefactory-tools/types'
 
-import type { ParkNoteCopy } from './processParkNoteTypes'
+import type { ParkNoteCopy, RequestProofChoice } from './processParkNoteTypes'
 
 /** The longest note the backend's resume accepts. */
 export const PARK_NOTE_MAX_LENGTH = 2000
@@ -25,6 +25,16 @@ export const PARK_NOTE_COPY: ParkNoteCopy = {
 }
 
 export const PARK_NOTE_CANCEL = 'Cancel'
+
+/** What a request for changes can require of its fix, in the order the composer offers it. */
+export const REQUEST_PROOF_CHOICES: readonly RequestProofChoice[] = [
+  { kind: 'ui-before-after', label: 'Require on-screen proof (before/after screens)' },
+  { kind: 'unit-tests', label: 'Require tests that cover the change' },
+  { kind: 'live-backend', label: 'Require a check against the live backend' },
+]
+
+/** The heading over the proof a request for changes requires. */
+export const REQUEST_PROOF_HEADING = 'The fix must show'
 
 /** The composer's words when a waiting agent is answered or told more, by what it asked. */
 export const WAITING_NOTE_COPY: Record<ProcessWaitingKind, ParkNoteCopy> = {

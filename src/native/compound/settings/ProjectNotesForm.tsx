@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 
-import type { ProjectNoteSummary } from '../../../headless/api'
+import type { NoteSummary } from '../../../headless/utils/projectNotesTypes'
 import {
   canonicalNoteValues,
   emptyNoteForm,
@@ -47,7 +47,7 @@ export type ProjectNotesFormMode =
   | { kind: 'create'; onSubmit: (body: ProjectNoteCreateBody) => Promise<unknown> }
   | {
       kind: 'edit'
-      note: ProjectNoteSummary
+      note: NoteSummary
       onSubmit: (patch: ProjectNotePatchBody) => Promise<unknown>
     }
 
@@ -59,6 +59,8 @@ export interface ProjectNotesFormProps {
   mentions?: ProjectNotesFormMentions
   /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save — never in a secret. */
   canonicalize?: (text: string, before?: string) => string
+  /** Stored text as a person edits it — `#3.2` instead of ids. */
+  toTyped?: (text: string) => string
 }
 
 const KIND_OPTIONS = [
@@ -81,10 +83,11 @@ export default function ProjectNotesForm({
   onClose,
   mentions,
   canonicalize,
+  toTyped,
 }: ProjectNotesFormProps) {
   const isEdit = mode.kind === 'edit'
   const [values, setValues] = useState<ProjectNoteFormValues>(() =>
-    mode.kind === 'edit' ? noteFormValues(mode.note) : emptyNoteForm(),
+    mode.kind === 'edit' ? noteFormValues(mode.note, toTyped) : emptyNoteForm(),
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -54,6 +54,45 @@ export function rankMentionMatches(paths: string[], token: string, limit = 8): s
   return scored.slice(0, limit).map((s) => s.path)
 }
 
+/** One project's files, as a chat over several projects offers them after `@`. */
+export type ProjectMentionFiles = { projectId: string; paths: readonly string[] }
+
+const PROJECT_FILE_MENTION = /^([A-Za-z0-9][A-Za-z0-9_-]*):(.*)$/
+
+/**
+ * {@link rankMentionMatches} over several projects' files, each written
+ * `<projectId>:<path>` — the token that says which project a file is in. A
+ * token naming a project before a colon (`ui:src`) looks in that project only.
+ * Equal matches keep the projects' order.
+ */
+export function rankProjectMentionMatches(
+  projects: readonly ProjectMentionFiles[],
+  token: string,
+  limit = 8,
+): string[] {
+  const named = PROJECT_FILE_MENTION.exec(token)
+  const only = named
+    ? projects.find((p) => p.projectId.toLowerCase() === named[1]!.toLowerCase())
+    : undefined
+  const needle = (only ? named![2]! : token).toLowerCase()
+  const scored: { value: string; score: number }[] = []
+  for (const project of only ? [only] : projects) {
+    for (const path of project.paths) {
+      const idx = path.toLowerCase().indexOf(needle)
+      if (idx === -1) continue
+      scored.push({ value: `${project.projectId}:${path}`, score: idx * 1000 + path.length })
+    }
+  }
+  if (needle.length > 0) scored.sort((a, b) => a.score - b.score)
+  return scored.slice(0, limit).map((s) => s.value)
+}
+
+/** A suggestion from {@link rankProjectMentionMatches} split into its project and path. */
+export function projectFileMention(value: string): { projectId?: string; path: string } {
+  const named = PROJECT_FILE_MENTION.exec(value)
+  return named?.[2] ? { projectId: named[1]!, path: named[2] } : { path: value }
+}
+
 /** Replaces the `@token` range with `@<path> ` and returns the new text + cursor. */
 export function applyMention(
   text: string,

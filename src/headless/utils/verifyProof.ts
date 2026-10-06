@@ -89,8 +89,6 @@ import type {
   ProofThumbnailFrame,
   ProofThumbnailSide,
   ProofUnpairedView,
-  StoryProofNotice,
-  StoryProofSection,
   VerifyAttempt,
   VerifyAttemptEvidence,
   VerifyAttemptRun,
@@ -298,18 +296,21 @@ export function verifyProofHeader(
   standing: VerifyAttemptStanding,
 ): VerifyProofHeader {
   const mode: VerifyProofMode = proof.mode ?? 'unknown'
+  const stated = mode === 'unknown' ? undefined : mode
   const dryAssumptions = mode === 'dry' ? trimmed(proof.dryAssumptions) : undefined
-  const unstated = mode === 'unknown' && stands(standing)
   const baseSha = proof.baseSha ? shortSha(proof.baseSha) : undefined
   const headSha = proof.headSha ? shortSha(proof.headSha) : undefined
   const seams = (proof.seams ?? []).map(shortSha)
   return {
     mode,
     tone: PROOF_MODE_TONE[mode],
-    title: standing === 'passed' ? PROOF_MODE_TITLE[mode].passed : PROOF_MODE_TITLE[mode].other,
-    detail: PROOF_MODE_DETAIL[mode],
-    chip: mode !== 'unknown' || unstated ? PROOF_MODE_CHIP[mode] : undefined,
-    unstated,
+    title: stated
+      ? standing === 'passed'
+        ? PROOF_MODE_TITLE[stated].passed
+        : PROOF_MODE_TITLE[stated].other
+      : undefined,
+    detail: stated ? PROOF_MODE_DETAIL[stated] : undefined,
+    chip: stated ? PROOF_MODE_CHIP[stated] : undefined,
     dryAssumptions,
     dry:
       mode === 'dry' ? dryLine(dryAssumptions, standing, { baseSha, seams, headSha }) : undefined,
@@ -789,46 +790,7 @@ export function featureVerifyView(
     acceptedLabel: acceptedLabel(accepted),
     standing: view.standing,
     mode: header?.mode ?? 'unknown',
-    dataUnstated: view.evidence.proof ? (header?.unstated ?? false) : stands(view.standing),
   }
-}
-
-function listNames(names: readonly string[]): string {
-  if (names.length <= 1) return names.join('')
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
-}
-
-/**
- * The story-wide line naming what the gate did not vouch for: the features a
- * person accepted without the gate passing them, those that passed dry, and
- * those whose reviewer never said what data they ran on. An attempt that did
- * not stand verified nothing, so its data is not the point and it is left out.
- */
-export function storyProofNotice(
-  sections: readonly StoryProofSection[],
-): StoryProofNotice | undefined {
-  const standing = sections.filter((s) => stands(s.standing))
-  const accepted = standing.filter((s) => s.standing === 'accepted').map((s) => s.label)
-  const dry = standing.filter((s) => s.mode === 'dry').map((s) => s.label)
-  const unstated = standing.filter((s) => s.dataUnstated).map((s) => s.label)
-  const parts: string[] = []
-  if (accepted.length > 0) {
-    const one = accepted.length === 1
-    parts.push(
-      `${listNames(accepted)} ${one ? 'was' : 'were'} accepted by you without the gate passing ${one ? 'it' : 'them'} — open ${one ? 'it' : 'each'} to see what the gate said.`,
-    )
-  }
-  if (dry.length > 0) {
-    parts.push(
-      `${listNames(dry)} ${dry.length === 1 ? 'was' : 'were'} verified dry — not against the live backend.`,
-      `Open ${dry.length === 1 ? 'it' : 'each'} to see what the live backend must send.`,
-    )
-  }
-  if (unstated.length > 0) {
-    parts.push(`The reviewer did not say whether ${listNames(unstated)} ran on live data.`)
-  }
-  if (parts.length === 0) return undefined
-  return { tone: accepted.length + dry.length > 0 ? 'working' : 'empty', text: parts.join(' ') }
 }
 
 function proofEvidenceIds(proof: ProcessVerifyProof): string[] {

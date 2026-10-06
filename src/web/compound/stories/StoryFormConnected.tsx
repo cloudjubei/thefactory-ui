@@ -57,6 +57,7 @@ export default function StoryFormConnected({
         onSearchHandles: references.searchHandles,
       }}
       canonicalize={references.canonicalize}
+      toTyped={references.toTyped}
       renderProjectChip={
         project
           ? () => (

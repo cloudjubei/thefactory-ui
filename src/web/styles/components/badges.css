@@ -485,6 +485,11 @@
 .check-chip:hover {
   box-shadow: var(--shadow-1);
 }
+.check-chip[aria-selected='true'] {
+  outline: 1.5px solid var(--accent-primary);
+  outline-offset: 1px;
+  font-weight: 600;
+}
 .check-chip:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);

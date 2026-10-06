@@ -12,6 +12,7 @@ import {
 } from '../api/generated'
 import { useApi } from '../api'
 import { useChats } from '../contexts/createChatsContext'
+import { pendingChatActionsCache } from './chatAsksCache'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../utils/chatTypes'
 import {
   apiToolCallToGrant,
@@ -23,6 +24,7 @@ import {
   isToolGrantAction,
   pickActiveCliRunId,
   pickActiveStoryRunId,
+  storedToolCallsAwaitingConfirmation,
 } from '../utils/pendingToolGrants'
 import { answerDecision, declineDecision, isQuestionAction } from '../utils/agentQuestions'
 import { declineRemedyDecision, remedyChoiceDecision } from '../utils/agentRemedy'
@@ -70,33 +72,52 @@ export type UsePendingToolGrants = {
  * agent is blocked on stays reachable across a reload.
  */
 export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendingToolGrants {
-  const { getChatLiveState, confirmTools } = useChats()
+  const { getChat, getChatLiveState, confirmTools } = useChats()
   const { ws } = useApi()
 
   const chatContextId = getChatContextKey(ctx)
-  const apiToolCalls = getChatLiveState(ctx).pendingToolConfirmation?.toolCalls ?? []
+  // The send that proposed the calls, else the calls the stored chat still has
+  // waiting — after a reload this page sent nothing, and they wait all the same.
+  const live = getChatLiveState(ctx)
+  const storedMessages = getChat(ctx)?.messages
+  const apiToolCalls = useMemo(
+    () =>
+      live.pendingToolConfirmation?.toolCalls ??
+      (live.isSending ? [] : storedToolCallsAwaitingConfirmation(storedMessages ?? [])),
+    [live.pendingToolConfirmation, live.isSending, storedMessages],
+  )
   const [apiDecisions, setApiDecisions] = useState<Record<string, boolean>>({})
   const [apiLaunchDecisions, setApiLaunchDecisions] = useState<
     Record<string, ProcessLaunchDecision>
   >({})
   // The asks as loaded for one chat — another chat's never show while this
-  // chat's own load is on its way.
+  // chat's own load is on its way; what this chat last read as does.
   const [loadedActions, setLoadedActions] = useState<{
     chatContextId: string
     actions: PendingAction[]
   }>()
   const cliActions = useMemo(
-    () => (loadedActions?.chatContextId === chatContextId ? loadedActions.actions : []),
+    () =>
+      loadedActions?.chatContextId === chatContextId
+        ? loadedActions.actions
+        : (pendingChatActionsCache.get(chatContextId) ?? []),
     [loadedActions, chatContextId],
   )
   const setCliActions = useCallback(
     (next: PendingAction[] | ((prev: PendingAction[]) => PendingAction[])) =>
       setLoadedActions((prev) => {
-        const current = prev?.chatContextId === chatContextId ? prev.actions : []
+        const current =
+          prev?.chatContextId === chatContextId
+            ? prev.actions
+            : (pendingChatActionsCache.get(chatContextId) ?? [])
         return { chatContextId, actions: typeof next === 'function' ? next(current) : next }
       }),
     [chatContextId],
   )
+  useEffect(() => {
+    if (loadedActions)
+      pendingChatActionsCache.set(loadedActions.chatContextId, loadedActions.actions)
+  }, [loadedActions])
   // Kept WITH the chat it was found for: after a switch, the previous chat's
   // run stayed the answer until the new lookup returned, and a view that
   // holds a run past its end held the other chat's run for good.

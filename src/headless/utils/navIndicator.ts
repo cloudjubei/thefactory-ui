@@ -73,9 +73,20 @@ export function shellTabIndicator(
   }
 }
 
-/** A per-group tab row — only Chat carries a channel at group scope. */
-export function groupTabIndicator(tab: GroupTabKey, counts: BadgeCounts): NavRowIndicator {
-  return tab === 'chat' ? chatTabIndicator(counts) : { kind: 'none' }
+/**
+ * A per-group tab row — only Chat carries a channel at group scope, and it
+ * counts the GROUP's own chats. It used to read the active project's chat count,
+ * so reading the group chat could never clear it.
+ */
+export function groupTabIndicator(
+  tab: GroupTabKey,
+  groupChats: BadgeState['chat_messages'],
+): NavRowIndicator {
+  if (tab !== 'chat') return { kind: 'none' }
+  return navRowIndicator({
+    running: groupChats.thinking,
+    unread: { count: groupChats.unread, category: 'chat' },
+  })
 }
 
 function chatTabIndicator(counts: BadgeCounts): NavRowIndicator {

@@ -13,7 +13,7 @@
  */
 
 import type { ProcessRunTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
-import { sumProcessTimeBreakdowns } from 'thefactory-tools/utils'
+import { processRunUnmetRequest, sumProcessTimeBreakdowns } from 'thefactory-tools/utils'
 
 import type {
   ProjectChecksListing,
@@ -45,10 +45,10 @@ import {
   verificationStatusOf,
   withProcessChecks,
 } from './processChecksView'
-import { featureProcessLabel } from './processFeatureProcess'
 import { processTimeDetailsView } from './processTimeDetails'
 import { formatProcessDuration, PROCESS_OUTCOME_VIEW, type VerifyReviewStatus } from './processView'
 import { runModelOf } from './runModel'
+import { signoffWorkOf } from './signoffWork'
 import {
   codeReviewVerdict,
   groupEvidence,
@@ -70,6 +70,8 @@ import {
   FIX_EMPTY_LABEL,
   FIX_NOTE_LABEL,
   FIX_SECTION_PREFIX,
+  FIX_REQUEST_UNMET_LABEL,
+  FIX_REQUEST_UNMET_TITLE,
   FIX_SENT_BY_TITLE,
   FIX_SENT_BY_UNKNOWN,
   FIXER_ROLE,
@@ -77,7 +79,6 @@ import {
   FEATURE_REVIEW_TURNED_BACK,
   OVERALL_STATUS,
   SECTION_STEP_REPORT,
-  SIGNOFF_REVIEW_LINE,
   STORY_STEP_KINDS,
   STORY_STEP_METHODS,
   STORY_STEP_NOT_RUN,
@@ -126,6 +127,7 @@ import type {
   FeatureVerifyView,
   VerifyAttempt,
   VerifyReviewerVerdict,
+  VerifyVerdictNote,
 } from './verifyProofTypes'
 
 /**
@@ -887,19 +889,12 @@ function buildOverall(
   })
 
   const planned = storyRun ? storyStepsOf(storyRun) : []
+  const reviewEntry = planned.find((p) => p.key === 'code-review')?.entry
+  const codeReview = reviewEntry
+    ? attemptReview(reviewEntry, (e) => filedCodeReview(e, storyEvidence))
+    : undefined
   const steps = planned.flatMap(({ key, name, entry }) =>
-    entry
-      ? [
-          storyStepLine(
-            key,
-            name,
-            entry,
-            key === 'code-review'
-              ? attemptReview(entry, (e) => filedCodeReview(e, storyEvidence))
-              : undefined,
-          ),
-        ]
-      : [],
+    entry ? [storyStepLine(key, name, entry, key === 'code-review' ? codeReview : undefined)] : [],
   )
   const methods = [
     ...OVERALL_METHODS,
@@ -937,6 +932,7 @@ function buildOverall(
     verification,
     statusLine: overallStatus(rows),
     steps,
+    codeReview,
     agents,
     facts,
   }
@@ -961,10 +957,6 @@ function featureWord(n: number): string {
 
 const isAccepted = (f: FeatureSignoff): boolean => f.standing === 'accepted'
 
-function acceptedLine(accepted: number): string {
-  return `${accepted} accepted by you without the gate passing ${accepted === 1 ? 'it' : 'them'}.`
-}
-
 /**
  * The story headline — the WORST feature verdict wins.
  *
@@ -988,7 +980,6 @@ export function aggregateStoryVerdict(
   const proven = features.filter((f) => f.verdict.key === 'proven').length
   const partly = features.filter((f) => f.verdict.key === 'partly' && !isAccepted(f)).length
   const open = total - failed.length - accepted.length - proven
-  const acceptedSuffix = accepted.length > 0 ? ` ${acceptedLine(accepted.length)}` : ''
 
   if (failed.length > 0) {
     return makeVerdict(
@@ -1000,6 +991,9 @@ export function aggregateStoryVerdict(
   const newestFix = fixes.at(0)
   if (newestFix?.verdict.key === 'failed') {
     return makeVerdict('failed', `${newestFix.label} failed`, newestFix.verdict.detail)
+  }
+  if (newestFix?.unmetRequest) {
+    return makeVerdict('partly', FIX_REQUEST_UNMET_TITLE(newestFix.label), newestFix.unmetRequest)
   }
   const turnedBack = overall ? reviewTurnedBack(overall.steps) : undefined
   if (turnedBack) return turnedBack
@@ -1021,25 +1015,25 @@ export function aggregateStoryVerdict(
     return makeVerdict(
       'partly',
       `${proven} of ${total} ${featureWord(total)} proven · ${accepted.length} accepted by you`,
-      `Accepted by you without the gate passing ${accepted.length === 1 ? 'it' : 'them'}: ${accepted.map((f) => f.title).join(' · ')}.`,
+      '',
     )
   }
   if (proven > 0) {
     return makeVerdict(
       'partly',
       `${proven} of ${total} ${featureWord(total)} proven`,
-      `${open} still ${open === 1 ? 'needs' : 'need'} proving.${acceptedSuffix}`,
+      `${open} still ${open === 1 ? 'needs' : 'need'} proving.`,
     )
   }
   if (partly > 0) {
     return makeVerdict(
       'partly',
       `Nothing is fully proven yet`,
-      `${partly} ${featureWord(partly)} passed what ran.${acceptedSuffix}`,
+      `${partly} ${featureWord(partly)} passed what ran.`,
     )
   }
   if (accepted.length > 0) {
-    return makeVerdict('partly', 'Nothing is proven yet', acceptedLine(accepted.length))
+    return makeVerdict('partly', 'Nothing is proven yet', '')
   }
   return (
     (overall ? storyWideVerdict(overall) : undefined) ??
@@ -1129,7 +1123,9 @@ function digestOf(features: readonly FeatureSignoff[]): StoryDigest {
  * failure, an acceptance, an unfinished story — says what went otherwise.
  */
 function headlineOf(verdict: SignoffVerdict): SignoffHeadline | undefined {
-  return verdict.key === 'proven' ? undefined : { title: verdict.title, detail: verdict.detail }
+  return verdict.key === 'proven'
+    ? undefined
+    : { title: verdict.title, detail: verdict.detail || undefined }
 }
 
 /**
@@ -1240,6 +1236,8 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     for (const id of runIds) fixRunIds.add(id)
     const owned = new Set(runIds)
     const fixEvidence = evidence.filter((e) => !e.featureId && owned.has(e.runId))
+    const fixPlan = proofPlanMarkRows(fix.run)
+    const unmetRequest = processRunUnmetRequest(fix.run)
     fixSignoffs.push({
       processRunId: fix.run.id,
       sectionId: `${FIX_SECTION_PREFIX}${fix.run.id}`,
@@ -1249,6 +1247,8 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
       sentBy: fix.sentBy,
       note: fix.note,
       runIds,
+      ...(fixPlan ? { proofPlan: fixPlan } : {}),
+      ...(unmetRequest ? { unmetRequest } : {}),
       ...sectionSignoffFor(
         run,
         fixEvidence,
@@ -1298,21 +1298,9 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
     facts: pipeline
       ? measuredFacts(pipeline.story)
       : runReviewFacts(sumFacts([...chosenRuns, ...storyRuns])),
-    featureProcess: storySignoffFeatureProcess(scope),
     evidenceRunIds,
+    work: signoffWorkOf(scope),
   }
-}
-
-function storySignoffFeatureProcess(scope: SignoffScope | undefined): string | undefined {
-  const storyRun = storyRunOf(scope)
-  return storyRun ? featureProcessLabel(storyRun.plan) : undefined
-}
-
-/** The sign-off's line on how its features were worked and reviewed. Pure. */
-export function signoffReviewLine(signoff: Pick<StorySignoff, 'featureProcess'>): string {
-  return signoff.featureProcess
-    ? `Features worked by: ${signoff.featureProcess}. ${SIGNOFF_REVIEW_LINE}`
-    : SIGNOFF_REVIEW_LINE
 }
 
 function isStepReport(t: EvidenceTile): boolean {
@@ -1419,23 +1407,27 @@ export function signoffSectionProps(
 
 /**
  * What a fix pass's section is handed: what a feature's is, led by the note the
- * person sent the work back with, when they wrote one, and naming the fix when
- * nothing was filed for it.
+ * person sent the work back with, when they wrote one, then why that request
+ * is not met, when the fix found it unmet — and naming the fix when nothing
+ * was filed for it.
  */
 export function signoffFixSectionProps(
   section: SignoffSection,
   view: FeatureVerifyView | undefined,
-  fix: Pick<FixSignoff, 'note' | 'codeReview'>,
+  fix: Pick<FixSignoff, 'note' | 'codeReview' | 'unmetRequest'>,
 ): SignoffSectionProps {
   const props = {
     emptyLabel: FIX_EMPTY_LABEL,
     ...signoffSectionProps(section, view, fix.codeReview),
   }
-  if (!fix.note) return props
-  return {
-    ...props,
-    notes: [{ label: FIX_NOTE_LABEL, reason: fix.note, tone: 'review' }, ...props.notes],
-  }
+  const lead: VerifyVerdictNote[] = [
+    ...(fix.note ? [{ label: FIX_NOTE_LABEL, reason: fix.note, tone: 'review' as const }] : []),
+    ...(fix.unmetRequest
+      ? [{ label: FIX_REQUEST_UNMET_LABEL, reason: fix.unmetRequest, tone: 'stuck' as const }]
+      : []),
+  ]
+  if (lead.length === 0) return props
+  return { ...props, notes: [...lead, ...props.notes] }
 }
 
 /**

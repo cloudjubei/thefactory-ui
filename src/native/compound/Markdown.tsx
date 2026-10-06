@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Linking, StyleSheet, Text, View } from 'react-native'
+import { Linking, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import MarkdownDisplay, {
   type MarkdownProps as DisplayProps,
   type RenderRules,
@@ -34,6 +34,10 @@ export type MarkdownProps = {
    * document or a log stays text.
    */
   typedReferences?: boolean
+  /** Text inside a line — a table cell, a list row: paragraphs keep no block margins. */
+  inline?: boolean
+  /** The body text's size and colour, for text set inside a smaller or muted line. */
+  textStyle?: Pick<TextStyle, 'fontSize' | 'lineHeight' | 'color' | 'fontWeight'>
 }
 
 /**
@@ -51,10 +55,19 @@ export default function Markdown({
   onResourceLink,
   renderReference: ownRenderReference,
   typedReferences = false,
+  inline = false,
+  textStyle,
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const { theme } = useNativeTheme()
-  const styles = useMemo(() => makeStyles(theme), [theme])
+  const fontSize = textStyle?.fontSize
+  const lineHeight = textStyle?.lineHeight
+  const color = textStyle?.color
+  const fontWeight = textStyle?.fontWeight
+  const styles = useMemo(
+    () => makeStyles(theme, inline, { fontSize, lineHeight, color, fontWeight }),
+    [theme, inline, fontSize, lineHeight, color, fontWeight],
+  )
 
   const onLinkPress = useMemo<DisplayProps['onLinkPress']>(
     () => (url) => {
@@ -105,14 +118,19 @@ export default function Markdown({
   )
 }
 
-function makeStyles(t: NativeSemanticTheme) {
+function makeStyles(t: NativeSemanticTheme, inline: boolean, body: MarkdownProps['textStyle']) {
+  const bodyOverride = Object.fromEntries(
+    Object.entries(body ?? {}).filter(([, value]) => value !== undefined),
+  )
   // Sizes mirror web's Tailwind classes: text-2xl (24) for h1, text-xl (20)
   // for h2 + h3, text-lg (18) for h4, text-base (16) for h5, text-sm (14) for
   // h6. Paragraph rhythm uses `marginVertical: nativeSpace[1]` (~4px) to
   // approximate web's `my-1`. Lists use `ml-6` ≈ 24px indent.
   return StyleSheet.create({
-    body: { color: t.text.primary, fontSize: 14, lineHeight: 21 },
-    paragraph: { marginTop: nativeSpace[1], marginBottom: nativeSpace[1] },
+    body: { color: t.text.primary, fontSize: 14, lineHeight: 21, ...bodyOverride },
+    paragraph: inline
+      ? { marginTop: 0, marginBottom: 0 }
+      : { marginTop: nativeSpace[1], marginBottom: nativeSpace[1] },
     heading1: {
       fontSize: 24,
       fontWeight: '700',

@@ -1107,13 +1107,56 @@ describe('normalizeCliTranscript', () => {
     })
   })
 
-  it('shows an approved ask not carried out yet as under way, not as not run', () => {
+  it('shows an approved ask nothing has picked up yet as queued — not as not run, not as running', () => {
     // Observed: approving a batch turned every row into "did not run" until the
-    // agent's next turn had called them all again.
+    // agent's next turn had called them all again. And then: the rows spun for
+    // a minute and a half while the resumed turn was still starting, with
+    // nothing running them.
     const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
       decidedAsks: [decided()],
     })
-    expect(row.toolResult?.type).toBe('running')
+    expect(row.toolResult?.type).toBe('pending')
+  })
+
+  it('shows an ask decided here, whose outcome has not arrived yet, as queued — not as waiting for you', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      pendingAsks: [
+        {
+          id: 'a1',
+          toolName: 'addStory',
+          args: { title: 'T' },
+          decidedOnRow: false,
+          awaitingOutcome: true,
+        },
+      ],
+    })
+    expect(row.toolResult?.type).toBe('pending')
+    expect(row.toolCall?.awaitingDecision).toBeUndefined()
+    expect(row.toolCall?.approvalId).toBeUndefined()
+  })
+
+  it('shows a call waiting behind one the user is asked about as queued, not running', () => {
+    // A CLI sends its calls one at a time: the rest of the message waits on the
+    // ask, and nothing is running them.
+    const rows = cliTranscriptToMessages(
+      [call('t1', 'updateStory', { id: 's' }), call('t2', 'addFeature', { n: 1 })],
+      {
+        pendingAsks: [{ id: 'a1', toolName: 'updateStory', args: { id: 's' }, decidedOnRow: true }],
+      },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['require_confirmation', 'pending'])
+  })
+
+  it('still shows a call made alongside one that ran as running', () => {
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'Read', { p: 'a' }),
+        answered('t1', { ok: true }),
+        call('t2', 'Read', { p: 'b' }),
+      ],
+      { pendingAsks: [] },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['success', 'running'])
   })
 
   it('shows an approval carried out before results were kept as done, not as under way', () => {
@@ -2059,5 +2102,170 @@ describe('withStoredCliReply', () => {
   it('shows nothing when the chat stored no reply', () => {
     expect(withStoredCliReply([], { content: '  ' }, false)).toEqual([])
     expect(withStoredCliReply([], undefined, false)).toEqual([])
+  })
+})
+
+describe('subagent steps', () => {
+  const under = (parent: string | undefined, e: CliRunTranscriptEntry): CliRunTranscriptEntry => ({
+    ...e,
+    payload: { ...(e.payload as object), parent_tool_use_id: parent ?? null },
+  })
+  const call = (id: string, name: string, at: number, parent?: string) =>
+    under(
+      parent,
+      entry({
+        at,
+        kind: 'tool-call',
+        payload: { message: { content: [{ type: 'tool_use', id, name, input: { n: id } }] } },
+      }),
+    )
+  const answered = (id: string, at: number, parent?: string) =>
+    under(
+      parent,
+      entry({
+        at,
+        kind: 'tool-result',
+        payload: {
+          message: { content: [{ type: 'tool_result', tool_use_id: id, content: '"ok"' }] },
+        },
+      }),
+    )
+  const said = (text: string, at: number, parent?: string, streaming?: boolean) =>
+    under(
+      parent,
+      entry({
+        at,
+        kind: 'assistant',
+        ...(streaming ? { streaming } : {}),
+        payload: { message: { content: [{ type: 'text', text }] } },
+      }),
+    )
+  const thought = (text: string, at: number, parent?: string) =>
+    under(
+      parent,
+      entry({
+        at,
+        kind: 'assistant',
+        payload: { message: { content: [{ type: 'thinking', thinking: text }] } },
+      }),
+    )
+
+  it('names the call each step was made under', () => {
+    const steps = normalizeCliTranscript([
+      call('a1', 'Agent', 1),
+      thought('look', 2, 'a1'),
+      said('found it', 3, 'a1'),
+      call('g1', 'grepFiles', 4, 'a1'),
+      answered('g1', 5, 'a1'),
+      answered('a1', 6),
+    ])
+    expect(steps.map((s) => [s.kind, 'parentToolCallId' in s ? s.parentToolCallId : '-'])).toEqual([
+      ['tool', '-'],
+      ['thinking', 'a1'],
+      ['assistant', 'a1'],
+      ['tool', 'a1'],
+    ])
+  })
+
+  it('never welds text from two different agents into one step', () => {
+    const steps = normalizeCliTranscript([
+      said('main ', 1, undefined, true),
+      said('sub', 2, 'a1', true),
+      thought('main thinks', 3),
+      thought('sub thinks', 4, 'a1'),
+    ])
+    expect(steps.map((s) => ('text' in s ? s.text : ''))).toEqual([
+      'main ',
+      'sub',
+      'main thinks',
+      'sub thinks',
+    ])
+  })
+
+  it('still coalesces one agent streaming its own reply', () => {
+    const steps = normalizeCliTranscript([
+      said('a ', 1, 'a1', true),
+      said('b', 2, 'a1', true),
+      thought('x ', 3, 'a1'),
+      thought('y', 4, 'a1'),
+    ])
+    expect(steps.map((s) => ('text' in s ? s.text : ''))).toEqual(['a b', 'x y'])
+  })
+
+  it("puts a subagent's steps under the call that started it, in order", () => {
+    const messages = cliTranscriptToMessages([
+      said('delegating', 1),
+      call('a1', 'Agent', 2),
+      said('searching', 3, 'a1'),
+      call('g1', 'grepFiles', 4, 'a1'),
+      answered('g1', 5, 'a1'),
+      call('l1', 'listContents', 6, 'a1'),
+      answered('a1', 9),
+      said('done', 10),
+    ])
+    expect(messages.map((m) => m.toolCall?.name ?? m.content)).toEqual([
+      'delegating',
+      'Agent',
+      'done',
+    ])
+    const nested = messages[1].subagentMessages ?? []
+    expect(nested.map((m) => m.toolCall?.name ?? m.content)).toEqual([
+      'searching',
+      'grepFiles',
+      'listContents',
+    ])
+    expect(nested[1].toolResult?.type).toBe('success')
+    expect(nested[2].toolResult?.type).toBe('running')
+  })
+
+  it("nests a subagent's own subagent one level deeper", () => {
+    const messages = cliTranscriptToMessages([
+      call('a1', 'Agent', 1),
+      call('a2', 'Agent', 2, 'a1'),
+      call('r1', 'readFile', 3, 'a2'),
+    ])
+    expect(messages).toHaveLength(1)
+    const [inner] = messages[0].subagentMessages ?? []
+    expect(inner.toolCall?.toolCallId).toBe('a2')
+    expect(inner.subagentMessages?.map((m) => m.toolCall?.toolCallId)).toEqual(['r1'])
+  })
+
+  it('keeps two parallel subagents apart', () => {
+    const messages = cliTranscriptToMessages([
+      call('a1', 'Agent', 1),
+      call('a2', 'Agent', 2),
+      call('x', 'readFile', 3, 'a2'),
+      call('y', 'grepFiles', 4, 'a1'),
+    ])
+    expect(messages.map((m) => m.subagentMessages?.map((c) => c.toolCall?.name))).toEqual([
+      ['grepFiles'],
+      ['readFile'],
+    ])
+  })
+
+  it('leaves a step on its own when the call it names is not in the transcript', () => {
+    const messages = cliTranscriptToMessages([call('g1', 'grepFiles', 1, 'gone')])
+    expect(messages.map((m) => m.toolCall?.name)).toEqual(['grepFiles'])
+  })
+
+  it('keeps a subagent call that waits on the user where the user can answer it', () => {
+    const messages = cliTranscriptToMessages(
+      [call('a1', 'Agent', 1), call('s1', 'addStory', 2, 'a1')],
+      {
+        pendingAsks: [{ id: 'q1', toolName: 'addStory', args: { n: 's1' }, decidedOnRow: true }],
+      },
+    )
+    expect(messages.map((m) => m.toolCall?.name)).toEqual(['Agent', 'addStory'])
+    expect(messages[0].subagentMessages).toBeUndefined()
+    expect(messages[1].toolResult?.type).toBe('require_confirmation')
+  })
+
+  it('gives the cost to the first top-level reply, not a subagent line', () => {
+    const messages = cliTranscriptToMessages(
+      [call('a1', 'Agent', 1), said('sub', 2, 'a1'), answered('a1', 3), said('main', 4)],
+      { usage: { cost: 1 } },
+    )
+    expect(messages[1]).toMatchObject({ content: 'main', usage: { cost: 1 } })
+    expect(messages[0].subagentMessages?.[0].usage).toBeUndefined()
   })
 })

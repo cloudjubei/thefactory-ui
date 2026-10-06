@@ -23,7 +23,7 @@ import type {
   ProjectCodeInfo,
 } from '../../../headless/api'
 import { useGitCredentials, type UseProjectGithubRepoResult } from '../../../headless'
-import { useProjectsGroups } from '../../../headless'
+import { readTicketConnection, useProjectsGroups } from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 import TicketConnectionPicker from './TicketConnectionPicker'
 
@@ -89,14 +89,6 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
     scopeGroupIds: Array.isArray(anyP.scopeGroupIds) ? (anyP.scopeGroupIds as string[]) : [],
   }
-}
-
-function readTicketConnection(value: unknown): TicketConnectionBinding | 'none' | undefined {
-  if (value === 'none') return 'none'
-  const binding = value as Partial<TicketConnectionBinding> | null | undefined
-  return typeof binding?.connectionId === 'string' && typeof binding.access === 'string'
-    ? (binding as TicketConnectionBinding)
-    : undefined
 }
 
 export type ProjectEditorFormProps = {

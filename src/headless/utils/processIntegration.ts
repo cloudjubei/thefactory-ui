@@ -1,4 +1,5 @@
 import type {
+  ProcessGroupRun,
   ProcessIntegrationMode,
   ProcessResumeChoice,
   ProcessRun,
@@ -7,10 +8,13 @@ import type {
 import {
   isProcessIntegrationRequired,
   isProcessRunAwaitingIntegration,
+  processGroupLegIntegrationModes,
+  processIntegrationConflictResolution,
 } from 'thefactory-tools/utils'
 import {
   PROCESS_INTEGRATION_BADGE,
   PROCESS_INTEGRATION_COMPARE_LINK,
+  PROCESS_INTEGRATION_CONFLICT,
   PROCESS_INTEGRATION_NEVER_TRIED,
   PROCESS_INTEGRATION_PR_LINK,
   PROCESS_INTEGRATION_SHADOW,
@@ -24,6 +28,14 @@ import type { ProcessStatusTone } from './processView'
  * no git of its own has the one: approving brings the work into its folder.
  */
 export function processIntegrationChoices(
+  workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
+  modes?: readonly ProcessIntegrationMode[],
+): ProcessIntegrationChoice[] {
+  const choices = integrationChoicesOf(workBranch)
+  return modes ? choices.filter((c) => modes.includes(c.mode)) : choices
+}
+
+function integrationChoicesOf(
   workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
 ): ProcessIntegrationChoice[] {
   const { name, baseRef } = workBranch
@@ -61,9 +73,24 @@ export function processIntegrationChoices(
  */
 export function soleIntegrationMode(
   workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
+  modes?: readonly ProcessIntegrationMode[],
 ): ProcessIntegrationMode | undefined {
-  const choices = processIntegrationChoices(workBranch)
+  const choices = processIntegrationChoices(workBranch, modes)
   return choices.length === 1 ? choices[0]!.mode : undefined
+}
+
+/**
+ * The ways a run's sign-off may bring its work in when they are narrowed: for
+ * a group leg other legs build on, merge or squash only. `undefined` — every
+ * way — for any other run, or while its group run is not loaded.
+ */
+export function processRunIntegrationModes(
+  run: Pick<ProcessRun, 'groupLegId'>,
+  group: Pick<ProcessGroupRun, 'legs'> | undefined,
+): readonly ProcessIntegrationMode[] | undefined {
+  return group && run.groupLegId
+    ? processGroupLegIntegrationModes(group, run.groupLegId)
+    : undefined
 }
 
 /** Whether answering the run's park with `choice` must also say how the work comes in. */
@@ -101,6 +128,9 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
   const { workBranch, integration } = run
   if (!workBranch || run.parentRunId) return undefined
   if (workBranch.shadow) return shadowIntegrationView(run)
+  if (!integration && (run.status === 'running' || run.status === 'parked')) {
+    return conflictResolutionView(run)
+  }
   if (!integration) {
     return isProcessRunAwaitingIntegration(run)
       ? {
@@ -126,6 +156,14 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
       tone: 'stuck',
       title: MODE_FAILED[integration.mode](workBranch.baseRef),
       ...(integration.error ? { detail: integration.error } : {}),
+      ...(integration.conflict
+        ? {
+            conflict: {
+              baseRef: integration.conflict.baseRef,
+              paths: integration.conflict.paths,
+            },
+          }
+        : {}),
       ...(integration.pullRequestUrl
         ? { link: { url: integration.pullRequestUrl, label: PROCESS_INTEGRATION_PR_LINK } }
         : {}),
@@ -164,6 +202,39 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
       ? { link: { url: integration.compareUrl, label: PROCESS_INTEGRATION_COMPARE_LINK } }
       : {}),
     ...(sha ? { sha } : {}),
+    canRetry: false,
+    busy: false,
+  }
+}
+
+/**
+ * A run sent to resolve a conflict on landing: an agent resolving it while the
+ * run works, or — waiting at the gate that confirms the landing — what changed:
+ * the merge commit, the files, the checks. A park on the way says for itself
+ * what it needs.
+ */
+function conflictResolutionView(run: ProcessRun): ProcessIntegrationView | undefined {
+  const resolution = processIntegrationConflictResolution(run)
+  if (!resolution) return undefined
+  const { baseRef, paths } = resolution.conflict
+  if (run.status === 'running') {
+    return {
+      tone: 'working',
+      title: PROCESS_INTEGRATION_CONFLICT.resolving(baseRef),
+      detail: PROCESS_INTEGRATION_CONFLICT.resolvingDetail(baseRef),
+      files: paths,
+      canRetry: false,
+      busy: true,
+    }
+  }
+  if (run.park?.reason !== 'gate' || run.park.stepId !== resolution.gateStepId) return undefined
+  const sha = short(resolution.mergeSha)
+  return {
+    tone: 'review',
+    title: PROCESS_INTEGRATION_CONFLICT.resolved(baseRef),
+    detail: PROCESS_INTEGRATION_CONFLICT.resolvedDetail(baseRef, resolution.checks?.summary),
+    ...(sha ? { sha } : {}),
+    files: paths,
     canRetry: false,
     busy: false,
   }

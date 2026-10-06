@@ -7,6 +7,8 @@ import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
 import { SecretInput } from '../SecretInput'
 import { IconKey } from '../../icons'
+import { captureHelp } from '../../../headless/utils/credentialCaptureHelp'
+import CredentialHelpPanel from './CredentialHelpPanel'
 import { useCliConfigs } from '../../../headless/contexts/CliConfigsContext'
 import { useCliSignIn } from '../../../headless/hooks/useCliSignIn'
 import { CLI_CLIENT_OPENS_LOGIN_URL } from '../../../headless/utils/cliRunner'
@@ -91,6 +93,7 @@ export default function CredentialCaptureCard({
   const locked = busy || disabled === true
   const canSubmit = isCaptureFormValid(capture, values)
   const showForm = open
+  const help = captureHelp(capture, values)
 
   const signInCard = isCliSignInCapture(capture)
   const { caches } = useCliConfigs()
@@ -215,6 +218,8 @@ export default function CredentialCaptureCard({
               </div>
             ))}
           </div>
+
+          {help ? <CredentialHelpPanel help={help} /> : null}
 
           {signIn.loginId ? (
             <div className="flex flex-col gap-1.5 rounded-md border border-(--border-default) bg-(--surface-base) p-2">

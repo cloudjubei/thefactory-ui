@@ -7,6 +7,7 @@ import {
   reviewTabOrder,
   reviewTabs,
   screenPairFileStem,
+  ranReviewChecks,
   reviewCheckGroups,
   type CheckMethodId,
   type CheckMethodRow,
@@ -48,7 +49,8 @@ import ProofScreens from './ProofScreens'
 export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
 
 export type FeatureReviewSectionProps = {
-  kind: 'overall' | 'feature'
+  /** An embedded section is the body alone, inside a row that already names it. */
+  kind: 'overall' | 'feature' | 'embedded'
   idLabel?: string
   /** The id chip's scope tint — a story-level section (a fix pass) is the story's blue. */
   idScope?: 'story' | 'feature'
@@ -69,6 +71,8 @@ export type FeatureReviewSectionProps = {
   leadTab?: ReviewTabId
   onOpenPair: (key: string) => void
   onRequestImage: (id: string, mediaType: string) => void
+  /** Opens the run's chat drafted to set a missing capability up — offered on its chip. */
+  onSetUp?: (row: CheckMethodRow) => void
   /** Puts a file where the user can reach it; downloads stay hidden without it. */
   onSaveFile?: SaveFileHandler
   /** Replaces the overall section's OVERALL badge — a verify attempt names itself. */
@@ -217,6 +221,7 @@ export default function FeatureReviewSection({
   attemptLabel,
   developerChecks,
   proofPlan,
+  onSetUp,
 }: FeatureReviewSectionProps) {
   const { theme, status } = useNativeTheme()
   const [activeTab, setActiveTab] = useState<ReviewTabId | undefined>()
@@ -231,8 +236,8 @@ export default function FeatureReviewSection({
     walkthroughs: recordings.length + uncountedRecordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
-    testChecks: testChecks.length,
-    buildChecks: buildChecks.length,
+    testChecks: ranReviewChecks(testChecks).length,
+    buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: undefined,
     codeReviews: codeReviews.length,
     ...(leadTab ? { lead: leadTab } : {}),
@@ -341,7 +346,13 @@ export default function FeatureReviewSection({
   )
 
   const body = (
-    <View style={{ gap: 10, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }}>
+    <View
+      style={
+        kind === 'embedded'
+          ? { gap: 10 }
+          : { gap: 10, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }
+      }
+    >
       {attemptLabel ? (
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{attemptLabel}</Text>
       ) : null}
@@ -414,6 +425,7 @@ export default function FeatureReviewSection({
           branch={undefined}
           busyId={undefined}
           onOpenProof={openProof}
+          {...(onSetUp ? { onSetUp } : {})}
         />
       ) : null}
 
@@ -494,6 +506,8 @@ export default function FeatureReviewSection({
       )}
     </View>
   )
+
+  if (kind === 'embedded') return body
 
   return (
     <View

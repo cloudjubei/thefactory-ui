@@ -40,7 +40,18 @@ describe('SHELL_TAB_DEFS', () => {
 
 describe('GROUP_TAB_DEFS', () => {
   it('lists only the group-scope surfaces', () => {
-    expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual(['home', 'chat', 'tools', 'processes'])
+    expect(GROUP_TAB_DEFS.map((t) => t.key)).toEqual([
+      'home',
+      'chat',
+      'notes',
+      'tools',
+      'processes',
+      'settings',
+    ])
+  })
+
+  it('routes the group’s settings without listing them among its tabs — the footer row reaches them', () => {
+    expect(GROUP_TAB_DEFS.find((t) => t.key === 'settings')?.hiddenInSidebar).toBe(true)
   })
 })
 
@@ -60,6 +71,7 @@ describe('isGroupTabKey', () => {
   it('accepts known group tab keys', () => {
     expect(isGroupTabKey('home')).toBe(true)
     expect(isGroupTabKey('chat')).toBe(true)
+    expect(isGroupTabKey('settings')).toBe(true)
   })
 
   it('rejects unknown values and undefined', () => {
@@ -75,6 +87,15 @@ describe('projectTabToGroupTab', () => {
     expect(projectTabToGroupTab('processes')).toBe('processes')
   })
 
+  it('keeps the user in Notes when they switch to a group — a group keeps notes too', () => {
+    expect(projectTabToGroupTab('notes')).toBe('notes')
+    expect(groupTabToProjectTab('notes')).toBe('notes')
+  })
+
+  it('keeps the user in Settings when they switch to a group', () => {
+    expect(projectTabToGroupTab('settings')).toBe('settings')
+  })
+
   it('falls back to "home" for project-only surfaces', () => {
     expect(projectTabToGroupTab('stories')).toBe('home')
     expect(projectTabToGroupTab('files')).toBe('home')
@@ -87,6 +108,10 @@ describe('groupTabToProjectTab', () => {
     expect(groupTabToProjectTab('chat')).toBe('chat')
     expect(groupTabToProjectTab('tools')).toBe('tools')
     expect(groupTabToProjectTab('processes')).toBe('processes')
+  })
+
+  it('keeps the user in Settings when they switch to a project', () => {
+    expect(groupTabToProjectTab('settings')).toBe('settings')
   })
 
   it('maps the group landing page to the project landing page', () => {

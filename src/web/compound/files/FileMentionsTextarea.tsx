@@ -25,6 +25,8 @@ export type FileMentionsTextareaProps = {
    * the consumer wires it.
    */
   onSearchFiles?: (token: string) => string[]
+  /** An `@` suggestion as its row shows it — the path, and its project in a chat over several. */
+  describeFile?: (value: string) => { path: string; project?: string }
   /**
    * Returns ranked reference suggestions for the active `#<token>` (typically
    * stories / features). When omitted, the `#`-dropdown is disabled. Library
@@ -60,6 +62,9 @@ export type FileMentionsTextareaProps = {
   ariaLabel?: string
   autoFocus?: boolean
   maxLength?: number
+  /** Classes for the box around the textarea and its dropdown — e.g. to let it fill a column. */
+  containerClassName?: string
+  spellCheck?: boolean
   /** Forwarded textarea event handlers. Library handlers run first. */
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   onSelect?: ReactEventHandler<HTMLTextAreaElement>
@@ -72,6 +77,7 @@ function FileMentionsTextareaInner(
     value,
     onChange,
     onSearchFiles,
+    describeFile,
     onSearchReferences,
     onSearchHandles,
     onAcceptFileMention,
@@ -86,6 +92,8 @@ function FileMentionsTextareaInner(
     ariaLabel,
     autoFocus,
     maxLength,
+    containerClassName,
+    spellCheck,
     onKeyDown,
     onSelect,
     onMouseUp,
@@ -209,7 +217,7 @@ function FileMentionsTextareaInner(
   }
 
   return (
-    <div className="relative">
+    <div className={['relative', containerClassName].filter(Boolean).join(' ')}>
       {showFileMenu && (
         <ul
           role="listbox"
@@ -232,7 +240,7 @@ function FileMentionsTextareaInner(
               ].join(' ')}
               title={path}
             >
-              {path}
+              <FileSuggestionRow row={describeFile?.(path) ?? { path }} />
             </li>
           ))}
         </ul>
@@ -306,6 +314,7 @@ function FileMentionsTextareaInner(
         aria-label={ariaLabel}
         autoFocus={autoFocus}
         maxLength={maxLength}
+        spellCheck={spellCheck}
       />
     </div>
   )
@@ -313,3 +322,13 @@ function FileMentionsTextareaInner(
 
 const FileMentionsTextarea = forwardRef(FileMentionsTextareaInner)
 export default FileMentionsTextarea
+
+function FileSuggestionRow({ row }: { row: { path: string; project?: string } }) {
+  if (!row.project) return <>{row.path}</>
+  return (
+    <span className="flex items-center gap-2 min-w-0">
+      <span className="truncate">{row.path}</span>
+      <span className="ml-auto shrink-0 text-xs text-(--text-secondary)">{row.project}</span>
+    </span>
+  )
+}

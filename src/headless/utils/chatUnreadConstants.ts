@@ -4,3 +4,6 @@ export const CHAT_OPEN_SETTLE_MAX_MS = 15_000
 export const CHAT_OPEN_ANCHOR_HEADROOM = 0.3
 /** Read messages kept above the first unread one when the window widens to reach it. */
 export const CHAT_OPEN_ANCHOR_CONTEXT_MESSAGES = 5
+
+/** What a chat row's "!" badge says: every message is read, and the agent is waiting on the user. */
+export const CHAT_AWAITING_ANSWER_LABEL = 'Waiting for your answer'

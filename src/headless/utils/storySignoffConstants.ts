@@ -86,6 +86,13 @@ export const FIX_SENT_BY_TITLE: Record<FixSentBy, string> = {
   'sign-off': 'Requested by you at sign-off',
 }
 
+/** The note a fix pass's section names its unmet request under. */
+export const FIX_REQUEST_UNMET_LABEL = 'Your request is not met'
+
+/** The story headline when its newest fix pass found the person's request unmet. */
+export const FIX_REQUEST_UNMET_TITLE = (label: string): string =>
+  `${label}: your request is not met`
+
 /** A fix pass's title when its story run's ledger does not say what sent it. */
 export const FIX_SENT_BY_UNKNOWN = 'Sent back to be fixed'
 
@@ -141,7 +148,3 @@ export const EMPTY_SIGNOFF_SECTION: SignoffSection = {
   notes: [],
   leadTab: undefined,
 }
-
-/** The sign-off's line on how its features went through review, after how they were worked. */
-export const SIGNOFF_REVIEW_LINE =
-  'Each feature went through the review process — how it was checked, live or dry, is on the feature. Expand one to inspect its evidence.'

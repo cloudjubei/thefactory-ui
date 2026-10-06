@@ -110,25 +110,32 @@ export type CheckChipProps = {
   /** Renders the chip inert — for a block heading that is not a control. */
   inert?: boolean
   style?: StyleProp<ViewStyle>
+  /** The chip is a tab, and the tab it opens is showing. */
+  selected?: boolean
 }
 
 /**
  * One verification method as a chip: its glyph, its name, and a mark for its
  * state. The glyph never changes — a reader learns "this is lint" once.
  */
-export default function CheckChip({ row, onPress, inert, style }: CheckChipProps) {
+export default function CheckChip({ row, onPress, inert, style, selected }: CheckChipProps) {
   const { theme, status } = useNativeTheme()
   const palette = checkChipPalette(row.state, theme, status)
   const Glyph = GLYPH[row.id]
   const face = checkChipFace(row)
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={selected === undefined ? 'button' : 'tab'}
       accessibilityLabel={`${row.label}: ${face.stateLabel}`}
-      accessibilityState={{ disabled: !!inert }}
+      accessibilityState={{ disabled: !!inert, ...(selected === undefined ? {} : { selected }) }}
       disabled={inert}
       onPress={onPress}
-      style={({ pressed }) => [checkChipStyle(palette), { opacity: pressed ? 0.8 : 1 }, style]}
+      style={({ pressed }) => [
+        checkChipStyle(palette),
+        { opacity: pressed ? 0.8 : 1 },
+        selected ? { borderWidth: 1.5, borderColor: theme.accent.primary } : null,
+        style,
+      ]}
     >
       <Glyph size={13} color={palette.fg} />
       <Text style={{ fontSize: 12, fontWeight: '500', color: palette.fg }}>{row.label}</Text>

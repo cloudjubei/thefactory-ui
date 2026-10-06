@@ -7,6 +7,8 @@ import {
   blankProcessStep,
   copyProcessDefinition,
   isProcessFork,
+  isProcessGateLoop,
+  PROCESS_GATE_LOOP_NO_LIMIT,
   processScopeLabel,
   processStepName,
   useActiveProject,
@@ -261,7 +263,10 @@ function ProcessDetail({
           {definition.loops.map((loop) => (
             <div key={loop.id} className="text-[11px] text-(--text-secondary)">
               {processStepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
-              {processStepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
+              {processStepName(definition, loop.to)},{' '}
+              {isProcessGateLoop(definition, loop)
+                ? `${PROCESS_GATE_LOOP_NO_LIMIT}.`
+                : `at most ${loop.maxIterations} attempts.`}
             </div>
           ))}
         </div>
@@ -445,25 +450,31 @@ function ProcessEditor({
               <span>
                 {processStepName(definition, loop.from)} → {processStepName(definition, loop.to)}
               </span>
-              <span className="ml-auto flex items-center gap-1">
-                at most
-                <Input
-                  className="w-16"
-                  type="number"
-                  min={1}
-                  value={String(loop.maxIterations)}
-                  onChange={(e) =>
-                    patch({
-                      loops: definition.loops.map((l, i) =>
-                        i === index
-                          ? { ...l, maxIterations: Math.max(1, Number(e.target.value) || 1) }
-                          : l,
-                      ),
-                    })
-                  }
-                />
-                attempts
-              </span>
+              {isProcessGateLoop(definition, loop) ? (
+                <span className="ml-auto text-(--text-secondary)">
+                  {PROCESS_GATE_LOOP_NO_LIMIT}
+                </span>
+              ) : (
+                <span className="ml-auto flex items-center gap-1">
+                  at most
+                  <Input
+                    className="w-16"
+                    type="number"
+                    min={1}
+                    value={String(loop.maxIterations)}
+                    onChange={(e) =>
+                      patch({
+                        loops: definition.loops.map((l, i) =>
+                          i === index
+                            ? { ...l, maxIterations: Math.max(1, Number(e.target.value) || 1) }
+                            : l,
+                        ),
+                      })
+                    }
+                  />
+                  attempts
+                </span>
+              )}
             </Surface>
           ))}
         </div>

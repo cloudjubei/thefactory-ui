@@ -9,6 +9,7 @@
  */
 import type { ProcessRun } from 'thefactory-tools/types'
 import type { BadgeState, ProcessTally } from './badgeAggregationTypes'
+import { isProcessRunCurrent } from './processRunCurrent'
 
 export const EMPTY_BADGE_STATE: BadgeState = {
   chat_messages: { unread: 0, thinking: false },
@@ -19,18 +20,27 @@ export const EMPTY_BADGE_STATE: BadgeState = {
 }
 
 /**
- * Bucket live ROOT process runs by project. A child run (a feature step's own
- * pipeline) is reached through its parent, so it never counts on its own;
- * finished runs never count. A project with nothing live is absent.
+ * Bucket current ROOT process runs by project (`isProcessRunCurrent`): one
+ * working — or bringing its approved work in — counts as running, one waiting
+ * on the person — parked, or approved with work that did not land — as
+ * waiting. A child run (a feature step's own pipeline) is reached through its
+ * parent, so it never counts on its own; done runs never count. A project
+ * with nothing current is absent.
  */
 export function processTallyByProject(
-  runs: ReadonlyArray<Pick<ProcessRun, 'projectId' | 'status' | 'parentRunId'>>,
+  runs: ReadonlyArray<
+    Pick<
+      ProcessRun,
+      'projectId' | 'status' | 'parentRunId' | 'plan' | 'ledger' | 'workBranch' | 'integration'
+    > &
+      Partial<Pick<ProcessRun, 'groupRunId'>>
+  >,
 ): ReadonlyMap<string, ProcessTally> {
   const out = new Map<string, ProcessTally>()
   for (const r of runs) {
-    if (r.parentRunId) continue
-    const running = r.status === 'pending' || r.status === 'running'
-    if (!running && r.status !== 'parked') continue
+    if (r.parentRunId || !isProcessRunCurrent(r)) continue
+    const running =
+      r.status === 'pending' || r.status === 'running' || r.integration?.status === 'integrating'
     const tally = out.get(r.projectId) ?? { running: 0, waiting: 0 }
     if (running) tally.running += 1
     else tally.waiting += 1

@@ -6,14 +6,20 @@ import {
   capturedOnLabel,
   comparisonPairFacts,
   useEvidenceDiff,
-  IMAGE_ZOOM_MAX,
-  IMAGE_ZOOM_MIN,
+  canPairViewerZoomIn,
+  canPairViewerZoomOut,
+  framePane,
+  isPannable,
+  pairFitScale,
+  pairViewerZoomByWheel,
+  pairViewerZoomFloor,
+  pairViewerZoomIn,
+  pairViewerZoomLabel,
+  pairViewerZoomOut,
+  resolveViewerScale,
   screenPairFileStem,
-  zoomByWheel,
-  zoomIn,
-  zoomLabel,
-  zoomOut,
   type CaptureBuildCaption,
+  type PairViewerSize,
   type ScreenPair,
 } from '../../../../headless'
 import { Button } from '../../../primitives/Button'
@@ -30,7 +36,16 @@ import {
   IconZoomOut,
 } from '../../../icons'
 import { RefChip } from '../../chips'
+import {
+  PAIR_CAPTION_RESERVE,
+  PAIR_LOADING_FRAME,
+  PAIR_SLIDE_RESERVE,
+  PAIR_STAGE_GAP,
+  PAIR_STAGE_PADDING,
+} from './comparisonOverlayConstants'
 import { saveSideBySide } from './download'
+import { useElementSize } from './useElementSize'
+import { useImageNaturalSize } from './useImageNaturalSize'
 
 export type ComparisonOverlayProps = {
   pairs: readonly ScreenPair[]
@@ -48,8 +63,6 @@ export type ComparisonOverlayProps = {
 }
 
 type Mode = 'mirror' | 'slide' | 'diff'
-
-const BASE_WIDTH = 240
 
 /**
  * A side's build, as its own record states it — the commit it was built from,
@@ -84,18 +97,34 @@ function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuil
   )
 }
 
-function Frame({ src, alt, width }: { src: string | undefined; alt: string; width: number }) {
+/** A frame at `width`, its height from its own natural aspect; the loading box until that is known. */
+function Frame({
+  src,
+  alt,
+  width,
+  natural,
+  loading,
+}: {
+  src: string | undefined
+  alt: string
+  width: number
+  natural: PairViewerSize | undefined
+  loading: PairViewerSize
+}) {
+  const box = natural
+    ? { width, height: Math.round((width * natural.h) / natural.w) }
+    : { width: loading.w, height: loading.h }
   return src ? (
     <img
       src={src}
       alt={alt}
       draggable={false}
-      style={{ width, height: 'auto' }}
+      style={{ ...box, maxWidth: 'none', objectFit: 'contain' }}
       className="block select-none rounded-md border border-(--border-default) bg-white"
     />
   ) : (
     <div
-      style={{ width, height: width * 2 }}
+      style={box}
       className="animate-pulse rounded-md border border-(--border-default) bg-(--surface-muted)"
     />
   )
@@ -118,7 +147,8 @@ export default function ComparisonOverlay({
   projectId,
 }: ComparisonOverlayProps) {
   const [mode, setMode] = useState<Mode>('slide')
-  const [zoom, setZoom] = useState(1)
+  const [manualScale, setManualScale] = useState<number | undefined>(undefined)
+  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null)
   const [slidePct, setSlidePct] = useState(50)
   const [holdBase, setHoldBase] = useState(false)
   const [position, setPosition] = useState(0)
@@ -152,6 +182,9 @@ export default function ComparisonOverlay({
   }, [isOpen, pairs.length])
 
   const pair = pairs[position]
+  useEffect(() => {
+    setManualScale(undefined)
+  }, [openKey, position])
   // Decode the open pair's frames on demand — the strip only decoded thumbnails,
   // and the overlay is where the full-size bytes are actually needed.
   useEffect(() => {
@@ -160,7 +193,6 @@ export default function ComparisonOverlay({
     if (pair.after) onRequestImage(pair.after.ref.id, pair.after.ref.mediaType)
   }, [isOpen, pair, onRequestImage])
   const capturedOn = pair ? capturedOnLabel(pair) : undefined
-  const width = Math.round(BASE_WIDTH * zoom)
   const before = pair?.before?.dataUri
   const after = pair?.after?.dataUri
   const canSlide = Boolean(pair?.before && pair?.after)
@@ -173,6 +205,45 @@ export default function ComparisonOverlay({
     effectiveMode === 'diff',
   )
   const cut = holdBase ? 100 : slidePct
+
+  const beforeNatural = useImageNaturalSize(before)
+  const afterNatural = useImageNaturalSize(after)
+  const diffNatural = useImageNaturalSize(effectiveMode === 'diff' ? diff.dataUri : undefined)
+  const showBefore = Boolean(pair?.before || !pair?.after)
+  const showAfter = Boolean(pair?.after)
+  const stage = useElementSize(stageEl)
+  const pane = framePane(
+    stage && { w: stage.w - PAIR_STAGE_PADDING, h: stage.h - PAIR_STAGE_PADDING },
+    {
+      columns: effectiveMode === 'mirror' && showBefore && showAfter ? 2 : 1,
+      gap: PAIR_STAGE_GAP,
+      reserveHeight: effectiveMode === 'slide' ? PAIR_SLIDE_RESERVE : PAIR_CAPTION_RESERVE,
+    },
+  )
+  const naturals =
+    effectiveMode === 'diff'
+      ? [diffNatural]
+      : effectiveMode === 'slide'
+        ? [beforeNatural, afterNatural]
+        : [showBefore ? beforeNatural : undefined, showAfter ? afterNatural : undefined]
+  // The fit is the default: the whole frame in view, upscaled at most to the
+  // screen's pixel density — never a fixed CSS width that "100%" was relative to.
+  const fit = pairFitScale({ naturals, pane, pixelRatio: window.devicePixelRatio })
+  const scale = resolveViewerScale(manualScale, fit)
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+  const floor = pairViewerZoomFloor(fit)
+  const pannable = isPannable(scale, fit)
+  const loading: PairViewerSize = {
+    w: Math.min(PAIR_LOADING_FRAME.w, pane?.w ?? PAIR_LOADING_FRAME.w),
+    h: Math.min(PAIR_LOADING_FRAME.h, pane?.h ?? PAIR_LOADING_FRAME.h),
+  }
+  const widthOf = (natural: PairViewerSize | undefined) =>
+    natural ? Math.round(natural.w * scale) : loading.w
+  const slideNatural = beforeNatural ?? afterNatural
+  const slideWidth = widthOf(slideNatural)
+  const zoomTo = (next: (current: number) => number) =>
+    setManualScale((m) => next(m ?? scaleRef.current))
 
   const pairFacts = pair ? comparisonPairFacts(pair) : []
   const beforeBuild = captureBuildCaption(pair?.before, pair?.expectedBaseSha ?? baseSha, {
@@ -204,7 +275,7 @@ export default function ComparisonOverlay({
         onWheel={(e) => {
           if (!e.ctrlKey && !e.metaKey) return
           e.preventDefault()
-          setZoom((z) => zoomByWheel(z, e.deltaY))
+          zoomTo((s) => pairViewerZoomByWheel(s, e.deltaY, floor))
         }}
       >
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -257,30 +328,30 @@ export default function ComparisonOverlay({
               size="icon"
               aria-label="Zoom out"
               title="Zoom out"
-              disabled={zoom <= IMAGE_ZOOM_MIN + 1e-9}
-              onClick={() => setZoom(zoomOut)}
+              disabled={!canPairViewerZoomOut(scale, floor)}
+              onClick={() => zoomTo((s) => pairViewerZoomOut(s, floor))}
             >
               <IconZoomOut className="w-4 h-4" />
             </Button>
             <span className="w-12 text-center text-xs tabular-nums text-(--text-muted)">
-              {zoomLabel(zoom)}
+              {pairViewerZoomLabel(scale)}
             </span>
             <Button
               variant="secondary"
               size="icon"
               aria-label="Zoom in"
               title="Zoom in"
-              disabled={zoom >= IMAGE_ZOOM_MAX - 1e-9}
-              onClick={() => setZoom(zoomIn)}
+              disabled={!canPairViewerZoomIn(scale)}
+              onClick={() => zoomTo((s) => pairViewerZoomIn(s, floor))}
             >
               <IconZoomIn className="w-4 h-4" />
             </Button>
             <Button
               variant="secondary"
               size="icon"
-              aria-label="Reset zoom"
-              title="Reset zoom"
-              onClick={() => setZoom(1)}
+              aria-label="Fit to screen"
+              title="Fit to screen"
+              onClick={() => setManualScale(undefined)}
             >
               <IconRefresh className="w-4 h-4" />
             </Button>
@@ -290,108 +361,143 @@ export default function ComparisonOverlay({
           </span>
         </div>
 
-        <div
-          className="flex min-h-0 flex-1 items-start justify-center gap-6 overflow-auto p-2"
-          style={{ cursor: dragRef.current ? 'grabbing' : zoom > 1 ? 'grab' : 'default' }}
-          onPointerDown={(e) => {
-            // Pan only once the frame is bigger than its stage — below that the
-            // drag belongs to the slide handle, not to the image.
-            if (zoom <= 1) return
-            const el = e.currentTarget
-            el.setPointerCapture(e.pointerId)
-            dragRef.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop }
-          }}
-          onPointerMove={(e) => {
-            const drag = dragRef.current
-            if (!drag) return
-            const el = e.currentTarget
-            el.scrollLeft = drag.left - (e.clientX - drag.x)
-            el.scrollTop = drag.top - (e.clientY - drag.y)
-          }}
-          onPointerUp={() => {
-            dragRef.current = null
-          }}
-          onPointerCancel={() => {
-            dragRef.current = null
-          }}
-        >
-          {effectiveMode === 'diff' ? (
-            <figure className="flex flex-col items-center gap-2">
-              {diff.dataUri ? (
-                <Frame
-                  src={diff.dataUri}
-                  alt={`${pair?.title ?? ''} — changed pixels`}
-                  width={width}
-                />
-              ) : (
-                <div
-                  className="flex items-center justify-center rounded-md border border-dashed border-(--border-default) p-6 text-center text-xs text-(--text-secondary)"
-                  style={{ width, minHeight: 160 }}
-                >
-                  {/* A refusal always says WHY — an unreadable capture, no
+        {/* Measured from a wrapper that never scrolls, so a scrollbar appearing
+            under a zoom cannot shrink the pane and re-fit in a loop. */}
+        <div ref={setStageEl} className="relative min-h-0 flex-1">
+          <div
+            className="absolute inset-0 flex items-start justify-center gap-6 overflow-auto p-2"
+            style={{ cursor: dragRef.current ? 'grabbing' : pannable ? 'grab' : 'default' }}
+            onPointerDown={(e) => {
+              // Pan only once the frame is bigger than its stage — below that the
+              // drag belongs to the slide handle, not to the image.
+              if (!pannable) return
+              const el = e.currentTarget
+              el.setPointerCapture(e.pointerId)
+              dragRef.current = {
+                x: e.clientX,
+                y: e.clientY,
+                left: el.scrollLeft,
+                top: el.scrollTop,
+              }
+            }}
+            onPointerMove={(e) => {
+              const drag = dragRef.current
+              if (!drag) return
+              const el = e.currentTarget
+              el.scrollLeft = drag.left - (e.clientX - drag.x)
+              el.scrollTop = drag.top - (e.clientY - drag.y)
+            }}
+            onPointerUp={() => {
+              dragRef.current = null
+            }}
+            onPointerCancel={() => {
+              dragRef.current = null
+            }}
+          >
+            {effectiveMode === 'diff' ? (
+              <figure className="flex flex-col items-center gap-2">
+                {diff.dataUri ? (
+                  <Frame
+                    src={diff.dataUri}
+                    alt={`${pair?.title ?? ''} — changed pixels`}
+                    width={widthOf(diffNatural)}
+                    natural={diffNatural}
+                    loading={loading}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center rounded-md border border-dashed border-(--border-default) p-6 text-center text-xs text-(--text-secondary)"
+                    style={{ width: loading.w, minHeight: 160 }}
+                  >
+                    {/* A refusal always says WHY — an unreadable capture, no
                       overlapping area, a size past the ceiling. A blank pane
                       with no reason is the failure this surface exists to fix. */}
-                  {diff.loading ? 'Comparing…' : (diff.error ?? 'No comparison available.')}
-                </div>
-              )}
-              <figcaption className="flex items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
-                <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
-                  Changed pixels
+                    {diff.loading ? 'Comparing…' : (diff.error ?? 'No comparison available.')}
+                  </div>
+                )}
+                <figcaption className="flex items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
+                  <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
+                    Changed pixels
+                  </span>
+                </figcaption>
+              </figure>
+            ) : effectiveMode === 'mirror' ? (
+              <>
+                {showBefore ? (
+                  <figure className="flex flex-col items-center gap-2">
+                    <Frame
+                      src={before}
+                      alt={`${pair?.title ?? ''} — before`}
+                      width={widthOf(beforeNatural)}
+                      natural={beforeNatural}
+                      loading={loading}
+                    />
+                    <Caption word="Before" build={beforeBuild} />
+                  </figure>
+                ) : null}
+                {pair?.after ? (
+                  <figure className="flex flex-col items-center gap-2">
+                    <Frame
+                      src={after}
+                      alt={`${pair.title} — after`}
+                      width={widthOf(afterNatural)}
+                      natural={afterNatural}
+                      loading={loading}
+                    />
+                    <Caption word="After" build={afterBuild} />
+                  </figure>
+                ) : null}
+              </>
+            ) : (
+              <figure className="flex flex-col items-center gap-2">
+                <span className="relative block" style={{ width: slideWidth }}>
+                  <Frame
+                    src={before}
+                    alt={`${pair?.title ?? ''} — before`}
+                    width={slideWidth}
+                    natural={beforeNatural}
+                    loading={loading}
+                  />
+                  <span
+                    className="absolute inset-0 block"
+                    style={{ clipPath: `inset(0 0 0 ${cut}%)` }}
+                  >
+                    <Frame
+                      src={after}
+                      alt={`${pair?.title ?? ''} — after`}
+                      width={slideWidth}
+                      natural={afterNatural}
+                      loading={loading}
+                    />
+                  </span>
+                  <span
+                    className="pointer-events-none absolute bottom-0 top-0 w-0.5 bg-(--color-pink-600)"
+                    style={{ left: `${cut}%` }}
+                  />
                 </span>
-              </figcaption>
-            </figure>
-          ) : effectiveMode === 'mirror' ? (
-            <>
-              {pair?.before || !pair?.after ? (
-                <figure className="flex flex-col items-center gap-2">
-                  <Frame src={before} alt={`${pair?.title ?? ''} — before`} width={width} />
-                  <Caption word="Before" build={beforeBuild} />
-                </figure>
-              ) : null}
-              {pair?.after ? (
-                <figure className="flex flex-col items-center gap-2">
-                  <Frame src={after} alt={`${pair.title} — after`} width={width} />
-                  <Caption word="After" build={afterBuild} />
-                </figure>
-              ) : null}
-            </>
-          ) : (
-            <figure className="flex flex-col items-center gap-2">
-              <span className="relative block" style={{ width }}>
-                <Frame src={before} alt={`${pair?.title ?? ''} — before`} width={width} />
-                <span
-                  className="absolute inset-0 block"
-                  style={{ clipPath: `inset(0 0 0 ${cut}%)` }}
-                >
-                  <Frame src={after} alt={`${pair?.title ?? ''} — after`} width={width} />
-                </span>
-                <span
-                  className="pointer-events-none absolute bottom-0 top-0 w-0.5 bg-(--color-pink-600)"
-                  style={{ left: `${cut}%` }}
+                <figcaption className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
+                  <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
+                    Before
+                  </span>
+                  <BuildMarks build={beforeBuild} />
+                  <span className="text-(--text-muted)">drag</span>
+                  <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
+                    After
+                  </span>
+                  <BuildMarks build={afterBuild} />
+                </figcaption>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={slidePct}
+                  onChange={(e) => setSlidePct(Number(e.target.value))}
+                  aria-label="Reveal the branch"
+                  style={{ width: slideWidth }}
                 />
-              </span>
-              <figcaption className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
-                <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
-                  Before
-                </span>
-                <BuildMarks build={beforeBuild} />
-                <span className="text-(--text-muted)">drag</span>
-                <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
-                  After
-                </span>
-                <BuildMarks build={afterBuild} />
-              </figcaption>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={slidePct}
-                onChange={(e) => setSlidePct(Number(e.target.value))}
-                aria-label="Reveal the branch"
-                style={{ width }}
-              />
-            </figure>
-          )}
+              </figure>
+            )}
+          </div>
         </div>
 
         <div className="text-center text-xs text-(--text-muted)">

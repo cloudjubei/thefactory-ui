@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
-  ProcessIntegrationMode,
+  ProcessIntegrationDecision,
   ProcessResumeChoice,
   ProcessRun,
+  ProofKind,
 } from 'thefactory-tools/types'
 import {
   cancelProcessRun,
@@ -10,11 +11,15 @@ import {
   deleteProcessRun,
   getProcessRun,
   listProcessRunBranches,
+  openProcessRunChat,
+  resolveProcessRunIntegrationConflict,
+  resolveProcessRunNeedsYouItem,
   resumeProcessRun,
   retryProcessRunIntegration,
   sendProcessRunBackForChanges,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
+import type { ChatContext } from '../api'
 import { cachedProcessRun, processRunCache } from './processViewCache'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
@@ -22,6 +27,9 @@ export type ProcessRunBranch = { projectId: string; branch: string }
 
 /** The chat an ask was handed to. */
 export type ProcessRunDelegation = { chatContextId: string; topicId: string; turnStarted: boolean }
+
+/** A run's own chat, as opening it returns it. */
+export type ProcessRunChatOpened = { chatContextId: string; context: ChatContext }
 
 /** What a cascade delete removed. */
 export type DeleteProcessRunResult = {
@@ -38,14 +46,29 @@ export type UseProcessRun = {
   actionError: string | null
   run: ProcessRun | undefined
   refresh: () => Promise<void>
-  /** Answer the park this run is sitting on — an approval of a work branch says how it comes in. */
+  /**
+   * Answer the park this run is sitting on — an approval of a work branch says
+   * how it lands (the way, who it is made as, its words), and a request for
+   * changes the proof its fix must show. Resolves `false` when it was refused;
+   * the server's reason is in `actionError`.
+   */
   resume: (
     choice: ProcessResumeChoice,
     note?: string,
-    integration?: ProcessIntegrationMode,
-  ) => Promise<void>
-  /** Try again to bring in approved work that did not land, the same way or another. */
-  retryIntegration: (integration: ProcessIntegrationMode) => Promise<void>
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+  ) => Promise<boolean>
+  /**
+   * Try again to bring in approved work that did not land, the same way or
+   * another. Resolves `false` when it was refused; the reason is in `actionError`.
+   */
+  retryIntegration: (integration: ProcessIntegrationDecision) => Promise<boolean>
+  /**
+   * Send approved work that conflicts with its base branch to an agent to
+   * resolve; the run comes back for the person to confirm how it lands.
+   * Resolves `false` when it was refused; the reason is in `actionError`.
+   */
+  resolveIntegrationConflict: () => Promise<boolean>
   /**
    * Send a run that ended on a request for changes back for them: it is
    * reopened into the fix with that note and comes back to the same sign-off.
@@ -58,10 +81,29 @@ export type UseProcessRun = {
    */
   delegate: () => Promise<ProcessRunDelegation | undefined>
   cancel: () => Promise<void>
+  /**
+   * Open the run's own chat, creating it the first time. Resolves to its
+   * context, or `undefined` when it was refused (the reason is in `actionError`).
+   */
+  openChat: () => Promise<ProcessRunChatOpened | undefined>
+  /**
+   * Settle one of the final report's "Needs you" items — fine as it is unless
+   * `kind` says it is left for later. Resolves `false` when it was refused.
+   */
+  resolveNeedsYou: (
+    itemId: string,
+    kind?: 'resolved' | 'deferred',
+    summary?: string,
+  ) => Promise<boolean>
   /** The review branches this run tree owns — for the delete confirm's list. */
   listBranches: () => Promise<ProcessRunBranch[]>
   /** Delete this run and everything it owns (chats, CLI runs, records, opt. branches). */
   deleteRun: (opts?: { deleteBranches?: boolean }) => Promise<DeleteProcessRunResult | undefined>
+}
+
+/** A decision as the resume and integrate routes take it: the way, and who and what it lands as. */
+function integrationBody({ mode, ...landing }: ProcessIntegrationDecision) {
+  return { integration: mode, ...(Object.keys(landing).length > 0 ? { landing } : {}) }
 }
 
 /** The run this instance holds, for the id it was read for. */
@@ -137,35 +179,72 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
   }, [ws, runId, setRun])
 
   const resume = useCallback(
-    async (choice: ProcessResumeChoice, note?: string, integration?: ProcessIntegrationMode) => {
-      if (!runId) return
+    async (
+      choice: ProcessResumeChoice,
+      note?: string,
+      integration?: ProcessIntegrationDecision,
+      requestedProof?: readonly ProofKind[],
+    ) => {
+      if (!runId) return false
       setActionError(null)
       try {
         const { data } = await resumeProcessRun({
           path: { runId },
-          body: { choice, ...(note ? { note } : {}), ...(integration ? { integration } : {}) },
+          body: {
+            choice,
+            ...(note ? { note } : {}),
+            ...(integration ? integrationBody(integration) : {}),
+            ...(requestedProof && requestedProof.length > 0
+              ? { requestedProof: [...requestedProof] }
+              : {}),
+          },
           throwOnError: true,
         })
         setRun(data as ProcessRun)
+        return true
       } catch (err) {
         setActionError(extractErrorMessage(err, 'The run could not be answered.'))
+        return false
       }
     },
     [runId, setRun],
   )
 
   const retryIntegration = useCallback(
-    async (integration: ProcessIntegrationMode) => {
-      if (!runId) return
-      const { data } = await retryProcessRunIntegration({
-        path: { runId },
-        body: { integration },
-        throwOnError: true,
-      })
-      setRun(data as ProcessRun)
+    async (integration: ProcessIntegrationDecision) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await retryProcessRunIntegration({
+          path: { runId },
+          body: integrationBody(integration),
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The work could not be brought in.'))
+        return false
+      }
     },
     [runId, setRun],
   )
+
+  const resolveIntegrationConflict = useCallback(async () => {
+    if (!runId) return false
+    setActionError(null)
+    try {
+      const { data } = await resolveProcessRunIntegrationConflict({
+        path: { runId },
+        throwOnError: true,
+      })
+      setRun(data as ProcessRun)
+      return true
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The conflict could not be sent to an agent.'))
+      return false
+    }
+  }, [runId, setRun])
 
   const sendBack = useCallback(async () => {
     if (!runId) return
@@ -207,6 +286,38 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     }
   }, [runId, setRun])
 
+  const openChat = useCallback(async (): Promise<ProcessRunChatOpened | undefined> => {
+    if (!runId) return undefined
+    setActionError(null)
+    try {
+      const { data } = await openProcessRunChat({ path: { runId }, throwOnError: true })
+      return data as ProcessRunChatOpened
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The run’s chat could not be opened.'))
+      return undefined
+    }
+  }, [runId])
+
+  const resolveNeedsYou = useCallback(
+    async (itemId: string, kind?: 'resolved' | 'deferred', summary?: string) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await resolveProcessRunNeedsYouItem({
+          path: { runId },
+          body: { itemId, ...(kind ? { kind } : {}), ...(summary ? { summary } : {}) },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'Your decision could not be recorded.'))
+        return false
+      }
+    },
+    [runId, setRun],
+  )
+
   const listBranches = useCallback(async (): Promise<ProcessRunBranch[]> => {
     if (!runId) return []
     const { data } = await listProcessRunBranches({ path: { runId }, throwOnError: true })
@@ -236,9 +347,12 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      resolveIntegrationConflict,
       sendBack,
       delegate,
       cancel,
+      openChat,
+      resolveNeedsYou,
       listBranches,
       deleteRun,
     }),
@@ -250,9 +364,12 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       refresh,
       resume,
       retryIntegration,
+      resolveIntegrationConflict,
       sendBack,
       delegate,
       cancel,
+      openChat,
+      resolveNeedsYou,
       listBranches,
       deleteRun,
     ],

@@ -3,7 +3,6 @@
 // here ever handles a stored secret value (it is only ever revealed on demand,
 // straight from the API into the component that asked for it).
 
-import type { ProjectNoteSummary } from '../api'
 import {
   EMPTY_NOTE_FORM,
   NOTE_ACCESS_HELP,
@@ -15,6 +14,7 @@ import {
   NOTE_VALUE_REQUIRED,
 } from './projectNotesConstants'
 import type {
+  NoteSummary,
   ProjectNoteChipView,
   ProjectNoteCreateBody,
   ProjectNoteFormErrors,
@@ -32,12 +32,16 @@ export function emptyNoteForm(): ProjectNoteFormValues {
  * Seed an edit form from a summary. `value` stays empty: the list never holds a
  * stored value, and an empty value on submit means "keep what's stored".
  */
-export function noteFormValues(note: ProjectNoteSummary): ProjectNoteFormValues {
+export function noteFormValues(
+  note: NoteSummary,
+  /** Stored text as a person edits it — `#3.2` instead of ids. */
+  toTyped: (text: string) => string = (text) => text,
+): ProjectNoteFormValues {
   return {
     label: note.label,
     kind: note.kind,
     value: '',
-    description: note.description ?? '',
+    description: toTyped(note.description ?? ''),
     access: note.access,
   }
 }
@@ -67,7 +71,7 @@ export function canonicalNoteValues(
   values: ProjectNoteFormValues,
   canonicalize: (text: string, before?: string) => string,
   /** The note being edited: what its description already said stays as written. */
-  note?: Pick<ProjectNoteSummary, 'description'>,
+  note?: Pick<NoteSummary, 'description'>,
 ): ProjectNoteFormValues {
   return {
     ...values,
@@ -96,7 +100,7 @@ export function noteCreateBody(values: ProjectNoteFormValues): ProjectNoteCreate
  */
 export function notePatchBody(
   values: ProjectNoteFormValues,
-  note: ProjectNoteSummary,
+  note: NoteSummary,
 ): ProjectNotePatchBody {
   const patch: ProjectNotePatchBody = {}
   const label = values.label.trim()
@@ -116,7 +120,7 @@ export function isEmptyNotePatch(patch: ProjectNotePatchBody): boolean {
 }
 
 /** Stable display order: secrets and notes interleaved, sorted by label. */
-export function sortNotes(notes: ProjectNoteSummary[]): ProjectNoteSummary[] {
+export function sortNotes<N extends NoteSummary>(notes: N[]): N[] {
   return [...notes].sort((a, b) => {
     const byLabel = a.label.toLowerCase().localeCompare(b.label.toLowerCase())
     return byLabel !== 0 ? byLabel : a.id.localeCompare(b.id)
@@ -124,24 +128,24 @@ export function sortNotes(notes: ProjectNoteSummary[]): ProjectNoteSummary[] {
 }
 
 /** Whether a per-note Reveal action applies (only a secret hides its value). */
-export function canRevealNote(note: ProjectNoteSummary): boolean {
+export function canRevealNote(note: NoteSummary): boolean {
   return note.kind === 'secret'
 }
 
-export function noteKindLabel(kind: ProjectNoteSummary['kind']): string {
+export function noteKindLabel(kind: NoteSummary['kind']): string {
   return NOTE_KIND_LABELS[kind]
 }
 
-export function noteAccessLabel(access: ProjectNoteSummary['access']): string {
+export function noteAccessLabel(access: NoteSummary['access']): string {
   return NOTE_ACCESS_LABELS[access]
 }
 
 /** The row's authorship mark: set for a note an agent wrote, absent for the user's own. */
-export function noteAuthorLabel(note: Pick<ProjectNoteSummary, 'author'>): string | undefined {
+export function noteAuthorLabel(note: Pick<NoteSummary, 'author'>): string | undefined {
   return note.author === 'agent' ? NOTE_AGENT_AUTHOR_LABEL : undefined
 }
 
-export function noteAccessHelp(access: ProjectNoteSummary['access']): string {
+export function noteAccessHelp(access: NoteSummary['access']): string {
   return NOTE_ACCESS_HELP[access]
 }
 
@@ -150,8 +154,7 @@ export function noteAccessHelp(access: ProjectNoteSummary['access']): string {
  * label; a plain note's text is shown on hover, a secret's value never.
  */
 export function projectNoteChipView(
-  note: Pick<ProjectNoteSummary, 'label' | 'kind'> &
-    Partial<Pick<ProjectNoteSummary, 'access' | 'description'>>,
+  note: Pick<NoteSummary, 'label' | 'kind'> & Partial<Pick<NoteSummary, 'access' | 'description'>>,
 ): ProjectNoteChipView {
   return {
     label: note.label,

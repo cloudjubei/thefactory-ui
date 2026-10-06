@@ -131,6 +131,7 @@ export {
   RefChip,
   ReferenceChip,
   RunActionButton,
+  SetUpWithAgentButton,
   StatusChip,
   StatusIcon,
   TurnChip,
@@ -145,6 +146,7 @@ export {
   type RefChipProps,
   type ReferenceChipProps,
   type RunActionButtonProps,
+  type SetUpWithAgentButtonProps,
   type StatusChipProps,
 } from './compound/chips'
 export {
@@ -152,6 +154,11 @@ export {
   type CommandPaletteItem,
   type CommandPaletteProps,
 } from './compound/CommandPalette'
+export {
+  default as OverflowMenu,
+  type OverflowMenuItem,
+  type OverflowMenuProps,
+} from './compound/OverflowMenu'
 export {
   AgentRunBullet,
   AgentModelQuickSelect,
@@ -201,6 +208,7 @@ export { ResizeHandle, type ResizeHandleProps } from './compound/ResizeHandle'
 export { default as SafeText, type SafeTextProps } from './compound/SafeText'
 export { CodeInfoChip, type CodeInfoChipProps } from './compound/CodeInfoChip'
 export { CopyButton, type CopyButtonProps } from './compound/CopyButton'
+export { TerminalOutput, type TerminalOutputProps } from './compound/TerminalOutput'
 export { FeatureCard, type FeatureCardData, type FeatureCardProps } from './compound/FeatureCard'
 export {
   StoryCard,
@@ -617,6 +625,14 @@ export {
   type TicketConnectionPickerProps,
   type TicketConnectionPickerValue,
 } from './compound/projects/TicketConnectionPicker'
+export {
+  default as ProjectTicketSettings,
+  type ProjectTicketSettingsProps,
+} from './compound/projects/ProjectTicketSettings'
+export {
+  default as GroupTicketSettings,
+  type GroupTicketSettingsProps,
+} from './compound/projects/GroupTicketSettings'
 
 // Settings panels — all wired to the lifted headless contexts.
 export {
@@ -634,6 +650,10 @@ export { default as GitCredentialsSettings } from './compound/settings/GitCreden
 export type { GitCredentialsSettingsProps } from './compound/settings/GitCredentialsSettings'
 export { default as ProjectNotesSettings } from './compound/settings/ProjectNotesSettings'
 export type { ProjectNotesSettingsProps } from './compound/settings/ProjectNotesSettings'
+export { default as GroupNotesSettings } from './compound/settings/GroupNotesSettings'
+export type { GroupNotesSettingsProps } from './compound/settings/GroupNotesSettings'
+export { default as NotesSettings } from './compound/settings/NotesSettings'
+export type { NotesSettingsProps } from './compound/settings/NotesSettings'
 export { default as ProjectNotesForm } from './compound/settings/ProjectNotesForm'
 export type {
   ProjectNotesFormProps,
@@ -688,9 +708,9 @@ export {
   type ProcessGroupRunChipProps,
 } from './compound/process/ProcessGroupRunChip'
 export {
-  default as ProcessGroupSignoffReview,
-  type ProcessGroupSignoffReviewProps,
-} from './compound/process/ProcessGroupSignoffReview'
+  default as ProcessGroupParkReview,
+  type ProcessGroupParkReviewProps,
+} from './compound/process/ProcessGroupParkReview'
 export {
   default as GithubCallback,
   GITHUB_OAUTH_MESSAGE_TYPE,

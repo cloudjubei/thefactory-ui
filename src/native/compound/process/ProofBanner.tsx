@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import type { VerifyProofDryLine, VerifyProofHeader } from '../../../headless'
+import type { StatedProofMode, VerifyProofDryLine, VerifyProofHeader } from '../../../headless'
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { IconCheckCircle, IconExclamation, IconInfo } from '../../icons'
+import { IconCheckCircle, IconExclamation } from '../../icons'
 import RefChip from '../chips/RefChip'
 
-const ICON: Record<VerifyProofHeader['mode'], typeof IconInfo> = {
+const ICON: Record<StatedProofMode, typeof IconCheckCircle> = {
   live: IconCheckCircle,
   dry: IconExclamation,
-  unknown: IconInfo,
 }
 
 /** Which builds every pair had to come from, worded as the requirement — the native peer of the web `ProofBuildLine`. */
@@ -163,11 +162,13 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
 /**
  * What data a verification ran on, said before anything else it shows — the
  * native peer of the web `ProofBanner`. A dry attempt is one quiet line whose
- * detail folds open; a live or unstated one keeps its banner.
+ * detail folds open; a live one keeps its banner. A proof that never named its
+ * data says nothing about it — only which builds its pairs had to come from.
  */
 export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
   const { theme, status } = useNativeTheme()
   if (header.dry) return <DryProofLine dry={header.dry} />
+  if (header.mode === 'unknown') return <ProofBuildLine header={header} />
   const tone = status[header.tone]
   const titleColor = header.tone === 'empty' ? theme.text.primary : tone.softFg
   const Icon = ICON[header.mode]

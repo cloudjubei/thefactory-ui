@@ -91,9 +91,9 @@ export {
   type ProcessGroupRunChipProps,
 } from './compound/process/ProcessGroupRunChip'
 export {
-  default as ProcessGroupSignoffReview,
-  type ProcessGroupSignoffReviewProps,
-} from './compound/process/ProcessGroupSignoffReview'
+  default as ProcessGroupParkReview,
+  type ProcessGroupParkReviewProps,
+} from './compound/process/ProcessGroupParkReview'
 export { Textarea, type TextareaProps } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {
@@ -164,6 +164,10 @@ export {
 export { default as TurnChip, type TurnChipProps } from './compound/chips/TurnChip'
 export { default as CheckChip, type CheckChipProps } from './compound/chips/CheckChip'
 export { default as HandoffButton, type HandoffButtonProps } from './compound/chips/HandoffButton'
+export {
+  default as SetUpWithAgentButton,
+  type SetUpWithAgentButtonProps,
+} from './compound/chips/SetUpWithAgentButton'
 export { default as HelpChip, type HelpChipProps } from './compound/chips/HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './compound/chips/RefChip'
 export { default as ReferenceChip, type ReferenceChipProps } from './compound/chips/ReferenceChip'
@@ -177,6 +181,7 @@ export {
   type DependencyCardShape,
   type ResolvedDependency,
 } from './compound/stories/DependencyBullet'
+export { default as DependencyRef, type DependencyRefProps } from './compound/stories/DependencyRef'
 export {
   default as ExclamationChip,
   type ExclamationChipProps,
@@ -377,6 +382,7 @@ export { default as ScreenShell, type ScreenShellProps } from './compound/shell/
 // Text / code viewers
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
 export { default as Code, type CodeProps } from './compound/Code'
+export { TerminalOutput, type TerminalOutputProps } from './compound/TerminalOutput'
 export {
   default as FileMentionsTextarea,
   type FileMentionsTextareaHandle,
@@ -477,6 +483,14 @@ export {
   type TicketConnectionPickerValue,
 } from './compound/projects/TicketConnectionPicker'
 export {
+  default as ProjectTicketSettings,
+  type ProjectTicketSettingsProps,
+} from './compound/projects/ProjectTicketSettings'
+export {
+  default as GroupTicketSettings,
+  type GroupTicketSettingsProps,
+} from './compound/projects/GroupTicketSettings'
+export {
   default as GithubConnectModal,
   type GithubConnectModalProps,
 } from './compound/projects/GithubConnectModal'
@@ -486,6 +500,14 @@ export {
   default as ProjectNotesSettings,
   type ProjectNotesSettingsProps,
 } from './compound/settings/ProjectNotesSettings'
+export {
+  default as GroupNotesSettings,
+  type GroupNotesSettingsProps,
+} from './compound/settings/GroupNotesSettings'
+export {
+  default as NotesSettings,
+  type NotesSettingsProps,
+} from './compound/settings/NotesSettings'
 export {
   default as ProjectNotesForm,
   type ProjectNotesFormProps,

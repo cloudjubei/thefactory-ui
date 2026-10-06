@@ -1,6 +1,6 @@
 import type { ProcessResumeChoice, ProcessStepOutcome } from 'thefactory-tools/types'
 
-import type { VerifyProofMode, VerifyProofTone } from './verifyProofTypes'
+import type { StatedProofMode, VerifyProofMode, VerifyProofTone } from './verifyProofTypes'
 
 export const PROOF_MODE_TONE: Record<VerifyProofMode, VerifyProofTone> = {
   live: 'done',
@@ -9,29 +9,23 @@ export const PROOF_MODE_TONE: Record<VerifyProofMode, VerifyProofTone> = {
 }
 
 /** The banner's headline, by mode — worded for an attempt that passed, and one that did not. */
-export const PROOF_MODE_TITLE: Record<VerifyProofMode, { passed: string; other: string }> = {
+export const PROOF_MODE_TITLE: Record<StatedProofMode, { passed: string; other: string }> = {
   live: { passed: 'Verified on live data', other: 'Checked on live data' },
   dry: {
     passed: 'Verified dry — not against the live backend',
     other: 'Checked dry — not against the live backend',
   },
-  unknown: {
-    passed: 'The reviewer did not say whether this ran on live data',
-    other: 'The reviewer did not say whether this ran on live data',
-  },
 }
 
-export const PROOF_MODE_DETAIL: Record<VerifyProofMode, string> = {
+export const PROOF_MODE_DETAIL: Record<StatedProofMode, string> = {
   live: 'The change was seen working against the real backend’s data.',
   dry: 'The data it depends on was faked, so this shows the change works — not that the live backend will trigger it.',
-  unknown: 'Treat it as unconfirmed against the live backend until someone checks.',
 }
 
-/** The collapsed header's flag. `unknown` shows only on an attempt that stands — see `VerifyProofHeader.unstated`. */
-export const PROOF_MODE_CHIP: Record<VerifyProofMode, string> = {
+/** The collapsed header's flag. */
+export const PROOF_MODE_CHIP: Record<StatedProofMode, string> = {
   live: 'Live data',
   dry: 'Dry run',
-  unknown: 'Data not stated',
 }
 
 export const DRY_FAKED_MISSING = 'The reviewer did not say what was faked.'

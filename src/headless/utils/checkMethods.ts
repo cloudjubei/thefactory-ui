@@ -703,11 +703,21 @@ export function checkActionOffer(
   }
 }
 
+/** A method nothing ran — available but not run, or not in the project at all. */
+export function isAbsentCheck(row: Pick<CheckMethodRow, 'state'>): boolean {
+  return row.state === 'unchecked' || row.state === 'unconfigured'
+}
+
+/** The methods that actually ran — what a Tests or Build tab lists; the absent ones are the chips' to say. */
+export function ranCheckMethods<T extends Pick<CheckMethodRow, 'state'>>(rows: readonly T[]): T[] {
+  return rows.filter((row) => !isAbsentCheck(row))
+}
+
 /**
- * The chips in the order of the tabs below them — `tabOrder`, lead tab first —
- * each placed by the tab it opens, or where its method's proof would live; past
- * a few absent ones the rest fold into one chip, so the common case — most
- * things not checked — is not a wall of dashes.
+ * The chips: what was checked first, in the order of the tabs below them —
+ * `tabOrder`, lead tab first — each placed by the tab it opens, then what was
+ * not, in the same order. Past a few absent ones those fold into one chip, so
+ * the common case — most things not checked — is not a wall of dashes.
  */
 export function checkRowLayout(
   rows: readonly CheckMethodRow[],
@@ -715,9 +725,12 @@ export function checkRowLayout(
   tabOrder?: readonly ReviewTabId[],
 ): CheckRowLayout {
   const ordered = tabOrder ? inTabOrder(rows, tabOrder) : [...rows]
-  const absent = ordered.filter((r) => r.state === 'unchecked' || r.state === 'unconfigured')
-  if (expanded || absent.length <= COLLAPSE_ABSENT_PAST) return { visible: ordered, collapsed: [] }
-  return { visible: ordered.filter((r) => !absent.includes(r)), collapsed: absent }
+  const ran = ranCheckMethods(ordered)
+  const absent = ordered.filter(isAbsentCheck)
+  if (expanded || absent.length <= COLLAPSE_ABSENT_PAST) {
+    return { visible: [...ran, ...absent], collapsed: [] }
+  }
+  return { visible: ran, collapsed: absent }
 }
 
 /** The tab a chip belongs beside: the one it opens, else where its method's proof lives. */

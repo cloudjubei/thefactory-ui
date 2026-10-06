@@ -44,11 +44,12 @@ import type {
   RunReviewFacts,
   ViewedFile,
   ViewedFilesProgress,
+  TestLayerLines,
 } from './runReviewTypes'
 import { costChipLabel } from './costDetails'
 import type { CostSource } from './costDetailsTypes'
 import { checkTestCounts, testCountLabel } from './testCounts'
-import { testSuitesView } from './testSuites'
+import { checkTestResults } from './testResults'
 import { formatDurationMs } from './time'
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
@@ -106,7 +107,7 @@ export function verificationCheckRows(verification: RunVerification | undefined)
       baselineDetail: checkBaselineLine(check),
       testCount,
       testCountLabel: testCountLabel(testCount),
-      suites: testSuitesView(check),
+      testResults: checkTestResults(check),
       legacyNote:
         check.kind === 'command' && !check.command?.trim() ? LEGACY_CHECK_RECORD_NOTE : undefined,
     }
@@ -146,6 +147,43 @@ export function reviewCheckMeta(
     row.baselineDetail,
   ].filter((part): part is string => part !== undefined)
   return parts.length > 0 ? parts.join(' · ') : undefined
+}
+
+/**
+ * What a test layer's block says under its command, so the Tests tab states a
+ * total once: a lone layer leaves its summary to the totals bar above it, and
+ * no layer repeats in its meta the count its own summary already gives.
+ */
+export function testLayerLines(
+  layer: Pick<
+    ReviewCheckRow,
+    | 'summary'
+    | 'testCount'
+    | 'variant'
+    | 'variantReason'
+    | 'modules'
+    | 'testCountLabel'
+    | 'ranInDetail'
+    | 'dependencyDetail'
+    | 'baselineDetail'
+  >,
+  layerCount: number,
+): TestLayerLines {
+  const counted = layer.testCount !== undefined
+  const summarySaysCount = counted && layer.summary.includes(String(layer.testCount!.total))
+  return {
+    summary: counted && layerCount === 1 ? undefined : layer.summary,
+    meta: reviewCheckMeta(
+      summarySaysCount || (counted && layerCount === 1)
+        ? { ...layer, testCountLabel: undefined }
+        : layer,
+    ),
+  }
+}
+
+/** The checks that ran — a skipped one ran nothing, so it gives a Tests or Build tab nothing to list. */
+export function ranReviewChecks(rows: readonly ReviewCheckRow[]): ReviewCheckRow[] {
+  return rows.filter((row) => row.status !== 'skipped')
 }
 
 /**

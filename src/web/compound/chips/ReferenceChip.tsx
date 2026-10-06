@@ -22,6 +22,7 @@ const GLYPHS: Record<ReferenceDescription['kind'], ComponentType<{ className?: s
   story: IconBoard,
   feature: IconList,
   note: IconDocument,
+  groupNote: IconDocument,
   attachment: IconAttach,
   file: IconFiles,
   project: IconFolder,

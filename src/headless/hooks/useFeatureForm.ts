@@ -65,6 +65,12 @@ export type UseFeatureFormOptions = {
    * is turned.
    */
   canonicalize?: (text: string, before?: string) => string
+  /**
+   * Stored text as a person edits it — `#3.2`, `&qa-login` instead of ids —
+   * `References.toTyped`. A field the person has not touched follows it as the
+   * project's stories and notes load.
+   */
+  toTyped?: (text: string) => string
 }
 
 export type UseFeatureForm = {
@@ -130,19 +136,65 @@ function arraysEqual(a: ReadonlyArray<string>, b: ReadonlyArray<string>) {
 
 const asTyped = (text: string): string => text
 
+/** The text fields of a feature as a person edits them. */
+type ShownText = { description: string; acceptance: string; rejection: string; notes: string }
+
+/** The stored values with their text fields as shown — what "unchanged" is measured against. */
+function withShownText(seed: FeatureFormValues, shown: ShownText): FeatureFormValues {
+  return {
+    ...seed,
+    description: shown.description,
+    acceptance: shown.acceptance,
+    rejection: shown.rejection,
+    proofPlan: seed.proofPlan ? { ...seed.proofPlan, notes: shown.notes } : undefined,
+  }
+}
+
 export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
-  const { initialValues, onSubmit, onDirty, normalizeDependency, canonicalize = asTyped } = opts
+  const {
+    initialValues,
+    onSubmit,
+    onDirty,
+    normalizeDependency,
+    canonicalize = asTyped,
+    toTyped = asTyped,
+  } = opts
 
   const seed = useMemo(() => seedValues(initialValues), [initialValues])
-  const baselineRef = useRef<FeatureFormValues>(seed)
+  const shown = useMemo<ShownText>(
+    () => ({
+      description: toTyped(seed.description),
+      acceptance: toTyped(seed.acceptance),
+      rejection: toTyped(seed.rejection),
+      notes: toTyped(seed.proofPlan?.notes ?? ''),
+    }),
+    [seed, toTyped],
+  )
+  const baselineRef = useRef<FeatureFormValues>(withShownText(seed, shown))
 
   const [title, setTitle] = useState(seed.title)
-  const [description, setDescription] = useState(seed.description)
-  const [acceptance, setAcceptance] = useState(seed.acceptance)
-  const [proofPlanDraft, setProofPlanDraft] = useState<ProofPlanDraft>(() =>
-    proofPlanDraftOf(seed.proofPlan),
-  )
-  const [rejection, setRejection] = useState(seed.rejection)
+  const [description, setDescription] = useState(shown.description)
+  const [acceptance, setAcceptance] = useState(shown.acceptance)
+  const [proofPlanDraft, setProofPlanDraft] = useState<ProofPlanDraft>(() => ({
+    ...proofPlanDraftOf(seed.proofPlan),
+    notes: shown.notes,
+  }))
+  const [rejection, setRejection] = useState(shown.rejection)
+
+  // The stored text reads differently once the project's stories and notes
+  // load; a field the person has not touched follows, one they have keeps
+  // their edit.
+  const shownRef = useRef(shown)
+  useEffect(() => {
+    const before = shownRef.current
+    if (before === shown) return
+    shownRef.current = shown
+    baselineRef.current = withShownText(seed, shown)
+    setDescription((v) => (v === before.description ? shown.description : v))
+    setAcceptance((v) => (v === before.acceptance ? shown.acceptance : v))
+    setRejection((v) => (v === before.rejection ? shown.rejection : v))
+    setProofPlanDraft((d) => (d.notes === before.notes ? { ...d, notes: shown.notes } : d))
+  }, [seed, shown])
   const [status, setStatus] = useState<StoryStatus>(seed.status)
   const [blockers, setBlockers] = useState<string[]>(seed.blockers)
   const [context, setContext] = useState<string[]>(seed.context)
@@ -225,13 +277,13 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     try {
       await onSubmit({
         title: title.trim(),
-        description: canonicalize(description.trim(), baselineRef.current.description),
-        acceptance: canonicalize(acceptance.trim(), baselineRef.current.acceptance),
+        description: canonicalize(description.trim(), seed.description),
+        acceptance: canonicalize(acceptance.trim(), seed.acceptance),
         proofPlan: proofPlanOfDraft({
           ...proofPlanDraft,
-          notes: canonicalize(proofPlanDraft.notes, baselineRef.current.proofPlan?.notes),
+          notes: canonicalize(proofPlanDraft.notes, seed.proofPlan?.notes),
         }),
-        rejection: canonicalize(rejection.trim(), baselineRef.current.rejection),
+        rejection: canonicalize(rejection.trim(), seed.rejection),
         status,
         blockers,
         context,
@@ -250,6 +302,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     context,
     onSubmit,
     canonicalize,
+    seed,
     submitting,
   ])
 

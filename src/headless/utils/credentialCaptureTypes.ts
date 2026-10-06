@@ -57,6 +57,20 @@ export type CredentialCaptureFieldSpec = {
 }
 
 /**
+ * How to get the secret a capture form asks for, for a user who has never made
+ * one: where to go, and what to do there. Chosen by the form's kind and what is
+ * typed into it so far (the tracker, the provider, the git host).
+ */
+export type CredentialHelp = {
+  /** The question it answers, e.g. "How do I get a Jira API token?" */
+  title: string
+  /** Where the secret is issued, when there is one page for everyone. */
+  link?: { label: string; url: string }
+  /** What to do there, in order. */
+  steps: readonly string[]
+}
+
+/**
  * The sign-in a CLI sign-in card starts — the Settings sign-in, carrying the
  * card it answers. The backend answers the card itself once it succeeds.
  */

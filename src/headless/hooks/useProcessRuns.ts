@@ -1,23 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ProcessRun, ProcessRunStatus } from 'thefactory-tools/types'
+import type { ProcessRun } from 'thefactory-tools/types'
 import { listProcessRuns } from '../api'
 import { useApi, useAuth } from '../api'
+import { splitProcessRunsByCurrent } from '../utils/processRunCurrent'
 import { processRunListCache, processRunListKey } from './processViewCache'
-
-/**
- * The statuses a run is still LIVE in — "Current" in the Processes view, and the
- * only ones a nav badge counts. Everything else is terminal ("History").
- */
-export const PROCESS_RUN_ACTIVE_STATUSES: ReadonlySet<ProcessRunStatus> = new Set([
-  'pending',
-  'running',
-  'parked',
-])
-
-/** Whether a run is still live (Current) rather than finished (History). */
-export function isProcessRunActive(run: Pick<ProcessRun, 'status'>): boolean {
-  return PROCESS_RUN_ACTIVE_STATUSES.has(run.status)
-}
 
 /** A `process:run-update` event as it arrives on the socket. */
 export type ProcessRunUpdate = {
@@ -54,9 +40,9 @@ export type UseProcessRuns = {
   loadError: Error | null
   /** Every run for the scope, newest first (by `startedAt`). */
   runs: ProcessRun[]
-  /** The live runs (`pending` | `running` | `parked`), newest first. */
+  /** The runs that still need the person or are working (`isProcessRunCurrent`), newest first. */
   current: ProcessRun[]
-  /** The finished runs (`succeeded` | `failed` | `cancelled`), newest first. */
+  /** The runs that are done — landed, let go, or with nothing to bring in — newest first. */
   history: ProcessRun[]
   /** Count of runs actively working (`running`). */
   running: number
@@ -78,8 +64,8 @@ function cachedScope(key: string): ScopedRuns {
 /**
  * Every process run for a scope, kept live.
  *
- * The list route has no `status` filter, so Current/History is split HERE off
- * `run.status` — one fetch, both lists. Liveness is the same `process:run-update`
+ * The list route has no `status` filter, so Current/History is split HERE by
+ * `splitProcessRunsByCurrent` — one fetch, both lists. Liveness is the same `process:run-update`
  * event the single-run hook uses: it carries the whole record, so a step change
  * upserts in place rather than re-fetching (which would flicker the list). A run
  * that changes status stays in the list and simply moves between `current` and
@@ -159,8 +145,7 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
   }, [ws, token, projectId, updateRuns])
 
   return useMemo<UseProcessRuns>(() => {
-    const current = runs.filter(isProcessRunActive)
-    const history = runs.filter((r) => !isProcessRunActive(r))
+    const { current, history } = splitProcessRunsByCurrent(runs)
     return {
       isLoaded,
       loadError,

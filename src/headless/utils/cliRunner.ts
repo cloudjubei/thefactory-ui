@@ -192,10 +192,14 @@ export function classifyToolOrigin(rawName: string | undefined): ToolOrigin {
   return 'native'
 }
 
-/** Lifecycle/outcome class for a CLI tool step. A CLI tool is `running` from the
- * moment its call is seen until its result arrives (CLI tools execute when
- * called — they're never "queued"); then `success` / `errored`. */
+/** Lifecycle/outcome class for a CLI tool step. A step is `running` from the
+ * moment its call is seen until its result arrives; then `success` / `errored`.
+ * Whether its row reads as queued instead — waiting behind an ask, or approved
+ * and not picked up yet — is decided per row (see `cliTranscriptToMessages`). */
 export type CliToolStepResultType = 'success' | 'errored' | 'running' | 'not_allowed'
+
+/** What a step's row shows: the step's own class, or queued. */
+type CliToolRowResultType = CliToolStepResultType | 'pending'
 
 /**
  * The host's answer to a call it did NOT run — waiting for approval, stopped by
@@ -224,8 +228,8 @@ export function hostCallOutcomeOf(result: unknown): CliHostCallOutcome | undefin
  * a consumer can render one drawer per logical operation — VS Code style.
  */
 export type CliTranscriptStep =
-  | { kind: 'thinking'; at: number; durationMs?: number; text: string }
-  | { kind: 'assistant'; at: number; durationMs?: number; text: string }
+  | { kind: 'thinking'; at: number; durationMs?: number; text: string; parentToolCallId?: string }
+  | { kind: 'assistant'; at: number; durationMs?: number; text: string; parentToolCallId?: string }
   | { kind: 'system'; at: number; durationMs?: number; summary: string; raw: string }
   | {
       kind: 'tool'
@@ -238,6 +242,8 @@ export type CliTranscriptStep =
       origin: ToolOrigin
       /** The id used to pair the call with its result (`tool_use.id` / `call_id` / `item.id`). */
       toolCallId?: string
+      /** The call a subagent made this one under — claude-code's `parent_tool_use_id`. */
+      parentToolCallId?: string
       /** Parsed call arguments, when extractable. */
       input?: unknown
       /** The tool's result once it arrives; undefined while the call is in flight. */
@@ -732,13 +738,28 @@ function acpResultType(status: string | undefined): CliToolStepResultType {
 }
 
 /** Append reasoning, growing the previous thinking step rather than adding one. */
-function appendThinking(steps: CliTranscriptStep[], at: number, text: string): void {
+/** The call a subagent's line was made under: claude-code's `parent_tool_use_id`. */
+function cliParentToolCallId(entry: CliRunTranscriptEntry): string | undefined {
+  const parent = (entry.payload as { parent_tool_use_id?: unknown } | undefined)?.parent_tool_use_id
+  return typeof parent === 'string' && parent.length > 0 ? parent : undefined
+}
+
+function underParent(parent: string | undefined): { parentToolCallId?: string } {
+  return parent ? { parentToolCallId: parent } : {}
+}
+
+function appendThinking(
+  steps: CliTranscriptStep[],
+  at: number,
+  text: string,
+  parent: string | undefined,
+): void {
   const last = steps[steps.length - 1]
-  if (last && last.kind === 'thinking') {
+  if (last && last.kind === 'thinking' && last.parentToolCallId === parent) {
     last.text += text
     return
   }
-  if (text.trim()) steps.push({ kind: 'thinking', at, text })
+  if (text.trim()) steps.push({ kind: 'thinking', at, text, ...underParent(parent) })
 }
 
 export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTranscriptStep[] {
@@ -747,13 +768,16 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
 
   // A reply the CLI nudged the agent into writing again is the same reply twice.
   for (const entry of withoutNudgedReanswer(entries)) {
+    // Two agents stream at once when a subagent runs, so nothing coalesces
+    // across the agent that wrote it.
+    const parent = cliParentToolCallId(entry)
     switch (entry.kind) {
       case 'assistant': {
         // Reasoning streams in chunks exactly like prose does, so it is coalesced
         // the same way — otherwise one thought renders as a column of a dozen
         // separate bubbles, each a few words long.
         const thinking = cliThinkingTextFromEntry(entry)
-        if (thinking) appendThinking(steps, entry.at, thinking)
+        if (thinking) appendThinking(steps, entry.at, thinking, parent)
         const text = cliAssistantTextFromEntry(entry)
         // Coalesce a streaming reply into one growing message: cursor and codex
         // emit it as many small per-chunk deltas, which must render as ONE
@@ -761,10 +785,15 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         // producer saying which this is — guessing from adjacency alone also
         // welded two of claude-code's separate WHOLE replies into one bubble.
         const last = steps[steps.length - 1]
-        if (entry.streaming === true && last && last.kind === 'assistant') {
+        if (
+          entry.streaming === true &&
+          last &&
+          last.kind === 'assistant' &&
+          last.parentToolCallId === parent
+        ) {
           last.text += text
         } else if (text.trim()) {
-          steps.push({ kind: 'assistant', at: entry.at, text })
+          steps.push({ kind: 'assistant', at: entry.at, text, ...underParent(parent) })
         }
         break
       }
@@ -772,7 +801,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
         // Claude can emit a thinking block in the same message as a tool call
         // (classified `tool-call`); surface it as its own step first.
         const toolThinking = cliThinkingTextFromEntry(entry)
-        if (toolThinking) appendThinking(steps, entry.at, toolThinking)
+        if (toolThinking) appendThinking(steps, entry.at, toolThinking, parent)
         const call = extractCliToolCall(entry)
         const step: CliToolStep = {
           kind: 'tool',
@@ -780,6 +809,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
           toolName: call.toolName,
           origin: call.origin,
           toolCallId: call.toolCallId,
+          ...underParent(parent),
           input: call.input,
           result: undefined,
           // In-flight until the matching result entry arrives (running spinner).
@@ -830,6 +860,7 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
             toolName: res.toolName ?? 'tool',
             origin: res.origin,
             toolCallId: res.toolCallId,
+            ...underParent(parent),
             input: undefined,
             result: res.result,
             resultType: res.resultType,
@@ -916,7 +947,12 @@ export function cliTranscriptToMessages(
   const recalls = carryingOutCalls(steps, opts?.decidedAsks ?? [], opts?.runId)
   const approvedInRun = approvedWhileHeld(steps, opts?.decidedAsks ?? [], opts?.runId)
   const messages: ChatMessageLike[] = []
+  const parentOf = new Map<ChatMessageLike, string>()
+  // Where a call waits on the user, the calls made after it alongside it are
+  // queued behind it: the CLI sends them one at a time.
+  const waitingIn = new Set<string>()
   for (const step of steps) {
+    const before = messages.length
     const startedAt = new Date(step.at).toISOString()
     const model = opts?.model
     if (step.kind === 'thinking' && !showThinking) continue
@@ -943,11 +979,19 @@ export function cliTranscriptToMessages(
     } else if (step.kind === 'tool') {
       if (recalls.has(step)) continue
       const ask = askByStep.get(step)
-      const approvalId = ask?.decidedOnRow === true ? ask.id : undefined
+      const asking = ask !== undefined && ask.awaitingOutcome !== true
+      const approvalId = asking && ask.decidedOnRow ? ask.id : undefined
       const actionId = step.hostOutcome?.actionId
       const decidedAsk =
         ask === undefined && actionId !== undefined ? decidedById.get(actionId) : undefined
       const decided = decidedAsk ? decidedRowResult(decidedAsk, step.hostOutcome) : undefined
+      const scope = step.parentToolCallId ?? ''
+      const queued =
+        ask === undefined &&
+        decided === undefined &&
+        step.resultType === 'running' &&
+        waitingIn.has(scope)
+      if (ask !== undefined) waitingIn.add(scope)
       // An approved call is timed by the call itself: the step's own span runs
       // from the ask to the result and counts the user's time deciding.
       const durationMs =
@@ -963,26 +1007,58 @@ export function cliTranscriptToMessages(
           arguments: step.input,
           origin: step.origin,
           ...(approvalId !== undefined ? { approvalId } : {}),
-          ...(ask && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
+          ...(asking && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
         },
         toolResult: {
           result: decided ? decided.result : step.result,
           type: ask
-            ? ask.decidedOnRow
-              ? 'require_confirmation'
-              : 'running'
-            : (decided?.type ?? step.resultType),
+            ? !asking
+              ? 'pending'
+              : ask.decidedOnRow
+                ? 'require_confirmation'
+                : 'running'
+            : queued
+              ? 'pending'
+              : (decided?.type ?? step.resultType),
           durationMs: durationMs ?? 0,
         },
       })
     }
+    // A call that waits on the user stays where the user can answer it.
+    const parent = 'parentToolCallId' in step ? step.parentToolCallId : undefined
+    if (messages.length > before && parent !== undefined && !askByStep.has(step)) {
+      parentOf.set(messages[messages.length - 1], parent)
+    }
   }
+  const shown = nestSubagentMessages(messages, parentOf)
   const usage = opts?.usage
   if (usage) {
-    const firstAssistant = messages.find((m) => m.role === 'assistant')
+    const firstAssistant = shown.find((m) => m.role === 'assistant')
     if (firstAssistant) firstAssistant.usage = usage
   }
-  return messages
+  return shown
+}
+
+/**
+ * Move each subagent's messages under the call that started it, as that
+ * call's `subagentMessages`. A message whose call is not in the list stays
+ * where it is.
+ */
+function nestSubagentMessages(
+  messages: ChatMessageLike[],
+  parentOf: ReadonlyMap<ChatMessageLike, string>,
+): ChatMessageLike[] {
+  const byCallId = new Map<string, ChatMessageLike>()
+  const top: ChatMessageLike[] = []
+  for (const message of messages) {
+    const parent = parentOf.get(message)
+    const host = parent !== undefined ? byCallId.get(parent) : undefined
+    if (host) host.subagentMessages = [...(host.subagentMessages ?? []), message]
+    else top.push(message)
+    const id = message.role === 'tool' ? message.toolCall?.toolCallId : undefined
+    if (id !== undefined) byCallId.set(String(id), message)
+  }
+  return top
 }
 
 /** A `cli:run-update` WS payload narrowed to the bits the chat stream consumes. */
@@ -1307,13 +1383,13 @@ export function withStoredCliReply<M extends ChatMessageLike>(
 function decidedRowResult(
   ask: CliDecidedAsk | undefined,
   hostOutcome: CliHostCallOutcome | undefined,
-): { type: CliToolStepResultType; result: unknown } | undefined {
+): { type: CliToolRowResultType; result: unknown } | undefined {
   if (!ask) return undefined
   if (ask.status === 'approved') {
     if (ask.answer !== undefined) return { type: 'success', result: { answer: ask.answer } }
     if (!ask.execution) {
       return ask.executedAt === undefined
-        ? { type: 'running', result: undefined }
+        ? { type: 'pending', result: undefined }
         : { type: 'success', result: { outcome: 'approved', reason: ASK_CARRIED_OUT_NOTE } }
     }
     return {

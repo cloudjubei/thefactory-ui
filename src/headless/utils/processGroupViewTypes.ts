@@ -11,8 +11,12 @@ export interface ProcessGroupLegRow {
   leg: ProcessGroupLeg
   label: string
   tone: ProcessStatusTone
-  /** What it waits for, while it waits. */
+  /** What it waits for, while it waits — a leg at its sign-off, what its merge waits for. */
   waitsFor?: string
+  /** What opening its own run is for: signing it off, answering it, or just looking. */
+  openLabel: string
+  /** It waits at its own sign-off — opening its run is where it is signed off. */
+  readyForSignOff: boolean
   /** Its runs' totals, every retry counted. */
   totals?: ProcessRunTotals
   /** Why its prerequisite build failed, when it did. */
@@ -34,8 +38,8 @@ export interface ProcessGroupParkView {
   /** The leg the park is about, when it is about one. */
   leg?: ProcessGroupLeg
   choices: ProcessGroupParkChoice[]
-  /** The legs an approval merges, each with the mode it starts on. */
+  /** The leg a retried merge brings in, with the mode it starts on. */
   toMerge: Array<{ leg: ProcessGroupLeg; mode: ProcessIntegrationMode }>
-  /** The merge modes this park's approval may choose between. */
+  /** The merge modes that retry may choose between. */
   modes: readonly ProcessIntegrationMode[]
 }

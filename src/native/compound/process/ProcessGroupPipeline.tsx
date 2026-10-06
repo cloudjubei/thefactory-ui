@@ -21,11 +21,11 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
-import ProcessGroupSignoffReview from './ProcessGroupSignoffReview'
+import ProcessGroupParkReview from './ProcessGroupParkReview'
 
 export type ProcessGroupPipelineProps = {
   groupRunId: string
-  /** Open one project's own pipeline — where its asks are answered. */
+  /** Open one project's own pipeline — where it is signed off and its asks are answered. */
   onOpenLegRun: (runId: string, projectId: string) => void
 }
 
@@ -36,9 +36,10 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
  * [web's `ProcessGroupPipeline`](../../../web/compound/process/ProcessGroupPipeline.tsx).
  * One group run: every project's leg, drawn by dependency level — what needs
  * nothing first, then what builds on it — with where each stands, what it
- * waits for and what it has cost. The group's own decisions (its one sign-off,
- * an early merge, a project that stopped) are answered here; a project's own
- * asks are answered in its pipeline, one tap away.
+ * waits for and what it has cost. Each project is signed off and merged in its
+ * own pipeline, one tap away — a project only once the ones it builds on are
+ * merged; only what the group alone can answer (a project that stopped, a
+ * merged project that does not build, a failed merge) is answered here.
  */
 export default function ProcessGroupPipeline({
   groupRunId,
@@ -168,7 +169,7 @@ export default function ProcessGroupPipeline({
 
       {group.park ? (
         <View style={{ marginHorizontal: nativeSpace[3], marginTop: nativeSpace[3] }}>
-          <ProcessGroupSignoffReview key={group.park.parkedAt} group={group} onResume={resume} />
+          <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
         </View>
       ) : null}
 
@@ -327,15 +328,21 @@ function LegCard({
             onPress={() => onOpen(leg.runId!, leg.projectId)}
             style={{
               borderWidth: 1,
-              borderColor: theme.border.default,
-              backgroundColor: theme.surface.base,
+              borderColor: row.readyForSignOff ? status.review.softBorder : theme.border.default,
+              backgroundColor: row.readyForSignOff ? status.review.softBg : theme.surface.base,
               borderRadius: nativeRadii[2],
               paddingHorizontal: nativeSpace[2],
               paddingVertical: nativeSpace[1],
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.primary }}>
-              Open its pipeline ›
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '500',
+                color: row.readyForSignOff ? status.review.softFg : theme.text.primary,
+              }}
+            >
+              {`${row.openLabel} ›`}
             </Text>
           </Pressable>
         ) : null}

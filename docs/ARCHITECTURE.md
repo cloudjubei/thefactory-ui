@@ -128,7 +128,7 @@ Two distinct runner shapes exist and must be mapped at the dispatch boundary: th
 
 The unified `usePendingToolGrants(ctx, runId?)` merges API `require_confirmation` tool-calls (resolved as a batch via `confirmTools`) and CLI gated `PendingAction`s (resolved individually via `decideCliAgentAction`) into one `PendingToolGrant[]`; only CLI grants expose `decide('permanent')` (→ `approved-permanent`).
 
-**CLI grants are read per CHAT, not per run** — `listPendingCliAgentActions({ chatContextId })`. A gated tool call no longer holds its run open while it waits: the SDK raises the approval, waits ~20 s, and returns "still pending, call the same tool again", so the agent routinely finishes its turn with the prompt still waiting and retries on a LATER run. Reading approvals from one runId would make the prompt vanish the moment its run went terminal — i.e. hide exactly the thing the agent just told the user about. `runId` is still resolved (`listCliAgentRunSummaries({ chatContextId, status: 'running' })` — ids only, never transcripts) and returned as `cliRunId`, but only to say which run is currently EXECUTING; **consumers gate the run view on the returned id, never on their own live state**, which a reload loses. CLI configs (auth-cache CRUD, default CLI, enabled set, login streaming, probes) live in `CliConfigsContext`/`useCliConfigs`, mirroring `LLMConfigsContext`.
+**CLI grants are read per CHAT, not per run** — `listPendingCliAgentActions({ chatContextId })`. A gated tool call no longer holds its run open while it waits: the SDK raises the approval, waits ~20 s, and returns "still pending, call the same tool again", so the agent routinely finishes its turn with the prompt still waiting and retries on a LATER run. Reading approvals from one runId would make the prompt vanish the moment its run went terminal — i.e. hide exactly the thing the agent just told the user about. `runId` is still resolved (`listCliAgentRunSummaries({ chatContextId, status: 'running' })` — ids only, never transcripts) and returned as `cliRunId`, but only to say which run is currently EXECUTING; **consumers gate the run view on the returned id, never on their own live state**, which a reload loses. The same holds for API asks: when the page has no live send (`pendingToolConfirmation`) the hook reads the stored chat's trailing calls awaiting confirmation (`storedToolCallsAwaitingConfirmation`), and `confirmTools` resumes from the stored chat with the chat's own settings — a Resume shown on a reloaded page used to do nothing. Both ask lists (pending, decided) are kept per chat for the app's life (`hooks/chatAsksCache.ts`), so returning to a chat paints its rows as last read instead of "did not run" while the re-read lands. CLI configs (auth-cache CRUD, default CLI, enabled set, login streaming, probes) live in `CliConfigsContext`/`useCliConfigs`, mirroring `LLMConfigsContext`.
 
 ### Which tools a chat's agent may use
 
@@ -150,7 +150,7 @@ Scope caveat worth repeating to users: this bounds the **factory** tools an agen
 
 A CLI turn takes minutes. It renders through the SAME vocabulary as an API turn — `cliTranscriptToMessages` maps the run's transcript onto `assistant` + `tool` `ChatMessageLike`s and `CliRunMessages` (web + native) renders them through the standard `MessageRow` / `ToolCallCard`. So the user sees each tool NAMED as it is called (running spinner → elapsed time on completion) and the reply filling in as it streams, not a bare spinner.
 
-Under it sits one **activity line** — `describeCliRunActivity` in `headless/utils/cliRunActivity.ts`, rendered by `ThinkingRow`. It answers "what is it doing right now" in strict priority: **blocked on you** > booting the sandbox > running `<tool>` > working, with the elapsed / approximate-output-token readout appended. Blocked outranks everything on purpose: a run parked at the broker emits nothing, so without it a waiting run and a busy run were the same spinner. A blocked line names the tool and swaps the spinner for the teal hourglass the tool cards already use for `require_confirmation`; the row for the call itself is re-typed to `require_confirmation` too (`cliTranscriptToMessages`'s `awaitingApprovalToolNames`), so the badge lands on the exact operation.
+Under it sits one **activity line** — `describeCliRunActivity` in `headless/utils/cliRunActivity.ts`, rendered by `ThinkingRow`. It answers "what is it doing right now" in strict priority: **blocked on you** > booting the sandbox > running `<tool>` > working, with the elapsed / approximate-output-token readout appended. Blocked outranks everything on purpose: a run parked at the broker emits nothing, so without it a waiting run and a busy run were the same spinner. A blocked line names the tool and swaps the spinner for the teal hourglass the tool cards already use for `require_confirmation`; the row for the call itself is re-typed to `require_confirmation` too (`cliTranscriptToMessages`'s `awaitingApprovalToolNames`), so the badge lands on the exact operation. A row reads **Queued** (`pending`), never a spinner, when nothing is running it: a call made after one the user is asked about in the same message (the CLI sends calls one at a time), an ask decided here whose outcome has not arrived, and an approval no turn has picked up yet (`executedAt` unset — the resumed turn may still be starting).
 
 What is blocking comes from the SAME feed as the approval surface — `ChatBody` projects `usePendingToolGrants`' grants through `blockedOnFromGrants`. There is no second channel, so the line and the prompt cannot disagree. The tool's name comes from the broker action's `{ tool, args }` payload (`pendingActionToolName`), which is also what the grant is now labelled with — the action `kind` (`inspect-host-path`) groups permanent grants and does not identify the call.
 
@@ -248,10 +248,29 @@ Three components, each with a `web/` + `native/` peer:
 
 - **`ProcessPipeline`** REPLACES the message list for a run — the plan, where it
   is, which attempt, and what it is parked on, which is exactly what a
-  transcript buries. **A node is either a nested process or a leaf that owns one
-  agent run**, and that is the whole navigation rule: clicking drills one level
-  down (in-component, with a breadcrumb) or hands off to the chat the leaf owns
-  via `onOpenAgentRun`. The pipeline never renders a transcript itself.
+  transcript buries. Each step is ONE line (`processStepRowView` in
+  `headless/utils/processStepRow.ts`): its status dot, its name — a feature step
+  by its `DependencyBullet` alone — a one-line result read from what the step
+  recorded (a review's verdict, "Waiting for you", "Not needed — nothing was sent
+  back"), the standard time and cost chips, and a chevron only when it produced
+  something. A skipped, not-needed or not-reached step is grey, dashed and inert:
+  no chips, no chevron. The chevron opens a preview card of the step's output
+  (`StepPreview`): a code review's verdict badge, severity counts and criteria
+  tally (`codeReviewPreview`), a report's tiles (`reportPreviewTiles`), a
+  feature's stages as chips (`processStageChips`), a checks list, or an agent
+  attempt with its attempt chips. A preview or stage chip opens the full view in
+  a right-hand side panel on web (`StepSidePanel`: the code review, report,
+  checks, the verify proof or the chat via `renderAgentRun`; ↗ opens the host's
+  full page through `onOpenAgentRun`, ✕ closes) and a pushed step screen on
+  native (`StepScreen`, "‹ Pipeline" + ↗, the system back closes it). A step's
+  filing is found by `stepFilingOf` (`useStepFiling`): the newest report of its
+  author filed while its attempt ran. Drilling into a feature's own pipeline
+  stays in-component with a breadcrumb (the stages row's ↗). There are no "Open
+  the …" text links. The run head keeps words off its actions: a Group chip
+  (`IconGroup`, tooltip `SIGNOFF_GROUP_CHIP_TITLE`) for a group's leg, an
+  icon-only Stop while the run can still do work, and a ⋯ menu (`OverflowMenu`
+  on web, `ActionMenu` on native) with Copy run link (web), Download report (at a
+  sign-off) and Delete run… (which still confirms).
 - **`ProcessRunChip`** is the chat card for the run `startFeatureWork` launched.
   **It reports; it never decides.** A parked run says a decision is pending and
   nothing more — which one, and the choices that answer it, live in the
@@ -283,14 +302,28 @@ tools with "0 tests ran", so its chip is never green. **A chip opens the tab its
 check is in**: `reviewCheckGroups` (`runReview.ts`) splits a run's checks by the
 method each rolls up into (`checkMethodFor`), so a project's unit-test COMMAND
 sits in the Tests tab beside `tests` checks — split by `kind`, a green Tests chip
-opened a tab its check was not in. Each check there shows its command, and
+opened a tab its check was not in. The chips put what was checked first, in tab
+order, and what was not — skipped, available, missing — last (`checkRowLayout`);
+the Tests and Build tabs list only the methods that ran (`ranCheckMethods`) and
+exist only when a check in them ran (`ranReviewChecks`), since the dashed chips
+already say what did not. Each check there shows its command, and
 `reviewCheckMeta`'s line — variant and why (`variantReason`: the default, or the
 flavor source set the change touched), the modules it covered, test count, where
 it ran, the out-of-tree revisions it built against and how a failure compares with
-the base (`dependencyDetail`, `baselineDetail`) — then, when its JUnit reports were read, a **Suites** list
-(`testSuitesView` in `testSuites.ts`: each suite's module, name, non-zero counts,
-time and ✓ ✗ ○, its failing tests with their messages under it, and how many
-suites the bounded record left out) above its output tail. What a run could not
+the base (`dependencyDetail`, `baselineDetail`). A test check is drawn by the same
+**Tests display** as the Tests screen — `TestResultsList` (web + native; native's
+`inline` lays it out inside a parent that already scrolls), fed by `checkTestResults`
+(`testResults.ts`: each kept suite as `module › name` with its counts, time and
+failing tests with their messages; else the failing tests the runner named, grouped
+by file, and what passed under the command; totals from `testCount`; how many suites
+the bounded record left out) — with its raw output folded beneath. All command
+output renders in ONE terminal block, `TerminalOutput` (web + native): dark in both
+themes, monospace, scrolling in its own container, with a copy button on web.
+`terminalOutputView` (`terminalOutput.ts`) turns SGR colour and weight codes into
+styled spans, drops every other escape sequence and control character, lets a
+carriage return overwrite its line, and reads codes whose escape character was lost
+(`[32m…[39m`) as codes when a reset among them says so — no raw escape sequence
+reaches the screen. What a run could not
 cover (`coverageNote` — tests in a directory no Gradle module includes) is said
 in a note, and a command result recorded before checks kept their command and
 output says so (`legacyNote`, `LEGACY_CHECK_RECORD_NOTE`) instead of reading as
@@ -320,9 +353,7 @@ anything runs. The pick rides the decision as `{ featureProcessId }`
 `launchDecisions` beside the open-work choice (`launchDecisionOf`) — and the
 server validates it against the definitions that exist. Over open work, "add to
 that process" hides the choice: the added features are worked the way that run
-works its own. The sign-off names the shape that ran ("Features worked by:
-Developer + verifier in one", `signoffReviewLine` over `StorySignoff.featureProcess`,
-read from the story run's plan), and a pair the gate counted from a
+works its own. A pair the gate counted from a
 developer-verifier's capture of its uncommitted workspace is captioned as the
 code it held (`captureBuildCaption` with the pair's `counted`,
 `CAPTURE_SAME_CODE_LABEL`), never as a wrong commit.
@@ -369,6 +400,14 @@ A park is answered with NAMED choices (`processParkChoices`), never a generic
 "resume": the reasons a run parks are not interchangeable — nothing was
 measured, the check said no, the retries ran out — and one button would hide
 which one this is.
+A pipeline reads a run's choices with `processRunParkChoices(run)`, which adds
+what the run itself offers: at a checks park whose base branch moved on
+(`run.baseMoved`, read by the backend on every read), "Bring in main (2 new
+commits) and re-check"; after that conflicted, "Send to the developer to
+resolve" or Stop. `BaseMovedNote` (web + native, laid out by
+`processBaseMovedView(run)`) says "main has 2 new commits" above the pipeline,
+with the same choice while the park offers it, and the newest time the base was
+brought in.
 
 **An agent waiting on you** (`step-waiting`, the ask on `park.ask`) gets its own
 card in `ParkBlock` (web + native `WaitingCard`), laid out by
@@ -491,9 +530,154 @@ could not be confirmed", with every reason), failed, or **accepted by you** (a
 person's `override` at a park) — never from the CLI check rows, which stay
 listed as their own rows. Counted before/after pairs come first, then new
 screens (each beside its entry point on the base), then what did not count and
-why. A dry verification always says what the live backend must send. Each side
+why. A dry verification always says what the live backend must send; a proof
+whose reviewer never named its data — a code read, tests, a real fixture — says
+nothing about data at all (`verifyProofHeader` gives it no title, detail or chip,
+and `ProofBanner` shows only which builds its pairs had to come from). Each side
 of a pair is captioned from its own build record, never from the commit it was
 supposed to be built from.
+
+**A run's own chat, and "Needs you" as cards.** A story run's header carries an icon-only chat button (`RUN_CHAT_OPEN_LABEL`, a dot while the chat has news — web reads the shared `useChatsSeen` map, native takes the host's `chatsSeen`). It opens the run's own chat (`useProcessRun().openChat`, which creates it server-side): on web in `RunChatDrawer` on the right, its body rendered by the host's `renderChat(context, onClose)` (`ChatBodyForContext` in overseer-web and overseer-local); on native the host pushes it (`onOpenRunChat`). At the sign-off, `ProcessPipeline` provides `RunNeedsYouProvider` (headless), so the report's `NeedsYouSection` shows each item as a card (`runNeedsYouView`: title, body, how it was settled; the header says "N decisions left") with **Discuss** — the chat opened with the item quoted as its draft (`runNeedsYouDiscussDraft`, set through `useChats().setDraft` before the chat mounts, so the person edits it before sending) — and **✓**, fine as it is (`resolveNeedsYou`). Outside a sign-off the same section is the report's plain list. The chat's proposals (`proposeRunFeature`, `proposeFeatureChange`, `resolveNeedsYouItem`) take the composer's place as `RunProposalApprovalPanel` (`runProposalView`: kind chip, what it says, what approving does, the approve button naming the outcome, "Not now"); their rows preview through the same view. Work a proposal adds shows as the pipeline's existing "Work added to this run" note and added step, and the status pill reads Running while it runs.
+
+**Which model does the work.** The run header shows the model its work runs on now as the static `RunModelChip` (`processRunHeaderModel`: the person's latest choice, else the launch's, named by what its latest attempt on it reported — `claude-opus-5-5` reads `Opus 5.5` through `modelDisplayName`), next to time and cost (web + native). A step row adds its own chip only when its latest attempt ran on another model than the run's now (`processStepModelChip`, from the attempt's stamped `ProcessLedgerEntry.model`). Picking another model in the run's chat makes it the run's model for every later step (backend `followRunChatModel`); the header follows, and earlier steps keep theirs.
+
+**A missing capability is set up through a chat draft.** A chip whose method the project does not have (`unconfigured`, asking for a set-up — never a withheld capture, which only the user can allow; `capabilitySetupOffered`) offers **Set it up with the agent** (`SetUpWithAgentButton`, web + native: a chat icon and `CAPABILITY_SETUP_LABEL`) wherever it is explained: the sign-off evidence card's missing tab, every `CheckChipRow` popover or sheet, and `ChecksTab`'s set-up line and empty state — in place of the "Ask the agent to …" hand-off. It never sends anything: it opens a chat with an editable draft built by `capabilityChatDraft(capability, context)` (`headless/utils/capabilityChatDraft.ts`, pure) from what is known — the capability, the project's checks scan (`projectChecksSummaryLines` from the tools, the same words the run chat's brief carries), the platform and the capture approach's availability for UI tests, screens and walkthroughs, the common tools of the ecosystem as suggestions only, where the checks scan would detect the new command (`CAPABILITY_DETECTED_FROM`, mirroring `detectProjectChecks`; UI tests and captures say plainly the scan will not pick them up), and the ask: propose it as a feature added to the run before sign-off or as its own story, with acceptance criteria, the command or set-up, and a proof plan. Which chat: inside a run's pipeline, the run's own chat — `ProcessPipeline` (web + native) provides `RunChatDraftProvider` with its `openRunChat(draft)`, and `capabilitySetupHandler(useRunChatDraft(), …)` reads it in `StorySignoffReview` and in a process-owned `CliRunArtifactPanel` shown in a step panel; outside a process, the chat the run panel sits in, through the host's `onDraftMessage` (each client wires it to its composer's `onInputChange`). With neither — a step's run opened on its own page — no button shows.
+
+**How approved work lands.** `IntegrationChooser` (web + native) is the approval
+dialog: first the way (merge / merge as one commit / pull request, narrowed for a
+group leg by `processRunIntegrationModes`), then its details, read for the run by
+`useProcessIntegrationOptions` (`GET …/integration-options`) and held by the pure
+`processIntegrationForm.ts`: for a merge or squash **Commit as** — every stored
+credential with a name and an email as "Name <email> · account on host", the
+project's marked default (`processIntegrationIdentityLabel`) — and the **commit
+message**; for a pull request **Open it as** (the remote host's accounts) and its
+**title and description**. Each starts from the person's last decision for that
+way, else the server's defaults (`processIntegrationFormStart`), and a preview
+shows how it will read where people look at it — "As it will show on GitHub":
+the squash commit, or the merge commit (none when the base has not moved) and the
+commits it brings, or the pull request, each with who made it
+(`processIntegrationFormPreview`). `processIntegrationFormDecision` builds the
+`ProcessIntegrationDecision` the resume (or retry) sends, or names what is
+missing. A project with no git of its own has one way and no details.
+`IntegrationResult` shows what landing came to; when the work conflicts with its
+base it offers **Resolve with an agent** (primary; `useProcessRun().resolveIntegrationConflict`),
+**Try again** and **Open a pull request instead**. While the agent resolves it the
+result says so, naming the files; when the run waits at its `confirm-landing`
+gate it shows the merge commit, the files and the checks, and the ordinary
+sign-off Approve — prefilled with the earlier decision — lands it.
+
+**Current and History.** `isProcessRunCurrent` (`processRunCurrent.ts`) decides
+the Processes list's tabs (`useProcessRuns().current` / `history`), the nav
+counts (`processTallyByProject`: approved work that has not landed counts as
+waiting, work landing as running) and, through `processStatusOverlay`, the story
+chips ("Not merged" / "Landing"): a run is Current while it works or waits, while
+its approved work is landing or has not landed, or while it can still be sent
+back for changes it ended on. Only work that landed, was let go, or had nothing
+to bring in is History.
+
+**The story sign-off page.** At a story's sign-off the run reads top to bottom:
+its header, the pipeline (the steps, where the run's history lives), then
+`StorySignoffReview` (web + native) below them, in three cards:
+
+- **Decision** — the verdict badge with its tally, "Story sign-off", the
+  headline, and words only on the three decisions: **Approve story** (through
+  `IntegrationChooser` when a work branch must say how it lands — see "How
+  approved work lands" below), **Request
+  changes** (`ParkNoteComposer`) and **Reject** (with a confirm). `onChoose`
+  resolves `false` when the server refused, and the refusal shows inline in this
+  card (`error`, the run's `actionError`) — `useProcessRun().resume` and
+  `retryIntegration` now resolve whether they were accepted instead of failing
+  silently. A group leg that cannot merge yet (`mergeHold`) offers no Approve
+  and says what it waits on. Under the headline sits ONE attention list
+  (`signoffDecisionItems` in `signoffDecision.ts`, drawn by `SignoffDecisionList`
+  web + native): each item an icon, one line and chips — never a coloured box
+  and never an underlined text link. The person's own request leads when the
+  newest fix pass answers it (`signoffRequestOutcome`): "Your request “…” is met —
+  1 before/after pair", each counted pair a thumbnail chip that opens the pair
+  viewer, and the fix pass as its step chip, which opens the pipeline's side
+  panel (native: the step screen) on that pass's verify attempt through the
+  `onOpenStep` prop `ProcessPipeline` wires — or its row, without one; "is not
+  met: …" from the pass's `unmetRequest`. Then what to act on
+  (`signoffAttentionItems`): a section accepted without its Verify passing, or
+  verified dry — each named by its `DependencyBullet`, with an eye icon ("See
+  what Verify said") that opens that feature's row.
+- **What this is** — `StorySpecCard` (web + native): the story's
+  `DependencyBullet` and title, a checklist chip that opens every feature's
+  acceptance criteria under its own chip (`signoffSpecCriteria`), and the
+  description as markdown, clamped at three lines with a fade and a small
+  chevron pill under it only when its measured height is more (web: scroll vs
+  client height under a `ResizeObserver`; native: the content's `onLayout`
+  height against the clamp, since markdown is several text blocks), then one row per fix pass and feature
+  (`signoffFeatureRow`): its chip, title, proof-plan chips with their marks
+  (`signoffProofChips`), "N of M criteria met" — the feature's `acceptance`
+  lines matched to the code review's criteria (`judgeAcceptance`; "7 of 8
+  criteria judged met · 1 not judged" when the review skipped some, never the
+  review's own tally; that only for a feature listing no criteria) — the fix
+  pass the person's request was about with its counted before/after pairs, its
+  status, time and cost chips and a chevron that
+  opens its acceptance criteria, `ProofPlanMarks` and the feature's own evidence
+  (`FeatureReviewSection kind="embedded"`).
+- **Evidence** — the story-wide chips ARE the tabs (`signoffEvidenceChips`):
+  checked methods first in tab order, each opening the tab its proof is in;
+  what was not checked last, dashed, opening its own explanation. Report opens
+  `SignoffReportPanel`; Tests and Build `ChecksTab`; Code review
+  `CodeReviewPanel`; Walkthrough `WalkthroughTab`; Screens (`ScreensTab`) the
+  before/after pairs that met the person's request. The pair viewer (`ComparisonOverlay`, web + native:
+  Mirror / Diff / Slide) opens at FIT — the largest scale at which every frame
+  fits its pane, upscaling up to the capture's natural size × the device pixel
+  ratio within a cap (`pairViewerFit.ts`: `fitScale`, `pairFitScale`) — shows
+  the effective % of the natural size, steps zoom from the current scale, and
+  "Fit to screen" returns to fit; it re-fits on resize until the person zooms.
+  Frames are sized from each capture's natural size, never a fixed base width. Their bytes come from `useReviewEvidence`'s `EvidenceImageLoader` (`headless/hooks/evidenceImageLoader.ts`): each id is fetched once per project and written whenever it arrives — a live re-pull of the listing in between never drops it (it once did, leaving a pair's second frame blank forever); only a change of project or a reset drops a late write, and forgets the request so it is asked again. The Tests tab states a total
+  once (`testLayerLines`), and a record that kept no suites says so
+  (`checkTestResults`' `unrecordedNote`) instead of listing its command as a
+  one-row group.
+
+**Code review and report as fixed sections.** A reviewer files its finding
+with `reviewSections` and the report agent with `reportSections` (thefactory-tools'
+`CodeReviewSections` / `ReportSections`, beside the markdown the host writes from
+them). `codeReviewView` (`headless/utils/signoffCodeReview.ts`) lays a review out
+as Verdict (highlighted: badge, headline, detail, severity tiles that filter the
+findings and the criteria tile, "Worth a look"), Findings as one card each
+(severity pill, the file as a mono chip with a file icon and its line, the symbol,
+a short title, then the explanation at reading width — `codeReviewFindingPlace`,
+`codeReviewFindingTitle`: the reviewer's `title`, else the first clause of an
+older review's text) grouped by severity with the nits folded or by file
+(`codeReviewFindingGroups`), Acceptance criteria one row each (mark, criterion,
+status; "How it was shown" and where, as code, open under the row), Evidence as
+one card — what it shows, then what it leaves unproven as a list, a "Nothing
+left unproven" chip when the reviewer said none (a filed `''`), or a dashed chip
+when an older review never said (`CodeReviewView.unproven`) — every
+section collapsible under one header layout (`SignoffSection`). Its badge reads
+the run's ledger verdict first (`codeReviewVerdictOf`; `OverallSignoff.codeReview`
+for the story's, the step's `entry.review` in the pipeline) — a restart strips a
+filing's own verdict — then the filing's, and the headline's opening word only
+when neither has one. Every text field of a review or report renders through
+`Markdown` (`inline` for one-line fields); a `where` that is one backticked span
+or a bare token shows as code (`codeReviewWhere`), and folded summaries drop
+markdown marks (`plainMarkdownLine`).
+`signoffReportView` (`signoffReport.ts`) makes the report an overview, not a
+second review: four tiles (Asked / Delivered / Time / Cost, from the sign-off
+itself — Delivered is how many of the asked acceptance lines the review found
+met, `acceptanceDeliveredLine`) over Outcome, How it was proven, Decisions made
+and Needs you (`reportSectionsOf` drops a line that only restates the run's pending merge or sign-off — tools' `processNeedsYouDecisions`). Time and Cost read `StorySignoff.work` (`signoffWorkOf` in
+`signoffWork.ts`, from the totals of exactly the runs the head chips add up —
+each feature's latest run, each fix pass, the story run's own steps): Time says
+"1h 20m of work" over a bar split into agents thinking, agents' tools, system
+and checks (a `check` step's time is all checks), with "+ 17h 43m waiting for
+you" — every park those runs sat in — beside it, never in it; it opens a row per
+step (same-named steps added up) on the whole sign-off's scale
+(`signoffTimeView`). Cost says what was billed, the billing kind and list price,
+the agent runs, and the models as read-only `RunModelChip`s (`SignoffWork.models`, per role `SignoffWorkRole.models` — each attempt on the model it was launched on, named by its spend), never raw ids; it opens the list price per agent role, or a
+single agent run's model and token split (`signoffCostView`, reusing
+`costDetailsView`). `ReportTiles` (web + native) draws them; a sign-off without
+process totals falls back to the head's time and cost labels. How it was proven is built from the run's final state
+(`signoffProofRows`: the checks, the tests' count, the code review's verdict,
+Verify's outcome, the walkthrough — one line each, linked to the tab that holds
+it), never from the report agent's account of the attempts. A review or
+report filed before the sections existed is read from its markdown by the tools'
+`parseCodeReviewSections` / `parseReportSections`; only one that cannot be read
+falls back to plain markdown.
 
 **Instant re-entry.** What the Processes tab and a sign-off last read outlives
 the view: `headless/hooks/processViewCache.ts` holds bounded LRU caches

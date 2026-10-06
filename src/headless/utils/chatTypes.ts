@@ -117,6 +117,8 @@ export type ChatMessageLike = {
   model?: string | { model?: string; provider?: string }
   /** CLI-agent replies carry the run id that produced them (the artifact anchor). */
   cliRunId?: string
+  /** On a call that started a subagent: what that subagent said and called, in order. */
+  subagentMessages?: ChatMessageLike[]
   /**
    * Set on the status-notification assistant message the cross-project resume writes back into the
    * sender chat — the id of the `FeatureRequest` whose completion produced this reply (D.7). Drives

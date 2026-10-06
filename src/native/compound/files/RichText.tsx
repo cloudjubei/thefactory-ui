@@ -53,7 +53,12 @@ export default function RichText({
             </Text>
           )
         }
-        if (seg.type !== 'reference' || seg.reference.kind !== 'file' || !onResolveFile) {
+        if (
+          seg.type !== 'reference' ||
+          seg.reference.kind !== 'file' ||
+          seg.reference.projectId ||
+          !onResolveFile
+        ) {
           const chip = renderReference?.(seg)
           if (chip) return <View key={idx}>{chip}</View>
           return (

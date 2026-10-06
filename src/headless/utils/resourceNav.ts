@@ -2,7 +2,8 @@ import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
 
 /**
  * A client-agnostic navigation intent derived from a {@link ResourceLink}. The `path` variant covers
- * targets whose in-app route is identical across web/desktop/mobile (project, story, feature, app tab);
+ * targets whose in-app route is identical across web/desktop/mobile (project, story, feature, app tab,
+ * a project's or group's notes);
  * the `chat` variant hands the client the {@link ChatContext} to build its own chat URL (web encodes
  * the full key into one segment, mobile uses relative path segments — see the per-client
  * `navigateToResource`).
@@ -28,6 +29,11 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
       return {
         type: 'path',
         path: `/projects/${enc(link.projectId)}/notes?note=${enc(link.noteId)}`,
+      }
+    case 'groupNote':
+      return {
+        type: 'path',
+        path: `/groups/${enc(link.groupId)}/notes?note=${enc(link.noteId)}`,
       }
     case 'file':
       return {

@@ -4,6 +4,7 @@ import {
   blockedOnFromGrants,
   blockedToolNames,
   describeCliRunActivity,
+  describeSubagentSteps,
   formatCliElapsed,
   lastCliActionAtMs,
   mergeCliRunTranscript,
@@ -106,6 +107,17 @@ describe('runningCliToolNames', () => {
 
   it('ignores assistant messages', () => {
     expect(runningCliToolNames([{ role: 'assistant', content: 'hi' }])).toEqual([])
+  })
+
+  it("includes a subagent's call in flight under the call that started it", () => {
+    const agent = {
+      ...toolMessage('Agent', 'running'),
+      subagentMessages: [
+        toolMessage('grepFiles', 'success'),
+        toolMessage('listContents', 'running'),
+      ],
+    }
+    expect(runningCliToolNames([agent])).toEqual(['Agent', 'listContents'])
   })
 
   it('skips a running row with no tool name', () => {
@@ -359,5 +371,29 @@ describe('turnBlockedOn', () => {
 
   it('is empty when the turn shows no ask', () => {
     expect(turnBlockedOn(undefined, [ask], [])).toEqual([])
+  })
+})
+
+describe('describeSubagentSteps', () => {
+  it('counts what the subagent did and names the call it is on', () => {
+    expect(
+      describeSubagentSteps([
+        { role: 'assistant', content: 'looking' },
+        toolMessage('grepFiles', 'success'),
+        toolMessage('listContents', 'running'),
+      ]),
+    ).toBe('3 steps · 2 tool calls · now listContents')
+  })
+
+  it('says one step and one call in the singular, and nothing about now when idle', () => {
+    expect(describeSubagentSteps([toolMessage('readFile', 'success')])).toBe('1 step · 1 tool call')
+  })
+
+  it('reaches into a nested subagent for the call it is on', () => {
+    const inner = {
+      ...toolMessage('Agent', 'running'),
+      subagentMessages: [toolMessage('readFile', 'running')],
+    }
+    expect(describeSubagentSteps([inner])).toBe('1 step · 1 tool call · now readFile')
   })
 })

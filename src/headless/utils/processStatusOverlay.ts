@@ -1,7 +1,11 @@
 import type { ProcessRun } from 'thefactory-tools/types'
+import { isProcessRunAwaitingIntegration } from 'thefactory-tools/utils'
 
 import { processRunPersonEnding } from './processView'
-import { PROCESS_STATUS_OVERLAY_TITLES } from './processStatusOverlayConstants'
+import {
+  PROCESS_STATUS_OVERLAY_NOT_LANDED,
+  PROCESS_STATUS_OVERLAY_TITLES,
+} from './processStatusOverlayConstants'
 import type { StatusSemanticKey } from './status'
 
 /**
@@ -14,7 +18,9 @@ import type { StatusSemanticKey } from './status'
  *   - running / pending            → Crunching (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
  *   - ended on a request for changes → Changes requested (open it to send it back)
- * A finished (succeeded / cancelled) or absent run yields no overlay — the stored
+ *   - approved, its work not landed → Not merged (open it to bring it in)
+ *   - approved, its work being brought in → Landing
+ * A finished (cancelled, or succeeded with its work landed) or absent run yields no overlay — the stored
  * status stands and the row shows its normal Run affordance. So does a run a
  * person rejected or abandoned: its features are pending again, and the next
  * step is a new run, not this one.
@@ -41,7 +47,8 @@ export function isReviewable(run: Pick<ProcessRun, 'status' | 'park'> | undefine
 
 export function processStatusOverlay(
   run:
-    | (Pick<ProcessRun, 'id' | 'status' | 'park'> & Partial<Pick<ProcessRun, 'plan' | 'ledger'>>)
+    | (Pick<ProcessRun, 'id' | 'status' | 'park'> &
+        Partial<Pick<ProcessRun, 'plan' | 'ledger' | 'workBranch' | 'parentRunId' | 'integration'>>)
     | undefined,
 ): ProcessStatusOverlay | undefined {
   if (!run) return undefined
@@ -78,12 +85,38 @@ export function processStatusOverlay(
           }
         : undefined
     }
+    case 'succeeded':
+      return landingOverlay(run)
     default:
-      // succeeded / cancelled — the process is over; the stored status stands.
       return undefined
   }
 }
 
 function blocked(runId: string): ProcessStatusOverlay {
   return { label: 'Blocked', semantic: 'stuck', title: PROCESS_STATUS_OVERLAY_TITLES.stuck, runId }
+}
+
+function landingOverlay(
+  run: Pick<ProcessRun, 'id' | 'status'> &
+    Partial<Pick<ProcessRun, 'plan' | 'ledger' | 'workBranch' | 'parentRunId' | 'integration'>>,
+): ProcessStatusOverlay | undefined {
+  if (run.integration?.status === 'integrating') {
+    return {
+      label: 'Landing',
+      semantic: 'working',
+      title: PROCESS_STATUS_OVERLAY_TITLES.landing,
+      runId: run.id,
+    }
+  }
+  if (!run.plan || !run.ledger) return undefined
+  const awaiting = isProcessRunAwaitingIntegration({ ...run, plan: run.plan, ledger: run.ledger })
+  if (!awaiting) return undefined
+  return {
+    label: run.workBranch?.shadow
+      ? PROCESS_STATUS_OVERLAY_NOT_LANDED.shadow
+      : PROCESS_STATUS_OVERLAY_NOT_LANDED.git,
+    semantic: 'onhold',
+    title: PROCESS_STATUS_OVERLAY_TITLES.notLanded,
+    runId: run.id,
+  }
 }

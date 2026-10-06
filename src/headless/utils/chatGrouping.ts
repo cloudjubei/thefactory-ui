@@ -3,6 +3,8 @@
 // Shared by web's chat navigation sidebar and the native chat list so the
 // two clients group identically.
 
+import { byLastActivity } from './chatListEntry'
+
 export interface ChatFeatureGroup<C> {
   featureId: string
   chats: C[]
@@ -94,8 +96,8 @@ export function groupChats<
     return ai - bi
   })
 
-  topics.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
-  featureRequests.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+  topics.sort(byLastActivity)
+  featureRequests.sort(byLastActivity)
 
   return { topics, byStory, featureRequests }
 }

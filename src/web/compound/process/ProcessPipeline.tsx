@@ -1,25 +1,31 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useState, type ReactNode } from 'react'
 import {
   choiceTakesNote,
+  computeChatRowStatus,
+  markSeen,
+  processRunChatContext,
+  RUN_CHAT_OPEN_LABEL,
+  RunChatDraftProvider,
+  RunNeedsYouProvider,
+  runNeedsYouDiscussDraft,
+  useChats,
+  usePendingAsksByChat,
+  fileNameSlug,
   formatProcessDuration,
-  hasIsolatedAttempts,
   isIntegratingApproval,
-  isProcessLeafOpenable,
   isReflectedPark,
   isResumeParkChoice,
-  latestOpenableAttempt,
+  REQUEST_PROOF_CHOICES,
   parkNoteRequired,
   processAmendmentView,
-  processAttemptLeaf,
-  processLeafReview,
-  processLoopSenders,
   processNodeBadge,
   processNodeLook,
   processNodeState,
-  processNodeSummary,
   type ProcessNodeLook,
-  processParkChoices,
+  processRunParkChoices,
+  processRunIntegrationModes,
   processRunBadge,
+  processRunHeaderModel,
   processRunPersonEnding,
   processRunSendBackGateId,
   PROCESS_SEND_BACK_COPY,
@@ -27,55 +33,73 @@ import {
   processRunWorkMs,
   processStepCostLabel,
   processStepCostTitle,
+  processStepModelChip,
+  processStepRowView,
   processStepWorkMs,
   processTimeDetailsView,
   processStepStates,
-  processStepTone,
   processWaitingView,
+  signoffMergeHold,
+  SIGNOFF_GROUP_CHIP_LABEL,
+  SIGNOFF_GROUP_CHIP_TITLE,
   useAppSettings,
   useDurationTimer,
+  useProcessGroupRun,
   useProcessRun,
+  useProjects,
+  useStories,
   waitingNoteCopy,
-  type ProcessIntegrationMode,
+  type ProcessIntegrationDecision,
+  type ProofKind,
   type ProcessNodeRunRef,
-  type ProcessOpenLeaf,
   type ProcessResumeChoice,
   type ProcessRun,
   type ProcessStatusTone,
   type ProcessWaitingView,
+  type RunNeedsYouActions,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
-import SegmentedControl from '../../primitives/SegmentedControl'
-import { IconChevronLeft } from '../../icons'
+import {
+  IconChat,
+  IconChevronLeft,
+  IconChevronRight,
+  IconCopy,
+  IconDelete,
+  IconDownload,
+  IconGroup,
+} from '../../icons'
+import OverflowMenu, { type OverflowMenuItem } from '../OverflowMenu'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
+import { downloadDataUri } from '../chat/signoff/download'
+import RunModelChip from '../chat/signoff/RunModelChip'
+import DependencyBullet from '../stories/DependencyBullet'
+import BaseMovedNote from './BaseMovedNote'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
-import ProcessCheckList from './ProcessCheckList'
 import RunDiagnosticsView from './RunDiagnosticsView'
+import RunChatDrawer from './RunChatDrawer'
+import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/chatsSeen'
 import StorySignoffReview from './StorySignoffReview'
-import VerificationReview from './VerificationReview'
-import { PROCESS_GROUP_HELD_SIGN_OFF, type ProcessRunBranch } from '../../../headless'
+import StepPreview from './pipeline/StepPreview'
+import StepSidePanel, { type StepPanelTarget } from './pipeline/StepSidePanel'
+import { type ProcessRunBranch } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
+import { getChatContextKey } from 'thefactory-tools/utils'
 
 export type ProcessPipelineProps = {
   /** The top-level run. Drilling into a nested node stays inside this component. */
   runId: string
   /**
-   * Open the agent-run chat a leaf owns. The pipeline never renders a
-   * transcript itself — a leaf IS a chat, one level down, and the host already
-   * knows how to open one.
+   * Open the agent-run chat a leaf owns as a full page — the side panel's ↗.
+   * The pipeline never renders a transcript itself; the host knows how.
    */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   /**
-   * Render a leaf's agent-run chat INSIDE the pipeline (a drill-down), rather
-   * than handing off to a Chat route. When provided it wins over
-   * `onOpenAgentRun`: opening a leaf swaps the pipeline body for a drill with a
-   * "← Pipeline" head and this content below it. `onBack` returns to the spine —
-   * hand it to anything in the content that offers the way back. The host owns
-   * the render because the chat body lives in the client layer.
+   * Render a leaf's agent-run chat inside the side panel. `onBack` closes the
+   * panel — hand it to anything in the content that offers the way back.
    */
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /**
@@ -83,23 +107,29 @@ export type ProcessPipelineProps = {
    * person handed it to another agent. The host owns chat navigation.
    */
   onOpenChat?: (context: ChatContext) => void
-  /** Open the group run a project's run is a leg of — where it is signed off. */
+  /** Open the group run a project's run is a leg of. */
   onOpenGroupRun?: (groupRunId: string) => void
+  /**
+   * Render the run's own chat inside the run's chat drawer. `onClose` closes
+   * the drawer. Without it the chat opens through `onOpenChat`.
+   */
+  renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
+}
+
+/** The run sits at its story's sign-off — the whole page leads with the decision. */
+function isStorySignoff(run: ProcessRun): boolean {
+  return run.status === 'parked' && run.park?.reason === 'gate' && !!run.storyId
 }
 
 /**
  * The surface a process run is watched on — a pipeline, not a transcript.
  *
- * One continuous spine, one live marker: the settled steps above it, the queued
- * ones dashed below. Which step, which attempt, what it is parked on — the state
- * a transcript buries — is exactly what the spine shows. The chat that a leaf
- * owns is still one click away, one level down.
- *
- * Drilling into a nested node stays inside this component with a breadcrumb,
- * and so does opening a LEAF: a verify attempt opens as its small sign-off (the
- * verdict and the proof it rests on), any other leaf as its chat, under one
- * "← Pipeline" head. Depth is capped at three by the model itself — a leaf never
- * contains another pipeline.
+ * At a story's sign-off the decision leads, above the steps. Each step is one
+ * line — its status, its name (a feature by its chip), what it came to, its time
+ * and cost — and a chevron when it produced something: a preview of its output
+ * opens the full view in a side panel. Skipped steps are grey and inert.
+ * Drilling into a feature's own pipeline stays inside this component with a
+ * breadcrumb.
  */
 export default function ProcessPipeline({
   runId,
@@ -107,10 +137,11 @@ export default function ProcessPipeline({
   renderAgentRun,
   onOpenChat,
   onOpenGroupRun,
+  renderChat,
 }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
-  const [openLeaf, setOpenLeaf] = useState<ProcessOpenLeaf | null>(null)
-  const [leafView, setLeafView] = useState<'review' | 'transcript'>('review')
+  const [panel, setPanel] = useState<StepPanelTarget | null>(null)
+  const [reportText, setReportText] = useState<string | undefined>()
   const currentId = stack[stack.length - 1] ?? runId
   const {
     isLoaded,
@@ -120,50 +151,73 @@ export default function ProcessPipeline({
     resume,
     delegate,
     retryIntegration,
+    resolveIntegrationConflict,
     sendBack,
     cancel,
     listBranches,
     deleteRun,
+    openChat,
+    resolveNeedsYou,
   } = useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
+  const { group } = useProcessGroupRun(run?.groupRunId)
+  const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
+  const { projects } = useProjects()
+  const { getChat, setDraft } = useChats()
+  const [chat, setChat] = useState<{ context: ChatContext; version: number } | null>(null)
+  const [chatOpening, setChatOpening] = useState(false)
+  const runChat = processRunChatContext({ id: runId, projectId: run?.projectId ?? '' })
+  const runChatKey = getChatContextKey(runChat)
+  const chatsSeen = useChatsSeen()
+  const runChatAsks = usePendingAsksByChat().get(runChatKey) ?? 0
+  const runChatUnread = computeChatRowStatus({
+    context: runChat,
+    contextKey: runChatKey,
+    chat: getChat(runChat),
+    isSending: false,
+    seen: chatsSeen,
+    pendingAsks: runChatAsks,
+  }).isUnread
+  const canChat = stack.length === 0 && !run?.parentRunId && (!!renderChat || !!onOpenChat)
 
-  // Delete-a-whole-run flow: the confirm lists the branches the run owns and
-  // offers to remove them too, since a chat delete leaves the git branches behind.
+  const openRunChat = useCallback(
+    async (draft?: string) => {
+      setChatOpening(true)
+      const opened = await openChat()
+      setChatOpening(false)
+      if (!opened) return
+      if (draft) setDraft(opened.context, draft)
+      if (renderChat) {
+        setChat((prev) => ({ context: opened.context, version: (prev?.version ?? 0) + 1 }))
+      } else {
+        onOpenChat?.(opened.context)
+      }
+    },
+    [openChat, setDraft, renderChat, onOpenChat],
+  )
+  const closeChat = useCallback(() => {
+    writeChatsSeen(markSeen(readChatsSeen(), runChatKey, new Date().toISOString()))
+    setChat(null)
+  }, [runChatKey])
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
   const [alsoBranches, setAlsoBranches] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
-  // One 1s clock for the whole pipeline — ticks while a step is working, so its
-  // time advances in real time; stops while the run waits on a person or ends.
   const now = useDurationTimer(run?.totals?.ticking === true)
 
   const drillTo = useCallback((childId: string) => {
-    setOpenLeaf(null)
+    setPanel(null)
     setStack((s) => [...s, childId])
   }, [])
   const popTo = useCallback((depth: number) => {
-    setOpenLeaf(null)
+    setPanel(null)
     setStack((s) => s.slice(0, depth))
   }, [])
-
-  // A leaf opens IN PLACE: a verify attempt as its small sign-off (verdict +
-  // the proof it rests on), any other leaf as its chat when the host renders
-  // one. Only with neither does it hand off to the host's route.
-  const canOpenTranscript = renderAgentRun !== undefined || onOpenAgentRun !== undefined
-  const openLeafHere = useCallback(
-    (leaf: ProcessOpenLeaf, hasReview: boolean) => {
-      if (hasReview || renderAgentRun) {
-        setOpenLeaf(leaf)
-        setLeafView(hasReview ? 'review' : 'transcript')
-        return
-      }
-      onOpenAgentRun?.(leaf.ref)
-    },
-    [renderAgentRun, onOpenAgentRun],
-  )
+  const closePanel = useCallback(() => setPanel(null), [])
 
   const openDelete = useCallback(() => {
     setAlsoBranches(false)
@@ -174,8 +228,6 @@ export default function ProcessPipeline({
       .catch(() => setBranches([]))
   }, [listBranches])
 
-  // A project with no git of its own has no branches of the user's to keep: the
-  // run's are Overseer's private history, so they go with the run.
   const shadowWork = run?.workBranch?.shadow === true
   const runDelete = useCallback(() => {
     setDeleting(true)
@@ -198,173 +250,260 @@ export default function ProcessPipeline({
   if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
-  if (openLeaf) {
-    const back = () => setOpenLeaf(null)
-    const review = processLeafReview(run, openLeaf)
-    const showReview = review !== undefined && leafView === 'review'
-    const hasTranscript = openLeaf.ref.chatContextId !== undefined && canOpenTranscript
-    const pickView = (view: 'review' | 'transcript') => {
-      // Without an in-place renderer the transcript lives on the host's route.
-      if (view === 'transcript' && !renderAgentRun) onOpenAgentRun?.(openLeaf.ref)
-      else setLeafView(view)
-    }
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <LeafHead
-          title={openLeaf.title}
-          onBack={back}
-          {...(review && hasTranscript ? { view: leafView, onView: pickView } : {})}
-        />
-        {showReview ? (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <VerificationReview
-              projectId={run.projectId}
-              review={review.scope}
-              entry={review.entry}
-              title={openLeaf.title}
-            />
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col">{renderAgentRun?.(openLeaf.ref, back)}</div>
-        )}
-      </div>
-    )
-  }
-
+  const needsYouActions: RunNeedsYouActions | undefined = canChat
+    ? {
+        resolutions: run.needsYouResolutions,
+        onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
+        onResolve: (card) => void resolveNeedsYou(card.id),
+      }
+    : undefined
   const states = processStepStates(run)
   const amendments = processAmendmentView(run)
+  const signoff = isStorySignoff(run) && !isReflectedPark(run.park!)
+  const mergeHold =
+    signoff && group
+      ? signoffMergeHold(
+          group,
+          run.projectId,
+          (id) => projects.find((p) => p.id === id)?.title ?? id,
+        )
+      : undefined
+  const choose = (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+  ) => resume(choice, note, integration, requestedProof)
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-      <RunHead
-        now={now}
-        run={run}
-        depth={stack.length}
-        onCrumb={popTo}
-        onCancel={() => void cancel()}
-        onDelete={openDelete}
-      />
+    <RunChatDraftScope open={canChat ? (draft) => void openRunChat(draft) : undefined}>
+      <div
+        className={`flex h-full min-h-0 flex-col overflow-y-auto ${chat || chatOpening ? 'lg:pr-[460px]' : ''}`}
+      >
+        <RunHead
+          now={now}
+          run={run}
+          depth={stack.length}
+          onCrumb={popTo}
+          onCancel={() => void cancel()}
+          onDelete={openDelete}
+          reportText={signoff ? reportText : undefined}
+          {...(canChat
+            ? { chat: { onOpen: () => void openRunChat(), unread: !chat && runChatUnread } }
+            : {})}
+          {...(run.groupRunId && onOpenGroupRun
+            ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+            : {})}
+        />
 
-      {run.groupRunId && stack.length === 0 ? (
-        <div className="mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2 text-[12px] text-(--text-secondary)">
-          <span className="min-w-0 flex-1">{PROCESS_GROUP_HELD_SIGN_OFF}</span>
-          {onOpenGroupRun ? (
-            <Button size="sm" variant="secondary" onClick={() => onOpenGroupRun(run.groupRunId!)}>
-              Open the group run
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {actionError ? (
-        <div
-          role="alert"
-          className="mx-3 mt-3 rounded-md px-2.5 py-2 text-[12px]"
-          style={{
-            background: 'var(--status-stuck-soft-bg)',
-            border: '1px solid var(--status-stuck-soft-border)',
-            color: 'var(--status-stuck-soft-fg)',
-          }}
-        >
-          {actionError}
-        </div>
-      ) : null}
-
-      {amendments.notes.length > 0 ? (
-        <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-            Work added to this run
-          </span>
-          {amendments.notes.map((note) => (
-            <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
-              {note}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
-      <ol className="flex flex-col px-3 pb-4 pt-3">
-        {states.map((state, index) => (
-          <PipelineNode
-            key={state.step.id}
-            run={run}
-            state={state}
-            ordinal={index + 1}
-            isLast={index === states.length - 1}
-            now={now}
-            addedTag={amendments.addedSteps[state.step.id]}
-            onChoose={(choice, note, integration) => void resume(choice, note, integration)}
-            onDelegate={() => delegate().then(() => undefined)}
-            {...(onOpenChat ? { onOpenChat } : {})}
-            onDrill={drillTo}
-            onOpenLeaf={openLeafHere}
-            canOpenTranscript={canOpenTranscript}
-          />
-        ))}
-      </ol>
-
-      <IntegrationResult run={run} onRetry={retryIntegration} />
-
-      <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
-
-      <RunEnding run={run} onSendBack={sendBack} />
-
-      {confirmDelete ? (
-        <Modal
-          isOpen
-          onClose={() => setConfirmDelete(false)}
-          title="Delete this process run?"
-          size="sm"
-        >
-          <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
-            <p className="m-0">
-              This removes the run and everything it produced — every step’s agent-run chat and its
-              record. This cannot be undone.
-            </p>
-            {shadowWork ? null : branches.length > 0 ? (
-              <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={alsoBranches}
-                  onChange={(e) => setAlsoBranches(e.target.checked)}
-                />
-                <span className="min-w-0">
-                  <span className="font-medium text-(--text-primary)">
-                    Also delete {branches.length} git branch{branches.length === 1 ? '' : 'es'}
-                  </span>
-                  <span className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-(--text-muted)">
-                    {branches.map((b) => (
-                      <span key={`${b.projectId}:${b.branch}`} className="truncate">
-                        {b.branch}
-                      </span>
-                    ))}
-                  </span>
-                </span>
-              </label>
-            ) : (
-              <p className="m-0 text-[12px] text-(--text-muted)">
-                No review branches were found for this run.
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" size="sm" onClick={runDelete} disabled={deleting}>
-                {deleting ? 'Deleting…' : 'Delete run'}
-              </Button>
-            </div>
+        {actionError && !signoff ? (
+          <div
+            role="alert"
+            className="mx-3 mt-3 rounded-md px-2.5 py-2 text-[12px]"
+            style={{
+              background: 'var(--status-stuck-soft-bg)',
+              border: '1px solid var(--status-stuck-soft-border)',
+              color: 'var(--status-stuck-soft-fg)',
+            }}
+          >
+            {actionError}
           </div>
-        </Modal>
-      ) : null}
-    </div>
+        ) : null}
+
+        {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
+
+        {amendments.notes.length > 0 ? (
+          <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+              Work added to this run
+            </span>
+            {amendments.notes.map((note) => (
+              <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
+                {note}
+              </p>
+            ))}
+          </div>
+        ) : null}
+
+        <div
+          className={
+            signoff ? 'mx-auto w-full max-w-[1120px] px-3 pb-4 pt-4 sm:px-6' : 'px-3 pb-4 pt-3'
+          }
+        >
+          <ol className="m-0 flex list-none flex-col rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-0 py-1.5">
+            {states.map((state) => (
+              <PipelineNode
+                key={state.step.id}
+                run={run}
+                state={state}
+                now={now}
+                addedTag={amendments.addedSteps[state.step.id]}
+                onChoose={choose}
+                onDelegate={() => delegate().then(() => undefined)}
+                {...(onOpenChat ? { onOpenChat } : {})}
+                onDrill={drillTo}
+                onOpenPanel={setPanel}
+                {...(renderAgentRun
+                  ? {
+                      onOpenTranscript: (ref: ProcessNodeRunRef) =>
+                        setPanel({
+                          runId: run.id,
+                          stepId: state.step.id,
+                          entryId: entryIdOf(state, ref),
+                        }),
+                    }
+                  : {})}
+              />
+            ))}
+          </ol>
+        </div>
+
+        <IntegrationResult
+          run={run}
+          {...(integrationModes ? { modes: integrationModes } : {})}
+          onRetry={retryIntegration}
+          onResolve={resolveIntegrationConflict}
+          error={signoff ? null : actionError}
+        />
+
+        {signoff ? (
+          <div className="mx-auto w-full max-w-[1120px] px-3 pb-4 sm:px-6">
+            <NeedsYouScope value={needsYouActions}>
+              <StorySignoffReview
+                projectId={run.projectId}
+                storyId={run.storyId as string}
+                storyRunId={run.id}
+                choices={processRunParkChoices(run)}
+                {...(run.workBranch && isIntegratingApproval(run, 'approve')
+                  ? { workBranch: run.workBranch }
+                  : {})}
+                {...(integrationModes ? { integrationModes } : {})}
+                onChoose={choose}
+                error={actionError}
+                {...(mergeHold
+                  ? {
+                      mergeHold: {
+                        ...mergeHold,
+                        ...(onOpenGroupRun
+                          ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+                          : {}),
+                      },
+                    }
+                  : {})}
+                onReportText={setReportText}
+                onOpenStep={setPanel}
+              />
+            </NeedsYouScope>
+          </div>
+        ) : null}
+
+        <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
+
+        <RunEnding run={run} onSendBack={sendBack} />
+
+        {renderChat && (chat || chatOpening) ? (
+          <RunChatDrawer {...(run.storyId ? { storyId: run.storyId } : {})} onClose={closeChat}>
+            {chat ? (
+              <Fragment key={chat.version}>{renderChat(chat.context, closeChat)}</Fragment>
+            ) : null}
+          </RunChatDrawer>
+        ) : null}
+
+        {panel ? (
+          <StepSidePanel
+            target={panel}
+            onClose={closePanel}
+            {...(renderAgentRun ? { renderAgentRun } : {})}
+            {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+          />
+        ) : null}
+
+        {confirmDelete ? (
+          <Modal
+            isOpen
+            onClose={() => setConfirmDelete(false)}
+            title="Delete this process run?"
+            size="sm"
+          >
+            <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+              <p className="m-0">
+                This removes the run and everything it produced — every step’s agent-run chat and
+                its record. This cannot be undone.
+              </p>
+              {shadowWork ? null : branches.length > 0 ? (
+                <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={alsoBranches}
+                    onChange={(e) => setAlsoBranches(e.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    <span className="font-medium text-(--text-primary)">
+                      Also delete {branches.length} git branch{branches.length === 1 ? '' : 'es'}
+                    </span>
+                    <span className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-(--text-muted)">
+                      {branches.map((b) => (
+                        <span key={`${b.projectId}:${b.branch}`} className="truncate">
+                          {b.branch}
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <p className="m-0 text-[12px] text-(--text-muted)">
+                  No review branches were found for this run.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button variant="danger" size="sm" onClick={runDelete} disabled={deleting}>
+                  {deleting ? 'Deleting…' : 'Delete run'}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        ) : null}
+      </div>
+    </RunChatDraftScope>
   )
+}
+
+/** Anything inside the run — its sign-off, a step's panel — can open the run's chat with a draft. */
+function RunChatDraftScope({
+  open,
+  children,
+}: {
+  open: ((draft: string) => void) | undefined
+  children: ReactNode
+}) {
+  return open ? <RunChatDraftProvider value={open}>{children}</RunChatDraftProvider> : children
+}
+
+/** The sign-off's "Needs you" cards can be discussed and settled — when the run has a chat to discuss them in. */
+function NeedsYouScope({
+  value,
+  children,
+}: {
+  value: RunNeedsYouActions | undefined
+  children: ReactNode
+}) {
+  return value ? <RunNeedsYouProvider value={value}>{children}</RunNeedsYouProvider> : children
+}
+
+function entryIdOf(
+  state: ReturnType<typeof processStepStates>[number],
+  ref: ProcessNodeRunRef,
+): string | undefined {
+  return state.entries.find((e) => e.runRef?.runId === ref.runId)?.id
 }
 
 /** A soft status pill in the package's own semantic palette. */
@@ -383,7 +522,12 @@ function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: stri
   )
 }
 
-/** The run header: where you are (breadcrumbs), the headline state, elapsed and spend. */
+/**
+ * The run header: where you are, the headline state, time and spend — then
+ * icon-only actions: the Group chip when the run is a group's leg, Stop while
+ * the run can still do work, and ⋯ for the rare ones (copy the link, download
+ * the report, delete — which still asks first).
+ */
 function RunHead({
   run,
   depth,
@@ -391,34 +535,74 @@ function RunHead({
   onCrumb,
   onCancel,
   onDelete,
+  onOpenGroup,
+  reportText,
+  chat,
 }: {
   run: ProcessRun
   depth: number
-  /** The pipeline's live clock — so a running run's elapsed ticks in the head. */
   now: number
   onCrumb: (depth: number) => void
   onCancel: () => void
-  /** Delete the WHOLE run — offered only at the top level (not a drilled child). */
   onDelete?: () => void
+  onOpenGroup?: () => void
+  reportText?: string
+  /** The run's own chat: open it, and whether it has news. */
+  chat?: { onOpen: () => void; unread: boolean }
 }) {
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
-  // Work time from the ledger: every attempt of every step, nested runs
-  // included, and never the time spent waiting on a person.
   const workMs = processRunWorkMs(run, now)
+  const model = processRunHeaderModel(run, run.ledger)
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
+  const menu: OverflowMenuItem[] = [
+    ...(typeof navigator !== 'undefined' && navigator.clipboard
+      ? [
+          {
+            key: 'copy-link',
+            label: 'Copy run link',
+            icon: <IconCopy className="size-4" />,
+            onSelect: () => void navigator.clipboard.writeText(window.location.href),
+          },
+        ]
+      : []),
+    ...(reportText
+      ? [
+          {
+            key: 'download-report',
+            label: 'Download report',
+            icon: <IconDownload className="size-4" />,
+            onSelect: () =>
+              downloadDataUri(
+                `data:text/markdown;charset=utf-8,${encodeURIComponent(reportText)}`,
+                `${fileNameSlug(run.title, 'report')}.md`,
+              ),
+          },
+        ]
+      : []),
+    ...(depth === 0 && onDelete
+      ? [
+          {
+            key: 'delete',
+            label: 'Delete run…',
+            icon: <IconDelete className="size-4" />,
+            destructive: true,
+            onSelect: onDelete,
+          },
+        ]
+      : []),
+  ]
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5">
       <nav className="flex min-w-0 flex-wrap items-center gap-1 text-[12px]">
-        {/* Only the current run is loaded, so ancestor titles are not known —
-            the crumb trail is Top → … → here, capped at three by the model. */}
         {depth > 0 ? (
           <>
             <button
               type="button"
-              className="rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
               onClick={() => onCrumb(0)}
             >
+              <IconChevronLeft className="size-3.5" />
               Top
             </button>
             {Array.from({ length: depth - 1 }).map((_, i) => (
@@ -440,6 +624,7 @@ function RunHead({
       </nav>
       <span className="grow" />
       <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
+      {model ? <RunModelChip model={model} /> : null}
       {workMs !== undefined ? (
         <DurationChip
           label={formatProcessDuration(workMs)}
@@ -448,37 +633,69 @@ function RunHead({
         />
       ) : null}
       {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
+      {onOpenGroup || chat || stoppable || menu.length > 0 ? (
+        <span aria-hidden className="mx-1 h-6 w-px bg-(--border-subtle)" />
+      ) : null}
+      {onOpenGroup && depth === 0 ? (
+        <button
+          type="button"
+          onClick={onOpenGroup}
+          aria-label={SIGNOFF_GROUP_CHIP_TITLE}
+          title={SIGNOFF_GROUP_CHIP_TITLE}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-(--border-default) px-2.5 text-[12px] text-(--text-secondary) hover:bg-(--surface-hover)"
+        >
+          <IconGroup className="size-4" />
+          {SIGNOFF_GROUP_CHIP_LABEL}
+        </button>
+      ) : null}
+      {chat && depth === 0 ? (
+        <button
+          type="button"
+          onClick={chat.onOpen}
+          aria-label={RUN_CHAT_OPEN_LABEL}
+          title={RUN_CHAT_OPEN_LABEL}
+          className="relative inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
+        >
+          <IconChat className="size-4" />
+          {chat.unread ? (
+            <span
+              aria-hidden
+              className="absolute right-1 top-1 size-2 rounded-full bg-(--accent-primary)"
+            />
+          ) : null}
+        </button>
+      ) : null}
       {stoppable ? (
-        <Button size="sm" variant="secondary" onClick={onCancel}>
-          Stop
-        </Button>
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Stop the run"
+          title="Stop the run"
+          className="inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
+        >
+          <span aria-hidden className="size-3 rounded-[2px] bg-current" />
+        </button>
       ) : null}
-      {depth === 0 && onDelete ? (
-        <Button size="sm" variant="ghost" onClick={onDelete}>
-          Delete
-        </Button>
-      ) : null}
+      {menu.length > 0 ? <OverflowMenu items={menu} /> : null}
     </div>
   )
 }
 
 /**
  * A node's marker, drawn from its look: a filled mark for a verdict, a dashed
- * numbered outline for what has not run yet, and — only for running work — a
- * green ring that spins.
+ * outline for what has not run or was skipped, and — only for running work — a
+ * ring that spins.
  */
-function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' }) {
-  const box = size === 'node' ? 'size-[26px] text-[10px]' : 'size-[15px] text-[8px]'
-  const glyph = size === 'sub' && look.shape !== 'solid' ? '' : look.glyph
+function Marker({ look }: { look: ProcessNodeLook }) {
   return (
     <span
-      className={`relative grid shrink-0 place-items-center rounded-full font-bold tabular-nums ${box}`}
+      className="relative grid size-[22px] shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
       style={
         look.shape === 'dashed'
           ? {
               background: 'var(--surface-base)',
               color: 'var(--text-muted)',
-              border: '1.5px dashed var(--border-default)',
+              border: '1.5px dashed var(--border-strong)',
             }
           : look.shape === 'ring'
             ? {
@@ -503,119 +720,92 @@ function Marker({ look, size }: { look: ProcessNodeLook; size: 'node' | 'sub' })
           }}
         />
       ) : null}
-      {glyph}
+      {look.shape === 'dashed' ? '' : look.glyph}
     </span>
   )
 }
 
 /**
- * One node on the spine. A `process` node with a child run drills; a leaf opens
- * its chat; a queued function is inert. The node the run is parked on carries the
- * decision inline, and the active feature node shows its nested pipeline inline.
+ * One step: its status, its name (a feature by its chip alone), what it came
+ * to in a line, its time and cost, and a chevron when it produced something to
+ * preview. A skipped or not-needed step is grey with no chips and no chevron.
+ * The step a run is parked on (other than its sign-off) carries its decision
+ * inline; a feature the run is on opens its stages by itself.
  */
 function PipelineNode({
   run,
   state,
-  ordinal,
-  isLast,
   now,
   addedTag,
   onChoose,
   onDelegate,
   onOpenChat,
   onDrill,
-  onOpenLeaf,
-  canOpenTranscript,
+  onOpenPanel,
+  onOpenTranscript,
 }: {
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
-  ordinal: number
-  isLast: boolean
   now: number
-  /** "Added <date>" when this step was added to the run after it started. */
   addedTag: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
-    integration?: ProcessIntegrationMode,
-  ) => void
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+  ) => Promise<boolean>
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
-  onOpenLeaf: (leaf: ProcessOpenLeaf, hasReview: boolean) => void
-  canOpenTranscript: boolean
+  onOpenPanel: (target: StepPanelTarget) => void
+  onOpenTranscript?: (ref: ProcessNodeRunRef) => void
 }) {
+  const { resolveDependency } = useStories()
   const parkStepId = run.park?.stepId
+  const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
-  const look = processNodeLook(nodeState, state.step.kind === 'gate', ordinal)
-  const summary = processNodeSummary(state)
-  const childRunId = state.latest?.childRunId
+  const look = processNodeLook(nodeState, state.step.kind === 'gate', 0)
+  const row = processStepRowView(state, parkStepId)
   const isFeature = state.step.kind === 'process'
-  const isAgent = state.step.kind === 'agent'
-  const total = state.entries.length
-  const leafAt = (index: number) =>
-    processAttemptLeaf(state.entries[index], state.step.name, { index: index + 1, total })
-  const openAttempt = (index: number) => {
-    const leaf = leafAt(index)
-    // Only openable when there is something to show: a dead "open ›" that goes
-    // nowhere is worse than none.
-    if (!isProcessLeafOpenable(run, leaf, canOpenTranscript)) return undefined
-    return () => onOpenLeaf(leaf, processLeafReview(run, leaf) !== undefined)
-  }
-  const latest = latestOpenableAttempt(run, state.entries, state.step.name, canOpenTranscript)
-  const open = childRunId
-    ? () => onDrill(childRunId)
-    : latest
-      ? () => onOpenLeaf(latest, processLeafReview(run, latest) !== undefined)
-      : undefined
+  const [open, setOpen] = useState(isFeature && (state.current || parked))
   const iteration = processNodeBadge(state, run)
   const workMs = processStepWorkMs(run, state, now)
   const duration = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
   const cost = processStepCostLabel(run, state.step.id)
-  // The active feature node shows its child pipeline inline — expanded when the
-  // run is on it (running or parked), collapsed (and drillable) otherwise.
-  const expanded = isFeature && (state.current || parkStepId === state.step.id)
-  const parked = parkStepId === state.step.id
+  const stepModel = processStepModelChip(state.latest, run)
+  const featureRef =
+    isFeature && run.storyId && state.step.subject?.kind === 'feature'
+      ? `${run.storyId}.${state.step.subject.id}`
+      : undefined
+  const resolves = featureRef ? !('code' in resolveDependency(featureRef)) : false
+  const signoffGate = parked && isStorySignoff(run) && !isReflectedPark(run.park!)
 
   return (
-    <li className="relative grid grid-cols-[26px_minmax(0,1fr)] gap-3">
-      {!isLast ? (
-        <span
-          aria-hidden
-          className="absolute bottom-0 left-[12.5px] top-[26px] w-px"
-          style={{
-            background:
-              nodeState === 'done' ? 'var(--status-done-soft-border)' : 'var(--border-default)',
-          }}
-        />
-      ) : null}
-      <Marker look={look} size="node" />
-      <div className="min-w-0 pb-3">
-        <div className="relative flex w-full flex-wrap items-center gap-2 rounded-md px-1.5 py-1 has-[>button:hover]:bg-(--surface-hover)">
-          {open ? (
-            <button
-              type="button"
-              onClick={open}
-              aria-label={`Open ${state.step.name}`}
-              className="absolute inset-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
-            />
-          ) : null}
-          <span
-            className={`pointer-events-none text-[13.5px] font-semibold ${nodeState === 'queued' ? 'text-(--text-muted)' : 'text-(--text-primary)'}`}
-          >
-            {state.step.name}
-          </span>
-          <span className="pointer-events-none inline-flex">
-            <KindChip kind={state.step.kind} agent={isAgent} />
-          </span>
+    <li
+      className={`border-b border-(--border-subtle) last:border-b-0 ${row.waitingOnYou && signoffGate ? 'bg-(--accent-primary)/5' : ''}`}
+    >
+      <div
+        className={`grid grid-cols-[22px_minmax(0,auto)_minmax(0,1fr)_auto_28px] items-center gap-3 px-4 py-2.5 sm:px-5 ${row.inert ? 'text-(--text-muted)' : ''}`}
+      >
+        <Marker look={look} />
+        <span className="flex min-w-0 items-center gap-1.5">
+          {featureRef && resolves ? (
+            <DependencyBullet dependency={featureRef} interactive />
+          ) : (
+            <span
+              className={`truncate text-[13.5px] ${row.inert ? '' : 'font-semibold text-(--text-primary)'}`}
+            >
+              {state.step.name}
+            </span>
+          )}
           {addedTag ? (
-            <span className="pointer-events-none inline-flex items-center rounded-full border border-dashed border-(--border-strong) px-2 py-px text-[10.5px] text-(--text-secondary)">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-dashed border-(--border-strong) px-2 py-px text-[10.5px] text-(--text-secondary)">
               {addedTag}
             </span>
           ) : null}
-          {iteration ? (
+          {iteration && !row.inert ? (
             <span
-              className="pointer-events-none inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
+              className="inline-flex shrink-0 items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums"
               style={{
                 background: `var(--status-${look.tone}-soft-bg)`,
                 color: `var(--status-${look.tone}-soft-fg)`,
@@ -625,222 +815,72 @@ function PipelineNode({
               {iteration}
             </span>
           ) : null}
-          <span className="pointer-events-none ml-auto flex items-center gap-2">
-            {duration || cost ? (
-              <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-(--text-muted)">
-                {duration ? (
-                  <span className="pointer-events-auto relative inline-flex">
-                    <DurationChip
-                      label={duration}
-                      details={processTimeDetailsView(
-                        run.totals?.steps[state.step.id]?.time,
-                        workMs ?? 0,
-                      )}
-                      title={processStepCostTitle(state.step.name, total)}
-                      appearance="text"
-                    />
-                  </span>
-                ) : null}
-                {duration && cost ? <span aria-hidden>·</span> : null}
-                {cost ? (
-                  <span className="pointer-events-auto relative inline-flex">
-                    <CostChip
-                      label={cost}
-                      cost={run.totals?.steps[state.step.id]}
-                      title={processStepCostTitle(state.step.name, total)}
-                      appearance="text"
-                    />
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            {open ? <span className="text-[11px] text-(--text-muted)">open ›</span> : null}
-          </span>
-        </div>
-
-        {summary ? (
-          <div
-            className={`whitespace-pre-wrap px-1.5 text-[12px] ${summary.muted ? 'text-(--text-muted)' : 'text-(--text-secondary)'}`}
+        </span>
+        <span
+          className={`min-w-0 truncate text-[12.5px] ${row.waitingOnYou ? 'font-semibold text-(--accent-primary)' : row.inert ? '' : 'text-(--text-secondary)'}`}
+          title={state.latest?.summary}
+        >
+          {row.result ?? ''}
+        </span>
+        <span className="flex items-center gap-1.5">
+          {!row.inert && stepModel ? <RunModelChip model={stepModel} /> : null}
+          {!row.inert && duration ? (
+            <DurationChip
+              label={duration}
+              details={processTimeDetailsView(run.totals?.steps[state.step.id]?.time, workMs ?? 0)}
+              title={processStepCostTitle(state.step.name, state.entries.length)}
+            />
+          ) : null}
+          {!row.inert && cost ? (
+            <CostChip
+              label={cost}
+              cost={run.totals?.steps[state.step.id]}
+              title={processStepCostTitle(state.step.name, state.entries.length)}
+            />
+          ) : null}
+        </span>
+        {row.expandable ? (
+          <button
+            type="button"
+            aria-label={open ? `Hide ${state.step.name}` : `Preview ${state.step.name}`}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex size-7 items-center justify-center rounded-md text-(--text-secondary) hover:bg-(--surface-hover)"
           >
-            {summary.text}
-          </div>
-        ) : null}
+            <IconChevronRight
+              className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+            />
+          </button>
+        ) : (
+          <span />
+        )}
+      </div>
 
-        <ProcessCheckList step={state.step} latest={state.latest} />
+      {open && row.expandable ? (
+        <div className="px-4 pb-3.5 sm:pl-[58px] sm:pr-5">
+          <StepPreview
+            run={run}
+            state={state}
+            kind={row.preview}
+            onOpen={onOpenPanel}
+            onDrill={onDrill}
+          />
+        </div>
+      ) : null}
 
-        {/* A fix loop runs an agent step several times; the button above opens the
-            LATEST. Earlier attempts get chips only when each is its OWN run — a
-            verifier starts fresh every time, while a developer's fix loop resumes
-            one chat, so chips for it would all open the same place. */}
-        {isAgent && hasIsolatedAttempts(state.entries) ? (
-          <div className="flex flex-wrap items-center gap-1.5 px-1.5 pt-1">
-            <span className="text-[10.5px] text-(--text-muted)">Attempts</span>
-            {state.entries.map((e, i) => {
-              const openThis = openAttempt(i)
-              const tone = processStepTone(e.status === 'running' ? 'running' : 'done', e.outcome)
-              return (
-                <button
-                  key={e.id ?? i}
-                  type="button"
-                  disabled={!openThis}
-                  onClick={openThis}
-                  title={e.summary ?? e.outcome ?? `Attempt ${i + 1}`}
-                  className="inline-flex items-center rounded-full px-2 py-px text-[10.5px] font-semibold tabular-nums enabled:hover:brightness-105 disabled:opacity-60"
-                  style={{
-                    background: `var(--status-${tone}-soft-bg)`,
-                    color: `var(--status-${tone}-soft-fg)`,
-                    border: `1px solid var(--status-${tone}-soft-border)`,
-                  }}
-                >
-                  #{i + 1}
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {expanded && childRunId ? <InlineSubSteps childRunId={childRunId} now={now} /> : null}
-
-        {parked ? (
+      {parked && !signoffGate ? (
+        <div className="px-4 pb-3.5 sm:pl-[58px] sm:pr-5">
           <ParkBlock
             run={run}
             onChoose={onChoose}
             onDelegate={onDelegate}
             {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={onDrill}
-            {...(canOpenTranscript
-              ? {
-                  onOpenTranscript: (ref: ProcessNodeRunRef) =>
-                    onOpenLeaf({ ref, title: `${state.step.name} · transcript` }, false),
-                }
-              : {})}
+            {...(onOpenTranscript ? { onOpenTranscript } : {})}
           />
-        ) : null}
-      </div>
-    </li>
-  )
-}
-
-/**
- * The head of an opened leaf: the ONE way back to the spine, the leaf's name,
- * and — for a verify attempt — the switch between its proof and its transcript.
- */
-function LeafHead({
-  title,
-  onBack,
-  view,
-  onView,
-}: {
-  title: string
-  onBack: () => void
-  view?: 'review' | 'transcript'
-  onView?: (view: 'review' | 'transcript') => void
-}) {
-  return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
-      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 pl-1.5">
-        <IconChevronLeft className="h-4 w-4" />
-        Pipeline
-      </Button>
-      <span className="min-w-0 truncate text-[13px] font-medium text-(--text-primary)">
-        {title}
-      </span>
-      {view && onView ? (
-        <SegmentedControl
-          className="ml-auto"
-          size="sm"
-          ariaLabel="What to show for this attempt"
-          value={view}
-          onChange={(v) => onView(v === 'transcript' ? 'transcript' : 'review')}
-          options={[
-            { value: 'review', label: 'Review' },
-            { value: 'transcript', label: 'Transcript' },
-          ]}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-/** The kind tag — an agent step (a model runs) is purple; everything else muted. */
-function KindChip({ kind, agent }: { kind: string; agent: boolean }) {
-  return (
-    <span
-      className="rounded px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider"
-      style={
-        agent
-          ? {
-              color: 'var(--color-purple-700)',
-              background: 'color-mix(in srgb, var(--color-purple-650) 12%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--color-purple-650) 45%, transparent)',
-            }
-          : {
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border-subtle)',
-            }
-      }
-    >
-      {kind}
-    </span>
-  )
-}
-
-/**
- * The nested pipeline of the active feature, inline — its own child run's steps,
- * live. A back-edge that fired is drawn as a loop banner rather than described.
- * The child is loaded only while expanded, so a collapsed feature costs nothing.
- */
-function InlineSubSteps({ childRunId, now }: { childRunId: string; now: number }) {
-  const { run: child } = useProcessRun(childRunId)
-  if (!child) return null
-  const states = processStepStates(child)
-  const sentBack = processLoopSenders(child)
-  return (
-    <div className="ml-1 mt-2 flex flex-col gap-1 rounded-r-lg border-l-2 border-(--border-default) bg-(--surface-overlay) px-3 py-2">
-      {sentBack ? (
-        <div
-          className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]"
-          style={{
-            color: 'var(--status-queued-soft-fg)',
-            background: 'var(--status-queued-soft-bg)',
-            border: '1px dashed var(--status-queued-soft-border)',
-          }}
-        >
-          ↺ {sentBack} sent the work back — <b className="font-semibold">retried</b>
         </div>
       ) : null}
-      {states.map((s, index) => {
-        const st = processNodeState(s, child.park?.stepId)
-        const workMs = processStepWorkMs(child, s, now)
-        const dur = workMs !== undefined && workMs > 0 ? formatProcessDuration(workMs) : undefined
-        const iter = processNodeBadge(s, child)
-        const line = processNodeSummary(s)
-        return (
-          <div
-            key={s.step.id}
-            className="flex items-center gap-2 text-[12px] text-(--text-secondary)"
-          >
-            <Marker look={processNodeLook(st, s.step.kind === 'gate', index + 1)} size="sub" />
-            <b className="font-semibold text-(--text-primary)">{s.step.name}</b>
-            {line ? <span className="truncate text-(--text-muted)">· {line.text}</span> : null}
-            {iter ? <span className="text-(--text-muted)">· {iter}</span> : null}
-            {dur ? (
-              <span className="ml-auto inline-flex tabular-nums text-(--text-muted)">
-                <DurationChip
-                  label={dur}
-                  details={processTimeDetailsView(
-                    child.totals?.steps[s.step.id]?.time,
-                    workMs ?? 0,
-                  )}
-                  title={s.step.name}
-                  appearance="text"
-                />
-              </span>
-            ) : null}
-          </div>
-        )
-      })}
-    </div>
+    </li>
   )
 }
 
@@ -862,7 +902,8 @@ function ParkBlock({
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
-    integration?: ProcessIntegrationMode,
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
   ) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -886,31 +927,8 @@ function ParkBlock({
     )
   }
   const reflected = isReflectedPark(park)
-  const choices = processParkChoices(park.reason, { reflected })
+  const choices = processRunParkChoices(run)
   const tone = park.reason === 'gate' ? 'review' : 'on_hold'
-  // The story sign-off is ONE decision over the whole run — show every feature's
-  // proof here, so the reviewer signs off on what they can see, not on trust.
-  const isSignoffGate = park.reason === 'gate' && !!run.storyId
-
-  // The story sign-off owns its own panel (head + verdict + digest + sections +
-  // decide bar). Hand it the gate's choices so its decide bar acts on the whole
-  // story, and drop the outer park chrome that would frame it twice.
-  if (isSignoffGate) {
-    return (
-      <div className="mt-2">
-        <StorySignoffReview
-          projectId={run.projectId}
-          storyId={run.storyId as string}
-          storyRunId={run.id}
-          choices={choices}
-          {...(run.workBranch && isIntegratingApproval(run, 'approve')
-            ? { workBranch: run.workBranch }
-            : {})}
-          onChoose={onChoose}
-        />
-      </div>
-    )
-  }
 
   return (
     <div
@@ -934,7 +952,8 @@ function ParkBlock({
       ) : null}
       {noteFor ? (
         <ParkNoteComposer
-          onSend={(note) => onChoose(noteFor, note)}
+          {...(noteFor === 'request-changes' ? { proofChoices: REQUEST_PROOF_CHOICES } : {})}
+          onSend={(note, requestedProof) => onChoose(noteFor, note, undefined, requestedProof)}
           onCancel={() => setNoteFor(undefined)}
         />
       ) : (

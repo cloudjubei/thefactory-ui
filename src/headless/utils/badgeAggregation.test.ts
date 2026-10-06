@@ -19,18 +19,46 @@ function makeState(over: Record<string, any> = {}): BadgeState {
   }
 }
 
-type TallyRun = Pick<ProcessRun, 'id' | 'projectId' | 'status' | 'parentRunId' | 'park'>
+type TallyRun = Parameters<typeof processTallyByProject>[0][number] & Pick<ProcessRun, 'id'>
+
+const PLAN: ProcessRun['plan'] = {
+  definitionId: 'story-default',
+  definitionScope: 'global',
+  definitionVersion: 6,
+  name: 'Story',
+  steps: [{ id: 'sign-off', name: 'Sign-off', kind: 'gate' }],
+  loops: [],
+  frozenAt: 0,
+}
 
 function run(
   id: string,
   projectId: string,
   status: ProcessRunStatus,
-  extra: Partial<Pick<TallyRun, 'parentRunId' | 'park'>> = {},
+  extra: Partial<
+    Pick<ProcessRun, 'parentRunId' | 'park' | 'workBranch' | 'ledger' | 'integration'>
+  > = {},
 ): TallyRun {
-  return { id, projectId, status, ...extra }
+  return { id, projectId, status, plan: PLAN, ledger: [], ...extra }
 }
 
-const gatePark = (): TallyRun['park'] => ({
+const approvedWork = (integration?: ProcessRun['integration']) => ({
+  workBranch: { name: 'factory/x-1', baseRef: 'main', baseSha: 'a'.repeat(40) },
+  ledger: [
+    {
+      id: 'g',
+      stepId: 'sign-off',
+      iteration: 1,
+      status: 'done' as const,
+      outcome: 'passed' as const,
+      startedAt: 0,
+      override: { choice: 'approve' as const, at: 1, integration: 'squash' as const },
+    },
+  ],
+  ...(integration ? { integration } : {}),
+})
+
+const gatePark = (): ProcessRun['park'] => ({
   reason: 'gate',
   stepId: 'sign-off',
   message: 'Ready for you',
@@ -102,6 +130,27 @@ describe('processTallyByProject', () => {
       run('r2', 'p1', 'parked'),
     ])
     expect(tally.get('p1')).toEqual({ running: 0, waiting: 2 })
+  })
+
+  it('counts approved work that did not land as waiting on the user', () => {
+    const tally = processTallyByProject([
+      run('r1', 'p1', 'succeeded', approvedWork({ mode: 'squash', status: 'failed', at: 2 })),
+    ])
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1 })
+  })
+
+  it('counts approved work being brought in as running', () => {
+    const tally = processTallyByProject([
+      run('r1', 'p1', 'succeeded', approvedWork({ mode: 'squash', status: 'integrating', at: 2 })),
+    ])
+    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0 })
+  })
+
+  it('does not count approved work that landed', () => {
+    const tally = processTallyByProject([
+      run('r1', 'p1', 'succeeded', approvedWork({ mode: 'squash', status: 'integrated', at: 2 })),
+    ])
+    expect(tally.has('p1')).toBe(false)
   })
 
   it('never counts a child run, whatever its status', () => {

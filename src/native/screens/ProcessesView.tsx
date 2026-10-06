@@ -9,6 +9,8 @@ import {
   blankProcessStep,
   copyProcessDefinition,
   isProcessFork,
+  isProcessGateLoop,
+  PROCESS_GATE_LOOP_NO_LIMIT,
   processScopeLabel,
   processStepName,
   useActiveProject,
@@ -253,7 +255,10 @@ function ProcessDetail({
       {definition.loops.map((loop) => (
         <Text key={loop.id} style={{ fontSize: 12, color: theme.text.secondary }}>
           {processStepName(definition, loop.from)} ends {loop.when.join(' or ')} → back to{' '}
-          {processStepName(definition, loop.to)}, at most {loop.maxIterations} attempts.
+          {processStepName(definition, loop.to)},{' '}
+          {isProcessGateLoop(definition, loop)
+            ? `${PROCESS_GATE_LOOP_NO_LIMIT}.`
+            : `at most ${loop.maxIterations} attempts.`}
         </Text>
       ))}
 
@@ -443,17 +448,23 @@ function ProcessEditor({
           key={loop.id}
           label={`${processStepName(definition, loop.from)} → ${processStepName(definition, loop.to)}`}
         >
-          <Input
-            keyboardType="number-pad"
-            value={String(loop.maxIterations)}
-            onChangeText={(text) =>
-              patch({
-                loops: definition.loops.map((l, i) =>
-                  i === index ? { ...l, maxIterations: Math.max(1, Number(text) || 1) } : l,
-                ),
-              })
-            }
-          />
+          {isProcessGateLoop(definition, loop) ? (
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {PROCESS_GATE_LOOP_NO_LIMIT}
+            </Text>
+          ) : (
+            <Input
+              keyboardType="number-pad"
+              value={String(loop.maxIterations)}
+              onChangeText={(text) =>
+                patch({
+                  loops: definition.loops.map((l, i) =>
+                    i === index ? { ...l, maxIterations: Math.max(1, Number(text) || 1) } : l,
+                  ),
+                })
+              }
+            />
+          )}
         </Field>
       ))}
 

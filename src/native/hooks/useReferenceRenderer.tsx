@@ -24,7 +24,12 @@ export function useReferenceRenderer({
   return useCallback(
     (target: ReferenceTarget) => {
       if (target.type === 'typed' && !typed) return undefined
-      if (target.type === 'reference' && target.reference.kind === 'file') return undefined
+      if (
+        target.type === 'reference' &&
+        target.reference.kind === 'file' &&
+        !target.reference.projectId
+      )
+        return undefined
       const description = target.type === 'link' ? describeLink(target.link) : describe(target)
       return description ? (
         <ReferenceChip description={description} {...(onOpen ? { onOpen } : {})} />
@@ -41,17 +46,22 @@ export function useReferenceRenderer({
  */
 export function useProjectReferenceRenderer({
   projectId,
+  groupId,
   onOpen,
   typed = true,
 }: {
   projectId: string | null | undefined
+  /** A group's page, outside any project: references resolve across its projects. */
+  groupId?: string | null
   onOpen?: (link: ResourceLink) => void
   typed?: boolean
 }): {
   references: References
   renderReference: (target: ReferenceTarget) => ReactNode | undefined
 } {
-  const references = useReferences({ scope: projectId ? { projectId } : undefined })
+  const references = useReferences({
+    scope: projectId ? { projectId } : groupId ? { groupId } : undefined,
+  })
   const rendering = useReferenceRendering()
   const open = onOpen ?? rendering?.onOpen
   const renderReference = useReferenceRenderer({

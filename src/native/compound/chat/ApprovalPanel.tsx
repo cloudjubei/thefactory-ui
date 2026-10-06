@@ -21,6 +21,7 @@ import {
   featureProcessMetadata,
   featuresToWork,
   isGitSetupGrant,
+  isRunProposalGrant,
   isStartGroupWorkGrant,
   launchProofPlanRows,
   processOpenWorkMetadata,
@@ -46,6 +47,7 @@ import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
 import ProofPlanConfirm from './ProofPlanConfirm'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
+import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 
@@ -82,6 +84,9 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         onDecideLater={props.onDecideLater}
       />
     )
+  }
+  if (isRunProposalGrant(props.grant)) {
+    return <RunProposalApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
   }
   return isGitSetupGrant(props.grant) ? (
     <GitSetupApprovalPanel

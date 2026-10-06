@@ -13,6 +13,7 @@ import {
   approveActionDescriptors,
   PROCESS_INTEGRATION_SHADOW,
   censusFeatures,
+  capabilitySetupHandler,
   checkMethodRows,
   earnedApproveActions,
   formatChangeRequestMessage,
@@ -35,8 +36,10 @@ import {
   signoffVerdict,
   useCliRunArtifact,
   useReviewEvidence,
+  useRunChatDraft,
   useStories,
   verdictSummary,
+  ranReviewChecks,
   reviewCheckGroups,
   type ApproveActionDescriptor,
   type CheckMethodId,
@@ -90,6 +93,12 @@ export type CliRunArtifactPanelProps = {
    * nobody is told about cannot produce the change the user asked for.
    */
   onSendMessage?: (text: string) => void | Promise<void>
+  /**
+   * Puts a message in this chat's composer for the person to edit and send —
+   * how a missing check is offered to the agent to set up. A process-owned run
+   * drafts into its run's chat instead, when the pipeline provides one.
+   */
+  onDraftMessage?: (text: string) => void
   /** Opens the run's review branch in the app's Git view, when the host has one. */
   onOpenGit?: () => void
   /**
@@ -164,6 +173,7 @@ export default function CliRunArtifactPanel({
   runId,
   projectId,
   onSendMessage,
+  onDraftMessage,
   onOpenGit,
   onBackToPipeline,
   onSaveFile,
@@ -204,6 +214,7 @@ export default function CliRunArtifactPanel({
     verifying,
     verificationApproaches,
     projectChecks,
+    verificationPlatform,
     loadVerificationPlan,
     planLoading,
     requestReview,
@@ -222,6 +233,13 @@ export default function CliRunArtifactPanel({
   // sign-off belong to the pipeline — no decision bar, no story gate, no verdict
   // headline, and viewing the diff files no "proof". Mirrors the web peer.
   const reportOnly = processRunId !== undefined
+  const runChatDraft = useRunChatDraft()
+  const onSetUp = capabilitySetupHandler(reportOnly ? runChatDraft : onDraftMessage, {
+    ...(projectChecks ? { projectChecks } : {}),
+    ...(verificationPlatform ? { platform: verificationPlatform } : {}),
+    approaches: verificationApproaches,
+    inRun: reportOnly,
+  })
 
   const [reasonFor, setReasonFor] = useState<'rejected' | 'changes-requested' | undefined>()
   const [reason, setReason] = useState('')
@@ -424,8 +442,8 @@ export default function CliRunArtifactPanel({
     walkthroughs: recordings.length,
     reports: reports.length,
     testCount: testTotals?.total ?? 0,
-    testChecks: testChecks.length,
-    buildChecks: buildChecks.length,
+    testChecks: ranReviewChecks(testChecks).length,
+    buildChecks: ranReviewChecks(buildChecks).length,
     changedFiles: changesKnown ? changeFiles.length : files.length > 0 ? files.length : undefined,
   })
   const currentTab: ReviewTabId =
@@ -847,6 +865,7 @@ export default function CliRunArtifactPanel({
                   // the process's own step.
                   onOpenProof={setActiveTab}
                   actions={reportOnly ? undefined : checkActions}
+                  {...(onSetUp ? { onSetUp } : {})}
                 />
               </View>
             ) : null}
@@ -892,6 +911,7 @@ export default function CliRunArtifactPanel({
                     branch={review?.branch}
                     busyId={busyMethod}
                     actions={checkActions}
+                    {...(onSetUp ? { onSetUp } : {})}
                     emptyState={{
                       title: 'This project has no tests at all.',
                       body: 'Nothing here can be proven by running anything. Adding a suite is a code change, so it is work for the agent — and the one request from this panel that changes what every future run can prove.',
@@ -904,6 +924,7 @@ export default function CliRunArtifactPanel({
                     branch={review?.branch}
                     busyId={busyMethod}
                     actions={checkActions}
+                    {...(onSetUp ? { onSetUp } : {})}
                   />
                 ) : currentTab === 'report' ? (
                   <ReportTab reports={reports} onSaveFile={onSaveFile} />

@@ -57,6 +57,8 @@ export interface FeatureFormProps {
   onSearchHandles?: (token: string) => ReadonlyArray<ReferenceSuggestion>
   /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
   canonicalize?: (text: string, before?: string) => string
+  /** Stored text as a person edits it — `#3.2` instead of ids. */
+  toTyped?: (text: string) => string
   /** Render a single blocker chip. */
   renderBlocker?: (dep: string, idx: number, onRemove: () => void) => ReactNode
   /** Project files — feed the context-files picker + chip metadata. */
@@ -141,6 +143,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     onSearchReferences,
     onSearchHandles,
     canonicalize,
+    toTyped,
     renderBlocker,
     files,
     inheritedProofPlan,
@@ -160,6 +163,7 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
     onDirty: onDirtyChange,
     normalizeDependency,
     ...(canonicalize ? { canonicalize } : {}),
+    ...(toTyped ? { toTyped } : {}),
   })
   // A `#` pick is a story or feature this one may depend on; an `&` pick is a note.
   const { addBlocker } = form

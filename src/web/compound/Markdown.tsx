@@ -242,6 +242,12 @@ export type MarkdownProps = {
    * document or a log stays text.
    */
   typedReferences?: boolean
+  /** Text inside a line — a table cell, a list row: paragraphs render as spans, with no block margins. */
+  inline?: boolean
+}
+
+const INLINE_PARAGRAPH: Partial<Components> = {
+  p: ({ children }) => <span>{children}</span>,
 }
 
 export default function Markdown({
@@ -250,6 +256,7 @@ export default function Markdown({
   onResourceLink,
   renderReference: ownRenderReference,
   typedReferences = false,
+  inline = false,
 }: MarkdownProps) {
   const renderReference = useEffectiveReferenceRenderer(ownRenderReference, typedReferences)
   const rehypePlugins = useMemo(() => {
@@ -347,16 +354,22 @@ export default function Markdown({
     }
   }, [onResourceLink, renderReference, appOrigin])
 
+  const shownComponents = useMemo(
+    () => (inline ? { ...activeComponents, ...INLINE_PARAGRAPH } : activeComponents),
+    [activeComponents, inline],
+  )
+  const Wrapper = inline ? 'span' : 'div'
+
   return (
-    <div className="markdown-content">
+    <Wrapper className="markdown-content">
       <MemoizedReactMarkdown
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={rehypePlugins}
         urlTransform={urlTransform}
-        components={activeComponents}
+        components={shownComponents}
       >
         {renderReference ? withReferencesAsCode(text) : text}
       </MemoizedReactMarkdown>
-    </div>
+    </Wrapper>
   )
 }

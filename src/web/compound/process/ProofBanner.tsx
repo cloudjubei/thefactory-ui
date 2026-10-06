@@ -1,7 +1,12 @@
 import { Fragment, useState } from 'react'
 
-import type { VerifyProofDryLine, VerifyProofHeader, VerifyProofTone } from '../../../headless'
-import { IconCheckCircle, IconChevronRight, IconExclamation, IconInfo } from '../../icons'
+import type {
+  StatedProofMode,
+  VerifyProofDryLine,
+  VerifyProofHeader,
+  VerifyProofTone,
+} from '../../../headless'
+import { IconCheckCircle, IconChevronRight, IconExclamation } from '../../icons'
 import { RefChip } from '../chips'
 
 const BOX_TONE: Record<VerifyProofTone, string> = {
@@ -18,10 +23,9 @@ const TITLE_TONE: Record<VerifyProofTone, string> = {
   empty: 'text-(--text-primary)',
 }
 
-const ICON: Record<VerifyProofHeader['mode'], typeof IconInfo> = {
+const ICON: Record<StatedProofMode, typeof IconCheckCircle> = {
   live: IconCheckCircle,
   dry: IconExclamation,
-  unknown: IconInfo,
 }
 
 /**
@@ -128,10 +132,12 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
 /**
  * What data a verification ran on, said before anything else it shows. A dry
  * attempt is one quiet line whose detail folds open — a caveat, not an alarm;
- * a live or unstated one keeps its banner.
+ * a live one keeps its banner. A proof that never named its data says nothing
+ * about it — only which builds its pairs had to come from.
  */
 export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
   if (header.dry) return <DryProofLine dry={header.dry} />
+  if (header.mode === 'unknown') return <ProofBuildLine header={header} />
   const Icon = ICON[header.mode]
   return (
     <div

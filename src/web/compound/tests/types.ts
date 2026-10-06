@@ -1,45 +1,15 @@
 // Structural types the Tests-view components consume. Mirrors the domain
-// shapes from `thefactory-tools` (`TestsResult`, `CoverageResult`, etc.)
-// but stays in this package so consumers don't need a hard dep on the
-// tools package — both web and desktop already produce data in this shape.
+// shapes from `thefactory-tools` (`TestsResult`, `CoverageResult`, etc.); the
+// test-run shapes are shared with the native peer from `headless/utils/testResultsTypes`.
 
-export type TestStatusLike = 'ok' | 'fail' | 'error' | 'skipped'
-
-export type TestFailureLike = {
-  testName?: string
-  message?: string
-  line?: number | null
-  column?: number | null
-  stack?: string
-}
-
-export type TestNameLike = {
-  testName: string
-}
-
-export type TestSummaryLike = {
-  total: number
-  passed: number
-  failed: number
-  skipped: number
-  durationMs?: number | null
-}
-
-export type TestResultLike = {
-  filePath: string
-  status: TestStatusLike
-  summary: TestSummaryLike
-  failures: TestFailureLike[]
-  passes: TestNameLike[]
-  skips: TestNameLike[]
-  rawText?: string
-}
-
-export type TestsResultLike = {
-  status: TestStatusLike
-  summary: TestSummaryLike
-  tests: TestResultLike[]
-}
+export type {
+  TestFailureLike,
+  TestNameLike,
+  TestResultLike,
+  TestStatusLike,
+  TestSummaryLike,
+  TestsResultLike,
+} from '../../../headless/utils/testResultsTypes'
 
 export type CoverageFileStatsLike = {
   pct_lines: number

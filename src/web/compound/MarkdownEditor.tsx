@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import Markdown from './Markdown'
+import ReferenceTextarea from './files/ReferenceTextarea'
 import { Button } from '../primitives/Button'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
@@ -48,6 +49,11 @@ export type MarkdownEditorProps = {
    * Used when the host (e.g. a file pane) provides those controls itself.
    */
   hideHeader?: boolean
+  /**
+   * What the preview renders, when it differs from what is being edited — the
+   * text as it will be saved, references as ids, so they show as chips.
+   */
+  previewText?: string
 }
 
 export const MARKDOWN_PANE_OPTIONS = [
@@ -95,6 +101,7 @@ export default function MarkdownEditor({
   view: controlledView,
   onViewChange,
   hideHeader = false,
+  previewText,
 }: MarkdownEditorProps) {
   const [internalView, setInternalView] = useState<MarkdownEditorPaneView>(initialView)
   const view = controlledView ?? internalView
@@ -169,11 +176,12 @@ export default function MarkdownEditor({
               >
                 Edit view
               </div>
-              <textarea
+              <ReferenceTextarea
                 value={value}
-                onChange={(e) => onChange(e.target.value)}
+                onChange={onChange}
                 spellCheck={false}
-                className="flex-1 w-full resize-none border-0 outline-none p-3 bg-transparent text-(--text-primary) font-mono text-[13px] leading-6"
+                containerClassName="flex-1 min-h-0 flex flex-col"
+                className="flex-1 h-full resize-none rounded-none border-0 outline-none p-3 bg-transparent text-(--text-primary) font-mono text-[13px] leading-6"
               />
             </section>
           )}
@@ -187,7 +195,7 @@ export default function MarkdownEditor({
                 Preview view
               </div>
               <div className="flex-1 overflow-auto p-3">
-                <Markdown text={value || ''} allowHtml={allowHtml} />
+                <Markdown text={previewText ?? (value || '')} allowHtml={allowHtml} />
               </div>
             </section>
           )}

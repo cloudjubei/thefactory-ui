@@ -18,6 +18,7 @@ import {
   withAsksAwaitingOutcome,
   cliRowAsks,
   isAskOutcomeEvent,
+  storedToolCallsAwaitingConfirmation,
 } from './pendingToolGrants'
 import type { ChatContextAgentRunStory } from '../api/generated'
 
@@ -605,7 +606,7 @@ describe('withAsksAwaitingOutcome', () => {
     // Observed: approving flashed every row "did not run" — the pending list
     // dropped the ask on click, before the decision itself arrived.
     expect(withAsksAwaitingOutcome([], [ask('a1')], new Set())).toEqual([
-      { ...ask('a1'), decidedOnRow: false },
+      { ...ask('a1'), decidedOnRow: false, awaitingOutcome: true },
     ])
   })
 
@@ -615,5 +616,43 @@ describe('withAsksAwaitingOutcome', () => {
 
   it('leaves asks still pending as they are', () => {
     expect(withAsksAwaitingOutcome([ask('a1')], [ask('a1')], new Set())).toEqual([ask('a1')])
+  })
+})
+
+describe('storedToolCallsAwaitingConfirmation', () => {
+  const tool = (id: string, type: string) => ({
+    role: 'tool',
+    content: '',
+    toolCall: { toolCallId: id, name: 'readProjectNote', arguments: { id } },
+    toolResult: { type },
+  })
+
+  it('reads the calls a stored chat still waits to have confirmed, so a reloaded page can resume them', () => {
+    // Observed: the agent's calls waited in the chat for a day; nothing outside
+    // the page that sent the turn knew they were there.
+    const messages = [
+      { role: 'user', content: 'go' },
+      tool('t1', 'require_confirmation'),
+      tool('t2', 'require_confirmation'),
+    ]
+    expect(storedToolCallsAwaitingConfirmation(messages).map((c) => c.toolCallId)).toEqual([
+      't1',
+      't2',
+    ])
+  })
+
+  it('reads only the trailing batch, not calls an earlier turn left waiting', () => {
+    const messages = [
+      tool('old', 'require_confirmation'),
+      { role: 'assistant', content: 'later' },
+      tool('t1', 'success'),
+      tool('t2', 'require_confirmation'),
+    ]
+    expect(storedToolCallsAwaitingConfirmation(messages).map((c) => c.toolCallId)).toEqual(['t2'])
+  })
+
+  it('reads nothing once the chat has moved past its tool calls', () => {
+    const messages = [tool('t1', 'require_confirmation'), { role: 'assistant', content: 'done' }]
+    expect(storedToolCallsAwaitingConfirmation(messages)).toEqual([])
   })
 })

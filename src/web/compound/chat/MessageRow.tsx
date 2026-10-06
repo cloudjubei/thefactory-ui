@@ -7,7 +7,7 @@ import RichText from '../files/RichText'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import Tooltip from '../../primitives/Tooltip'
 import { IconDelete, IconRefresh, IconRefreshChat, IconToolbox } from '../../icons'
-import { ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
+import { SubagentSteps, ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
 import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
@@ -552,6 +552,15 @@ function MessageRow({
                 alwaysAllowed={toolAlwaysAllowed}
                 onAlwaysAllow={onAlwaysAllowTool}
               />
+              {msg.subagentMessages?.length ? (
+                <SubagentSteps
+                  messages={msg.subagentMessages}
+                  renderResult={renderToolResult}
+                  getToolHeaderPath={getToolHeaderPath}
+                  renderReference={renderReference}
+                  onResourceLink={onResourceLink}
+                />
+              ) : null}
             </div>
           ) : null}
 

@@ -1231,10 +1231,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         grantedToolCallIds: string[],
         launchDecisions?: Record<string, ProcessLaunchDecision>,
       ) => {
-        const live = getChatLiveState(ctx)
-        const pending = live.pendingToolConfirmation
-        if (!pending) return
-        if (!activeLLMConfig) throw new Error('Configure an LLM before resuming')
+        // The send that proposed these calls is only remembered by the page that
+        // made it. After a reload, a chat switch or another device, the calls are
+        // still waiting in the stored chat, so resume from that with the chat's
+        // own settings — a footer that shows Resume must never do nothing.
+        const pending = getChatLiveState(ctx).pendingToolConfirmation ?? {
+          toolCalls: [],
+          context: ctx,
+          ...buildToolSettings(ctx),
+        }
 
         updateLiveState(ctx, {
           isSending: true,
@@ -1243,6 +1248,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         })
         inFlightCtxRef.current = ctx
         try {
+          if (!activeLLMConfig) throw new Error('Configure an LLM before resuming')
           // The backend resumes on the conversation in its chat store — the
           // trailing tool calls being granted are there. Uploading the chat
           // here hit the request size limit once a chat held large tool results.
@@ -1285,7 +1291,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           updateLiveState(ctx, { isSending: false, pendingAssistant: null })
         }
       },
-      [activeLLMConfig, fetchChat, getChatLiveState, reloadChat, updateLiveState],
+      [activeLLMConfig, buildToolSettings, getChatLiveState, reloadChat, updateLiveState],
     )
 
     const cancelToolConfirmation = useCallback(

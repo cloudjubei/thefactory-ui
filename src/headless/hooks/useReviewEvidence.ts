@@ -10,30 +10,26 @@ import { EVIDENCE_NOTE_FETCH_CONCURRENCY } from '../utils/processViewCacheConsta
 import { notesToRead, toEvidenceTile } from '../utils/reviewEvidenceView'
 import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
 import type { EvidenceTile } from '../utils/reviewEvidenceViewTypes'
+import { EvidenceImageLoader, evidenceDataUri } from './evidenceImageLoader'
 import { reviewEvidenceCache } from './processViewCache'
-
-/** Turn a fetched body into a data URI usable by both `<img>` and RN `<Image>`. */
-function toDataUri(data: unknown, mediaType: string): string | undefined {
-  if (typeof data === 'string') {
-    // Already a data URI (some transports hand one back); otherwise treat as raw base64.
-    return data.startsWith('data:') ? data : `data:${mediaType};base64,${data}`
-  }
-  if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-    const bytes =
-      data instanceof ArrayBuffer
-        ? new Uint8Array(data)
-        : new Uint8Array(data.buffer as ArrayBuffer)
-    let binary = ''
-    for (const byte of bytes) binary += String.fromCharCode(byte)
-    return `data:${mediaType};base64,${btoa(binary)}`
-  }
-  return undefined
-}
 
 type EvidenceQuery = { runId?: string; storyId?: string; featureId?: string }
 
 function evidenceQueryKey(projectId: string | undefined, query: EvidenceQuery): string {
   return [projectId, query.runId, query.storyId, query.featureId].map((p) => p ?? '').join('|')
+}
+
+async function fetchEvidenceImage(
+  projectId: string,
+  evidenceId: string,
+  mediaType: string,
+): Promise<string | undefined> {
+  const res = await getReviewEvidenceContent({
+    path: { projectId, evidenceId },
+    responseType: 'arraybuffer',
+    throwOnError: true,
+  } as never)
+  return evidenceDataUri((res as { data?: unknown }).data, mediaType)
 }
 
 async function readNoteText(projectId: string, evidenceId: string): Promise<string | undefined> {
@@ -112,9 +108,13 @@ export function useReviewEvidence(
   )
   const [error, setError] = useState<string | undefined>()
   const epochRef = useRef(0)
-  // An id is requested at most once per hook instance — its bytes never change,
-  // so a re-pull that leaves the id present must not refetch it.
-  const requestedRef = useRef<Set<string>>(new Set())
+  const [imageLoader] = useState(
+    () =>
+      new EvidenceImageLoader(fetchEvidenceImage, (id, dataUri) =>
+        setImages((prev) => (prev[id] ? prev : { ...prev, [id]: dataUri })),
+      ),
+  )
+  imageLoader.setScope(projectId)
   // The notes whose text is held or on its way — the same rule for text.
   const notesHeldRef = useRef<Set<string>>(new Set(Object.keys(cached?.notes ?? {})))
   // A live mirror of the cache so `loadImage` can answer from it without taking
@@ -130,40 +130,14 @@ export function useReviewEvidence(
   }, [loadedKey, refs, notes])
 
   const loadImage = useCallback(
-    async (id: string, mediaType: string): Promise<string | undefined> => {
-      if (!projectId) return undefined
-      const cached = imagesRef.current[id]
-      if (cached) return cached
-      const epoch = epochRef.current
-      try {
-        const res = await getReviewEvidenceContent({
-          path: { projectId, evidenceId: id },
-          responseType: 'arraybuffer',
-          throwOnError: true,
-        } as never)
-        const dataUri = toDataUri((res as { data?: unknown }).data, mediaType)
-        if (!dataUri) return undefined
-        // Only write into state while the query is still the one that asked; the
-        // bytes are still returned, so a racing save gets them regardless.
-        if (epoch === epochRef.current) {
-          setImages((prev) => (prev[id] ? prev : { ...prev, [id]: dataUri }))
-        }
-        return dataUri
-      } catch {
-        // One unreadable file must not blank the whole gallery.
-        return undefined
-      }
-    },
-    [projectId],
+    async (id: string, mediaType: string): Promise<string | undefined> =>
+      imagesRef.current[id] ?? imageLoader.loadImage(id, mediaType),
+    [imageLoader],
   )
 
   const requestImage = useCallback(
-    (id: string, mediaType: string) => {
-      if (requestedRef.current.has(id)) return
-      requestedRef.current.add(id)
-      void loadImage(id, mediaType)
-    },
-    [loadImage],
+    (id: string, mediaType: string) => imageLoader.requestImage(id, mediaType),
+    [imageLoader],
   )
 
   const reload = useCallback(async () => {
@@ -172,7 +146,7 @@ export function useReviewEvidence(
       setRefs([])
       setImages({})
       setNotes({})
-      requestedRef.current = new Set()
+      imageLoader.reset()
       notesHeldRef.current = new Set()
       setLoadedKey(key)
       return
@@ -224,7 +198,7 @@ export function useReviewEvidence(
         setLoadedKey(key)
       }
     }
-  }, [projectId, runId, storyId, featureId])
+  }, [projectId, runId, storyId, featureId, imageLoader])
 
   useEffect(() => {
     void reload()

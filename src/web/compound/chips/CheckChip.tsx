@@ -35,6 +35,9 @@ export type CheckChipProps = {
   /** Renders the chip inert — for a block heading that is not a control. */
   inert?: boolean
   className?: string
+  /** The chip is a tab, and the tab it opens is showing. */
+  selected?: boolean
+  role?: 'tab'
 }
 
 /**
@@ -42,7 +45,14 @@ export type CheckChipProps = {
  * state. The glyph never changes — a reader learns "this is lint" once — and
  * colour says only pass / fail / flagged / absent.
  */
-export default function CheckChip({ row, onClick, inert, className }: CheckChipProps) {
+export default function CheckChip({
+  row,
+  onClick,
+  inert,
+  className,
+  selected,
+  role,
+}: CheckChipProps) {
   const Glyph = GLYPH[row.id]
   const face = checkChipFace(row)
   return (
@@ -51,6 +61,8 @@ export default function CheckChip({ row, onClick, inert, className }: CheckChipP
       className={['check-chip', className ?? ''].filter(Boolean).join(' ')}
       data-state={row.state}
       data-method={row.id}
+      role={role}
+      aria-selected={role ? selected === true : undefined}
       aria-label={`${row.label}: ${face.stateLabel}`}
       onClick={onClick}
       disabled={inert}

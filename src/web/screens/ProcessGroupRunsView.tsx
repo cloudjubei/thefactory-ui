@@ -26,6 +26,8 @@ export type ProcessGroupRunsViewProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open a chat by its context — threaded to a project's pipeline. */
   onOpenChat?: (context: ChatContext) => void
+  /** Render a run's own chat in the run's chat drawer. Threaded to the pipeline. */
+  renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
   /** One pane at a time (small screens). */
   narrow?: boolean
 }
@@ -44,6 +46,7 @@ export default function ProcessGroupRunsView({
   onOpenAgentRun,
   renderAgentRun,
   onOpenChat,
+  renderChat,
   narrow = false,
 }: ProcessGroupRunsViewProps) {
   const { isLoaded, current, history } = useProcessGroupRuns(groupId)
@@ -121,6 +124,7 @@ export default function ProcessGroupRunsView({
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
             {...(renderAgentRun ? { renderAgentRun } : {})}
             {...(onOpenChat ? { onOpenChat } : {})}
+            {...(renderChat ? { renderChat } : {})}
           />
         </div>
       </div>

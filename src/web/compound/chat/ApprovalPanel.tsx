@@ -22,6 +22,7 @@ import {
   featureProcessMetadata,
   featuresToWork,
   isGitSetupGrant,
+  isRunProposalGrant,
   isStartGroupWorkGrant,
   launchProofPlanRows,
   proofPlanMetadata,
@@ -46,6 +47,7 @@ import ProofPlanConfirm from './ProofPlanConfirm'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
+import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -119,6 +121,9 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         onDecideLater={props.onDecideLater}
       />
     )
+  }
+  if (isRunProposalGrant(props.grant)) {
+    return <RunProposalApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
   }
   return isGitSetupGrant(props.grant) ? (
     <GitSetupApprovalPanel

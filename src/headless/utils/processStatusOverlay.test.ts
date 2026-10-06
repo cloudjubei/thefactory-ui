@@ -92,6 +92,57 @@ describe('processStatusOverlay', () => {
     expect(processStatusOverlay(undefined)).toBeUndefined()
   })
 
+  const approvedRun = (integration?: ProcessRun['integration'], shadow = false) =>
+    ({
+      id: 'run-1',
+      status: 'succeeded',
+      workBranch: { name: 'factory/x-1', baseRef: 'main', baseSha: 'a'.repeat(40), shadow },
+      plan: { steps: [{ id: 'sign-off', name: 'Sign-off', kind: 'gate' }], loops: [] },
+      ledger: [
+        {
+          id: 'e1',
+          stepId: 'sign-off',
+          iteration: 1,
+          status: 'done',
+          startedAt: 0,
+          override: { choice: 'approve', at: 1, integration: 'squash' },
+        },
+      ],
+      ...(integration ? { integration } : {}),
+    }) as unknown as ProcessRun
+
+  it('approved work that did not land says so and links to the run, where it is brought in', () => {
+    expect(
+      processStatusOverlay(approvedRun({ mode: 'squash', status: 'failed', error: 'x', at: 2 })),
+    ).toEqual({
+      label: 'Not merged',
+      semantic: 'onhold',
+      title: PROCESS_STATUS_OVERLAY_TITLES.notLanded,
+      runId: 'run-1',
+    })
+  })
+
+  it('approved work in a project without git of its own says it was not brought in', () => {
+    expect(processStatusOverlay(approvedRun(undefined, true))?.label).toBe('Not brought in')
+  })
+
+  it('approved work being brought in shows it is landing', () => {
+    expect(
+      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrating', at: 2 })),
+    ).toEqual({
+      label: 'Landing',
+      semantic: 'working',
+      title: PROCESS_STATUS_OVERLAY_TITLES.landing,
+      runId: 'run-1',
+    })
+  })
+
+  it('approved work that landed yields NO overlay — the stored status stands', () => {
+    expect(
+      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrated', at: 2 })),
+    ).toBeUndefined()
+  })
+
   it('parked with no park record at all falls back to Blocked, never Reviewable', () => {
     expect(processStatusOverlay(run({ status: 'parked' }))?.label).toBe('Blocked')
   })

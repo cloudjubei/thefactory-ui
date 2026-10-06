@@ -43,6 +43,8 @@ export interface StoryFormProps {
   mentions?: StoryFormMentions
   /** Turns what was typed (`#3.2`, `&qa-login`) into ids on save. */
   canonicalize?: (text: string, before?: string) => string
+  /** Stored text as a person edits it — `#3.2` instead of ids. */
+  toTyped?: (text: string) => string
 }
 
 const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm(
@@ -55,6 +57,7 @@ const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm
     renderProjectChip,
     mentions,
     canonicalize,
+    toTyped,
   },
   ref,
 ) {
@@ -63,6 +66,7 @@ const StoryForm = forwardRef<StoryFormHandle, StoryFormProps>(function StoryForm
     onSubmit,
     onDirty: onDirtyChange,
     ...(canonicalize ? { canonicalize } : {}),
+    ...(toTyped ? { toTyped } : {}),
   })
   const localTitleRef = useRef<RNTextInput>(null)
   const titleInputRef = titleRef ?? localTitleRef

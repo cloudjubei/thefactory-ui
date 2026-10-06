@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { chatUnreadMessages, computeChatRowStatus, isChatUnread, markSeen } from './chatRowStatus'
+import {
+  chatRowBadge,
+  chatUnreadMessages,
+  computeChatRowStatus,
+  isChatUnread,
+  markSeen,
+  type ChatRowStatus,
+} from './chatRowStatus'
+import { CHAT_AWAITING_ANSWER_LABEL } from './chatUnreadConstants'
 
 describe('markSeen', () => {
   it('returns a new object with the new value', () => {
@@ -37,7 +45,7 @@ describe('isChatUnread', () => {
   })
 })
 
-describe('computeChatRowStatus — an ask waiting on the user counts as unread', () => {
+describe('computeChatRowStatus — an ask waiting on the user', () => {
   const base: Parameters<typeof computeChatRowStatus>[0] = {
     context: { type: 'PROJECT', projectId: 'p' },
     contextKey: '/projects/p',
@@ -46,24 +54,64 @@ describe('computeChatRowStatus — an ask waiting on the user counts as unread',
     seen: { '/projects/p': '2026-10-02T11:00:00.000Z' },
   }
 
-  it('reads a fully read chat with a pending ask as unread, counting the ask', () => {
+  it('reads a fully read chat with a pending ask as needing the user, with no unread messages', () => {
+    // Observed: a chat read to its end, with the agent's question open, showed
+    // a red "1" — as if there were a message the user had not seen.
     expect(computeChatRowStatus({ ...base, pendingAsks: 2 })).toMatchObject({
       isUnread: true,
-      unreadCount: 2,
+      unreadCount: 0,
+      awaitingAnswer: true,
     })
   })
 
-  it('adds the asks to the unread replies', () => {
+  it('counts only the unread messages when there are some', () => {
     const status = computeChatRowStatus({
       ...base,
       seen: { '/projects/p': '2026-10-02T09:00:00.000Z' },
       pendingAsks: 1,
     })
-    expect(status).toMatchObject({ isUnread: true, unreadCount: 2 })
+    expect(status).toMatchObject({ isUnread: true, unreadCount: 1, awaitingAnswer: true })
   })
 
   it('leaves a read chat with no ask read', () => {
-    expect(computeChatRowStatus(base)).toMatchObject({ isUnread: false, unreadCount: 0 })
+    expect(computeChatRowStatus(base)).toMatchObject({
+      isUnread: false,
+      unreadCount: 0,
+      awaitingAnswer: false,
+    })
+  })
+})
+
+describe('chatRowBadge', () => {
+  const status = (over: Partial<ChatRowStatus>): ChatRowStatus => ({
+    isThinking: false,
+    isUnread: true,
+    unreadCount: 0,
+    awaitingAnswer: false,
+    isAgentRunning: false,
+    ...over,
+  })
+
+  it('shows "!" for a chat whose messages are all read but which waits on the user', () => {
+    expect(chatRowBadge(status({ awaitingAnswer: true }))).toEqual({
+      text: '!',
+      label: CHAT_AWAITING_ANSWER_LABEL,
+    })
+  })
+
+  it('shows the unread messages while there are some, ask or not', () => {
+    expect(chatRowBadge(status({ unreadCount: 3, awaitingAnswer: true }))).toEqual({
+      text: '3',
+      label: '3 unread messages',
+    })
+  })
+
+  it('caps a wide count', () => {
+    expect(chatRowBadge(status({ unreadCount: 120 }))?.text).toBe('99+')
+  })
+
+  it('shows nothing for a read chat with nothing waiting', () => {
+    expect(chatRowBadge(status({ isUnread: false }))).toBeUndefined()
   })
 })
 

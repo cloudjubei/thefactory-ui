@@ -3,7 +3,18 @@
 // generated backend client; these describe what the settings form holds and
 // what it sends.
 
-import type { ProjectNoteAccess, ProjectNoteKind } from '../api'
+import type { ProjectNoteAccess, ProjectNoteKind, ProjectNoteSummary } from '../api'
+
+/**
+ * A note as listed, whoever holds it — a project or a group. Everything the
+ * notes UI reads; the owner is the screen's, not the note's.
+ */
+export type NoteSummary = Omit<ProjectNoteSummary, 'projectId'>
+
+/** Whose notes a notes screen manages. An undefined id idles the screen. */
+export type NotesOwner =
+  | { kind: 'project'; projectId: string | undefined }
+  | { kind: 'group'; groupId: string | undefined }
 
 /** Whether the form is minting a new note or editing an existing one. */
 export type ProjectNoteFormMode = 'create' | 'edit'

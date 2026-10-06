@@ -13,7 +13,9 @@ import {
   type LlmConfigCreateInput,
   type LlmConfigEditInput,
 } from '../api/generated'
+import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
+import { LLM_CONFIGS_EVENT } from '../utils/credentialStoreEventConstants'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
 
 /** CLI-agent selection for background activities — mirrors the `runActivity` `cliModel` body. */
@@ -177,6 +179,7 @@ export type LLMConfigsProviderProps = {
 
 export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProps) {
   const { token } = useAuth()
+  const { ws } = useApi()
   const [configs, setConfigs] = useState<GetLlmConfigResponse[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
@@ -322,6 +325,9 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       setIsLoaded(true)
     }
   }, [])
+  // Whoever wrote it — another window, an agent's credential form or admin
+  // tool — the list refetches, instead of staying the snapshot taken at login.
+  useEffect(() => ws.on(LLM_CONFIGS_EVENT, () => void refresh()), [ws, refresh])
 
   useEffect(() => {
     if (!token) return

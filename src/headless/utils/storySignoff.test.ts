@@ -25,7 +25,6 @@ import {
   signoffEvidence,
   signoffFixSectionProps,
   signoffLoadStatus,
-  signoffReviewLine,
   signoffSectionProps,
   signoffSections,
   signoffVerifyViews,
@@ -98,14 +97,14 @@ describe('aggregateStoryVerdict', () => {
     const v = aggregateStoryVerdict([fs('proven'), acceptedFs('Checkout')], undefined)
     expect(v.key).toBe('partly')
     expect(v.title).toBe('1 of 2 features proven · 1 accepted by you')
-    expect(v.detail).toBe('Accepted by you without the gate passing it: Checkout.')
+    expect(v.detail).toBe('')
   })
 
-  it('names every accepted feature when nothing else is open', () => {
+  it('counts every accepted feature in the title and leaves naming them to the ⚠ notice', () => {
     const v = aggregateStoryVerdict([acceptedFs('Checkout'), acceptedFs('Cart')], undefined)
     expect(v.key).toBe('partly')
     expect(v.title).toBe('0 of 2 features proven · 2 accepted by you')
-    expect(v.detail).toBe('Accepted by you without the gate passing them: Checkout · Cart.')
+    expect(v.detail).toBe('')
   })
 
   it('does not count an accepted feature as one still to prove', () => {
@@ -114,14 +113,14 @@ describe('aggregateStoryVerdict', () => {
       undefined,
     )
     expect(v.title).toBe('1 of 3 features proven')
-    expect(v.detail).toBe('1 still needs proving. 1 accepted by you without the gate passing it.')
+    expect(v.detail).toBe('1 still needs proving.')
   })
 
   it('does not read an accepted feature as one that passed what ran', () => {
     const v = aggregateStoryVerdict([acceptedFs('Checkout'), fs('not-run')], undefined)
     expect(v.key).toBe('partly')
     expect(v.title).toBe('Nothing is proven yet')
-    expect(v.detail).toBe('1 accepted by you without the gate passing it.')
+    expect(v.detail).toBe('')
   })
 
   describe('over the story’s own steps', () => {
@@ -770,6 +769,28 @@ describe("buildStorySignoff — time and cost are the pipeline's", () => {
     })
   })
 
+  it('breaks the same work down by step for the report, the gate and nested steps left out', () => {
+    const stepped = {
+      ...child('pr1', 44 * MIN, 2),
+      totals: totals({
+        workMs: 44 * MIN,
+        steps: { implement: { workMs: 44 * MIN, attempts: [] } },
+      }),
+    } as StorySignoffProcessRun
+    const work = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [root, child('old', 3 * MIN, 1), stepped],
+      cliRuns: [],
+      evidence: [],
+      storyRunId: 'root',
+    }).work
+    expect(work?.steps.map((s) => [s.label, s.workMs / MIN])).toEqual([
+      ['implement', 44],
+      ['walkthrough', 6],
+    ])
+    expect(work?.workMs).toBe(50 * MIN)
+  })
+
   it("gives the Overall the story's own steps, never its features", () => {
     expect(signoff().overall?.facts).toEqual({
       durationLabel: '6m 00s',
@@ -1341,9 +1362,10 @@ describe('buildStorySignoff — the accepted verify attempt', () => {
       proven: 0,
       tally: { label: '0/1' },
     })
-    expect(story('unchecked', { override: { choice: 'approve', at: 20 } }).headline?.title).toBe(
-      '0 of 1 feature proven · 1 accepted by you',
-    )
+    expect(story('unchecked', { override: { choice: 'approve', at: 20 } }).headline).toEqual({
+      title: '0 of 1 feature proven · 1 accepted by you',
+      detail: undefined,
+    })
   })
 
   it('has no accepted attempt for a feature whose runs never verified', () => {
@@ -2235,6 +2257,30 @@ describe('buildStorySignoff — the story’s code review and final report', () 
         detail: REASON,
         action: { kind: 'open-proof', tab: 'code-review' },
       })
+    })
+
+    it('keeps the ledger’s verdict for the Code review tab’s badge when the filing lost its own', () => {
+      const s = signoffOf(
+        [
+          step('code-review', 'cr-run', {
+            outcome: 'passed',
+            review: { verdict: 'approved', reason: 'All acceptance criteria are met.' },
+          }),
+        ],
+        [
+          codeReview({
+            unvouchedReason: 'The backend restarted since this was filed.',
+          } as Partial<ReviewEvidenceRef>),
+        ],
+      )
+      expect(s.overall?.codeReview).toEqual({
+        verdict: 'approved',
+        reason: 'All acceptance criteria are met.',
+      })
+    })
+
+    it('has no code review verdict before the story’s review has run', () => {
+      expect(signoffOf([], []).overall?.codeReview).toBeUndefined()
     })
 
     it('lets the ledger’s verdict outrank a vouched finding that disagrees', () => {
@@ -3424,7 +3470,13 @@ describe('buildStorySignoff — the story’s fix passes', () => {
   const fixRun = (
     pass: number,
     at: number,
-    opts: { verify?: Entry; review?: Entry; totals?: unknown } = {},
+    opts: {
+      verify?: Entry
+      review?: Entry
+      report?: Entry
+      totals?: unknown
+      input?: Record<string, unknown>
+    } = {},
   ) =>
     ({
       id: `fix-${pass}`,
@@ -3433,6 +3485,7 @@ describe('buildStorySignoff — the story’s fix passes', () => {
       startedAt: T + at * MIN,
       plan: fixPlan,
       ...(opts.totals ? { totals: opts.totals } : {}),
+      ...(opts.input ? { input: opts.input } : {}),
       ledger: [
         entry(`fi${pass}`, 'implement', at, { runRef: { runId: `fixer-${pass}` } }),
         entry(`fc${pass}`, 'code-review', at + 2, {
@@ -3445,7 +3498,10 @@ describe('buildStorySignoff — the story’s fix passes', () => {
           ...verified,
           ...opts.verify,
         }),
-        entry(`fr${pass}`, 'report', at + 6, { runRef: { runId: `fix-rep-${pass}` } }),
+        entry(`fr${pass}`, 'report', at + 6, {
+          runRef: { runId: `fix-rep-${pass}` },
+          ...opts.report,
+        }),
       ],
     }) as unknown as StorySignoffProcessRun
   const rootRun = (ledger: Entry[], totals?: unknown, plan = rootPlan) =>
@@ -3750,6 +3806,39 @@ describe('buildStorySignoff — the story’s fix passes', () => {
       expect(s.verdict).toMatchObject({ key: 'partly', title: 'Fix · pass 2 is not proven' })
     })
 
+    it('names the person’s unmet request over a newest fix pass whose steps all passed', () => {
+      const unmet = 'Your request “show me UI proof” is not met: Partly. No screenshots were filed.'
+      const s = signoffOf({
+        fixes: [fixRun(1, 11), fixRun(2, 31, { report: { unmetRequest: unmet } })],
+      })
+      expect(s.verdict).toMatchObject({
+        key: 'partly',
+        title: 'Fix · pass 2: your request is not met',
+        detail: unmet,
+      })
+      expect(s.headline).toEqual({ title: 'Fix · pass 2: your request is not met', detail: unmet })
+      expect(s.fixes[0].unmetRequest).toBe(unmet)
+    })
+
+    it('marks the proof a fix pass’s request required', () => {
+      const s = signoffOf({
+        fixes: [
+          fixRun(1, 11),
+          fixRun(2, 31, {
+            input: {
+              changeRequest: {
+                from: 'sign-off',
+                note: 'show me UI proof',
+                proofKinds: ['ui-before-after'],
+              },
+            },
+          }),
+        ],
+      })
+      expect(s.fixes[0].proofPlan?.map((r) => r.kind)).toEqual(['ui-before-after'])
+      expect(s.fixes[1].proofPlan).toBeUndefined()
+    })
+
     it('leaves an earlier pass the newest one superseded out of it', () => {
       const s = signoffOf({
         fixes: [fixRun(1, 11, { verify: { outcome: 'failed', summary: 'Grey.' } }), fixRun(2, 31)],
@@ -3772,6 +3861,21 @@ describe('buildStorySignoff — the story’s fix passes', () => {
         ['Code review · Approved', undefined],
       ])
       expect(props(first)).toEqual([['Code review · Approved', undefined]])
+    })
+
+    it('says why your request is not met, after your note', () => {
+      const unmet = 'Your request “x” is not met: Before/after screens: none.'
+      const [newest] = signoffOf({
+        fixes: [fixRun(1, 11), fixRun(2, 31, { report: { unmetRequest: unmet } })],
+      }).fixes
+      expect(
+        signoffFixSectionProps(EMPTY_SIGNOFF_SECTION, undefined, newest)
+          .notes.slice(0, 2)
+          .map((n) => [n.label, n.reason, n.tone]),
+      ).toEqual([
+        ['Your note', NOTE, 'review'],
+        ['Your request is not met', unmet, 'stuck'],
+      ])
     })
 
     it('says a fix, not a feature, filed nothing', () => {
@@ -4229,13 +4333,6 @@ describe('buildStorySignoff — a feature its developer-verifier implemented and
   })
   const feature = signoff.features[0]!
 
-  it('says the story’s features were worked by one agent that proved its own change', () => {
-    expect(signoff.featureProcess).toBe('Developer + verifier in one')
-    expect(signoffReviewLine(signoff)).toMatch(
-      /^Features worked by: Developer \+ verifier in one\./,
-    )
-  })
-
   it('reads the feature’s proof from its developer-verifier’s own attempt', () => {
     expect(feature.verify?.entry.id).toBe('e-i')
     expect(feature.verify?.review).toMatchObject({ reviewedRunId: 'dv' })
@@ -4255,17 +4352,6 @@ describe('buildStorySignoff — a feature its developer-verifier implemented and
     expect(props.pairs).toHaveLength(1)
     expect(props.reports.map((t) => t.ref.id)).toContain('dev-report')
     expect(props.codeReviews.map((t) => t.ref.id)).toEqual(['review'])
-  })
-
-  it('names no way of working for a story run without a feature process the approval offers', () => {
-    const plain = buildStorySignoff({
-      features: [{ id: 'f1', title: 'Fonts' }],
-      processRuns: [featureRun],
-      cliRuns: [run({ id: 'dv', processRunId: 'f1-run', createdAt: T })],
-      evidence,
-    })
-    expect(plain.featureProcess).toBeUndefined()
-    expect(signoffReviewLine(plain)).toMatch(/^Each feature went through the review process/)
   })
 })
 

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  byLastActivity,
+  chatLastActivityAt,
   chatMessageCount,
   chatMessageTimes,
   isChatLoaded,
-  withAppendedMessage,
-  withSummary,
   type ChatListEntry,
   type ChatSummaryLike,
+  withAppendedMessage,
+  withSummary,
 } from './chatListEntry'
 
 const ctx = { type: 'PROJECT' as const, projectId: 'p' }
@@ -74,5 +76,40 @@ describe('withAppendedMessage', () => {
   it('leaves a summary alone — one message is not the chat', () => {
     const entry = summary(4)
     expect(withAppendedMessage(entry, message)).toBe(entry)
+  })
+})
+
+describe('chatLastActivityAt', () => {
+  it('is the newest message, even when the chat was marked updated earlier', () => {
+    // Observed: a chat whose reply landed last listed below one updated a
+    // minute before it.
+    expect(
+      chatLastActivityAt({
+        updatedAt: '2026-10-06T20:09:33.704Z',
+        messageTimes: ['2026-10-06T20:00:00.000Z', '2026-10-06T20:10:56.441Z'],
+      }),
+    ).toBe('2026-10-06T20:10:56.441Z')
+  })
+
+  it('is the newest message, not a later edit that added none', () => {
+    expect(
+      chatLastActivityAt({
+        updatedAt: '2026-10-05T23:51:01.563Z',
+        messages: [{ completedAt: '2026-10-05T08:12:51.953Z' }],
+      }),
+    ).toBe('2026-10-05T08:12:51.953Z')
+  })
+
+  it('falls back to when the chat was updated, then created, while it has no timed message', () => {
+    expect(chatLastActivityAt({ updatedAt: 'u', createdAt: 'c', messageTimes: [null] })).toBe('u')
+    expect(chatLastActivityAt({ createdAt: 'c' })).toBe('c')
+  })
+})
+
+describe('byLastActivity', () => {
+  it('lists the chat with the newest message first, to the millisecond', () => {
+    const older = { messageTimes: ['2026-10-06T20:10:56.400Z'] }
+    const newer = { messageTimes: ['2026-10-06T20:10:56.441Z'] }
+    expect([older, newer].sort(byLastActivity)).toEqual([newer, older])
   })
 })

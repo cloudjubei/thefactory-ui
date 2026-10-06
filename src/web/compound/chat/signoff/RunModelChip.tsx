@@ -1,4 +1,4 @@
-import { agentRoleLabel, type RunModel } from '../../../../headless'
+import { agentRoleLabel, runModelLabel, type RunModel } from '../../../../headless'
 import Tooltip from '../../../primitives/Tooltip'
 
 export type RunModelChipProps = {
@@ -17,7 +17,7 @@ export type RunModelChipProps = {
  */
 export default function RunModelChip({ model, role }: RunModelChipProps) {
   if (!model) return null
-  const line = model.model ?? model.tool
+  const line = runModelLabel(model)
   if (!line) return null
   const roleName = role ? agentRoleLabel(role) : undefined
   return (
