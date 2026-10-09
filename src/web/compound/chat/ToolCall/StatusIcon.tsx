@@ -6,6 +6,10 @@ import {
   IconXCircle,
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless'
+import {
+  BACKGROUND_TOOL_LABEL,
+  BACKGROUND_TOOL_RESULT_TYPE,
+} from '../../../../headless/utils/backgroundJobsConstants'
 import type { ToolResultType } from './types'
 
 /**
@@ -27,11 +31,14 @@ export function StatusChip({
   resultType,
   timeLabel,
   awaitingDecision = false,
+  slowLabel,
 }: {
   resultType?: ToolResultType
   timeLabel?: string
   /** The call waits on the user's decision elsewhere: say so rather than spin. */
   awaitingDecision?: boolean
+  /** A running call that has run a while: where it waits, and for how long. */
+  slowLabel?: string
 }) {
   const chip = DURATION_CHIP_CLASS
   if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
@@ -42,10 +49,14 @@ export function StatusChip({
     )
   }
   if (resultType === 'pending') return <span className={chip}>Queued</span>
+  if (resultType === BACKGROUND_TOOL_RESULT_TYPE) {
+    return <span className={chip}>{BACKGROUND_TOOL_LABEL}</span>
+  }
   if (resultType === 'running') {
     return (
-      <span className={`${chip} px-2`} aria-label="Running">
+      <span className={`${chip} px-2`} aria-label={slowLabel ?? 'Running'}>
         <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        {slowLabel ? <span>{slowLabel}</span> : null}
       </span>
     )
   }
@@ -66,6 +77,7 @@ export default function StatusIcon({ resultType }: { resultType?: ToolResultType
       return <IconXCircle className={`${cls} text-neutral-500`} />
     case 'pending':
     case 'running':
+    case BACKGROUND_TOOL_RESULT_TYPE:
       return <IconHourglass className={`${cls} text-blue-500`} />
     case 'require_confirmation':
       return <IconHourglass className={`${cls} text-teal-500`} />

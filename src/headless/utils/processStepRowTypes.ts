@@ -21,6 +21,7 @@ export type ProcessStepPreviewKind =
   | 'stages'
   | 'checks'
   | 'attempt'
+  | 'signoff'
   | 'none'
 
 /** One stage of a feature step's own pipeline, as a chip that opens its view. */

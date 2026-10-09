@@ -52,7 +52,7 @@ import { Button } from '../../../primitives/Button'
 import FullScreenOverlay from '../../../primitives/FullScreenOverlay'
 import SegmentedControl from '../../../primitives/SegmentedControl'
 import { Slider } from '../../../primitives/Slider'
-import RefChip from '../../chips/RefChip'
+import CommitChip from '../../chips/CommitChip'
 import { chipPillStyle, chipPillTextStyle } from '../../chips/pillStyles'
 
 export type ComparisonOverlayProps = {
@@ -84,11 +84,11 @@ function Pill({ word }: { word: 'Before' | 'After' }) {
 }
 
 /** A side's build as its own record states it, and apart, what it was expected to be — see the web peer. */
-function BuildMarks({ build }: { build: CaptureBuildCaption }) {
+function BuildMarks({ projectId, build }: { projectId: string; build: CaptureBuildCaption }) {
   const { theme, status } = useNativeTheme()
   return (
     <>
-      {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.builtSha ? <CommitChip projectId={projectId} sha={build.builtSha} /> : null}
       {build.sameCodeAsExpected ? (
         <Text style={{ fontSize: 12, color: theme.text.muted }}>{CAPTURE_SAME_CODE_LABEL}</Text>
       ) : null}
@@ -98,14 +98,22 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
       {build.expectedSha ? (
         <>
           <Text style={{ fontSize: 12, color: theme.text.muted }}>expected</Text>
-          <RefChip kind="commit" value={build.expectedSha} />
+          <CommitChip projectId={projectId} sha={build.expectedSha} />
         </>
       ) : null}
     </>
   )
 }
 
-function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuildCaption }) {
+function Caption({
+  projectId,
+  word,
+  build,
+}: {
+  projectId: string
+  word: 'Before' | 'After'
+  build: CaptureBuildCaption
+}) {
   return (
     <View
       style={{
@@ -117,7 +125,7 @@ function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuil
       }}
     >
       <Pill word={word} />
-      <BuildMarks build={build} />
+      <BuildMarks projectId={projectId} build={build} />
     </View>
   )
 }
@@ -425,7 +433,7 @@ export default function ComparisonOverlay({
                       natural={beforeNatural}
                       loading={loading}
                     />
-                    <Caption word="Before" build={beforeBuild} />
+                    <Caption projectId={projectId} word="Before" build={beforeBuild} />
                   </View>
                 ) : null}
                 {pair?.after ? (
@@ -436,7 +444,7 @@ export default function ComparisonOverlay({
                       natural={afterNatural}
                       loading={loading}
                     />
-                    <Caption word="After" build={afterBuild} />
+                    <Caption projectId={projectId} word="After" build={afterBuild} />
                   </View>
                 ) : null}
               </>
@@ -502,10 +510,10 @@ export default function ComparisonOverlay({
               }}
             >
               <Pill word="Before" />
-              <BuildMarks build={beforeBuild} />
+              <BuildMarks projectId={projectId} build={beforeBuild} />
               <Text style={{ fontSize: 12, color: theme.text.muted }}>drag</Text>
               <Pill word="After" />
-              <BuildMarks build={afterBuild} />
+              <BuildMarks projectId={projectId} build={afterBuild} />
             </View>
             <View style={{ width: Math.min(slideWidth, screenWidth - 32) }}>
               <Slider value={slidePct} min={0} max={100} onChange={setSlidePct} />

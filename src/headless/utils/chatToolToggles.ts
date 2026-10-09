@@ -1,6 +1,5 @@
 import type {
   ChatToolApprovalToggle,
-  ChatToolAxis,
   ChatToolCatalogEntry,
   ChatToolRunner,
   ChatToolSettings,
@@ -12,7 +11,7 @@ import type {
  * Pure half of the chat settings Tools section, shared by web, desktop and
  * mobile. The clients each held their own copy of this logic and had already
  * drifted; worse, every copy built its row list from the chat's OWN stored
- * `availableTools ∪ autoCallTools`, so a tool the chat did not already carry
+ * tool lists, so a tool the chat did not already carry
  * could never be switched on and every row rendered a blank description. The
  * rows here come from the backend catalogue instead — the same arrays the
  * runtime registers from — so the list cannot drift from what an agent gets.
@@ -42,21 +41,16 @@ export function buildChatToolToggles(
       description: entry.description,
       category: entry.category,
       available: entry.alwaysOn || unset || allowed.has(entry.name),
-      autoCall: false,
       toggleable: !entry.alwaysOn,
-      supportsAutoCall: false,
     }))
   }
   const available = new Set(settings?.availableTools ?? [])
-  const auto = new Set(settings?.autoCallTools ?? [])
   return catalog.map((entry) => ({
     name: entry.name,
     description: entry.description,
     category: entry.category,
     available: entry.alwaysOn || available.has(entry.name),
-    autoCall: auto.has(entry.name),
     toggleable: !entry.alwaysOn,
-    supportsAutoCall: true,
   }))
 }
 
@@ -76,11 +70,9 @@ export function applyChatToolToggle(
   settings: ChatToolSettings | undefined,
   runner: ChatToolRunner,
   toolName: string,
-  axis: ChatToolAxis,
   next: boolean,
 ): ChatToolSettings {
   if (runner === 'cli') {
-    if (axis === 'autoCall') return {}
     const entry = catalog.find((c) => c.name === toolName)
     if (entry?.alwaysOn) return {}
     const allowlist = settings?.cliAvailableTools
@@ -94,33 +86,25 @@ export function applyChatToolToggle(
   }
 
   const available = new Set(settings?.availableTools ?? [])
-  const auto = new Set(settings?.autoCallTools ?? [])
-  if (axis === 'available') {
-    if (next) available.add(toolName)
-    else {
-      available.delete(toolName)
-      // A tool that is not available must not stay auto-callable — otherwise
-      // switching it back on silently restores an auto-call the user never
-      // re-granted.
-      auto.delete(toolName)
-    }
-  } else {
-    if (!available.has(toolName)) return {}
-    if (next) auto.add(toolName)
-    else auto.delete(toolName)
-  }
-  return { availableTools: [...available], autoCallTools: [...auto] }
+  if (next) available.add(toolName)
+  else available.delete(toolName)
+  return { availableTools: [...available] }
 }
 
 /**
- * Clear the chat's own allowlist so it falls back to the defaults. For a CLI
- * chat that is the empty list, which the runner reads as unset — and unset is
- * self-healing: a built-in added later is granted without the user touching
- * anything.
+ * The settings patch "Reset to defaults" produces — the same whichever model
+ * runs the chat: the chat type's tools on both transports and its approval
+ * switch. A CLI allowlist the type leaves unset comes back as the empty list,
+ * which the runner reads as unset — self-healing: a built-in added later is
+ * granted without the user touching anything. An absent switch is written as
+ * asking, which is what absent means.
  */
-export function resetChatToolToggles(runner: ChatToolRunner): ChatToolSettings {
-  if (runner === 'cli') return { cliAvailableTools: [] }
-  return {}
+export function resetChatToolToggles(typeSettings: ChatToolSettings | undefined): ChatToolSettings {
+  return {
+    availableTools: [...(typeSettings?.availableTools ?? [])],
+    cliAvailableTools: [...(typeSettings?.cliAvailableTools ?? [])],
+    toolApprovalMode: typeSettings?.toolApprovalMode ?? 'ask',
+  }
 }
 
 /** Rows whose name or description matches a free-text query. Empty query = everything. */
@@ -158,46 +142,24 @@ export function groupChatToolToggles(toggles: readonly ChatToolToggle[]): ChatTo
 }
 
 /**
- * The chat-wide approval switch. ABSENT MEANS ASK: a chat that never chose —
- * and every chat written before the switch existed — keeps stopping for a human.
- *
- * Only the CLI transport has it. An API chat already decides per tool via
- * `autoCallTools`, and rendering both would be two switches for one idea.
+ * The chat's one approval switch — the same on every transport and agent, so
+ * an API chat and a CLI chat ask about exactly the same calls. ABSENT MEANS
+ * ASK: a chat that never chose — and every chat written before the switch
+ * existed — keeps stopping for a human.
  */
 export function buildChatToolApprovalToggle(
   settings: ChatToolSettings | undefined,
-  runner: ChatToolRunner,
 ): ChatToolApprovalToggle {
-  if (runner !== 'cli') return { auto: false, supported: false }
-  return { auto: settings?.toolApprovalMode === 'auto', supported: true }
+  return { auto: settings?.toolApprovalMode === 'auto' }
 }
 
 /**
  * The settings patch the approval switch produces.
  *
- * It writes ONLY the mode. Nothing here touches `cliAvailableTools`, which is
+ * It writes ONLY the mode. Nothing here touches the tool allowlist, which is
  * what keeps auto-approval from re-enabling a tool the user switched off: a
- * tool outside the allowlist is never registered on the run's MCP server, so no
- * approval mode can make it callable.
+ * tool that is not offered can never be called, whatever the mode.
  */
-export function applyChatToolApprovalMode(runner: ChatToolRunner, auto: boolean): ChatToolSettings {
-  if (runner !== 'cli') return {}
+export function applyChatToolApprovalMode(auto: boolean): ChatToolSettings {
   return { toolApprovalMode: auto ? 'auto' : 'ask' }
-}
-
-/**
- * The settings patch "Always allow" makes on an API chat: each tool becomes
- * available and auto-called, so the next call to it runs without asking. Pure.
- */
-export function allowToolsAlways(
-  settings: ChatToolSettings | undefined,
-  toolNames: readonly string[],
-): ChatToolSettings {
-  const available = new Set(settings?.availableTools ?? [])
-  const auto = new Set(settings?.autoCallTools ?? [])
-  for (const name of toolNames) {
-    available.add(name)
-    auto.add(name)
-  }
-  return { availableTools: [...available], autoCallTools: [...auto] }
 }

@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import {
   PROCESS_INTEGRATION_CANCEL,
+  PROCESS_INTEGRATION_CHECK_MERGE,
   PROCESS_INTEGRATION_CHOOSER_HEAD,
   PROCESS_INTEGRATION_CHOOSER_NOTE,
   PROCESS_INTEGRATION_DETAILS_HEAD,
@@ -31,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../primitives/Select'
+import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 
 export type IntegrationChooserProps = {
@@ -242,6 +244,15 @@ function IntegrationDetails({
             onChangeText={(message) => set({ message })}
             style={mono}
           />
+          <Switch
+            checked={form.checkMerge}
+            disabled={busy}
+            onCheckedChange={(checkMerge) => set({ checkMerge })}
+            label={PROCESS_INTEGRATION_CHECK_MERGE.label(workBranch.baseRef)}
+          />
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>
+            {PROCESS_INTEGRATION_CHECK_MERGE.hint(workBranch.baseRef)}
+          </Text>
         </>
       )}
 

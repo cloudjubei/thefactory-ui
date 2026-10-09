@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
+import type { PointerEvent, ReactNode } from 'react'
 import type { GitDiffSummary, GitFileChange, GitLogCommit } from '../../../headless/api'
 import { EMPTY_TREE_SHA } from 'thefactory-tools/constants'
 import Alert from '../../primitives/Alert'
@@ -46,6 +46,12 @@ export type CommitDiffViewerProps = {
    *  full screen by hiding sibling panels above, and to register a
    *  back-affordance with its own view-stack. */
   onNarrowDetailChange?: (active: boolean) => void
+  /**
+   * Renders a commit sha as its chip. When given, the viewer opens with the
+   * commit's own sha, subject and parents — each a chip, so a parent opens in
+   * turn. Omitted, the viewer shows the files only.
+   */
+  renderCommitRef?: (sha: string) => ReactNode
 }
 
 const LEFT_WIDTH_KEY = 'CommitDiffViewer.leftWidthPx'
@@ -111,6 +117,44 @@ const FileRow = memo(
     a.onSelect === b.onSelect,
 )
 
+function CommitHeader({
+  sha,
+  commit,
+  renderCommitRef,
+}: {
+  sha: string
+  commit: GitLogCommit | undefined
+  renderCommitRef: (sha: string) => ReactNode
+}) {
+  const parents = commit?.parents ?? []
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 border-b border-(--border-subtle) bg-(--surface-base) text-xs shrink-0">
+      {renderCommitRef(commit?.hash ?? sha)}
+      {commit ? (
+        <span
+          className="min-w-0 flex-1 truncate font-medium text-(--text-primary)"
+          title={commit.subject}
+        >
+          {commit.subject}
+        </span>
+      ) : null}
+      {commit ? (
+        <span className="text-(--text-muted)">
+          {commit.authorName} · {new Date(commit.authorDate).toLocaleString()}
+        </span>
+      ) : null}
+      {parents.length > 0 ? (
+        <span className="flex items-center gap-1.5 text-(--text-muted)">
+          {parents.length === 1 ? 'Parent' : 'Parents'}
+          {parents.map((p) => (
+            <span key={p}>{renderCommitRef(p)}</span>
+          ))}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 /**
  * Read-only diff for a single commit or stash — fetched via the supplied
  * `fetcher` (typically `getBranchDiffSummary({ baseRef: "<sha>^",
@@ -134,6 +178,7 @@ export default function CommitDiffViewer({
   fetcher,
   narrowDetailActive,
   onNarrowDetailChange,
+  renderCommitRef,
 }: CommitDiffViewerProps) {
   const [summary, setSummary] = useState<GitDiffSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -253,14 +298,31 @@ export default function CommitDiffViewer({
   )
 
   if (commitSha === 'UNCOMMITTED') return null
+  const header = renderCommitRef ? (
+    <CommitHeader
+      sha={commitSha}
+      commit={log.find((c) => c.hash === commitSha)}
+      renderCommitRef={renderCommitRef}
+    />
+  ) : null
   if (loading) {
     return (
-      <div className="p-4 flex items-center gap-2 text-sm opacity-70">
-        <Spinner /> Loading commit diff…
-      </div>
+      <>
+        {header}
+        <div className="p-4 flex items-center gap-2 text-sm opacity-70">
+          <Spinner /> Loading commit diff…
+        </div>
+      </>
     )
   }
-  if (error) return <Alert>{error}</Alert>
+  if (error) {
+    return (
+      <>
+        {header}
+        <Alert>{error}</Alert>
+      </>
+    )
+  }
   if (!summary) return null
 
   const activeFile = summary.files.find((f) => f.path === selectedPath) ?? null
@@ -286,6 +348,7 @@ export default function CommitDiffViewer({
     }
     return (
       <div className="flex flex-col flex-1 min-h-0 bg-(--surface-base)">
+        {header}
         <div className="bg-(--surface-muted) px-3 py-2 border-b border-(--border-subtle) text-xs font-semibold text-(--text-secondary) uppercase tracking-wide flex justify-between items-center shrink-0">
           <span>Files ({summary.files.length})</span>
           <GitFileChangesPills additions={summary.insertions} deletions={summary.deletions} />
@@ -315,55 +378,58 @@ export default function CommitDiffViewer({
   const desktopActiveFile = activeFile ?? summary.files[0]
   const desktopPatch = desktopActiveFile ? (patchByPath.get(desktopActiveFile.path) ?? '') : ''
   return (
-    <div className="flex flex-row min-h-0 h-full bg-(--surface-base)">
-      <div
-        className="shrink-0 flex flex-col border-r border-(--border-subtle) overflow-hidden"
-        style={{ width: leftWidth }}
-      >
-        <div className="bg-(--surface-muted) px-3 py-2 border-b border-(--border-subtle) text-xs font-semibold text-(--text-secondary) uppercase tracking-wide flex justify-between items-center shrink-0">
-          <span>Files ({summary.files.length})</span>
-          <GitFileChangesPills additions={summary.insertions} deletions={summary.deletions} />
+    <div className="flex flex-col min-h-0 h-full bg-(--surface-base)">
+      {header}
+      <div className="flex flex-row flex-1 min-h-0 bg-(--surface-base)">
+        <div
+          className="shrink-0 flex flex-col border-r border-(--border-subtle) overflow-hidden"
+          style={{ width: leftWidth }}
+        >
+          <div className="bg-(--surface-muted) px-3 py-2 border-b border-(--border-subtle) text-xs font-semibold text-(--text-secondary) uppercase tracking-wide flex justify-between items-center shrink-0">
+            <span>Files ({summary.files.length})</span>
+            <GitFileChangesPills additions={summary.insertions} deletions={summary.deletions} />
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto divide-y divide-(--border-subtle)">
+            {summary.files.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-(--text-muted) italic">
+                No file changes in this commit.
+              </div>
+            ) : (
+              summary.files.map((file) => (
+                <FileRow
+                  key={file.path}
+                  file={file}
+                  patch={patchByPath.get(file.path) ?? ''}
+                  isSelected={file.path === desktopActiveFile?.path}
+                  compact={false}
+                  onSelect={onSelectFile}
+                />
+              ))
+            )}
+          </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto divide-y divide-(--border-subtle)">
-          {summary.files.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-(--text-muted) italic">
-              No file changes in this commit.
-            </div>
+
+        <ResizeHandle orientation="vertical" onResizeStart={onLeftResizeStart} />
+
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+          {desktopActiveFile ? (
+            <DiffViewer
+              path={desktopActiveFile.path}
+              patch={desktopPatch}
+              suppressed={desktopActiveFile.patchSuppressed === 'size'}
+              wrap={wrap}
+              ignoreWS={ignoreWS}
+              intra={intra}
+              onWrapChange={setWrap}
+              onIgnoreWSChange={setIgnoreWS}
+              onIntraChange={setIntra}
+            />
           ) : (
-            summary.files.map((file) => (
-              <FileRow
-                key={file.path}
-                file={file}
-                patch={patchByPath.get(file.path) ?? ''}
-                isSelected={file.path === desktopActiveFile?.path}
-                compact={false}
-                onSelect={onSelectFile}
-              />
-            ))
+            <div className="flex-1 flex items-center justify-center text-xs text-(--text-muted)">
+              Select a file to see its diff.
+            </div>
           )}
         </div>
-      </div>
-
-      <ResizeHandle orientation="vertical" onResizeStart={onLeftResizeStart} />
-
-      <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        {desktopActiveFile ? (
-          <DiffViewer
-            path={desktopActiveFile.path}
-            patch={desktopPatch}
-            suppressed={desktopActiveFile.patchSuppressed === 'size'}
-            wrap={wrap}
-            ignoreWS={ignoreWS}
-            intra={intra}
-            onWrapChange={setWrap}
-            onIgnoreWSChange={setIgnoreWS}
-            onIntraChange={setIntra}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-xs text-(--text-muted)">
-            Select a file to see its diff.
-          </div>
-        )}
       </div>
     </div>
   )

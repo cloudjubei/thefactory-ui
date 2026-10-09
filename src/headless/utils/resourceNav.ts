@@ -1,9 +1,11 @@
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
+import { fileLocationPath } from './fileLocation'
+import { NOTE_LINK_PARAM } from './projectNotesConstants'
 
 /**
  * A client-agnostic navigation intent derived from a {@link ResourceLink}. The `path` variant covers
  * targets whose in-app route is identical across web/desktop/mobile (project, story, feature, app tab,
- * a project's or group's notes);
+ * a project's or group's notes, a project's design);
  * the `chat` variant hands the client the {@link ChatContext} to build its own chat URL (web encodes
  * the full key into one segment, mobile uses relative path segments — see the per-client
  * `navigateToResource`).
@@ -28,18 +30,23 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
     case 'note':
       return {
         type: 'path',
-        path: `/projects/${enc(link.projectId)}/notes?note=${enc(link.noteId)}`,
+        path: `/projects/${enc(link.projectId)}/notes?${NOTE_LINK_PARAM}=${enc(link.noteId)}`,
       }
     case 'groupNote':
       return {
         type: 'path',
-        path: `/groups/${enc(link.groupId)}/notes?note=${enc(link.noteId)}`,
+        path: `/groups/${enc(link.groupId)}/notes?${NOTE_LINK_PARAM}=${enc(link.noteId)}`,
       }
     case 'file':
-      return {
-        type: 'path',
-        path: `/projects/${enc(link.projectId)}/files/${link.path.split('/').map(enc).join('/')}`,
-      }
+      return { type: 'path', path: fileLocationPath(link.projectId, link.path) }
+    case 'design': {
+      const query = buildQuery(undefined, {
+        ...(link.screenId !== undefined ? { screen: link.screenId } : {}),
+        ...(link.itemId !== undefined ? { item: link.itemId } : {}),
+      })
+      const base = `/projects/${enc(link.projectId)}/design`
+      return { type: 'path', path: query ? `${base}?${query}` : base }
+    }
     case 'chat':
       return { type: 'chat', context: link.context }
   }

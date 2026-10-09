@@ -50,6 +50,8 @@ import {
   type ReviewTabId,
   type SignoffVerdict,
   processStepFinishedView,
+  chatChangesNotice,
+  CHAT_CHANGES_COPY,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
 import { Button } from '../../primitives/Button'
@@ -224,6 +226,8 @@ export default function CliRunArtifactPanel({
     apply,
     applying,
     applyResult,
+    discard,
+    discarding,
     reviewDiff,
     reviewLoading,
     loadReviewDiff,
@@ -285,14 +289,19 @@ export default function CliRunArtifactPanel({
   // turns change nothing, and each one fetching its evidence and the
   // verification plan — again on every chat update — held up the turns' own
   // transcripts behind a queue of requests whose answer was never shown.
-  const reviewable = artifact !== undefined || landFailure !== undefined || reportOnly
+  // Changes a later turn captured again, or the person discarded, have no review
+  // left: their sign-off says so and loads nothing.
+  const settledNotice = chatChangesNotice(artifact)
+  const reviewable =
+    settledNotice === undefined &&
+    (artifact !== undefined || landFailure !== undefined || reportOnly)
   const evidence = useReviewEvidence(reviewable ? projectId : undefined, {
     runId,
     ...(storyId ? { storyId } : {}),
   })
 
   useEffect(() => {
-    if (error) return
+    if (error || settledNotice !== undefined) return
     // Load eagerly (not gated on a tab) so the decision bar reflects the real diff
     // state from the start. `error` gates the retry so a failing load cannot
     // refire forever.
@@ -314,6 +323,7 @@ export default function CliRunArtifactPanel({
     error,
     loadPreview,
     reportOnly,
+    settledNotice,
   ])
 
   // The verification plan is what tells "not run" apart from "not set up", so
@@ -419,6 +429,13 @@ export default function CliRunArtifactPanel({
     testChecks.length + buildChecks.length > 0 ||
     evidence.refs.length > 0
   if (!artifact && !landFailure && !(reportOnly && hasReviewContent)) return null
+  if (settledNotice) {
+    return (
+      <div className="mt-2 rounded-md border border-(--border-subtle) bg-(--surface-base) px-3 py-2 text-[12px] text-(--text-secondary)">
+        {settledNotice}
+      </div>
+    )
+  }
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
@@ -871,6 +888,7 @@ export default function CliRunArtifactPanel({
             {isHandoffRun ? (
               // Developer hand-off: show ONLY its diff, not the verifier's review tabs.
               <ChangesTab
+                projectId={projectId}
                 {...(viewedChanges ? { viewed: viewedChanges } : {})}
                 review={review}
                 files={changeFiles}
@@ -927,6 +945,7 @@ export default function CliRunArtifactPanel({
                   <ReportTab reports={reports} />
                 ) : (
                   <ChangesTab
+                    projectId={projectId}
                     {...(viewedChanges ? { viewed: viewedChanges } : {})}
                     review={review}
                     files={changeFiles}
@@ -1023,13 +1042,27 @@ export default function CliRunArtifactPanel({
                   onReject={() => openReason('rejected')}
                 />
               ) : actionMode === 'apply' && artifact ? (
-                <Button
-                  size="sm"
-                  onClick={() => void apply()}
-                  disabled={applying || isApplied || !preview}
-                >
-                  {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isApplied ? null : (
+                    <Tooltip content={CHAT_CHANGES_COPY.discardDetail}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void discard()}
+                        disabled={discarding || applying}
+                      >
+                        {discarding ? CHAT_CHANGES_COPY.discarding : CHAT_CHANGES_COPY.discard}
+                      </Button>
+                    </Tooltip>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => void apply()}
+                    disabled={applying || discarding || isApplied || !preview}
+                  >
+                    {applying ? 'Applying…' : isApplied ? 'Applied' : 'Apply to project'}
+                  </Button>
+                </div>
               ) : null}
             </div>
           )}

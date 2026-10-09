@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, type Ref } from 'react'
 import Markdown from './Markdown'
 import ReferenceTextarea from './files/ReferenceTextarea'
 import { Button } from '../primitives/Button'
@@ -54,6 +54,8 @@ export type MarkdownEditorProps = {
    * text as it will be saved, references as ids, so they show as chips.
    */
   previewText?: string
+  /** The edit pane's textarea — for a host that opens the file at a line. */
+  textareaRef?: Ref<HTMLTextAreaElement>
 }
 
 export const MARKDOWN_PANE_OPTIONS = [
@@ -102,6 +104,7 @@ export default function MarkdownEditor({
   onViewChange,
   hideHeader = false,
   previewText,
+  textareaRef,
 }: MarkdownEditorProps) {
   const [internalView, setInternalView] = useState<MarkdownEditorPaneView>(initialView)
   const view = controlledView ?? internalView
@@ -177,6 +180,7 @@ export default function MarkdownEditor({
                 Edit view
               </div>
               <ReferenceTextarea
+                ref={textareaRef}
                 value={value}
                 onChange={onChange}
                 spellCheck={false}

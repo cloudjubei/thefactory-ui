@@ -26,3 +26,9 @@ export const FEATURE_PROCESS_FIX_NOTE =
 /** Said in place of the choice when the new features join an open run. */
 export const FEATURE_PROCESS_EXTEND_NOTE =
   'The added features are worked the way that run works its own.'
+
+/** The launch card's row of how the run goes: who works the features, on what, isolated. */
+export const LAUNCH_HOW_IT_RUNS_HEADING = 'How it runs'
+
+/** The mark on the way of working a story's features gets when nobody picks. */
+export const FEATURE_PROCESS_DEFAULT_TAG = 'Default'

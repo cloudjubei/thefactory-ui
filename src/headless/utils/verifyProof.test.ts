@@ -136,8 +136,8 @@ describe('verifyProofHeader', () => {
       title: 'Verified on live data',
       chip: 'Live data',
       dry: undefined,
-      baseSha: 'be10edd8',
-      headSha: '38832196',
+      baseSha: BASE,
+      headSha: HEAD,
       seams: [],
     })
   })
@@ -160,7 +160,7 @@ describe('verifyProofHeader', () => {
     expect(h.title).toBe('Verified dry — not against the live backend')
     expect(h.chip).toBe('Dry run')
     expect(h.dryAssumptions).toBe(assumptions)
-    expect(h.seams).toEqual(['f00dcafe'])
+    expect(h.seams).toEqual([SEAM])
     expect(h.dry).toEqual({
       lead: 'Verified dry',
       text: DRY_LINE_TEXT,
@@ -171,11 +171,11 @@ describe('verifyProofHeader', () => {
           kind: 'build',
           label: 'Built from',
           parts: [
-            { kind: 'sha', sha: 'be10edd8' },
+            { kind: 'sha', sha: BASE },
             { kind: 'word', text: 'with seam' },
-            { kind: 'sha', sha: 'f00dcafe' },
+            { kind: 'sha', sha: SEAM },
             { kind: 'word', text: '→' },
-            { kind: 'sha', sha: '38832196' },
+            { kind: 'sha', sha: HEAD },
           ],
         },
       ],
@@ -197,10 +197,10 @@ describe('verifyProofHeader', () => {
       kind: 'build',
       label: 'Built from',
       parts: [
-        { kind: 'sha', sha: 'be10edd8' },
+        { kind: 'sha', sha: BASE },
         { kind: 'word', text: 'with seams' },
-        { kind: 'sha', sha: 'f00dcafe' },
-        { kind: 'sha', sha: '38832196' },
+        { kind: 'sha', sha: SEAM },
+        { kind: 'sha', sha: HEAD },
       ],
     })
     const headOnly = verifyProofHeader(
@@ -210,7 +210,7 @@ describe('verifyProofHeader', () => {
     expect(headOnly.dry?.rows[1]).toEqual({
       kind: 'build',
       label: 'Built from',
-      parts: [{ kind: 'sha', sha: '38832196' }],
+      parts: [{ kind: 'sha', sha: HEAD }],
     })
   })
 
@@ -246,7 +246,7 @@ describe('verifyProofHeader', () => {
         detail: undefined,
         chip: undefined,
         dry: undefined,
-        baseSha: 'be10edd8',
+        baseSha: BASE,
       })
     }
   })
@@ -446,7 +446,7 @@ describe('verifyProofView', () => {
     )
     expect(v.screens.every((s) => s.key.startsWith('f1::'))).toBe(true)
     expect(new Set(v.screens.map((s) => s.key)).size).toBe(4)
-    expect(v.screens[0]).toMatchObject({ expectedBaseSha: 'be10edd8', expectedHeadSha: '38832196' })
+    expect(v.screens[0]).toMatchObject({ expectedBaseSha: BASE, expectedHeadSha: HEAD })
     const byKey = new Map(v.screens.map((s) => [s.key, s.index]))
     for (const p of v.pairs) expect(byKey.get(p.key)).toBe(p.index)
     expect(byKey.get(v.newScreens[0].key)).toBe(v.newScreens[0].index)
@@ -1904,8 +1904,8 @@ describe('captureBuildCaption', () => {
     tile({ id: 'b', build: { sha, dirty } } as Partial<ReviewEvidenceRef> & { id: string })
 
   it('captions a capture built from the expected commit with that commit alone', () => {
-    expect(captureBuildCaption(built(BASE), 'be10edd8')).toEqual({
-      builtSha: 'be10edd8',
+    expect(captureBuildCaption(built(BASE), BASE)).toEqual({
+      builtSha: BASE,
       dirty: false,
       expectedSha: undefined,
     })
@@ -1914,17 +1914,17 @@ describe('captureBuildCaption', () => {
 
   it('captions a capture built from another commit with its own, and the expectation apart', () => {
     expect(captureBuildCaption(built('deadbeef00112233'), BASE)).toEqual({
-      builtSha: 'deadbeef',
+      builtSha: 'deadbeef00112233',
       dirty: false,
-      expectedSha: 'be10edd8',
+      expectedSha: BASE,
     })
   })
 
   it('never borrows the expected commit for a capture with no build record', () => {
-    expect(captureBuildCaption(tile({ id: 'web' }), 'be10edd8')).toEqual({
+    expect(captureBuildCaption(tile({ id: 'web' }), BASE)).toEqual({
       builtSha: undefined,
       dirty: false,
-      expectedSha: 'be10edd8',
+      expectedSha: BASE,
     })
   })
 
@@ -1934,7 +1934,7 @@ describe('captureBuildCaption', () => {
       build: { sha: BASE, dirty: true, tree: 'e'.repeat(40) },
     } as Partial<ReviewEvidenceRef> & { id: string })
     expect(captureBuildCaption(workspace, HEAD, { counted: true })).toEqual({
-      builtSha: '38832196',
+      builtSha: HEAD,
       dirty: false,
       expectedSha: undefined,
       sameCodeAsExpected: true,
@@ -1947,15 +1947,15 @@ describe('captureBuildCaption', () => {
       build: { sha: BASE, dirty: true, tree: 'e'.repeat(40) },
     } as Partial<ReviewEvidenceRef> & { id: string })
     expect(captureBuildCaption(workspace, HEAD)).toEqual({
-      builtSha: 'be10edd8',
+      builtSha: BASE,
       dirty: true,
-      expectedSha: '38832196',
+      expectedSha: HEAD,
     })
   })
 
   it('says a build with uncommitted changes is not exactly its commit', () => {
-    expect(captureBuildCaption(built(BASE, true), 'be10edd8')).toEqual({
-      builtSha: 'be10edd8',
+    expect(captureBuildCaption(built(BASE, true), BASE)).toEqual({
+      builtSha: BASE,
       dirty: true,
       expectedSha: undefined,
     })
@@ -1968,7 +1968,7 @@ describe('captureBuildCaption', () => {
       expectedSha: undefined,
     })
     expect(captureBuildCaption(built(HEAD), undefined)).toEqual({
-      builtSha: '38832196',
+      builtSha: HEAD,
       dirty: false,
       expectedSha: undefined,
     })
@@ -2244,7 +2244,7 @@ describe('captureBuildCaption, for a capture that cannot be vouched for', () => 
     ).toEqual({
       builtSha: undefined,
       dirty: false,
-      expectedSha: '38832196',
+      expectedSha: HEAD,
     })
   })
 })

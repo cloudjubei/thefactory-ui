@@ -313,3 +313,30 @@ export function toolNotRunReason(result: unknown): string {
   if (typeof body?.agentInstruction === 'string') return body.agentInstruction
   return safePreviewString(result).text
 }
+
+function searchHitLine(hit: unknown): string | undefined {
+  if (typeof hit === 'string') return hit
+  const h = asRecord(hit)
+  if (typeof h.path === 'string') {
+    return typeof h.startLine === 'number' && typeof h.endLine === 'number'
+      ? `${h.path}:${h.startLine}-${h.endLine}`
+      : h.path
+  }
+  const record = asRecord(h.record)
+  if (typeof record.kind !== 'string' || typeof h.reference !== 'string') return undefined
+  return typeof record.title === 'string'
+    ? `${record.kind} ${h.reference} — ${record.title}`
+    : `${record.kind} ${h.reference}`
+}
+
+/**
+ * One line per hit of a file search: a path (with the lines a passage matched), a note, story or
+ * feature by its reference and title, or — for a search-and-read's content map — its keys.
+ */
+export function searchResultLines(result: unknown): string[] {
+  const hits = Array.isArray(result) ? result : Object.keys(asRecord(result))
+  return hits.flatMap((hit) => {
+    const line = searchHitLine(hit)
+    return line === undefined ? [] : [line]
+  })
+}

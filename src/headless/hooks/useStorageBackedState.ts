@@ -10,6 +10,8 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 export interface SyncKVStorage {
   get(key: string): string | null
   set(key: string, value: string): void
+  /** Optional removal. Callers without it fall back to writing an empty value. */
+  remove?(key: string): void
   /** Optional cross-context listener. Returns an unsubscribe function. */
   subscribe?(key: string, listener: (next: string | null) => void): () => void
 }

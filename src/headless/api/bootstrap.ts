@@ -12,6 +12,7 @@
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { client } from './generated/client.gen'
 import type { ConfigureBackendClientOptions } from './ApiContext'
+import { readBackendStarting } from './backendStartup'
 
 let activeRequestInterceptorId: number | null = null
 let activeResponseInterceptorId: number | null = null
@@ -21,6 +22,7 @@ export function configureBackendClient({
   getToken,
   onUnauthorized,
   onAuthorized,
+  onStarting,
 }: ConfigureBackendClientOptions): () => void {
   client.setConfig({
     baseURL: baseUrl.replace(/\/+$/, ''),
@@ -48,6 +50,8 @@ export function configureBackendClient({
     },
     (error: AxiosError) => {
       if (error.response?.status === 401) onUnauthorized()
+      const starting = readBackendStarting(error)
+      if (starting) onStarting(starting)
       return Promise.reject(error)
     },
   )

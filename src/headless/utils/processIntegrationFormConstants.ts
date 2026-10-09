@@ -1,13 +1,3 @@
-export const PROCESS_INTEGRATION_FORM_NO_IDENTITY =
-  'Choose who the commits are made as. If none is offered, add a git credential with a name and an email first.'
-
-export const PROCESS_INTEGRATION_FORM_NO_MESSAGE = 'Write the commit message.'
-
-export const PROCESS_INTEGRATION_FORM_NO_ACCOUNT =
-  'Choose the account the pull request is opened as. If none is offered, add a git credential for this repository’s host first.'
-
-export const PROCESS_INTEGRATION_FORM_NO_TITLE = 'Give the pull request a title.'
-
 /** Where the preview says the work shows, by the remote's host. */
 export const PROCESS_INTEGRATION_PREVIEW_HOSTS: ReadonlyArray<{ test: RegExp; name: string }> = [
   { test: /(^|\.)github\.com$/, name: 'GitHub' },
@@ -35,4 +25,14 @@ export const PROCESS_INTEGRATION_FORM_LABELS = {
   confirm: 'Land it',
   more: (count: number) => `and ${count} more commit${count === 1 ? '' : 's'}`,
   loading: 'Reading who it can land as…',
+} as const
+
+/** The landing's "build and type-check the result first" option, on the sign-off and on an agent's card. */
+export const PROCESS_INTEGRATION_CHECK_MERGE = {
+  label: (baseRef: string) => `Build and type-check the result before it lands on ${baseRef}`,
+  hint: (baseRef: string) =>
+    `The merge is made in a scratch copy and the project's build and type check run on it; ${baseRef} moves only if they pass. Nothing is built when what lands is exactly what the work's own checks ran on.`,
+  line: ', built and type-checked first',
+  busy: (baseRef: string) =>
+    `Building and type-checking the merged result — ${baseRef} moves only if they pass.`,
 } as const

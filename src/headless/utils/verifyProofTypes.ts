@@ -64,11 +64,11 @@ export type VerifyProofHeader = {
   dryAssumptions: string | undefined
   /** The one line a dry attempt shows in place of a banner; absent unless dry. */
   dry: VerifyProofDryLine | undefined
-  /** The base commit every before had to be built from, shortened — an expectation, not a caption. */
+  /** The base commit every before had to be built from, in full — an expectation, not a caption. */
   baseSha: string | undefined
-  /** The branch commit every after had to be built from, shortened — an expectation, not a caption. */
+  /** The branch commit every after had to be built from, in full — an expectation, not a caption. */
   headSha: string | undefined
-  /** Test-seam commits the base was built with, shortened. */
+  /** Test-seam commits the base was built with, in full. */
   seams: string[]
 }
 
@@ -248,11 +248,11 @@ export type FeatureVerifySectionProps = VerifySectionProps & {
  * before built from the wrong commit must never be labelled with the right one.
  */
 export type CaptureBuildCaption = {
-  /** The commit the capture's build record names, shortened; absent when it has no record. */
+  /** The commit the capture's build record names, as recorded; absent when it has no record. */
   builtSha: string | undefined
   /** The build had uncommitted changes, so it is not exactly `builtSha`. */
   dirty: boolean
-  /** The commit expected, shortened — present only when the record does not show it. */
+  /** The commit expected, as given — present only when the record does not show it. */
   expectedSha: string | undefined
   /**
    * Built from uncommitted work the gate counted as exactly the expected

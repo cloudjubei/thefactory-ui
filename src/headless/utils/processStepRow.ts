@@ -1,4 +1,4 @@
-import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
+import type { ProcessLedgerEntry, ProcessRun, ProcessStepState } from 'thefactory-tools/types'
 
 import { processNodeState, processNodeSummary, processNodeTone } from './processView'
 import {
@@ -22,7 +22,10 @@ import type { EvidenceTile, ReportAuthor } from './reviewEvidenceViewTypes'
 import { clipLine } from './textLine'
 import { verifyAttemptStanding } from './verifyProof'
 
-function previewKind(state: ProcessStepState): ProcessStepPreviewKind {
+function previewKind(
+  state: ProcessStepState,
+  run: Pick<ProcessRun, 'storyId' | 'parentRunId'> | undefined,
+): ProcessStepPreviewKind {
   switch (state.step.kind) {
     case 'judge':
       return 'code-review'
@@ -33,7 +36,7 @@ function previewKind(state: ProcessStepState): ProcessStepPreviewKind {
     case 'check':
       return 'checks'
     case 'gate':
-      return 'none'
+      return run?.storyId && !run.parentRunId && state.latest?.override ? 'signoff' : 'none'
     default:
       return state.latest?.runRef ? 'attempt' : 'none'
   }
@@ -68,15 +71,17 @@ function resultLine(
 /**
  * A step's row on the pipeline: one short result line read from what the step
  * already recorded, and whether it has anything to preview. A skipped, not
- * needed or not-yet-reached step is inert — nothing to time, cost or open.
+ * needed or not-yet-reached step is inert — nothing to time, cost or open. A
+ * story run's sign-off opens to its decision once the person has made it.
  */
 export function processStepRowView(
   state: ProcessStepState,
   parkStepId: string | undefined,
+  run?: Pick<ProcessRun, 'storyId' | 'parentRunId'>,
 ): ProcessStepRowView {
   const nodeState = processNodeState(state, parkStepId)
   const inert = nodeState === 'skipped' || (nodeState === 'queued' && state.entries.length === 0)
-  const preview = previewKind(state)
+  const preview = previewKind(state, run)
   const result = resultLine(state, nodeState)
   return {
     inert,

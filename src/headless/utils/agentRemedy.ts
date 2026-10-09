@@ -68,13 +68,14 @@ export function remedyChoiceDecision(remedyId: string, value?: string): AgentRem
   const trimmed = value?.trim()
   return {
     outcome: 'approved',
+    decidedVia: 'card',
     metadata: { remedyId, ...(trimmed ? { value: trimmed } : {}) },
   }
 }
 
 /** Decision body for dismissing a remedy — the run's original error surfaces. */
 export function declineRemedyDecision(): AgentRemedyDecision {
-  return { outcome: 'denied', metadata: { remedyId: '' } }
+  return { outcome: 'denied', decidedVia: 'card', metadata: { remedyId: '' } }
 }
 
 /** Narrow a unified grant to one the remedy card can render and resolve. */

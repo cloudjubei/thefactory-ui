@@ -3,6 +3,20 @@ import { resolveResourceNav } from './resourceNav'
 import type { ResourceLink } from 'thefactory-tools/types'
 
 describe('resolveResourceNav', () => {
+  it('maps a design link to the project’s Design tab, on its screen and item', () => {
+    expect(resolveResourceNav({ kind: 'design', projectId: 'p 1' })).toEqual({
+      type: 'path',
+      path: '/projects/p%201/design',
+    })
+    expect(resolveResourceNav({ kind: 'design', projectId: 'p1', screenId: 's1' })).toEqual({
+      type: 'path',
+      path: '/projects/p1/design?screen=s1',
+    })
+    expect(
+      resolveResourceNav({ kind: 'design', projectId: 'p1', screenId: 's1', itemId: 'i/1' }),
+    ).toEqual({ type: 'path', path: '/projects/p1/design?screen=s1&item=i%2F1' })
+  })
+
   it('maps a project link to the project route', () => {
     expect(resolveResourceNav({ kind: 'project', projectId: 'p1' })).toEqual({
       type: 'path',

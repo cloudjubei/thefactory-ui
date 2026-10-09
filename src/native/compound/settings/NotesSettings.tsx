@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native'
 import type { ResourceLink } from 'thefactory-tools/types'
 
 import {
@@ -15,12 +15,14 @@ import RichText from '../files/RichText'
 import type { NoteSummary, NotesOwner } from '../../../headless/utils/projectNotesTypes'
 import {
   canRevealNote,
+  linkedNoteState,
   noteAccessLabel,
   noteAuthorLabel,
   noteKindLabel,
 } from '../../../headless/utils/projectNotes'
 import {
   NOTE_ACCESS_NOTE,
+  NOTE_LINK_MISSING,
   NOTE_VALUE_MASK,
   NOTES_SCREEN_COPY,
 } from '../../../headless/utils/projectNotesConstants'
@@ -38,6 +40,13 @@ export interface NotesSettingsProps {
   owner: NotesOwner
   /** Opens what a note points at — a story, feature, note or file. */
   onOpenReference?: (link: ResourceLink) => void
+  /** The note a link opened the screen on (`?note=`): shown selected. */
+  selectedNoteId?: string
+  /**
+   * Where the selected note's row lies, from the top of these settings, once laid out — for the
+   * host's scroll view to bring it into view.
+   */
+  onSelectedNoteLayout?: (y: number) => void
 }
 
 type ModalRoute =
@@ -56,7 +65,12 @@ function formatUpdated(iso: string): string {
  * Same prop surface. A stored value is never rendered in the list; Reveal
  * fetches one on demand and masks it again shortly after.
  */
-export default function NotesSettings({ owner, onOpenReference }: NotesSettingsProps) {
+export default function NotesSettings({
+  owner,
+  onOpenReference,
+  selectedNoteId,
+  onSelectedNoteLayout,
+}: NotesSettingsProps) {
   const { theme } = useNativeTheme()
   const projectId = owner.kind === 'project' ? owner.projectId : undefined
   const groupId = owner.kind === 'group' ? owner.groupId : undefined
@@ -83,6 +97,20 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
     onSearchReferences: references.searchWork,
     onSearchHandles: references.searchHandles,
   }
+
+  const linked = linkedNoteState(notes, selectedNoteId, isLoaded)
+  const listY = useRef<number | undefined>(undefined)
+  const selectedY = useRef<number | undefined>(undefined)
+  const reportedFor = useRef<string | undefined>(undefined)
+  const reportSelected = useCallback(() => {
+    if (listY.current === undefined || selectedY.current === undefined || !selectedNoteId) return
+    if (reportedFor.current === selectedNoteId) return
+    reportedFor.current = selectedNoteId
+    onSelectedNoteLayout?.(listY.current + selectedY.current)
+  }, [selectedNoteId, onSelectedNoteLayout])
+  useEffect(() => {
+    selectedY.current = undefined
+  }, [selectedNoteId])
 
   const placeholder = (text: string) => (
     <View style={{ padding: nativeSpace[5] }}>
@@ -118,8 +146,13 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
       ) : null}
       {loadError ? <Alert variant="error">{loadError.message}</Alert> : null}
       {revealError ? <Alert variant="error">{revealError}</Alert> : null}
+      {linked === 'missing' ? <Alert variant="info">{NOTE_LINK_MISSING}</Alert> : null}
 
       <View
+        onLayout={(e) => {
+          listY.current = e.nativeEvent.layout.y
+          reportSelected()
+        }}
         style={{
           borderWidth: 1,
           borderColor: theme.border.subtle,
@@ -138,6 +171,15 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
                   return (
                     <View
                       key={note.id}
+                      {...(note.id === selectedNoteId
+                        ? {
+                            accessibilityState: { selected: true },
+                            onLayout: (e: LayoutChangeEvent) => {
+                              selectedY.current = e.nativeEvent.layout.y
+                              reportSelected()
+                            },
+                          }
+                        : {})}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'flex-start',
@@ -146,6 +188,13 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
                         padding: nativeSpace[3],
                         borderTopWidth: index === 0 ? 0 : 1,
                         borderTopColor: theme.border.subtle,
+                        ...(note.id === selectedNoteId
+                          ? {
+                              backgroundColor: theme.surface.muted,
+                              borderLeftWidth: 3,
+                              borderLeftColor: theme.accent.primary,
+                            }
+                          : {}),
                       }}
                     >
                       <View style={{ flex: 1, gap: nativeSpace[2] }}>

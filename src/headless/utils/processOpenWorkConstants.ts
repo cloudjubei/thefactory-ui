@@ -26,3 +26,6 @@ export const AMENDMENT_REOPENED_ENDED =
 /** What a fix added at a request for changes reads as; `{gate}` is the gate's name. */
 export const AMENDMENT_SEND_BACK =
   'You requested changes at {gate}, which had no fix step of its own, so one was added: the work comes back to {gate} once it is fixed.'
+
+/** Said under the open-work choices until one is picked — the launch waits for it. */
+export const OPEN_WORK_PICK_HINT = 'Pick one to start.'

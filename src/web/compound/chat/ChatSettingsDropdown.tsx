@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { CHAT_TOOLS_HINT } from '../../../headless/utils/chatToolTogglesConstants'
 import {
+  CHAT_TURN_LIMIT_HINT,
+  CHAT_TURN_LIMIT_MAX,
+  CHAT_TURN_LIMIT_MIN,
+} from '../../../headless/utils/chatTurnLimitConstants'
+import {
+  applyChatTurnLimit,
+  buildChatTurnLimit,
   filterChatToolToggles,
   groupChatToolToggles,
   useAppSettings,
@@ -8,18 +16,16 @@ import {
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
+import ChatRulesPanel from '../rules/ChatRulesPanel'
 
 export type ToolToggle = {
   name: string
   description: string
   available: boolean
-  autoCall: boolean
   /** Groups the row under a heading. Rows without one land under "other". */
   category?: string
   /** False for a tool the transport never lets the user switch off. */
   toggleable?: boolean
-  /** False on a transport with no per-tool auto-call axis. */
-  supportsAutoCall?: boolean
 }
 
 /** Fill the optional grouping fields so the headless filter/group helpers apply. */
@@ -29,13 +35,12 @@ function normalizeToolToggle(tool: ToolToggle): ChatToolToggle {
     description: tool.description,
     category: tool.category ?? 'other',
     available: tool.available,
-    autoCall: tool.autoCall,
     toggleable: tool.toggleable ?? true,
-    supportsAutoCall: tool.supportsAutoCall ?? true,
   }
 }
 
 export type CompletionSettingsLike = {
+  limitTurns?: boolean
   maxTurns?: number
   numberMessagesToSend?: number
   finishTurnOnErrors?: boolean
@@ -60,14 +65,13 @@ export type ChatSettingsDropdownProps = {
 
   tools: ToolToggle[]
   toggleAvailable: (tool: ToolToggle) => Promise<void> | void
-  toggleAutoCall: (tool: ToolToggle) => Promise<void> | void
-  /** Clears the chat's own tool allowlist back to the defaults. Hidden when absent. */
-  onResetTools?: () => Promise<void> | void
-  /** One line under the Tools heading explaining what this chat's list governs. */
-  toolsHint?: string
-  /** The chat-wide "run tools without asking" switch. Hidden on a transport that reports it unsupported. */
-  toolApproval?: { auto: boolean; supported: boolean }
+  /** Puts the chat's tools and approval switch back to its chat type's — on every model. */
+  onResetTools: () => Promise<void> | void
+  /** The chat-wide "run tools without asking" switch — one on every transport. Hidden when absent. */
+  toolApproval?: { auto: boolean }
   onToolApprovalChange?: (auto: boolean) => Promise<void> | void
+  /** This chat's key: shows "Rules for this chat" — its own always-allow rules, removable. Hidden when absent. */
+  rulesChatContextId?: string
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -82,10 +86,6 @@ export type ChatSettingsDropdownProps = {
   /** When true a settings write failed and is retrying — the body greys out and
    * input is blocked until the backend reconnects. */
   blocked?: boolean
-  /** When true this chat runs a CLI agent, so the API-completion-only controls
-   * (turn/history/sanitization tuning) are greyed out — they have no effect on
-   * a CLI run. */
-  cliBacked?: boolean
 }
 
 export default function ChatSettingsDropdown({
@@ -99,23 +99,20 @@ export default function ChatSettingsDropdown({
   onResetPrompt,
   tools,
   toggleAvailable,
-  toggleAutoCall,
   onResetTools,
-  toolsHint,
   toolApproval,
   onToolApprovalChange,
+  rulesChatContextId,
   persistSettings,
   onDeleteChat,
   extraContent,
   asModal = false,
   blocked = false,
-  cliBacked = false,
 }: ChatSettingsDropdownProps) {
-  // API-completion-only controls are inert for a CLI agent; grey them out.
-  const apiOnlyClass = cliBacked ? ' opacity-50 pointer-events-none select-none' : ''
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const { settings, setUserPreferences } = useAppSettings()
   const prefs = settings.userPreferences
+  const turnLimit = buildChatTurnLimit(completion)
   const [toolFilter, setToolFilter] = useState('')
   const visibleToolGroups = useMemo(
     () => groupChatToolToggles(filterChatToolToggles(tools.map(normalizeToolToggle), toolFilter)),
@@ -174,37 +171,47 @@ export default function ChatSettingsDropdown({
         </div>
       </div>
 
-      {cliBacked ? (
-        <div className="text-[11px] text-(--text-tertiary)">
-          Completion settings apply to API agents — this chat runs a CLI agent.
-        </div>
-      ) : null}
-
       {completion ? (
-        <div className={'space-y-3' + apiOnlyClass}>
-          <div className="space-y-1">
+        <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-(--text-secondary)" htmlFor="maxTurns">
-                Max turns per run:
-                <span className="pl-4 text-[14px] text-(--text-secondary)">
-                  {completion.maxTurns ?? ''}
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-(--text-secondary)">
+                  Limit turns per run
                 </span>
-              </label>
+                <span className="text-[10px] text-(--text-tertiary)">{CHAT_TURN_LIMIT_HINT}</span>
+              </div>
+              <Switch
+                checked={turnLimit.limited}
+                onCheckedChange={(checked) =>
+                  void persistSettings(applyChatTurnLimit(!!checked, completion))
+                }
+              />
             </div>
-            <input
-              id="maxTurns"
-              type="range"
-              min={1}
-              max={100}
-              step={1}
-              value={completion.maxTurns ?? 1}
-              onChange={(e) => void persistSettings({ maxTurns: Number(e.target.value) })}
-              className="w-full"
-            />
-            <div className="flex justify-between text-[10px] text-(--text-tertiary)">
-              <span>1</span>
-              <span>100</span>
-            </div>
+            {turnLimit.limited ? (
+              <div className="space-y-1 pl-1">
+                <label className="text-xs font-medium text-(--text-secondary)" htmlFor="maxTurns">
+                  Max turns per run:
+                  <span className="pl-4 text-[14px] text-(--text-secondary)">
+                    {turnLimit.maxTurns}
+                  </span>
+                </label>
+                <input
+                  id="maxTurns"
+                  type="range"
+                  min={CHAT_TURN_LIMIT_MIN}
+                  max={CHAT_TURN_LIMIT_MAX}
+                  step={1}
+                  value={turnLimit.maxTurns}
+                  onChange={(e) => void persistSettings({ maxTurns: Number(e.target.value) })}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-(--text-tertiary)">
+                  <span>{CHAT_TURN_LIMIT_MIN}</span>
+                  <span>{CHAT_TURN_LIMIT_MAX}</span>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-1">
@@ -256,7 +263,7 @@ export default function ChatSettingsDropdown({
         </div>
       ) : null}
 
-      {cliBacked ? <div className={apiOnlyClass}>{extraContent}</div> : extraContent}
+      {extraContent}
 
       <div className="space-y-2">
         <div className="text-xs font-medium text-(--text-secondary)">Agent runs</div>
@@ -279,18 +286,16 @@ export default function ChatSettingsDropdown({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-medium text-(--text-secondary)">Tools</div>
-          {onResetTools ? (
-            <button
-              type="button"
-              className="text-[11px] text-(--text-tertiary) underline"
-              onClick={() => void onResetTools()}
-            >
-              Reset to defaults
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="text-[11px] text-(--text-tertiary) underline"
+            onClick={() => void onResetTools()}
+          >
+            Reset to defaults
+          </button>
         </div>
-        {toolsHint ? <div className="text-[11px] text-(--text-tertiary)">{toolsHint}</div> : null}
-        {toolApproval?.supported && onToolApprovalChange ? (
+        <div className="text-[11px] text-(--text-tertiary)">{CHAT_TOOLS_HINT}</div>
+        {toolApproval && onToolApprovalChange ? (
           <div className="flex items-center justify-between gap-3 rounded-md border border-(--border-subtle) px-2 py-2">
             <div className="flex flex-col">
               <span className="text-xs font-medium text-(--text-secondary)">
@@ -305,6 +310,11 @@ export default function ChatSettingsDropdown({
               checked={toolApproval.auto}
               onCheckedChange={(checked) => void onToolApprovalChange(!!checked)}
             />
+          </div>
+        ) : null}
+        {rulesChatContextId ? (
+          <div className="rounded-md border border-(--border-subtle) px-2 py-2">
+            <ChatRulesPanel chatContextId={rulesChatContextId} />
           </div>
         ) : null}
         <input
@@ -340,9 +350,7 @@ export default function ChatSettingsDropdown({
                             {tool.description}
                           </div>
                         </div>
-                        {/* Two label-above-switch toggles side by side. Mirrors
-                            the native peer 1:1 — Available on the left, Auto-call
-                            on the right, each with its caption above. */}
+                        {/* The label-above-switch toggle. Mirrors the native peer 1:1. */}
                         <div className="flex flex-row items-center gap-3">
                           <div
                             className="flex flex-col items-center space-y-px"
@@ -359,16 +367,6 @@ export default function ChatSettingsDropdown({
                               disabled={tool.toggleable === false}
                             />
                           </div>
-                          {tool.supportsAutoCall === false ? null : (
-                            <div className="flex flex-col items-center space-y-px">
-                              <span className="text-[10px] text-(--text-secondary)">Auto-call</span>
-                              <Switch
-                                checked={tool.available ? tool.autoCall : false}
-                                onCheckedChange={() => void toggleAutoCall(tool)}
-                                disabled={!tool.available}
-                              />
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

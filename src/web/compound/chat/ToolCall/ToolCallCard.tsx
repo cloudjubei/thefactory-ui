@@ -11,11 +11,16 @@ import {
 } from '../../../../headless/utils/toolPreview'
 import { formatDurationMs } from '../../../../headless/utils/time'
 import { toolRowMilestone } from '../../../../headless/utils/gitSetupApproval'
+import { slowToolLabel } from '../../../../headless/utils/backgroundJobs'
+import { TOOL_SLOW_TICK_MS } from '../../../../headless/utils/backgroundJobsConstants'
 import StatusIcon, { StatusChip } from './StatusIcon'
 import ToolArgInline from './ToolArgInline'
 import ToolCallHoverCard from './ToolCallHoverCard'
 import ToolOriginBadge from './ToolOriginBadge'
 import ToolRowMilestoneLine from './ToolRowMilestoneLine'
+import AlwaysAllowControl from '../AlwaysAllowControl'
+import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
+import type { AlwaysAllowScope, GrantCovers } from '../../../../headless/utils/chatTypes'
 import type { ToolCall, ToolResultType } from './types'
 
 // Web small-screen breakpoint mirrors the rest of the package
@@ -42,6 +47,8 @@ export type ToolCallCardProps = {
   result?: unknown
   resultType?: ToolResultType
   durationMs?: number
+  /** When the call was made — a running call says where it waits once it has run a while. */
+  startedAt?: string
   /**
    * Optional pluggable result renderer. The card itself stays renderer-
    * agnostic; consumers (web, desktop) pass a registry that maps the
@@ -76,11 +83,17 @@ export type ToolCallCardProps = {
   /** Whether the checkbox is checked. */
   selected?: boolean
   onToggleSelect?: () => void
-  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
-  alwaysAllowed?: boolean
-  /** Mark or unmark "Always allow" — offered beside the toggle. */
-  onAlwaysAllow?: () => void
+  /** Where "Always allow" may apply for this call, the default first. Defaults to this chat only. */
+  alwaysAllowScopes?: readonly AlwaysAllowScope[]
+  /** What an always-allow of this call covers. Defaults to the whole tool. */
+  grantCovers?: GrantCovers
+  /** Marked "Always allow" in this place: the batch's Resume grants it there. */
+  alwaysAllowScope?: AlwaysAllowScope
+  /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
+  onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
 }
+
+const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
 
 function jsonString(v: unknown): string {
   return safePreviewString(v).text
@@ -91,17 +104,28 @@ function ToolCallCardInner({
   result,
   resultType,
   durationMs,
+  startedAt,
   renderResult,
   headerPath,
   previewResult,
   selectable = false,
   selected = false,
   onToggleSelect,
-  alwaysAllowed = false,
+  alwaysAllowScopes = CHAT_ONLY,
+  grantCovers = 'tool',
+  alwaysAllowScope,
   onAlwaysAllow,
 }: ToolCallCardProps) {
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
+  // A running call's row counts how long it has waited; nothing else re-renders
+  // a memoised card while its call is open.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (resultType !== 'running' || startedAt === undefined) return
+    const id = setInterval(() => setTick((t) => t + 1), TOOL_SLOW_TICK_MS)
+    return () => clearInterval(id)
+  }, [resultType, startedAt])
   const [sheetOpen, setSheetOpen] = useState(false)
   const isSmallScreen = useIsSmallScreen()
 
@@ -166,30 +190,29 @@ function ToolCallCardInner({
           resultType={resultType}
           timeLabel={timeLabel}
           awaitingDecision={toolCall.awaitingDecision === true}
+          slowLabel={
+            resultType === 'running'
+              ? slowToolLabel({
+                  ...(toolCall.origin !== undefined ? { origin: toolCall.origin } : {}),
+                  ...(startedAt !== undefined ? { startedAt } : {}),
+                  nowMs: Date.now(),
+                })
+              : undefined
+          }
         />
         {/* The grant toggle shows ONLY for genuinely confirmable tools awaiting
             the user's approval — never for auto-call / already-running tools. */}
         {selectable && onAlwaysAllow ? (
-          <button
-            type="button"
-            aria-pressed={alwaysAllowed}
-            className={`shrink-0 text-[11px] underline-offset-2 hover:underline ${
-              alwaysAllowed
-                ? 'font-semibold text-green-600 dark:text-green-400'
-                : 'text-(--text-secondary) hover:text-(--text-primary)'
-            }`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onAlwaysAllow()
-            }}
-            title={
-              alwaysAllowed
-                ? 'Resume will allow this tool from now on — click to undo'
-                : 'Allow this tool now and every time it is called from here on'
-            }
-          >
-            {alwaysAllowed ? 'Always allowed ✓' : 'Always allow'}
-          </button>
+          <AlwaysAllowControl
+            view={alwaysAllowChoiceView({
+              scopes: alwaysAllowScopes,
+              toolName: toolCall.name,
+              covers: grantCovers,
+              ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
+            })}
+            toolName={toolCall.name}
+            onChoose={onAlwaysAllow}
+          />
         ) : null}
         {selectable ? (
           <span onClick={(e) => e.stopPropagation()}>
@@ -216,6 +239,12 @@ function ToolCallCardInner({
       </div>
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
+
+      {toolCall.decisionNote ? (
+        <div className="px-3 pb-1.5 text-[11px] text-(--text-secondary)">
+          {toolCall.decisionNote}
+        </div>
+      ) : null}
 
       {argsOpen && hasArgs ? (
         <div className="px-3 pb-2">

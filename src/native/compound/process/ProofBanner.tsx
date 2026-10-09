@@ -5,7 +5,7 @@ import type { StatedProofMode, VerifyProofDryLine, VerifyProofHeader } from '../
 import { nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconCheckCircle, IconExclamation } from '../../icons'
-import RefChip from '../chips/RefChip'
+import CommitChip from '../chips/CommitChip'
 
 const ICON: Record<StatedProofMode, typeof IconCheckCircle> = {
   live: IconCheckCircle,
@@ -13,7 +13,13 @@ const ICON: Record<StatedProofMode, typeof IconCheckCircle> = {
 }
 
 /** Which builds every pair had to come from, worded as the requirement — the native peer of the web `ProofBuildLine`. */
-export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
+export function ProofBuildLine({
+  projectId,
+  header,
+}: {
+  projectId: string
+  header: VerifyProofHeader
+}) {
   const { theme } = useNativeTheme()
   if (!header.baseSha && !header.headSha) return null
   const word = { fontSize: 11.5, color: theme.text.secondary }
@@ -22,14 +28,14 @@ export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
       {header.baseSha ? (
         <>
           <Text style={word}>Befores must be built from the base</Text>
-          <RefChip kind="commit" value={header.baseSha} />
+          <CommitChip projectId={projectId} sha={header.baseSha} />
         </>
       ) : null}
       {header.seams.length > 0 ? (
         <>
           <Text style={word}>with test seam</Text>
           {header.seams.map((s) => (
-            <RefChip key={s} kind="commit" value={s} />
+            <CommitChip key={s} projectId={projectId} sha={s} />
           ))}
         </>
       ) : null}
@@ -38,7 +44,7 @@ export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
           <Text style={word}>
             {header.baseSha ? '· afters from the branch' : 'Afters must be built from the branch'}
           </Text>
-          <RefChip kind="commit" value={header.headSha} />
+          <CommitChip projectId={projectId} sha={header.headSha} />
         </>
       ) : null}
     </View>
@@ -50,7 +56,7 @@ export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
  * `DryProofLine`. The whole line is the pressable row that folds the neutral
  * table of what was faked, and the builds it ran against, open in place.
  */
-export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
+export function DryProofLine({ projectId, dry }: { projectId: string; dry: VerifyProofDryLine }) {
   const { theme, status } = useNativeTheme()
   const [open, setOpen] = useState(false)
   return (
@@ -138,7 +144,7 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
                   >
                     {row.parts.map((part, j) =>
                       part.kind === 'sha' ? (
-                        <RefChip key={`${j}:${part.sha}`} kind="commit" value={part.sha} />
+                        <CommitChip key={`${j}:${part.sha}`} projectId={projectId} sha={part.sha} />
                       ) : (
                         <Text
                           key={`${j}:${part.text}`}
@@ -165,10 +171,16 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
  * detail folds open; a live one keeps its banner. A proof that never named its
  * data says nothing about it — only which builds its pairs had to come from.
  */
-export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
+export default function ProofBanner({
+  projectId,
+  header,
+}: {
+  projectId: string
+  header: VerifyProofHeader
+}) {
   const { theme, status } = useNativeTheme()
-  if (header.dry) return <DryProofLine dry={header.dry} />
-  if (header.mode === 'unknown') return <ProofBuildLine header={header} />
+  if (header.dry) return <DryProofLine projectId={projectId} dry={header.dry} />
+  if (header.mode === 'unknown') return <ProofBuildLine projectId={projectId} header={header} />
   const tone = status[header.tone]
   const titleColor = header.tone === 'empty' ? theme.text.primary : tone.softFg
   const Icon = ICON[header.mode]
@@ -191,7 +203,7 @@ export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
       <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: titleColor }}>{header.title}</Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{header.detail}</Text>
-        <ProofBuildLine header={header} />
+        <ProofBuildLine projectId={projectId} header={header} />
       </View>
     </View>
   )

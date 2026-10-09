@@ -40,6 +40,11 @@ export interface ChatInputProps {
    *  input stays editable so the user can compose while the client
    *  reconnects. The host surfaces the "why" via its disconnected banner. */
   disconnected?: boolean
+  /**
+   * While thinking, Send stays enabled and goes through `onSend` — the host
+   * queues it as a pending message.
+   */
+  queueWhileThinking?: boolean
 
   /** Suggested quick-reply chips from the last assistant turn. */
   suggestedActions?: string[]
@@ -80,6 +85,7 @@ export default function ChatInput({
   isThinking = false,
   isConfigured = true,
   disconnected = false,
+  queueWhileThinking = false,
   suggestedActions,
   onPickAttachment,
   filePaths,
@@ -161,14 +167,22 @@ export default function ChatInput({
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
+  const hasContent = value.trim().length > 0 || attachments.length > 0
+  const thinkingBlocks = isThinking && !queueWhileThinking
   const canSend = useMemo(
-    () => value.trim().length > 0 && !isThinking && !submitting && isConfigured && !disconnected,
-    [value, isThinking, submitting, isConfigured, disconnected],
+    () => hasContent && !thinkingBlocks && !submitting && isConfigured && !disconnected,
+    [hasContent, thinkingBlocks, submitting, isConfigured, disconnected],
   )
 
   const send = useCallback(
     async (text: string, meta?: { reason?: SendReason }) => {
-      if (!text.trim() || isThinking || submitting || !isConfigured) return
+      if (
+        (!text.trim() && attachments.length === 0) ||
+        thinkingBlocks ||
+        submitting ||
+        !isConfigured
+      )
+        return
       setSubmitting(true)
       try {
         await onSend(text.trim(), attachments, meta)
@@ -185,7 +199,7 @@ export default function ChatInput({
       attachments,
       onChange,
       onChangeAttachments,
-      isThinking,
+      thinkingBlocks,
       submitting,
       isConfigured,
       clearOnSend,
@@ -201,6 +215,7 @@ export default function ChatInput({
 
   const onSuggestion = (text: string) => {
     if (clearOnSuggestedAction) onChange('')
+    if (isThinking) return
     void send(text, { reason: 'suggested_action' })
   }
 
@@ -410,7 +425,7 @@ export default function ChatInput({
               }}
             />
           </Pressable>
-        ) : value.trim().length === 0 && dictationAvailable && !isThinking ? (
+        ) : !hasContent && dictationAvailable && !isThinking ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Dictate"
@@ -431,7 +446,7 @@ export default function ChatInput({
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Send message"
+            accessibilityLabel={isThinking ? 'Add to pending messages' : 'Send message'}
             onPress={onPressSend}
             disabled={!canSend}
             style={({ pressed }) => ({

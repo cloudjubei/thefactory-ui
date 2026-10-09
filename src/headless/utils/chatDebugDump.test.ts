@@ -100,14 +100,13 @@ describe('buildChatDebugDump — header', () => {
     const dump = buildChatDebugDump({
       context,
       chat: chatOf({
-        cliRunner: { tool: 'claude-code', model: 'opus', execMode: 'resident', effort: 'high' },
+        cliRunner: { tool: 'claude-code', model: 'opus', effort: 'high' },
       }),
     })
     expect(dump.cliRunner).toEqual({
       tool: 'claude-code',
       model: 'opus',
       effort: 'high',
-      execMode: 'resident',
     })
   })
 

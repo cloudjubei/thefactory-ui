@@ -11,6 +11,8 @@ import {
   type ProcessRun,
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
+import CommitChip from '../chips/CommitChip'
+import MergeChecksResult from '../git/MergeChecksResult'
 import IntegrationChooser from './IntegrationChooser'
 
 export type IntegrationResultProps = {
@@ -71,17 +73,14 @@ export default function IntegrationResult({
         >
           {view.title}
         </span>
-        {view.sha ? (
-          <code className="rounded bg-(--surface-sunken) px-1.5 py-px font-mono text-[11px] text-(--text-secondary)">
-            {view.sha}
-          </code>
-        ) : null}
+        {view.sha ? <CommitChip projectId={run.projectId} sha={view.sha} /> : null}
       </div>
       {view.detail ? (
         <span className="max-w-[72ch] whitespace-pre-wrap text-[12px] text-(--text-secondary)">
           {view.detail}
         </span>
       ) : null}
+      {view.checks ? <MergeChecksResult checks={view.checks} /> : null}
       {view.files && view.files.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           {view.files.map((file) => (

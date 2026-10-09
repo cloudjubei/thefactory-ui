@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import Spinner from '../../../primitives/Spinner'
 import type { GitLogCommitLike } from '../types'
-import { computeCommitGraph, type GraphNode } from '../../../../headless/utils/gitCommitGraph'
+import {
+  computeCommitGraph,
+  type GitLogRefLike,
+  type GraphNode,
+} from '../../../../headless/utils/gitCommitGraph'
 import GitCommitGraphRow from './GitCommitGraphRow'
 import GitCommitGraphHeader from './GitCommitGraphHeader'
 
@@ -40,12 +45,17 @@ export type GitCommitGraphProps = {
    * narrow viewport reads identically to the mobile `CommitGraph`.
    */
   compact?: boolean
+  /** Right-click on a branch or remote-branch label in the graph: its context menu. */
+  onContextMenuRef?: (ref: GitLogRefLike, at: { x: number; y: number }) => void
+  /** Renders a commit's sha (e.g. as a CommitChip); the bare short sha without it. */
+  renderCommitRef?: (sha: string) => ReactNode
 }
 
 // Graph / Description / Author are user-resizable. Commit (SHA) and Date are
 // constant — their content widths are predictable so there's nothing for the
 // user to gain by resizing them.
 const COMMIT_WIDTH = 72
+const COMMIT_CHIP_WIDTH = 104
 const DATE_WIDTH = 110
 
 const DEFAULT_GRAPH_WIDTH = 140
@@ -65,6 +75,8 @@ export function GitCommitGraph({
   loadingMore,
   hasMore,
   compact = false,
+  onContextMenuRef,
+  renderCommitRef,
 }: GitCommitGraphProps) {
   const [graphWidth, setGraphWidth] = useState(DEFAULT_GRAPH_WIDTH)
   const [descriptionWidth, setDescriptionWidth] = useState(DEFAULT_DESCRIPTION_WIDTH)
@@ -203,7 +215,7 @@ export function GitCommitGraph({
     graph: graphWidth,
     description: descriptionWidth,
     author: authorWidth,
-    commit: COMMIT_WIDTH,
+    commit: renderCommitRef ? COMMIT_CHIP_WIDTH : COMMIT_WIDTH,
     date: DATE_WIDTH,
   }
 
@@ -268,6 +280,8 @@ export function GitCommitGraph({
                 colWidths={colLayout}
                 compact
                 rowRef={setRowRef(sha)}
+                onContextMenuRef={onContextMenuRef}
+                renderCommitRef={renderCommitRef}
                 onClick={() => {
                   onSelectCommit?.(sha)
                   onSelectBranchBySha?.(sha)
@@ -330,6 +344,8 @@ export function GitCommitGraph({
                 isSelected={selectedCommitSha === sha}
                 colWidths={colLayout}
                 rowRef={setRowRef(sha)}
+                onContextMenuRef={onContextMenuRef}
+                renderCommitRef={renderCommitRef}
                 onClick={() => {
                   onSelectCommit?.(sha)
                   onSelectBranchBySha?.(sha)

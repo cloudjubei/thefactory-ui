@@ -7,7 +7,7 @@ import type {
   VerifyProofTone,
 } from '../../../headless'
 import { IconCheckCircle, IconChevronRight, IconExclamation } from '../../icons'
-import { RefChip } from '../chips'
+import { CommitChip } from '../chips'
 
 const BOX_TONE: Record<VerifyProofTone, string> = {
   done: 'border-(--status-done-soft-border) bg-(--status-done-soft-bg)',
@@ -33,21 +33,27 @@ const ICON: Record<StatedProofMode, typeof IconCheckCircle> = {
  * seam. Worded as the requirement it is: a pair that did not count may have been
  * built from something else, and says so on its own frames.
  */
-export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
+export function ProofBuildLine({
+  projectId,
+  header,
+}: {
+  projectId: string
+  header: VerifyProofHeader
+}) {
   if (!header.baseSha && !header.headSha) return null
   return (
     <span className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-(--text-secondary)">
       {header.baseSha ? (
         <>
           <span>Befores must be built from the base</span>
-          <RefChip kind="commit" value={header.baseSha} />
+          <CommitChip projectId={projectId} sha={header.baseSha} />
         </>
       ) : null}
       {header.seams.length > 0 ? (
         <>
           <span>with test seam</span>
           {header.seams.map((s) => (
-            <RefChip key={s} kind="commit" value={s} />
+            <CommitChip key={s} projectId={projectId} sha={s} />
           ))}
         </>
       ) : null}
@@ -56,7 +62,7 @@ export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
           <span>
             {header.baseSha ? '· afters from the branch' : 'Afters must be built from the branch'}
           </span>
-          <RefChip kind="commit" value={header.headSha} />
+          <CommitChip projectId={projectId} sha={header.headSha} />
         </>
       ) : null}
     </span>
@@ -68,7 +74,7 @@ export function ProofBuildLine({ header }: { header: VerifyProofHeader }) {
  * dot, and what was faked — with the builds it ran against — folds open in place
  * as a neutral table. A caveat to read while signing off, not an alarm.
  */
-export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
+export function DryProofLine({ projectId, dry }: { projectId: string; dry: VerifyProofDryLine }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="flex flex-col gap-2">
@@ -112,7 +118,11 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
                     <span className="flex flex-wrap items-center gap-1.5">
                       {row.parts.map((part, j) =>
                         part.kind === 'sha' ? (
-                          <RefChip key={`${j}:${part.sha}`} kind="commit" value={part.sha} />
+                          <CommitChip
+                            key={`${j}:${part.sha}`}
+                            projectId={projectId}
+                            sha={part.sha}
+                          />
                         ) : (
                           <span key={`${j}:${part.text}`}>{part.text}</span>
                         ),
@@ -135,9 +145,15 @@ export function DryProofLine({ dry }: { dry: VerifyProofDryLine }) {
  * a live one keeps its banner. A proof that never named its data says nothing
  * about it — only which builds its pairs had to come from.
  */
-export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
-  if (header.dry) return <DryProofLine dry={header.dry} />
-  if (header.mode === 'unknown') return <ProofBuildLine header={header} />
+export default function ProofBanner({
+  projectId,
+  header,
+}: {
+  projectId: string
+  header: VerifyProofHeader
+}) {
+  if (header.dry) return <DryProofLine projectId={projectId} dry={header.dry} />
+  if (header.mode === 'unknown') return <ProofBuildLine projectId={projectId} header={header} />
   const Icon = ICON[header.mode]
   return (
     <div
@@ -150,7 +166,7 @@ export default function ProofBanner({ header }: { header: VerifyProofHeader }) {
           {header.title}
         </span>
         <span className="max-w-[72ch] text-[12px] text-(--text-secondary)">{header.detail}</span>
-        <ProofBuildLine header={header} />
+        <ProofBuildLine projectId={projectId} header={header} />
       </div>
     </div>
   )

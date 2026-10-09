@@ -123,6 +123,9 @@ export {
 } from './compound/files'
 export {
   CheckChip,
+  CommitCard,
+  CommitChip,
+  CommitChipBase,
   CostChip,
   DurationChip,
   HandoffButton,
@@ -137,6 +140,9 @@ export {
   TurnChip,
   type CheckChipProps,
   type ChipState,
+  type CommitCardProps,
+  type CommitChipBaseProps,
+  type CommitChipProps,
   type CostChipProps,
   type DurationChipProps,
   type HandoffButtonProps,
@@ -154,6 +160,11 @@ export {
   type CommandPaletteItem,
   type CommandPaletteProps,
 } from './compound/CommandPalette'
+export {
+  default as ContextMenu,
+  type ContextMenuItem,
+  type ContextMenuProps,
+} from './compound/ContextMenu'
 export {
   default as OverflowMenu,
   type OverflowMenuItem,
@@ -290,6 +301,7 @@ export {
   type TabKey as ShellTabsTabKey,
 } from './compound/shell/ShellTabs'
 export { default as LoadingScreen, type LoadingScreenProps } from './compound/shell/LoadingScreen'
+export { default as BackendStartupGate } from './compound/shell/BackendStartupGate'
 export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
 
@@ -337,6 +349,15 @@ export { TimelineHoverCard } from './compound/projectTimeline/TimelineHoverCard'
 export { default as VisualSettings } from './compound/settings/VisualSettings'
 export { default as NotificationSettings } from './compound/settings/NotificationSettings'
 export { default as CrossProjectSettings } from './compound/settings/CrossProjectSettings'
+export {
+  default as SavedRulesSettings,
+  type SavedRulesSettingsProps,
+} from './compound/rules/SavedRulesSettings'
+export {
+  default as ChatRulesPanel,
+  type ChatRulesPanelProps,
+} from './compound/rules/ChatRulesPanel'
+export { default as ActionRuleRow, type ActionRuleRowProps } from './compound/rules/ActionRuleRow'
 
 // Shell-level connected components: command menu + shortcuts help overlay.
 export { default as CommandMenu } from './compound/shell/CommandMenu'
@@ -405,6 +426,10 @@ export {
   ChatDynamicContextModal,
   ChatHeader,
   ChatInput,
+  ChatDropController,
+  useChatDropTarget,
+  PendingMessagesStack,
+  type PendingMessagesStackProps,
   ChatSettingsDropdown,
   ChatTopicCreateModal,
   ChatTopicCreateModalConnected,
@@ -447,7 +472,6 @@ export {
   type MessageListProps,
   type MessageRowProps,
   type MessageUsageLike,
-  type PendingToolConfirmationLike,
   type SystemPromptBubbleProps,
   type SystemPromptViewerModalProps,
   type ThinkingRowProps,
@@ -521,8 +545,12 @@ export {
   GitSidebarBranchRow,
   GitSidebarSectionHeader,
   GitSidebarStashRow,
+  MergeBranchSheet,
   MergeConflictResolver,
   MergeDialog,
+  MergeInProgressBanner,
+  MergeOutcomeNotice,
+  MergeChecksResult,
   StashDialog,
   computeCommitGraph,
   type CommitDialogProps,
@@ -550,8 +578,12 @@ export {
   type GitStashListItemLike,
   type GitUnifiedBranchLike,
   type GraphNode,
+  type MergeBranchSheetProps,
   type MergeConflictResolverProps,
   type MergeDialogProps,
+  type MergeInProgressBannerProps,
+  type MergeOutcomeNoticeProps,
+  type MergeChecksResultProps,
   type StashDialogProps,
 } from './compound/git'
 
@@ -573,6 +605,7 @@ export { ShortcutsProviderConnected } from './compound/shortcuts/ShortcutsProvid
 // AppSettings, the platform-aware defaults). Read state via `useAppSettings`
 // / `useLLMConfigs` from `thefactory-ui/headless`.
 export { localStorageAdapter } from './compound/storage/localStorageAdapter'
+export { subscribePageHidden } from './compound/storage/subscribePageHidden'
 export { AppSettingsProviderConnected } from './compound/settings/AppSettingsProviderConnected'
 export { LLMConfigsProviderConnected } from './compound/settings/LLMConfigsProviderConnected'
 
@@ -650,6 +683,26 @@ export { default as GitCredentialsSettings } from './compound/settings/GitCreden
 export type { GitCredentialsSettingsProps } from './compound/settings/GitCredentialsSettings'
 export { default as ProjectNotesSettings } from './compound/settings/ProjectNotesSettings'
 export type { ProjectNotesSettingsProps } from './compound/settings/ProjectNotesSettings'
+// Search — a project's files, stories, features and notes in one search.
+export {
+  default as ProjectSearchView,
+  type ProjectSearchViewProps,
+} from './compound/search/ProjectSearchView'
+// Design — a project's apps, screens, drafts and built versions; storage usage.
+export { default as DesignView, type DesignViewProps } from './compound/design/DesignView'
+export {
+  default as DesignItemViewer,
+  type DesignItemViewerProps,
+} from './compound/design/DesignItemViewer'
+export {
+  default as DesignItemThumb,
+  type DesignItemThumbProps,
+} from './compound/design/DesignItemThumb'
+export {
+  default as DesignReferenceChip,
+  type DesignReferenceChipProps,
+} from './compound/design/DesignReferenceChip'
+export { default as StorageUsageSettings } from './compound/settings/StorageUsageSettings'
 export { default as GroupNotesSettings } from './compound/settings/GroupNotesSettings'
 export type { GroupNotesSettingsProps } from './compound/settings/GroupNotesSettings'
 export { default as NotesSettings } from './compound/settings/NotesSettings'
@@ -752,3 +805,7 @@ export { default as ReferenceRenderingProvider } from './compound/ReferenceRende
 // `TemplatesContext` respectively.
 export { default as ProjectAppView, type ProjectAppViewProps } from './compound/ProjectAppView'
 export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'
+export {
+  default as AlwaysAllowControl,
+  type AlwaysAllowControlProps,
+} from './compound/chat/AlwaysAllowControl'

@@ -1,28 +1,34 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import { Button } from '../../primitives/Button'
 import { Textarea } from '../../primitives/Textarea'
 import Tooltip from '../../primitives/Tooltip'
 import {
   LAUNCH_NOTE_MAX_CHARS,
-  LAUNCH_OPTIONS_READ_ONLY,
-  formatGrantDetail,
+  grantDetailView,
   isStartFeatureWorkGrant,
-  launchOptionsAreHonoured,
   launchRunnerLabel,
   startFeatureWorkGrantSummary,
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
+import { alwaysAllowChoiceView, alwaysAllowDecision } from '../../../headless/utils/alwaysAllow'
+import type { GrantDetailView } from '../../../headless/utils/approvalGrantTypes'
+import type { PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
+import AlwaysAllowControl from './AlwaysAllowControl'
+import RichText from '../files/RichText'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import {
   featureProcessChoice,
   featureProcessMetadata,
   featuresToWork,
   isGitSetupGrant,
+  isGitChangeGrant,
   isRunProposalGrant,
   isStartGroupWorkGrant,
+  LAUNCH_HOW_IT_RUNS_HEADING,
+  launchFeatureRows,
   launchProofPlanRows,
   processOpenWorkMetadata,
   proofPlanMetadata,
@@ -42,11 +48,11 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
-import ChainChip from '../process/ChainChip'
 import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
-import ProofPlanConfirm from './ProofPlanConfirm'
+import LaunchFeatureList from './LaunchFeatureList'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
+import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
@@ -85,6 +91,9 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
       />
     )
   }
+  if (isGitChangeGrant(props.grant)) {
+    return <GitChangeApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
+  }
   if (isRunProposalGrant(props.grant)) {
     return <RunProposalApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
   }
@@ -103,9 +112,8 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   const { theme, status } = useNativeTheme()
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
-  const detail = isLaunch ? undefined : formatGrantDetail(grant.detail)
-  const canGrantPermanently =
-    !isLaunch && grant.source === 'cli' && grant.canGrantPermanently !== false
+  const { headline, detail }: GrantDetailView = isLaunch ? {} : grantDetailView(grant.detail)
+  const alwaysAllowScopes = !isLaunch ? (grant.alwaysAllowScopes ?? []) : []
   const { getStory, resolveDependency } = useStories()
   // The notes this launch will point the run at — resolved to labels so the user
   // sees which stored notes (a login, a key) the run may read before approving.
@@ -116,13 +124,13 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   const flaggedNotes = flaggedNoteIds.map(
     (id) => projectNotes.find((n) => n.id === id) ?? { id, label: id, kind: 'note' as const },
   )
-  // Only a CLI decision carries metadata to the launch; on the API transport the
-  // agent's own arguments are what runs, so the options are shown, not offered.
-  const optionsHonoured = launchOptionsAreHonoured(grant)
-  const runnerLabel = launchRunnerLabel(summary, grant.source)
+  const runnerLabel = launchRunnerLabel(summary, grant.chatRunner)
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
+  // The card can take most of the screen while it is read through.
+  const [expanded, setExpanded] = useState(false)
+  const windowHeight = useWindowDimensions().height
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -144,6 +152,13 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
     ...(featureProcessPick ? { featureProcessId: featureProcessPick } : {}),
   })
   const featureProcess = featureProcessChoice(proposal, featureProcessPick)
+  // The story process's own way of working features, as first proposed — the
+  // one marked default once the person picks another.
+  const defaultFeatureProcessRef = useRef<string | undefined>(undefined)
+  if (defaultFeatureProcessRef.current === undefined && featureProcessPick === undefined) {
+    defaultFeatureProcessRef.current = proposalFeatureProcessId(proposal)
+  }
+  const defaultFeatureProcess = defaultFeatureProcessRef.current
   const proposalView = proposal ? processProposalView(proposal) : undefined
   // The story's open work — a run still going, or finished and not merged. The
   // launch waits for the person to choose how to proceed over it; the choice is
@@ -159,6 +174,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   const [proofPlanEdits, setProofPlanEdits] = useState<LaunchProofPlanEdits>({})
   const [saveProofPlans, setSaveProofPlans] = useState(false)
   const proofPlanRows = launchProofPlanRows(proposal, proofPlanEdits)
+  const featureRows = launchFeatureRows(proposalView, proofPlanRows)
   const canonicalize = useCanonicalizeReferences()
   const proofPlanMeta = proofPlanMetadata(
     proposal,
@@ -206,7 +222,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
     }
   }
 
-  const decide = (decision: 'once' | 'deny' | 'permanent') => {
+  const decide = (decision: PendingToolGrantDecision) => {
     setBusy(true)
     setError(null)
     const trimmedNote = note.trim()
@@ -267,6 +283,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           {`It is waiting on this before it can continue: ${grant.label}`}
         </Text>
+        {headline !== undefined ? <RichText text={headline} /> : null}
         {detail !== undefined ? (
           <View
             style={{
@@ -297,10 +314,20 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
           <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
             Decide later
           </Button>
-          {canGrantPermanently ? (
-            <Button variant="ghost" size="sm" onPress={() => decide('permanent')} disabled={busy}>
-              Always allow
-            </Button>
+          {alwaysAllowScopes.length > 0 ? (
+            <AlwaysAllowControl
+              variant="button"
+              view={alwaysAllowChoiceView({
+                scopes: alwaysAllowScopes,
+                toolName: grant.label,
+                covers: grant.grantCovers ?? 'exact-call',
+              })}
+              toolName={grant.label}
+              onChoose={(scope) => {
+                if (scope) decide(alwaysAllowDecision(scope))
+              }}
+              disabled={busy}
+            />
           ) : null}
           <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
             Not now
@@ -326,358 +353,293 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   }
   const tipText = { fontSize: 12, color: theme.text.primary, maxWidth: 280 }
 
+  const sectionHeading = {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
+    color: theme.text.muted,
+  }
+  const linkPill = {
+    alignSelf: 'flex-start' as const,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    borderRadius: nativeRadii.round,
+    borderWidth: 1,
+  }
+
   return (
+    // Bounded by the window, with its own scroll: a story of a dozen features
+    // used to push the decision off the screen. Header and decision stay put.
     <View
       style={{
-        paddingHorizontal: nativeSpace[3],
-        paddingVertical: nativeSpace[3],
         borderTopWidth: 1,
         borderTopColor: theme.border.strong ?? theme.border.subtle,
         backgroundColor: theme.surface.raised ?? theme.surface.muted,
-        gap: nativeSpace[2],
+        ...(expanded ? { height: windowHeight * 0.88 } : { maxHeight: windowHeight * 0.66 }),
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-        <View
-          style={{
-            ...pill,
-            height: 20,
-            paddingHorizontal: 6,
-            borderStyle: 'dashed',
-            borderColor: status.review.softBorder,
-            backgroundColor: 'transparent',
-          }}
-        >
-          <View
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: 999,
-              borderWidth: 1.5,
-              borderColor: status.review.softFg,
-            }}
-          />
-          <Text style={{ fontSize: 10, color: status.review.softFg }}>Needs you</Text>
-        </View>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          Start work on this story?
-        </Text>
-      </View>
-
-      {summary.storyId ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: nativeSpace[2],
-            flexWrap: 'wrap',
-          }}
-        >
-          <DependencyBullet
-            resolved={resolvedBullet(summary.storyId)}
-            dependency={summary.storyId}
-            // Not pressable: web's bullet is a connected component that routes to
-            // the story, and this panel has no navigation seam — a control that
-            // looks tappable and does nothing is worse than a plain marker.
-            interactive={false}
-          />
-          <Text
-            style={{ fontSize: 14, fontWeight: '500', color: theme.text.primary, flexShrink: 1 }}
-          >
-            {story?.title ?? 'Story'}
-          </Text>
-        </View>
-      ) : null}
-
-      {proposalView && proposalView.features.length > 0 ? (
-        <View
-          style={{
-            gap: nativeSpace[2],
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            borderRadius: nativeRadii[3],
-            borderWidth: 1,
-            borderColor: theme.border.subtle,
-            backgroundColor: theme.surface.muted,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: '600',
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                color: theme.text.secondary,
-              }}
-            >
-              The process
-            </Text>
-            <Text style={{ fontSize: 10, color: theme.text.muted }}>
-              {proposalView.features.length} feature
-              {proposalView.features.length === 1 ? '' : 's'} · {proposalView.agentStepCount} agent
-              step{proposalView.agentStepCount === 1 ? '' : 's'}
-            </Text>
-          </View>
-          {proposalView.features.map((feature, i) => (
-            <View key={feature.id} style={{ gap: 4 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-                <Text
-                  style={{
-                    width: 16,
-                    textAlign: 'right',
-                    fontSize: 10,
-                    color: theme.text.secondary,
-                  }}
-                >
-                  {i + 1}
-                </Text>
-                {summary.storyId ? (
-                  <DependencyBullet
-                    resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
-                    dependency={`${summary.storyId}.${feature.id}`}
-                    interactive={false}
-                  />
-                ) : null}
-                <Text
-                  numberOfLines={1}
-                  style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
-                >
-                  {feature.title}
-                </Text>
-              </View>
-              {feature.chain.length > 0 ? (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 4,
-                    marginLeft: 24,
-                  }}
-                >
-                  {feature.chain.map((chip, j) => (
-                    <View
-                      key={chip.id}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                    >
-                      {j > 0 ? (
-                        <Text style={{ color: theme.border.strong, fontSize: 11 }}>›</Text>
-                      ) : null}
-                      <ChainChip chip={chip} />
-                    </View>
-                  ))}
-                  {feature.maxIterations && feature.maxIterations > 1 ? (
-                    <Text style={{ fontSize: 10, color: theme.text.muted, marginLeft: 2 }}>
-                      · up to {feature.maxIterations} attempts
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-          ))}
-          {proposalView.tail.length > 0 ? (
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: 4,
-                marginLeft: 24,
-                borderTopWidth: 1,
-                borderTopColor: theme.border.subtle,
-                paddingTop: 6,
-              }}
-            >
-              {proposalView.tail.map((chip, j) => (
-                <View key={chip.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {j > 0 ? (
-                    <Text style={{ color: theme.border.strong, fontSize: 11 }}>›</Text>
-                  ) : null}
-                  <ChainChip chip={chip} />
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <Text style={{ fontSize: 10.5, color: theme.text.muted }}>
-            Not included: merging. Nothing lands without your sign-off.
-          </Text>
-        </View>
-      ) : (
-        <View
-          style={{
-            gap: 6,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            borderRadius: nativeRadii[3],
-            borderWidth: 1,
-            borderColor: theme.border.subtle,
-            backgroundColor: theme.surface.muted,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              color: theme.text.secondary,
-            }}
-          >
-            Features to work on
-          </Text>
-          {refusal !== undefined ? (
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>{refusal}</Text>
-          ) : features.length === 0 ? (
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-              {story
-                ? 'Every feature on this story is done or deferred — it will be refused when launched.'
-                : 'Loading the story…'}
-            </Text>
-          ) : (
-            features.map((feature, i) => (
-              <View
-                key={feature.id}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
-              >
-                <Text
-                  style={{
-                    width: 16,
-                    textAlign: 'right',
-                    fontSize: 10,
-                    color: theme.text.secondary,
-                  }}
-                >
-                  {i + 1}
-                </Text>
-                {summary.storyId ? (
-                  <DependencyBullet
-                    resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
-                    dependency={`${summary.storyId}.${feature.id}`}
-                    interactive={false}
-                  />
-                ) : null}
-                <Text
-                  numberOfLines={1}
-                  style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
-                >
-                  {feature.title}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
-
-      {openWork ? (
-        <OpenWorkChooser
-          openWork={openWork}
-          choice={openWorkChoice}
-          busy={busy}
-          onChoose={setOpenWorkChoice}
-        />
-      ) : null}
-
-      {proposalFeatureProcessId(proposal) !== undefined ? (
-        <FeatureProcessChooser
-          choice={featureProcess}
-          joinsOpenRun={joinsOpenRun}
-          busy={busy}
-          onChoose={setFeatureProcessPick}
-        />
-      ) : null}
-
-      {proofPlanRows.length > 0 ? (
-        <ProofPlanConfirm
-          rows={proofPlanRows}
-          save={saveProofPlans}
-          joinsOpenRun={joinsOpenRun}
-          busy={busy}
-          onToggleKind={(featureId, kind) =>
-            setProofPlanEdits((prev) => toggleLaunchProofKind(proposal, prev, featureId, kind))
-          }
-          onNotesChange={(featureId, notes) =>
-            setProofPlanEdits((prev) => setLaunchProofNotes(proposal, prev, featureId, notes))
-          }
-          onSaveChange={setSaveProofPlans}
-        />
-      ) : null}
-
       <View
         style={{
+          paddingHorizontal: nativeSpace[3],
+          paddingTop: nativeSpace[3],
+          paddingBottom: nativeSpace[2],
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border.subtle,
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: nativeSpace[2],
-          flexWrap: 'wrap',
         }}
       >
-        <Tooltip content={<Text style={tipText}>{runnerLabel.tip}</Text>}>
-          <View style={pill}>
-            <Text
-              style={{
-                fontSize: 12,
-                color: runnerLabel.redirected ? status.working.softFg : theme.text.secondary,
-              }}
-            >
-              {runnerLabel.label}
-            </Text>
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
             <View
               style={{
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: theme.border.subtle,
-                paddingHorizontal: 5,
-                paddingVertical: 1,
+                ...pill,
+                height: 20,
+                paddingHorizontal: 6,
+                borderStyle: 'dashed',
+                borderColor: status.review.softBorder,
+                backgroundColor: 'transparent',
               }}
             >
-              <Text style={{ fontSize: 9, fontWeight: '600', color: theme.text.secondary }}>
-                {runnerLabel.pill}
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 999,
+                  borderWidth: 1.5,
+                  borderColor: status.review.softFg,
+                }}
+              />
+              <Text style={{ fontSize: 10, color: status.review.softFg }}>Needs you</Text>
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}>
+              Start work on this story?
+            </Text>
+          </View>
+          {summary.storyId ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+              <DependencyBullet
+                resolved={resolvedBullet(summary.storyId)}
+                dependency={summary.storyId}
+                // Not pressable: this panel has no navigation seam — a control that
+                // looks tappable and does nothing is worse than a plain marker.
+                interactive={false}
+              />
+              <Text
+                numberOfLines={1}
+                style={{ flex: 1, fontSize: 13, color: theme.text.secondary }}
+              >
+                {story?.title ?? 'Story'}
               </Text>
             </View>
-          </View>
-        </Tooltip>
-        <Tooltip
-          content={
-            <Text style={tipText}>
-              The run gets its own copy of the repo and its own branch. Your files and the branch
-              you are on are never touched, even if it fails.
-            </Text>
-          }
+          ) : null}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Shrink the card' : 'Expand the card'}
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded((v) => !v)}
+          hitSlop={8}
+          style={{
+            width: 36,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: theme.border.default,
+          }}
         >
-          <View style={pill}>
-            <Text style={{ fontSize: 12, color: theme.text.secondary }}>Isolated copy</Text>
-          </View>
-        </Tooltip>
+          <Text style={{ fontSize: 14, color: theme.text.secondary }}>{expanded ? '▾' : '▴'}</Text>
+        </Pressable>
       </View>
 
-      {summary.note ? (
-        // The agent's own note, when it wrote one. Collapsed to a chip: context
-        // worth reading before approving, not worth a standing block. Sits ABOVE
-        // the user's own note — the agent briefed the run first.
-        <View style={{ gap: 4 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: agentNoteOpen }}
-            onPress={() => setAgentNoteOpen((v) => !v)}
+      <ScrollView
+        style={{ flexGrow: 0, flexShrink: 1 }}
+        contentContainerStyle={{ padding: nativeSpace[3], gap: nativeSpace[3] }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {openWork ? (
+          <OpenWorkChooser
+            openWork={openWork}
+            choice={openWorkChoice}
+            busy={busy}
+            onChoose={setOpenWorkChoice}
+          />
+        ) : null}
+
+        <View style={{ gap: 6 }}>
+          <Text style={sectionHeading}>{LAUNCH_HOW_IT_RUNS_HEADING}</Text>
+          {proposalFeatureProcessId(proposal) !== undefined ? (
+            <FeatureProcessChooser
+              choice={featureProcess}
+              {...(defaultFeatureProcess !== undefined
+                ? { defaultChoice: defaultFeatureProcess }
+                : {})}
+              joinsOpenRun={joinsOpenRun}
+              busy={busy}
+              onChoose={setFeatureProcessPick}
+            />
+          ) : null}
+          <View
             style={{
-              alignSelf: 'flex-start',
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 6,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: nativeRadii.round,
-              borderWidth: 1,
-              borderColor: theme.border.default,
-              backgroundColor: theme.surface.base,
+              gap: nativeSpace[2],
+              flexWrap: 'wrap',
             }}
           >
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>
-              {agentNoteOpen ? '▾' : '▸'}
-            </Text>
-            <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>Note from the agent</Text>
-          </Pressable>
-          {agentNoteOpen ? (
+            <Tooltip content={<Text style={tipText}>{runnerLabel.tip}</Text>}>
+              <View style={pill}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: runnerLabel.redirected ? status.working.softFg : theme.text.secondary,
+                  }}
+                >
+                  {runnerLabel.label}
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: theme.border.subtle,
+                    paddingHorizontal: 5,
+                    paddingVertical: 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.text.secondary }}>
+                    {runnerLabel.pill}
+                  </Text>
+                </View>
+              </View>
+            </Tooltip>
+            <Tooltip
+              content={
+                <Text style={tipText}>
+                  The run gets its own copy of the repo and its own branch. Your files and the
+                  branch you are on are never touched, even if it fails.
+                </Text>
+              }
+            >
+              <View style={pill}>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>Isolated copy</Text>
+              </View>
+            </Tooltip>
+            <Text style={{ fontSize: 11.5, color: theme.text.muted }}>Merges nothing.</Text>
+          </View>
+        </View>
+
+        {featureRows.length > 0 ? (
+          <LaunchFeatureList
+            {...(summary.storyId ? { storyId: summary.storyId } : {})}
+            resolveBullet={resolvedBullet}
+            rows={featureRows}
+            tail={proposalView?.tail ?? []}
+            {...(proposalView ? { agentStepCount: proposalView.agentStepCount } : {})}
+            save={saveProofPlans}
+            joinsOpenRun={joinsOpenRun}
+            busy={busy}
+            onToggleKind={(featureId, kind) =>
+              setProofPlanEdits((prev) => toggleLaunchProofKind(proposal, prev, featureId, kind))
+            }
+            onNotesChange={(featureId, notes) =>
+              setProofPlanEdits((prev) => setLaunchProofNotes(proposal, prev, featureId, notes))
+            }
+            onSaveChange={setSaveProofPlans}
+          />
+        ) : (
+          <View style={{ gap: 6 }}>
+            <Text style={sectionHeading}>Features to work on</Text>
+            {refusal !== undefined ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>{refusal}</Text>
+            ) : features.length === 0 ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {story
+                  ? 'Every feature on this story is done or deferred — it will be refused when launched.'
+                  : 'Loading the story…'}
+              </Text>
+            ) : (
+              features.map((feature) => (
+                <View
+                  key={feature.id}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}
+                >
+                  {summary.storyId ? (
+                    <DependencyBullet
+                      resolved={resolvedBullet(`${summary.storyId}.${feature.id}`)}
+                      dependency={`${summary.storyId}.${feature.id}`}
+                      interactive={false}
+                    />
+                  ) : null}
+                  <Text
+                    numberOfLines={1}
+                    style={{ flex: 1, fontSize: 12.5, color: theme.text.primary }}
+                  >
+                    {feature.title}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {flaggedNotes.length > 0 ? (
+          // Which stored notes this launch lets the run read (a login, a key).
+          // Read-only; approving sanctions the run to read them even if 'ask'.
+          // Labels only — never a value.
+          <View style={{ gap: 4 }}>
+            <Text style={sectionHeading}>Notes this run will use</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {flaggedNotes.map((n) => (
+                <ProjectNoteChip key={n.id} note={n} loadValue={() => revealNote(n.id)} />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {summary.note ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: agentNoteOpen }}
+                onPress={() => setAgentNoteOpen((v) => !v)}
+                style={{
+                  ...linkPill,
+                  borderColor: theme.border.default,
+                  backgroundColor: theme.surface.base,
+                }}
+              >
+                <Text style={{ fontSize: 11, color: theme.text.muted }}>
+                  {agentNoteOpen ? '▾' : '▸'}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                  Note from the agent
+                </Text>
+              </Pressable>
+            ) : null}
+            {!noteOpen ? (
+              // Collapsed by default: most launches need no note.
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setNoteOpen(true)}
+                disabled={busy}
+                style={{ ...linkPill, borderStyle: 'dashed', borderColor: theme.border.strong }}
+              >
+                <Text style={{ fontSize: 13, color: theme.text.muted }}>+</Text>
+                <Text style={{ fontSize: 12, color: theme.text.muted }}>
+                  Add a note for this run
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {summary.note && agentNoteOpen ? (
             <Text
               style={{
                 fontSize: 11.5,
@@ -694,97 +656,38 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
               {summary.note}
             </Text>
           ) : null}
+          {noteOpen ? (
+            <View style={{ gap: 4 }}>
+              <Text style={sectionHeading}>
+                Note for this run{' '}
+                <Text style={{ fontWeight: '400', letterSpacing: 0, textTransform: 'none' }}>
+                  — goes into its opening prompt
+                </Text>
+              </Text>
+              <Textarea
+                rows={2}
+                value={note}
+                onChangeText={setNote}
+                disabled={busy}
+                maxLength={LAUNCH_NOTE_MAX_CHARS}
+                placeholder="(optional) Anything this run should know — a flavour to use, a gotcha, an account to test with…"
+              />
+            </View>
+          ) : null}
         </View>
-      ) : null}
-
-      {flaggedNotes.length > 0 ? (
-        // Which stored notes this launch lets the run read (a login, a key).
-        // Read-only; approving sanctions the run to read them even if 'ask'.
-        // Labels only — never a value.
-        <View style={{ gap: 4 }}>
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 0.5,
-              textTransform: 'uppercase',
-              color: theme.text.muted,
-            }}
-          >
-            Notes this run will use
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {flaggedNotes.map((n) => (
-              <ProjectNoteChip key={n.id} note={n} loadValue={() => revealNote(n.id)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {optionsHonoured && !noteOpen ? (
-        // Collapsed by default: most launches need no note, and an empty box
-        // asks every user to decide about something almost none of them want.
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setNoteOpen(true)}
-          disabled={busy}
-          style={{
-            alignSelf: 'flex-start',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: nativeRadii.round,
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderColor: theme.border.strong,
-          }}
-        >
-          <Text style={{ fontSize: 13, color: theme.text.muted }}>+</Text>
-          <Text style={{ fontSize: 11.5, color: theme.text.muted }}>Add a note for this run</Text>
-        </Pressable>
-      ) : null}
-
-      {optionsHonoured && noteOpen ? (
-        <View style={{ gap: 4 }}>
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: '600',
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              color: theme.text.secondary,
-            }}
-          >
-            Note for this run{' '}
-            <Text style={{ fontWeight: '400', letterSpacing: 0, textTransform: 'none' }}>
-              — goes into its opening prompt
-            </Text>
-          </Text>
-          <Textarea
-            rows={2}
-            value={note}
-            onChangeText={setNote}
-            disabled={busy}
-            maxLength={LAUNCH_NOTE_MAX_CHARS}
-            placeholder="(optional) Anything this run should know — a flavour to use, a gotcha, an account to test with…"
-          />
-        </View>
-      ) : (
-        <Text style={{ fontSize: 11.5, color: theme.text.muted }}>{LAUNCH_OPTIONS_READ_ONLY}</Text>
-      )}
-
-      {errorBox}
+      </ScrollView>
 
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
+          paddingHorizontal: nativeSpace[3],
+          paddingTop: nativeSpace[2],
+          paddingBottom: nativeSpace[3],
+          borderTopWidth: 1,
+          borderTopColor: theme.border.subtle,
           gap: nativeSpace[2],
-          flexWrap: 'wrap',
         }}
       >
+        {errorBox}
         <Tooltip
           content={
             <Text style={tipText}>
@@ -793,7 +696,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
           }
         >
           <Button
-            size="sm"
+            size="md"
             variant="primary"
             onPress={() => decide('once')}
             loading={busy}
@@ -807,22 +710,31 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
             {openWorkChoice === 'extend' && openWorkMeta ? 'Add to that run' : 'Start work'}
           </Button>
         </Tooltip>
-        <Tooltip
-          content={
-            <Text style={tipText}>
-              The run is not started and the story is left exactly as it is. The agent is told you
-              said no, so it can suggest something else or wait. Nothing is cancelled or deleted,
-              and you can ask again at any time.
-            </Text>
-          }
-        >
-          <Button variant="danger" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            No — cancel
-          </Button>
-        </Tooltip>
-        <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
-          Decide later
-        </Button>
+        <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
+          <View style={{ flex: 1 }}>
+            <Button variant="ghost" size="md" onPress={onDecideLater} disabled={busy}>
+              Decide later
+            </Button>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Tooltip
+              content={
+                <Text style={tipText}>
+                  The run is not started and the story is left exactly as it is. The agent is told
+                  you said no, so it can suggest something else or wait. Nothing is cancelled or
+                  deleted, and you can ask again at any time.
+                </Text>
+              }
+            >
+              <Button variant="danger" size="md" onPress={() => decide('deny')} disabled={busy}>
+                No — cancel
+              </Button>
+            </Tooltip>
+          </View>
+        </View>
+        <Text style={{ fontSize: 11, color: theme.text.muted, textAlign: 'center' }}>
+          Nothing lands without your sign-off.
+        </Text>
       </View>
     </View>
   )

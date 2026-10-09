@@ -9,7 +9,7 @@ import { StructuredUnifiedDiff } from '../../diff'
 import GitFileChangesPills from '../../git/common/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/common/GitFileStatusIcon'
 import { PathDisplay } from '../../PathDisplay'
-import { RefChip } from '../../chips'
+import { CommitChip, RefChip } from '../../chips'
 
 /** One changed file, whichever path (review branch or captured artifact) it came from. */
 export type ChangeFile = {
@@ -24,6 +24,8 @@ export type ChangeFile = {
 }
 
 export type ChangesTabProps = {
+  /** The project the branch belongs to — where its commits open. */
+  projectId: string
   /** The branch's own commits, newest first; empty when they are unknown. */
   commits?: readonly BranchCommit[]
   review: CliRunReview | undefined
@@ -115,6 +117,7 @@ function FileRow({
  * base, head, each a ref chip — with a way into the app's Git view.
  */
 export default function ChangesTab({
+  projectId,
   review,
   files,
   loading,
@@ -144,11 +147,11 @@ export default function ChangesTab({
           ) : null}
           <RefChip kind="branch" value={review.branch} />
           <span className="text-(--text-muted)">from</span>
-          <RefChip kind="commit" value={review.baseSha} />
+          <CommitChip projectId={projectId} sha={review.baseSha} />
           {review.headSha ? (
             <>
               <span className="text-(--text-muted)">to</span>
-              <RefChip kind="commit" value={review.headSha} />
+              <CommitChip projectId={projectId} sha={review.headSha} />
             </>
           ) : null}
           <span className="flex-1" />
@@ -171,11 +174,9 @@ export default function ChangesTab({
           {commits.map((commit) => (
             <div
               key={commit.hash}
-              className="flex items-baseline gap-2 border-b border-(--border-subtle) px-2.5 py-1.5 text-[12px] last:border-b-0"
+              className="flex items-center gap-2 border-b border-(--border-subtle) px-2.5 py-1.5 text-[12px] last:border-b-0"
             >
-              <code className="font-mono text-[11px] text-(--text-muted)">
-                {commit.hash.slice(0, 8)}
-              </code>
+              <CommitChip projectId={projectId} sha={commit.hash} />
               <span className="min-w-0 flex-1 truncate text-(--text-primary)">
                 {commit.subject}
               </span>

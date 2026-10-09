@@ -28,6 +28,9 @@ export const CLI_TRANSCRIPT_CACHE_MAX_RUNS = 8
 export const CLI_RUN_FAILED_FALLBACK_NOTICE = 'The agent run failed.'
 
 /** Host result `outcome`s that mean the call was answered without running the tool. */
+/** The outcome the host records for an error it answered that is not one of its own answers — a refusal before any card, a failed call (thefactory-tools `ERRORED_CALL_OUTCOME`). */
+export const CLI_HOST_ERRORED_OUTCOME = 'errored'
+
 export const CLI_HOST_UNRUN_OUTCOMES: ReadonlySet<string> = new Set([
   'pending',
   'stopped',

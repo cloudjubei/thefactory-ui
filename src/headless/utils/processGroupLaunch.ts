@@ -19,14 +19,13 @@ const text = (value: unknown): string | undefined =>
 
 /**
  * The legs, brief and options of a `startGroupWork` ask, read defensively from
- * either transport's shape — a CLI action wraps the arguments (`{ tool, args }`),
- * an API tool call's detail IS them. A malformed leg is left out.
+ * its payload (`{ tool, args }`). A malformed leg is left out.
  */
 export function startGroupWorkGrantSummary(
   grant: Pick<PendingToolGrant, 'detail'>,
 ): StartGroupWorkGrantSummary {
   const outer = isRecord(grant.detail) ? grant.detail : {}
-  const record = isRecord(outer.args) ? outer.args : outer
+  const record = isRecord(outer.args) ? outer.args : {}
   const legs: ProcessGroupLegRequest[] = []
   for (const raw of Array.isArray(record.legs) ? record.legs : []) {
     const projectId = isRecord(raw) ? text(raw.projectId) : undefined

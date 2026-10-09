@@ -78,7 +78,6 @@ export {
 export { useChatToolCatalog } from './hooks/useChatToolCatalog'
 export {
   applyChatToolApprovalMode,
-  allowToolsAlways,
   applyChatToolToggle,
   buildChatToolApprovalToggle,
   buildChatToolToggles,
@@ -88,13 +87,20 @@ export {
 } from './utils/chatToolToggles'
 export type {
   ChatToolApprovalToggle,
-  ChatToolAxis,
   ChatToolCatalogEntry,
   ChatToolRunner,
   ChatToolSettings,
   ChatToolToggle,
   ChatToolToggleGroup,
 } from './utils/chatToolTogglesTypes'
+export { applyChatTurnLimit, buildChatTurnLimit } from './utils/chatTurnLimit'
+export {
+  CHAT_TURN_LIMIT_HINT,
+  CHAT_TURN_LIMIT_MAX,
+  CHAT_TURN_LIMIT_MIN,
+  CHAT_TURN_LIMIT_START,
+} from './utils/chatTurnLimitConstants'
+export type { ChatTurnLimit, ChatTurnLimitSettings } from './utils/chatTurnLimitTypes'
 export {
   useResolvedTheme,
   type ResolvedTheme,
@@ -262,6 +268,7 @@ export {
   isCompletelyNewFile,
   isFilePathTool,
   looksLikeDiffPatchText,
+  searchResultLines,
   toLines,
   tryString,
 } from './utils/toolPreview'
@@ -397,16 +404,16 @@ export {
 } from './utils/runReview'
 export {
   LAUNCH_NOTE_MAX_CHARS,
-  LAUNCH_OPTIONS_READ_ONLY,
   START_FEATURE_WORK_TOOL_NAME,
   formatGrantDetail,
-  launchOptionsAreHonoured,
+  grantDetailView,
   launchRefusalMessage,
   isStartFeatureWorkGrant,
   isToolAskDecidedOnRow,
   pendingApprovalGrants,
   startFeatureWorkGrantSummary,
 } from './utils/approvalGrant'
+export type { GrantDetailView } from './utils/approvalGrantTypes'
 export type { StartFeatureWorkGrantSummary, StartFeatureWorkRunner } from './utils/approvalGrant'
 export { approveActionDescriptors, earnedApproveActions } from './utils/approveActions'
 export type { EarnedApproveActions } from './utils/approveActions'
@@ -575,6 +582,12 @@ export {
   uniqueRunModels,
   type RunModel,
 } from './utils/runModel'
+export { activeLlmConfig, modelChipLabel, modelChipProviderLabel } from './utils/modelChip'
+export type {
+  ModelChipConfigLike,
+  ModelChipLabel,
+  ModelChipLabelInput,
+} from './utils/modelChipTypes'
 export {
   aggregateTestCounts,
   checkTestCounts,
@@ -612,6 +625,10 @@ export { useEvidenceDiff } from './hooks/useEvidenceDiff'
 export type { UseEvidenceDiff } from './hooks/useEvidenceDiff'
 export { useReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
 export type { UseReviewEvidenceImage } from './hooks/useReviewEvidenceImage'
+export { useCommitDetails } from './hooks/useCommitDetails'
+export { commitChangesLabel, commitDetailsState, commitGitViewPath } from './utils/commitDetails'
+export { COMMIT_DETAILS_TEXT } from './utils/commitDetailsConstants'
+export type { CommitChanges, CommitDetails, CommitDetailsState } from './utils/commitDetailsTypes'
 export { useReviewEvidence } from './hooks/useReviewEvidence'
 export { useStepFiling } from './hooks/useStepFiling'
 export type { UseReviewEvidence } from './hooks/useReviewEvidence'
@@ -859,6 +876,15 @@ export type {
   SignoffRequestOutcome,
 } from './utils/signoffPageTypes'
 export { processStageChips, processStepRowView, stepFilingOf } from './utils/processStepRow'
+export { processSignoffDiscussDraft, processSignoffRecord } from './utils/processSignoffRecord'
+export {
+  PROCESS_SIGNOFF_DECISION_VIEW,
+  PROCESS_SIGNOFF_RECORD_TEXT,
+} from './utils/processSignoffRecordConstants'
+export type {
+  ProcessSignoffDecisionView,
+  ProcessSignoffRecordView,
+} from './utils/processSignoffRecordTypes'
 export type {
   ProcessStageChip,
   ProcessStepPreviewKind,
@@ -940,7 +966,9 @@ export {
   groupTabToProjectTab,
   isGroupTabKey,
   isShellTabKey,
+  projectShowsShellTab,
   projectTabToGroupTab,
+  shellTabForProject,
   splitGroupsAndProjects,
   type GroupTabDef,
   type GroupTabKey,
@@ -949,6 +977,7 @@ export {
   type NavProjectLike,
   type ShellTabDef,
   type ShellTabKey,
+  type ShellTabProjectFlags,
   type SplitGroupsAndProjects,
 } from './utils/shellNav'
 
@@ -1034,6 +1063,42 @@ export {
   type AppDeepLink,
 } from './utils/appDeepLink'
 export { resolveResourceNav, type ResourceNav } from './utils/resourceNav'
+export { fileLineParam, fileLocationPath, textLineRange } from './utils/fileLocation'
+export { FILE_LINE_PARAM } from './utils/fileLocationConstants'
+export type { TextLineRange } from './utils/fileLocationTypes'
+export {
+  fileHitLines,
+  isSearchableQuery,
+  projectSearchGroups,
+  projectSearchRows,
+  projectSearchStatus,
+  projectSearchSummary,
+  searchExcerpt,
+  searchMatchSegments,
+  searchRecordChip,
+  searchRecordLink,
+  stepSearchCursor,
+} from './utils/projectSearch'
+export {
+  PROJECT_SEARCH_DEBOUNCE_MS,
+  PROJECT_SEARCH_EXCERPT_MAX_CHARS,
+  PROJECT_SEARCH_GROUP_LABELS,
+  PROJECT_SEARCH_MIN_QUERY_CHARS,
+  PROJECT_SEARCH_QUERY_PARAM,
+  PROJECT_SEARCH_TEXT,
+} from './utils/projectSearchConstants'
+export type {
+  ProjectSearchFileRow,
+  ProjectSearchGroup,
+  ProjectSearchGroupKey,
+  ProjectSearchRecordRow,
+  ProjectSearchRow,
+  ProjectSearchStatus,
+  ProjectSearchTarget,
+  SearchRecordChip,
+  SearchTextSegment,
+} from './utils/projectSearchTypes'
+export { useProjectSearch, type UseProjectSearch } from './hooks/useProjectSearch'
 export { toolResultResourceLinks, type ToolResultLink } from './utils/toolResultLinks'
 export type { ResourceLink } from 'thefactory-tools/types'
 
@@ -1082,11 +1147,12 @@ export type {
   MessageUsageLike,
   PendingQuestionGrant,
   UserAsk,
-  PendingToolConfirmationLike,
   PendingToolGrant,
   PendingToolGrantData,
   PendingToolGrantDecision,
-  PendingToolGrantSource,
+  AlwaysAllowScope,
+  AlwaysAllowChoiceView,
+  GrantCovers,
   ToolCallLike,
   ToolResultLike,
   ToolResultTypeLike,
@@ -1130,6 +1196,13 @@ export {
   type WsEventHandler,
 } from './api/WsClient'
 export { extractErrorMessage } from './api/errorMessage'
+export { describeBackendStartup } from './api/backendStartup'
+export type {
+  BackendKnowledgeMapsStartup,
+  BackendStartup,
+  BackendStartupLine,
+  BackendStartupPass,
+} from './api/backendStartupTypes'
 export {
   extractServerError,
   getResponseDataMessage,
@@ -1163,9 +1236,52 @@ export {
   type ChatLiveState,
   type ChatSettingsPatch,
   type ChatsContextValue,
+  type ChatsProviderProps,
   type CreateChatsContextDeps,
-  type PendingToolConfirmation,
 } from './contexts/createChatsContext'
+export {
+  useChatComposer,
+  type ChatPendingQueue,
+  type UseChatComposer,
+  type UseChatComposerOptions,
+} from './hooks/useChatComposer'
+export {
+  usePendingAutoDispatch,
+  type UsePendingAutoDispatchInput,
+} from './hooks/usePendingAutoDispatch'
+export {
+  canAutoDispatch,
+  chatDraftStorageKey,
+  editPendingMessage,
+  enqueueMessage,
+  isComposerBlocked,
+  isEmptyChatDraft,
+  mergeOutgoing,
+  parseChatDraft,
+  pendingSendNowMode,
+  pendingStackView,
+  pendingTurnStep,
+  removePendingMessage,
+  restoreUnsent,
+  serializeChatDraft,
+  takeOutgoing,
+  takePending,
+  type ChatDraftTake,
+  type TakenChatDraft,
+} from './utils/chatDraft'
+export { ChatDraftStore } from './utils/chatDraftStore'
+export {
+  attachmentUploadError,
+  chatDropAction,
+  chatDropOverlay,
+  currentChatDropTarget,
+  isFileDrag,
+  isImageAttachment,
+} from './utils/chatDrop'
+export * from './utils/chatDropConstants'
+export type * from './utils/chatDropTypes'
+export * from './utils/chatDraftConstants'
+export type * from './utils/chatDraftTypes'
 
 // App settings (theme, shortcuts, notification prefs) backed by an
 // app-provided `SyncKVStorage`. The provider takes an optional `defaults`
@@ -1216,8 +1332,8 @@ export {
   type CliAuthLoginResult,
 } from './contexts/CliConfigsContext'
 
-// Per-chat CLI-runner binding (attach / detach) + the unified tool-grant queue
-// (API require_confirmation + CLI gated PendingActions) the confirmation UI renders.
+// Per-chat CLI-runner binding (attach / detach) + the tool-grant queue — every
+// broker ask of the chat, an API turn's and a CLI run's alike — the approval UI renders.
 export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunner'
 export { useActivityChipCli, type ActivityChipCliWiring } from './hooks/useActivityChipCli'
 export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgentRunChipCli'
@@ -1230,6 +1346,20 @@ export {
   type UseInlineApprovals,
 } from './hooks/useInlineApprovals'
 export { claimedAskIds, inlineApprovalDecisions } from './utils/inlineApprovals'
+export {
+  alwaysAllowChoiceView,
+  alwaysAllowDecision,
+  alwaysAllowScopeOf,
+  cliAlwaysAllowScopes,
+  decisionGrantScope,
+  grantCoversOf,
+  grantRuleText,
+} from './utils/alwaysAllow'
+export * from './utils/alwaysAllowConstants'
+export * from './utils/actionRules'
+export * from './utils/actionRulesConstants'
+export type * from './utils/actionRulesTypes'
+export { useActionRules, type UseActionRules } from './hooks/useActionRules'
 export { usePendingToolGrants, type UsePendingToolGrants } from './hooks/usePendingToolGrants'
 
 // The chat-rendering diagnostic: one bounded JSON document pairing the chat's
@@ -1426,6 +1556,7 @@ export {
 } from './contexts/ProviderConnectionsContext'
 // Binding a Jira connection to a group or project: key parsing and the one-line summary.
 export {
+  chooseTicketConnection,
   describeEffectiveTicketBinding,
   describeTicketBinding,
   effectiveTicketBinding,
@@ -1436,7 +1567,12 @@ export {
   parseJiraProjectKeys,
 } from './utils/ticketConnection'
 export type { EffectiveTicketBinding } from './utils/ticketConnectionTypes'
-export { TICKET_ACCESS_DESCRIPTIONS, TICKET_ACCESS_LABELS } from './utils/ticketConnectionConstants'
+export {
+  TICKET_ACCESS_DESCRIPTIONS,
+  TICKET_ACCESS_LABELS,
+  TICKET_PICKER_INHERIT,
+  TICKET_PICKER_NONE,
+} from './utils/ticketConnectionConstants'
 
 // Project groups (MAIN exclusive + SCOPE overlapping) — sidebar / nav source
 // of truth across clients. Listens to the `projectsGroups:updated` WS topic.
@@ -1488,6 +1624,70 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // conventions) an agent can reach for, plus the deliberate one-at-a-time
 // reveal of a stored value.
 export { useProjectNotes, type UseNotes, type UseProjectNotes } from './hooks/useProjectNotes'
+// Design — a project's apps, screens, drafts and built versions, and its storage usage.
+export { useDesign, type UseDesign } from './hooks/useDesign'
+export { useDesignPreview, type UseDesignPreview } from './hooks/useDesignPreview'
+export { useDesignViewToken } from './hooks/useDesignViewToken'
+export { useStorageUsage } from './hooks/useStorageUsage'
+export {
+  designActionsFor,
+  designSnapshot,
+  designStateOf,
+  designViewTokenFor,
+  ensureDesign,
+  refreshDesign,
+  refreshStorageTotals,
+  refreshStorageUsage,
+  resetDesignStore,
+  storageTotalsSnapshot,
+  subscribeDesign,
+} from './hooks/designStore'
+export type {
+  DesignActions,
+  DesignProjectState,
+  DesignUploadInput,
+  DesignViewToken,
+  StorageTotalsState,
+} from './hooks/designStoreTypes'
+export {
+  designCompareBaseline,
+  designDeleteSummary,
+  designDiscussDraft,
+  designItemAddedByLabel,
+  designItemFileName,
+  designPreviewItem,
+  designReferencePreview,
+  designSelection,
+  storageUsageBreakdown,
+  storageUsageSummary,
+  storageWarningNotification,
+} from './utils/designView'
+export {
+  DESIGN_APP_KIND_LABELS,
+  DESIGN_TEXT,
+  STORAGE_WARNING_TAG,
+  STORAGE_WARNING_TEXT,
+} from './utils/designViewConstants'
+export type {
+  DesignCompareBaseline,
+  DesignDeleteTarget,
+  DesignSelection,
+  DesignSelectionParams,
+  StorageUsageRow,
+  StorageWarningNotification,
+} from './utils/designViewTypes'
+export {
+  approvedDesignItem,
+  designItemContentUrl,
+  designItemMediaType,
+  designItemViewKind,
+  designScreenItems,
+  findDesignItem,
+  findDesignScreen,
+  referenceDesignOf,
+  storageUsageFraction,
+} from './utils/design'
+export type { DesignItemViewKind } from './utils/designTypes'
 export { useGroupNotes } from './hooks/useGroupNotes'
 export { referenceGroupId } from './utils/referenceScope'
 export { useProjectNoteTexts } from './hooks/useProjectNoteTexts'
@@ -1629,6 +1829,7 @@ export type {
 } from './utils/processViewTypes'
 export {
   PROCESS_GATE_LOOP_NO_LIMIT,
+  PROCESS_PARK_ASK_AGENT_COPY,
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_SEND_BACK_COPY,
   PROCESS_SPEND_CAP_TITLE,
@@ -1639,11 +1840,12 @@ export {
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
-  requestChangesProofPreset,
   toggleRequestedProof,
-  uiChangeScopeOf,
   waitingNoteCopy,
 } from './utils/processParkNote'
+// What a request for changes starts out requiring is settled once, in
+// `thefactory-tools`, so the sign-off and an agent's request require the same.
+export { requestChangesProofPreset, uiChangeScopeOf } from 'thefactory-tools/utils'
 export {
   PARK_NOTE_CANCEL,
   PARK_NOTE_CHOICES,
@@ -1696,21 +1898,28 @@ export type {
 } from './utils/processIntegrationTypes'
 export {
   processIntegrationAccountLabel,
-  processIntegrationFormDecision,
   processIntegrationFormPreview,
-  processIntegrationFormStart,
   processIntegrationIdentityLabel,
 } from './utils/processIntegrationForm'
+// How approved work lands is settled once, in `thefactory-tools`, so the
+// sign-off and the agent's approval card start from — and refuse — the same.
 export {
-  PROCESS_INTEGRATION_FORM_LABELS,
+  processIntegrationFormDecision,
+  processIntegrationFormStart,
+  processIntegrationModesOffered,
+} from 'thefactory-tools/utils'
+export {
   PROCESS_INTEGRATION_FORM_NO_ACCOUNT,
   PROCESS_INTEGRATION_FORM_NO_IDENTITY,
   PROCESS_INTEGRATION_FORM_NO_MESSAGE,
   PROCESS_INTEGRATION_FORM_NO_TITLE,
+} from 'thefactory-tools/constants'
+export {
+  PROCESS_INTEGRATION_CHECK_MERGE,
+  PROCESS_INTEGRATION_FORM_LABELS,
 } from './utils/processIntegrationFormConstants'
+export type { ProcessIntegrationForm, ProcessIntegrationFormResult } from 'thefactory-tools/types'
 export type {
-  ProcessIntegrationForm,
-  ProcessIntegrationFormResult,
   ProcessIntegrationPreview,
   ProcessIntegrationPreviewEntry,
 } from './utils/processIntegrationFormTypes'
@@ -1730,12 +1939,15 @@ export {
   FEATURE_PROCESS_EXTEND_NOTE,
   FEATURE_PROCESS_FIX_NOTE,
   FEATURE_PROCESS_QUESTION,
+  FEATURE_PROCESS_DEFAULT_TAG,
+  LAUNCH_HOW_IT_RUNS_HEADING,
 } from './utils/processFeatureProcessConstants'
 export type {
   FeatureProcessMetadata,
   FeatureProcessOptionView,
 } from './utils/processFeatureProcessTypes'
 export {
+  launchFeatureRows,
   launchProofPlanRows,
   proofKindOptions,
   proofPlanDraftOf,
@@ -1763,6 +1975,8 @@ export {
   PROOF_PLAN_INHERITS_PREFIX,
   PROOF_PLAN_NOTES_PLACEHOLDER,
   PROOF_PLAN_SAVE_LABEL,
+  PROOF_PLAN_EMPTY_SHORT,
+  LAUNCH_FEATURES_HEADING,
   PROOF_PLAN_SIGNOFF_HEADING,
   PROOF_PLAN_SOURCE_LABELS,
 } from './utils/proofPlanViewConstants'
@@ -1775,6 +1989,7 @@ export type {
   ProofPlanDraft,
   ProofPlanLaunchMetadata,
   ProofPlanMarkRow,
+  LaunchFeatureRow,
 } from './utils/proofPlanViewTypes'
 export {
   processAmendmentView,
@@ -1786,6 +2001,7 @@ export {
   OPEN_WORK_FRESH_LABEL,
   OPEN_WORK_NEW_ON_BRANCH_LABEL,
   OPEN_WORK_RISKY_TAG,
+  OPEN_WORK_PICK_HINT,
   OPEN_WORK_WARNING_PARALLEL,
   OPEN_WORK_WARNING_UNREVIEWED,
 } from './utils/processOpenWorkConstants'
@@ -1806,6 +2022,7 @@ export {
   isProcessRunParkChoiceOffered,
   isReflectedPark,
   processBaseMovedNote,
+  processParkAskableStepId,
   processParkChoices,
   processRunParkChoices,
   processRunProgress,
@@ -1831,6 +2048,18 @@ export {
 } from 'thefactory-tools/utils'
 export type { ProcessNeedsYouItem, ProcessNeedsYouResolution } from 'thefactory-tools/types'
 export { runNeedsYouDiscussDraft, runNeedsYouView } from './utils/runNeedsYouView'
+export { runPendingChangesView } from './utils/runPendingChangesView'
+export {
+  RUN_PENDING_CHANGES_START_HINT,
+  RUN_PENDING_CHANGE_ADDED,
+  RUN_PENDING_CHANGE_REMOVE_LABEL,
+  RUN_PENDING_CHANGE_RERUN,
+  RUN_PENDING_CHANGE_REWORKED,
+} from './utils/runPendingChangesViewConstants'
+export type {
+  RunPendingChangeItem,
+  RunPendingChangesView,
+} from './utils/runPendingChangesViewTypes'
 export {
   NEEDS_YOU_DISCUSS_LABEL,
   NEEDS_YOU_FINE_LABEL,
@@ -1868,17 +2097,36 @@ export type {
 export {
   isRunProposalGrant,
   runProposalArgs,
+  runProposalCriteria,
+  runProposalHostDetail,
+  runProposalOneLine,
+  runProposalStartDetail,
+  runProposalStepName,
   runProposalToolName,
   runProposalView,
 } from './utils/runProposalView'
 export {
+  runProposalLandingEdits,
+  runProposalLandingForm,
+  runProposalLandingLine,
+  runProposalLandingProblem,
+  runProposalLandingWithMode,
+} from './utils/runProposalLanding'
+export {
+  RUN_PROPOSAL_COLLAPSE_LABEL,
   RUN_PROPOSAL_DECLINE_LABEL,
+  RUN_PROPOSAL_EXPAND_LABEL,
+  RUN_PROPOSAL_LANDING_LABELS,
+  RUN_PROPOSAL_LANDING_MODE_LABELS,
   RUN_PROPOSAL_LATER_LABEL,
+  RUN_PROPOSAL_OPEN_FULL_LABEL,
   RUN_PROPOSAL_TOOL_NAMES,
 } from './utils/runProposalViewConstants'
 export type {
   RunProposalKind,
-  RunProposalLine,
+  RunProposalLanding,
+  RunProposalSection,
+  RunProposalStartDetail,
   RunProposalView,
 } from './utils/runProposalViewTypes'
 export { processBaseMovedView } from './utils/processBaseMovedView'
@@ -1945,6 +2193,7 @@ export {
   notePatchBody,
   projectNoteChipView,
   sortNotes,
+  linkedNoteState,
 } from './utils/projectNotes'
 export {
   EMPTY_NOTE_FORM,
@@ -1960,8 +2209,11 @@ export {
   NOTE_VALUE_MASK,
   NOTE_VALUE_REQUIRED,
   NOTE_VALUE_UNCHANGED_HINT,
+  NOTE_LINK_PARAM,
+  NOTE_LINK_MISSING,
 } from './utils/projectNotesConstants'
 export type {
+  LinkedNoteState,
   ProjectNoteChipView,
   ProjectNoteCreateBody,
   ProjectNoteFormErrors,
@@ -2130,6 +2382,7 @@ export type { RunCliCapabilityCheckResponse } from './api/generated/types.gen.js
  */
 export { parseLiteLLMPrices } from 'thefactory-tools/utils'
 export { EMPTY_TREE_SHA } from 'thefactory-tools/constants'
+export { CHAT_ATTACHMENT_MAX_BYTES } from 'thefactory-tools/constants'
 export type { FeatureRequestAcceptance } from 'thefactory-tools/types'
 
 export { isWsReopen } from './utils/wsReconnect'
@@ -2151,3 +2404,61 @@ export {
 } from './utils/gitSetupApprovalConstants'
 export { GIT_DIFF_SUPPRESSED_MESSAGE } from './utils/gitDiffConstants'
 export type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './utils/gitSetupApprovalTypes'
+export {
+  gitChangeArgs,
+  gitChangeCard,
+  gitChangeDecisionMetadata,
+  gitChangeEditValues,
+  gitChangeMilestone,
+  gitChangeProblem,
+  isGitChangeGrant,
+} from './utils/gitChangeApproval'
+export {
+  GIT_CHANGE_COPY,
+  GIT_CHANGE_RUN_BUSY,
+  GIT_CHANGE_TOOL_NAMES,
+} from './utils/gitChangeApprovalConstants'
+export {
+  PROCESS_WORK_BRANCH_CHANGES_LABEL,
+  processWorkBranchChangeRows,
+} from './utils/processWorkBranchChangesView'
+export type { ProcessWorkBranchChangeRow } from './utils/processWorkBranchChangesView'
+export type {
+  GitChangeCardView,
+  GitChangeCommitView,
+  GitChangeEditView,
+  GitChangeFileView,
+} from './utils/gitChangeApprovalTypes'
+
+export { commitLinkNotice, resolveCommitLink } from './utils/gitCommitLink'
+export {
+  GIT_COMMIT_LINK_MAX_COMMITS,
+  GIT_COMMIT_LINK_MIN_LENGTH,
+} from './utils/gitCommitLinkConstants'
+export type { GitCommitLinkResolution } from './utils/gitCommitLinkTypes'
+export { useGitCommitLink } from './hooks/useGitCommitLink'
+export {
+  branchMenuItems,
+  commitsToBringInLabel,
+  mergeBannerTitle,
+  mergeBlockedReason,
+  mergeChecksOnByDefault,
+  mergeChecksView,
+  mergeOutcomeLine,
+  mergeSentence,
+  mergeSourceOptions,
+  mergeSourceRef,
+} from './utils/gitMerge'
+export { GIT_MERGE_TEXT } from './utils/gitMergeConstants'
+export type {
+  GitBranchMenuAction,
+  GitBranchMenuItem,
+  GitBranchSection,
+  GitMergeChecksView,
+  GitMergeOutcomeLine,
+  GitMergeSourceOption,
+} from './utils/gitMergeTypes'
+export type { MergeChecks } from 'thefactory-tools/types'
+export { useCommitsToBringIn, type CommitsToBringIn } from './hooks/useCommitsToBringIn'
+export { chatChangesNotice } from './utils/chatChangesView'
+export { CHAT_CHANGES_COPY } from './utils/chatChangesViewConstants'

@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   START_FEATURE_WORK_TOOL_NAME,
   formatGrantDetail,
+  grantDetailView,
   isStartFeatureWorkGrant,
   isToolAskDecidedOnRow,
-  launchOptionsAreHonoured,
   launchRefusalMessage,
   launchRunnerLabel,
   pendingApprovalGrants,
@@ -17,7 +17,7 @@ import type { PendingToolGrant } from './chatTypes'
 function grant(over: Partial<PendingToolGrant> = {}): PendingToolGrant {
   return {
     id: 'g1',
-    source: 'cli',
+    chatRunner: 'cli',
     label: 'startFeatureWork',
     toolName: START_FEATURE_WORK_TOOL_NAME,
     decide: async () => {},
@@ -64,39 +64,18 @@ describe('launchRunnerLabel', () => {
   })
 })
 
-describe('launchOptionsAreHonoured', () => {
-  it('is true for a CLI grant, whose decision persists metadata', () => {
-    expect(launchOptionsAreHonoured({ source: 'cli' })).toBe(true)
-  })
-
-  it('is false for an API grant, which confirms tool calls by id alone', () => {
-    // The dock must not collect a note or a proof choice it cannot deliver.
-    expect(launchOptionsAreHonoured({ source: 'api' })).toBe(false)
-  })
-})
-
 describe('startFeatureWorkGrantSummary', () => {
-  it('reads an API tool call, whose detail IS the arguments object', () => {
-    // The API transport hands the raw args over with no `{ tool, args }` wrapper.
-    // Reading only the wrapper left every field absent, so the launch dock waited
-    // on a story id that never arrived and could never be started.
+  it('reads nothing from a payload that does not wrap the arguments — every ask is the broker’s `{ tool, args }`', () => {
     const summary = startFeatureWorkGrantSummary(
-      grant({
-        detail: { storyId: 's9', note: 'mind the cache', proofRequired: false, runner: 'cli' },
-      }),
+      grant({ detail: { storyId: 's9', note: 'mind the cache', proofRequired: false } }),
     )
-    expect(summary).toEqual({
-      storyId: 's9',
-      note: 'mind the cache',
-      proofRequired: false,
-      runner: 'cli',
-    })
+    expect(summary).toEqual({ proofRequired: true })
   })
 
-  it('reads the process the agent chose, on either transport', () => {
+  it('reads the process the agent chose', () => {
     expect(
       startFeatureWorkGrantSummary(
-        grant({ detail: { storyId: 's', processId: ' feature-self-verified ' } }),
+        grant({ detail: { args: { storyId: 's', processId: ' feature-self-verified ' } } }),
       ).processId,
     ).toBe('feature-self-verified')
     expect(
@@ -108,16 +87,11 @@ describe('startFeatureWorkGrantSummary', () => {
 
   it('leaves the process to the story when none, a blank one or a non-string was asked for', () => {
     for (const processId of [undefined, '', '   ', 7, null]) {
-      const summary = startFeatureWorkGrantSummary(grant({ detail: { storyId: 's', processId } }))
+      const summary = startFeatureWorkGrantSummary(
+        grant({ detail: { args: { storyId: 's', processId } } }),
+      )
       expect(summary).not.toHaveProperty('processId')
     }
-  })
-
-  it('prefers the wrapped args when both shapes could be read', () => {
-    const summary = startFeatureWorkGrantSummary(
-      grant({ detail: { storyId: 'outer', args: { storyId: 'inner' } } }),
-    )
-    expect(summary.storyId).toBe('inner')
   })
 
   it('pulls story, note, proof and runner out of the payload', () => {
@@ -209,34 +183,26 @@ describe('pendingApprovalGrants', () => {
 })
 
 describe('panelApprovalGrants', () => {
-  const onRows = { apiAsksOnRows: true }
-
   it('keeps requests of their own kind for the panel', () => {
-    expect(
-      panelApprovalGrants([grant({ id: 'launch' })], new Set(), onRows).map((g) => g.id),
-    ).toEqual(['launch'])
+    expect(panelApprovalGrants([grant({ id: 'launch' })], new Set()).map((g) => g.id)).toEqual([
+      'launch',
+    ])
   })
 
   it('leaves out an ordinary ask a row on screen is already showing', () => {
     const ask = grant({ id: 'a', toolName: 'addStory', inline: true })
-    expect(panelApprovalGrants([ask], new Set(['a']), onRows)).toEqual([])
+    expect(panelApprovalGrants([ask], new Set(['a']))).toEqual([])
   })
 
   it('keeps an ordinary ask no row claimed, so it can never go unseen', () => {
     const ask = grant({ id: 'a', toolName: 'addStory', inline: true })
-    expect(panelApprovalGrants([ask], new Set(), onRows).map((g) => g.id)).toEqual(['a'])
+    expect(panelApprovalGrants([ask], new Set()).map((g) => g.id)).toEqual(['a'])
   })
 
-  it('leaves API asks to their rows on a client that shows them there', () => {
-    const api = grant({ id: 'tc', source: 'api', inline: true })
-    expect(panelApprovalGrants([api], new Set(), onRows)).toEqual([])
-  })
-
-  it('keeps API asks on a client that has no inline batch for them', () => {
-    const api = grant({ id: 'tc', source: 'api', inline: true })
-    expect(
-      panelApprovalGrants([api], new Set(), { apiAsksOnRows: false }).map((g) => g.id),
-    ).toEqual(['tc'])
+  it('leaves an API turn’s ordinary ask to the row showing it, as a CLI run’s', () => {
+    const api = grant({ id: 'a', chatRunner: 'api', toolName: 'addStory', inline: true })
+    expect(panelApprovalGrants([api], new Set(['a']))).toEqual([])
+    expect(panelApprovalGrants([api], new Set()).map((g) => g.id)).toEqual(['a'])
   })
 
   it('leaves questions out', () => {
@@ -245,7 +211,7 @@ describe('panelApprovalGrants', () => {
       question: { id: 'q1', question: 'Which?', options: [] } as never,
       answer: async () => {},
     } as Partial<PendingToolGrant>)
-    expect(panelApprovalGrants([question], new Set(), onRows)).toEqual([])
+    expect(panelApprovalGrants([question], new Set())).toEqual([])
   })
 })
 
@@ -296,5 +262,33 @@ describe('isToolAskDecidedOnRow', () => {
   it('leaves a feature-work or group launch to its own panel', () => {
     expect(isToolAskDecidedOnRow('startFeatureWork')).toBe(false)
     expect(isToolAskDecidedOnRow('startGroupWork')).toBe(false)
+  })
+})
+
+describe('grantDetailView', () => {
+  it('leads with the sentence a payload carries, and keeps the rest as details', () => {
+    expect(
+      grantDetailView({
+        detail: "Delete the screen 'Evaluation' (3 items) from Viewer",
+        tool: 'deleteDesignScreen',
+        args: { screenId: 's1' },
+      }),
+    ).toEqual({
+      headline: "Delete the screen 'Evaluation' (3 items) from Viewer",
+      detail: formatGrantDetail({ tool: 'deleteDesignScreen', args: { screenId: 's1' } }),
+    })
+  })
+
+  it('has no details when the sentence is all there is', () => {
+    expect(grantDetailView({ detail: 'Delete it' })).toEqual({ headline: 'Delete it' })
+  })
+
+  it('shows a payload with no sentence, or a blank one, as before', () => {
+    expect(grantDetailView({ tool: 't', detail: '  ' })).toEqual({
+      detail: formatGrantDetail({ tool: 't', detail: '  ' }),
+    })
+    expect(grantDetailView({ detail: 3 })).toEqual({ detail: formatGrantDetail({ detail: 3 }) })
+    expect(grantDetailView('plain')).toEqual({ detail: 'plain' })
+    expect(grantDetailView(undefined)).toEqual({})
   })
 })

@@ -309,6 +309,7 @@ function StorySignoffPanel({
       }),
       detail: () => (
         <FeatureReviewSection
+          projectId={projectId}
           kind="embedded"
           title={f.title}
           facts={f.facts}
@@ -340,6 +341,7 @@ function StorySignoffPanel({
       }),
       detail: () => (
         <FeatureReviewSection
+          projectId={projectId}
           kind="embedded"
           title={f.title}
           facts={f.facts}
@@ -375,6 +377,7 @@ function StorySignoffPanel({
       }),
       detail: () => (
         <FeatureReviewSection
+          projectId={projectId}
           kind="embedded"
           title={f.title}
           facts={{ costLabel: undefined, durationLabel: undefined }}

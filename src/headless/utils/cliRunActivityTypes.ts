@@ -80,4 +80,10 @@ export type CliDecidedAsk = {
   executedInRun?: string
   /** What that call returned. */
   execution?: { ok: boolean; result: string; durationMs?: number }
+  /** Who settled it: `person`, or `grant:<id>` for a standing grant. Absent on asks recorded before decisions were attributed. */
+  decidedBy?: string
+  /** Where it was settled: its own card, one approve-all over the asks listed, or a standing grant. */
+  decidedVia?: 'card' | 'approve-all' | 'grant'
+  /** What the standing grant that approved it allows, in words — set only for a grant's approval. */
+  rule?: string
 }

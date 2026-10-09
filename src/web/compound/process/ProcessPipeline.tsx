@@ -15,6 +15,8 @@ import {
   isIntegratingApproval,
   isReflectedPark,
   isResumeParkChoice,
+  PROCESS_PARK_ASK_AGENT_COPY,
+  processParkAskableStepId,
   REQUEST_PROOF_CHOICES,
   parkNoteRequired,
   processAmendmentView,
@@ -76,7 +78,9 @@ import DurationChip from '../chips/DurationChip'
 import { downloadDataUri } from '../chat/signoff/download'
 import RunModelChip from '../chat/signoff/RunModelChip'
 import DependencyBullet from '../stories/DependencyBullet'
+import RunPendingChanges from './RunPendingChanges'
 import BaseMovedNote from './BaseMovedNote'
+import WorkBranchChangesNote from './WorkBranchChangesNote'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
 import RunDiagnosticsView from './RunDiagnosticsView'
@@ -157,7 +161,10 @@ export default function ProcessPipeline({
     listBranches,
     deleteRun,
     openChat,
+    askAgent,
     resolveNeedsYou,
+    startChanges,
+    withdrawChange,
   } = useProcessRun(currentId)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
@@ -181,6 +188,16 @@ export default function ProcessPipeline({
   }).isUnread
   const canChat = stack.length === 0 && !run?.parentRunId && (!!renderChat || !!onOpenChat)
 
+  const showRunChat = useCallback(
+    (context: ChatContext) => {
+      if (renderChat) {
+        setChat((prev) => ({ context, version: (prev?.version ?? 0) + 1 }))
+      } else {
+        onOpenChat?.(context)
+      }
+    },
+    [renderChat, onOpenChat],
+  )
   const openRunChat = useCallback(
     async (draft?: string) => {
       setChatOpening(true)
@@ -188,14 +205,16 @@ export default function ProcessPipeline({
       setChatOpening(false)
       if (!opened) return
       if (draft) setDraft(opened.context, draft)
-      if (renderChat) {
-        setChat((prev) => ({ context: opened.context, version: (prev?.version ?? 0) + 1 }))
-      } else {
-        onOpenChat?.(opened.context)
-      }
+      showRunChat(opened.context)
     },
-    [openChat, setDraft, renderChat, onOpenChat],
+    [openChat, setDraft, showRunChat],
   )
+  const askAgentAboutStep = useCallback(async () => {
+    setChatOpening(true)
+    const opened = await askAgent()
+    setChatOpening(false)
+    if (opened) showRunChat(opened.context)
+  }, [askAgent, showRunChat])
   const closeChat = useCallback(() => {
     writeChatsSeen(markSeen(readChatsSeen(), runChatKey, new Date().toISOString()))
     setChat(null)
@@ -311,6 +330,11 @@ export default function ProcessPipeline({
         ) : null}
 
         {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
+        <WorkBranchChangesNote run={run} />
+
+        {stack.length === 0 ? (
+          <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
+        ) : null}
 
         {amendments.notes.length > 0 ? (
           <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
@@ -340,6 +364,7 @@ export default function ProcessPipeline({
                 addedTag={amendments.addedSteps[state.step.id]}
                 onChoose={choose}
                 onDelegate={() => delegate().then(() => undefined)}
+                {...(canChat ? { onAskAgent: askAgentAboutStep } : {})}
                 {...(onOpenChat ? { onOpenChat } : {})}
                 onDrill={drillTo}
                 onOpenPanel={setPanel}
@@ -739,6 +764,7 @@ function PipelineNode({
   addedTag,
   onChoose,
   onDelegate,
+  onAskAgent,
   onOpenChat,
   onDrill,
   onOpenPanel,
@@ -755,6 +781,8 @@ function PipelineNode({
     requestedProof?: readonly ProofKind[],
   ) => Promise<boolean>
   onDelegate: () => Promise<void>
+  /** Ask an agent about the step the run stopped at, in the run's own chat. */
+  onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onDrill: (childRunId: string) => void
   onOpenPanel: (target: StepPanelTarget) => void
@@ -765,7 +793,7 @@ function PipelineNode({
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
   const look = processNodeLook(nodeState, state.step.kind === 'gate', 0)
-  const row = processStepRowView(state, parkStepId)
+  const row = processStepRowView(state, parkStepId, run)
   const isFeature = state.step.kind === 'process'
   const [open, setOpen] = useState(isFeature && (state.current || parked))
   const iteration = processNodeBadge(state, run)
@@ -874,6 +902,7 @@ function PipelineNode({
             run={run}
             onChoose={onChoose}
             onDelegate={onDelegate}
+            {...(onAskAgent ? { onAskAgent } : {})}
             {...(onOpenChat ? { onOpenChat } : {})}
             onDrill={onDrill}
             {...(onOpenTranscript ? { onOpenTranscript } : {})}
@@ -894,6 +923,7 @@ function ParkBlock({
   run,
   onChoose,
   onDelegate,
+  onAskAgent,
   onOpenChat,
   onOpenTranscript,
   onDrill,
@@ -906,12 +936,14 @@ function ParkBlock({
     requestedProof?: readonly ProofKind[],
   ) => void
   onDelegate: () => Promise<void>
+  onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   /** Open the agent run that is waiting, to read its transcript. */
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
   onDrill: (childRunId: string) => void
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [asking, setAsking] = useState(false)
   const park = run.park
   if (!park) return null
   const waiting = processWaitingView(run)
@@ -974,6 +1006,24 @@ function ParkBlock({
               <span className="max-w-48 text-[10px] text-(--text-secondary)">{choice.detail}</span>
             </div>
           ))}
+          {onAskAgent && processParkAskableStepId(run) ? (
+            <div className="flex flex-col gap-0.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={asking}
+                onClick={() => {
+                  setAsking(true)
+                  void onAskAgent().finally(() => setAsking(false))
+                }}
+              >
+                {PROCESS_PARK_ASK_AGENT_COPY.label}
+              </Button>
+              <span className="max-w-48 text-[10px] text-(--text-secondary)">
+                {PROCESS_PARK_ASK_AGENT_COPY.detail}
+              </span>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

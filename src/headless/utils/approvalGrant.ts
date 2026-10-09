@@ -1,5 +1,6 @@
 import { partitionGrants } from './agentQuestions'
 import type { PendingToolGrant } from './chatTypes'
+import type { GrantDetailView } from './approvalGrantTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 
 /**
@@ -40,19 +41,6 @@ export function isToolAskDecidedOnRow(toolName: string | undefined): boolean {
 
 export type StartFeatureWorkRunner = 'cli' | 'api'
 
-/**
- * Whether choices made at the approval actually reach the run.
- *
- * Only a CLI-brokered decision carries metadata: `decideCliAgentAction` persists
- * it and the backend merges the whitelisted options into the launch. The API
- * transport confirms tool calls by ID alone, so the agent's own arguments are
- * what runs. Offering an editable note or proof toggle there would collect a
- * decision and silently drop it, which is worse than not offering it.
- */
-export function launchOptionsAreHonoured(grant: Pick<PendingToolGrant, 'source'>): boolean {
-  return grant.source === 'cli'
-}
-
 /** How the dock should describe which agent will carry out the work. */
 export type LaunchRunnerLabel = {
   /** The chip's text. */
@@ -76,9 +64,9 @@ export type LaunchRunnerLabel = {
  */
 export function launchRunnerLabel(
   summary: Pick<StartFeatureWorkGrantSummary, 'runner'>,
-  source: PendingToolGrant['source'],
+  chatRunner: PendingToolGrant['chatRunner'],
 ): LaunchRunnerLabel {
-  const chatPill = source === 'cli' ? 'CLI' : 'API'
+  const chatPill = chatRunner === 'cli' ? 'CLI' : 'API'
   if (!summary.runner) {
     return {
       label: 'Same agent as this chat',
@@ -104,10 +92,6 @@ export function launchRunnerLabel(
   }
 }
 
-/** Why the launch options are read-only on a transport that cannot carry them. */
-export const LAUNCH_OPTIONS_READ_ONLY =
-  'This chat runs on the API agent, which starts the work with exactly the arguments it proposed — so this run uses the agent’s own choices below.'
-
 /** What the launch prompt shows about the work it is about to start. */
 export type StartFeatureWorkGrantSummary = {
   storyId?: string
@@ -132,25 +116,20 @@ export type StartFeatureWorkGrantSummary = {
 }
 
 /**
- * Pull the human-facing bits out of a `startFeatureWork` grant's payload,
- * defensively — a malformed payload yields the defaults rather than throwing,
- * so the prompt still renders.
- *
- * The two transports hand over DIFFERENT shapes and both must be read: a CLI
- * broker action wraps them (`{ tool, args: {...} }`), while an API tool call's
- * `detail` IS the arguments object. Reading only the wrapper made every field
- * absent on an API chat, which left the dock waiting on a story id that never
- * came and its Start-work button permanently disabled.
+ * Pull the human-facing bits out of a `startFeatureWork` ask's payload
+ * (`{ tool, args }`), defensively — a malformed payload yields the defaults
+ * rather than throwing, so the prompt still renders.
  */
 export function startFeatureWorkGrantSummary(
   grant: Pick<PendingToolGrant, 'detail'>,
 ): StartFeatureWorkGrantSummary {
   const payload = grant.detail
-  const outer =
-    typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
-  const wrapped = outer.args
+  const wrapped =
+    typeof payload === 'object' && payload !== null
+      ? (payload as Record<string, unknown>).args
+      : undefined
   const record =
-    typeof wrapped === 'object' && wrapped !== null ? (wrapped as Record<string, unknown>) : outer
+    typeof wrapped === 'object' && wrapped !== null ? (wrapped as Record<string, unknown>) : {}
   const storyId = record.storyId
   const note = record.note
   const runner = record.runner
@@ -200,19 +179,13 @@ export function pendingApprovalGrants(grants?: PendingToolGrant[]): PendingToolG
  * The approvals the bottom panel shows: requests of their own kind (a launch, a
  * sandbox boundary, a credential), plus any ordinary tool ask no row on screen
  * has claimed — an ask must never go unseen. An ordinary ask a row is showing
- * is decided there; `apiAsksOnRows` says whether this client shows an API
- * turn's asks on their rows (its inline batch) rather than here.
+ * is decided there, whichever agent raised it.
  */
 export function panelApprovalGrants(
   grants: PendingToolGrant[] | undefined,
   claimedIds: ReadonlySet<string>,
-  opts: { apiAsksOnRows: boolean },
 ): PendingToolGrant[] {
-  return pendingApprovalGrants(grants).filter((g) => {
-    if (g.inline !== true) return true
-    if (g.source === 'api') return !opts.apiAsksOnRows
-    return !claimedIds.has(g.id)
-  })
+  return pendingApprovalGrants(grants).filter((g) => g.inline !== true || !claimedIds.has(g.id))
 }
 
 /**
@@ -221,6 +194,26 @@ export function panelApprovalGrants(
  * thing the same way; a payload that will not serialise degrades to its string
  * form rather than blanking the panel.
  */
+/**
+ * An ask's payload as its card reads it: the plain sentence the payload's
+ * `detail` carries ("Delete the screen 'Evaluation' (3 items) from Viewer") as
+ * the headline, and everything else as the details below it. Pure.
+ */
+export function grantDetailView(detail: unknown): GrantDetailView {
+  if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
+    const { detail: sentence, ...rest } = detail as Record<string, unknown>
+    if (typeof sentence === 'string' && sentence.trim() !== '') {
+      const remaining = Object.keys(rest).length > 0 ? formatGrantDetail(rest) : undefined
+      return {
+        headline: sentence.trim(),
+        ...(remaining !== undefined ? { detail: remaining } : {}),
+      }
+    }
+  }
+  const formatted = formatGrantDetail(detail)
+  return formatted !== undefined ? { detail: formatted } : {}
+}
+
 export function formatGrantDetail(detail: unknown): string | undefined {
   if (detail === undefined || detail === null) return undefined
   if (typeof detail === 'string') return detail.length > 0 ? detail : undefined

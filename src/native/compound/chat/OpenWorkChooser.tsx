@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 
 import {
+  OPEN_WORK_PICK_HINT,
   OPEN_WORK_RISKY_TAG,
   processOpenWorkView,
   type ProcessOpenWork,
@@ -72,6 +73,8 @@ export default function OpenWorkChooser({
               disabled={disabled}
               onPress={() => onChoose(option.choice)}
               style={{
+                minHeight: 44,
+                justifyContent: 'center',
                 gap: 2,
                 borderWidth: 1,
                 borderColor: picked ? theme.accent.primary : theme.border.default,
@@ -117,13 +120,20 @@ export default function OpenWorkChooser({
                   </View>
                 ) : null}
               </View>
-              <Text style={{ fontSize: 11.5, lineHeight: 16, color: theme.text.secondary }}>
-                {option.available ? option.detail : option.reason}
-              </Text>
+              {picked || !option.available ? (
+                <Text style={{ fontSize: 11.5, lineHeight: 16, color: theme.text.secondary }}>
+                  {option.available ? option.detail : option.reason}
+                </Text>
+              ) : null}
             </Pressable>
           )
         })}
       </View>
+      {choice === undefined ? (
+        <Text style={{ fontSize: 11, fontWeight: '500', color: status.working.softFg }}>
+          {OPEN_WORK_PICK_HINT}
+        </Text>
+      ) : null}
     </View>
   )
 }

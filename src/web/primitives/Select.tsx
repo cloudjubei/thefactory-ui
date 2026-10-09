@@ -7,7 +7,24 @@ import { cn } from '../utils/cn'
 
 export type SelectTriggerSize = 'sm' | 'md' | 'lg'
 
-export const Select = SelectPrimitive.Root
+/**
+ * Radix's Root, minus one stray event: its hidden native `<select>` reports a
+ * change of `value` as `''` when the newly picked item has not rendered yet.
+ * No item may have the value `''`, so it is never a person's choice.
+ */
+export function Select({
+  onValueChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      {...(onValueChange
+        ? { onValueChange: (next: string) => (next === '' ? undefined : onValueChange(next)) }
+        : {})}
+    />
+  )
+}
 export const SelectGroup = SelectPrimitive.Group
 export const SelectValue = SelectPrimitive.Value
 

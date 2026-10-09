@@ -70,6 +70,9 @@ describe('mergeSettings', () => {
     expect(out.notifications.categories['cross-project']).toBe(true)
     expect(out.notifications.badgesEnabled['cross-project']).toBe(true)
     expect(out.notifications.badgeColors['cross-project']).toBe('blue')
+    expect(out.notifications.categories.storage).toBe(true)
+    expect(out.notifications.badgesEnabled.storage).toBe(true)
+    expect(out.notifications.badgeColors.storage).toBe('orange')
     expect(out.notifications.gitBadgeSubToggles.incoming_commits).toBe(false)
     // missing sub-toggle falls back
     expect(out.notifications.gitBadgeSubToggles.uncommitted_changes).toBe(true)

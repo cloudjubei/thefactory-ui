@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import {
   PROCESS_INTEGRATION_CANCEL,
+  PROCESS_INTEGRATION_CHECK_MERGE,
   PROCESS_INTEGRATION_CHOOSER_HEAD,
   PROCESS_INTEGRATION_CHOOSER_NOTE,
   PROCESS_INTEGRATION_DETAILS_HEAD,
@@ -44,9 +45,10 @@ export type IntegrationChooserProps = {
 
 /**
  * How approved work lands, decided by the person: the way — merge, merge as one
- * commit, or a pull request — then who it is made as and the words it lands
- * with (or the account a pull request is opened as and what it says), with a
- * preview of how it will read on the host. A project with no git of its own
+ * commit, or a pull request — then who it is made as, the words it lands with
+ * and whether its result is built and type-checked first (or the account a
+ * pull request is opened as and what it says), with a preview of how it will
+ * read on the host. A project with no git of its own
  * has one way and nothing more to decide.
  */
 export default function IntegrationChooser({
@@ -232,6 +234,21 @@ function IntegrationDetails({
               onChange={(e) => set({ message: e.target.value })}
               className="font-mono text-[12px]"
             />
+          </label>
+          <label className="flex items-start gap-2 text-[12px] text-(--text-primary)">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.checkMerge}
+              disabled={busy}
+              onChange={(e) => set({ checkMerge: e.target.checked })}
+            />
+            <span className="flex flex-col gap-0.5">
+              {PROCESS_INTEGRATION_CHECK_MERGE.label(workBranch.baseRef)}
+              <span className="text-[11px] text-(--text-muted)">
+                {PROCESS_INTEGRATION_CHECK_MERGE.hint(workBranch.baseRef)}
+              </span>
+            </span>
           </label>
         </>
       )}

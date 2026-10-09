@@ -8,7 +8,13 @@ import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import Tooltip from '../../primitives/Tooltip'
 import { IconDelete, IconRefresh, IconRefreshChat, IconToolbox } from '../../icons'
 import { SubagentSteps, ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
-import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import BackgroundResultsRow from './BackgroundResultsRow'
+import { backgroundJobAnchorOf } from '../../../headless/utils/backgroundJobs'
+import type {
+  AlwaysAllowScope,
+  ChatMessageLike,
+  GrantCovers,
+} from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
 import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
@@ -193,10 +199,14 @@ export type MessageRowProps = {
   /** When true, the checkbox is checked. */
   toolSelected?: boolean
   onToggleToolSelect?: () => void
-  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
-  toolAlwaysAllowed?: boolean
-  /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
-  onAlwaysAllowTool?: () => void
+  /** Where "Always allow" may apply for this call, the default first. */
+  toolAlwaysAllowScopes?: readonly AlwaysAllowScope[]
+  /** What an always-allow of this call covers. */
+  toolGrantCovers?: GrantCovers
+  /** Marked "Always allow" in this place: the batch's Resume grants it there. */
+  toolAlwaysAllowScope?: AlwaysAllowScope
+  /** Mark "Always allow" in a place, or unmark — offered beside the toggle when the ask allows it. */
+  onAlwaysAllowTool?: (scope: AlwaysAllowScope | undefined) => void
 
   thinkingLabel?: string
   setLastMessageRef?: (el: HTMLDivElement | null) => void
@@ -229,7 +239,9 @@ function MessageRow({
   toolSelectable,
   toolSelected,
   onToggleToolSelect,
-  toolAlwaysAllowed,
+  toolAlwaysAllowScopes,
+  toolGrantCovers,
+  toolAlwaysAllowScope,
   onAlwaysAllowTool,
   thinkingLabel,
   setLastMessageRef,
@@ -266,6 +278,19 @@ function MessageRow({
             <IconRefresh className="w-5 h-5 mt-4" />
           </button>
         ) : null}
+      </div>
+    )
+  }
+
+  if (role === 'user' && msg.backgroundResults?.length) {
+    const at = messageIso(msg)
+    return (
+      <div data-msg-idx={globalIndex} className="flex w-full">
+        <BackgroundResultsRow
+          results={msg.backgroundResults}
+          content={msg.content}
+          {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
+        />
       </div>
     )
   }
@@ -537,19 +562,22 @@ function MessageRow({
           ) : null}
 
           {isTool && msg.toolCall ? (
-            <div className="w-full">
+            <div className="w-full" id={backgroundJobAnchorOf(msg.toolResult?.result)}>
               <ToolCallCard
                 toolCall={msg.toolCall}
                 result={msg.toolResult?.result}
                 resultType={msg.toolResult?.type ?? (msg.error ? 'errored' : undefined)}
                 durationMs={msg.toolResult?.durationMs ?? msg.durationMs}
+                {...(msg.startedAt !== undefined ? { startedAt: msg.startedAt } : {})}
                 renderResult={renderToolResult}
                 headerPath={getToolHeaderPath?.(msg.toolCall)}
                 previewResult={toolPreview}
                 selectable={toolSelectable}
                 selected={toolSelected}
                 onToggleSelect={onToggleToolSelect}
-                alwaysAllowed={toolAlwaysAllowed}
+                {...(toolAlwaysAllowScopes ? { alwaysAllowScopes: toolAlwaysAllowScopes } : {})}
+                {...(toolGrantCovers ? { grantCovers: toolGrantCovers } : {})}
+                {...(toolAlwaysAllowScope ? { alwaysAllowScope: toolAlwaysAllowScope } : {})}
                 onAlwaysAllow={onAlwaysAllowTool}
               />
               {msg.subagentMessages?.length ? (

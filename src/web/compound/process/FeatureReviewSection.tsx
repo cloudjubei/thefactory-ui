@@ -300,7 +300,7 @@ export default function FeatureReviewSection({
         <span className="text-[11px] text-(--text-muted)">{attemptLabel}</span>
       ) : null}
 
-      {proof?.header ? <ProofBanner header={proof.header} /> : null}
+      {proof?.header ? <ProofBanner projectId={projectId} header={proof.header} /> : null}
 
       {notes.map((note) => (
         <div

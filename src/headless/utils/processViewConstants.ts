@@ -39,3 +39,14 @@ export const PROCESS_SEND_BACK_COPY = {
 
 /** What the loop editor says of a loop that leaves a gate: a person's send-backs are never capped. */
 export const PROCESS_GATE_LOOP_NO_LIMIT = 'a person’s send-back — no limit'
+
+/** The action on a step the run stopped at: ask an agent about it in the run's own chat. */
+export const PROCESS_PARK_ASK_AGENT_COPY = {
+  label: 'Ask an agent',
+  detail:
+    'Opens this run’s chat with an agent looking into why the step stopped and what to do. The run waits here for your decision.',
+} as const
+
+/** The line under a step whose Try again went to the checks first, the branch having moved past what they failed on. */
+export const PROCESS_STEP_RECHECKED = (sha: string | undefined) =>
+  `Try again ran the checks first — branch changed${sha ? ` (${sha.slice(0, 8)})` : ''}`

@@ -1,4 +1,10 @@
-import type { CliDecidedAsk } from './cliRunActivityTypes'
+import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
+import type { ChatMessageLike } from './chatTypes'
+import {
+  ASK_DECLINED_REASON,
+  DECIDED_BY_RULE_NOTE,
+  DECIDED_BY_YOU_APPROVE_ALL_NOTE,
+} from './cliRunnerConstants'
 import { describe, it, expect } from 'vitest'
 import {
   chatCliRunnerToDispatchOptions,
@@ -30,9 +36,13 @@ import {
   isPlaceholderCliToolName,
   isEmptyToolInput,
   acpToolOrigin,
+  storedChatAskRows,
 } from './cliRunner'
 import { cliRunMessageUsage } from './costDetails'
+import { BACKGROUND_TOOL_RESULT_TYPE } from './backgroundJobsConstants'
+import { BACKGROUND_JOB_OUTCOME } from 'thefactory-tools/constants'
 import type { CliRunTranscriptEntry } from '../api/generated'
+import { CLI_HOST_ERRORED_OUTCOME } from './cliRunActivityConstants'
 
 const entry = (over: Partial<CliRunTranscriptEntry>): CliRunTranscriptEntry => ({
   at: 1,
@@ -46,7 +56,6 @@ describe('chatCliRunnerToDispatchOptions', () => {
     expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).toEqual({
       cli: 'claude-code',
       authCredentialId: 'cli-1',
-      execMode: 'resident',
     })
   })
 
@@ -54,7 +63,6 @@ describe('chatCliRunnerToDispatchOptions', () => {
     expect(chatCliRunnerToDispatchOptions({ tool: 'codex', apiKeyCredentialId: 'llm-1' })).toEqual({
       cli: 'codex',
       apiKeyCredentialId: 'llm-1',
-      execMode: 'resident',
     })
   })
 
@@ -71,24 +79,6 @@ describe('chatCliRunnerToDispatchOptions', () => {
       authCredentialId: 'cli-1',
       model: 'opus',
       effort: 'high',
-      execMode: 'resident',
-    })
-  })
-
-  it('forwards an explicit execMode and defaults to resident when unset', () => {
-    // Explicit per-turn is honored (user forced the cold path).
-    expect(
-      chatCliRunnerToDispatchOptions({
-        tool: 'claude-code',
-        credentialId: 'cli-1',
-        execMode: 'per-turn',
-      }),
-    ).toEqual({ cli: 'claude-code', authCredentialId: 'cli-1', execMode: 'per-turn' })
-    // Unset → resident by default (the runner degrades to per-turn if ineligible).
-    expect(chatCliRunnerToDispatchOptions({ tool: 'claude-code', credentialId: 'cli-1' })).toEqual({
-      cli: 'claude-code',
-      authCredentialId: 'cli-1',
-      execMode: 'resident',
     })
   })
 })
@@ -1249,6 +1239,92 @@ describe('normalizeCliTranscript', () => {
     expect(rows).toHaveLength(1)
   })
 
+  it('folds out a later call that came back already carried out — it ran nothing', () => {
+    // The 2026-10-07 "Design work" turn: told to make approved calls again, the
+    // agent's repeats came back "already carried out" and read as approvals the
+    // person never gave.
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'addFeature', { projectId: 'thefactory-ui', storyId: 's1' }),
+        answered('t1', {
+          outcome: 'approved',
+          alreadyExecuted: true,
+          note: 'This approval was already carried out.',
+        }),
+        call('t2', 'saveGroupNote', { label: 'Design' }, 3),
+        answered('t2', { outcome: 'pending', actionId: 'n1' }, 4),
+      ],
+      {
+        runId: '80d4c353',
+        decidedAsks: [
+          decided({
+            toolName: 'addFeature',
+            args: { projectId: 'thefactory-ui', storyId: 's1' },
+            runId: '610774fc',
+            executedInRun: '2ea3ce1a',
+          }),
+        ],
+      },
+    )
+    expect(rows.map((r) => r.toolCall?.name)).toEqual(['saveGroupNote'])
+  })
+
+  it('says an approved ask was approved by you', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [
+        decided({
+          decidedBy: 'person',
+          decidedVia: 'card',
+          execution: { ok: true, result: '{"id":"s1"}' },
+        }),
+      ],
+    })
+    expect(row.toolCall?.decisionNote).toBe('Approved by you')
+  })
+
+  it('says an ask approved in one Resume over several was approved by you with approve all', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ decidedBy: 'person', decidedVia: 'approve-all' })],
+    })
+    expect(row.toolCall?.decisionNote).toBe('Approved by you (approve all)')
+  })
+
+  it('says a declined ask was declined by you', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'denied', decidedBy: 'person', decidedVia: 'card' })],
+    })
+    expect(row.toolCall?.decisionNote).toBe('Declined by you')
+  })
+
+  it('says which rule approved a call a standing grant covered', () => {
+    const [row] = cliTranscriptToMessages(
+      [call('t1', 'addFeature', { title: 'T' }), answered('t1', { id: 'f1' })],
+      {
+        runId: 'run-1',
+        decidedAsks: [
+          decided({
+            toolName: 'addFeature',
+            args: { title: 'T' },
+            decidedBy: 'grant:g1',
+            decidedVia: 'grant',
+            rule: 'always allow addFeature in this chat',
+            executedInRun: 'run-1',
+          }),
+        ],
+      },
+    )
+    expect(row.toolCall?.decisionNote).toBe(
+      'Approved by rule: always allow addFeature in this chat',
+    )
+  })
+
+  it('claims nothing about who decided an ask recorded before decisions were attributed', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ execution: { ok: true, result: '{}' } })],
+    })
+    expect(row.toolCall?.decisionNote).toBeUndefined()
+  })
+
   it('shows a call the host stopped as not run, with the reason it gave', () => {
     const [row] = cliTranscriptToMessages([
       call('t1', 'addStory', {}),
@@ -1768,6 +1844,29 @@ describe('normalizeCliTranscript — streamed reasoning and ACP tool results', (
     expect(steps[0]).toMatchObject({ kind: 'tool', resultType: 'not_allowed', result: refusal })
   })
 
+  it('shows a call the host answered with an error — a refusal before any card — as errored, in its words, as on any other runner', () => {
+    const steps = normalizeCliTranscript([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { acp: { toolCallId: 't1', title: 'MCP: tool' } },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          acp: { toolCallId: 't1', status: 'completed', rawOutput: { success: true } },
+          hostOutcome: { outcome: CLI_HOST_ERRORED_OUTCOME, error: 'The run has ended.' },
+        },
+      }),
+    ])
+    expect(steps[0]).toMatchObject({
+      kind: 'tool',
+      resultType: 'errored',
+      result: 'The run has ended.',
+    })
+  })
+
   it('marks a failed tool as errored', () => {
     const steps = normalizeCliTranscript([
       entry({ at: 1, kind: 'tool-call', payload: { acp: { toolCallId: 't1', title: 'Read' } } }),
@@ -2267,5 +2366,320 @@ describe('subagent steps', () => {
     )
     expect(messages[1]).toMatchObject({ content: 'main', usage: { cost: 1 } })
     expect(messages[0].subagentMessages?.[0].usage).toBeUndefined()
+  })
+})
+
+describe('a call that carries on in the background', () => {
+  it('shows as in the background, not as done', async () => {
+    const { BACKGROUND_JOB_OUTCOME } = await import('thefactory-tools/constants')
+    const [row] = cliTranscriptToMessages([
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [
+              { type: 'tool_use', id: 't1', name: 'runProjectCheck', input: { check: 'test' } },
+            ],
+          },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          message: {
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: 't1',
+                content: JSON.stringify({ outcome: BACKGROUND_JOB_OUTCOME, jobId: 'job-1' }),
+              },
+            ],
+          },
+        },
+      }),
+    ])
+    expect(row!.toolResult?.type).toBe(BACKGROUND_TOOL_RESULT_TYPE)
+    expect(row!.toolResult?.result).toMatchObject({ jobId: 'job-1' })
+  })
+})
+
+describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn’s do', () => {
+  const row = (actionId: string | undefined, type = 'require_confirmation', name = 'editProject') =>
+    ({
+      role: 'tool',
+      content: '',
+      toolCall: { toolCallId: `c-${actionId}`, name, arguments: { a: 1 } },
+      toolResult: { type, result: '', ...(actionId ? { actionId } : {}) },
+    }) as ChatMessageLike
+  const ask = (id: string, over: Partial<CliPendingAsk> = {}): CliPendingAsk => ({
+    id,
+    toolName: 'editProject',
+    decidedOnRow: true,
+    ...over,
+  })
+  const decided = (id: string, over: Partial<CliDecidedAsk> = {}): CliDecidedAsk => ({
+    id,
+    runId: 'api-chat-turn:t',
+    status: 'approved',
+    ...over,
+  })
+
+  it('shows a call that carries on in the background as a CLI row does — in background, its job to jump to', () => {
+    const backgrounded = {
+      ...row(undefined, 'success', 'runProjectCheck'),
+      toolResult: {
+        type: 'success',
+        result: JSON.stringify({ outcome: BACKGROUND_JOB_OUTCOME, jobId: 'job-1' }),
+      },
+    } as ChatMessageLike
+    const [m] = storedChatAskRows([backgrounded], [], [])
+    expect(m!.toolResult?.type).toBe(BACKGROUND_TOOL_RESULT_TYPE)
+    const [plain] = storedChatAskRows([row(undefined, 'success')], [], [])
+    expect(plain!.toolResult?.type).toBe('success')
+  })
+
+  it('puts an ordinary ask on its own row, to be decided there', () => {
+    const [m] = storedChatAskRows([row('a1')], [ask('a1')], [])
+    expect(m!.toolCall).toMatchObject({ approvalId: 'a1' })
+    expect(m!.toolResult?.type).toBe('require_confirmation')
+  })
+
+  it('has a row whose ask is answered in a panel — a launch — say it waits there', () => {
+    const [m] = storedChatAskRows(
+      [row('a1', 'require_confirmation', 'startFeatureWork')],
+      [ask('a1', { decidedOnRow: false })],
+      [],
+    )
+    expect(m!.toolCall).toMatchObject({ awaitingDecision: true })
+    expect(m!.toolCall).not.toHaveProperty('approvalId')
+    expect(m!.toolResult?.type).toBe('running')
+  })
+
+  it('shows an ask decided a moment ago as under way, not waiting', () => {
+    const [m] = storedChatAskRows([row('a1')], [ask('a1', { awaitingOutcome: true })], [])
+    expect(m!.toolResult?.type).toBe('pending')
+    expect(m!.toolCall).not.toHaveProperty('approvalId')
+  })
+
+  it('shows a decided ask still being carried out as under way, and who decided it', () => {
+    const [m] = storedChatAskRows(
+      [row('a1')],
+      [],
+      [decided('a1', { decidedBy: 'person', decidedVia: 'approve-all' })],
+    )
+    expect(m!.toolResult?.type).toBe('pending')
+    expect(m!.toolCall?.decisionNote).toBe(DECIDED_BY_YOU_APPROVE_ALL_NOTE)
+  })
+
+  it('shows a declined ask whose row the host has not answered yet as not run, and why', () => {
+    const [m] = storedChatAskRows([row('a1')], [], [decided('a1', { status: 'denied' })])
+    expect(m!.toolResult?.type).toBe('not_allowed')
+    expect(m!.toolResult?.result).toMatchObject({ reason: ASK_DECLINED_REASON })
+  })
+
+  it('keeps a settled row’s own outcome, naming the rule that approved it', () => {
+    const settled = row('a1', 'success')
+    const [m] = storedChatAskRows(
+      [{ ...settled, toolResult: { ...settled.toolResult, result: 'done' } }],
+      [],
+      [
+        decided('a1', {
+          decidedBy: 'grant:g1',
+          decidedVia: 'grant',
+          rule: 'always allow editProject in this chat',
+        }),
+      ],
+    )
+    expect(m!.toolResult).toMatchObject({ type: 'success', result: 'done' })
+    expect(m!.toolCall?.decisionNote).toBe(
+      DECIDED_BY_RULE_NOTE('always allow editProject in this chat'),
+    )
+  })
+
+  it('leaves rows with no ask, and every other message, as they are', () => {
+    const user = { role: 'user', content: 'hi' } as ChatMessageLike
+    const plain = row(undefined, 'success')
+    const out = storedChatAskRows([user, plain], [ask('a1')], [decided('a2')])
+    expect(out[0]).toBe(user)
+    expect(out[1]).toBe(plain)
+  })
+})
+
+describe('every CLI runner’s rows tie to their asks the same way', () => {
+  const pending = { outcome: 'pending', actionId: 'a1' }
+  const args = { title: 'T' }
+  type Runner = {
+    name: string
+    called: () => CliRunTranscriptEntry[]
+    waiting: () => CliRunTranscriptEntry[]
+  }
+  const claude: Runner = {
+    name: 'claude-code',
+    called: () => [
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          message: {
+            content: [
+              { type: 'tool_use', id: 't1', name: 'mcp__thefactory__addStory', input: args },
+            ],
+          },
+        },
+      }),
+    ],
+    waiting: () => [
+      ...claude.called(),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          message: {
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: 't1',
+                content: [{ type: 'text', text: JSON.stringify(pending) }],
+                is_error: true,
+              },
+            ],
+          },
+        },
+      }),
+    ],
+  }
+  const item = {
+    id: 't1',
+    type: 'mcp_tool_call',
+    server: 'thefactory',
+    tool: 'addStory',
+    arguments: args,
+  }
+  const codex: Runner = {
+    name: 'codex',
+    called: () => [
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: { type: 'item.started', item: { ...item, status: 'in_progress' } },
+      }),
+    ],
+    waiting: () => [
+      ...codex.called(),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          type: 'item.completed',
+          item: {
+            ...item,
+            result: { content: [{ type: 'text', text: JSON.stringify(pending) }] },
+            status: 'failed',
+          },
+        },
+      }),
+    ],
+  }
+  const cursor: Runner = {
+    name: 'cursor-agent',
+    called: () => [
+      entry({
+        at: 1,
+        kind: 'tool-call',
+        payload: {
+          acp: { sessionUpdate: 'tool_call', toolCallId: 't1', title: 'MCP: tool', rawInput: {} },
+        },
+      }),
+      entry({
+        at: 2,
+        kind: 'tool-result',
+        payload: {
+          acp: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 't1',
+            status: 'in_progress',
+            title: 'addStory',
+            rawInput: { toolName: 'addStory', args, providerIdentifier: 'thefactory' },
+          },
+        },
+      }),
+    ],
+    waiting: () => [
+      ...cursor.called(),
+      entry({
+        at: 3,
+        kind: 'tool-result',
+        payload: {
+          acp: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 't1',
+            status: 'completed',
+            rawOutput: { success: true },
+          },
+          hostOutcome: pending,
+        },
+      }),
+    ],
+  }
+  const ask: CliPendingAsk = { id: 'a1', toolName: 'addStory', args, decidedOnRow: true }
+  const approved: CliDecidedAsk = {
+    id: 'a1',
+    runId: 'run-1',
+    status: 'approved',
+    toolName: 'addStory',
+    args,
+  }
+
+  for (const runner of [claude, codex, cursor]) {
+    it(`${runner.name}: a call waiting on an ask shows that ask on its row`, () => {
+      const rows = cliTranscriptToMessages(runner.waiting(), { pendingAsks: [ask] })
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.toolResult?.type).toBe('require_confirmation')
+      expect(rows[0]!.toolCall).toMatchObject({
+        name: 'addStory',
+        arguments: args,
+        approvalId: 'a1',
+      })
+    })
+
+    it(`${runner.name}: a call held open for its ask shows that ask on its row`, () => {
+      const rows = cliTranscriptToMessages(runner.called(), { pendingAsks: [ask] })
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.toolResult?.type).toBe('require_confirmation')
+      expect(rows[0]!.toolCall).toMatchObject({
+        name: 'addStory',
+        arguments: args,
+        approvalId: 'a1',
+      })
+    })
+
+    it(`${runner.name}: an approved ask nothing has carried out yet reads as queued`, () => {
+      const rows = cliTranscriptToMessages(runner.waiting(), { decidedAsks: [approved] })
+      expect(rows[0]!.toolResult?.type).toBe('pending')
+    })
+  }
+
+  it('cursor-agent: a call announced with its tool and arguments ties to its ask before any update', () => {
+    const rows = cliTranscriptToMessages(
+      [
+        entry({
+          at: 1,
+          kind: 'tool-call',
+          payload: {
+            acp: {
+              sessionUpdate: 'tool_call',
+              toolCallId: 't1',
+              title: 'MCP: tool',
+              rawInput: { toolName: 'addStory', args, providerIdentifier: 'thefactory' },
+            },
+          },
+        }),
+      ],
+      { pendingAsks: [ask] },
+    )
+    expect(rows[0]!.toolResult?.type).toBe('require_confirmation')
+    expect(rows[0]!.toolCall).toMatchObject({ name: 'addStory', arguments: args, approvalId: 'a1' })
   })
 })

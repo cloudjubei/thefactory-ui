@@ -8,6 +8,10 @@ import {
 } from '../../../icons'
 import { TOOL_AWAITING_DECISION_LABEL } from '../../../../headless/utils/gitSetupApprovalConstants'
 import type { ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
+import {
+  BACKGROUND_TOOL_LABEL,
+  BACKGROUND_TOOL_RESULT_TYPE,
+} from '../../../../headless/utils/backgroundJobsConstants'
 import { nativePalette, nativeRadii } from '../../../../tokens/native'
 
 /**
@@ -20,11 +24,14 @@ export function StatusChip({
   resultType,
   timeLabel,
   awaitingDecision = false,
+  slowLabel,
 }: {
   resultType?: ToolResultTypeLike
   timeLabel?: string
   /** The call waits on the user's decision elsewhere: say so rather than spin. */
   awaitingDecision?: boolean
+  /** A running call that has run a while: where it waits, and for how long. */
+  slowLabel?: string
 }) {
   if (awaitingDecision && (resultType === 'running' || resultType === 'pending')) {
     return (
@@ -58,14 +65,25 @@ export function StatusChip({
       </View>
     )
   }
+  if (resultType === BACKGROUND_TOOL_RESULT_TYPE) {
+    return (
+      <View style={wrap}>
+        <Text style={txt}>{BACKGROUND_TOOL_LABEL}</Text>
+      </View>
+    )
+  }
   if (resultType === 'running') {
     return (
-      <View style={[wrap, { paddingHorizontal: 8, minHeight: 18 }]}>
+      <View
+        style={[wrap, { paddingHorizontal: 8, minHeight: 18, flexDirection: 'row', gap: 2 }]}
+        accessibilityLabel={slowLabel ?? 'Running'}
+      >
         <ActivityIndicator
           size="small"
           color={nativePalette.blue[600]}
           style={{ transform: [{ scale: 0.7 }] }}
         />
+        {slowLabel ? <Text style={txt}>{slowLabel}</Text> : null}
       </View>
     )
   }
@@ -123,12 +141,13 @@ export function statusVisual(resultType?: ToolResultTypeLike): StatusVisual | nu
       }
     case 'pending':
     case 'running':
+    case BACKGROUND_TOOL_RESULT_TYPE:
       return {
         kind: 'pending',
         iconColor: nativePalette.blue[500],
         pillBg: 'rgba(59,130,246,0.20)',
         pillText: nativePalette.blue[600],
-        label: resultType,
+        label: resultType === BACKGROUND_TOOL_RESULT_TYPE ? BACKGROUND_TOOL_LABEL : resultType,
       }
     case 'require_confirmation':
       return {

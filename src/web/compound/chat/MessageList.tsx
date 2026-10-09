@@ -20,8 +20,9 @@ import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
-import type { CliDecidedAsk } from '../../../headless/utils/cliRunActivityTypes'
-import { isToolAskDecidedOnRow } from '../../../headless/utils/approvalGrant'
+import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
+import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
+import { useInlineApprovals } from '../../../headless/hooks/useInlineApprovals'
 import {
   CHAT_OPEN_ANCHOR_CONTEXT_MESSAGES,
   CHAT_OPEN_ANCHOR_HEADROOM,
@@ -30,7 +31,12 @@ import {
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
-import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
+import {
+  cliLabel,
+  messageModelTag,
+  parseCliAgentModelTag,
+  storedChatAskRows,
+} from '../../../headless/utils/cliRunner'
 
 function isToolMessage(msg: ChatMessageLike): boolean {
   return msg.role === 'tool' || !!msg.toolCall
@@ -83,7 +89,7 @@ export type MessageListProps = {
    * turn must never claim to be blocked on today's approval.
    */
   cliBlockedOn?: readonly CliRunBlockedOn[]
-  /** The chat's undecided CLI asks — the ordinary tool asks decided on the rows that show them. */
+  /** The chat's undecided asks — an API turn's and a CLI run's alike; the ordinary tool asks are decided on the rows that show them. */
   cliAsks?: readonly PendingToolGrant[]
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
@@ -133,23 +139,12 @@ export type MessageListProps = {
   /** Forwarded to each row: the live group run an announcement launched. */
   renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
-  // ----- Inline tool-confirmation flow (desktop parity) -----
-  /** Host-supplied tool-preview fetcher — called for each
-   * `require_confirmation` tool in the trailing batch so the user sees the
-   * proposed diff/patch inside the hover card before granting. Result is
-   * cached internally per `toolCallId`. Omit to disable preview fetching. */
+  /** Host-supplied tool-preview fetcher — called for each call waiting on
+   * an ask decided on its row, so the user sees the proposed diff/patch inside
+   * the hover card before approving. Result is cached internally per
+   * `toolCallId`. Omit to disable preview fetching. */
   previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
-  /** When the user clicks "Resume X/Y Tools", this fires with the
-   * `toolCallId`s the user approved. Host wires it to the chats
-   * resume-completion call. */
-  onResumeTools?: (toolCallIds: string[]) => Promise<void> | void
-  /**
-   * Allow these tools on every later call — what an API row's "Always allow"
-   * does once the batch resumes. Without it API rows offer no "Always allow".
-   */
-  onAlwaysAllowApiTools?: (toolNames: string[]) => Promise<void> | void
-  /** True while a send/resume is in flight — drives the inline "Resume" button's
-   * spinner + disabled state so the user sees the tools are running. */
+  /** True while a send this session made is in flight. */
   isSending?: boolean
   /** A delete is still landing on the server — blocks a second one. */
   isDeleting?: boolean
@@ -199,8 +194,6 @@ export default function MessageList({
   renderProcessRun,
   renderProcessGroupRun,
   previewTool,
-  onResumeTools,
-  onAlwaysAllowApiTools,
   isSending = false,
   isDeleting = false,
   isBusy,
@@ -210,12 +203,28 @@ export default function MessageList({
   const contentRef = useRef<HTMLDivElement>(null)
   const lastMessageRef = useRef<HTMLDivElement | null>(null)
 
+  // An API turn's stored rows show their asks exactly as a CLI turn's do. An
+  // ask leaves the pending list the moment it is decided here, before its
+  // decision arrives — held as under way meanwhile (see withAsksAwaitingOutcome).
+  const rowAsks = useMemo(() => cliRowAsks(cliAsks), [cliAsks])
+  const decidedIds = useMemo(() => new Set((decidedAsks ?? []).map((a) => a.id)), [decidedAsks])
+  const shownAsksRef = useRef<CliPendingAsk[]>([])
+  const pendingRowAsks = useMemo(
+    () => withAsksAwaitingOutcome(rowAsks, shownAsksRef.current, decidedIds),
+    [rowAsks, decidedIds],
+  )
+  shownAsksRef.current = pendingRowAsks
+  const askedMessages = useMemo(
+    () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
+    [messages, pendingRowAsks, decidedAsks],
+  )
+
   const enhancedMessages = useMemo(() => {
     type Enhanced = ChatMessageLike & { showModel?: boolean; isFirstInGroup?: boolean }
     const out: Enhanced[] = []
     let lastAssistantModel: unknown
     let lastRole: string | undefined
-    for (const m of messages) {
+    for (const m of askedMessages) {
       const role = m.role
       let showModel = false
       const rawModel = m.usage?.model ?? m.model
@@ -228,7 +237,7 @@ export default function MessageList({
       out.push({ ...m, showModel, isFirstInGroup })
     }
     return out
-  }, [messages])
+  }, [askedMessages])
 
   // A leading synthetic `system` message is the interpolated system-prompt
   // preview (real chat history never starts with a system role). It's always
@@ -536,72 +545,16 @@ export default function MessageList({
     return local >= 0 && local < visibleMessages.length ? local : null
   }, [cutoffIndex, startIndex, visibleMessages.length])
 
-  // ----- Inline tool-confirmation flow (desktop parity) -----
-  // Identify the trailing contiguous batch of `tool` messages whose result
-  // type is `require_confirmation` / `pending` / `running` — these are
-  // the proposals the user can grant or deny inline.
-  const pendingTail = useMemo(() => {
-    const msgs = messagesToDisplay
-    let end = msgs.length - 1
-    while (end >= 0 && msgs[end].role !== 'tool') end--
-    if (end < 0) return { start: -1, end: -1, ids: [] as string[] }
-    let start = end
-    while (
-      start >= 0 &&
-      msgs[start].role === 'tool' &&
-      (msgs[start].toolResult?.type === 'require_confirmation' ||
-        msgs[start].toolResult?.type === 'pending' ||
-        msgs[start].toolResult?.type === 'running')
-    ) {
-      start--
-    }
-    start += 1
-    if (start > end) return { start: -1, end: -1, ids: [] as string[] }
-    const ids: string[] = []
-    for (let i = start; i <= end; i++) {
-      const id = String(msgs[i].toolCall?.toolCallId ?? '')
-      if (id) ids.push(id)
-    }
-    return { start, end, ids }
-  }, [messagesToDisplay])
-  // Only `require_confirmation` / `not_allowed` tools in the tail are
-  // grantable via checkbox; `pending` / `running` are read-only.
-  const confirmableIds = useMemo(() => {
-    const set = new Set<string>()
-    for (let i = pendingTail.start; i >= 0 && i <= pendingTail.end; i++) {
-      const m = messagesToDisplay[i]
-      if (m.role !== 'tool') continue
-      const type = m.toolResult?.type
-      if (!(type === 'require_confirmation' || type === 'not_allowed')) continue
-      if (!isToolAskDecidedOnRow(m.toolCall?.name)) continue
-      const id = String(m.toolCall?.toolCallId ?? '')
-      if (id) set.add(id)
-    }
-    return set
-  }, [messagesToDisplay, pendingTail.start, pendingTail.end])
-
-  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
-  const [alwaysToolIds, setAlwaysToolIds] = useState<string[]>([])
-  // Reset selection when the chat changes or the message list changes.
-  useEffect(() => {
-    setSelectedToolIds([])
-    setAlwaysToolIds([])
-  }, [chatId, messagesToDisplay.length])
-  // Marking "Always allow" toggles the row on too; unmarking leaves the toggle.
-  const toggleAlwaysTool = useCallback(
-    (id: string) => {
-      const marking = !alwaysToolIds.includes(id)
-      setAlwaysToolIds((prev) => (marking ? [...prev, id] : prev.filter((x) => x !== id)))
-      if (marking) setSelectedToolIds((sel) => (sel.includes(id) ? sel : [...sel, id]))
-    },
-    [alwaysToolIds],
+  // Asks decided on their rows — the same toggles, "Always allow" and Resume a
+  // CLI turn's rows carry; the panel leaves the asks shown here out.
+  const approvals = useInlineApprovals(
+    `chat:${chatId ?? ''}`,
+    messagesToDisplay,
+    cliAsks,
+    onClaimAsks,
   )
-  const toggleToolSelected = useCallback((id: string) => {
-    if (!id) return
-    setSelectedToolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }, [])
 
-  // Pre-applied preview cache for `require_confirmation` tools.
+  // Pre-applied preview cache for calls waiting on an ask decided on their row.
   const [toolPreviewById, setToolPreviewById] = useState<Record<string, unknown>>({})
   const toolPreviewByIdRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
@@ -613,13 +566,10 @@ export default function MessageList({
   }, [chatId])
   useEffect(() => {
     if (!previewTool) return
-    if (pendingTail.start < 0) return
-    for (let i = pendingTail.start; i <= pendingTail.end; i++) {
-      const m = messagesToDisplay[i]
-      if (m.role !== 'tool') continue
-      if (m.toolResult?.type !== 'require_confirmation') continue
-      const toolCallId = String(m.toolCall?.toolCallId ?? '')
-      const toolName = String(m.toolCall?.name ?? '')
+    for (const m of messagesToDisplay) {
+      if (m.role !== 'tool' || !m.toolCall?.approvalId) continue
+      const toolCallId = String(m.toolCall.toolCallId ?? '')
+      const toolName = String(m.toolCall.name ?? '')
       if (!toolCallId || !toolName) continue
       if (toolPreviewByIdRef.current[toolCallId] !== undefined) continue
       toolPreviewByIdRef.current = {
@@ -648,21 +598,7 @@ export default function MessageList({
         }
       })()
     }
-  }, [previewTool, messagesToDisplay, pendingTail.start, pendingTail.end])
-
-  const selectedCount = selectedToolIds.filter((id) => confirmableIds.has(id)).length
-  const allSelected =
-    selectedCount > 0 && Array.from(confirmableIds).every((id) => selectedToolIds.includes(id))
-  const toggleAllSelected = useCallback(
-    (checked: boolean) => {
-      setSelectedToolIds((prev) => {
-        const confirmable = Array.from(confirmableIds)
-        if (checked) return Array.from(new Set([...prev, ...confirmable]))
-        return prev.filter((id) => !confirmable.includes(id))
-      })
-    },
-    [confirmableIds],
-  )
+  }, [previewTool, messagesToDisplay])
 
   return (
     <div
@@ -694,7 +630,7 @@ export default function MessageList({
             <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
               <div className="text-[18px] font-medium">Start chatting about the project</div>
               <div className="mt-4 inline-block rounded-lg border border-(--border-default) bg-(--surface-raised) px-4 py-3 text-[13px]">
-                Attach text files to give context
+                Attach or drop files and images to give context
                 <br />
                 Mention files with @<br />
                 Reference stories/features with #
@@ -806,6 +742,7 @@ export default function MessageList({
                 />
               ) : (
                 <MessageRow
+                  {...approvals.rowProps(msg)}
                   msg={msg}
                   globalIndex={globalIndex}
                   totalMessages={totalMessages}
@@ -833,33 +770,6 @@ export default function MessageList({
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]
                       : undefined
                   }
-                  toolSelectable={
-                    msg.role === 'tool' &&
-                    !!msg.toolCall?.toolCallId &&
-                    confirmableIds.has(String(msg.toolCall.toolCallId))
-                  }
-                  toolSelected={
-                    msg.role === 'tool' &&
-                    !!msg.toolCall?.toolCallId &&
-                    selectedToolIds.includes(String(msg.toolCall.toolCallId))
-                  }
-                  onToggleToolSelect={
-                    msg.role === 'tool' && msg.toolCall?.toolCallId
-                      ? () => toggleToolSelected(String(msg.toolCall!.toolCallId))
-                      : undefined
-                  }
-                  toolAlwaysAllowed={
-                    msg.role === 'tool' &&
-                    alwaysToolIds.includes(String(msg.toolCall?.toolCallId ?? ''))
-                  }
-                  onAlwaysAllowTool={
-                    onAlwaysAllowApiTools &&
-                    msg.role === 'tool' &&
-                    msg.toolCall?.toolCallId &&
-                    confirmableIds.has(String(msg.toolCall.toolCallId))
-                      ? () => toggleAlwaysTool(String(msg.toolCall!.toolCallId))
-                      : undefined
-                  }
                   thinkingLabel={thinkingLabel}
                   setLastMessageRef={(el) => {
                     lastMessageRef.current = el
@@ -870,25 +780,14 @@ export default function MessageList({
           )
         })}
 
-        {/* Inline confirmation footer — desktop's "Toggle all + Resume X/Y Tools". */}
-        {onResumeTools && pendingTail.ids.length > 0 && confirmableIds.size > 0 ? (
+        {approvals.askIds.length > 0 ? (
           <ToolApprovalFooter
-            total={confirmableIds.size}
-            selectedCount={selectedCount}
-            allSelected={allSelected}
-            onToggleAll={toggleAllSelected}
-            onResume={() => {
-              const ok = selectedToolIds.filter((id) => confirmableIds.has(id))
-              const always = apiToolNamesFor(
-                messagesToDisplay,
-                ok.filter((id) => alwaysToolIds.includes(id)),
-              )
-              void (async () => {
-                if (always.length > 0) await onAlwaysAllowApiTools?.(always)
-                await onResumeTools(ok)
-              })()
-            }}
-            resuming={isSending}
+            total={approvals.askIds.length}
+            selectedCount={approvals.selectedCount}
+            allSelected={approvals.allSelected}
+            onToggleAll={approvals.toggleAll}
+            onResume={() => void approvals.resume()}
+            resuming={approvals.resuming}
           />
         ) : null}
 
@@ -959,20 +858,4 @@ export default function MessageList({
       </div>
     </div>
   )
-}
-
-/** The tool names of the given API tool calls, each once. */
-function apiToolNamesFor(
-  messages: readonly ChatMessageLike[],
-  toolCallIds: readonly string[],
-): string[] {
-  const ids = new Set(toolCallIds)
-  const names = new Set<string>()
-  for (const m of messages) {
-    const id = m.toolCall?.toolCallId
-    if (m.role === 'tool' && id !== undefined && ids.has(String(id)) && m.toolCall?.name) {
-      names.add(m.toolCall.name)
-    }
-  }
-  return [...names]
 }

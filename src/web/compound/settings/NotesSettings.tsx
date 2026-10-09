@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ResourceLink } from 'thefactory-tools/types'
 import {
   rankMentionMatches,
@@ -13,12 +13,14 @@ import RichText from '../files/RichText'
 import type { NoteSummary, NotesOwner } from '../../../headless/utils/projectNotesTypes'
 import {
   canRevealNote,
+  linkedNoteState,
   noteAccessLabel,
   noteAuthorLabel,
   noteKindLabel,
 } from '../../../headless/utils/projectNotes'
 import {
   NOTE_ACCESS_NOTE,
+  NOTE_LINK_MISSING,
   NOTE_VALUE_MASK,
   NOTES_SCREEN_COPY,
 } from '../../../headless/utils/projectNotesConstants'
@@ -32,6 +34,8 @@ export type NotesSettingsProps = {
   owner: NotesOwner
   /** Opens what a note points at — a story, feature, note or file. */
   onOpenReference?: (link: ResourceLink) => void
+  /** The note a link opened the screen on (`?note=`): shown selected and scrolled to. */
+  selectedNoteId?: string
 }
 
 type ModalRoute =
@@ -49,7 +53,11 @@ function formatUpdated(iso: string): string {
  * logins for an app under test, API keys, conventions. A stored value is never rendered in
  * the list; Reveal fetches one on demand and masks it again shortly after.
  */
-export default function NotesSettings({ owner, onOpenReference }: NotesSettingsProps) {
+export default function NotesSettings({
+  owner,
+  onOpenReference,
+  selectedNoteId,
+}: NotesSettingsProps) {
   const projectId = owner.kind === 'project' ? owner.projectId : undefined
   const groupId = owner.kind === 'group' ? owner.groupId : undefined
   // Both stores are always called (an undefined id idles one), so the hook order
@@ -75,6 +83,12 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
     onSearchReferences: references.searchWork,
     onSearchHandles: references.searchHandles,
   }
+  const linked = linkedNoteState(notes, selectedNoteId, isLoaded)
+  const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  useEffect(() => {
+    if (linked !== 'found' || !selectedNoteId) return
+    rowRefs.current.get(selectedNoteId)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [linked, selectedNoteId])
 
   return (
     <div className="max-w-4xl">
@@ -93,6 +107,7 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
       {copy.intro ? <p className="mb-3 text-sm text-(--text-secondary)">{copy.intro}</p> : null}
       {loadError && <Alert>{loadError.message}</Alert>}
       {revealError && <Alert>{revealError}</Alert>}
+      {linked === 'missing' && <Alert variant="info">{NOTE_LINK_MISSING}</Alert>}
 
       <div className="border rounded-md divide-y border-(--border-subtle) divide-(--border-subtle)">
         {!ownerId ? (
@@ -107,7 +122,19 @@ export default function NotesSettings({ owner, onOpenReference }: NotesSettingsP
           notes.map((note) => {
             const isRevealed = revealedNoteId === note.id
             return (
-              <div key={note.id} className="p-3 flex flex-row items-start gap-2 justify-between">
+              <div
+                key={note.id}
+                ref={(el) => {
+                  if (el) rowRefs.current.set(note.id, el)
+                  else rowRefs.current.delete(note.id)
+                }}
+                aria-current={note.id === selectedNoteId ? 'true' : undefined}
+                className={`p-3 flex flex-row items-start gap-2 justify-between ${
+                  note.id === selectedNoteId
+                    ? 'bg-(--surface-muted) shadow-[inset_3px_0_0_var(--accent-primary)]'
+                    : ''
+                }`}
+              >
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium truncate">{note.label}</span>

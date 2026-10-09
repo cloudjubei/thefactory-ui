@@ -1,8 +1,11 @@
+import type { ReactNode } from 'react'
 import Spinner from '../../primitives/Spinner'
 import { Button } from '../../primitives/Button'
 
 export type LoadingScreenProps = {
   label: string
+  /** Shown under the label, full width — e.g. progress rows for what the backend is busy with. */
+  children?: ReactNode
   error?: string | null
   /**
    * Optional retry handler. When supplied AND `error` is set, the
@@ -21,6 +24,7 @@ export type LoadingScreenProps = {
  */
 export default function LoadingScreen({
   label,
+  children,
   error = null,
   onRetry,
   retryLabel = 'Retry',
@@ -30,6 +34,7 @@ export default function LoadingScreen({
       <div className="flex flex-col items-center gap-3 max-w-md text-center px-6">
         {!error && <Spinner size={32} />}
         <div className="text-sm opacity-80">{label}</div>
+        {children && <div className="flex w-full flex-col gap-2 text-left">{children}</div>}
         {error && (
           <div className="text-xs opacity-70 mt-2" style={{ color: 'var(--color-red-700)' }}>
             {error}

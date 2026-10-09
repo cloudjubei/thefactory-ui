@@ -1,32 +1,39 @@
-// Pure mappers behind usePendingToolGrants — turn API tool-calls and CLI
-// PendingActions into the unified PendingToolGrantData shape, and route a
-// decision to the right CLI broker outcome. No React, no I/O.
+// Pure mappers behind usePendingToolGrants — turn a chat's broker asks (an API
+// turn's and a CLI run's alike) into the PendingToolGrantData shape, and route
+// a decision to the broker outcome. No React, no I/O.
 
 import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
-import { getChatContext, getChatContextKey, proofPlansOf } from 'thefactory-tools/utils'
+import { getChatContext, getChatContextKey, isApiChatTurnId } from 'thefactory-tools/utils'
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
-import type { ProcessLaunchDecision, ProcessOpenWorkDecision } from 'thefactory-tools/types'
-import type {
-  ChatMessageLike,
-  PendingToolGrantData,
-  PendingToolGrantDecision,
-  ToolCallLike,
-} from './chatTypes'
+import type { PendingToolGrantData, PendingToolGrantDecision } from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
+import {
+  alwaysAllowScopeOf,
+  cliAlwaysAllowScopes,
+  grantCoversOf,
+  grantRuleText,
+} from './alwaysAllow'
+import type { PermanentGrantScope } from '../api/generated'
 
 /** Subset of a CLI `PendingAction` this mapper needs. */
 export type CliPendingActionLike = {
   id: string
+  /** The run or API chat turn that raised it. */
+  runId?: string
   kind: string
   payload?: unknown
   /** Server-side refusal of standing grants; every call asks again. */
   noPermanentGrant?: boolean
+  /** The chat the ask was raised in, when the run has one. */
+  chatContextId?: string
+  /** What a standing grant covers — the tool alone (`{ tool }`) or the whole call. */
+  grantPayload?: unknown
 }
 
-/** A CLI action as a decided ask's row needs it — see {@link cliDecidedAsks}. */
+/** A broker action as a decided ask's row needs it — see {@link cliDecidedAsks}. */
 export type CliDecidedActionLike = CliPendingActionLike & {
   runId: string
   chatContextId?: string
@@ -38,6 +45,10 @@ export type CliDecidedActionLike = CliPendingActionLike & {
   executedAt?: number
   executedInRun?: string
   execution?: { ok: boolean; result: string; durationMs?: number }
+  decidedBy?: string
+  decidedVia?: 'card' | 'approve-all' | 'grant'
+  /** Where the standing grant that approved it applies. */
+  grantScope?: PermanentGrantScope
 }
 
 /** Subset of a `CliRun` needed to pick the run a chat's approvals belong to. */
@@ -101,6 +112,17 @@ export function isCliActionUpdateEvent(data: unknown): boolean {
 /** True when a `cli:run-update` payload means the chat's active run should be re-resolved. */
 export function isCliRunLifecycleEvent(data: unknown): boolean {
   return RUN_LIFECYCLE_EVENT_TYPES.has(cliRunUpdateType(data))
+}
+
+/**
+ * Whether a `completion:turn` event says this chat's turn started (`true`) or
+ * stopped (`false`) on the server; `undefined` for any other chat's.
+ */
+export function chatTurnActivity(data: unknown, chatContextId: string): boolean | undefined {
+  if (typeof data !== 'object' || data === null) return undefined
+  const event = data as { chatContextId?: unknown; active?: unknown }
+  if (event.chatContextId !== chatContextId || typeof event.active !== 'boolean') return undefined
+  return event.active
 }
 
 /**
@@ -169,35 +191,6 @@ export function pickActiveStoryRunId(
   return best?.id
 }
 
-/** Map an API `require_confirmation` tool-call to a grant (id = toolCallId). */
-/**
- * The calls a stored chat still waits to have confirmed: those of its trailing
- * run of tool messages that need confirmation. What the page that sent the turn
- * remembers is gone after a reload; the chat itself still says.
- */
-export function storedToolCallsAwaitingConfirmation(
-  messages: readonly Pick<ChatMessageLike, 'role' | 'toolCall' | 'toolResult'>[],
-): ToolCallLike[] {
-  const calls: ToolCallLike[] = []
-  for (let i = messages.length - 1; i >= 0 && messages[i].role === 'tool'; i--) {
-    const { toolCall, toolResult } = messages[i]
-    if (toolCall && toolResult?.type === 'require_confirmation') calls.unshift(toolCall)
-  }
-  return calls
-}
-
-export function apiToolCallToGrant(toolCall: ToolCallLike): PendingToolGrantData {
-  return {
-    id: toolCall.toolCallId,
-    source: 'api',
-    label: toolCall.name,
-    detail: toolCall.arguments,
-    toolName: toolCall.name,
-    ...(isToolAskDecidedOnRow(toolCall.name) ? { inline: true } : {}),
-    args: toolCall.arguments,
-  }
-}
-
 /**
  * The tool a CLI gated action is blocked on. A tool the host carries out on
  * approval — a host-dispatched tool, and the sandbox-boundary requests — raises
@@ -223,10 +216,12 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
   const args = pendingActionArgs(action)
   const grant: PendingToolGrantData = {
     id: action.id,
-    source: 'cli',
+    chatRunner: action.runId !== undefined && isApiChatTurnId(action.runId) ? 'api' : 'cli',
     label: toolName ?? formatActionLabel(action.kind),
     detail: action.payload,
-    canGrantPermanently: action.noPermanentGrant !== true,
+    alwaysAllowScopes: cliAlwaysAllowScopes(action),
+    grantCovers: grantCoversOf(action.grantPayload ?? action.payload),
+    ...(action.chatContextId ? { chatContextId: action.chatContextId } : {}),
     ...(toolName ? { toolName } : {}),
     ...(action.kind === MCP_TOOL_CALL_ACTION_KIND && isToolAskDecidedOnRow(toolName)
       ? { inline: true }
@@ -246,14 +241,13 @@ function pendingActionArgs(action: CliPendingActionLike): unknown {
 }
 
 /**
- * The CLI asks a transcript row can be tied to: every one, so the row of a call
- * waiting on a question or a launch reads as waiting too — only the ordinary
- * tool asks are decided on the row.
+ * The asks a row can be tied to — a CLI turn's transcript row or an API turn's
+ * stored one: every one, so the row of a call waiting on a question or a launch
+ * reads as waiting too — only the ordinary tool asks are decided on the row.
  */
 export function cliRowAsks(grants: readonly PendingToolGrantData[] | undefined): CliPendingAsk[] {
   const asks: CliPendingAsk[] = []
   for (const grant of grants ?? []) {
-    if (grant.source !== 'cli') continue
     asks.push({
       id: grant.id,
       ...(grant.toolName !== undefined ? { toolName: grant.toolName } : {}),
@@ -286,6 +280,11 @@ export function cliDecidedAsks(actions: readonly CliDecidedActionLike[]): CliDec
       ...(action.executedAt !== undefined ? { executedAt: action.executedAt } : {}),
       ...(action.executedInRun !== undefined ? { executedInRun: action.executedInRun } : {}),
       ...(action.execution !== undefined ? { execution: action.execution } : {}),
+      ...(action.decidedBy !== undefined ? { decidedBy: action.decidedBy } : {}),
+      ...(action.decidedVia !== undefined ? { decidedVia: action.decidedVia } : {}),
+      ...(action.decidedVia === 'grant'
+        ? { rule: grantRuleText(toolName, action.grantPayload, action.grantScope) }
+        : {}),
     })
   }
   return asks
@@ -345,14 +344,8 @@ export function formatActionLabel(kind: string): string {
 export function cliDecideOutcome(
   decision: PendingToolGrantDecision,
 ): 'approved' | 'approved-permanent' | 'denied' {
-  switch (decision) {
-    case 'once':
-      return 'approved'
-    case 'permanent':
-      return 'approved-permanent'
-    case 'deny':
-      return 'denied'
-  }
+  if (decision === 'deny') return 'denied'
+  return alwaysAllowScopeOf(decision) ? 'approved-permanent' : 'approved'
 }
 
 /**
@@ -371,49 +364,4 @@ export function grantDecideErrorMessage(err: unknown): string {
     if (typeof body.message === 'string' && body.message.trim().length > 0) return body.message
   }
   return 'The decision could not be applied — it may already be decided or expired.'
-}
-
-const OPEN_WORK_CHOICES = ['extend', 'new-on-branch', 'fresh'] as const
-const OPEN_WORK_STATES = ['running', 'parked', 'awaiting-sign-off', 'unmerged'] as const
-
-/**
- * The choices an approval's metadata carries that only the person makes — how
- * to start a story over its open work, how its features are worked, and the
- * proof plan confirmed for each feature — or `undefined` when it carries none.
- * What an API chat's resume sends for the tool call it was made on; a CLI
- * decision carries the metadata itself.
- */
-export function launchDecisionOf(
-  metadata: Record<string, unknown> | undefined,
-): ProcessLaunchDecision | undefined {
-  const openWork = openWorkDecisionOf(metadata)
-  const featureProcessId =
-    typeof metadata?.featureProcessId === 'string' && metadata.featureProcessId.trim()
-      ? metadata.featureProcessId.trim()
-      : undefined
-  const proofPlans = proofPlansOf(metadata?.proofPlans)
-  if (!openWork && !featureProcessId && !proofPlans) return undefined
-  return {
-    ...(openWork ? { openWork } : {}),
-    ...(featureProcessId ? { featureProcessId } : {}),
-    ...(proofPlans ? { proofPlans } : {}),
-    ...(proofPlans && metadata?.saveProofPlans === true ? { saveProofPlans: true } : {}),
-  }
-}
-
-function openWorkDecisionOf(
-  metadata: Record<string, unknown> | undefined,
-): ProcessOpenWorkDecision | undefined {
-  const choice = metadata?.openWork
-  const runId = metadata?.runId
-  const state = metadata?.state
-  if (!OPEN_WORK_CHOICES.includes(choice as (typeof OPEN_WORK_CHOICES)[number])) return undefined
-  if (typeof runId !== 'string' || runId.length === 0) return undefined
-  return {
-    openWork: choice as ProcessOpenWorkDecision['openWork'],
-    runId,
-    ...(OPEN_WORK_STATES.includes(state as (typeof OPEN_WORK_STATES)[number])
-      ? { state: state as ProcessOpenWorkDecision['state'] }
-      : {}),
-  }
 }

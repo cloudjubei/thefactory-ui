@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
-import { DEFAULT_CHAT_CLI_EXEC_MODE } from 'thefactory-tools/constants'
 
 import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
@@ -237,34 +236,9 @@ function ModelChipWithCli({
         apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
         model: modelId,
         effort: cliRunner?.effort ?? effort[selectedCli],
-        execMode: cliRunner?.execMode,
       })
     },
     [selectedCli, cliRunner, credentialForCli, effort, attach, onOverrideModel],
-  )
-
-  // Resident mode keeps one long-lived CLI process per chat (fast multi-turn,
-  // no per-turn container/CLI boot). Persisted on the chat's runner. Each CLI
-  // runs resident via its own persistent-server protocol — claude-code
-  // (stream-json), codex (`codex mcp-server`), cursor-agent (`cursor-agent acp`).
-  const residentEligible =
-    selectedCli === 'claude-code' || selectedCli === 'codex' || selectedCli === 'cursor-agent'
-  // Resident is the DEFAULT (unset execMode → resident at dispatch), so the
-  // toggle reflects on unless the user explicitly forced 'per-turn'.
-  const residentMode = (cliRunner?.execMode ?? DEFAULT_CHAT_CLI_EXEC_MODE) === 'resident'
-  const onToggleResident = useCallback(
-    (next: boolean) => {
-      if (!selectedCli) return
-      void attach({
-        tool: selectedCli,
-        credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
-        apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
-        model: cliRunner?.model ?? defaultModel[selectedCli],
-        effort: cliRunner?.effort ?? effort[selectedCli],
-        execMode: next ? 'resident' : 'per-turn',
-      })
-    },
-    [selectedCli, cliRunner, credentialForCli, defaultModel, effort, attach],
   )
 
   return (
@@ -289,8 +263,6 @@ function ModelChipWithCli({
       onPickCliModel={onPickCliModel}
       authWarning={authWarning}
       cliSwitchError={cliSwitchError}
-      residentMode={residentMode}
-      {...(residentEligible ? { onToggleResident } : {})}
     />
   )
 }

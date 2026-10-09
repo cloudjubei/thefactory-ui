@@ -16,6 +16,7 @@ import {
   canonicalToolPreviewName,
   extract,
   safePreviewString,
+  searchResultLines,
   tryString,
 } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
@@ -174,8 +175,6 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'addStory',
   'addFeature',
   'getStory',
-  'proposePr',
-  'proposeCommitToRealRepo',
   'readPaths',
   'readFile',
   'readFileRanges',
@@ -669,10 +668,10 @@ export function renderToolPreview({
           <SectionTitle>{proposal.kindLabel}</SectionTitle>
           <div className="text-[11px] text-(--text-secondary)">{proposal.title}</div>
         </div>
-        {proposal.lines.map((line) => (
-          <div key={line.label}>
-            <SectionTitle>{line.label}</SectionTitle>
-            <div className="text-[11px] text-(--text-secondary)">{line.text}</div>
+        {proposal.sections.map((section) => (
+          <div key={section.key}>
+            <SectionTitle>{section.label}</SectionTitle>
+            <div className="truncate text-[11px] text-(--text-secondary)">{section.summary}</div>
           </div>
         ))}
         {errorText ? (
@@ -790,44 +789,6 @@ export function renderToolPreview({
         {title ? <span className="text-[11px] text-(--text-primary)">{title}</span> : null}
         {status ? <SmallBadge>{status}</SmallBadge> : null}
       </Row>
-    )
-  }
-  if (name === 'proposePr') {
-    const title = tryString(extract(args, ['title'])) || '(untitled)'
-    const branch = tryString(extract(args, ['branchName']))
-    const baseRef = tryString(extract(args, ['baseRef']))
-    const body = tryString(extract(args, ['body']))
-    return (
-      <div className="text-xs space-y-1">
-        <SectionTitle>Proposed PR</SectionTitle>
-        <div className="text-[12px] font-medium text-(--text-primary)">{title}</div>
-        {branch ? (
-          <Row className="font-mono text-[11px] text-(--text-secondary)">
-            {branch}
-            {baseRef ? ` ← ${baseRef}` : ''}
-          </Row>
-        ) : null}
-        {body ? <PreLimited lines={body.split('\n')} maxLines={10} /> : null}
-      </div>
-    )
-  }
-  if (name === 'proposeCommitToRealRepo') {
-    const message = tryString(extract(args, ['message'])) || '(no message)'
-    const paths = Array.isArray(extract(args, ['paths']))
-      ? (extract(args, ['paths']) as string[])
-      : []
-    const notes = tryString(extract(args, ['notes']))
-    return (
-      <div className="text-xs space-y-1">
-        <SectionTitle>Proposed commit</SectionTitle>
-        <div className="text-[12px] text-(--text-primary)">{message}</div>
-        {paths.map((p, i) => (
-          <Row key={p || i}>
-            <span className="font-mono text-[11px]">{p}</span>
-          </Row>
-        ))}
-        {notes ? <PreLimited lines={notes.split('\n')} maxLines={6} /> : null}
-      </div>
     )
   }
   // ---- file / shell tools ----
@@ -1098,9 +1059,7 @@ export function renderToolPreview({
     // Args carry a single `query` string (multi-line ok).
     const query = tryString(extract(args, ['query']) ?? extract(result, ['query'])) ?? ''
     const qLines = query ? query.split(/\r?\n/) : ['']
-    const resultLines: string[] = Array.isArray(result)
-      ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
-      : []
+    const resultLines = searchResultLines(result)
     return (
       <div className="text-xs space-y-1">
         <SectionTitle>Query:</SectionTitle>

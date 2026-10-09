@@ -7,7 +7,11 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import type { ProcessDecisionClient } from 'thefactory-tools/types'
 import { useAuth } from './AuthContext'
+import { askStartupStatus, createBackendStartupProbe } from './backendStartup'
+import type { BackendStartup, BackendStartupStatus } from './backendStartupTypes'
+import { client as sdkClient } from './generated/client.gen'
 import { configureBackendClient } from './bootstrap'
 import { WsClient, type WsConnectionState } from './WsClient'
 
@@ -21,6 +25,8 @@ export interface ConfigureBackendClientOptions {
   getToken: () => string | null
   onUnauthorized: () => void
   onAuthorized: () => void
+  /** A call was refused because the backend is still starting; reports its progress. */
+  onStarting: (startup: BackendStartup) => void
 }
 
 export interface ApiContextValue {
@@ -34,6 +40,17 @@ export interface ApiContextValue {
    * desktop + mobile because they're cross-origin to the backend.
    */
   apiBaseUrl: string | null
+  /** The app this is — what a decision taken in it says it was taken on. */
+  client: ProcessDecisionClient
+  /**
+   * False until the backend says it is ready (`GET /health/startup`, asked every second while a
+   * token is set): its initial search-index pass (it refuses every call until then) and its
+   * knowledge maps' startup pass have both settled. Apps hold their data layer behind a loading
+   * screen meanwhile. Turns false again if a call is refused as "starting" (the backend restarted).
+   */
+  backendReady: boolean
+  /** The backend's startup progress while it is not ready yet, when known. */
+  backendStartup: BackendStartup | null
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null)
@@ -47,12 +64,19 @@ export interface ApiProviderProps {
   apiBaseUrl: string | null
   /** WebSocket base URL. `null` keeps the socket idle. */
   wsBaseUrl: string | null
+  /** The app this is: `web`, `desktop` or `mobile`. */
+  client: ProcessDecisionClient
   children: ReactNode
 }
 
-export function ApiProvider({ apiBaseUrl, wsBaseUrl, children }: ApiProviderProps) {
+const NOT_YET_READY: BackendStartupStatus = { ready: false, startup: null }
+
+export function ApiProvider({ apiBaseUrl, wsBaseUrl, client, children }: ApiProviderProps) {
   const { token, markUnauthorized, clearUnauthorized } = useAuth()
   const [wsState, setWsState] = useState<WsConnectionState>('idle')
+  const [startupStatus, setStartupStatus] = useState<BackendStartupStatus>(NOT_YET_READY)
+  const startupStatusRef = useRef(startupStatus)
+  startupStatusRef.current = startupStatus
 
   const authRef = useRef({ token, markUnauthorized, clearUnauthorized })
   authRef.current = { token, markUnauthorized, clearUnauthorized }
@@ -70,6 +94,7 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, children }: ApiProviderProp
       getToken: () => authRef.current.token,
       onUnauthorized: () => authRef.current.markUnauthorized(),
       onAuthorized: () => authRef.current.clearUnauthorized(),
+      onStarting: (startup) => setStartupStatus({ ready: false, startup }),
     })
     configuredBaseUrlRef.current = apiBaseUrl
   }
@@ -93,9 +118,32 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, children }: ApiProviderProp
     return () => ws.disconnect()
   }, [token, ws, wsBaseUrl])
 
+  useEffect(() => {
+    setStartupStatus(NOT_YET_READY)
+  }, [apiBaseUrl])
+
+  useEffect(() => {
+    if (!apiBaseUrl || !token || startupStatus.ready) return
+    const probe = createBackendStartupProbe({
+      knownStarting: startupStatusRef.current.startup !== null,
+      fetchStatus: () =>
+        askStartupStatus(() => sdkClient.get({ url: '/health/startup', throwOnError: true })),
+      onChange: setStartupStatus,
+    })
+    probe.start()
+    return () => probe.stop()
+  }, [apiBaseUrl, token, startupStatus.ready])
+
   const value = useMemo<ApiContextValue>(
-    () => ({ ws, wsState, apiBaseUrl }),
-    [ws, wsState, apiBaseUrl],
+    () => ({
+      ws,
+      wsState,
+      apiBaseUrl,
+      client,
+      backendReady: startupStatus.ready,
+      backendStartup: startupStatus.startup,
+    }),
+    [ws, wsState, apiBaseUrl, client, startupStatus],
   )
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>
 }

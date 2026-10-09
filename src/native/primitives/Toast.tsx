@@ -136,13 +136,21 @@ function ToastView({ item, onClose }: { item: ToastItem; onClose: (id: string) =
   )
 }
 
-function ToastViewport({ items, onClose }: { items: ToastItem[]; onClose: (id: string) => void }) {
+function ToastViewport({
+  items,
+  onClose,
+  topInset,
+}: {
+  items: ToastItem[]
+  onClose: (id: string) => void
+  topInset: number
+}) {
   return (
     <View
       pointerEvents="box-none"
       style={{
         position: 'absolute',
-        top: nativeSpace[10],
+        top: topInset + nativeSpace[10],
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -156,14 +164,21 @@ function ToastViewport({ items, onClose }: { items: ToastItem[]; onClose: (id: s
   )
 }
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({
+  children,
+  topInset = 0,
+}: {
+  children: ReactNode
+  /** Safe-area top inset supplied by the host, so toasts clear the status bar. */
+  topInset?: number
+}) {
   const { items, add, startClose } = useToastQueue()
   const api = useMemo<ToastCtx>(() => ({ toast: add }), [add])
   return (
     <Ctx.Provider value={api}>
       <View style={{ flex: 1 }}>
         {children}
-        <ToastViewport items={items} onClose={startClose} />
+        <ToastViewport items={items} onClose={startClose} topInset={topInset} />
       </View>
     </Ctx.Provider>
   )

@@ -4,6 +4,8 @@ import {
   GIT_SETUP_COPY,
   GIT_SETUP_TOOL_NAME,
 } from './gitSetupApprovalConstants'
+import { GIT_CHANGE_TOOL_NAMES } from './gitChangeApprovalConstants'
+import { gitChangeMilestone } from './gitChangeApproval'
 import type { GitSetupForm, GitSetupPlan, ToolRowMilestone } from './gitSetupApprovalTypes'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
@@ -150,7 +152,10 @@ const MILESTONES: Record<
     resultType: string | undefined,
     awaitingDecision: boolean,
   ) => ToolRowMilestone | undefined
-> = { [GIT_SETUP_TOOL_NAME]: gitSetupMilestone }
+> = {
+  [GIT_SETUP_TOOL_NAME]: gitSetupMilestone,
+  ...Object.fromEntries(GIT_CHANGE_TOOL_NAMES.map((name) => [name, gitChangeMilestone])),
+}
 
 /** The milestone line a tool row shows, for the tools that have one. */
 export function toolRowMilestone(

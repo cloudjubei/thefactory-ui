@@ -5,7 +5,9 @@ import {
   groupTabToProjectTab,
   isGroupTabKey,
   isShellTabKey,
+  projectShowsShellTab,
   projectTabToGroupTab,
+  shellTabForProject,
   splitGroupsAndProjects,
 } from './shellNav'
 
@@ -14,7 +16,9 @@ describe('SHELL_TAB_DEFS', () => {
     expect(SHELL_TAB_DEFS.map((t) => t.key)).toEqual([
       'app',
       'stories',
+      'search',
       'files',
+      'design',
       'notes',
       'chat',
       'git',
@@ -31,6 +35,25 @@ describe('SHELL_TAB_DEFS', () => {
     const landing = SHELL_TAB_DEFS.find((t) => t.key === 'stories')
     expect(landing?.label).toBe('Home')
     expect(landing?.icon).toBe('home')
+  })
+
+  it('puts Design right after Files, with its own icon', () => {
+    expect(SHELL_TAB_DEFS.find((t) => t.key === 'design')).toEqual({
+      key: 'design',
+      label: 'Design',
+      icon: 'design',
+    })
+    expect(isShellTabKey('design')).toBe(true)
+  })
+
+  it('puts Search right after Home, with its own icon, on every project', () => {
+    expect(SHELL_TAB_DEFS.find((t) => t.key === 'search')).toEqual({
+      key: 'search',
+      label: 'Search',
+      icon: 'search',
+    })
+    expect(isShellTabKey('search')).toBe(true)
+    expect(projectShowsShellTab('search', { isUiApp: false, hasApp: false })).toBe(true)
   })
 
   it('gives each tab an icon key', () => {
@@ -147,5 +170,34 @@ describe('splitGroupsAndProjects', () => {
   it('returns every project as ungrouped when there are no MAIN groups', () => {
     const { ungroupedProjects } = splitGroupsAndProjects([], projects)
     expect(ungroupedProjects).toEqual(projects)
+  })
+})
+
+describe('projectShowsShellTab', () => {
+  it('shows the App tab only for a project that declares an app', () => {
+    expect(projectShowsShellTab('app', { hasApp: true })).toBe(true)
+    expect(projectShowsShellTab('app', { hasApp: false })).toBe(false)
+    expect(projectShowsShellTab('app', {})).toBe(false)
+    expect(projectShowsShellTab('app', undefined)).toBe(false)
+  })
+
+  it('shows the Design tab unless the project says it is not a UI app', () => {
+    expect(projectShowsShellTab('design', undefined)).toBe(true)
+    expect(projectShowsShellTab('design', {})).toBe(true)
+    expect(projectShowsShellTab('design', { isUiApp: true })).toBe(true)
+    expect(projectShowsShellTab('design', { isUiApp: false })).toBe(false)
+  })
+
+  it('shows every other tab whatever the metadata says', () => {
+    expect(projectShowsShellTab('files', { hasApp: false, isUiApp: false })).toBe(true)
+  })
+})
+
+describe('shellTabForProject', () => {
+  it('keeps a tab the project shows and lands on Home for one it does not', () => {
+    expect(shellTabForProject('design', { isUiApp: true })).toBe('design')
+    expect(shellTabForProject('design', { isUiApp: false })).toBe('stories')
+    expect(shellTabForProject('app', {})).toBe('stories')
+    expect(shellTabForProject('git', { isUiApp: false })).toBe('git')
   })
 })

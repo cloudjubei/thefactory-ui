@@ -42,9 +42,15 @@ import type {
   ApproveCliRunReviewData,
   ApproveCliRunReviewErrors,
   ApproveCliRunReviewResponses,
+  ApproveDesignItemData,
+  ApproveDesignItemErrors,
+  ApproveDesignItemResponses,
   ArchiveChatData,
   ArchiveChatErrors,
   ArchiveChatResponses,
+  AskAgentAboutProcessRunParkData,
+  AskAgentAboutProcessRunParkErrors,
+  AskAgentAboutProcessRunParkResponses,
   AttachChatCliRunnerData,
   AttachChatCliRunnerErrors,
   AttachChatCliRunnerResponses,
@@ -99,6 +105,15 @@ import type {
   CreateDataSourceData,
   CreateDataSourceErrors,
   CreateDataSourceResponses,
+  CreateDesignAppData,
+  CreateDesignAppErrors,
+  CreateDesignAppResponses,
+  CreateDesignItemData,
+  CreateDesignItemErrors,
+  CreateDesignItemResponses,
+  CreateDesignScreenData,
+  CreateDesignScreenErrors,
+  CreateDesignScreenResponses,
   CreateDocumentData,
   CreateDocumentErrors,
   CreateDocumentResponses,
@@ -166,6 +181,15 @@ import type {
   DeleteDataSourceData,
   DeleteDataSourceErrors,
   DeleteDataSourceResponses,
+  DeleteDesignAppData,
+  DeleteDesignAppErrors,
+  DeleteDesignAppResponses,
+  DeleteDesignItemData,
+  DeleteDesignItemErrors,
+  DeleteDesignItemResponses,
+  DeleteDesignScreenData,
+  DeleteDesignScreenErrors,
+  DeleteDesignScreenResponses,
   DeleteDocumentData,
   DeleteDocumentErrors,
   DeleteDocumentResponses,
@@ -231,6 +255,9 @@ import type {
   DetectEnvironmentData,
   DetectEnvironmentErrors,
   DetectEnvironmentResponses,
+  DiscardCliAgentArtifactData,
+  DiscardCliAgentArtifactErrors,
+  DiscardCliAgentArtifactResponses,
   EditCodeData,
   EditCodeErrors,
   EditCodeResponses,
@@ -257,6 +284,8 @@ import type {
   GetChatSummaryData,
   GetChatSummaryErrors,
   GetChatSummaryResponses,
+  GetChatTurnData,
+  GetChatTurnResponses,
   GetCliAgentRunData,
   GetCliAgentRunErrors,
   GetCliAgentRunResponses,
@@ -289,6 +318,8 @@ import type {
   GetDataSourceResponses,
   GetDbHealthData,
   GetDbHealthResponses,
+  GetDesignItemContentData,
+  GetDesignItemContentResponses,
   GetDocumentData,
   GetDocumentErrors,
   GetDocumentResponses,
@@ -375,11 +406,17 @@ import type {
   GetProcessRunIntegrationOptionsResponses,
   GetProcessRunResponses,
   GetProjectData,
+  GetProjectDesignData,
+  GetProjectDesignErrors,
+  GetProjectDesignResponses,
   GetProjectErrors,
   GetProjectResponses,
   GetProjectsGroupData,
   GetProjectsGroupErrors,
   GetProjectsGroupResponses,
+  GetProjectStorageUsageData,
+  GetProjectStorageUsageErrors,
+  GetProjectStorageUsageResponses,
   GetProviderConnectionData,
   GetProviderConnectionErrors,
   GetProviderConnectionResponses,
@@ -390,6 +427,8 @@ import type {
   GetRunDiagnosticsData,
   GetRunDiagnosticsErrors,
   GetRunDiagnosticsResponses,
+  GetStorageUsageData,
+  GetStorageUsageResponses,
   GetStoriesOrderData,
   GetStoriesOrderResponses,
   GetStoryData,
@@ -398,6 +437,9 @@ import type {
   GetUserSettingData,
   GetUserSettingErrors,
   GetUserSettingResponses,
+  GitAbortMergeData,
+  GitAbortMergeErrors,
+  GitAbortMergeResponses,
   GitApplyPatchData,
   GitApplyPatchErrors,
   GitApplyPatchResponses,
@@ -422,6 +464,9 @@ import type {
   GitMergeApplyData,
   GitMergeApplyErrors,
   GitMergeApplyResponses,
+  GitMergeBranchData,
+  GitMergeBranchErrors,
+  GitMergeBranchResponses,
   GitMergePlanData,
   GitMergePlanErrors,
   GitMergePlanResponses,
@@ -463,6 +508,8 @@ import type {
   GrepFilesResponses,
   HealthData,
   HealthResponses,
+  HealthStartupData,
+  HealthStartupResponses,
   ImportConnectionItemData,
   ImportConnectionItemErrors,
   ImportConnectionItemResponses,
@@ -475,6 +522,9 @@ import type {
   InitializeRepoData,
   InitializeRepoErrors,
   InitializeRepoResponses,
+  ListActionRulesData,
+  ListActionRulesErrors,
+  ListActionRulesResponses,
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
@@ -689,10 +739,19 @@ import type {
   RejectFeatureRequestData,
   RejectFeatureRequestErrors,
   RejectFeatureRequestResponses,
+  RemoveActionRuleData,
+  RemoveActionRuleErrors,
+  RemoveActionRuleResponses,
   RemoveOverseerRemoteData,
   RemoveOverseerRemoteResponses,
   RemoveRunnerData,
   RemoveRunnerResponses,
+  RenameDesignItemData,
+  RenameDesignItemErrors,
+  RenameDesignItemResponses,
+  RenameDesignScreenData,
+  RenameDesignScreenErrors,
+  RenameDesignScreenResponses,
   RenameFilesData,
   RenameFilesErrors,
   RenameFilesResponses,
@@ -855,6 +914,9 @@ import type {
   StartOverseerGithubDeviceFlowData,
   StartOverseerGithubDeviceFlowErrors,
   StartOverseerGithubDeviceFlowResponses,
+  StartProcessRunChangesData,
+  StartProcessRunChangesErrors,
+  StartProcessRunChangesResponses,
   StartTestsRunAllData,
   StartTestsRunAllErrors,
   StartTestsRunAllResponses,
@@ -885,6 +947,9 @@ import type {
   UpdateDataSourceData,
   UpdateDataSourceErrors,
   UpdateDataSourceResponses,
+  UpdateDesignAppData,
+  UpdateDesignAppErrors,
+  UpdateDesignAppResponses,
   UpdateDocumentData,
   UpdateDocumentErrors,
   UpdateDocumentResponses,
@@ -924,6 +989,9 @@ import type {
   UpdateWebSearchKeysData,
   UpdateWebSearchKeysErrors,
   UpdateWebSearchKeysResponses,
+  UploadAnyChatAttachmentData,
+  UploadAnyChatAttachmentErrors,
+  UploadAnyChatAttachmentResponses,
   UploadChatAttachmentData,
   UploadChatAttachmentErrors,
   UploadChatAttachmentResponses,
@@ -940,6 +1008,9 @@ import type {
   WebSearchData,
   WebSearchErrors,
   WebSearchResponses,
+  WithdrawProcessRunChangeData,
+  WithdrawProcessRunChangeErrors,
+  WithdrawProcessRunChangeResponses,
   WriteFileData,
   WriteFileErrors,
   WriteFileExactReplacesData,
@@ -976,6 +1047,16 @@ export const health = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/health',
+    ...options,
+  })
+
+export const healthStartup = <ThrowOnError extends boolean = false>(
+  options?: Options<HealthStartupData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<HealthStartupResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/health/startup',
     ...options,
   })
 
@@ -1619,6 +1700,20 @@ export const openProcessRunChat = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+export const askAgentAboutProcessRunPark = <ThrowOnError extends boolean = false>(
+  options: Options<AskAgentAboutProcessRunParkData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AskAgentAboutProcessRunParkResponses,
+    AskAgentAboutProcessRunParkErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/ask-agent',
+    ...options,
+  })
+
 export const resolveProcessRunNeedsYouItem = <ThrowOnError extends boolean = false>(
   options: Options<ResolveProcessRunNeedsYouItemData, ThrowOnError>,
 ) =>
@@ -1635,6 +1730,38 @@ export const resolveProcessRunNeedsYouItem = <ThrowOnError extends boolean = fal
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const startProcessRunChanges = <ThrowOnError extends boolean = false>(
+  options: Options<StartProcessRunChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartProcessRunChangesResponses,
+    StartProcessRunChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/changes/start',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const withdrawProcessRunChange = <ThrowOnError extends boolean = false>(
+  options: Options<WithdrawProcessRunChangeData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    WithdrawProcessRunChangeResponses,
+    WithdrawProcessRunChangeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/changes/{changeId}',
+    ...options,
   })
 
 export const retryProcessRunIntegration = <ThrowOnError extends boolean = false>(
@@ -1848,6 +1975,220 @@ export const getReviewEvidenceDiff = <ThrowOnError extends boolean = false>(
   (options.client ?? client).get<GetReviewEvidenceDiffResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence/diff',
+    ...options,
+  })
+
+export const getProjectDesign = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectDesignData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetProjectDesignResponses, GetProjectDesignErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design',
+    ...options,
+  })
+
+export const createDesignApp = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDesignAppData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateDesignAppResponses, CreateDesignAppErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/apps',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Delete an app with its screens, their drafts and built versions.
+ */
+export const deleteDesignApp = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDesignAppData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<DeleteDesignAppResponses, DeleteDesignAppErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/apps/{appId}',
+    ...options,
+  })
+
+/**
+ * Rename an app, or change its kind ('product' or 'overseer-app').
+ */
+export const updateDesignApp = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDesignAppData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<UpdateDesignAppResponses, UpdateDesignAppErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/apps/{appId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const createDesignScreen = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDesignScreenData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateDesignScreenResponses,
+    CreateDesignScreenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/screens',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Delete a screen with its drafts and built versions.
+ */
+export const deleteDesignScreen = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDesignScreenData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteDesignScreenResponses,
+    DeleteDesignScreenErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/screens/{screenId}',
+    ...options,
+  })
+
+export const renameDesignScreen = <ThrowOnError extends boolean = false>(
+  options: Options<RenameDesignScreenData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    RenameDesignScreenResponses,
+    RenameDesignScreenErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/screens/{screenId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Add a draft to a screen: an uploaded file (base64, as large as a chat attachment), a project file (pointed at; one in a swept store is copied) or a link.
+ */
+export const createDesignItem = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDesignItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<CreateDesignItemResponses, CreateDesignItemErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/items',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const deleteDesignItem = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDesignItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteDesignItemResponses,
+    DeleteDesignItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/items/{itemId}',
+    ...options,
+  })
+
+export const renameDesignItem = <ThrowOnError extends boolean = false>(
+  options: Options<RenameDesignItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<RenameDesignItemResponses, RenameDesignItemErrors, ThrowOnError>(
+    {
+      responseType: 'json',
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/projects/{projectId}/design/items/{itemId}',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    },
+  )
+
+/**
+ * Mark a draft as its screen's approved design (the one approved before is unmarked), or unmark it.
+ */
+export const approveDesignItem = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveDesignItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ApproveDesignItemResponses,
+    ApproveDesignItemErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/items/{itemId}/approve',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * An item's file, with its media type. HTML and SVG are served sandboxed (CSP `sandbox allow-scripts`): embed them in an <iframe sandbox="allow-scripts">. A link has no content here — open its url.
+ */
+export const getDesignItemContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetDesignItemContentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetDesignItemContentResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/items/{itemId}/content',
+    ...options,
+  })
+
+/**
+ * What the project keeps on this machine outside git — its design, evidence and capture sessions — and how the total of every project stands against the warning threshold (the lower of 1 GiB and 1% of the disk).
+ */
+export const getProjectStorageUsage = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectStorageUsageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProjectStorageUsageResponses,
+    GetProjectStorageUsageErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/storage-usage',
+    ...options,
+  })
+
+/**
+ * What every project keeps on this machine outside git, and how their total stands against the warning threshold.
+ */
+export const getStorageUsage = <ThrowOnError extends boolean = false>(
+  options?: Options<GetStorageUsageData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<GetStorageUsageResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/storage-usage',
     ...options,
   })
 
@@ -2274,6 +2615,29 @@ export const pollGitCredentialGithubDevice = <ThrowOnError extends boolean = fal
     },
   })
 
+export const listActionRules = <ThrowOnError extends boolean = false>(
+  options?: Options<ListActionRulesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<ListActionRulesResponses, ListActionRulesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/action-rules',
+    ...options,
+  })
+
+export const removeActionRule = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveActionRuleData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    RemoveActionRuleResponses,
+    RemoveActionRuleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/action-rules/{ruleId}',
+    ...options,
+  })
+
 export const listCredentialCaptures = <ThrowOnError extends boolean = false>(
   options: Options<ListCredentialCapturesData, ThrowOnError>,
 ) =>
@@ -2647,6 +3011,27 @@ export const uploadChatAttachment = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Attach a file to any chat — a project chat keeps it in its project, a group chat in its group workspace, the general chat in the global chat workspace.
+ */
+export const uploadAnyChatAttachment = <ThrowOnError extends boolean = false>(
+  options: Options<UploadAnyChatAttachmentData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    UploadAnyChatAttachmentResponses,
+    UploadAnyChatAttachmentErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-attachments',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const getChatsSettings = <ThrowOnError extends boolean = false>(
   options?: Options<GetChatsSettingsData, ThrowOnError>,
 ) =>
@@ -2974,6 +3359,30 @@ export const gitCommit = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const gitMergeBranch = <ThrowOnError extends boolean = false>(
+  options: Options<GitMergeBranchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<GitMergeBranchResponses, GitMergeBranchErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/merge-branch',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const gitAbortMerge = <ThrowOnError extends boolean = false>(
+  options: Options<GitAbortMergeData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<GitAbortMergeResponses, GitAbortMergeErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/git/merge-abort',
+    ...options,
   })
 
 export const gitPush = <ThrowOnError extends boolean = false>(
@@ -3698,6 +4107,16 @@ export const resumeCompletion = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+export const getChatTurn = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatTurnData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetChatTurnResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completions/turn',
+    ...options,
   })
 
 export const abortChatCompletion = <ThrowOnError extends boolean = false>(
@@ -4519,6 +4938,24 @@ export const applyCliAgentArtifact = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/apply',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const discardCliAgentArtifact = <ThrowOnError extends boolean = false>(
+  options: Options<DiscardCliAgentArtifactData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DiscardCliAgentArtifactResponses,
+    DiscardCliAgentArtifactErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/artifacts/{artifactId}/discard',
     ...options,
     headers: {
       'Content-Type': 'application/json',

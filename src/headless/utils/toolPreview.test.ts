@@ -6,6 +6,7 @@ import {
   getToolHeaderPath,
   isFilePathTool,
   safePreviewString,
+  searchResultLines,
   toolArgDisplay,
   toolNotRunReason,
 } from './toolPreview'
@@ -229,5 +230,42 @@ describe('toolNotRunReason', () => {
 
   it('falls back to the raw result', () => {
     expect(toolNotRunReason({ outcome: 'denied' })).toContain('denied')
+  })
+})
+
+describe('searchResultLines', () => {
+  it('lists a path search as it came', () => {
+    expect(searchResultLines(['src/a.ts', 'b.md'])).toEqual(['src/a.ts', 'b.md'])
+  })
+
+  it('gives a file hit its matched lines', () => {
+    expect(
+      searchResultLines([{ path: 'src/a.ts', startLine: 40, endLine: 58 }, { path: 'b.md' }]),
+    ).toEqual(['src/a.ts:40-58', 'b.md'])
+  })
+
+  it('names a note, story or feature hit by kind, reference and title', () => {
+    expect(
+      searchResultLines([
+        {
+          record: { kind: 'note', noteId: 'n1', title: 'QA login', access: 'ask' },
+          reference: '&n1',
+        },
+        { record: { kind: 'story', storyId: 's1', title: 'Refunds' }, reference: '#s1', text: 't' },
+        { record: { kind: 'feature', title: 'Refund button' }, reference: '#s1.f1' },
+      ]),
+    ).toEqual(['note &n1 — QA login', 'story #s1 — Refunds', 'feature #s1.f1 — Refund button'])
+  })
+
+  it('lists what a search-and-read found by its keys', () => {
+    expect(searchResultLines({ 'src/a.ts': 'code', '#s1': 'Story: Refunds' })).toEqual([
+      'src/a.ts',
+      '#s1',
+    ])
+  })
+
+  it('skips what it cannot name', () => {
+    expect(searchResultLines([42, { other: true }, { record: {} }])).toEqual([])
+    expect(searchResultLines(undefined)).toEqual([])
   })
 })

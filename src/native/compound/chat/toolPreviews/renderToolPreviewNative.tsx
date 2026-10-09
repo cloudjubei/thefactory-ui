@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { extract, tryString } from '../../../../headless/utils/toolPreview'
+import { extract, searchResultLines, tryString } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
@@ -121,8 +121,6 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'addStory',
   'addFeature',
   'getStory',
-  'proposePr',
-  'proposeCommitToRealRepo',
   'readPaths',
   'readFile',
   'readFileRanges',
@@ -397,39 +395,6 @@ export function renderToolPreviewNative({
         {title ? <SecondaryText>{title}</SecondaryText> : null}
         {status ? <SmallBadge>{status}</SmallBadge> : null}
       </Row>
-    )
-  }
-  if (name === 'proposePr') {
-    const title = tryString(extract(args, ['title'])) || '(untitled)'
-    const branch = tryString(extract(args, ['branchName']))
-    const baseRef = tryString(extract(args, ['baseRef']))
-    const body = tryString(extract(args, ['body']))
-    return (
-      <View style={{ gap: 4 }}>
-        <SectionTitle>Proposed PR</SectionTitle>
-        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}>{title}</Text>
-        {branch ? <MonoText>{`${branch}${baseRef ? ` ← ${baseRef}` : ''}`}</MonoText> : null}
-        {body ? <PreLimited lines={body.split('\n')} maxLines={10} /> : null}
-      </View>
-    )
-  }
-  if (name === 'proposeCommitToRealRepo') {
-    const message = tryString(extract(args, ['message'])) || '(no message)'
-    const paths = Array.isArray(extract(args, ['paths']))
-      ? (extract(args, ['paths']) as string[])
-      : []
-    const notes = tryString(extract(args, ['notes']))
-    return (
-      <View style={{ gap: 4 }}>
-        <SectionTitle>Proposed commit</SectionTitle>
-        <Text style={{ fontSize: 12, color: theme.text.primary }}>{message}</Text>
-        {paths.map((p, i) => (
-          <Row key={p || i}>
-            <MonoText>{p}</MonoText>
-          </Row>
-        ))}
-        {notes ? <PreLimited lines={notes.split('\n')} maxLines={6} /> : null}
-      </View>
     )
   }
   if (name === 'readFile') {
@@ -719,10 +684,10 @@ export function renderToolPreviewNative({
           <SectionTitle>{proposal.kindLabel}</SectionTitle>
           <SecondaryText>{proposal.title}</SecondaryText>
         </View>
-        {proposal.lines.map((line) => (
-          <View key={line.label}>
-            <SectionTitle>{line.label}</SectionTitle>
-            <SecondaryText>{line.text}</SecondaryText>
+        {proposal.sections.map((section) => (
+          <View key={section.key}>
+            <SectionTitle>{section.label}</SectionTitle>
+            <SecondaryText>{section.summary}</SecondaryText>
           </View>
         ))}
         {errorText ? (
@@ -893,9 +858,7 @@ export function renderToolPreviewNative({
   if (name === 'searchFiles' || name === 'searchFilePaths' || name === 'searchFilesAndRead') {
     const query = tryString(extract(args, ['query']) ?? extract(result, ['query'])) ?? ''
     const qLines = query ? query.split(/\r?\n/) : ['']
-    const resultLines: string[] = Array.isArray(result)
-      ? (result as unknown[]).filter((l): l is string => typeof l === 'string')
-      : []
+    const resultLines = searchResultLines(result)
     return (
       <View style={{ gap: 4 }}>
         <SectionTitle>Query:</SectionTitle>

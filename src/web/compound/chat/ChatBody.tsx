@@ -9,6 +9,9 @@ import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
+import PendingMessagesStack from './PendingMessagesStack'
+import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
+import { usePendingAutoDispatch } from '../../../headless/hooks/usePendingAutoDispatch'
 import { partitionGrants, shownQuestionId, userAsks } from '../../../headless/utils/agentQuestions'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
@@ -117,13 +120,12 @@ export type ChatBodyProps = {
    * no live transcript at all. Used as the fallback for the live run view.
    */
   activeCliRunId?: string
-  onConfirmTools: (grantedToolCallIds: string[]) => Promise<void> | void
   /**
-   * Unified tool-approval grants (API + CLI). When provided, the confirmation
-   * modal renders these per-grant (with the CLI-only "allow permanently"
-   * option) instead of the {@link onConfirmTools} batch path. Host computes them
-   * via `usePendingToolGrants`. `askUser` question grants are split out of this
-   * feed and take the composer's place as question cards.
+   * The chat's asks — an API turn's and a CLI run's alike — from
+   * `usePendingToolGrants`. An ordinary tool ask is decided on the row that
+   * shows its call; the rest take the composer's place in the approval panel.
+   * `askUser` question grants are split out of this feed and take the
+   * composer's place as question cards.
    */
   grants?: PendingToolGrant[]
 
@@ -170,13 +172,8 @@ export type ChatBodyProps = {
   /** Caller-rendered empty-state for the MessageList. */
   emptyStateContent?: ReactNode
 
-  // ----- Inline tool-confirmation flow (desktop parity) -----
   /** Host-supplied tool-preview fetcher — see `MessageList.previewTool`. */
   previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
-  /** Inline batch resume callback — see `MessageList.onResumeTools`. */
-  onResumeTools?: (toolCallIds: string[]) => Promise<void> | void
-  /** An API row's "Always allow", applied as the batch resumes — see `MessageList.onAlwaysAllowApiTools`. */
-  onAlwaysAllowApiTools?: (toolNames: string[]) => Promise<void> | void
 
   /** Forwarded to the lifted `ChatInput`. */
   inputProps?: Omit<
@@ -186,15 +183,21 @@ export type ChatBodyProps = {
   /** Input value (controlled). */
   inputValue: string
   onInputChange: (value: string) => void
+  /**
+   * The chat's pending queue, from `useChatComposer`. When given, a send while
+   * the agent is busy is queued (shown above the composer) instead of refused,
+   * and the queue goes out as one message once the turn ends.
+   */
+  pendingQueue?: ChatPendingQueue
 }
 
 /**
  * The single canonical chat canvas — header slot, message list, optional
- * error banner, input, and tool-confirmation modal. Used by both the full
+ * error banner, input, and the approval panel. Used by both the full
  * Chat screen and the in-place `ChatSidebarPanel` body.
  *
  * Presentational: all state comes from `messages` + `liveState` props,
- * and side effects fire through `onSend` / `onAbort` / `onConfirmTools`.
+ * and side effects fire through `onSend` / `onAbort` and the grants' own `decide`.
  */
 export default function ChatBody({
   chatId,
@@ -220,7 +223,6 @@ export default function ChatBody({
   onAbort,
   isBusy,
   activeCliRunId,
-  onConfirmTools,
   onDeleteLastMessage,
   onRetry,
   onRestartTurn,
@@ -232,8 +234,6 @@ export default function ChatBody({
   scrollToBottomSignal,
   emptyStateContent,
   previewTool,
-  onResumeTools,
-  onAlwaysAllowApiTools,
   grants,
   credentialCaptures,
   onSubmitCredentialCapture,
@@ -241,6 +241,7 @@ export default function ChatBody({
   inputProps,
   inputValue,
   onInputChange,
+  pendingQueue,
 }: ChatBodyProps) {
   const { isSending, pendingAssistant } = liveState
   // While a CLI run streams, show the live Agent-run panel for its runId rather
@@ -276,14 +277,14 @@ export default function ChatBody({
   // — that pile-up used to fall back to a modal covering the chat. `Decide later`
   // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
   // (changing the id set) re-shows it, because the dismissed key no longer matches.
-  // Ordinary tool asks are decided on the rows that show them; each CLI turn
-  // reports which asks it shows, and the panel keeps only the rest.
-  const cliAsks = useMemo(() => (grants ?? []).filter((g) => g.source === 'cli'), [grants])
+  // Ordinary tool asks are decided on the rows that show them — a CLI turn's
+  // and an API turn's alike; each reports which asks it shows, and the panel
+  // keeps only the rest.
   const { claimedAskIds, onClaimAsks } = useClaimedAsks()
-  const pendingAskIds = useMemo(() => cliAsks.map((g) => g.id), [cliAsks])
+  const pendingAskIds = useMemo(() => (grants ?? []).map((g) => g.id), [grants])
   const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
   const approvalGrants = useMemo(
-    () => panelApprovalGrants(grants, claimedAskIds, { apiAsksOnRows: true }),
+    () => panelApprovalGrants(grants, claimedAskIds),
     [grants, claimedAskIds],
   )
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
@@ -295,6 +296,24 @@ export default function ChatBody({
     () => [...blockedOnFromGrants(grants), ...capturesBlockedOn(answerableCaptures)],
     [grants, answerableCaptures],
   )
+  const busy = isBusy ?? isSending
+  const composerBlockers = useMemo(
+    () => ({
+      askShown: !!shownAsk,
+      approvalShown: !hideInput && showApprovalPanel,
+      historyLocked: !!historyLocked,
+      inputOverridden: !!inputOverride,
+      inputHidden: !!hideInput,
+    }),
+    [shownAsk, hideInput, showApprovalPanel, historyLocked, inputOverride],
+  )
+  usePendingAutoDispatch({
+    chatId,
+    queue: pendingQueue,
+    busy,
+    failed: !!liveState.sendError,
+    blockers: composerBlockers,
+  })
   const pendingForList = useMemo(
     () =>
       !cliRunId && pendingAssistant
@@ -304,7 +323,10 @@ export default function ChatBody({
   )
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden bg-(--surface-base)">
+    <div
+      data-chat-panel=""
+      className="flex flex-col w-full h-full overflow-hidden bg-(--surface-base)"
+    >
       {header}
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -318,7 +340,7 @@ export default function ChatBody({
           pendingCliModel={liveState.cliModel ?? undefined}
           pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           cliBlockedOn={cliBlockedOn}
-          cliAsks={cliAsks}
+          cliAsks={grants}
           decidedAsks={decidedAsks}
           onClaimAsks={onClaimAsks}
           renderToolResult={renderToolResult}
@@ -339,8 +361,6 @@ export default function ChatBody({
           onRetry={onRetry ? () => void onRetry() : undefined}
           onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
           previewTool={previewTool}
-          onResumeTools={onResumeTools ?? onConfirmTools}
-          onAlwaysAllowApiTools={onAlwaysAllowApiTools}
           isSending={isSending}
           isDeleting={liveState.isDeleting === true}
           emptyStateContent={emptyStateContent}
@@ -410,7 +430,9 @@ export default function ChatBody({
           )}
         </div>
       ) : hideInput ? null : showApprovalPanel ? (
-        <div className="flex flex-col">
+        // Shrinkable and capped, so a tall card scrolls inside itself and the
+        // messages above stay in reach — never pushes its own decision off-screen.
+        <div className="flex max-h-[65%] min-h-0 shrink flex-col overflow-y-auto">
           {approvalGrants.map((grant) => (
             <ApprovalPanel
               key={grant.id}
@@ -435,16 +457,31 @@ export default function ChatBody({
       ) : inputOverride ? (
         inputOverride
       ) : (
-        <ChatInput
-          value={inputValue}
-          onChange={onInputChange}
-          onSend={(content, attachments) => onSend(content, attachments)}
-          onAbort={onAbort ? () => void onAbort() : undefined}
-          isThinking={isBusy ?? isSending}
-          isConfigured={canSend}
-          clearOnSend
-          {...inputProps}
-        />
+        <>
+          {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
+          <ChatInput
+            value={inputValue}
+            onChange={onInputChange}
+            onSend={(content, attachments) =>
+              busy && pendingQueue
+                ? pendingQueue.enqueue({ text: content, attachments })
+                : onSend(content, attachments)
+            }
+            onAbort={
+              onAbort
+                ? () => {
+                    pendingQueue?.pause()
+                    void onAbort()
+                  }
+                : undefined
+            }
+            isThinking={busy}
+            isConfigured={canSend}
+            queueWhileThinking={!!pendingQueue}
+            clearOnSend
+            {...inputProps}
+          />
+        </>
       )}
     </div>
   )

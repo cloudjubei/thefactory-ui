@@ -20,6 +20,8 @@ export type GitSidebarBranchRowProps = {
   dirtyCount?: number
   onClick?: () => void
   onDoubleClick?: () => void
+  /** Right-click: the row's context menu, opened where the pointer is. */
+  onContextMenu?: (at: { x: number; y: number }) => void
 }
 
 export default function GitSidebarBranchRow({
@@ -31,6 +33,7 @@ export default function GitSidebarBranchRow({
   dirtyCount,
   onClick,
   onDoubleClick,
+  onContextMenu,
 }: GitSidebarBranchRowProps) {
   // Show only the part after the first "/" so grouped branches read well.
   const displayName = branch.name.includes('/')
@@ -54,6 +57,14 @@ export default function GitSidebarBranchRow({
       style={{ paddingLeft: pl }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={
+        onContextMenu
+          ? (e) => {
+              e.preventDefault()
+              onContextMenu({ x: e.clientX, y: e.clientY })
+            }
+          : undefined
+      }
     >
       <span className="w-2 h-2 shrink-0 flex items-center justify-center">
         {branch.current && !isRemoteSection ? (

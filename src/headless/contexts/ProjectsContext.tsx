@@ -4,6 +4,7 @@ import { listProjects, type GetProjectResponse } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import { useAppSettings } from './AppSettingsContext'
 import { useAuth } from '../api/AuthContext'
+import { resolveActiveProjectId } from '../utils/activeProject'
 
 export type ProjectsContextValue = {
   /** True once the first fetch has completed, whether it succeeded or failed. */
@@ -19,15 +20,6 @@ export type ProjectsContextValue = {
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null)
-
-function pickMostRecent(projects: GetProjectResponse[]): GetProjectResponse | undefined {
-  if (projects.length === 0) return undefined
-  return [...projects].sort((a, b) => {
-    const at = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime()
-    const bt = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime()
-    return bt - at
-  })[0]
-}
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth()
@@ -64,12 +56,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   // most recently updated one. Only runs after the first load has completed.
   useEffect(() => {
     if (!isLoaded) return
-    if (projects.length === 0) {
-      if (activeProjectId !== undefined) setActiveProjectId(undefined)
-      return
-    }
-    if (activeProjectId && projects.some((p) => p.id === activeProjectId)) return
-    setActiveProjectId(pickMostRecent(projects)?.id)
+    setActiveProjectId((current) => resolveActiveProjectId(current, projects))
   }, [isLoaded, projects, activeProjectId])
 
   const selectProject = useCallback(

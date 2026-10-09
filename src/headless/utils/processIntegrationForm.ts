@@ -1,100 +1,20 @@
 import type {
   ProcessIntegrationAccountOption,
+  ProcessIntegrationForm,
   ProcessIntegrationIdentityOption,
-  ProcessIntegrationMode,
   ProcessIntegrationOptions,
   ProcessWorkBranch,
 } from 'thefactory-tools/types'
 import {
-  PROCESS_INTEGRATION_FORM_NO_ACCOUNT,
-  PROCESS_INTEGRATION_FORM_NO_IDENTITY,
-  PROCESS_INTEGRATION_FORM_NO_MESSAGE,
-  PROCESS_INTEGRATION_FORM_NO_TITLE,
   PROCESS_INTEGRATION_PREVIEW_HOSTS,
   PROCESS_INTEGRATION_PREVIEW_MAX_ENTRIES,
   PROCESS_INTEGRATION_PREVIEW_NO_ONE,
   PROCESS_INTEGRATION_PREVIEW_NOWHERE,
 } from './processIntegrationFormConstants'
 import type {
-  ProcessIntegrationForm,
-  ProcessIntegrationFormResult,
   ProcessIntegrationPreview,
   ProcessIntegrationPreviewEntry,
 } from './processIntegrationFormTypes'
-
-const offeredOrDefault = <T extends { isProjectDefault: boolean }>(
-  offered: readonly T[],
-  idOf: (o: T) => string,
-  wanted: string | undefined,
-): string | undefined => {
-  const kept = wanted ? offered.find((o) => idOf(o) === wanted) : undefined
-  const chosen = kept ?? offered.find((o) => o.isProjectDefault) ?? offered[0]
-  return chosen ? idOf(chosen) : undefined
-}
-
-/**
- * Where the form for `mode` starts: what the person chose before — the identity
- * and account whatever the way, the words only for the same way — else the
- * project's identity and account and the words the server offers. Pure.
- */
-export function processIntegrationFormStart(
-  mode: ProcessIntegrationMode,
-  options: ProcessIntegrationOptions,
-): ProcessIntegrationForm {
-  const before = options.decision
-  const sameWay = before?.mode === mode
-  const identityId = offeredOrDefault(
-    options.identities,
-    (o) => o.credentialId,
-    before?.identity?.credentialId,
-  )
-  const accountId = offeredOrDefault(options.accounts, (o) => o.credentialId, before?.credentialId)
-  const pullRequest = (sameWay && before?.pullRequest) || options.defaults.pullRequest
-  return {
-    mode,
-    ...(identityId ? { identityId } : {}),
-    message:
-      sameWay && before?.message !== undefined
-        ? before.message
-        : mode === 'merge'
-          ? options.defaults.merge
-          : options.defaults.squash,
-    ...(accountId ? { accountId } : {}),
-    prTitle: pullRequest.title,
-    prBody: pullRequest.body,
-  }
-}
-
-/** The decision a filled-in form sends, or what is missing from it. Pure. */
-export function processIntegrationFormDecision(
-  form: ProcessIntegrationForm,
-  options: ProcessIntegrationOptions,
-): ProcessIntegrationFormResult {
-  if (form.mode === 'pull-request') {
-    const account = options.accounts.find((a) => a.credentialId === form.accountId)
-    if (!account) return { problem: PROCESS_INTEGRATION_FORM_NO_ACCOUNT }
-    const title = form.prTitle.trim()
-    if (!title) return { problem: PROCESS_INTEGRATION_FORM_NO_TITLE }
-    return {
-      decision: {
-        mode: 'pull-request',
-        credentialId: account.credentialId,
-        pullRequest: { title, body: form.prBody.trimEnd() },
-      },
-    }
-  }
-  const identity = options.identities.find((i) => i.credentialId === form.identityId)
-  if (!identity) return { problem: PROCESS_INTEGRATION_FORM_NO_IDENTITY }
-  const message = form.message.trimEnd()
-  if (!message.trim()) return { problem: PROCESS_INTEGRATION_FORM_NO_MESSAGE }
-  return {
-    decision: {
-      mode: form.mode,
-      identity: { name: identity.name, email: identity.email, credentialId: identity.credentialId },
-      message,
-    },
-  }
-}
 
 function whereItShows(host: string | undefined): string {
   const known = host ? PROCESS_INTEGRATION_PREVIEW_HOSTS.find((h) => h.test.test(host)) : undefined

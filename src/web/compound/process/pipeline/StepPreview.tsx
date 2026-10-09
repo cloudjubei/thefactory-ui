@@ -19,6 +19,7 @@ import type { ProcessStepState } from 'thefactory-tools/types'
 import { IconExternalLink } from '../../../icons'
 import ProcessCheckList from '../ProcessCheckList'
 import { PROCESS_TONE_BADGE, REVIEW_TONE_BADGE, REVIEW_TONE_TEXT } from '../signoff/tones'
+import SignoffRecord from './SignoffRecord'
 import type { StepPanelTarget } from './StepSidePanel'
 
 export type StepPreviewProps = {
@@ -56,7 +57,7 @@ function PeekCard({
 /**
  * What a step's chevron shows: a preview of its output — a code review's
  * verdict and counts, a report's four tiles, a feature's stages as chips —
- * each opening its full view in the side panel.
+ * each opening its full view in the side panel; a decided sign-off, its record.
  */
 export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepPreviewProps) {
   const target = (entryId?: string): StepPanelTarget => ({
@@ -71,6 +72,7 @@ export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepP
   if (kind === 'stages' && state.latest?.childRunId) {
     return <StagesPreview childRunId={state.latest.childRunId} onOpen={onOpen} onDrill={onDrill} />
   }
+  if (kind === 'signoff') return <SignoffRecord run={run} state={state} onOpen={onOpen} />
   if (kind === 'checks') {
     return (
       <PeekCard label={`Open ${state.step.name}`} onClick={() => onOpen(target())}>

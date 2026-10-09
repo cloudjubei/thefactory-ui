@@ -67,3 +67,9 @@ export const PROOF_PLAN_CLEARED_TEXT = '(no plan — the run chooses automatical
 
 /** How a field preview introduces a plan's notes. */
 export const PROOF_PLAN_NOTES_PREFIX = 'What must be shown:'
+
+/** The launch card's list of features, each with how it is proven. */
+export const LAUNCH_FEATURES_HEADING = 'Features and their proof'
+
+/** A feature's collapsed proof summary when no kind is picked. */
+export const PROOF_PLAN_EMPTY_SHORT = 'Run decides'

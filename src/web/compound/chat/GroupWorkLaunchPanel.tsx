@@ -2,9 +2,7 @@ import { useState, type ReactNode } from 'react'
 
 import {
   LAUNCH_NOTE_MAX_CHARS,
-  LAUNCH_OPTIONS_READ_ONLY,
   PROCESS_GROUP_LAUNCH_BLURB,
-  launchOptionsAreHonoured,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
   useProcessGroupLaunchPreview,
@@ -48,7 +46,6 @@ export default function GroupWorkLaunchPanel({
     groupId: launchGroupId,
     legs: summary.legs,
   })
-  const optionsHonoured = launchOptionsAreHonoured(grant)
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
@@ -178,55 +175,49 @@ export default function GroupWorkLaunchPanel({
         </div>
       ) : null}
 
-      {optionsHonoured ? (
-        <>
-          {renderModelChip ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {renderModelChip({
-                model: runModel,
-                onPick: setRunModel,
-                cli: runCli,
-                onPickCli: (cli, credentialId, model) => {
-                  setRunCli(cli)
-                  setRunCliCredentialId(credentialId)
-                  setRunModel(model)
-                },
-              })}
-            </div>
-          ) : null}
-          {noteOpen ? (
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-                Note for every project{' '}
-                <span className="font-normal normal-case tracking-normal">
-                  — goes into each agent’s opening prompt
-                </span>
-              </span>
-              <Textarea
-                rows={2}
-                value={note}
-                disabled={busy}
-                maxLength={LAUNCH_NOTE_MAX_CHARS}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Anything every project’s agent should know…"
-              />
-            </label>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setNoteOpen(true)}
-              disabled={busy}
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-dashed border-(--border-strong) px-2.5 py-1 text-[11.5px] text-(--text-muted) hover:border-(--accent-primary) hover:text-(--text-primary)"
-            >
-              <span aria-hidden className="text-[13px] leading-none">
-                +
-              </span>
-              Add a note for every project
-            </button>
-          )}
-        </>
+      {renderModelChip ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {renderModelChip({
+            model: runModel,
+            onPick: setRunModel,
+            cli: runCli,
+            onPickCli: (cli, credentialId, model) => {
+              setRunCli(cli)
+              setRunCliCredentialId(credentialId)
+              setRunModel(model)
+            },
+          })}
+        </div>
+      ) : null}
+      {noteOpen ? (
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+            Note for every project{' '}
+            <span className="font-normal normal-case tracking-normal">
+              — goes into each agent’s opening prompt
+            </span>
+          </span>
+          <Textarea
+            rows={2}
+            value={note}
+            disabled={busy}
+            maxLength={LAUNCH_NOTE_MAX_CHARS}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Anything every project’s agent should know…"
+          />
+        </label>
       ) : (
-        <p className="text-[11.5px] text-(--text-muted)">{LAUNCH_OPTIONS_READ_ONLY}</p>
+        <button
+          type="button"
+          onClick={() => setNoteOpen(true)}
+          disabled={busy}
+          className="inline-flex w-fit items-center gap-1.5 rounded-full border border-dashed border-(--border-strong) px-2.5 py-1 text-[11.5px] text-(--text-muted) hover:border-(--accent-primary) hover:text-(--text-primary)"
+        >
+          <span aria-hidden className="text-[13px] leading-none">
+            +
+          </span>
+          Add a note for every project
+        </button>
       )}
 
       {error !== null ? (

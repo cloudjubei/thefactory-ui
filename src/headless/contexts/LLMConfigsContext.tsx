@@ -16,6 +16,7 @@ import {
 import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
 import { LLM_CONFIGS_EVENT } from '../utils/credentialStoreEventConstants'
+import { activeLlmConfig } from '../utils/modelChip'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
 
 /** CLI-agent selection for background activities — mirrors the `runActivity` `cliModel` body. */
@@ -34,10 +35,12 @@ export type LLMConfigsContextValue = {
   isLoaded: boolean
   loadError: Error | null
   configs: GetLlmConfigResponse[]
+  /** The config chat turns run on: the one chosen while it exists, else the first ({@link activeLlmConfig}). */
   activeChatConfigId: string | null
   activeChatConfig: GetLlmConfigResponse | null
   setActiveChat: (id: string) => void
   recentChatConfigs: GetLlmConfigResponse[]
+  /** The config the Run button runs on: the one chosen while it exists, else the first. */
   activeAgentRunConfigId: string | null
   activeAgentRunConfig: GetLlmConfigResponse | null
   setActiveAgentRun: (id: string) => void
@@ -375,10 +378,8 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     [refresh],
   )
 
-  const activeChatConfig =
-    (activeChatConfigId && configs.find((c) => c.id === activeChatConfigId)) || null
-  const activeAgentRunConfig =
-    (activeAgentRunConfigId && configs.find((c) => c.id === activeAgentRunConfigId)) || null
+  const activeChatConfig = activeLlmConfig(configs, activeChatConfigId)
+  const activeAgentRunConfig = activeLlmConfig(configs, activeAgentRunConfigId)
   const activeActivityConfig =
     (activeActivityConfigId && configs.find((c) => c.id === activeActivityConfigId)) || null
 
@@ -414,11 +415,11 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       isLoaded,
       loadError,
       configs,
-      activeChatConfigId,
+      activeChatConfigId: activeChatConfig?.id ?? null,
       activeChatConfig,
       setActiveChat,
       recentChatConfigs,
-      activeAgentRunConfigId,
+      activeAgentRunConfigId: activeAgentRunConfig?.id ?? null,
       activeAgentRunConfig,
       setActiveAgentRun,
       recentAgentRunConfigs,
@@ -443,11 +444,9 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
       isLoaded,
       loadError,
       configs,
-      activeChatConfigId,
       activeChatConfig,
       setActiveChat,
       recentChatConfigs,
-      activeAgentRunConfigId,
       activeAgentRunConfig,
       setActiveAgentRun,
       recentAgentRunConfigs,

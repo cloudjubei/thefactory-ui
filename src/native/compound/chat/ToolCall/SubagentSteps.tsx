@@ -66,6 +66,7 @@ function SubagentSteps({
                     result: m.toolResult?.result,
                     resultType: m.toolResult?.type,
                     durationMs: m.toolResult?.durationMs ?? m.durationMs,
+                    ...(m.startedAt !== undefined ? { startedAt: m.startedAt } : {}),
                   })
                 ) : (
                   <Text style={{ fontFamily: 'Menlo', fontSize: 12, color: theme.text.primary }}>

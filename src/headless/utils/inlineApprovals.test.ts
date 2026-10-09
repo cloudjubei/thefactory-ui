@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claimedAskIds, inlineApprovalDecisions } from './inlineApprovals'
+import { claimedAskIds, inlineApprovalDecisions, inlineApprovalVia } from './inlineApprovals'
 import type { ChatMessageLike } from './chatTypes'
 
 const tool = (approvalId?: string): ChatMessageLike => ({
@@ -33,20 +33,38 @@ describe('inlineApprovalDecisions', () => {
     ])
   })
 
-  it('grants a toggled ask marked "Always allow" permanently', () => {
-    expect(inlineApprovalDecisions(['a1', 'a2'], ['a1', 'a2'], ['a2'])).toEqual([
+  it('always allows a toggled ask marked for this chat, in this chat', () => {
+    expect(inlineApprovalDecisions(['a1', 'a2'], ['a1', 'a2'], { a2: 'chat' })).toEqual([
       { id: 'a1', decision: 'once' },
-      { id: 'a2', decision: 'permanent' },
+      { id: 'a2', decision: 'always-in-chat' },
+    ])
+  })
+
+  it('always allows a toggled ask marked for everywhere, everywhere', () => {
+    expect(inlineApprovalDecisions(['a1'], ['a1'], { a1: 'everywhere' })).toEqual([
+      { id: 'a1', decision: 'always-everywhere' },
     ])
   })
 
   it('declines an ask marked "Always allow" whose toggle was then switched off', () => {
-    expect(inlineApprovalDecisions(['a1'], [], ['a1'])).toEqual([{ id: 'a1', decision: 'deny' }])
+    expect(inlineApprovalDecisions(['a1'], [], { a1: 'chat' })).toEqual([
+      { id: 'a1', decision: 'deny' },
+    ])
   })
 
   it('ignores a toggle for an ask no longer shown', () => {
     expect(inlineApprovalDecisions(['a1'], ['a1', 'gone'])).toEqual([
       { id: 'a1', decision: 'once' },
     ])
+  })
+})
+
+describe('inlineApprovalVia', () => {
+  it('records one Resume over several listed asks as an approve-all', () => {
+    expect(inlineApprovalVia(['a1', 'a2'])).toBe('approve-all')
+  })
+
+  it('records a Resume over a single ask as decided on its own row', () => {
+    expect(inlineApprovalVia(['a1'])).toBe('card')
   })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  chooseTicketConnection,
   describeEffectiveTicketBinding,
   describeTicketBinding,
   effectiveTicketBinding,
@@ -10,6 +11,7 @@ import {
   readTicketConnection,
   withTicketConnection,
 } from './ticketConnection'
+import { TICKET_PICKER_INHERIT, TICKET_PICKER_NONE } from './ticketConnectionConstants'
 
 const connection = (id: string, provider: string, name = id) => ({
   id,
@@ -87,6 +89,61 @@ describe('readTicketConnection', () => {
   it('reads a malformed value as nothing, so the project follows its group', () => {
     expect(readTicketConnection({ connectionId: 'c1' })).toBeUndefined()
     expect(readTicketConnection('nope')).toBeUndefined()
+  })
+
+  it('reads a binding naming no connection as nothing — there is nothing it could use', () => {
+    expect(readTicketConnection({ connectionId: '', access: 'read' })).toBeUndefined()
+  })
+})
+
+describe('chooseTicketConnection', () => {
+  const ids = ['c1', 'c2']
+
+  it('follows the group, or opts out of it, for a project with a main group', () => {
+    expect(
+      chooseTicketConnection(TICKET_PICKER_INHERIT, OWN, { inherits: true, connectionIds: ids }),
+    ).toEqual({ value: undefined })
+    expect(
+      chooseTicketConnection(TICKET_PICKER_NONE, undefined, { inherits: true, connectionIds: ids }),
+    ).toEqual({ value: 'none' })
+  })
+
+  it('reads “not connected” as nothing to store where there is no group to opt out of', () => {
+    expect(
+      chooseTicketConnection(TICKET_PICKER_NONE, OWN, { inherits: false, connectionIds: ids }),
+    ).toEqual({ value: undefined })
+  })
+
+  it('binds a chosen connection, keeping the access and Jira projects already set', () => {
+    expect(chooseTicketConnection('c1', OWN, { inherits: true, connectionIds: ids })).toEqual({
+      value: { connectionId: 'c1', access: 'read-write', projectKeys: ['ENG'] },
+    })
+    expect(chooseTicketConnection('c2', 'none', { inherits: true, connectionIds: ids })).toEqual({
+      value: { connectionId: 'c2', access: 'read' },
+    })
+  })
+
+  it('keeps a binding to a deleted connection when that is what is picked again', () => {
+    const gone = { connectionId: 'gone', access: 'read' as const }
+    expect(chooseTicketConnection('gone', gone, { inherits: false, connectionIds: ids })).toEqual({
+      value: gone,
+    })
+  })
+
+  // Observed: giving a project its first main group switched the picker from
+  // "Not connected" to "Same as <group>"; Radix's hidden native select reported
+  // that change as an empty value, which became a binding to connection '' — and
+  // its "A deleted connection" item with value '' made Radix throw, blanking the app.
+  it('is no choice at all for an empty value', () => {
+    expect(
+      chooseTicketConnection('', undefined, { inherits: true, connectionIds: ids }),
+    ).toBeUndefined()
+  })
+
+  it('is no choice at all for a value naming no known connection', () => {
+    expect(
+      chooseTicketConnection('c9', OWN, { inherits: true, connectionIds: ids }),
+    ).toBeUndefined()
   })
 })
 

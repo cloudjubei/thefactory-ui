@@ -10,6 +10,9 @@ import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
+import PendingMessagesStack from './PendingMessagesStack'
+import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
+import { usePendingAutoDispatch } from '../../../headless/hooks/usePendingAutoDispatch'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import { partitionGrants, shownQuestionId, userAsks } from '../../../headless/utils/agentQuestions'
@@ -133,10 +136,10 @@ export interface ChatBodyProps {
   emptyStateContent?: ReactNode
 
   /**
-   * Unified tool-approval grants (API + CLI) from `usePendingToolGrants`. Only
-   * the `askUser` question grants are consumed here — they take the composer's
-   * place as question cards. Permission grants stay with the host's
-   * `ToolConfirmationModal`.
+   * The chat's asks — an API turn's and a CLI run's alike — from
+   * `usePendingToolGrants`. An ordinary tool ask is decided on the row that
+   * shows its call; the rest take the composer's place in the approval panel,
+   * and `askUser` questions as question cards.
    */
   grants?: PendingToolGrant[]
 
@@ -160,6 +163,12 @@ export interface ChatBodyProps {
   >
   inputValue: string
   onInputChange: (value: string) => void
+  /**
+   * The chat's pending queue, from `useChatComposer`. When given, a send while
+   * the agent is busy is queued (shown above the composer) instead of refused,
+   * and the queue goes out as one message once the turn ends.
+   */
+  pendingQueue?: ChatPendingQueue
 }
 
 export default function ChatBody({
@@ -204,6 +213,7 @@ export default function ChatBody({
   inputProps,
   inputValue,
   onInputChange,
+  pendingQueue,
 }: ChatBodyProps) {
   const { theme } = useNativeTheme()
   // A capture is only actionable when the host wired both resolutions, so an
@@ -231,15 +241,14 @@ export default function ChatBody({
   // — that pile-up used to fall back to a modal covering the chat. `Decide later`
   // dismisses the current set back to the composer WITHOUT deciding; a NEW ask
   // (changing the id set) re-shows it, because the dismissed key no longer matches.
-  // Ordinary CLI tool asks are decided on the rows that show them; each CLI turn
-  // reports which asks it shows, and the panel keeps only the rest. API asks
-  // have no inline batch on native yet, so they stay with the panel.
-  const cliAsks = useMemo(() => (grants ?? []).filter((g) => g.source === 'cli'), [grants])
+  // Ordinary tool asks are decided on the rows that show them — a CLI turn's
+  // and an API turn's alike; each reports which asks it shows, and the panel
+  // keeps only the rest.
   const { claimedAskIds, onClaimAsks } = useClaimedAsks()
-  const pendingAskIds = useMemo(() => cliAsks.map((g) => g.id), [cliAsks])
+  const pendingAskIds = useMemo(() => (grants ?? []).map((g) => g.id), [grants])
   const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
   const approvalGrants = useMemo(
-    () => panelApprovalGrants(grants, claimedAskIds, { apiAsksOnRows: false }),
+    () => panelApprovalGrants(grants, claimedAskIds),
     [grants, claimedAskIds],
   )
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
@@ -263,11 +272,35 @@ export default function ChatBody({
       ? { role: 'assistant' as const, content: liveState.pendingAssistant.content }
       : null
 
+  const busy = isBusy ?? liveState.isSending
+  const composerBlockers = useMemo(
+    () => ({
+      askShown: !!shownAsk,
+      approvalShown: !hideInput && showApprovalPanel,
+      historyLocked: !!historyLocked,
+      inputOverridden: !!inputOverride,
+      inputHidden: !!hideInput,
+    }),
+    [shownAsk, hideInput, showApprovalPanel, historyLocked, inputOverride],
+  )
+  usePendingAutoDispatch({
+    chatId,
+    queue: pendingQueue,
+    busy,
+    failed: !!liveState.sendError,
+    blockers: composerBlockers,
+  })
+
   const handleSend: ChatInputProps['onSend'] = async (text, attachments) => {
+    if (busy && pendingQueue) {
+      pendingQueue.enqueue({ text, attachments })
+      return
+    }
     await onSend(text, attachments)
   }
   const handleAbort = onAbort
     ? () => {
+        pendingQueue?.pause()
         void onAbort()
       }
     : undefined
@@ -288,7 +321,7 @@ export default function ChatBody({
           pendingCliModel={liveState.cliModel ?? undefined}
           pendingCliStartedAt={liveState.cliStartedAt ?? undefined}
           cliBlockedOn={cliBlockedOn}
-          cliAsks={cliAsks}
+          cliAsks={grants}
           decidedAsks={decidedAsks}
           onClaimAsks={onClaimAsks}
           systemPrompt={systemPrompt}
@@ -421,15 +454,19 @@ export default function ChatBody({
         </View>
       ) : (
         (inputOverride ?? (
-          <ChatInput
-            {...(inputProps ?? {})}
-            value={inputValue}
-            onChange={onInputChange}
-            onSend={handleSend}
-            onAbort={handleAbort}
-            isThinking={isBusy ?? liveState.isSending}
-            isConfigured={canSend}
-          />
+          <>
+            {pendingQueue ? <PendingMessagesStack queue={pendingQueue} busy={busy} /> : null}
+            <ChatInput
+              {...(inputProps ?? {})}
+              value={inputValue}
+              onChange={onInputChange}
+              onSend={handleSend}
+              onAbort={handleAbort}
+              isThinking={busy}
+              isConfigured={canSend}
+              queueWhileThinking={!!pendingQueue}
+            />
+          </>
         ))
       )}
     </View>

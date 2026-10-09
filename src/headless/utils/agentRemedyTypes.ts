@@ -37,5 +37,7 @@ export type AgentRemedy = {
  */
 export type AgentRemedyDecision = {
   outcome: 'approved' | 'denied'
+  /** A remedy is chosen on its own card. */
+  decidedVia: 'card'
   metadata: { remedyId: string; value?: string }
 }

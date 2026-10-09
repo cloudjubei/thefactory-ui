@@ -15,6 +15,7 @@ import {
   notePatchBody,
   projectNoteChipView,
   sortNotes,
+  linkedNoteState,
 } from './projectNotes'
 import { NOTE_LABEL_REQUIRED, NOTE_VALUE_REQUIRED } from './projectNotesConstants'
 import type { ProjectNoteSummary } from '../api'
@@ -310,5 +311,25 @@ describe('noteFormValues with references', () => {
       description: 'see #ID',
     } as unknown as ProjectNoteSummary
     expect(noteFormValues(note, (t) => t.replace('#ID', '#3')).description).toBe('see #3')
+  })
+})
+
+describe('linkedNoteState', () => {
+  const notes = [{ id: 'n1' }, { id: 'n2' }]
+
+  it('is none when the screen was opened without a note', () => {
+    expect(linkedNoteState(notes, undefined, true)).toBe('none')
+    expect(linkedNoteState(notes, null, false)).toBe('none')
+    expect(linkedNoteState(notes, '', true)).toBe('none')
+  })
+
+  it('waits for the notes to load before deciding', () => {
+    expect(linkedNoteState([], 'n1', false)).toBe('loading')
+  })
+
+  it('finds the note the link names, or says it is gone', () => {
+    expect(linkedNoteState(notes, 'n2', true)).toBe('found')
+    expect(linkedNoteState(notes, 'n9', true)).toBe('missing')
+    expect(linkedNoteState([], 'n1', true)).toBe('missing')
   })
 })

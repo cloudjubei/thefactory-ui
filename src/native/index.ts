@@ -170,6 +170,13 @@ export {
 } from './compound/chips/SetUpWithAgentButton'
 export { default as HelpChip, type HelpChipProps } from './compound/chips/HelpChip'
 export { default as RefChip, type RefChipKind, type RefChipProps } from './compound/chips/RefChip'
+export { default as CommitChip, type CommitChipProps } from './compound/chips/CommitChip'
+export {
+  default as CommitChipBase,
+  CommitCard,
+  type CommitCardProps,
+  type CommitChipBaseProps,
+} from './compound/chips/CommitChipBase'
 export { default as ReferenceChip, type ReferenceChipProps } from './compound/chips/ReferenceChip'
 export {
   default as RunActionButton,
@@ -250,6 +257,10 @@ export {
 export { default as BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
 export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBody'
 export {
+  default as PendingMessagesStack,
+  type PendingMessagesStackProps,
+} from './compound/chat/PendingMessagesStack'
+export {
   default as CliRunArtifactPanel,
   type CliRunArtifactPanelProps,
 } from './compound/chat/CliRunArtifactPanel'
@@ -286,10 +297,6 @@ export {
   default as SystemPromptViewerModal,
   type SystemPromptViewerModalProps,
 } from './compound/chat/SystemPromptViewerModal'
-export {
-  default as ToolConfirmationModal,
-  type ToolConfirmationModalProps,
-} from './compound/chat/ToolConfirmationModal'
 export {
   default as AgentQuestionCard,
   type AgentQuestionCardProps,
@@ -414,6 +421,44 @@ export {
   type FilePaneHeaderProps,
 } from './compound/files/FilePaneHeader'
 
+// Search — a project's files, stories, features and notes in one search.
+export {
+  default as ProjectSearchView,
+  type ProjectSearchViewProps,
+} from './compound/search/ProjectSearchView'
+// Design — a project's drafts and built versions in miniature and full screen,
+// its storage meter, and the chip a design reference renders as. The web view
+// and PDF view come from the app through `DesignHostProvider`, so this barrel
+// stays free of `react-native-webview`.
+export { DesignHostProvider, useDesignHost } from './compound/design/DesignHostContext'
+export type { DesignHost } from './compound/design/designNativeTypes'
+export {
+  default as DesignItemThumb,
+  type DesignItemThumbProps,
+} from './compound/design/DesignItemThumb'
+export {
+  default as DesignItemBody,
+  type DesignItemBodyProps,
+} from './compound/design/DesignItemBody'
+export {
+  default as DesignItemViewer,
+  type DesignItemViewerProps,
+} from './compound/design/DesignItemViewer'
+export {
+  default as DesignCompareOverlay,
+  type DesignCompareOverlayProps,
+} from './compound/design/DesignCompareOverlay'
+export {
+  default as DesignReferenceChip,
+  type DesignReferenceChipProps,
+} from './compound/design/DesignReferenceChip'
+export {
+  DesignStorageMeter,
+  DesignStorageWarning,
+  type DesignStorageMeterProps,
+} from './compound/design/DesignStorageMeter'
+export { default as StorageUsageRows } from './compound/design/StorageUsageRows'
+
 // Git screen compounds
 export { default as UnifiedDiff, type UnifiedDiffProps } from './compound/git/UnifiedDiff'
 export {
@@ -435,6 +480,22 @@ export {
   type GitFileChangesPillsProps,
 } from './compound/git/GitFileChangesPills'
 export { default as CommitGraph, type CommitGraphProps } from './compound/git/CommitGraph'
+export {
+  default as MergeBranchSheet,
+  type MergeBranchSheetProps,
+} from './compound/git/MergeBranchSheet'
+export {
+  default as MergeInProgressBanner,
+  type MergeInProgressBannerProps,
+} from './compound/git/MergeInProgressBanner'
+export {
+  default as MergeOutcomeNotice,
+  type MergeOutcomeNoticeProps,
+} from './compound/git/MergeOutcomeNotice'
+export {
+  default as MergeChecksResult,
+  type MergeChecksResultProps,
+} from './compound/git/MergeChecksResult'
 export {
   default as GitCredentialErrorModal,
   type GitCredentialErrorModalProps,
@@ -560,7 +621,6 @@ export type {
   ChatMessageLike,
   MessageUsageLike,
   PendingQuestionGrant,
-  PendingToolConfirmationLike,
   PendingToolGrant,
   ToolCallLike,
   ToolResultLike,
@@ -575,3 +635,16 @@ export type {
 // binary for that package — crashing at module init otherwise. Import it
 // from the dedicated subpath instead: `thefactory-ui/native/ProjectAppView`.
 export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'
+export {
+  default as SavedRulesSettings,
+  type SavedRulesSettingsProps,
+} from './compound/rules/SavedRulesSettings'
+export {
+  default as ChatRulesPanel,
+  type ChatRulesPanelProps,
+} from './compound/rules/ChatRulesPanel'
+export { default as ActionRuleRow, type ActionRuleRowProps } from './compound/rules/ActionRuleRow'
+export {
+  default as AlwaysAllowControl,
+  type AlwaysAllowControlProps,
+} from './compound/chat/AlwaysAllowControl'

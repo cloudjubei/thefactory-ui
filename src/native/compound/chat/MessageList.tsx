@@ -10,7 +10,8 @@ import SystemPromptBubble from './SystemPromptBubble'
 import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
-import { formatDurationMs } from '../../../headless'
+import ToolApprovalFooter from './ToolApprovalFooter'
+import { formatDurationMs, useInlineApprovals } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
@@ -18,12 +19,18 @@ import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDe
 import { isInDeleteRange, lastMessageDeleteFromIndex } from '../../../headless/utils/chatTurnDelete'
 import { describeLastUserMessageRestart } from '../../../headless/utils/chatMessageRestart'
 import type { CliRunBlockedOn } from '../../../headless/utils/cliRunActivityTypes'
-import { cliLabel, messageModelTag, parseCliAgentModelTag } from '../../../headless/utils/cliRunner'
+import {
+  cliLabel,
+  messageModelTag,
+  parseCliAgentModelTag,
+  storedChatAskRows,
+} from '../../../headless/utils/cliRunner'
+import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
-import type { CliDecidedAsk } from '../../../headless/utils/cliRunActivityTypes'
+import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import { CHAT_OPEN_SETTLE_MAX_MS } from '../../../headless/utils/chatUnreadConstants'
 
 const AT_BOTTOM_THRESHOLD = 32
@@ -79,7 +86,7 @@ export interface MessageListProps {
    * turn must never claim to be blocked on today's approval.
    */
   cliBlockedOn?: readonly CliRunBlockedOn[]
-  /** The chat's undecided CLI asks — the ordinary tool asks decided on the rows that show them. */
+  /** The chat's undecided asks — an API turn's and a CLI run's alike — the ordinary tool asks decided on the rows that show them. */
   cliAsks?: readonly PendingToolGrant[]
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
@@ -268,7 +275,22 @@ export default function MessageList({
   // user can see the model + cost + time row that precedes a group of
   // tool calls. The mobile previously dropped these for "noise"; the user
   // explicitly wants parity here.
-  const renderable = useMemo(() => messages, [messages])
+  // An API turn's stored rows show their asks exactly as a CLI turn's do — see
+  // web's MessageList. An ask just decided here reads as under way until its
+  // decision arrives.
+  const rowAsks = useMemo(() => cliRowAsks(cliAsks), [cliAsks])
+  const decidedIds = useMemo(() => new Set((decidedAsks ?? []).map((a) => a.id)), [decidedAsks])
+  const shownAsksRef = useRef<CliPendingAsk[]>([])
+  const pendingRowAsks = useMemo(
+    () => withAsksAwaitingOutcome(rowAsks, shownAsksRef.current, decidedIds),
+    [rowAsks, decidedIds],
+  )
+  shownAsksRef.current = pendingRowAsks
+  const renderable = useMemo(
+    () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
+    [messages, pendingRowAsks, decidedAsks],
+  )
+  const approvals = useInlineApprovals(`chat:${chatId ?? ''}`, renderable, cliAsks, onClaimAsks)
   // Cold-start signal: only the chat's FIRST cli run (turn 1) pays the boot;
   // resident turns 2..N are warm. Keyed by cliRunId so it survives windowing.
   const firstCliRunId = useMemo(() => renderable.find((m) => m.cliRunId)?.cliRunId, [renderable])
@@ -459,6 +481,7 @@ export default function MessageList({
                 />
               ) : (
                 <MessageRow
+                  {...approvals.rowProps(msg)}
                   msg={msg}
                   globalIndex={i}
                   totalMessages={windowed.length}
@@ -501,6 +524,16 @@ export default function MessageList({
             row,
           ]
         })}
+        {approvals.askIds.length > 0 ? (
+          <ToolApprovalFooter
+            total={approvals.askIds.length}
+            selectedCount={approvals.selectedCount}
+            allSelected={approvals.allSelected}
+            onToggleAll={approvals.toggleAll}
+            onResume={() => void approvals.resume()}
+            resuming={approvals.resuming}
+          />
+        ) : null}
         {pending && pending.content && (
           <MessageRow
             msg={{ role: pending.role, content: pending.content }}

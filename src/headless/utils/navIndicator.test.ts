@@ -385,6 +385,8 @@ describe('navBadgeLabel', () => {
     expect(navBadgeLabel({ count: 7, category: 'git' })).toBe('7 git changes')
     expect(navBadgeLabel({ count: 1, category: 'tests' })).toBe('1 failing test')
     expect(navBadgeLabel({ count: 2, category: 'cross-project' })).toBe('2 requests')
+    expect(navBadgeLabel({ count: 1, category: 'storage' })).toBe('1 storage warning')
+    expect(navBadgeLabel({ count: 2, category: 'storage' })).toBe('2 storage warnings')
   })
 
   it('caps a large count the same way the badge does', () => {

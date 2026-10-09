@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import {
   LANE_COLORS,
   type GraphNode,
@@ -36,6 +37,10 @@ export type GitCommitGraphRowProps = {
    */
   compact?: boolean
   rowRef?: (el: HTMLDivElement | null) => void
+  /** Right-click on a branch or remote-branch label: its context menu, opened where the pointer is. */
+  onContextMenuRef?: (ref: GitLogRefLike, at: { x: number; y: number }) => void
+  /** Renders the commit's sha (e.g. as a CommitChip); the bare short sha without it. */
+  renderCommitRef?: (sha: string) => ReactNode
 }
 
 const REF_BADGE_CLS: Record<GitLogRefLike['type'], string> = {
@@ -47,7 +52,13 @@ const REF_BADGE_CLS: Record<GitLogRefLike['type'], string> = {
   tag: 'bg-neutral-100 text-neutral-800 border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700',
 }
 
-function RefBadges({ refs }: { refs: GitLogRefLike[] }) {
+function RefBadges({
+  refs,
+  onContextMenuRef,
+}: {
+  refs: GitLogRefLike[]
+  onContextMenuRef?: GitCommitGraphRowProps['onContextMenuRef']
+}) {
   if (!refs || refs.length === 0) return null
   return (
     <span className="inline-flex items-center gap-1 mr-1 shrink-0">
@@ -55,6 +66,15 @@ function RefBadges({ refs }: { refs: GitLogRefLike[] }) {
         <span
           key={idx}
           className={`shrink-0 px-1 rounded text-[9px] uppercase tracking-wider ${REF_BADGE_CLS[r.type]}`}
+          onContextMenu={
+            onContextMenuRef && (r.type === 'branch' || r.type === 'remote')
+              ? (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onContextMenuRef(r, { x: e.clientX, y: e.clientY })
+                }
+              : undefined
+          }
         >
           {r.name}
         </span>
@@ -83,6 +103,8 @@ export default function GitCommitGraphRow({
   colWidths,
   compact = false,
   rowRef,
+  onContextMenuRef,
+  renderCommitRef,
 }: GitCommitGraphRowProps) {
   const { commit, nodeLane, incomingLanes, outgoingLanes, maxLanes } = node
   const getColor = (i: number) => LANE_COLORS[i % LANE_COLORS.length]
@@ -188,12 +210,16 @@ export default function GitCommitGraphRow({
           // Two-line cell: refs + subject above, date · hash · author below.
           <div className="flex-1 min-w-0 flex flex-col justify-center px-2 gap-0.5">
             <div className="flex items-center gap-1 min-w-0">
-              <RefBadges refs={commit.refs} />
+              <RefBadges refs={commit.refs} onContextMenuRef={onContextMenuRef} />
               <span className="truncate text-xs text-(--text-primary)">{commit.subject}</span>
             </div>
             <div className="truncate text-[10px] text-(--text-muted)">
               {commit.authorDate ? `${formatCommitDate(commit.authorDate)} · ` : ''}
-              <span className="font-mono">{commit.hash.substring(0, 7)}</span>
+              {renderCommitRef ? (
+                <span className="inline-flex align-middle">{renderCommitRef(commit.hash)}</span>
+              ) : (
+                <span className="font-mono">{commit.hash.substring(0, 7)}</span>
+              )}
               {commit.authorName ? ` · ${commit.authorName}` : ''}
             </div>
           </div>
@@ -306,7 +332,7 @@ export default function GitCommitGraphRow({
             className="shrink-0 flex items-center gap-1 px-2 text-xs text-neutral-800 dark:text-neutral-200 whitespace-nowrap overflow-hidden"
             style={{ width: colWidths.description }}
           >
-            <RefBadges refs={commit.refs} />
+            <RefBadges refs={commit.refs} onContextMenuRef={onContextMenuRef} />
             <span className="truncate min-w-0">{commit.subject}</span>
           </div>
 
@@ -323,7 +349,7 @@ export default function GitCommitGraphRow({
             className="shrink-0 px-2 text-[10px] text-neutral-500 font-mono flex items-center"
             style={{ width: colWidths.commit }}
           >
-            {commit.hash.substring(0, 7)}
+            {renderCommitRef ? renderCommitRef(commit.hash) : commit.hash.substring(0, 7)}
           </div>
 
           {/* Date — fixed width, right-aligned to mimic desktop */}

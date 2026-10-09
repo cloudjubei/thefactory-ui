@@ -1,12 +1,12 @@
 // Pure CLI-runner helpers — the testable core behind CliConfigsContext,
 // useChatCliRunner, and the runner-aware chat dispatch. No React, no I/O.
 
-import { DEFAULT_CHAT_CLI_EXEC_MODE } from 'thefactory-tools/constants'
-import { stableStringify, withoutNudgedReanswer } from 'thefactory-tools/utils'
+import { backgroundJobIdOf } from './backgroundJobs'
+import { BACKGROUND_TOOL_RESULT_TYPE } from './backgroundJobsConstants'
+import { isAlreadyExecuted, stableStringify, withoutNudgedReanswer } from 'thefactory-tools/utils'
 import type {
   ChatCliRunner,
   CliConfigsActiveState,
-  CliRunArtifact,
   CliRunnerDispatchOptions,
   CliRunStatus,
   CliRunTranscriptEntry,
@@ -15,13 +15,21 @@ import type {
   StartCliAgentRunData,
 } from '../api/generated'
 import type { ChatMessageLike, MessageUsageLike, ToolOrigin } from './chatTypes'
-import { CLI_HOST_UNRUN_OUTCOMES, CLI_RUN_FAILED_FALLBACK_NOTICE } from './cliRunActivityConstants'
+import {
+  CLI_HOST_ERRORED_OUTCOME,
+  CLI_HOST_UNRUN_OUTCOMES,
+  CLI_RUN_FAILED_FALLBACK_NOTICE,
+} from './cliRunActivityConstants'
 import type { CliDecidedAsk, CliHostCallOutcome, CliPendingAsk } from './cliRunActivityTypes'
 import {
   ASK_CANCELLED_REASON,
   ASK_CARRIED_OUT_NOTE,
   ASK_DECLINED_REASON,
   ASK_EXPIRED_REASON,
+  DECIDED_BY_RULE_NOTE,
+  DECIDED_BY_YOU_APPROVE_ALL_NOTE,
+  DECIDED_BY_YOU_NOTE,
+  DECLINED_BY_YOU_NOTE,
 } from './cliRunnerConstants'
 
 export type StartCliRunBodyInput = {
@@ -82,10 +90,6 @@ export function chatCliRunnerToDispatchOptions(runner: ChatCliRunner): CliRunner
     ...(runner.apiKeyCredentialId ? { apiKeyCredentialId: runner.apiKeyCredentialId } : {}),
     ...(runner.model ? { model: runner.model } : {}),
     ...(cliEffort(runner.effort) ? { effort: cliEffort(runner.effort) } : {}),
-    // An unset execMode means the user never touched the toggle. The default is
-    // the one the server applies to every chat turn it starts itself, so a
-    // resume lands in the same session as the user's own messages.
-    execMode: runner.execMode ?? DEFAULT_CHAT_CLI_EXEC_MODE,
   }
 }
 
@@ -494,6 +498,18 @@ export function acpToolOrigin(provider: string | undefined, name: string | undef
   return classifyToolOrigin(name)
 }
 
+/**
+ * What a row shows for the host's own outcome of a call a client reported as
+ * done: an error the host answered reads in its own words, as an error result
+ * does on every other runner; its answer for a call it did not run is shown whole.
+ */
+function hostOutcomeShown(hostOutcome: unknown): unknown {
+  const record = asTranscriptRecord(hostOutcome)
+  return record?.outcome === CLI_HOST_ERRORED_OUTCOME && typeof record.error === 'string'
+    ? record.error
+    : hostOutcome
+}
+
 function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
   const p = asTranscriptRecord(entry.payload)
   // Cursor over ACP: `tool_call_update` carries the id of the call it belongs to
@@ -521,7 +537,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
       // The host's own outcome wins: cursor reports every answered MCP call as
       // `{success: true}`, so a call the host never ran — waiting for approval,
       // refused, stopped — would otherwise read as done.
-      result: p?.hostOutcome ?? acp.rawOutput ?? acp.content,
+      result: hostOutcomeShown(p?.hostOutcome) ?? acp.rawOutput ?? acp.content,
       // Only a terminal status ends the call; `pending` / `in_progress` are
       // progress reports and must leave the spinner alone.
       resultType: p?.hostOutcome !== undefined ? 'errored' : acpResultType(status),
@@ -607,7 +623,7 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
         return {
           origin: 'native',
           toolCallId: asString(b.tool_use_id),
-          result: maybeParseJson(b.content),
+          result: claudeToolResultContent(b.content),
           resultType: b.is_error ? 'errored' : 'success',
         }
       }
@@ -626,6 +642,16 @@ function extractCliToolResult(entry: CliRunTranscriptEntry): ExtractedResult {
 
 /** Our MCP tools return their result as a JSON string; parse it so recognized
  * tool-preview drawers receive the structured object they expect. */
+/**
+ * A Claude Code tool result's content: a string, or the MCP result's content
+ * blocks, which carry the host's outcome as text just as a string does.
+ */
+function claudeToolResultContent(content: unknown): unknown {
+  if (!Array.isArray(content)) return maybeParseJson(content)
+  const text = textOfBlocks(content)
+  return text.length > 0 ? maybeParseJson(text) : content
+}
+
 function maybeParseJson(v: unknown): unknown {
   if (typeof v !== 'string') return v
   const t = v.trim()
@@ -635,6 +661,19 @@ function maybeParseJson(v: unknown): unknown {
   } catch {
     return v
   }
+}
+
+/** The text of a tool result's content blocks, joined. */
+function textOfBlocks(content: readonly unknown[]): string {
+  return content
+    .map((c) => {
+      const cr = asTranscriptRecord(c)
+      if (typeof cr?.text === 'string') return cr.text
+      const inner = asTranscriptRecord(cr?.text)
+      return typeof inner?.text === 'string' ? inner.text : ''
+    })
+    .filter(Boolean)
+    .join('\n')
 }
 
 /**
@@ -654,18 +693,7 @@ function unwrapCursorResult(raw: unknown): { result: unknown; isError: boolean }
   const isError = !!errBlock || block.isError === true
   const content = block.content
   if (typeof content === 'string') return { result: maybeParseJson(content), isError }
-  if (Array.isArray(content)) {
-    const text = content
-      .map((c) => {
-        const cr = asTranscriptRecord(c)
-        if (typeof cr?.text === 'string') return cr.text
-        const inner = asTranscriptRecord(cr?.text)
-        return typeof inner?.text === 'string' ? inner.text : ''
-      })
-      .filter(Boolean)
-      .join('\n')
-    return { result: maybeParseJson(text), isError }
-  }
+  if (Array.isArray(content)) return { result: maybeParseJson(textOfBlocks(content)), isError }
   return { result: block, isError }
 }
 
@@ -977,7 +1005,7 @@ export function cliTranscriptToMessages(
         ...(model ? { model } : {}),
       })
     } else if (step.kind === 'tool') {
-      if (recalls.has(step)) continue
+      if (recalls.has(step) || ranNothing(step)) continue
       const ask = askByStep.get(step)
       const asking = ask !== undefined && ask.awaitingOutcome !== true
       const approvalId = asking && ask.decidedOnRow ? ask.id : undefined
@@ -994,8 +1022,9 @@ export function cliTranscriptToMessages(
       if (ask !== undefined) waitingIn.add(scope)
       // An approved call is timed by the call itself: the step's own span runs
       // from the ask to the result and counts the user's time deciding.
-      const durationMs =
-        (decidedAsk ?? approvedInRun.get(step))?.execution?.durationMs ?? step.durationMs
+      const settledBy = decidedAsk ?? approvedInRun.get(step)
+      const durationMs = settledBy?.execution?.durationMs ?? step.durationMs
+      const decisionNote = settledBy ? askDecisionNote(settledBy) : undefined
       messages.push({
         role: 'tool',
         content: '',
@@ -1008,6 +1037,7 @@ export function cliTranscriptToMessages(
           origin: step.origin,
           ...(approvalId !== undefined ? { approvalId } : {}),
           ...(asking && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
+          ...(decisionNote !== undefined ? { decisionNote } : {}),
         },
         toolResult: {
           result: decided ? decided.result : step.result,
@@ -1019,7 +1049,10 @@ export function cliTranscriptToMessages(
                 : 'running'
             : queued
               ? 'pending'
-              : (decided?.type ?? step.resultType),
+              : (decided?.type ??
+                (backgroundJobIdOf(step.result) !== undefined
+                  ? BACKGROUND_TOOL_RESULT_TYPE
+                  : step.resultType)),
           durationMs: durationMs ?? 0,
         },
       })
@@ -1037,6 +1070,58 @@ export function cliTranscriptToMessages(
     if (firstAssistant) firstAssistant.usage = usage
   }
   return shown
+}
+
+/**
+ * A stored chat's tool rows tied to the asks their calls raised — an API chat
+ * turn's calls name their broker action (`toolResult.actionId`) — so they read
+ * exactly as a CLI turn's rows do (see {@link cliTranscriptToMessages}): an
+ * ordinary ask is decided on its row (`require_confirmation` + `approvalId`),
+ * one answered in a panel of its own waits there (`awaitingDecision`), one just
+ * decided reads as under way, a decided one the host has not settled the row
+ * of yet shows what came of it, and every decided row says who settled it.
+ * Messages with no ask come back as they were.
+ */
+export function storedChatAskRows(
+  messages: readonly ChatMessageLike[],
+  pendingAsks: readonly CliPendingAsk[],
+  decidedAsks: readonly CliDecidedAsk[],
+): ChatMessageLike[] {
+  const pendingById = new Map(pendingAsks.map((a) => [a.id, a]))
+  const decidedById = new Map(decidedAsks.map((a) => [a.id, a]))
+  return messages.map((m) => {
+    if (m.role === 'tool' && m.toolResult && backgroundJobIdOf(m.toolResult.result) !== undefined) {
+      return { ...m, toolResult: { ...m.toolResult, type: BACKGROUND_TOOL_RESULT_TYPE } }
+    }
+    const actionId = m.role === 'tool' ? m.toolResult?.actionId : undefined
+    if (actionId === undefined || !m.toolCall) return m
+    const ask = pendingById.get(actionId)
+    if (ask) {
+      const asking = ask.awaitingOutcome !== true
+      return {
+        ...m,
+        toolCall: {
+          ...m.toolCall,
+          ...(asking && ask.decidedOnRow ? { approvalId: ask.id } : {}),
+          ...(asking && !ask.decidedOnRow ? { awaitingDecision: true } : {}),
+        },
+        toolResult: {
+          ...m.toolResult,
+          type: !asking ? 'pending' : ask.decidedOnRow ? 'require_confirmation' : 'running',
+        },
+      }
+    }
+    const decided = decidedById.get(actionId)
+    if (!decided) return m
+    const decisionNote = askDecisionNote(decided)
+    const unsettled = m.toolResult?.type === 'require_confirmation'
+    const shown = unsettled ? decidedRowResult(decided, undefined) : undefined
+    return {
+      ...m,
+      toolCall: { ...m.toolCall, ...(decisionNote !== undefined ? { decisionNote } : {}) },
+      ...(shown ? { toolResult: { ...m.toolResult, type: shown.type, result: shown.result } } : {}),
+    }
+  })
 }
 
 /**
@@ -1272,9 +1357,9 @@ export function loginAwaitsCode(output: string): boolean {
  * unambiguous.
  */
 export function filesEmittedArtifactOf(
-  artifacts: readonly CliRunArtifact[] | undefined,
+  artifacts: readonly FilesEmittedArtifact[] | undefined,
 ): FilesEmittedArtifact | undefined {
-  return artifacts?.find((a): a is FilesEmittedArtifact => a.kind === 'files-emitted')
+  return artifacts?.find((a) => a.kind === 'files-emitted')
 }
 
 /** Group CLI auth caches by their `cli` tag (caches of an unknown CLI still group under their string). */
@@ -1412,6 +1497,26 @@ function parsedResultText(text: string): unknown {
   } catch {
     return text
   }
+}
+
+/**
+ * A call the host answered by saying its approval had already been carried out
+ * elsewhere: it ran nothing, and the approval's own row shows what came of it.
+ */
+function ranNothing(step: CliToolStep): boolean {
+  if (step.hostOutcome !== undefined || step.result === undefined) return false
+  return isAlreadyExecuted(
+    typeof step.result === 'string' ? step.result : JSON.stringify(step.result),
+  )
+}
+
+/** Who settled an ask, in the words its row shows; nothing for an ask recorded before decisions were attributed. */
+function askDecisionNote(ask: CliDecidedAsk): string | undefined {
+  if (ask.decidedVia === 'grant' && ask.rule !== undefined) return DECIDED_BY_RULE_NOTE(ask.rule)
+  if (ask.decidedBy !== 'person') return undefined
+  if (ask.status === 'denied') return DECLINED_BY_YOU_NOTE
+  if (ask.status !== 'approved') return undefined
+  return ask.decidedVia === 'approve-all' ? DECIDED_BY_YOU_APPROVE_ALL_NOTE : DECIDED_BY_YOU_NOTE
 }
 
 /**

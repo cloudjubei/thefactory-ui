@@ -69,3 +69,9 @@ export type ProjectNoteChipView = {
   /** Said in place of the value when it is never shown. */
   hiddenValue?: string
 }
+
+/**
+ * What a notes screen makes of the note a link named: `none` when it named none, `loading` until
+ * the notes arrive, then `found` (shown selected) or `missing`.
+ */
+export type LinkedNoteState = 'none' | 'loading' | 'found' | 'missing'

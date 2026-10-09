@@ -26,5 +26,7 @@ export type AgentQuestion = {
  */
 export type AgentQuestionDecision = {
   outcome: 'approved' | 'denied'
+  /** A question is answered on its own card. */
+  decidedVia: 'card'
   metadata: { answer: string }
 }

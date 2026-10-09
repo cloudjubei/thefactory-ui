@@ -14,6 +14,7 @@ import type { SyncKVStorage } from '../../../headless'
 export const localStorageAdapter: SyncKVStorage = {
   get: (key) => window.localStorage.getItem(key),
   set: (key, value) => window.localStorage.setItem(key, value),
+  remove: (key) => window.localStorage.removeItem(key),
   subscribe: (key, listener) => {
     const onStorage = (ev: StorageEvent) => {
       if (ev.key !== key) return

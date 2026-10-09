@@ -48,6 +48,13 @@ export {
   default as MergeConflictResolver,
   type MergeConflictResolverProps,
 } from './dialogs/MergeConflictResolver'
+export { default as MergeBranchSheet, type MergeBranchSheetProps } from './dialogs/MergeBranchSheet'
+export {
+  default as MergeInProgressBanner,
+  type MergeInProgressBannerProps,
+} from './MergeInProgressBanner'
+export { default as MergeOutcomeNotice, type MergeOutcomeNoticeProps } from './MergeOutcomeNotice'
+export { default as MergeChecksResult, type MergeChecksResultProps } from './MergeChecksResult'
 
 export { default as GitSidebar, type GitSidebarProps } from './sidebar/GitSidebar'
 export {

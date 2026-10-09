@@ -1,4 +1,5 @@
 import {
+  OPEN_WORK_PICK_HINT,
   OPEN_WORK_RISKY_TAG,
   processOpenWorkView,
   type ProcessOpenWork,
@@ -16,9 +17,10 @@ export type OpenWorkChooserProps = {
 
 /**
  * The story already has open work — a run still going, or finished and not
- * merged. Says which run, where it stands and what could go wrong, then offers
- * the three ways to proceed, each with what it entails; the launch waits for a
- * pick. Native peer: `native/compound/chat/OpenWorkChooser`.
+ * merged. Says which run and where it stands, offers the three ways to proceed
+ * as one row of choices, and says what the picked one entails and what could go
+ * wrong; the launch waits for a pick. Native peer:
+ * `native/compound/chat/OpenWorkChooser`.
  */
 export default function OpenWorkChooser({
   openWork,
@@ -27,56 +29,66 @@ export default function OpenWorkChooser({
   onChoose,
 }: OpenWorkChooserProps) {
   const view = processOpenWorkView(openWork)
+  const picked = view.options.find((o) => o.choice === choice)
   return (
-    <div
-      role="radiogroup"
-      aria-label="This story already has open work"
-      className="flex flex-col gap-2 rounded-md border border-(--status-working-soft-border) bg-(--status-working-soft-bg) px-2.5 py-2"
-    >
+    <div className="flex flex-col gap-1.5 rounded-md border border-(--status-working-soft-border) bg-(--status-working-soft-bg) px-2.5 py-2">
       <span className="text-[12.5px] font-semibold text-(--text-primary)">{view.headline}</span>
-      {view.holds ? (
-        <span className="text-[11.5px] text-(--text-secondary)">It holds: {view.holds}</span>
-      ) : null}
-      {view.adds ? (
-        <span className="text-[11.5px] text-(--text-secondary)">This launch adds: {view.adds}</span>
-      ) : null}
-      {view.warnings.map((warning) => (
-        <span key={warning} className="text-[11.5px] font-medium text-(--status-working-soft-fg)">
-          {warning}
+      {view.holds || view.adds ? (
+        <span className="text-[11.5px] text-(--text-secondary)">
+          {view.holds ? `It holds: ${view.holds}.` : ''}{' '}
+          {view.adds ? `This launch adds: ${view.adds}.` : ''}
         </span>
-      ))}
-      <div className="flex flex-col gap-1.5">
+      ) : null}
+      <div
+        role="radiogroup"
+        aria-label="This story already has open work"
+        className="flex flex-wrap gap-1.5"
+      >
         {view.options.map((option) => {
-          const picked = choice === option.choice
+          const selected = choice === option.choice
           return (
             <button
               key={option.choice}
               type="button"
               role="radio"
-              aria-checked={picked}
+              aria-checked={selected}
               disabled={busy || !option.available}
+              title={option.available ? option.detail : option.reason}
               onClick={() => onChoose(option.choice)}
-              className={`flex w-full flex-col items-start gap-0.5 rounded-md border px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary) disabled:opacity-50 ${
-                picked
-                  ? 'border-(--accent-primary) bg-(--accent-primary)/10'
-                  : 'border-(--border-default) bg-(--surface-raised) enabled:hover:border-(--accent-primary)'
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary) disabled:opacity-50 ${
+                selected
+                  ? 'border-(--accent-primary) bg-(--accent-primary) font-medium text-white'
+                  : 'border-(--border-strong) bg-(--surface-raised) text-(--text-primary) enabled:hover:border-(--accent-primary)'
               }`}
             >
-              <span className="flex items-center gap-2 text-[12.5px] font-semibold text-(--text-primary)">
-                {option.label}
-                {option.risky ? (
-                  <span className="rounded-full border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-(--status-stuck-soft-fg)">
-                    {OPEN_WORK_RISKY_TAG}
-                  </span>
-                ) : null}
-              </span>
-              <span className="text-[11.5px] leading-snug text-(--text-secondary)">
-                {option.available ? option.detail : option.reason}
-              </span>
+              {option.label}
+              {option.risky ? (
+                <span
+                  className={`rounded-full px-1.5 text-[9.5px] font-semibold uppercase tracking-wide ${
+                    selected
+                      ? 'bg-white/20 text-white'
+                      : 'border border-(--status-stuck-soft-border) bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)'
+                  }`}
+                >
+                  {OPEN_WORK_RISKY_TAG}
+                </span>
+              ) : null}
             </button>
           )
         })}
       </div>
+      {picked ? (
+        <span className="text-[11.5px] leading-snug text-(--text-secondary)">{picked.detail}</span>
+      ) : (
+        <span className="text-[11px] font-medium text-(--status-working-soft-fg)">
+          {OPEN_WORK_PICK_HINT}
+        </span>
+      )}
+      {view.warnings.map((warning) => (
+        <span key={warning} className="text-[11px] font-medium text-(--status-working-soft-fg)">
+          {warning}
+        </span>
+      ))}
     </div>
   )
 }

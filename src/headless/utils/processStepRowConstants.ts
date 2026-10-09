@@ -21,6 +21,7 @@ export const PROCESS_STAGE_MARKS: Record<ProcessNodeState, string> = {
   parked: '?',
   working: '…',
   requeued: '↺',
+  rechecked: '↷',
   queued: '',
   skipped: '–',
 }
@@ -32,6 +33,7 @@ export const PROCESS_STAGE_WORDS: Record<ProcessNodeState, string | undefined> =
   parked: 'waiting for you',
   working: 'running',
   requeued: 'next',
+  rechecked: 'sent to checks',
   queued: undefined,
   skipped: 'skipped',
 }

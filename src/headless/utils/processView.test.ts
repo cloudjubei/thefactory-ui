@@ -607,6 +607,16 @@ describe('processNodeState', () => {
   it('keeps a skipped step distinct from a passed one', () => {
     expect(processNodeState(st({ status: 'done', outcome: 'skipped' }), undefined)).toBe('skipped')
   })
+
+  it('reads a failed step whose Try again went to the checks first as rechecked, not failed', () => {
+    const state = { ...st({ outcome: 'errored' }), rechecked: { stepId: 'checks' } }
+    expect(processNodeState(state, undefined)).toBe('rechecked')
+  })
+
+  it('still reads a rechecked step a later pass went back over as next', () => {
+    const state = { ...st({ outcome: 'failed', requeued: true }), rechecked: { stepId: 'checks' } }
+    expect(processNodeState(state, undefined)).toBe('requeued')
+  })
 })
 
 describe('processNodeTone', () => {
@@ -619,12 +629,25 @@ describe('processNodeTone', () => {
     expect(processNodeTone('requeued', false)).toBe('queued')
   })
 
+  it('draws a rechecked step as queued — its failure is not the open verdict', () => {
+    expect(processNodeTone('rechecked', false)).toBe('queued')
+  })
+
   it('draws a working step in the live green', () => {
     expect(processNodeTone('working', false)).toBe(PROCESS_LIVE_TONE)
   })
 
   it('only ever names a status the package has tokens for', () => {
-    const states = ['done', 'working', 'failed', 'parked', 'queued', 'skipped', 'requeued'] as const
+    const states = [
+      'done',
+      'working',
+      'failed',
+      'parked',
+      'queued',
+      'skipped',
+      'requeued',
+      'rechecked',
+    ] as const
     for (const s of states) {
       expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, false))
       expect(TOKEN_STATUSES, s).toContain(processNodeTone(s, true))
@@ -665,8 +688,8 @@ describe('processNodeLook', () => {
     }
   })
 
-  it('draws what has not run yet — including a requeued step — as a dashed, numbered outline', () => {
-    for (const s of ['queued', 'requeued', 'skipped'] as const) {
+  it('draws what has not run yet — including a requeued or rechecked step — as a dashed, numbered outline', () => {
+    for (const s of ['queued', 'requeued', 'skipped', 'rechecked'] as const) {
       expect(processNodeLook(s, false, 3)).toMatchObject({ shape: 'dashed', glyph: '3' })
     }
   })
@@ -737,6 +760,44 @@ describe('processNodeBadge and processNodeSummary — a requeued step', () => {
   })
 })
 
+describe('processNodeBadge and processNodeSummary — a Try again sent to the checks first', () => {
+  const plan = {
+    steps: [
+      { id: 'resolve', kind: 'agent' as const },
+      { id: 'checks', kind: 'check' as const },
+    ],
+    loops: [],
+  }
+  const resolve = (rechecked: { stepId: string; checkedSha?: string }) => ({
+    step: { id: 'resolve' },
+    entries: [],
+    attempts: 9,
+    requeued: false,
+    outcome: 'errored' as const,
+    rechecked,
+    latest: { summary: 'Agent run finished: aborted.' },
+  })
+
+  it('says the retry went to the checks first because the branch changed, on which commit', () => {
+    expect(
+      processNodeSummary(resolve({ stepId: 'checks', checkedSha: '597e5bd94b535a943a5' })),
+    ).toEqual({
+      text: 'Try again ran the checks first — branch changed (597e5bd9)',
+      muted: true,
+    })
+  })
+
+  it('says so without a commit while the checks have not recorded one', () => {
+    expect(processNodeSummary(resolve({ stepId: 'checks' }))?.text).toBe(
+      'Try again ran the checks first — branch changed',
+    )
+  })
+
+  it('names the attempt that ran, not one coming', () => {
+    expect(processNodeBadge(resolve({ stepId: 'checks' }), { plan })).toBe('attempt 9')
+  })
+})
+
 describe('formatProcessDuration', () => {
   it('writes durations the way the design does', () => {
     expect(formatProcessDuration(44_000)).toBe('44s')
@@ -773,6 +834,9 @@ describe('processIterationBadge', () => {
   })
   it('drops the cap on a step no loop goes back over', () => {
     expect(processIterationBadge(2, 'r', { plan })).toBe('attempt 2')
+  })
+  it('drops the cap once a person’s retries ran the step past it — never "attempt 12 of 7"', () => {
+    expect(processIterationBadge(4, 'v', { plan })).toBe('attempt 4')
   })
   it('counts the attempts the user granted at an exhausted loop into the cap', () => {
     expect(processIterationBadge(4, 'v', { plan, iterationGrants: { fix: 1 } })).toBe(

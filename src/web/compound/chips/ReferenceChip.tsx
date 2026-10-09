@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
 import Tooltip from '../../primitives/Tooltip'
 import {
@@ -10,12 +10,15 @@ import {
   IconFolder,
   IconList,
   IconMonitor,
+  IconPalette,
 } from '../../icons'
 
 export type ReferenceChipProps = {
   description: ReferenceDescription
   /** Opens what the chip points at. Omitted, or for something gone, the chip is not a button. */
   onOpen?: (link: ResourceLink) => void
+  /** Shown under the label on hover — a design's miniature. */
+  preview?: ReactNode
 }
 
 const GLYPHS: Record<ReferenceDescription['kind'], ComponentType<{ className?: string }>> = {
@@ -28,6 +31,7 @@ const GLYPHS: Record<ReferenceDescription['kind'], ComponentType<{ className?: s
   project: IconFolder,
   chat: IconChat,
   app: IconMonitor,
+  design: IconPalette,
 }
 
 /**
@@ -35,7 +39,7 @@ const GLYPHS: Record<ReferenceDescription['kind'], ComponentType<{ className?: s
  * in-app link — as a chip: its current number or name, what it is on hover,
  * and a click that opens it. Something gone shows as such and opens nothing.
  */
-export default function ReferenceChip({ description, onOpen }: ReferenceChipProps) {
+export default function ReferenceChip({ description, onOpen, preview }: ReferenceChipProps) {
   const Glyph = GLYPHS[description.kind]
   const link = description.missing ? undefined : description.link
   const className = [
@@ -63,6 +67,7 @@ export default function ReferenceChip({ description, onOpen }: ReferenceChipProp
           {description.detail ? (
             <span className="text-(--text-secondary)">{description.detail}</span>
           ) : null}
+          {preview}
         </div>
       }
     >

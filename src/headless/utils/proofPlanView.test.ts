@@ -3,6 +3,7 @@ import { UI_CHANGE_PLAN_WARNING } from 'thefactory-tools/constants'
 import type { ProcessProposal, ProcessRun } from 'thefactory-tools/types'
 
 import {
+  launchFeatureRows,
   launchProofPlanRows,
   proofKindOptions,
   proofPlanDraftOf,
@@ -325,5 +326,39 @@ describe('launchProofPlanRows — a feature that changes what users see', () => 
 
   it('does not warn for a feature that does not look like one', () => {
     expect(launchProofPlanRows(proposal, {})[0]).not.toHaveProperty('uiWarning')
+  })
+})
+
+describe('launchFeatureRows', () => {
+  const view = {
+    features: [
+      { id: 'f2', title: 'Locale dates', chain: [{ id: 'impl', name: 'Implement', agent: true }] },
+      { id: 'f9', title: 'No plan here', chain: [] },
+    ],
+    tail: [],
+    agentStepCount: 1,
+  }
+
+  it('reads each feature once, in the order the run works them, with its steps and its proof', () => {
+    // The launch card listed every feature twice — once for its steps, again for
+    // its proof — and grew past the screen on a story with a dozen of them.
+    const rows = launchFeatureRows(view, launchProofPlanRows(proposal, {}))
+    expect(rows.map((r) => [r.featureId, r.chain.length, r.proof?.featureId])).toEqual([
+      ['f2', 1, 'f2'],
+      ['f9', 0, undefined],
+      ['f1', 0, 'f1'],
+    ])
+  })
+
+  it('names the proof a row asks for, in a few words, for its collapsed summary', () => {
+    const rows = launchFeatureRows(view, launchProofPlanRows(proposal, {}))
+    expect(rows[0]?.proofLabels).toEqual(['Checks', 'Code review'])
+    expect(rows[1]?.proofLabels).toEqual([])
+  })
+
+  it('reads the proof rows alone while the plan is not known', () => {
+    expect(
+      launchFeatureRows(undefined, launchProofPlanRows(proposal, {})).map((r) => r.title),
+    ).toEqual(['ISO dates', 'Locale dates'])
   })
 })

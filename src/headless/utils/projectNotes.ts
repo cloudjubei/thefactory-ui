@@ -14,6 +14,7 @@ import {
   NOTE_VALUE_REQUIRED,
 } from './projectNotesConstants'
 import type {
+  LinkedNoteState,
   NoteSummary,
   ProjectNoteChipView,
   ProjectNoteCreateBody,
@@ -167,4 +168,15 @@ export function projectNoteChipView(
     showsValue: note.kind === 'note' && note.access !== undefined,
     ...(note.kind === 'secret' ? { hiddenValue: NOTE_SECRET_HIDDEN } : {}),
   }
+}
+
+/** Whether the note a link named (`?note=`) is among `notes` — see {@link LinkedNoteState}. */
+export function linkedNoteState(
+  notes: readonly Pick<NoteSummary, 'id'>[],
+  noteId: string | null | undefined,
+  isLoaded: boolean,
+): LinkedNoteState {
+  if (!noteId) return 'none'
+  if (!isLoaded) return 'loading'
+  return notes.some((n) => n.id === noteId) ? 'found' : 'missing'
 }

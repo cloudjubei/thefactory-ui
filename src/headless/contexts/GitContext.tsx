@@ -15,10 +15,12 @@ import {
   gitDiscardStaged,
   gitDiscardUnstaged,
   gitResetAll,
+  gitAbortMerge,
   gitCheckout,
   gitCommit,
   gitFetch,
   gitMergeApply,
+  gitMergeBranch,
   gitMergePlan,
   gitMergeReport,
   gitPull,
@@ -40,6 +42,8 @@ import type {
   GitTextRecovery,
   GitApplyTextRecoveryResult,
   GitMergeApplyInput,
+  GitMergeBranchInput,
+  GitMergeBranchResult,
   GitMergePlan,
   GitMergePlanInput,
   GitMergeReport,
@@ -189,6 +193,14 @@ export type GitContextValue = {
   planMerge: (input: GitMergePlanInput) => Promise<GitMergePlan>
   buildMergeReport: (input: GitMergeReportInput) => Promise<GitMergeReport>
   applyMerge: (input: GitMergeApplyInput) => Promise<GitMergeResult>
+  /**
+   * Merge a branch (local, or remote such as `origin/dev`) into the current
+   * one. Resolves with what git did — a refusal or conflicts are outcomes, not
+   * throws; the merge in progress then shows on `status.merging`.
+   */
+  mergeBranch: (input: GitMergeBranchInput) => Promise<GitMergeBranchResult>
+  /** Abort the merge in progress, putting the branch and its files back. */
+  abortMerge: () => Promise<void>
 
   refresh: () => Promise<void>
 
@@ -849,6 +861,28 @@ export function GitProvider({ children, storage }: GitProviderProps) {
     [requireProject, refresh],
   )
 
+  const mergeBranch = useCallback(
+    async (input: GitMergeBranchInput) => {
+      const id = requireProject()
+      const { data } = await gitMergeBranch({
+        path: { projectId: id },
+        body: input,
+        throwOnError: true,
+      })
+      await refresh()
+      if (localDiffLoadedRef.current) void loadLocalDiff()
+      return data
+    },
+    [requireProject, refresh, loadLocalDiff],
+  )
+
+  const abortMerge = useCallback(async () => {
+    const id = requireProject()
+    await gitAbortMerge({ path: { projectId: id }, throwOnError: true })
+    await refresh()
+    if (localDiffLoadedRef.current) void loadLocalDiff()
+  }, [requireProject, refresh, loadLocalDiff])
+
   const createBranch = useCallback(
     async (input: CreateBranchInput) => {
       const id = requireProject()
@@ -982,6 +1016,8 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       planMerge,
       buildMergeReport,
       applyMerge,
+      mergeBranch,
+      abortMerge,
       refresh,
       credentialError,
       clearCredentialError,
@@ -1028,6 +1064,8 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       planMerge,
       buildMergeReport,
       applyMerge,
+      mergeBranch,
+      abortMerge,
       refresh,
       credentialError,
       clearCredentialError,

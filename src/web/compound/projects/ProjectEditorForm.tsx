@@ -38,6 +38,8 @@ export type ProjectFormState = {
     githubCredentialsId?: string
     hasApp?: boolean
     appDir?: string
+    /** Shows the Design tab; absent counts as on. */
+    isUiApp?: boolean
     /** The project's own Jira binding, or `'none'` to opt out of its main group's; absent = inherit. */
     ticketConnection?: TicketConnectionBinding | 'none'
   }
@@ -69,6 +71,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const iconKey = typeof md.icon === 'string' && md.icon in PROJECT_ICONS ? md.icon : 'folder'
   const credsId = typeof md.githubCredentialsId === 'string' ? md.githubCredentialsId : undefined
   const hasApp = md.hasApp === true
+  const isUiApp = md.isUiApp !== false
   const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
   const ticketConnection = readTicketConnection(md.ticketConnection)
   const anyP = p as unknown as Record<string, unknown>
@@ -83,6 +86,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
       githubCredentialsId: credsId,
       hasApp,
       appDir,
+      isUiApp,
       ...(ticketConnection ? { ticketConnection } : {}),
     },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
@@ -240,6 +244,22 @@ export function ProjectEditorForm({
         <Switch
           checked={form.active}
           onCheckedChange={(checked) => setForm((s) => ({ ...s, active: checked }))}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium">UI app</div>
+          <div className="text-xs text-(--text-secondary)">
+            Show the Design tab — toggle off for projects with no user interface (db, backend,
+            libraries).
+          </div>
+        </div>
+        <Switch
+          checked={form.metadata.isUiApp !== false}
+          onCheckedChange={(checked) =>
+            setForm((s) => ({ ...s, metadata: { ...s.metadata, isUiApp: checked } }))
+          }
         />
       </div>
 

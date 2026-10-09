@@ -32,11 +32,12 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   activity: 'App activity',
   'cross-project': 'Cross-project requests',
   processes: 'Processes',
+  storage: 'Storage usage',
 }
 
-/** Cross-project requests are account-global, so a per-project override is meaningless. */
+/** Cross-project requests and storage usage are account-global, so a per-project override is meaningless. */
 const PROJECT_SCOPED_CATEGORIES = (cs: NotificationCategory[]): NotificationCategory[] =>
-  cs.filter((c) => c !== 'cross-project')
+  cs.filter((c) => c !== 'cross-project' && c !== 'storage')
 
 export default function NotificationSettings() {
   const { settings, setNotifications } = useAppSettings()

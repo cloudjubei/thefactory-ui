@@ -24,7 +24,9 @@ import {
   PROOF_PLAN_NOTES_PREFIX,
   PROOF_PLAN_SOURCE_LABELS,
 } from './proofPlanViewConstants'
+import type { ProcessProposalView } from './processProposalView'
 import type {
+  LaunchFeatureRow,
   LaunchProofPlanEdits,
   LaunchProofPlanRow,
   ProofKindOptionView,
@@ -192,4 +194,41 @@ export function proofPlanFieldText(value: unknown): string | undefined {
     proofPlanSummaryLine(plan),
     ...(plan.notes ? [`${PROOF_PLAN_NOTES_PREFIX} ${plan.notes}`] : []),
   ].join('\n')
+}
+
+/**
+ * The launch card's features, each once: in the order the run works them, with
+ * the steps it runs through and its proof plan. A proof row whose feature the
+ * plan does not list follows, so no plan is hidden while the plan is unknown. Pure.
+ */
+export function launchFeatureRows(
+  view: Pick<ProcessProposalView, 'features'> | undefined,
+  proofRows: readonly LaunchProofPlanRow[],
+): LaunchFeatureRow[] {
+  const proofOf = new Map(proofRows.map((row) => [row.featureId, row]))
+  const labels = (row: LaunchProofPlanRow | undefined): string[] =>
+    row ? row.kinds.filter((k) => k.checked).map((k) => k.label) : []
+  const rows: LaunchFeatureRow[] = (view?.features ?? []).map((feature) => {
+    const proof = proofOf.get(feature.id)
+    return {
+      featureId: feature.id,
+      title: feature.title,
+      chain: feature.chain,
+      ...(feature.maxIterations !== undefined ? { maxIterations: feature.maxIterations } : {}),
+      ...(proof ? { proof } : {}),
+      proofLabels: labels(proof),
+    }
+  })
+  const listed = new Set(rows.map((r) => r.featureId))
+  for (const proof of proofRows) {
+    if (listed.has(proof.featureId)) continue
+    rows.push({
+      featureId: proof.featureId,
+      title: proof.title,
+      chain: [],
+      proof,
+      proofLabels: labels(proof),
+    })
+  }
+  return rows
 }

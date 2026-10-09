@@ -35,7 +35,7 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from '../../../icons'
-import { RefChip } from '../../chips'
+import { CommitChip } from '../../chips'
 import {
   PAIR_CAPTION_RESERVE,
   PAIR_LOADING_FRAME,
@@ -68,10 +68,10 @@ type Mode = 'mirror' | 'slide' | 'diff'
  * A side's build, as its own record states it — the commit it was built from,
  * whether the tree was dirty — and, apart, the commit it was expected to be.
  */
-function BuildMarks({ build }: { build: CaptureBuildCaption }) {
+function BuildMarks({ projectId, build }: { projectId: string; build: CaptureBuildCaption }) {
   return (
     <>
-      {build.builtSha ? <RefChip kind="commit" value={build.builtSha} /> : null}
+      {build.builtSha ? <CommitChip projectId={projectId} sha={build.builtSha} /> : null}
       {build.sameCodeAsExpected ? (
         <span className="text-(--text-muted)">{CAPTURE_SAME_CODE_LABEL}</span>
       ) : null}
@@ -81,18 +81,26 @@ function BuildMarks({ build }: { build: CaptureBuildCaption }) {
       {build.expectedSha ? (
         <>
           <span className="text-(--text-muted)">expected</span>
-          <RefChip kind="commit" value={build.expectedSha} />
+          <CommitChip projectId={projectId} sha={build.expectedSha} />
         </>
       ) : null}
     </>
   )
 }
 
-function Caption({ word, build }: { word: 'Before' | 'After'; build: CaptureBuildCaption }) {
+function Caption({
+  projectId,
+  word,
+  build,
+}: {
+  projectId: string
+  word: 'Before' | 'After'
+  build: CaptureBuildCaption
+}) {
   return (
     <figcaption className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-(--text-secondary)">
       <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">{word}</span>
-      <BuildMarks build={build} />
+      <BuildMarks projectId={projectId} build={build} />
     </figcaption>
   )
 }
@@ -432,7 +440,7 @@ export default function ComparisonOverlay({
                       natural={beforeNatural}
                       loading={loading}
                     />
-                    <Caption word="Before" build={beforeBuild} />
+                    <Caption projectId={projectId} word="Before" build={beforeBuild} />
                   </figure>
                 ) : null}
                 {pair?.after ? (
@@ -444,7 +452,7 @@ export default function ComparisonOverlay({
                       natural={afterNatural}
                       loading={loading}
                     />
-                    <Caption word="After" build={afterBuild} />
+                    <Caption projectId={projectId} word="After" build={afterBuild} />
                   </figure>
                 ) : null}
               </>
@@ -479,12 +487,12 @@ export default function ComparisonOverlay({
                   <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
                     Before
                   </span>
-                  <BuildMarks build={beforeBuild} />
+                  <BuildMarks projectId={projectId} build={beforeBuild} />
                   <span className="text-(--text-muted)">drag</span>
                   <span className="chip-pill chip-pill--sm chip-pill--neutral font-medium">
                     After
                   </span>
-                  <BuildMarks build={afterBuild} />
+                  <BuildMarks projectId={projectId} build={afterBuild} />
                 </figcaption>
                 <input
                   type="range"

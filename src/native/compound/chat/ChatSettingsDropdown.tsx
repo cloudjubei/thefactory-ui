@@ -1,7 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Dimensions, Pressable, ScrollView, Text, View } from 'react-native'
 import BottomSheet from '../../primitives/BottomSheet'
+import { CHAT_TOOLS_HINT } from '../../../headless/utils/chatToolTogglesConstants'
 import {
+  CHAT_TURN_LIMIT_HINT,
+  CHAT_TURN_LIMIT_MAX,
+  CHAT_TURN_LIMIT_MIN,
+} from '../../../headless/utils/chatTurnLimitConstants'
+import {
+  applyChatTurnLimit,
+  buildChatTurnLimit,
   filterChatToolToggles,
   groupChatToolToggles,
   useAppSettings,
@@ -14,18 +22,16 @@ import { Textarea } from '../../primitives/Textarea'
 import { Slider } from '../../primitives/Slider'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import ChatRulesPanel from '../rules/ChatRulesPanel'
 
 export type ToolToggle = {
   name: string
   description: string
   available: boolean
-  autoCall: boolean
   /** Groups the row under a heading. Rows without one land under "other". */
   category?: string
   /** False for a tool the transport never lets the user switch off. */
   toggleable?: boolean
-  /** False on a transport with no per-tool auto-call axis. */
-  supportsAutoCall?: boolean
 }
 
 /** Fill the optional grouping fields so the headless filter/group helpers apply. */
@@ -35,13 +41,12 @@ function normalizeToolToggle(tool: ToolToggle): ChatToolToggle {
     description: tool.description,
     category: tool.category ?? 'other',
     available: tool.available,
-    autoCall: tool.autoCall,
     toggleable: tool.toggleable ?? true,
-    supportsAutoCall: tool.supportsAutoCall ?? true,
   }
 }
 
 export type CompletionSettingsLike = {
+  limitTurns?: boolean
   maxTurns?: number
   numberMessagesToSend?: number
   finishTurnOnErrors?: boolean
@@ -62,14 +67,13 @@ export interface ChatSettingsDropdownProps {
 
   tools: ToolToggle[]
   toggleAvailable: (tool: ToolToggle) => Promise<void> | void
-  toggleAutoCall: (tool: ToolToggle) => Promise<void> | void
-  /** Clears the chat's own tool allowlist back to the defaults. Hidden when absent. */
-  onResetTools?: () => Promise<void> | void
-  /** One line under the Tools heading explaining what this chat's list governs. */
-  toolsHint?: string
-  /** The chat-wide "run tools without asking" switch. Hidden on a transport that reports it unsupported. */
-  toolApproval?: { auto: boolean; supported: boolean }
+  /** Puts the chat's tools and approval switch back to its chat type's — on every model. */
+  onResetTools: () => Promise<void> | void
+  /** The chat-wide "run tools without asking" switch — one on every transport. Hidden when absent. */
+  toolApproval?: { auto: boolean }
   onToolApprovalChange?: (auto: boolean) => Promise<void> | void
+  /** This chat's key: shows "Rules for this chat" — its own always-allow rules, removable. Hidden when absent. */
+  rulesChatContextId?: string
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -84,10 +88,6 @@ export interface ChatSettingsDropdownProps {
   /** When true a settings write failed and is retrying — the body greys out and
    * input is blocked until the backend reconnects. */
   blocked?: boolean
-  /** When true this chat runs a CLI agent, so the API-completion-only controls
-   * (turn/history/sanitization tuning) are greyed out — they have no effect on
-   * a CLI run. */
-  cliBacked?: boolean
 }
 
 /**
@@ -106,22 +106,21 @@ export default function ChatSettingsDropdown({
   onResetPrompt,
   tools,
   toggleAvailable,
-  toggleAutoCall,
   onResetTools,
-  toolsHint,
   toolApproval,
   onToolApprovalChange,
+  rulesChatContextId,
   persistSettings,
   onDeleteChat,
   canDelete = true,
   extraContent,
   title = 'Chat settings',
   blocked = false,
-  cliBacked = false,
 }: ChatSettingsDropdownProps) {
   const { theme } = useNativeTheme()
   const { settings, setUserPreferences } = useAppSettings()
   const prefs = settings.userPreferences
+  const turnLimit = buildChatTurnLimit(completion)
   const [toolFilter, setToolFilter] = useState('')
   const visibleToolGroups = useMemo(
     () => groupChatToolToggles(filterChatToolToggles(tools.map(normalizeToolToggle), toolFilter)),
@@ -190,24 +189,40 @@ export default function ChatSettingsDropdown({
           </View>
         </View>
 
-        {cliBacked ? (
-          <Text style={{ fontSize: 11, color: theme.text.muted }}>
-            Completion settings apply to API agents — this chat runs a CLI agent.
-          </Text>
-        ) : null}
-
         {completion ? (
-          <View
-            pointerEvents={cliBacked ? 'none' : 'auto'}
-            style={{ gap: nativeSpace[4], opacity: cliBacked ? 0.5 : 1 }}
-          >
-            <SliderRow
-              label="Max turns per run"
-              value={completion.maxTurns ?? 1}
-              min={1}
-              max={100}
-              onChange={(v) => void persistSettings({ maxTurns: v })}
-            />
+          <View style={{ gap: nativeSpace[4] }}>
+            <View style={{ gap: nativeSpace[3] }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: nativeSpace[3],
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
+                    Limit turns per run
+                  </Text>
+                  <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+                    {CHAT_TURN_LIMIT_HINT}
+                  </Text>
+                </View>
+                <Switch
+                  checked={turnLimit.limited}
+                  onCheckedChange={(c) => void persistSettings(applyChatTurnLimit(c, completion))}
+                />
+              </View>
+              {turnLimit.limited ? (
+                <SliderRow
+                  label="Max turns per run"
+                  value={turnLimit.maxTurns}
+                  min={CHAT_TURN_LIMIT_MIN}
+                  max={CHAT_TURN_LIMIT_MAX}
+                  onChange={(v) => void persistSettings({ maxTurns: v })}
+                />
+              ) : null}
+            </View>
             <SliderRow
               label="Number of messages to send"
               value={completion.numberMessagesToSend ?? 3}
@@ -245,13 +260,7 @@ export default function ChatSettingsDropdown({
           </View>
         ) : null}
 
-        {cliBacked ? (
-          <View pointerEvents="none" style={{ opacity: 0.5 }}>
-            {extraContent}
-          </View>
-        ) : (
-          extraContent
-        )}
+        {extraContent}
 
         {/* Agent runs — CLI transcript display prefs (global). */}
         <View style={{ gap: nativeSpace[3] }}>
@@ -289,16 +298,12 @@ export default function ChatSettingsDropdown({
             }}
           >
             <SectionLabel>Tools</SectionLabel>
-            {onResetTools ? (
-              <Pressable onPress={() => void onResetTools()}>
-                <Text style={{ fontSize: 11, color: theme.text.muted }}>Reset to defaults</Text>
-              </Pressable>
-            ) : null}
+            <Pressable onPress={() => void onResetTools()}>
+              <Text style={{ fontSize: 11, color: theme.text.muted }}>Reset to defaults</Text>
+            </Pressable>
           </View>
-          {toolsHint ? (
-            <Text style={{ fontSize: 11, color: theme.text.muted }}>{toolsHint}</Text>
-          ) : null}
-          {toolApproval?.supported && onToolApprovalChange ? (
+          <Text style={{ fontSize: 11, color: theme.text.muted }}>{CHAT_TOOLS_HINT}</Text>
+          {toolApproval && onToolApprovalChange ? (
             <View
               style={{
                 flexDirection: 'row',
@@ -325,6 +330,19 @@ export default function ChatSettingsDropdown({
                 checked={toolApproval.auto}
                 onCheckedChange={(c) => void onToolApprovalChange(c)}
               />
+            </View>
+          ) : null}
+          {rulesChatContextId ? (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border.subtle,
+                borderRadius: nativeRadii[2],
+                paddingHorizontal: nativeSpace[2],
+                paddingVertical: nativeSpace[2],
+              }}
+            >
+              <ChatRulesPanel chatContextId={rulesChatContextId} />
             </View>
           ) : null}
           <Input value={toolFilter} onChangeText={setToolFilter} placeholder="Filter tools…" />
@@ -374,9 +392,9 @@ export default function ChatSettingsDropdown({
                   {group.tools.map((tool) => (
                     <View
                       key={tool.name}
-                      // Name + description on the left, two stacked
-                      // (label-above-switch) toggles on the right. Labels above
-                      // give the switches enough breathing room to be tappable
+                      // Name + description on the left, the label-above-switch
+                      // toggle on the right. The label above gives the switch
+                      // enough breathing room to be tappable
                       // on touch without truncating the captions; matches web's
                       // settings dropdown layout 1:1.
                       style={{
@@ -407,18 +425,6 @@ export default function ChatSettingsDropdown({
                           disabled={!tool.toggleable}
                         />
                       </View>
-                      {tool.supportsAutoCall ? (
-                        <View style={{ alignItems: 'center', gap: 2 }}>
-                          <Text style={{ fontSize: 10, color: theme.text.secondary }}>
-                            Auto-call
-                          </Text>
-                          <Switch
-                            checked={tool.available ? tool.autoCall : false}
-                            onCheckedChange={() => void toggleAutoCall(tool)}
-                            disabled={!tool.available}
-                          />
-                        </View>
-                      ) : null}
                     </View>
                   ))}
                 </View>

@@ -145,6 +145,12 @@ export type GitSidebarProps = {
   dirtyCount?: number
   onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
+  /** Right-click on a branch row: its context menu, opened where the pointer is. */
+  onContextMenuBranch?: (
+    b: GitUnifiedBranchLike,
+    section: 'local' | 'remote',
+    at: { x: number; y: number },
+  ) => void
   onSelectStash: (ref: string) => void
   /**
    * Fill the parent's width and drop the resize handle — for narrow layouts
@@ -169,6 +175,7 @@ export default function GitSidebar({
   dirtyCount,
   onSelectBranch,
   onDoubleClickBranch,
+  onContextMenuBranch,
   onSelectStash,
   fullWidth = false,
 }: GitSidebarProps) {
@@ -278,6 +285,11 @@ export default function GitSidebar({
                     dirtyCount={dirtyCount}
                     onClick={() => onSelectBranch(current, 'local')}
                     onDoubleClick={() => onDoubleClickBranch?.(current)}
+                    onContextMenu={
+                      onContextMenuBranch
+                        ? (at) => onContextMenuBranch(current, 'local', at)
+                        : undefined
+                    }
                   />
                 )}
                 {!current && localBranches.length === 0 && (
@@ -296,6 +308,7 @@ export default function GitSidebar({
                   onFolderToggle={setFolderOpen}
                   onSelectBranch={onSelectBranch}
                   onDoubleClickBranch={onDoubleClickBranch}
+                  onContextMenuBranch={onContextMenuBranch}
                 />
               </div>
             )}
@@ -323,6 +336,7 @@ export default function GitSidebar({
                     onFolderToggle={setFolderOpen}
                     onSelectBranch={onSelectBranch}
                     onDoubleClickBranch={onDoubleClickBranch}
+                    onContextMenuBranch={onContextMenuBranch}
                   />
                 )}
               </div>

@@ -3,12 +3,14 @@ import type { ReferenceTarget, ResourceLink } from 'thefactory-tools/types'
 import { useReferences, type References } from '../../headless/hooks/useReferences'
 import { useReferenceRendering } from '../../headless/contexts/ReferenceRenderingContext'
 import ReferenceChip from '../compound/chips/ReferenceChip'
+import DesignReferenceChip from '../compound/design/DesignReferenceChip'
 
 /**
  * Native peer of web's `useReferenceRenderer`: each thing a chat's messages
- * point at as a {@link ReferenceChip} that opens it. A file is left to the
- * caller's file resolver (`RichText`'s `onResolveFile`), so here it reads as
- * code; a reference that resolves to nothing reads as text.
+ * point at as a {@link ReferenceChip} that opens it — a design screen or item
+ * as a {@link DesignReferenceChip}, whose long press shows its miniature. A
+ * file is left to the caller's file resolver (`RichText`'s `onResolveFile`),
+ * so here it reads as code; a reference that resolves to nothing reads as text.
  */
 export function useReferenceRenderer({
   references,
@@ -31,6 +33,15 @@ export function useReferenceRenderer({
       )
         return undefined
       const description = target.type === 'link' ? describeLink(target.link) : describe(target)
+      if (description?.kind === 'design' && description.link?.kind === 'design') {
+        return (
+          <DesignReferenceChip
+            description={description}
+            link={description.link}
+            {...(onOpen ? { onOpen } : {})}
+          />
+        )
+      }
       return description ? (
         <ReferenceChip description={description} {...(onOpen ? { onOpen } : {})} />
       ) : undefined

@@ -3,9 +3,7 @@ import { Text, View } from 'react-native'
 
 import {
   LAUNCH_NOTE_MAX_CHARS,
-  LAUNCH_OPTIONS_READ_ONLY,
   PROCESS_GROUP_LAUNCH_BLURB,
-  launchOptionsAreHonoured,
   processGroupLegWaitsFor,
   startGroupWorkGrantSummary,
   useProcessGroupLaunchPreview,
@@ -54,7 +52,6 @@ export default function GroupWorkLaunchPanel({
     groupId: launchGroupId,
     legs: summary.legs,
   })
-  const optionsHonoured = launchOptionsAreHonoured(grant)
   const [note, setNote] = useState('')
   const [runModel, setRunModel] = useState<string | undefined>(undefined)
   const [runCli, setRunCli] = useState<string | undefined>(undefined)
@@ -258,33 +255,29 @@ export default function GroupWorkLaunchPanel({
         </Text>
       ) : null}
 
-      {optionsHonoured ? (
-        <View style={{ gap: nativeSpace[2] }}>
-          {renderModelChip
-            ? renderModelChip({
-                model: runModel,
-                onPick: setRunModel,
-                cli: runCli,
-                onPickCli: (cli, credentialId, model) => {
-                  setRunCli(cli)
-                  setRunCliCredentialId(credentialId)
-                  setRunModel(model)
-                },
-              })
-            : null}
-          <Textarea
-            rows={2}
-            value={note}
-            onChangeText={setNote}
-            disabled={busy}
-            maxLength={LAUNCH_NOTE_MAX_CHARS}
-            placeholder="A note every project’s agent reads (optional)"
-            accessibilityLabel="A note for every project's agent"
-          />
-        </View>
-      ) : (
-        <Text style={{ fontSize: 11.5, color: theme.text.muted }}>{LAUNCH_OPTIONS_READ_ONLY}</Text>
-      )}
+      <View style={{ gap: nativeSpace[2] }}>
+        {renderModelChip
+          ? renderModelChip({
+              model: runModel,
+              onPick: setRunModel,
+              cli: runCli,
+              onPickCli: (cli, credentialId, model) => {
+                setRunCli(cli)
+                setRunCliCredentialId(credentialId)
+                setRunModel(model)
+              },
+            })
+          : null}
+        <Textarea
+          rows={2}
+          value={note}
+          onChangeText={setNote}
+          disabled={busy}
+          maxLength={LAUNCH_NOTE_MAX_CHARS}
+          placeholder="A note every project’s agent reads (optional)"
+          accessibilityLabel="A note for every project's agent"
+        />
+      </View>
 
       {error !== null ? (
         <View

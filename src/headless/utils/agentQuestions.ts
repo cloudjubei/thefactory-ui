@@ -85,12 +85,12 @@ export function canSubmitAnswer(answer: string): boolean {
 
 /** Decision body carrying the user's typed answer back to the waiting agent. */
 export function answerDecision(answer: string): AgentQuestionDecision {
-  return { outcome: 'approved', metadata: { answer: answer.trim() } }
+  return { outcome: 'approved', decidedVia: 'card', metadata: { answer: answer.trim() } }
 }
 
 /** Decision body for a declined question — the agent proceeds on its own judgement. */
 export function declineDecision(): AgentQuestionDecision {
-  return { outcome: 'denied', metadata: { answer: QUESTION_DECLINED_ANSWER } }
+  return { outcome: 'denied', decidedVia: 'card', metadata: { answer: QUESTION_DECLINED_ANSWER } }
 }
 
 /** Narrow a unified grant to one the question card can render and answer. */

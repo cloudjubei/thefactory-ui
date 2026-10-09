@@ -99,7 +99,6 @@ export type ChatDebugCliRunner = {
   tool: string
   model?: string
   effort?: string
-  execMode?: string
 }
 
 export type ChatDebugCounts = {

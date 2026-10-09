@@ -113,5 +113,7 @@ export function navBadgeLabel({ count, category }: NavBadge): string {
       return `${n} failing ${one ? 'test' : 'tests'}`
     case 'cross-project':
       return `${n} ${one ? 'request' : 'requests'}`
+    case 'storage':
+      return `${n} storage ${one ? 'warning' : 'warnings'}`
   }
 }

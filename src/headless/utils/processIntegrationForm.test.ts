@@ -1,19 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessIntegrationOptions } from 'thefactory-tools/types'
 
+import { processIntegrationFormStart } from 'thefactory-tools/utils'
 import {
   processIntegrationAccountLabel,
-  processIntegrationFormDecision,
   processIntegrationFormPreview,
-  processIntegrationFormStart,
   processIntegrationIdentityLabel,
 } from './processIntegrationForm'
-import {
-  PROCESS_INTEGRATION_FORM_NO_ACCOUNT,
-  PROCESS_INTEGRATION_FORM_NO_IDENTITY,
-  PROCESS_INTEGRATION_FORM_NO_MESSAGE,
-  PROCESS_INTEGRATION_FORM_NO_TITLE,
-} from './processIntegrationFormConstants'
 
 const workBranch = { name: 'factory/file-tools-04bd5862', baseRef: 'main' }
 
@@ -64,157 +57,6 @@ const options = (over: Partial<ProcessIntegrationOptions> = {}): ProcessIntegrat
     pullRequest: { title: 'File tools: read PDFs', body: 'Reads PDFs.\n\n## Commits' },
   },
   ...over,
-})
-
-describe('processIntegrationFormStart', () => {
-  it('starts a squash as the project’s identity with the story and the report', () => {
-    expect(processIntegrationFormStart('squash', options())).toEqual({
-      mode: 'squash',
-      identityId: 'acme',
-      message: 'File tools: read PDFs\n\nReads PDFs and flags binaries.',
-      accountId: 'acme',
-      prTitle: 'File tools: read PDFs',
-      prBody: 'Reads PDFs.\n\n## Commits',
-    })
-  })
-
-  it('starts a merge from its own message', () => {
-    expect(processIntegrationFormStart('merge', options()).message).toBe(
-      'Merge factory/file-tools-04bd5862: File tools: read PDFs',
-    )
-  })
-
-  it('starts from what the person chose before for the same way', () => {
-    const decided = options({
-      decision: {
-        mode: 'squash',
-        identity: { name: kamil.name, email: kamil.email, credentialId: 'kamil' },
-        message: 'Read PDFs',
-      },
-    })
-    expect(processIntegrationFormStart('squash', decided)).toMatchObject({
-      identityId: 'kamil',
-      message: 'Read PDFs',
-    })
-  })
-
-  it('keeps the identity chosen before but not its message when the way changes', () => {
-    const decided = options({
-      decision: {
-        mode: 'squash',
-        identity: { name: kamil.name, email: kamil.email, credentialId: 'kamil' },
-        message: 'Read PDFs',
-      },
-    })
-    expect(processIntegrationFormStart('merge', decided)).toMatchObject({
-      identityId: 'kamil',
-      message: 'Merge factory/file-tools-04bd5862: File tools: read PDFs',
-    })
-  })
-
-  it('starts a pull request from what was chosen before for one', () => {
-    const decided = options({
-      decision: {
-        mode: 'pull-request',
-        credentialId: 'kamil',
-        pullRequest: { title: 'PDFs', body: 'Body' },
-      },
-    })
-    expect(processIntegrationFormStart('pull-request', decided)).toMatchObject({
-      accountId: 'kamil',
-      prTitle: 'PDFs',
-      prBody: 'Body',
-    })
-  })
-
-  it('does not start from an identity that is no longer offered', () => {
-    const decided = options({
-      decision: {
-        mode: 'squash',
-        identity: { name: 'Gone', email: 'g@x.io', credentialId: 'gone' },
-      },
-    })
-    expect(processIntegrationFormStart('squash', decided).identityId).toBe('acme')
-  })
-
-  it('starts from the first identity when the project has none of its own', () => {
-    const none = options({ identities: [{ ...kamil }], accounts: [] })
-    expect(processIntegrationFormStart('squash', none)).toMatchObject({
-      identityId: 'kamil',
-    })
-    expect(processIntegrationFormStart('squash', none).accountId).toBeUndefined()
-  })
-})
-
-describe('processIntegrationFormDecision', () => {
-  it('is a squash as the chosen identity with the message as written', () => {
-    const form = { ...processIntegrationFormStart('squash', options()), identityId: 'kamil' }
-    expect(processIntegrationFormDecision(form, options())).toEqual({
-      decision: {
-        mode: 'squash',
-        identity: { name: 'Kamil Chmurzynski', email: 'kamil@example.com', credentialId: 'kamil' },
-        message: 'File tools: read PDFs\n\nReads PDFs and flags binaries.',
-      },
-    })
-  })
-
-  it('drops the blank lines at the end of a message', () => {
-    const form = { ...processIntegrationFormStart('merge', options()), message: 'Merge it\n\n  ' }
-    expect(processIntegrationFormDecision(form, options())).toMatchObject({
-      decision: { message: 'Merge it' },
-    })
-  })
-
-  it('refuses a commit with no one to make it as', () => {
-    const form = processIntegrationFormStart('squash', options({ identities: [] }))
-    expect(processIntegrationFormDecision(form, options({ identities: [] }))).toEqual({
-      problem: PROCESS_INTEGRATION_FORM_NO_IDENTITY,
-    })
-  })
-
-  it('refuses an identity that is not offered', () => {
-    const form = { ...processIntegrationFormStart('squash', options()), identityId: 'gone' }
-    expect(processIntegrationFormDecision(form, options())).toEqual({
-      problem: PROCESS_INTEGRATION_FORM_NO_IDENTITY,
-    })
-  })
-
-  it('refuses an empty message', () => {
-    const form = { ...processIntegrationFormStart('squash', options()), message: ' \n ' }
-    expect(processIntegrationFormDecision(form, options())).toEqual({
-      problem: PROCESS_INTEGRATION_FORM_NO_MESSAGE,
-    })
-  })
-
-  it('is a pull request as the chosen account with its words', () => {
-    const form = {
-      ...processIntegrationFormStart('pull-request', options()),
-      accountId: 'kamil',
-      prTitle: ' PDFs ',
-      prBody: 'Body\n',
-    }
-    expect(processIntegrationFormDecision(form, options())).toEqual({
-      decision: {
-        mode: 'pull-request',
-        credentialId: 'kamil',
-        pullRequest: { title: 'PDFs', body: 'Body' },
-      },
-    })
-  })
-
-  it('refuses a pull request with no account for the host', () => {
-    const form = processIntegrationFormStart('pull-request', options({ accounts: [] }))
-    expect(processIntegrationFormDecision(form, options({ accounts: [] }))).toEqual({
-      problem: PROCESS_INTEGRATION_FORM_NO_ACCOUNT,
-    })
-  })
-
-  it('refuses a pull request without a title', () => {
-    const form = { ...processIntegrationFormStart('pull-request', options()), prTitle: '  ' }
-    expect(processIntegrationFormDecision(form, options())).toEqual({
-      problem: PROCESS_INTEGRATION_FORM_NO_TITLE,
-    })
-  })
 })
 
 describe('processIntegrationFormPreview', () => {

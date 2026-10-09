@@ -34,6 +34,8 @@ import type {
   GetGitDiffResponses,
   GetGitStatusResponses,
   GitCommitData,
+  GitMergeBranchData,
+  GitMergeBranchResponses,
   GitPullData,
   GitPushData,
   GitResetData,
@@ -98,6 +100,11 @@ export type GitDiffFile = DiffEnvelope[number]
 // commit endpoint's request body (the body requires `message: string`,
 // the named type marks it optional). Keep the body alias.
 export type CommitInput = GitCommitData['body']
+
+/** Body of `gitMergeBranch` — the branch to merge into the current one, and how. */
+export type GitMergeBranchInput = GitMergeBranchData['body']
+/** What `gitMergeBranch` did — with how its result's build and type check went, when they ran. */
+export type GitMergeBranchResult = GitMergeBranchResponses[200]
 export type PushInput = GitPushData['body']
 export type PullInput = GitPullData['body']
 export type ResetInput = GitResetData['body']

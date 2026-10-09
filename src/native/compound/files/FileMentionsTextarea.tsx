@@ -172,7 +172,9 @@ const FileMentionsTextarea = forwardRef<FileMentionsTextareaHandle, FileMentions
             multiline
             autoFocus={autoFocus}
             selection={
-              pendingCursor !== null ? { start: pendingCursor, end: pendingCursor } : undefined
+              pendingCursor !== null
+                ? { start: pendingCursor, end: pendingCursor }
+                : textInputProps?.selection
             }
             style={[
               {

@@ -1,5 +1,9 @@
 import type { GetProviderConnectionResponse, TicketConnectionBinding } from '../api/generated'
-import { TICKET_ACCESS_LABELS } from './ticketConnectionConstants'
+import {
+  TICKET_ACCESS_LABELS,
+  TICKET_PICKER_INHERIT,
+  TICKET_PICKER_NONE,
+} from './ticketConnectionConstants'
 import type { EffectiveTicketBinding } from './ticketConnectionTypes'
 
 /** Jira project keys typed as free text ("eng, OPS"), upper-cased and de-duplicated. */
@@ -41,9 +45,35 @@ export function describeTicketBinding(
 export function readTicketConnection(value: unknown): TicketConnectionBinding | 'none' | undefined {
   if (value === 'none') return 'none'
   const binding = value as Partial<TicketConnectionBinding> | null | undefined
-  return typeof binding?.connectionId === 'string' && typeof binding.access === 'string'
+  return typeof binding?.connectionId === 'string' &&
+    binding.connectionId !== '' &&
+    typeof binding.access === 'string'
     ? (binding as TicketConnectionBinding)
     : undefined
+}
+
+/**
+ * What picking `chosen` in the Jira picker sets, or `undefined` when it is no
+ * choice: an empty value, or one naming no connection — Radix's hidden native
+ * select reports a value change as `''` when the picked option is not there yet.
+ */
+export function chooseTicketConnection(
+  chosen: string,
+  current: TicketConnectionBinding | 'none' | undefined,
+  options: { inherits: boolean; connectionIds: readonly string[] },
+): { value: TicketConnectionBinding | 'none' | undefined } | undefined {
+  if (chosen === TICKET_PICKER_INHERIT) return options.inherits ? { value: undefined } : undefined
+  if (chosen === TICKET_PICKER_NONE) return { value: options.inherits ? 'none' : undefined }
+  const own = current !== undefined && current !== 'none' ? current : undefined
+  if (own?.connectionId === chosen) return { value: own }
+  if (!options.connectionIds.includes(chosen)) return undefined
+  return {
+    value: {
+      connectionId: chosen,
+      access: own?.access ?? 'read',
+      ...(own?.projectKeys?.length ? { projectKeys: own.projectKeys } : {}),
+    },
+  }
 }
 
 /**

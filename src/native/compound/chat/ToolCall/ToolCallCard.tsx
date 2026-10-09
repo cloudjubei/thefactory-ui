@@ -1,4 +1,6 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { slowToolLabel } from '../../../../headless/utils/backgroundJobs'
+import { TOOL_SLOW_TICK_MS } from '../../../../headless/utils/backgroundJobsConstants'
 import { Pressable, Text, View } from 'react-native'
 import Code from '../../Code'
 import { Switch } from '../../../primitives/Switch'
@@ -8,7 +10,14 @@ import {
   toolArgDisplay,
   toolNotRunReason,
 } from '../../../../headless/utils/toolPreview'
-import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
+import type {
+  AlwaysAllowScope,
+  GrantCovers,
+  ToolCallLike,
+  ToolResultTypeLike,
+} from '../../../../headless/utils/chatTypes'
+import { alwaysAllowChoiceView } from '../../../../headless/utils/alwaysAllow'
+import AlwaysAllowControl from '../AlwaysAllowControl'
 import { nativePalette, nativeRadii, nativeSpace } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { StatusChip, StatusIcon, statusVisual } from './StatusIcon'
@@ -32,6 +41,8 @@ export type ToolCallCardProps = {
   result?: unknown
   resultType?: ToolResultTypeLike
   durationMs?: number
+  /** When the call was made — a running call says where it waits once it has run a while. */
+  startedAt?: string
   /** Optional pluggable result renderer — same registry contract as web. */
   renderResult?: (args: {
     toolCall: ToolCallLike
@@ -52,11 +63,17 @@ export type ToolCallCardProps = {
   /** Whether the toggle is on. */
   selected?: boolean
   onToggleSelect?: () => void
-  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
-  alwaysAllowed?: boolean
-  /** Mark or unmark "Always allow" — offered beside the toggle. */
-  onAlwaysAllow?: () => void
+  /** Where "Always allow" may apply for this call, the default first. Defaults to this chat only. */
+  alwaysAllowScopes?: readonly AlwaysAllowScope[]
+  /** What an always-allow of this call covers. Defaults to the whole tool. */
+  grantCovers?: GrantCovers
+  /** Marked "Always allow" in this place: the batch's Resume grants it there. */
+  alwaysAllowScope?: AlwaysAllowScope
+  /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
+  onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
 }
+
+const CHAT_ONLY: readonly AlwaysAllowScope[] = ['chat']
 
 function jsonString(v: unknown): string {
   return safePreviewString(v).text
@@ -72,17 +89,28 @@ function ToolCallCardInner({
   result,
   resultType,
   durationMs,
+  startedAt,
   renderResult,
   onPreview,
   selectable = false,
   selected = false,
   onToggleSelect,
-  alwaysAllowed = false,
+  alwaysAllowScopes = CHAT_ONLY,
+  grantCovers = 'tool',
+  alwaysAllowScope,
   onAlwaysAllow,
 }: ToolCallCardProps) {
   const { theme } = useNativeTheme()
   const [argsOpen, setArgsOpen] = useState(false)
   const [resultOpen, setResultOpen] = useState(false)
+  // A running call's row counts how long it has waited; nothing else re-renders
+  // a memoised card while its call is open.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (resultType !== 'running' || startedAt === undefined) return
+    const id = setInterval(() => setTick((t) => t + 1), TOOL_SLOW_TICK_MS)
+    return () => clearInterval(id)
+  }, [resultType, startedAt])
 
   const hasArgs = useMemo(() => {
     const a = toolCall.arguments
@@ -177,25 +205,27 @@ function ToolCallCardInner({
           resultType={resultType}
           timeLabel={timeLabel}
           awaitingDecision={toolCall.awaitingDecision === true}
+          slowLabel={
+            resultType === 'running'
+              ? slowToolLabel({
+                  ...(toolCall.origin !== undefined ? { origin: toolCall.origin } : {}),
+                  ...(startedAt !== undefined ? { startedAt } : {}),
+                  nowMs: Date.now(),
+                })
+              : undefined
+          }
         />
         {selectable && onAlwaysAllow ? (
-          <Pressable
-            onPress={onAlwaysAllow}
-            accessibilityRole="button"
-            accessibilityLabel={`Always allow ${toolCall.name}`}
-            accessibilityState={{ selected: alwaysAllowed }}
-            hitSlop={8}
-          >
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: alwaysAllowed ? '600' : '400',
-                color: alwaysAllowed ? nativePalette.green[600] : theme.text.secondary,
-              }}
-            >
-              {alwaysAllowed ? 'Always allowed ✓' : 'Always allow'}
-            </Text>
-          </Pressable>
+          <AlwaysAllowControl
+            view={alwaysAllowChoiceView({
+              scopes: alwaysAllowScopes,
+              toolName: toolCall.name,
+              covers: grantCovers,
+              ...(alwaysAllowScope ? { marked: alwaysAllowScope } : {}),
+            })}
+            toolName={toolCall.name}
+            onChoose={onAlwaysAllow}
+          />
         ) : null}
         {selectable ? (
           <Switch checked={selected} onCheckedChange={() => onToggleSelect?.()} />
@@ -218,6 +248,19 @@ function ToolCallCardInner({
       </View>
 
       {milestone ? <ToolRowMilestoneLine milestone={milestone} /> : null}
+
+      {toolCall.decisionNote ? (
+        <Text
+          style={{
+            paddingHorizontal: PAD,
+            paddingBottom: nativeSpace[2],
+            fontSize: 11,
+            color: theme.text.secondary,
+          }}
+        >
+          {toolCall.decisionNote}
+        </Text>
+      ) : null}
 
       {argsOpen && hasArgs ? (
         <View

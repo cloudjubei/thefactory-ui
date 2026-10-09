@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useGit } from '../../../../headless'
 import type { GitMergePlan, GitMergeReport, GitMergeResult } from '../../../../headless/api'
 import {
@@ -27,6 +27,8 @@ export type MergeDialogProps = {
    */
   baseRef?: string
   branch?: string
+  /** The merge commit as a chip (e.g. CommitChip); its short sha without it. */
+  renderCommitRef?: (sha: string) => ReactNode
 }
 
 type Stage =
@@ -67,7 +69,13 @@ const TAB_LABELS: Record<Tab, string> = {
   coverage: 'Coverage',
 }
 
-export default function MergeDialog({ isOpen, onClose, baseRef, branch }: MergeDialogProps) {
+export default function MergeDialog({
+  isOpen,
+  onClose,
+  baseRef,
+  branch,
+  renderCommitRef,
+}: MergeDialogProps) {
   const { planMerge, buildMergeReport, applyMerge } = useGit()
   const [stage, setStage] = useState<Stage>({ kind: 'configure' })
   const [error, setError] = useState<string | null>(null)
@@ -200,6 +208,7 @@ export default function MergeDialog({ isOpen, onClose, baseRef, branch }: MergeD
           <DoneStep
             result={stage.result}
             onClose={close}
+            renderCommitRef={renderCommitRef}
             onResolve={
               stage.result.conflicts && stage.result.conflicts.length > 0
                 ? () =>
@@ -556,10 +565,12 @@ function DoneStep({
   result,
   onClose,
   onResolve,
+  renderCommitRef,
 }: {
   result: GitMergeResult
   onClose: () => void
   onResolve?: () => void
+  renderCommitRef?: (sha: string) => ReactNode
 }) {
   const ok = result.ok
   const variant = ok ? 'info' : 'error'
@@ -574,7 +585,11 @@ function DoneStep({
           <>
             <dt className="opacity-60">Merge commit</dt>
             <dd>
-              <code className="text-xs">{result.mergeCommit.slice(0, 12)}</code>
+              {renderCommitRef ? (
+                renderCommitRef(result.mergeCommit)
+              ) : (
+                <code className="text-xs">{result.mergeCommit.slice(0, 12)}</code>
+              )}
             </dd>
           </>
         )}

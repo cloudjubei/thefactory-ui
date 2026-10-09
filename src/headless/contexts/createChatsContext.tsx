@@ -16,10 +16,10 @@ import {
   getCliAgentRun,
   listChatSummaries,
   restartChatWithCli,
-  resumeCompletion,
   sendChatWithCli,
   sendCompletionWithTools,
   updateChat,
+  uploadAnyChatAttachment,
   uploadChatAttachment,
 } from '../api'
 import type {
@@ -29,13 +29,11 @@ import type {
   GetChatsSettingsResponse,
   GetLlmConfigResponse,
   SendCompletionWithToolsData,
-  SendCompletionWithToolsResponse,
   UpdateChatData,
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { errorStatus } from '../api/errorMessage'
 import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
-import type { ProcessLaunchDecision } from 'thefactory-tools/types'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
 import { chatUpdateTarget, withChat, withFullRefresh } from '../utils/chatUpdates'
 import {
@@ -51,6 +49,10 @@ import { isRestartableChatTail } from '../utils/chatMessageRestart'
 import { lastMessageDeleteFromIndex } from '../utils/chatTurnDelete'
 import { chatCliRunnerToDispatchOptions, parseCliRunUpdateEvent } from '../utils/cliRunner'
 import { buildChatPromptVariables, interpolateChatSystemPrompt } from '../utils/promptInterpolate'
+import { ChatDraftStore } from '../utils/chatDraftStore'
+import { CHAT_TURN_LIMIT_START } from '../utils/chatTurnLimitConstants'
+import type { ChatDraft, ChatDraftListener } from '../utils/chatDraftTypes'
+import type { SyncKVStorage } from '../hooks/useStorageBackedState'
 import { useLLMConfigs } from './LLMConfigsContext'
 import { useStories } from './StoriesContext'
 import { useProjectsGroups } from './ProjectsGroupsContext'
@@ -60,22 +62,6 @@ type CompletionSettings = SendCompletionWithToolsData['body']['settings']
 export type ChatSettingsPatch = NonNullable<
   NonNullable<UpdateChatData['body']['patch']>['settings']
 >
-type ProposedToolCall = SendCompletionWithToolsResponse['results'][number]['toolCalls'][number]
-
-/**
- * Parameters captured from the in-flight `sendCompletionWithTools` so a
- * subsequent `resumeCompletion` can pick up where it left off. We persist
- * `settings` and `systemPrompt` here because the backend doesn't echo them
- * back; the user may grant tools minutes later and we must replay both
- * verbatim.
- */
-export type PendingToolConfirmation = {
-  toolCalls: ProposedToolCall[]
-  settings: CompletionSettings
-  systemPrompt?: string
-  context: ChatCtx
-}
-
 /**
  * Per-chat live state. One entry per active chat context; mutations are
  * scoped so a slow project-chat send doesn't bleed its `Thinking…` into the
@@ -84,7 +70,6 @@ export type PendingToolConfirmation = {
 export type ChatLiveState = {
   isSending: boolean
   pendingAssistant: { content: string; turn: number } | null
-  pendingToolConfirmation: PendingToolConfirmation | null
   sendError: Error | null
   /** Active CLI run id for this chat (from the `cli:run-update` stream); null when idle. Drives gated-action grants. */
   cliRunId: string | null
@@ -105,7 +90,6 @@ export type ChatLiveState = {
 const EMPTY_LIVE_STATE: ChatLiveState = {
   isSending: false,
   pendingAssistant: null,
-  pendingToolConfirmation: null,
   sendError: null,
   cliRunId: null,
   cliModel: null,
@@ -114,10 +98,10 @@ const EMPTY_LIVE_STATE: ChatLiveState = {
 }
 
 const FALLBACK_COMPLETION_SETTINGS: CompletionSettings = {
-  maxTurns: 5,
+  limitTurns: false,
+  maxTurns: CHAT_TURN_LIMIT_START,
   numberMessagesToSend: 30,
   availableTools: [],
-  autoCallTools: [],
   forceFinishTools: [],
   finishTurnOnErrors: true,
   allowNoCallResponses: true,
@@ -153,13 +137,22 @@ export type ChatsContextValue = {
   getChatLiveState: (ctx: ChatCtx) => ChatLiveState
 
   /**
-   * Per-chat in-memory draft text. Drafts survive context switches inside
-   * a session but are intentionally not persisted — mirrors `overseer-local`'s
-   * `useChatDrafts`. Read at the point you need the value (e.g. on chat open).
+   * Per-chat draft text — the text part of {@link getDraftState}. Read at the
+   * point you need the value (e.g. on chat open). `clearDraft` empties the
+   * composer (text and attachments) and leaves the pending queue.
    */
   getDraft: (ctx: ChatCtx) => string
   setDraft: (ctx: ChatCtx, text: string) => void
   clearDraft: (ctx: ChatCtx) => void
+  /**
+   * The chat's whole unsent draft: composer text, attachment chips and the
+   * pending queue. Kept in the provider's `draftStorage` when one is given, so
+   * it survives a reload or a crash.
+   */
+  getDraftState: (ctx: ChatCtx) => ChatDraft
+  updateDraftState: (ctx: ChatCtx, update: (prev: ChatDraft) => ChatDraft) => void
+  /** Listen for changes to one chat's draft. Returns the unsubscribe. */
+  subscribeDraft: (ctx: ChatCtx, listener: ChatDraftListener) => () => void
 
   /**
    * Send a message in the given chat context. Persists the user message
@@ -170,8 +163,12 @@ export type ChatsContextValue = {
    * `attachments` are the project-relative paths {@link uploadAttachment}
    * returned; they ride on the user message's `files` field, and the agent is
    * told their paths to read when it needs them — never their contents.
+   *
+   * Resolves `true` once the user message reached the server (a failure after
+   * that still lands as `sendError`), `false` when it did not — the caller then
+   * puts the text back.
    */
-  sendMessage: (ctx: ChatCtx, content: string, attachments?: string[]) => Promise<void>
+  sendMessage: (ctx: ChatCtx, content: string, attachments?: string[]) => Promise<boolean>
   /**
    * Re-trigger the agent on the chat as it already stands, WITHOUT appending a
    * copy of the user's message. Offered when a turn ended without a reply and
@@ -186,20 +183,6 @@ export type ChatsContextValue = {
    * send route.
    */
   restartLastTurn: (ctx: ChatCtx) => Promise<void>
-  /**
-   * Resume the in-flight completion for `ctx`, granting the listed
-   * tool-call ids. Tools not in `grantedToolCallIds` come back as
-   * `not_allowed`. Pass `[]` to deny everything. `launchDecisions` carries,
-   * by granted tool-call id, what the person chose on a story launch — how to
-   * start it over its open work, how its features are worked.
-   */
-  confirmTools: (
-    ctx: ChatCtx,
-    grantedToolCallIds: string[],
-    launchDecisions?: Record<string, ProcessLaunchDecision>,
-  ) => Promise<void>
-  /** Drop the pending tool confirmation for `ctx` without resuming. */
-  cancelToolConfirmation: (ctx: ChatCtx) => void
   /** Clear all messages in the chat — keeps the chat record itself. Mirrors
    * desktop's `restartChat`. */
   clearChat: (ctx: ChatCtx) => Promise<void>
@@ -221,11 +204,12 @@ export type ChatsContextValue = {
    * affordance. */
   deleteLastMessage: (ctx: ChatCtx) => Promise<void>
   /**
-   * Keep a file attached to a project chat in the project's attachment store,
-   * for the chat's agent to read when it needs it. The bytes go base64-encoded,
-   * so a binary file arrives intact. Resolves to the path to send in the
-   * message's `attachments`. The store is temporary: it goes with the chat, or
-   * after 30 days unused.
+   * Keep a file attached to a chat in its attachment store — a project chat's
+   * in its project, a group chat's in its group workspace, the general chat's in
+   * the global chat workspace — for the chat's agent to read when it needs it.
+   * The bytes go base64-encoded, so a binary file arrives intact. Resolves to
+   * the path to send in the message's `attachments`. The store is temporary: it
+   * goes with the chat, or after 30 days unused.
    */
   uploadAttachment: (ctx: ChatCtx, name: string, contentBase64: string) => Promise<string>
   /**
@@ -263,6 +247,12 @@ export type ChatsContextValue = {
    */
   getEffectiveChatSettings: (ctx: ChatCtx) => ChatSettingsPatch
   /**
+   * The chat type's own settings — what a chat of this type starts with and
+   * what "Reset to defaults" puts back — loaded from `getChatsSettings`, with
+   * the same safe fallback as {@link getEffectiveChatSettings}.
+   */
+  getChatTypeSettings: (ctx: ChatCtx) => ChatSettingsPatch
+  /**
    * Persist a settings patch on a chat. The backend stores them on the chat
    * itself; subsequent sends pick them up via `getChatsSettings`. The chat
    * must already exist server-side (typically true after the first message).
@@ -295,6 +285,18 @@ export type CreateChatsContextDeps = {
   }
 }
 
+export type ChatsProviderProps = {
+  children: ReactNode
+  /** Where unsent drafts survive a reload or a crash (web: localStorage; native: MMKV). Omit to keep them in memory. */
+  draftStorage?: SyncKVStorage
+  /**
+   * Calls `flush` when the app is being hidden or closed (`pagehide` on web,
+   * AppState `background` on native), so a debounced draft write is not lost.
+   * Returns the unsubscribe.
+   */
+  subscribeAppHidden?: (flush: () => void) => () => void
+}
+
 // Coalesce a burst of settings toggles into one backend write.
 const SETTINGS_PERSIST_DEBOUNCE_MS = 300
 // While the settings surface is blocked (a persist failed), retry on this cadence
@@ -319,17 +321,6 @@ function buildUserMessage(content: string, files?: string[]): ChatMessage {
 
 function sameContext(a: ChatCtx, b: ChatCtx): boolean {
   return getChatContextKey(a) === getChatContextKey(b)
-}
-
-/**
- * Collect tool calls that need user grant from the latest turn of a
- * `CompletionResponseTurns` whose `resultType` is `require_confirmation`.
- * Returns the proposed `toolCalls` from the trailing turn — these carry the
- * `toolCallId`s the resume call's `toolsGranted` array references.
- */
-function collectProposedToolCalls(result: SendCompletionWithToolsResponse): ProposedToolCall[] {
-  const lastTurn = result.results[result.results.length - 1]
-  return lastTurn?.toolCalls ?? []
 }
 
 /**
@@ -360,13 +351,13 @@ function healChatContexts<T extends { context: GetChatResponse['context'] }>(cha
  * hooks (`useLLMConfigs`, `useActiveProject`).
  */
 export function createChatsContext(deps: CreateChatsContextDeps): {
-  ChatsProvider: (props: { children: ReactNode }) => JSX.Element
+  ChatsProvider: (props: ChatsProviderProps) => JSX.Element
   useChats: () => ChatsContextValue
 } {
   const { useLLMConfigs, useActiveProject } = deps
   const ChatsContext = createContext<ChatsContextValue | null>(null)
 
-  function ChatsProvider({ children }: { children: ReactNode }) {
+  function ChatsProvider({ children, draftStorage, subscribeAppHidden }: ChatsProviderProps) {
     const { ws, wsState } = useApi()
     const { token } = useAuth()
     const { projectId, project } = useActiveProject()
@@ -408,13 +399,15 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const [settingsBlocked, setSettingsBlocked] = useState(false)
 
     /**
-     * Tracks the chat context that currently has a `sendCompletionWithTools` /
-     * `resumeCompletion` in flight, so the global `completion:progress` WS
+     * Tracks the chat context that currently has a `sendCompletionWithTools`
+     * in flight, so the global `completion:progress` WS
      * stream can be routed back to the right per-chat `pendingAssistant`. The
      * backend's progress payload doesn't echo the chatContext today, so this
      * ref is the only way to disambiguate when multiple chats are visible.
      */
     const inFlightCtxRef = useRef<ChatCtx | null>(null)
+    // Per chat, the number of the latest `sendMessage` — see the guard there.
+    const sendSeqRef = useRef<Map<string, number>>(new Map())
     // CLI runs are dispatched fast (the route returns the runId and detaches),
     // so a run keeps streaming `cli:run-update` after `sendMessage` resolves —
     // past the lifetime of the single `inFlightCtxRef`. Map each live runId to
@@ -436,19 +429,49 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     // resync any run whose terminal event was lost while the socket was down.
     const prevWsStateRef = useRef(wsState)
 
-    // Per-chat draft text. Ref-based (no re-render on draft change) so a
-    // sibling that doesn't read this chat's draft doesn't churn. Matches
-    // `overseer-local`'s `useChatDrafts`.
-    const draftsRef = useRef<Record<string, string>>({})
-    const getDraft = useCallback((ctx: ChatCtx): string => {
-      return draftsRef.current[getChatContextKey(ctx)] ?? ''
-    }, [])
-    const setDraft = useCallback((ctx: ChatCtx, text: string) => {
-      draftsRef.current[getChatContextKey(ctx)] = text
-    }, [])
-    const clearDraft = useCallback((ctx: ChatCtx) => {
-      delete draftsRef.current[getChatContextKey(ctx)]
-    }, [])
+    // Per-chat drafts. Held outside React state (no re-render on a keystroke)
+    // so a sibling that doesn't read this chat's draft doesn't churn; a chat's
+    // own composer subscribes to its key.
+    const draftStore = useMemo(() => new ChatDraftStore({ storage: draftStorage }), [draftStorage])
+    useEffect(() => () => draftStore.dispose(), [draftStore])
+    useEffect(
+      () => subscribeAppHidden?.(() => draftStore.flush()),
+      [draftStore, subscribeAppHidden],
+    )
+    const getDraftState = useCallback(
+      (ctx: ChatCtx): ChatDraft => draftStore.get(getChatContextKey(ctx)),
+      [draftStore],
+    )
+    const updateDraftState = useCallback(
+      (ctx: ChatCtx, update: (prev: ChatDraft) => ChatDraft) =>
+        draftStore.update(getChatContextKey(ctx), update),
+      [draftStore],
+    )
+    const subscribeDraft = useCallback(
+      (ctx: ChatCtx, listener: ChatDraftListener) =>
+        draftStore.subscribe(getChatContextKey(ctx), listener),
+      [draftStore],
+    )
+    const getDraft = useCallback(
+      (ctx: ChatCtx): string => draftStore.get(getChatContextKey(ctx)).text,
+      [draftStore],
+    )
+    const setDraft = useCallback(
+      (ctx: ChatCtx, text: string) =>
+        draftStore.update(getChatContextKey(ctx), (prev) =>
+          prev.text === text ? prev : { ...prev, text },
+        ),
+      [draftStore],
+    )
+    const clearDraft = useCallback(
+      (ctx: ChatCtx) =>
+        draftStore.update(getChatContextKey(ctx), (prev) =>
+          prev.text === '' && prev.attachments.length === 0
+            ? prev
+            : { ...prev, text: '', attachments: [] },
+        ),
+      [draftStore],
+    )
 
     const updateLiveState = useCallback((ctx: ChatCtx, patch: Partial<ChatLiveState>) => {
       const key = getChatContextKey(ctx)
@@ -900,11 +923,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     /**
      * Build the per-context settings + system prompt forwarded to
-     * send-with-tools (and reused for the resume request). The chat's own
-     * `completionSettings` — including the user's `autoCallTools` selection from
-     * the settings dropdown — always wins when present. Tools listed in
-     * `autoCallTools` execute without prompting; every other proposed tool still
-     * surfaces as `require_confirmation`.
+     * send-with-tools — the server keeps them with the turn, so the turn goes on
+     * with them once its asks are decided. The chat's own `completionSettings` —
+     * including its one approval switch (`toolApprovalMode`) from the settings
+     * dropdown — always wins when present. Which calls ask is the server's one
+     * policy, the same for an API chat as for a CLI chat.
      */
     const buildToolSettings = useCallback(
       (context: ChatCtx): { settings: CompletionSettings; systemPrompt?: string } => {
@@ -965,16 +988,22 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     )
 
     const sendMessage = useCallback(
-      async (ctx: ChatCtx, content: string, attachments?: string[]) => {
+      async (ctx: ChatCtx, content: string, attachments?: string[]): Promise<boolean> => {
         if (!activeLLMConfig) throw new Error('Configure an LLM before sending messages')
         const trimmed = content.trim()
-        if (trimmed.length === 0 && (!attachments || attachments.length === 0)) return
+        if (trimmed.length === 0 && (!attachments || attachments.length === 0)) return false
 
+        // A send made while an earlier one is still out (a queued message sent
+        // now) owns the chat's live state from here: the earlier call's cleanup
+        // must not clear the spinner of the turn that replaced it.
+        const sendKey = getChatContextKey(ctx)
+        const sendSeq = (sendSeqRef.current.get(sendKey) ?? 0) + 1
+        sendSeqRef.current.set(sendKey, sendSeq)
+        let delivered = false
         updateLiveState(ctx, {
           isSending: true,
           sendError: null,
           pendingAssistant: null,
-          pendingToolConfirmation: null,
         })
         inFlightCtxRef.current = ctx
         // Set when the send dispatches a CLI run that keeps streaming after this
@@ -1026,16 +1055,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             // terminal event clears it — `detachedCli` keeps the finally below
             // from prematurely clearing the live state.
             detachedCli = true
+            delivered = true
             registerDetachedCliRun(ctx, data?.runId)
             // Reconcile the optimistic user message with the persisted copy.
             await reloadChat(ctx)
-            return
+            return delivered
           }
 
           // Optimistically show the user's message immediately (mirrors the CLI
           // path) so the list never flashes empty / the system-prompt bubble in
           // the window before the persisted copy is pulled in by `reloadChat`.
-          const priorMessages = (await ensureChatLoaded(ctx)).messages ?? []
+          await ensureChatLoaded(ctx)
           setChats((prev) =>
             prev.map((c) =>
               sameContext(c.context, ctx) ? withAppendedMessage(c, userMessage) : c,
@@ -1046,13 +1076,13 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             body: { context: ctx, messages: [userMessage] },
             throwOnError: true,
           })
+          delivered = true
 
-          const { data: result } = await sendCompletionWithTools({
+          await sendCompletionWithTools({
             body: {
               request: {
                 chatContext: ctx,
                 llmConfig: activeLLMConfig,
-                messages: [...priorMessages, userMessage],
                 ...(systemPrompt ? { systemPrompt } : {}),
               },
               settings,
@@ -1060,28 +1090,18 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             throwOnError: true,
           })
 
-          if (result.resultType === 'require_confirmation') {
-            const proposed = collectProposedToolCalls(result)
-            if (proposed.length > 0) {
-              updateLiveState(ctx, {
-                pendingToolConfirmation: {
-                  toolCalls: proposed,
-                  settings,
-                  systemPrompt,
-                  context: ctx,
-                },
-              })
-            }
-          }
           await reloadChat(ctx)
+          return delivered
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[chat] send failed:', err)
           updateLiveState(ctx, {
             sendError: err instanceof Error ? err : new Error(String(err)),
           })
+          return delivered
         } finally {
-          if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
+          const superseded = sendSeqRef.current.get(sendKey) !== sendSeq
+          if (!superseded && inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
             inFlightCtxRef.current = null
           }
           // A detached CLI run is still streaming — leave isSending / cliRunId /
@@ -1093,7 +1113,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           // request, so a start failure would otherwise strand the tag on the chat
           // — and every later API turn would render "Preparing <that CLI>…" while
           // no CLI is involved at all.
-          if (!detachedCli) {
+          if (!detachedCli && !superseded) {
             updateLiveState(ctx, {
               isSending: false,
               pendingAssistant: null,
@@ -1132,7 +1152,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           isSending: true,
           sendError: null,
           pendingAssistant: null,
-          pendingToolConfirmation: null,
         })
         inFlightCtxRef.current = ctx
         let detachedCli = false
@@ -1166,12 +1185,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             return
           }
 
-          const { data: result } = await sendCompletionWithTools({
+          await sendCompletionWithTools({
             body: {
               request: {
                 chatContext: ctx,
                 llmConfig: activeLLMConfig,
-                messages,
                 ...(systemPrompt ? { systemPrompt } : {}),
               },
               settings,
@@ -1179,19 +1197,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             throwOnError: true,
           })
 
-          if (result.resultType === 'require_confirmation') {
-            const proposed = collectProposedToolCalls(result)
-            if (proposed.length > 0) {
-              updateLiveState(ctx, {
-                pendingToolConfirmation: {
-                  toolCalls: proposed,
-                  settings,
-                  systemPrompt,
-                  context: ctx,
-                },
-              })
-            }
-          }
           await reloadChat(ctx)
         } catch (err) {
           // eslint-disable-next-line no-console
@@ -1223,82 +1228,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         registerDetachedCliRun,
         updateLiveState,
       ],
-    )
-
-    const confirmTools = useCallback(
-      async (
-        ctx: ChatCtx,
-        grantedToolCallIds: string[],
-        launchDecisions?: Record<string, ProcessLaunchDecision>,
-      ) => {
-        // The send that proposed these calls is only remembered by the page that
-        // made it. After a reload, a chat switch or another device, the calls are
-        // still waiting in the stored chat, so resume from that with the chat's
-        // own settings — a footer that shows Resume must never do nothing.
-        const pending = getChatLiveState(ctx).pendingToolConfirmation ?? {
-          toolCalls: [],
-          context: ctx,
-          ...buildToolSettings(ctx),
-        }
-
-        updateLiveState(ctx, {
-          isSending: true,
-          sendError: null,
-          pendingAssistant: null,
-        })
-        inFlightCtxRef.current = ctx
-        try {
-          if (!activeLLMConfig) throw new Error('Configure an LLM before resuming')
-          // The backend resumes on the conversation in its chat store — the
-          // trailing tool calls being granted are there. Uploading the chat
-          // here hit the request size limit once a chat held large tool results.
-          const { data: result } = await resumeCompletion({
-            body: {
-              request: {
-                chatContext: pending.context,
-                llmConfig: activeLLMConfig,
-                ...(pending.systemPrompt ? { systemPrompt: pending.systemPrompt } : {}),
-              },
-              settings: pending.settings,
-              toolsGranted: grantedToolCallIds,
-              ...(launchDecisions && Object.keys(launchDecisions).length > 0
-                ? { launchDecisions }
-                : {}),
-            },
-            throwOnError: true,
-          })
-
-          if (result.resultType === 'require_confirmation') {
-            const proposed = collectProposedToolCalls(result)
-            updateLiveState(ctx, {
-              pendingToolConfirmation:
-                proposed.length > 0 ? { ...pending, toolCalls: proposed } : null,
-            })
-          } else {
-            updateLiveState(ctx, { pendingToolConfirmation: null })
-          }
-          await reloadChat(ctx)
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error('[chat] send failed:', err)
-          updateLiveState(ctx, {
-            sendError: err instanceof Error ? err : new Error(String(err)),
-          })
-        } finally {
-          if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
-            inFlightCtxRef.current = null
-          }
-          updateLiveState(ctx, { isSending: false, pendingAssistant: null })
-        }
-      },
-      [activeLLMConfig, buildToolSettings, getChatLiveState, reloadChat, updateLiveState],
-    )
-
-    const cancelToolConfirmation = useCallback(
-      (ctx: ChatCtx) => {
-        updateLiveState(ctx, { pendingToolConfirmation: null })
-      },
-      [updateLiveState],
     )
 
     const abortChat = useCallback(
@@ -1368,7 +1297,6 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           cliModel: null,
           cliStartedAt: null,
           sendError: null,
-          pendingToolConfirmation: null,
         })
         await clearChatApi({ body: { context: ctx }, throwOnError: true })
         await reloadChat(ctx)
@@ -1410,12 +1338,14 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     const uploadAttachment = useCallback(
       async (ctx: ChatCtx, name: string, contentBase64: string): Promise<string> => {
-        if (!ctx.projectId) throw new Error('Files can be attached in a project’s chats only.')
-        const { data } = await uploadChatAttachment({
-          path: { projectId: ctx.projectId },
-          body: { context: ctx, name, contentBase64 },
-          throwOnError: true,
-        })
+        const body = { context: ctx, name, contentBase64 }
+        const { data } = ctx.projectId
+          ? await uploadChatAttachment({
+              path: { projectId: ctx.projectId },
+              body,
+              throwOnError: true,
+            })
+          : await uploadAnyChatAttachment({ body, throwOnError: true })
         return data.path
       },
       [],
@@ -1464,6 +1394,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [refresh, updateLiveState],
     )
 
+    const getChatTypeSettings = useCallback(
+      (ctx: ChatCtx): ChatSettingsPatch => {
+        const entry = chatSettings?.[ctx.type]
+        return {
+          systemPrompt: entry?.systemPrompt ?? '',
+          completionSettings: entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS,
+        }
+      },
+      [chatSettings],
+    )
+
     const getEffectiveChatSettings = useCallback(
       (ctx: ChatCtx): ChatSettingsPatch => {
         const key = getChatContextKey(ctx)
@@ -1471,13 +1412,9 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         if (pending) return pending
         const chat = chats.find((c) => sameContext(c.context, ctx))
         if (chat?.settings) return chat.settings
-        const entry = chatSettings?.[ctx.type]
-        return {
-          systemPrompt: entry?.systemPrompt ?? '',
-          completionSettings: entry?.completionSettings ?? FALLBACK_COMPLETION_SETTINGS,
-        }
+        return getChatTypeSettings(ctx)
       },
-      [chats, chatSettings, pendingSettingsByKey],
+      [chats, getChatTypeSettings, pendingSettingsByKey],
     )
 
     // Persist the latest overlay value for one key. Runs in the background (never
@@ -1585,10 +1522,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         getDraft,
         setDraft,
         clearDraft,
+        getDraftState,
+        updateDraftState,
+        subscribeDraft,
         sendMessage,
         restartLastTurn,
-        confirmTools,
-        cancelToolConfirmation,
         abortChat,
         clearChat,
         archiveChat,
@@ -1599,6 +1537,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,
+        getChatTypeSettings,
         updateChatSettings,
         settingsBlocked,
         refresh,
@@ -1615,10 +1554,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         getDraft,
         setDraft,
         clearDraft,
+        getDraftState,
+        updateDraftState,
+        subscribeDraft,
         sendMessage,
         restartLastTurn,
-        confirmTools,
-        cancelToolConfirmation,
         abortChat,
         clearChat,
         archiveChat,
@@ -1629,6 +1569,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         createProjectTopic,
         createGroupTopic,
         getEffectiveChatSettings,
+        getChatTypeSettings,
         updateChatSettings,
         settingsBlocked,
         refresh,

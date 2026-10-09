@@ -32,10 +32,10 @@ export type AgentType = StartAgentRunData['body']['params']['agentType']
 export const AGENT_TYPES: readonly AgentType[] = ['developer'] as const
 
 const DEFAULT_AGENT_SETTINGS: StartAgentRunData['body']['settings'] = {
+  limitTurns: true,
   maxTurns: 50,
   numberMessagesToSend: 30,
   availableTools: [],
-  autoCallTools: [],
   forceFinishTools: [],
   finishTurnOnErrors: true,
   allowNoCallResponses: true,

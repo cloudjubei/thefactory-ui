@@ -10,6 +10,7 @@ import {
   isProcessRunAwaitingIntegration,
   processGroupLegIntegrationModes,
   processIntegrationConflictResolution,
+  processIntegrationModesOffered,
 } from 'thefactory-tools/utils'
 import {
   PROCESS_INTEGRATION_BADGE,
@@ -19,6 +20,7 @@ import {
   PROCESS_INTEGRATION_PR_LINK,
   PROCESS_INTEGRATION_SHADOW,
 } from './processIntegrationConstants'
+import { PROCESS_INTEGRATION_CHECK_MERGE } from './processIntegrationFormConstants'
 import type { ProcessIntegrationChoice, ProcessIntegrationView } from './processIntegrationTypes'
 import type { ProcessStatusTone } from './processView'
 
@@ -31,8 +33,8 @@ export function processIntegrationChoices(
   workBranch: Pick<ProcessWorkBranch, 'name' | 'baseRef' | 'shadow'>,
   modes?: readonly ProcessIntegrationMode[],
 ): ProcessIntegrationChoice[] {
-  const choices = integrationChoicesOf(workBranch)
-  return modes ? choices.filter((c) => modes.includes(c.mode)) : choices
+  const offered = processIntegrationModesOffered(workBranch, modes)
+  return integrationChoicesOf(workBranch).filter((c) => offered.includes(c.mode))
 }
 
 function integrationChoicesOf(
@@ -117,8 +119,6 @@ const MODE_FAILED: Record<ProcessIntegrationMode, (baseRef: string) => string> =
   'pull-request': () => 'Approved — the pull request was not opened',
 }
 
-const short = (sha: string | undefined) => (sha ? sha.slice(0, 7) : undefined)
-
 /**
  * What bringing a root run's approved work in came to: happening, landed (the
  * merged commit, or the pull request to open), or not landed — with the reason
@@ -142,11 +142,15 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
         }
       : undefined
   }
-  const sha = short(integration.sha)
+  const sha = integration.sha
+  const checks = integration.checks ? { checks: integration.checks } : {}
   if (integration.status === 'integrating') {
     return {
       tone: 'working',
       title: MODE_BUSY[integration.mode](workBranch),
+      ...(integration.landing?.checkMerge
+        ? { detail: PROCESS_INTEGRATION_CHECK_MERGE.busy(workBranch.baseRef) }
+        : {}),
       canRetry: false,
       busy: true,
     }
@@ -156,6 +160,7 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
       tone: 'stuck',
       title: MODE_FAILED[integration.mode](workBranch.baseRef),
       ...(integration.error ? { detail: integration.error } : {}),
+      ...checks,
       ...(integration.conflict
         ? {
             conflict: {
@@ -176,6 +181,7 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
       tone: 'done',
       title: MODE_DONE[integration.mode](workBranch.baseRef),
       ...(sha ? { sha } : {}),
+      ...checks,
       canRetry: false,
       busy: false,
     }
@@ -228,7 +234,7 @@ function conflictResolutionView(run: ProcessRun): ProcessIntegrationView | undef
     }
   }
   if (run.park?.reason !== 'gate' || run.park.stepId !== resolution.gateStepId) return undefined
-  const sha = short(resolution.mergeSha)
+  const sha = resolution.checks?.checkedSha ?? resolution.mergeSha
   return {
     tone: 'review',
     title: PROCESS_INTEGRATION_CONFLICT.resolved(baseRef),

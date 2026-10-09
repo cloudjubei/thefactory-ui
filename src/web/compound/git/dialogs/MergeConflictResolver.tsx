@@ -11,6 +11,8 @@ export type MergeConflictResolverProps = {
   baseRef: string
   branch: string
   conflicts: GitConflictEntry[]
+  /** The conflicted file to open first; defaults to the first one. */
+  initialPath?: string
 }
 
 type SegmentText = { type: 'text'; text: string }
@@ -103,11 +105,14 @@ export default function MergeConflictResolver({
   baseRef,
   branch,
   conflicts,
+  initialPath,
 }: MergeConflictResolverProps) {
   const { projectId } = useActiveProject()
-  const { stage, commit, push, resetAll, getFileContent } = useGit()
+  const { stage, commit, push, resetAll, abortMerge, getFileContent, status } = useGit()
+  const mergeMessage = status?.merging?.message
+  const firstPath = initialPath ?? conflicts[0]?.path ?? null
 
-  const [selected, setSelected] = useState<string | null>(conflicts[0]?.path || null)
+  const [selected, setSelected] = useState<string | null>(firstPath)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -196,12 +201,16 @@ export default function MergeConflictResolver({
   // Reset state whenever the modal reopens with a new conflict set.
   useEffect(() => {
     if (!isOpen) return
-    setSelected(conflicts[0]?.path || null)
+    setSelected(firstPath)
     originalByPathRef.current = {}
     setResolvedMap({})
     setError(null)
     setDirty(false)
-  }, [isOpen, conflicts])
+  }, [isOpen, conflicts, firstPath])
+
+  useEffect(() => {
+    if (isOpen && mergeMessage) setFinalizeMsg(mergeMessage)
+  }, [isOpen, mergeMessage])
 
   useEffect(() => {
     if (isOpen) void loadFile(selected)
@@ -294,7 +303,8 @@ export default function MergeConflictResolver({
     setAborting(true)
     setError(null)
     try {
-      await resetAll()
+      if (status?.merging) await abortMerge()
+      else await resetAll()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to abort merge')

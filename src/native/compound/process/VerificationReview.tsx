@@ -73,6 +73,7 @@ export default function VerificationReview({
   return (
     <View style={{ gap: 10, padding: 12 }}>
       <FeatureReviewSection
+        projectId={projectId}
         kind="overall"
         badge={{ label: 'VERIFY', tone: status.tone }}
         title={title}

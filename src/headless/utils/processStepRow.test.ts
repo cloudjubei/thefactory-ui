@@ -39,6 +39,31 @@ const state = (
 }
 
 describe('processStepRowView', () => {
+  it('says a step whose Try again ran the checks first so, whole — not its old failure', () => {
+    const view = processStepRowView(
+      state(
+        {},
+        {
+          outcome: 'errored',
+          attempts: 9,
+          latest: entry({
+            outcome: 'errored',
+            summary: 'Agent run finished: aborted.',
+            runRef: { runId: 'r', runner: 'cli' },
+          }),
+          rechecked: { stepId: 'checks', checkedSha: '597e5bd94b535a943a59024b11ad' },
+        },
+      ),
+      undefined,
+    )
+    expect(view).toMatchObject({
+      inert: false,
+      result: 'Try again ran the checks first — branch changed (597e5bd9)',
+      waitingOnYou: false,
+      expandable: true,
+    })
+  })
+
   it('says a code review by its verdict and reason', () => {
     const view = processStepRowView(
       state(
@@ -180,6 +205,44 @@ describe('processStepRowView', () => {
     expect(kind({ kind: 'process' })).toBe('none')
     expect(kind({ kind: 'agent' }, entry({ runRef: { runId: 'r' } }))).toBe('attempt')
     expect(kind({ kind: 'agent' })).toBe('none')
+  })
+
+  describe('a story run’s sign-off', () => {
+    const decided = entry({
+      stepId: 'sign-off',
+      override: { choice: 'approve', at: 3000, integration: 'squash' },
+    })
+    const gate = (latest: ProcessLedgerEntry, overrides: Partial<ProcessStepState> = {}) =>
+      state({ id: 'sign-off', name: 'Sign-off', kind: 'gate' }, { latest, ...overrides })
+    const storyRun = { storyId: 'story-1' }
+
+    it('opens to its decision once its latest attempt was decided', () => {
+      expect(processStepRowView(gate(decided), undefined, storyRun)).toMatchObject({
+        expandable: true,
+        preview: 'signoff',
+      })
+    })
+
+    it('stays shut while its latest attempt waits on the person', () => {
+      const waiting = entry({ id: 'e2', stepId: 'sign-off', status: 'running', outcome: undefined })
+      const view = processStepRowView(
+        gate(waiting, { entries: [decided, waiting], status: 'running' }),
+        'sign-off',
+        storyRun,
+      )
+      expect(view).toMatchObject({ expandable: false, preview: 'none' })
+    })
+
+    it('is not a sign-off on a run without a story', () => {
+      expect(processStepRowView(gate(decided), undefined, {}).preview).toBe('none')
+      expect(processStepRowView(gate(decided), undefined).preview).toBe('none')
+    })
+
+    it('is not a sign-off on a nested run — its parent signs the story off', () => {
+      expect(
+        processStepRowView(gate(decided), undefined, { ...storyRun, parentRunId: 'root' }).preview,
+      ).toBe('none')
+    })
   })
 
   it('has nothing to say of a done step with no summary', () => {

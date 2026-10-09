@@ -6,6 +6,7 @@ import type { ChatMessageLike } from '../../../../headless/utils/chatTypes'
 import { describeSubagentSteps } from '../../../../headless/utils/cliRunActivity'
 import ToolCallCard, { type ToolCallCardProps } from './ToolCallCard'
 import type { ToolCall } from './types'
+import { backgroundJobAnchorOf } from '../../../../headless/utils/backgroundJobs'
 
 export type SubagentStepsProps = {
   messages: ChatMessageLike[]
@@ -43,12 +44,17 @@ function SubagentSteps({
         <div className="flex flex-col gap-1 pb-1">
           {messages.map((m, i) =>
             m.role === 'tool' && m.toolCall ? (
-              <div key={`${String(m.toolCall.toolCallId)}-${i}`} className="flex flex-col gap-1">
+              <div
+                key={`${String(m.toolCall.toolCallId)}-${i}`}
+                id={backgroundJobAnchorOf(m.toolResult?.result)}
+                className="flex flex-col gap-1"
+              >
                 <ToolCallCard
                   toolCall={m.toolCall}
                   result={m.toolResult?.result}
                   resultType={m.toolResult?.type}
                   durationMs={m.toolResult?.durationMs ?? m.durationMs}
+                  {...(m.startedAt !== undefined ? { startedAt: m.startedAt } : {})}
                   renderResult={renderResult}
                   headerPath={getToolHeaderPath?.(m.toolCall)}
                 />

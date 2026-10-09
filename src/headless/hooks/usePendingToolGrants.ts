@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getChatContextKey } from 'thefactory-tools/utils'
-import type { ProcessLaunchDecision } from 'thefactory-tools/types'
 import {
   cancelCliAgentAction,
   decideCliAgentAction,
+  getChatTurn,
   listCliAgentRunSummaries,
   listPendingCliAgentActions,
   type ChatContext,
@@ -11,22 +11,24 @@ import {
   type PendingAction,
 } from '../api/generated'
 import { useApi } from '../api'
-import { useChats } from '../contexts/createChatsContext'
 import { pendingChatActionsCache } from './chatAsksCache'
-import type { PendingToolGrant, PendingToolGrantDecision } from '../utils/chatTypes'
+import type {
+  PendingToolGrant,
+  PendingToolGrantDecision,
+  PendingToolGrantDecisionVia,
+} from '../utils/chatTypes'
 import {
-  apiToolCallToGrant,
-  launchDecisionOf,
   cliDecideOutcome,
   cliPendingActionToGrant,
   isCliActionUpdateEvent,
+  chatTurnActivity,
   isCliRunLifecycleEvent,
   isToolGrantAction,
   pickActiveCliRunId,
   pickActiveStoryRunId,
-  storedToolCallsAwaitingConfirmation,
 } from '../utils/pendingToolGrants'
 import { answerDecision, declineDecision, isQuestionAction } from '../utils/agentQuestions'
+import { decisionGrantScope } from '../utils/alwaysAllow'
 import { declineRemedyDecision, remedyChoiceDecision } from '../utils/agentRemedy'
 import type { AgentRemedyDecision } from '../utils/agentRemedyTypes'
 
@@ -38,7 +40,7 @@ import type { AgentRemedyDecision } from '../utils/agentRemedyTypes'
 const ACTIVE_CLI_RUN_STATUS = 'running' as const
 
 export type UsePendingToolGrants = {
-  /** Unified API + CLI grants awaiting a decision, in [api…, cli…] order. */
+  /** The chat's asks awaiting a decision — an API turn's and a CLI run's alike — as the broker lists them. */
   grants: PendingToolGrant[]
   /**
    * The CLI run the grants were read from — the caller's `runId` when it had
@@ -48,8 +50,8 @@ export type UsePendingToolGrants = {
    */
   cliRunId?: string
   /**
-   * Whether a run for this chat is GENUINELY executing right now (a backend run
-   * in `running` status), independent of any run id the caller is still
+   * Whether a turn of this chat is GENUINELY executing right now — a backend CLI
+   * run in `running` status, or a turn the server runs on the API — independent of any run id the caller is still
    * displaying. Drive the "busy / Stop" affordance off this, NOT off
    * {@link cliRunId}: a terminal run keeps its id set for the transcript view and
    * for a still-pending approval, so `cliRunId !== undefined` stays true long
@@ -60,36 +62,20 @@ export type UsePendingToolGrants = {
 }
 
 /**
- * Unifies the two tool-approval sources behind one {@link PendingToolGrant}[]:
- * API `require_confirmation` tool-calls (resolved as a batch via the chats
- * context's `confirmTools`) and a CLI run's gated `PendingAction`s (resolved
- * individually via `decideCliAgentAction`). API grants accumulate per-row
- * decisions and auto-commit once every row is decided; CLI grants dispatch
- * immediately and support the `'permanent'` decision (`approved-permanent`).
+ * Every ask a chat is waiting on, as {@link PendingToolGrant}s: the broker's
+ * pending actions for the chat — raised by an API chat turn or a CLI run, the
+ * same records either way — each decided on its own through
+ * `decideCliAgentAction`, with an always-allow's scope (this chat, or
+ * everywhere), the person's edits in its metadata, and where they decided it.
  *
  * `runId` is an optimisation, not a requirement: when the caller doesn't have
  * one the hook resolves the chat's active CLI run itself, so an approval the
  * agent is blocked on stays reachable across a reload.
  */
 export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendingToolGrants {
-  const { getChat, getChatLiveState, confirmTools } = useChats()
   const { ws } = useApi()
 
   const chatContextId = getChatContextKey(ctx)
-  // The send that proposed the calls, else the calls the stored chat still has
-  // waiting — after a reload this page sent nothing, and they wait all the same.
-  const live = getChatLiveState(ctx)
-  const storedMessages = getChat(ctx)?.messages
-  const apiToolCalls = useMemo(
-    () =>
-      live.pendingToolConfirmation?.toolCalls ??
-      (live.isSending ? [] : storedToolCallsAwaitingConfirmation(storedMessages ?? [])),
-    [live.pendingToolConfirmation, live.isSending, storedMessages],
-  )
-  const [apiDecisions, setApiDecisions] = useState<Record<string, boolean>>({})
-  const [apiLaunchDecisions, setApiLaunchDecisions] = useState<
-    Record<string, ProcessLaunchDecision>
-  >({})
   // The asks as loaded for one chat — another chat's never show while this
   // chat's own load is on its way; what this chat last read as does.
   const [loadedActions, setLoadedActions] = useState<{
@@ -185,6 +171,27 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     }
   }, [chatContextId, storyChat, ws])
 
+  // A turn the server runs with no CLI run behind it — an API chat carried on
+  // after a decision, or sent from another client — is busy the same way.
+  const [apiTurn, setApiTurn] = useState<{ chatContextId: string; active: boolean }>()
+  useEffect(() => {
+    let cancelled = false
+    void getChatTurn({ query: { chatContextId }, throwOnError: true })
+      .then(({ data }) => {
+        if (!cancelled) setApiTurn({ chatContextId, active: data.active })
+      })
+      .catch(() => {})
+    const off = ws.on('completion:turn', (data) => {
+      const active = chatTurnActivity(data, chatContextId)
+      if (active !== undefined) setApiTurn({ chatContextId, active })
+    })
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [chatContextId, ws])
+  const apiTurnActive = apiTurn?.chatContextId === chatContextId && apiTurn.active
+
   const discoveredRunId = discovered?.chatContextId === chatContextId ? discovered.runId : undefined
   const activeRunId = runId ?? discoveredRunId
 
@@ -221,49 +228,14 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     return off
   }, [loadCliActions, ws])
 
-  // API batch auto-commit: once every pending tool-call has a decision, resume
-  // the completion granting the approved subset, then clear the local choices.
-  const allApiDecided =
-    apiToolCalls.length > 0 && apiToolCalls.every((tc) => tc.toolCallId in apiDecisions)
-  useEffect(() => {
-    if (!allApiDecided) return
-    const grantedIds = apiToolCalls
-      .filter((tc) => apiDecisions[tc.toolCallId])
-      .map((tc) => tc.toolCallId)
-    const launchDecisions = Object.fromEntries(
-      grantedIds.flatMap((id) => (apiLaunchDecisions[id] ? [[id, apiLaunchDecisions[id]]] : [])),
-    )
-    setApiDecisions({})
-    setApiLaunchDecisions({})
-    void confirmTools(ctx, grantedIds, launchDecisions)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allApiDecided])
-
-  const decideApi = useCallback(
-    (
-      toolCallId: string,
-      decision: PendingToolGrantDecision,
-      metadata?: Record<string, unknown>,
-    ) => {
-      if (decision === 'permanent') {
-        throw new Error('Permanent grants are CLI-only')
-      }
-      // A story launch carries the person's own choices — over open work, and
-      // how its features are worked — on the API transport too; nothing else an
-      // approval sets reaches an API run.
-      const launch = decision === 'once' ? launchDecisionOf(metadata) : undefined
-      if (launch) setApiLaunchDecisions((prev) => ({ ...prev, [toolCallId]: launch }))
-      setApiDecisions((prev) => ({ ...prev, [toolCallId]: decision === 'once' }))
-    },
-    [],
-  )
-
   const decideCli = useCallback(
     async (
       action: PendingAction,
       decision: PendingToolGrantDecision,
       metadata?: Record<string, unknown>,
+      via: PendingToolGrantDecisionVia = 'card',
     ) => {
+      const grantScope = decisionGrantScope(decision, action.chatContextId)
       // Declining a question isn't a permission denial: the agent is told to
       // carry on with its own judgement, so the answer rides along on `denied`.
       const body =
@@ -271,6 +243,8 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
           ? declineDecision()
           : {
               outcome: cliDecideOutcome(decision),
+              decidedVia: via,
+              ...(grantScope ? { grantScope } : {}),
               // Options the user set ON the approval (e.g. capture proof). The
               // host whitelists these — a decision cannot redirect the run.
               ...(metadata ? { metadata } : {}),
@@ -341,37 +315,34 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     [loadCliActions, setCliActions],
   )
 
-  const grants = useMemo<PendingToolGrant[]>(() => {
-    const apiGrants = apiToolCalls.map<PendingToolGrant>((tc) => ({
-      ...apiToolCallToGrant(tc),
-      decide: async (decision, metadata) => decideApi(tc.toolCallId, decision, metadata),
-    }))
-    const cliGrants = cliActions.map<PendingToolGrant>((action) => {
-      const data = cliPendingActionToGrant(action)
-      return {
-        ...data,
-        decide: (decision, metadata) => decideCli(action, decision, metadata),
-        ...(data.question
-          ? {
-              answer: (text: string) => answerCli(action.id, text),
-              cancel: () => cancelCli(action.id),
-            }
-          : {}),
-        ...(data.remedy
-          ? {
-              resolveRemedy: (remedyId: string, value?: string) =>
-                resolveRemedyCli(action.id, remedyChoiceDecision(remedyId, value)),
-              dismissRemedy: () => resolveRemedyCli(action.id, declineRemedyDecision()),
-            }
-          : {}),
-      }
-    })
-    return [...apiGrants, ...cliGrants]
-  }, [apiToolCalls, cliActions, decideApi, decideCli, answerCli, cancelCli, resolveRemedyCli])
+  const grants = useMemo<PendingToolGrant[]>(
+    () =>
+      cliActions.map<PendingToolGrant>((action) => {
+        const data = cliPendingActionToGrant(action)
+        return {
+          ...data,
+          decide: (decision, metadata, via) => decideCli(action, decision, metadata, via),
+          ...(data.question
+            ? {
+                answer: (text: string) => answerCli(action.id, text),
+                cancel: () => cancelCli(action.id),
+              }
+            : {}),
+          ...(data.remedy
+            ? {
+                resolveRemedy: (remedyId: string, value?: string) =>
+                  resolveRemedyCli(action.id, remedyChoiceDecision(remedyId, value)),
+                dismissRemedy: () => resolveRemedyCli(action.id, declineRemedyDecision()),
+              }
+            : {}),
+        }
+      }),
+    [cliActions, decideCli, answerCli, cancelCli, resolveRemedyCli],
+  )
 
   return {
     grants,
-    isRunActive: discoveredRunId !== undefined,
+    isRunActive: discoveredRunId !== undefined || apiTurnActive,
     ...(activeRunId ? { cliRunId: activeRunId } : {}),
   }
 }

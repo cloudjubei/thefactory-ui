@@ -23,6 +23,7 @@ import { IconExternalLink } from '../../../icons'
 import ProcessCheckList from '../ProcessCheckList'
 import Pill from '../signoff/Pill'
 import { reviewToneVariant } from '../signoff/tones'
+import SignoffRecord from './SignoffRecord'
 import type { StepPanelTarget } from './StepScreen'
 
 export type StepPreviewProps = {
@@ -68,7 +69,7 @@ function PeekCard({
 /**
  * Native peer of web's `StepPreview`: what a step's chevron shows — a code
  * review's verdict and counts, a report's tiles, a feature's stages — each
- * opening its full view on a pushed screen.
+ * opening its full view on a pushed screen; a decided sign-off, its record.
  */
 export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepPreviewProps) {
   const { theme, status } = useNativeTheme()
@@ -86,6 +87,7 @@ export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepP
   if (kind === 'stages' && state.latest?.childRunId) {
     return <StagesPreview childRunId={state.latest.childRunId} onOpen={onOpen} onDrill={onDrill} />
   }
+  if (kind === 'signoff') return <SignoffRecord run={run} state={state} onOpen={onOpen} />
   if (kind === 'checks') {
     return (
       <PeekCard label={`Open ${state.step.name}`} onPress={() => onOpen(target())}>

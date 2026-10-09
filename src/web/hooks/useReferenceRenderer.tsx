@@ -4,6 +4,7 @@ import { useReferences, type References } from '../../headless/hooks/useReferenc
 import { useReferenceRendering } from '../../headless/contexts/ReferenceRenderingContext'
 import { useFiles } from '../../headless/contexts/FilesContext'
 import ReferenceChip from '../compound/chips/ReferenceChip'
+import DesignReferenceChip from '../compound/design/DesignReferenceChip'
 import FileDisplay, { type UikitFileMeta } from '../compound/files/FileDisplay'
 
 /**
@@ -49,9 +50,17 @@ export function useReferenceRenderer({
         )
       }
       const description = target.type === 'link' ? describeLink(target.link) : describe(target)
-      return description ? (
-        <ReferenceChip description={description} {...(onOpen ? { onOpen } : {})} />
-      ) : undefined
+      if (!description) return undefined
+      if (description.link?.kind === 'design') {
+        return (
+          <DesignReferenceChip
+            description={description}
+            link={description.link}
+            {...(onOpen ? { onOpen } : {})}
+          />
+        )
+      }
+      return <ReferenceChip description={description} {...(onOpen ? { onOpen } : {})} />
     },
     [describe, describeLink, onResolveFile, onOpen, typed],
   )

@@ -42,6 +42,13 @@ export {
 // the active token + 401 callbacks. Friendly aliases over the generated
 // shapes live in `./sdkTypes`.
 export { configureBackendClient } from './bootstrap'
+export { describeBackendStartup, readBackendStarting } from './backendStartup'
+export type {
+  BackendKnowledgeMapsStartup,
+  BackendStartup,
+  BackendStartupLine,
+  BackendStartupPass,
+} from './backendStartupTypes'
 export * from './generated'
 export * from './sdkTypes'
 

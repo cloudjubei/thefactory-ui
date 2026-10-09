@@ -8,6 +8,8 @@ export type ReferenceChipProps = {
   description: ReferenceDescription
   /** Opens what the chip points at. Omitted, or for something gone, a tap opens nothing. */
   onOpen?: (link: ResourceLink) => void
+  /** Replaces the long press that says what it is — a design chip shows its miniature instead. */
+  onLongPress?: () => void
 }
 
 /**
@@ -15,7 +17,7 @@ export type ReferenceChipProps = {
  * in the text — its current number or name, a tap that opens it, and a long
  * press that says what it is. Something gone shows as such and opens nothing.
  */
-export default function ReferenceChip({ description, onOpen }: ReferenceChipProps) {
+export default function ReferenceChip({ description, onOpen, onLongPress }: ReferenceChipProps) {
   const { theme } = useNativeTheme()
   const link = description.missing ? undefined : description.link
   const open = link && onOpen ? () => onOpen(link) : undefined
@@ -25,7 +27,7 @@ export default function ReferenceChip({ description, onOpen }: ReferenceChipProp
       accessibilityLabel={description.label}
       {...(description.detail ? { accessibilityHint: description.detail } : {})}
       onPress={open}
-      onLongPress={() => Alert.alert(description.label, description.detail)}
+      onLongPress={onLongPress ?? (() => Alert.alert(description.label, description.detail))}
       style={{
         fontSize: 13,
         color: description.missing

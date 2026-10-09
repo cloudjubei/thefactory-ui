@@ -1,3 +1,4 @@
+import type { ProposalChip } from './processProposalView'
 import type { ProofKind, ProofPlan, ProofPlanSource } from 'thefactory-tools/types'
 
 import type { StoryStepTone } from './storySignoffTypes'
@@ -50,6 +51,22 @@ export interface LaunchProofPlanRow {
    * stands, asks for no before/after screens — it will not pass without them.
    */
   uiWarning?: string
+}
+
+/**
+ * One feature on the launch card: the steps it runs through and how it is
+ * proven, together — see `launchFeatureRows`.
+ */
+export interface LaunchFeatureRow {
+  featureId: string
+  title: string
+  /** Its pipeline, in order; empty when the plan is not known. */
+  chain: ProposalChip[]
+  maxIterations?: number
+  /** Its proof plan as confirmed here; absent when the launch carries none for it. */
+  proof?: LaunchProofPlanRow
+  /** The kinds its proof asks for, by label — the row's collapsed summary. */
+  proofLabels: string[]
 }
 
 /** The plans a person changed on a launch, by feature id. */

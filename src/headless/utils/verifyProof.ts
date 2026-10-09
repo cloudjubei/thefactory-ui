@@ -298,9 +298,9 @@ export function verifyProofHeader(
   const mode: VerifyProofMode = proof.mode ?? 'unknown'
   const stated = mode === 'unknown' ? undefined : mode
   const dryAssumptions = mode === 'dry' ? trimmed(proof.dryAssumptions) : undefined
-  const baseSha = proof.baseSha ? shortSha(proof.baseSha) : undefined
-  const headSha = proof.headSha ? shortSha(proof.headSha) : undefined
-  const seams = (proof.seams ?? []).map(shortSha)
+  const baseSha = proof.baseSha || undefined
+  const headSha = proof.headSha || undefined
+  const seams = [...(proof.seams ?? [])]
   return {
     mode,
     tone: PROOF_MODE_TONE[mode],
@@ -910,18 +910,18 @@ export function captureBuildCaption(
     (build.dirty || shortSha(build.sha) !== shortSha(expected))
   ) {
     return {
-      builtSha: shortSha(expected),
+      builtSha: expected,
       dirty: false,
       expectedSha: undefined,
       sameCodeAsExpected: true,
     }
   }
-  const builtSha = build ? shortSha(build.sha) : undefined
-  const expectedSha = expected ? shortSha(expected) : undefined
+  const builtSha = build?.sha
+  const sameCommit = !!expected && !!builtSha && shortSha(expected) === shortSha(builtSha)
   return {
     builtSha,
     dirty: build?.dirty === true,
-    expectedSha: expectedSha !== undefined && expectedSha !== builtSha ? expectedSha : undefined,
+    expectedSha: expected && !sameCommit ? expected : undefined,
   }
 }
 

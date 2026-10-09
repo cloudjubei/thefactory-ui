@@ -17,7 +17,7 @@ import type { CredentialCapture } from './credentialCaptureTypes'
 const noop = async () => {}
 
 function grant(overrides: Partial<PendingToolGrant>): PendingToolGrant {
-  return { id: 'g', source: 'cli', label: 'Question', decide: noop, ...overrides }
+  return { id: 'g', chatRunner: 'cli', label: 'Question', decide: noop, ...overrides }
 }
 
 describe('isQuestionAction', () => {
@@ -136,6 +136,7 @@ describe('answerDecision', () => {
   it('approves the action and carries the trimmed answer in metadata', () => {
     expect(answerDecision('  use postgres  ')).toEqual({
       outcome: 'approved',
+      decidedVia: 'card',
       metadata: { answer: 'use postgres' },
     })
   })
@@ -145,6 +146,7 @@ describe('declineDecision', () => {
   it('denies the action and tells the agent to use its best judgement', () => {
     expect(declineDecision()).toEqual({
       outcome: 'denied',
+      decidedVia: 'card',
       metadata: { answer: QUESTION_DECLINED_ANSWER },
     })
   })
@@ -164,7 +166,7 @@ describe('partitionGrants', () => {
     const q1 = grant({ id: 'q1', question: { question: 'A' }, answer: noop })
     const p1 = grant({ id: 'p1', label: 'Network unlock' })
     const q2 = grant({ id: 'q2', question: { question: 'B' }, answer: noop })
-    const p2 = grant({ id: 'p2', source: 'api', label: 'writeFile' })
+    const p2 = grant({ id: 'p2', chatRunner: 'api', label: 'writeFile' })
 
     expect(partitionGrants([q1, p1, q2, p2])).toEqual({
       questions: [q1, q2],

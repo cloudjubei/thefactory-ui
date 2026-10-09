@@ -10,7 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../primitives/Select'
-import { useProviderConnections } from '../../../headless'
+import {
+  TICKET_PICKER_INHERIT,
+  TICKET_PICKER_NONE,
+  chooseTicketConnection,
+  useProviderConnections,
+} from '../../../headless'
 import type { TicketConnectionAccess, TicketConnectionBinding } from '../../../headless/api'
 import {
   describeTicketBinding,
@@ -22,9 +27,6 @@ import {
   TICKET_ACCESS_DESCRIPTIONS,
   TICKET_ACCESS_LABELS,
 } from '../../../headless/utils/ticketConnectionConstants'
-
-const INHERIT = '__inherit__'
-const NONE = '__none__'
 
 /** A project's setting (`undefined` = inherit, `'none'` = opted out) or a group's (`undefined` = none). */
 export type TicketConnectionPickerValue = TicketConnectionBinding | 'none' | undefined
@@ -54,18 +56,26 @@ export default function TicketConnectionPicker({
   const own = value !== undefined && value !== 'none' ? value : undefined
   const [keysText, setKeysText] = useState(formatJiraProjectKeys(own?.projectKeys))
 
-  const selected = own ? own.connectionId : value === undefined && inherited ? INHERIT : NONE
-  const ownIsMissing = own !== undefined && !jiraConnections.some((c) => c.id === own.connectionId)
+  const selected = own
+    ? own.connectionId
+    : value === undefined && inherited
+      ? TICKET_PICKER_INHERIT
+      : TICKET_PICKER_NONE
+  const ownIsMissing =
+    own !== undefined &&
+    own.connectionId !== '' &&
+    !jiraConnections.some((c) => c.id === own.connectionId)
 
   const choose = (next: string) => {
-    if (next === INHERIT) return onChange(undefined)
-    if (next === NONE) return onChange(inherited ? 'none' : undefined)
-    setKeysText(formatJiraProjectKeys(own?.projectKeys))
-    onChange({
-      connectionId: next,
-      access: own?.access ?? 'read',
-      ...(own?.projectKeys?.length ? { projectKeys: own.projectKeys } : {}),
+    const choice = chooseTicketConnection(next, value, {
+      inherits: inherited !== undefined,
+      connectionIds: jiraConnections.map((c) => c.id),
     })
+    if (!choice) return
+    if (choice.value !== undefined && choice.value !== 'none') {
+      setKeysText(formatJiraProjectKeys(choice.value.projectKeys))
+    }
+    onChange(choice.value)
   }
 
   const setAccess = (access: string) => {
@@ -91,9 +101,9 @@ export default function TicketConnectionPicker({
         hint={
           jiraConnections.length === 0
             ? 'No Jira connection yet — add one in Settings → Tickets.'
-            : selected === INHERIT
+            : selected === TICKET_PICKER_INHERIT
               ? `Agents here use ${inherited?.groupTitle}'s Jira: ${inheritedSummary}.`
-              : selected === NONE
+              : selected === TICKET_PICKER_NONE
                 ? 'Agents here get no Jira tools.'
                 : undefined
         }
@@ -104,9 +114,9 @@ export default function TicketConnectionPicker({
           </SelectTrigger>
           <SelectContent>
             {inherited ? (
-              <SelectItem value={INHERIT}>Same as {inherited.groupTitle}</SelectItem>
+              <SelectItem value={TICKET_PICKER_INHERIT}>Same as {inherited.groupTitle}</SelectItem>
             ) : null}
-            <SelectItem value={NONE}>Not connected</SelectItem>
+            <SelectItem value={TICKET_PICKER_NONE}>Not connected</SelectItem>
             {jiraConnections.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}

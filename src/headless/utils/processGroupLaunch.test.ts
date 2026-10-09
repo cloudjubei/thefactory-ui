@@ -40,11 +40,14 @@ describe('isStartGroupWorkGrant', () => {
 })
 
 describe('startGroupWorkGrantSummary', () => {
-  it('reads a CLI action’s wrapped arguments and an API call’s bare ones alike', () => {
+  it('reads the arguments the ask wraps', () => {
     expect(startGroupWorkGrantSummary({ detail: { tool: 'startGroupWork', args: ARGS } })).toEqual(
       SUMMARY,
     )
-    expect(startGroupWorkGrantSummary({ detail: ARGS })).toEqual(SUMMARY)
+  })
+
+  it('reads nothing from bare arguments — every ask is the broker’s `{ tool, args }`', () => {
+    expect(startGroupWorkGrantSummary({ detail: ARGS })).toEqual({ legs: [], proofRequired: true })
   })
 
   it('falls back to the defaults on a malformed ask', () => {
@@ -53,7 +56,9 @@ describe('startGroupWorkGrantSummary', () => {
       proofRequired: true,
     })
     expect(
-      startGroupWorkGrantSummary({ detail: { legs: 'x', runner: 'gpu', spendCapUsd: -1 } }),
+      startGroupWorkGrantSummary({
+        detail: { args: { legs: 'x', runner: 'gpu', spendCapUsd: -1 } },
+      }),
     ).toEqual({ legs: [], proofRequired: true })
   })
 })

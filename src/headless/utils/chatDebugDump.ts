@@ -256,7 +256,6 @@ function debugCliRunner(chat: Chat | null | undefined): ChatDebugCliRunner | und
     tool: runner.tool,
     ...(runner.model ? { model: runner.model } : {}),
     ...(runner.effort ? { effort: runner.effort } : {}),
-    ...(runner.execMode ? { execMode: runner.execMode } : {}),
   }
 }
 

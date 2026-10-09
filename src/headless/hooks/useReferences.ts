@@ -18,7 +18,13 @@ import type {
   ReferenceSuggestion,
   ResourceLink,
 } from 'thefactory-tools/types'
-import { getStoriesOrder, listGroupNotes, listProjectNotes, listStories } from '../api'
+import {
+  getProjectDesign,
+  getStoriesOrder,
+  listGroupNotes,
+  listProjectNotes,
+  listStories,
+} from '../api'
 import { useApi } from '../api/ApiContext'
 import { useProjects } from '../contexts/ProjectsContext'
 import { useProjectsGroups } from '../contexts/ProjectsGroupsContext'
@@ -30,6 +36,7 @@ import {
   type ProjectMentionFiles,
 } from '../utils/mention'
 import { referenceGroupId } from '../utils/referenceScope'
+import { referenceDesignOf } from '../utils/design'
 
 /**
  * Where references resolve: a project, a group's projects, or — a scope naming
@@ -131,17 +138,21 @@ function loadReferenceGroupNotes(groupId: string): Promise<ReferenceGroup['notes
   return notes
 }
 
-/** A project's stories in list order and its notes, fetched once a minute at most. */
+/** A project's stories in list order, its notes and its design, fetched once a minute at most. */
 function loadReferenceProject(projectId: string): Promise<LoadedProject> {
   const cached = loadedProjects.get(projectId)
   if (cached && Date.now() - cached.at < REFERENCE_PROJECT_TTL_MS) return cached.project
   const project = (async (): Promise<LoadedProject> => {
-    const [stories, order, notes] = await Promise.all([
+    const [stories, order, notes, design] = await Promise.all([
       listStories({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
       getStoriesOrder({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
       listProjectNotes({ path: { projectId }, throwOnError: true }).then(
         (r) => r.data ?? [],
         () => [],
+      ),
+      getProjectDesign({ path: { projectId }, throwOnError: true }).then(
+        (r) => (r.data ? referenceDesignOf(r.data) : undefined),
+        () => undefined,
       ),
     ])
     const rank = new Map((order as string[]).map((id, i) => [id, i]))
@@ -161,6 +172,7 @@ function loadReferenceProject(projectId: string): Promise<LoadedProject> {
         label: n.label,
         ...(n.description ? { description: n.description } : {}),
       })),
+      ...(design ? { design } : {}),
     }
   })()
   loadedProjects.set(projectId, { at: Date.now(), project })
@@ -169,7 +181,7 @@ function loadReferenceProject(projectId: string): Promise<LoadedProject> {
 }
 
 /**
- * References — the stories, features, notes and attachments a text points at —
+ * References — the stories, features, notes, designs and attachments a text points at —
  * resolved for showing as chips, offered in `#` and `&` dropdowns, and turned
  * into ids when the text is saved or sent. A project scope reaches its own
  * project, live; a group scope its member projects; no scope every project.
@@ -210,16 +222,20 @@ export function useReferences({
       referenceListeners.delete(listener)
     }
   }, [scopeKey])
-  useEffect(
-    () =>
-      ws.on('stories:updated', (data: unknown) => {
-        const projectId = (data as { projectId?: unknown } | undefined)?.projectId
-        if (typeof projectId !== 'string' || !scopeKey.split('\n').includes(projectId)) return
-        loadedProjects.delete(projectId)
-        setVersion((v) => v + 1)
-      }),
-    [ws, scopeKey],
-  )
+  useEffect(() => {
+    const refetch = (data: unknown) => {
+      const projectId = (data as { projectId?: unknown } | undefined)?.projectId
+      if (typeof projectId !== 'string' || !scopeKey.split('\n').includes(projectId)) return
+      loadedProjects.delete(projectId)
+      setVersion((v) => v + 1)
+    }
+    const offStories = ws.on('stories:updated', refetch)
+    const offDesign = ws.on('design:updated', refetch)
+    return () => {
+      offStories()
+      offDesign()
+    }
+  }, [ws, scopeKey])
 
   // The group whose notes this chat reaches — the same one its agents read.
   const notesGroupId = hasScope ? referenceGroupId(scope, projects) : undefined
@@ -288,6 +304,7 @@ export function useReferences({
         ...(names.get(id) ? { name: names.get(id) } : {}),
         stories: live ?? loaded?.stories ?? [],
         notes: loaded?.notes ?? [],
+        ...(loaded?.design ? { design: loaded.design } : {}),
       })
     }
     const group =

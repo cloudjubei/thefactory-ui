@@ -7,7 +7,6 @@ import {
   filterChatToolToggles,
   groupChatToolToggles,
   resetChatToolToggles,
-  allowToolsAlways,
 } from './chatToolToggles'
 import type { ChatToolCatalogEntry } from './chatToolTogglesTypes'
 
@@ -45,11 +44,6 @@ describe('buildChatToolToggles — CLI', () => {
     expect(askUser).toMatchObject({ available: true, toggleable: false })
   })
 
-  it('offers no auto-call axis, which the CLI transport does not have yet', () => {
-    const rows = buildChatToolToggles(CATALOG, undefined, 'cli')
-    expect(rows.every((r) => !r.supportsAutoCall && !r.autoCall)).toBe(true)
-  })
-
   it('carries the catalogue description so no row renders blank', () => {
     const rows = buildChatToolToggles(CATALOG, undefined, 'cli')
     expect(rows.find((r) => r.name === 'readFile')?.description).toBe('Read a file.')
@@ -69,25 +63,11 @@ describe('buildChatToolToggles — API', () => {
     const rows = buildChatToolToggles(CATALOG, { availableTools: ['readFile'] }, 'api')
     expect(rows.find((r) => r.name === 'readFile')?.available).toBe(true)
   })
-
-  it('marks a tool in autoCallTools as auto-calling', () => {
-    const rows = buildChatToolToggles(
-      CATALOG,
-      { availableTools: ['readFile'], autoCallTools: ['readFile'] },
-      'api',
-    )
-    expect(rows.find((r) => r.name === 'readFile')?.autoCall).toBe(true)
-  })
-
-  it('offers the auto-call axis', () => {
-    const rows = buildChatToolToggles(CATALOG, {}, 'api')
-    expect(rows.every((r) => r.supportsAutoCall)).toBe(true)
-  })
 })
 
 describe('applyChatToolToggle — CLI', () => {
   it('materialises the whole catalogue minus one on the first switch-off', () => {
-    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', 'available', false)
+    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', false)
     expect(patch.cliAvailableTools).toEqual(['readFile', 'addStory', 'askUser'])
   })
 
@@ -97,7 +77,6 @@ describe('applyChatToolToggle — CLI', () => {
       { cliAvailableTools: ['readFile', 'gitLog', 'askUser'] },
       'cli',
       'gitLog',
-      'available',
       false,
     )
     expect(patch.cliAvailableTools).toEqual(['readFile', 'askUser'])
@@ -109,7 +88,6 @@ describe('applyChatToolToggle — CLI', () => {
       { cliAvailableTools: ['readFile', 'askUser'] },
       'cli',
       'gitLog',
-      'available',
       true,
     )
     expect(patch.cliAvailableTools).toEqual(['readFile', 'gitLog', 'askUser'])
@@ -121,7 +99,6 @@ describe('applyChatToolToggle — CLI', () => {
       { cliAvailableTools: ['readFile', 'askUser'] },
       'cli',
       'readFile',
-      'available',
       false,
     )
     expect(patch.cliAvailableTools).toEqual(['askUser'])
@@ -133,82 +110,75 @@ describe('applyChatToolToggle — CLI', () => {
       { cliAvailableTools: ['readFile'] },
       'cli',
       'readFile',
-      'available',
       false,
     )
     expect(patch.cliAvailableTools).toEqual(['askUser'])
   })
 
   it('refuses to switch off an always-on tool', () => {
-    expect(applyChatToolToggle(CATALOG, undefined, 'cli', 'askUser', 'available', false)).toEqual(
-      {},
-    )
-  })
-
-  it('ignores the auto-call axis, which the CLI transport does not carry', () => {
-    expect(applyChatToolToggle(CATALOG, undefined, 'cli', 'readFile', 'autoCall', true)).toEqual({})
+    expect(applyChatToolToggle(CATALOG, undefined, 'cli', 'askUser', false)).toEqual({})
   })
 
   it('never touches the API allowlist', () => {
-    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', 'available', false)
+    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', false)
     expect(patch.availableTools).toBeUndefined()
   })
 })
 
 describe('applyChatToolToggle — API', () => {
   it('adds a tool to availableTools', () => {
-    const patch = applyChatToolToggle(CATALOG, {}, 'api', 'readFile', 'available', true)
+    const patch = applyChatToolToggle(CATALOG, {}, 'api', 'readFile', true)
     expect(patch.availableTools).toEqual(['readFile'])
   })
 
-  it('drops the auto-call grant when a tool stops being available', () => {
-    const patch = applyChatToolToggle(
-      CATALOG,
-      { availableTools: ['readFile'], autoCallTools: ['readFile'] },
-      'api',
-      'readFile',
-      'available',
-      false,
-    )
-    expect(patch).toEqual({ availableTools: [], autoCallTools: [] })
-  })
-
-  it('grants auto-call for an available tool', () => {
+  it('removes a tool from availableTools', () => {
     const patch = applyChatToolToggle(
       CATALOG,
       { availableTools: ['readFile'] },
       'api',
       'readFile',
-      'autoCall',
-      true,
-    )
-    expect(patch.autoCallTools).toEqual(['readFile'])
-  })
-
-  it('refuses to grant auto-call for a tool that is not available', () => {
-    expect(applyChatToolToggle(CATALOG, {}, 'api', 'readFile', 'autoCall', true)).toEqual({})
-  })
-
-  it('revokes auto-call', () => {
-    const patch = applyChatToolToggle(
-      CATALOG,
-      { availableTools: ['readFile'], autoCallTools: ['readFile'] },
-      'api',
-      'readFile',
-      'autoCall',
       false,
     )
-    expect(patch.autoCallTools).toEqual([])
+    expect(patch).toEqual({ availableTools: [] })
   })
 })
 
 describe('resetChatToolToggles', () => {
-  it('clears a CLI chat back to the unset (= everything, self-healing) reading', () => {
-    expect(resetChatToolToggles('cli')).toEqual({ cliAvailableTools: [] })
+  it('puts back the chat type’s tools on every transport and its approval switch', () => {
+    expect(
+      resetChatToolToggles({
+        availableTools: ['readFile', 'gitLog'],
+        cliAvailableTools: ['readFile'],
+        toolApprovalMode: 'auto',
+      }),
+    ).toEqual({
+      availableTools: ['readFile', 'gitLog'],
+      cliAvailableTools: ['readFile'],
+      toolApprovalMode: 'auto',
+    })
   })
 
-  it('writes nothing for an API chat, whose defaults live in the chat settings template', () => {
-    expect(resetChatToolToggles('api')).toEqual({})
+  it('clears a CLI allowlist the chat type leaves unset back to the unset (= everything) reading', () => {
+    expect(resetChatToolToggles({ availableTools: ['readFile'] }).cliAvailableTools).toEqual([])
+  })
+
+  it('reads a chat type without an approval switch as asking', () => {
+    expect(resetChatToolToggles({ availableTools: ['readFile'] }).toolApprovalMode).toBe('ask')
+  })
+
+  it('hands the chat its own copy of the type’s lists', () => {
+    const type = { availableTools: ['readFile'], cliAvailableTools: ['gitLog'] }
+    const reset = resetChatToolToggles(type)
+    expect(reset.availableTools).not.toBe(type.availableTools)
+    expect(reset.cliAvailableTools).not.toBe(type.cliAvailableTools)
+  })
+
+  it('offers no API tools, every CLI tool and asks, for a chat type with no settings', () => {
+    expect(resetChatToolToggles(undefined)).toEqual({
+      availableTools: [],
+      cliAvailableTools: [],
+      toolApprovalMode: 'ask',
+    })
   })
 })
 
@@ -271,62 +241,25 @@ describe('groupChatToolToggles', () => {
 })
 
 describe('buildChatToolApprovalToggle', () => {
-  it('is OFF for a CLI chat that never chose, so the agent still asks', () => {
-    expect(buildChatToolApprovalToggle(undefined, 'cli')).toEqual({ auto: false, supported: true })
+  it('is OFF for a chat that never chose, so the agent still asks', () => {
+    expect(buildChatToolApprovalToggle(undefined)).toEqual({ auto: false })
   })
 
   it('is OFF for an explicit ask', () => {
-    expect(buildChatToolApprovalToggle({ toolApprovalMode: 'ask' }, 'cli').auto).toBe(false)
+    expect(buildChatToolApprovalToggle({ toolApprovalMode: 'ask' }).auto).toBe(false)
   })
 
-  it('is ON once the chat switched auto-approval on', () => {
-    expect(buildChatToolApprovalToggle({ toolApprovalMode: 'auto' }, 'cli').auto).toBe(true)
-  })
-
-  it('is unsupported on the API transport, which decides per tool instead', () => {
-    expect(buildChatToolApprovalToggle({ toolApprovalMode: 'auto' }, 'api')).toEqual({
-      auto: false,
-      supported: false,
-    })
+  it('is ON once the chat switched auto-approval on — on every transport alike', () => {
+    expect(buildChatToolApprovalToggle({ toolApprovalMode: 'auto' }).auto).toBe(true)
   })
 })
 
 describe('applyChatToolApprovalMode', () => {
   it('writes the mode and nothing else, so a switched-off tool stays off', () => {
-    expect(applyChatToolApprovalMode('cli', true)).toEqual({ toolApprovalMode: 'auto' })
+    expect(applyChatToolApprovalMode(true)).toEqual({ toolApprovalMode: 'auto' })
   })
 
   it('writes an explicit ask when switched back off', () => {
-    expect(applyChatToolApprovalMode('cli', false)).toEqual({ toolApprovalMode: 'ask' })
-  })
-
-  it('never touches the allowlist a user narrowed', () => {
-    expect(applyChatToolApprovalMode('cli', true).cliAvailableTools).toBeUndefined()
-  })
-
-  it('is a no-op on the API transport', () => {
-    expect(applyChatToolApprovalMode('api', true)).toEqual({})
-  })
-})
-
-describe('allowToolsAlways — "Always allow" on an API chat', () => {
-  it('makes each tool available and auto-called, keeping what the chat already had', () => {
-    expect(
-      allowToolsAlways({ availableTools: ['readFile'], autoCallTools: ['readFile'] }, ['addStory']),
-    ).toEqual({ availableTools: ['readFile', 'addStory'], autoCallTools: ['readFile', 'addStory'] })
-  })
-
-  it('does not list a tool twice', () => {
-    expect(allowToolsAlways({ availableTools: ['addStory'] }, ['addStory', 'addStory'])).toEqual({
-      availableTools: ['addStory'],
-      autoCallTools: ['addStory'],
-    })
-  })
-
-  it('starts from nothing for a chat with no settings yet', () => {
-    expect(allowToolsAlways(undefined, ['addStory'])).toEqual({
-      availableTools: ['addStory'],
-      autoCallTools: ['addStory'],
-    })
+    expect(applyChatToolApprovalMode(false)).toEqual({ toolApprovalMode: 'ask' })
   })
 })

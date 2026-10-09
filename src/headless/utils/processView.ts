@@ -16,6 +16,7 @@ import {
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_SPEND_TITLE,
   PROCESS_STEP_FINISHED_COPY,
+  PROCESS_STEP_RECHECKED,
 } from './processViewConstants'
 import { PROVING_AGENT_TYPES } from './verifyProofConstants'
 import type {
@@ -366,15 +367,19 @@ export type ProcessNodeState =
   | 'queued'
   | 'skipped'
   | 'requeued'
+  | 'rechecked'
 
 /** The node state for one step, given where the run has parked (if anywhere). */
 export function processNodeState(
-  state: Pick<ProcessStepState, 'status' | 'outcome' | 'requeued'> & { step: { id: string } },
+  state: Pick<ProcessStepState, 'status' | 'outcome' | 'requeued' | 'rechecked'> & {
+    step: { id: string }
+  },
   parkedStepId: string | undefined,
 ): ProcessNodeState {
   if (parkedStepId !== undefined && state.step.id === parkedStepId) return 'parked'
   if (state.status === 'running') return 'working'
   if (state.requeued) return 'requeued'
+  if (state.rechecked) return 'rechecked'
   if (state.status === 'pending') return 'queued'
   if (state.outcome === 'failed' || state.outcome === 'errored' || state.outcome === 'unchecked')
     return 'failed'
@@ -425,7 +430,10 @@ export function processNodeLook(
   const shape: ProcessNodeLook['shape'] =
     nodeState === 'working'
       ? 'ring'
-      : nodeState === 'queued' || nodeState === 'requeued' || nodeState === 'skipped'
+      : nodeState === 'queued' ||
+          nodeState === 'requeued' ||
+          nodeState === 'skipped' ||
+          nodeState === 'rechecked'
         ? 'dashed'
         : 'solid'
   return {
@@ -461,10 +469,13 @@ export function processNodeBadge(
  * as such and drawn muted, so it cannot read as the current verdict.
  */
 export function processNodeSummary(
-  state: Pick<ProcessStepState, 'attempts' | 'requeued' | 'outcome'> & {
+  state: Pick<ProcessStepState, 'attempts' | 'requeued' | 'outcome' | 'rechecked'> & {
     latest?: Pick<ProcessLedgerEntry, 'summary'>
   },
 ): ProcessNodeSummary | undefined {
+  if (state.rechecked && !state.requeued) {
+    return { text: PROCESS_STEP_RECHECKED(state.rechecked.checkedSha), muted: true }
+  }
   const summary = state.latest?.summary?.trim()
   if (!summary) return undefined
   if (!state.requeued) return { text: summary, muted: false }
@@ -506,7 +517,9 @@ type IterationRun = {
  * both, so its implement step can run more often than either loop allows alone.
  * A step that runs only when work is sent back to it has no pass of its own. A
  * step a person can send work back over at a gate has no cap: a person's
- * request for changes is never counted against a loop limit.
+ * request for changes is never counted against a loop limit. Nor is a person
+ * running a parked step again, so once those attempts take the step past the
+ * cap the badge names the attempt alone.
  */
 export function processIterationBadge(
   attempts: number,
@@ -526,9 +539,10 @@ export function processIterationBadge(
     if (isProcessGateLoop(run.plan, loop)) uncapped = true
     retries = (retries ?? 0) + loop.maxIterations - 1 + (run.iterationGrants?.[loop.id] ?? 0)
   }
-  return retries === undefined || uncapped
+  const cap = retries === undefined || uncapped ? undefined : retries + own
+  return cap === undefined || attempts > cap
     ? `attempt ${attempts}`
-    : `attempt ${attempts} of ${retries + own}`
+    : `attempt ${attempts} of ${cap}`
 }
 
 /**

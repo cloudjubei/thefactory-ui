@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, type Ref } from 'react'
 
 import SegmentedControl from '../../primitives/SegmentedControl'
 import Spinner from '../../primitives/Spinner'
@@ -29,6 +29,8 @@ export type HtmlEditorProps = {
   onViewChange?: (next: HtmlEditorPaneView) => void
   /** Skip rendering the internal header (host provides its own). */
   hideHeader?: boolean
+  /** The edit pane's textarea — for a host that opens the file at a line. */
+  textareaRef?: Ref<HTMLTextAreaElement>
 }
 
 export default function HtmlEditor({
@@ -42,6 +44,7 @@ export default function HtmlEditor({
   view: controlledView,
   onViewChange,
   hideHeader = false,
+  textareaRef,
 }: HtmlEditorProps) {
   const [internalView, setInternalView] = useState<HtmlEditorPaneView>(initialView)
   const view = controlledView ?? internalView
@@ -117,6 +120,7 @@ export default function HtmlEditor({
                 Edit view
               </div>
               <textarea
+                ref={textareaRef}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 spellCheck={false}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ModelInfo } from '../../headless/api'
 import type { ActivityCliModel } from '../../headless/contexts/LLMConfigsContext'
@@ -8,6 +8,7 @@ import {
   shortCliModelLabel,
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
+import { modelChipLabel, modelChipProviderLabel } from '../../headless/utils/modelChip'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import BottomSheet from '../primitives/BottomSheet'
@@ -62,26 +63,8 @@ export interface ModelChipProps {
   cliDisabled?: boolean
   /** Caption explaining why CLI is unavailable; shown under the toggle when {@link cliDisabled}. */
   cliDisabledReason?: string
-  /** When defined, surfaces the "Resident mode" switch in the CLI panel. `true` ⇒ this chat runs on a long-lived per-chat CLI process. */
-  residentMode?: boolean
-  /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
-  onToggleResident?: (next: boolean) => void
   /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" picker row). */
   authWarning?: CliAuthWarning
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  gemini: 'Gemini',
-  google: 'Google',
-  xai: 'xAI',
-  groq: 'Groq',
-  together: 'Together',
-  azure: 'Azure',
-  ollama: 'Ollama',
-  local: 'Local',
-  custom: 'Custom',
 }
 
 const PROVIDER_DOTS: Record<string, string> = {
@@ -98,11 +81,6 @@ const PROVIDER_DOTS: Record<string, string> = {
   custom: nativePalette.purple[500],
 }
 
-function providerLabel(p?: string): string {
-  if (!p) return ''
-  return PROVIDER_LABELS[p.toLowerCase()] ?? p
-}
-
 function providerDot(p?: string): string {
   return PROVIDER_DOTS[(p ?? '').toLowerCase()] ?? nativePalette.pink[500]
 }
@@ -112,11 +90,6 @@ function formatUSD(n?: number): string {
   const fixed = n.toFixed(4)
   const trimmed = fixed.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')
   return `$${trimmed}`
-}
-
-/** Cap chip-face text so a long provider/model name can't blow out the chip. */
-function trim10(s: string): string {
-  return s.length > 10 ? `${s.slice(0, 10)}…` : s
 }
 
 function PickerItem({
@@ -132,7 +105,7 @@ function PickerItem({
 }) {
   const { theme } = useNativeTheme()
   const dot = providerDot(cfg.provider)
-  const prov = providerLabel(cfg.provider)
+  const prov = modelChipProviderLabel(cfg.provider)
   return (
     <Pressable
       accessibilityRole="menuitem"
@@ -202,8 +175,6 @@ export function ModelChip({
   onPickRecentCli,
   cliDisabled,
   cliDisabledReason,
-  residentMode,
-  onToggleResident,
   authWarning,
 }: ModelChipProps) {
   const { theme } = useNativeTheme()
@@ -215,25 +186,17 @@ export function ModelChip({
   const cliEnabled = onToggleUseCli != null
   const needsReauth = !!useCli && !!authWarning?.needsReauth
 
-  let prov = providerLabel(provider)
-  let displayModel = model
-  if ((!prov || !displayModel) && activeConfig) {
-    prov = providerLabel(activeConfig.provider)
-    displayModel = activeConfig.model
-  }
-  if (useCli) {
-    prov = cliLabel(activeCli)
-    displayModel = cliModels?.find((m) => m.id === model)?.label ?? model
-  }
-
-  const label = useMemo(
-    () => [prov || undefined, displayModel || undefined].filter(Boolean).join(' · '),
-    [prov, displayModel],
-  )
-  const baseTitle = label || (editable ? 'Select model' : 'Unknown model')
-  const title = needsReauth
-    ? `${baseTitle} — ${authWarning?.message ?? 'sign-in expired'}; re-authenticate in Settings`
-    : baseTitle
+  const label = modelChipLabel({
+    ...(provider !== undefined ? { provider } : {}),
+    ...(model !== undefined ? { model } : {}),
+    activeConfig,
+    ...(useCli !== undefined ? { useCli } : {}),
+    activeCli: activeCli ?? null,
+    ...(cliModels !== undefined ? { cliModels } : {}),
+    ...(editable !== undefined ? { editable } : {}),
+    ...(needsReauth ? { reauthMessage: authWarning?.message ?? '' } : {}),
+  })
+  const title = label.title
   const dotColor = providerDot(provider ?? activeConfig?.provider)
   const isChatMode = mode === 'chat'
 
@@ -359,26 +322,34 @@ export function ModelChip({
           </Text>
         </View>
       )}
-      <View style={{ alignItems: 'center', maxWidth: 60 }}>
+      <View style={{ flexShrink: 1, minWidth: 0, maxWidth: 96 }}>
         <Text
           numberOfLines={1}
+          ellipsizeMode="tail"
           style={{
+            textAlign: 'center',
             fontSize: 9,
             letterSpacing: 0.5,
             textTransform: 'uppercase',
             color: theme.text.secondary,
           }}
         >
-          {trim10(prov || (editable ? 'Select' : '—'))}
+          {label.provider}
         </Text>
-        {(displayModel || editable) && (
+        {label.model ? (
           <Text
             numberOfLines={1}
-            style={{ fontSize: 12, fontWeight: '500', color: theme.text.primary }}
+            ellipsizeMode="tail"
+            style={{
+              textAlign: 'center',
+              fontSize: 12,
+              fontWeight: '500',
+              color: theme.text.primary,
+            }}
           >
-            {trim10(displayModel || (editable ? 'model…' : ''))}
+            {label.model}
           </Text>
-        )}
+        ) : null}
       </View>
     </View>
   )
@@ -651,43 +622,6 @@ export function ModelChip({
                 >
                   No models reported.
                 </Text>
-              )}
-
-              {onToggleResident && (
-                <>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: theme.border.subtle,
-                      marginVertical: nativeSpace[2],
-                    }}
-                  />
-                  <Pressable
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: !!residentMode }}
-                    onPress={() => onToggleResident(!residentMode)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      gap: nativeSpace[4],
-                      minHeight: 44,
-                      paddingVertical: nativeSpace[2],
-                      paddingHorizontal: nativeSpace[3],
-                      borderRadius: nativeRadii[3],
-                      backgroundColor: pressed ? theme.surface.hover : 'transparent',
-                    })}
-                  >
-                    <Text style={{ fontSize: 14, color: theme.accent.primary, width: 16 }}>
-                      {residentMode ? '☑' : '☐'}
-                    </Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, color: theme.text.primary }}>Resident mode</Text>
-                      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-                        Keep one process warm per chat — faster follow-up turns.
-                      </Text>
-                    </View>
-                  </Pressable>
-                </>
               )}
 
               <View

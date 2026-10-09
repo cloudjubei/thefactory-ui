@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { ModelInfo } from '../../headless/api'
@@ -9,6 +9,7 @@ import {
   shortCliModelLabel,
   type CliAuthWarning,
 } from '../../headless/utils/cliRunner'
+import { modelChipLabel } from '../../headless/utils/modelChip'
 import type { UsageModalModelPrice } from '../../headless/utils/usageBreakdownTypes'
 
 export type ModelChipConfig = {
@@ -56,31 +57,8 @@ export type ModelChipProps = {
   cliDisabledReason?: string
   /** Why the last API/CLI switch failed — rendered under the toggle so a dead-looking click explains itself. */
   cliSwitchError?: string | null
-  /** When defined, surfaces the "Resident mode" switch in the CLI panel. `true` ⇒ this chat runs on a long-lived per-chat CLI process. */
-  residentMode?: boolean
-  /** Flip the chat's CLI runner between per-turn spawn (`false`) and resident process (`true`). */
-  onToggleResident?: (next: boolean) => void
   /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" menu entry). */
   authWarning?: CliAuthWarning
-}
-
-function providerLabel(p?: string) {
-  if (!p) return ''
-  const key = String(p).toLowerCase()
-  const map: Record<string, string> = {
-    openai: 'OpenAI',
-    anthropic: 'Anthropic',
-    gemini: 'Gemini',
-    google: 'Google',
-    xai: 'xAI',
-    groq: 'Groq',
-    together: 'Together',
-    azure: 'Azure',
-    ollama: 'Ollama',
-    local: 'Local',
-    custom: 'Custom',
-  }
-  return map[key] || p
 }
 
 function providerDotClasses(p?: string) {
@@ -205,8 +183,6 @@ function Picker({
   cliDisabled,
   cliDisabledReason,
   cliSwitchError,
-  residentMode,
-  onToggleResident,
   authWarning,
 }: {
   anchorEl: HTMLElement
@@ -229,8 +205,6 @@ function Picker({
   cliDisabled?: boolean
   cliDisabledReason?: string
   cliSwitchError?: string | null
-  residentMode?: boolean
-  onToggleResident?: (next: boolean) => void
   authWarning?: CliAuthWarning
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -515,29 +489,6 @@ function Picker({
               ))}
             </select>
           </div>
-          {onToggleResident && (
-            <label
-              className="flex cursor-pointer items-start gap-2 px-3 py-2"
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={!!residentMode}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  onToggleResident(e.target.checked)
-                }}
-              />
-              <span className="flex flex-col">
-                <span className="text-[12px] text-[var(--text-primary)]">Resident mode</span>
-                <span className="text-[10px] text-[var(--text-secondary)]">
-                  Keep one process warm per chat — faster follow-up turns.
-                </span>
-              </span>
-            </label>
-          )}
           {authWarning?.needsReauth && (
             <button
               role="menuitem"
@@ -652,8 +603,6 @@ export function ModelChip({
   cliDisabled,
   cliDisabledReason,
   cliSwitchError,
-  residentMode,
-  onToggleResident,
   authWarning,
 }: ModelChipProps) {
   const containerRef = useRef<HTMLSpanElement>(null)
@@ -662,29 +611,17 @@ export function ModelChip({
 
   const cliEnabled = onToggleUseCli != null
 
-  let prov = providerLabel(provider)
-  let displayModel = model
-
-  if ((!prov || !displayModel) && activeConfig) {
-    prov = providerLabel(activeConfig.provider)
-    displayModel = activeConfig.model
-  }
-
-  if (useCli) {
-    prov = cliLabel(activeCli)
-    const activeModel = cliModels?.find((m) => m.id === model)
-    displayModel = shortCliModelLabel(activeModel?.label ?? model ?? '')
-  }
-
-  const parts = useMemo(
-    () => [prov || undefined, displayModel || undefined].filter(Boolean),
-    [prov, displayModel],
-  )
-  const label = parts.join(' · ')
-  const baseTitle = label || (editable ? 'Select model' : 'Unknown model')
-  const title = needsReauth
-    ? `${baseTitle} — ${authWarning?.message ?? 'sign-in expired'}; re-authenticate in Settings`
-    : baseTitle
+  const label = modelChipLabel({
+    ...(provider !== undefined ? { provider } : {}),
+    ...(model !== undefined ? { model } : {}),
+    activeConfig,
+    ...(useCli !== undefined ? { useCli } : {}),
+    activeCli: activeCli ?? null,
+    ...(cliModels !== undefined ? { cliModels } : {}),
+    ...(editable !== undefined ? { editable } : {}),
+    ...(needsReauth ? { reauthMessage: authWarning?.message ?? '' } : {}),
+  })
+  const title = label.title
 
   if (editable && !cliEnabled && !useCli && (!configs || configs.length === 0)) {
     return (
@@ -759,14 +696,12 @@ export function ModelChip({
           </span>
         )}
       </span>
-      <span className="flex flex-col leading-tight max-w-[60px] items-center pr-1 pl-1 overflow-hidden text-ellipsis">
-        <span className="truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-          {prov || (editable ? 'Select' : '—')}
+      <span className="flex min-w-0 max-w-[96px] flex-col px-1 text-center leading-tight">
+        <span className="block w-full truncate text-[10px] uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+          {label.provider}
         </span>
-        {(displayModel || editable) && (
-          <span className="truncate text-xs font-medium">
-            {displayModel || (editable ? 'model…' : '')}
-          </span>
+        {label.model && (
+          <span className="block w-full truncate text-xs font-medium">{label.model}</span>
         )}
       </span>
     </span>
@@ -797,8 +732,6 @@ export function ModelChip({
           cliDisabled={cliDisabled}
           cliDisabledReason={cliDisabledReason}
           cliSwitchError={cliSwitchError}
-          residentMode={residentMode}
-          onToggleResident={onToggleResident}
           authWarning={authWarning}
         />
       )}

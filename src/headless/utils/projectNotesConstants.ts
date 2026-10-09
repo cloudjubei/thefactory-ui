@@ -70,3 +70,9 @@ export const NOTES_SCREEN_COPY: Record<
     addWhat: 'a note or a secret every agent in this group can reach for',
   },
 }
+
+/** The query parameter a link to a note names it with: `/projects/<id>/notes?note=<noteId>`. */
+export const NOTE_LINK_PARAM = 'note'
+
+/** Said above a notes list when the note a link named is not among its notes. */
+export const NOTE_LINK_MISSING = 'The note this link points to no longer exists.'

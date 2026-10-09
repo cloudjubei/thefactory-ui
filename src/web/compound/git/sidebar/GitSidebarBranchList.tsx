@@ -28,6 +28,11 @@ export type GitSidebarBranchListProps = {
   onFolderToggle?: (folder: string) => (open: boolean) => void
   onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
+  onContextMenuBranch?: (
+    b: GitUnifiedBranchLike,
+    section: 'local' | 'remote',
+    at: { x: number; y: number },
+  ) => void
 }
 
 function groupBranches(branches: GitUnifiedBranchLike[]) {
@@ -59,6 +64,7 @@ export default function GitSidebarBranchList({
   onFolderToggle,
   onSelectBranch,
   onDoubleClickBranch,
+  onContextMenuBranch,
 }: GitSidebarBranchListProps) {
   const scopedKey = (groupName: string) =>
     folderKeyPrefix ? `${folderKeyPrefix}:${groupName}` : groupName
@@ -82,6 +88,9 @@ export default function GitSidebarBranchList({
           dirtyCount={dirtyCount}
           onClick={() => onSelectBranch(b, rowSection)}
           onDoubleClick={() => onDoubleClickBranch?.(b)}
+          onContextMenu={
+            onContextMenuBranch ? (at) => onContextMenuBranch(b, rowSection, at) : undefined
+          }
         />
       ))}
       {sortedGroupNames.map((g) => {
@@ -106,6 +115,7 @@ export default function GitSidebarBranchList({
             onToggle={onFolderToggle?.(key)}
             onSelectBranch={onSelectBranch}
             onDoubleClickBranch={onDoubleClickBranch}
+            onContextMenuBranch={onContextMenuBranch}
           />
         )
       })}

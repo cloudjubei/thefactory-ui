@@ -1,23 +1,3 @@
-import type { ProcessIntegrationDecision, ProcessIntegrationMode } from 'thefactory-tools/types'
-
-/** What a person is filling in to say how approved work lands. */
-export interface ProcessIntegrationForm {
-  mode: ProcessIntegrationMode
-  /** Merge or squash: the credential whose name and email the commits are made as. */
-  identityId?: string
-  /** Merge or squash: the commit message, as written. */
-  message: string
-  /** Pull request: the credential it is pushed and opened as. */
-  accountId?: string
-  prTitle: string
-  prBody: string
-}
-
-/** A form that can be sent, or what stops it. */
-export type ProcessIntegrationFormResult =
-  | { decision: ProcessIntegrationDecision }
-  | { problem: string }
-
 /** One commit or pull request, as the host will show it. */
 export interface ProcessIntegrationPreviewEntry {
   title: string

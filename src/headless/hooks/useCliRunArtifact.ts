@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   applyCliAgentArtifact,
+  discardCliAgentArtifact,
   abortCliAgentRun,
   getCliAgentRun,
   getProcessRun,
@@ -194,6 +195,10 @@ export type UseCliRunArtifact = {
   applying: boolean
   /** Result of the last apply (added/modified/deleted/errors), once applied. */
   applyResult: ApplyCliAgentArtifactResult | undefined
+  /** Discard the captured changes: never applied, nor carried into the chat's next turn. */
+  discard: () => Promise<void>
+  /** True while a discard is in flight. */
+  discarding: boolean
   /** The run branch's diff vs its base (review mode), once loaded. */
   reviewDiff: GitDiffSummary | undefined
   /** True while the branch diff is being fetched. */
@@ -311,6 +316,7 @@ export function useCliRunArtifact(
   const [previewLoading, setPreviewLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState<ApplyCliAgentArtifactResult | undefined>(undefined)
+  const [discarding, setDiscarding] = useState(false)
   const [reviewDiff, setReviewDiff] = useState<GitDiffSummary | undefined>(undefined)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [merging, setMerging] = useState(false)
@@ -614,6 +620,25 @@ export function useCliRunArtifact(
       if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
     } finally {
       setApplying(false)
+    }
+  }, [runId, projectId, artifact])
+
+  const discard = useCallback(async () => {
+    if (!runId || !projectId || !artifact) return
+    const epoch = epochRef.current
+    setDiscarding(true)
+    setError(undefined)
+    try {
+      const { data } = await discardCliAgentArtifact({
+        path: { runId, artifactId: artifact.id },
+        body: { projectId },
+        throwOnError: true,
+      })
+      if (epoch === epochRef.current) setArtifact(filesEmittedArtifactOf(data.artifacts))
+    } catch (err: unknown) {
+      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setDiscarding(false)
     }
   }, [runId, projectId, artifact])
 
@@ -935,6 +960,8 @@ export function useCliRunArtifact(
     apply,
     applying,
     applyResult,
+    discard,
+    discarding,
     reviewDiff,
     reviewLoading,
     loadReviewDiff,

@@ -148,7 +148,7 @@ describe('lastCliActionAtMs', () => {
 describe('blockedOnFromGrants', () => {
   const grant = (over: Partial<PendingToolGrantData> = {}): PendingToolGrantData => ({
     id: 'a1',
-    source: 'cli',
+    chatRunner: 'cli',
     label: 'Inspect host path',
     ...over,
   })
@@ -358,7 +358,7 @@ describe('describeCliRunActivity', () => {
 })
 
 describe('turnBlockedOn', () => {
-  const ask = { id: 'a1', source: 'cli' as const, label: 'addStory', toolName: 'addStory' }
+  const ask = { id: 'a1', chatRunner: 'cli' as const, label: 'addStory', toolName: 'addStory' }
 
   it("uses the chat's feed when it names anything", () => {
     const feed = [{ toolName: 'saveAgentNote', label: 'saveAgentNote' }]

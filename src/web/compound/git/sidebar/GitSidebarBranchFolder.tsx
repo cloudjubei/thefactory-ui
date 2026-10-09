@@ -25,6 +25,11 @@ export type GitSidebarBranchFolderProps = {
   onToggle?: (open: boolean) => void
   onSelectBranch: (b: GitUnifiedBranchLike, section: 'local' | 'remote') => void
   onDoubleClickBranch?: (b: GitUnifiedBranchLike) => void
+  onContextMenuBranch?: (
+    b: GitUnifiedBranchLike,
+    section: 'local' | 'remote',
+    at: { x: number; y: number },
+  ) => void
 }
 
 export default function GitSidebarBranchFolder({
@@ -40,6 +45,7 @@ export default function GitSidebarBranchFolder({
   onToggle,
   onSelectBranch,
   onDoubleClickBranch,
+  onContextMenuBranch,
 }: GitSidebarBranchFolderProps) {
   const rowSection: 'local' | 'remote' = isRemoteSection ? 'remote' : 'local'
   const hasSelected = branches.some((b) => b.name === selectedBranchName && !selectedStashRef)
@@ -98,6 +104,9 @@ export default function GitSidebarBranchFolder({
               indent={1}
               onClick={() => onSelectBranch(b, rowSection)}
               onDoubleClick={() => onDoubleClickBranch?.(b)}
+              onContextMenu={
+                onContextMenuBranch ? (at) => onContextMenuBranch(b, rowSection, at) : undefined
+              }
             />
           ))}
         </div>

@@ -20,6 +20,7 @@ import type { MarkdownEditorPaneView } from '../MarkdownEditor'
 import { default as HtmlEditor } from './HtmlEditor'
 import type { FileInfoData } from './FileInfoButton'
 import { classifyFileByExtension, type FilePaneKind } from '../../../headless/utils/filePaneKind'
+import { revealTextLine } from '../../utils/revealTextLine'
 
 export { classifyFileByExtension }
 export type { FilePaneKind }
@@ -58,6 +59,8 @@ export type FilePaneProps = {
    * provided.
    */
   fileInfo?: FileInfoData
+  /** Opens a text file scrolled to this 1-based line, selected — where a search result matched. */
+  focusLine?: number
 }
 
 type ModalRoute = { kind: 'rename'; from: string } | { kind: 'delete'; path: string } | null
@@ -76,6 +79,7 @@ export function FilePane({
   revokeBinaryUrl,
   classifyFile = classifyFileByExtension,
   fileInfo,
+  focusLine,
 }: FilePaneProps) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -128,6 +132,17 @@ export function FilePane({
     if (before.content !== content) setDraft(shown)
     else setDraft((d) => (d === before.shown ? shown : d))
   }, [filePath, content, shown])
+
+  const editorRef = useRef<HTMLTextAreaElement>(null)
+  const revealedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!filePath || focusLine === undefined || isContentLoading || shown === null) return
+    if (draft !== shown) return
+    const key = `${filePath}#${focusLine}`
+    if (revealedRef.current === key || !editorRef.current) return
+    revealedRef.current = key
+    revealTextLine(editorRef.current, focusLine)
+  }, [filePath, focusLine, isContentLoading, shown, draft])
 
   useEffect(() => {
     if (!filePath || !getBinaryUrl) return
@@ -284,6 +299,7 @@ export function FilePane({
               view={paneView}
               onViewChange={setPaneView}
               hideHeader
+              textareaRef={editorRef}
               {...(previewText !== undefined ? { previewText } : {})}
             />
           </div>
@@ -306,6 +322,7 @@ export function FilePane({
               view={paneView}
               onViewChange={setPaneView}
               hideHeader
+              textareaRef={editorRef}
             />
           </div>
         </div>
@@ -345,6 +362,7 @@ export function FilePane({
             <div className="p-4 text-sm opacity-60">Loading…</div>
           ) : (
             <Textarea
+              ref={editorRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               className="flex-1 min-h-0 font-mono text-xs resize-none border-0 outline-none rounded-none"

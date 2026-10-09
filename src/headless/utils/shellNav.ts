@@ -1,3 +1,5 @@
+import { projectIsUiApp } from 'thefactory-tools/utils'
+
 /**
  * Shell navigation model — the structural source of truth shared between the
  * web `Sidebar` (and its responsive drawer) and the native `NavDrawer`. Pure
@@ -8,7 +10,9 @@
 /** Icon identifiers — each consumer maps these to its own icon component. */
 export type NavIconKey =
   | 'home'
+  | 'search'
   | 'files'
+  | 'design'
   | 'notes'
   | 'chat'
   | 'git'
@@ -23,7 +27,9 @@ export type NavIconKey =
 /** Per-project shell surface keys. Map to URL segments `/projects/:id/{key}`. */
 export type ShellTabKey =
   | 'stories'
+  | 'search'
   | 'files'
+  | 'design'
   | 'notes'
   | 'chat'
   | 'git'
@@ -51,7 +57,9 @@ export type ShellTabDef = {
 export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
   { key: 'app', label: 'App', icon: 'app' },
   { key: 'stories', label: 'Home', icon: 'home' },
+  { key: 'search', label: 'Search', icon: 'search' },
   { key: 'files', label: 'Files', icon: 'files' },
+  { key: 'design', label: 'Design', icon: 'design' },
   { key: 'notes', label: 'Notes', icon: 'notes' },
   { key: 'chat', label: 'Chat', icon: 'chat' },
   { key: 'git', label: 'Git', icon: 'git' },
@@ -65,6 +73,25 @@ export const SHELL_TAB_DEFS: readonly ShellTabDef[] = [
 
 export function isShellTabKey(v: string | undefined): v is ShellTabKey {
   return SHELL_TAB_DEFS.some((t) => t.key === v)
+}
+
+/** The project metadata flags that decide which per-project tabs exist. */
+export type ShellTabProjectFlags = { hasApp?: unknown; isUiApp?: unknown } | undefined
+
+/**
+ * Whether a project has this tab: App only when it declares an app (`hasApp`),
+ * Design unless it says it has no user interface (`isUiApp: false`), every
+ * other tab always.
+ */
+export function projectShowsShellTab(tab: ShellTabKey, metadata: ShellTabProjectFlags): boolean {
+  if (tab === 'app') return metadata?.hasApp === true
+  if (tab === 'design') return projectIsUiApp(metadata)
+  return true
+}
+
+/** The tab to land on in a project: the one asked for if the project has it, else Home. */
+export function shellTabForProject(tab: ShellTabKey, metadata: ShellTabProjectFlags): ShellTabKey {
+  return projectShowsShellTab(tab, metadata) ? tab : 'stories'
 }
 
 /** Per-group shell surface keys. Map to URL segments `/groups/:id/{key}`. */

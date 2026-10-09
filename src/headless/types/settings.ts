@@ -80,6 +80,8 @@ export type NotificationCategory =
   | 'activity'
   | 'cross-project'
   | 'processes'
+  /** What the projects keep on this machine went above the warning threshold. */
+  | 'storage'
 
 /** Subset of `NotificationCategory` whose badge colour the user can pick. */
 export type BadgeColorCategory = NotificationCategory
@@ -91,6 +93,7 @@ export const BADGE_COLOR_CATEGORIES: readonly BadgeColorCategory[] = [
   'activity',
   'cross-project',
   'processes',
+  'storage',
 ] as const
 
 /** Type-guard: narrows a `NotificationCategory` to one that carries a badge colour. */
@@ -130,6 +133,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     activity: true,
     'cross-project': true,
     processes: true,
+    storage: true,
   },
   badgesEnabled: {
     chat: true,
@@ -138,6 +142,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     activity: true,
     'cross-project': true,
     processes: true,
+    storage: true,
   },
   badgeColors: {
     chat: 'red',
@@ -146,6 +151,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     activity: 'red',
     'cross-project': 'blue',
     processes: 'green',
+    storage: 'orange',
   },
   chatBadgeCountMode: 'chats_with_unread',
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },

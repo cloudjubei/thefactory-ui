@@ -49,6 +49,7 @@ import ProofScreens from './ProofScreens'
 export type ReviewStatusLine = { tone: 'done' | 'review' | 'stuck'; label: string }
 
 export type FeatureReviewSectionProps = {
+  projectId: string
   /** An embedded section is the body alone, inside a row that already names it. */
   kind: 'overall' | 'feature' | 'embedded'
   idLabel?: string
@@ -195,6 +196,7 @@ function StepSummary({ steps }: { steps: readonly StoryStepLine[] }) {
  * diff is not loaded at story scope.
  */
 export default function FeatureReviewSection({
+  projectId,
   kind,
   idLabel,
   idScope = 'feature',
@@ -357,7 +359,7 @@ export default function FeatureReviewSection({
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{attemptLabel}</Text>
       ) : null}
 
-      {proof?.header ? <ProofBanner header={proof.header} /> : null}
+      {proof?.header ? <ProofBanner projectId={projectId} header={proof.header} /> : null}
 
       {notes.map((note) => (
         <View

@@ -1,4 +1,5 @@
 import { attachmentDisplayName } from 'thefactory-tools/utils'
+import { CHAT_ATTACHMENT_MAX_BYTES } from 'thefactory-tools/constants'
 import {
   useCallback,
   useEffect,
@@ -16,13 +17,18 @@ import type { ReferenceSuggestion } from '../files/reference'
 import Tooltip from '../../primitives/Tooltip'
 import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
-import { IconAttach, IconMic, IconSend } from '../../icons'
+import { IconAttach, IconError, IconFile, IconMic, IconSend } from '../../icons'
+import Spinner from '../../primitives/Spinner'
 import {
   useNativeDictationTrigger,
   useSpeechToText,
   type NativeDictationResult,
 } from '../../../headless'
 import DictationWave from './DictationWave'
+import { PENDING_STACK_TEXT } from '../../../headless/utils/chatDraftConstants'
+import { attachmentUploadError, isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { AttachmentUpload } from '../../../headless/utils/chatDropTypes'
+import { useChatDropTarget } from './ChatDropController'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -47,6 +53,11 @@ export type ChatInputProps = {
   onAbort?: () => void
   isThinking?: boolean
   isConfigured?: boolean
+  /**
+   * While thinking, a send still goes through `onSend` instead of being
+   * refused — the host queues it as a pending message.
+   */
+  queueWhileThinking?: boolean
 
   /** Suggested quick-reply chips from the last assistant turn. */
   suggestedActions?: string[]
@@ -71,6 +82,20 @@ export type ChatInputProps = {
    * stored path (which gets appended to `attachments`). When omitted, the
    * attach button is hidden. */
   onUploadAttachment?: (file: File) => Promise<string | undefined>
+  /**
+   * Adds an uploaded path to the composer. Preferred over `onChangeAttachments`
+   * for uploads: it applies to the composer as it is when the upload finishes,
+   * not as it was when it started.
+   */
+  onAddAttachment?: (path: string) => void
+  /**
+   * A thumbnail URL for an image attachment this composer did not upload itself
+   * (e.g. one restored from a saved draft). Resolves `null` when the file is
+   * gone — its chip is then dropped.
+   */
+  getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
+  /** The chat's name, as the window's file-drop overlay names it. */
+  dropTargetTitle?: string
 
   autoFocus?: boolean
   /** Key that, when changed, restores caret position to the end (used when
@@ -103,6 +128,7 @@ export default function ChatInput({
   onAbort,
   isThinking = false,
   isConfigured = true,
+  queueWhileThinking = false,
   suggestedActions,
   filePaths,
   searchFiles,
@@ -111,6 +137,9 @@ export default function ChatInput({
   onSearchHandles,
   onAcceptReference,
   onUploadAttachment,
+  onAddAttachment,
+  getAttachmentPreviewUrl,
+  dropTargetTitle,
   autoFocus,
   restoreKey,
   clearOnSend = false,
@@ -375,7 +404,7 @@ export default function ChatInput({
   }
 
   const handleSend = () => {
-    if (isThinking) {
+    if (isThinking && !queueWhileThinking) {
       triggerBlockedFlash()
       return
     }
@@ -406,28 +435,110 @@ export default function ChatInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault()
-      if (isThinking) {
-        triggerBlockedFlash()
-        return
-      }
       handleSend()
     }
     // Plain Enter inserts a newline (matches desktop). Cmd/Ctrl+Enter sends.
   }
 
-  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !onUploadAttachment) return
-    try {
-      const path = await onUploadAttachment(file)
-      if (path && onChangeAttachments) {
-        const next = Array.from(new Set([...safeAttachments, path]))
-        onChangeAttachments(next)
+  const [uploads, setUploads] = useState<AttachmentUpload[]>([])
+  const [previews, setPreviews] = useState<Record<string, string>>({})
+  const previewsRef = useRef(previews)
+  previewsRef.current = previews
+  const requestedPreviewsRef = useRef(new Set<string>())
+  const attachmentsRef = useRef(safeAttachments)
+  attachmentsRef.current = safeAttachments
+
+  const addPreview = useCallback((path: string, url: string) => {
+    setPreviews((prev) => ({ ...prev, [path]: url }))
+  }, [])
+
+  useEffect(
+    () => () => {
+      for (const url of Object.values(previewsRef.current)) URL.revokeObjectURL(url)
+    },
+    [],
+  )
+
+  const lastUploadKeyRef = useRef(restoreKey)
+  useEffect(() => {
+    if (lastUploadKeyRef.current === restoreKey) return
+    lastUploadKeyRef.current = restoreKey
+    setUploads([])
+  }, [restoreKey])
+
+  const uploadFiles = useCallback(
+    (files: File[]) => {
+      if (!onUploadAttachment) return
+      const addAttachment =
+        onAddAttachment ??
+        ((path: string) =>
+          onChangeAttachments?.(Array.from(new Set([...attachmentsRef.current, path]))))
+      for (const file of files) {
+        const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+        const tooLarge = attachmentUploadError(file, CHAT_ATTACHMENT_MAX_BYTES)
+        if (tooLarge) {
+          setUploads((prev) => [...prev, { id, name: file.name, status: 'error', error: tooLarge }])
+          continue
+        }
+        setUploads((prev) => [...prev, { id, name: file.name, status: 'uploading' }])
+        void onUploadAttachment(file)
+          .then((path) => {
+            setUploads((prev) => prev.filter((u) => u.id !== id))
+            if (!path) return
+            if (isImageAttachment(file.name)) {
+              requestedPreviewsRef.current.add(path)
+              addPreview(path, URL.createObjectURL(file))
+            }
+            addAttachment(path)
+          })
+          .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err)
+            setUploads((prev) =>
+              prev.map((u) =>
+                u.id === id
+                  ? {
+                      ...u,
+                      status: 'error',
+                      error: `${file.name} could not be attached: ${message}`,
+                    }
+                  : u,
+              ),
+            )
+          })
       }
-    } finally {
-      e.target.value = ''
-    }
+    },
+    [onUploadAttachment, onAddAttachment, onChangeAttachments, addPreview],
+  )
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    uploadFiles(files)
   }
+
+  useChatDropTarget({
+    ref: chatInputRef,
+    title: dropTargetTitle ?? 'this chat',
+    onFiles: uploadFiles,
+    enabled: !!onUploadAttachment,
+  })
+
+  useEffect(() => {
+    if (!getAttachmentPreviewUrl) return
+    for (const path of safeAttachments) {
+      if (!isImageAttachment(path) || requestedPreviewsRef.current.has(path)) continue
+      requestedPreviewsRef.current.add(path)
+      getAttachmentPreviewUrl(path)
+        .then((url) => {
+          if (url) {
+            addPreview(path, url)
+            return
+          }
+          onChangeAttachments?.(attachmentsRef.current.filter((p) => p !== path))
+        })
+        .catch(() => {})
+    }
+  }, [safeAttachments, getAttachmentPreviewUrl, onChangeAttachments, addPreview])
 
   const onSearchFiles = useCallback(
     (token: string) => searchFiles?.(token) ?? rankMentionMatches(filePaths ?? [], token, 8),
@@ -554,16 +665,57 @@ export default function ChatInput({
             </div>
 
             {/* Attachments + bottom hints */}
-            {(safeAttachments.length > 0 || showHints) && (
+            {(safeAttachments.length > 0 || uploads.length > 0 || showHints) && (
               <div className="px-2 py-1.5 border-t border-(--border-subtle)">
-                {safeAttachments.length > 0 ? (
+                {safeAttachments.length > 0 || uploads.length > 0 ? (
                   <div className="flex flex-wrap gap-1 mb-2">
+                    {uploads.map((u) => (
+                      <span
+                        key={u.id}
+                        className={[
+                          'inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-[1px]',
+                          u.status === 'error'
+                            ? 'border-red-500/60 bg-red-500/10 text-(--text-primary)'
+                            : 'border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary)',
+                        ].join(' ')}
+                        title={u.error ?? `Uploading ${u.name}…`}
+                        role={u.status === 'error' ? 'alert' : 'status'}
+                      >
+                        {u.status === 'uploading' ? (
+                          <Spinner size={10} />
+                        ) : (
+                          <IconError className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className="truncate max-w-[420px]">
+                          {u.status === 'error' ? u.error : u.name}
+                        </span>
+                        {u.status === 'error' ? (
+                          <button
+                            type="button"
+                            className="opacity-60 hover:opacity-100"
+                            onClick={() => setUploads((prev) => prev.filter((x) => x.id !== u.id))}
+                            aria-label={`Dismiss ${u.name}`}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </span>
+                    ))}
                     {safeAttachments.map((p) => (
                       <span
                         key={p}
                         className="inline-flex items-center gap-1 text-[11px] rounded-full border border-(--border-subtle) bg-(--surface-overlay) text-(--text-secondary) px-2 py-[1px]"
                         title={p}
                       >
+                        {previews[p] ? (
+                          <img
+                            src={previews[p]}
+                            alt=""
+                            className="w-5 h-5 -ml-1.5 rounded-full object-cover"
+                          />
+                        ) : isImageAttachment(p) ? (
+                          <IconFile className="w-3 h-3" />
+                        ) : null}
                         <span className="truncate max-w-[140px]">{attachmentDisplayName(p)}</span>
                         {onChangeAttachments ? (
                           <button
@@ -624,7 +776,7 @@ export default function ChatInput({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".md,.txt,.json,.js,.jsx,.ts,.tsx,.css,.scss,.less,.html,.htm,.xml,.yml,.yaml,.csv,.log,.sh,.bash,.zsh,.bat,.ps1,.py,.rb,.java,.kt,.go,.rs,.c,.h,.cpp,.hpp,.m,.swift,.ini,.conf,.env"
+                    multiple
                     style={{ display: 'none' }}
                     onChange={handleFileUpload}
                   />
@@ -666,19 +818,36 @@ export default function ChatInput({
                   )}
                 </div>
 
-                {dictationAvailable && (
+                {isThinking && queueWhileThinking && canSend ? (
                   <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center">
-                    <Tooltip content="Dictate" placement="top">
+                    <Tooltip
+                      content={`${PENDING_STACK_TEXT.queueButton} (${modifierSymbol} + Enter)`}
+                      placement="top"
+                    >
                       <button
-                        type="button"
-                        onClick={startDictation}
+                        type="submit"
                         className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-(--surface-hover) focus:outline-none focus:ring-2 focus:ring-(--focus-ring)"
-                        aria-label="Dictate"
+                        aria-label="Add to pending messages"
                       >
-                        <IconMic className="w-5 h-5" />
+                        <IconSend className="w-5 h-5" />
                       </button>
                     </Tooltip>
                   </div>
+                ) : (
+                  dictationAvailable && (
+                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center">
+                      <Tooltip content="Dictate" placement="top">
+                        <button
+                          type="button"
+                          onClick={startDictation}
+                          className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-(--surface-hover) focus:outline-none focus:ring-2 focus:ring-(--focus-ring)"
+                          aria-label="Dictate"
+                        >
+                          <IconMic className="w-5 h-5" />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  )
                 )}
               </>
             )}

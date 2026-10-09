@@ -10,6 +10,7 @@ import {
   soleIntegrationMode,
 } from './processIntegration'
 import { PROCESS_INTEGRATION_NEVER_TRIED } from './processIntegrationConstants'
+import { PROCESS_INTEGRATION_CHECK_MERGE } from './processIntegrationFormConstants'
 
 const GIT_WORDS = /merge|branch|commit|pull request|\bPR\b|push|squash|git/i
 
@@ -205,6 +206,47 @@ describe('processIntegrationView', () => {
     ).toEqual({ tone: 'working', title: 'Merging into main…', canRetry: false, busy: true })
   })
 
+  it('says the result is being built and type-checked while a checked merge happens', () => {
+    expect(
+      processIntegrationView(
+        run({
+          integration: {
+            mode: 'merge',
+            status: 'integrating',
+            landing: { checkMerge: true },
+            at: 1,
+          },
+        }),
+      )?.detail,
+    ).toBe(PROCESS_INTEGRATION_CHECK_MERGE.busy('main'))
+  })
+
+  it('carries the result’s checks on a landing that failed them', () => {
+    const checks = { status: 'failed' as const, summary: 'It fails.', checks: [] }
+    expect(
+      processIntegrationView(
+        run({
+          integration: {
+            mode: 'merge',
+            status: 'failed',
+            error: 'main did not move.',
+            checks,
+            at: 1,
+          },
+        }),
+      ),
+    ).toMatchObject({ tone: 'stuck', detail: 'main did not move.', checks, canRetry: true })
+  })
+
+  it('carries the result’s checks on a landing that passed them', () => {
+    const checks = { status: 'passed' as const, summary: 'It builds.', checks: [] }
+    expect(
+      processIntegrationView(
+        run({ integration: { mode: 'squash', status: 'integrated', sha: SHA, checks, at: 1 } }),
+      )?.checks,
+    ).toEqual(checks)
+  })
+
   it('shows the push while a pull request is opened', () => {
     expect(
       processIntegrationView(
@@ -213,7 +255,7 @@ describe('processIntegrationView', () => {
     ).toBe('Pushing factory/fonts-1a2b3c4d and opening a pull request…')
   })
 
-  it('shows a merge that landed with its short sha', () => {
+  it('shows a merge that landed with its full sha', () => {
     expect(
       processIntegrationView(
         run({ integration: { mode: 'merge', status: 'integrated', sha: SHA, at: 1 } }),
@@ -221,7 +263,7 @@ describe('processIntegrationView', () => {
     ).toEqual({
       tone: 'done',
       title: 'Merged into main',
-      sha: 'c0ffee1',
+      sha: SHA,
       canRetry: false,
       busy: false,
     })
@@ -254,7 +296,7 @@ describe('processIntegrationView', () => {
       title: 'Pull request opened',
       detail: 'factory/fonts-1a2b3c4d → main. Nothing lands on main until it is merged there.',
       link: { url: 'https://github.com/acme/site/pull/9', label: 'Open the pull request' },
-      sha: 'c0ffee1',
+      sha: SHA,
       canRetry: false,
       busy: false,
     })
@@ -443,11 +485,39 @@ describe('processIntegrationView — a conflict on landing sent to an agent', ()
       title: 'The conflict with main is resolved — confirm how the work lands',
       detail:
         'main was merged into the work, resolving the files below, and the checks ran on it: Build ✓ · Unit tests ✓. Approve to land it — the way, identity and message you chose before are kept.',
-      sha: 'mmmmmmm',
+      sha: 'm'.repeat(40),
       files: ['src/file/fileConstants.ts'],
       canRetry: false,
       busy: false,
     })
+  })
+
+  it('names the commit the checks ran on — the one that lands — past the merge a fix built on', () => {
+    const merged: ProcessLedgerEntry = {
+      id: 'c1',
+      stepId: 'conflict-checks',
+      iteration: 1,
+      status: 'done',
+      outcome: 'failed',
+      checkedSha: 'm'.repeat(40),
+      startedAt: 3,
+      baseUpdate: { baseRef: 'main', baseSha: SHA, commits: 2, sha: 'm'.repeat(40), at: 4 },
+    }
+    const fixed: ProcessLedgerEntry = {
+      id: 'c2',
+      stepId: 'conflict-checks',
+      iteration: 2,
+      status: 'done',
+      outcome: 'passed',
+      checkedSha: 'f'.repeat(40),
+      startedAt: 6,
+    }
+    const parked = resolving({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'confirm-landing', message: 'Confirm', parkedAt: 7 },
+      ledger: [approved, merged, fixed],
+    })
+    expect(processIntegrationView(parked)?.sha).toBe('f'.repeat(40))
   })
 
   it('leaves a park on the way to the person, who answers it there', () => {

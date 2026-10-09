@@ -1,0 +1,59 @@
+import { cliLabel, shortCliModelLabel } from './cliRunner'
+import {
+  MODEL_CHIP_PICK_MODEL,
+  MODEL_CHIP_PICK_PROVIDER,
+  MODEL_CHIP_PICK_TITLE,
+  MODEL_CHIP_PROVIDER_LABELS,
+  MODEL_CHIP_REAUTH_FALLBACK,
+  MODEL_CHIP_UNKNOWN_PROVIDER,
+  MODEL_CHIP_UNKNOWN_TITLE,
+} from './modelChipConstants'
+import type { ModelChipConfigLike, ModelChipLabel, ModelChipLabelInput } from './modelChipTypes'
+
+/** A provider key as a person reads it: `openai` → `OpenAI`; an unknown one as given. */
+export function modelChipProviderLabel(provider?: string): string {
+  if (!provider) return ''
+  return MODEL_CHIP_PROVIDER_LABELS[provider.toLowerCase()] ?? provider
+}
+
+/**
+ * What a model chip says, the same on every client: the provider (or CLI) and
+ * the model on two short lines, and both in full as its title — the lines are
+ * cut to the chip's width, the title never is.
+ */
+export function modelChipLabel(input: ModelChipLabelInput): ModelChipLabel {
+  let provider = modelChipProviderLabel(input.provider)
+  let model = input.model ?? ''
+  if ((!provider || !model) && input.activeConfig) {
+    provider = modelChipProviderLabel(input.activeConfig.provider)
+    model = input.activeConfig.model ?? ''
+  }
+  if (input.useCli) {
+    provider = cliLabel(input.activeCli)
+    const named = input.cliModels?.find((m) => m.id === input.model)
+    model = shortCliModelLabel(named?.label ?? input.model ?? '')
+  }
+  const shown = [provider, model].filter(Boolean).join(' · ')
+  const base = shown || (input.editable ? MODEL_CHIP_PICK_TITLE : MODEL_CHIP_UNKNOWN_TITLE)
+  return {
+    provider: provider || (input.editable ? MODEL_CHIP_PICK_PROVIDER : MODEL_CHIP_UNKNOWN_PROVIDER),
+    model: model || (input.editable ? MODEL_CHIP_PICK_MODEL : ''),
+    title:
+      input.reauthMessage !== undefined
+        ? `${base} — ${input.reauthMessage || MODEL_CHIP_REAUTH_FALLBACK}; re-authenticate in Settings`
+        : base,
+  }
+}
+
+/**
+ * The config a selection runs on: the chosen one while it still exists, else
+ * the first config — the one a send falls back to. A chosen id that was
+ * deleted, or never chosen on this device, must not leave the chip blank while
+ * the chat runs on something.
+ */
+export function activeLlmConfig<T extends ModelChipConfigLike & { id: string }>(
+  configs: readonly T[],
+  chosenId: string | null,
+): T | null {
+  return (chosenId ? configs.find((c) => c.id === chosenId) : undefined) ?? configs[0] ?? null
+}

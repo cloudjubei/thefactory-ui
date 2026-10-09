@@ -14,6 +14,8 @@ import {
 import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
+import CommitChip from '../chips/CommitChip'
+import MergeChecksResult from '../git/MergeChecksResult'
 import IntegrationChooser from './IntegrationChooser'
 
 export type IntegrationResultProps = {
@@ -78,25 +80,12 @@ export default function IntegrationResult({
     >
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>{view.title}</Text>
-        {view.sha ? (
-          <Text
-            selectable
-            style={{
-              fontFamily: nativeFontFamilies.mono,
-              fontSize: 11,
-              color: theme.text.secondary,
-              backgroundColor: theme.surface.muted,
-              borderRadius: nativeRadii[1],
-              paddingHorizontal: 6,
-            }}
-          >
-            {view.sha}
-          </Text>
-        ) : null}
+        {view.sha ? <CommitChip projectId={run.projectId} sha={view.sha} /> : null}
       </View>
       {view.detail ? (
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.detail}</Text>
       ) : null}
+      {view.checks ? <MergeChecksResult checks={view.checks} /> : null}
       {view.files && view.files.length > 0 ? (
         <View style={{ gap: 2 }}>
           {view.files.map((file) => (

@@ -7,7 +7,7 @@
 // the tools package this one already peers on, so a cost reads the same here
 // as in every ledger and run record.
 
-import type { BillingBasis } from 'thefactory-tools/types'
+import type { BillingBasis, ChatBackgroundJobResult } from 'thefactory-tools/types'
 
 import type { AgentQuestion } from './agentQuestionTypes'
 import type { AgentRemedy } from './agentRemedyTypes'
@@ -58,6 +58,8 @@ export type ToolCallLike = {
    * panel or a question card — so its row says so instead of spinning.
    */
   awaitingDecision?: boolean
+  /** Who settled the call's ask — "Approved by you", "Approved by rule: …" — so every approval on screen can be traced to its decider. */
+  decisionNote?: string
 }
 
 // Web's backend currently emits a free-form string; desktop's agent loop has
@@ -74,6 +76,8 @@ export type ToolResultLike = {
   type?: ToolResultTypeLike
   result?: unknown
   durationMs?: number
+  /** The ask the call waits on, or the approval it ran under — an API chat turn's broker action. */
+  actionId?: string
 }
 
 export type MessageUsageLike = {
@@ -141,23 +145,43 @@ export type ChatMessageLike = {
    * the right (it IS a user turn to act on) but renders visually distinct from what the human typed.
    */
   handoffFrom?: string
+  /**
+   * Set on the message the host delivered results of earlier calls by — calls
+   * that finished in the background, one entry per call.
+   */
+  backgroundResults?: ChatBackgroundJobResult[]
 }
 
-export type PendingToolConfirmationLike = {
-  toolCalls: ToolCallLike[]
+// A tool grant the approval UI renders: one broker ask of the chat, whichever
+// agent raised it — an API chat turn's or a CLI run's. Decided the same way on
+// both: per ask, with a grant scope for an always-allow and edits in metadata.
+export type PendingToolGrantDecision = 'once' | 'always-in-chat' | 'always-everywhere' | 'deny'
+
+/** Where an always-allow applies: only in the chat it was given in, or in every chat — either way whichever model or sign-in. */
+export type AlwaysAllowScope = 'chat' | 'everywhere'
+
+/** What an always-allow covers: every later call of the tool, or the one exact call repeated. */
+export type GrantCovers = 'tool' | 'exact-call'
+
+/** The always-allow control for one ask — see `alwaysAllowChoiceView`. */
+export type AlwaysAllowChoiceView = {
+  /** What one click does: always allow in `scope`, or (`undefined`) take a marked choice back. */
+  primary: { scope: AlwaysAllowScope | undefined; label: string }
+  /** Marked for Resume to apply. */
+  marked: boolean
+  /** The places a menu offers; empty when only one is possible. */
+  options: { scope: AlwaysAllowScope; label: string; description: string; selected: boolean }[]
+  /** The tooltip: what one click allows, or what Resume will apply. */
+  title: string
 }
 
-// A unified tool-grant the confirmation UI renders, sourced from either the
-// API `require_confirmation` queue (`source: 'api'`) or a CLI agent's gated
-// `PendingAction` (`source: 'cli'`). `permanent` is only valid for `'cli'`
-// grants (maps to the broker's `approved-permanent`); the API path has no
-// notion of a remembered grant.
-export type PendingToolGrantSource = 'api' | 'cli'
-export type PendingToolGrantDecision = 'once' | 'permanent' | 'deny'
+/** Where the person decided: the ask's own card or row, or one Resume over the asks listed in front of them. */
+export type PendingToolGrantDecisionVia = 'card' | 'approve-all'
 
 export type PendingToolGrantData = {
   id: string
-  source: PendingToolGrantSource
+  /** The agent of the chat that raised the ask — what "same agent as this chat" names on a launch. */
+  chatRunner: 'cli' | 'api'
   label: string
   detail?: unknown
   /**
@@ -188,22 +212,30 @@ export type PendingToolGrantData = {
    */
   remedy?: AgentRemedy
   /**
-   * Whether "allow permanently" is genuinely on offer. Some gated tools — a
-   * per-path filesystem read, a per-use secret — refuse standing grants server
-   * side, where a permanent decision is silently downgraded to a single use.
-   * Offering the button anyway would tell the user they had made a lasting
-   * choice that was never recorded.
+   * Where an always-allow is genuinely on offer, the default first; empty or
+   * absent when none is. Some gated tools — a per-path filesystem read, a
+   * per-use secret — refuse standing grants server side, and an ask raised
+   * outside any chat can only be allowed everywhere.
    */
-  canGrantPermanently?: boolean
+  alwaysAllowScopes?: readonly AlwaysAllowScope[]
+  /** What an always-allow of this ask covers. */
+  grantCovers?: GrantCovers
+  /** The chat the ask was raised in — what an always-allow in this chat names. */
+  chatContextId?: string
 }
 
 export type PendingToolGrant = PendingToolGrantData & {
   /**
    * Decide this ask. `metadata` carries options the user set ON the approval
    * (e.g. capture proof for this run); the host whitelists what it honours, so a
-   * decision can never redirect the work.
+   * decision can never redirect the work. `via` is where the person decided it,
+   * recorded on the ask — its own card unless said otherwise.
    */
-  decide: (decision: PendingToolGrantDecision, metadata?: Record<string, unknown>) => Promise<void>
+  decide: (
+    decision: PendingToolGrantDecision,
+    metadata?: Record<string, unknown>,
+    via?: PendingToolGrantDecisionVia,
+  ) => Promise<void>
   /** Resolve a question grant with the user's typed answer. Question grants only. */
   answer?: (answer: string) => Promise<void>
   /**
@@ -247,12 +279,10 @@ export type PendingRemedyGrant = PendingToolGrant & {
 }
 
 // Per-context live state the chat shell consumes — tracks the in-flight
-// send, the partial assistant turn currently streaming, the queue of tool
-// calls awaiting confirmation, and any send error.
+// send, the partial assistant turn currently streaming, and any send error.
 export type ChatLiveStateLike = {
   isSending: boolean
   pendingAssistant: { turn: number; content: string } | null
-  pendingToolConfirmation: PendingToolConfirmationLike | null
   sendError: Error | null
   /** Active CLI run id while it streams. When set, the chat shows the live
    * Agent-run message (framed like the persisted reply) instead of a raw-text bubble. */

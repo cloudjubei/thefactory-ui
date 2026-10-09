@@ -3,12 +3,13 @@ import { Pressable, Text, View } from 'react-native'
 
 import type { CliRunReview } from '../../../../headless/api'
 import { formatTime, type BranchCommit } from '../../../../headless'
-import { nativeFontFamilies, nativeRadii } from '../../../../tokens/native'
+import { nativeRadii } from '../../../../tokens/native'
 import { useNativeTheme } from '../../../hooks/useNativeTheme'
 import { IconChevron, IconExternalLink } from '../../../icons'
 import { Button } from '../../../primitives/Button'
 import { Switch } from '../../../primitives/Switch'
 import type { ViewedFilesProgress } from '../../../../headless/utils/runReviewTypes'
+import CommitChip from '../../chips/CommitChip'
 import RefChip from '../../chips/RefChip'
 import { GitFileChangesPills } from '../../git/GitFileChangesPills'
 import GitFileStatusIcon from '../../git/GitFileStatusIcon'
@@ -29,6 +30,8 @@ export type ChangeFile = {
 }
 
 export type ChangesTabProps = {
+  /** The project the branch belongs to — where its commits open. */
+  projectId: string
   /** The branch's own commits, newest first; empty when they are unknown. */
   commits?: readonly BranchCommit[]
   review: CliRunReview | undefined
@@ -133,6 +136,7 @@ function FileRow({
  * each a ref chip — with a way into the app's Git view.
  */
 export default function ChangesTab({
+  projectId,
   review,
   files,
   loading,
@@ -171,11 +175,11 @@ export default function ChangesTab({
           ) : null}
           <RefChip kind="branch" value={review.branch} />
           <Text style={{ fontSize: 12, color: theme.text.muted }}>from</Text>
-          <RefChip kind="commit" value={review.baseSha} />
+          <CommitChip projectId={projectId} sha={review.baseSha} />
           {review.headSha ? (
             <>
               <Text style={{ fontSize: 12, color: theme.text.muted }}>to</Text>
-              <RefChip kind="commit" value={review.headSha} />
+              <CommitChip projectId={projectId} sha={review.headSha} />
             </>
           ) : null}
           <View style={{ flex: 1 }} />
@@ -206,7 +210,7 @@ export default function ChangesTab({
               key={commit.hash}
               style={{
                 flexDirection: 'row',
-                alignItems: 'baseline',
+                alignItems: 'center',
                 gap: 8,
                 paddingHorizontal: 10,
                 paddingVertical: 6,
@@ -214,15 +218,7 @@ export default function ChangesTab({
                 borderBottomColor: theme.border.subtle,
               }}
             >
-              <Text
-                style={{
-                  fontFamily: nativeFontFamilies.mono,
-                  fontSize: 11,
-                  color: theme.text.muted,
-                }}
-              >
-                {commit.hash.slice(0, 8)}
-              </Text>
+              <CommitChip projectId={projectId} sha={commit.hash} />
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: theme.text.primary }}>
                 {commit.subject}
               </Text>

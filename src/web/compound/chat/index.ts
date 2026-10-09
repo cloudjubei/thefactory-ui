@@ -15,6 +15,11 @@ export {
 export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
 export { default as GlobalChatOverlay, type GlobalChatOverlayProps } from './GlobalChatOverlay'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
+export { ChatDropController, useChatDropTarget } from './ChatDropController'
+export {
+  default as PendingMessagesStack,
+  type PendingMessagesStackProps,
+} from './PendingMessagesStack'
 export {
   default as ChatSettingsDropdown,
   type ChatSettingsDropdownProps,
@@ -75,7 +80,6 @@ export type {
   ChatLiveStateLike,
   ChatMessageLike,
   MessageUsageLike,
-  PendingToolConfirmationLike,
   ToolCallLike,
   ToolResultLike,
   ToolResultTypeLike,

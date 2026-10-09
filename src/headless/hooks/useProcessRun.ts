@@ -11,12 +11,15 @@ import {
   deleteProcessRun,
   getProcessRun,
   listProcessRunBranches,
+  askAgentAboutProcessRunPark,
   openProcessRunChat,
   resolveProcessRunIntegrationConflict,
   resolveProcessRunNeedsYouItem,
   resumeProcessRun,
   retryProcessRunIntegration,
   sendProcessRunBackForChanges,
+  startProcessRunChanges,
+  withdrawProcessRunChange,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
 import type { ChatContext } from '../api'
@@ -87,6 +90,12 @@ export type UseProcessRun = {
    */
   openChat: () => Promise<ProcessRunChatOpened | undefined>
   /**
+   * Ask an agent about the step the run stopped at, in the run's own chat: its
+   * turn starts with a message naming the step and what it said last. Resolves
+   * to the chat, or `undefined` when it was refused (the reason is in `actionError`).
+   */
+  askAgent: () => Promise<ProcessRunChatOpened | undefined>
+  /**
    * Settle one of the final report's "Needs you" items — fine as it is unless
    * `kind` says it is left for later. Resolves `false` when it was refused.
    */
@@ -95,6 +104,13 @@ export type UseProcessRun = {
     kind?: 'resolved' | 'deferred',
     summary?: string,
   ) => Promise<boolean>
+  /**
+   * Start the changes waiting on the run — exactly those shown — in one pass.
+   * Resolves `false` when it was refused; the reason is in `actionError`.
+   */
+  startChanges: (changeIds: readonly string[]) => Promise<boolean>
+  /** Take one waiting change off the run; the story keeps its edit. */
+  withdrawChange: (changeId: string) => Promise<boolean>
   /** The review branches this run tree owns — for the delete confirm's list. */
   listBranches: () => Promise<ProcessRunBranch[]>
   /** Delete this run and everything it owns (chats, CLI runs, records, opt. branches). */
@@ -127,7 +143,7 @@ function cachedHeldRun(runId: string | undefined): HeldRun {
  */
 export function useProcessRun(runId: string | undefined): UseProcessRun {
   const { token } = useAuth()
-  const { ws } = useApi()
+  const { ws, client } = useApi()
   const [held, setHeld] = useState<HeldRun>(() => cachedHeldRun(runId))
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -192,6 +208,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
           path: { runId },
           body: {
             choice,
+            decidedVia: client,
             ...(note ? { note } : {}),
             ...(integration ? integrationBody(integration) : {}),
             ...(requestedProof && requestedProof.length > 0
@@ -207,7 +224,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         return false
       }
     },
-    [runId, setRun],
+    [runId, client, setRun],
   )
 
   const retryIntegration = useCallback(
@@ -298,6 +315,18 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     }
   }, [runId])
 
+  const askAgent = useCallback(async (): Promise<ProcessRunChatOpened | undefined> => {
+    if (!runId) return undefined
+    setActionError(null)
+    try {
+      const { data } = await askAgentAboutProcessRunPark({ path: { runId }, throwOnError: true })
+      return data as ProcessRunChatOpened
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'An agent could not be asked about this step.'))
+      return undefined
+    }
+  }, [runId])
+
   const resolveNeedsYou = useCallback(
     async (itemId: string, kind?: 'resolved' | 'deferred', summary?: string) => {
       if (!runId) return false
@@ -312,6 +341,45 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         return true
       } catch (err) {
         setActionError(extractErrorMessage(err, 'Your decision could not be recorded.'))
+        return false
+      }
+    },
+    [runId, setRun],
+  )
+
+  const startChanges = useCallback(
+    async (changeIds: readonly string[]) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await startProcessRunChanges({
+          path: { runId },
+          body: { changeIds: [...changeIds], decidedVia: client },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The changes could not be started.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
+  const withdrawChange = useCallback(
+    async (changeId: string) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await withdrawProcessRunChange({
+          path: { runId, changeId },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The change could not be removed.'))
         return false
       }
     },
@@ -352,7 +420,10 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       delegate,
       cancel,
       openChat,
+      askAgent,
       resolveNeedsYou,
+      startChanges,
+      withdrawChange,
       listBranches,
       deleteRun,
     }),
@@ -369,7 +440,10 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       delegate,
       cancel,
       openChat,
+      askAgent,
       resolveNeedsYou,
+      startChanges,
+      withdrawChange,
       listBranches,
       deleteRun,
     ],

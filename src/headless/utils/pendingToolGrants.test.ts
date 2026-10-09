@@ -1,15 +1,14 @@
 import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
 import { describe, it, expect } from 'vitest'
 import {
-  apiToolCallToGrant,
   cliDecideOutcome,
   cliPendingActionToGrant,
   formatActionLabel,
   grantDecideErrorMessage,
   isCliActionUpdateEvent,
   isCliRunLifecycleEvent,
+  chatTurnActivity,
   isToolGrantAction,
-  launchDecisionOf,
   pendingActionToolName,
   pickActiveCliRunId,
   pickActiveStoryRunId,
@@ -18,32 +17,8 @@ import {
   withAsksAwaitingOutcome,
   cliRowAsks,
   isAskOutcomeEvent,
-  storedToolCallsAwaitingConfirmation,
 } from './pendingToolGrants'
 import type { ChatContextAgentRunStory } from '../api/generated'
-
-describe('apiToolCallToGrant', () => {
-  it('maps an API tool-call to an api-source grant keyed by toolCallId', () => {
-    expect(
-      apiToolCallToGrant({ toolCallId: 'tc-1', name: 'writeFile', arguments: { path: 'a.ts' } }),
-    ).toEqual({
-      id: 'tc-1',
-      source: 'api',
-      label: 'writeFile',
-      detail: { path: 'a.ts' },
-      toolName: 'writeFile',
-      inline: true,
-      args: { path: 'a.ts' },
-    })
-  })
-})
-
-describe('apiToolCallToGrant — launches', () => {
-  it('keeps an API feature-work launch for its own panel', () => {
-    const grant = apiToolCallToGrant({ toolCallId: 'tc', name: 'startFeatureWork', arguments: {} })
-    expect(grant.inline).toBeUndefined()
-  })
-})
 
 describe('pendingActionToolName', () => {
   it('reads the tool out of a gated executable tool payload', () => {
@@ -103,22 +78,29 @@ describe('cliPendingActionToGrant — ordinary tool asks are decided on their ro
 })
 
 describe('cliRowAsks', () => {
-  it('lists every CLI ask a row can be tied to, saying which are decided on the row', () => {
+  it('lists every ask a row can be tied to — an API turn’s as a CLI run’s — saying which are decided on the row', () => {
     const grants = [
       {
         id: 'a',
-        source: 'cli' as const,
+        chatRunner: 'cli' as const,
         label: 'addStory',
         toolName: 'addStory',
         inline: true,
         args: { t: 1 },
       },
-      { id: 'b', source: 'cli' as const, label: 'Network unlock' },
-      { id: 'c', source: 'api' as const, label: 'writeFile', toolName: 'writeFile', inline: true },
+      { id: 'b', chatRunner: 'cli' as const, label: 'Network unlock' },
+      {
+        id: 'c',
+        chatRunner: 'api' as const,
+        label: 'writeFile',
+        toolName: 'writeFile',
+        inline: true,
+      },
     ]
     expect(cliRowAsks(grants)).toEqual([
       { id: 'a', toolName: 'addStory', args: { t: 1 }, decidedOnRow: true },
       { id: 'b', decidedOnRow: false },
+      { id: 'c', toolName: 'writeFile', decidedOnRow: true },
     ])
   })
 })
@@ -142,15 +124,37 @@ describe('cliPendingActionToGrant', () => {
     expect(grant.inline).toBeUndefined()
   })
 
-  it('maps a CLI PendingAction to a cli-source grant with a humanised label', () => {
+  it('maps a CLI run’s PendingAction to a grant with a humanised label', () => {
     expect(
       cliPendingActionToGrant({ id: 'a-1', kind: 'network-unlock', payload: { host: 'x' } }),
     ).toEqual({
       id: 'a-1',
-      source: 'cli',
+      chatRunner: 'cli',
       label: 'Network unlock',
       detail: { host: 'x' },
-      canGrantPermanently: true,
+      alwaysAllowScopes: ['everywhere'],
+      grantCovers: 'exact-call',
+    })
+  })
+
+  it('maps an API chat turn’s ask exactly as a CLI run’s, saying the chat runs on the API', () => {
+    const action = {
+      id: 'a-3',
+      kind: MCP_TOOL_CALL_ACTION_KIND,
+      payload: { tool: 'addStory', args: { title: 'T' } },
+      grantPayload: { tool: 'addStory' },
+      chatContextId: '/projects/p',
+    }
+    const api = cliPendingActionToGrant({ ...action, runId: 'api-chat-turn:t1' })
+    const cli = cliPendingActionToGrant({ ...action, runId: 'run-1' })
+    expect(api.chatRunner).toBe('api')
+    expect(cli.chatRunner).toBe('cli')
+    expect({ ...api, chatRunner: 'cli' }).toEqual(cli)
+    expect(api).toMatchObject({
+      inline: true,
+      alwaysAllowScopes: ['chat', 'everywhere'],
+      grantCovers: 'tool',
+      detail: { tool: 'addStory', args: { title: 'T' } },
     })
   })
 
@@ -163,11 +167,12 @@ describe('cliPendingActionToGrant', () => {
       }),
     ).toEqual({
       id: 'a-2',
-      source: 'cli',
+      chatRunner: 'cli',
       label: 'Question',
       detail: { question: 'Which env?', options: ['dev', 'prod'] },
       question: { question: 'Which env?', options: ['dev', 'prod'] },
-      canGrantPermanently: true,
+      alwaysAllowScopes: ['everywhere'],
+      grantCovers: 'exact-call',
     })
   })
 
@@ -228,6 +233,25 @@ describe('isCliActionUpdateEvent', () => {
     expect(isCliActionUpdateEvent(null)).toBe(false)
     expect(isCliActionUpdateEvent(undefined)).toBe(false)
     expect(isCliActionUpdateEvent('actionRequest')).toBe(false)
+  })
+})
+
+describe('chatTurnActivity', () => {
+  it('reads whether the server started or stopped a turn of this chat', () => {
+    expect(chatTurnActivity({ chatContextId: '/projects/p1', active: true }, '/projects/p1')).toBe(
+      true,
+    )
+    expect(chatTurnActivity({ chatContextId: '/projects/p1', active: false }, '/projects/p1')).toBe(
+      false,
+    )
+  })
+
+  it('ignores another chat’s turn and anything malformed', () => {
+    expect(
+      chatTurnActivity({ chatContextId: '/projects/p2', active: true }, '/projects/p1'),
+    ).toBeUndefined()
+    expect(chatTurnActivity({ chatContextId: '/projects/p1' }, '/projects/p1')).toBeUndefined()
+    expect(chatTurnActivity(null, '/projects/p1')).toBeUndefined()
   })
 })
 
@@ -395,29 +419,49 @@ describe('pickActiveCliRunId', () => {
 })
 
 describe('cliDecideOutcome', () => {
-  it('routes once→approved, permanent→approved-permanent, deny→denied', () => {
+  it('routes a one-off approval to approved', () => {
     expect(cliDecideOutcome('once')).toBe('approved')
-    expect(cliDecideOutcome('permanent')).toBe('approved-permanent')
+  })
+
+  it('routes an always-allow in this chat to approved-permanent', () => {
+    expect(cliDecideOutcome('always-in-chat')).toBe('approved-permanent')
+  })
+
+  it('routes an always-allow everywhere to approved-permanent', () => {
+    expect(cliDecideOutcome('always-everywhere')).toBe('approved-permanent')
+  })
+
+  it('routes a refusal to denied', () => {
     expect(cliDecideOutcome('deny')).toBe('denied')
   })
 })
 
-describe('cliPendingActionToGrant permanent-grant offer', () => {
-  it('offers a standing grant for an ordinary gated action', () => {
+describe('cliPendingActionToGrant always-allow offer', () => {
+  it('offers this chat first, then everywhere, for an ask raised in a chat', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a',
+      kind: 'tool-call',
+      payload: { tool: 'addFeature', args: {} },
+      chatContextId: 'c1',
+    })
+    expect(grant.alwaysAllowScopes).toEqual(['chat', 'everywhere'])
+    expect(grant.chatContextId).toBe('c1')
+  })
+
+  it('offers only everywhere for an ask raised outside any chat', () => {
     const grant = cliPendingActionToGrant({ id: 'a', kind: 'network-unlock', payload: {} })
-    expect(grant.canGrantPermanently).toBe(true)
+    expect(grant.alwaysAllowScopes).toEqual(['everywhere'])
   })
 
   it('withholds it when the server refuses standing grants', () => {
-    // The server downgrades a permanent decision here, so offering the button
-    // would tell the user they made a lasting choice that was never recorded.
     const grant = cliPendingActionToGrant({
       id: 'a',
       kind: 'inspect-host-path',
       payload: { path: '/x' },
       noPermanentGrant: true,
+      chatContextId: 'c1',
     })
-    expect(grant.canGrantPermanently).toBe(false)
+    expect(grant.alwaysAllowScopes).toEqual([])
   })
 
   it('treats an explicit false the same as absent — the offer stands', () => {
@@ -427,7 +471,26 @@ describe('cliPendingActionToGrant permanent-grant offer', () => {
       payload: {},
       noPermanentGrant: false,
     })
-    expect(grant.canGrantPermanently).toBe(true)
+    expect(grant.alwaysAllowScopes).toEqual(['everywhere'])
+  })
+
+  it('says a grant given by tool name covers the whole tool', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a',
+      kind: 'tool-call',
+      payload: { tool: 'addFeature', args: { title: 'A' } },
+      grantPayload: { tool: 'addFeature' },
+    })
+    expect(grant.grantCovers).toBe('tool')
+  })
+
+  it('says a grant over the full payload covers that exact call', () => {
+    const grant = cliPendingActionToGrant({
+      id: 'a',
+      kind: 'tool-call',
+      payload: { tool: 'readFile', args: { path: 'x' } },
+    })
+    expect(grant.grantCovers).toBe('exact-call')
   })
 })
 
@@ -445,56 +508,6 @@ describe('grantDecideErrorMessage', () => {
     expect(grantDecideErrorMessage('plain refusal')).toBe('plain refusal')
     expect(grantDecideErrorMessage(undefined)).toMatch(/could not be applied/)
     expect(grantDecideErrorMessage({})).toMatch(/could not be applied/)
-  })
-})
-
-describe('launchDecisionOf', () => {
-  it('reads the open-work choice, the run and where it stood', () => {
-    expect(launchDecisionOf({ openWork: 'extend', runId: 'r1', state: 'unmerged' })).toEqual({
-      openWork: { openWork: 'extend', runId: 'r1', state: 'unmerged' },
-    })
-  })
-
-  it('leaves out a state it does not know', () => {
-    expect(launchDecisionOf({ openWork: 'fresh', runId: 'r1', state: 'odd' })).toEqual({
-      openWork: { openWork: 'fresh', runId: 'r1' },
-    })
-  })
-
-  it('reads how the features are worked, beside or without an open-work choice', () => {
-    expect(launchDecisionOf({ featureProcessId: 'feature-self-verified' })).toEqual({
-      featureProcessId: 'feature-self-verified',
-    })
-    expect(
-      launchDecisionOf({ openWork: 'fresh', runId: 'r1', featureProcessId: 'feature-default' }),
-    ).toEqual({ openWork: { openWork: 'fresh', runId: 'r1' }, featureProcessId: 'feature-default' })
-  })
-
-  it('reads the proof plans the person confirmed, and whether to save them', () => {
-    expect(
-      launchDecisionOf({
-        proofPlans: { f1: { kinds: ['manual', 'unit-tests'] } },
-        saveProofPlans: true,
-      }),
-    ).toEqual({ proofPlans: { f1: { kinds: ['unit-tests', 'manual'] } }, saveProofPlans: true })
-  })
-
-  it('drops malformed plans and a save with nothing to save', () => {
-    expect(
-      launchDecisionOf({ proofPlans: { f1: { kinds: ['screens'] } }, saveProofPlans: true }),
-    ).toBeUndefined()
-  })
-
-  it('is nothing for metadata without either choice', () => {
-    expect(launchDecisionOf({ note: 'hi', featureProcessId: '' })).toBeUndefined()
-  })
-
-  it('drops an open-work choice without the run it was about', () => {
-    expect(launchDecisionOf({ openWork: 'extend' })).toBeUndefined()
-  })
-
-  it('is nothing without metadata', () => {
-    expect(launchDecisionOf(undefined)).toBeUndefined()
   })
 })
 
@@ -529,6 +542,51 @@ describe('cliDecidedAsks', () => {
         execution: { ok: true, result: '{}' },
       },
     ])
+  })
+
+  it('keeps who decided it and where', () => {
+    const [ask] = cliDecidedAsks([
+      { ...action, status: 'approved', decidedBy: 'person', decidedVia: 'approve-all' },
+    ])
+    expect(ask).toMatchObject({ decidedBy: 'person', decidedVia: 'approve-all' })
+    expect(ask?.rule).toBeUndefined()
+  })
+
+  it('names the rule a standing grant for the whole tool applied', () => {
+    const [ask] = cliDecidedAsks([
+      {
+        ...action,
+        status: 'approved',
+        toolName: 'addFeature',
+        grantPayload: { tool: 'addFeature' },
+        decidedBy: 'grant:g1',
+        decidedVia: 'grant',
+        grantScope: { kind: 'chat', chatContextId: 'c1' },
+      },
+    ])
+    expect(ask?.rule).toBe('always allow addFeature in this chat')
+  })
+
+  it('names a rule that applies everywhere', () => {
+    const [ask] = cliDecidedAsks([
+      {
+        ...action,
+        status: 'approved',
+        toolName: 'addFeature',
+        grantPayload: { tool: 'addFeature' },
+        decidedBy: 'grant:g1',
+        decidedVia: 'grant',
+        grantScope: { kind: 'everywhere' },
+      },
+    ])
+    expect(ask?.rule).toBe('always allow addFeature everywhere')
+  })
+
+  it('names the rule a standing grant for one exact call applied', () => {
+    const [ask] = cliDecidedAsks([
+      { ...action, status: 'approved', decidedBy: 'grant:g2', decidedVia: 'grant' },
+    ])
+    expect(ask?.rule).toBe('always allow this exact addStory call everywhere')
   })
 
   it('prefers the tool the action names itself, and keeps why it expired', () => {
@@ -616,43 +674,5 @@ describe('withAsksAwaitingOutcome', () => {
 
   it('leaves asks still pending as they are', () => {
     expect(withAsksAwaitingOutcome([ask('a1')], [ask('a1')], new Set())).toEqual([ask('a1')])
-  })
-})
-
-describe('storedToolCallsAwaitingConfirmation', () => {
-  const tool = (id: string, type: string) => ({
-    role: 'tool',
-    content: '',
-    toolCall: { toolCallId: id, name: 'readProjectNote', arguments: { id } },
-    toolResult: { type },
-  })
-
-  it('reads the calls a stored chat still waits to have confirmed, so a reloaded page can resume them', () => {
-    // Observed: the agent's calls waited in the chat for a day; nothing outside
-    // the page that sent the turn knew they were there.
-    const messages = [
-      { role: 'user', content: 'go' },
-      tool('t1', 'require_confirmation'),
-      tool('t2', 'require_confirmation'),
-    ]
-    expect(storedToolCallsAwaitingConfirmation(messages).map((c) => c.toolCallId)).toEqual([
-      't1',
-      't2',
-    ])
-  })
-
-  it('reads only the trailing batch, not calls an earlier turn left waiting', () => {
-    const messages = [
-      tool('old', 'require_confirmation'),
-      { role: 'assistant', content: 'later' },
-      tool('t1', 'success'),
-      tool('t2', 'require_confirmation'),
-    ]
-    expect(storedToolCallsAwaitingConfirmation(messages).map((c) => c.toolCallId)).toEqual(['t2'])
-  })
-
-  it('reads nothing once the chat has moved past its tool calls', () => {
-    const messages = [tool('t1', 'require_confirmation'), { role: 'assistant', content: 'done' }]
-    expect(storedToolCallsAwaitingConfirmation(messages)).toEqual([])
   })
 })

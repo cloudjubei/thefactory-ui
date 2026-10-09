@@ -7,7 +7,11 @@ import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
 import { IconDelete, IconRefreshChat, IconToolbox } from '../../icons'
-import type { ChatMessageLike } from '../../../headless/utils/chatTypes'
+import type {
+  AlwaysAllowScope,
+  ChatMessageLike,
+  GrantCovers,
+} from '../../../headless/utils/chatTypes'
 import type { MessageDeleteControl } from '../../../headless/utils/chatMessageDeleteTypes'
 import type { MessageRestartControl } from '../../../headless/utils/chatMessageRestartTypes'
 import { MESSAGE_RESTART_ACTION_LABEL } from '../../../headless/utils/chatMessageRestartConstants'
@@ -28,6 +32,7 @@ import {
 } from '../../../headless/utils/cliRunner'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 import SubagentSteps from './ToolCall/SubagentSteps'
+import BackgroundResultsRow from './BackgroundResultsRow'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -171,10 +176,14 @@ export interface MessageRowProps {
   /** Whether the toggle is on. */
   toolSelected?: boolean
   onToggleToolSelect?: () => void
-  /** Marked "Always allow": the batch's Resume grants this tool for every later call too. */
-  toolAlwaysAllowed?: boolean
-  /** Mark or unmark "Always allow" — offered beside the toggle when the ask allows it. */
-  onAlwaysAllowTool?: () => void
+  /** Where "Always allow" may apply for this call, the default first. */
+  toolAlwaysAllowScopes?: readonly AlwaysAllowScope[]
+  /** What an always-allow of this call covers. */
+  toolGrantCovers?: GrantCovers
+  /** Marked "Always allow" in this place: the batch's Resume grants it there. */
+  toolAlwaysAllowScope?: AlwaysAllowScope
+  /** Mark "Always allow" in a place, or unmark — offered beside the toggle when the ask allows it. */
+  onAlwaysAllowTool?: (scope: AlwaysAllowScope | undefined) => void
 
   onDeleteLastMessage?: () => void
   /**
@@ -285,7 +294,9 @@ function MessageRow({
   toolSelectable,
   toolSelected,
   onToggleToolSelect,
-  toolAlwaysAllowed,
+  toolAlwaysAllowScopes,
+  toolGrantCovers,
+  toolAlwaysAllowScope,
   onAlwaysAllowTool,
   onDeleteLastMessage,
   deleteControl,
@@ -308,6 +319,16 @@ function MessageRow({
   // ABOVE any early return: a hook that runs on only some renders crashes.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const role = msg.role
+  if (role === 'user' && msg.backgroundResults?.length) {
+    const at = messageIso(msg)
+    return (
+      <BackgroundResultsRow
+        results={msg.backgroundResults}
+        content={msg.content}
+        {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
+      />
+    )
+  }
   const isSystem = role === 'system'
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
@@ -666,6 +687,7 @@ function MessageRow({
                 result: msg.toolResult?.result,
                 resultType: msg.toolResult?.type ?? (msg.error ? 'errored' : undefined),
                 durationMs: msg.toolResult?.durationMs ?? msg.durationMs,
+                ...(msg.startedAt !== undefined ? { startedAt: msg.startedAt } : {}),
                 ...(toolSelectable
                   ? {
                       selectable: true,
@@ -674,7 +696,13 @@ function MessageRow({
                       ...(onAlwaysAllowTool
                         ? {
                             onAlwaysAllow: onAlwaysAllowTool,
-                            alwaysAllowed: toolAlwaysAllowed === true,
+                            ...(toolAlwaysAllowScopes
+                              ? { alwaysAllowScopes: toolAlwaysAllowScopes }
+                              : {}),
+                            ...(toolGrantCovers ? { grantCovers: toolGrantCovers } : {}),
+                            ...(toolAlwaysAllowScope
+                              ? { alwaysAllowScope: toolAlwaysAllowScope }
+                              : {}),
                           }
                         : {}),
                     }
