@@ -6,6 +6,9 @@ import { dispatchTrainerToolsBridge } from '../api/trainerToolsBridge'
 import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
+import { dispatchWorkBridge } from '../api/workBridge'
+import { useStories } from '../contexts/StoriesContext'
+import { useProjects } from '../contexts/ProjectsContext'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
@@ -28,6 +31,8 @@ export function useProjectDataBridge(
   projectId: string | undefined,
   opts?: { activitiesApiOnly?: boolean; cliActivities?: string[] },
 ): (req: BridgeRequest) => Promise<unknown> {
+  const { stories, isLoaded: storiesLoaded, loadError: storiesError } = useStories()
+  const { activeProjectId } = useProjects()
   const activitiesApiOnly = opts?.activitiesApiOnly ?? false
   const cliActivities = opts?.cliActivities
   const { activeAgentRunConfigId, activeActivityConfigId, activeActivityCliModel } = useLLMConfigs()
@@ -61,10 +66,22 @@ export function useProjectDataBridge(
       if (runners !== undefined) return runners
       const projects = await dispatchProjectsBridge(req)
       if (projects !== undefined) return projects
+      const work = await dispatchWorkBridge(
+        projectId,
+        req,
+        projectId === activeProjectId
+          ? { stories, isLoaded: storiesLoaded, loadError: storiesError }
+          : undefined,
+      )
+      if (work !== undefined) return work
       return undefined
     },
     [
       projectId,
+      activeProjectId,
+      stories,
+      storiesLoaded,
+      storiesError,
       activeAgentRunConfigId,
       activeActivityConfigId,
       activeActivityCliModel,
