@@ -1,3 +1,4 @@
+import { processAlreadyLandedText } from 'thefactory-tools/utils'
 import {
   runProposalLanding,
   runProposalLandingForm,
@@ -7,6 +8,7 @@ import {
   ANSWER_GROUP_RUN_PARK_TOOL_NAME,
   ANSWER_RUN_PARK_TOOL_NAME,
   CLOSE_RUN_FEATURES_TOOL_NAME,
+  SETTLE_RUN_ALREADY_LANDED_TOOL_NAME,
   MARK_GROUP_LEG_LANDED_TOOL_NAME,
   REMOVE_PROCESS_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_TOOL_NAME,
@@ -31,6 +33,7 @@ import {
   RUN_PROPOSAL_CHANGE,
   RUN_PROPOSAL_CHANGE_WORDS,
   RUN_PROPOSAL_DEFER,
+  RUN_PROPOSAL_ALREADY_LANDED,
   RUN_PROPOSAL_CLOSURE,
   RUN_PROPOSAL_DELETE,
   RUN_PROPOSAL_TURN_LIMIT,
@@ -584,6 +587,41 @@ function runActionView(
       sections: run,
       effect: effect ?? RUN_PROPOSAL_TURN_LIMIT.effect,
       approveLabel: RUN_PROPOSAL_TURN_LIMIT.approveLabel,
+    }
+  }
+  if (toolName === SETTLE_RUN_ALREADY_LANDED_TOOL_NAME) {
+    const landedBy = record(hostDetail.landedBy)
+    const commit = text(landedBy, 'commit')
+    const subject = text(landedBy, 'subject')
+    const baseRef = text(hostDetail, 'baseRef') ?? ''
+    const becomesDone = (Array.isArray(hostDetail.features) ? hostDetail.features : [])
+      .map(record)
+      .filter((f) => text(f, 'after') === 'done' && text(f, 'status') !== 'done')
+      .map((f) => text(f, 'title') ?? text(f, 'id') ?? '')
+    return {
+      ...base,
+      kind: 'already-landed',
+      kindLabel: RUN_PROPOSAL_ALREADY_LANDED.kindLabel,
+      tone: 'done',
+      title: runTitle,
+      sections: [
+        ...run,
+        ...(commit
+          ? [
+              {
+                key: 'landedBy',
+                label: RUN_PROPOSAL_LINE_LABELS.landedBy,
+                summary: processAlreadyLandedText(baseRef, {
+                  commit,
+                  ...(subject ? { subject } : {}),
+                }),
+              },
+            ]
+          : []),
+        ...itemsSection('done', RUN_PROPOSAL_LINE_LABELS.marksDone, becomesDone),
+      ],
+      effect: effect ?? RUN_PROPOSAL_ALREADY_LANDED.effect,
+      approveLabel: RUN_PROPOSAL_ALREADY_LANDED.approveLabel,
     }
   }
   if (toolName === CLOSE_RUN_FEATURES_TOOL_NAME) {

@@ -8,6 +8,7 @@ import type {
 import {
   isProcessIntegrationRequired,
   isProcessRunAwaitingIntegration,
+  processAlreadyLandedText,
   processGroupLegIntegrationModes,
   processIntegrationConflictResolution,
   processIntegrationModesOffered,
@@ -176,6 +177,18 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
       busy: false,
     }
   }
+  if (integration.status === 'already-landed') {
+    const landedBy = integration.landedBy ?? (sha ? { commit: sha } : undefined)
+    return {
+      tone: 'done',
+      title: landedBy
+        ? processAlreadyLandedText(workBranch.baseRef, landedBy)
+        : MODE_DONE[integration.mode](workBranch.baseRef),
+      ...(landedBy ? { sha: landedBy.commit } : {}),
+      canRetry: false,
+      busy: false,
+    }
+  }
   if (integration.mode !== 'pull-request') {
     return {
       tone: 'done',
@@ -272,7 +285,15 @@ function shadowIntegrationView(run: ProcessRun): ProcessIntegrationView | undefi
       busy: false,
     }
   }
-  return { tone: 'done', title: PROCESS_INTEGRATION_SHADOW.done, canRetry: false, busy: false }
+  return {
+    tone: 'done',
+    title:
+      integration.status === 'already-landed'
+        ? PROCESS_INTEGRATION_SHADOW.alreadyIn
+        : PROCESS_INTEGRATION_SHADOW.done,
+    canRetry: false,
+    busy: false,
+  }
 }
 
 /** The run badge while approved work is being brought in, or has not landed. */

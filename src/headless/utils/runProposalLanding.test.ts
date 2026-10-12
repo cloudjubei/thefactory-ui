@@ -77,6 +77,13 @@ describe('runProposalLanding', () => {
     })
   })
 
+  it('reads where the base already holds the work, when approving merges nothing', () => {
+    const landedBy = { commit: '1d1ed0a8841681a62be9ccb503bffaee08dedbd8', subject: 'notes' }
+    expect(runProposalLanding({ ...detail, alreadyOnBase: landedBy })?.alreadyOnBase).toEqual(
+      landedBy,
+    )
+  })
+
   it('is nothing when the host stated no landing', () => {
     expect(runProposalLanding(undefined)).toBeUndefined()
     expect(runProposalLanding({ mode: 'rebase' })).toBeUndefined()
@@ -102,6 +109,28 @@ describe('runProposalLandingForm', () => {
     expect(
       runProposalLandingForm(runProposalLanding({ ...detail, shadow: true, options: undefined })!),
     ).toBeUndefined()
+  })
+})
+
+describe('runProposalLandingForm — work its base already holds', () => {
+  it('is nothing — approving merges nothing, so there is nothing to choose', () => {
+    const landing = runProposalLanding({
+      ...detail,
+      alreadyOnBase: { commit: '1d1ed0a8841681a62be9ccb503bffaee08dedbd8' },
+    })!
+    expect(runProposalLandingForm(landing)).toBeUndefined()
+  })
+})
+
+describe('runProposalLandingLine — work its base already holds', () => {
+  it('says there is nothing to merge, and since when the base held it', () => {
+    const landing = runProposalLanding({
+      ...detail,
+      alreadyOnBase: { commit: '1d1ed0a8841681a62be9ccb503bffaee08dedbd8', subject: 'notes' },
+    })!
+    expect(runProposalLandingLine(landing, undefined)).toBe(
+      'Nothing to merge — this work was already on main (since 1d1ed0a “notes”).',
+    )
   })
 })
 

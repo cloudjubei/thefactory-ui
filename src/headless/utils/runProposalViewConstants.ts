@@ -61,8 +61,11 @@ export const REMOVE_PROCESS_TOOL_NAME = 'removeProcess'
 /** Set how many turns each step agent of a run takes from now on. */
 export const SET_RUN_TURN_LIMIT_TOOL_NAME = 'setRunTurnLimit'
 
-/** Settle the features a run that ended without a sign-off worked on. */
+/** Settle the features a run that ended worked on. */
 export const CLOSE_RUN_FEATURES_TOOL_NAME = 'closeRunFeatures'
+
+/** Finish an approved run whose base already holds its work as landed. */
+export const SETTLE_RUN_ALREADY_LANDED_TOOL_NAME = 'settleRunAlreadyLanded'
 
 export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   PROPOSE_RUN_FEATURE_TOOL_NAME,
@@ -87,6 +90,7 @@ export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   REMOVE_PROCESS_TOOL_NAME,
   SET_RUN_TURN_LIMIT_TOOL_NAME,
   CLOSE_RUN_FEATURES_TOOL_NAME,
+  SETTLE_RUN_ALREADY_LANDED_TOOL_NAME,
 ]
 
 export const RUN_PROPOSAL_DECLINE_LABEL = 'Not now'
@@ -187,6 +191,13 @@ export const RUN_PROPOSAL_REVIVE = {
   effect:
     'Takes the stopped run back up where it was: the step it was on waits to be tried again, or the sign-off waits for a decision.',
   approveLabel: 'Resume',
+} as const
+
+export const RUN_PROPOSAL_ALREADY_LANDED = {
+  kindLabel: 'Finish as already landed',
+  effect:
+    'Its base branch already holds the work: nothing is merged, its features are made done, its work branch is removed and the run moves to History.',
+  approveLabel: 'Finish as landed',
 } as const
 
 export const RUN_PROPOSAL_SEND_BACK = {
@@ -298,6 +309,8 @@ export const RUN_PROPOSAL_LINE_LABELS = {
   starts: 'Starts',
   rebuilt: 'Built first',
   step: 'Stopped at',
+  landedBy: 'Already on its base',
+  marksDone: 'Becomes done',
 } as const
 
 /** The longest one-line summary a closed section shows. */

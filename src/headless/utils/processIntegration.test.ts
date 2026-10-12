@@ -141,6 +141,21 @@ describe('a project with no git of its own', () => {
       expect(view!.sha).toBeUndefined()
     }
     expect(views[2]).toMatchObject({ tone: 'done', title: 'Brought into the project folder' })
+    expect(
+      processIntegrationView(
+        shadowRun({
+          integration: {
+            mode: 'merge',
+            status: 'already-landed',
+            landedBy: { commit: SHA },
+            at: 1,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      tone: 'done',
+      title: 'Nothing to bring in — the project folder already had this work',
+    })
     expect(views[3]).toMatchObject({ tone: 'stuck', detail: 'x', canRetry: true })
   })
 
@@ -197,6 +212,28 @@ describe('processIntegrationView', () => {
       tone: 'on_hold',
       detail: PROCESS_INTEGRATION_NEVER_TRIED,
       canRetry: true,
+    })
+  })
+
+  it('says there was nothing to merge, since when the base held the work, with no retry', () => {
+    expect(
+      processIntegrationView(
+        run({
+          integration: {
+            mode: 'squash',
+            status: 'already-landed',
+            sha: SHA,
+            landedBy: { commit: SHA, subject: 'notes' },
+            at: 1,
+          },
+        }),
+      ),
+    ).toEqual({
+      tone: 'done',
+      title: 'Nothing to merge — this work was already on main (since c0ffee1 “notes”).',
+      sha: SHA,
+      canRetry: false,
+      busy: false,
     })
   })
 

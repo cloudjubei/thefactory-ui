@@ -58,6 +58,7 @@ export const PROCESS_INTEGRATION_SHADOW = {
   detail: 'Brings the work into the project folder.',
   busy: 'Bringing the work into the project folder…',
   done: 'Brought into the project folder',
+  alreadyIn: 'Nothing to bring in — the project folder already had this work',
   failed: 'Approved — not brought into the project folder',
   neverTried: 'The story was approved, but its work was not brought into the project folder.',
   awaitingBadge: 'Approved — not brought in',

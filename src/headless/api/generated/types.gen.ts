@@ -39,7 +39,7 @@ export type ActionDecisionMetadata = unknown
 
 export type ActionDecidedBy = 'person' | string
 
-export type ActionPersonDecisionVia = 'card' | 'approve-all'
+export type ActionPersonDecisionVia = 'card' | 'approve-all' | 'moved-on'
 
 export type ActionDecidedVia = ActionPersonDecisionVia | 'grant'
 
@@ -1283,6 +1283,7 @@ export type CompletionMessageBase = {
   startedAt: string
   completedAt: string
   durationMs: number
+  answersHandoffFrom?: string
 }
 
 export type CompletionSystemMessage = {
@@ -1291,6 +1292,7 @@ export type CompletionSystemMessage = {
   startedAt: string
   completedAt: string
   durationMs: number
+  answersHandoffFrom?: string
   error?: string
 }
 
@@ -1314,6 +1316,7 @@ export type CompletionUserMessage = {
   startedAt: string
   completedAt: string
   durationMs: number
+  answersHandoffFrom?: string
   files?: Array<string>
   images?: Array<CompletionImage>
   handoffFrom?: string
@@ -1358,6 +1361,7 @@ export type CompletionAssistantMessage = {
   startedAt: string
   completedAt: string
   durationMs: number
+  answersHandoffFrom?: string
   usage: {
     promptTokens: number
     completionTokens: number
@@ -1392,6 +1396,7 @@ export type CompletionToolMessage = {
   startedAt: string
   completedAt: string
   durationMs: number
+  answersHandoffFrom?: string
   model: {
     model: string
     provider: LlmProvider
@@ -1475,6 +1480,7 @@ export type Chat = {
     processRunId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
       toolName: string
@@ -1582,6 +1588,15 @@ export type ChatSummary = {
   messageTimes: Array<string | unknown>
 }
 
+export type ChatAudienceMessage = {
+  role?: string
+  handoffFrom?: string
+  answersHandoffFrom?: string
+  backgroundResults?: Array<unknown>
+  startedAt?: string
+  completedAt?: string
+}
+
 export type ChatCreateInput = {
   context: ChatContext
   title?: string
@@ -1619,6 +1634,7 @@ export type ChatCreateInput = {
     processRunId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
       toolName: string
@@ -1700,6 +1716,7 @@ export type ChatEditInput = {
     processRunId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
       toolName: string
@@ -4702,6 +4719,7 @@ export type OpenAiResponsesTool = {
   name: string
   description: string
   parameters: JsonSchema
+  strict: boolean
 }
 
 export type OpenAiChatTool = {
@@ -13055,6 +13073,13 @@ export type StoryNoteListing = {
   featureId?: string
 }
 
+export type StoryDeletion = {
+  deleted: {
+    id: string
+    title: string
+  }
+}
+
 export type StoryFeatureCensus = {
   total: number
   done: number
@@ -13153,6 +13178,22 @@ export type WorkHandoverInput = {
   evidenceCount?: number
   branch?: string
   verdict?: string
+}
+
+export type StoryBlocker = {
+  projectId?: string
+  storyId: string
+  featureId?: string
+}
+
+export type StoryBlockerProject = {
+  projectId: string
+  stories: Array<{
+    id: string
+    features: Array<{
+      id: string
+    }>
+  }>
 }
 
 export type CreateTestTempDirOptions = {
@@ -13795,7 +13836,6 @@ export type ToolName =
   | 'reorderStory'
   | 'getStory'
   | 'addStory'
-  | 'deleteStory'
   | 'updateStory'
   | 'blockStory'
   | 'getFeature'
@@ -13809,6 +13849,7 @@ export type ToolName =
   | 'completeAssignment'
   | 'listStoryNotes'
   | 'listStories'
+  | 'deleteStory'
   | 'addStoryNote'
   | 'updateStoryNote'
   | 'removeStoryNote'
@@ -14873,9 +14914,49 @@ export type ProcessLoop = {
   maxIterations: number
 }
 
+export type ProcessDecisionAttribution =
+  | {
+      decidedBy: 'person'
+      decidedVia: ProcessPersonDecisionVia
+    }
+  | {
+      decidedBy: 'agent'
+      decidedVia: 'tool'
+      toolName: string
+      chatContextId: string
+    }
+  | {
+      decidedBy: 'manager'
+      decidedVia: 'manager'
+      toolName: string
+      chatContextId: string
+    }
+
+export type ProcessIntegrationLandedBy = {
+  commit: string
+  subject?: string
+  settledBy?:
+    | {
+        decidedBy: 'person'
+        decidedVia: ProcessPersonDecisionVia
+      }
+    | {
+        decidedBy: 'agent'
+        decidedVia: 'tool'
+        toolName: string
+        chatContextId: string
+      }
+    | {
+        decidedBy: 'manager'
+        decidedVia: 'manager'
+        toolName: string
+        chatContextId: string
+      }
+}
+
 export type ProcessRunIntegration = {
   mode: ProcessIntegrationMode
-  status: 'integrating' | 'integrated' | 'failed'
+  status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
   landing?: {
     identity?: {
       name: string
@@ -14891,6 +14972,27 @@ export type ProcessRunIntegration = {
     }
   }
   sha?: string
+  landedBy?: {
+    commit: string
+    subject?: string
+    settledBy?:
+      | {
+          decidedBy: 'person'
+          decidedVia: ProcessPersonDecisionVia
+        }
+      | {
+          decidedBy: 'agent'
+          decidedVia: 'tool'
+          toolName: string
+          chatContextId: string
+        }
+      | {
+          decidedBy: 'manager'
+          decidedVia: 'manager'
+          toolName: string
+          chatContextId: string
+        }
+  }
   pullRequestUrl?: string
   compareUrl?: string
   branch?: string
@@ -14920,7 +15022,7 @@ export type ProcessRunReopening = {
   approvalEntryId?: string
   integration?: {
     mode: ProcessIntegrationMode
-    status: 'integrating' | 'integrated' | 'failed'
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
     landing?: {
       identity?: {
         name: string
@@ -14936,6 +15038,27 @@ export type ProcessRunReopening = {
       }
     }
     sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
     pullRequestUrl?: string
     compareUrl?: string
     branch?: string
@@ -14972,7 +15095,7 @@ export type ProcessPlanAmendment = {
     approvalEntryId?: string
     integration?: {
       mode: ProcessIntegrationMode
-      status: 'integrating' | 'integrated' | 'failed'
+      status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
       landing?: {
         identity?: {
           name: string
@@ -14988,6 +15111,27 @@ export type ProcessPlanAmendment = {
         }
       }
       sha?: string
+      landedBy?: {
+        commit: string
+        subject?: string
+        settledBy?:
+          | {
+              decidedBy: 'person'
+              decidedVia: ProcessPersonDecisionVia
+            }
+          | {
+              decidedBy: 'agent'
+              decidedVia: 'tool'
+              toolName: string
+              chatContextId: string
+            }
+          | {
+              decidedBy: 'manager'
+              decidedVia: 'manager'
+              toolName: string
+              chatContextId: string
+            }
+      }
       pullRequestUrl?: string
       compareUrl?: string
       branch?: string
@@ -15099,24 +15243,6 @@ export type ProcessFeatureClosure = {
   status: ProcessFeatureClosureStatus
   reason?: string
 }
-
-export type ProcessDecisionAttribution =
-  | {
-      decidedBy: 'person'
-      decidedVia: ProcessPersonDecisionVia
-    }
-  | {
-      decidedBy: 'agent'
-      decidedVia: 'tool'
-      toolName: string
-      chatContextId: string
-    }
-  | {
-      decidedBy: 'manager'
-      decidedVia: 'manager'
-      toolName: string
-      chatContextId: string
-    }
 
 export type ProcessRunClosure = {
   features: Array<ProcessFeatureClosure>
@@ -15395,7 +15521,7 @@ export type ProcessRun = {
   }
   integration?: {
     mode: ProcessIntegrationMode
-    status: 'integrating' | 'integrated' | 'failed'
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
     landing?: {
       identity?: {
         name: string
@@ -15411,6 +15537,27 @@ export type ProcessRun = {
       }
     }
     sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
     pullRequestUrl?: string
     compareUrl?: string
     branch?: string
@@ -15720,6 +15867,66 @@ export type ClosureRun = {
   featureId?: string
   plan: ProcessPlan
   ledger: Array<ProcessLedgerEntry>
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    conflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+    checks?: {
+      status: MergeChecksStatus
+      summary: string
+      sha?: string
+      checks: Array<VerificationCheckResult>
+    }
+    at: number
+  }
 }
 
 export type ProcessDefinition = {
@@ -15989,7 +16196,7 @@ export type ProcessRunChatState = {
     }
     integration?: {
       mode: ProcessIntegrationMode
-      status: 'integrating' | 'integrated' | 'failed'
+      status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
       landing?: {
         identity?: {
           name: string
@@ -16005,6 +16212,27 @@ export type ProcessRunChatState = {
         }
       }
       sha?: string
+      landedBy?: {
+        commit: string
+        subject?: string
+        settledBy?:
+          | {
+              decidedBy: 'person'
+              decidedVia: ProcessPersonDecisionVia
+            }
+          | {
+              decidedBy: 'agent'
+              decidedVia: 'tool'
+              toolName: string
+              chatContextId: string
+            }
+          | {
+              decidedBy: 'manager'
+              decidedVia: 'manager'
+              toolName: string
+              chatContextId: string
+            }
+      }
       pullRequestUrl?: string
       compareUrl?: string
       branch?: string
@@ -16261,6 +16489,27 @@ export type ProcessRunChatState = {
       reversedKeys?: Array<string>
     }
   }
+  alreadyOnBase?: {
+    commit: string
+    subject?: string
+    settledBy?:
+      | {
+          decidedBy: 'person'
+          decidedVia: ProcessPersonDecisionVia
+        }
+      | {
+          decidedBy: 'agent'
+          decidedVia: 'tool'
+          toolName: string
+          chatContextId: string
+        }
+      | {
+          decidedBy: 'manager'
+          decidedVia: 'manager'
+          toolName: string
+          chatContextId: string
+        }
+  }
 }
 
 export type ProcessNeedsYouItem = {
@@ -16418,6 +16667,27 @@ export type ProcessIntegrationOptions = {
     }
     mode: 'merge' | 'squash' | 'pull-request'
   }
+  alreadyOnBase?: {
+    commit: string
+    subject?: string
+    settledBy?:
+      | {
+          decidedBy: 'person'
+          decidedVia: ProcessPersonDecisionVia
+        }
+      | {
+          decidedBy: 'agent'
+          decidedVia: 'tool'
+          toolName: string
+          chatContextId: string
+        }
+      | {
+          decidedBy: 'manager'
+          decidedVia: 'manager'
+          toolName: string
+          chatContextId: string
+        }
+  }
 }
 
 export type ProcessIntegrationForm = {
@@ -16443,6 +16713,7 @@ export type ProcessRunEndedActionKind =
   | 'resolve-integration-conflict'
   | 'send-back'
   | 'close-features'
+  | 'settle-already-landed'
   | 'revive'
 
 export type ProcessRunEndedAction = {
@@ -16466,9 +16737,52 @@ export type ProcessIntegrationConflictResolution = {
   }
 }
 
+export type ProcessWorkBranchLandingCheck =
+  | {
+      kind: 'adds-work'
+      commits: number
+    }
+  | {
+      kind: 'already-landed'
+      baseRef: string
+      tip: string
+      landedBy: ProcessIntegrationLandedBy
+    }
+  | {
+      kind: 'not-on-base'
+      baseRef: string
+      paths: Array<string>
+      reason: string
+    }
+  | {
+      kind: 'unreadable'
+      reason: string
+    }
+
 export type ProcessIntegrationOutcome = {
-  status: 'integrated' | 'failed'
+  status: 'integrated' | 'already-landed' | 'failed'
   sha?: string
+  landedBy?: {
+    commit: string
+    subject?: string
+    settledBy?:
+      | {
+          decidedBy: 'person'
+          decidedVia: ProcessPersonDecisionVia
+        }
+      | {
+          decidedBy: 'agent'
+          decidedVia: 'tool'
+          toolName: string
+          chatContextId: string
+        }
+      | {
+          decidedBy: 'manager'
+          decidedVia: 'manager'
+          toolName: string
+          chatContextId: string
+        }
+  }
   pullRequestUrl?: string
   compareUrl?: string
   branch?: string
@@ -17967,6 +18281,7 @@ export type AddMessagesInput = {
     processRunId?: string
     processGroupRunId?: string
     handoffFrom?: string
+    answersHandoffFrom?: string
     backgroundResults?: Array<{
       jobId: string
       toolName: string
@@ -19515,6 +19830,14 @@ export type UpdateStoryErrors = {
   /**
    * Default Response
    */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
   404: {
     error: string
     code?: string
@@ -19562,6 +19885,14 @@ export type CreateFeatureData = {
 }
 
 export type CreateFeatureErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -19628,6 +19959,14 @@ export type UpdateFeatureData = {
 }
 
 export type UpdateFeatureErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
   /**
    * Default Response
    */
@@ -21019,6 +21358,106 @@ export type CloseProcessRunFeaturesResponses = {
 
 export type CloseProcessRunFeaturesResponse =
   CloseProcessRunFeaturesResponses[keyof CloseProcessRunFeaturesResponses]
+
+export type GetProcessRunLandingCheckData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/landing-check'
+}
+
+export type GetProcessRunLandingCheckErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetProcessRunLandingCheckError =
+  GetProcessRunLandingCheckErrors[keyof GetProcessRunLandingCheckErrors]
+
+export type GetProcessRunLandingCheckResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    check: ProcessWorkBranchLandingCheck
+    /**
+     * Whether the run can be finished as already landed: approved, its work not landed, nothing being brought in.
+     */
+    offered: boolean
+    /**
+     * The features of its story the run worked.
+     */
+    features: Array<{
+      id: string
+      title: string
+      /**
+       * Its status now.
+       */
+      status: string
+      /**
+       * What finishing the run as landed leaves it as.
+       */
+      after: string
+    }>
+  }
+}
+
+export type GetProcessRunLandingCheckResponse =
+  GetProcessRunLandingCheckResponses[keyof GetProcessRunLandingCheckResponses]
+
+export type SettleProcessRunAlreadyLandedData = {
+  body: {
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/settle-already-landed'
+}
+
+export type SettleProcessRunAlreadyLandedErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SettleProcessRunAlreadyLandedError =
+  SettleProcessRunAlreadyLandedErrors[keyof SettleProcessRunAlreadyLandedErrors]
+
+export type SettleProcessRunAlreadyLandedResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type SettleProcessRunAlreadyLandedResponse =
+  SettleProcessRunAlreadyLandedResponses[keyof SettleProcessRunAlreadyLandedResponses]
 
 export type CancelProcessRunData = {
   body?: never
@@ -27612,6 +28051,7 @@ export type SendCompletionData = {
         processRunId?: string
         processGroupRunId?: string
         handoffFrom?: string
+        answersHandoffFrom?: string
         backgroundResults?: Array<{
           jobId: string
           toolName: string
@@ -27717,6 +28157,7 @@ export type SendCompletionResponses = {
       processRunId?: string
       processGroupRunId?: string
       handoffFrom?: string
+      answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
         toolName: string
@@ -27871,6 +28312,7 @@ export type SendCompletionWithToolsResponses = {
           processRunId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
             toolName: string
@@ -27974,6 +28416,7 @@ export type SendChatCompletionWithToolsData = {
       processRunId?: string
       processGroupRunId?: string
       handoffFrom?: string
+      answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
         toolName: string
@@ -28077,6 +28520,7 @@ export type SendChatCompletionWithToolsResponses = {
           processRunId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
             toolName: string
@@ -28180,6 +28624,7 @@ export type SendChatWithCliData = {
       processRunId?: string
       processGroupRunId?: string
       handoffFrom?: string
+      answersHandoffFrom?: string
       backgroundResults?: Array<{
         jobId: string
         toolName: string
@@ -28405,6 +28850,7 @@ export type ResumeCompletionResponses = {
           processRunId?: string
           processGroupRunId?: string
           handoffFrom?: string
+          answersHandoffFrom?: string
           backgroundResults?: Array<{
             jobId: string
             toolName: string

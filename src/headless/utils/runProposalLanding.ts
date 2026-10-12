@@ -1,7 +1,12 @@
 import { PROCESS_INTEGRATION_MODES } from 'thefactory-tools/constants'
-import { processIntegrationFormDecision, processIntegrationFormStart } from 'thefactory-tools/utils'
+import {
+  processAlreadyLandedText,
+  processIntegrationFormDecision,
+  processIntegrationFormStart,
+} from 'thefactory-tools/utils'
 import type {
   ProcessIntegrationForm,
+  ProcessIntegrationLandedBy,
   ProcessIntegrationMode,
   ProcessIntegrationOptions,
 } from 'thefactory-tools/types'
@@ -34,6 +39,12 @@ export function runProposalLanding(detail: unknown): RunProposalLanding | undefi
   const pullRequestAccount = text(d, 'pullRequestAccount')
   const message = text(d, 'message')
   const options = d.options ? (d.options as ProcessIntegrationOptions) : undefined
+  const already = record(d.alreadyOnBase)
+  const alreadyCommit = text(already, 'commit')
+  const alreadySubject = text(already, 'subject')
+  const alreadyOnBase: ProcessIntegrationLandedBy | undefined = alreadyCommit
+    ? { commit: alreadyCommit, ...(alreadySubject ? { subject: alreadySubject } : {}) }
+    : undefined
   return {
     mode: d.mode,
     modes: Array.isArray(d.modes) ? d.modes.filter(isMode) : [d.mode],
@@ -49,18 +60,20 @@ export function runProposalLanding(detail: unknown): RunProposalLanding | undefi
       ? { pullRequest: { title: prTitle, body: text(pullRequest, 'body') ?? '' } }
       : {}),
     ...(options ? { options } : {}),
+    ...(alreadyOnBase ? { alreadyOnBase } : {}),
   }
 }
 
 /**
  * The form a landing's card starts at: exactly what the card states, the rest
  * where the sign-off's form starts. `undefined` when there is nothing to
- * choose — a project with no git of its own, or no options to choose from. Pure.
+ * choose — a project with no git of its own, work its base already holds, or
+ * no options to choose from. Pure.
  */
 export function runProposalLandingForm(
   landing: RunProposalLanding,
 ): ProcessIntegrationForm | undefined {
-  if (landing.shadow || !landing.options) return undefined
+  if (landing.shadow || landing.alreadyOnBase || !landing.options) return undefined
   const start = processIntegrationFormStart(landing.mode, landing.options)
   return {
     ...start,
@@ -136,6 +149,7 @@ export function runProposalLandingLine(
   form: ProcessIntegrationForm | undefined,
 ): string {
   if (landing.shadow) return RUN_PROPOSAL_LANDING_SHADOW
+  if (landing.alreadyOnBase) return processAlreadyLandedText(landing.baseRef, landing.alreadyOnBase)
   const mode = form?.mode ?? landing.mode
   const way = `${RUN_PROPOSAL_LANDING_MODE_LABELS[mode]} into ${landing.baseRef}`
   const options = landing.options

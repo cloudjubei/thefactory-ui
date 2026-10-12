@@ -423,6 +423,9 @@ import type {
   GetProcessRunIntegrationOptionsData,
   GetProcessRunIntegrationOptionsErrors,
   GetProcessRunIntegrationOptionsResponses,
+  GetProcessRunLandingCheckData,
+  GetProcessRunLandingCheckErrors,
+  GetProcessRunLandingCheckResponses,
   GetProcessRunResponses,
   GetProjectData,
   GetProjectDesignData,
@@ -933,6 +936,9 @@ import type {
   SetProjectDataLocationData,
   SetProjectDataLocationErrors,
   SetProjectDataLocationResponses,
+  SettleProcessRunAlreadyLandedData,
+  SettleProcessRunAlreadyLandedErrors,
+  SettleProcessRunAlreadyLandedResponses,
   StartAgentRunData,
   StartAgentRunErrors,
   StartAgentRunResponses,
@@ -1995,6 +2001,38 @@ export const closeProcessRunFeatures = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/closure',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getProcessRunLandingCheck = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunLandingCheckData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunLandingCheckResponses,
+    GetProcessRunLandingCheckErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/landing-check',
+    ...options,
+  })
+
+export const settleProcessRunAlreadyLanded = <ThrowOnError extends boolean = false>(
+  options: Options<SettleProcessRunAlreadyLandedData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SettleProcessRunAlreadyLandedResponses,
+    SettleProcessRunAlreadyLandedErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/settle-already-landed',
     ...options,
     headers: {
       'Content-Type': 'application/json',

@@ -17,7 +17,7 @@ export type RunClosurePanelProps = {
 }
 
 /**
- * "Settle its features" on a run that ended without a sign-off: each feature it
+ * "Settle its features" on a story run that ended: each feature it
  * worked on, what it is now and what the run did, with a pick of what it is
  * left as — pending, blocked (with why), deferred or done. Nothing when there
  * is nothing to settle.

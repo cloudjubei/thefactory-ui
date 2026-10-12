@@ -1,17 +1,22 @@
 import { useState } from 'react'
 
 import {
+  PROCESS_ALREADY_LANDED_FEATURE_DONE,
+  PROCESS_ALREADY_LANDED_FEATURE_STAYS,
+  PROCESS_ALREADY_LANDED_FEATURES_HEAD,
   PROCESS_INTEGRATION_CONFLICT,
   PROCESS_INTEGRATION_FORM_LABELS,
   PROCESS_INTEGRATION_RETRY,
   PROCESS_INTEGRATION_RETRY_HEAD,
   processIntegrationView,
+  useProcessRunAlreadyLanded,
   type ProcessIntegrationDecision,
   type ProcessIntegrationMode,
   type ProcessRun,
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
 import CommitChip from '../chips/CommitChip'
+import DependencyBullet from '../stories/DependencyBullet'
 import MergeChecksResult from '../git/MergeChecksResult'
 import IntegrationChooser from './IntegrationChooser'
 
@@ -29,9 +34,11 @@ export type IntegrationResultProps = {
 
 /**
  * What bringing an approved story's work in came to, on the run: the merged
- * commit, the pull request (opened in the browser), or why it did not land —
- * with a retry, the same way or another, and, when it conflicts with its base,
- * an agent to resolve it. While an agent resolves the conflict, and when the
+ * commit, the pull request (opened in the browser), the commit its base has
+ * held it since when there was nothing to merge, or why it did not land —
+ * with a retry, the same way or another; when its base already holds the work,
+ * "Finish as already landed" with the features it makes done; and, when it
+ * conflicts with its base, an agent to resolve it. While an agent resolves the conflict, and when the
  * work comes back to be confirmed, it says so and shows what changed.
  */
 export default function IntegrationResult({
@@ -43,6 +50,8 @@ export default function IntegrationResult({
 }: IntegrationResultProps) {
   const [choosing, setChoosing] = useState<{ mode?: ProcessIntegrationMode } | null>(null)
   const [sending, setSending] = useState(false)
+  const alreadyLanded = useProcessRunAlreadyLanded(run)
+  const offer = alreadyLanded.offer
   const view = processIntegrationView(run)
   if (!view || !run.workBranch) return null
   const workBranch = run.workBranch
@@ -101,6 +110,48 @@ export default function IntegrationResult({
         </a>
       ) : null}
       {error ? <span className="text-[12px] text-(--status-stuck-soft-fg)">{error}</span> : null}
+      {offer && !choosing ? (
+        <div className="flex flex-col gap-1.5 rounded-md border border-(--status-done-soft-border) bg-(--status-done-soft-bg) p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12.5px] font-semibold text-(--text-primary)">{offer.text}</span>
+            <CommitChip projectId={run.projectId} sha={offer.sha} />
+          </div>
+          {offer.features.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <span className="text-[11.5px] font-medium text-(--text-secondary)">
+                {PROCESS_ALREADY_LANDED_FEATURES_HEAD}
+              </span>
+              {offer.features.map((f) => (
+                <div key={f.dependency} className="flex flex-wrap items-center gap-2">
+                  <DependencyBullet dependency={f.dependency} interactive />
+                  <span className="text-[12px] text-(--text-primary)">{f.title}</span>
+                  <span className="text-[11.5px] text-(--text-muted)">
+                    {f.becomesDone
+                      ? PROCESS_ALREADY_LANDED_FEATURE_DONE
+                      : PROCESS_ALREADY_LANDED_FEATURE_STAYS}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <span className="max-w-[72ch] text-[11.5px] text-(--text-secondary)">{offer.detail}</span>
+          {alreadyLanded.actionError ? (
+            <span className="text-[12px] text-(--status-stuck-soft-fg)">
+              {alreadyLanded.actionError}
+            </span>
+          ) : null}
+          <div>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={alreadyLanded.busy || sending}
+              onClick={() => void alreadyLanded.settle()}
+            >
+              {offer.label}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {view.canRetry ? (
         choosing ? (
           <IntegrationChooser
@@ -134,7 +185,7 @@ export default function IntegrationResult({
               ) : null}
               <Button
                 size="sm"
-                variant={view.conflict ? 'ghost' : 'primary'}
+                variant={view.conflict || offer ? 'ghost' : 'primary'}
                 disabled={sending}
                 onClick={() =>
                   workBranch.shadow ? settle(onRetry({ mode: 'merge' })) : setChoosing({})

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { processRunClosureOffered } from 'thefactory-tools/utils'
+import { processRunClosable } from 'thefactory-tools/utils'
 import type { ProcessFeatureClosureStatus, ProcessRun } from 'thefactory-tools/types'
 
 import {
@@ -30,9 +30,10 @@ export type UseProcessRunClosure = {
 }
 
 /**
- * "Settle its features" on a run that ended without a sign-off: the features
- * it worked on, read from the server when the run can be settled, with the
- * person's picks and a way to send them.
+ * "Settle its features" on a story run that ended: the features it worked on
+ * that are not done, read from the server for any ended run not settled yet
+ * (it answers none when every one is done), with the person's picks and a way
+ * to send them.
  */
 export function useProcessRunClosure(run: ProcessRun | undefined): UseProcessRunClosure {
   const { token } = useAuth()
@@ -41,7 +42,7 @@ export function useProcessRunClosure(run: ProcessRun | undefined): UseProcessRun
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const runId = run?.id
-  const offered = run ? processRunClosureOffered(run) : false
+  const offered = run ? processRunClosable(run) : false
 
   useEffect(() => {
     if (!runId || !offered || !token) {

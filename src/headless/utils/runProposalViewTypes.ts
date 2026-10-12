@@ -1,4 +1,5 @@
 import type {
+  ProcessIntegrationLandedBy,
   ProcessIntegrationMode,
   ProcessIntegrationOptions,
   ProcessRetryMode,
@@ -32,6 +33,7 @@ export type RunProposalKind =
   | 'remove-process'
   | 'turn-limit'
   | 'close-features'
+  | 'already-landed'
 
 /**
  * One part of what a proposal says, collapsed to a line on its card and opened
@@ -97,6 +99,8 @@ export type RunProposalLanding = {
   pullRequestAccount?: string
   pullRequest?: { title: string; body: string }
   options?: ProcessIntegrationOptions
+  /** The base already holds the work: approving merges nothing, and nothing is chosen. */
+  alreadyOnBase?: ProcessIntegrationLandedBy
 }
 
 /** What the host stated on a start's ask: each change it runs and what they run on. */

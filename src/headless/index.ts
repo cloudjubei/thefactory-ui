@@ -1722,6 +1722,10 @@ export {
 export { useRunDiagnostics, type UseRunDiagnostics } from './hooks/useRunDiagnostics'
 export { useProcessRunClosure, type UseProcessRunClosure } from './hooks/useProcessRunClosure'
 export {
+  useProcessRunAlreadyLanded,
+  type UseProcessRunAlreadyLanded,
+} from './hooks/useProcessRunAlreadyLanded'
+export {
   processGrantTurnLimitView,
   processLaunchTurnLimitView,
   processRetryChoiceOf,
@@ -1770,6 +1774,20 @@ export type {
   ProcessRunClosureOption,
   ProcessRunClosureRow,
 } from './utils/processRunClosureViewTypes'
+export {
+  processAlreadyLandedOffer,
+  processAlreadyOnBaseSignOff,
+} from './utils/processAlreadyLanded'
+export {
+  PROCESS_ALREADY_LANDED_FEATURE_DONE,
+  PROCESS_ALREADY_LANDED_FEATURE_STAYS,
+  PROCESS_ALREADY_LANDED_FEATURES_HEAD,
+} from './utils/processAlreadyLandedConstants'
+export type {
+  ProcessAlreadyLandedOffer,
+  ProcessAlreadyOnBaseSignOff,
+  ProcessRunLandingPreview,
+} from './utils/processAlreadyLandedTypes'
 export {
   PROCESS_RETRY_MODE_DETAILS,
   PROCESS_RETRY_MODE_LABELS,

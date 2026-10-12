@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { Linking, Pressable, Text, View } from 'react-native'
 
 import {
+  PROCESS_ALREADY_LANDED_FEATURE_DONE,
+  PROCESS_ALREADY_LANDED_FEATURE_STAYS,
+  PROCESS_ALREADY_LANDED_FEATURES_HEAD,
   PROCESS_INTEGRATION_CONFLICT,
   PROCESS_INTEGRATION_FORM_LABELS,
   PROCESS_INTEGRATION_RETRY,
   PROCESS_INTEGRATION_RETRY_HEAD,
   processIntegrationView,
+  useProcessRunAlreadyLanded,
   type ProcessIntegrationDecision,
   type ProcessIntegrationMode,
   type ProcessRun,
@@ -16,6 +20,7 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Button } from '../../primitives/Button'
 import CommitChip from '../chips/CommitChip'
 import MergeChecksResult from '../git/MergeChecksResult'
+import DependencyRef from '../stories/DependencyRef'
 import IntegrationChooser from './IntegrationChooser'
 
 export type IntegrationResultProps = {
@@ -32,9 +37,11 @@ export type IntegrationResultProps = {
 
 /**
  * What bringing an approved story's work in came to, on the run: the merged
- * commit, the pull request (opened in the browser), or why it did not land —
- * with a retry, the same way or another, and, when it conflicts with its base,
- * an agent to resolve it. While an agent resolves the conflict, and when the
+ * commit, the pull request (opened in the browser), the commit its base has
+ * held it since when there was nothing to merge, or why it did not land — with
+ * a retry, the same way or another; when its base already holds the work,
+ * "Finish as already landed"; and, when it conflicts with its base, an agent to
+ * resolve it. While an agent resolves the conflict, and when the
  * work comes back to be confirmed, it says so and shows what changed. The
  * native peer of the web `IntegrationResult`.
  */
@@ -48,6 +55,8 @@ export default function IntegrationResult({
   const { theme, status } = useNativeTheme()
   const [choosing, setChoosing] = useState<{ mode?: ProcessIntegrationMode } | null>(null)
   const [sending, setSending] = useState(false)
+  const alreadyLanded = useProcessRunAlreadyLanded(run)
+  const offer = alreadyLanded.offer
   const view = processIntegrationView(run)
   if (!view || !run.workBranch) return null
   const workBranch = run.workBranch
@@ -121,6 +130,62 @@ export default function IntegrationResult({
         </Pressable>
       ) : null}
       {error ? <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{error}</Text> : null}
+      {offer && !choosing ? (
+        <View
+          style={{
+            gap: 6,
+            padding: nativeSpace[2],
+            borderRadius: nativeRadii[2],
+            borderWidth: 1,
+            borderColor: status.done.softBorder,
+            backgroundColor: status.done.softBg,
+          }}
+        >
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.text.primary }}>
+              {offer.text}
+            </Text>
+            <CommitChip projectId={run.projectId} sha={offer.sha} />
+          </View>
+          {offer.features.length > 0 ? (
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '500', color: theme.text.secondary }}>
+                {PROCESS_ALREADY_LANDED_FEATURES_HEAD}
+              </Text>
+              {offer.features.map((f) => (
+                <View
+                  key={f.dependency}
+                  style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}
+                >
+                  <DependencyRef dependency={f.dependency} projectId={run.projectId} />
+                  <Text style={{ fontSize: 12, color: theme.text.primary }}>{f.title}</Text>
+                  <Text style={{ fontSize: 11.5, color: theme.text.muted }}>
+                    {f.becomesDone
+                      ? PROCESS_ALREADY_LANDED_FEATURE_DONE
+                      : PROCESS_ALREADY_LANDED_FEATURE_STAYS}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <Text style={{ fontSize: 11.5, color: theme.text.secondary }}>{offer.detail}</Text>
+          {alreadyLanded.actionError ? (
+            <Text style={{ fontSize: 12, color: status.stuck.softFg }}>
+              {alreadyLanded.actionError}
+            </Text>
+          ) : null}
+          <View style={{ flexDirection: 'row' }}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={alreadyLanded.busy || sending}
+              onPress={() => void alreadyLanded.settle()}
+            >
+              {offer.label}
+            </Button>
+          </View>
+        </View>
+      ) : null}
       {view.canRetry ? (
         choosing ? (
           <IntegrationChooser
@@ -154,7 +219,7 @@ export default function IntegrationResult({
               ) : null}
               <Button
                 size="sm"
-                variant={view.conflict ? 'ghost' : 'primary'}
+                variant={view.conflict || offer ? 'ghost' : 'primary'}
                 disabled={sending}
                 onPress={() =>
                   workBranch.shadow ? settle(onRetry({ mode: 'merge' })) : setChoosing({})

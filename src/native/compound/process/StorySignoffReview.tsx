@@ -14,6 +14,7 @@ import {
   isResumeParkChoice,
   judgeAcceptance,
   overlayPairsFor,
+  processAlreadyOnBaseSignOff,
   ranReviewChecks,
   REQUEST_PROOF_CHOICES,
   requestChangesProofPreset,
@@ -45,6 +46,7 @@ import {
   SIGNOFF_SECTION_TITLES,
   uiChangeScopeOf,
   useProjects,
+  useProcessIntegrationOptions,
   useProjectChecks,
   useReviewEvidence,
   useRunChatDraft,
@@ -216,6 +218,12 @@ function StorySignoffPanel({
   const [chipKey, setChipKey] = useState<string | undefined>()
   const soleMode = workBranch?.shadow
     ? soleIntegrationMode(workBranch, integrationModes)
+    : undefined
+  const { options: landingOptions } = useProcessIntegrationOptions(
+    workBranch && !workBranch.shadow ? storyRunId : undefined,
+  )
+  const alreadyOnBase = workBranch
+    ? processAlreadyOnBaseSignOff(workBranch, landingOptions?.alreadyOnBase, integrationModes)
     : undefined
 
   const story = getStory(storyId)
@@ -593,6 +601,21 @@ function StorySignoffPanel({
           />
         </View>
 
+        {alreadyOnBase ? (
+          <View
+            accessibilityRole="summary"
+            style={{
+              padding: 12,
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              borderColor: status.done.softBorder,
+              backgroundColor: status.done.softBg,
+            }}
+          >
+            <Text style={{ fontSize: 13, color: theme.text.primary }}>{alreadyOnBase.notice}</Text>
+          </View>
+        ) : null}
+
         {canDecide && step === 'idle' ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {offered.map((c) => (
@@ -604,9 +627,11 @@ function StorySignoffPanel({
                 disabled={busy}
                 onPress={() =>
                   c.choice === 'approve' && workBranch
-                    ? soleMode
-                      ? decide('approve', undefined, { mode: soleMode })
-                      : setStep('integration')
+                    ? alreadyOnBase
+                      ? decide('approve', undefined, alreadyOnBase.decision)
+                      : soleMode
+                        ? decide('approve', undefined, { mode: soleMode })
+                        : setStep('integration')
                     : c.choice === 'reject'
                       ? setStep('reject')
                       : choiceTakesNote(c.choice)
@@ -614,7 +639,9 @@ function StorySignoffPanel({
                         : decide(c.choice)
                 }
               >
-                {c.choice === 'approve' ? SIGNOFF_APPROVE_LABEL : c.label}
+                {c.choice === 'approve'
+                  ? (alreadyOnBase?.approveLabel ?? SIGNOFF_APPROVE_LABEL)
+                  : c.label}
               </Button>
             ))}
           </View>

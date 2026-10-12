@@ -19,7 +19,7 @@ export type FeatureClosureListProps = {
 }
 
 /**
- * The features of a run that ended without a sign-off, each with what it is now,
+ * The features of a story run that ended, each with what it is now,
  * what the run did on it, and a pick of what it is left as — the same on the
  * run's page and on an agent's card.
  */

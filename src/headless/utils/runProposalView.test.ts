@@ -21,6 +21,7 @@ import {
   RUN_PROPOSAL_LAND,
   RUN_PROPOSAL_PARK,
   RUN_PROPOSAL_RESOLVE_CONFLICT,
+  RUN_PROPOSAL_ALREADY_LANDED,
   RUN_PROPOSAL_REVIVE,
   RUN_PROPOSAL_SEND_BACK,
   RUN_PROPOSAL_STOP,
@@ -548,6 +549,42 @@ describe('runProposalView — the run’s other buttons', () => {
       approveLabel: RUN_PROPOSAL_REVIVE.approveLabel,
     })
     expect(view.sections[0]).toMatchObject({ key: 'step', summary: 'Fix' })
+  })
+
+  it('shows finishing a run as already landed, with where the work is and the features it makes done', () => {
+    const landedBy = { commit: '1d1ed0a8841681a62be9ccb503bffaee08dedbd8', subject: 'notes' }
+    const view = runProposalView('settleRunAlreadyLanded', {}, undefined, {
+      runTitle: 'File tools',
+      landedBy,
+      baseRef: 'dev',
+      features: [
+        { id: 'f3', title: 'Remove the smoke script', status: 'reviewable', after: 'done' },
+        { id: 'f4', title: 'Later', status: 'pending', after: 'pending' },
+      ],
+      effect: 'Finish “File tools” as already landed: …',
+    })!
+    expect(view).toMatchObject({
+      kind: 'already-landed',
+      kindLabel: RUN_PROPOSAL_ALREADY_LANDED.kindLabel,
+      tone: 'done',
+      title: 'File tools',
+      effect: 'Finish “File tools” as already landed: …',
+      approveLabel: RUN_PROPOSAL_ALREADY_LANDED.approveLabel,
+    })
+    expect(view.sections).toEqual([
+      {
+        key: 'landedBy',
+        label: RUN_PROPOSAL_LINE_LABELS.landedBy,
+        summary: 'Nothing to merge — this work was already on dev (since 1d1ed0a “notes”).',
+      },
+      {
+        key: 'done',
+        label: RUN_PROPOSAL_LINE_LABELS.marksDone,
+        summary: 'Remove the smoke script',
+        items: ['Remove the smoke script'],
+      },
+    ])
+    expect(isRunProposalGrant({ toolName: 'settleRunAlreadyLanded' })).toBe(true)
   })
 
   it('shows a delete in red, plainly, with the branches that go', () => {
