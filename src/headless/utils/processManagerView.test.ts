@@ -53,6 +53,16 @@ describe('processRunManagerView', () => {
     })
   })
 
+  it('says it is waiting on you, and for which card, while its turn waits on one', () => {
+    const waitingOn = [{ actionId: 'a1', toolName: 'commitGitChanges', kind: 'tool-call', at: 150 }]
+    expect(
+      processRunManagerView(run({}, { turn: { ...turn, waitingOn } }), 200 + 24 * 3_600_000).status,
+    ).toEqual({
+      state: 'waiting',
+      text: 'Manager is waiting on you: decide its “commitGitChanges” card in the run’s chat.',
+    })
+  })
+
   it('says what it is holding the run for', () => {
     const hold = {
       runId: 'run-1',
@@ -65,7 +75,7 @@ describe('processRunManagerView', () => {
     }
     expect(processRunManagerView(run({}, { hold }), 200).status).toEqual({
       state: 'holding',
-      text: 'Manager is holding this until run fixrun12 lands.',
+      text: 'Manager is holding this until run fixrun12 is brought in.',
     })
   })
 

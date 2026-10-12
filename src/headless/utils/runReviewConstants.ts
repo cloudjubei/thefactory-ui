@@ -35,11 +35,12 @@ export const LAND_FAILURE_REASON_LABELS: Record<CliRunLandFailureReason, string>
   'detached-head': 'the project checkout is on a detached HEAD',
   'commit-failed': 'the review commit could not be created',
   'no-source-changes': 'the run only touched files the repository ignores',
-  'changes-not-applied': 'part of the run’s change could not be applied, so none of it was landed',
+  'changes-not-applied':
+    'part of the run’s change could not be applied, so none of it was committed',
   error: 'the review branch could not be created',
 }
 
-export const LAND_FAILURE_TITLE = 'Changes were not landed for review'
+export const LAND_FAILURE_TITLE = 'Changes were not committed for review'
 
 /**
  * A run whose only output was ignored build files did not FAIL — there is

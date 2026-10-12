@@ -659,7 +659,7 @@ export default function CliRunArtifactPanel({
           />
         </View>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not landed'}
+          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not committed'}
         </Text>
         {review && !review.shadow ? (
           <Tooltip

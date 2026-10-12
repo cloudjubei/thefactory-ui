@@ -29,6 +29,7 @@ import {
   NEW_SCREEN_ENTRY_NOTE,
   NEW_SCREEN_NOTE,
   NEW_SCREEN_PAIR_CHANGE,
+  NEW_STATE_PAIR_NOTE,
   NOTHING_JUDGED,
   PAIR_COUNTED_VERDICT,
   PAIR_NOT_COUNTED_VERDICT,
@@ -620,6 +621,30 @@ describe('verifyProofView', () => {
       expect(v.newScreens[0].entryPointAbsent).toBe(CAPTURE_LOADING)
       expect(v.newScreens[1].entryPointAbsent).toBeUndefined()
     })
+  })
+
+  it('says a pair of a new state is that screen on the base beside the state only the change reaches', () => {
+    const v = verifyProofView(
+      proof({
+        mode: 'live',
+        pairs: [
+          pair({
+            subject: 'login-card',
+            beforeId: 'b-login',
+            afterId: 'a-login',
+            sameScreen: 0.79,
+            counted: true,
+            newStateOf: 'login-default',
+          }),
+        ],
+      }),
+      tiles,
+      { standing: 'passed' },
+    )
+    const [state] = v.pairs
+    expect(state.counted).toBe(true)
+    expect(state.sameScreen).toBe(NEW_STATE_PAIR_NOTE('login-default'))
+    expect(v.screens[0]?.note).toContain(NEW_STATE_PAIR_NOTE('login-default'))
   })
 
   it('lists afters with no before as not counting, each with the gate’s reason, last in the pages', () => {

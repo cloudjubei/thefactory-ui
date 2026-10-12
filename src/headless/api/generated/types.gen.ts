@@ -7047,12 +7047,16 @@ export type GitMergePlanOptions = {
   includePatch?: boolean
   maxPatchedFiles?: number
   maxPatchBytes?: number
-  planMode?: 'worktree' | 'merge-tree'
 }
 
 export type GitLocalStatusOptions = {
   repoPath: string
   includeIgnored?: boolean
+}
+
+export type GitMergeTreeResult = {
+  tree: string
+  conflicts: Array<GitConflictEntry>
 }
 
 export type GitApplyMergeOptions = {
@@ -7275,7 +7279,6 @@ export type GitPlanCherryPickOptions = {
   includePatch?: boolean
   maxPatchedFiles?: number
   maxPatchBytes?: number
-  planMode?: 'worktree' | 'merge-tree'
 }
 
 export type GitApplyCherryPickOptions = {
@@ -7523,6 +7526,7 @@ export type GitAddStashOptions = {
   repoPath: string
   name: string
   keepStagedChanges?: boolean
+  includeUntracked?: boolean
   timeoutMs?: number
 }
 
@@ -9118,12 +9122,29 @@ export type ProcessManagerEscalation = {
   recommendedChoice?: ProcessResumeChoice | 'delegate'
 }
 
+export type ProcessManagerWaitingAsk = {
+  actionId: string
+  toolName: string
+  kind: string
+  at: number
+}
+
+export type ProcessManagerTurnAsks = {
+  pending: Array<ProcessManagerWaitingAsk>
+  decided: Array<{
+    actionId: string
+    at: number
+  }>
+}
+
 export type ProcessManagerTurn = {
   runId: string
   parkedAt: number
   signature: string
   startedAt: number
   chatContextId: string
+  waitingOn?: Array<ProcessManagerWaitingAsk>
+  resumedAt?: number
 }
 
 export type ProcessManagerStandDown = {
@@ -9157,6 +9178,8 @@ export type ProcessRunManager = {
     signature: string
     startedAt: number
     chatContextId: string
+    waitingOn?: Array<ProcessManagerWaitingAsk>
+    resumedAt?: number
   }
   standDown?: {
     runId: string
@@ -9220,6 +9243,8 @@ export type ProcessRunManager = {
   reversedKeys?: Array<string>
 }
 
+export type ProcessManagerParkStatus = 'looking' | 'waiting' | 'holding' | 'escalated'
+
 export type ProcessManagerTriggerKind = 'triage' | 'permission' | 'diagnose' | 'pre-read'
 
 export type ProcessManagerTrigger =
@@ -9269,6 +9294,8 @@ export type ProcessManagerRun = {
       signature: string
       startedAt: number
       chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
     }
     standDown?: {
       runId: string
@@ -14569,6 +14596,7 @@ export type ProcessProofPair = {
   counted: boolean
   reason?: string
   newScreen?: boolean
+  newStateOf?: string
 }
 
 export type ProcessProofNewScreen = {
@@ -15751,6 +15779,8 @@ export type ProcessRun = {
       signature: string
       startedAt: number
       chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
     }
     standDown?: {
       runId: string
@@ -16426,6 +16456,8 @@ export type ProcessRunChatState = {
         signature: string
         startedAt: number
         chatContextId: string
+        waitingOn?: Array<ProcessManagerWaitingAsk>
+        resumedAt?: number
       }
       standDown?: {
         runId: string
@@ -18411,7 +18443,6 @@ export type GitMergePlanInput = {
   includePatch?: boolean
   maxPatchedFiles?: number
   maxPatchBytes?: number
-  planMode?: 'worktree' | 'merge-tree'
 }
 
 export type GitMergeReportInput = {
@@ -21389,7 +21420,7 @@ export type GetProcessRunLandingCheckResponses = {
   200: {
     check: ProcessWorkBranchLandingCheck
     /**
-     * Whether the run can be finished as already landed: approved, its work not landed, nothing being brought in.
+     * Whether the run can be finished as already merged: approved, its work not brought in, nothing being brought in now.
      */
     offered: boolean
     /**
@@ -21403,7 +21434,7 @@ export type GetProcessRunLandingCheckResponses = {
        */
       status: string
       /**
-       * What finishing the run as landed leaves it as.
+       * What finishing the run as already merged leaves it as.
        */
       after: string
     }>

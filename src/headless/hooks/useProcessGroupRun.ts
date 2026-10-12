@@ -162,7 +162,7 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
         })
         return data as ProcessGroupLegLandingCheck
       } catch (err) {
-        setActionError(extractErrorMessage(err, 'The leg’s landing could not be checked.'))
+        setActionError(extractErrorMessage(err, 'Whether the leg is merged could not be checked.'))
         return undefined
       }
     },
@@ -182,7 +182,7 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
         setGroup(data as ProcessGroupRun)
         return true
       } catch (err) {
-        setActionError(extractErrorMessage(err, 'The leg could not be marked as landed.'))
+        setActionError(extractErrorMessage(err, 'The leg could not be marked as merged.'))
         return false
       }
     },

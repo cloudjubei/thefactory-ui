@@ -607,7 +607,7 @@ function ToolApprovalPanel({
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-(--border-subtle) px-3 py-2.5">
         <span className="text-[11.5px] text-(--text-muted)">
-          Nothing lands without your sign-off.
+          Nothing goes in without your sign-off.
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onDecideLater} disabled={busy}>

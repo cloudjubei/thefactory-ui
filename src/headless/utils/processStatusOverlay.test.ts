@@ -126,15 +126,22 @@ describe('processStatusOverlay', () => {
     expect(processStatusOverlay(approvedRun(undefined, true))?.label).toBe('Not brought in')
   })
 
-  it('approved work being brought in shows it is landing', () => {
+  it('approved work being brought in shows it is merging', () => {
     expect(
       processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrating', at: 2 })),
     ).toEqual({
-      label: 'Landing',
+      label: 'Merging',
       semantic: 'working',
       title: PROCESS_STATUS_OVERLAY_TITLES.landing,
       runId: 'run-1',
     })
+  })
+
+  it('approved work being brought into a project without git of its own says so without git words', () => {
+    expect(
+      processStatusOverlay(approvedRun({ mode: 'merge', status: 'integrating', at: 2 }, true))
+        ?.label,
+    ).toBe('Bringing in')
   })
 
   it('approved work that landed yields NO overlay — the stored status stands', () => {

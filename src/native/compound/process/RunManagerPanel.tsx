@@ -5,6 +5,7 @@ import {
   PROCESS_MANAGER_DISCUSS_LABEL,
   PROCESS_MANAGER_FOUND_LABEL,
   PROCESS_MANAGER_NEEDS_YOU_TITLE,
+  PROCESS_MANAGER_OPEN_CHAT_LABEL,
   PROCESS_MANAGER_PRE_READ_TITLE,
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   PROCESS_MANAGER_TRIED_LABEL,
@@ -27,6 +28,7 @@ export default function RunManagerPanel({ view, onOpenChat }: RunManagerPanelPro
   const [open, setOpen] = useState(false)
   const { status: state, escalation, preRead, handled } = view
   if (!state && !preRead && handled.lines.length === 0) return null
+  const tone = state?.state === 'waiting' ? status.on_hold : status.working
   const box = {
     borderWidth: 1,
     borderColor: theme.border.subtle,
@@ -50,14 +52,22 @@ export default function RunManagerPanel({ view, onOpenChat }: RunManagerPanelPro
           accessibilityRole="text"
           style={{
             borderWidth: 1,
-            borderColor: status.working.softBorder,
-            backgroundColor: status.working.softBg,
+            borderColor: tone.softBorder,
+            backgroundColor: tone.softBg,
             borderRadius: nativeRadii[2],
             paddingHorizontal: 10,
             paddingVertical: 8,
+            gap: 6,
           }}
         >
-          <Text style={{ fontSize: 12, color: status.working.softFg }}>{state.text}</Text>
+          <Text style={{ fontSize: 12, color: tone.softFg }}>{state.text}</Text>
+          {state.state === 'waiting' && onOpenChat ? (
+            <View style={{ alignSelf: 'flex-start' }}>
+              <Button size="sm" variant="secondary" onPress={onOpenChat}>
+                {PROCESS_MANAGER_OPEN_CHAT_LABEL}
+              </Button>
+            </View>
+          ) : null}
         </View>
       ) : null}
       {escalation ? (

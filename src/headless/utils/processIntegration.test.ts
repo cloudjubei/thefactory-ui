@@ -66,7 +66,7 @@ describe('processIntegrationChoices', () => {
     expect(processIntegrationChoices(workBranch).map((c) => c.detail)).toEqual([
       'Adds each agent’s commit to main as it is.',
       'Squashes the work into a single commit on main.',
-      'Pushes factory/fonts-1a2b3c4d and opens a PR for review on GitHub / Azure DevOps; nothing lands on main until it is merged there.',
+      'Pushes factory/fonts-1a2b3c4d and opens a PR for review on GitHub / Azure DevOps; nothing reaches main until it is merged there.',
     ])
   })
 })
@@ -331,7 +331,7 @@ describe('processIntegrationView', () => {
     ).toEqual({
       tone: 'done',
       title: 'Pull request opened',
-      detail: 'factory/fonts-1a2b3c4d → main. Nothing lands on main until it is merged there.',
+      detail: 'factory/fonts-1a2b3c4d → main. Nothing reaches main until it is merged there.',
       link: { url: 'https://github.com/acme/site/pull/9', label: 'Open the pull request' },
       sha: SHA,
       canRetry: false,
@@ -494,7 +494,7 @@ describe('processIntegrationView — a conflict on landing sent to an agent', ()
       tone: 'working',
       title: 'An agent is resolving the conflict with main',
       detail:
-        'It resolves the files, main is merged into the work and the checks run — then the work comes back to you to confirm how it lands.',
+        'It resolves the files, main is merged into the work and the checks run — then the work comes back to you to confirm how it is merged.',
       files: ['src/file/fileConstants.ts'],
       canRetry: false,
       busy: true,
@@ -519,9 +519,9 @@ describe('processIntegrationView — a conflict on landing sent to an agent', ()
     })
     expect(processIntegrationView(parked)).toEqual({
       tone: 'review',
-      title: 'The conflict with main is resolved — confirm how the work lands',
+      title: 'The conflict with main is resolved — confirm how the work is merged',
       detail:
-        'main was merged into the work, resolving the files below, and the checks ran on it: Build ✓ · Unit tests ✓. Approve to land it — the way, identity and message you chose before are kept.',
+        'main was merged into the work, resolving the files below, and the checks ran on it: Build ✓ · Unit tests ✓. Approve to merge it — the way, identity and message you chose before are kept.',
       sha: 'm'.repeat(40),
       files: ['src/file/fileConstants.ts'],
       canRetry: false,

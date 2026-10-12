@@ -47,7 +47,7 @@ export default function ProcessGroupLegLandingDialog({
   const next = view?.landed ? processGroupLandedNextView(group, leg.id, plans[leg.id]) : undefined
   const tone = view?.landed ? 'done' : 'stuck'
   return (
-    <Modal isOpen onClose={onClose} title={`Mark ${leg.projectId} as landed?`} size="sm">
+    <Modal isOpen onClose={onClose} title={`Mark ${leg.projectId} as merged?`} size="sm">
       <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
         <p className="m-0">
           Use this when {leg.projectId}’s work reached its base branch another way. It counts as

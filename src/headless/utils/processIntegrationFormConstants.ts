@@ -21,17 +21,17 @@ export const PROCESS_INTEGRATION_FORM_LABELS = {
   prTitle: 'Title',
   prBody: 'Description',
   back: 'Back',
-  land: 'Approve and land it',
-  confirm: 'Land it',
+  land: 'Approve and merge',
+  confirm: 'Merge it',
   more: (count: number) => `and ${count} more commit${count === 1 ? '' : 's'}`,
-  loading: 'Reading who it can land as…',
+  loading: 'Reading who it can be committed as…',
 } as const
 
 /** The landing's "build and type-check the result first" option, on the sign-off and on an agent's card. */
 export const PROCESS_INTEGRATION_CHECK_MERGE = {
-  label: (baseRef: string) => `Build and type-check the result before it lands on ${baseRef}`,
+  label: (baseRef: string) => `Build and type-check the result before it is merged into ${baseRef}`,
   hint: (baseRef: string) =>
-    `The merge is made in a scratch copy and the project's build and type check run on it; ${baseRef} moves only if they pass. Nothing is built when what lands is exactly what the work's own checks ran on.`,
+    `The merge is made in a scratch copy and the project's build and type check run on it; ${baseRef} moves only if they pass. Nothing is built when what is merged is exactly what the work's own checks ran on.`,
   line: ', built and type-checked first',
   busy: (baseRef: string) =>
     `Building and type-checking the merged result — ${baseRef} moves only if they pass.`,

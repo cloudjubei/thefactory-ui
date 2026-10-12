@@ -265,14 +265,14 @@ export function processStepCostLabel(
 export const PROCESS_KIND_BLURB: Record<ProcessStepKind, string> = {
   agent: 'An agent run in an isolated copy of the project.',
   check:
-    'Build, type check, lint, format and unit tests the project has, run as plain commands over what the previous step landed — no agent, no judgement.',
+    'Build, type check, lint, format and unit tests the project has, run as plain commands over what the previous step committed — no agent, no judgement.',
   capture: 'Drive the app and file screenshots as evidence.',
   judge: 'Read the evidence and the diff, and return a verdict.',
   report: 'One model pass over the ledger. No tools, no workspace.',
   gate: 'Stop and wait for a person to decide.',
   process: 'A nested process, one level down.',
   cleanup:
-    'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — before the work lands. No agent.',
+    'Any process can end with it: after you approve its sign-off, removes what is on the run’s cleanup list — hand-over notes, captures, temporary files — before the work is brought in. No agent.',
 }
 
 /** Where a definition came from, as the list row says it. */

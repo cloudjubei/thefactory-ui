@@ -102,7 +102,7 @@ describe('processIntegrationFormPreview', () => {
       'Flag binaries — developer, attempt 1',
     ])
     expect(preview.note).toBe(
-      'main has not moved, so the 2 commits land on it as they are — no merge commit, so the message is used only if main moves first.',
+      'main has not moved, so the 2 commits are added to it as they are — no merge commit, so the message is used only if main moves first.',
     )
   })
 

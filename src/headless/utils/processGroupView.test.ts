@@ -184,7 +184,7 @@ describe('processGroupLegRows', () => {
         ],
       }),
     ).flat()
-    expect(row?.landed).toBe('Landed on main by e9b3c02 — merged by an agent from its run’s chat')
+    expect(row?.landed).toBe('On main as e9b3c02 — merged by an agent from its run’s chat')
     expect(row?.canMarkLanded).toBe(false)
   })
 
@@ -419,7 +419,7 @@ describe('processGroupResumeView', () => {
     expect(processGroupResumeView(group({ status: 'succeeded', legs: [backend(), ui] }))).toEqual({
       canResume: false,
       reason:
-        'ui still needs backend, which is not merged — if that work is on its base branch, mark it as landed first.',
+        'ui still needs backend, which is not merged — if that work is on its base branch, mark it as merged first.',
     })
   })
 

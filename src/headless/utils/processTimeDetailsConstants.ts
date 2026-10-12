@@ -4,7 +4,7 @@ import type { ProcessTimePart } from './processTimeDetailsTypes'
 export const PROCESS_TIME_PART_LABELS: Record<ProcessTimePart, string> = {
   thinking: 'Agent thinking',
   tools: 'Tools & commands',
-  system: 'Setup, checks & landing',
+  system: 'Setup, checks & commits',
   other: 'Other',
   running: 'Still running',
 }
@@ -13,7 +13,7 @@ export const PROCESS_TIME_PART_LABELS: Record<ProcessTimePart, string> = {
 export const PROCESS_TIME_PART_HINTS: Record<ProcessTimePart, string> = {
   thinking: 'The model reading, reasoning and writing',
   tools: 'Shell commands, builds, device actions, file and MCP tools',
-  system: 'Starting the agent, preparing and landing its work, and checks',
+  system: 'Starting the agent, preparing and committing its work, and checks',
   other: 'Time no record could place',
   running: 'Split once the step ends',
 }

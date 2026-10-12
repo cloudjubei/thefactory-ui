@@ -3,6 +3,7 @@ import { isProcessRunAwaitingIntegration } from 'thefactory-tools/utils'
 
 import { processRunPersonEnding } from './processView'
 import {
+  PROCESS_STATUS_OVERLAY_BRINGING_IN,
   PROCESS_STATUS_OVERLAY_NOT_LANDED,
   PROCESS_STATUS_OVERLAY_TITLES,
 } from './processStatusOverlayConstants'
@@ -19,7 +20,7 @@ import type { StatusSemanticKey } from './status'
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
  *   - ended on a request for changes → Changes requested (open it to send it back)
  *   - approved, its work not landed → Not merged (open it to bring it in)
- *   - approved, its work being brought in → Landing
+ *   - approved, its work being brought in → Merging (Bringing in without git)
  * A finished (cancelled, or succeeded with its work landed) or absent run yields no overlay — the stored
  * status stands and the row shows its normal Run affordance. So does a run a
  * person rejected or abandoned: its features are pending again, and the next
@@ -102,7 +103,9 @@ function landingOverlay(
 ): ProcessStatusOverlay | undefined {
   if (run.integration?.status === 'integrating') {
     return {
-      label: 'Landing',
+      label: run.workBranch?.shadow
+        ? PROCESS_STATUS_OVERLAY_BRINGING_IN.shadow
+        : PROCESS_STATUS_OVERLAY_BRINGING_IN.git,
       semantic: 'working',
       title: PROCESS_STATUS_OVERLAY_TITLES.landing,
       runId: run.id,

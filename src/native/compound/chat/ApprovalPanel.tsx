@@ -724,7 +724,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
           </View>
         </View>
         <Text style={{ fontSize: 11, color: theme.text.muted, textAlign: 'center' }}>
-          Nothing lands without your sign-off.
+          Nothing goes in without your sign-off.
         </Text>
       </View>
     </View>

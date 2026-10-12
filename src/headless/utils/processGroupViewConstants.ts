@@ -46,7 +46,7 @@ export const PROCESS_GROUP_MODE_LABELS: Record<ProcessIntegrationMode, string> =
 export const PROCESS_GROUP_PARTLY_DONE_BADGE = { label: 'Partly done', tone: 'stuck' } as const
 
 /** The leg action that records its work landed on its base branch outside its run. */
-export const PROCESS_GROUP_MARK_LANDED_LABEL = 'Mark as landed'
+export const PROCESS_GROUP_MARK_LANDED_LABEL = 'Mark as merged'
 
 /** The group action that resumes an ended run whose skipped legs can now start. */
 export const PROCESS_GROUP_RESUME_LABEL = 'Resume'

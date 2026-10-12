@@ -1,3 +1,5 @@
+import type { ProcessManagerParkStatus } from 'thefactory-tools/types'
+
 import type { ProcessStatusTone } from './processView'
 
 /** One line of a run's "Handled for you": what the manager did, why, and how it came out. */
@@ -35,7 +37,7 @@ export interface ProcessRunManagerView {
   switchLabel: string
   switchDetail: string
   /** What it is doing on the park the run waits at. */
-  status?: { state: 'looking' | 'holding' | 'escalated'; text: string }
+  status?: { state: ProcessManagerParkStatus; text: string }
   escalation?: ProcessManagerEscalationView
   handled: { title: string; lines: ProcessManagerHandledLineView[] }
   preRead?: ProcessManagerPreReadView

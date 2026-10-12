@@ -651,7 +651,7 @@ export default function CliRunArtifactPanel({
         {/* A process-owned run is a STAGE, not a sign-off — the sign-off lives in
             the pipeline over the whole story, never on one step. */}
         <span className="text-[13px] font-semibold text-(--text-primary)">
-          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not landed'}
+          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not committed'}
         </span>
         {review && !review.shadow ? (
           <Tooltip

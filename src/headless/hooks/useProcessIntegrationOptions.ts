@@ -34,7 +34,7 @@ export function useProcessIntegrationOptions(
       setRead({ runId, options: data as ProcessIntegrationOptions })
       setError(null)
     } catch (err) {
-      setError(extractErrorMessage(err, 'What it can land as could not be read.'))
+      setError(extractErrorMessage(err, 'Who it can be committed as could not be read.'))
     }
   }, [runId])
 

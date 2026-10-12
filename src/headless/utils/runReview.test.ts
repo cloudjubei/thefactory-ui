@@ -327,7 +327,7 @@ describe('landFailureSummary', () => {
       'the review commit could not be created',
     )
     expect(landFailureSummary({ ...base, reason: 'changes-not-applied' }).message).toBe(
-      'part of the run’s change could not be applied, so none of it was landed',
+      'part of the run’s change could not be applied, so none of it was committed',
     )
     expect(landFailureSummary({ ...base, reason: 'error' }).message).toBe(
       'the review branch could not be created',

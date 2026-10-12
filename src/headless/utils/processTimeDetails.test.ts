@@ -42,7 +42,7 @@ describe('processTimeDetailsView', () => {
     ).toEqual([
       ['Agent thinking', '6m 10s', '27%'],
       ['Tools & commands', '14m 48s', '64%'],
-      ['Setup, checks & landing', '2m 00s', '9%'],
+      ['Setup, checks & commits', '2m 00s', '9%'],
     ])
   })
 

@@ -425,7 +425,7 @@ describe('runProposalView — the run’s other buttons', () => {
         choice: 'approve',
         label: 'Approve the whole story',
         landing,
-        effect: 'Approve “Sign-off”: factory/read-pdfs lands on main as one commit.',
+        effect: 'Approve “Sign-off”: factory/read-pdfs is merged into main as one commit.',
       },
     )!
     expect(view).toMatchObject({
@@ -433,7 +433,7 @@ describe('runProposalView — the run’s other buttons', () => {
       kindLabel: 'Approve the whole story',
       tone: 'done',
       title: 'Sign-off',
-      effect: 'Approve “Sign-off”: factory/read-pdfs lands on main as one commit.',
+      effect: 'Approve “Sign-off”: factory/read-pdfs is merged into main as one commit.',
       approveLabel: RUN_PROPOSAL_GATE.approveLabels.approve,
     })
     expect(view.landing).toMatchObject({ mode: 'squash', baseRef: 'main' })
@@ -561,14 +561,14 @@ describe('runProposalView — the run’s other buttons', () => {
         { id: 'f3', title: 'Remove the smoke script', status: 'reviewable', after: 'done' },
         { id: 'f4', title: 'Later', status: 'pending', after: 'pending' },
       ],
-      effect: 'Finish “File tools” as already landed: …',
+      effect: 'Finish “File tools” as already merged: …',
     })!
     expect(view).toMatchObject({
       kind: 'already-landed',
       kindLabel: RUN_PROPOSAL_ALREADY_LANDED.kindLabel,
       tone: 'done',
       title: 'File tools',
-      effect: 'Finish “File tools” as already landed: …',
+      effect: 'Finish “File tools” as already merged: …',
       approveLabel: RUN_PROPOSAL_ALREADY_LANDED.approveLabel,
     })
     expect(view.sections).toEqual([
@@ -695,14 +695,14 @@ describe('runProposalView — a group run’s buttons, and deleting a process', 
         commit: 'e9b3c02b8e556cddf40e929faefc993d1a530f20',
         subject: 'Agent run 538c0ebd',
         foundBy: 'merged by an agent from its run’s chat',
-        effect: 'Record api as landed on main by e9b3c02.',
+        effect: 'Record api as merged into main by e9b3c02.',
       },
     )!
     expect(view).toMatchObject({
       kind: 'group-landed',
       tone: 'working',
       title: 'Dark mode everywhere',
-      effect: 'Record api as landed on main by e9b3c02.',
+      effect: 'Record api as merged into main by e9b3c02.',
       approveLabel: RUN_PROPOSAL_GROUP_LANDED.approveLabel,
     })
     expect(view.sections.map((s) => [s.key, s.summary])).toEqual([

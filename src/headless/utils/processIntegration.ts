@@ -65,7 +65,7 @@ function integrationChoicesOf(
     {
       mode: 'pull-request',
       label: 'Open a pull request',
-      detail: `Pushes ${name} and opens a PR for review on GitHub / Azure DevOps; nothing lands on ${baseRef} until it is merged there.`,
+      detail: `Pushes ${name} and opens a PR for review on GitHub / Azure DevOps; nothing reaches ${baseRef} until it is merged there.`,
     },
   ]
 }
@@ -204,7 +204,7 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
     return {
       tone: 'done',
       title: MODE_DONE['pull-request'](workBranch.baseRef),
-      detail: `${branch} → ${workBranch.baseRef}. Nothing lands on ${workBranch.baseRef} until it is merged there.`,
+      detail: `${branch} → ${workBranch.baseRef}. Nothing reaches ${workBranch.baseRef} until it is merged there.`,
       link: { url: integration.pullRequestUrl, label: PROCESS_INTEGRATION_PR_LINK },
       ...(sha ? { sha } : {}),
       canRetry: false,

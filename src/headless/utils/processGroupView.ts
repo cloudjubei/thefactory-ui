@@ -231,7 +231,7 @@ export function processGroupWorkMs(
 const shortSha = (sha: string) => sha.slice(0, PROCESS_GROUP_SHORT_SHA_LENGTH)
 
 function landedText(landing: NonNullable<ProcessGroupLeg['landedBy']>): string {
-  return `Landed on ${landing.baseRef} by ${shortSha(landing.commit)} — ${
+  return `On ${landing.baseRef} as ${shortSha(landing.commit)} — ${
     PROCESS_GROUP_LANDING_SOURCE_WORDS[landing.source]
   }`
 }

@@ -72,7 +72,7 @@ export function useProcessRunAlreadyLanded(
       setPreview(undefined)
       return data as ProcessRun
     } catch (err) {
-      setActionError(extractErrorMessage(err, 'The run could not be finished as already landed.'))
+      setActionError(extractErrorMessage(err, 'The run could not be finished as already merged.'))
       return undefined
     } finally {
       setBusy(false)

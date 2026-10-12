@@ -63,6 +63,9 @@ export const NEW_SCREEN_NOTE = 'A screen the change adds — there is no before 
 export const NEW_SCREEN_ENTRY_NOTE =
   'A screen the change adds — beside the entry point on the base it opens from.'
 export const NEW_SCREEN_PAIR_CHANGE = 'A new screen, beside its entry point on the base'
+/** What a pair of a new state says: its before is another subject's capture of that screen on the base. */
+export const NEW_STATE_PAIR_NOTE = (of: string): string =>
+  `A state only the change reaches — its before is “${of}”, that screen on the base`
 
 export const NO_PAIR_FILED = 'No before/after pair was filed'
 export const NO_PAIR_SHOWS_CHANGE = 'No pair shows the change'
@@ -103,4 +106,4 @@ export const VERDICT_NOTE_WHO: Record<'reviewer' | 'codeReview', string> = {
 export const PROVING_AGENT_TYPES: readonly string[] = ['verifier', 'developer-verifier']
 
 /** Beside a counted capture of uncommitted work: it held exactly the commit it is named by. */
-export const CAPTURE_SAME_CODE_LABEL = 'built before it landed — the same code'
+export const CAPTURE_SAME_CODE_LABEL = 'built before it was committed — the same code'

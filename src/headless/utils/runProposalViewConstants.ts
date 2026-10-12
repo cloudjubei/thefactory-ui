@@ -155,7 +155,7 @@ export const RUN_PROPOSAL_PARK = {
 
 export const RUN_PROPOSAL_STOP = {
   kindLabel: 'Stop the run',
-  effect: 'Ends this run and stops everything it launched. Nothing already landed is undone.',
+  effect: 'Ends this run and stops everything it launched. Nothing already brought in is undone.',
   approveLabel: 'Stop the run',
   untitled: 'This run',
 } as const
@@ -174,15 +174,16 @@ export const RUN_PROPOSAL_GATE = {
 } as const
 
 export const RUN_PROPOSAL_LAND = {
-  kindLabel: 'Land the work again',
-  effect: 'Tries again to bring the approved work in, as the card says it lands — it acts at once.',
-  approveLabel: 'Land it',
+  kindLabel: 'Bring the work in again',
+  effect:
+    'Tries again to bring the approved work in, as the card says it comes in — it acts at once.',
+  approveLabel: 'Bring it in',
 } as const
 
 export const RUN_PROPOSAL_RESOLVE_CONFLICT = {
   kindLabel: 'Resolve with an agent',
   effect:
-    'A developer merges the base branch into the work and resolves the files; the checks run, then you confirm how it lands.',
+    'A developer merges the base branch into the work and resolves the files; the checks run, then you confirm how it is merged.',
   approveLabel: 'Send to an agent',
 } as const
 
@@ -194,10 +195,10 @@ export const RUN_PROPOSAL_REVIVE = {
 } as const
 
 export const RUN_PROPOSAL_ALREADY_LANDED = {
-  kindLabel: 'Finish as already landed',
+  kindLabel: 'Finish as already merged',
   effect:
     'Its base branch already holds the work: nothing is merged, its features are made done, its work branch is removed and the run moves to History.',
-  approveLabel: 'Finish as landed',
+  approveLabel: 'Finish as merged',
 } as const
 
 export const RUN_PROPOSAL_SEND_BACK = {
@@ -237,10 +238,10 @@ export const RUN_PROPOSAL_GROUP_DELETE = {
 
 /** Marking a leg as landed outside its run, when the host stated none of its words. */
 export const RUN_PROPOSAL_GROUP_LANDED = {
-  kindLabel: 'Mark as landed',
+  kindLabel: 'Mark as merged',
   effect: (leg: string): string =>
-    `Records ${leg}’s work as landed on its base branch outside its run — it counts as merged from then on.`,
-  approveLabel: 'Mark as landed',
+    `Records that ${leg}’s work reached its base branch outside its run — it counts as merged from then on.`,
+  approveLabel: 'Mark as merged',
 } as const
 
 /** Resuming an ended group run, when the host stated none of its words. */
@@ -269,7 +270,7 @@ export const RUN_PROPOSAL_LANDING_SHADOW = 'Brought into the project folder'
 
 /** The landing editor's labels. */
 export const RUN_PROPOSAL_LANDING_LABELS = {
-  mode: 'How it lands',
+  mode: 'How it comes in',
   identity: 'Commit as',
   message: 'Commit message',
   account: 'Open it as',
@@ -298,8 +299,8 @@ export const RUN_PROPOSAL_LINE_LABELS = {
   parkMessage: 'Why it stopped',
   answer: 'Your answer',
   run: 'Run',
-  landing: 'How it lands',
-  lastError: 'Why it did not land',
+  landing: 'How it comes in',
+  lastError: 'Why it did not come in',
   files: 'Files it resolves',
   branches: 'Git branches deleted too',
   leg: 'Leg',

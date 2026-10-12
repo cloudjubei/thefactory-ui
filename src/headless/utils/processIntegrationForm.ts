@@ -78,7 +78,7 @@ export function processIntegrationFormPreview(
     entries,
     ...(more > 0 ? { more } : {}),
     note: options.fastForward
-      ? `${workBranch.baseRef} has not moved, so the ${count} land on it as they are — no merge commit, so the message is used only if ${workBranch.baseRef} moves first.`
+      ? `${workBranch.baseRef} has not moved, so the ${count} are added to it as they are — no merge commit, so the message is used only if ${workBranch.baseRef} moves first.`
       : `A merge commit joins the ${count} to ${workBranch.baseRef}.`,
   }
 }

@@ -112,7 +112,7 @@ describe('processOpenWorkView — the three ways to proceed', () => {
     const onBranch = processOpenWorkView(openWork()).options[1]
     expect(onBranch.detail).toContain('from the tip of factory/fonts-run7')
     expect(onBranch.detail).toContain('signed off separately')
-    expect(onBranch.detail).toContain('only after that run’s work has landed')
+    expect(onBranch.detail).toContain('only after that run’s work has been brought in')
   })
 
   it('says a fresh start ignores the open work and may conflict with it', () => {

@@ -54,7 +54,7 @@ export default function ProcessGroupLegLandingDialog({
   const next = view?.landed ? processGroupLandedNextView(group, leg.id, plans[leg.id]) : undefined
   const tone = view?.landed ? status.done : status.stuck
   return (
-    <Modal isOpen onClose={onClose} title={`Mark ${leg.projectId} as landed?`}>
+    <Modal isOpen onClose={onClose} title={`Mark ${leg.projectId} as merged?`}>
       <View style={{ gap: nativeSpace[3] }}>
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>
           {`Use this when ${leg.projectId}’s work reached its base branch another way. It counts as merged only once every feature of “${leg.title}” is done and the commit that brought it in is on the base branch.`}

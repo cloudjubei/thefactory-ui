@@ -3,7 +3,7 @@ export const PROCESS_INTEGRATION_CHOOSER_HEAD = 'How should the approved work co
 
 /** What every choice has in common. */
 export const PROCESS_INTEGRATION_CHOOSER_NOTE =
-  'Test seams are left out. Next you choose who it lands as and the words it lands with.'
+  'Test seams are left out. Next you choose who it comes in as and the words it comes in with.'
 
 /** Heads the details of the way chosen. */
 export const PROCESS_INTEGRATION_DETAILS_HEAD = {
@@ -16,17 +16,17 @@ export const PROCESS_INTEGRATION_DETAILS_HEAD = {
 export const PROCESS_INTEGRATION_CONFLICT = {
   resolve: 'Resolve with an agent',
   resolveDetail:
-    'A developer merges the base branch into the work and resolves the files, keeping both sides; the checks run, then you confirm how it lands.',
+    'A developer merges the base branch into the work and resolves the files, keeping both sides; the checks run, then you confirm how it is merged.',
   openPullRequest: 'Open a pull request instead',
   resolving: (baseRef: string) => `An agent is resolving the conflict with ${baseRef}`,
   resolvingDetail: (baseRef: string) =>
-    `It resolves the files, ${baseRef} is merged into the work and the checks run — then the work comes back to you to confirm how it lands.`,
+    `It resolves the files, ${baseRef} is merged into the work and the checks run — then the work comes back to you to confirm how it is merged.`,
   resolved: (baseRef: string) =>
-    `The conflict with ${baseRef} is resolved — confirm how the work lands`,
+    `The conflict with ${baseRef} is resolved — confirm how the work is merged`,
   resolvedDetail: (baseRef: string, checks: string | undefined) =>
     `${baseRef} was merged into the work, resolving the files below${
       checks ? `, and the checks ran on it: ${checks}` : ''
-    }. Approve to land it — the way, identity and message you chose before are kept.`,
+    }. Approve to merge it — the way, identity and message you chose before are kept.`,
 } as const
 
 export const PROCESS_INTEGRATION_CANCEL = 'Cancel'

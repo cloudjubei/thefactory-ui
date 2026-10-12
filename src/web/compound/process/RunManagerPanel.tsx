@@ -3,6 +3,7 @@ import {
   PROCESS_MANAGER_DISCUSS_LABEL,
   PROCESS_MANAGER_FOUND_LABEL,
   PROCESS_MANAGER_NEEDS_YOU_TITLE,
+  PROCESS_MANAGER_OPEN_CHAT_LABEL,
   PROCESS_MANAGER_PRE_READ_TITLE,
   PROCESS_MANAGER_RECOMMENDS_LABEL,
   PROCESS_MANAGER_TRIED_LABEL,
@@ -19,7 +20,8 @@ export type RunManagerPanelProps = {
 
 /**
  * What the run's agent manager is doing and has done: a line while it looks
- * at or holds the park, its card when it handed the park to you, its pre-read
+ * at or holds the park, or waits on a card it raised (with the way to it), its
+ * card when it handed the park to you, its pre-read
  * of the sign-off, and "Handled for you" — every intervention, what, why and
  * how it came out.
  */
@@ -32,14 +34,27 @@ export default function RunManagerPanel({ view, onOpenChat }: RunManagerPanelPro
       {status && status.state !== 'escalated' ? (
         <div
           role="status"
-          className="rounded-md px-2.5 py-2 text-[12px]"
-          style={{
-            background: 'var(--status-working-soft-bg)',
-            border: '1px solid var(--status-working-soft-border)',
-            color: 'var(--status-working-soft-fg)',
-          }}
+          className="flex flex-col gap-1.5 rounded-md px-2.5 py-2 text-[12px]"
+          style={
+            status.state === 'waiting'
+              ? {
+                  background: 'var(--status-on_hold-soft-bg)',
+                  border: '1px solid var(--status-on_hold-soft-border)',
+                  color: 'var(--status-on_hold-soft-fg)',
+                }
+              : {
+                  background: 'var(--status-working-soft-bg)',
+                  border: '1px solid var(--status-working-soft-border)',
+                  color: 'var(--status-working-soft-fg)',
+                }
+          }
         >
           {status.text}
+          {status.state === 'waiting' && onOpenChat ? (
+            <Button size="sm" variant="secondary" className="self-start" onClick={onOpenChat}>
+              {PROCESS_MANAGER_OPEN_CHAT_LABEL}
+            </Button>
+          ) : null}
         </div>
       ) : null}
       {escalation ? (

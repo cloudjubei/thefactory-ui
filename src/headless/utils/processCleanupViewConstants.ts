@@ -22,7 +22,7 @@ export const PROCESS_CLEANUP_OUTCOME_LABELS: Record<ProcessCleanupOutcomeStatus,
 /** The words of the cleanup card, shared by web and native. */
 export const PROCESS_CLEANUP_COPY = {
   title: 'Cleanup after sign-off',
-  hint: 'Removed once you approve this sign-off, before the work lands. Untick anything to keep it.',
+  hint: 'Removed once you approve this sign-off, before the work is brought in. Untick anything to keep it.',
   switchLabel: 'Clean up after sign-off',
   off: 'Cleanup is switched off for this run — nothing will be removed.',
   empty: 'Nothing is registered for cleanup.',

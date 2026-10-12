@@ -57,7 +57,7 @@ const EXTEND_DETAIL: Record<ProcessOpenWorkState, string> = {
 
 function newOnBranchDetail(branch: string | undefined): string {
   const tip = branch ? ` (from the tip of ${branch})` : ''
-  return `Treats that work as good and starts a separate run on top of it${tip}, for the new features only; the two are signed off separately. This run’s work is brought in only after that run’s work has landed.`
+  return `Treats that work as good and starts a separate run on top of it${tip}, for the new features only; the two are signed off separately. This run’s work is brought in only after that run’s work has been brought in.`
 }
 
 const FRESH_DETAIL =

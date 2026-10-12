@@ -25,7 +25,7 @@ describe('processAlreadyLandedOffer', () => {
         { dependency: 'c6df09da.f3', title: 'Remove the smoke script', becomesDone: true },
         { dependency: 'c6df09da.f4', title: 'Still pending', becomesDone: false },
       ],
-      label: 'Finish as already landed',
+      label: 'Finish as already merged',
       detail:
         'Nothing is merged: its features are marked done, the work branch factory/pdf-62f6dc78 is removed and the run moves to History.',
     })

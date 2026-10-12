@@ -7,6 +7,7 @@ import {
   processManagerEscalationLabel,
   processManagerHandledSummary,
   processManagerSettingsProblem,
+  processManagerWaitingText,
   processRunManagerParkState,
   processRunManagerSettings,
   resolveProcessManagerSettings,
@@ -31,8 +32,9 @@ import type { ProcessRunManagerView } from './processManagerViewTypes'
 /**
  * What a run's page shows of its agent manager, read off the run's top-level
  * record: the switch, what it is doing on the park the run waits at — looking,
- * holding until something lands, or handed to you with its card — its pre-read
- * of a sign-off, and every intervention it made ("Handled for you").
+ * waiting on a card it raised, holding until something lands, or handed to you
+ * with its card — its pre-read of a sign-off, and every intervention it made
+ * ("Handled for you").
  */
 export function processRunManagerView(run: ProcessRun, now: number): ProcessRunManagerView {
   const settings = processRunManagerSettings(run)
@@ -53,21 +55,23 @@ export function processRunManagerView(run: ProcessRun, now: number): ProcessRunM
         : PROCESS_MANAGER_SWITCH_DETAIL_OFF,
     ...(state === 'looking'
       ? { status: { state, text: PROCESS_MANAGER_STATUS_LOOKING } }
-      : hold
-        ? {
-            status: {
-              state: 'holding' as const,
-              text: PROCESS_MANAGER_STATUS_HOLDING(processManagerDependencyLabel(hold.dependsOn)),
-            },
-          }
-        : escalation
+      : state === 'waiting'
+        ? { status: { state, text: processManagerWaitingText(manager?.turn?.waitingOn ?? []) } }
+        : hold
           ? {
               status: {
-                state: 'escalated' as const,
-                text: processManagerEscalationLabel(escalation),
+                state: 'holding' as const,
+                text: PROCESS_MANAGER_STATUS_HOLDING(processManagerDependencyLabel(hold.dependsOn)),
               },
             }
-          : {}),
+          : escalation
+            ? {
+                status: {
+                  state: 'escalated' as const,
+                  text: processManagerEscalationLabel(escalation),
+                },
+              }
+            : {}),
     ...(escalation
       ? {
           escalation: {

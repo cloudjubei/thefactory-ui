@@ -55,6 +55,7 @@ import {
   NEW_SCREEN_ENTRY_NOTE,
   NEW_SCREEN_NOTE,
   NEW_SCREEN_PAIR_CHANGE,
+  NEW_STATE_PAIR_NOTE,
   NEW_SCREEN_TITLE,
   NO_PAIR_FILED,
   NO_PAIR_SHOWS_CHANGE,
@@ -383,7 +384,11 @@ function pairView(
     change: newScreen
       ? NEW_SCREEN_PAIR_CHANGE
       : pixelChangeLabel(pair.changedPixels, pair.totalPixels),
-    sameScreen: newScreen ? undefined : sameScreenLabel(pair.sameScreen),
+    sameScreen: newScreen
+      ? undefined
+      : pair.newStateOf !== undefined
+        ? NEW_STATE_PAIR_NOTE(pair.newStateOf)
+        : sameScreenLabel(pair.sameScreen),
     verdict: pair.counted
       ? PAIR_COUNTED_VERDICT
       : (trimmed(pair.reason) ?? PAIR_NOT_COUNTED_VERDICT),
