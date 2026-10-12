@@ -32,7 +32,9 @@ import {
   launchProofPlanRows,
   proofPlanMetadata,
   proposalFeatureProcessId,
+  processGrantTurnLimitView,
   processOpenWorkMetadata,
+  processTurnLimitOfView,
   setLaunchProofNotes,
   toggleLaunchProofKind,
   useProcessProposal,
@@ -54,6 +56,7 @@ import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import RichText from '../files/RichText'
+import { TurnLimitField } from '../TurnLimitField'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -183,6 +186,14 @@ function ToolApprovalPanel({
   const [runCliCredentialId, setRunCliCredentialId] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // How far each step's agent may go — the person's pick, else what the agent
+  // asked for, else the default for the transport the work runs on.
+  const launchRunner = runCli ? 'cli' : (summary.runner ?? grant.chatRunner)
+  const turnLimitStart = processGrantTurnLimitView(summary.turnLimit, launchRunner)
+  const [turnLimitPick, setTurnLimitPick] = useState<
+    { limited: boolean; maxTurns: number } | undefined
+  >(undefined)
+  const turnLimit = turnLimitPick ?? turnLimitStart
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
   const features = story ? featuresToWork(story) : []
@@ -258,6 +269,7 @@ function ToolApprovalPanel({
               ...(runModel ? { cliModel: runModel } : {}),
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
+              turnLimit: processTurnLimitOfView(turnLimit),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
               ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
@@ -462,6 +474,13 @@ function ToolApprovalPanel({
             </Tooltip>
             <span className="text-[11.5px] text-(--text-muted)">Merges nothing.</span>
           </div>
+          <TurnLimitField
+            {...turnLimitStart}
+            limited={turnLimit.limited}
+            maxTurns={turnLimit.maxTurns}
+            disabled={busy}
+            onChange={setTurnLimitPick}
+          />
         </div>
 
         {featureRows.length > 0 ? (

@@ -52,7 +52,8 @@ describe('proofKindOptions', () => {
     expect(proofKindOptions()[3]).toEqual({
       kind: 'ui-before-after',
       label: 'Before/after screens',
-      meaning: 'A before and an after of every screen the change affects.',
+      meaning:
+        'A before and an after of every screen the change affects — a screen it adds needs only its after.',
     })
   })
 })

@@ -124,6 +124,17 @@ describe('processSignoffRecord', () => {
       expect(decided({ decidedBy: 'agent', chatContextId: 'project:p' })).toBe('by a chat agent')
     })
 
+    it('names the agent manager for a decision it took on its own', () => {
+      expect(
+        decided({
+          decidedBy: 'manager',
+          decidedVia: 'manager',
+          toolName: 'answerRunPark',
+          chatContextId: 'c',
+        }),
+      ).toBe('by the agent manager')
+    })
+
     it('says no one for a decision recorded before decisions were attributed', () => {
       expect(decided({})).toBeUndefined()
     })

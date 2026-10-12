@@ -1,15 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import type { StoryNote, StoryNoteUpdateInput } from 'thefactory-tools/types'
 import {
+  addStoryNote,
   createFeature,
   createStory,
   deleteFeature,
   deleteStory,
   getStoriesOrder,
   listStories,
+  removeStoryNote,
   reorderStories,
   updateFeature,
   updateStory,
+  updateStoryNote,
   type Feature,
   type FeatureCreateInput,
   type FeatureEditInput,
@@ -91,6 +95,20 @@ export type StoriesContextValue = {
     patch: FeatureEditInput,
   ) => Promise<GetStoryResponse>
   deleteFeature: (storyId: string, featureId: string) => Promise<void>
+
+  /** Attach a note to the story, or to one of its features with `featureId`, as the person. */
+  addStoryNote: (
+    storyId: string,
+    input: { label: string; value: string; featureId?: string },
+  ) => Promise<StoryNote>
+  /** Change a note on the story or any of its features. */
+  updateStoryNote: (
+    storyId: string,
+    noteId: string,
+    patch: StoryNoteUpdateInput,
+  ) => Promise<StoryNote>
+  /** Remove a note from the story or any of its features. */
+  removeStoryNote: (storyId: string, noteId: string) => Promise<void>
 
   /** Moves the story one slot up or down in the project's display order. No-op at the ends. */
   moveStory: (storyId: string, direction: 'up' | 'down') => Promise<void>
@@ -508,6 +526,43 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
     [requireProject, refresh],
   )
 
+  const addStoryNoteImpl = useCallback(
+    async (storyId: string, input: { label: string; value: string; featureId?: string }) => {
+      const { data } = await addStoryNote({
+        path: { projectId: requireProject(), storyId },
+        body: input,
+        throwOnError: true,
+      })
+      await refresh()
+      return data as StoryNote
+    },
+    [requireProject, refresh],
+  )
+
+  const updateStoryNoteImpl = useCallback(
+    async (storyId: string, noteId: string, patch: StoryNoteUpdateInput) => {
+      const { data } = await updateStoryNote({
+        path: { projectId: requireProject(), storyId, noteId },
+        body: patch,
+        throwOnError: true,
+      })
+      await refresh()
+      return data as StoryNote
+    },
+    [requireProject, refresh],
+  )
+
+  const removeStoryNoteImpl = useCallback(
+    async (storyId: string, noteId: string) => {
+      await removeStoryNote({
+        path: { projectId: requireProject(), storyId, noteId },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [requireProject, refresh],
+  )
+
   const moveStory = useCallback(
     async (storyId: string, direction: 'up' | 'down') => {
       const id = requireProject()
@@ -561,6 +616,9 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       createFeature: createFeatureImpl,
       updateFeature: updateFeatureImpl,
       deleteFeature: deleteFeatureImpl,
+      addStoryNote: addStoryNoteImpl,
+      updateStoryNote: updateStoryNoteImpl,
+      removeStoryNote: removeStoryNoteImpl,
       moveStory,
       reorderStory,
       refresh,
@@ -583,6 +641,9 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       createFeatureImpl,
       updateFeatureImpl,
       deleteFeatureImpl,
+      addStoryNoteImpl,
+      updateStoryNoteImpl,
+      removeStoryNoteImpl,
       moveStory,
       reorderStory,
       refresh,

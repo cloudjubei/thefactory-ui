@@ -21,6 +21,21 @@ export interface ProcessGroupLegRow {
   totals?: ProcessRunTotals
   /** Why its prerequisite build failed, when it did. */
   error?: string
+  /** Its work can be marked as landed on its base branch outside its run — it stopped, was skipped or did not merge. */
+  canMarkLanded: boolean
+  /** How its work landed outside its run, once a person marked it. */
+  landed?: string
+}
+
+/** Resuming an ended group run: what it starts, or why it cannot yet. */
+export type ProcessGroupResumeView =
+  | { canResume: true; effect: string }
+  | { canResume: false; reason: string }
+
+/** A leg's landing check as a person reads it: what proves it, or every reason it does not. */
+export interface ProcessGroupLandingCheckView {
+  landed: boolean
+  lines: string[]
 }
 
 /** The chat card of a group run — reports, never decides. */

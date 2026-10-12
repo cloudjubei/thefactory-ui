@@ -43,6 +43,7 @@ export { default as Spinner } from './primitives/Spinner'
 export { default as SpinnerWithDot, type SpinnerWithDotProps } from './primitives/SpinnerWithDot'
 export { default as Surface, type SurfaceProps } from './primitives/Surface'
 export { Switch, type SwitchProps } from './primitives/Switch'
+export { TurnLimitField, type TurnLimitFieldProps } from './compound/TurnLimitField'
 export { Textarea } from './primitives/Textarea'
 export { ToastProvider, useToast, type ToastMessage, type ToastVariant } from './primitives/Toast'
 export {
@@ -809,3 +810,11 @@ export {
   default as AlwaysAllowControl,
   type AlwaysAllowControlProps,
 } from './compound/chat/AlwaysAllowControl'
+export {
+  default as StoryNotesSection,
+  type StoryNotesSectionProps,
+} from './compound/stories/StoryNotesSection'
+export {
+  default as ProcessCleanupCard,
+  type ProcessCleanupCardProps,
+} from './compound/process/signoff/ProcessCleanupCard'

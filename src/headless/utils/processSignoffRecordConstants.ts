@@ -42,5 +42,6 @@ export const PROCESS_SIGNOFF_RECORD_TEXT = {
   byYou: 'by you',
   byRunChatAgent: 'by the run’s chat agent',
   byChatAgent: 'by a chat agent',
+  byManager: 'by the agent manager',
   agentTool: (tool: string) => `${tool}, approved by you`,
 } as const

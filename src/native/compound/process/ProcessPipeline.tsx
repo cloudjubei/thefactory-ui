@@ -38,12 +38,19 @@ import {
   processNodeLook,
   processNodeState,
   type ProcessNodeLook,
+  processRetryChoiceOf,
+  processRetryPickStart,
+  processRetryTurnLimitView,
   processRunParkChoices,
   processRunIntegrationModes,
   processRunBadge,
   processRunHeaderModel,
+  processRunManagerView,
   processRunPersonEnding,
+  processRunRevivable,
   processRunSendBackGateId,
+  PROCESS_REVIVE_COPY,
+  PROCESS_STOP_CONFIRM_COPY,
   PROCESS_SEND_BACK_COPY,
   processRunSpend,
   processRunWorkMs,
@@ -68,7 +75,10 @@ import {
   type ProofKind,
   type ProcessNodeRunRef,
   type ProcessResumeChoice,
+  type ProcessRetryPick,
   type ProcessRun,
+  type ProcessRunManagerView,
+  type ProcessTurnLimit,
   type ProcessStatusTone,
   type ProcessWaitingView,
 } from '../../../headless'
@@ -82,6 +92,11 @@ import WorkBranchChangesNote from './WorkBranchChangesNote'
 import RunPendingChanges from './RunPendingChanges'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
+import RetryChoiceOptions from './RetryChoiceOptions'
+import RunClosurePanel from './RunClosurePanel'
+import RunTurnLimitChip from './RunTurnLimitChip'
+import { RunManagerChip } from './RunManagerChip'
+import RunManagerPanel from './RunManagerPanel'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import StepPreview from './pipeline/StepPreview'
@@ -175,10 +190,13 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    setTurnLimit,
+    setManager,
     delegate,
     retryIntegration,
     resolveIntegrationConflict,
     sendBack,
+    revive,
     cancel,
     listBranches,
     deleteRun,
@@ -223,6 +241,7 @@ export default function ProcessPipeline({
   }, [askAgent, onOpenRunChat])
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmStop, setConfirmStop] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
   const [alsoBranches, setAlsoBranches] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -310,6 +329,7 @@ export default function ProcessPipeline({
     : undefined
   const states = processStepStates(run)
   const amendments = processAmendmentView(run)
+  const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
   const signoff = isStorySignoff(run)
   const mergeHold =
     signoff && group
@@ -324,7 +344,8 @@ export default function ProcessPipeline({
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
-  ) => resume(choice, note, integration, requestedProof)
+    retry?: ProcessRetryPick,
+  ) => resume(choice, note, integration, requestedProof, retry)
 
   return (
     <RunChatDraftScope open={openDraft}>
@@ -334,8 +355,10 @@ export default function ProcessPipeline({
           depth={stack.length}
           now={now}
           onCrumb={popTo}
-          onCancel={() => void cancel()}
+          onCancel={() => setConfirmStop(true)}
           onDelete={openDelete}
+          onSetTurnLimit={setTurnLimit}
+          {...(managerView ? { manager: { view: managerView, onSwitch: setManager } } : {})}
           {...(signoff && reportText && onSaveFile
             ? {
                 onDownloadReport: () =>
@@ -371,6 +394,12 @@ export default function ProcessPipeline({
         ) : null}
         {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => void resume(choice)} />}
         <WorkBranchChangesNote run={run} />
+        {managerView ? (
+          <RunManagerPanel
+            view={managerView}
+            {...(canChat ? { onOpenChat: () => void openRunChat() } : {})}
+          />
+        ) : null}
         {stack.length === 0 ? (
           <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
         ) : null}
@@ -491,7 +520,39 @@ export default function ProcessPipeline({
 
         <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
-        <RunEnding run={run} onSendBack={sendBack} />
+        <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
+        {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
+
+        {confirmStop ? (
+          <Modal
+            isOpen
+            onClose={() => setConfirmStop(false)}
+            title={PROCESS_STOP_CONFIRM_COPY.title}
+          >
+            <View style={{ gap: nativeSpace[3] }}>
+              <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+                {PROCESS_STOP_CONFIRM_COPY.body}
+              </Text>
+              <View
+                style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}
+              >
+                <Button size="sm" variant="ghost" onPress={() => setConfirmStop(false)}>
+                  {PROCESS_STOP_CONFIRM_COPY.cancel}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onPress={() => {
+                    setConfirmStop(false)
+                    void cancel()
+                  }}
+                >
+                  {PROCESS_STOP_CONFIRM_COPY.confirm}
+                </Button>
+              </View>
+            </View>
+          </Modal>
+        ) : null}
 
         {confirmDelete ? (
           <Modal isOpen onClose={() => setConfirmDelete(false)} title="Delete this process run?">
@@ -649,6 +710,8 @@ function RunHead({
   onDelete,
   onOpenGroup,
   onDownloadReport,
+  onSetTurnLimit,
+  manager,
   chat,
 }: {
   run: ProcessRun
@@ -659,6 +722,10 @@ function RunHead({
   onDelete?: () => void
   onOpenGroup?: () => void
   onDownloadReport?: () => void
+  /** Hold the run's step agents to a turn limit from their next step on. */
+  onSetTurnLimit?: (limit: ProcessTurnLimit) => Promise<boolean>
+  /** The run's agent manager: what it is, and the switch while the run is live. */
+  manager?: { view: ProcessRunManagerView; onSwitch: (enabled: boolean) => Promise<boolean> }
   /** The run's own chat: open it, and whether it has news. */
   chat?: { onOpen: () => void; unread: boolean }
 }) {
@@ -739,6 +806,19 @@ function RunHead({
       <View style={{ flex: 1 }} />
       <ToneBadge tone={badge.tone} label={badge.label} />
       {model ? <RunModelChip model={model} /> : null}
+      <RunTurnLimitChip
+        run={run}
+        {...((run.status === 'running' || run.status === 'pending' || run.status === 'parked') &&
+        onSetTurnLimit
+          ? { onSet: onSetTurnLimit }
+          : {})}
+      />
+      {manager && depth === 0 ? (
+        <RunManagerChip
+          view={manager.view}
+          {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
+        />
+      ) : null}
       <DurCostChips
         facts={{
           durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
@@ -1104,6 +1184,7 @@ function ParkBlock({
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
+    retry?: ProcessRetryPick,
   ) => void
   onDelegate: () => Promise<void>
   onAskAgent?: () => Promise<void>
@@ -1115,6 +1196,10 @@ function ParkBlock({
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [asking, setAsking] = useState(false)
+  const retryChoice = processRetryChoiceOf(run.park ? processRunParkChoices(run) : [])
+  const [retryPick, setRetryPick] = useState<ProcessRetryPick | undefined>()
+  const parkedAt = run.park?.parkedAt
+  useEffect(() => setRetryPick(undefined), [parkedAt])
   const park = run.park
   if (!park) return null
   const waiting = processWaitingView(run)
@@ -1161,6 +1246,22 @@ function ParkBlock({
         />
       ) : (
         <>
+          {retryChoice && !reflected ? (
+            <RetryChoiceOptions
+              {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
+              {...(retryChoice.turnLimit
+                ? {
+                    turnLimitView: processRetryTurnLimitView(
+                      run,
+                      (retryPick ?? processRetryPickStart(retryChoice)).turnLimit ??
+                        retryChoice.turnLimit.current,
+                    ),
+                  }
+                : {})}
+              pick={retryPick ?? processRetryPickStart(retryChoice)}
+              onPick={setRetryPick}
+            />
+          ) : null}
           {choices.filter(isResumeParkChoice).map((choice) => (
             <View key={choice.choice} style={{ gap: 2 }}>
               <Button
@@ -1169,7 +1270,15 @@ function ParkBlock({
                 onPress={() =>
                   choiceTakesNote(choice.choice)
                     ? setNoteFor(choice.choice)
-                    : onChoose(choice.choice)
+                    : choice.choice === 'retry' && retryChoice
+                      ? onChoose(
+                          'retry',
+                          undefined,
+                          undefined,
+                          undefined,
+                          retryPick ?? processRetryPickStart(retryChoice),
+                        )
+                      : onChoose(choice.choice)
                 }
               >
                 {choice.label}
@@ -1323,9 +1432,16 @@ function WaitingCard({
  * Native peer of web's `RunEnding`: a person's decision in their words — with
  * the way to send a request for changes back for them — or the error.
  */
-function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Promise<void> }) {
+function RunEnding({
+  run,
+  onSendBack,
+  onRevive,
+}: {
+  run: ProcessRun
+  onSendBack: () => Promise<void>
+  onRevive: () => Promise<void>
+}) {
   const { theme } = useNativeTheme()
-  const [sending, setSending] = useState(false)
   const ending = processRunPersonEnding(run)
   const line = ending?.line ?? run.error
   if (!line) return null
@@ -1335,23 +1451,39 @@ function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Pro
     >
       <Text style={{ fontSize: 11, color: theme.text.secondary }}>{line}</Text>
       {processRunSendBackGateId(run) ? (
-        <View style={{ gap: nativeSpace[1], alignItems: 'flex-start' }}>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={sending}
-            onPress={() => {
-              setSending(true)
-              void onSendBack().finally(() => setSending(false))
-            }}
-          >
-            {PROCESS_SEND_BACK_COPY.label}
-          </Button>
-          <Text style={{ fontSize: 10, color: theme.text.secondary }}>
-            {PROCESS_SEND_BACK_COPY.detail}
-          </Text>
-        </View>
+        <RunEndingAction copy={PROCESS_SEND_BACK_COPY} onAct={onSendBack} />
       ) : null}
+      {processRunRevivable(run) ? (
+        <RunEndingAction copy={PROCESS_REVIVE_COPY} onAct={onRevive} />
+      ) : null}
+    </View>
+  )
+}
+
+/** One thing a person can still do on a run that ended: its button, and one line on what it does. */
+function RunEndingAction({
+  copy,
+  onAct,
+}: {
+  copy: { label: string; detail: string }
+  onAct: () => Promise<void>
+}) {
+  const { theme } = useNativeTheme()
+  const [acting, setActing] = useState(false)
+  return (
+    <View style={{ gap: nativeSpace[1], alignItems: 'flex-start' }}>
+      <Button
+        size="sm"
+        variant="primary"
+        disabled={acting}
+        onPress={() => {
+          setActing(true)
+          void onAct().finally(() => setActing(false))
+        }}
+      >
+        {copy.label}
+      </Button>
+      <Text style={{ fontSize: 10, color: theme.text.secondary }}>{copy.detail}</Text>
     </View>
   )
 }

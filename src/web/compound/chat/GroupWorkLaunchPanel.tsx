@@ -4,6 +4,8 @@ import {
   LAUNCH_NOTE_MAX_CHARS,
   PROCESS_GROUP_LAUNCH_BLURB,
   processGroupLegWaitsFor,
+  processGrantTurnLimitView,
+  processTurnLimitOfView,
   startGroupWorkGrantSummary,
   useProcessGroupLaunchPreview,
   type PendingToolGrant,
@@ -12,6 +14,7 @@ import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGran
 import { Button } from '../../primitives/Button'
 import { Textarea } from '../../primitives/Textarea'
 import { IconChevron } from '../../icons'
+import { TurnLimitField } from '../TurnLimitField'
 
 export type GroupWorkLaunchPanelProps = {
   /** The pending `startGroupWork` ask. */
@@ -54,6 +57,14 @@ export default function GroupWorkLaunchPanel({
   const [runCliCredentialId, setRunCliCredentialId] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const turnLimitStart = processGrantTurnLimitView(
+    summary.turnLimit,
+    runCli ? 'cli' : (summary.runner ?? grant.chatRunner),
+  )
+  const [turnLimitPick, setTurnLimitPick] = useState<
+    { limited: boolean; maxTurns: number } | undefined
+  >(undefined)
+  const turnLimit = turnLimitPick ?? turnLimitStart
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
@@ -68,6 +79,7 @@ export default function GroupWorkLaunchPanel({
         decision === 'once'
           ? {
               ...(trimmed ? { note: trimmed } : {}),
+              turnLimit: processTurnLimitOfView(turnLimit),
               ...(runModel ? { cliModel: runModel } : {}),
               ...(runCli ? { cliTool: runCli } : {}),
               ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
@@ -189,6 +201,13 @@ export default function GroupWorkLaunchPanel({
           })}
         </div>
       ) : null}
+      <TurnLimitField
+        {...turnLimitStart}
+        limited={turnLimit.limited}
+        maxTurns={turnLimit.maxTurns}
+        disabled={busy}
+        onChange={setTurnLimitPick}
+      />
       {noteOpen ? (
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">

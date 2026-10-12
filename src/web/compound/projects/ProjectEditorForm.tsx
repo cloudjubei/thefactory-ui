@@ -23,7 +23,16 @@ import type {
   ProjectCodeInfo,
 } from '../../../headless/api'
 import { useGitCredentials, type UseProjectGithubRepoResult } from '../../../headless'
-import { readTicketConnection, useProjectsGroups } from '../../../headless'
+import {
+  PROCESS_MANAGER_AUTONOMY_LABEL,
+  PROCESS_MANAGER_AUTONOMY_OPTIONS,
+  PROCESS_MANAGER_PROJECT_DETAIL,
+  PROCESS_MANAGER_PROJECT_LABEL,
+  projectManagerSettingsOf,
+  readTicketConnection,
+  useProjectsGroups,
+  type ProcessManagerAutonomy,
+} from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
 import TicketConnectionPicker from './TicketConnectionPicker'
 
@@ -42,6 +51,8 @@ export type ProjectFormState = {
     isUiApp?: boolean
     /** The project's own Jira binding, or `'none'` to opt out of its main group's; absent = inherit. */
     ticketConnection?: TicketConnectionBinding | 'none'
+    /** The agent manager over the project's runs. */
+    processManager?: { enabled: boolean; autonomy: ProcessManagerAutonomy }
   }
   codeInfo?: ProjectCodeInfo
   /**
@@ -88,6 +99,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
       appDir,
       isUiApp,
       ...(ticketConnection ? { ticketConnection } : {}),
+      processManager: projectManagerSettingsOf(md),
     },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
@@ -135,6 +147,7 @@ export function ProjectEditorForm({
   }
 
   const iconKey = form.metadata.icon in PROJECT_ICONS ? form.metadata.icon : 'folder'
+  const manager = form.metadata.processManager ?? projectManagerSettingsOf(undefined)
   const iconLabel = PROJECT_ICONS[iconKey] ?? 'Folder'
   const iconEntries = useMemo(() => Object.entries(PROJECT_ICONS), [])
 
@@ -293,6 +306,50 @@ export function ProjectEditorForm({
           />
         </Field>
       )}
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium">{PROCESS_MANAGER_PROJECT_LABEL}</div>
+          <div className="text-xs text-(--text-secondary)">{PROCESS_MANAGER_PROJECT_DETAIL}</div>
+        </div>
+        <Switch
+          checked={manager.enabled}
+          onCheckedChange={(checked) =>
+            setForm((s) => ({
+              ...s,
+              metadata: { ...s.metadata, processManager: { ...manager, enabled: checked } },
+            }))
+          }
+        />
+      </div>
+
+      {manager.enabled ? (
+        <Field label={PROCESS_MANAGER_AUTONOMY_LABEL}>
+          <Select
+            value={manager.autonomy}
+            onValueChange={(v) =>
+              setForm((s) => ({
+                ...s,
+                metadata: {
+                  ...s.metadata,
+                  processManager: { ...manager, autonomy: v as ProcessManagerAutonomy },
+                },
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PROCESS_MANAGER_AUTONOMY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
 
       <Field label="Git credentials (optional)">
         <Select

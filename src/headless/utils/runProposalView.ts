@@ -6,10 +6,15 @@ import {
 import {
   ANSWER_GROUP_RUN_PARK_TOOL_NAME,
   ANSWER_RUN_PARK_TOOL_NAME,
+  CLOSE_RUN_FEATURES_TOOL_NAME,
+  MARK_GROUP_LEG_LANDED_TOOL_NAME,
   REMOVE_PROCESS_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_TOOL_NAME,
+  RESUME_ENDED_GROUP_RUN_TOOL_NAME,
   RUN_PROPOSAL_GROUP_DELETE,
+  RUN_PROPOSAL_GROUP_LANDED,
   RUN_PROPOSAL_GROUP_PARK,
+  RUN_PROPOSAL_GROUP_RESUME,
   RUN_PROPOSAL_GROUP_STOP,
   RUN_PROPOSAL_LANDING_MODE_LABELS,
   RUN_PROPOSAL_REMOVE_PROCESS,
@@ -26,7 +31,10 @@ import {
   RUN_PROPOSAL_CHANGE,
   RUN_PROPOSAL_CHANGE_WORDS,
   RUN_PROPOSAL_DEFER,
+  RUN_PROPOSAL_CLOSURE,
   RUN_PROPOSAL_DELETE,
+  RUN_PROPOSAL_TURN_LIMIT,
+  SET_RUN_TURN_LIMIT_TOOL_NAME,
   RUN_PROPOSAL_FEATURE,
   RUN_PROPOSAL_GATE,
   RUN_PROPOSAL_LAND,
@@ -36,6 +44,7 @@ import {
   RUN_PROPOSAL_RERUN,
   RUN_PROPOSAL_RESOLVE,
   RUN_PROPOSAL_RESOLVE_CONFLICT,
+  RUN_PROPOSAL_REVIVE,
   RUN_PROPOSAL_SEND_BACK,
   RUN_PROPOSAL_START,
   RUN_PROPOSAL_STOP,
@@ -43,6 +52,7 @@ import {
   RUN_PROPOSAL_TOOL_NAMES,
   RUN_PROPOSAL_WITHDRAW,
   SEND_RUN_BACK_TOOL_NAME,
+  REVIVE_PROCESS_RUN_TOOL_NAME,
   STOP_PROCESS_RUN_TOOL_NAME,
   WITHDRAW_RUN_CHANGE_TOOL_NAME,
 } from './runProposalViewConstants'
@@ -52,6 +62,7 @@ import type {
   RunProposalStartDetail,
   RunProposalView,
 } from './runProposalViewTypes'
+import { runProposalEdit } from './runProposalEditView'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
 
@@ -235,6 +246,17 @@ export function runProposalView(
   args: Record<string, unknown>,
   subjectTitle?: string,
   hostDetail: Record<string, unknown> = {},
+): RunProposalView | undefined {
+  const view = proposalView(toolName, args, subjectTitle, hostDetail)
+  const edit = runProposalEdit(hostDetail)
+  return view && edit ? { ...view, edit } : view
+}
+
+function proposalView(
+  toolName: string,
+  args: Record<string, unknown>,
+  subjectTitle: string | undefined,
+  hostDetail: Record<string, unknown>,
 ): RunProposalView | undefined {
   const needsYouItemId = text(args, 'needsYouItemId') ?? text(args, 'itemId')
   const base = { featureId: undefined, storyId: undefined, needsYouItemId }
@@ -511,6 +533,21 @@ function runActionView(
       approveLabel: RUN_PROPOSAL_SEND_BACK.approveLabel,
     }
   }
+  if (toolName === REVIVE_PROCESS_RUN_TOOL_NAME) {
+    return {
+      ...base,
+      kind: 'revive',
+      kindLabel: RUN_PROPOSAL_REVIVE.kindLabel,
+      tone: 'working',
+      title: runTitle,
+      sections: [
+        ...run,
+        ...wordsSection('step', RUN_PROPOSAL_LINE_LABELS.step, text(hostDetail, 'stoppedAtStep')),
+      ],
+      effect: effect ?? RUN_PROPOSAL_REVIVE.effect,
+      approveLabel: RUN_PROPOSAL_REVIVE.approveLabel,
+    }
+  }
   if (toolName === REMOVE_PROCESS_RUN_TOOL_NAME) {
     const branches = hostDetail.deleteBranches === true ? strings(hostDetail.branches) : []
     return {
@@ -535,6 +572,30 @@ function runActionView(
       effect: effect ?? RUN_PROPOSAL_DELETE.effect,
       approveLabel: RUN_PROPOSAL_DELETE.approveLabel,
       danger: true,
+    }
+  }
+  if (toolName === SET_RUN_TURN_LIMIT_TOOL_NAME) {
+    return {
+      ...base,
+      kind: 'turn-limit',
+      kindLabel: RUN_PROPOSAL_TURN_LIMIT.kindLabel,
+      tone: 'working',
+      title: runTitle,
+      sections: run,
+      effect: effect ?? RUN_PROPOSAL_TURN_LIMIT.effect,
+      approveLabel: RUN_PROPOSAL_TURN_LIMIT.approveLabel,
+    }
+  }
+  if (toolName === CLOSE_RUN_FEATURES_TOOL_NAME) {
+    return {
+      ...base,
+      kind: 'close-features',
+      kindLabel: RUN_PROPOSAL_CLOSURE.kindLabel,
+      tone: 'working',
+      title: runTitle,
+      sections: run,
+      effect: effect ?? RUN_PROPOSAL_CLOSURE.effect,
+      approveLabel: RUN_PROPOSAL_CLOSURE.approveLabel,
     }
   }
   return groupAndDefinitionView(toolName, args, hostDetail, base)
@@ -621,6 +682,65 @@ function groupAndDefinitionView(
       effect: effect ?? RUN_PROPOSAL_GROUP_DELETE.effect,
       approveLabel: RUN_PROPOSAL_GROUP_DELETE.approveLabel,
       danger: true,
+    }
+  }
+  if (toolName === MARK_GROUP_LEG_LANDED_TOOL_NAME) {
+    const leg = record(hostDetail.leg)
+    const legName = text(leg, 'projectId') ?? text(args, 'legId') ?? ''
+    const commit = text(hostDetail, 'commit') ?? text(args, 'commit')
+    const subject = text(hostDetail, 'subject')
+    return {
+      ...base,
+      kind: 'group-landed',
+      kindLabel: RUN_PROPOSAL_GROUP_LANDED.kindLabel,
+      tone: 'working',
+      title: groupTitle,
+      sections: [
+        ...(legName
+          ? [
+              {
+                key: 'leg',
+                label: RUN_PROPOSAL_LINE_LABELS.leg,
+                summary: `${legName}${text(leg, 'title') ? ` · ${text(leg, 'title')}` : ''}`,
+              },
+            ]
+          : []),
+        ...(commit
+          ? [
+              {
+                key: 'commit',
+                label: RUN_PROPOSAL_LINE_LABELS.commit,
+                summary: runProposalOneLine(
+                  `${commit.slice(0, 7)}${subject ? ` — ${subject}` : ''}`,
+                ),
+              },
+            ]
+          : []),
+        ...wordsSection('foundBy', RUN_PROPOSAL_LINE_LABELS.foundBy, text(hostDetail, 'foundBy')),
+        ...wordsSection('note', RUN_PROPOSAL_LINE_LABELS.note, text(args, 'note')),
+      ],
+      effect: effect ?? RUN_PROPOSAL_GROUP_LANDED.effect(legName),
+      approveLabel: RUN_PROPOSAL_GROUP_LANDED.approveLabel,
+    }
+  }
+  if (toolName === RESUME_ENDED_GROUP_RUN_TOOL_NAME) {
+    const starts = (Array.isArray(hostDetail.legs) ? hostDetail.legs : []).flatMap((l) => {
+      const name = text(record(l), 'projectId')
+      return name ? [name] : []
+    })
+    return {
+      ...base,
+      kind: 'group-resume',
+      kindLabel: RUN_PROPOSAL_GROUP_RESUME.kindLabel,
+      tone: 'working',
+      title: groupTitle,
+      sections: [
+        ...itemsSection('starts', RUN_PROPOSAL_LINE_LABELS.starts, starts),
+        ...itemsSection('rebuilt', RUN_PROPOSAL_LINE_LABELS.rebuilt, strings(hostDetail.rebuilt)),
+        ...wordsSection('model', RUN_PROPOSAL_LINE_LABELS.model, text(hostDetail, 'agent')),
+      ],
+      effect: effect ?? RUN_PROPOSAL_GROUP_RESUME.effect,
+      approveLabel: RUN_PROPOSAL_GROUP_RESUME.approveLabel,
     }
   }
   if (toolName === REMOVE_PROCESS_TOOL_NAME) {

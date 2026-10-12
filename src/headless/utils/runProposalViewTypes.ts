@@ -1,4 +1,12 @@
-import type { ProcessIntegrationMode, ProcessIntegrationOptions } from 'thefactory-tools/types'
+import type {
+  ProcessIntegrationMode,
+  ProcessIntegrationOptions,
+  ProcessRetryMode,
+  ProcessRetryOffer,
+  ProcessTurnLimit,
+} from 'thefactory-tools/types'
+
+import type { ProcessRunClosureRow } from './processRunClosureViewTypes'
 
 /** Which of a run chat's proposals an approval is for. */
 export type RunProposalKind =
@@ -14,11 +22,16 @@ export type RunProposalKind =
   | 'land'
   | 'resolve-conflict'
   | 'send-back'
+  | 'revive'
   | 'delete'
   | 'group-park'
   | 'group-stop'
   | 'group-delete'
+  | 'group-landed'
+  | 'group-resume'
   | 'remove-process'
+  | 'turn-limit'
+  | 'close-features'
 
 /**
  * One part of what a proposal says, collapsed to a line on its card and opened
@@ -58,6 +71,8 @@ export type RunProposalView = {
   landing?: RunProposalLanding
   /** Approving cannot be undone: the button reads as a danger. */
   danger?: boolean
+  /** What the person can change on the card before approving, beside how the work lands. */
+  edit?: RunProposalEdit
 }
 
 /**
@@ -88,4 +103,22 @@ export type RunProposalLanding = {
 export type RunProposalStartDetail = {
   changes: Array<{ id: string; kind: string; title: string; summary: string; featureId?: string }>
   model?: string
+}
+
+/**
+ * What a run action's card lets the person change before approving: how a
+ * retried step's agent starts, the turn limit, what each feature of an ended
+ * run is left as — each read from what the host stated on the ask.
+ */
+export type RunProposalEdit = {
+  retry?: ProcessRetryOffer
+  turnLimit?: { limit: ProcessTurnLimit; runner: 'api' | 'cli' }
+  closure?: ProcessRunClosureRow[]
+}
+
+/** The person's picks on a card's editable parts, as they stand. */
+export type RunProposalEditState = {
+  retryMode?: ProcessRetryMode
+  turnLimit?: ProcessTurnLimit
+  closure?: ProcessRunClosureRow[]
 }

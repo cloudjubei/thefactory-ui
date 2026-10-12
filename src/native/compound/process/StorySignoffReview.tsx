@@ -94,6 +94,7 @@ import ProofPlanMarks from './ProofPlanMarks'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
+import ProcessCleanupCard from './signoff/ProcessCleanupCard'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
 
@@ -728,6 +729,8 @@ function StorySignoffPanel({
           </View>
         ) : null}
       </View>
+
+      <ProcessCleanupCard runId={storyRunId} />
 
       <View accessibilityLabel={SIGNOFF_SECTION_TITLES.what} style={card}>
         <StorySpecCard

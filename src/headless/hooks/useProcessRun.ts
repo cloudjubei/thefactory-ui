@@ -3,6 +3,7 @@ import type {
   ProcessIntegrationDecision,
   ProcessResumeChoice,
   ProcessRun,
+  ProcessTurnLimit,
   ProofKind,
 } from 'thefactory-tools/types'
 import {
@@ -17,13 +18,17 @@ import {
   resolveProcessRunNeedsYouItem,
   resumeProcessRun,
   retryProcessRunIntegration,
+  reviveProcessRun,
   sendProcessRunBackForChanges,
+  setProcessRunManager,
+  setProcessRunTurnLimit,
   startProcessRunChanges,
   withdrawProcessRunChange,
 } from '../api'
 import { extractErrorMessage, useApi, useAuth } from '../api'
 import type { ChatContext } from '../api'
 import { cachedProcessRun, processRunCache } from './processViewCache'
+import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -60,7 +65,18 @@ export type UseProcessRun = {
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
+    retry?: ProcessRetryPick,
   ) => Promise<boolean>
+  /**
+   * Hold every step agent of the run to `limit` from its next step on.
+   * Resolves `false` when it was refused; the reason is in `actionError`.
+   */
+  setTurnLimit: (limit: ProcessTurnLimit) => Promise<boolean>
+  /**
+   * Switch the run's agent manager on or off. Resolves `false` when it was
+   * refused; the reason is in `actionError`.
+   */
+  setManager: (enabled: boolean) => Promise<boolean>
   /**
    * Try again to bring in approved work that did not land, the same way or
    * another. Resolves `false` when it was refused; the reason is in `actionError`.
@@ -77,6 +93,11 @@ export type UseProcessRun = {
    * reopened into the fix with that note and comes back to the same sign-off.
    */
   sendBack: () => Promise<void>
+  /**
+   * Take a stopped run back up where it was: the step it was on waits to be
+   * tried again, or the sign-off it was at waits for a decision.
+   */
+  revive: () => Promise<void>
   /**
    * Hand what the waiting agent asked for to another agent — a chat opened with
    * the whole ask. The run keeps waiting. Resolves to the chat's topic, or
@@ -200,6 +221,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       note?: string,
       integration?: ProcessIntegrationDecision,
       requestedProof?: readonly ProofKind[],
+      retry?: ProcessRetryPick,
     ) => {
       if (!runId) return false
       setActionError(null)
@@ -214,6 +236,8 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
             ...(requestedProof && requestedProof.length > 0
               ? { requestedProof: [...requestedProof] }
               : {}),
+            ...(retry?.retryMode ? { retryMode: retry.retryMode } : {}),
+            ...(retry?.turnLimit ? { turnLimit: retry.turnLimit } : {}),
           },
           throwOnError: true,
         })
@@ -274,6 +298,17 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     }
   }, [runId, setRun])
 
+  const revive = useCallback(async () => {
+    if (!runId) return
+    setActionError(null)
+    try {
+      const { data } = await reviveProcessRun({ path: { runId }, throwOnError: true })
+      setRun(data as ProcessRun)
+    } catch (err) {
+      setActionError(extractErrorMessage(err, 'The run could not be resumed.'))
+    }
+  }, [runId, setRun])
+
   const delegate = useCallback(async (): Promise<ProcessRunDelegation | undefined> => {
     if (!runId) return undefined
     setActionError(null)
@@ -291,6 +326,46 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       return undefined
     }
   }, [runId, setRun])
+
+  const setTurnLimit = useCallback(
+    async (limit: ProcessTurnLimit) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await setProcessRunTurnLimit({
+          path: { runId },
+          body: { turnLimit: limit },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The turn limit could not be changed.'))
+        return false
+      }
+    },
+    [runId, setRun],
+  )
+
+  const setManager = useCallback(
+    async (enabled: boolean) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await setProcessRunManager({
+          path: { runId },
+          body: { enabled },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The run’s manager could not be switched.'))
+        return false
+      }
+    },
+    [runId, setRun],
+  )
 
   const cancel = useCallback(async () => {
     if (!runId) return
@@ -414,9 +489,12 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      setTurnLimit,
+      setManager,
       retryIntegration,
       resolveIntegrationConflict,
       sendBack,
+      revive,
       delegate,
       cancel,
       openChat,
@@ -434,9 +512,12 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      setTurnLimit,
+      setManager,
       retryIntegration,
       resolveIntegrationConflict,
       sendBack,
+      revive,
       delegate,
       cancel,
       openChat,

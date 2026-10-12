@@ -41,3 +41,30 @@ export const PROCESS_GROUP_MODE_LABELS: Record<ProcessIntegrationMode, string> =
   squash: 'One commit',
   'pull-request': 'Pull request',
 }
+
+/** How a group run that ended with some of its legs merged reads in one word. */
+export const PROCESS_GROUP_PARTLY_DONE_BADGE = { label: 'Partly done', tone: 'stuck' } as const
+
+/** The leg action that records its work landed on its base branch outside its run. */
+export const PROCESS_GROUP_MARK_LANDED_LABEL = 'Mark as landed'
+
+/** The group action that resumes an ended run whose skipped legs can now start. */
+export const PROCESS_GROUP_RESUME_LABEL = 'Resume'
+
+/** What stopping a group run asks first: Stop ends every project's run. */
+export const PROCESS_GROUP_STOP_CONFIRM_COPY = {
+  title: 'Stop this group run?',
+  body: 'Every project’s run in this group stops now, with everything it launched.',
+  confirm: 'Stop group run',
+  cancel: 'Keep it running',
+} as const
+
+/** What a landing check says once every feature of the leg's story is done. */
+export const PROCESS_GROUP_LANDING_FEATURES_DONE = 'Every feature of its story is done'
+
+/** Who the legs a resumed group run starts run on, as its Resume confirm names it. */
+export const PROCESS_GROUP_RESUME_AGENT = 'the group run’s agent'
+
+/** What marking a leg of an ended group run as landed leads to for the legs that need it. */
+export const PROCESS_GROUP_LANDED_RESUME_NEXT = (names: string): string =>
+  `The group run has ended — resume it to start ${names}.`

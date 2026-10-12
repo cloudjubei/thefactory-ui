@@ -7,9 +7,16 @@ import {
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
+  processGroupResumeRebuildLegIds,
+  processGroupResumeView,
   processGroupWorkMs,
+  PROCESS_GROUP_MARK_LANDED_LABEL,
+  PROCESS_GROUP_RESUME_LABEL,
+  PROCESS_GROUP_STOP_CONFIRM_COPY,
   useDurationTimer,
+  useProcessGroupRebuildPlans,
   useProcessGroupRun,
+  type ProcessGroupLeg,
   type ProcessGroupLegRow,
   type ProcessRunBranch,
   type ProcessStatusTone,
@@ -21,6 +28,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
+import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
 
 export type ProcessGroupPipelineProps = {
@@ -39,7 +47,9 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
  * waits for and what it has cost. Each project is signed off and merged in its
  * own pipeline, one tap away — a project only once the ones it builds on are
  * merged; only what the group alone can answer (a project that stopped, a
- * merged project that does not build, a failed merge) is answered here.
+ * merged project that does not build, a failed merge) is answered here — and a
+ * project whose work landed another way is marked so, after which an ended
+ * group run can be resumed for the projects that waited on it.
  */
 export default function ProcessGroupPipeline({
   groupRunId,
@@ -54,15 +64,34 @@ export default function ProcessGroupPipeline({
     deleted,
     resume,
     cancel,
+    checkLanding,
+    markLanded,
+    planRebuild,
+    reopen,
     listBranches,
     deleteGroupRun,
   } = useProcessGroupRun(groupRunId)
+  const resumePlans = useProcessGroupRebuildPlans(
+    processGroupResumeRebuildLegIds(group),
+    planRebuild,
+  )
   const ticking = group?.totals?.ticking === true
   const now = useDurationTimer(ticking)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmStop, setConfirmStop] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
   const [alsoBranches, setAlsoBranches] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [landingLeg, setLandingLeg] = useState<ProcessGroupLeg | undefined>(undefined)
+  const [confirmResume, setConfirmResume] = useState(false)
+  const [resuming, setResuming] = useState(false)
+
+  const runResume = useCallback(() => {
+    setResuming(true)
+    void reopen()
+      .then(() => setConfirmResume(false))
+      .finally(() => setResuming(false))
+  }, [reopen])
 
   const openDelete = useCallback(() => {
     setAlsoBranches(false)
@@ -105,6 +134,7 @@ export default function ProcessGroupPipeline({
   const ended = ENDED.includes(group.status)
   const workMs = processGroupWorkMs(group.totals, now)
   const spend = costChipLabel(group.totals)
+  const resumeView = processGroupResumeView(group, resumePlans)
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
@@ -138,12 +168,17 @@ export default function ProcessGroupPipeline({
         {spend ? (
           <CostChip label={spend} cost={group.totals} title="Every project, summed" />
         ) : null}
+        {resumeView?.canResume ? (
+          <Button size="sm" variant="primary" onPress={() => setConfirmResume(true)}>
+            {PROCESS_GROUP_RESUME_LABEL}
+          </Button>
+        ) : null}
         {ended ? (
           <Button size="sm" variant="ghost" onPress={openDelete}>
             Delete
           </Button>
         ) : (
-          <Button size="sm" variant="secondary" onPress={() => void cancel()}>
+          <Button size="sm" variant="secondary" onPress={() => setConfirmStop(true)}>
             Stop
           </Button>
         )}
@@ -165,6 +200,19 @@ export default function ProcessGroupPipeline({
         >
           <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{actionError}</Text>
         </View>
+      ) : null}
+
+      {resumeView && !resumeView.canResume ? (
+        <Text
+          style={{
+            marginHorizontal: nativeSpace[3],
+            marginTop: nativeSpace[3],
+            fontSize: 11.5,
+            color: theme.text.secondary,
+          }}
+        >
+          {resumeView.reason}
+        </Text>
       ) : null}
 
       {group.park ? (
@@ -195,7 +243,13 @@ export default function ProcessGroupPipeline({
               {i === 0 ? 'Starts at once' : `Then — step ${i + 1}`}
             </Text>
             {wave.map((row) => (
-              <LegCard key={row.leg.id} row={row} now={now} onOpen={onOpenLegRun} />
+              <LegCard
+                key={row.leg.id}
+                row={row}
+                now={now}
+                onOpen={onOpenLegRun}
+                onMarkLanded={setLandingLeg}
+              />
             ))}
           </View>
         ))}
@@ -211,6 +265,67 @@ export default function ProcessGroupPipeline({
         >
           {group.error}
         </Text>
+      ) : null}
+
+      {landingLeg ? (
+        <ProcessGroupLegLandingDialog
+          group={group}
+          leg={landingLeg}
+          planRebuild={planRebuild}
+          checkLanding={checkLanding}
+          markLanded={markLanded}
+          onClose={() => setLandingLeg(undefined)}
+        />
+      ) : null}
+
+      {confirmResume && resumeView?.canResume ? (
+        <Modal isOpen onClose={() => setConfirmResume(false)} title="Resume this group run?">
+          <View style={{ gap: nativeSpace[3] }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>{resumeView.effect}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => setConfirmResume(false)}
+                disabled={resuming}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" onPress={runResume} disabled={resuming}>
+                {resuming ? 'Resuming…' : PROCESS_GROUP_RESUME_LABEL}
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+
+      {confirmStop ? (
+        <Modal
+          isOpen
+          onClose={() => setConfirmStop(false)}
+          title={PROCESS_GROUP_STOP_CONFIRM_COPY.title}
+        >
+          <View style={{ gap: nativeSpace[3] }}>
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+              {PROCESS_GROUP_STOP_CONFIRM_COPY.body}
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: nativeSpace[2] }}>
+              <Button size="sm" variant="ghost" onPress={() => setConfirmStop(false)}>
+                {PROCESS_GROUP_STOP_CONFIRM_COPY.cancel}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onPress={() => {
+                  setConfirmStop(false)
+                  void cancel()
+                }}
+              >
+                {PROCESS_GROUP_STOP_CONFIRM_COPY.confirm}
+              </Button>
+            </View>
+          </View>
+        </Modal>
       ) : null}
 
       {confirmDelete ? (
@@ -274,10 +389,12 @@ function LegCard({
   row,
   now,
   onOpen,
+  onMarkLanded,
 }: {
   row: ProcessGroupLegRow
   now: number
   onOpen: (runId: string, projectId: string) => void
+  onMarkLanded: (leg: ProcessGroupLeg) => void
 }) {
   const { theme, status } = useNativeTheme()
   const { leg, totals } = row
@@ -308,6 +425,9 @@ function LegCard({
       </Text>
       {row.waitsFor ? (
         <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.waitsFor}</Text>
+      ) : null}
+      {row.landed ? (
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{row.landed}</Text>
       ) : null}
       {row.error ? (
         <View
@@ -343,6 +463,24 @@ function LegCard({
               }}
             >
               {`${row.openLabel} ›`}
+            </Text>
+          </Pressable>
+        ) : null}
+        {row.canMarkLanded ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onMarkLanded(leg)}
+            style={{
+              borderWidth: 1,
+              borderColor: theme.border.default,
+              backgroundColor: theme.surface.base,
+              borderRadius: nativeRadii[2],
+              paddingHorizontal: nativeSpace[2],
+              paddingVertical: nativeSpace[1],
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '500', color: theme.text.primary }}>
+              {PROCESS_GROUP_MARK_LANDED_LABEL}
             </Text>
           </Pressable>
         ) : null}

@@ -17,6 +17,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import { Switch } from '../../primitives/Switch'
 import ChatRulesPanel from '../rules/ChatRulesPanel'
+import { TurnLimitField } from '../TurnLimitField'
 
 export type ToolToggle = {
   name: string
@@ -173,46 +174,22 @@ export default function ChatSettingsDropdown({
 
       {completion ? (
         <div className="space-y-3">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-medium text-(--text-secondary)">
-                  Limit turns per run
-                </span>
-                <span className="text-[10px] text-(--text-tertiary)">{CHAT_TURN_LIMIT_HINT}</span>
-              </div>
-              <Switch
-                checked={turnLimit.limited}
-                onCheckedChange={(checked) =>
-                  void persistSettings(applyChatTurnLimit(!!checked, completion))
-                }
-              />
-            </div>
-            {turnLimit.limited ? (
-              <div className="space-y-1 pl-1">
-                <label className="text-xs font-medium text-(--text-secondary)" htmlFor="maxTurns">
-                  Max turns per run:
-                  <span className="pl-4 text-[14px] text-(--text-secondary)">
-                    {turnLimit.maxTurns}
-                  </span>
-                </label>
-                <input
-                  id="maxTurns"
-                  type="range"
-                  min={CHAT_TURN_LIMIT_MIN}
-                  max={CHAT_TURN_LIMIT_MAX}
-                  step={1}
-                  value={turnLimit.maxTurns}
-                  onChange={(e) => void persistSettings({ maxTurns: Number(e.target.value) })}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-(--text-tertiary)">
-                  <span>{CHAT_TURN_LIMIT_MIN}</span>
-                  <span>{CHAT_TURN_LIMIT_MAX}</span>
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <TurnLimitField
+            label="Limit turns per run"
+            hint={CHAT_TURN_LIMIT_HINT}
+            sliderLabel="Max turns per run"
+            limited={turnLimit.limited}
+            maxTurns={turnLimit.maxTurns}
+            min={CHAT_TURN_LIMIT_MIN}
+            max={CHAT_TURN_LIMIT_MAX}
+            onChange={(next) =>
+              void persistSettings(
+                next.limited === turnLimit.limited
+                  ? { maxTurns: next.maxTurns }
+                  : applyChatTurnLimit(next.limited, completion),
+              )
+            }
+          />
 
           <div className="space-y-1">
             <div className="flex items-center justify-between">

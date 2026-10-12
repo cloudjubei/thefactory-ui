@@ -38,4 +38,6 @@ export interface StartGroupWorkGrantSummary {
   proofRequired: boolean
   runner?: 'cli' | 'api'
   spendCapUsd?: number
+  /** The turn limit the agent asked for, as it sent it — read with `processGrantTurnLimitView`. */
+  turnLimit?: unknown
 }

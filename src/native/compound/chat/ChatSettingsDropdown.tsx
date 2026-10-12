@@ -23,6 +23,7 @@ import { Slider } from '../../primitives/Slider'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import ChatRulesPanel from '../rules/ChatRulesPanel'
+import { TurnLimitField } from '../TurnLimitField'
 
 export type ToolToggle = {
   name: string
@@ -191,38 +192,22 @@ export default function ChatSettingsDropdown({
 
         {completion ? (
           <View style={{ gap: nativeSpace[4] }}>
-            <View style={{ gap: nativeSpace[3] }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: nativeSpace[3],
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
-                    Limit turns per run
-                  </Text>
-                  <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
-                    {CHAT_TURN_LIMIT_HINT}
-                  </Text>
-                </View>
-                <Switch
-                  checked={turnLimit.limited}
-                  onCheckedChange={(c) => void persistSettings(applyChatTurnLimit(c, completion))}
-                />
-              </View>
-              {turnLimit.limited ? (
-                <SliderRow
-                  label="Max turns per run"
-                  value={turnLimit.maxTurns}
-                  min={CHAT_TURN_LIMIT_MIN}
-                  max={CHAT_TURN_LIMIT_MAX}
-                  onChange={(v) => void persistSettings({ maxTurns: v })}
-                />
-              ) : null}
-            </View>
+            <TurnLimitField
+              label="Limit turns per run"
+              hint={CHAT_TURN_LIMIT_HINT}
+              sliderLabel="Max turns per run"
+              limited={turnLimit.limited}
+              maxTurns={turnLimit.maxTurns}
+              min={CHAT_TURN_LIMIT_MIN}
+              max={CHAT_TURN_LIMIT_MAX}
+              onChange={(next) =>
+                void persistSettings(
+                  next.limited === turnLimit.limited
+                    ? { maxTurns: next.maxTurns }
+                    : applyChatTurnLimit(next.limited, completion),
+                )
+              }
+            />
             <SliderRow
               label="Number of messages to send"
               value={completion.numberMessagesToSend ?? 3}

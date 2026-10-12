@@ -3,10 +3,15 @@ import type { ProcessGroupLeg, ProcessGroupRun } from 'thefactory-tools/types'
 import {
   processGroupBadge,
   processGroupCardView,
+  processGroupLandingCheckView,
   processGroupLegRows,
   processGroupParkView,
   processGroupProgress,
+  processGroupLandedNextView,
+  processGroupLandingPlanLegIds,
   processGroupResumeInput,
+  processGroupResumeRebuildLegIds,
+  processGroupResumeView,
   processGroupWorkMs,
 } from './processGroupView'
 import { PROCESS_RUN_STATUS_VIEW } from './processView'
@@ -55,6 +60,23 @@ describe('processGroupBadge', () => {
 
   it('reads a running group with nothing for you by its status', () => {
     expect(processGroupBadge(group()).label).toBe(PROCESS_RUN_STATUS_VIEW.running.label)
+  })
+
+  it('reads a group run that ended with only some projects merged as partly done', () => {
+    expect(
+      processGroupBadge(
+        group({
+          status: 'failed',
+          legs: [leg('tools', { status: 'integrated' }), leg('ui', { status: 'skipped' })],
+        }),
+      ),
+    ).toEqual({ label: 'Partly done', tone: 'stuck' })
+  })
+
+  it('reads a group run that failed with nothing merged as stopped', () => {
+    expect(
+      processGroupBadge(group({ status: 'failed', legs: [leg('ui', { status: 'skipped' })] })),
+    ).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
   })
 
   it('reads an ended group by its status, whatever its legs say', () => {
@@ -126,6 +148,44 @@ describe('processGroupLegRows', () => {
     )
     expect(asking).toMatchObject({ openLabel: 'Answer it', readyForSignOff: false })
     expect(running).toMatchObject({ openLabel: 'Open its pipeline', readyForSignOff: false })
+  })
+
+  it('offers to mark a skipped or stopped leg as landed, never one still working or merged', () => {
+    const rows = processGroupLegRows(
+      group({
+        status: 'failed',
+        legs: [
+          leg('tools', { status: 'integrated' }),
+          leg('backend', { status: 'skipped', runId: 'r' }),
+          leg('ui', { status: 'failed', runId: 'r2' }),
+        ],
+      }),
+    ).flat()
+    expect(rows.map((r) => [r.leg.id, r.canMarkLanded])).toEqual([
+      ['tools', false],
+      ['backend', true],
+      ['ui', true],
+    ])
+  })
+
+  it('says how a leg marked as landed got there', () => {
+    const [row] = processGroupLegRows(
+      group({
+        legs: [
+          leg('backend', {
+            status: 'integrated',
+            landedBy: {
+              commit: 'e9b3c02b8e556cddf40e929faefc993d1a530f20',
+              baseRef: 'main',
+              source: 'agent-run',
+              at: 1,
+            },
+          }),
+        ],
+      }),
+    ).flat()
+    expect(row?.landed).toBe('Landed on main by e9b3c02 — merged by an agent from its run’s chat')
+    expect(row?.canMarkLanded).toBe(false)
   })
 
   it('reads a rejected leg as rejected', () => {
@@ -223,6 +283,26 @@ describe('processGroupParkView', () => {
     expect(view.modes).toEqual(['merge', 'squash'])
   })
 
+  it('offers to build a merged prerequisite again or skip its rebuild, merging nothing', () => {
+    const view = processGroupParkView(
+      group({
+        status: 'parked',
+        park: {
+          reason: 'prerequisite-build-failed',
+          legId: 'tools',
+          message: 'tools could not be rebuilt.',
+          parkedAt: 0,
+        },
+      }),
+    )!
+    expect(view.choices.map((c) => [c.choice, c.label])).toEqual([
+      ['retry-rebuild', 'Build it again'],
+      ['skip-rebuild', 'Skip the rebuild'],
+      ['abandon', 'Stop the group run'],
+    ])
+    expect(view.toMerge).toEqual([])
+  })
+
   it('merges nothing for a leg that stopped', () => {
     const view = processGroupParkView(
       group({
@@ -266,5 +346,220 @@ describe('processGroupWorkMs', () => {
     expect(processGroupWorkMs({ workMs: 1000, ticking: true, at: 5000 }, 7000)).toBe(3000)
     expect(processGroupWorkMs({ workMs: 1000, ticking: false, at: 5000 }, 7000)).toBe(1000)
     expect(processGroupWorkMs(undefined, 7000)).toBeUndefined()
+  })
+})
+
+describe('processGroupResumeView', () => {
+  const backend = (over: Partial<ProcessGroupLeg> = {}) =>
+    leg('backend', { status: 'skipped', runId: 'r-backend', ...over })
+  const ui = leg('ui', { status: 'skipped', dependsOn: ['backend'] })
+  const landed = backend({
+    status: 'integrated',
+    landedBy: { commit: 'e9b3c02', baseRef: 'main', source: 'agent-run', at: 1 },
+  })
+  const reason =
+    'ui generates an API client from backend\'s swagger/swagger.json, so only that is refreshed (its "generate-swagger" script) — backend is not built.'
+
+  it('says what starts once the prerequisite is refreshed as its plan says, and why', () => {
+    expect(
+      processGroupResumeView(group({ status: 'failed', legs: [landed, ui] }), {
+        backend: {
+          kind: 'api-description',
+          reason,
+          apiDescriptionScript: 'generate-swagger',
+          isolation: { watchedPaths: ['src'] },
+        },
+      }),
+    ).toEqual({
+      canResume: true,
+      effect: `ui starts on the group run’s agent, once backend's API description is refreshed in a scratch copy. ${reason}`,
+    })
+  })
+
+  it('says a prerequisite is built first when its plan builds it', () => {
+    expect(
+      processGroupResumeView(group({ status: 'failed', legs: [landed, ui] }), {
+        backend: { kind: 'build', reason: 'ui uses backend.' },
+      }),
+    ).toEqual({
+      canResume: true,
+      effect: 'ui starts on the group run’s agent, once backend is rebuilt.',
+    })
+  })
+
+  it('says what starts holds back when the prerequisite cannot be rebuilt here', () => {
+    expect(
+      processGroupResumeView(group({ status: 'failed', legs: [landed, ui] }), {
+        backend: { kind: 'refuse', reason: 'It runs here.' },
+      }),
+    ).toEqual({
+      canResume: true,
+      effect:
+        "ui can't start yet — backend can't be rebuilt here, so the group run will ask whether to skip its rebuild. It runs here.",
+    })
+  })
+
+  it('says a prerequisite whose plan is not read yet is rebuilt only if needed', () => {
+    expect(processGroupResumeView(group({ status: 'failed', legs: [landed, ui] }))).toEqual({
+      canResume: true,
+      effect:
+        'ui starts on the group run’s agent, once backend is rebuilt if what needs it uses its build output.',
+    })
+  })
+
+  it('says nothing is rebuilt when the prerequisite already was', () => {
+    const rebuilt = backend({ status: 'integrated', rebuiltAt: 4 })
+    expect(processGroupResumeView(group({ status: 'failed', legs: [rebuilt, ui] }))).toEqual({
+      canResume: true,
+      effect: 'ui starts on the group run’s agent straight away.',
+    })
+  })
+
+  it('says what a skipped leg still waits on', () => {
+    expect(processGroupResumeView(group({ status: 'succeeded', legs: [backend(), ui] }))).toEqual({
+      canResume: false,
+      reason:
+        'ui still needs backend, which is not merged — if that work is on its base branch, mark it as landed first.',
+    })
+  })
+
+  it('is nothing for a group run still going, cancelled, or with nothing left waiting', () => {
+    expect(processGroupResumeView(group())).toBeUndefined()
+    expect(
+      processGroupResumeView(group({ status: 'cancelled', legs: [backend(), ui] })),
+    ).toBeUndefined()
+    expect(
+      processGroupResumeView(
+        group({ status: 'succeeded', legs: [leg('a', { status: 'integrated' })] }),
+      ),
+    ).toBeUndefined()
+  })
+})
+
+describe('processGroupResumeRebuildLegIds', () => {
+  const ui = leg('ui', { status: 'skipped', dependsOn: ['backend'] })
+
+  it('names the merged prerequisites resuming rebuilds first', () => {
+    const landed = leg('backend', {
+      status: 'integrated',
+      landedBy: { commit: 'e9b3c02', baseRef: 'main', source: 'agent-run', at: 1 },
+    })
+    expect(
+      processGroupResumeRebuildLegIds(group({ status: 'failed', legs: [landed, ui] })),
+    ).toEqual(['backend'])
+  })
+
+  it('names none for a group run that cannot be resumed', () => {
+    expect(
+      processGroupResumeRebuildLegIds(
+        group({ status: 'failed', legs: [leg('backend', { status: 'skipped' }), ui] }),
+      ),
+    ).toEqual([])
+  })
+
+  it('names none for a group run still going, though a skipped leg could start', () => {
+    const landed = leg('backend', {
+      status: 'integrated',
+      landedBy: { commit: 'e9b3c02', baseRef: 'main', source: 'agent-run', at: 1 },
+    })
+    expect(processGroupResumeRebuildLegIds(group({ legs: [landed, ui] }))).toEqual([])
+  })
+
+  it('names none before the group run is loaded', () => {
+    expect(processGroupResumeRebuildLegIds(undefined)).toEqual([])
+  })
+})
+
+describe('processGroupLandingPlanLegIds', () => {
+  it('names the leg when a group run still going has legs that need it', () => {
+    expect(processGroupLandingPlanLegIds(group(), 'tools')).toEqual(['tools'])
+  })
+
+  it('names nothing when no leg needs it', () => {
+    expect(processGroupLandingPlanLegIds(group(), 'ui')).toEqual([])
+  })
+
+  it('names nothing for an ended group run, which only a resume carries on', () => {
+    expect(processGroupLandingPlanLegIds(group({ status: 'failed' }), 'tools')).toEqual([])
+  })
+
+  it('names nothing before the group run is loaded', () => {
+    expect(processGroupLandingPlanLegIds(undefined, 'tools')).toEqual([])
+  })
+})
+
+describe('processGroupLandedNextView', () => {
+  it('says what needs the leg starts once it is rebuilt as its plan says, and why', () => {
+    expect(
+      processGroupLandedNextView(group(), 'tools', {
+        kind: 'build',
+        reason: 'Scratch.',
+        isolation: { watchedPaths: ['src'] },
+      }),
+    ).toBe('ui starts, once tools is built in a scratch copy. Scratch.')
+  })
+
+  it('says what needs it holds back when the leg cannot be rebuilt here', () => {
+    expect(
+      processGroupLandedNextView(group(), 'tools', { kind: 'refuse', reason: 'It runs here.' }),
+    ).toBe(
+      "ui can't start yet — tools can't be rebuilt here, so the group run will ask whether to skip its rebuild. It runs here.",
+    )
+  })
+
+  it('says it is rebuilt only if needed while its plan is not read yet', () => {
+    expect(processGroupLandedNextView(group(), 'tools')).toBe(
+      'ui starts, once tools is rebuilt if what needs it uses its build output.',
+    )
+  })
+
+  it('says an ended group run is resumed to start what needs it', () => {
+    expect(processGroupLandedNextView(group({ status: 'failed' }), 'tools')).toBe(
+      'The group run has ended — resume it to start ui.',
+    )
+  })
+
+  it('says nothing when no leg needs it', () => {
+    expect(processGroupLandedNextView(group(), 'ui')).toBeUndefined()
+  })
+})
+
+describe('processGroupLandingCheckView', () => {
+  it('reads a landed check as the commit, where it is, and the story done', () => {
+    expect(
+      processGroupLandingCheckView({
+        landed: true,
+        problems: [],
+        landing: {
+          commit: 'e9b3c02b8e556cddf40e929faefc993d1a530f20',
+          baseRef: 'main',
+          subject: 'Agent run 538c0ebd',
+          source: 'agent-run',
+        },
+      }),
+    ).toEqual({
+      landed: true,
+      lines: [
+        'Commit e9b3c02 — “Agent run 538c0ebd”',
+        'On main — merged by an agent from its run’s chat',
+        'Every feature of its story is done',
+      ],
+    })
+  })
+
+  it('leaves out a subject the commit has none of', () => {
+    expect(
+      processGroupLandingCheckView({
+        landed: true,
+        problems: [],
+        landing: { commit: 'abc1234def', baseRef: 'main', source: 'person' },
+      }).lines[0],
+    ).toBe('Commit abc1234')
+  })
+
+  it('reads a refused check as its problems', () => {
+    expect(
+      processGroupLandingCheckView({ landed: false, problems: ['No commit was found.'] }),
+    ).toEqual({ landed: false, lines: ['No commit was found.'] })
   })
 })

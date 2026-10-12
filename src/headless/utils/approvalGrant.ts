@@ -113,6 +113,8 @@ export type StartFeatureWorkGrantSummary = {
    * that runs.
    */
   processId?: string
+  /** The turn limit the agent asked for, as it sent it — read with `processGrantTurnLimitView`. */
+  turnLimit?: unknown
 }
 
 /**
@@ -144,6 +146,7 @@ export function startFeatureWorkGrantSummary(
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(relevantNoteIds.length > 0 ? { relevantNoteIds } : {}),
     ...(processId.length > 0 ? { processId } : {}),
+    ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
   }
 }
 

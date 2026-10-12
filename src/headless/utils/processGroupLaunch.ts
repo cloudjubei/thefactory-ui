@@ -50,6 +50,7 @@ export function startGroupWorkGrantSummary(
     proofRequired: record.proofRequired !== false,
     ...(runner === 'cli' || runner === 'api' ? { runner } : {}),
     ...(typeof spendCapUsd === 'number' && spendCapUsd > 0 ? { spendCapUsd } : {}),
+    ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
   }
 }
 

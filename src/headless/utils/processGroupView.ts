@@ -1,5 +1,15 @@
+import {
+  PROCESS_GROUP_LANDING_SOURCE_WORDS,
+  PROCESS_GROUP_REOPEN_CANCELLED,
+  PROCESS_GROUP_REOPEN_LIVE,
+  PROCESS_GROUP_REOPEN_NOTHING,
+  PROCESS_GROUP_SHORT_SHA_LENGTH,
+  PROCESS_RUN_TERMINAL_STATUSES,
+} from 'thefactory-tools/constants'
 import type {
   ProcessGroupLeg,
+  ProcessGroupLegLandingCheck,
+  ProcessGroupRebuildPlan,
   ProcessGroupResumeChoice,
   ProcessGroupResumeInput,
   ProcessGroupRun,
@@ -7,20 +17,31 @@ import type {
 } from 'thefactory-tools/types'
 import {
   processGroupLegIntegrationModes,
+  processGroupLegLandingRefusal,
   processGroupLegMergeGate,
   processGroupLegWaves,
   processGroupParkChoices,
+  processGroupRebuildSummary,
+  processGroupReopenPlan,
+  processGroupReopenRefusal,
+  processGroupStartWords,
 } from 'thefactory-tools/utils'
 import {
   PROCESS_GROUP_CARD_CTA,
+  PROCESS_GROUP_LANDED_RESUME_NEXT,
+  PROCESS_GROUP_LANDING_FEATURES_DONE,
   PROCESS_GROUP_LEG_OPEN_LABEL,
   PROCESS_GROUP_LEG_OPEN_LABELS,
   PROCESS_GROUP_LEG_STATUS_VIEW,
+  PROCESS_GROUP_PARTLY_DONE_BADGE,
+  PROCESS_GROUP_RESUME_AGENT,
 } from './processGroupViewConstants'
 import type {
   ProcessGroupCardView,
+  ProcessGroupLandingCheckView,
   ProcessGroupLegRow,
   ProcessGroupParkView,
+  ProcessGroupResumeView,
 } from './processGroupViewTypes'
 import { PROCESS_RUN_STATUS_VIEW, type ProcessStatusTone } from './processView'
 
@@ -36,7 +57,8 @@ const andList = (names: readonly string[]): string =>
 
 /**
  * How a group run reads in one word: a project ready for its own sign-off is
- * "Ready for you", the group's own stop or a project's ask "Waiting for you".
+ * "Ready for you", the group's own stop or a project's ask "Waiting for you",
+ * and one that ended with only some projects merged "Partly done".
  */
 export function processGroupBadge(group: Pick<ProcessGroupRun, 'status' | 'legs'>): {
   label: string
@@ -50,6 +72,9 @@ export function processGroupBadge(group: Pick<ProcessGroupRun, 'status' | 'legs'
     if (group.legs.some((l) => l.status === 'needs-you')) {
       return { label: 'Waiting for you', tone: 'on_hold' }
     }
+  }
+  if (group.status === 'failed' && group.legs.some((l) => MERGED.includes(l.status))) {
+    return PROCESS_GROUP_PARTLY_DONE_BADGE
   }
   return PROCESS_RUN_STATUS_VIEW[group.status]
 }
@@ -69,7 +94,8 @@ export function processGroupProgress(group: Pick<ProcessGroupRun, 'legs'>): {
 /**
  * The legs by dependency level — the order the pipeline draws them in — each as
  * a row: where it stands, what it waits for (a leg at its sign-off, what its
- * merge waits for), and what opening its own run is for. Pure.
+ * merge waits for), what opening its own run is for, whether its work can be
+ * marked as landed outside its run, and how it landed once marked. Pure.
  */
 export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[][] {
   const byId = new Map(group.legs.map((l) => [l.id, l]))
@@ -90,6 +116,8 @@ export function processGroupLegRows(group: ProcessGroupRun): ProcessGroupLegRow[
           ...(waitsFor ? { waitsFor } : {}),
           ...(totals ? { totals } : {}),
           ...(leg.rebuildError ? { error: leg.rebuildError } : {}),
+          canMarkLanded: !processGroupLegLandingRefusal(group, leg.id),
+          ...(leg.landedBy ? { landed: landedText(leg.landedBy) } : {}),
         },
       ]
     }),
@@ -198,4 +226,107 @@ export function processGroupWorkMs(
 ): number | undefined {
   if (!totals) return undefined
   return totals.workMs + (totals.ticking ? Math.max(0, now - totals.at) : 0)
+}
+
+const shortSha = (sha: string) => sha.slice(0, PROCESS_GROUP_SHORT_SHA_LENGTH)
+
+function landedText(landing: NonNullable<ProcessGroupLeg['landedBy']>): string {
+  return `Landed on ${landing.baseRef} by ${shortSha(landing.commit)} — ${
+    PROCESS_GROUP_LANDING_SOURCE_WORDS[landing.source]
+  }`
+}
+
+/**
+ * Whether an ended group run can be resumed, and what resuming starts — once
+ * each merged prerequisite is rebuilt as its plan says (`rebuilds`, by leg id;
+ * one not read yet is rebuilt only if needed), with why; or why it cannot yet
+ * — a leg it would start still needs one not merged. Nothing for a group run
+ * still going, cancelled, or with no leg left waiting. Pure.
+ */
+export function processGroupResumeView(
+  group: ProcessGroupRun,
+  rebuilds: Readonly<Record<string, ProcessGroupRebuildPlan>> = {},
+): ProcessGroupResumeView | undefined {
+  const refusal = processGroupReopenRefusal(group)
+  if (
+    refusal === PROCESS_GROUP_REOPEN_LIVE ||
+    refusal === PROCESS_GROUP_REOPEN_CANCELLED ||
+    refusal === PROCESS_GROUP_REOPEN_NOTHING
+  ) {
+    return undefined
+  }
+  if (refusal) return { canResume: false, reason: refusal }
+  const plan = processGroupReopenPlan(group)
+  const summary = processGroupRebuildSummary(plan.rebuilt.map((l) => plannedOf(l, rebuilds)))
+  return {
+    canResume: true,
+    effect: processGroupStartWords(
+      andList(plan.legs.map((l) => l.projectId)),
+      plan.legs.length,
+      summary,
+      PROCESS_GROUP_RESUME_AGENT,
+    ),
+  }
+}
+
+/** The merged prerequisites resuming an ended group run rebuilds first — whose plans its Resume states. Pure. */
+export function processGroupResumeRebuildLegIds(group: ProcessGroupRun | undefined): string[] {
+  if (!group || processGroupReopenRefusal(group)) return []
+  return processGroupReopenPlan(group).rebuilt.map((l) => l.id)
+}
+
+/** The leg whose rebuild plan marking it as landed states: a group run still going that has legs needing it. Pure. */
+export function processGroupLandingPlanLegIds(
+  group: ProcessGroupRun | undefined,
+  legId: string,
+): string[] {
+  if (!group || PROCESS_RUN_TERMINAL_STATUSES.includes(group.status)) return []
+  return group.legs.some((l) => l.dependsOn.includes(legId)) ? [legId] : []
+}
+
+/**
+ * What marking a leg as landed leads to for the legs that need it: in a group
+ * run still going, they start once it is rebuilt as `plan` says (only if
+ * needed, while it is not read), with why; an ended one is resumed to start
+ * them. Nothing when no leg needs it. Pure.
+ */
+export function processGroupLandedNextView(
+  group: ProcessGroupRun,
+  legId: string,
+  plan?: ProcessGroupRebuildPlan,
+): string | undefined {
+  const dependents = group.legs.filter((l) => l.dependsOn.includes(legId))
+  if (dependents.length === 0) return undefined
+  const names = andList(dependents.map((l) => l.projectId))
+  if (PROCESS_RUN_TERMINAL_STATUSES.includes(group.status))
+    return PROCESS_GROUP_LANDED_RESUME_NEXT(names)
+  const leg = group.legs.find((l) => l.id === legId)
+  const summary = processGroupRebuildSummary([
+    plannedOf(leg ?? { id: legId, projectId: legId }, plan ? { [legId]: plan } : {}),
+  ])
+  return processGroupStartWords(names, dependents.length, summary)
+}
+
+const plannedOf = (
+  leg: Pick<ProcessGroupLeg, 'id' | 'projectId'>,
+  rebuilds: Readonly<Record<string, ProcessGroupRebuildPlan>>,
+): { projectId: string; plan?: ProcessGroupRebuildPlan } => {
+  const plan = rebuilds[leg.id]
+  return { projectId: leg.projectId, ...(plan ? { plan } : {}) }
+}
+
+/** A leg's landing check as a person reads it: the commit, where it is and how it was found — or every problem. Pure. */
+export function processGroupLandingCheckView(
+  check: ProcessGroupLegLandingCheck,
+): ProcessGroupLandingCheckView {
+  const landing = check.landing
+  if (!landing) return { landed: false, lines: check.problems }
+  return {
+    landed: true,
+    lines: [
+      `Commit ${shortSha(landing.commit)}${landing.subject ? ` — “${landing.subject}”` : ''}`,
+      `On ${landing.baseRef} — ${PROCESS_GROUP_LANDING_SOURCE_WORDS[landing.source]}`,
+      PROCESS_GROUP_LANDING_FEATURES_DONE,
+    ],
+  }
 }

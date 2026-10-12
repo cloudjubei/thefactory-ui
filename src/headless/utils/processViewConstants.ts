@@ -37,6 +37,21 @@ export const PROCESS_SEND_BACK_COPY = {
     'Reopens this run: your note goes to a fix pass, which is checked, reviewed and written up, then the work comes back to you to decide again.',
 } as const
 
+/** What taking a stopped run back up is called, and does. */
+export const PROCESS_REVIVE_COPY = {
+  label: 'Resume',
+  detail:
+    'Takes this run back up where it was stopped: the step it was on waits for you to try it again, or the sign-off waits for your decision. Nothing it did is lost.',
+} as const
+
+/** What stopping a run asks first: Stop ends everything it is doing. */
+export const PROCESS_STOP_CONFIRM_COPY = {
+  title: 'Stop this run?',
+  body: 'Everything it is doing stops now — the step it is on and any nested run. You can resume it later from where it stopped.',
+  confirm: 'Stop run',
+  cancel: 'Keep it running',
+} as const
+
 /** What the loop editor says of a loop that leaves a gate: a person's send-backs are never capped. */
 export const PROCESS_GATE_LOOP_NO_LIMIT = 'a person’s send-back — no limit'
 

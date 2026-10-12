@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   choiceTakesNote,
   computeChatRowStatus,
@@ -24,13 +24,20 @@ import {
   processNodeLook,
   processNodeState,
   type ProcessNodeLook,
+  processRetryChoiceOf,
+  processRetryPickStart,
+  processRetryTurnLimitView,
   processRunParkChoices,
   processRunIntegrationModes,
   processRunBadge,
   processRunHeaderModel,
+  processRunManagerView,
   processRunPersonEnding,
+  processRunRevivable,
   processRunSendBackGateId,
   PROCESS_SEND_BACK_COPY,
+  PROCESS_REVIVE_COPY,
+  PROCESS_STOP_CONFIRM_COPY,
   processRunSpend,
   processRunWorkMs,
   processStepCostLabel,
@@ -55,8 +62,11 @@ import {
   type ProofKind,
   type ProcessNodeRunRef,
   type ProcessResumeChoice,
+  type ProcessRetryPick,
   type ProcessRun,
+  type ProcessRunManagerView,
   type ProcessStatusTone,
+  type ProcessTurnLimit,
   type ProcessWaitingView,
   type RunNeedsYouActions,
 } from '../../../headless'
@@ -83,6 +93,11 @@ import BaseMovedNote from './BaseMovedNote'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
+import RetryChoiceOptions from './RetryChoiceOptions'
+import RunClosurePanel from './RunClosurePanel'
+import RunTurnLimitChip from './RunTurnLimitChip'
+import { RunManagerChip } from './RunManagerChip'
+import RunManagerPanel from './RunManagerPanel'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import RunChatDrawer from './RunChatDrawer'
 import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/chatsSeen'
@@ -153,10 +168,13 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    setTurnLimit,
+    setManager,
     delegate,
     retryIntegration,
     resolveIntegrationConflict,
     sendBack,
+    revive,
     cancel,
     listBranches,
     deleteRun,
@@ -221,6 +239,7 @@ export default function ProcessPipeline({
   }, [runChatKey])
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmStop, setConfirmStop] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
   const [alsoBranches, setAlsoBranches] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -278,6 +297,7 @@ export default function ProcessPipeline({
     : undefined
   const states = processStepStates(run)
   const amendments = processAmendmentView(run)
+  const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
   const signoff = isStorySignoff(run) && !isReflectedPark(run.park!)
   const mergeHold =
     signoff && group
@@ -292,7 +312,8 @@ export default function ProcessPipeline({
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
-  ) => resume(choice, note, integration, requestedProof)
+    retry?: ProcessRetryPick,
+  ) => resume(choice, note, integration, requestedProof, retry)
 
   return (
     <RunChatDraftScope open={canChat ? (draft) => void openRunChat(draft) : undefined}>
@@ -304,8 +325,10 @@ export default function ProcessPipeline({
           run={run}
           depth={stack.length}
           onCrumb={popTo}
-          onCancel={() => void cancel()}
+          onCancel={() => setConfirmStop(true)}
           onDelete={openDelete}
+          onSetTurnLimit={setTurnLimit}
+          {...(managerView ? { manager: { view: managerView, onSwitch: setManager } } : {})}
           reportText={signoff ? reportText : undefined}
           {...(canChat
             ? { chat: { onOpen: () => void openRunChat(), unread: !chat && runChatUnread } }
@@ -331,6 +354,12 @@ export default function ProcessPipeline({
 
         {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
         <WorkBranchChangesNote run={run} />
+        {managerView ? (
+          <RunManagerPanel
+            view={managerView}
+            {...(canChat ? { onOpenChat: () => void openRunChat() } : {})}
+          />
+        ) : null}
 
         {stack.length === 0 ? (
           <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
@@ -424,7 +453,8 @@ export default function ProcessPipeline({
 
         <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
 
-        <RunEnding run={run} onSendBack={sendBack} />
+        <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
+        {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
 
         {renderChat && (chat || chatOpening) ? (
           <RunChatDrawer {...(run.storyId ? { storyId: run.storyId } : {})} onClose={closeChat}>
@@ -441,6 +471,34 @@ export default function ProcessPipeline({
             {...(renderAgentRun ? { renderAgentRun } : {})}
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
           />
+        ) : null}
+
+        {confirmStop ? (
+          <Modal
+            isOpen
+            onClose={() => setConfirmStop(false)}
+            title={PROCESS_STOP_CONFIRM_COPY.title}
+            size="sm"
+          >
+            <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+              <p className="m-0">{PROCESS_STOP_CONFIRM_COPY.body}</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setConfirmStop(false)}>
+                  {PROCESS_STOP_CONFIRM_COPY.cancel}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmStop(false)
+                    void cancel()
+                  }}
+                >
+                  {PROCESS_STOP_CONFIRM_COPY.confirm}
+                </Button>
+              </div>
+            </div>
+          </Modal>
         ) : null}
 
         {confirmDelete ? (
@@ -561,6 +619,8 @@ function RunHead({
   onCancel,
   onDelete,
   onOpenGroup,
+  onSetTurnLimit,
+  manager,
   reportText,
   chat,
 }: {
@@ -571,6 +631,10 @@ function RunHead({
   onCancel: () => void
   onDelete?: () => void
   onOpenGroup?: () => void
+  /** Hold the run's step agents to a turn limit from their next step on. */
+  onSetTurnLimit?: (limit: ProcessTurnLimit) => Promise<boolean>
+  /** The run's agent manager: what it is, and the switch while the run is live. */
+  manager?: { view: ProcessRunManagerView; onSwitch: (enabled: boolean) => Promise<boolean> }
   reportText?: string
   /** The run's own chat: open it, and whether it has news. */
   chat?: { onOpen: () => void; unread: boolean }
@@ -650,6 +714,16 @@ function RunHead({
       <span className="grow" />
       <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
       {model ? <RunModelChip model={model} /> : null}
+      <RunTurnLimitChip
+        run={run}
+        {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
+      />
+      {manager && depth === 0 ? (
+        <RunManagerChip
+          view={manager.view}
+          {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
+        />
+      ) : null}
       {workMs !== undefined ? (
         <DurationChip
           label={formatProcessDuration(workMs)}
@@ -934,6 +1008,7 @@ function ParkBlock({
     note?: string,
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
+    retry?: ProcessRetryPick,
   ) => void
   onDelegate: () => Promise<void>
   onAskAgent?: () => Promise<void>
@@ -944,6 +1019,10 @@ function ParkBlock({
 }) {
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [asking, setAsking] = useState(false)
+  const retryChoice = processRetryChoiceOf(run.park ? processRunParkChoices(run) : [])
+  const [retryPick, setRetryPick] = useState<ProcessRetryPick | undefined>()
+  const parkedAt = run.park?.parkedAt
+  useEffect(() => setRetryPick(undefined), [parkedAt])
   const park = run.park
   if (!park) return null
   const waiting = processWaitingView(run)
@@ -989,41 +1068,69 @@ function ParkBlock({
           onCancel={() => setNoteFor(undefined)}
         />
       ) : (
-        <div className="flex flex-wrap gap-3">
-          {choices.filter(isResumeParkChoice).map((choice) => (
-            <div key={choice.choice} className="flex flex-col gap-0.5">
-              <Button
-                size="sm"
-                variant={choice.primary ? 'primary' : 'secondary'}
-                onClick={() =>
-                  choiceTakesNote(choice.choice)
-                    ? setNoteFor(choice.choice)
-                    : onChoose(choice.choice)
-                }
-              >
-                {choice.label}
-              </Button>
-              <span className="max-w-48 text-[10px] text-(--text-secondary)">{choice.detail}</span>
-            </div>
-          ))}
-          {onAskAgent && processParkAskableStepId(run) ? (
-            <div className="flex flex-col gap-0.5">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={asking}
-                onClick={() => {
-                  setAsking(true)
-                  void onAskAgent().finally(() => setAsking(false))
-                }}
-              >
-                {PROCESS_PARK_ASK_AGENT_COPY.label}
-              </Button>
-              <span className="max-w-48 text-[10px] text-(--text-secondary)">
-                {PROCESS_PARK_ASK_AGENT_COPY.detail}
-              </span>
-            </div>
+        <div className="flex flex-col gap-2">
+          {retryChoice && !reflected ? (
+            <RetryChoiceOptions
+              {...(retryChoice.retry ? { retry: retryChoice.retry } : {})}
+              {...(retryChoice.turnLimit
+                ? {
+                    turnLimitView: processRetryTurnLimitView(
+                      run,
+                      (retryPick ?? processRetryPickStart(retryChoice)).turnLimit ??
+                        retryChoice.turnLimit.current,
+                    ),
+                  }
+                : {})}
+              pick={retryPick ?? processRetryPickStart(retryChoice)}
+              onPick={setRetryPick}
+            />
           ) : null}
+          <div className="flex flex-wrap gap-3">
+            {choices.filter(isResumeParkChoice).map((choice) => (
+              <div key={choice.choice} className="flex flex-col gap-0.5">
+                <Button
+                  size="sm"
+                  variant={choice.primary ? 'primary' : 'secondary'}
+                  onClick={() =>
+                    choiceTakesNote(choice.choice)
+                      ? setNoteFor(choice.choice)
+                      : choice.choice === 'retry' && retryChoice
+                        ? onChoose(
+                            'retry',
+                            undefined,
+                            undefined,
+                            undefined,
+                            retryPick ?? processRetryPickStart(retryChoice),
+                          )
+                        : onChoose(choice.choice)
+                  }
+                >
+                  {choice.label}
+                </Button>
+                <span className="max-w-48 text-[10px] text-(--text-secondary)">
+                  {choice.detail}
+                </span>
+              </div>
+            ))}
+            {onAskAgent && processParkAskableStepId(run) ? (
+              <div className="flex flex-col gap-0.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={asking}
+                  onClick={() => {
+                    setAsking(true)
+                    void onAskAgent().finally(() => setAsking(false))
+                  }}
+                >
+                  {PROCESS_PARK_ASK_AGENT_COPY.label}
+                </Button>
+                <span className="max-w-48 text-[10px] text-(--text-secondary)">
+                  {PROCESS_PARK_ASK_AGENT_COPY.detail}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>
@@ -1034,8 +1141,15 @@ function ParkBlock({
  * How a finished run ended: a person's decision in their words — with the way to
  * send a request for changes back for them — or the error a run that broke left.
  */
-function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Promise<void> }) {
-  const [sending, setSending] = useState(false)
+function RunEnding({
+  run,
+  onSendBack,
+  onRevive,
+}: {
+  run: ProcessRun
+  onSendBack: () => Promise<void>
+  onRevive: () => Promise<void>
+}) {
   const ending = processRunPersonEnding(run)
   const line = ending?.line ?? run.error
   if (!line) return null
@@ -1043,23 +1157,38 @@ function RunEnding({ run, onSendBack }: { run: ProcessRun; onSendBack: () => Pro
     <div className="flex flex-col items-start gap-2 px-4 pb-3">
       <div className="text-[11px] text-(--text-secondary)">{line}</div>
       {processRunSendBackGateId(run) ? (
-        <div className="flex flex-col gap-0.5">
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={sending}
-            onClick={() => {
-              setSending(true)
-              void onSendBack().finally(() => setSending(false))
-            }}
-          >
-            {PROCESS_SEND_BACK_COPY.label}
-          </Button>
-          <span className="max-w-72 text-[10px] text-(--text-secondary)">
-            {PROCESS_SEND_BACK_COPY.detail}
-          </span>
-        </div>
+        <RunEndingAction copy={PROCESS_SEND_BACK_COPY} onAct={onSendBack} />
       ) : null}
+      {processRunRevivable(run) ? (
+        <RunEndingAction copy={PROCESS_REVIVE_COPY} onAct={onRevive} />
+      ) : null}
+    </div>
+  )
+}
+
+/** One thing a person can still do on a run that ended: its button, and one line on what it does. */
+function RunEndingAction({
+  copy,
+  onAct,
+}: {
+  copy: { label: string; detail: string }
+  onAct: () => Promise<void>
+}) {
+  const [acting, setActing] = useState(false)
+  return (
+    <div className="flex flex-col gap-0.5">
+      <Button
+        size="sm"
+        variant="primary"
+        disabled={acting}
+        onClick={() => {
+          setActing(true)
+          void onAct().finally(() => setActing(false))
+        }}
+      >
+        {copy.label}
+      </Button>
+      <span className="max-w-72 text-[10px] text-(--text-secondary)">{copy.detail}</span>
     </div>
   )
 }

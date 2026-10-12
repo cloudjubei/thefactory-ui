@@ -33,6 +33,8 @@ import {
   processOpenWorkMetadata,
   proofPlanMetadata,
   proposalFeatureProcessId,
+  processGrantTurnLimitView,
+  processTurnLimitOfView,
   setLaunchProofNotes,
   toggleLaunchProofKind,
   useProcessProposal,
@@ -56,6 +58,7 @@ import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
+import { TurnLimitField } from '../TurnLimitField'
 
 export type ApprovalPanelProps = {
   grant: PendingToolGrant
@@ -133,6 +136,16 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   const windowHeight = useWindowDimensions().height
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // How far each step's agent may go — the person's pick, else what the agent
+  // asked for, else the default for the transport the work runs on.
+  const turnLimitStart = processGrantTurnLimitView(
+    summary.turnLimit,
+    summary.runner ?? grant.chatRunner,
+  )
+  const [turnLimitPick, setTurnLimitPick] = useState<
+    { limited: boolean; maxTurns: number } | undefined
+  >(undefined)
+  const turnLimit = turnLimitPick ?? turnLimitStart
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
   const features = story ? featuresToWork(story) : []
@@ -238,6 +251,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
               // agent chose (its Verify → Report chain), so the launch carries
               // the agent's own choice unchanged rather than overriding it here.
               ...(trimmedNote ? { note: trimmedNote } : {}),
+              turnLimit: processTurnLimitOfView(turnLimit),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
               ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
@@ -533,6 +547,13 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
             </Tooltip>
             <Text style={{ fontSize: 11.5, color: theme.text.muted }}>Merges nothing.</Text>
           </View>
+          <TurnLimitField
+            {...turnLimitStart}
+            limited={turnLimit.limited}
+            maxTurns={turnLimit.maxTurns}
+            disabled={busy}
+            onChange={setTurnLimitPick}
+          />
         </View>
 
         {featureRows.length > 0 ? (

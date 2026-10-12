@@ -59,11 +59,14 @@ function decidedByText(
 ): string | undefined {
   if (override.decidedBy === 'person') {
     const via =
-      override.decidedVia && override.decidedVia !== 'tool' ? override.decidedVia : undefined
+      override.decidedVia && override.decidedVia !== 'tool' && override.decidedVia !== 'manager'
+        ? override.decidedVia
+        : undefined
     return via
       ? `${PROCESS_SIGNOFF_RECORD_TEXT.byYou} · ${PROCESS_SIGNOFF_DECIDED_VIA_TEXT[via]}`
       : PROCESS_SIGNOFF_RECORD_TEXT.byYou
   }
+  if (override.decidedBy === 'manager') return PROCESS_SIGNOFF_RECORD_TEXT.byManager
   if (override.decidedBy !== 'agent') return undefined
   const runChat = override.chatContextId === getChatContextKey(processRunChatContext(run))
   const who = runChat

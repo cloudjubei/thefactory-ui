@@ -88,6 +88,7 @@ import IntegrationChooser from './IntegrationChooser'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProofPlanMarks from './ProofPlanMarks'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
+import ProcessCleanupCard from './signoff/ProcessCleanupCard'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
 import SignoffReportPanel from './signoff/SignoffReportPanel'
 import StorySpecCard from './signoff/StorySpecCard'
@@ -677,6 +678,8 @@ function StorySignoffPanel({
           </div>
         ) : null}
       </section>
+
+      <ProcessCleanupCard runId={storyRunId} />
 
       <section
         aria-label={SIGNOFF_SECTION_TITLES.what}

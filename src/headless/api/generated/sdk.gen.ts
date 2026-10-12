@@ -33,6 +33,9 @@ import type {
   AddDatabaseData,
   AddDatabaseErrors,
   AddDatabaseResponses,
+  AddStoryNoteData,
+  AddStoryNoteErrors,
+  AddStoryNoteResponses,
   AnswerFeatureQuestionData,
   AnswerFeatureQuestionErrors,
   AnswerFeatureQuestionResponses,
@@ -73,6 +76,9 @@ import type {
   CheckCliAuthStatusResponses,
   CheckCliImageUpdatesData,
   CheckCliImageUpdatesResponses,
+  CheckProcessGroupLegLandingData,
+  CheckProcessGroupLegLandingErrors,
+  CheckProcessGroupLegLandingResponses,
   CheckProjectGithubNameData,
   CheckProjectGithubNameErrors,
   CheckProjectGithubNameResponses,
@@ -82,6 +88,9 @@ import type {
   CloneOverseerData,
   CloneOverseerErrors,
   CloneOverseerResponses,
+  CloseProcessRunFeaturesData,
+  CloseProcessRunFeaturesErrors,
+  CloseProcessRunFeaturesResponses,
   CompleteGitCredentialGithubRedirectData,
   CompleteGitCredentialGithubRedirectErrors,
   CompleteGitCredentialGithubRedirectResponses,
@@ -399,6 +408,12 @@ import type {
   GetProcessGroupRunErrors,
   GetProcessGroupRunResponses,
   GetProcessResponses,
+  GetProcessRunCleanupData,
+  GetProcessRunCleanupErrors,
+  GetProcessRunCleanupResponses,
+  GetProcessRunClosureData,
+  GetProcessRunClosureErrors,
+  GetProcessRunClosureResponses,
   GetProcessRunData,
   GetProcessRunErrors,
   GetProcessRunIntegrationOptionsData,
@@ -632,6 +647,9 @@ import type {
   ListSourceRecordsResponses,
   ListStoriesData,
   ListStoriesResponses,
+  ListStoryNotesData,
+  ListStoryNotesErrors,
+  ListStoryNotesResponses,
   ListTemplatesData,
   ListTemplatesErrors,
   ListTemplatesResponses,
@@ -656,6 +674,9 @@ import type {
   LiveCliAgentProbeData,
   LiveCliAgentProbeErrors,
   LiveCliAgentProbeResponses,
+  MarkProcessGroupLegLandedData,
+  MarkProcessGroupLegLandedErrors,
+  MarkProcessGroupLegLandedResponses,
   MatchDocumentsData,
   MatchDocumentsErrors,
   MatchDocumentsResponses,
@@ -673,6 +694,9 @@ import type {
   PairRunnerData,
   PairRunnerErrors,
   PairRunnerResponses,
+  PlanProcessGroupLegRebuildData,
+  PlanProcessGroupLegRebuildErrors,
+  PlanProcessGroupLegRebuildResponses,
   PollGitCredentialGithubDeviceData,
   PollGitCredentialGithubDeviceErrors,
   PollGitCredentialGithubDeviceResponses,
@@ -746,6 +770,9 @@ import type {
   RemoveOverseerRemoteResponses,
   RemoveRunnerData,
   RemoveRunnerResponses,
+  RemoveStoryNoteData,
+  RemoveStoryNoteErrors,
+  RemoveStoryNoteResponses,
   RenameDesignItemData,
   RenameDesignItemErrors,
   RenameDesignItemResponses,
@@ -758,6 +785,9 @@ import type {
   RenameSymbolData,
   RenameSymbolErrors,
   RenameSymbolResponses,
+  ReopenProcessGroupRunData,
+  ReopenProcessGroupRunErrors,
+  ReopenProcessGroupRunResponses,
   ReorderFeaturesData,
   ReorderFeaturesErrors,
   ReorderFeaturesResponses,
@@ -810,6 +840,9 @@ import type {
   RevealProjectNoteData,
   RevealProjectNoteErrors,
   RevealProjectNoteResponses,
+  ReviveProcessRunData,
+  ReviveProcessRunErrors,
+  ReviveProcessRunResponses,
   RunActivityData,
   RunActivityErrors,
   RunActivityResponses,
@@ -878,6 +911,18 @@ import type {
   SetCliRunFileViewedResponses,
   SetOverseerRemoteData,
   SetOverseerRemoteResponses,
+  SetProcessRunCleanupItemData,
+  SetProcessRunCleanupItemErrors,
+  SetProcessRunCleanupItemResponses,
+  SetProcessRunCleanupOffData,
+  SetProcessRunCleanupOffErrors,
+  SetProcessRunCleanupOffResponses,
+  SetProcessRunManagerData,
+  SetProcessRunManagerErrors,
+  SetProcessRunManagerResponses,
+  SetProcessRunTurnLimitData,
+  SetProcessRunTurnLimitErrors,
+  SetProcessRunTurnLimitResponses,
   SetProjectActiveData,
   SetProjectActiveErrors,
   SetProjectActiveResponses,
@@ -985,6 +1030,9 @@ import type {
   UpdateProviderConnectionResponses,
   UpdateStoryData,
   UpdateStoryErrors,
+  UpdateStoryNoteData,
+  UpdateStoryNoteErrors,
+  UpdateStoryNoteResponses,
   UpdateStoryResponses,
   UpdateWebSearchKeysData,
   UpdateWebSearchKeysErrors,
@@ -1527,6 +1575,54 @@ export const reorderFeatures = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const listStoryNotes = <ThrowOnError extends boolean = false>(
+  options: Options<ListStoryNotesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ListStoryNotesResponses, ListStoryNotesErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/notes',
+    ...options,
+  })
+
+export const addStoryNote = <ThrowOnError extends boolean = false>(
+  options: Options<AddStoryNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<AddStoryNoteResponses, AddStoryNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/notes',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const removeStoryNote = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveStoryNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<RemoveStoryNoteResponses, RemoveStoryNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/notes/{noteId}',
+    ...options,
+  })
+
+export const updateStoryNote = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateStoryNoteData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<UpdateStoryNoteResponses, UpdateStoryNoteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/notes/{noteId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const listProcesses = <ThrowOnError extends boolean = false>(
   options?: Options<ListProcessesData, ThrowOnError>,
 ) =>
@@ -1824,6 +1920,84 @@ export const sendProcessRunBackForChanges = <ThrowOnError extends boolean = fals
     ...options,
   })
 
+export const reviveProcessRun = <ThrowOnError extends boolean = false>(
+  options: Options<ReviveProcessRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ReviveProcessRunResponses, ReviveProcessRunErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/revive',
+    ...options,
+  })
+
+export const setProcessRunManager = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunManagerData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProcessRunManagerResponses,
+    SetProcessRunManagerErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/manager',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setProcessRunTurnLimit = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunTurnLimitData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetProcessRunTurnLimitResponses,
+    SetProcessRunTurnLimitErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/turn-limit',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getProcessRunClosure = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunClosureData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunClosureResponses,
+    GetProcessRunClosureErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/closure',
+    ...options,
+  })
+
+export const closeProcessRunFeatures = <ThrowOnError extends boolean = false>(
+  options: Options<CloseProcessRunFeaturesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CloseProcessRunFeaturesResponses,
+    CloseProcessRunFeaturesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/closure',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const cancelProcessRun = <ThrowOnError extends boolean = false>(
   options: Options<CancelProcessRunData, ThrowOnError>,
 ) =>
@@ -1918,6 +2092,70 @@ export const resumeProcessGroupRun = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const checkProcessGroupLegLanding = <ThrowOnError extends boolean = false>(
+  options: Options<CheckProcessGroupLegLandingData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CheckProcessGroupLegLandingResponses,
+    CheckProcessGroupLegLandingErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/legs/{legId}/landing-check',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const planProcessGroupLegRebuild = <ThrowOnError extends boolean = false>(
+  options: Options<PlanProcessGroupLegRebuildData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    PlanProcessGroupLegRebuildResponses,
+    PlanProcessGroupLegRebuildErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/legs/{legId}/rebuild-plan',
+    ...options,
+  })
+
+export const markProcessGroupLegLanded = <ThrowOnError extends boolean = false>(
+  options: Options<MarkProcessGroupLegLandedData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MarkProcessGroupLegLandedResponses,
+    MarkProcessGroupLegLandedErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/legs/{legId}/landed',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const reopenProcessGroupRun = <ThrowOnError extends boolean = false>(
+  options: Options<ReopenProcessGroupRunData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ReopenProcessGroupRunResponses,
+    ReopenProcessGroupRunErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-group-runs/{groupRunId}/reopen',
+    ...options,
+  })
+
 export const cancelProcessGroupRun = <ThrowOnError extends boolean = false>(
   options: Options<CancelProcessGroupRunData, ThrowOnError>,
 ) =>
@@ -1944,6 +2182,56 @@ export const listProcessGroupRunBranches = <ThrowOnError extends boolean = false
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-group-runs/{groupRunId}/branches',
     ...options,
+  })
+
+export const getProcessRunCleanup = <ThrowOnError extends boolean = false>(
+  options: Options<GetProcessRunCleanupData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetProcessRunCleanupResponses,
+    GetProcessRunCleanupErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/cleanup',
+    ...options,
+  })
+
+export const setProcessRunCleanupItem = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunCleanupItemData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetProcessRunCleanupItemResponses,
+    SetProcessRunCleanupItemErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/cleanup/items',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setProcessRunCleanupOff = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunCleanupOffData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetProcessRunCleanupOffResponses,
+    SetProcessRunCleanupOffErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/cleanup/off',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const listReviewEvidence = <ThrowOnError extends boolean = false>(

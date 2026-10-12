@@ -6,9 +6,16 @@ import {
   processGroupBadge,
   processGroupLegRows,
   processGroupProgress,
+  processGroupResumeRebuildLegIds,
+  processGroupResumeView,
   processGroupWorkMs,
+  PROCESS_GROUP_MARK_LANDED_LABEL,
+  PROCESS_GROUP_RESUME_LABEL,
+  PROCESS_GROUP_STOP_CONFIRM_COPY,
   useDurationTimer,
+  useProcessGroupRebuildPlans,
   useProcessGroupRun,
+  type ProcessGroupLeg,
   type ProcessGroupLegRow,
   type ProcessRunBranch,
   type ProcessStatusTone,
@@ -18,6 +25,7 @@ import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import CostChip from '../chips/CostChip'
 import DurationChip from '../chips/DurationChip'
+import ProcessGroupLegLandingDialog from './ProcessGroupLegLandingDialog'
 import ProcessGroupParkReview from './ProcessGroupParkReview'
 
 export type ProcessGroupPipelineProps = {
@@ -34,7 +42,9 @@ const ENDED = ['succeeded', 'failed', 'cancelled']
  * waits for and what it has cost. Each project is signed off and merged in its
  * own pipeline, one click away — a project only once the ones it builds on are
  * merged; only what the group alone can answer (a project that stopped, a
- * merged project that does not build, a failed merge) is answered here.
+ * merged project that does not build, a failed merge) is answered here — and a
+ * project whose work landed another way is marked so, after which an ended
+ * group run can be resumed for the projects that waited on it.
  */
 export default function ProcessGroupPipeline({
   groupRunId,
@@ -48,15 +58,34 @@ export default function ProcessGroupPipeline({
     deleted,
     resume,
     cancel,
+    checkLanding,
+    markLanded,
+    planRebuild,
+    reopen,
     listBranches,
     deleteGroupRun,
   } = useProcessGroupRun(groupRunId)
+  const resumePlans = useProcessGroupRebuildPlans(
+    processGroupResumeRebuildLegIds(group),
+    planRebuild,
+  )
   const ticking = group?.totals?.ticking === true
   const now = useDurationTimer(ticking)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmStop, setConfirmStop] = useState(false)
   const [branches, setBranches] = useState<ProcessRunBranch[]>([])
   const [alsoBranches, setAlsoBranches] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [landingLeg, setLandingLeg] = useState<ProcessGroupLeg | undefined>(undefined)
+  const [confirmResume, setConfirmResume] = useState(false)
+  const [resuming, setResuming] = useState(false)
+
+  const runResume = useCallback(() => {
+    setResuming(true)
+    void reopen()
+      .then(() => setConfirmResume(false))
+      .finally(() => setResuming(false))
+  }, [reopen])
 
   const openDelete = useCallback(() => {
     setAlsoBranches(false)
@@ -93,6 +122,7 @@ export default function ProcessGroupPipeline({
   const ended = ENDED.includes(group.status)
   const workMs = processGroupWorkMs(group.totals, now)
   const spend = costChipLabel(group.totals)
+  const resumeView = processGroupResumeView(group, resumePlans)
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
@@ -114,12 +144,17 @@ export default function ProcessGroupPipeline({
         {spend ? (
           <CostChip label={spend} cost={group.totals} title="Every project, summed" />
         ) : null}
+        {resumeView?.canResume ? (
+          <Button size="sm" variant="primary" onClick={() => setConfirmResume(true)}>
+            {PROCESS_GROUP_RESUME_LABEL}
+          </Button>
+        ) : null}
         {ended ? (
           <Button size="sm" variant="ghost" onClick={openDelete}>
             Delete
           </Button>
         ) : (
-          <Button size="sm" variant="secondary" onClick={() => void cancel()}>
+          <Button size="sm" variant="secondary" onClick={() => setConfirmStop(true)}>
             Stop
           </Button>
         )}
@@ -139,6 +174,10 @@ export default function ProcessGroupPipeline({
         </div>
       ) : null}
 
+      {resumeView && !resumeView.canResume ? (
+        <div className="mx-3 mt-3 text-[11.5px] text-(--text-secondary)">{resumeView.reason}</div>
+      ) : null}
+
       {group.park ? (
         <div className="mx-3 mt-3">
           <ProcessGroupParkReview key={group.park.parkedAt} group={group} onResume={resume} />
@@ -153,7 +192,13 @@ export default function ProcessGroupPipeline({
             </span>
             <div className="grid gap-2 sm:grid-cols-2">
               {wave.map((row) => (
-                <LegCard key={row.leg.id} row={row} now={now} onOpen={onOpenLegRun} />
+                <LegCard
+                  key={row.leg.id}
+                  row={row}
+                  now={now}
+                  onOpen={onOpenLegRun}
+                  onMarkLanded={setLandingLeg}
+                />
               ))}
             </div>
           </li>
@@ -162,6 +207,71 @@ export default function ProcessGroupPipeline({
 
       {group.error ? (
         <div className="px-4 pb-3 text-[11px] text-(--text-secondary)">{group.error}</div>
+      ) : null}
+
+      {landingLeg ? (
+        <ProcessGroupLegLandingDialog
+          group={group}
+          leg={landingLeg}
+          planRebuild={planRebuild}
+          checkLanding={checkLanding}
+          markLanded={markLanded}
+          onClose={() => setLandingLeg(undefined)}
+        />
+      ) : null}
+
+      {confirmResume && resumeView?.canResume ? (
+        <Modal
+          isOpen
+          onClose={() => setConfirmResume(false)}
+          title="Resume this group run?"
+          size="sm"
+        >
+          <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+            <p className="m-0">{resumeView.effect}</p>
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={resuming}
+                onClick={() => setConfirmResume(false)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" loading={resuming} onClick={runResume}>
+                {PROCESS_GROUP_RESUME_LABEL}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {confirmStop ? (
+        <Modal
+          isOpen
+          onClose={() => setConfirmStop(false)}
+          title={PROCESS_GROUP_STOP_CONFIRM_COPY.title}
+          size="sm"
+        >
+          <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+            <p className="m-0">{PROCESS_GROUP_STOP_CONFIRM_COPY.body}</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setConfirmStop(false)}>
+                {PROCESS_GROUP_STOP_CONFIRM_COPY.cancel}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  setConfirmStop(false)
+                  void cancel()
+                }}
+              >
+                {PROCESS_GROUP_STOP_CONFIRM_COPY.confirm}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       ) : null}
 
       {confirmDelete ? (
@@ -222,10 +332,12 @@ function LegCard({
   row,
   now,
   onOpen,
+  onMarkLanded,
 }: {
   row: ProcessGroupLegRow
   now: number
   onOpen: (runId: string, projectId: string) => void
+  onMarkLanded: (leg: ProcessGroupLeg) => void
 }) {
   const { leg, totals } = row
   const workMs = processGroupWorkMs(totals, now)
@@ -245,6 +357,7 @@ function LegCard({
       </div>
       <div className="truncate text-[11.5px] text-(--text-secondary)">{leg.title}</div>
       {row.waitsFor ? <div className="text-[11px] text-(--text-muted)">{row.waitsFor}</div> : null}
+      {row.landed ? <div className="text-[11px] text-(--text-muted)">{row.landed}</div> : null}
       {row.error ? (
         <div
           className="rounded-md px-2 py-1 text-[11px]"
@@ -273,6 +386,15 @@ function LegCard({
             onClick={() => onOpen(leg.runId!, leg.projectId)}
           >
             {row.openLabel} ›
+          </button>
+        ) : null}
+        {row.canMarkLanded ? (
+          <button
+            type="button"
+            className="rounded-md border border-(--border-default) bg-(--surface-base) px-2.5 py-1 text-[11px] font-medium text-(--text-primary) hover:border-(--border-strong)"
+            onClick={() => onMarkLanded(leg)}
+          >
+            {PROCESS_GROUP_MARK_LANDED_LABEL}
           </button>
         ) : null}
         <span className="ml-auto flex items-center gap-2 text-[11px] tabular-nums text-(--text-muted)">

@@ -13,12 +13,15 @@ import {
   RUN_PROPOSAL_DELETE,
   RUN_PROPOSAL_GROUP_DELETE,
   RUN_PROPOSAL_GROUP_PARK,
+  RUN_PROPOSAL_GROUP_LANDED,
+  RUN_PROPOSAL_GROUP_RESUME,
   RUN_PROPOSAL_GROUP_STOP,
   RUN_PROPOSAL_REMOVE_PROCESS,
   RUN_PROPOSAL_GATE,
   RUN_PROPOSAL_LAND,
   RUN_PROPOSAL_PARK,
   RUN_PROPOSAL_RESOLVE_CONFLICT,
+  RUN_PROPOSAL_REVIVE,
   RUN_PROPOSAL_SEND_BACK,
   RUN_PROPOSAL_STOP,
   RUN_PROPOSAL_START,
@@ -394,6 +397,7 @@ describe('runProposalView — the run’s other buttons', () => {
       'retryRunIntegration',
       'resolveRunIntegrationConflict',
       'sendRunBackForChanges',
+      'reviveProcessRun',
       'removeProcessRun',
     ]) {
       expect(isRunProposalGrant({ toolName })).toBe(true)
@@ -529,6 +533,23 @@ describe('runProposalView — the run’s other buttons', () => {
     expect(view.sections[0]).toMatchObject({ key: 'note', summary: 'Cap the size.' })
   })
 
+  it('shows resuming a stopped run by the step it was stopped at', () => {
+    const view = runProposalView('reviveProcessRun', {}, undefined, {
+      runTitle: 'File tools',
+      stoppedAtStep: 'Fix',
+      effect: 'Resume “File tools”: takes it back up where it was stopped.',
+    })!
+    expect(view).toMatchObject({
+      kind: 'revive',
+      kindLabel: RUN_PROPOSAL_REVIVE.kindLabel,
+      tone: 'working',
+      title: 'File tools',
+      effect: 'Resume “File tools”: takes it back up where it was stopped.',
+      approveLabel: RUN_PROPOSAL_REVIVE.approveLabel,
+    })
+    expect(view.sections[0]).toMatchObject({ key: 'step', summary: 'Fix' })
+  })
+
   it('shows a delete in red, plainly, with the branches that go', () => {
     const view = runProposalView('removeProcessRun', { withBranches: true }, undefined, {
       runTitle: 'File tools',
@@ -555,6 +576,8 @@ describe('runProposalView — a group run’s buttons, and deleting a process', 
       'answerGroupRunPark',
       'stopProcessGroupRun',
       'removeProcessGroupRun',
+      'markGroupLegLanded',
+      'resumeEndedGroupRun',
       'removeProcess',
     ]) {
       expect(isRunProposalGrant({ toolName })).toBe(true)
@@ -622,6 +645,68 @@ describe('runProposalView — a group run’s buttons, and deleting a process', 
     })
     expect(view.sections[0]).toMatchObject({ key: 'branches', items: ['factory/dark-api'] })
     expect(RUN_PROPOSAL_GROUP_DELETE.effect).toContain('cannot be undone')
+  })
+
+  it('shows marking a leg as landed by the leg, the commit the check found and where', () => {
+    const view = runProposalView(
+      'markGroupLegLanded',
+      { groupRunId: 'g1', legId: 'api', note: 'Merged from its run chat' },
+      undefined,
+      {
+        groupRunTitle: 'Dark mode everywhere',
+        leg: { projectId: 'api', title: 'API' },
+        commit: 'e9b3c02b8e556cddf40e929faefc993d1a530f20',
+        subject: 'Agent run 538c0ebd',
+        foundBy: 'merged by an agent from its run’s chat',
+        effect: 'Record api as landed on main by e9b3c02.',
+      },
+    )!
+    expect(view).toMatchObject({
+      kind: 'group-landed',
+      tone: 'working',
+      title: 'Dark mode everywhere',
+      effect: 'Record api as landed on main by e9b3c02.',
+      approveLabel: RUN_PROPOSAL_GROUP_LANDED.approveLabel,
+    })
+    expect(view.sections.map((s) => [s.key, s.summary])).toEqual([
+      ['leg', 'api · API'],
+      ['commit', 'e9b3c02 — Agent run 538c0ebd'],
+      ['foundBy', 'merged by an agent from its run’s chat'],
+      ['note', 'Merged from its run chat'],
+    ])
+  })
+
+  it('says what marking a leg as landed does when the host stated nothing', () => {
+    expect(
+      runProposalView('markGroupLegLanded', { groupRunId: 'g1', legId: 'api', commit: 'abc1234' }),
+    ).toMatchObject({
+      title: 'g1',
+      effect: RUN_PROPOSAL_GROUP_LANDED.effect('api'),
+      sections: [
+        { key: 'leg', summary: 'api' },
+        { key: 'commit', summary: 'abc1234' },
+      ],
+    })
+  })
+
+  it('shows resuming a group run by what starts, what is built first and the agent', () => {
+    const view = runProposalView('resumeEndedGroupRun', { groupRunId: 'g1' }, undefined, {
+      groupRunTitle: 'Dark mode everywhere',
+      legs: [{ projectId: 'ui', title: 'UI', storyId: 's2' }],
+      rebuilt: ['api'],
+      agent: 'claude-code · opus',
+      effect: 'Resume “Dark mode everywhere”: ui (UI) starts on claude-code · opus.',
+    })!
+    expect(view).toMatchObject({
+      kind: 'group-resume',
+      effect: 'Resume “Dark mode everywhere”: ui (UI) starts on claude-code · opus.',
+      approveLabel: RUN_PROPOSAL_GROUP_RESUME.approveLabel,
+    })
+    expect(view.sections.map((s) => s.key)).toEqual(['starts', 'rebuilt', 'model'])
+    expect(runProposalView('resumeEndedGroupRun', { groupRunId: 'g1' })).toMatchObject({
+      effect: RUN_PROPOSAL_GROUP_RESUME.effect,
+      sections: [],
+    })
   })
 
   it('shows deleting a process definition in red by its name', () => {

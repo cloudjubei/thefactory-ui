@@ -8,6 +8,9 @@ import {
   RUN_PROPOSAL_LATER_LABEL,
   RUN_PROPOSAL_OPEN_FULL_LABEL,
   runProposalArgs,
+  processRunClosureRowsProblem,
+  runProposalEditArgs,
+  runProposalEditStart,
   runProposalHostDetail,
   runProposalLandingEdits,
   runProposalLandingForm,
@@ -20,6 +23,7 @@ import {
 import type {
   PendingToolGrant,
   ProcessIntegrationForm,
+  RunProposalEditState,
   RunProposalSection,
 } from '../../../headless'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
@@ -32,6 +36,7 @@ import IconButton from '../../primitives/IconButton'
 import Markdown from '../Markdown'
 import DependencyRef from '../stories/DependencyRef'
 import RunProposalLandingEditor from './RunProposalLandingEditor'
+import RunProposalEditPanel from './RunProposalEditPanel'
 
 export type RunProposalApprovalPanelProps = {
   grant: PendingToolGrant
@@ -141,8 +146,14 @@ export default function RunProposalApprovalPanel({
   const [landingForm, setLandingForm] = useState<ProcessIntegrationForm | undefined>(() =>
     view?.landing ? runProposalLandingForm(view.landing) : undefined,
   )
+  const [editState, setEditState] = useState<RunProposalEditState | undefined>(() =>
+    view?.edit ? runProposalEditStart(view.edit, runProposalHostDetail(grant)) : undefined,
+  )
   if (!view) return null
   const tone = status[view.tone]
+  const editProblem = editState?.closure
+    ? processRunClosureRowsProblem(editState.closure)
+    : undefined
   const landingProblem =
     landingForm && view.landing?.options
       ? runProposalLandingProblem(landingForm, view.landing.options)
@@ -155,7 +166,12 @@ export default function RunProposalApprovalPanel({
       decision === 'once' && view.landing && landingForm
         ? runProposalLandingEdits(view.landing, landingForm)
         : undefined
-    void grant.decide(decision, edits).catch((err: unknown) => {
+    const actionArgs = decision === 'once' && editState ? runProposalEditArgs(editState) : {}
+    const sent =
+      Object.keys(actionArgs).length > 0
+        ? { args: { ...(edits?.args ?? {}), ...actionArgs } }
+        : edits
+    void grant.decide(decision, sent).catch((err: unknown) => {
       setBusy(false)
       setError(grantDecideErrorMessage(err))
     })
@@ -181,7 +197,7 @@ export default function RunProposalApprovalPanel({
         variant={view.danger ? 'danger' : 'primary'}
         onPress={() => decide('once')}
         loading={busy}
-        disabled={landingProblem !== undefined}
+        disabled={landingProblem !== undefined || editProblem !== undefined}
       >
         {view.approveLabel}
       </Button>
@@ -266,6 +282,24 @@ export default function RunProposalApprovalPanel({
             form={landingForm}
             busy={busy}
             onChange={setLandingForm}
+          />
+        </ScrollView>
+      ) : null}
+      {view.edit && editState ? (
+        <ScrollView
+          style={{
+            maxHeight: 280,
+            flexShrink: 0,
+            paddingHorizontal: nativeSpace[3],
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border.subtle,
+          }}
+        >
+          <RunProposalEditPanel
+            edit={view.edit}
+            state={editState}
+            busy={busy}
+            onChange={setEditState}
           />
         </ScrollView>
       ) : null}

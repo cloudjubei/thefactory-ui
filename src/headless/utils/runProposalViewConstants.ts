@@ -34,6 +34,9 @@ export const RESOLVE_RUN_INTEGRATION_CONFLICT_TOOL_NAME = 'resolveRunIntegration
 /** Send a run that ended on a request for changes back for them. */
 export const SEND_RUN_BACK_TOOL_NAME = 'sendRunBackForChanges'
 
+/** Take a stopped run back up where it was, as the run's Resume does. */
+export const REVIVE_PROCESS_RUN_TOOL_NAME = 'reviveProcessRun'
+
 /** Delete a run and everything it produced. */
 export const REMOVE_PROCESS_RUN_TOOL_NAME = 'removeProcessRun'
 
@@ -46,8 +49,20 @@ export const STOP_PROCESS_GROUP_RUN_TOOL_NAME = 'stopProcessGroupRun'
 /** Delete an ended group run and everything its legs own. */
 export const REMOVE_PROCESS_GROUP_RUN_TOOL_NAME = 'removeProcessGroupRun'
 
+/** Record a leg's work as landed on its base branch outside its run. */
+export const MARK_GROUP_LEG_LANDED_TOOL_NAME = 'markGroupLegLanded'
+
+/** Resume an ended group run whose skipped legs can now start. */
+export const RESUME_ENDED_GROUP_RUN_TOOL_NAME = 'resumeEndedGroupRun'
+
 /** Delete one of a project's own process definitions. */
 export const REMOVE_PROCESS_TOOL_NAME = 'removeProcess'
+
+/** Set how many turns each step agent of a run takes from now on. */
+export const SET_RUN_TURN_LIMIT_TOOL_NAME = 'setRunTurnLimit'
+
+/** Settle the features a run that ended without a sign-off worked on. */
+export const CLOSE_RUN_FEATURES_TOOL_NAME = 'closeRunFeatures'
 
 export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   PROPOSE_RUN_FEATURE_TOOL_NAME,
@@ -62,11 +77,16 @@ export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   RETRY_RUN_INTEGRATION_TOOL_NAME,
   RESOLVE_RUN_INTEGRATION_CONFLICT_TOOL_NAME,
   SEND_RUN_BACK_TOOL_NAME,
+  REVIVE_PROCESS_RUN_TOOL_NAME,
   REMOVE_PROCESS_RUN_TOOL_NAME,
   ANSWER_GROUP_RUN_PARK_TOOL_NAME,
   STOP_PROCESS_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_GROUP_RUN_TOOL_NAME,
+  MARK_GROUP_LEG_LANDED_TOOL_NAME,
+  RESUME_ENDED_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_TOOL_NAME,
+  SET_RUN_TURN_LIMIT_TOOL_NAME,
+  CLOSE_RUN_FEATURES_TOOL_NAME,
 ]
 
 export const RUN_PROPOSAL_DECLINE_LABEL = 'Not now'
@@ -162,6 +182,13 @@ export const RUN_PROPOSAL_RESOLVE_CONFLICT = {
   approveLabel: 'Send to an agent',
 } as const
 
+export const RUN_PROPOSAL_REVIVE = {
+  kindLabel: 'Resume the run',
+  effect:
+    'Takes the stopped run back up where it was: the step it was on waits to be tried again, or the sign-off waits for a decision.',
+  approveLabel: 'Resume',
+} as const
+
 export const RUN_PROPOSAL_SEND_BACK = {
   kindLabel: 'Send back for changes',
   effect:
@@ -195,6 +222,21 @@ export const RUN_PROPOSAL_GROUP_DELETE = {
   effect:
     'Deletes the group run and everything its legs own — every leg’s runs, their chats and records. This cannot be undone.',
   approveLabel: 'Delete group run',
+} as const
+
+/** Marking a leg as landed outside its run, when the host stated none of its words. */
+export const RUN_PROPOSAL_GROUP_LANDED = {
+  kindLabel: 'Mark as landed',
+  effect: (leg: string): string =>
+    `Records ${leg}’s work as landed on its base branch outside its run — it counts as merged from then on.`,
+  approveLabel: 'Mark as landed',
+} as const
+
+/** Resuming an ended group run, when the host stated none of its words. */
+export const RUN_PROPOSAL_GROUP_RESUME = {
+  kindLabel: 'Resume the group run',
+  effect: 'Resumes the group run: the legs that waited on a now-merged one start on its agent.',
+  approveLabel: 'Resume',
 } as const
 
 export const RUN_PROPOSAL_REMOVE_PROCESS = {
@@ -251,6 +293,11 @@ export const RUN_PROPOSAL_LINE_LABELS = {
   branches: 'Git branches deleted too',
   leg: 'Leg',
   mode: 'Merged as',
+  commit: 'Commit',
+  foundBy: 'Found',
+  starts: 'Starts',
+  rebuilt: 'Built first',
+  step: 'Stopped at',
 } as const
 
 /** The longest one-line summary a closed section shows. */
@@ -260,3 +307,17 @@ export const RUN_PROPOSAL_SUMMARY_MAX_CHARS = 96
 export const RUN_PROPOSAL_EXPAND_LABEL = 'Show the details'
 export const RUN_PROPOSAL_COLLAPSE_LABEL = 'Hide the details'
 export const RUN_PROPOSAL_OPEN_FULL_LABEL = 'Read the whole proposal'
+
+/** Setting a run's turn limit, when the host stated none of its words. */
+export const RUN_PROPOSAL_TURN_LIMIT = {
+  kindLabel: 'Turn limit',
+  effect: 'Each step agent of the run takes this many turns from its next step on.',
+  approveLabel: 'Set the turn limit',
+} as const
+
+/** Settling an ended run's features, when the host stated none of its words. */
+export const RUN_PROPOSAL_CLOSURE = {
+  kindLabel: 'Settle features',
+  effect: 'Leaves each feature the run worked on as picked below.',
+  approveLabel: 'Settle these features',
+} as const

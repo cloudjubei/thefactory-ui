@@ -68,6 +68,7 @@ export { default as SpinnerWithDot, type SpinnerWithDotProps } from './primitive
 export { Slider, type SliderProps } from './primitives/Slider'
 export { SecretInput, type SecretInputProps } from './primitives/SecretInput'
 export { Switch, type SwitchProps } from './primitives/Switch'
+export { TurnLimitField, type TurnLimitFieldProps } from './compound/TurnLimitField'
 export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
@@ -648,3 +649,11 @@ export {
   default as AlwaysAllowControl,
   type AlwaysAllowControlProps,
 } from './compound/chat/AlwaysAllowControl'
+export {
+  default as StoryNotesSection,
+  type StoryNotesSectionProps,
+} from './compound/stories/StoryNotesSection'
+export {
+  default as ProcessCleanupCard,
+  type ProcessCleanupCardProps,
+} from './compound/process/signoff/ProcessCleanupCard'
