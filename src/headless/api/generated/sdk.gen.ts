@@ -258,6 +258,8 @@ import type {
   DeleteWebSearchKeyData,
   DeleteWebSearchKeyErrors,
   DeleteWebSearchKeyResponses,
+  DeliverHeldAgentMessageData,
+  DeliverHeldAgentMessageResponses,
   DetachChatCliRunnerData,
   DetachChatCliRunnerErrors,
   DetachChatCliRunnerResponses,
@@ -267,6 +269,8 @@ import type {
   DiscardCliAgentArtifactData,
   DiscardCliAgentArtifactErrors,
   DiscardCliAgentArtifactResponses,
+  DiscardHeldAgentMessageData,
+  DiscardHeldAgentMessageResponses,
   EditCodeData,
   EditCodeErrors,
   EditCodeResponses,
@@ -3118,6 +3122,40 @@ export const getChat = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/chats/get',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Deliver an agent message held for a busy chat now, as if the chat were free: it is posted and the chat's agent started on it.
+ */
+export const deliverHeldAgentMessage = <ThrowOnError extends boolean = false>(
+  options: Options<DeliverHeldAgentMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<DeliverHeldAgentMessageResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/held-messages/deliver',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Drop an agent message held for a busy chat without delivering it.
+ */
+export const discardHeldAgentMessage = <ThrowOnError extends boolean = false>(
+  options: Options<DiscardHeldAgentMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<DiscardHeldAgentMessageResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/held-messages/discard',
     ...options,
     headers: {
       'Content-Type': 'application/json',

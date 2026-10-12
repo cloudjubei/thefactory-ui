@@ -170,6 +170,7 @@ export function getToolHeaderPath(toolCall: {
     }
     case 'addFeature':
     case 'updateStory':
+    case 'deleteStory':
     case 'updateFeature':
     case 'reorderFeature':
     case 'completeAssignment':

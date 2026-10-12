@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 
-import { useActiveProject, useStories } from '../../../headless'
+import { dependencyResourceLink, useActiveProject, useStories } from '../../../headless'
 import { useReferenceRendering } from '../../../headless/contexts/ReferenceRenderingContext'
+import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import DependencyBullet, { type ResolvedDependency } from './DependencyBullet'
 
 export type DependencyRefProps = {
-  /** `"storyId"` / `"storyId.featureId"` (or the display-index form `"3"` / `"3.2"`). */
+  /** `"storyId"` / `"storyId.featureId"` (or the display-index form `"3"` / `"3.2"`), or another project's `"projectId/storyId[.featureId]"`. */
   dependency: string
   /** The project the reference lives in; the active project when omitted. */
   projectId?: string
@@ -30,39 +31,10 @@ export default function DependencyRef({
   const rendering = useReferenceRendering()
   const target = projectId ?? activeProjectId
 
-  const resolved: ResolvedDependency | null = useMemo(() => {
-    const ref = resolveDependency(dependency)
-    if ('code' in ref) return null
-    if (ref.kind === 'feature') {
-      const f = ref.feature
-      return {
-        kind: 'feature',
-        display: ref.display,
-        storyId: ref.storyId,
-        featureId: ref.featureId,
-        feature: {
-          id: f.id,
-          title: f.title,
-          description: f.description,
-          status: f.status,
-          blockers: f.blockers,
-        },
-      }
-    }
-    const s = ref.story
-    return {
-      kind: 'story',
-      display: ref.display,
-      storyId: ref.storyId,
-      story: {
-        id: s.id,
-        title: s.title,
-        description: s.description,
-        status: s.status,
-        blockers: s.blockers,
-      },
-    }
-  }, [resolveDependency, dependency])
+  const resolved: ResolvedDependency | null = useMemo(
+    () => dependencyChipOf(resolveDependency(dependency)),
+    [resolveDependency, dependency],
+  )
 
   const open = rendering?.onOpen
   return (
@@ -72,12 +44,12 @@ export default function DependencyRef({
       {...(notFoundDisplay ? { notFoundDisplay } : {})}
       interactive={interactive && open !== undefined && target !== undefined}
       onPress={(r) => {
-        if (!open || !target || r.kind === 'missing') return
-        open(
-          r.kind === 'feature'
-            ? { kind: 'feature', projectId: target, storyId: r.storyId, featureId: r.featureId }
-            : { kind: 'story', projectId: target, storyId: r.storyId },
+        if (r.kind === 'loading') return
+        const link = dependencyResourceLink(
+          r,
+          (r.kind === 'missing' ? undefined : r.projectId) ?? target,
         )
+        if (open && link) open(link)
       }}
     />
   )

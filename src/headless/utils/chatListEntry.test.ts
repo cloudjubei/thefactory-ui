@@ -113,3 +113,21 @@ describe('byLastActivity', () => {
     expect([older, newer].sort(byLastActivity)).toEqual([newer, older])
   })
 })
+
+describe('chatMessageTimes — a loaded chat the run’s manager worked in', () => {
+  it('times only what is for the person, as the summary does', () => {
+    const entry: ChatListEntry = {
+      context: ctx,
+      updatedAt: 'u1',
+      messages: [
+        { role: 'user', content: 'fix it', startedAt: 'a' },
+        { role: 'user', content: 'triage', handoffFrom: 'manager', startedAt: 'b' },
+        { role: 'assistant', content: 'retried', answersHandoffFrom: 'manager', completedAt: 'c' },
+        { role: 'user', content: 'not signed off', handoffFrom: 'verifier', startedAt: 'd' },
+        { role: 'user', content: 'from another chat', handoffFrom: 'project p2', startedAt: 'e' },
+        { role: 'assistant', content: 'The run needs you', completedAt: 'f' },
+      ] as unknown as ChatListEntry['messages'],
+    }
+    expect(chatMessageTimes(entry)).toEqual(['a', 'e', 'f'])
+  })
+})

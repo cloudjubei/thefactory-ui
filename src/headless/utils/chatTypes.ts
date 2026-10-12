@@ -182,6 +182,8 @@ export type PendingToolGrantData = {
   id: string
   /** The agent of the chat that raised the ask — what "same agent as this chat" names on a launch. */
   chatRunner: 'cli' | 'api'
+  /** The run or API chat turn that raised it — whose rows decide it once they have loaded. */
+  runId?: string
   label: string
   detail?: unknown
   /**
@@ -294,4 +296,16 @@ export type ChatLiveStateLike = {
   cliStartedAt?: string | null
   /** A delete is still landing on the server; the rows are already gone locally. */
   isDeleting?: boolean
+}
+
+/**
+ * What keeps an ordinary tool ask off the approval panel before a row claims
+ * it: the chat still loading its turns, or the ask's turn on screen without its
+ * rows yet. Without it every ask flashes up as a panel card on opening a chat.
+ */
+export type ApprovalPanelHold = {
+  /** The chat's turns are still loading. */
+  loading?: boolean
+  /** The turns on screen whose rows have not loaded yet. */
+  unsettledRunIds?: ReadonlySet<string>
 }

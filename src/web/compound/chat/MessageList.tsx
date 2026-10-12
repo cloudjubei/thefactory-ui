@@ -94,7 +94,7 @@ export type MessageListProps = {
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
   /** Reported by each CLI turn: the asks its rows show — see `CliRunMessages.onClaimAsks`. */
-  onClaimAsks?: (runId: string, askIds: string[]) => void
+  onClaimAsks?: (runId: string, askIds: string[], settled?: boolean) => void
   /** When the last user message exceeds this offset from the top, the list
    * shows a "Context cut-off" divider — matches desktop's
    * `numberMessagesToSend` setting. */

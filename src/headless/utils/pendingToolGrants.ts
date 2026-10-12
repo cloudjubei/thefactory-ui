@@ -2,11 +2,11 @@
 // turn's and a CLI run's alike) into the PendingToolGrantData shape, and route
 // a decision to the broker outcome. No React, no I/O.
 
-import { MCP_TOOL_CALL_ACTION_KIND } from 'thefactory-tools/constants'
 import { getChatContext, getChatContextKey, isApiChatTurnId } from 'thefactory-tools/utils'
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
+import { ROW_DECIDED_ACTION_KINDS } from './pendingToolGrantsConstants'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision } from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
@@ -46,7 +46,7 @@ export type CliDecidedActionLike = CliPendingActionLike & {
   executedInRun?: string
   execution?: { ok: boolean; result: string; durationMs?: number }
   decidedBy?: string
-  decidedVia?: 'card' | 'approve-all' | 'grant'
+  decidedVia?: 'card' | 'approve-all' | 'moved-on' | 'grant'
   /** Where the standing grant that approved it applies. */
   grantScope?: PermanentGrantScope
 }
@@ -217,13 +217,14 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
   const grant: PendingToolGrantData = {
     id: action.id,
     chatRunner: action.runId !== undefined && isApiChatTurnId(action.runId) ? 'api' : 'cli',
+    ...(action.runId !== undefined ? { runId: action.runId } : {}),
     label: toolName ?? formatActionLabel(action.kind),
     detail: action.payload,
     alwaysAllowScopes: cliAlwaysAllowScopes(action),
     grantCovers: grantCoversOf(action.grantPayload ?? action.payload),
     ...(action.chatContextId ? { chatContextId: action.chatContextId } : {}),
     ...(toolName ? { toolName } : {}),
-    ...(action.kind === MCP_TOOL_CALL_ACTION_KIND && isToolAskDecidedOnRow(toolName)
+    ...(ROW_DECIDED_ACTION_KINDS.includes(action.kind) && isToolAskDecidedOnRow(toolName)
       ? { inline: true }
       : {}),
     ...(args !== undefined ? { args } : {}),

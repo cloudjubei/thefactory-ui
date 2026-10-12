@@ -7606,12 +7606,14 @@ export type GitPathsCommitSource = {
   branch: string
   fromDir: string
   paths: Array<string>
+  includeNotes?: boolean
 }
 
 export type GitPathsCommitInput = {
   branch: string
   fromDir: string
   paths: Array<string>
+  includeNotes?: boolean
   message: string
   identity: {
     name: string
@@ -24038,6 +24040,50 @@ export type GetChatResponses = {
 }
 
 export type GetChatResponse = GetChatResponses[keyof GetChatResponses]
+
+export type DeliverHeldAgentMessageData = {
+  body: {
+    context: ChatContext
+    id: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chats/held-messages/deliver'
+}
+
+export type DeliverHeldAgentMessageResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    delivered: boolean
+  }
+}
+
+export type DeliverHeldAgentMessageResponse =
+  DeliverHeldAgentMessageResponses[keyof DeliverHeldAgentMessageResponses]
+
+export type DiscardHeldAgentMessageData = {
+  body: {
+    context: ChatContext
+    id: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chats/held-messages/discard'
+}
+
+export type DiscardHeldAgentMessageResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    discarded: boolean
+  }
+}
+
+export type DiscardHeldAgentMessageResponse =
+  DiscardHeldAgentMessageResponses[keyof DiscardHeldAgentMessageResponses]
 
 export type CreateTopicChatData = {
   body: ChatTopicCreateInput

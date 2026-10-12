@@ -30,6 +30,8 @@ export class WsClient {
   private socket: ReconnectingWebSocket | null = null
   private state: WsConnectionState = 'idle'
   private readonly handlers = new Map<string, Set<WsEventHandler<unknown>>>()
+  private readonly reconnectHandlers = new Set<() => void>()
+  private hasOpened = false
 
   constructor(opts: WsClientOptions) {
     this.baseUrl = opts.baseUrl
@@ -43,7 +45,7 @@ export class WsClient {
     this.setState('connecting')
     this.socket = new ReconnectingWebSocket(() => this.buildUrl(), [], this.rwsOptions)
 
-    this.socket.addEventListener('open', () => this.setState('open'))
+    this.socket.addEventListener('open', () => this.onOpen())
     this.socket.addEventListener('close', () => this.setState('closed'))
     this.socket.addEventListener('message', (ev) => this.onMessage(ev))
     // Reconnection is handled by reconnecting-websocket; swallow error events
@@ -74,8 +76,34 @@ export class WsClient {
     }
   }
 
+  /**
+   * Called each time the socket opens again after it had been open. What was
+   * broadcast while it was down is lost, so a view kept current by events
+   * re-reads its state here. Returns an unsubscribe function.
+   */
+  onReconnect(handler: () => void): () => void {
+    this.reconnectHandlers.add(handler)
+    return () => {
+      this.reconnectHandlers.delete(handler)
+    }
+  }
+
   getState(): WsConnectionState {
     return this.state
+  }
+
+  private onOpen() {
+    this.setState('open')
+    const reopened = this.hasOpened
+    this.hasOpened = true
+    if (!reopened) return
+    for (const h of this.reconnectHandlers) {
+      try {
+        h()
+      } catch (err) {
+        console.error('[WsClient] reconnect handler threw', err)
+      }
+    }
   }
 
   private onMessage(ev: MessageEvent) {

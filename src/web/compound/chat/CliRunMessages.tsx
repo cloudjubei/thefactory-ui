@@ -80,7 +80,7 @@ export type CliRunMessagesProps = {
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
   /** Which of {@link cliAsks} this run's rows show; `[]` once it no longer shows any. */
-  onClaimAsks?: (runId: string, askIds: string[]) => void
+  onClaimAsks?: (runId: string, askIds: string[], settled?: boolean) => void
   /**
    * Removes the whole turn — the stored assistant message that owns this run.
    * The rows above are derived from the run record and have no message of their
@@ -167,7 +167,11 @@ export default function CliRunMessages({
       ),
     [transcript, model, showThinking, pendingAsks, decidedAsks, runId, usage, status, abortReason],
   )
-  const approvals = useInlineApprovals(runId, messages, cliAsks, onClaimAsks)
+  // Its rows are known once the record has loaded, failed to, or is still being
+  // written (booting shows no rows to wait for) — until then the panel holds
+  // this turn's asks back rather than flash them up as cards.
+  const settled = status !== undefined || error !== undefined || notReady || transcript.length > 0
+  const approvals = useInlineApprovals(runId, messages, cliAsks, onClaimAsks, settled)
   const shown = useMemo(
     () =>
       withStoredCliReply(messages, { content: storedReply, ...(model ? { model } : {}) }, active),

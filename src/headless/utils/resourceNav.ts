@@ -1,11 +1,12 @@
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
+import { FEATURE_LINK_PARAM } from './featureLinkConstants'
 import { fileLocationPath } from './fileLocation'
 import { NOTE_LINK_PARAM } from './projectNotesConstants'
 
 /**
  * A client-agnostic navigation intent derived from a {@link ResourceLink}. The `path` variant covers
- * targets whose in-app route is identical across web/desktop/mobile (project, story, feature, app tab,
- * a project's or group's notes, a project's design);
+ * targets whose in-app route is identical across web/desktop/mobile (project, story, feature — its
+ * story's page opened on it via `?feature=` — app tab, a project's or group's notes, a project's design);
  * the `chat` variant hands the client the {@link ChatContext} to build its own chat URL (web encodes
  * the full key into one segment, mobile uses relative path segments — see the per-client
  * `navigateToResource`).
@@ -20,8 +21,10 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
     case 'story':
       return { type: 'path', path: `/projects/${enc(link.projectId)}/stories/${enc(link.storyId)}` }
     case 'feature':
-      // No standalone feature route; a feature link lands on its story page.
-      return { type: 'path', path: `/projects/${enc(link.projectId)}/stories/${enc(link.storyId)}` }
+      return {
+        type: 'path',
+        path: `/projects/${enc(link.projectId)}/stories/${enc(link.storyId)}?${FEATURE_LINK_PARAM}=${enc(link.featureId)}`,
+      }
     case 'app': {
       const query = buildQuery(link.view, link.params)
       const base = `/projects/${enc(link.projectId)}/app`

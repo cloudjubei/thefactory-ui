@@ -91,7 +91,7 @@ export interface MessageListProps {
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
   /** Reported by each CLI turn: the asks its rows show — see `CliRunMessages.onClaimAsks`. */
-  onClaimAsks?: (runId: string, askIds: string[]) => void
+  onClaimAsks?: (runId: string, askIds: string[], settled?: boolean) => void
   /** Optional system prompt rendered above the message list. */
   systemPrompt?: string
   systemPromptTimestamp?: string

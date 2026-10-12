@@ -1,8 +1,14 @@
 import { Tooltip, StoryAndFeatureCallout } from '../..'
+import { contextInfoStory, useProcessRun } from '../../../headless'
+import ProcessRunChip from '../process/ProcessRunChip'
 
 export type ContextInfoButtonProps = {
   storyId?: string
   featureId?: string
+  /** The process run the chat belongs to: the callout shows the run and its story / feature. */
+  processRunId?: string
+  /** Opens the run's pipeline from the run card. */
+  onOpenProcessRun?: (processRunId: string) => void
   label?: string
   className?: string
 }
@@ -15,12 +21,21 @@ export type ContextInfoButtonProps = {
 export default function ContextInfoButton({
   storyId,
   featureId,
+  processRunId,
+  onOpenProcessRun,
   label,
   className = '',
 }: ContextInfoButtonProps) {
   const hasAny = !!(storyId || featureId)
 
-  const content = hasAny ? (
+  const content = processRunId ? (
+    <ProcessRunContextItems
+      processRunId={processRunId}
+      storyId={storyId}
+      featureId={featureId}
+      onOpenProcessRun={onOpenProcessRun}
+    />
+  ) : hasAny ? (
     <StoryAndFeatureCallout storyId={storyId} featureId={featureId} />
   ) : (
     <div className="text-xs px-1 py-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -49,5 +64,26 @@ export default function ContextInfoButton({
         i
       </span>
     </Tooltip>
+  )
+}
+
+function ProcessRunContextItems({
+  processRunId,
+  storyId,
+  featureId,
+  onOpenProcessRun,
+}: {
+  processRunId: string
+  storyId?: string
+  featureId?: string
+  onOpenProcessRun?: (processRunId: string) => void
+}) {
+  const { run } = useProcessRun(processRunId)
+  const story = contextInfoStory({ storyId, featureId }, run)
+  return (
+    <div className="flex w-[280px] max-w-full flex-col gap-2">
+      <ProcessRunChip processRunId={processRunId} onOpen={(id) => onOpenProcessRun?.(id)} />
+      <StoryAndFeatureCallout storyId={story.storyId} featureId={story.featureId} />
+    </div>
   )
 }

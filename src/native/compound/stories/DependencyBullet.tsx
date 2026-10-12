@@ -1,31 +1,17 @@
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import DependencyChip from '../DependencyChip'
+import DependencyChip, { type DependencyChipVariant } from '../DependencyChip'
 import { FeatureCard } from '../FeatureCard'
 import { StoryCard } from '../StoryCard'
 import StatusControl from '../StatusControl'
-import type { StoryStatus } from '../../../headless/utils/status'
+import type { ResolvedDependency } from '../../../headless/utils/storyDependencyTypes'
 import { nativeRadii, nativeSpace, type NativeSemanticTheme } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
-export interface DependencyCardShape {
-  id: string
-  title: string
-  description?: string
-  status: StoryStatus
-  blockers?: ReadonlyArray<string>
-}
-
-export type ResolvedDependency =
-  | { kind: 'missing'; display: string }
-  | { kind: 'story'; display: string; storyId: string; story: DependencyCardShape }
-  | {
-      kind: 'feature'
-      display: string
-      storyId: string
-      featureId: string
-      feature: DependencyCardShape
-    }
+export type {
+  DependencyCardShape,
+  ResolvedDependency,
+} from '../../../headless/utils/storyDependencyTypes'
 
 export interface DependencyBulletProps {
   resolved: ResolvedDependency | null
@@ -41,6 +27,25 @@ export interface DependencyBulletProps {
 }
 
 function defaultTooltip(resolved: ResolvedDependency, theme: NativeSemanticTheme): ReactNode {
+  if (resolved.kind === 'loading') {
+    return (
+      <View
+        style={{
+          padding: nativeSpace[6],
+          borderRadius: nativeRadii[2],
+          gap: nativeSpace[4],
+          maxWidth: 280,
+          minWidth: 200,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: theme.text.muted }}>{resolved.project}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}>Loading</Text>
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+          Looking this up in {resolved.project}'s stories.
+        </Text>
+      </View>
+    )
+  }
   if (resolved.kind === 'missing') {
     return (
       <View
@@ -90,8 +95,14 @@ export default function DependencyBullet({
   const display =
     effective.kind === 'missing' ? (notFoundDisplay ?? effective.display) : effective.display
 
-  const variant: 'ok' | 'blocks' | 'missing' =
-    effective.kind === 'missing' ? 'missing' : isOutbound ? 'blocks' : 'ok'
+  const variant: DependencyChipVariant =
+    effective.kind === 'missing' || effective.kind === 'loading'
+      ? effective.kind
+      : isOutbound
+        ? 'blocks'
+        : 'ok'
+
+  const project = 'project' in effective ? effective.project : undefined
 
   const tooltip = renderTooltip ? renderTooltip(effective) : defaultTooltip(effective, theme)
 
@@ -99,14 +110,19 @@ export default function DependencyBullet({
     <DependencyChip
       className={className}
       display={display}
+      {...(project ? { project } : {})}
       kind={effective.kind}
       variant={variant}
       tooltip={tooltip}
       disableHoverInfo={disableHoverInfo}
       interactive={interactive}
-      onPress={effective.kind === 'missing' ? undefined : () => onPress?.(effective)}
+      onPress={
+        effective.kind === 'missing' || effective.kind === 'loading'
+          ? undefined
+          : () => onPress?.(effective)
+      }
       onRemove={onRemove}
-      title={`${display}${isOutbound ? ' (requires this)' : ''}`}
+      title={`${project ? `${project} ` : ''}${display}${isOutbound ? ' (requires this)' : ''}`}
     />
   )
 }

@@ -31,10 +31,21 @@ describe('resolveResourceNav', () => {
     })
   })
 
-  it('maps a feature link to its story route (no standalone feature route)', () => {
+  it('maps a feature link to its story route, opened on the feature', () => {
     expect(
       resolveResourceNav({ kind: 'feature', projectId: 'p1', storyId: 's2', featureId: 'f3' }),
-    ).toEqual({ type: 'path', path: '/projects/p1/stories/s2' })
+    ).toEqual({ type: 'path', path: '/projects/p1/stories/s2?feature=f3' })
+  })
+
+  it('encodes every segment of a feature link, another project’s included', () => {
+    expect(
+      resolveResourceNav({
+        kind: 'feature',
+        projectId: 'other p',
+        storyId: 's/2',
+        featureId: 'f&3',
+      }),
+    ).toEqual({ type: 'path', path: '/projects/other%20p/stories/s%2F2?feature=f%263' })
   })
 
   it('maps an app deep-link to the app tab with a view+params query', () => {

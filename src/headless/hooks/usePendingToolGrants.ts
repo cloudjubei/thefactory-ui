@@ -217,7 +217,8 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
       // approvable grants and must never surface as a permission popup.
       if (loadSeqRef.current === seq) setCliActions(data.filter(isToolGrantAction))
     } catch {
-      if (loadSeqRef.current === seq) setCliActions([])
+      // Keep what is shown: an empty list read every row's ask as "did not
+      // run" while the backend restarted, and nothing re-read it after.
     }
   }, [chatContextId])
   useEffect(() => {
@@ -225,7 +226,11 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     const off = ws.on('cli:run-update', (data) => {
       if (isCliActionUpdateEvent(data)) void loadCliActions()
     })
-    return off
+    const offReconnect = ws.onReconnect(() => void loadCliActions())
+    return () => {
+      off()
+      offReconnect()
+    }
   }, [loadCliActions, ws])
 
   const decideCli = useCallback(

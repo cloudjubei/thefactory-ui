@@ -10,11 +10,13 @@ import CredentialCaptureCard from './CredentialCaptureCard'
 import ApprovalPanel from './ApprovalPanel'
 import MessageList from './MessageList'
 import PendingMessagesStack from './PendingMessagesStack'
+import HeldAgentMessagesStack from './HeldAgentMessagesStack'
 import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
 import { usePendingAutoDispatch } from '../../../headless/hooks/usePendingAutoDispatch'
 import { partitionGrants, shownQuestionId, userAsks } from '../../../headless/utils/agentQuestions'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
+import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
@@ -78,6 +80,13 @@ export type ChatBodyProps = {
   historyLocked?: boolean
 
   messages: ChatMessageLike[]
+  /**
+   * The chat's messages are still loading. Ordinary tool asks then wait for the
+   * rows that will show them instead of flashing up on the approval panel.
+   */
+  messagesLoading?: boolean
+  /** The chat's metadata — where the agent messages held for it until it is free are kept. */
+  chatMetadata?: Record<string, unknown>
   liveState: ChatLiveStateLike
 
   /** Pluggable tool-call result renderer — forwarded to every message. */
@@ -208,6 +217,8 @@ export default function ChatBody({
   hideInput,
   historyLocked,
   messages,
+  messagesLoading = false,
+  chatMetadata,
   liveState,
   renderToolResult,
   getToolHeaderPath,
@@ -280,12 +291,13 @@ export default function ChatBody({
   // Ordinary tool asks are decided on the rows that show them — a CLI turn's
   // and an API turn's alike; each reports which asks it shows, and the panel
   // keeps only the rest.
-  const { claimedAskIds, onClaimAsks } = useClaimedAsks()
+  const { claimedAskIds, unsettledRunIds, onClaimAsks } = useClaimedAsks()
+  const held = useHeldAgentMessages(chatId, chatMetadata)
   const pendingAskIds = useMemo(() => (grants ?? []).map((g) => g.id), [grants])
   const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
   const approvalGrants = useMemo(
-    () => panelApprovalGrants(grants, claimedAskIds),
-    [grants, claimedAskIds],
+    () => panelApprovalGrants(grants, claimedAskIds, { loading: messagesLoading, unsettledRunIds }),
+    [grants, claimedAskIds, messagesLoading, unsettledRunIds],
   )
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
   const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
@@ -381,6 +393,7 @@ export default function ChatBody({
         </div>
       ) : null}
 
+      <HeldAgentMessagesStack held={held} />
       {/* A question or a credential form TAKES the composer rather than sitting
           above a live one: the agent's next step depends on the answer, so a
           free-text message sent past it would be typed into a conversation that

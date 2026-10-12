@@ -1,27 +1,14 @@
 import type { ReactNode } from 'react'
-import DependencyChip from '../DependencyChip'
+import type { ResolvedDependency } from '../../../headless/utils/storyDependencyTypes'
+import DependencyChip, { type DependencyChipVariant } from '../DependencyChip'
 import { FeatureCard } from '../FeatureCard'
-import { StoryCard, type StoryStatus } from '../StoryCard'
+import { StoryCard } from '../StoryCard'
 import StatusControl from '../StatusControl'
 
-export type DependencyCardShape = {
-  id: string
-  title: string
-  description?: string
-  status: StoryStatus
-  blockers?: ReadonlyArray<string>
-}
-
-export type ResolvedDependency =
-  | { kind: 'missing'; display: string }
-  | { kind: 'story'; display: string; storyId: string; story: DependencyCardShape }
-  | {
-      kind: 'feature'
-      display: string
-      storyId: string
-      featureId: string
-      feature: DependencyCardShape
-    }
+export type {
+  DependencyCardShape,
+  ResolvedDependency,
+} from '../../../headless/utils/storyDependencyTypes'
 
 export type DependencyBulletBaseProps = {
   /** Pre-resolved dependency — host supplies the shape via its own context.
@@ -43,6 +30,15 @@ export type DependencyBulletBaseProps = {
 }
 
 function defaultTooltip(resolved: ResolvedDependency): ReactNode {
+  if (resolved.kind === 'loading') {
+    return (
+      <div className="p-3 rounded-md max-w-xs" style={{ minWidth: 200 }}>
+        <div className="text-xs opacity-60 mb-1">{resolved.project}</div>
+        <h3 className="text-sm font-semibold mb-2">Loading</h3>
+        <p className="text-xs opacity-80">Looking this up in {resolved.project}'s stories.</p>
+      </div>
+    )
+  }
   if (resolved.kind === 'missing') {
     return (
       <div className="p-3 rounded-md max-w-xs" style={{ minWidth: 200 }}>
@@ -93,10 +89,14 @@ export default function DependencyBulletBase({
       ? (notFoundDisplay ?? effectiveResolved.display)
       : effectiveResolved.display
 
-  const variant: 'ok' | 'blocks' | 'missing' =
-    effectiveResolved.kind === 'missing' ? 'missing' : isOutbound ? 'blocks' : 'ok'
+  const variant: DependencyChipVariant =
+    effectiveResolved.kind === 'missing' || effectiveResolved.kind === 'loading'
+      ? effectiveResolved.kind
+      : isOutbound
+        ? 'blocks'
+        : 'ok'
 
-  const chipKind: 'story' | 'feature' | 'missing' = effectiveResolved.kind
+  const project = 'project' in effectiveResolved ? effectiveResolved.project : undefined
 
   const tooltip = (renderTooltip ?? defaultTooltip)(effectiveResolved)
 
@@ -104,16 +104,19 @@ export default function DependencyBulletBase({
     <DependencyChip
       className={className}
       display={display}
-      kind={chipKind}
+      {...(project ? { project } : {})}
+      kind={effectiveResolved.kind}
       variant={variant}
       tooltip={tooltip}
       disableHoverInfo={disableHoverInfo}
       interactive={interactive}
       onClick={
-        effectiveResolved.kind === 'missing' ? undefined : () => onClick?.(effectiveResolved)
+        effectiveResolved.kind === 'missing' || effectiveResolved.kind === 'loading'
+          ? undefined
+          : () => onClick?.(effectiveResolved)
       }
       onRemove={onRemove}
-      title={`${display}${isOutbound ? ' (requires this)' : ''}`}
+      title={`${project ? `${project} ` : ''}${display}${isOutbound ? ' (requires this)' : ''}`}
     />
   )
 }

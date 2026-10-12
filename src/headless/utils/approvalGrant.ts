@@ -1,5 +1,5 @@
 import { partitionGrants } from './agentQuestions'
-import type { PendingToolGrant } from './chatTypes'
+import type { ApprovalPanelHold, PendingToolGrant } from './chatTypes'
 import type { GrantDetailView } from './approvalGrantTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
 
@@ -182,13 +182,19 @@ export function pendingApprovalGrants(grants?: PendingToolGrant[]): PendingToolG
  * The approvals the bottom panel shows: requests of their own kind (a launch, a
  * sandbox boundary, a credential), plus any ordinary tool ask no row on screen
  * has claimed — an ask must never go unseen. An ordinary ask a row is showing
- * is decided there, whichever agent raised it.
+ * is decided there, whichever agent raised it; one whose rows are still on
+ * their way (`hold`) waits for them rather than flashing up here first.
  */
 export function panelApprovalGrants(
   grants: PendingToolGrant[] | undefined,
   claimedIds: ReadonlySet<string>,
+  hold: ApprovalPanelHold = {},
 ): PendingToolGrant[] {
-  return pendingApprovalGrants(grants).filter((g) => g.inline !== true || !claimedIds.has(g.id))
+  return pendingApprovalGrants(grants).filter((g) => {
+    if (g.inline !== true) return true
+    if (claimedIds.has(g.id) || hold.loading) return false
+    return g.runId === undefined || !hold.unsettledRunIds?.has(g.runId)
+  })
 }
 
 /**

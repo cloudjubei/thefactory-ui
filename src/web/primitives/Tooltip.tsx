@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
   type JSX,
   type KeyboardEvent,
   type MouseEvent,
@@ -13,6 +14,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useTooltipState } from '../../headless/hooks/useTooltipState'
+import { attachOutsideDismiss } from './tooltipHelpers'
+import { isInsideTooltipRegions, tooltipBlurAction } from './tooltipUtils'
 
 export type TooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
 export type TooltipSideAlign = 'center' | 'start' | 'end'
@@ -93,45 +96,34 @@ export default function Tooltip({
     hideRaw(immediate)
   }
 
+  const hideRef = useRef(hide)
+  hideRef.current = hide
+
   useEffect(() => {
     return () => {
       cancelDeferredMeasure()
-      removeOutsideHandlers()
       if (sizeObserverRef.current) sizeObserverRef.current.disconnect()
       sizeObserverRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const onDocMouseDown = (e: globalThis.MouseEvent) => {
-    if (!open) return
-    const t = e.target as Node
-    if (anchorRef.current && anchorRef.current.contains(t)) return
-    if (tooltipRef.current && tooltipRef.current.contains(t)) return
-    setPinned(false)
-    hide(true)
-  }
-  const onDocKeyDown = (e: globalThis.KeyboardEvent) => {
-    if (!open) return
-    if (e.key === 'Escape') {
-      setPinned(false)
-      hide(true)
-    }
-  }
-  const addOutsideHandlers = () => {
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onDocKeyDown)
-  }
-  const removeOutsideHandlers = () => {
-    document.removeEventListener('mousedown', onDocMouseDown)
-    document.removeEventListener('keydown', onDocKeyDown)
-  }
-
   useEffect(() => {
-    if (open) addOutsideHandlers()
-    else removeOutsideHandlers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+    if (!open) return
+    return attachOutsideDismiss(document, {
+      isInside: (target) => isInsideTooltipRegions(target, [anchorRef.current, tooltipRef.current]),
+      onDismiss: () => hideRef.current(true),
+    })
+  }, [open, anchorRef])
+
+  const onFocusExit = (e: FocusEvent) => {
+    const action = tooltipBlurAction({
+      nextFocus: e.relatedTarget,
+      regions: [anchorRef.current, tooltipRef.current],
+      pinned,
+    })
+    if (action === 'close') hide(true)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -476,7 +468,7 @@ export default function Tooltip({
     onMouseEnter?: (e: MouseEvent) => void
     onMouseLeave?: () => void
     onFocus?: () => void
-    onBlur?: () => void
+    onBlur?: (e: FocusEvent) => void
     onKeyDown?: (e: KeyboardEvent) => void
     onClick?: () => void
     'aria-describedby'?: string
@@ -499,7 +491,7 @@ export default function Tooltip({
         }}
         onMouseLeave={() => hide()}
         onFocus={() => show(true)}
-        onBlur={() => hide(true)}
+        onBlur={onFocusExit}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             setPinned(false)
@@ -543,6 +535,7 @@ export default function Tooltip({
             ref={tooltipRef}
             onMouseEnter={() => show(true)}
             onMouseLeave={() => hide()}
+            onBlur={onFocusExit}
             style={{
               position: 'fixed',
               top: position.top,

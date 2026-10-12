@@ -205,6 +205,28 @@ describe('panelApprovalGrants', () => {
     expect(panelApprovalGrants([api], new Set()).map((g) => g.id)).toEqual(['a'])
   })
 
+  it('holds an ordinary ask back while the chat is still loading the rows that show it', () => {
+    const ask = grant({ id: 'a', toolName: 'addStory', inline: true, runId: 'r1' })
+    expect(panelApprovalGrants([ask], new Set(), { loading: true })).toEqual([])
+  })
+
+  it('holds an ordinary ask back while its turn is on screen but has not loaded its rows', () => {
+    const ask = grant({ id: 'a', toolName: 'addStory', inline: true, runId: 'r1' })
+    expect(panelApprovalGrants([ask], new Set(), { unsettledRunIds: new Set(['r1']) })).toEqual([])
+  })
+
+  it('shows an ordinary ask whose turn loaded without claiming it, or is not on screen', () => {
+    const ask = grant({ id: 'a', toolName: 'addStory', inline: true, runId: 'r1' })
+    const unclaimed = { unsettledRunIds: new Set(['r2']) }
+    expect(panelApprovalGrants([ask], new Set(), unclaimed).map((g) => g.id)).toEqual(['a'])
+  })
+
+  it('never holds back a request of its own kind', () => {
+    const launch = grant({ id: 'launch', runId: 'r1' })
+    const held = { loading: true, unsettledRunIds: new Set(['r1']) }
+    expect(panelApprovalGrants([launch], new Set(), held).map((g) => g.id)).toEqual(['launch'])
+  })
+
   it('leaves questions out', () => {
     const question = grant({
       id: 'q',

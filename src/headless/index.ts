@@ -180,6 +180,8 @@ export {
   type ChatListEntry,
   type ChatMessagesShape,
 } from './utils/chatListEntry'
+export { chatNewsSince } from './utils/chatNews'
+export type { ChatNewsCheck, ChatNewsEntry, ChatNewsMarks } from './utils/chatNewsTypes'
 
 // Badge aggregation
 export {
@@ -1063,6 +1065,13 @@ export {
   type AppDeepLink,
 } from './utils/appDeepLink'
 export { resolveResourceNav, type ResourceNav } from './utils/resourceNav'
+export { linkedFeatureStep } from './utils/featureLink'
+export { FEATURE_LINK_PARAM } from './utils/featureLinkConstants'
+export type { LinkedFeatureStep } from './utils/featureLinkTypes'
+export { dependencyResourceLink } from './utils/dependencyLink'
+export type { DependencyLinkTarget } from './utils/dependencyLinkTypes'
+export { contextInfoStory } from './utils/contextInfo'
+export type { ContextInfoStoryRef } from './utils/contextInfoTypes'
 export { fileLineParam, fileLocationPath, textLineRange } from './utils/fileLocation'
 export { FILE_LINE_PARAM } from './utils/fileLocationConstants'
 export type { TextLineRange } from './utils/fileLocationTypes'
@@ -1346,6 +1355,9 @@ export {
   type UseInlineApprovals,
 } from './hooks/useInlineApprovals'
 export { claimedAskIds, inlineApprovalDecisions } from './utils/inlineApprovals'
+export { useHeldAgentMessages, type UseHeldAgentMessages } from './hooks/useHeldAgentMessages'
+export { heldAgentMessageViews } from './utils/heldAgentMessages'
+export type { HeldAgentMessageView } from './utils/heldAgentMessagesTypes'
 export {
   alwaysAllowChoiceView,
   alwaysAllowDecision,
@@ -2374,15 +2386,16 @@ export {
 // Stories + features for the active project, with dependency resolution
 // (display-index → uuid normalisation, blocker lookup). Listens to the
 // `stories:updated` WS topic.
-export {
-  StoriesProvider,
-  useStories,
-  type InvalidRefError,
-  type ResolvedFeatureRef,
-  type ResolvedRef,
-  type ResolvedStoryRef,
-  type StoriesContextValue,
-} from './contexts/StoriesContext'
+export { StoriesProvider, useStories, type StoriesContextValue } from './contexts/StoriesContext'
+export type {
+  DependencyResolution,
+  InvalidRefError,
+  LoadingRef,
+  ResolvedFeatureRef,
+  ResolvedRef,
+  ResolvedStoryRef,
+} from './utils/storyDependencyTypes'
+export { dependencyChipOf } from './utils/storyDependency'
 
 // Web-search API key store (per-provider). Token-gated initial load; CRUD
 // goes through `/web-search/keys` endpoints. Shared across all clients.

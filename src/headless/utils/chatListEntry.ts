@@ -1,3 +1,5 @@
+import type { ChatAudienceMessage } from 'thefactory-tools/types'
+import { chatNewsTimes } from 'thefactory-tools/utils'
 import type { GetChatResponse, ListChatSummariesResponse } from '../api/generated'
 
 /**
@@ -26,7 +28,7 @@ export function isChatLoaded(entry: ChatListEntry): boolean {
 
 /** What the count and times of a chat's messages are read from — a loaded chat or a summary. */
 export type ChatMessagesShape = {
-  messages?: readonly { completedAt?: string; startedAt?: string }[]
+  messages?: readonly ChatAudienceMessage[]
   messageCount?: number
   messageTimes?: readonly (string | null)[]
 }
@@ -36,9 +38,13 @@ export function chatMessageCount(entry: ChatMessagesShape): number {
   return entry.messages?.length ?? entry.messageCount ?? 0
 }
 
-/** Each message's time — when it finished, else when it began, `null` without either — loaded or not. */
+/**
+ * The time of each message for the person — when it finished, else when it
+ * began, `null` without either — loaded or not. The agents' own exchange is
+ * left out, as the summary leaves it out.
+ */
 export function chatMessageTimes(entry: ChatMessagesShape): readonly (string | null)[] {
-  if (entry.messages) return entry.messages.map((m) => m.completedAt ?? m.startedAt ?? null)
+  if (entry.messages) return chatNewsTimes(entry.messages)
   return entry.messageTimes ?? []
 }
 

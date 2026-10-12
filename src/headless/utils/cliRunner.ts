@@ -29,7 +29,9 @@ import {
   DECIDED_BY_RULE_NOTE,
   DECIDED_BY_YOU_APPROVE_ALL_NOTE,
   DECIDED_BY_YOU_NOTE,
+  DECLINED_BY_MOVING_ON_NOTE,
   DECLINED_BY_YOU_NOTE,
+  TURN_ENDED_REASON,
 } from './cliRunnerConstants'
 
 export type StartCliRunBodyInput = {
@@ -971,6 +973,7 @@ export function cliTranscriptToMessages(
   const showThinking = opts?.showThinking ?? true
   const steps = normalizeCliTranscript(entries)
   const askByStep = tieAsksToSteps(steps, opts?.pendingAsks ?? [])
+  const endedOpen = leftOpenAtTurnEnd(steps, askByStep)
   const decidedById = new Map((opts?.decidedAsks ?? []).map((a) => [a.id, a]))
   const recalls = carryingOutCalls(steps, opts?.decidedAsks ?? [], opts?.runId)
   const approvedInRun = approvedWhileHeld(steps, opts?.decidedAsks ?? [], opts?.runId)
@@ -1013,11 +1016,13 @@ export function cliTranscriptToMessages(
       const decidedAsk =
         ask === undefined && actionId !== undefined ? decidedById.get(actionId) : undefined
       const decided = decidedAsk ? decidedRowResult(decidedAsk, step.hostOutcome) : undefined
+      const ended = endedOpen.has(step)
+      const resultType = ended ? 'not_allowed' : step.resultType
       const scope = step.parentToolCallId ?? ''
       const queued =
         ask === undefined &&
         decided === undefined &&
-        step.resultType === 'running' &&
+        resultType === 'running' &&
         waitingIn.has(scope)
       if (ask !== undefined) waitingIn.add(scope)
       // An approved call is timed by the call itself: the step's own span runs
@@ -1040,7 +1045,11 @@ export function cliTranscriptToMessages(
           ...(decisionNote !== undefined ? { decisionNote } : {}),
         },
         toolResult: {
-          result: decided ? decided.result : step.result,
+          result: decided
+            ? decided.result
+            : ended
+              ? { outcome: 'ended', reason: TURN_ENDED_REASON }
+              : step.result,
           type: ask
             ? !asking
               ? 'pending'
@@ -1052,7 +1061,7 @@ export function cliTranscriptToMessages(
               : (decided?.type ??
                 (backgroundJobIdOf(step.result) !== undefined
                   ? BACKGROUND_TOOL_RESULT_TYPE
-                  : step.resultType)),
+                  : resultType)),
           durationMs: durationMs ?? 0,
         },
       })
@@ -1514,7 +1523,9 @@ function ranNothing(step: CliToolStep): boolean {
 function askDecisionNote(ask: CliDecidedAsk): string | undefined {
   if (ask.decidedVia === 'grant' && ask.rule !== undefined) return DECIDED_BY_RULE_NOTE(ask.rule)
   if (ask.decidedBy !== 'person') return undefined
-  if (ask.status === 'denied') return DECLINED_BY_YOU_NOTE
+  if (ask.status === 'denied') {
+    return ask.decidedVia === 'moved-on' ? DECLINED_BY_MOVING_ON_NOTE : DECLINED_BY_YOU_NOTE
+  }
   if (ask.status !== 'approved') return undefined
   return ask.decidedVia === 'approve-all' ? DECIDED_BY_YOU_APPROVE_ALL_NOTE : DECIDED_BY_YOU_NOTE
 }
@@ -1575,6 +1586,28 @@ function callsCarryingOut(
     if (i >= 0) tied.set(step, open.splice(i, 1)[0]!)
   }
   return tied
+}
+
+/**
+ * The calls a turn's end left open — no result came before the turn's `result`
+ * — that no pending ask holds: nothing will run them now. A call held open for
+ * an ask stays answerable; the host carries an approval out after the turn.
+ */
+function leftOpenAtTurnEnd(
+  steps: readonly CliTranscriptStep[],
+  held: ReadonlyMap<CliTranscriptStep, CliPendingAsk>,
+): Set<CliTranscriptStep> {
+  const ended = new Set<CliTranscriptStep>()
+  let open: CliTranscriptStep[] = []
+  for (const step of steps) {
+    if (step.kind === 'result') {
+      for (const o of open) ended.add(o)
+      open = []
+    } else if (step.kind === 'tool' && step.resultType === 'running' && !held.has(step)) {
+      open.push(step)
+    }
+  }
+  return ended
 }
 
 /**

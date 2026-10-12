@@ -83,7 +83,7 @@ export type CliDecidedAsk = {
   /** Who settled it: `person`, or `grant:<id>` for a standing grant. Absent on asks recorded before decisions were attributed. */
   decidedBy?: string
   /** Where it was settled: its own card, one approve-all over the asks listed, or a standing grant. */
-  decidedVia?: 'card' | 'approve-all' | 'grant'
+  decidedVia?: 'card' | 'approve-all' | 'moved-on' | 'grant'
   /** What the standing grant that approved it allows, in words — set only for a grant's approval. */
   rule?: string
 }

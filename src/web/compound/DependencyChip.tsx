@@ -12,13 +12,15 @@ import { IconXCircle } from '../icons'
  * surface.
  */
 
-export type DependencyChipKind = 'story' | 'feature' | 'missing'
-export type DependencyChipVariant = 'ok' | 'blocks' | 'missing'
+export type DependencyChipKind = 'story' | 'feature' | 'missing' | 'loading'
+export type DependencyChipVariant = 'ok' | 'blocks' | 'missing' | 'loading'
 
 export type DependencyChipProps = {
   /** Text shown after the leading `#`. Typically `"3"` or `"3.2"`, or the
    *  raw dependency string when the resolver couldn't match it. */
   display: string
+  /** Another project's name, shown before the `#` of its story or feature. */
+  project?: string
   kind: DependencyChipKind
   variant: DependencyChipVariant
   /** Optional rich content rendered inside a hover tooltip. */
@@ -40,16 +42,19 @@ const VARIANT_CLASS: Record<DependencyChipVariant, string> = {
   ok: 'chip--ok',
   blocks: 'chip--blocks',
   missing: 'chip--missing',
+  loading: 'chip--none',
 }
 
 const KIND_CLASS: Record<DependencyChipKind, string> = {
   story: 'story',
   feature: 'feature',
   missing: '',
+  loading: '',
 }
 
 export default function DependencyChip({
   display,
+  project,
   kind,
   variant,
   tooltip,
@@ -87,7 +92,7 @@ export default function DependencyChip({
       title={title ?? display}
       {...spanProps}
     >
-      #{display}
+      {project ? `${project} ` : ''}#{display}
       {onRemove && (
         <button
           type="button"

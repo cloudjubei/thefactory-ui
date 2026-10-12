@@ -19,6 +19,7 @@ import type { PendingToolGrantDecision } from '../../../headless/utils/chatTypes
 import AlwaysAllowControl from './AlwaysAllowControl'
 import RichText from '../files/RichText'
 import { processProposalView } from '../../../headless/utils/processProposalView'
+import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import {
   featureProcessChoice,
   featureProcessMetadata,
@@ -201,39 +202,8 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
     (summary.storyId !== undefined && !proposalLoaded) ||
     (openWork !== undefined && openWorkMeta === undefined)
 
-  const resolvedBullet = (dep: string): ResolvedDependency => {
-    const resolved = resolveDependency(dep)
-    if ('code' in resolved) return { kind: 'missing', display: dep }
-    if (resolved.kind === 'story') {
-      const s = resolved.story
-      return {
-        kind: 'story',
-        display: resolved.display,
-        storyId: resolved.storyId,
-        story: {
-          id: s.id,
-          title: s.title,
-          description: s.description,
-          status: s.status,
-          blockers: s.blockers,
-        },
-      }
-    }
-    const f = resolved.feature
-    return {
-      kind: 'feature',
-      display: resolved.display,
-      storyId: resolved.storyId,
-      featureId: resolved.featureId,
-      feature: {
-        id: f.id,
-        title: f.title,
-        description: f.description,
-        status: f.status,
-        blockers: f.blockers,
-      },
-    }
-  }
+  const resolvedBullet = (dep: string): ResolvedDependency =>
+    dependencyChipOf(resolveDependency(dep)) ?? { kind: 'missing', display: dep }
 
   const decide = (decision: PendingToolGrantDecision) => {
     setBusy(true)

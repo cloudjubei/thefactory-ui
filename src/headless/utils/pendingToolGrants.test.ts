@@ -67,6 +67,42 @@ describe('cliPendingActionToGrant — ordinary tool asks are decided on their ro
     ).toMatchObject({ inline: true, toolName: 'addStory', args: { title: 'T' } })
   })
 
+  it('names the turn that raised the ask, so the panel can wait for its rows', () => {
+    expect(
+      cliPendingActionToGrant({
+        id: 'a-7',
+        kind: 'tool-call',
+        runId: 'run-3',
+        payload: { tool: 'addStory', args: {} },
+      }).runId,
+    ).toBe('run-3')
+  })
+
+  it.each(['chat-message-send', 'project-file-write', 'project-note-read'])(
+    'decides a host tool’s ask raised as %s on its row, as an MCP tool call',
+    (kind) => {
+      expect(
+        cliPendingActionToGrant({
+          id: 'a-6',
+          kind,
+          payload: { tool: 'sendChatMessage', args: { message: 'hi' } },
+        }),
+      ).toMatchObject({ inline: true, toolName: 'sendChatMessage', args: { message: 'hi' } })
+    },
+  )
+
+  it.each(['network-unlock', 'inspect-host-path', 'process-run-chat:answerRunPark'])(
+    'leaves a boundary or a request with a card of its own (%s) for the panel',
+    (kind) => {
+      const grant = cliPendingActionToGrant({
+        id: 'a-5',
+        kind,
+        payload: { tool: 'answerRunPark', args: {} },
+      })
+      expect(grant.inline).toBeUndefined()
+    },
+  )
+
   it('leaves a request of its own kind for the approval panel', () => {
     const grant = cliPendingActionToGrant({
       id: 'a-8',
@@ -149,7 +185,7 @@ describe('cliPendingActionToGrant', () => {
     const cli = cliPendingActionToGrant({ ...action, runId: 'run-1' })
     expect(api.chatRunner).toBe('api')
     expect(cli.chatRunner).toBe('cli')
-    expect({ ...api, chatRunner: 'cli' }).toEqual(cli)
+    expect({ ...api, chatRunner: 'cli', runId: 'run-1' }).toEqual(cli)
     expect(api).toMatchObject({
       inline: true,
       alwaysAllowScopes: ['chat', 'everywhere'],

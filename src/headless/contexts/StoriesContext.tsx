@@ -23,7 +23,22 @@ import {
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import { useProjects } from './ProjectsContext'
+import { ForeignStoriesLoader } from '../utils/ForeignStoriesLoader'
 import { ProjectResourceCache } from '../utils/projectResourceCache'
+import {
+  foreignDependency,
+  resolveForeignDependency,
+  resolveInLookup,
+  storyLookup,
+  withoutOwnProject,
+} from '../utils/storyDependency'
+import { FOREIGN_STORIES_TTL_MS } from '../utils/storyDependencyConstants'
+import type {
+  DependencyResolution,
+  ResolvedFeatureRef,
+  ResolvedRef,
+  ResolvedStoryRef,
+} from '../utils/storyDependencyTypes'
 import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
 
 /** SWR caches keyed by projectId. Module-scope so they survive provider
@@ -32,30 +47,47 @@ import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/s
 const storiesCache = new ProjectResourceCache<GetStoryResponse[]>(16)
 const orderCache = new ProjectResourceCache<string[]>(16)
 
-/** Mirrors desktop's `ResolvedStoryRef`. */
-export type ResolvedStoryRef = {
-  kind: 'story'
-  id: string
-  storyId: string
-  story: GetStoryResponse
-  display: string
+/**
+ * Another project's stories in list order, revalidated against the same SWR
+ * caches the project in view fills — so opening that project later is
+ * instant, and a project seen before costs a 304.
+ */
+async function fetchProjectStories(projectId: string): Promise<GetStoryResponse[]> {
+  const storiesEntry = storiesCache.get(projectId)
+  const orderEntry = orderCache.get(projectId)
+  const [storiesRes, orderRes] = await Promise.all([
+    listStories({
+      path: { projectId },
+      headers: storiesEntry?.etag ? { 'If-None-Match': storiesEntry.etag } : undefined,
+      validateStatus: acceptOkOr304,
+      throwOnError: true,
+    }),
+    getStoriesOrder({
+      path: { projectId },
+      headers: orderEntry?.etag ? { 'If-None-Match': orderEntry.etag } : undefined,
+      validateStatus: acceptOkOr304,
+      throwOnError: true,
+    }),
+  ])
+  const stories =
+    storiesRes.status === 304 && storiesEntry
+      ? storiesEntry.data
+      : ((storiesRes.data ?? []) as GetStoryResponse[])
+  const order =
+    orderRes.status === 304 && orderEntry ? orderEntry.data : ((orderRes.data ?? []) as string[])
+  if (storiesRes.status !== 304) {
+    storiesCache.set(projectId, stories, readEtagHeader(storiesRes.headers))
+  }
+  if (orderRes.status !== 304) orderCache.set(projectId, order, readEtagHeader(orderRes.headers))
+  const rank = new Map(order.map((id, i) => [id, i]))
+  return [...stories].sort(
+    (a, b) =>
+      (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+  )
 }
-/** Mirrors desktop's `ResolvedFeatureRef`. */
-export type ResolvedFeatureRef = {
-  kind: 'feature'
-  id: string
-  storyId: string
-  featureId: string
-  story: GetStoryResponse
-  feature: Feature
-  display: string
-}
-export type ResolvedRef = ResolvedStoryRef | ResolvedFeatureRef
-export type InvalidRefError = {
-  id: string
-  code: 'EMPTY' | 'BAD_FORMAT' | 'BAD_STORY_ID' | 'STORY_NOT_FOUND' | 'FEATURE_NOT_FOUND'
-  message: string
-}
+
+/** Other projects' stories, for the blockers that name them. Module-scope, like the caches. */
+const foreignStories = new ForeignStoriesLoader(fetchProjectStories, FOREIGN_STORIES_TTL_MS)
 
 export type StoriesContextValue = {
   /** True once the first fetch for the active project has completed. */
@@ -74,13 +106,14 @@ export type StoriesContextValue = {
   featureDisplayIndex: (storyId: string, featureId: string) => number | undefined
 
   /** Resolve a `"storyId"` / `"storyId.featureId"` / `"3"` / `"3.2"` dep
-   *  string against the loaded project. Mirrors desktop's API. */
-  resolveDependency: (dependency: string) => ResolvedRef | InvalidRefError
+   *  string against the loaded project, or a `"projectId/storyId[.featureId]"`
+   *  one against that project's stories — `LOADING` while they are fetched. */
+  resolveDependency: (dependency: string) => DependencyResolution
   /** Normalise a display-index ref (e.g. `"3.2"`) to the canonical
    *  `"uuid.uuid"` form. Pass-through for unresolvable inputs. */
   normalizeDependency: (dependency: string) => string
   /** Resolved blockers of a story (or feature). */
-  getBlockers: (storyId: string, featureId?: string) => (ResolvedRef | InvalidRefError)[]
+  getBlockers: (storyId: string, featureId?: string) => DependencyResolution[]
   /** Stories/features that depend on the given id ("blocks" relation). */
   getBlockersOutbound: (id: string) => ResolvedRef[]
 
@@ -126,7 +159,7 @@ const StoriesContext = createContext<StoriesContextValue | null>(null)
 
 export function StoriesProvider({ children }: { children: ReactNode }) {
   const { ws } = useApi()
-  const { activeProjectId } = useProjects()
+  const { activeProjectId, projects } = useProjects()
 
   const [storiesRaw, setStoriesRaw] = useState<GetStoryResponse[]>([])
   const [order, setOrder] = useState<string[]>([])
@@ -248,6 +281,21 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   // returns 200 (not 304) and overwrites the stale entry naturally.
   useEffect(() => ws.on('stories:updated', () => void refresh()), [ws, refresh])
 
+  const [foreignVersion, setForeignVersion] = useState(0)
+  useEffect(() => foreignStories.subscribe(() => setForeignVersion((v) => v + 1)), [])
+  useEffect(
+    () =>
+      ws.on('stories:updated', (data: unknown) => {
+        const projectId = (data as { projectId?: unknown } | undefined)?.projectId
+        if (typeof projectId === 'string') foreignStories.invalidate(projectId)
+      }),
+    [ws],
+  )
+  const projectNames = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.title || p.id])),
+    [projects],
+  )
+
   // Apply `order.json` to the raw story list: ids present in `order` come
   // first (in that order), any stories on disk not yet in `order.json`
   // (orphans / freshly added in another client) get appended at the end.
@@ -270,15 +318,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
     return out
   }, [storiesRaw, order])
 
-  const storyIndex = useMemo(() => {
-    const byId = new Map<string, GetStoryResponse>()
-    const positions = new Map<string, number>()
-    stories.forEach((s, i) => {
-      byId.set(s.id, s)
-      positions.set(s.id, i + 1)
-    })
-    return { byId, positions }
-  }, [stories])
+  const storyIndex = useMemo(() => storyLookup(stories), [stories])
 
   const getStoryFn = useCallback((storyId: string) => storyIndex.byId.get(storyId), [storyIndex])
 
@@ -325,7 +365,9 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   }, [stories])
 
   const normalizeDependency = useCallback(
-    (dependency: string): string => {
+    (raw: string): string => {
+      if (foreignDependency(raw, activeProjectId)) return raw
+      const dependency = withoutOwnProject(raw, activeProjectId)
       const parts = dependency.split('.')
       if (parts.length === 1) {
         const a = parts[0]
@@ -339,50 +381,32 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       const featureId = isUUID(b) ? b : fmap[b] || b
       return `${storyId}.${featureId}`
     },
-    [storyIndex, storyDisplayToId, featureDisplayToIdByStory],
+    [activeProjectId, storyIndex, storyDisplayToId, featureDisplayToIdByStory],
   )
 
   const resolveDependency = useCallback(
-    (dependency: string): ResolvedRef | InvalidRefError => {
+    (dependency: string): DependencyResolution => {
       if (!activeProjectId) {
         return { id: dependency, code: 'EMPTY', message: "Story wasn't found" }
       }
+      const foreign = foreignDependency(dependency, activeProjectId)
+      if (foreign) {
+        foreignStories.request(foreign.projectId)
+        return resolveForeignDependency(
+          foreign,
+          foreignStories.state(foreign.projectId),
+          projectNames.get(foreign.projectId) ?? foreign.projectId,
+        )
+      }
       const normalized = normalizeDependency(dependency)
-      const parts = normalized.split('.')
-      const story = storyIndex.byId.get(parts[0])
-      if (!story) {
-        return { id: normalized, code: 'STORY_NOT_FOUND', message: "Story wasn't found" }
-      }
-      const sIndex = storyDisplayIndex(story.id)
-      if (parts.length > 1) {
-        const feature = story.features.find((f) => f.id === parts[1])
-        if (!feature) {
-          return { id: normalized, code: 'FEATURE_NOT_FOUND', message: "Feature wasn't found" }
-        }
-        const fIndex = featureDisplayIndex(story.id, feature.id)
-        return {
-          kind: 'feature',
-          id: normalized,
-          storyId: parts[0],
-          featureId: parts[1],
-          story,
-          feature,
-          display: `${sIndex ?? '?'}.${fIndex ?? '?'}`,
-        }
-      }
-      return {
-        kind: 'story',
-        id: normalized,
-        storyId: parts[0],
-        story,
-        display: `${sIndex ?? '?'}`,
-      }
+      const [storyId = '', featureId] = normalized.split('.')
+      return resolveInLookup(storyIndex, storyId, featureId, normalized)
     },
-    [activeProjectId, normalizeDependency, storyIndex, storyDisplayIndex, featureDisplayIndex],
+    [activeProjectId, normalizeDependency, storyIndex, projectNames, foreignVersion],
   )
 
   const getBlockers = useCallback(
-    (storyId: string, featureId?: string): (ResolvedRef | InvalidRefError)[] => {
+    (storyId: string, featureId?: string): DependencyResolution[] => {
       if (featureId) {
         const feature = getFeature(storyId, featureId)
         return feature?.blockers?.map((d) => resolveDependency(d)) ?? []

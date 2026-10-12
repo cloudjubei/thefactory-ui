@@ -4,6 +4,8 @@ import {
   ASK_DECLINED_REASON,
   DECIDED_BY_RULE_NOTE,
   DECIDED_BY_YOU_APPROVE_ALL_NOTE,
+  DECLINED_BY_MOVING_ON_NOTE,
+  TURN_ENDED_REASON,
 } from './cliRunnerConstants'
 import { describe, it, expect } from 'vitest'
 import {
@@ -1137,6 +1139,48 @@ describe('normalizeCliTranscript', () => {
     expect(rows.map((r) => r.toolResult?.type)).toEqual(['require_confirmation', 'pending'])
   })
 
+  const turnEnded = (at = 9) => entry({ at, kind: 'result', payload: { stopReason: 'cancelled' } })
+
+  it('shows a call the turn ended without running as not run, and why — not waiting forever', () => {
+    // Observed (wargames dff021ed): the turn was cancelled with suggestReplies
+    // queued behind two addFeature asks; its row read "Waiting on host" for good.
+    const rows = cliTranscriptToMessages(
+      [
+        call('t1', 'addFeature', { n: 1 }),
+        answered('t1', { outcome: 'pending', actionId: 'a1' }),
+        call('t2', 'suggestReplies', { replies: ['A'] }, 3),
+        turnEnded(),
+      ],
+      { pendingAsks: [{ id: 'a1', toolName: 'addFeature', decidedOnRow: true }] },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['require_confirmation', 'not_allowed'])
+    expect(rows[1]!.toolResult?.result).toEqual({ outcome: 'ended', reason: TURN_ENDED_REASON })
+  })
+
+  it('shows an open call alone at a turn’s end as not run, not running', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'Read', { p: 'a' }), turnEnded()], {
+      pendingAsks: [],
+    })
+    expect(row!.toolResult?.type).toBe('not_allowed')
+  })
+
+  it('keeps a call held open for an ask answerable after its turn ended', () => {
+    const [row] = cliTranscriptToMessages([call('t1', 'addStory', { title: 'T' }), turnEnded()], {
+      pendingAsks: [{ id: 'a1', toolName: 'addStory', args: { title: 'T' }, decidedOnRow: true }],
+    })
+    expect(row!.toolResult?.type).toBe('require_confirmation')
+    expect(row!.toolResult?.result).toBeUndefined()
+    expect(row!.toolCall?.approvalId).toBe('a1')
+  })
+
+  it('leaves a call made after the turn’s end running', () => {
+    const rows = cliTranscriptToMessages(
+      [call('t1', 'Read', { p: 'a' }), turnEnded(2), call('t2', 'Read', { p: 'b' }, 3)],
+      { pendingAsks: [] },
+    )
+    expect(rows.map((r) => r.toolResult?.type)).toEqual(['not_allowed', 'running'])
+  })
+
   it('still shows a call made alongside one that ran as running', () => {
     const rows = cliTranscriptToMessages(
       [
@@ -1294,6 +1338,14 @@ describe('normalizeCliTranscript', () => {
       decidedAsks: [decided({ status: 'denied', decidedBy: 'person', decidedVia: 'card' })],
     })
     expect(row.toolCall?.decisionNote).toBe('Declined by you')
+  })
+
+  it('says an ask you wrote past was declined because you moved on', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'denied', decidedBy: 'person', decidedVia: 'moved-on' })],
+    })
+    expect(row.toolResult?.type).toBe('not_allowed')
+    expect(row.toolCall?.decisionNote).toBe(DECLINED_BY_MOVING_ON_NOTE)
   })
 
   it('says which rule approved a call a standing grant covered', () => {

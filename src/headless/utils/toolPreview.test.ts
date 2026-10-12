@@ -181,6 +181,13 @@ describe('getToolHeaderPath', () => {
     ).toBe('story s1 / feature f1')
   })
 
+  it('names the story a story delete would remove', () => {
+    expect((ToolSchemas as unknown as Record<string, unknown>).deleteStory).toBeDefined()
+    expect(getToolHeaderPath({ name: 'deleteStory', arguments: { storyId: 's1' } })).toBe(
+      'story s1',
+    )
+  })
+
   it('names only tools the generated registry actually carries', () => {
     const registry = ToolSchemas as unknown as Record<string, unknown>
     for (const name of ['astGetOutline', 'deletePaths', 'renamePaths', 'writeFile', 'readFile']) {

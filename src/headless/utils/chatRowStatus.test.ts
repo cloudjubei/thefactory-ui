@@ -141,3 +141,48 @@ describe('computeChatRowStatus — a chat not loaded, only summarised', () => {
     expect(status).toMatchObject({ isUnread: true, unreadCount: 1 })
   })
 })
+
+describe('computeChatRowStatus — a run chat the manager worked in since it was seen', () => {
+  const status = (messages: object[]) =>
+    computeChatRowStatus({
+      context: { type: 'PROJECT_TOPIC', projectId: 'p' } as never,
+      contextKey: 'run',
+      chat: { messages: messages as never },
+      isSending: false,
+      seen: { run: '2026-10-02T10:30:00Z' },
+    })
+  const managerTurn = [
+    { role: 'assistant', completedAt: '2026-10-02T10:00:00Z' },
+    { role: 'user', handoffFrom: 'manager', startedAt: '2026-10-02T11:00:00Z' },
+    { role: 'assistant', answersHandoffFrom: 'manager', completedAt: '2026-10-02T11:01:00Z' },
+  ]
+
+  it('is read: nothing in it was for the person', () => {
+    expect(status(managerTurn)).toMatchObject({ isUnread: false, unreadCount: 0 })
+  })
+
+  it('is unread by the escalation the manager posted for the person', () => {
+    const escalated = [
+      ...managerTurn,
+      {
+        role: 'assistant',
+        model: { provider: 'custom', model: 'manager' },
+        completedAt: '2026-10-02T11:02:00Z',
+      },
+    ]
+    expect(status(escalated)).toMatchObject({ isUnread: true, unreadCount: 1 })
+  })
+
+  it('still waits on the person for an ask its turn raised', () => {
+    expect(
+      computeChatRowStatus({
+        context: { type: 'PROJECT_TOPIC', projectId: 'p' } as never,
+        contextKey: 'run',
+        chat: { messages: managerTurn as never },
+        isSending: false,
+        seen: { run: '2026-10-02T10:30:00Z' },
+        pendingAsks: 1,
+      }),
+    ).toMatchObject({ isUnread: true, awaitingAnswer: true, unreadCount: 0 })
+  })
+})

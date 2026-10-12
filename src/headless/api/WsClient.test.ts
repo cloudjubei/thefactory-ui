@@ -180,4 +180,58 @@ describe('WsClient', () => {
     expect(good).toHaveBeenCalledWith({ ok: 1 })
     errSpy.mockRestore()
   })
+
+  it('tells reconnect listeners when the socket opens again, not when it first opens', () => {
+    const { client, socket } = connect()
+    const reconnected = vi.fn()
+    client.onReconnect(reconnected)
+
+    socket.fire('open', {})
+    expect(reconnected).not.toHaveBeenCalled()
+
+    socket.fire('close', {})
+    socket.fire('open', {})
+    expect(reconnected).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells reconnect listeners when a socket opens after a disconnect and a new connect', () => {
+    const { client, socket } = connect()
+    const reconnected = vi.fn()
+    client.onReconnect(reconnected)
+    socket.fire('open', {})
+    client.disconnect()
+    client.connect()
+
+    fakeSockets.at(-1)!.fire('open', {})
+
+    expect(reconnected).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops telling a reconnect listener once it unsubscribes', () => {
+    const { client, socket } = connect()
+    const reconnected = vi.fn()
+    const off = client.onReconnect(reconnected)
+    socket.fire('open', {})
+    off()
+
+    socket.fire('open', {})
+
+    expect(reconnected).not.toHaveBeenCalled()
+  })
+
+  it('tells every reconnect listener even when one throws', () => {
+    const { client, socket } = connect()
+    const good = vi.fn()
+    client.onReconnect(() => {
+      throw new Error('boom')
+    })
+    client.onReconnect(good)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    socket.fire('open', {})
+
+    socket.fire('open', {})
+
+    expect(good).toHaveBeenCalledTimes(1)
+    errSpy.mockRestore()
+  })
 })

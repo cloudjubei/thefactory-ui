@@ -18,8 +18,9 @@ const NO_ASKS: readonly CliDecidedAsk[] = []
  * out approval is folded in straight from its event when the ask is one this
  * chat holds (`pendingAskIds`, or already decided here) — a re-read alone left
  * the row "not run" for the moment between the ask leaving the pending list and
- * the re-read landing — and the list is re-read behind it. A failed read keeps
- * what is shown, and a chat seen before shows what it last read as.
+ * the re-read landing — and the list is re-read behind it, and again whenever
+ * the socket reconnects. A failed read keeps what is shown, and a chat seen
+ * before shows what it last read as.
  */
 export function useChatDecidedAsks(
   chatContextId: string | undefined,
@@ -79,9 +80,11 @@ export function useChatDecidedAsks(
       }
       void load()
     })
+    const offReconnect = ws.onReconnect(() => void load())
     return () => {
       cancelled = true
       off()
+      offReconnect()
     }
   }, [chatContextId, ws])
   return asks

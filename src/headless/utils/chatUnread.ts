@@ -7,9 +7,12 @@
  *
  * No DOM, no I/O — the host owns side effects and just exposes a snapshot.
  */
+import { isAgentExchangeMessage } from 'thefactory-tools/utils'
 
 export type UnreadChatMessageLike = {
   role?: string
+  handoffFrom?: string
+  answersHandoffFrom?: string
   completedAt?: string
   startedAt?: string
   createdAt?: string
@@ -30,7 +33,7 @@ function messageTimestamp(msg: UnreadChatMessageLike): string | undefined {
 }
 
 function isAssistant(msg: UnreadChatMessageLike): boolean {
-  return msg.role === 'assistant'
+  return msg.role === 'assistant' && !isAgentExchangeMessage(msg)
 }
 
 export function assistantTimestamp(msg: UnreadChatMessageLike): string | undefined {
@@ -41,7 +44,8 @@ export function assistantTimestamp(msg: UnreadChatMessageLike): string | undefin
 /**
  * Where reading resumes in a chat: the index of the first reply newer than the
  * last read, or `null` when there is none (or nothing was ever read). Replies
- * only, as unread counting does — the user's own messages are never unread.
+ * for the person only, as unread counting does — the user's own messages, and
+ * the agents' own exchange, are never unread.
  */
 export function firstUnreadMessageIndex(
   messages: ReadonlyArray<UnreadChatMessageLike>,

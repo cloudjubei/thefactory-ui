@@ -1,13 +1,20 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useActiveProject, useStories } from '../../../headless'
+import {
+  dependencyResourceLink,
+  resolveResourceNav,
+  useActiveProject,
+  useReferenceRendering,
+  useStories,
+} from '../../../headless'
+import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import DependencyBulletBase, { type ResolvedDependency } from './DependencyBulletBase'
-import type { StoryStatus } from '../StoryCard'
 
 export type DependencyBulletProps = {
   className?: string
   /** `"storyUuid"` / `"storyUuid.featureUuid"` (or display-index form
-   *  `"3"` / `"3.2"`, which the resolver normalises). */
+   *  `"3"` / `"3.2"`, which the resolver normalises), or another project's
+   *  `"projectId/storyUuid[.featureUuid]"`. */
   dependency: string
   isOutbound?: boolean
   notFoundDependencyDisplay?: string
@@ -34,38 +41,12 @@ export default function DependencyBullet({
   const { projectId: urlProjectId } = useParams<{ projectId: string }>()
   const { projectId: activeProjectId } = useActiveProject()
   const { resolveDependency } = useStories()
+  const onOpen = useReferenceRendering()?.onOpen
 
-  const resolved: ResolvedDependency | null = useMemo(() => {
-    const ref = resolveDependency(dependency)
-    if ('code' in ref) return null
-    if (ref.kind === 'feature') {
-      return {
-        kind: 'feature',
-        display: ref.display,
-        storyId: ref.storyId,
-        featureId: ref.featureId,
-        feature: {
-          id: ref.feature.id,
-          title: ref.feature.title,
-          description: ref.feature.description,
-          status: ref.feature.status as StoryStatus,
-          blockers: ref.feature.blockers,
-        },
-      }
-    }
-    return {
-      kind: 'story',
-      display: ref.display,
-      storyId: ref.storyId,
-      story: {
-        id: ref.story.id,
-        title: ref.story.title,
-        description: ref.story.description,
-        status: ref.story.status as StoryStatus,
-        blockers: ref.story.blockers,
-      },
-    }
-  }, [resolveDependency, dependency])
+  const resolved: ResolvedDependency | null = useMemo(
+    () => dependencyChipOf(resolveDependency(dependency)),
+    [resolveDependency, dependency],
+  )
 
   return (
     <DependencyBulletBase
@@ -78,10 +59,16 @@ export default function DependencyBullet({
       interactive={interactive}
       disableHoverInfo={disableHoverInfo}
       onClick={(r) => {
-        if (r.kind === 'missing') return
-        const targetProjectId = activeProjectId ?? urlProjectId
-        if (!targetProjectId) return
-        navigate(`/projects/${targetProjectId}/stories/${r.storyId}`)
+        if (r.kind === 'loading') return
+        const projectId = r.kind === 'missing' ? undefined : r.projectId
+        const link = dependencyResourceLink(r, projectId ?? activeProjectId ?? urlProjectId)
+        if (!link) return
+        if (onOpen) {
+          onOpen(link)
+          return
+        }
+        const nav = resolveResourceNav(link)
+        if (nav.type === 'path') navigate(nav.path)
       }}
     />
   )

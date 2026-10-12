@@ -6,12 +6,14 @@ import { IconXCircle } from '../icons'
 import { nativePalette, nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
-export type DependencyChipKind = 'story' | 'feature' | 'missing'
-export type DependencyChipVariant = 'ok' | 'blocks' | 'missing'
+export type DependencyChipKind = 'story' | 'feature' | 'missing' | 'loading'
+export type DependencyChipVariant = 'ok' | 'blocks' | 'missing' | 'loading'
 
 export interface DependencyChipProps {
   /** Text shown after the leading `#` (e.g. `"3"` or `"3.2"`). */
   display: string
+  /** Another project's name, shown before the `#` of its story or feature. */
+  project?: string
   kind: DependencyChipKind
   variant: DependencyChipVariant
   tooltip?: ReactNode
@@ -63,6 +65,7 @@ function chipColors(kind: DependencyChipKind, variant: DependencyChipVariant): C
 
 export default function DependencyChip({
   display,
+  project,
   kind,
   variant,
   tooltip,
@@ -97,7 +100,9 @@ export default function DependencyChip({
         style,
       ]}
     >
-      <Text style={{ fontSize: 12, color: colors.fg }}>#{display}</Text>
+      <Text style={{ fontSize: 12, color: colors.fg }}>
+        {project ? `${project} ` : ''}#{display}
+      </Text>
       {onRemove && (
         <Pressable
           accessibilityRole="button"

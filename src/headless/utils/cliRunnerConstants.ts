@@ -16,6 +16,9 @@ export const DECIDED_BY_YOU_APPROVE_ALL_NOTE = 'Approved by you (approve all)'
 /** A row the person declined. */
 export const DECLINED_BY_YOU_NOTE = 'Declined by you'
 
+/** A row the person declined by writing their next message past it. */
+export const DECLINED_BY_MOVING_ON_NOTE = 'Declined — you moved on without approving it'
+
 /** A row a standing grant approved, naming what the grant allows. */
 export const DECIDED_BY_RULE_NOTE = (rule: string): string => `Approved by rule: ${rule}`
 
@@ -29,3 +32,6 @@ export const GRANT_RULE_EXACT_CALL = (tool: string, where: string): string =>
 
 /** A grant whose action names no tool, and where it applies. */
 export const GRANT_RULE_UNNAMED = (where: string): string => `always allow this request ${where}`
+
+/** Why a row's call did not run, when its turn ended with the call still open. */
+export const TURN_ENDED_REASON = 'Its turn ended before it ran.'

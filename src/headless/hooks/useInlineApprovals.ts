@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
 import type {
   AlwaysAllowScope,
   ChatMessageLike,
@@ -22,6 +22,12 @@ export type InlineApprovalRowProps = {
   onAlwaysAllowTool?: (scope: AlwaysAllowScope | undefined) => void
 }
 
+/**
+ * A turn reporting the asks its rows show — and whether those rows have loaded
+ * (`settled`), until when the panel holds the turn's asks back.
+ */
+export type ClaimAsks = (runId: string, askIds: string[], settled?: boolean) => void
+
 export type UseInlineApprovals = {
   /** The asks this turn's rows show, in row order. */
   askIds: string[]
@@ -43,22 +49,26 @@ export type UseInlineApprovals = {
  * rest.
  *
  * Reports the asks it shows through `onClaimAsks` (and `[]` when it unmounts)
- * so the approval panel leaves them out. The host carries the decisions back to
- * the agent together once the turn's last ask is decided.
+ * so the approval panel leaves them out — and, while its rows are not loaded
+ * (`settled` false), that the turn is on its way, so the panel waits for them.
+ * Reported before paint, so no ask flashes up on the panel first. The host
+ * carries the decisions back to the agent together once the turn's last ask is
+ * decided.
  */
 export function useInlineApprovals(
   runId: string,
   messages: readonly ChatMessageLike[],
   cliAsks: readonly PendingToolGrant[] | undefined,
-  onClaimAsks: ((runId: string, askIds: string[]) => void) | undefined,
+  onClaimAsks: ClaimAsks | undefined,
+  settled = true,
 ): UseInlineApprovals {
   const askIds = useMemo(() => claimedAskIds(messages), [messages])
   const askKey = askIds.join('|')
-  useEffect(() => {
-    onClaimAsks?.(runId, askIds)
+  useLayoutEffect(() => {
+    onClaimAsks?.(runId, askIds, settled)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, askKey])
-  useEffect(() => () => onClaimAsks?.(runId, []), [runId, onClaimAsks])
+  }, [runId, askKey, settled])
+  useLayoutEffect(() => () => onClaimAsks?.(runId, [], true), [runId, onClaimAsks])
 
   const grants = useMemo(() => new Map((cliAsks ?? []).map((g) => [g.id, g])), [cliAsks])
   const [selected, setSelected] = useState<string[]>([])
@@ -130,19 +140,39 @@ export function useInlineApprovals(
  */
 export function useClaimedAsks(): {
   claimedAskIds: ReadonlySet<string>
-  onClaimAsks: (runId: string, askIds: string[]) => void
+  /** The turns on screen whose rows have not loaded yet. */
+  unsettledRunIds: ReadonlySet<string>
+  onClaimAsks: ClaimAsks
 } {
-  const [claimedByRun, setClaimedByRun] = useState<Record<string, string[]>>({})
-  const onClaimAsks = useCallback((runId: string, askIds: string[]) => {
+  const [claimedByRun, setClaimedByRun] = useState<
+    Record<string, { askIds: string[]; settled: boolean }>
+  >({})
+  const onClaimAsks = useCallback<ClaimAsks>((runId, askIds, settled = true) => {
     setClaimedByRun((prev) => {
-      const had = prev[runId] ?? []
-      if (had.length === askIds.length && had.every((id, i) => id === askIds[i])) return prev
+      const had = prev[runId]
+      const same =
+        (had?.settled ?? true) === settled &&
+        (had?.askIds ?? []).length === askIds.length &&
+        (had?.askIds ?? []).every((id, i) => id === askIds[i])
+      if (same) return prev
       const next = { ...prev }
-      if (askIds.length === 0) delete next[runId]
-      else next[runId] = askIds
+      if (askIds.length === 0 && settled) delete next[runId]
+      else next[runId] = { askIds, settled }
       return next
     })
   }, [])
-  const claimedAskIds = useMemo(() => new Set(Object.values(claimedByRun).flat()), [claimedByRun])
-  return { claimedAskIds, onClaimAsks }
+  const claimedAskIds = useMemo(
+    () => new Set(Object.values(claimedByRun).flatMap((c) => c.askIds)),
+    [claimedByRun],
+  )
+  const unsettledRunIds = useMemo(
+    () =>
+      new Set(
+        Object.entries(claimedByRun)
+          .filter(([, c]) => !c.settled)
+          .map(([runId]) => runId),
+      ),
+    [claimedByRun],
+  )
+  return { claimedAskIds, unsettledRunIds, onClaimAsks }
 }
