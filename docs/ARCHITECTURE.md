@@ -768,8 +768,18 @@ note text, and project check scans. `useProcessRuns`, `useProcessRun`,
 loaded — and re-read behind it; only a list read whole is cached. The sign-off
 joins CLI runs from `listCliAgentRunSummaries` (`GET /cli-runs/summaries`: no
 transcripts, prompts or artifact contents — 385 MB → well under 1 MB for one
-story), and an evidence listing counts as loaded when it arrives, its notes
-fetched a few at a time after.
+story); a `process:run-update` carries the whole record, so the sign-off puts a
+pushed run of its story in place (`applyStorySignoffRunUpdate`) and re-reads
+only the CLI summaries on a CLI run's state change. An evidence listing is one
+per query for the whole app (`LiveResourceStore` in `useReviewEvidence`): the
+sign-off, a step's preview and its side panel share one read and one live
+subscription (a chat of another project is passed over,
+`isChatUpdateForProject`), with every note's text read in one
+`POST /projects/{id}/review-evidence/texts`; images and note texts read once
+are shared by every panel (`EvidenceContentCache`). While its sources are on
+their way the sign-off draws its frame — the story's features and what is still
+being read (`signoffLoadingLabel`) — and reads what approving offers alongside
+them (`useProcessIntegrationOptions`, kept in `integrationOptionsCache`).
 
 The sign-off reads each feature's LATEST run only — its run under the story run
 being signed off, else its newest run — so a relaunched story is judged on
@@ -782,8 +792,8 @@ in. The Overall section is always there for a story run, even when it filed
 nothing story-wide: it holds the story-wide checks ("Not checked" when none
 ran, never "All green"), how the story run's capture steps ended (a skipped
 walkthrough's reason is read from its ledger entry), and only that run's own
-story-wide filings. Nothing is drawn until the runs, the story and the evidence
-have all loaded (`signoffLoadStatus`): computed without the runs there is no
+story-wide filings. No verdict is drawn until the runs, the story and the evidence
+have all loaded (`signoffLoadStatus`) — only the frame: computed without the runs there is no
 scope, so every earlier run's filings would show under a verdict that then
 flips. The verdict badge carries the tally (`Proven · 2/2`); the verdict's line
 shows only when the outcome is not a clean all-proven one, and a reviewer's
@@ -938,6 +948,21 @@ The agents' own exchange — a process agent's hand-off and the turn that answer
 **The stop holder.** One pure answer, thefactory-tools `processRunStopHolder(root, now)`, says who has the stop a top-level run waits at: `manager` while its agent manager looks at it (a live turn, or its `claim` on the park before the turn starts) or holds it; `person` once the manager hands it on (`escalated`), waits on a card only the person can answer (`waiting`), filed its sign-off pre-read, is off, never engaged, or its turn or claim went stale. Every surface reads it, so none can disagree: `processRunBadge` ("Manager on it" in `PROCESS_LIVE_TONE` — the chip, the run header, the chat card through `processRunCardView`, the chat list and header pills, run references), `processRunAttentionSection` (the run sits under Running, its line `processRunManagerLine`: "Manager: looking at “…”" / "Manager: holding until … is brought in"), `processRunWaitingCount` and `processTallyByProject` (counted running, never waiting — no Processes count, no share of a project or group total), `processStatusOverlay` (the story chip reads Working), `processStepRowView` / `processStageChips` (the stopped step reads "Manager on it", drawn as work going on) and the park box on the pipeline (`ParkBlock` / `WaitingCard` say the manager's line in the live tone; a mirrored park keeps a quiet "Open the nested run →"). A nested run's page, at any depth, reads its top-level run's record (thefactory-tools `processRunStopHolderOf`). A group run's leg whose stop the manager has reads "Manager on it" (`manager-on-it` leg status, `PROCESS_GROUP_LEG_STATUS_VIEW`) and never makes the group badge "Needs you". Surfaces read it against `useProcessStopClock()` (30 s), so a stale claim or turn hands the stop back without waiting for news. Runs raise no OS notifications: what waits on the person shows on the badges only, and `useChatNewsNotifier` never tells a process run's chats.
 
 **The channel a chat counts on.** `chatChannelOf(context)` (`headless/utils/chatChannel.ts`): a chat that belongs to a process run — the run's own chat (`run-<id>` topic; nested runs share it) or a step agent's chat — counts on Processes, every other on Chat. `chatBadgeInputOf` gives such a chat nothing toward the Chat tab, the chat share of a project or group total or chat thinking; `useProcessRunChatNews(seen)` → `processRunChatNewsByRun` reads each run's own chat at its notification level (run chats default to "When it needs me") as `{ unread, asks }` by run id, which feeds `processTallyByProject` (an ask makes the run wait on the person; an unread reply is `ProcessTally.unread` — a dot on the Processes tab and on project/group rows, "N runs have news"), the Processes list (`processRunAttentionSection` puts a run whose chat asks something under Needs you — "Answer: a card in its chat" — and `processRunListRow.fresh` draws a dot) and the run header's chat dot. The chat list shows run chats only under Runs, with no badge (`chatListRow`, `matchesChatListFilter`); a group's list draws its projects' run chats too, under "Runs in this group" (`chatListPool`, `chatListSections`). An expired sign-in a run chat's agent uses counts on the project's runs — the Processes tab — never the Chat tab (`SignInChat.channel`, filled by `useExpiredSignIns` from the chat's key). `chatNewsSince` / `chatAsksNewsSince` never tell a process run's chats, so `useChatNewsNotifier` raises no OS notification for them: runs show on the badges only.
+
+
+### In-chat run state is read live, never from the message
+
+A message the host writes about a run is a pointer, not a record: the card draws what the run says **now**, read by id off the live run (`useProcessRun`, kept current by `process:run-update` — every write of a run, its ancestors re-pushed, a delete included). What the message stored is shown only while the run is not read, or once it is gone. Every chat kind and client draws these through the shared compounds, on every model and transport alike.
+
+- **Manager cards** (`ManagerCardView`, web and native) take the message's `processRunId` (the top-level run, which keeps the manager's record) and read `useManagerCardStanding(card, processRunId)`, which also reads the nested run that stopped when the card is about one:
+  - *Escalation* — `managerEscalationStanding`: open while that run still waits at the park the card was raised on (`processRunWaitsAt`) and no newer card replaced it on the same park; else closed, and the card becomes history: headed by `ParkClosureLine` ("Handled — you allowed it on web · 19:20", "Handled — the run’s chat agent had it tried again", "Superseded — the run moved on / finished / stopped", "Superseded — the manager raised a newer card"), what the manager found folded behind "What the manager found", and no run chip to answer it from. Who and how come from the answer the run recorded on its ledger (`override`: choice, `decidedBy`, `decidedVia`, `chatContextId`, at) — the first at or after the park and before the park the run waits at now (`processParkClosure`, thefactory-ui `headless/utils/processParkStanding.ts`).
+  - *Intervention* — `managerInterventionStanding`: the intervention as `run.manager.interventions` has it now; the pill says how it came out (Handled → Settled / Did not help / You undid it) with its result.
+  - *Pre-read* — `managerPreReadStanding`: each "Needs you" item settled since says how (`runNeedsYouOutcome`, the run page's words), the count and tone follow the items still open, and once the sign-off is decided the card says how ("Decided — you approved it on mobile · …").
+- **A notice that a run waits on the person** carries `processRunParkedAt` (the group run's leg notice, backend `processGroupNotices.ts`): `RunParkClosure` under it says the park was answered — by whom and when — once the run no longer waits there (`useProcessParkStanding`).
+- **Run and group-run chips** (`ProcessRunChip`, `ProcessGroupRunChip`) are live as before; a run that is gone says so instead of loading forever, and the chip opens the run in its **own** project (`onOpen(id, projectId)`), so every chat — project, group, global, the assistant's — gets the chip.
+- **Asks** (approvals, questions, run proposals, credential forms, remedies) already follow the broker: a decision anywhere relays `cli:run-update` `actionDecided`, the pending list re-reads and the row folds to its decided note; a proposal whose run moved on is withdrawn host-side ("Settled elsewhere …"). Held agent messages follow `chats:updated`.
+- **Needs-you badges** (the chat list's "Needs you" count and filter, `chatNotifyCountsOf` → `unreadNeedsYou`, a run's chat news at "When it needs me", `chatNewsSince`) count a manager escalation or pre-read only while it still needs the person: the host closes it on the message (`needsYouClosedAt`, backend `RunChatNeedsYouWatch`) the moment the run moves past it — answered on the run page, another client or chat, or by the run chat's agent — and broadcasts `chats:updated`, so `chatNeedsYouTimesOf` (the summary's `needsYouTimes`, or `chatNeedsYouTimes` over a loaded chat's messages) stops counting it on every client without the person opening the chat. Asks count from the broker (`usePendingAsksByChat`), re-read on every `cli:run-update` action event.
+- **Reconnects.** `useProcessRun`, `useProcessRuns`, `useProcessGroupRun`, `useCredentialCaptures`, `usePendingAsksByChat` and the chats list (`createChatsContext`, every summary) read again on `ws.onReconnect`, so nothing missed while the socket was down stays stale. `useProcessRun` shares one request per run among every card and chip showing it.
 
 ## Resolved decisions
 

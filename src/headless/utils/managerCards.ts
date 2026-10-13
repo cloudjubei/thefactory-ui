@@ -14,6 +14,7 @@ import {
   MANAGER_ESCALATION_TITLE,
   MANAGER_OUTCOME_HANDLED,
   MANAGER_OUTCOME_NEEDS_YOU,
+  MANAGER_OUTCOME_PILLS,
   MANAGER_OUTCOME_ON_STEP,
   MANAGER_OUTCOME_PRE_READ,
   MANAGER_OUTCOME_PRE_READ_TOOL,
@@ -23,8 +24,11 @@ import {
 import type {
   ManagerBriefView,
   ManagerEscalationView,
+  ManagerInterventionStanding,
   ManagerOutcomeView,
+  ManagerPreReadStanding,
 } from './managerCardsTypes'
+import type { ParkStanding } from './processParkStandingTypes'
 import { formatFriendlyTimestamp } from './time'
 
 /** The manager's brief as its card reads it. Pure but for the reader's clock and locale. */
@@ -44,37 +48,60 @@ export function managerBriefView(card: ProcessManagerBriefCard): ManagerBriefVie
   }
 }
 
-/** What came of a manager turn — something it did, or its pre-read — as its outcome card reads it. Pure. */
+/**
+ * What came of a manager turn — something it did, or its pre-read — as its
+ * outcome card reads it: as posted, or, with its `standing`, as the run has it
+ * now (how the intervention came out; which items were settled since and how
+ * the sign-off was decided). Pure.
+ */
 export function managerOutcomeView(
   card: ProcessManagerInterventionCard | ProcessManagerPreReadCard,
+  standing?: ManagerInterventionStanding | ManagerPreReadStanding,
 ): ManagerOutcomeView {
   if (card.kind === 'intervention') {
-    const { intervention, stepName } = card
+    const { stepName } = card
+    const live = standing && 'intervention' in standing ? standing.intervention : undefined
+    const intervention = live ?? card.intervention
     return {
       headline: intervention.what,
       tone: 'handled',
-      pill: MANAGER_OUTCOME_HANDLED,
+      pill: live ? MANAGER_OUTCOME_PILLS[live.outcome] : MANAGER_OUTCOME_HANDLED,
       why: intervention.why,
+      ...(live?.result ? { result: live.result } : {}),
       open: [],
       did: stepName ? MANAGER_OUTCOME_ON_STEP(intervention.tool, stepName) : intervention.tool,
     }
   }
   const { items, summary } = card.preRead
+  const settled = standing && 'settled' in standing ? standing.settled : {}
+  const closure = standing && 'settled' in standing ? standing.closure : undefined
+  const stillOpen = closure ? 0 : items.filter((i) => !settled[i.itemId]).length
   return {
     headline: MANAGER_OUTCOME_PRE_READ,
-    tone: items.length > 0 ? 'needs-you' : 'handled',
-    pill: items.length > 0 ? MANAGER_OUTCOME_NEEDS_YOU(items.length) : MANAGER_OUTCOME_HANDLED,
+    tone: stillOpen > 0 ? 'needs-you' : 'handled',
+    pill: stillOpen > 0 ? MANAGER_OUTCOME_NEEDS_YOU(stillOpen) : MANAGER_OUTCOME_HANDLED,
     why: summary,
-    open: items.map((i) => ({
-      id: i.itemId,
-      text: MANAGER_OUTCOME_RECOMMENDED(i.finding, i.recommendation),
-    })),
+    open: items.map((i) => {
+      const how = settled[i.itemId]
+      return {
+        id: i.itemId,
+        text: MANAGER_OUTCOME_RECOMMENDED(i.finding, i.recommendation),
+        ...(how ? { settled: how } : {}),
+      }
+    }),
     did: MANAGER_OUTCOME_PRE_READ_TOOL,
+    ...(closure ? { closure } : {}),
   }
 }
 
-/** A park the manager handed to the person, as its card reads it. Pure. */
-export function managerEscalationView(card: ProcessManagerEscalationCard): ManagerEscalationView {
+/**
+ * A park the manager handed to the person, as its card reads it — with how the
+ * park was closed once its `standing` says the run no longer waits at it. Pure.
+ */
+export function managerEscalationView(
+  card: ProcessManagerEscalationCard,
+  standing?: ParkStanding,
+): ManagerEscalationView {
   const { escalation } = card
   return {
     title: MANAGER_ESCALATION_TITLE,
@@ -83,5 +110,6 @@ export function managerEscalationView(card: ProcessManagerEscalationCard): Manag
     found: escalation.found,
     tried: escalation.tried,
     recommendation: escalation.recommendation,
+    ...(standing?.state === 'closed' ? { closure: standing.closure } : {}),
   }
 }

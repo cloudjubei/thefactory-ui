@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 
 import { useProjects } from '../../../headless/contexts/ProjectsContext'
 import { useActionRules } from '../../../headless/hooks/useActionRules'
@@ -10,8 +10,14 @@ import {
 import {
   RULES_GIVEN_ON_FILTER_LABEL,
   SAVED_RULES_EMPTY,
+  TRUST_SITE_BUTTON,
+  TRUST_SITE_HINT,
+  TRUST_SITE_LABEL,
+  TRUST_SITE_PLACEHOLDER,
 } from '../../../headless/utils/actionRulesConstants'
 import type { ActionRuleView } from '../../../headless/utils/actionRulesTypes'
+import { Button } from '../../primitives/Button'
+import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
 import ActionRuleRow from './ActionRuleRow'
 
@@ -28,7 +34,16 @@ const ALL = ''
  * lists in its settings) — each removable, narrowed by project or sign-in.
  */
 export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsProps) {
-  const { rules, loading, error, remove } = useActionRules()
+  const { rules, loading, error, remove, trustSite } = useActionRules()
+  const [site, setSite] = useState('')
+  const [trusting, setTrusting] = useState(false)
+  const submitSite = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!site.trim() || trusting) return
+    setTrusting(true)
+    if (await trustSite(site.trim())) setSite('')
+    setTrusting(false)
+  }
   const { projects } = useProjects()
   const [projectId, setProjectId] = useState(ALL)
   const [credentialId, setCredentialId] = useState(ALL)
@@ -69,6 +84,28 @@ export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsPro
           settings; a rule for everywhere applies to every chat that uses its sign-in.
         </p>
       </div>
+
+      <form onSubmit={(e) => void submitSite(e)} className="space-y-1">
+        <label htmlFor="trust-site" className="text-sm font-medium">
+          {TRUST_SITE_LABEL}
+        </label>
+        <div className="flex gap-2">
+          <Input
+            id="trust-site"
+            size="sm"
+            value={site}
+            onChange={(e) => setSite(e.target.value)}
+            placeholder={TRUST_SITE_PLACEHOLDER}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={trusting}
+          />
+          <Button type="submit" size="sm" loading={trusting} disabled={!site.trim() || trusting}>
+            {TRUST_SITE_BUTTON}
+          </Button>
+        </div>
+        <p className="text-[12px] text-(--text-secondary)">{TRUST_SITE_HINT}</p>
+      </form>
 
       {options.projects.length > 0 || options.signIns.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2">

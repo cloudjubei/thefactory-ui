@@ -26,8 +26,8 @@ function splitItem(text: string): { title: string; body: string | undefined } {
   return body ? { title: text.slice(0, cut.at).trim(), body } : { title: text, body: undefined }
 }
 
-/** How a settled item was settled, in a line. */
-function outcomeOf(resolution: ProcessNeedsYouResolution): string {
+/** How a settled item was settled, in a line. Pure. */
+export function runNeedsYouOutcome(resolution: ProcessNeedsYouResolution): string {
   const change = resolution.change
   if (change?.kind === 'feature-added') {
     return `Added “${change.title}” to this run — sign-off waits for it`
@@ -51,7 +51,7 @@ function cardOf(item: ProcessNeedsYouItem): NeedsYouCard {
     text: item.text,
     ...splitItem(item.text),
     open: !item.resolution,
-    outcome: item.resolution ? outcomeOf(item.resolution) : undefined,
+    outcome: item.resolution ? runNeedsYouOutcome(item.resolution) : undefined,
   }
 }
 

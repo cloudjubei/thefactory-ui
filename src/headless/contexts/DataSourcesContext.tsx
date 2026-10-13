@@ -20,6 +20,7 @@ import {
 import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
 import type { LiveDataUpdatedEvent } from '../api/sdkTypes'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 
 export type DataSourcesContextValue = {
   isLoaded: boolean
@@ -92,9 +93,7 @@ export function DataSourcesProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshSources, refreshSubscriptions])
 
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  useEffect(() => afterPrimaryLoads(() => void refresh()), [refresh])
 
   useEffect(() => {
     return ws.on<LiveDataUpdatedEvent>('liveData:updated', (e) => {

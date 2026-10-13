@@ -31,6 +31,20 @@ export function isChatLoaded(entry: ChatListEntry): boolean {
   return entry.messages !== undefined
 }
 
+/**
+ * What an open chat has to read: its `messages` when the list holds only its
+ * summary; its `summary` alone when the whole list has not arrived yet, so the
+ * chat does not wait on every other chat; nothing when it is loaded, or when the
+ * whole list does not have it — it does not exist until its first message.
+ */
+export function openChatRead(
+  entry: ChatListEntry | null,
+  listLoaded: boolean,
+): 'messages' | 'summary' | null {
+  if (entry) return isChatLoaded(entry) ? null : 'messages'
+  return listLoaded ? null : 'summary'
+}
+
 /** What the count and times of a chat's messages are read from — a loaded chat or a summary. */
 export type ChatMessagesShape = {
   messages?: readonly ChatAudienceMessage[]

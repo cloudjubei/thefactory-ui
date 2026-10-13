@@ -97,6 +97,7 @@ export type PermanentActionGrant = {
         kind: 'everywhere'
       }
   toolName?: string
+  site?: string
   createdAt: number
   lastUsedAt?: number
 }
@@ -109,7 +110,8 @@ export type ActionRule = {
   id: string
   kind: string
   toolName?: string
-  covers: 'tool' | 'exact-call'
+  covers: 'tool' | 'exact-call' | 'site'
+  site?: string
   args?: unknown
   scope: PermanentGrantScope
   credentialId?: string
@@ -1460,6 +1462,7 @@ export type ProcessResumeChoice =
   | 'request-changes'
   | 'reject'
   | 'allow'
+  | 'allow-site'
   | 'resolved'
   | 'more-info'
   | 'update-base'
@@ -1513,6 +1516,7 @@ export type CompletionMessageBase = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
 }
 
 export type CompletionSystemMessage = {
@@ -1527,6 +1531,7 @@ export type CompletionSystemMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
   error?: string
 }
 
@@ -1556,6 +1561,7 @@ export type CompletionUserMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
   files?: Array<string>
   images?: Array<CompletionImage>
   handoffFrom?: string
@@ -1606,6 +1612,7 @@ export type CompletionAssistantMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
   usage: {
     promptTokens: number
     completionTokens: number
@@ -1631,6 +1638,7 @@ export type CompletionAssistantMessage = {
   cliRunId?: string
   featureRequestId?: string
   processRunId?: string
+  processRunParkedAt?: number
   processGroupRunId?: string
 }
 
@@ -1646,6 +1654,7 @@ export type CompletionToolMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
   model: {
     model: string
     provider: LlmProvider
@@ -1727,6 +1736,7 @@ export type Chat = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
     answersHandoffFrom?: string
@@ -1742,6 +1752,7 @@ export type Chat = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1857,6 +1868,7 @@ export type ChatAudienceMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  needsYouClosedAt?: string
   startedAt?: string
   completedAt?: string
 }
@@ -1896,6 +1908,7 @@ export type ChatCreateInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
     answersHandoffFrom?: string
@@ -1911,6 +1924,7 @@ export type ChatCreateInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -1983,6 +1997,7 @@ export type ChatEditInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
     answersHandoffFrom?: string
@@ -1998,6 +2013,7 @@ export type ChatEditInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -8034,6 +8050,14 @@ export type GitChangeDiff = {
   patchTruncated: boolean
 }
 
+export type GitMonitorRemoteAuth = {
+  repoUrl: string
+  credentials: {
+    username: string
+    token: string
+  }
+}
+
 export type GitMonitorRegistryOptions = {
   hotPollIntervalMs?: number
   coldPollIntervalMs?: number
@@ -10082,6 +10106,57 @@ export type ProcessWaitingRequest = {
   }
 }
 
+export type ProcessWaitingItemAnswer = {
+  choice: ProcessResumeChoice | 'decline'
+  note?: string
+  at: number
+} & (
+  | {
+      decidedBy?: 'person'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+    }
+  | {
+      decidedBy?: 'agent'
+      decidedVia?: 'tool'
+      toolName?: string
+      chatContextId?: string
+    }
+  | {
+      decidedBy?: 'manager'
+      decidedVia?: 'manager'
+      toolName?: string
+      chatContextId?: string
+    }
+)
+
+export type ProcessWaitingItem = {
+  title: string
+  detail: string
+  request: ProcessWaitingRequest
+  answer?: {
+    choice: ProcessResumeChoice | 'decline'
+    note?: string
+    at: number
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+}
+
 export type ProcessWaitingDelegation = {
   chatContextId: string
   topicId: string
@@ -10105,6 +10180,7 @@ export type ProcessWaitingAsk = {
       [key: string]: unknown
     }
   }
+  items?: Array<ProcessWaitingItem>
   featureQuestionId?: string
   runRef?: {
     runId: string
@@ -10262,6 +10338,7 @@ export type ProcessLedgerEntry = {
         [key: string]: unknown
       }
     }
+    items?: Array<ProcessWaitingItem>
     featureQuestionId?: string
     runRef?: {
       runId: string
@@ -10441,6 +10518,7 @@ export type ProcessPark = {
         [key: string]: unknown
       }
     }
+    items?: Array<ProcessWaitingItem>
     featureQuestionId?: string
     runRef?: {
       runId: string
@@ -10809,6 +10887,7 @@ export type ProcessRun = {
           [key: string]: unknown
         }
       }
+      items?: Array<ProcessWaitingItem>
       featureQuestionId?: string
       runRef?: {
         runId: string
@@ -10958,6 +11037,149 @@ export type ProcessRun = {
       reason: ProcessManagerOffReason
     }
     reversedKeys?: Array<string>
+  }
+}
+
+export type ProcessManagerCardStandingRun = {
+  status: ProcessRunStatus
+} & {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+  manager?: {
+    interventions?: Array<ProcessManagerIntervention>
+    staleTurns?: Array<ProcessManagerStaleTurnRecord>
+    turn?: {
+      runId: string
+      parkedAt: number
+      signature: string
+      startedAt: number
+      chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
+    }
+    standDown?: {
+      runId: string
+      parkedAt: number
+      at: number
+      by: 'person-message' | 'person-answer'
+    }
+    hold?: {
+      runId: string
+      parkedAt: number
+      dependsOn:
+        | {
+            kind: 'run'
+            runId: string
+          }
+        | {
+            kind: 'feature-request'
+            requestId: string
+          }
+        | {
+            kind: 'base-fix'
+            sha: string
+          }
+      resume: 'retry' | 'update-base'
+      why: string
+      at: number
+      until: number
+    }
+    escalation?: {
+      runId: string
+      parkedAt: number
+      at: number
+      signature: string
+      why:
+        | 'credentials'
+        | 'permission'
+        | 'spend'
+        | 'scope'
+        | 'destructive'
+        | 'repeated-failure'
+        | 'guard-limit'
+        | 'judgement'
+        | 'hold-timeout'
+        | 'no-decision'
+      what: string
+      found: string
+      tried: Array<string>
+      recommendation: string
+      recommendedChoice?: ProcessResumeChoice | 'delegate'
+    }
+    preRead?: {
+      runId: string
+      parkedAt: number
+      at: number
+      summary: string
+      items: Array<ProcessManagerNeedsYouFinding>
+    }
+    off?: {
+      at: number
+      reason: ProcessManagerOffReason
+    }
+    reversedKeys?: Array<string>
+  }
+  needsYouResolutions?: {
+    [key: string]: ProcessNeedsYouResolution
   }
 }
 
@@ -14569,6 +14791,9 @@ export type CliRunIndexEntry = {
 export type CliRunIndexFile = {
   version: number
   entries: Array<CliRunIndexEntry>
+  dirMtimes?: {
+    [key: string]: number
+  }
 }
 
 export type CliRunFileStat = {
@@ -15125,6 +15350,7 @@ export type ToolName =
   | 'requestPendingCliAgentAction'
   | 'decideCliAgentAction'
   | 'listCliAgentActionRules'
+  | 'trustCliSite'
   | 'removeCliAgentActionRule'
   | 'cancelCliAgentAction'
   | 'withdrawCliAgentAction'
@@ -15536,6 +15762,7 @@ export type ToolName =
   | 'validateProcess'
   | 'getProcessRun'
   | 'listProcessRuns'
+  | 'listProcessRunSummaries'
   | 'getProcessGroupRun'
   | 'listProcessGroupRuns'
   | 'deleteProcessRun'
@@ -16343,6 +16570,8 @@ export type ProcessFeatureClosureCandidate = {
   work: Array<string>
 }
 
+export type ProcessWaitingItemChoice = 'allow' | 'allow-site' | 'decline'
+
 export type ProcessChangeRequest = {
   from: 'sign-off' | 'code-review'
   note?: string
@@ -16634,6 +16863,7 @@ export type ProcessRunChatState = {
             [key: string]: unknown
           }
         }
+        items?: Array<ProcessWaitingItem>
         featureQuestionId?: string
         runRef?: {
           runId: string
@@ -16827,7 +17057,7 @@ export type ProcessNeedsYouItem = {
   }
 }
 
-export type ProcessContinueChoice = 'allow' | 'resolved' | 'more-info'
+export type ProcessContinueChoice = 'allow' | 'allow-site' | 'resolved' | 'more-info'
 
 export type ProcessVerifyReview = {
   reviewedRunId: string
@@ -16868,6 +17098,15 @@ export type ProcessWorkBranchHostLinkRepair =
       sha: string
       paths: Array<string>
     }
+
+export type ProcessWorkBranchStanding = {
+  tip?: string
+  baseMoved?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+  }
+}
 
 export type ProcessBaseConflictSides = {
   forkPoint: string
@@ -17117,6 +17356,327 @@ export type PushProcessWorkBranchInput = {
   onto?: string
 }
 
+export type ProcessRunSummary = {
+  id: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  parentRunId?: string
+  parentStepId?: string
+  groupRunId?: string
+  groupLegId?: string
+  title: string
+  input?: {
+    [key: string]: unknown
+  }
+  workBranch?: {
+    name: string
+    baseSha: string
+    baseRef: string
+    stackedOn?: {
+      runId: string
+      branch: string
+    }
+    shadow?: boolean
+  }
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    conflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+    checks?: {
+      status: MergeChecksStatus
+      summary: string
+      sha?: string
+      checks: Array<VerificationCheckResult>
+    }
+    at: number
+  }
+  plan: ProcessPlan
+  status: ProcessRunStatus
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+  loopCounts: {
+    [key: string]: number
+  }
+  budget?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  budgetGrants?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  spentUsd?: number
+  parkedMs?: number
+  suspendedMs?: number
+  iterationGrants?: {
+    [key: string]: number
+  }
+  modelOverride?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+    authCredentialId?: string
+    apiKeyCredentialId?: string
+    at: number
+  }
+  turnLimit?: {
+    limitTurns: boolean
+    maxTurns: number
+  }
+  closure?: {
+    features: Array<{
+      featureId: string
+      status: 'pending' | 'blocked' | 'deferred' | 'done'
+      reason?: string
+    }>
+    at: number
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+  ledger: Array<ProcessLedgerEntry>
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+  startedAt: number
+  updatedAt: number
+  endedAt?: number
+  error?: string
+  totals?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    workMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      tools: Array<ProcessToolTime>
+    }
+    ticking: boolean
+    at: number
+    steps: {
+      [key: string]: ProcessStepTotals
+    }
+  }
+  baseMoved?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+  }
+  workBranchTip?: string
+  cleanup?: {
+    items: Array<ProcessCleanupItem>
+    choices?: {
+      [key: string]: boolean
+    }
+    off?: boolean
+  }
+} & {
+  manager?: {
+    turn?: {
+      runId: string
+      parkedAt: number
+      signature: string
+      startedAt: number
+      chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
+    }
+    standDown?: {
+      runId: string
+      parkedAt: number
+      at: number
+      by: 'person-message' | 'person-answer'
+    }
+    hold?: {
+      runId: string
+      parkedAt: number
+      dependsOn:
+        | {
+            kind: 'run'
+            runId: string
+          }
+        | {
+            kind: 'feature-request'
+            requestId: string
+          }
+        | {
+            kind: 'base-fix'
+            sha: string
+          }
+      resume: 'retry' | 'update-base'
+      why: string
+      at: number
+      until: number
+    }
+    escalation?: {
+      runId: string
+      parkedAt: number
+      at: number
+      signature: string
+      why:
+        | 'credentials'
+        | 'permission'
+        | 'spend'
+        | 'scope'
+        | 'destructive'
+        | 'repeated-failure'
+        | 'guard-limit'
+        | 'judgement'
+        | 'hold-timeout'
+        | 'no-decision'
+      what: string
+      found: string
+      tried: Array<string>
+      recommendation: string
+      recommendedChoice?: ProcessResumeChoice | 'delegate'
+    }
+    preRead?: {
+      runId: string
+      parkedAt: number
+      at: number
+      summary: string
+      items: Array<ProcessManagerNeedsYouFinding>
+    }
+    off?: {
+      at: number
+      reason: ProcessManagerOffReason
+    }
+    reversedKeys?: Array<string>
+  }
+}
+
 export type ProcessRunDecision =
   | {
       kind: 'signed-off'
@@ -17131,6 +17691,7 @@ export type ProcessRunDecision =
         | 'request-changes'
         | 'reject'
         | 'allow'
+        | 'allow-site'
         | 'resolved'
         | 'more-info'
         | 'update-base'
@@ -17219,7 +17780,7 @@ export type ProcessWaitingAnswer = {
   run: ProcessRun
   entry: ProcessLedgerEntry
   ask: ProcessWaitingAsk
-  choice: ProcessResumeChoice
+  choice: ProcessResumeChoice | 'decline'
   note?: string
 }
 
@@ -17313,6 +17874,7 @@ export type ProcessStepResult = {
         [key: string]: unknown
       }
     }
+    items?: Array<ProcessWaitingItem>
     featureQuestionId?: string
     runRef?: {
       runId: string
@@ -17460,6 +18022,7 @@ export type ProcessStepState = {
           [key: string]: unknown
         }
       }
+      items?: Array<ProcessWaitingItem>
       featureQuestionId?: string
       runRef?: {
         runId: string
@@ -18171,6 +18734,7 @@ export type ParkChoicesRun = {
           [key: string]: unknown
         }
       }
+      items?: Array<ProcessWaitingItem>
       featureQuestionId?: string
       runRef?: {
         runId: string
@@ -18576,6 +19140,7 @@ export type AddMessagesInput = {
     cliRunId?: string
     featureRequestId?: string
     processRunId?: string
+    processRunParkedAt?: number
     processGroupRunId?: string
     handoffFrom?: string
     answersHandoffFrom?: string
@@ -18591,6 +19156,7 @@ export type AddMessagesInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
       name: string
@@ -20785,7 +21351,7 @@ export type ListProcessRunsResponses = {
   /**
    * Default Response
    */
-  200: Array<ProcessRun>
+  200: Array<ProcessRunSummary>
 }
 
 export type ListProcessRunsResponse = ListProcessRunsResponses[keyof ListProcessRunsResponses]
@@ -20908,6 +21474,7 @@ export type ResumeProcessRunData = {
       | 'request-changes'
       | 'reject'
       | 'allow'
+      | 'allow-site'
       | 'resolved'
       | 'more-info'
       | 'update-base'
@@ -20978,6 +21545,54 @@ export type ResumeProcessRunResponses = {
 }
 
 export type ResumeProcessRunResponse = ResumeProcessRunResponses[keyof ResumeProcessRunResponses]
+
+export type AnswerProcessRunWaitingRequestData = {
+  body: {
+    choice: 'allow' | 'allow-site' | 'decline'
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    runId: string
+    actionId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/waiting-requests/{actionId}/answer'
+}
+
+export type AnswerProcessRunWaitingRequestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type AnswerProcessRunWaitingRequestError =
+  AnswerProcessRunWaitingRequestErrors[keyof AnswerProcessRunWaitingRequestErrors]
+
+export type AnswerProcessRunWaitingRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type AnswerProcessRunWaitingRequestResponse =
+  AnswerProcessRunWaitingRequestResponses[keyof AnswerProcessRunWaitingRequestResponses]
 
 export type DelegateProcessRunAskData = {
   body?: never
@@ -22407,6 +23022,47 @@ export type ListReviewEvidenceResponses = {
 
 export type ListReviewEvidenceResponse =
   ListReviewEvidenceResponses[keyof ListReviewEvidenceResponses]
+
+export type ListReviewEvidenceTextsData = {
+  body: {
+    /**
+     * Evidence ids whose text to read; ids that are not readable notes are left out.
+     */
+    ids: Array<string>
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/review-evidence/texts'
+}
+
+export type ListReviewEvidenceTextsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ListReviewEvidenceTextsError =
+  ListReviewEvidenceTextsErrors[keyof ListReviewEvidenceTextsErrors]
+
+export type ListReviewEvidenceTextsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string
+    text: string
+  }>
+}
+
+export type ListReviewEvidenceTextsResponse =
+  ListReviewEvidenceTextsResponses[keyof ListReviewEvidenceTextsResponses]
 
 export type GetReviewEvidenceContentData = {
   body?: never
@@ -24081,6 +24737,52 @@ export type ListActionRulesResponses = {
 }
 
 export type ListActionRulesResponse = ListActionRulesResponses[keyof ListActionRulesResponses]
+
+export type TrustSiteData = {
+  body: {
+    site: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/action-rules/sites'
+}
+
+export type TrustSiteErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type TrustSiteError = TrustSiteErrors[keyof TrustSiteErrors]
+
+export type TrustSiteResponses = {
+  /**
+   * Default Response
+   */
+  200: ActionRule & {
+    chat?: {
+      chatContextId: string
+      projectId?: string
+      title?: string
+    }
+    credentialLabel?: string
+  }
+}
+
+export type TrustSiteResponse = TrustSiteResponses[keyof TrustSiteResponses]
 
 export type RemoveActionRuleData = {
   body?: never
@@ -28483,6 +29185,7 @@ export type SendCompletionData = {
         cliRunId?: string
         featureRequestId?: string
         processRunId?: string
+        processRunParkedAt?: number
         processGroupRunId?: string
         handoffFrom?: string
         answersHandoffFrom?: string
@@ -28498,6 +29201,7 @@ export type SendCompletionData = {
           | ProcessManagerInterventionCard
           | ProcessManagerPreReadCard
           | ProcessManagerEscalationCard
+        needsYouClosedAt?: string
         toolCall?: {
           toolCallId: string
           name: string
@@ -28594,6 +29298,7 @@ export type SendCompletionResponses = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processRunParkedAt?: number
       processGroupRunId?: string
       handoffFrom?: string
       answersHandoffFrom?: string
@@ -28609,6 +29314,7 @@ export type SendCompletionResponses = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -28754,6 +29460,7 @@ export type SendCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
           answersHandoffFrom?: string
@@ -28769,6 +29476,7 @@ export type SendCompletionWithToolsResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -28857,6 +29565,7 @@ export type SendChatCompletionWithToolsData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processRunParkedAt?: number
       processGroupRunId?: string
       handoffFrom?: string
       answersHandoffFrom?: string
@@ -28872,6 +29581,7 @@ export type SendChatCompletionWithToolsData = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -28966,6 +29676,7 @@ export type SendChatCompletionWithToolsResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
           answersHandoffFrom?: string
@@ -28981,6 +29692,7 @@ export type SendChatCompletionWithToolsResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
             name: string
@@ -29069,6 +29781,7 @@ export type SendChatWithCliData = {
       cliRunId?: string
       featureRequestId?: string
       processRunId?: string
+      processRunParkedAt?: number
       processGroupRunId?: string
       handoffFrom?: string
       answersHandoffFrom?: string
@@ -29084,6 +29797,7 @@ export type SendChatWithCliData = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
         name: string
@@ -29300,6 +30014,7 @@ export type ResumeCompletionResponses = {
           cliRunId?: string
           featureRequestId?: string
           processRunId?: string
+          processRunParkedAt?: number
           processGroupRunId?: string
           handoffFrom?: string
           answersHandoffFrom?: string
@@ -29315,6 +30030,7 @@ export type ResumeCompletionResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
             name: string

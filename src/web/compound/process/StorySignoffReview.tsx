@@ -26,6 +26,7 @@ import {
   signoffEvidenceChips,
   signoffFeatureRow,
   signoffFeaturesDelivered,
+  signoffLoadingLabel,
   signoffFixSectionProps,
   signoffProofRows,
   signoffReportView,
@@ -40,7 +41,6 @@ import {
   SIGNOFF_CANCEL_LABEL,
   SIGNOFF_DECISION_LABEL,
   SIGNOFF_LOAD_FAILED,
-  SIGNOFF_LOADING,
   SIGNOFF_REJECT_CONFIRM,
   SIGNOFF_REJECT_CONFIRM_LABEL,
   SIGNOFF_SECTION_TITLES,
@@ -140,15 +140,21 @@ const BUILD_METHODS: readonly CheckMethodId[] = ['types', 'lint', 'format', 'bui
  * the story-wide evidence behind chips that are its tabs — checked first,
  * missing last.
  *
- * Nothing is drawn until the runs, the story and the evidence have all loaded:
- * a verdict computed from part of them is wrong, and it flips once the rest lands.
+ * Until the runs, the story and the evidence have all loaded only its frame is
+ * drawn — the features and what is still being read: a verdict computed from
+ * part of them is wrong, and it flips once the rest arrives.
+ * What approving offers is read alongside the sources, not after them, so the
+ * decision has it when the panel draws.
  */
 export default function StorySignoffReview(props: StorySignoffReviewProps) {
   const { projectId, storyId, storyRunId } = props
   const evidence = useReviewEvidence(projectId, { storyId })
   const evidenceState = evidenceLoadState(evidence)
   const projectChecks = useProjectChecks(projectId)
-  const { signoff, status, error } = useStorySignoff(
+  useProcessIntegrationOptions(
+    props.workBranch && !props.workBranch.shadow ? storyRunId : undefined,
+  )
+  const { signoff, status, sources, error } = useStorySignoff(
     projectId,
     storyId,
     storyRunId,
@@ -158,11 +164,14 @@ export default function StorySignoffReview(props: StorySignoffReviewProps) {
   )
   if (!signoff) {
     return (
-      <div className="text-[12px] text-(--text-secondary)">
-        {status === 'failed'
-          ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
-          : SIGNOFF_LOADING}
-      </div>
+      <SignoffFrame
+        storyId={storyId}
+        line={
+          status === 'failed'
+            ? `${SIGNOFF_LOAD_FAILED}${error ? ` — ${error}` : ''}`
+            : signoffLoadingLabel(sources)
+        }
+      />
     )
   }
   return (
@@ -173,6 +182,35 @@ export default function StorySignoffReview(props: StorySignoffReviewProps) {
       evidenceState={evidenceState}
       projectChecks={projectChecks.scan}
     />
+  )
+}
+
+/**
+ * What a sign-off shows while it is still being read: the story's features as
+ * rows, and which of its sources are on their way — never a verdict.
+ */
+function SignoffFrame({ storyId, line }: { storyId: string; line: string }) {
+  const { getStory } = useStories()
+  const features = getStory(storyId)?.features ?? []
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-[12px] text-(--text-secondary)">{line}</div>
+      {features.length > 0 ? (
+        <div className="flex flex-col">
+          {features.map((f) => (
+            <div
+              key={f.id}
+              className="flex items-center gap-2 border-b border-(--border-subtle) py-2.5 last:border-b-0"
+            >
+              <DependencyBullet dependency={`${storyId}.${f.id}`} interactive />
+              <span className="min-w-0 truncate text-[13.5px] font-semibold text-(--text-secondary)">
+                {f.title}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 

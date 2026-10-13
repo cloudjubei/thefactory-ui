@@ -25,12 +25,18 @@ export const TOOL_ASK_SCOPE = {
   once: { label: 'Just this once', hint: 'Asks again next time' },
   chat: { label: 'Always in this chat' },
   everywhere: { label: 'Always, everywhere' },
+  site: { label: 'Trust this site' },
 } as const
+
+/** What trusting a site covers, under its option. */
+export const TOOL_ASK_SITE_HINT = (site: string): string =>
+  `${site} and every site under it — no agent asks about it again, in any run or chat`
 
 /** How far an always-allow reached, as its decided line says it. */
 export const TOOL_ASK_SCOPE_DONE = {
   'always-in-chat': 'always in this chat',
   'always-everywhere': 'always, everywhere',
+  'trust-site': 'site trusted',
 } as const
 
 /** The most lines a new file's preview shows before folding the rest. */

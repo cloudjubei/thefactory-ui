@@ -69,19 +69,15 @@ import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
 import { ProjectResourceCache } from '../utils/projectResourceCache'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
-
-type GitBundle = {
-  status: GitStatus | null
-  branches: GitUnifiedBranch[]
-  log: GitLogCommit[]
-  hasMoreLog: boolean
-  stashes: GitStashListItem[]
-}
+import { wsEventConcernsProject } from '../utils/wsEventProject'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
+import { gitBundleQuery, gitBundleShows, nextGitBundle } from '../utils/gitBundle'
+import type { GitBundle } from '../utils/gitBundleTypes'
 
 /** SWR cache keyed by projectId — instant render on switch back to a
  *  previously-seen project (no spinner while git status / branches / log /
  *  stashes refresh in the background). */
-const gitCache = new ProjectResourceCache<GitBundle>(16)
+const gitCache = new ProjectResourceCache<GitBundle>()
 
 export type GitSelection =
   | { kind: 'branch'; branchName: string }
@@ -114,6 +110,12 @@ export type GitContextValue = {
   isLogLoading: boolean
   /** Fetch the next page and append. Idempotent while a fetch is in flight. */
   loadMoreLog: () => Promise<void>
+  /**
+   * Have the log read too — while a screen that shows it is open. A project
+   * switch otherwise reads status, branches and stashes alone, which is all the
+   * badges and pickers need. Returns the release.
+   */
+  holdLog: () => () => void
   stashes: GitStashListItem[]
 
   /** Working tree split into staged + unstaged, with conflict marks. */
@@ -296,6 +298,26 @@ export function GitProvider({ children, storage }: GitProviderProps) {
   const [stashes, setStashes] = useState<GitStashListItem[]>(EMPTY_STASHES)
   const [isLoaded, setIsLoaded] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
+  const [logHolders, setLogHolders] = useState(0)
+  const logWanted = logHolders > 0
+  const logWantedRef = useRef(logWanted)
+  logWantedRef.current = logWanted
+  const holdLog = useCallback(() => {
+    setLogHolders((n) => n + 1)
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      setLogHolders((n) => n - 1)
+    }
+  }, [])
+  const showBundle = useCallback((bundle: GitBundle) => {
+    setStatus(bundle.status)
+    setBranches(bundle.branches)
+    setLog(bundle.log)
+    setHasMoreLog(bundle.hasMoreLog)
+    setStashes(bundle.stashes)
+  }, [])
 
   const [localDiff, setLocalDiff] = useState<LocalDiff | null>(null)
   const [isLocalDiffLoading, setIsLocalDiffLoading] = useState(false)
@@ -387,9 +409,10 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       // chain, which (together with the runCommand semaphore + EBADF
       // retries downstream) was the source of the intermittent
       // `spawn EBADF` under rapid project switching.
+      const withLog = logWantedRef.current
       const bundleRes = await getGitBundle({
         path,
-        query: { all: true, maxCount: LOG_PAGE_SIZE },
+        query: gitBundleQuery(withLog, LOG_PAGE_SIZE),
         ...sigOpts,
       })
       if (
@@ -398,28 +421,19 @@ export function GitProvider({ children, storage }: GitProviderProps) {
         controller.signal.aborted
       )
         return
-      const nextStatus = unwrapGitEnvelope(bundleRes.data.status, 'status', EMPTY_STATUS)
-      const nextBranches = unwrapGitEnvelope(bundleRes.data.branches, 'branches', EMPTY_BRANCHES)
-      const commits = bundleRes.data.log.commits
-      const nextHasMore = commits.length >= LOG_PAGE_SIZE
-      const nextStashes = unwrapGitEnvelope(bundleRes.data.stashes, 'stashes', EMPTY_STASHES)
-      setStatus(nextStatus)
-      setBranches(nextBranches)
-      setLog(commits)
-      setHasMoreLog(nextHasMore)
-      setStashes(nextStashes)
-      setLoadError(null)
-      gitCache.set(
-        reqProjectId,
+      const bundle = nextGitBundle(
+        gitCache.get(reqProjectId)?.data,
         {
-          status: nextStatus,
-          branches: nextBranches,
-          log: commits,
-          hasMoreLog: nextHasMore,
-          stashes: nextStashes,
+          status: unwrapGitEnvelope(bundleRes.data.status, 'status', EMPTY_STATUS),
+          branches: unwrapGitEnvelope(bundleRes.data.branches, 'branches', EMPTY_BRANCHES),
+          stashes: unwrapGitEnvelope(bundleRes.data.stashes, 'stashes', EMPTY_STASHES),
+          ...(withLog ? { log: bundleRes.data.log.commits } : {}),
         },
-        null,
+        LOG_PAGE_SIZE,
       )
+      showBundle(bundle)
+      setLoadError(null)
+      gitCache.set(reqProjectId, bundle, null)
     } catch (err) {
       // Stale renders (project switched, or a newer refresh started)
       // discard their error — the live request will surface its own.
@@ -448,7 +462,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
         setIsLoaded(true)
       }
     }
-  }, [projectId])
+  }, [projectId, showBundle])
 
   const loadMoreLog = useCallback(async () => {
     if (!projectId) return
@@ -508,26 +522,34 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       setStashes(EMPTY_STASHES)
       setIsLoaded(true)
     } else {
-      const cached = gitCache.get(projectId)
-      if (cached) {
-        setStatus(cached.data.status)
-        setBranches(cached.data.branches)
-        setLog(cached.data.log)
-        setHasMoreLog(cached.data.hasMoreLog)
-        setStashes(cached.data.stashes)
-        setIsLoaded(true)
-      } else {
-        setStatus(null)
-        setBranches(EMPTY_BRANCHES)
-        setLog(EMPTY_LOG)
-        setHasMoreLog(true)
-        setStashes(EMPTY_STASHES)
-        setIsLoaded(false)
-      }
+      const cached = gitCache.get(projectId)?.data
+      showBundle(
+        cached ?? {
+          status: null,
+          branches: EMPTY_BRANCHES,
+          log: EMPTY_LOG,
+          hasMoreLog: true,
+          stashes: EMPTY_STASHES,
+          hasLog: false,
+        },
+      )
+      setIsLoaded(gitBundleShows(cached, logWantedRef.current))
     }
-    void refresh()
-    return () => abortRef.current?.abort()
-  }, [projectId, refresh])
+    const cancel = afterPrimaryLoads(() => void refresh())
+    return () => {
+      cancel()
+      abortRef.current?.abort()
+    }
+  }, [projectId, refresh, showBundle])
+
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+  useEffect(() => {
+    const current = latestProjectIdRef.current
+    if (!logWanted || !current) return
+    if (!gitBundleShows(gitCache.get(current)?.data, true)) setIsLoaded(false)
+    void refreshRef.current()
+  }, [logWanted])
 
   const requireProject = useCallback(() => {
     if (!projectId) throw new Error('No active project — cannot perform git operation')
@@ -589,7 +611,8 @@ export function GitProvider({ children, storage }: GitProviderProps) {
   // loaded so a tab that doesn't show it doesn't pay the round-trip cost.
   useEffect(
     () =>
-      ws.on('git:status-changed', () => {
+      ws.on('git:status-changed', (data: unknown) => {
+        if (!wsEventConcernsProject(data, latestProjectIdRef.current)) return
         void refresh()
         if (localDiffLoadedRef.current) void loadLocalDiff()
       }),
@@ -983,6 +1006,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       hasMoreLog,
       isLogLoading,
       loadMoreLog,
+      holdLog,
       stashes,
       localDiff,
       isLocalDiffLoading,
@@ -1031,6 +1055,7 @@ export function GitProvider({ children, storage }: GitProviderProps) {
       hasMoreLog,
       isLogLoading,
       loadMoreLog,
+      holdLog,
       stashes,
       localDiff,
       isLocalDiffLoading,
@@ -1078,5 +1103,17 @@ export function GitProvider({ children, storage }: GitProviderProps) {
 export function useGit(): GitContextValue {
   const ctx = useContext(GitContext)
   if (!ctx) throw new Error('useGit must be used within GitProvider')
+  return ctx
+}
+
+/**
+ * Git with its log — read while the calling screen is open. For the screens
+ * that show history (the Git view); badges and pickers read `useGit()`, which
+ * a project switch keeps current without the log.
+ */
+export function useGitWithLog(): GitContextValue {
+  const ctx = useGit()
+  const { holdLog } = ctx
+  useEffect(() => holdLog(), [holdLog])
   return ctx
 }

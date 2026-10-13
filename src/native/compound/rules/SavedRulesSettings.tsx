@@ -11,10 +11,16 @@ import {
 import {
   RULES_GIVEN_ON_FILTER_LABEL,
   SAVED_RULES_EMPTY,
+  TRUST_SITE_BUTTON,
+  TRUST_SITE_HINT,
+  TRUST_SITE_LABEL,
+  TRUST_SITE_PLACEHOLDER,
 } from '../../../headless/utils/actionRulesConstants'
 import type { ActionRuleView } from '../../../headless/utils/actionRulesTypes'
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
+import { Button } from '../../primitives/Button'
+import { Input } from '../../primitives/Input'
 import {
   Select,
   SelectContent,
@@ -38,7 +44,15 @@ const ALL = '__all'
  */
 export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsProps) {
   const { theme } = useNativeTheme()
-  const { rules, loading, error, remove } = useActionRules()
+  const { rules, loading, error, remove, trustSite } = useActionRules()
+  const [site, setSite] = useState('')
+  const [trusting, setTrusting] = useState(false)
+  const submitSite = async () => {
+    if (!site.trim() || trusting) return
+    setTrusting(true)
+    if (await trustSite(site.trim())) setSite('')
+    setTrusting(false)
+  }
   const { projects } = useProjects()
   const [projectId, setProjectId] = useState(ALL)
   const [credentialId, setCredentialId] = useState(ALL)
@@ -79,6 +93,36 @@ export default function SavedRulesSettings({ onOpenChat }: SavedRulesSettingsPro
         Tool calls you chose to always allow. A rule for one chat also shows in that chat’s
         settings; a rule for everywhere applies to every chat that uses its sign-in.
       </Text>
+
+      <View style={{ gap: nativeSpace[1] }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+          {TRUST_SITE_LABEL}
+        </Text>
+        <View style={{ flexDirection: 'row', gap: nativeSpace[2], alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Input
+              size="sm"
+              value={site}
+              onChangeText={setSite}
+              placeholder={TRUST_SITE_PLACEHOLDER}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              disabled={trusting}
+              onSubmitEditing={() => void submitSite()}
+            />
+          </View>
+          <Button
+            size="sm"
+            loading={trusting}
+            disabled={!site.trim() || trusting}
+            onPress={() => void submitSite()}
+          >
+            {TRUST_SITE_BUTTON}
+          </Button>
+        </View>
+        <Text style={{ fontSize: 12, color: theme.text.secondary }}>{TRUST_SITE_HINT}</Text>
+      </View>
 
       {options.projects.length > 0 ? (
         <Select value={projectId} onValueChange={setProjectId}>

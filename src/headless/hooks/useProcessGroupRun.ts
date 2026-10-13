@@ -104,7 +104,7 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
 
   useEffect(() => {
     if (!groupRunId) return
-    return ws.on('process:group-run-update', (data: unknown) => {
+    const offUpdate = ws.on('process:group-run-update', (data: unknown) => {
       const update = data as ProcessGroupRunUpdate
       if (update?.groupRunId !== groupRunId) return
       if (update.deleted) {
@@ -114,7 +114,12 @@ export function useProcessGroupRun(groupRunId: string | undefined): UseProcessGr
       }
       if (update.run) setGroup(update.run)
     })
-  }, [ws, groupRunId])
+    const offReconnect = ws.onReconnect(() => void refresh())
+    return () => {
+      offUpdate()
+      offReconnect()
+    }
+  }, [ws, groupRunId, refresh])
 
   const resume = useCallback(
     async (input: ProcessGroupResumeInput): Promise<boolean> => {

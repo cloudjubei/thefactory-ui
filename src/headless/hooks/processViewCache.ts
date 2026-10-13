@@ -5,12 +5,17 @@
  * account-global like `featureRequestsStore`; each hook writes what it reads.
  */
 
-import type { ProcessRun } from 'thefactory-tools/types'
+import type {
+  ProcessIntegrationOptions,
+  ProcessRun,
+  ProcessRunSummary,
+} from 'thefactory-tools/types'
 
 import type { ProjectChecksListing } from '../api/generated'
 import { BoundedCache } from '../utils/boundedCache'
 import {
   ALL_PROJECTS_PROCESS_RUN_LIST_KEY,
+  INTEGRATION_OPTIONS_CACHE_CAPACITY,
   PROCESS_RUN_CACHE_CAPACITY,
   PROCESS_RUN_LIST_CACHE_CAPACITY,
   PROJECT_CHECKS_CACHE_CAPACITY,
@@ -19,8 +24,10 @@ import {
 } from '../utils/processViewCacheConstants'
 import type { ReviewEvidenceSnapshot, StorySignoffSources } from '../utils/processViewCacheTypes'
 
-/** Root process-run lists, by {@link processRunListKey}. */
-export const processRunListCache = new BoundedCache<ProcessRun[]>(PROCESS_RUN_LIST_CACHE_CAPACITY)
+/** Root process-run lists, as the list route summarises them, by {@link processRunListKey}. */
+export const processRunListCache = new BoundedCache<ProcessRunSummary[]>(
+  PROCESS_RUN_LIST_CACHE_CAPACITY,
+)
 
 /** Single process runs, by run id. */
 export const processRunCache = new BoundedCache<ProcessRun>(PROCESS_RUN_CACHE_CAPACITY)
@@ -40,6 +47,11 @@ export const projectChecksCache = new BoundedCache<ProjectChecksListing>(
   PROJECT_CHECKS_CACHE_CAPACITY,
 )
 
+/** What approving a run's work offers, by run id — the sign-off reads it, the chooser shows it. */
+export const integrationOptionsCache = new BoundedCache<ProcessIntegrationOptions>(
+  INTEGRATION_OPTIONS_CACHE_CAPACITY,
+)
+
 /** The list key of a scope: one project's runs, or every project's. */
 export function processRunListKey(projectId: string | undefined): string {
   return projectId ?? ALL_PROJECTS_PROCESS_RUN_LIST_KEY
@@ -48,6 +60,9 @@ export function processRunListKey(projectId: string | undefined): string {
 /**
  * The last-read record of one run: its own read, else the copy a list held —
  * a run opened from the Processes list paints from the row it was opened from.
+ * A list's copy is a {@link ProcessRunSummary}: what only the run's own view
+ * opens (resolutions, change history, the manager's past interventions) arrives
+ * with the run's own read.
  */
 export function cachedProcessRun(runId: string | undefined): ProcessRun | undefined {
   if (!runId) return undefined
@@ -67,4 +82,5 @@ export function clearProcessViewCaches(): void {
   storySignoffSourceCache.clear()
   reviewEvidenceCache.clear()
   projectChecksCache.clear()
+  integrationOptionsCache.clear()
 }

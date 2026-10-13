@@ -40,12 +40,14 @@ import type {
   ResolvedStoryRef,
 } from '../utils/storyDependencyTypes'
 import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+import { wsEventConcernsProject } from '../utils/wsEventProject'
+import { InflightRequests } from '../utils/inflightRequests'
 
 /** SWR caches keyed by projectId. Module-scope so they survive provider
  *  re-mounts (e.g. StrictMode double-invoke) and let project switches
  *  hydrate immediately from any data we've seen this session. */
-const storiesCache = new ProjectResourceCache<GetStoryResponse[]>(16)
-const orderCache = new ProjectResourceCache<string[]>(16)
+const storiesCache = new ProjectResourceCache<GetStoryResponse[]>()
+const orderCache = new ProjectResourceCache<string[]>()
 
 /**
  * Another project's stories in list order, revalidated against the same SWR
@@ -83,6 +85,23 @@ async function fetchProjectStories(projectId: string): Promise<GetStoryResponse[
   return [...stories].sort(
     (a, b) =>
       (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+  )
+}
+
+const prefetches = new InflightRequests<void>()
+
+/**
+ * Read a project's stories into the cache before it is opened — on a pointer
+ * resting on its row — so opening it paints at once and only revalidates. A
+ * project already held is left to that revalidate; a failed read is dropped.
+ */
+export function prefetchProjectStories(projectId: string): Promise<void> {
+  if (storiesCache.get(projectId) && orderCache.get(projectId)) return Promise.resolve()
+  return prefetches.run(projectId, () =>
+    fetchProjectStories(projectId).then(
+      () => undefined,
+      () => undefined,
+    ),
   )
 }
 
@@ -279,7 +298,13 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   // broadcasts the same channel on every mutation in [stories.ts]. We don't
   // pre-clear the cache: the backend's ETag will have moved, so refresh
   // returns 200 (not 304) and overwrites the stale entry naturally.
-  useEffect(() => ws.on('stories:updated', () => void refresh()), [ws, refresh])
+  useEffect(
+    () =>
+      ws.on('stories:updated', (data: unknown) => {
+        if (wsEventConcernsProject(data, activeProjectId)) void refresh()
+      }),
+    [ws, refresh, activeProjectId],
+  )
 
   const [foreignVersion, setForeignVersion] = useState(0)
   useEffect(() => foreignStories.subscribe(() => setForeignVersion((v) => v + 1)), [])

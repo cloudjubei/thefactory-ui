@@ -34,6 +34,7 @@ import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 import SubagentSteps from './ToolCall/SubagentSteps'
 import BackgroundResultsRow from './BackgroundResultsRow'
 import { ManagerCardView } from './ManagerCards'
+import { RunParkClosure } from './ParkClosureLine'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 
@@ -341,6 +342,7 @@ function MessageRow({
     return (
       <ManagerCardView
         card={managerCard}
+        {...(msg.processRunId ? { processRunId: msg.processRunId } : {})}
         {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
         links={{ renderReference, onResourceLink }}
       >
@@ -698,6 +700,11 @@ function MessageRow({
 
         {/* Directly under the announcement it belongs to, so "the work
             started" and what the work is now DOING read as one thing. */}
+        {isAssistant && msg.processRunId && msg.processRunParkedAt !== undefined ? (
+          <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
+            <RunParkClosure runId={msg.processRunId} parkedAt={msg.processRunParkedAt} />
+          </View>
+        ) : null}
         {isAssistant && msg.processRunId && renderProcessRun ? (
           <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
             {renderProcessRun(msg.processRunId)}

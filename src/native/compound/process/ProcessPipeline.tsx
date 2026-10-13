@@ -88,6 +88,9 @@ import {
   type ProcessRunManagerView,
   type ProcessRunStopHolder,
   type ProcessTurnLimit,
+  type ProcessWaitingDetail,
+  type ProcessWaitingItemChoice,
+  type ProcessWaitingRequestView,
   type ProcessWaitingView,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
@@ -201,6 +204,7 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    answerWaitingRequest,
     setTurnLimit,
     setManager,
     delegate,
@@ -484,6 +488,7 @@ export default function ProcessPipeline({
               managerLine={managerLine}
               addedTag={amendments.addedSteps[state.step.id]}
               onChoose={choose}
+              onAnswerRequest={(actionId, choice) => void answerWaitingRequest(actionId, choice)}
               onDelegate={() => delegate().then(() => undefined)}
               {...(canChat ? { onAskAgent: askAgentAboutStep } : {})}
               {...(onOpenChat ? { onOpenChat } : {})}
@@ -1011,6 +1016,7 @@ function PipelineNode({
   managerLine,
   addedTag,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onAskAgent,
   onOpenChat,
@@ -1033,6 +1039,8 @@ function PipelineNode({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
   ) => Promise<boolean>
+  /** Decide one of several requests a waiting agent left open. */
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   /** Ask an agent about the step the run stopped at, in the run's own chat. */
   onAskAgent?: () => Promise<void>
@@ -1202,6 +1210,7 @@ function PipelineNode({
             run={run}
             managerLine={managerLine}
             onChoose={onChoose}
+            onAnswerRequest={onAnswerRequest}
             onDelegate={onDelegate}
             {...(onAskAgent ? { onAskAgent } : {})}
             {...(onOpenChat ? { onOpenChat } : {})}
@@ -1218,6 +1227,7 @@ function ParkBlock({
   run,
   managerLine,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onAskAgent,
   onOpenChat,
@@ -1234,6 +1244,7 @@ function ParkBlock({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => void
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1257,6 +1268,7 @@ function ParkBlock({
         view={waiting}
         managerLine={managerLine}
         onChoose={onChoose}
+        onAnswerRequest={onAnswerRequest}
         onDelegate={onDelegate}
         {...(onOpenChat ? { onOpenChat } : {})}
         {...(onOpenTranscript ? { onOpenTranscript } : {})}
@@ -1365,15 +1377,91 @@ function ParkBlock({
   )
 }
 
+/** What exactly a request asked for, one line each. */
+function WaitingDetails({ details }: { details: ProcessWaitingDetail[] }) {
+  const { theme } = useNativeTheme()
+  return (
+    <>
+      {details.map((d) => (
+        <View key={d.label} style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
+          <Text style={{ fontSize: 12, color: theme.text.muted }}>{d.label}</Text>
+          <Text
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 12, fontFamily: 'Menlo', color: theme.text.primary }}
+          >
+            {d.value}
+          </Text>
+        </View>
+      ))}
+    </>
+  )
+}
+
+/**
+ * One of several requests a waiting agent left open: what it asks, in its
+ * words, and its own answers — or what it was decided as.
+ */
+function WaitingRequestRow({
+  request,
+  onAnswer,
+}: {
+  request: ProcessWaitingRequestView
+  onAnswer: (choice: ProcessWaitingItemChoice) => void
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <View
+      style={{
+        gap: nativeSpace[1],
+        borderRadius: nativeRadii[2],
+        borderWidth: 1,
+        borderColor: theme.border.subtle,
+        backgroundColor: theme.surface.base,
+        padding: nativeSpace[2],
+      }}
+    >
+      <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+        {request.title}
+      </Text>
+      {request.words ? (
+        <Text style={{ fontSize: 12, lineHeight: 17, color: theme.text.secondary }}>
+          {request.words}
+        </Text>
+      ) : null}
+      <WaitingDetails details={request.details} />
+      {request.decided ? (
+        <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text.secondary }}>
+          {request.decided}
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
+          {request.choices.map((choice) => (
+            <Button
+              key={choice.choice}
+              size="sm"
+              variant={choice.choice === 'allow' ? 'primary' : 'secondary'}
+              onPress={() => onAnswer(choice.choice)}
+            >
+              {choice.label}
+            </Button>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+}
+
 /**
  * An agent waiting on the person: what it needs, in its own words, exactly what
  * it asked for, its transcript one tap away, and the answers it takes — each
- * with one line on what it does.
+ * with one line on what it does. Several requests are each decided on their
+ * own rows; the card's answers take every one still open.
  */
 function WaitingCard({
   view,
   managerLine,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onOpenChat,
   onOpenTranscript,
@@ -1382,6 +1470,7 @@ function WaitingCard({
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
   managerLine: string | undefined
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
@@ -1429,16 +1518,13 @@ function WaitingCard({
           {view.words}
         </Text>
       </View>
-      {view.details.map((d) => (
-        <View key={d.label} style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
-          <Text style={{ fontSize: 12, color: theme.text.muted }}>{d.label}</Text>
-          <Text
-            numberOfLines={1}
-            style={{ flex: 1, fontSize: 12, fontFamily: 'Menlo', color: theme.text.primary }}
-          >
-            {d.value}
-          </Text>
-        </View>
+      <WaitingDetails details={view.details} />
+      {view.requests?.map((request) => (
+        <WaitingRequestRow
+          key={request.actionId}
+          request={request}
+          onAnswer={(choice) => onAnswerRequest(request.actionId, choice)}
+        />
       ))}
       {transcript && onOpenTranscript ? (
         <Pressable onPress={() => onOpenTranscript(transcript)} accessibilityRole="button">

@@ -6,6 +6,7 @@ import {
   getChatTurn,
   listCliAgentRunSummaries,
   listPendingCliAgentActions,
+  trustSite,
   type ChatContext,
   type ChatContextAgentRunStory,
   type PendingAction,
@@ -26,6 +27,9 @@ import {
   isToolGrantAction,
   pickActiveCliRunId,
   pickActiveStoryRunId,
+  cliActionEventConcernsChat,
+  cliRunLifecycleConcernsChat,
+  trustableSiteOf,
 } from '../utils/pendingToolGrants'
 import { answerDecision, declineDecision, isQuestionAction } from '../utils/agentQuestions'
 import { decisionGrantScope } from '../utils/alwaysAllow'
@@ -163,7 +167,8 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
     }
     void discover()
     const off = ws.on('cli:run-update', (data) => {
-      if (isCliRunLifecycleEvent(data)) void discover()
+      if (!isCliRunLifecycleEvent(data)) return
+      if (storyChat || cliRunLifecycleConcernsChat(data, chatContextId)) void discover()
     })
     return () => {
       cancelled = true
@@ -203,6 +208,8 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   // while it waits, so the agent routinely ends its turn with the approval still
   // pending and retries on a later run. Reading by `runId` would hide the prompt
   // the agent just told the user about, the moment its run went terminal.
+  const cliActionsRef = useRef(cliActions)
+  cliActionsRef.current = cliActions
   const loadSeqRef = useRef(0)
   const loadCliActions = useCallback(async () => {
     // Sequence guard: a slow response for the PREVIOUS chat (or an older
@@ -224,14 +231,16 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
   useEffect(() => {
     void loadCliActions()
     const off = ws.on('cli:run-update', (data) => {
-      if (isCliActionUpdateEvent(data)) void loadCliActions()
+      if (!isCliActionUpdateEvent(data)) return
+      const shows = (id: string) => cliActionsRef.current.some((a) => a.id === id)
+      if (cliActionEventConcernsChat(data, chatContextId, shows)) void loadCliActions()
     })
     const offReconnect = ws.onReconnect(() => void loadCliActions())
     return () => {
       off()
       offReconnect()
     }
-  }, [loadCliActions, ws])
+  }, [loadCliActions, ws, chatContextId])
 
   const decideCli = useCallback(
     async (
@@ -255,6 +264,9 @@ export function usePendingToolGrants(ctx: ChatContext, runId?: string): UsePendi
               ...(metadata ? { metadata } : {}),
             }
       try {
+        // Trusting the site is its own rule, made first; the ask itself is then approved.
+        const site = decision === 'trust-site' ? trustableSiteOf(action) : undefined
+        if (site) await trustSite({ body: { site }, throwOnError: true })
         await decideCliAgentAction({ path: { actionId: action.id }, body, throwOnError: true })
         setCliActions((prev) => prev.filter((a) => a.id !== action.id))
       } catch (err) {

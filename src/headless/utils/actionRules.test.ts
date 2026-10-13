@@ -8,6 +8,7 @@ import {
   groupActionRules,
   removeActionRuleConfirm,
 } from './actionRules'
+import { TRUSTED_SITE_RULE_TITLE } from './actionRulesConstants'
 import type { ActionRuleView } from './actionRulesTypes'
 import { formatDateShort } from './time'
 
@@ -30,6 +31,14 @@ const inChat = (id: string, chatContextId: string, projectId?: string, title?: s
 describe('actionRuleTitle', () => {
   it('names a whole-tool rule by its tool', () => {
     expect(actionRuleTitle(rule({}))).toBe('Always allow addFeature')
+  })
+
+  it('names a trusted site, and the sites under it', () => {
+    expect(
+      actionRuleTitle(
+        rule({ covers: 'site', site: 'starcraft-tmg.com', kind: 'site', toolName: undefined }),
+      ),
+    ).toBe(TRUSTED_SITE_RULE_TITLE('starcraft-tmg.com'))
   })
 
   it('names an exact-call rule as that call', () => {

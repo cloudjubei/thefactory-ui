@@ -4,9 +4,11 @@ import type {
   ProcessResumeChoice,
   ProcessRun,
   ProcessTurnLimit,
+  ProcessWaitingItemChoice,
   ProofKind,
 } from 'thefactory-tools/types'
 import {
+  answerProcessRunWaitingRequest,
   cancelProcessRun,
   delegateProcessRunAsk,
   deleteProcessRun,
@@ -67,6 +69,12 @@ export type UseProcessRun = {
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => Promise<boolean>
+  /**
+   * Decide ONE of several requests the waiting agent left open; the run carries
+   * on once the last is decided. Resolves `false` when it was refused; the
+   * reason is in `actionError`.
+   */
+  answerWaitingRequest: (actionId: string, choice: ProcessWaitingItemChoice) => Promise<boolean>
   /**
    * Hold every step agent of the run to `limit` from its next step on.
    * Resolves `false` when it was refused; the reason is in `actionError`.
@@ -146,6 +154,19 @@ function integrationBody({ mode, ...landing }: ProcessIntegrationDecision) {
 /** The run this instance holds, for the id it was read for. */
 type HeldRun = { runId: string | undefined; run: ProcessRun | undefined; settled: boolean }
 
+/** Reads of a run under way, by id: every card and chip showing one run shares a single request. */
+const readsInFlight = new Map<string, Promise<ProcessRun>>()
+
+function readProcessRunShared(runId: string): Promise<ProcessRun> {
+  const inFlight = readsInFlight.get(runId)
+  if (inFlight) return inFlight
+  const read = getProcessRun({ path: { runId }, throwOnError: true })
+    .then(({ data }) => data as ProcessRun)
+    .finally(() => readsInFlight.delete(runId))
+  readsInFlight.set(runId, read)
+  return read
+}
+
 function cachedHeldRun(runId: string | undefined): HeldRun {
   const run = cachedProcessRun(runId)
   return { runId, run, settled: runId === undefined || run !== undefined }
@@ -189,8 +210,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       return
     }
     try {
-      const { data } = await getProcessRun({ path: { runId }, throwOnError: true })
-      setRun(data as ProcessRun)
+      setRun(await readProcessRunShared(runId))
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err : new Error(String(err)))
@@ -209,11 +229,24 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
 
   useEffect(() => {
     if (!runId) return
-    return ws.on('process:run-update', (data: unknown) => {
-      const update = data as { runId?: string; run?: ProcessRun }
-      if (update?.runId === runId && update.run) setRun(update.run)
+    const offUpdate = ws.on('process:run-update', (data: unknown) => {
+      const update = data as { runId?: string; run?: ProcessRun; deleted?: boolean }
+      if (update?.runId !== runId) return
+      if (update.run) {
+        setRun(update.run)
+        return
+      }
+      if (update.deleted) {
+        processRunCache.delete(runId)
+        setHeld({ runId, run: undefined, settled: true })
+      }
     })
-  }, [ws, runId, setRun])
+    const offReconnect = ws.onReconnect(() => void refresh())
+    return () => {
+      offUpdate()
+      offReconnect()
+    }
+  }, [ws, runId, setRun, refresh])
 
   const resume = useCallback(
     async (
@@ -245,6 +278,26 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         return true
       } catch (err) {
         setActionError(extractErrorMessage(err, 'The run could not be answered.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
+  const answerWaitingRequest = useCallback(
+    async (actionId: string, choice: ProcessWaitingItemChoice) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await answerProcessRunWaitingRequest({
+          path: { runId, actionId },
+          body: { choice, decidedVia: client },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The request could not be answered.'))
         return false
       }
     },
@@ -489,6 +542,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      answerWaitingRequest,
       setTurnLimit,
       setManager,
       retryIntegration,
@@ -512,6 +566,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      answerWaitingRequest,
       setTurnLimit,
       setManager,
       retryIntegration,

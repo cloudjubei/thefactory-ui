@@ -34,18 +34,6 @@ export function isReadableNote(ref: Pick<ReviewEvidenceRef, 'mediaType'>): boole
   )
 }
 
-/**
- * The written notes of a listing whose text is not yet held or on its way. A
- * note's text never changes, so a live re-pull — one on every run or chat event
- * — must not download it again.
- */
-export function notesToRead(
-  refs: readonly ReviewEvidenceRef[],
-  held: ReadonlySet<string>,
-): ReviewEvidenceRef[] {
-  return refs.filter((ref) => isReadableNote(ref) && !held.has(ref.id))
-}
-
 function captionFor(ref: ReviewEvidenceRef): string {
   if (ref.label && ref.label.trim().length > 0) return ref.label
   if (ref.phase) return ref.phase === 'before' ? 'Before' : 'After'

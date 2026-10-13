@@ -84,6 +84,7 @@ export default function ToolAskApprovalPanel({
     grant.alwaysAllowScopes ?? [],
     grant.label,
     grant.grantCovers ?? 'exact-call',
+    grant.trustableSite,
   )
   const [scope, setScope] = useState<PendingToolGrantDecision>('once')
   const startAwait = view.body.kind === 'message' ? view.body.awaitReply : false

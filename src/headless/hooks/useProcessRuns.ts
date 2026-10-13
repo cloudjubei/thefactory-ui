@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ProcessRun } from 'thefactory-tools/types'
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
+import type { ProcessRun, ProcessRunSummary } from 'thefactory-tools/types'
 import { listProcessRuns } from '../api'
 import { useApi, useAuth } from '../api'
+import { LiveResourceStore } from '../utils/liveResourceStore'
+import {
+  ALL_PROJECTS_PROCESS_RUN_LIST_KEY,
+  PROCESS_RUN_LIST_LINGER_MS,
+} from '../utils/processViewCacheConstants'
 import { splitProcessRunsByCurrent } from '../utils/processRunCurrent'
 import { processRunListCache, processRunListKey } from './processViewCache'
 
@@ -38,12 +43,12 @@ export function shouldTrackProcessRunUpdate(
 export type UseProcessRuns = {
   isLoaded: boolean
   loadError: Error | null
-  /** Every run for the scope, newest first (by `startedAt`). */
-  runs: ProcessRun[]
+  /** Every run for the scope, newest first (by `startedAt`), as the list route summarises it. */
+  runs: ProcessRunSummary[]
   /** The runs that still need the person or are working (`isProcessRunCurrent`), newest first. */
-  current: ProcessRun[]
+  current: ProcessRunSummary[]
   /** The runs that are done — landed, let go, or with nothing to bring in — newest first. */
-  history: ProcessRun[]
+  history: ProcessRunSummary[]
   /** Count of runs actively working (`running`). */
   running: number
   /** Count of runs stopped for the user (`parked`) — a decision is pending. */
@@ -51,23 +56,77 @@ export type UseProcessRuns = {
   refresh: () => Promise<void>
 }
 
-const byStartedDesc = (a: ProcessRun, b: ProcessRun) => (b.startedAt ?? 0) - (a.startedAt ?? 0)
+const byStartedDesc = (a: ProcessRunSummary, b: ProcessRunSummary) =>
+  (b.startedAt ?? 0) - (a.startedAt ?? 0)
 
-/** One scope's list as this instance holds it — `runs` undefined until a read or the cache has it. */
-type ScopedRuns = { key: string; runs: ProcessRun[] | undefined; settled: boolean }
+/**
+ * A scope's list after one `process:run-update`: a deleted run dropped, a root
+ * run of the scope put in (or replaced) newest first. The same list back when
+ * the update is not for it, so nothing re-renders.
+ */
+export function applyProcessRunUpdate(
+  prev: ProcessRunSummary[] | undefined,
+  update: ProcessRunUpdate,
+  scopedProjectId: string | undefined,
+): ProcessRunSummary[] | undefined {
+  if (update?.deleted && update.runId) {
+    if (!prev?.some((r) => r.id === update.runId)) return prev
+    return prev.filter((r) => r.id !== update.runId)
+  }
+  if (!shouldTrackProcessRunUpdate(update, scopedProjectId)) return prev
+  const next = (prev ?? []).filter((r) => r.id !== update.runId)
+  next.push(update.run)
+  return next.sort(byStartedDesc)
+}
 
-function cachedScope(key: string): ScopedRuns {
-  const runs = processRunListCache.get(key)
-  return { key, runs, settled: runs !== undefined }
+type WsLike = ReturnType<typeof useApi>['ws']
+
+const stores = new WeakMap<WsLike, LiveResourceStore<ProcessRunSummary[]>>()
+
+function projectIdOfKey(key: string): string | undefined {
+  return key === ALL_PROJECTS_PROCESS_RUN_LIST_KEY ? undefined : key
+}
+
+function processRunListStoreFor(ws: WsLike): LiveResourceStore<ProcessRunSummary[]> {
+  const existing = stores.get(ws)
+  if (existing) return existing
+  const store = new LiveResourceStore<ProcessRunSummary[]>({
+    load: async (key) => {
+      const projectId = projectIdOfKey(key)
+      const { data } = await listProcessRuns({
+        query: { rootOnly: true, ...(projectId ? { projectId } : {}) },
+        throwOnError: true,
+      })
+      return ((data as ProcessRunSummary[] | undefined) ?? []).slice().sort(byStartedDesc)
+    },
+    connect: (key, live) => {
+      const projectId = projectIdOfKey(key)
+      const offUpdate = ws.on('process:run-update', (data: unknown) =>
+        live.patch((prev) => applyProcessRunUpdate(prev, data as ProcessRunUpdate, projectId)),
+      )
+      const offReconnect = ws.onReconnect(() => void live.refresh())
+      return () => {
+        offUpdate()
+        offReconnect()
+      }
+    },
+    lingerMs: PROCESS_RUN_LIST_LINGER_MS,
+    recall: (key) => processRunListCache.get(key),
+    remember: (key, runs) => processRunListCache.set(key, runs),
+  })
+  stores.set(ws, store)
+  return store
 }
 
 /**
  * Every process run for a scope, kept live.
  *
  * The list route has no `status` filter, so Current/History is split HERE by
- * `splitProcessRunsByCurrent` — one fetch, both lists. Liveness is the same `process:run-update`
- * event the single-run hook uses: it carries the whole record, so a step change
- * upserts in place rather than re-fetching (which would flicker the list). A run
+ * `splitProcessRunsByCurrent` — one fetch, both lists. The list route sends
+ * summaries (`ProcessRunSummary`: what rows and badges read, without what only
+ * a run's own view opens). Liveness is the same `process:run-update` event the
+ * single-run hook uses: it carries the record, so a step change upserts in
+ * place rather than re-fetching (which would flicker the list). A run
  * that changes status stays in the list and simply moves between `current` and
  * `history`, so a run finishing is visible rather than vanishing.
  *
@@ -76,79 +135,36 @@ function cachedScope(key: string): ScopedRuns {
  * `rootOnly` keeps it to the runs a chat launched — a child run drilled into is
  * reached through its parent, never double-counted here.
  *
- * What it last read for a scope outlives the view (`processRunListCache`): a
- * return to the tab paints that list at once, loaded, and re-reads behind it.
+ * Every view showing a scope shares ONE read and ONE live subscription — the
+ * sidebar, the chat list and an open chat no longer each pull the whole list.
+ * What was last read outlives the view (`processRunListCache`): a return paints
+ * that list at once, and a scope left only briefly is still live, so it is not
+ * read again.
  */
 export function useProcessRuns(projectId?: string): UseProcessRuns {
   const { token } = useAuth()
   const { ws } = useApi()
+  const store = processRunListStoreFor(ws)
   const key = processRunListKey(projectId)
-  const [scoped, setScoped] = useState<ScopedRuns>(() => cachedScope(key))
-  const [loadError, setLoadError] = useState<Error | null>(null)
-  const current = scoped.key === key ? scoped : cachedScope(key)
-  const runs = useMemo(() => current.runs ?? [], [current.runs])
-  const isLoaded = current.settled
 
-  const updateRuns = useCallback(
-    (next: (prev: ProcessRun[]) => ProcessRun[], settles: boolean) =>
-      setScoped((prev) => {
-        const base = prev.key === key ? prev : cachedScope(key)
-        return { key, runs: next(base.runs ?? []), settled: settles || base.settled }
-      }),
-    [key],
+  useEffect(() => {
+    if (!token) return
+    return store.retain(key)
+  }, [store, key, token])
+
+  const snapshot = useSyncExternalStore(
+    useCallback((listener: () => void) => store.listen(key, listener), [store, key]),
+    () => store.snapshot(key),
+    () => store.snapshot(key),
   )
-
-  // Only a list that has been read whole is kept: a live event landing before
-  // the first read would otherwise be remembered as the scope's entire history.
-  useEffect(() => {
-    if (scoped.settled && scoped.runs) processRunListCache.set(scoped.key, scoped.runs)
-  }, [scoped])
-
-  const refresh = useCallback(async () => {
-    try {
-      const { data } = await listProcessRuns({
-        query: { rootOnly: true, ...(projectId ? { projectId } : {}) },
-        throwOnError: true,
-      })
-      updateRuns(() => ((data as ProcessRun[] | undefined) ?? []).slice().sort(byStartedDesc), true)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err : new Error(String(err)))
-      setScoped((prev) =>
-        prev.key === key ? { ...prev, settled: true } : { ...cachedScope(key), settled: true },
-      )
-    }
-  }, [projectId, key, updateRuns])
-
-  useEffect(() => {
-    if (!token) return
-    void refresh()
-  }, [token, refresh])
-
-  useEffect(() => {
-    if (!token) return
-    return ws.on('process:run-update', (data: unknown) => {
-      const update = data as ProcessRunUpdate
-      // A deletion carries no record — just drop the run (and it is the only
-      // event that removes one, so it is handled before the upsert guard).
-      if (update?.deleted && update.runId) {
-        updateRuns((prev) => prev.filter((r) => r.id !== update.runId), false)
-        return
-      }
-      if (!shouldTrackProcessRunUpdate(update, projectId)) return
-      updateRuns((prev) => {
-        const next = prev.filter((r) => r.id !== update.runId)
-        next.push(update.run)
-        return next.sort(byStartedDesc)
-      }, false)
-    })
-  }, [ws, token, projectId, updateRuns])
+  const refresh = useCallback(() => store.refresh(key), [store, key])
+  const runs = useMemo(() => snapshot.data ?? [], [snapshot.data])
 
   return useMemo<UseProcessRuns>(() => {
     const { current, history } = splitProcessRunsByCurrent(runs)
     return {
-      isLoaded,
-      loadError,
+      isLoaded: snapshot.settled,
+      loadError: snapshot.error,
       runs,
       current,
       history,
@@ -156,5 +172,5 @@ export function useProcessRuns(projectId?: string): UseProcessRuns {
       parked: runs.filter((r) => r.status === 'parked').length,
       refresh,
     }
-  }, [isLoaded, loadError, runs, refresh])
+  }, [snapshot.settled, snapshot.error, runs, refresh])
 }

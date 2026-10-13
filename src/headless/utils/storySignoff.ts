@@ -12,7 +12,7 @@
  * what the list endpoints returned.
  */
 
-import type { ProcessRunTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
+import type { ProcessRun, ProcessRunTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
 import { processRunUnmetRequest, sumProcessTimeBreakdowns } from 'thefactory-tools/utils'
 
 import type {
@@ -87,6 +87,8 @@ import {
   STORY_STEP_WORDS,
   STORY_REVIEW_TURNED_BACK,
   STORY_WIDE_ONLY_TITLE,
+  SIGNOFF_LOADING,
+  SIGNOFF_SOURCE_WORDS,
 } from './storySignoffConstants'
 import type {
   BuildStorySignoffInput,
@@ -109,6 +111,7 @@ import type {
   StorySignoff,
   StorySignoffProcessRun,
   StorySignoffRun,
+  StorySignoffRunUpdate,
   StoryStepKey,
   StoryStepLine,
 } from './storySignoffTypes'
@@ -1140,6 +1143,49 @@ export function signoffLoadStatus(sources: SignoffSources): SignoffLoadStatus {
   if (sources.runs === 'failed' || sources.stories === 'failed') return 'failed'
   const states = [sources.runs, sources.stories, sources.evidence, sources.checks]
   return states.includes('loading') ? 'loading' : 'ready'
+}
+
+/**
+ * What a sign-off still being read says it is waiting for — named per source,
+ * so the frame shows what is already in rather than one blank line.
+ */
+export function signoffLoadingLabel(sources: SignoffSources): string {
+  if (signoffLoadStatus(sources) !== 'loading') return SIGNOFF_LOADING
+  const pending = SIGNOFF_SOURCE_WORDS.filter(([source]) => sources[source] === 'loading').map(
+    ([, word]) => word,
+  )
+  return `Reading the ${joinWords(pending)}…`
+}
+
+function joinWords(words: readonly string[]): string {
+  return words.length < 2
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
+}
+
+/**
+ * A story's process runs after one `process:run-update`: the push carries the
+ * whole record, so a run of the story is put in place of the one held (or
+ * added) and a deleted one dropped, with nothing read again. The same list back
+ * for a run of any other story or project, so nothing re-renders.
+ */
+export function applyStorySignoffRunUpdate(
+  prev: ProcessRun[],
+  update: StorySignoffRunUpdate,
+  scope: { projectId: string; storyId: string },
+): ProcessRun[] {
+  if (update.deleted) {
+    return prev.some((r) => r.id === update.runId)
+      ? prev.filter((r) => r.id !== update.runId)
+      : prev
+  }
+  const run = update.run
+  if (!run || run.projectId !== scope.projectId || run.storyId !== scope.storyId) return prev
+  const at = prev.findIndex((r) => r.id === run.id)
+  if (at < 0) return [...prev, run]
+  const next = prev.slice()
+  next[at] = run
+  return next
 }
 
 export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {

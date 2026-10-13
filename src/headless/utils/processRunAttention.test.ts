@@ -205,6 +205,27 @@ describe('processRunNeedLine — Needs you', () => {
     expect(processRunNeedLine(r, NOW)).toBe(line)
   })
 
+  it('names every request of several still open', () => {
+    const item = (actionId: string, host: string, answered = false) => ({
+      title: host,
+      detail: host,
+      request: { actionId, actionKind: 'network-unlock', host },
+      ...(answered ? { answer: { choice: 'allow' as const, at: 1 } } : {}),
+    })
+    const r = parked({
+      reason: 'step-waiting',
+      ask: ask({
+        kind: 'permission',
+        title: 'The developer needs 3 approvals',
+        detail: 'x',
+        items: [item('a', 'a.com', true), item('b', 'b.com'), item('c', 'c.com')],
+      }),
+    })
+    expect(processRunNeedLine(r, NOW)).toBe(
+      'Approve: network access to b.com · network access to c.com',
+    )
+  })
+
   it('asks to unblock an agent that is blocked, in its own words', () => {
     const r = parked({
       reason: 'step-waiting',

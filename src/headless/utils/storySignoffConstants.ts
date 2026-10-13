@@ -4,7 +4,7 @@ import type { ReviewEvidenceVerdict } from '../api/generated'
 import type { CheckMethodId, ReviewTabId } from './checkMethodTypes'
 import type { ProcessStatusTone, VerifyReviewStatus } from './processView'
 import type { ReportAuthor } from './reviewEvidenceViewTypes'
-import type { FixSentBy, SignoffSection, StoryStepKey } from './storySignoffTypes'
+import type { FixSentBy, SignoffSection, SignoffSources, StoryStepKey } from './storySignoffTypes'
 import type { VerifyVerdictNote } from './verifyProofTypes'
 
 /**
@@ -132,6 +132,14 @@ export const STORY_STEP_NOTE_TONE: Record<ProcessStatusTone, VerifyVerdictNote['
 
 export const SIGNOFF_LOADING = 'Loading the sign-off…'
 export const SIGNOFF_LOAD_FAILED = 'Couldn’t load the sign-off'
+
+/** What each source of a sign-off is called while it is still being read, in reading order. */
+export const SIGNOFF_SOURCE_WORDS: readonly (readonly [keyof SignoffSources, string])[] = [
+  ['stories', 'story'],
+  ['runs', 'runs'],
+  ['evidence', 'proof'],
+  ['checks', 'checks'],
+]
 
 /** The report a section's own report step files — the story's, or the feature's. */
 export const SECTION_STEP_REPORT: Record<'story' | 'feature', ReportAuthor> = {

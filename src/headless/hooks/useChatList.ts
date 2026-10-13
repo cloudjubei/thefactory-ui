@@ -7,7 +7,7 @@ import { useChats } from '../contexts/createChatsContext'
 import { useActiveProject, useProjects } from '../contexts/ProjectsContext'
 import { useProjectsGroups } from '../contexts/ProjectsGroupsContext'
 import { useStories } from '../contexts/StoriesContext'
-import { chatListRow, isChatInChatList } from '../utils/chatList'
+import { chatListRow, isChatInChatList, isChatInScopePool } from '../utils/chatList'
 import type { ChatListChat, ChatListRow, ChatListScope, ChatListWork } from '../utils/chatListTypes'
 import { chatNotifyLevel } from '../utils/chatNotify'
 import { computeChatRowStatus, type ChatsSeenMap } from '../utils/chatRowStatus'
@@ -52,7 +52,9 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
     const projectById = new Map(projects.map((p) => [p.id, p]))
     const groupById = new Map(groups.map((g) => [g.id, g]))
     const main = mainChatOf(scope)
-    const listed: ChatListChat[] = chats.filter((c) => isChatInChatList(c.context))
+    const listed: ChatListChat[] = chats.filter(
+      (c) => isChatInChatList(c.context) && isChatInScopePool(c.context, scope),
+    )
     const mainKey = getChatContextKey(main)
     if (!listed.some((c) => getChatContextKey(c.context) === mainKey))
       listed.push({ context: main })

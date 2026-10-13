@@ -20,6 +20,7 @@ import {
   TOOL_ASK_COPY,
   TOOL_ASK_SCOPE,
   TOOL_ASK_SCOPE_DONE,
+  TOOL_ASK_SITE_HINT,
 } from './toolAskCardConstants'
 import type {
   ToolAskCardView,
@@ -225,13 +226,14 @@ export function gitChangeAskView(card: GitChangeCardView, args: unknown): ToolAs
 
 /**
  * The radio a reusable approval offers: just this once, then each place an
- * always-allow may reach, described by what it covers. None when no
- * always-allow is on offer. Pure.
+ * always-allow may reach, described by what it covers, and trusting the site
+ * the ask is about when there is one. None when no always-allow is on offer. Pure.
  */
 export function toolAskScopeOptions(
   scopes: readonly AlwaysAllowScope[],
   toolName: string,
   covers: GrantCovers,
+  site?: string,
 ): ToolAskScopeOption[] {
   if (scopes.length === 0) return []
   const subject = (where: string) =>
@@ -256,6 +258,15 @@ export function toolAskScopeOptions(
             decision: 'always-everywhere' as const,
             label: TOOL_ASK_SCOPE.everywhere.label,
             hint: subject('in every chat, with any model or sign-in'),
+          },
+        ]
+      : []),
+    ...(site
+      ? [
+          {
+            decision: 'trust-site' as const,
+            label: TOOL_ASK_SCOPE.site.label,
+            hint: TOOL_ASK_SITE_HINT(site),
           },
         ]
       : []),

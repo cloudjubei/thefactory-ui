@@ -7,6 +7,7 @@ import {
   RULE_WHERE_EVERYWHERE,
   RULE_WHERE_THIS_CHAT,
   RULES_OTHER_CHATS_TITLE,
+  TRUSTED_SITE_RULE_TITLE,
 } from './actionRulesConstants'
 import type {
   ActionRuleFilterOptions,
@@ -23,10 +24,11 @@ type ProjectTitle = (projectId: string) => string | undefined
 
 const DAY_MS = 24 * 3600_000
 
-/** What a rule allows, in words: the whole tool, one exact call, or one request of a kind. */
+/** What a rule allows, in words: a trusted site, the whole tool, one exact call, or one request of a kind. */
 export function actionRuleTitle(
-  rule: Pick<ActionRuleView, 'toolName' | 'covers' | 'kind'>,
+  rule: Pick<ActionRuleView, 'toolName' | 'covers' | 'kind' | 'site'>,
 ): string {
+  if (rule.covers === 'site' && rule.site) return TRUSTED_SITE_RULE_TITLE(rule.site)
   if (!rule.toolName) return `Always allow this ${formatActionLabel(rule.kind)} request`
   return rule.covers === 'tool'
     ? `Always allow ${rule.toolName}`

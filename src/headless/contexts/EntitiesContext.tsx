@@ -14,11 +14,13 @@ import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
 import { ProjectResourceCache } from '../utils/projectResourceCache'
 import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+import { wsEventConcernsProject } from '../utils/wsEventProject'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 
 /** SWR cache keyed by projectId. Module-scope so it survives provider
  *  re-mounts and lets switching back to a previously-seen project render
  *  instantly (no spinner). */
-const entitiesCache = new ProjectResourceCache<Entity[]>(16)
+const entitiesCache = new ProjectResourceCache<Entity[]>()
 
 export type EntitiesContextValue = {
   isLoaded: boolean
@@ -119,11 +121,20 @@ export function EntitiesProvider({ children }: { children: ReactNode }) {
       setEntities(EMPTY_ENTITIES)
       setIsLoaded(false)
     }
-    void refresh()
-    return () => abortRef.current?.abort()
+    const cancel = afterPrimaryLoads(() => void refresh())
+    return () => {
+      cancel()
+      abortRef.current?.abort()
+    }
   }, [projectId, refresh])
 
-  useEffect(() => ws.on('entities:updated', () => void refresh()), [ws, refresh])
+  useEffect(
+    () =>
+      ws.on('entities:updated', (data: unknown) => {
+        if (wsEventConcernsProject(data, projectId)) void refresh()
+      }),
+    [ws, refresh, projectId],
+  )
 
   const requireProject = useCallback(() => {
     if (!projectId) throw new Error('No active project — cannot mutate entities')

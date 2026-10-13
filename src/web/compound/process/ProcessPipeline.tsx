@@ -75,6 +75,9 @@ import {
   type ProcessRunManagerView,
   type ProcessRunStopHolder,
   type ProcessTurnLimit,
+  type ProcessWaitingDetail,
+  type ProcessWaitingItemChoice,
+  type ProcessWaitingRequestView,
   type ProcessWaitingView,
   type RunNeedsYouActions,
 } from '../../../headless'
@@ -180,6 +183,7 @@ export default function ProcessPipeline({
     actionError,
     run,
     resume,
+    answerWaitingRequest,
     setTurnLimit,
     setManager,
     delegate,
@@ -419,6 +423,7 @@ export default function ProcessPipeline({
                 managerLine={managerLine}
                 addedTag={amendments.addedSteps[state.step.id]}
                 onChoose={choose}
+                onAnswerRequest={(actionId, choice) => void answerWaitingRequest(actionId, choice)}
                 onDelegate={() => delegate().then(() => undefined)}
                 {...(canChat ? { onAskAgent: askAgentAboutStep } : {})}
                 {...(onOpenChat ? { onOpenChat } : {})}
@@ -887,6 +892,7 @@ function PipelineNode({
   managerLine,
   addedTag,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onAskAgent,
   onOpenChat,
@@ -908,6 +914,8 @@ function PipelineNode({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
   ) => Promise<boolean>
+  /** Decide one of several requests a waiting agent left open. */
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   /** Ask an agent about the step the run stopped at, in the run's own chat. */
   onAskAgent?: () => Promise<void>
@@ -1035,6 +1043,7 @@ function PipelineNode({
             run={run}
             managerLine={managerLine}
             onChoose={onChoose}
+            onAnswerRequest={onAnswerRequest}
             onDelegate={onDelegate}
             {...(onAskAgent ? { onAskAgent } : {})}
             {...(onOpenChat ? { onOpenChat } : {})}
@@ -1057,6 +1066,7 @@ function ParkBlock({
   run,
   managerLine,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onAskAgent,
   onOpenChat,
@@ -1073,6 +1083,7 @@ function ParkBlock({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => void
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onAskAgent?: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1095,6 +1106,7 @@ function ParkBlock({
         view={waiting}
         managerLine={managerLine}
         onChoose={onChoose}
+        onAnswerRequest={onAnswerRequest}
         onDelegate={onDelegate}
         {...(onOpenChat ? { onOpenChat } : {})}
         {...(onOpenTranscript ? { onOpenTranscript } : {})}
@@ -1257,15 +1269,73 @@ function RunEndingAction({
   )
 }
 
+/** What exactly a request asked for, one line each. */
+function WaitingDetails({ details }: { details: ProcessWaitingDetail[] }) {
+  return (
+    <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[11.5px]">
+      {details.map((d) => (
+        <div key={d.label} className="contents">
+          <dt className="text-(--text-muted)">{d.label}</dt>
+          <dd className="m-0 truncate font-mono text-(--text-primary)" title={d.value}>
+            {d.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/**
+ * One of several requests a waiting agent left open: what it asks, in its
+ * words, and its own answers — or what it was decided as.
+ */
+function WaitingRequestRow({
+  request,
+  onAnswer,
+}: {
+  request: ProcessWaitingRequestView
+  onAnswer: (choice: ProcessWaitingItemChoice) => void
+}) {
+  return (
+    <li className="flex flex-col gap-1.5 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
+      <div className="text-[12.5px] font-medium text-(--text-primary)">{request.title}</div>
+      {request.words ? (
+        <div className="whitespace-pre-wrap text-[12px] leading-relaxed text-(--text-secondary)">
+          {request.words}
+        </div>
+      ) : null}
+      {request.details.length > 0 ? <WaitingDetails details={request.details} /> : null}
+      {request.decided ? (
+        <div className="text-[11.5px] font-medium text-(--text-secondary)">{request.decided}</div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {request.choices.map((choice) => (
+            <Button
+              key={choice.choice}
+              size="sm"
+              variant={choice.choice === 'allow' ? 'primary' : 'secondary'}
+              onClick={() => onAnswer(choice.choice)}
+            >
+              {choice.label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </li>
+  )
+}
+
 /**
  * An agent waiting on the person: what it needs, in its own words, exactly what
  * it asked for, its transcript one click away, and the answers it takes — each
- * with one line on what it does.
+ * with one line on what it does. Several requests are each decided on their
+ * own rows; the card's answers take every one still open.
  */
 function WaitingCard({
   view,
   managerLine,
   onChoose,
+  onAnswerRequest,
   onDelegate,
   onOpenChat,
   onOpenTranscript,
@@ -1274,6 +1344,7 @@ function WaitingCard({
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
   managerLine: string | undefined
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
   onOpenTranscript?: (ref: ProcessNodeRunRef) => void
@@ -1308,17 +1379,17 @@ function WaitingCard({
       <blockquote className="m-0 whitespace-pre-wrap rounded-md border-l-2 border-(--border-strong) bg-(--surface-base) px-2.5 py-1.5 text-[12.5px] leading-relaxed text-(--text-primary)">
         {view.words}
       </blockquote>
-      {view.details.length > 0 ? (
-        <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[11.5px]">
-          {view.details.map((d) => (
-            <div key={d.label} className="contents">
-              <dt className="text-(--text-muted)">{d.label}</dt>
-              <dd className="m-0 truncate font-mono text-(--text-primary)" title={d.value}>
-                {d.value}
-              </dd>
-            </div>
+      {view.details.length > 0 ? <WaitingDetails details={view.details} /> : null}
+      {view.requests ? (
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {view.requests.map((request) => (
+            <WaitingRequestRow
+              key={request.actionId}
+              request={request}
+              onAnswer={(choice) => onAnswerRequest(request.actionId, choice)}
+            />
           ))}
-        </dl>
+        </ul>
       ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {transcript && onOpenTranscript ? (

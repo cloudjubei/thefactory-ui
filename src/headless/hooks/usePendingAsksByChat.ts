@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { countPendingCliAgentActionsByChat } from '../api/generated'
 import { useApi } from '../api'
 import { isCliActionUpdateEvent } from '../utils/pendingToolGrants'
+import { createCoalescedRefresh } from '../utils/runUpdateRefresh'
 
 type WsLike = ReturnType<typeof useApi>['ws']
 
@@ -28,34 +29,35 @@ function storeFor(ws: WsLike): PendingAsksStore {
 
 function start(ws: WsLike, store: PendingAsksStore): () => void {
   let disposed = false
-  let seq = 0
-  const load = async () => {
-    // A slower, older response must not overwrite a newer one.
-    const mine = ++seq
+  const load = createCoalescedRefresh(async () => {
     try {
       const { data } = await countPendingCliAgentActionsByChat({ throwOnError: true })
-      if (disposed || mine !== seq) return
+      if (disposed) return
       store.counts = new Map(Object.entries(data.counts))
       for (const listener of store.listeners) listener()
     } catch {
       // Advisory: a failed refresh keeps the last counts rather than clearing them.
     }
-  }
+  })
   void load()
   const off = ws.on('cli:run-update', (data) => {
     if (isCliActionUpdateEvent(data)) void load()
   })
+  const offReconnect = ws.onReconnect(() => void load())
   return () => {
     disposed = true
     off()
+    offReconnect()
   }
 }
 
 /**
  * How many asks each chat has waiting on the user, by chat key — kept live: a
  * fresh count whenever an ask is raised or decided anywhere. A chat with one
- * reads as needing the user just as an unread reply does. Every caller shares
- * one fetch and one subscription.
+ * reads as needing the user just as an unread reply does, and a reconnect reads
+ * them again so nothing decided while the socket was down stays. Every caller shares
+ * one fetch and one subscription, and a burst of asks reads the counts at most
+ * twice — the read on its way, and one after it.
  */
 export function usePendingAsksByChat(): ReadonlyMap<string, number> {
   const { ws } = useApi()

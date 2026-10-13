@@ -13,6 +13,7 @@ export const PROCESS_SIGNOFF_DECISION_VIEW: Record<
   continue: { label: 'Carried on', tone: 'empty' },
   retry: { label: 'Tried again', tone: 'empty' },
   allow: { label: 'Allowed', tone: 'done' },
+  'allow-site': { label: 'Allowed — site trusted', tone: 'done' },
   resolved: { label: 'Resolved', tone: 'done' },
   'more-info': { label: 'Answered', tone: 'empty' },
   'update-base': { label: 'Base updated', tone: 'empty' },

@@ -11,6 +11,7 @@ import {
   chatListRow,
   chatListSections,
   isChatInChatList,
+  isChatInScopePool,
   matchesChatListFilter,
   withChatListHidden,
 } from './chatList'
@@ -593,5 +594,59 @@ describe('chatListPool', () => {
   it('leaves out a row with no project when it is not the group’s own', () => {
     const stray = listRow({ key: 'stray', projectId: undefined, needsYou: 1 })
     expect(chatListPool([stray], group, false)).toEqual([])
+  })
+})
+
+describe('isChatInScopePool — which chats a scope can list at all', () => {
+  const OTHER_STORY: ChatContext = { type: 'STORY', projectId: 'p2', storyId: 's1' }
+  const OTHER_GROUP: ChatContext = { type: 'GROUP', groupId: 'g2' }
+  const projectScope: ChatListScope = { kind: 'project', projectId: 'p1' }
+  const groupScope: ChatListScope = { kind: 'group', groupId: 'g1', projectIds: ['p1', 'p3'] }
+  const all = [
+    PROJECT,
+    TOPIC,
+    STORY,
+    FEATURE,
+    REQUEST,
+    GROUP,
+    GROUP_TOPIC,
+    RUN_CHAT,
+    OTHER_STORY,
+    OTHER_GROUP,
+  ]
+
+  it("a project's own chats, and no other project's or group's", () => {
+    expect(all.filter((c) => isChatInScopePool(c, projectScope))).toEqual([
+      PROJECT,
+      TOPIC,
+      STORY,
+      FEATURE,
+      REQUEST,
+      RUN_CHAT,
+    ])
+  })
+
+  it("a group's own chats and its projects' chats, and no other group's or project's", () => {
+    expect(all.filter((c) => isChatInScopePool(c, groupScope))).toEqual([
+      PROJECT,
+      TOPIC,
+      STORY,
+      FEATURE,
+      REQUEST,
+      GROUP,
+      GROUP_TOPIC,
+      RUN_CHAT,
+    ])
+  })
+
+  it('never leaves out a chat the pool would list', () => {
+    const busy = { ...QUIET, needsYou: 1 }
+    for (const scope of [projectScope, groupScope]) {
+      for (const archived of [false, true]) {
+        const rows = all.map((chat) => row({ chat: { context: chat }, status: busy }))
+        for (const pooled of chatListPool(rows, scope, archived))
+          expect(isChatInScopePool(pooled.context, scope)).toBe(true)
+      }
+    }
   })
 })

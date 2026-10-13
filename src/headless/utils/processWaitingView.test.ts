@@ -7,7 +7,12 @@ import {
   processWaitingHeading,
   processWaitingView,
 } from './processWaitingView'
-import { WAITING_DELEGATED_LABEL } from './processWaitingViewConstants'
+import {
+  WAITING_DELEGATED_LABEL,
+  WAITING_REQUEST_DECIDED,
+  WAITING_REQUESTS_HEADING,
+  WAITING_REQUESTS_WORDS,
+} from './processWaitingViewConstants'
 
 const permission: ProcessWaitingAsk = {
   kind: 'permission',
@@ -140,6 +145,7 @@ describe('processWaitingView', () => {
     })
     expect(view.choices.map((c) => [c.choice, c.label])).toEqual([
       ['allow', 'Allow api.mckinsey.covision.com and continue'],
+      ['allow-site', 'Always allow api.mckinsey.covision.com and continue'],
       ['resolved', 'Issue resolved — Continue'],
       ['more-info', 'Provide more info'],
       ['delegate', 'Delegate to another agent'],
@@ -193,6 +199,88 @@ describe('processWaitingView', () => {
     expect(processWaitingView(parked(permission, { reason: 'step-failed' }))).toBeUndefined()
     expect(processWaitingView(parked(undefined))).toBeUndefined()
     expect(processWaitingView({ projectId: 'p' })).toBeUndefined()
+  })
+})
+
+describe('processWaitingView — several requests left waiting', () => {
+  const item = (actionId: string, host: string) => ({
+    title: `The developer needs network access to ${host}`,
+    detail: `Needs ${host}.`,
+    request: {
+      actionId,
+      actionKind: 'network-unlock',
+      toolName: 'requestNetworkUnlock',
+      host,
+    },
+  })
+  const several: ProcessWaitingAsk = {
+    kind: 'permission',
+    agent: 'developer',
+    title: 'The developer needs 3 approvals',
+    detail: '- a\n- b\n- c',
+    items: [
+      { ...item('a', 'a.com'), answer: { choice: 'allow-site', at: 1 } },
+      { ...item('b', 'b.com'), answer: { choice: 'decline', at: 2 } },
+      item('c', 'c.com'),
+    ],
+  }
+
+  it('heads the card with how many it asks, and says how they are decided', () => {
+    const view = processWaitingView(parked(several))!
+    expect(view.heading).toBe(`The developer ${WAITING_REQUESTS_HEADING}`)
+    expect(view.words).toBe(WAITING_REQUESTS_WORDS(1, 3))
+    expect(view.details).toEqual([])
+  })
+
+  it('lays out each request with its own answers, or what it was decided as', () => {
+    const view = processWaitingView(parked(several))!
+    expect(view.requests).toEqual([
+      {
+        actionId: 'a',
+        title: 'The developer needs network access to a.com',
+        words: 'Needs a.com.',
+        details: [
+          { label: 'Host', value: 'a.com' },
+          { label: 'Tool', value: 'requestNetworkUnlock' },
+        ],
+        choices: [],
+        decided: WAITING_REQUEST_DECIDED['allow-site'],
+      },
+      expect.objectContaining({
+        actionId: 'b',
+        choices: [],
+        decided: WAITING_REQUEST_DECIDED.decline,
+      }),
+      expect.objectContaining({
+        actionId: 'c',
+        choices: [
+          { choice: 'allow', label: 'Allow' },
+          { choice: 'allow-site', label: 'Always allow c.com' },
+          { choice: 'decline', label: 'Decline' },
+        ],
+      }),
+    ])
+    expect(view.requests?.[2]?.decided).toBeUndefined()
+  })
+
+  it('says a request answered with the whole card was withdrawn', () => {
+    const withdrawn: ProcessWaitingAsk = {
+      ...several,
+      items: [{ ...item('a', 'a.com'), answer: { choice: 'resolved', at: 1 } }],
+    }
+    expect(processWaitingView(parked(withdrawn))?.requests?.[0]?.decided).toBe(
+      WAITING_REQUEST_DECIDED.withdrawn,
+    )
+  })
+
+  it('answers the rest at once on the card, never trusting one site for all', () => {
+    const choices = processWaitingView(parked(several))!.choices.map((c) => c.choice)
+    expect(choices[0]).toBe('allow')
+    expect(choices).not.toContain('allow-site')
+  })
+
+  it('has no rows for an ask of one request', () => {
+    expect(processWaitingView(parked(permission))?.requests).toBeUndefined()
   })
 })
 

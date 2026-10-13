@@ -197,6 +197,18 @@ export function chatListFilterCounts(rows: readonly ChatListRow[]): Record<ChatL
   }
 }
 
+/**
+ * Whether a chat can be in a scope's list at all — a project's own chats, or a
+ * group's own and its projects'. Read before a row is built, so a list never
+ * works out rows (and reads other projects' stories for them) that it cannot
+ * show. Pure.
+ */
+export function isChatInScopePool(context: ChatContext, scope: ChatListScope): boolean {
+  if (scope.kind === 'project') return context.projectId === scope.projectId
+  if (context.groupId === scope.groupId) return true
+  return context.projectId !== undefined && scope.projectIds.includes(context.projectId)
+}
+
 function isGroupsOwn(row: ChatListRow, groupId: string): boolean {
   return row.kind === 'group' && row.context.groupId === groupId
 }

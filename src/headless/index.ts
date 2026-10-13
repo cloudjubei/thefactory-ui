@@ -267,9 +267,31 @@ export { managerBriefView, managerEscalationView, managerOutcomeView } from './u
 export * from './utils/managerCardsConstants'
 export type {
   ManagerBriefView,
+  ManagerCardStanding,
   ManagerEscalationView,
+  ManagerInterventionStanding,
   ManagerOutcomeView,
+  ManagerPreReadStanding,
 } from './utils/managerCardsTypes'
+export {
+  managerEscalationStanding,
+  managerInterventionStanding,
+  managerPreReadStanding,
+} from './utils/managerCardStanding'
+export { useManagerCardStanding } from './hooks/useManagerCardStanding'
+export {
+  processParkClosure,
+  processParkStanding,
+  processRunWaitsAt,
+} from './utils/processParkStanding'
+export * from './utils/processParkStandingConstants'
+export type {
+  ParkClosure,
+  ParkStanding,
+  ParkStandingRun,
+  ParkToken,
+} from './utils/processParkStandingTypes'
+export { useProcessParkStanding } from './hooks/useProcessParkStanding'
 
 // Badge aggregation
 export {
@@ -874,6 +896,7 @@ export {
   signoffEvidence,
   signoffFixSectionProps,
   signoffLoadStatus,
+  signoffLoadingLabel,
   signoffSectionProps,
   signoffSections,
   signoffVerifyViews,
@@ -2287,6 +2310,10 @@ export type {
 export {
   PROCESS_GATE_LOOP_NO_LIMIT,
   PROCESS_PARK_ASK_AGENT_COPY,
+  PROCESS_GROUP_RUN_CHIP_GONE,
+  PROCESS_GROUP_RUN_CHIP_LOADING,
+  PROCESS_RUN_CHIP_GONE,
+  PROCESS_RUN_CHIP_LOADING,
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
   PROCESS_REVIVE_COPY,
@@ -2327,6 +2354,7 @@ export { WAITING_DELEGATED_LABEL } from './utils/processWaitingViewConstants'
 export type {
   ProcessWaitingDelegatedView,
   ProcessWaitingDetail,
+  ProcessWaitingRequestView,
   ProcessWaitingView,
 } from './utils/processWaitingViewTypes'
 export type { ParkNoteCopy, RequestProofChoice } from './utils/processParkNoteTypes'
@@ -2508,7 +2536,11 @@ export {
   processRunIdOfChatContext,
 } from 'thefactory-tools/utils'
 export type { ProcessNeedsYouItem, ProcessNeedsYouResolution } from 'thefactory-tools/types'
-export { runNeedsYouDiscussDraft, runNeedsYouView } from './utils/runNeedsYouView'
+export {
+  runNeedsYouDiscussDraft,
+  runNeedsYouOutcome,
+  runNeedsYouView,
+} from './utils/runNeedsYouView'
 export { runPendingChangesView } from './utils/runPendingChangesView'
 export {
   RUN_PENDING_CHANGES_START_HINT,
@@ -2637,6 +2669,7 @@ export type {
   ProcessRun,
   ProcessRunStatus,
   ProcessWaitingAsk,
+  ProcessWaitingItemChoice,
   ProcessWaitingKind,
   RunDiagnostics,
   RunDiagnosticsEvent,
@@ -2743,6 +2776,7 @@ export {
 export {
   TestsProvider,
   useTests,
+  useTestsDetail,
   type TestsContextValue,
   type TestsRunKind,
   type TestsRunningJob,
@@ -2751,7 +2785,13 @@ export {
 // Stories + features for the active project, with dependency resolution
 // (display-index → uuid normalisation, blocker lookup). Listens to the
 // `stories:updated` WS topic.
-export { StoriesProvider, useStories, type StoriesContextValue } from './contexts/StoriesContext'
+export { usePrefetchProjectStories } from './hooks/usePrefetchProjectStories'
+export {
+  prefetchProjectStories,
+  StoriesProvider,
+  useStories,
+  type StoriesContextValue,
+} from './contexts/StoriesContext'
 export type {
   DependencyResolution,
   InvalidRefError,
@@ -2808,6 +2848,7 @@ export {
 export {
   GitProvider,
   useGit,
+  useGitWithLog,
   type GitContextValue,
   type GitCredentialError,
   type GitProviderProps,

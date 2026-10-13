@@ -39,6 +39,9 @@ import type {
   AnswerFeatureQuestionData,
   AnswerFeatureQuestionErrors,
   AnswerFeatureQuestionResponses,
+  AnswerProcessRunWaitingRequestData,
+  AnswerProcessRunWaitingRequestErrors,
+  AnswerProcessRunWaitingRequestResponses,
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
@@ -650,6 +653,9 @@ import type {
   ListReviewEvidenceData,
   ListReviewEvidenceErrors,
   ListReviewEvidenceResponses,
+  ListReviewEvidenceTextsData,
+  ListReviewEvidenceTextsErrors,
+  ListReviewEvidenceTextsResponses,
   ListRunnersData,
   ListRunnersResponses,
   ListSourceRecordsData,
@@ -999,6 +1005,9 @@ import type {
   SubscribeProjectDataSourceData,
   SubscribeProjectDataSourceErrors,
   SubscribeProjectDataSourceResponses,
+  TrustSiteData,
+  TrustSiteErrors,
+  TrustSiteResponses,
   UnsubscribeProjectDataSourceData,
   UnsubscribeProjectDataSourceErrors,
   UnsubscribeProjectDataSourceResponses,
@@ -1726,6 +1735,9 @@ export const validateProcess = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Runs matching a query, newest first, as summaries: what a list, a badge or a sign-off reads, with their totals. The whole record of one run is GET /process-runs/:runId.
+ */
 export const listProcessRuns = <ThrowOnError extends boolean = false>(
   options?: Options<ListProcessRunsData, ThrowOnError>,
 ) =>
@@ -1783,6 +1795,24 @@ export const resumeProcessRun = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/resume',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const answerProcessRunWaitingRequest = <ThrowOnError extends boolean = false>(
+  options: Options<AnswerProcessRunWaitingRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AnswerProcessRunWaitingRequestResponses,
+    AnswerProcessRunWaitingRequestErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/waiting-requests/{actionId}/answer',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2300,6 +2330,24 @@ export const listReviewEvidence = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/projects/{projectId}/review-evidence',
     ...options,
+  })
+
+export const listReviewEvidenceTexts = <ThrowOnError extends boolean = false>(
+  options: Options<ListReviewEvidenceTextsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ListReviewEvidenceTextsResponses,
+    ListReviewEvidenceTextsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/review-evidence/texts',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const getReviewEvidenceContent = <ThrowOnError extends boolean = false>(
@@ -2982,6 +3030,20 @@ export const listActionRules = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/action-rules',
     ...options,
+  })
+
+export const trustSite = <ThrowOnError extends boolean = false>(
+  options: Options<TrustSiteData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<TrustSiteResponses, TrustSiteErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/action-rules/sites',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const removeActionRule = <ThrowOnError extends boolean = false>(

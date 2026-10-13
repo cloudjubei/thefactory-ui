@@ -12,3 +12,6 @@ export const ROW_DECIDED_ACTION_KINDS: readonly string[] = [
   MCP_TOOL_CALL_ACTION_KIND,
   'project-note-read',
 ]
+
+/** The asks about a website — what "Trust this site" may answer. */
+export const SITE_ASK_KINDS: readonly string[] = ['network-unlock', 'external-fetch']

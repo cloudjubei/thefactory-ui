@@ -24,18 +24,13 @@ import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
 import { ProjectResourceCache } from '../utils/projectResourceCache'
 import { REVALIDATE_TIMEOUT_MS } from '../utils/swrFetch'
+import { wsEventConcernsProject } from '../utils/wsEventProject'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
+import { nextTestsBundle, testsBundleShows } from '../utils/testsBundle'
+import type { TestsBundle } from '../utils/testsBundleTypes'
 
-type TestsBundle = {
-  available: string[]
-  lastRun: TestsResult | null
-  lastCustomRun: TestsResult | null
-  lastCoverage: CoverageResult | null
-}
-
-/** SWR cache keyed by projectId. Stores the whole tests bundle so a switch
- *  back to a previously-seen project re-renders the four panels (list,
- *  last run, last custom run, last coverage) without a spinner. */
-const testsCache = new ProjectResourceCache<TestsBundle>(16)
+/** What each project's tests last read as — its last run, and the detail once the Tests screen read it. */
+const testsCache = new ProjectResourceCache<TestsBundle>()
 
 export type TestsRunKind = 'unit' | 'unit-all' | 'coverage' | 'coverage-all'
 
@@ -72,6 +67,12 @@ export type TestsContextValue = {
   abort: () => Promise<void>
 
   refresh: () => Promise<void>
+  /**
+   * Have the list, last custom run and coverage read too — while a screen that
+   * shows them is open. A project switch otherwise reads the last run alone,
+   * which is all a badge needs. Returns the release.
+   */
+  holdDetail: () => () => void
 }
 
 const TestsContext = createContext<TestsContextValue | null>(null)
@@ -114,6 +115,27 @@ export function TestsProvider({ children }: { children: ReactNode }) {
     deferred: Deferred<TestsResult | CoverageResult>
   } | null>(null)
 
+  const [detailHolders, setDetailHolders] = useState(0)
+  const detailWanted = detailHolders > 0
+  const detailWantedRef = useRef(detailWanted)
+  detailWantedRef.current = detailWanted
+  const holdDetail = useCallback(() => {
+    setDetailHolders((n) => n + 1)
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      setDetailHolders((n) => n - 1)
+    }
+  }, [])
+
+  const showBundle = useCallback((bundle: TestsBundle) => {
+    setLastRun(bundle.lastRun)
+    setAvailable(bundle.detail?.available ?? EMPTY_AVAILABLE)
+    setLastCustomRun(bundle.detail?.lastCustomRun ?? null)
+    setLastCoverage(bundle.detail?.lastCoverage ?? null)
+  }, [])
+
   // AbortController per refresh — project switch / StrictMode double-invoke
   // aborts the previous fan-out so it can't hold connection slots or land
   // on stale state.
@@ -139,46 +161,46 @@ export function TestsProvider({ children }: { children: ReactNode }) {
     }
     const path = { projectId: requestedProjectId }
     const opts = { path, signal: controller.signal, throwOnError: true } as const
+    const detail = detailWantedRef.current
     // Each endpoint is independent — `listTests` is the only one that's
-    // load-bearing for rendering. The three `getLast*` calls return cached
+    // load-bearing for the Tests screen. The three `getLast*` calls return cached
     // results and can transiently 404 right after a project is checked out;
     // a single failure shouldn't blank the whole view.
-    const [listRes, runRes, customRes, coverageRes] = await Promise.allSettled([
-      listTests(opts),
+    const [runRes, listRes, customRes, coverageRes] = await Promise.allSettled([
       getLastTestsRun(opts),
-      getLastTestsCustomRun(opts),
-      getLastCoverage(opts),
+      ...(detail ? [listTests(opts), getLastTestsCustomRun(opts), getLastCoverage(opts)] : []),
     ])
     clearTimeout(timeoutId)
     if (gen !== refreshGenRef.current || controller.signal.aborted) return
 
-    const available = listRes.status === 'fulfilled' ? listRes.value.data : EMPTY_AVAILABLE
     const lastRun =
       runRes.status === 'fulfilled' && isTestRun(runRes.value.data) ? runRes.value.data : null
-    const lastCustomRun =
-      customRes.status === 'fulfilled' && isTestRun(customRes.value.data)
-        ? customRes.value.data
-        : null
-    const lastCoverage =
-      coverageRes.status === 'fulfilled' && isCoverage(coverageRes.value.data)
-        ? coverageRes.value.data
-        : null
-
-    setAvailable(available)
-    setLastRun(lastRun)
-    setLastCustomRun(lastCustomRun)
-    setLastCoverage(lastCoverage)
-    if (listRes.status === 'fulfilled') {
-      setLoadError(null)
-    } else {
+    const readDetail =
+      listRes?.status === 'fulfilled'
+        ? {
+            available: listRes.value.data as string[],
+            lastCustomRun:
+              customRes?.status === 'fulfilled' && isTestRun(customRes.value.data)
+                ? customRes.value.data
+                : null,
+            lastCoverage:
+              coverageRes?.status === 'fulfilled' && isCoverage(coverageRes.value.data)
+                ? coverageRes.value.data
+                : null,
+          }
+        : undefined
+    const bundle = nextTestsBundle(testsCache.get(requestedProjectId)?.data, {
+      lastRun,
+      ...(readDetail ? { detail: readDetail } : {}),
+    })
+    showBundle(bundle)
+    if (listRes && listRes.status === 'rejected') {
       const err = listRes.reason
       setLoadError(err instanceof Error ? err : new Error(String(err)))
+    } else {
+      setLoadError(null)
     }
-    // Cache the bundle only when the load-bearing endpoint succeeded.
-    // A failed list would otherwise pin an empty array as "warm cache".
-    if (listRes.status === 'fulfilled') {
-      testsCache.set(requestedProjectId, { available, lastRun, lastCustomRun, lastCoverage }, null)
-    }
+    testsCache.set(requestedProjectId, bundle, null)
     setIsLoaded(true)
   }, [projectId])
 
@@ -194,28 +216,37 @@ export function TestsProvider({ children }: { children: ReactNode }) {
       setLastCoverage(null)
       setIsLoaded(true)
     } else {
-      const cached = testsCache.get(projectId)
-      if (cached) {
-        setAvailable(cached.data.available)
-        setLastRun(cached.data.lastRun)
-        setLastCustomRun(cached.data.lastCustomRun)
-        setLastCoverage(cached.data.lastCoverage)
-        setIsLoaded(true)
-      } else {
-        setAvailable(EMPTY_AVAILABLE)
-        setLastRun(null)
-        setLastCustomRun(null)
-        setLastCoverage(null)
-        setIsLoaded(false)
-      }
+      const cached = testsCache.get(projectId)?.data
+      showBundle(cached ?? { lastRun: null, detail: null })
+      setIsLoaded(testsBundleShows(cached, detailWantedRef.current))
     }
-    void refresh()
-    return () => abortRef.current?.abort()
-  }, [projectId, refresh])
+    const cancel = afterPrimaryLoads(() => void refresh())
+    return () => {
+      cancel()
+      abortRef.current?.abort()
+    }
+  }, [projectId, refresh, showBundle])
+
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+  const projectIdRef = useRef(projectId)
+  projectIdRef.current = projectId
+  useEffect(() => {
+    const current = projectIdRef.current
+    if (!detailWanted || !current) return
+    if (!testsBundleShows(testsCache.get(current)?.data, true)) setIsLoaded(false)
+    void refreshRef.current()
+  }, [detailWanted])
 
   // Other broadcasters (sync run endpoints, agent runs) still emit
   // `tests:result` — keep refreshing on those so external runs surface here.
-  useEffect(() => ws.on('tests:result', () => void refresh()), [ws, refresh])
+  useEffect(
+    () =>
+      ws.on('tests:result', (data: unknown) => {
+        if (wsEventConcernsProject(data, projectId)) void refresh()
+      }),
+    [ws, refresh, projectId],
+  )
 
   // Streaming updates for the in-flight job we started ourselves.
   useEffect(
@@ -389,6 +420,7 @@ export function TestsProvider({ children }: { children: ReactNode }) {
       runCoverageAll: runCoverageAllImpl,
       abort,
       refresh,
+      holdDetail,
     }),
     [
       isLoaded,
@@ -404,6 +436,7 @@ export function TestsProvider({ children }: { children: ReactNode }) {
       runCoverageAllImpl,
       abort,
       refresh,
+      holdDetail,
     ],
   )
 
@@ -413,5 +446,17 @@ export function TestsProvider({ children }: { children: ReactNode }) {
 export function useTests(): TestsContextValue {
   const ctx = useContext(TestsContext)
   if (!ctx) throw new Error('useTests must be used within TestsProvider')
+  return ctx
+}
+
+/**
+ * The tests with their detail — the list, last custom run and coverage — read
+ * while the calling screen is open. For the Tests screen; a badge reads
+ * `useTests().lastRun`, which a project switch keeps current on its own.
+ */
+export function useTestsDetail(): TestsContextValue {
+  const ctx = useTests()
+  const { holdDetail } = ctx
+  useEffect(() => holdDetail(), [holdDetail])
   return ctx
 }

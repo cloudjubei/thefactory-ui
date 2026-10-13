@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ProjectResourceCache } from './projectResourceCache'
+import { PROJECT_RESOURCE_CACHE_CAPACITY } from './projectResourceCacheConstants'
 
 describe('ProjectResourceCache', () => {
   it('returns undefined for unknown keys', () => {
@@ -78,18 +79,14 @@ describe('ProjectResourceCache', () => {
       expect(cache.get('p2')).toBeUndefined()
     })
 
-    it('default capacity is 16', () => {
+    it('keeps every project of a twenty-project workspace by default, and drops past its capacity', () => {
       const cache = new ProjectResourceCache<number>()
-      for (let i = 0; i < 16; i++) cache.set(`p${i}`, i, null)
-      // All 16 still present
-      for (let i = 0; i < 16; i++) {
-        expect(cache.get(`p${i}`)).toEqual({ data: i, etag: null })
-      }
-      // 17th entry evicts the oldest (p0 — note all the get() calls above
-      // touched p0…p15 in order, so p0 is the LRU again).
-      cache.set('p16', 16, null)
-      expect(cache.get('p0')).toBeUndefined()
-      expect(cache.get('p16')).toEqual({ data: 16, etag: null })
+      for (let i = 0; i < PROJECT_RESOURCE_CACHE_CAPACITY; i++) cache.set(`p${i}`, i, null)
+      for (let i = 0; i < 20; i++) expect(cache.get(`p${i}`)).toEqual({ data: i, etag: null })
+      cache.set('extra', -1, null)
+      expect(cache.get(`p20`)).toBeUndefined()
+      expect(cache.get('p0')).toEqual({ data: 0, etag: null })
+      expect(PROJECT_RESOURCE_CACHE_CAPACITY).toBeGreaterThanOrEqual(20)
     })
   })
 })

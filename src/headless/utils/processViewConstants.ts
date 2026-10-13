@@ -17,6 +17,14 @@ export const PROCESS_RUN_WORDS = {
   cancelled: 'Cancelled',
 } as const
 
+/** What a run's chat card says while it reads the run, and once the run is gone. */
+export const PROCESS_RUN_CHIP_LOADING = 'Loading the pipeline…'
+export const PROCESS_RUN_CHIP_GONE = 'This run no longer exists.'
+
+/** What a group run's chat card says while it reads the group run, and once it is gone. */
+export const PROCESS_GROUP_RUN_CHIP_LOADING = 'Loading the group run…'
+export const PROCESS_GROUP_RUN_CHIP_GONE = 'This group run no longer exists.'
+
 /** The heading of a run's spend details when no cap stands against it. */
 export const PROCESS_SPEND_TITLE = 'Spent so far'
 

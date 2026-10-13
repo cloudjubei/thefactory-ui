@@ -29,3 +29,15 @@ export const RULE_ARG_VALUE_MAX = 40
 
 /** Longest a whole call summary reads before it is cut. */
 export const RULE_CALL_SUMMARY_MAX = 140
+
+/** A trusted site's rule, as listed. */
+export const TRUSTED_SITE_RULE_TITLE = (site: string): string =>
+  `Trusted site: ${site}, and every site under it`
+
+/** What the field that trusts a site says it does. */
+export const TRUST_SITE_LABEL = 'Trust a website'
+export const TRUST_SITE_HINT =
+  'No agent asks before opening or fetching from it, or any site under it — in every run and chat.'
+export const TRUST_SITE_PLACEHOLDER = 'starcraft-tmg.com'
+export const TRUST_SITE_BUTTON = 'Trust site'
+export const TRUST_SITE_FAILED = 'The site could not be trusted.'

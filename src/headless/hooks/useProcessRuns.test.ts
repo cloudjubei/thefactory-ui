@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 
-import { shouldTrackProcessRunUpdate } from './useProcessRuns'
+import { applyProcessRunUpdate, shouldTrackProcessRunUpdate } from './useProcessRuns'
 
 // Fixtures vary in SHAPE (root vs child, scoped vs cross-project, absent run),
 // so each guard is exercised independently — a mutation dropping any one is caught.
@@ -46,5 +46,68 @@ describe('shouldTrackProcessRunUpdate', () => {
   it('ignores a malformed event with no run payload', () => {
     expect(shouldTrackProcessRunUpdate({ runId: 'x' }, 'p1')).toBe(false)
     expect(shouldTrackProcessRunUpdate({ run: rootRun() }, 'p1')).toBe(false)
+  })
+})
+
+describe('applyProcessRunUpdate', () => {
+  const run = (id: string, startedAt: number, over: Partial<ProcessRun> = {}): ProcessRun =>
+    rootRun({ id, startedAt, ...over } as Partial<ProcessRun>)
+
+  it('puts a new root run in, newest first', () => {
+    const prev = [run('b', 20), run('a', 10)]
+    const next = applyProcessRunUpdate(
+      prev,
+      { runId: 'c', projectId: 'p1', run: run('c', 15) },
+      'p1',
+    )
+    expect(next?.map((r) => r.id)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('replaces a run it holds in place of the old copy', () => {
+    const prev = [run('a', 10, { status: 'running' })]
+    const next = applyProcessRunUpdate(
+      prev,
+      { runId: 'a', projectId: 'p1', run: run('a', 10, { status: 'parked' }) },
+      undefined,
+    )
+    expect(next).toHaveLength(1)
+    expect(next?.[0].status).toBe('parked')
+  })
+
+  it('drops a deleted run, scoped or not', () => {
+    const prev = [run('a', 10), run('b', 5)]
+    expect(
+      applyProcessRunUpdate(prev, { runId: 'a', deleted: true }, 'p9')?.map((r) => r.id),
+    ).toEqual(['b'])
+  })
+
+  it('keeps the same list when the update is not for it', () => {
+    const prev = [run('a', 10)]
+    expect(
+      applyProcessRunUpdate(
+        prev,
+        { runId: 'x', projectId: 'p2', run: run('x', 1, { projectId: 'p2' }) },
+        'p1',
+      ),
+    ).toBe(prev)
+    expect(
+      applyProcessRunUpdate(
+        prev,
+        { runId: 'c', run: run('c', 1, { parentRunId: 'a' }) },
+        undefined,
+      ),
+    ).toBe(prev)
+    expect(applyProcessRunUpdate(prev, { runId: 'gone', deleted: true }, undefined)).toBe(prev)
+  })
+
+  it('starts a list from nothing when a run arrives before the first read', () => {
+    expect(
+      applyProcessRunUpdate(undefined, { runId: 'a', run: run('a', 1) }, undefined)?.map(
+        (r) => r.id,
+      ),
+    ).toEqual(['a'])
+    expect(
+      applyProcessRunUpdate(undefined, { runId: 'a', deleted: true }, undefined),
+    ).toBeUndefined()
   })
 })

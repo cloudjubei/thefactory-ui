@@ -8,6 +8,12 @@ import type {
   ReferenceTarget,
   ResourceLink,
 } from 'thefactory-tools/types'
+import { useManagerCardStanding } from '../../../headless/hooks/useManagerCardStanding'
+import type {
+  ManagerInterventionStanding,
+  ManagerPreReadStanding,
+} from '../../../headless/utils/managerCardsTypes'
+import type { ParkStanding } from '../../../headless/utils/processParkStandingTypes'
 import {
   MANAGER_BRIEF_ANSWERS,
   MANAGER_BRIEF_HIDE_WORDS,
@@ -16,10 +22,14 @@ import {
   MANAGER_BRIEF_TO_AGENT,
   MANAGER_BRIEF_TRIED,
   MANAGER_ESCALATION_FOUND,
+  MANAGER_ESCALATION_HIDE_DETAIL,
   MANAGER_ESCALATION_RECOMMENDS,
+  MANAGER_ESCALATION_SHOW_DETAIL,
   MANAGER_ESCALATION_TRIED,
   MANAGER_OUTCOME_DID,
   MANAGER_OUTCOME_HIDE_WORDS,
+  MANAGER_OUTCOME_LEFT_YOU,
+  MANAGER_OUTCOME_RESULT,
   MANAGER_OUTCOME_SHOW_WORDS,
   MANAGER_OUTCOME_STILL_OPEN,
   MANAGER_OUTCOME_WHY,
@@ -37,6 +47,7 @@ import {
   IconWarningTriangle,
 } from '../../icons'
 import Markdown from '../Markdown'
+import ParkClosureLine from './ParkClosureLine'
 
 /** How a manager card renders references and in-app links in what it quotes. */
 export type ManagerCardLinks = {
@@ -196,18 +207,21 @@ export function ManagerBriefCardView({
 /** What came of a manager turn: headline, Handled or what needs you, why, what is still open, and the call it made. */
 export function ManagerOutcomeCardView({
   card,
+  standing,
   reply,
   at,
   links,
 }: {
   card: ProcessManagerInterventionCard | ProcessManagerPreReadCard
+  /** How the run has it now; without it the card reads as posted. */
+  standing?: ManagerInterventionStanding | ManagerPreReadStanding
   /** What the agent said at the end of its turn. */
   reply?: string
   at?: string
   links: ManagerCardLinks
 }) {
   const [showReply, setShowReply] = useState(false)
-  const view = managerOutcomeView(card)
+  const view = managerOutcomeView(card, standing)
   const needsYou = view.tone === 'needs-you'
   return (
     <div
@@ -247,22 +261,40 @@ export function ManagerOutcomeCardView({
           <div className="text-[13px] leading-normal text-(--text-secondary)">
             <b className="font-semibold text-(--text-primary)">{MANAGER_OUTCOME_WHY}</b> {view.why}
           </div>
+          {view.result ? (
+            <div className="text-[13px] leading-normal text-(--text-secondary)">
+              <b className="font-semibold text-(--text-primary)">{MANAGER_OUTCOME_RESULT}</b>{' '}
+              {view.result}
+            </div>
+          ) : null}
+          {view.closure ? <ParkClosureLine closure={view.closure} /> : null}
         </div>
       </div>
       {view.open.length > 0 ? (
         <div className="flex flex-col gap-2 border-t border-(--border-subtle) py-2.5 pr-3.5 pl-[54px]">
-          <div className={CAPTION}>{MANAGER_OUTCOME_STILL_OPEN}</div>
+          <div className={CAPTION}>
+            {view.tone === 'needs-you' ? MANAGER_OUTCOME_STILL_OPEN : MANAGER_OUTCOME_LEFT_YOU}
+          </div>
           {view.open.map((item) => (
             <div
               key={item.id}
               className="flex items-start gap-2.5 text-[13px] text-(--text-primary)"
             >
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                style={{ background: 'var(--status-on_hold-bg)' }}
-              />
-              <div className="min-w-0 flex-1">
+              {item.settled || view.closure ? (
+                <IconCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--text-secondary)" />
+              ) : (
+                <span
+                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: 'var(--status-on_hold-bg)' }}
+                />
+              )}
+              <div
+                className={`min-w-0 flex-1 ${item.settled || view.closure ? 'text-(--text-secondary)' : ''}`}
+              >
                 <Quote text={item.text} links={links} />
+                {item.settled ? (
+                  <div className="mt-0.5 text-[12px] text-(--text-secondary)">{item.settled}</div>
+                ) : null}
               </div>
             </div>
           ))}
@@ -293,18 +325,72 @@ export function ManagerOutcomeCardView({
   )
 }
 
-/** A park the manager handed to the person: why it is theirs, what happened, what it found and tried, what it recommends. */
+/**
+ * A park the manager handed to the person: why it is theirs, what happened,
+ * what it found and tried, what it recommends, and the run's live chip. Once
+ * the run no longer waits at the park it is history: headed by how it was
+ * closed, what the manager found folded away, and no chip to answer it from.
+ */
 export function ManagerEscalationCardView({
   card,
+  standing,
   links,
   children,
 }: {
   card: ProcessManagerEscalationCard
+  /** Where the park stands now; without it the card reads as posted. */
+  standing?: ParkStanding
   links: ManagerCardLinks
   /** The run's live chip, where the person answers it. */
   children?: ReactNode
 }) {
-  const view = managerEscalationView(card)
+  const [showDetail, setShowDetail] = useState(false)
+  const view = managerEscalationView(card, standing)
+  const closure = view.closure
+  const detail = (
+    <>
+      <div className="flex flex-col gap-0.5 text-[13px] text-(--text-primary)">
+        <b className="font-semibold">{MANAGER_ESCALATION_FOUND}</b>
+        <Quote text={view.found} links={links} />
+      </div>
+      {view.tried.length > 0 ? (
+        <div className="flex flex-col gap-1 text-[13px] text-(--text-secondary)">
+          <b className="font-semibold text-(--text-primary)">{MANAGER_ESCALATION_TRIED}</b>
+          {view.tried.map((t) => (
+            <span key={t}>– {t}</span>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-0.5 text-[13px] text-(--text-primary)">
+        <b className="font-semibold">{MANAGER_ESCALATION_RECOMMENDS}</b>
+        <Quote text={view.recommendation} links={links} />
+      </div>
+    </>
+  )
+  if (closure) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-(--border-subtle) bg-(--surface-raised)">
+        <ParkClosureLine closure={closure} banner />
+        <div className="flex flex-col gap-2 px-3.5 py-3">
+          <div className="text-[13.5px] leading-snug font-semibold text-(--text-secondary)">
+            {view.headline}
+          </div>
+          <div className="text-[13px] leading-normal whitespace-pre-line text-(--text-secondary)">
+            {view.what}
+          </div>
+          <button
+            type="button"
+            aria-expanded={showDetail}
+            className="self-start text-[12.5px] text-(--accent-primary) hover:underline"
+            onClick={() => setShowDetail((s) => !s)}
+          >
+            {showDetail ? MANAGER_ESCALATION_HIDE_DETAIL : MANAGER_ESCALATION_SHOW_DETAIL}
+          </button>
+          {showDetail ? detail : null}
+        </div>
+      </div>
+    )
+  }
   return (
     <div
       className="overflow-hidden rounded-xl border-[1.5px] bg-(--surface-raised)"
@@ -327,46 +413,44 @@ export function ManagerEscalationCardView({
         <div className="text-[13px] leading-normal whitespace-pre-line text-(--text-secondary)">
           {view.what}
         </div>
-        <div className="flex flex-col gap-0.5 text-[13px] text-(--text-primary)">
-          <b className="font-semibold">{MANAGER_ESCALATION_FOUND}</b>
-          <Quote text={view.found} links={links} />
-        </div>
-        {view.tried.length > 0 ? (
-          <div className="flex flex-col gap-1 text-[13px] text-(--text-secondary)">
-            <b className="font-semibold text-(--text-primary)">{MANAGER_ESCALATION_TRIED}</b>
-            {view.tried.map((t) => (
-              <span key={t}>– {t}</span>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex flex-col gap-0.5 text-[13px] text-(--text-primary)">
-          <b className="font-semibold">{MANAGER_ESCALATION_RECOMMENDS}</b>
-          <Quote text={view.recommendation} links={links} />
-        </div>
+        {detail}
         {children}
       </div>
     </div>
   )
 }
 
-/** A message's manager card drawn on its own: an outcome, or an escalation. A brief is drawn by its exchange. */
+/**
+ * A message's manager card drawn on its own — an outcome, or an escalation —
+ * read live off the run it was posted for (`processRunId`), so what was
+ * answered, settled or undone anywhere shows here at once. A brief is drawn by
+ * its exchange.
+ */
 export function ManagerCardView({
   card,
+  processRunId,
   at,
   reply,
   links,
   children,
 }: {
   card: Exclude<ProcessManagerChatCard, ProcessManagerBriefCard>
+  /** The run the card was posted for — the top-level run keeping the manager's record. */
+  processRunId?: string
   at?: string
   /** What the agent said at the end of the turn the card reports on. */
   reply?: string
   links: ManagerCardLinks
   children?: ReactNode
 }) {
+  const live = useManagerCardStanding(card, processRunId)
   if (card.kind === 'escalation') {
     return (
-      <ManagerEscalationCardView card={card} links={links}>
+      <ManagerEscalationCardView
+        card={card}
+        {...(live.kind === 'escalation' ? { standing: live.standing } : {})}
+        links={links}
+      >
         {children}
       </ManagerEscalationCardView>
     )
@@ -374,6 +458,7 @@ export function ManagerCardView({
   return (
     <ManagerOutcomeCardView
       card={card}
+      {...(live.kind !== 'escalation' ? { standing: live.standing } : {})}
       {...(at ? { at } : {})}
       {...(reply ? { reply } : {})}
       links={links}

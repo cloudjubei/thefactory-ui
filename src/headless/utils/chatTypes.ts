@@ -141,6 +141,8 @@ export type ChatMessageLike = {
    * only place the run reaches the chat, and it is what the row's live process chip reads.
    */
   processRunId?: string
+  /** Set on a message telling the person `processRunId` waits on them: when that park began. */
+  processRunParkedAt?: number
   /** Set on a message announcing a group run — the id of that group run. */
   processGroupRunId?: string
   /**
@@ -163,7 +165,12 @@ export type ChatMessageLike = {
 // A tool grant the approval UI renders: one broker ask of the chat, whichever
 // agent raised it — an API chat turn's or a CLI run's. Decided the same way on
 // both: per ask, with a grant scope for an always-allow and edits in metadata.
-export type PendingToolGrantDecision = 'once' | 'always-in-chat' | 'always-everywhere' | 'deny'
+export type PendingToolGrantDecision =
+  | 'once'
+  | 'always-in-chat'
+  | 'always-everywhere'
+  | 'trust-site'
+  | 'deny'
 
 /** Where an always-allow applies: only in the chat it was given in, or in every chat — either way whichever model or sign-in. */
 export type AlwaysAllowScope = 'chat' | 'everywhere'
@@ -188,6 +195,8 @@ export type PendingToolGrantDecisionVia = 'card' | 'approve-all'
 
 export type PendingToolGrantData = {
   id: string
+  /** The website a network or fetch ask is about — what "Trust this site" would trust. */
+  trustableSite?: string
   /** The agent of the chat that raised the ask — what "same agent as this chat" names on a launch. */
   chatRunner: 'cli' | 'api'
   /** The run or API chat turn that raised it — whose rows decide it once they have loaded. */

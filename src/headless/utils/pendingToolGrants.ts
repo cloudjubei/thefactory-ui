@@ -6,7 +6,7 @@ import { getChatContext, getChatContextKey, isApiChatTurnId } from 'thefactory-t
 import type { ChatContextAgentRunStory } from '../api/generated'
 import { isQuestionAction, parseQuestionPayload } from './agentQuestions'
 import { isToolAskDecidedOnRow } from './approvalGrant'
-import { ROW_DECIDED_ACTION_KINDS } from './pendingToolGrantsConstants'
+import { ROW_DECIDED_ACTION_KINDS, SITE_ASK_KINDS } from './pendingToolGrantsConstants'
 import { isRemedyAction, parseRemedyPayload } from './agentRemedy'
 import type { PendingToolGrantData, PendingToolGrantDecision } from './chatTypes'
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
@@ -99,6 +99,35 @@ const RUN_LIFECYCLE_EVENT_TYPES: ReadonlySet<string> = new Set([
 function cliRunUpdateType(data: unknown): string {
   const type = (data as { type?: unknown } | null | undefined)?.type
   return typeof type === 'string' ? type : ''
+}
+
+/**
+ * Whether a `cli:run-update` action event may change one chat's asks: its action
+ * names that chat, the chat already shows it (`shows`), or it names no chat at
+ * all. An ask raised or decided in another chat leaves this chat's asks as they
+ * are, so an open chat does not re-read them for every ask anywhere.
+ */
+export function cliActionEventConcernsChat(
+  data: unknown,
+  chatContextId: string,
+  shows?: (actionId: string) => boolean,
+): boolean {
+  const action = (data as { event?: { action?: { id?: unknown; chatContextId?: unknown } } } | null)
+    ?.event?.action
+  if (!action || typeof action.chatContextId !== 'string') return true
+  if (action.chatContextId === chatContextId) return true
+  return typeof action.id === 'string' && shows !== undefined && shows(action.id)
+}
+
+/**
+ * Whether a run's `cli:run-update` lifecycle event may change which run one
+ * chat has active: the event names that chat, or names none (a resumed run, an
+ * older backend). A run another chat started leaves this chat alone, so an open
+ * chat does not re-resolve its run for every run anywhere.
+ */
+export function cliRunLifecycleConcernsChat(data: unknown, chatContextId: string): boolean {
+  const named = (data as { chatContextId?: unknown } | null)?.chatContextId
+  return typeof named !== 'string' || named === chatContextId
 }
 
 /** True when a `cli:run-update` payload says an ask was decided or an approval carried out. */
@@ -207,6 +236,21 @@ export function pendingActionToolName(action: CliPendingActionLike): string | un
 }
 
 /**
+ * The website a network or fetch ask is about — the host its standing grant
+ * would name — for "Trust this site"; none for any other ask, or one that may
+ * not be granted. Pure.
+ */
+export function trustableSiteOf(
+  action: Pick<CliPendingActionLike, 'kind' | 'grantPayload' | 'noPermanentGrant'>,
+): string | undefined {
+  if (action.noPermanentGrant === true || !SITE_ASK_KINDS.includes(action.kind)) return undefined
+  const host = (action.grantPayload as { host?: unknown } | null | undefined)?.host
+  return typeof host === 'string' && host.length > 0 ? host : undefined
+}
+
+const whenSite = (site: string | undefined) => (site ? { trustableSite: site } : {})
+
+/**
  * Map a CLI gated `PendingAction` to a grant (id = actionId), labelling from the
  * tool it names — the kind (`inspect-host-path`) groups permanent grants and is
  * only the fallback. An `askUser` question additionally carries its parsed
@@ -223,6 +267,7 @@ export function cliPendingActionToGrant(action: CliPendingActionLike): PendingTo
     label: toolName ?? formatActionLabel(action.kind),
     detail: action.payload,
     alwaysAllowScopes: cliAlwaysAllowScopes(action),
+    ...whenSite(trustableSiteOf(action)),
     grantCovers: grantCoversOf(action.grantPayload ?? action.payload),
     ...(action.chatContextId ? { chatContextId: action.chatContextId } : {}),
     ...(toolName ? { toolName } : {}),

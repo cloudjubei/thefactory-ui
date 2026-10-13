@@ -66,24 +66,48 @@ async function seedFeatureRequests(): Promise<void> {
   }
 }
 
+type FeatureRequestSocket = {
+  on: (event: string, handler: (data: unknown) => void) => () => void
+}
+
+let holders = 0
+let stopListening: (() => void) | undefined
+
 /**
- * Live, account-global view of cross-project feature requests. Subscribes to
- * `featureRequest:updated` (the full record is broadcast) and seeds once from the list endpoint.
- * Mount ONCE at the app shell — the WS subscription lives in a `useEffect`, so the global store
- * only stays fresh while a component calling this hook is mounted.
+ * Keep the request store current for one more view: the first holder reads the
+ * list and listens for `featureRequest:updated`; every later one shares both, so
+ * a chat whose rows each show a request reads the list once, not once per row.
+ * Returns the release, which counts once however often it is called.
+ */
+export function holdFeatureRequests(ws: FeatureRequestSocket): () => void {
+  holders += 1
+  if (holders === 1) {
+    stopListening = ws.on('featureRequest:updated', (fr) =>
+      upsertFeatureRequest(fr as FeatureRequest),
+    )
+    void seedFeatureRequests()
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    holders -= 1
+    if (holders > 0) return
+    stopListening?.()
+    stopListening = undefined
+  }
+}
+
+/**
+ * Live, account-global view of cross-project feature requests, kept current by
+ * `featureRequest:updated` (the full record is broadcast) and read from the list
+ * endpoint when the first view showing them mounts — every view shares that.
  */
 export function useCrossProjectRequests(): CrossProjectRequestsState {
   const { ws } = useApi()
   const snapshot = useSyncExternalStore(subscribeFeatureRequests, featureRequestsSnapshot)
 
-  useEffect(
-    () => ws.on('featureRequest:updated', (fr) => upsertFeatureRequest(fr as FeatureRequest)),
-    [ws],
-  )
-
-  useEffect(() => {
-    void seedFeatureRequests()
-  }, [])
+  useEffect(() => holdFeatureRequests(ws), [ws])
 
   const outboxForFn = useCallback((id: string) => outboxFor(snapshot, id), [snapshot])
   const inboxForFn = useCallback((id: string) => inboxFor(snapshot, id), [snapshot])

@@ -120,7 +120,11 @@ export default function AgentExchangeBlock({
         return (
           <View key={`card-${i}`}>
             {card.kind === 'escalation' ? (
-              <ManagerCardView card={card} links={links}>
+              <ManagerCardView
+                card={card}
+                {...(message.processRunId ? { processRunId: message.processRunId } : {})}
+                links={links}
+              >
                 {message.processRunId && renderProcessRun
                   ? renderProcessRun(message.processRunId)
                   : null}
@@ -128,6 +132,7 @@ export default function AgentExchangeBlock({
             ) : (
               <ManagerCardView
                 card={card}
+                {...(message.processRunId ? { processRunId: message.processRunId } : {})}
                 {...(at ? { at } : {})}
                 {...(exchange.reply?.content ? { reply: exchange.reply.content } : {})}
                 links={links}

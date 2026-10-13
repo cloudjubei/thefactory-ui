@@ -137,6 +137,12 @@ export type ChatsContextValue = {
    */
   loadChat: (ctx: ChatCtx) => Promise<void>
   /**
+   * Read one chat's summary into the list when it is there — for a chat opened
+   * before the whole list arrived, so it does not wait on every other chat.
+   * Never creates the chat.
+   */
+  findChat: (ctx: ChatCtx) => Promise<void>
+  /**
    * Per-chat live state. Always returns a defaulted shape — never `null` —
    * so consumers can destructure directly.
    */
@@ -675,6 +681,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         }),
       [ws, refreshAllCoalesced, refreshChat],
     )
+    // What changed while the socket was down — a card closed, a message added — was never told.
+    useEffect(() => ws.onReconnect(() => void refreshAllCoalesced()), [ws, refreshAllCoalesced])
 
     // Load chat settings once auth lands. The map is keyed by ChatContextType
     // (PROJECT, STORY, …) and supplies the systemPrompt + completionSettings
@@ -1581,6 +1589,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         activeLLMConfig,
         getChat,
         loadChat,
+        findChat: refreshChat,
         getChatLiveState,
         getDraft,
         setDraft,
@@ -1617,6 +1626,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         activeLLMConfig,
         getChat,
         loadChat,
+        refreshChat,
         getChatLiveState,
         getDraft,
         setDraft,

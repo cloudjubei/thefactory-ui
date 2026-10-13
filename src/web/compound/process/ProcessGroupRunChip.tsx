@@ -1,4 +1,6 @@
 import {
+  PROCESS_GROUP_RUN_CHIP_GONE,
+  PROCESS_GROUP_RUN_CHIP_LOADING,
   costChipLabel,
   formatProcessDuration,
   processGroupCardView,
@@ -21,7 +23,7 @@ export type ProcessGroupRunChipProps = {
  * made in the group run it opens.
  */
 export default function ProcessGroupRunChip({ groupRunId, onOpen }: ProcessGroupRunChipProps) {
-  const { group } = useProcessGroupRun(groupRunId)
+  const { group, isLoaded } = useProcessGroupRun(groupRunId)
   const now = useDurationTimer(group?.totals?.ticking === true)
   if (!group) {
     return (
@@ -29,7 +31,7 @@ export default function ProcessGroupRunChip({ groupRunId, onOpen }: ProcessGroup
         className="w-full rounded-lg border px-3 py-2 text-[11px] text-(--text-secondary)"
         style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
       >
-        Loading the group run…
+        {isLoaded ? PROCESS_GROUP_RUN_CHIP_GONE : PROCESS_GROUP_RUN_CHIP_LOADING}
       </div>
     )
   }

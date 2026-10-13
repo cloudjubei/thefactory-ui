@@ -168,3 +168,83 @@ describe('managerEscalationView', () => {
     })
   })
 })
+
+describe('managerOutcomeView with where things stand now', () => {
+  it('reads how the intervention came out since, with its result', () => {
+    const live = {
+      ...intervention('Verify').intervention,
+      outcome: 'settled' as const,
+      result: 'Fix passed',
+    }
+    expect(managerOutcomeView(intervention('Verify'), { intervention: live })).toMatchObject({
+      pill: 'Settled',
+      result: 'Fix passed',
+      tone: 'handled',
+    })
+  })
+
+  it('says the person undid it once they did', () => {
+    const live = { ...intervention().intervention, outcome: 'reversed' as const }
+    const view = managerOutcomeView(intervention(), { intervention: live })
+    expect(view.pill).toBe('You undid it')
+    expect(view.result).toBeUndefined()
+  })
+
+  it('reads an intervention the run no longer keeps as posted', () => {
+    expect(managerOutcomeView(intervention(), {}).pill).toBe('Handled')
+  })
+
+  it('counts only the items still open, and says how the others were settled', () => {
+    const view = managerOutcomeView(preRead(2), { settled: { 'ny-0': 'Fine as it is — noted' } })
+    expect(view).toMatchObject({ tone: 'needs-you', pill: '1 needs you' })
+    expect(view.open).toEqual([
+      { id: 'ny-0', text: 'Finding 0. Recommended: Do 0.', settled: 'Fine as it is — noted' },
+      { id: 'ny-1', text: 'Finding 1. Recommended: Do 1.' },
+    ])
+  })
+
+  it('reads a pre-read whose items were all settled as handled', () => {
+    expect(managerOutcomeView(preRead(1), { settled: { 'ny-0': 'Left for later' } })).toMatchObject(
+      { tone: 'handled', pill: 'Handled' },
+    )
+  })
+
+  it('reads a pre-read whose sign-off was decided as handled, with how it was', () => {
+    const closure = { tone: 'handled' as const, line: 'Decided — you approved it · 19:20' }
+    expect(managerOutcomeView(preRead(2), { settled: {}, closure })).toMatchObject({
+      tone: 'handled',
+      pill: 'Handled',
+      closure,
+    })
+  })
+})
+
+describe('managerEscalationView with where the park stands now', () => {
+  const card: ProcessManagerEscalationCard = {
+    kind: 'escalation',
+    escalation: {
+      runId: 'r1',
+      parkedAt: 1,
+      at: 2,
+      signature: 's',
+      why: 'permission',
+      what: 'The fixer needs network access to starcraft-tmg.com',
+      found: 'Not on the standard list.',
+      tried: [],
+      recommendation: 'Allow it.',
+    },
+  }
+
+  it('carries how the park was closed once it was', () => {
+    const closure = { tone: 'handled' as const, line: 'Handled — you allowed it on web · 19:20' }
+    expect(managerEscalationView(card, { state: 'closed', closure }).closure).toEqual(closure)
+  })
+
+  it('carries no closure while the park is open', () => {
+    expect(managerEscalationView(card, { state: 'open' }).closure).toBeUndefined()
+  })
+
+  it('carries no closure while the run is not read', () => {
+    expect(managerEscalationView(card, { state: 'unknown' }).closure).toBeUndefined()
+  })
+})

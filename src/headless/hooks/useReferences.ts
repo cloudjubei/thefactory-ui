@@ -37,7 +37,13 @@ import {
   rankProjectMentionMatches,
   type ProjectMentionFiles,
 } from '../utils/mention'
-import { referenceGroupId } from '../utils/referenceScope'
+import {
+  isLazyReferenceScope,
+  referenceGroupId,
+  referencedProjectId,
+  referenceProjectsToLoad,
+} from '../utils/referenceScope'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 import { referenceDesignOf } from '../utils/design'
 import { referenceProcessesOf } from '../utils/referenceProcesses'
 
@@ -85,16 +91,26 @@ export type References = {
   toTyped: (text: string) => string
 }
 
-type LoadedProject = Omit<ReferenceProject, 'name'>
+/** A project as read for references — its stories left out when they are held live elsewhere. */
+type LoadedProject = Omit<ReferenceProject, 'name' | 'stories'> & {
+  stories?: ReferenceProject['stories']
+}
+
+type LoadedExtras = Omit<LoadedProject, 'projectId' | 'stories'>
 
 const NO_ATTACHMENTS: readonly string[] = []
+const NO_PROJECTS: ReadonlySet<string> = new Set()
 
 /** How long a project fetched for another chat is reused before it is fetched again. */
 const REFERENCE_PROJECT_TTL_MS = 60_000
 /** Coalesce a burst of `files:changed` into one reload of the `@` file lists. */
 const REFERENCE_FILES_DEBOUNCE_MS = 250
 
-const loadedProjects = new Map<string, { at: number; project: Promise<LoadedProject> }>()
+const loadedStories = new Map<
+  string,
+  { at: number; stories: Promise<ReferenceProject['stories']> }
+>()
+const loadedExtras = new Map<string, { at: number; extras: Promise<LoadedExtras> }>()
 
 /** Who hears that a project's stories or notes changed: every mounted `useReferences`. */
 const referenceListeners = new Set<(projectId: string) => void>()
@@ -105,7 +121,8 @@ const referenceListeners = new Set<(projectId: string) => void>()
  * resolves and an old chip never reads "no longer exists".
  */
 export function invalidateReferenceProject(projectId: string): void {
-  loadedProjects.delete(projectId)
+  loadedStories.delete(projectId)
+  loadedExtras.delete(projectId)
   for (const listener of referenceListeners) listener(projectId)
 }
 
@@ -141,47 +158,72 @@ function loadReferenceGroupNotes(groupId: string): Promise<ReferenceGroup['notes
   return notes
 }
 
-/** A project's stories in list order, its notes, its design and its processes, fetched once a minute at most. */
-function loadReferenceProject(projectId: string): Promise<LoadedProject> {
-  const cached = loadedProjects.get(projectId)
-  if (cached && Date.now() - cached.at < REFERENCE_PROJECT_TTL_MS) return cached.project
-  const project = (async (): Promise<LoadedProject> => {
-    const [stories, order, notes, design, processes] = await Promise.all([
-      listStories({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
-      getStoriesOrder({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
-      listProjectNotes({ path: { projectId }, throwOnError: true }).then(
-        (r) => r.data ?? [],
-        () => [],
-      ),
-      getProjectDesign({ path: { projectId }, throwOnError: true }).then(
-        (r) => (r.data ? referenceDesignOf(r.data) : undefined),
-        () => undefined,
-      ),
-      listProcesses({ query: { projectId }, throwOnError: true }).then(
-        (r) => referenceProcessesOf((r.data ?? []) as ProcessDefinition[]),
-        () => undefined,
-      ),
-    ])
+/** A project's stories in list order, read once a minute at most. */
+function loadReferenceStories(projectId: string): Promise<ReferenceProject['stories']> {
+  const cached = loadedStories.get(projectId)
+  if (cached && Date.now() - cached.at < REFERENCE_PROJECT_TTL_MS) return cached.stories
+  const stories = Promise.all([
+    listStories({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
+    getStoriesOrder({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
+  ]).then(([list, order]) => {
     const rank = new Map((order as string[]).map((id, i) => [id, i]))
-    const ordered = [...stories].sort(
-      (a, b) =>
-        (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-    )
-    return {
-      projectId,
-      stories: ordered.map(referenceStoryOf),
-      notes: notes.map((n) => ({
-        id: n.id,
-        label: n.label,
-        ...(n.description ? { description: n.description } : {}),
-      })),
-      ...(design ? { design } : {}),
-      ...(processes ? { processes } : {}),
-    }
-  })()
-  loadedProjects.set(projectId, { at: Date.now(), project })
-  project.catch(() => loadedProjects.delete(projectId))
-  return project
+    return [...list]
+      .sort(
+        (a, b) =>
+          (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      )
+      .map(referenceStoryOf)
+  })
+  loadedStories.set(projectId, { at: Date.now(), stories })
+  stories.catch(() => loadedStories.delete(projectId))
+  return stories
+}
+
+/** A project's notes, design and processes, read once a minute at most. */
+function loadReferenceExtras(projectId: string): Promise<LoadedExtras> {
+  const cached = loadedExtras.get(projectId)
+  if (cached && Date.now() - cached.at < REFERENCE_PROJECT_TTL_MS) return cached.extras
+  const extras = Promise.all([
+    listProjectNotes({ path: { projectId }, throwOnError: true }).then(
+      (r) => r.data ?? [],
+      () => [],
+    ),
+    getProjectDesign({ path: { projectId }, throwOnError: true }).then(
+      (r) => (r.data ? referenceDesignOf(r.data) : undefined),
+      () => undefined,
+    ),
+    listProcesses({ query: { projectId }, throwOnError: true }).then(
+      (r) => referenceProcessesOf((r.data ?? []) as ProcessDefinition[]),
+      () => undefined,
+    ),
+  ]).then(([notes, design, processes]) => ({
+    notes: notes.map((n) => ({
+      id: n.id,
+      label: n.label,
+      ...(n.description ? { description: n.description } : {}),
+    })),
+    ...(design ? { design } : {}),
+    ...(processes ? { processes } : {}),
+  }))
+  loadedExtras.set(projectId, { at: Date.now(), extras })
+  extras.catch(() => loadedExtras.delete(projectId))
+  return extras
+}
+
+/**
+ * A project as references reach it: its notes, design and processes, and — when
+ * `withStories` — its stories in list order. The active project's stories are
+ * held live by the stories context, so they are not read a second time here.
+ */
+export async function loadReferenceProject(
+  projectId: string,
+  withStories: boolean,
+): Promise<LoadedProject> {
+  const [stories, extras] = await Promise.all([
+    withStories ? loadReferenceStories(projectId) : undefined,
+    loadReferenceExtras(projectId),
+  ])
+  return { projectId, ...extras, ...(stories ? { stories } : {}) }
 }
 
 /** A story as a reference reaches it: title and status, and its features' too. */
@@ -234,6 +276,29 @@ export function useReferences({
   }, [hasScope, ownProjectId, groupId, groups, projects])
   const scopeIds = useMemo<string[]>(() => (scopeKey ? scopeKey.split('\n') : []), [scopeKey])
 
+  // A chat over every project reads a project's references only once a chip
+  // of it shows or a reference is typed — not all twenty on open.
+  const lazy = isLazyReferenceScope(scope)
+  const [wanted, setWanted] = useState<ReadonlySet<string>>(NO_PROJECTS)
+  const wantedRef = useRef(new Set<string>())
+  const want = useCallback(
+    (ids: readonly (string | undefined)[]) => {
+      if (!lazy) return
+      let added = false
+      for (const id of ids) {
+        if (!id || wantedRef.current.has(id) || !scopeIds.includes(id)) continue
+        wantedRef.current.add(id)
+        added = true
+      }
+      if (added) setTimeout(() => setWanted(new Set(wantedRef.current)), 0)
+    },
+    [lazy, scopeIds],
+  )
+  const loadIds = useMemo(
+    () => referenceProjectsToLoad(scopeIds, lazy, wanted),
+    [scopeIds, lazy, wanted],
+  )
+
   const { ws } = useApi()
   const [version, setVersion] = useState(0)
   useEffect(() => {
@@ -249,7 +314,8 @@ export function useReferences({
     const refetch = (data: unknown) => {
       const projectId = (data as { projectId?: unknown } | undefined)?.projectId
       if (typeof projectId !== 'string' || !scopeKey.split('\n').includes(projectId)) return
-      loadedProjects.delete(projectId)
+      loadedStories.delete(projectId)
+      loadedExtras.delete(projectId)
       setVersion((v) => v + 1)
     }
     const offStories = ws.on('stories:updated', refetch)
@@ -293,29 +359,33 @@ export function useReferences({
   const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set())
   useEffect(() => {
     let live = true
-    void Promise.all(
-      scopeIds.map((id) =>
-        loadReferenceProject(id).then(
-          (p) => p,
-          () => undefined,
+    const cancel = afterPrimaryLoads(() => {
+      void Promise.all(
+        loadIds.map((id) =>
+          loadReferenceProject(id, id !== activeProjectId).then(
+            (p) => p,
+            () => undefined,
+          ),
         ),
-      ),
-    ).then((loaded) => {
-      if (!live) return
-      setFetched(new Map(loaded.flatMap((p) => (p ? [[p.projectId, p] as const] : []))))
-      setAnswered(new Set(scopeIds))
+      ).then((loaded) => {
+        if (!live) return
+        setFetched(new Map(loaded.flatMap((p) => (p ? [[p.projectId, p] as const] : []))))
+        setAnswered(new Set(loadIds))
+      })
     })
     return () => {
       live = false
+      cancel()
     }
-  }, [scopeIds, version])
+  }, [loadIds, version, activeProjectId])
 
   const index = useMemo<ReferenceIndex>(() => {
     const names = new Map(projects.map((p) => [p.id, p.title]))
     const byId = new Map<string, ReferenceProject>()
     for (const id of scopeIds) {
       const loaded = fetched.get(id)
-      const live = id === activeProjectId ? stories.map(referenceStoryOf) : undefined
+      const live =
+        id === activeProjectId && (!lazy || loaded) ? stories.map(referenceStoryOf) : undefined
       if (!loaded && !live) continue
       byId.set(id, {
         projectId: id,
@@ -354,6 +424,7 @@ export function useReferences({
     notesGroupId,
     groupNotes,
     groups,
+    lazy,
   ])
 
   // Something a chip cannot find may be newer than what was fetched — a note
@@ -362,6 +433,7 @@ export function useReferences({
   const refetched = useRef(new Set<string>())
   const describe = useCallback(
     (parsed: ParsedReference) => {
+      want([referencedProjectId(parsed)])
       const description = describeReference(parsed, index)
       if (description?.missing && parsed.type === 'reference') {
         const reference = parsed.reference
@@ -383,16 +455,28 @@ export function useReferences({
       }
       return description
     },
-    [index, notesGroupId],
+    [index, notesGroupId, want],
   )
   const describeLink = useCallback(
-    (link: ResourceLink) => describeResourceLink(link, index),
-    [index],
+    (link: ResourceLink) => {
+      want([referencedProjectId(link)])
+      return describeResourceLink(link, index)
+    },
+    [index, want],
   )
-  const searchWork = useCallback((token: string) => searchWorkReferences(token, index), [index])
+  const searchWork = useCallback(
+    (token: string) => {
+      want(scopeIds)
+      return searchWorkReferences(token, index)
+    },
+    [index, want, scopeIds],
+  )
   const searchHandles = useCallback(
-    (token: string) => searchHandleReferences(token, index),
-    [index],
+    (token: string) => {
+      want(scopeIds)
+      return searchHandleReferences(token, index)
+    },
+    [index, want, scopeIds],
   )
   const canonicalize = useCallback(
     (text: string, before?: string) =>

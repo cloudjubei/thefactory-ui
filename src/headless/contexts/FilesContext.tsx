@@ -16,10 +16,12 @@ import { useApi } from '../api/ApiContext'
 import { useActiveProject } from './ProjectsContext'
 import { ProjectResourceCache } from '../utils/projectResourceCache'
 import { REVALIDATE_TIMEOUT_MS, acceptOkOr304, readEtagHeader } from '../utils/swrFetch'
+import { wsEventConcernsProject } from '../utils/wsEventProject'
+import { afterPrimaryLoads } from '../utils/afterPrimaryLoads'
 
 /** SWR cache keyed by projectId — instant render on switch back to a
  *  project we've already seen this session. */
-const filesCache = new ProjectResourceCache<FileMeta[]>(16)
+const filesCache = new ProjectResourceCache<FileMeta[]>()
 
 /**
  * A project's file paths, revalidated against the same cache the provider
@@ -181,8 +183,11 @@ export function FilesProvider({ children }: { children: ReactNode }) {
         setIsLoaded(false)
       }
     }
-    void refresh()
-    return () => abortRef.current?.abort()
+    const cancel = afterPrimaryLoads(() => void refresh())
+    return () => {
+      cancel()
+      abortRef.current?.abort()
+    }
   }, [projectId, refresh])
 
   const paths = useMemo<string[]>(
@@ -195,7 +200,8 @@ export function FilesProvider({ children }: { children: ReactNode }) {
   // refetch per event.
   const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    const unsub = ws.on('files:changed', () => {
+    const unsub = ws.on('files:changed', (data: unknown) => {
+      if (!wsEventConcernsProject(data, projectId)) return
       if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current)
       refreshDebounceRef.current = setTimeout(() => {
         refreshDebounceRef.current = null
@@ -209,7 +215,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
         refreshDebounceRef.current = null
       }
     }
-  }, [ws, refresh])
+  }, [ws, refresh, projectId])
 
   // Fetch content whenever the selected path changes (or after a write, via refresh).
   useEffect(() => {

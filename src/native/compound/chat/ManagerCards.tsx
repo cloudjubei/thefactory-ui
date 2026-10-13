@@ -9,6 +9,12 @@ import type {
   ReferenceTarget,
   ResourceLink,
 } from 'thefactory-tools/types'
+import { useManagerCardStanding } from '../../../headless/hooks/useManagerCardStanding'
+import type {
+  ManagerInterventionStanding,
+  ManagerPreReadStanding,
+} from '../../../headless/utils/managerCardsTypes'
+import type { ParkStanding } from '../../../headless/utils/processParkStandingTypes'
 import {
   MANAGER_BRIEF_ANSWERS,
   MANAGER_BRIEF_HIDE_WORDS,
@@ -17,10 +23,14 @@ import {
   MANAGER_BRIEF_TO_AGENT,
   MANAGER_BRIEF_TRIED,
   MANAGER_ESCALATION_FOUND,
+  MANAGER_ESCALATION_HIDE_DETAIL,
   MANAGER_ESCALATION_RECOMMENDS,
+  MANAGER_ESCALATION_SHOW_DETAIL,
   MANAGER_ESCALATION_TRIED,
   MANAGER_OUTCOME_DID,
   MANAGER_OUTCOME_HIDE_WORDS,
+  MANAGER_OUTCOME_LEFT_YOU,
+  MANAGER_OUTCOME_RESULT,
   MANAGER_OUTCOME_SHOW_WORDS,
   MANAGER_OUTCOME_STILL_OPEN,
   MANAGER_OUTCOME_WHY,
@@ -40,6 +50,7 @@ import {
   IconWarningTriangle,
 } from '../../icons'
 import Markdown from '../Markdown'
+import ParkClosureLine from './ParkClosureLine'
 
 /** How a manager card renders references and in-app links in what it quotes. */
 export type ManagerCardLinks = {
@@ -235,18 +246,20 @@ export function ManagerBriefCardView({
 /** Native peer of web's `ManagerOutcomeCardView`. */
 export function ManagerOutcomeCardView({
   card,
+  standing,
   reply,
   at,
   links,
 }: {
   card: ProcessManagerInterventionCard | ProcessManagerPreReadCard
+  standing?: ManagerInterventionStanding | ManagerPreReadStanding
   reply?: string
   at?: string
   links: ManagerCardLinks
 }) {
   const { theme, status } = useNativeTheme()
   const [showReply, setShowReply] = useState(false)
-  const view = managerOutcomeView(card)
+  const view = managerOutcomeView(card, standing)
   const needsYou = view.tone === 'needs-you'
   const icon = needsYou ? status.on_hold : status.done
   const section = {
@@ -301,24 +314,44 @@ export function ManagerOutcomeCardView({
             </Text>
             {` ${view.why}`}
           </Text>
+          {view.result ? (
+            <Text style={{ fontSize: 13, color: theme.text.secondary }}>
+              <Text style={{ fontWeight: '600', color: theme.text.primary }}>
+                {MANAGER_OUTCOME_RESULT}
+              </Text>
+              {` ${view.result}`}
+            </Text>
+          ) : null}
+          {view.closure ? <ParkClosureLine closure={view.closure} /> : null}
         </View>
       </View>
       {view.open.length > 0 ? (
         <View style={{ ...section, gap: 8 }}>
-          <Caption>{MANAGER_OUTCOME_STILL_OPEN}</Caption>
+          <Caption>
+            {view.tone === 'needs-you' ? MANAGER_OUTCOME_STILL_OPEN : MANAGER_OUTCOME_LEFT_YOU}
+          </Caption>
           {view.open.map((item) => (
             <View key={item.id} style={{ flexDirection: 'row', gap: 10 }}>
-              <View
-                style={{
-                  marginTop: 6,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: status.on_hold.bg,
-                }}
-              />
-              <View style={{ flex: 1 }}>
+              {item.settled || view.closure ? (
+                <View style={{ marginTop: 2 }}>
+                  <IconCheck size={13} color={theme.text.secondary} />
+                </View>
+              ) : (
+                <View
+                  style={{
+                    marginTop: 6,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: status.on_hold.bg,
+                  }}
+                />
+              )}
+              <View style={{ flex: 1, opacity: item.settled || view.closure ? 0.75 : 1 }}>
                 <Quote text={item.text} links={links} />
+                {item.settled ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>{item.settled}</Text>
+                ) : null}
               </View>
             </View>
           ))}
@@ -348,15 +381,73 @@ export function ManagerOutcomeCardView({
 /** Native peer of web's `ManagerEscalationCardView`. */
 export function ManagerEscalationCardView({
   card,
+  standing,
   links,
   children,
 }: {
   card: ProcessManagerEscalationCard
+  standing?: ParkStanding
   links: ManagerCardLinks
   children?: ReactNode
 }) {
   const { theme, status } = useNativeTheme()
-  const view = managerEscalationView(card)
+  const [showDetail, setShowDetail] = useState(false)
+  const view = managerEscalationView(card, standing)
+  const closure = view.closure
+  const detail = (
+    <>
+      <View style={{ gap: 2 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+          {MANAGER_ESCALATION_FOUND}
+        </Text>
+        <Quote text={view.found} links={links} />
+      </View>
+      {view.tried.length > 0 ? (
+        <View style={{ gap: 2 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+            {MANAGER_ESCALATION_TRIED}
+          </Text>
+          {view.tried.map((t) => (
+            <Text key={t} style={{ fontSize: 13, color: theme.text.secondary }}>
+              {`– ${t}`}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      <View style={{ gap: 2 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
+          {MANAGER_ESCALATION_RECOMMENDS}
+        </Text>
+        <Quote text={view.recommendation} links={links} />
+      </View>
+    </>
+  )
+  if (closure) {
+    return (
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: theme.border.subtle,
+          borderRadius: nativeRadii[3],
+          backgroundColor: theme.surface.raised,
+          overflow: 'hidden',
+        }}
+      >
+        <ParkClosureLine closure={closure} banner />
+        <View style={{ padding: 14, gap: 8 }}>
+          <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.secondary }}>
+            {view.headline}
+          </Text>
+          <Text style={{ fontSize: 13, color: theme.text.secondary }}>{view.what}</Text>
+          <Toggle
+            label={showDetail ? MANAGER_ESCALATION_HIDE_DETAIL : MANAGER_ESCALATION_SHOW_DETAIL}
+            onPress={() => setShowDetail((s) => !s)}
+          />
+          {showDetail ? detail : null}
+        </View>
+      </View>
+    )
+  }
   return (
     <View
       style={{
@@ -387,53 +478,37 @@ export function ManagerEscalationCardView({
           {view.headline}
         </Text>
         <Text style={{ fontSize: 13, color: theme.text.secondary }}>{view.what}</Text>
-        <View style={{ gap: 2 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-            {MANAGER_ESCALATION_FOUND}
-          </Text>
-          <Quote text={view.found} links={links} />
-        </View>
-        {view.tried.length > 0 ? (
-          <View style={{ gap: 2 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-              {MANAGER_ESCALATION_TRIED}
-            </Text>
-            {view.tried.map((t) => (
-              <Text key={t} style={{ fontSize: 13, color: theme.text.secondary }}>
-                {`– ${t}`}
-              </Text>
-            ))}
-          </View>
-        ) : null}
-        <View style={{ gap: 2 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-            {MANAGER_ESCALATION_RECOMMENDS}
-          </Text>
-          <Quote text={view.recommendation} links={links} />
-        </View>
+        {detail}
         {children}
       </View>
     </View>
   )
 }
 
-/** Native peer of web's `ManagerCardView`. */
+/** Native peer of web's `ManagerCardView`: read live off the run it was posted for. */
 export function ManagerCardView({
   card,
+  processRunId,
   at,
   reply,
   links,
   children,
 }: {
   card: Exclude<ProcessManagerChatCard, ProcessManagerBriefCard>
+  processRunId?: string
   at?: string
   reply?: string
   links: ManagerCardLinks
   children?: ReactNode
 }) {
+  const live = useManagerCardStanding(card, processRunId)
   if (card.kind === 'escalation') {
     return (
-      <ManagerEscalationCardView card={card} links={links}>
+      <ManagerEscalationCardView
+        card={card}
+        {...(live.kind === 'escalation' ? { standing: live.standing } : {})}
+        links={links}
+      >
         {children}
       </ManagerEscalationCardView>
     )
@@ -441,6 +516,7 @@ export function ManagerCardView({
   return (
     <ManagerOutcomeCardView
       card={card}
+      {...(live.kind !== 'escalation' ? { standing: live.standing } : {})}
       {...(at ? { at } : {})}
       {...(reply ? { reply } : {})}
       links={links}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listActionRules, removeActionRule } from '../api/generated'
+import { listActionRules, removeActionRule, trustSite as trustSiteRequest } from '../api/generated'
 import type { ActionRuleView } from '../utils/actionRulesTypes'
 import { extractErrorMessage } from '../api/errorMessage'
+import { TRUST_SITE_FAILED } from '../utils/actionRulesConstants'
 
 export type UseActionRules = {
   rules: ActionRuleView[]
@@ -11,6 +12,8 @@ export type UseActionRules = {
   reload: () => Promise<void>
   /** Remove a rule; from a chat (`chatContextId` given to the hook) only that chat's own may go. */
   remove: (ruleId: string) => Promise<void>
+  /** Trust a website everywhere; resolves whether it was trusted (a failure sets `error`). */
+  trustSite: (site: string) => Promise<boolean>
 }
 
 /**
@@ -60,5 +63,17 @@ export function useActionRules(chatContextId?: string): UseActionRules {
     [chatContextId, reload],
   )
 
-  return { rules, loading, error, reload, remove }
+  const trustSite = useCallback(async (site: string) => {
+    try {
+      const res = await trustSiteRequest({ body: { site }, throwOnError: true })
+      setRules((prev) => [...prev.filter((rule) => rule.id !== res.data.id), res.data])
+      setError(undefined)
+      return true
+    } catch (err) {
+      setError(extractErrorMessage(err, TRUST_SITE_FAILED))
+      return false
+    }
+  }, [])
+
+  return { rules, loading, error, reload, remove, trustSite }
 }

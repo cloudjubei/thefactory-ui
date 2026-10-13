@@ -18,6 +18,8 @@ import {
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
   TOOL_ASK_SCOPE,
+  TOOL_ASK_SCOPE_DONE,
+  TOOL_ASK_SITE_HINT,
 } from './toolAskCardConstants'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
 import type { RunProposalView } from './runProposalViewTypes'
@@ -241,6 +243,33 @@ describe('toolAskScopeOptions', () => {
         hint: 'This exact call, in every chat, with any model or sign-in',
       },
     ])
+  })
+
+  it('offers trusting the site an ask is about, beside the always-allows', () => {
+    // Observed (wargames 67e902b9): the same hosts asked about again and again.
+    const options = toolAskScopeOptions(
+      ['chat', 'everywhere'],
+      'requestNetworkUnlock',
+      'exact-call',
+      'sc.starcraft-tmg.com',
+    )
+    expect(options.map((o) => o.decision)).toEqual([
+      'once',
+      'always-in-chat',
+      'always-everywhere',
+      'trust-site',
+    ])
+    expect(options[3]).toEqual({
+      decision: 'trust-site',
+      label: TOOL_ASK_SCOPE.site.label,
+      hint: TOOL_ASK_SITE_HINT('sc.starcraft-tmg.com'),
+    })
+  })
+
+  it('says a trusted site was trusted, once decided', () => {
+    expect(toolAskDecidedLine({ headline: 'Open x' }, 'trust-site').text).toContain(
+      TOOL_ASK_SCOPE_DONE['trust-site'],
+    )
   })
 
   it('describes a whole-tool allow by the tool', () => {

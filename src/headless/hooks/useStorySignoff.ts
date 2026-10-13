@@ -7,12 +7,22 @@ import { listCliAgentRunSummaries, listProcessRuns, useApi, useAuth } from '../a
 import { useStories } from '../contexts/StoriesContext'
 import type { StorySignoffSources } from '../utils/processViewCacheTypes'
 import { storySignoffSourceCache } from './processViewCache'
-import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
-import { buildStorySignoff, signoffLoadStatus } from '../utils/storySignoff'
+import {
+  createCoalescedRefresh,
+  isRunStateUpdate,
+  isRunUpdateForProject,
+} from '../utils/runUpdateRefresh'
+import {
+  applyStorySignoffRunUpdate,
+  buildStorySignoff,
+  signoffLoadStatus,
+} from '../utils/storySignoff'
 import type {
   SignoffLoadStatus,
+  SignoffSources,
   SignoffSourceState,
   StorySignoff,
+  StorySignoffRunUpdate,
 } from '../utils/storySignoffTypes'
 import type { EvidenceLoadState } from '../utils/verifyProofTypes'
 
@@ -26,17 +36,23 @@ export type UseStorySignoff = {
    */
   signoff: StorySignoff | undefined
   status: SignoffLoadStatus
+  /** Where each source stands — the frame names what it is still reading. */
+  sources: SignoffSources
   loading: boolean
   error: string | undefined
   refresh: () => Promise<void>
 }
 
-/** The sources this instance holds, for the `projectId|storyId` they were read for. */
-type HeldSources = StorySignoffSources & { key: string }
+/** The sources this instance holds, for the `projectId|storyId` they were read for — each as it arrived. */
+type HeldSources = {
+  key: string
+  processRuns: ProcessRun[] | undefined
+  cliRuns: StorySignoffSources['cliRuns'] | undefined
+}
 
-function cachedSources(key: string): HeldSources | undefined {
+function cachedSources(key: string): HeldSources {
   const cached = storySignoffSourceCache.get(key)
-  return cached ? { key, ...cached } : undefined
+  return { key, processRuns: cached?.processRuns, cliRuns: cached?.cliRuns }
 }
 
 /**
@@ -62,11 +78,16 @@ function cachedSources(key: string): HeldSources | undefined {
  * Nothing is built until the runs, the story and the evidence have each loaded
  * for THIS story ({@link signoffLoadStatus}): built early, no process run scopes
  * it, so every earlier run's filings show and every feature reads as not
- * verified — a verdict that then flips once the runs arrive. A live re-list
- * keeps the last complete sign-off rather than going back to loading.
+ * verified — a verdict that then flips once the runs arrive. Each source is
+ * held as it arrives and `sources` says where each stands, so the frame can
+ * name what is still on its way. A live re-list keeps the last complete
+ * sign-off rather than going back to loading.
  *
- * Live: any run or process update re-joins — a verify finishing on a feature
- * moves that feature's verdict without a navigate-away.
+ * Live without re-reading: a `process:run-update` carries the whole record, so
+ * a run of this story is put in place from the push itself
+ * ({@link applyStorySignoffRunUpdate}); only a CLI run's state change re-reads
+ * the summaries — a verify finishing on a feature moves that feature's verdict
+ * without a navigate-away.
  *
  * `projectChecks` is the project's checks scan (`useProjectChecks`), passed in
  * like the evidence: waited for, so a chip never flips under a drawn verdict,
@@ -87,64 +108,119 @@ export function useStorySignoff(
   const { ws } = useApi()
   const { getStory, isLoaded: storiesLoaded, loadError: storiesError } = useStories()
   const key = `${projectId ?? ''}|${storyId ?? ''}`
-  const [held, setHeld] = useState<HeldSources | undefined>(() => cachedSources(key))
-  const [loading, setLoading] = useState(false)
+  const [held, setHeld] = useState<HeldSources>(() => cachedSources(key))
+  const [reads, setReads] = useState(0)
   const [failure, setFailure] = useState<{ key: string; message: string } | undefined>()
   const keyRef = useRef(key)
   keyRef.current = key
-  const sources = held?.key === key ? held : cachedSources(key)
-  const processRuns = sources?.processRuns ?? EMPTY_PROCESS_RUNS
-  const cliRuns = sources?.cliRuns ?? EMPTY_CLI_RUNS
+  const sources = held.key === key ? held : cachedSources(key)
+  const processRuns = sources.processRuns ?? EMPTY_PROCESS_RUNS
+  const cliRuns = sources.cliRuns ?? EMPTY_CLI_RUNS
+
+  const hold = useCallback((requestKey: string, part: Partial<Omit<HeldSources, 'key'>>) => {
+    setHeld((prev) => {
+      const base = prev.key === requestKey ? prev : cachedSources(requestKey)
+      const next = { ...base, ...part }
+      if (next.processRuns && next.cliRuns) {
+        storySignoffSourceCache.set(requestKey, {
+          processRuns: next.processRuns,
+          cliRuns: next.cliRuns,
+        })
+      }
+      return keyRef.current === requestKey ? next : prev
+    })
+  }, [])
+
+  const read = useCallback(
+    async <T>(requestKey: string, load: () => Promise<T>, keep: (value: T) => void) => {
+      setReads((n) => n + 1)
+      try {
+        const value = await load()
+        if (keyRef.current === requestKey) keep(value)
+      } catch (err) {
+        if (keyRef.current !== requestKey) return
+        setFailure({ key: requestKey, message: err instanceof Error ? err.message : String(err) })
+      } finally {
+        setReads((n) => n - 1)
+      }
+    },
+    [],
+  )
+
+  const readProcessRuns = useCallback(async () => {
+    if (!projectId || !storyId) return
+    const requestKey = `${projectId}|${storyId}`
+    // NOT `rootOnly`: the per-feature CHILD process runs are what carry the
+    // `featureId`, so the attribution comes from them, not the root run.
+    await read(
+      requestKey,
+      async () =>
+        ((await listProcessRuns({ query: { projectId, storyId }, throwOnError: true })).data as
+          | ProcessRun[]
+          | undefined) ?? [],
+      (runs) => hold(requestKey, { processRuns: runs }),
+    )
+  }, [projectId, storyId, read, hold])
+
+  const readCliRuns = useCallback(async () => {
+    if (!projectId || !storyId) return
+    const requestKey = `${projectId}|${storyId}`
+    await read(
+      requestKey,
+      async () =>
+        (await listCliAgentRunSummaries({ query: { projectId, storyId }, throwOnError: true }))
+          .data ?? [],
+      (runs) => hold(requestKey, { cliRuns: runs }),
+    )
+  }, [projectId, storyId, read, hold])
 
   const refresh = useCallback(async () => {
-    const requestKey = `${projectId ?? ''}|${storyId ?? ''}`
     if (!projectId || !storyId) {
-      setHeld({ key: requestKey, processRuns: [], cliRuns: [] })
+      setHeld({ key, processRuns: [], cliRuns: [] })
       return
     }
-    setLoading(true)
     setFailure(undefined)
-    try {
-      // NOT `rootOnly`: the per-feature CHILD process runs are what carry the
-      // `featureId`, so the attribution comes from them, not the root run.
-      const [proc, cli] = await Promise.all([
-        listProcessRuns({ query: { projectId, storyId }, throwOnError: true }),
-        listCliAgentRunSummaries({ query: { projectId, storyId }, throwOnError: true }),
-      ])
-      const read: StorySignoffSources = {
-        processRuns: (proc.data as ProcessRun[] | undefined) ?? [],
-        cliRuns: cli.data ?? [],
-      }
-      storySignoffSourceCache.set(requestKey, read)
-      if (keyRef.current !== requestKey) return
-      setHeld({ key: requestKey, ...read })
-    } catch (err) {
-      if (keyRef.current !== requestKey) return
-      setFailure({ key: requestKey, message: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId, storyId])
+    await Promise.all([readProcessRuns(), readCliRuns()])
+  }, [projectId, storyId, key, readProcessRuns, readCliRuns])
 
   useEffect(() => {
     if (!token) return
     void refresh()
   }, [token, refresh])
 
-  // One re-list at a time, and never for a streamed transcript entry: a story's runs are whole records, and an eval
-  // streaming beside an open sign-off re-listed them per token until the backend ran out of heap.
-  const refreshCoalesced = useMemo(() => createCoalescedRefresh(refresh), [refresh])
+  // One re-read at a time, and never for a streamed transcript entry: an eval
+  // streaming beside an open sign-off re-listed per token until the backend ran out of heap.
+  const readCliRunsCoalesced = useMemo(() => createCoalescedRefresh(readCliRuns), [readCliRuns])
   useEffect(() => {
-    if (!token) return
+    if (!token || !projectId || !storyId) return
+    const scope = { projectId, storyId }
     const offRun = ws.on('cli:run-update', (data: unknown) => {
-      if (isRunStateUpdate(data)) void refreshCoalesced()
+      if (isRunStateUpdate(data) && isRunUpdateForProject(data, projectId)) {
+        void readCliRunsCoalesced()
+      }
     })
-    const offProc = ws.on('process:run-update', () => void refreshCoalesced())
+    const offProc = ws.on('process:run-update', (data: unknown) => {
+      const requestKey = `${projectId}|${storyId}`
+      setHeld((prev) => {
+        if (prev.key !== requestKey || !prev.processRuns) return prev
+        const next = applyStorySignoffRunUpdate(
+          prev.processRuns,
+          data as StorySignoffRunUpdate,
+          scope,
+        )
+        if (next === prev.processRuns) return prev
+        if (prev.cliRuns)
+          storySignoffSourceCache.set(requestKey, { processRuns: next, cliRuns: prev.cliRuns })
+        return { ...prev, processRuns: next }
+      })
+    })
+    const offReconnect = ws.onReconnect(() => void refresh())
     return () => {
       offRun()
       offProc()
+      offReconnect()
     }
-  }, [ws, token, refreshCoalesced])
+  }, [ws, token, projectId, storyId, readCliRunsCoalesced, refresh])
 
   const story = getStory(storyId ?? '')
   const features = useMemo(
@@ -157,19 +233,27 @@ export function useStorySignoff(
   )
 
   const error = failure?.key === key ? failure.message : undefined
-  const runsState: SignoffSourceState =
-    sources !== undefined ? 'loaded' : error !== undefined ? 'failed' : 'loading'
+  const runsHeld = sources.processRuns !== undefined && sources.cliRuns !== undefined
+  const runsState: SignoffSourceState = runsHeld
+    ? 'loaded'
+    : error !== undefined
+      ? 'failed'
+      : 'loading'
   const storiesState: SignoffSourceState = storiesLoaded
     ? 'loaded'
     : storiesError
       ? 'failed'
       : 'loading'
-  const status = signoffLoadStatus({
-    runs: runsState,
-    stories: storiesState,
-    evidence: evidenceState,
-    ...(projectChecks ? { checks: projectChecks.state } : {}),
-  })
+  const sourceStates: SignoffSources = useMemo(
+    () => ({
+      runs: runsState,
+      stories: storiesState,
+      evidence: evidenceState,
+      ...(projectChecks ? { checks: projectChecks.state } : {}),
+    }),
+    [runsState, storiesState, evidenceState, projectChecks?.state],
+  )
+  const status = signoffLoadStatus(sourceStates)
   const ready = status === 'ready'
 
   const scan = projectChecks?.scan
@@ -189,5 +273,12 @@ export function useStorySignoff(
     [ready, features, processRuns, cliRuns, evidence, storyRunId, storyIncomplete, scan],
   )
 
-  return { signoff, status, loading, error: error ?? storiesError?.message, refresh }
+  return {
+    signoff,
+    status,
+    sources: sourceStates,
+    loading: reads > 0,
+    error: error ?? storiesError?.message,
+    refresh,
+  }
 }

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { ProcessRun } from 'thefactory-tools/types'
+import type { ProcessIntegrationOptions, ProcessRun } from 'thefactory-tools/types'
 
 import {
   cachedProcessRun,
   clearProcessViewCaches,
+  integrationOptionsCache,
   processRunCache,
   processRunListCache,
   processRunListKey,
@@ -52,8 +53,10 @@ describe('clearProcessViewCaches', () => {
     processRunListCache.set('p1', [run('r1')])
     processRunCache.set('r1', run('r1'))
     storySignoffSourceCache.set('p1|s1', { processRuns: [], cliRuns: [] })
+    integrationOptionsCache.set('r1', {} as ProcessIntegrationOptions)
     clearProcessViewCaches()
     expect(cachedProcessRun('r1')).toBeUndefined()
     expect(storySignoffSourceCache.get('p1|s1')).toBeUndefined()
+    expect(integrationOptionsCache.get('r1')).toBeUndefined()
   })
 })

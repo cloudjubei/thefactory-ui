@@ -1,6 +1,8 @@
 import { Pressable, Text, View } from 'react-native'
 
 import {
+  PROCESS_GROUP_RUN_CHIP_GONE,
+  PROCESS_GROUP_RUN_CHIP_LOADING,
   costChipLabel,
   formatProcessDuration,
   processGroupCardView,
@@ -28,7 +30,7 @@ export type ProcessGroupRunChipProps = {
  */
 export default function ProcessGroupRunChip({ groupRunId, onOpen }: ProcessGroupRunChipProps) {
   const { theme } = useNativeTheme()
-  const { group } = useProcessGroupRun(groupRunId)
+  const { group, isLoaded } = useProcessGroupRun(groupRunId)
   const now = useDurationTimer(group?.totals?.ticking === true)
   if (!group) {
     return (
@@ -42,7 +44,9 @@ export default function ProcessGroupRunChip({ groupRunId, onOpen }: ProcessGroup
           paddingVertical: nativeSpace[2],
         }}
       >
-        <Text style={{ fontSize: 11, color: theme.text.secondary }}>Loading the group run…</Text>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+          {isLoaded ? PROCESS_GROUP_RUN_CHIP_GONE : PROCESS_GROUP_RUN_CHIP_LOADING}
+        </Text>
       </View>
     )
   }

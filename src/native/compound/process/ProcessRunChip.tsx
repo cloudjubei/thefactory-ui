@@ -1,6 +1,8 @@
 import { Pressable, Text, View } from 'react-native'
 
 import {
+  PROCESS_RUN_CHIP_GONE,
+  PROCESS_RUN_CHIP_LOADING,
   processRunCardView,
   processRunSpend,
   processRunWorkLabel,
@@ -15,8 +17,8 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessRunChipProps = {
   processRunId: string
-  /** Open the pipeline. The card's only action, by design. */
-  onOpen: (processRunId: string) => void
+  /** Open the pipeline — in the run's own project, which need not be the chat's. The card's only action, by design. */
+  onOpen: (processRunId: string, projectId: string) => void
 }
 
 /**
@@ -28,7 +30,7 @@ export type ProcessRunChipProps = {
  */
 export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipProps) {
   const { theme } = useNativeTheme()
-  const { run } = useProcessRun(processRunId)
+  const { run, isLoaded } = useProcessRun(processRunId)
   const now = useDurationTimer(run?.totals?.ticking === true)
   const stopNow = useProcessStopClock()
   if (!run) {
@@ -43,7 +45,9 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
           paddingVertical: nativeSpace[2],
         }}
       >
-        <Text style={{ fontSize: 11, color: theme.text.secondary }}>Loading the pipeline…</Text>
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+          {isLoaded ? PROCESS_RUN_CHIP_GONE : PROCESS_RUN_CHIP_LOADING}
+        </Text>
       </View>
     )
   }
@@ -75,7 +79,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => onOpen(processRunId)}
+          onPress={() => onOpen(processRunId, run.projectId)}
           style={{
             borderWidth: 1,
             borderColor: theme.border.default,

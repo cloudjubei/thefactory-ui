@@ -1,3 +1,5 @@
+import { PROJECT_RESOURCE_CACHE_CAPACITY } from './projectResourceCacheConstants'
+
 export type CacheEntry<T> = {
   data: T
   etag: string | null
@@ -21,7 +23,7 @@ export class ProjectResourceCache<T> {
   private readonly map = new Map<string, CacheEntry<T>>()
   private readonly maxEntries: number
 
-  constructor(maxEntries: number = 16) {
+  constructor(maxEntries: number = PROJECT_RESOURCE_CACHE_CAPACITY) {
     this.maxEntries = maxEntries
   }
 

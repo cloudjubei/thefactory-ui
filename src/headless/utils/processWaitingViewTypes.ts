@@ -1,4 +1,8 @@
-import type { ProcessNodeRunRef, ProcessWaitingKind } from 'thefactory-tools/types'
+import type {
+  ProcessNodeRunRef,
+  ProcessWaitingItemChoice,
+  ProcessWaitingKind,
+} from 'thefactory-tools/types'
 import type { ProcessParkChoice } from 'thefactory-tools/types'
 
 import type { ChatContext } from '../api'
@@ -7,6 +11,20 @@ import type { ChatContext } from '../api'
 export interface ProcessWaitingDetail {
   label: string
   value: string
+}
+
+/** One of several requests an agent left waiting, decided on its own. */
+export interface ProcessWaitingRequestView {
+  /** The broker action it answers. */
+  actionId: string
+  title: string
+  /** The agent's own reason, verbatim. */
+  words: string
+  details: ProcessWaitingDetail[]
+  /** Its own answers; empty once decided. */
+  choices: { choice: ProcessWaitingItemChoice; label: string }[]
+  /** What it was decided as, once it was. */
+  decided?: string
 }
 
 /** Where the ask went when the person handed it to another agent. */
@@ -34,5 +52,7 @@ export interface ProcessWaitingView {
   transcript?: ProcessNodeRunRef
   transcriptLabel: string
   choices: ProcessParkChoice[]
+  /** Set when the agent left several requests waiting: each decided on its own. */
+  requests?: ProcessWaitingRequestView[]
   delegated?: ProcessWaitingDelegatedView
 }

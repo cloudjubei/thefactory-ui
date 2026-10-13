@@ -6,6 +6,7 @@ import {
   chatMessageTimes,
   chatNeedsYouTimesOf,
   isChatLoaded,
+  openChatRead,
   type ChatListEntry,
   type ChatSummaryLike,
   withAppendedMessage,
@@ -152,8 +153,48 @@ describe('chatNeedsYouTimesOf', () => {
     expect(chatNeedsYouTimesOf(entry)).toEqual(['b'])
   })
 
+  it('leaves out a loaded chat’s card the host closed once its run moved on', () => {
+    const entry: ChatListEntry = {
+      context: ctx,
+      updatedAt: 'u1',
+      messages: [
+        {
+          role: 'assistant',
+          content: 'needs you',
+          managerCard: { kind: 'escalation', escalation: { why: 'scope' } },
+          needsYouClosedAt: 'c',
+          completedAt: 'b',
+        },
+      ] as unknown as ChatListEntry['messages'],
+    }
+    expect(chatNeedsYouTimesOf(entry)).toEqual([])
+  })
+
   it('reads a summary’s own times, and nothing from one that has none', () => {
     expect(chatNeedsYouTimesOf({ ...summary(1), needsYouTimes: ['t0'] })).toEqual(['t0'])
     expect(chatNeedsYouTimesOf({})).toEqual([])
+  })
+})
+
+describe('openChatRead — what an open chat reads', () => {
+  const summary = { context: { type: 'PROJECT', projectId: 'p1' } } as ChatListEntry
+  const loaded = { ...summary, messages: [] } as ChatListEntry
+
+  it('reads the messages of a chat the list holds as a summary', () => {
+    expect(openChatRead(summary, true)).toBe('messages')
+    expect(openChatRead(summary, false)).toBe('messages')
+  })
+
+  it('reads nothing for a chat already loaded', () => {
+    expect(openChatRead(loaded, true)).toBeNull()
+    expect(openChatRead(loaded, false)).toBeNull()
+  })
+
+  it('looks the chat up on its own while the list is still on its way', () => {
+    expect(openChatRead(null, false)).toBe('summary')
+  })
+
+  it('reads nothing for a chat the whole list does not have — it does not exist yet', () => {
+    expect(openChatRead(null, true)).toBeNull()
   })
 })

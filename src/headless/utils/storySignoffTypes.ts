@@ -361,6 +361,13 @@ export type SignoffSources = {
   checks?: SignoffSourceState
 }
 
+/** A `process:run-update` as a sign-off reads it: the whole record, or that the run was deleted. */
+export type StorySignoffRunUpdate = {
+  runId?: string
+  run?: ProcessRun
+  deleted?: boolean
+}
+
 /** Whether a sign-off can be shown yet — never while any of what it is computed from is still loading. */
 export type SignoffLoadStatus = 'loading' | 'failed' | 'ready'
 

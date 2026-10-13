@@ -1,15 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   getReviewEvidenceContent,
   listReviewEvidence,
+  listReviewEvidenceTexts,
   type ReviewEvidenceRef,
 } from '../api/generated'
 import { useApi } from '../api/ApiContext'
-import { EVIDENCE_NOTE_FETCH_CONCURRENCY } from '../utils/processViewCacheConstants'
-import { notesToRead, toEvidenceTile } from '../utils/reviewEvidenceView'
-import { createCoalescedRefresh, isRunStateUpdate } from '../utils/runUpdateRefresh'
+import { LiveResourceStore } from '../utils/liveResourceStore'
+import type { LiveResourceSnapshot } from '../utils/liveResourceStoreTypes'
+import {
+  EVIDENCE_IMAGE_CACHE_CAPACITY,
+  EVIDENCE_NOTE_CACHE_CAPACITY,
+  REVIEW_EVIDENCE_LINGER_MS,
+} from '../utils/processViewCacheConstants'
+import type { ReviewEvidenceSnapshot } from '../utils/processViewCacheTypes'
+import { toEvidenceTile } from '../utils/reviewEvidenceView'
+import {
+  isChatUpdateForProject,
+  isRunStateUpdate,
+  isRunUpdateForProject,
+} from '../utils/runUpdateRefresh'
 import type { EvidenceTile } from '../utils/reviewEvidenceViewTypes'
+import { EvidenceContentCache } from './evidenceContentCache'
 import { EvidenceImageLoader, evidenceDataUri } from './evidenceImageLoader'
 import { reviewEvidenceCache } from './processViewCache'
 
@@ -17,6 +30,18 @@ type EvidenceQuery = { runId?: string; storyId?: string; featureId?: string }
 
 function evidenceQueryKey(projectId: string | undefined, query: EvidenceQuery): string {
   return [projectId, query.runId, query.storyId, query.featureId].map((p) => p ?? '').join('|')
+}
+
+function evidenceQueryOfKey(key: string): { projectId: string; query: EvidenceQuery } {
+  const [projectId = '', runId, storyId, featureId] = key.split('|')
+  return {
+    projectId,
+    query: {
+      ...(runId ? { runId } : {}),
+      ...(storyId ? { storyId } : {}),
+      ...(featureId ? { featureId } : {}),
+    },
+  }
 }
 
 async function fetchEvidenceImage(
@@ -32,31 +57,93 @@ async function fetchEvidenceImage(
   return evidenceDataUri((res as { data?: unknown }).data, mediaType)
 }
 
-async function readNoteText(projectId: string, evidenceId: string): Promise<string | undefined> {
-  try {
-    const res = await getReviewEvidenceContent({
-      path: { projectId, evidenceId },
-      responseType: 'text',
-      throwOnError: true,
-    } as never)
-    const text = (res as { data?: unknown }).data
-    return typeof text === 'string' && text.length > 0 ? text : undefined
-  } catch {
-    return undefined
-  }
+async function fetchEvidenceTexts(
+  projectId: string,
+  ids: string[],
+): Promise<{ id: string; text: string }[]> {
+  const { data } = await listReviewEvidenceTexts({
+    path: { projectId },
+    body: { ids },
+    throwOnError: true,
+  })
+  return data ?? []
 }
+
+/** Evidence images and note texts read this session — shared by every panel showing them. */
+const evidenceContent = new EvidenceContentCache(
+  { image: fetchEvidenceImage, texts: fetchEvidenceTexts },
+  { images: EVIDENCE_IMAGE_CACHE_CAPACITY, notes: EVIDENCE_NOTE_CACHE_CAPACITY },
+)
+
+/** A listing and the text of every note in it — the note text in one request after the listing. */
+async function readEvidenceListing(key: string): Promise<ReviewEvidenceSnapshot> {
+  const { projectId, query } = evidenceQueryOfKey(key)
+  const { data } = await listReviewEvidence({ path: { projectId }, query, throwOnError: true })
+  const refs = data ?? []
+  return { refs, notes: await evidenceContent.noteTexts(projectId, refs) }
+}
+
+type WsLike = ReturnType<typeof useApi>['ws']
+
+const stores = new WeakMap<WsLike, LiveResourceStore<ReviewEvidenceSnapshot>>()
+
+/**
+ * One listing per query for the whole app, kept live by one subscription: the
+ * auto-review verifier files evidence in a SEPARATE run, so nothing in a
+ * panel's own run stream announces it — any run state change, or a chat of
+ * this project, re-reads it (folded into one read however many arrive). A
+ * streamed transcript entry files nothing and is ignored.
+ */
+function reviewEvidenceStoreFor(ws: WsLike): LiveResourceStore<ReviewEvidenceSnapshot> {
+  const existing = stores.get(ws)
+  if (existing) return existing
+  const store = new LiveResourceStore<ReviewEvidenceSnapshot>({
+    load: readEvidenceListing,
+    connect: (key, handle) => {
+      const { projectId } = evidenceQueryOfKey(key)
+      const offRun = ws.on('cli:run-update', (data: unknown) => {
+        if (isRunStateUpdate(data) && isRunUpdateForProject(data, projectId)) {
+          void handle.refresh()
+        }
+      })
+      const offChat = ws.on('chats:updated', (data: unknown) => {
+        if (isChatUpdateForProject(data, projectId)) void handle.refresh()
+      })
+      const offReconnect = ws.onReconnect(() => void handle.refresh())
+      return () => {
+        offRun()
+        offChat()
+        offReconnect()
+      }
+    },
+    lingerMs: REVIEW_EVIDENCE_LINGER_MS,
+    recall: (key) => reviewEvidenceCache.get(key),
+    remember: (key, snapshot) => reviewEvidenceCache.set(key, snapshot),
+  })
+  stores.set(ws, store)
+  return store
+}
+
+const IDLE_SNAPSHOT: LiveResourceSnapshot<ReviewEvidenceSnapshot> = {
+  data: { refs: [], notes: {} },
+  settled: true,
+  error: null,
+}
+const NO_REFS: ReviewEvidenceRef[] = []
+const NO_NOTES: Record<string, string> = {}
+const unlistened = () => () => {}
 
 export type UseReviewEvidence = {
   /** Everything recorded for the query, newest first. */
   refs: ReviewEvidenceRef[]
   /** Renderable tiles; an image's `dataUri` fills in once it has been requested. */
   tiles: EvidenceTile[]
-  /** A load is in flight — including the live re-pulls every run/chat event triggers. */
+  /** The first load for THIS query is still on its way — live re-reads never set it again. */
   loading: boolean
   /**
-   * The first load for THIS query has finished. Unlike `loading` it stays true
-   * through live re-pulls, so a view can show "loading" once rather than
-   * flickering back to it on every event while nothing has been filed yet.
+   * The first load for THIS query has finished (or a remembered listing stands
+   * in for it). It stays true through live re-reads, so a view shows "loading"
+   * once rather than flickering back to it on every event.
    */
   loaded: boolean
   error: string | undefined
@@ -83,51 +170,51 @@ export type UseReviewEvidence = {
  * endpoint would simply 401. Data URIs also work unchanged on React Native,
  * where object URLs do not.
  *
- * Image bytes are decoded LAZILY, one id at a time, and cached for the life of
- * the panel: a tile asks for its own image as it renders, so nothing off screen
- * is held in memory and nothing on screen is left blank. An evidence id is
- * immutable, so the cache survives the live re-pulls below without a flicker.
+ * Image bytes are decoded LAZILY, one id at a time: a tile asks for its own
+ * image as it renders, so nothing off screen is read and nothing on screen is
+ * left blank. An evidence id is immutable, so what was decoded is shared by
+ * every panel and kept across views (`EvidenceContentCache`).
  *
- * The listing counts as loaded the moment it arrives; note text follows, a few
- * at a time. The listing and the text it has read outlive the panel
- * (`processViewCache`), so reopening it is drawn at once and re-pulled behind.
+ * The listing is one per query for the whole app (`LiveResourceStore`): the
+ * sign-off, a step's preview and its side panel asking for one story's
+ * evidence share one read and one live subscription. Every note's text comes
+ * with it, read in one request. The listing outlives the panel
+ * (`processViewCache`), so reopening it is drawn at once and re-read behind.
  */
 export function useReviewEvidence(
   projectId: string | undefined,
   query: EvidenceQuery,
 ): UseReviewEvidence {
   const { runId, storyId, featureId } = query
-  const queryKey = evidenceQueryKey(projectId, { runId, storyId, featureId })
-  const [cached] = useState(() => reviewEvidenceCache.get(queryKey))
-  const [refs, setRefs] = useState<ReviewEvidenceRef[]>(() => cached?.refs ?? [])
-  const [images, setImages] = useState<Record<string, string>>({})
-  const [notes, setNotes] = useState<Record<string, string>>(() => cached?.notes ?? {})
-  const [loading, setLoading] = useState(false)
-  const [loadedKey, setLoadedKey] = useState<string | undefined>(() =>
-    cached ? queryKey : undefined,
+  const { ws } = useApi()
+  const store = reviewEvidenceStoreFor(ws)
+  const key =
+    projectId && (runId || storyId || featureId)
+      ? evidenceQueryKey(projectId, { runId, storyId, featureId })
+      : undefined
+
+  useEffect(() => (key ? store.retain(key) : undefined), [store, key])
+
+  const listen = useCallback(
+    (onChange: () => void) => (key ? store.listen(key, onChange) : unlistened()),
+    [store, key],
   )
-  const [error, setError] = useState<string | undefined>()
-  const epochRef = useRef(0)
+  const read = useCallback(() => (key ? store.snapshot(key) : IDLE_SNAPSHOT), [store, key])
+  const snapshot = useSyncExternalStore(listen, read, read)
+  const refs = snapshot.data?.refs ?? NO_REFS
+  const notes = snapshot.data?.notes ?? NO_NOTES
+
+  const [images, setImages] = useState<Record<string, string>>({})
   const [imageLoader] = useState(
     () =>
-      new EvidenceImageLoader(fetchEvidenceImage, (id, dataUri) =>
-        setImages((prev) => (prev[id] ? prev : { ...prev, [id]: dataUri })),
+      new EvidenceImageLoader(
+        (project, id, mediaType) => evidenceContent.loadImage(project, id, mediaType),
+        (id, dataUri) => setImages((prev) => (prev[id] ? prev : { ...prev, [id]: dataUri })),
       ),
   )
   imageLoader.setScope(projectId)
-  // The notes whose text is held or on its way — the same rule for text.
-  const notesHeldRef = useRef<Set<string>>(new Set(Object.keys(cached?.notes ?? {})))
-  // A live mirror of the cache so `loadImage` can answer from it without taking
-  // the cache as a dependency (which would rebuild the callback every decode).
   const imagesRef = useRef(images)
   imagesRef.current = images
-  const { ws } = useApi()
-
-  const loaded = loadedKey === queryKey
-
-  useEffect(() => {
-    if (loadedKey !== undefined) reviewEvidenceCache.set(loadedKey, { refs, notes })
-  }, [loadedKey, refs, notes])
 
   const loadImage = useCallback(
     async (id: string, mediaType: string): Promise<string | undefined> =>
@@ -141,97 +228,15 @@ export function useReviewEvidence(
   )
 
   const reload = useCallback(async () => {
-    const key = evidenceQueryKey(projectId, { runId, storyId, featureId })
-    if (!projectId || (!runId && !storyId && !featureId)) {
-      setRefs([])
-      setImages({})
-      setNotes({})
-      imageLoader.reset()
-      notesHeldRef.current = new Set()
-      setLoadedKey(key)
-      return
-    }
-    const epoch = ++epochRef.current
-    setLoading(true)
-    setError(undefined)
-    try {
-      const { data } = await listReviewEvidence({
-        path: { projectId },
-        query: {
-          ...(runId ? { runId } : {}),
-          ...(storyId ? { storyId } : {}),
-          ...(featureId ? { featureId } : {}),
-        },
-        throwOnError: true,
-      })
-      if (epoch !== epochRef.current) return
-      const found = data ?? []
-      setRefs(found)
-      setLoadedKey(key)
-
-      // Fetch note/report text so the verifier's written findings are READABLE
-      // inline — not just a labelled tile. This is the whole evidence when a
-      // screenshot could not be captured, so it must be visible, not a dead link.
-      // Notes are small, so they load eagerly — a few at a time, and AFTER the
-      // listing counts as loaded: one at a time before it held a story sign-off
-      // on hundreds of sequential reads. Images wait for a tile to ask.
-      const held = notesHeldRef.current
-      const pending = notesToRead(found, held)
-      for (const note of pending) held.add(note.id)
-      for (let i = 0; i < pending.length; i += EVIDENCE_NOTE_FETCH_CONCURRENCY) {
-        const batch = pending.slice(i, i + EVIDENCE_NOTE_FETCH_CONCURRENCY)
-        const texts = await Promise.all(batch.map((note) => readNoteText(projectId, note.id)))
-        if (epoch !== epochRef.current) return
-        const read: Record<string, string> = {}
-        batch.forEach((note, n) => {
-          const text = texts[n]
-          if (text === undefined) held.delete(note.id)
-          else read[note.id] = text
-        })
-        if (Object.keys(read).length > 0) setNotes((prev) => ({ ...prev, ...read }))
-      }
-    } catch (err: unknown) {
-      if (epoch === epochRef.current) setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      if (epoch === epochRef.current) {
-        setLoading(false)
-        setLoadedKey(key)
-      }
-    }
-  }, [projectId, runId, storyId, featureId, imageLoader])
-
-  useEffect(() => {
-    void reload()
-    return () => {
-      // Invalidate in-flight loads so a late response cannot write decoded
-      // images into an unmounted panel's state.
-      epochRef.current += 1
-    }
-  }, [reload])
-
-  // Live-refresh: the auto-review verifier files evidence in a SEPARATE run, so
-  // nothing in this panel's own run stream announces it — without this the newly
-  // filed screenshots/notes only appeared after navigating away and back. Any run
-  // or chat activity is a trigger to re-pull (epoch-guarded) — one at a time, and never for a streamed transcript
-  // entry, which files no evidence and arrives several times a second per running run.
-  const reloadCoalesced = useMemo(() => createCoalescedRefresh(reload), [reload])
-  useEffect(() => {
-    if (!projectId) return
-    const offRun = ws.on('cli:run-update', (data: unknown) => {
-      if (isRunStateUpdate(data)) void reloadCoalesced()
-    })
-    const offChat = ws.on('chats:updated', () => void reloadCoalesced())
-    return () => {
-      offRun()
-      offChat()
-    }
-  }, [ws, reloadCoalesced, projectId])
+    if (key) await store.refresh(key)
+  }, [store, key])
 
   const tiles = useMemo(
     () =>
       refs.map((ref) => {
         const base = toEvidenceTile(ref)
-        const dataUri = images[ref.id]
+        const dataUri =
+          images[ref.id] ?? (projectId ? evidenceContent.image(projectId, ref.id) : undefined)
         const text = notes[ref.id]
         return {
           ...base,
@@ -239,8 +244,17 @@ export function useReviewEvidence(
           ...(text ? { text } : {}),
         }
       }),
-    [refs, images, notes],
+    [refs, images, notes, projectId],
   )
 
-  return { refs, tiles, loading, loaded, error, requestImage, loadImage, reload }
+  return {
+    refs,
+    tiles,
+    loading: !snapshot.settled,
+    loaded: snapshot.settled,
+    error: snapshot.error?.message,
+    requestImage,
+    loadImage,
+    reload,
+  }
 }

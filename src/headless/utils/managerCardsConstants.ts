@@ -2,7 +2,10 @@ import {
   PROCESS_MANAGER_MAX_PER_SIGNATURE,
   PROCESS_MANAGER_MAX_PER_STEP,
 } from 'thefactory-tools/constants'
-import type { ProcessManagerBriefCard } from 'thefactory-tools/types'
+import type {
+  ProcessManagerBriefCard,
+  ProcessManagerInterventionOutcome,
+} from 'thefactory-tools/types'
 
 export const MANAGER_BRIEF_MODE_LABELS: Record<ProcessManagerBriefCard['mode'], string> = {
   triage: 'Triage',
@@ -55,3 +58,19 @@ export const MANAGER_ESCALATION_TITLE = 'The manager needs you'
 export const MANAGER_ESCALATION_FOUND = 'What it found:'
 export const MANAGER_ESCALATION_TRIED = 'What it tried:'
 export const MANAGER_ESCALATION_RECOMMENDS = 'It recommends:'
+
+/** The line closing a manager card replaced, on the same park, by a newer one. */
+export const MANAGER_CARD_SUPERSEDED_NEWER = 'Superseded — the manager raised a newer card'
+
+/** The pill of an intervention, by how it came out since. */
+export const MANAGER_OUTCOME_PILLS: Record<ProcessManagerInterventionOutcome, string> = {
+  pending: MANAGER_OUTCOME_HANDLED,
+  settled: 'Settled',
+  failed: 'Did not help',
+  reversed: 'You undid it',
+}
+
+export const MANAGER_OUTCOME_RESULT = 'Result:'
+export const MANAGER_OUTCOME_LEFT_YOU = 'What it left you'
+export const MANAGER_ESCALATION_SHOW_DETAIL = 'What the manager found'
+export const MANAGER_ESCALATION_HIDE_DETAIL = 'Hide what the manager found'

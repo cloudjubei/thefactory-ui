@@ -57,17 +57,20 @@ export function useCredentialCaptures(ctx: ChatContext): UseCredentialCaptures {
     setCaptures([])
     // Responses from a previous chat must never land in this one's feed.
     let cancelled = false
-    void listCredentialCaptures({ query: { chatContextKey }, throwOnError: true })
-      .then(({ data }) => {
-        if (cancelled) return
-        const existing = (data ?? []).filter(isCredentialCapture)
-        // Fold in rather than replace: a websocket event can beat the fetch.
-        setCaptures((prev) => existing.reduce(upsertCapture, prev))
-      })
-      .catch(() => {
-        // A failed rehydrate leaves the live feed working; it is not worth
-        // surfacing an error over a form the user may never have opened.
-      })
+    const load = () =>
+      void listCredentialCaptures({ query: { chatContextKey }, throwOnError: true })
+        .then(({ data }) => {
+          if (cancelled) return
+          const existing = (data ?? []).filter(isCredentialCapture)
+          // Fold in rather than replace: a websocket event can beat the fetch.
+          setCaptures((prev) => existing.reduce(upsertCapture, prev))
+        })
+        .catch(() => {
+          // A failed rehydrate leaves the live feed working; it is not worth
+          // surfacing an error over a form the user may never have opened.
+        })
+    load()
+    const offReconnect = ws.onReconnect(load)
     const off = ws.on(CREDENTIAL_CAPTURE_EVENT, (data) => {
       if (!isCredentialCapture(data)) return
       if (!belongsToChat(data, chatContextKey)) return
@@ -76,6 +79,7 @@ export function useCredentialCaptures(ctx: ChatContext): UseCredentialCaptures {
     return () => {
       cancelled = true
       off()
+      offReconnect()
     }
   }, [ws, chatContextKey])
 

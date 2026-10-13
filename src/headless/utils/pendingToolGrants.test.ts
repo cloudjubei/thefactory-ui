@@ -17,6 +17,8 @@ import {
   withAsksAwaitingOutcome,
   cliRowAsks,
   isAskOutcomeEvent,
+  cliActionEventConcernsChat,
+  cliRunLifecycleConcernsChat,
 } from './pendingToolGrants'
 import type { ChatContextAgentRunStory } from '../api/generated'
 
@@ -152,6 +154,51 @@ describe('cliPendingActionToGrant', () => {
       payload: { tool: 'addStory', args: {} },
     })
     expect(grant.inline).toBe(true)
+  })
+
+  it('offers the site a network or fetch ask is about for trusting', () => {
+    const unlock = cliPendingActionToGrant({
+      id: 'a-1',
+      kind: 'network-unlock',
+      payload: { tool: 'requestNetworkUnlock', args: { host: 'sc.starcraft-tmg.com' } },
+      grantPayload: { tool: 'requestNetworkUnlock', host: 'sc.starcraft-tmg.com' },
+    })
+    expect(unlock.trustableSite).toBe('sc.starcraft-tmg.com')
+    const fetch = cliPendingActionToGrant({
+      id: 'a-2',
+      kind: 'external-fetch',
+      payload: { tool: 'requestExternalFetch', args: { url: 'https://starcraft-tmg.com/x.pdf' } },
+      grantPayload: { tool: 'requestExternalFetch', host: 'starcraft-tmg.com' },
+    })
+    expect(fetch.trustableSite).toBe('starcraft-tmg.com')
+  })
+
+  it('offers no site for an ask about none, or one that may not be granted', () => {
+    expect(
+      cliPendingActionToGrant({
+        id: 'a-1',
+        kind: MCP_TOOL_CALL_ACTION_KIND,
+        payload: { tool: 'addStory', args: {} },
+        grantPayload: { tool: 'addStory' },
+      }).trustableSite,
+    ).toBeUndefined()
+    expect(
+      cliPendingActionToGrant({
+        id: 'a-2',
+        kind: 'network-unlock',
+        payload: {},
+        grantPayload: { tool: 'requestNetworkUnlock', host: 'x.example.com' },
+        noPermanentGrant: true,
+      }).trustableSite,
+    ).toBeUndefined()
+    expect(
+      cliPendingActionToGrant({
+        id: 'a-3',
+        kind: 'install-package',
+        payload: {},
+        grantPayload: { tool: 'requestInstallPackage', host: 'registry.npmjs.org' },
+      }).trustableSite,
+    ).toBeUndefined()
   })
 
   it('keeps a feature-work launch for its own panel, though it is gated as a tool call', () => {
@@ -321,6 +368,28 @@ describe('isCliRunLifecycleEvent', () => {
   })
 })
 
+describe('cliRunLifecycleConcernsChat', () => {
+  it("concerns the chat a run's lifecycle event names", () => {
+    expect(
+      cliRunLifecycleConcernsChat({ type: 'started', chatContextId: '/projects/p' }, '/projects/p'),
+    ).toBe(true)
+  })
+
+  it("leaves alone a chat another run's lifecycle event names", () => {
+    expect(
+      cliRunLifecycleConcernsChat(
+        { type: 'finished', chatContextId: '/projects/q' },
+        '/projects/p',
+      ),
+    ).toBe(false)
+  })
+
+  it('concerns every chat when the event names none, as an older backend or a resumed run sends', () => {
+    expect(cliRunLifecycleConcernsChat({ type: 'statusChanged' }, '/projects/p')).toBe(true)
+    expect(cliRunLifecycleConcernsChat(null, '/projects/p')).toBe(true)
+  })
+})
+
 describe('pickActiveStoryRunId', () => {
   const storyChat: ChatContextAgentRunStory = {
     type: 'AGENT_RUN_STORY',
@@ -484,6 +553,10 @@ describe('cliDecideOutcome', () => {
 
   it('routes a refusal to denied', () => {
     expect(cliDecideOutcome('deny')).toBe('denied')
+  })
+
+  it('routes trusting the site to a plain approval — the site’s rule is made on its own', () => {
+    expect(cliDecideOutcome('trust-site')).toBe('approved')
   })
 })
 
@@ -740,5 +813,42 @@ describe('withAsksAwaitingOutcome', () => {
 
   it('leaves asks still pending as they are', () => {
     expect(withAsksAwaitingOutcome([ask('a1')], [ask('a1')], new Set())).toEqual([ask('a1')])
+  })
+})
+
+describe('cliActionEventConcernsChat', () => {
+  const event = (action: Record<string, unknown> | undefined) => ({
+    runId: 'r1',
+    type: 'actionRequest',
+    event: { runId: 'r1', ...(action ? { action } : {}) },
+  })
+
+  it('concerns the chat its action names', () => {
+    expect(cliActionEventConcernsChat(event({ id: 'a1', chatContextId: 'chat-1' }), 'chat-1')).toBe(
+      true,
+    )
+  })
+
+  it('does not concern a chat its action does not name', () => {
+    expect(cliActionEventConcernsChat(event({ id: 'a1', chatContextId: 'chat-2' }), 'chat-1')).toBe(
+      false,
+    )
+  })
+
+  it('concerns a chat that already shows the action, whichever chat it names', () => {
+    const shows = (id: string) => id === 'a1'
+    expect(
+      cliActionEventConcernsChat(event({ id: 'a1', chatContextId: 'chat-2' }), 'chat-1', shows),
+    ).toBe(true)
+    expect(
+      cliActionEventConcernsChat(event({ id: 'a9', chatContextId: 'chat-2' }), 'chat-1', shows),
+    ).toBe(false)
+  })
+
+  it('concerns every chat when it cannot tell which chat the action is for', () => {
+    expect(cliActionEventConcernsChat(event({ id: 'a1' }), 'chat-1')).toBe(true)
+    expect(cliActionEventConcernsChat(event(undefined), 'chat-1')).toBe(true)
+    expect(cliActionEventConcernsChat(event({ id: 'a1', chatContextId: 7 }), 'chat-1')).toBe(true)
+    expect(cliActionEventConcernsChat(null, 'chat-1')).toBe(true)
   })
 })

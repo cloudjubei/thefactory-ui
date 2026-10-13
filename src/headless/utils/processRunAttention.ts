@@ -1,10 +1,16 @@
-import type { ProcessPark, ProcessRun, ProcessWaitingAsk } from 'thefactory-tools/types'
+import type {
+  ProcessPark,
+  ProcessRun,
+  ProcessWaitingAsk,
+  ProcessWaitingRequest,
+} from 'thefactory-tools/types'
 import {
   isProcessRunAwaitingIntegration,
   processRunDecision,
   processRunSendBackGateId,
   processRunStopHolder,
   processStepStates,
+  processWaitingOpenRequests,
 } from 'thefactory-tools/utils'
 
 import type { ProcessRunChatNews } from './chatChannelTypes'
@@ -181,11 +187,15 @@ function askLine(ask: ProcessWaitingAsk): string {
     )
   }
   if (ask.kind === 'blocker') return need('unblock', firstLine(ask.detail))
-  const request = ask.request
-  const permission = request ? PROCESS_RUN_NEED_PERMISSIONS[request.actionKind] : undefined
-  if (request && permission) return need('approve', permission(request))
-  const tool = request?.toolName ?? request?.actionKind
-  return need('approve', tool ? toolWords(tool) : firstLine(ask.title))
+  const requests = processWaitingOpenRequests(ask)
+  if (requests.length === 0) return need('approve', firstLine(ask.title))
+  return need('approve', requests.map(permissionWords).join(' · '))
+}
+
+function permissionWords(request: ProcessWaitingRequest): string {
+  const permission = PROCESS_RUN_NEED_PERMISSIONS[request.actionKind]
+  if (permission) return permission(request)
+  return toolWords(request.toolName ?? request.actionKind)
 }
 
 function toolWords(tool: string): string {

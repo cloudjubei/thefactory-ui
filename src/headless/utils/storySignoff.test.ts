@@ -10,7 +10,7 @@ import type { ProcessRun } from 'thefactory-tools/types'
 
 import type { ReviewEvidenceRef, RunVerification, VerificationCheckResult } from '../api/generated'
 import { STORY_UNFINISHED_TITLE } from './checkMethodConstants'
-import { EMPTY_SIGNOFF_SECTION } from './storySignoffConstants'
+import { EMPTY_SIGNOFF_SECTION, SIGNOFF_LOADING } from './storySignoffConstants'
 import type {
   FeatureSignoff,
   OverallSignoff,
@@ -20,11 +20,13 @@ import type {
 } from './storySignoffTypes'
 import {
   aggregateStoryVerdict,
+  applyStorySignoffRunUpdate,
   buildStorySignoff,
   ledgerCodeReview,
   signoffEvidence,
   signoffFixSectionProps,
   signoffLoadStatus,
+  signoffLoadingLabel,
   signoffSectionProps,
   signoffSections,
   signoffVerifyViews,
@@ -4421,5 +4423,84 @@ describe('buildStorySignoff — a feature’s proof plan', () => {
 
   it('shows no plan for a run launched without one', () => {
     expect(signoff().features[0]).not.toHaveProperty('proofPlan')
+  })
+})
+
+describe('applyStorySignoffRunUpdate', () => {
+  const scope = { projectId: 'p', storyId: 's' }
+  const storyRun = (id: string, over: Partial<ProcessRun> = {}) =>
+    ({ id, projectId: 'p', storyId: 's', status: 'running', ...over }) as ProcessRun
+
+  it('puts a pushed run of the story in place of the one held, keeping the rest', () => {
+    const root = storyRun('root')
+    const child = storyRun('child', { parentRunId: 'root' })
+    const next = applyStorySignoffRunUpdate(
+      [root, child],
+      { runId: 'child', run: storyRun('child', { parentRunId: 'root', status: 'succeeded' }) },
+      scope,
+    )
+    expect(next.map((r) => [r.id, r.status])).toEqual([
+      ['root', 'running'],
+      ['child', 'succeeded'],
+    ])
+  })
+
+  it('adds a run of the story it did not hold yet — a feature’s run just started', () => {
+    const next = applyStorySignoffRunUpdate(
+      [storyRun('root')],
+      { runId: 'new', run: storyRun('new', { parentRunId: 'root' }) },
+      scope,
+    )
+    expect(next.map((r) => r.id)).toEqual(['root', 'new'])
+  })
+
+  it('drops a deleted run', () => {
+    const next = applyStorySignoffRunUpdate(
+      [storyRun('root'), storyRun('gone')],
+      { runId: 'gone', deleted: true },
+      scope,
+    )
+    expect(next.map((r) => r.id)).toEqual(['root'])
+  })
+
+  it('hands back the same list for a run of another story or project, or a deletion it never held', () => {
+    const held = [storyRun('root')]
+    for (const update of [
+      { runId: 'x', run: storyRun('x', { storyId: 'other' }) },
+      { runId: 'y', run: storyRun('y', { projectId: 'q' }) },
+      { runId: 'z', run: storyRun('z', { storyId: undefined }) },
+      { runId: 'w', deleted: true },
+      { runId: 'v' },
+    ]) {
+      expect(applyStorySignoffRunUpdate(held, update, scope)).toBe(held)
+    }
+  })
+})
+
+describe('signoffLoadingLabel', () => {
+  it('names what the sign-off is still reading, in the order a person reads it', () => {
+    expect(
+      signoffLoadingLabel({
+        runs: 'loading',
+        stories: 'loaded',
+        evidence: 'loading',
+        checks: 'loading',
+      }),
+    ).toBe('Reading the runs, proof and checks…')
+    expect(signoffLoadingLabel({ runs: 'loaded', stories: 'loaded', evidence: 'loading' })).toBe(
+      'Reading the proof…',
+    )
+    expect(signoffLoadingLabel({ runs: 'loading', stories: 'loading', evidence: 'loaded' })).toBe(
+      'Reading the story and runs…',
+    )
+  })
+
+  it('falls back to the plain loading line when nothing is pending or a source failed', () => {
+    expect(signoffLoadingLabel({ runs: 'loaded', stories: 'loaded', evidence: 'loaded' })).toBe(
+      SIGNOFF_LOADING,
+    )
+    expect(signoffLoadingLabel({ runs: 'failed', stories: 'loaded', evidence: 'failed' })).toBe(
+      SIGNOFF_LOADING,
+    )
   })
 })

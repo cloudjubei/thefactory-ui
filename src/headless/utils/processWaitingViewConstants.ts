@@ -22,3 +22,18 @@ export const WAITING_DETAIL_LABELS = {
 } as const
 
 export const WAITING_DELEGATED_LABEL = 'Delegated to another agent — open the chat'
+
+/** A card's heading when the agent left several requests waiting — the agent's label goes first. */
+export const WAITING_REQUESTS_HEADING = 'needs your approval on several requests'
+
+/** What a card of several requests says in place of the agent's words. */
+export const WAITING_REQUESTS_WORDS = (open: number, total: number) =>
+  `Decide each request on its own, or answer ${open === total ? 'them all' : `the ${open} still open`} at once below — the agent carries on once every one is decided.`
+
+/** What a decided request of several says, by how it was decided. */
+export const WAITING_REQUEST_DECIDED = {
+  allow: 'Allowed',
+  'allow-site': 'Allowed — site trusted for good',
+  decline: 'Declined',
+  withdrawn: 'Withdrawn',
+} as const

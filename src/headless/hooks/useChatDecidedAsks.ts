@@ -6,6 +6,7 @@ import {
   isAskOutcomeEvent,
   withDecidedAction,
   type CliDecidedActionLike,
+  cliActionEventConcernsChat,
 } from '../utils/pendingToolGrants'
 import { createCoalescedRefresh } from '../utils/runUpdateRefresh'
 import { decidedChatAsksCache } from './chatAsksCache'
@@ -39,6 +40,8 @@ export function useChatDecidedAsks(
         : (decidedChatAsksCache.get(chatContextId) ?? NO_ASKS)
   const pendingRef = useRef(pendingAskIds)
   pendingRef.current = pendingAskIds
+  const asksRef = useRef(asks)
+  asksRef.current = asks
   useEffect(() => {
     if (loaded) decidedChatAsksCache.set(loaded.chatContextId, loaded.asks)
   }, [loaded])
@@ -78,7 +81,9 @@ export function useChatDecidedAsks(
             : prev,
         )
       }
-      void load()
+      const shows = (id: string) =>
+        pendingRef.current.includes(id) || asksRef.current.some((a) => a.id === id)
+      if (cliActionEventConcernsChat(data, chatContextId, shows)) void load()
     })
     const offReconnect = ws.onReconnect(() => void load())
     return () => {
