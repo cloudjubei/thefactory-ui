@@ -12,6 +12,7 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   'start-failed': { label: 'Could not start', tone: 'stuck' },
   running: { label: PROCESS_RUN_WORDS.running, tone: 'done' },
   'needs-you': { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' },
+  'manager-on-it': { label: PROCESS_RUN_WORDS.managerOnIt, tone: 'done' },
   'at-sign-off': { label: PROCESS_RUN_WORDS.signOff, tone: 'review' },
   integrating: { label: PROCESS_RUN_WORDS.merging, tone: 'done' },
   integrated: { label: 'Merged', tone: 'done' },

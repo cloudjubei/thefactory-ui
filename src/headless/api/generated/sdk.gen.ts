@@ -910,6 +910,9 @@ import type {
   SetActiveCliResponses,
   SetActiveRunnerKindData,
   SetActiveRunnerKindResponses,
+  SetAgentRunLlmConfigData,
+  SetAgentRunLlmConfigErrors,
+  SetAgentRunLlmConfigResponses,
   SetChatNotifyLevelData,
   SetChatNotifyLevelErrors,
   SetChatNotifyLevelResponses,
@@ -2886,6 +2889,23 @@ export const setActiveRunnerKind = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const setAgentRunLlmConfig = <ThrowOnError extends boolean = false>(
+  options: Options<SetAgentRunLlmConfigData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetAgentRunLlmConfigResponses,
+    SetAgentRunLlmConfigErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/agent-runner/llm-config',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const startGitCredentialGithubRedirect = <ThrowOnError extends boolean = false>(
   options: Options<StartGitCredentialGithubRedirectData, ThrowOnError>,
 ) =>
@@ -2978,9 +2998,9 @@ export const removeActionRule = <ThrowOnError extends boolean = false>(
   })
 
 export const listCredentialCaptures = <ThrowOnError extends boolean = false>(
-  options: Options<ListCredentialCapturesData, ThrowOnError>,
+  options?: Options<ListCredentialCapturesData, ThrowOnError>,
 ) =>
-  (options.client ?? client).get<
+  (options?.client ?? client).get<
     ListCredentialCapturesResponses,
     ListCredentialCapturesErrors,
     ThrowOnError

@@ -1,19 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { visibleCliModelsForAuth } from 'thefactory-tools/utils'
-
-import { getPrice, type ChatContext, type ModelInfo } from '../../headless/api'
+import { getPrice, type ChatContext } from '../../headless/api'
 import { ModelChip as ModelChipBase, type ModelChipMode } from './ModelChip'
 import {
   useActivityChipCli,
   useAgentRunChipCli,
-  useCliConfigs,
-  useChatCliRunner,
   useLLMConfigs,
   type ActivityCliModel,
 } from '../../headless'
-import { deriveCliAuthWarning } from '../../headless/utils/cliRunner'
+import { useChatChipCli, type ChatChipCliOverrides } from '../../headless/hooks/useChatChipCli'
 
 export type ModelChipConnectedProps = {
   provider?: string
@@ -49,6 +45,13 @@ export type ModelChipConnectedProps = {
    */
   overrideCli?: string | undefined
   onOverrideCli?: (cli: string, credentialId: string | undefined, model: string | undefined) => void
+  /** The API was picked for that run, over the chat's CLI. */
+  overrideApi?: boolean
+  /**
+   * Switching the chooser to the API reports here. Without it the toggle fell
+   * through to the chat binding and detached the CONVERSATION's agent.
+   */
+  onOverrideApi?: () => void
 }
 
 const ACTIVITY_API_ONLY_REASON =
@@ -65,204 +68,62 @@ type ModelChipLlmWiring = {
   configs: Array<{ id: string; name?: string; provider?: string; model?: string }>
   onPick: (id: string) => void
   onOpenSettings: () => void
+  /** The API config a run works on — what a chooser shows on its API side. */
+  runConfig: ModelChipLlmWiring['activeConfig']
 }
 
 /**
- * CLI-aware leaf: mounted only when a `chatContext` is present, so the
- * `useChatCliRunner` hook (which requires a context) is never called
- * conditionally. Wires the per-chat CLI runner binding + CLI model probing on
- * top of the shared LLM wiring.
+ * The API side a chat chip offers. As a chooser for a run it shows the API
+ * config runs work on, with nothing to pick: picking here would change the
+ * chat's own model, and a run cannot carry an API config of its own.
+ */
+function chooserApiSide(
+  llm: ModelChipLlmWiring,
+  chooser: boolean,
+): Pick<ModelChipLlmWiring, 'activeConfig' | 'recents' | 'configs'> {
+  return chooser
+    ? { activeConfig: llm.runConfig, recents: [], configs: [] }
+    : { activeConfig: llm.activeConfig, recents: llm.recents, configs: llm.configs }
+}
+
+/**
+ * CLI-aware leaf: mounted only when a `chatContext` is present, so the shared
+ * `useChatChipCli` wiring (which requires a context) is never called
+ * conditionally — the per-chat CLI runner binding, or a chooser for a run.
  */
 function ModelChipWithCli({
   chatContext,
   llm,
-  overrideModel,
-  onOverrideModel,
-  overrideCli,
-  onOverrideCli,
+  ...overrides
 }: {
   chatContext: ChatContext
   llm: ModelChipLlmWiring
-  /** Show THIS model instead of the chat's, without changing the chat. */
-  overrideModel?: string | undefined
-  /** Picking a model calls this instead of re-binding the chat's runner. */
-  onOverrideModel?: (modelId: string) => void
-  /** Show THIS CLI instead of the chat's, without changing the chat. */
-  overrideCli?: string | undefined
-  /** Picking a CLI calls this instead of re-binding the chat's runner. */
-  onOverrideCli?: (cli: string, credentialId: string | undefined, model: string | undefined) => void
-}) {
-  const {
-    enabledClis,
-    activeCli,
-    activeCliCredentialId,
-    caches,
-    cachesByCli,
-    defaultModel,
-    effort,
-    probeModels,
-    cachedLiveModels,
-  } = useCliConfigs()
-  const { cliRunner, attach, detach } = useChatCliRunner(chatContext)
-
-  // The credential that belongs to `cli` — the global active one when it's for
-  // this CLI, else this CLI's first cached credential. Using the global active
-  // credential for a different CLI attaches a mismatched auth cache and the run
-  // errors out immediately.
-  const credentialForCli = useCallback(
-    (cli: string): string | undefined => {
-      if (cli === activeCli && activeCliCredentialId) return activeCliCredentialId
-      return cachesByCli[cli]?.[0]?.id
-    },
-    [activeCli, activeCliCredentialId, cachesByCli],
-  )
-
-  const [cliModels, setCliModels] = useState<ModelInfo[]>([])
-
-  const useCli = !!cliRunner || overrideCli !== undefined
-  // The chooser shows what the RUN will use; the chat's own binding is only the
-  // seed. Without `overrideCli` here the chip kept displaying the chat's agent
-  // after the user picked a different one for the run.
-  const selectedCli = overrideCli ?? cliRunner?.tool ?? activeCli ?? null
-  // In override mode the chip is a chooser for something ELSE (a run about to
-  // start), so it seeds from the chat but never writes back to it.
-  const selectedCliModelId =
-    overrideModel ??
-    (overrideCli ? defaultModel[overrideCli] : cliRunner?.model) ??
-    (selectedCli ? defaultModel[selectedCli] : undefined)
-  const credentialId = cliRunner?.credentialId ?? activeCliCredentialId ?? undefined
-  const authWarning = useCli ? deriveCliAuthWarning(credentialId, caches) : { needsReauth: false }
-  // No UI path binds an `apiKeyCredentialId` to a CLI runner yet, so this is
-  // 'subscription' in practice — the 'api-key' arm is latent forward-compat.
-  const isApiKeyChat = !!cliRunner?.apiKeyCredentialId
-  // Prefer the account-aware live list the user fetched in settings; fall back to
-  // the static catalogue. An API-key chat must NOT reuse the live list (it's keyed
-  // by + already filtered for the subscription credential) or it could never
-  // re-offer api-key-only models — fall back to the auth-blind static list.
-  const liveModels =
-    !isApiKeyChat && selectedCli && credentialId
-      ? (cachedLiveModels(selectedCli as Parameters<typeof cachedLiveModels>[0], credentialId) ??
-        undefined)
-      : undefined
-  // Hide models this chat's credential can't drive (e.g. codex's API-key-only
-  // `gpt-5-codex` on a subscription chat, which the CLI rejects with HTTP 400).
-  const effectiveCliModels = visibleCliModelsForAuth(
-    liveModels ?? cliModels,
-    isApiKeyChat ? 'api-key' : 'subscription',
-  )
-
-  useEffect(() => {
-    if (!useCli || !selectedCli) {
-      setCliModels([])
-      return
-    }
-    let cancelled = false
-    void probeModels(selectedCli as Parameters<typeof probeModels>[0])
-      .then(({ models }) => {
-        if (!cancelled) setCliModels(models)
-      })
-      .catch(() => {
-        if (!cancelled) setCliModels([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [useCli, selectedCli, probeModels])
-
-  // Attaching/detaching hits the backend, so it can fail. Surfacing the reason
-  // matters more here than anywhere else on the chip: the control is a toggle, so
-  // a swallowed rejection is indistinguishable from a button that does nothing.
-  const [cliSwitchError, setCliSwitchError] = useState<string | null>(null)
-
-  const onToggleUseCli = useCallback(
-    (next: boolean) => {
-      setCliSwitchError(null)
-      if (next) {
-        const tool = activeCli ?? enabledClis[0]
-        if (!tool) {
-          setCliSwitchError('No CLI agent is enabled. Enable one in Settings → CLI Agents.')
-          return
-        }
-        void attach({
-          tool,
-          credentialId: credentialForCli(tool),
-          model: defaultModel[tool],
-          effort: effort[tool],
-        }).catch((err: unknown) =>
-          setCliSwitchError(err instanceof Error ? err.message : String(err)),
-        )
-      } else {
-        void detach().catch((err: unknown) =>
-          setCliSwitchError(err instanceof Error ? err.message : String(err)),
-        )
-      }
-    },
-    [activeCli, enabledClis, credentialForCli, defaultModel, effort, attach, detach],
-  )
-
-  const onPickCli = useCallback(
-    (cli: string) => {
-      setCliSwitchError(null)
-      // Chooser mode: report the pick, never re-bind. Picking a MODEL already
-      // did this; picking a CLI did not, so choosing a different agent for one
-      // piece of work moved the whole conversation onto it.
-      if (onOverrideCli) {
-        onOverrideCli(cli, credentialForCli(cli), defaultModel[cli])
-        return
-      }
-      void attach({
-        tool: cli,
-        credentialId: credentialForCli(cli),
-        model: defaultModel[cli],
-        effort: effort[cli],
-      })
-    },
-    [credentialForCli, defaultModel, effort, attach, onOverrideCli],
-  )
-
-  const onPickCliModel = useCallback(
-    (modelId: string) => {
-      if (!selectedCli) return
-      // Override mode: hand the pick to the caller. Re-binding the chat here
-      // would change the agent the CONVERSATION runs on, which is not what
-      // choosing a model for one piece of work means.
-      if (onOverrideModel) {
-        onOverrideModel(modelId)
-        return
-      }
-      void attach({
-        tool: selectedCli,
-        credentialId: cliRunner?.credentialId ?? credentialForCli(selectedCli),
-        apiKeyCredentialId: cliRunner?.apiKeyCredentialId,
-        model: modelId,
-        effort: cliRunner?.effort ?? effort[selectedCli],
-      })
-    },
-    [selectedCli, cliRunner, credentialForCli, effort, attach, onOverrideModel],
-  )
+} & ChatChipCliOverrides) {
+  const cli = useChatChipCli(chatContext, overrides)
+  const api = chooserApiSide(llm, cli.chooser)
 
   return (
     <ModelChipBase
       provider={llm.provider}
-      model={useCli ? selectedCliModelId : llm.model}
+      model={cli.useCli ? cli.selectedCliModelId : llm.model}
       className={llm.className}
       editable={llm.editable}
       mode={llm.mode}
-      activeConfig={llm.activeConfig}
-      recents={llm.recents}
-      configs={llm.configs}
+      activeConfig={api.activeConfig}
+      recents={api.recents}
+      configs={api.configs}
       onPick={llm.onPick}
       onOpenSettings={llm.onOpenSettings}
       getPrice={getPrice}
-      useCli={useCli}
-      onToggleUseCli={onToggleUseCli}
-      enabledClis={enabledClis}
-      activeCli={selectedCli}
-      onPickCli={onPickCli}
-      cliModels={effectiveCliModels}
-      onPickCliModel={onPickCliModel}
-      authWarning={authWarning}
-      cliSwitchError={cliSwitchError}
+      useCli={cli.useCli}
+      onToggleUseCli={cli.onToggleUseCli}
+      enabledClis={cli.enabledClis}
+      activeCli={cli.selectedCli}
+      onPickCli={cli.onPickCli}
+      cliModels={cli.cliModels}
+      onPickCliModel={cli.onPickCliModel}
+      authWarning={cli.authWarning}
+      cliSwitchError={cli.cliSwitchError}
     />
   )
 }
@@ -387,6 +248,8 @@ export default function ModelChipConnected({
   onOverrideModel,
   overrideCli,
   onOverrideCli,
+  overrideApi,
+  onOverrideApi,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -449,6 +312,19 @@ export default function ModelChipConnected({
     else navigate('/settings?tab=llms')
   }, [navigate, projectId])
 
+  const baseRunConfig = useMemo(
+    () =>
+      activeAgentRunConfig
+        ? {
+            id: activeAgentRunConfig.id,
+            name: activeAgentRunConfig.name,
+            provider: activeAgentRunConfig.provider,
+            model: activeAgentRunConfig.model,
+          }
+        : null,
+    [activeAgentRunConfig],
+  )
+
   const baseActive = useMemo(
     () =>
       activeConfig
@@ -491,6 +367,7 @@ export default function ModelChipConnected({
     editable,
     mode,
     activeConfig: baseActive,
+    runConfig: baseRunConfig,
     recents: baseRecents,
     configs: baseConfigs,
     onPick,
@@ -506,6 +383,8 @@ export default function ModelChipConnected({
         {...(onOverrideModel ? { onOverrideModel } : {})}
         overrideCli={overrideCli}
         {...(onOverrideCli ? { onOverrideCli } : {})}
+        {...(overrideApi ? { overrideApi } : {})}
+        {...(onOverrideApi ? { onOverrideApi } : {})}
       />
     )
   }

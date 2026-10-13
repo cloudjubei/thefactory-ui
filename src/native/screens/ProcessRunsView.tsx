@@ -3,6 +3,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
   formatBadgeCount,
+  INK_FRESH_DOT_COLOR,
+  PROCESS_RUN_FRESH_TITLE,
   PROCESS_RUN_WAITING_TITLE,
   processRunAttentionSections,
   processRunListRow,
@@ -11,12 +13,17 @@ import {
   processRunWorkLabel,
   useAppSettings,
   useDurationTimer,
+  useProcessRunChatNews,
   useProcessRuns,
+  useProcessStopClock,
   type BadgeColor,
+  type ChatsSeenMap,
   type ProcessNodeRunRef,
   type ProcessRun,
   type ProcessRunAttentionSection,
+  type ProcessRunChatNews,
 } from '../../headless'
+import DotBadge from '../primitives/DotBadge'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
@@ -44,6 +51,8 @@ export type ProcessRunsViewProps = {
   onOpenChat?: (context: ChatContext) => void
   /** Accepted for parity; mobile is always single-pane (push-nav). */
   narrow?: boolean
+  /** The chats the person has read, by chat key — what a run's own chat holds for them is read against it. */
+  chatsSeen?: ChatsSeenMap
 }
 
 type Mode = 'current' | 'history'
@@ -61,13 +70,19 @@ export default function ProcessRunsView({
   selectedRunId,
   onSelectRun,
   onOpenSettings,
+  chatsSeen,
 }: ProcessRunsViewProps) {
   const { theme } = useNativeTheme()
-  const { isLoaded, current, history } = useProcessRuns(projectId)
+  const { isLoaded, runs, current, history } = useProcessRuns(projectId)
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
-  const waiting = processRunWaitingCount(current)
-  const sections = useMemo(() => processRunAttentionSections(current), [current])
+  const stopNow = useProcessStopClock()
+  const chatNews = useProcessRunChatNews(chatsSeen)
+  const waiting = processRunWaitingCount(runs, stopNow, chatNews)
+  const sections = useMemo(
+    () => processRunAttentionSections(runs, stopNow, chatNews),
+    [runs, stopNow, chatNews],
+  )
 
   const selectedIsHistory = useMemo(
     () => history.some((r) => r.id === selectedRunId),
@@ -144,7 +159,7 @@ export default function ProcessRunsView({
         <Text style={{ padding: nativeSpace[3], fontSize: 12, color: theme.text.muted }}>
           Loading runs…
         </Text>
-      ) : rows.length === 0 ? (
+      ) : (mode === 'current' ? sections.length === 0 : rows.length === 0) ? (
         <Text style={{ padding: nativeSpace[3], fontSize: 12, color: theme.text.muted }}>
           {mode === 'current'
             ? 'No processes are running. Start work on a story from its chat.'
@@ -159,6 +174,8 @@ export default function ProcessRunsView({
                   section={section}
                   badgeColor={badgeColor}
                   now={now}
+                  stopNow={stopNow}
+                  chatNews={chatNews}
                   selectedRunId={selectedRunId}
                   onSelectRun={onSelectRun}
                 />
@@ -168,6 +185,8 @@ export default function ProcessRunsView({
                   key={run.id}
                   run={run}
                   now={now}
+                  stopNow={stopNow}
+                  chatNews={chatNews.get(run.id)}
                   selected={run.id === selectedRunId}
                   onPress={() => onSelectRun(run.id)}
                 />
@@ -182,12 +201,18 @@ function RunSection({
   section,
   badgeColor,
   now,
+  stopNow,
+  chatNews,
   selectedRunId,
   onSelectRun,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
   now: number
+  /** The clock who has a stopped run's stop is read against. */
+  stopNow: number
+  /** What each run's own chat holds for the person, by run id. */
+  chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string) => void
 }) {
@@ -224,6 +249,8 @@ function RunSection({
           key={run.id}
           run={run}
           now={now}
+          stopNow={stopNow}
+          chatNews={chatNews.get(run.id)}
           selected={run.id === selectedRunId}
           onPress={() => onSelectRun(run.id)}
         />
@@ -235,17 +262,21 @@ function RunSection({
 function RunRow({
   run,
   now,
+  stopNow,
+  chatNews,
   selected,
   onPress,
 }: {
   run: ProcessRun
   /** The list's live clock — a running row's elapsed ticks against it. */
   now: number
+  stopNow: number
+  chatNews: ProcessRunChatNews | undefined
   selected: boolean
   onPress: () => void
 }) {
   const { theme, status } = useNativeTheme()
-  const row = processRunListRow(run)
+  const row = processRunListRow(run, stopNow, chatNews)
   const variant = status[row.tone]
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
@@ -273,6 +304,11 @@ function RunRow({
           {row.title}
         </Text>
         {row.live ? <Spinner size={12} color={variant.bg} /> : null}
+        {row.fresh ? (
+          <View accessible accessibilityLabel={PROCESS_RUN_FRESH_TITLE}>
+            <DotBadge size={8} color={INK_FRESH_DOT_COLOR} ringWidth={0} />
+          </View>
+        ) : null}
         <DurCostChips facts={{ durationLabel: work }} />
       </View>
       <View

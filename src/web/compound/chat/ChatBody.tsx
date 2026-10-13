@@ -1,5 +1,6 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { useMemo, useState, type ReactNode } from 'react'
+import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import Alert from '../../primitives/Alert'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
@@ -27,6 +28,7 @@ import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
+import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
 import type { UikitFileMeta } from '../files/FileDisplay'
@@ -55,14 +57,7 @@ export type ChatBodyProps = {
    * the model can be picked before the work starts. A host slot because the
    * connected chip lives in the app, not in this library.
    */
-  renderApprovalModelChip?: (picked: {
-    /** The model chosen for the run, or `undefined` while it is the chat's. */
-    model: string | undefined
-    onPick: (modelId: string) => void
-    /** The CLI chosen for the run, or `undefined` while it is the chat's. */
-    cli: string | undefined
-    onPickCli: (cli: string, credentialId: string | undefined, model: string | undefined) => void
-  }) => ReactNode
+  renderApprovalModelChip?: (picked: LaunchModelChipSlot) => ReactNode
   /** Caller-rendered header. Title, icons, etc. — ChatBody only provides the
    * vertical layout. When omitted the header section is not rendered. */
   header?: ReactNode
@@ -327,6 +322,7 @@ export default function ChatBody({
   const held = useHeldAgentMessages(chatId, chatMetadata)
   const pendingAskIds = useMemo(() => (grants ?? []).map((g) => g.id), [grants])
   const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
+  const shownDecidedLines = toolAskDecidedLinesAwaitingRows(decidedLines, decidedAsks)
   const approvalGrants = useMemo(
     () => panelApprovalGrants(grants, claimedAskIds, { loading: messagesLoading, unsettledRunIds }),
     [grants, claimedAskIds, messagesLoading, unsettledRunIds],
@@ -433,11 +429,11 @@ export default function ChatBody({
           emptyStateContent={emptyStateContent}
           leadingContent={leadingContent}
           tailContent={
-            decidedLines.length > 0 || parkedAsks.length > 0 ? (
+            shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
               // Settled and set-aside asks no longer hold the agent up on the
               // person, so they read in the conversation rather than in the way.
               <div className="flex flex-col gap-2">
-                {decidedLines.map(({ id, line }) => (
+                {shownDecidedLines.map(({ id, line }) => (
                   <ToolAskDecidedRow key={id} line={line} />
                 ))}
                 {parkedAsks.map((ask) =>

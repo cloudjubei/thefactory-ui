@@ -43,6 +43,8 @@ export type ChatListRowInput = {
   /** The project's icon key, for a row shown outside its project. */
   projectIcon?: string
   groupName?: string
+  /** The clock a run's status is read against. */
+  now: number
 }
 
 /** One chat as a row of the list. */
@@ -73,7 +75,7 @@ export type ChatListRow = {
 
 /** A run of rows under one heading; `label` absent for the list's single section. */
 export type ChatListSection = {
-  id: 'chats' | 'archived' | 'group-chats' | 'group-needs-you' | 'group-running'
+  id: 'chats' | 'archived' | 'group-chats' | 'group-needs-you' | 'group-running' | 'group-runs'
   label?: string
   tone?: 'neutral' | 'needs-you' | 'running'
   rows: ChatListRow[]

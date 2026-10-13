@@ -41,6 +41,8 @@ export type CliDecidedActionLike = CliPendingActionLike & {
   toolName?: string
   toolArgs?: unknown
   decisionReason?: string
+  /** Why the host withdrew it — what it acted on was settled elsewhere. */
+  withdrawnReason?: string
   decisionMetadata?: unknown
   executedAt?: number
   executedInRun?: string
@@ -277,6 +279,7 @@ export function cliDecidedAsks(actions: readonly CliDecidedActionLike[]): CliDec
       ...(toolName !== undefined ? { toolName } : {}),
       ...(args !== undefined ? { args } : {}),
       ...(action.decisionReason !== undefined ? { decisionReason: action.decisionReason } : {}),
+      ...(action.withdrawnReason !== undefined ? { withdrawnReason: action.withdrawnReason } : {}),
       ...(answer !== undefined ? { answer } : {}),
       ...(action.executedAt !== undefined ? { executedAt: action.executedAt } : {}),
       ...(action.executedInRun !== undefined ? { executedInRun: action.executedInRun } : {}),

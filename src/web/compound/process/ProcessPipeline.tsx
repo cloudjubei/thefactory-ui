@@ -32,8 +32,10 @@ import {
   processRunIntegrationModes,
   processRunBadge,
   processRunHeaderModel,
+  processRunManagerLine,
   processRunManagerView,
   processRunPersonEnding,
+  processRunStopHolderOf,
   processRunRevivable,
   processRunSendBackGateId,
   PROCESS_SEND_BACK_COPY,
@@ -54,10 +56,13 @@ import {
   signoffMergeHold,
   SIGNOFF_GROUP_CHIP_LABEL,
   SIGNOFF_GROUP_CHIP_TITLE,
+  PROCESS_LIVE_TONE,
+  PROCESS_NESTED_RUN_OPEN,
   useAppSettings,
   useDurationTimer,
   useProcessGroupRun,
   useProcessRun,
+  useProcessStopClock,
   useProjects,
   useStories,
   waitingNoteCopy,
@@ -68,6 +73,7 @@ import {
   type ProcessRetryPick,
   type ProcessRun,
   type ProcessRunManagerView,
+  type ProcessRunStopHolder,
   type ProcessTurnLimit,
   type ProcessWaitingView,
   type RunNeedsYouActions,
@@ -256,6 +262,8 @@ export default function ProcessPipeline({
   const [deleted, setDeleted] = useState(false)
 
   const now = useDurationTimer(run?.totals?.ticking === true)
+  const stopNow = useProcessStopClock()
+  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
 
   const drillTo = useCallback((childId: string) => {
     setPanel(null)
@@ -309,6 +317,10 @@ export default function ProcessPipeline({
   const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
   const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
+  const stopRoot = stack.length > 0 ? drilledRoot : run
+  const stopHolder = processRunStopHolderOf(run, stopRoot, stopNow)
+  const managerLine =
+    stopHolder === 'manager' && stopRoot ? processRunManagerLine(stopRoot, stopNow) : undefined
   const signoff = isStorySignoff(run) && !isReflectedPark(run.park!)
   const mergeHold =
     signoff && group
@@ -334,6 +346,7 @@ export default function ProcessPipeline({
         <RunHead
           now={now}
           run={run}
+          stopHolder={stopHolder}
           {...(projectName ? { projectName } : {})}
           depth={stack.length}
           onCrumb={popTo}
@@ -402,6 +415,8 @@ export default function ProcessPipeline({
                 run={run}
                 state={state}
                 now={now}
+                stopHolder={stopHolder}
+                managerLine={managerLine}
                 addedTag={amendments.addedSteps[state.step.id]}
                 onChoose={choose}
                 onDelegate={() => delegate().then(() => undefined)}
@@ -622,6 +637,7 @@ function entryIdOf(
  */
 function RunHead({
   run,
+  stopHolder,
   depth,
   now,
   projectName,
@@ -635,6 +651,8 @@ function RunHead({
   chat,
 }: {
   run: ProcessRun
+  /** Who has the stop the run waits at — its agent manager, or the person. */
+  stopHolder: ProcessRunStopHolder | undefined
   depth: number
   now: number
   /** The run's project, named on the line under the title. */
@@ -651,7 +669,7 @@ function RunHead({
   /** The run's own chat: open it, and whether it has news. */
   chat?: { onOpen: () => void; unread: boolean }
 }) {
-  const badge = processRunBadge(run)
+  const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
   const model = processRunHeaderModel(run, run.ledger)
@@ -865,6 +883,8 @@ function PipelineNode({
   run,
   state,
   now,
+  stopHolder,
+  managerLine,
   addedTag,
   onChoose,
   onDelegate,
@@ -877,6 +897,10 @@ function PipelineNode({
   run: ProcessRun
   state: ReturnType<typeof processStepStates>[number]
   now: number
+  /** Who has the stop the run waits at — its agent manager, or the person. */
+  stopHolder: ProcessRunStopHolder | undefined
+  /** What the manager is doing on the stop, while it has it. */
+  managerLine: string | undefined
   addedTag: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
@@ -896,8 +920,12 @@ function PipelineNode({
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
-  const look = processNodeLook(nodeState, state.step.kind === 'gate', 0)
-  const row = processStepRowView(state, parkStepId, run)
+  const row = processStepRowView(state, parkStepId, run, stopHolder)
+  const look = processNodeLook(
+    row.managerOnIt ? 'working' : nodeState,
+    state.step.kind === 'gate',
+    0,
+  )
   const isFeature = state.step.kind === 'process'
   const [open, setOpen] = useState(isFeature && (state.current || parked))
   const iteration = processNodeBadge(state, run)
@@ -993,6 +1021,7 @@ function PipelineNode({
           <StepPreview
             run={run}
             state={state}
+            stopHolder={stopHolder}
             kind={row.preview}
             onOpen={onOpenPanel}
             onDrill={onDrill}
@@ -1004,6 +1033,7 @@ function PipelineNode({
         <div className="px-4 pb-3.5 sm:pl-[58px] sm:pr-5">
           <ParkBlock
             run={run}
+            managerLine={managerLine}
             onChoose={onChoose}
             onDelegate={onDelegate}
             {...(onAskAgent ? { onAskAgent } : {})}
@@ -1025,6 +1055,7 @@ function PipelineNode({
  */
 function ParkBlock({
   run,
+  managerLine,
   onChoose,
   onDelegate,
   onAskAgent,
@@ -1033,6 +1064,8 @@ function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
+  managerLine: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
@@ -1060,6 +1093,7 @@ function ParkBlock({
     return (
       <WaitingCard
         view={waiting}
+        managerLine={managerLine}
         onChoose={onChoose}
         onDelegate={onDelegate}
         {...(onOpenChat ? { onOpenChat } : {})}
@@ -1069,7 +1103,7 @@ function ParkBlock({
   }
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
-  const tone = park.reason === 'gate' ? 'review' : 'on_hold'
+  const tone = managerLine ? PROCESS_LIVE_TONE : park.reason === 'gate' ? 'review' : 'on_hold'
 
   return (
     <div
@@ -1080,7 +1114,7 @@ function ParkBlock({
       }}
     >
       <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
-        {park.message}
+        {managerLine ?? park.message}
       </div>
       {reflected && park.childRunId ? (
         <button
@@ -1088,7 +1122,7 @@ function ParkBlock({
           className="self-start text-[11px] underline text-(--text-secondary)"
           onClick={() => onDrill(park.childRunId as string)}
         >
-          Open the nested run to decide →
+          {managerLine ? PROCESS_NESTED_RUN_OPEN.quiet : PROCESS_NESTED_RUN_OPEN.decide}
         </button>
       ) : null}
       {noteFor ? (
@@ -1230,12 +1264,15 @@ function RunEndingAction({
  */
 function WaitingCard({
   view,
+  managerLine,
   onChoose,
   onDelegate,
   onOpenChat,
   onOpenTranscript,
 }: {
   view: ProcessWaitingView
+  /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
+  managerLine: string | undefined
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1245,6 +1282,7 @@ function WaitingCard({
   const [delegating, setDelegating] = useState(false)
   const transcript = view.transcript
   const delegated = view.delegated
+  const tone = managerLine ? PROCESS_LIVE_TONE : 'on_hold'
   const delegate = () => {
     setDelegating(true)
     void onDelegate().finally(() => setDelegating(false))
@@ -1254,16 +1292,16 @@ function WaitingCard({
     <div
       className="mt-2 flex flex-col gap-2.5 rounded-lg p-3"
       style={{
-        background: 'var(--status-on_hold-soft-bg)',
-        border: '1px solid var(--status-on_hold-soft-border)',
+        background: `var(--status-${tone}-soft-bg)`,
+        border: `1px solid var(--status-${tone}-soft-border)`,
       }}
     >
       <div className="flex flex-col gap-0.5">
         <div
           className="text-[13.5px] font-semibold"
-          style={{ color: 'var(--status-on_hold-soft-fg)' }}
+          style={{ color: `var(--status-${tone}-soft-fg)` }}
         >
-          {view.heading}
+          {managerLine ?? view.heading}
         </div>
         <div className="text-[12px] text-(--text-secondary)">{view.title}</div>
       </div>

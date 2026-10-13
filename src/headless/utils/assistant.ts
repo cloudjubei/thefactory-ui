@@ -6,7 +6,7 @@ import { chatLastActivityAt, chatMessageCount } from './chatListEntry'
 import { navRowIndicator } from './navIndicator'
 import type { NavRowIndicator } from './navIndicatorTypes'
 import { chatAgentLogin, expiredSignInNames, signInExpiredTitle } from './signInExpiry'
-import type { SignInChatRunner, SignInLogins } from './signInExpiryTypes'
+import type { AgentLogin, SignInChatRunner, SignInLogins } from './signInExpiryTypes'
 
 function rowTitle(chat: AssistantChat, isNew: boolean): string {
   const stored = chat.title?.trim()
@@ -60,18 +60,26 @@ export function assistantConversationRows(input: AssistantRowsInput): AssistantR
 }
 
 /**
- * The expired sign-ins of the conversations an agent replies in or that wait
- * on the person, by name. Pure.
+ * The expired sign-ins of the conversations an agent replies in, that wait on
+ * the person, or whose open sign-in card waits on one (`signInCards`, by chat
+ * key), by name — each once. Pure.
  */
 export function assistantExpiredSignIns(
   rows: readonly AssistantRow[],
   chats: readonly (AssistantChat & { cliRunner?: SignInChatRunner | null })[],
   signIns: SignInLogins,
+  signInCards: ReadonlyMap<string, readonly AgentLogin[]> = new Map(),
 ): string[] {
+  const listed = new Set(rows.map((r) => r.key))
   const live = new Set(rows.filter((r) => r.running || r.needsYou > 0).map((r) => r.key))
-  const logins = chats
-    .filter((chat) => live.has(getChatContextKey(chat.context)))
-    .map((chat) => chatAgentLogin(chat.cliRunner))
+  const logins = chats.flatMap((chat) => {
+    const key = getChatContextKey(chat.context)
+    if (!listed.has(key)) return []
+    return [
+      ...(live.has(key) ? [chatAgentLogin(chat.cliRunner)] : []),
+      ...(signInCards.get(key) ?? []),
+    ]
+  })
   return expiredSignInNames(logins, signIns)
 }
 

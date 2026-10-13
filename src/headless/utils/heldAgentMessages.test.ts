@@ -35,6 +35,14 @@ describe('heldAgentMessageViews', () => {
     ])
   })
 
+  it('says so when it was held because whether this chat was busy could not be checked', () => {
+    const views = heldAgentMessageViews({
+      [HELD_AGENT_MESSAGES_METADATA_KEY]: [stored({ heldFor: 'unknown' })],
+    })
+    expect(views.map((v) => v.waitingFor)).toEqual([HELD_AGENT_MESSAGE_WAITING_FOR.unknown])
+    expect(HELD_AGENT_MESSAGE_WAITING_FOR.unknown).toMatch(/Couldn’t check whether this chat/)
+  })
+
   it('keeps a message sent without waiting for a reply whole after its heading', () => {
     const content = '📨 **Message from the agent in x** (chat id `y`)\n\nJust so you know.'
     expect(

@@ -8,7 +8,7 @@ const HEADING_PREFIX = '📨 '
 const AWAITING_PREFIX = '_The sending agent is waiting for your answer'
 
 function isReason(value: unknown): value is HeldAgentMessageReason {
-  return value === 'ask' || value === 'turn'
+  return value === 'ask' || value === 'turn' || value === 'unknown'
 }
 
 /** The message itself, without the heading naming its sender and the footer saying a reply is awaited. */

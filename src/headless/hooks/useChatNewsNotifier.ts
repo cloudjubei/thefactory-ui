@@ -16,6 +16,7 @@ export type ChatNewsNotification = { title: string; tag: string }
  * Tells the host each time news reaches a chat, or an ask comes to wait on
  * the person in one — each chat read at its notification level, so a chat set
  * to `needs-me` tells only what needs them and one set to `nothing` nothing.
+ * A process run's chats are never told: the run shows them on its badges.
  * Only what arrives after it mounts counts. The host decides whether to post.
  */
 export function useChatNewsNotifier(notify: (notification: ChatNewsNotification) => void): void {

@@ -6,6 +6,7 @@ import {
   processRunWorkLabel,
   useDurationTimer,
   useProcessRun,
+  useProcessStopClock,
   type ProcessStatusTone,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
@@ -29,6 +30,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
   const { theme } = useNativeTheme()
   const { run } = useProcessRun(processRunId)
   const now = useDurationTimer(run?.totals?.ticking === true)
+  const stopNow = useProcessStopClock()
   if (!run) {
     return (
       <View
@@ -45,7 +47,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
       </View>
     )
   }
-  const view = processRunCardView(run)
+  const view = processRunCardView(run, stopNow)
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
   return (

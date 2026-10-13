@@ -1494,9 +1494,8 @@ function decidedRowResult(
   const reason =
     ask.status === 'denied'
       ? ASK_DECLINED_REASON
-      : ask.decisionReason === 'cancelled'
-        ? ASK_CANCELLED_REASON
-        : ASK_EXPIRED_REASON
+      : (ask.withdrawnReason ??
+        (ask.decisionReason === 'cancelled' ? ASK_CANCELLED_REASON : ASK_EXPIRED_REASON))
   return { type: 'not_allowed', result: { ...hostOutcome, outcome: ask.status, reason } }
 }
 
@@ -1519,8 +1518,13 @@ function ranNothing(step: CliToolStep): boolean {
   )
 }
 
-/** Who settled an ask, in the words its row shows; nothing for an ask recorded before decisions were attributed. */
+/**
+ * Who settled an ask, in the words its row shows — or, for one the host withdrew
+ * because what it acted on was settled elsewhere, why; nothing for an ask
+ * recorded before decisions were attributed.
+ */
 function askDecisionNote(ask: CliDecidedAsk): string | undefined {
+  if (ask.status === 'expired') return ask.withdrawnReason
   if (ask.decidedVia === 'grant' && ask.rule !== undefined) return DECIDED_BY_RULE_NOTE(ask.rule)
   if (ask.decidedBy !== 'person') return undefined
   if (ask.status === 'denied') {

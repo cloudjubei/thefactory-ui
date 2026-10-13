@@ -15,6 +15,7 @@ import { chatNotifyLevel } from '../utils/chatNotify'
 import { computeChatRowStatus, type ChatsSeenMap } from '../utils/chatRowStatus'
 import type { NavRowIndicator } from '../utils/navIndicatorTypes'
 import { usePendingAsksByChat } from './usePendingAsksByChat'
+import { useSignInCardsByChat } from './useSignInCardsByChat'
 
 export type AssistantConversations = {
   /** The conversations in the list, the one being started at the top. */
@@ -38,6 +39,7 @@ export function useAssistantConversations(
   const pendingAsks = usePendingAsksByChat()
   const notifyLevels = useAppSettings().settings.notifications.chatNotifyLevels
   const { caches, activeCli, activeCliCredentialId } = useCliConfigs()
+  const signInCards = useSignInCardsByChat()
 
   return useMemo(() => {
     const statusOf = (chat: AssistantChat): AssistantRowStatus => {
@@ -58,10 +60,12 @@ export function useAssistantConversations(
       ...(open ? { open } : {}),
       statusOf,
     })
-    const expired = assistantExpiredSignIns(conversations, chats, {
-      logins: caches,
-      active: { activeCli, activeCliCredentialId },
-    })
+    const expired = assistantExpiredSignIns(
+      conversations,
+      chats,
+      { logins: caches, active: { activeCli, activeCliCredentialId } },
+      signInCards,
+    )
     return {
       conversations,
       archived: assistantConversationRows({ chats, archived: true, statusOf }),
@@ -77,5 +81,6 @@ export function useAssistantConversations(
     caches,
     activeCli,
     activeCliCredentialId,
+    signInCards,
   ])
 }

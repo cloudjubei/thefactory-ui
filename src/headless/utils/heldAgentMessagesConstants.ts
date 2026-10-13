@@ -7,6 +7,7 @@ export const HELD_AGENT_MESSAGES_METADATA_KEY = 'heldAgentMessages'
 export const HELD_AGENT_MESSAGE_WAITING_FOR: Record<HeldAgentMessageReason, string> = {
   ask: 'Arrived while a request here was waiting on you — delivered once this chat is free',
   turn: 'Arrived during a turn — delivered once this chat is free',
+  unknown: 'Couldn’t check whether this chat was busy — delivered once it is free',
 }
 
 export const HELD_STACK_TEXT = {

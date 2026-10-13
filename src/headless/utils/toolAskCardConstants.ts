@@ -111,3 +111,12 @@ export const RUN_PROPOSAL_ASK = {
   run: 'Run',
   group: 'Group run',
 } as const
+
+/** The words putting a project on GitHub says. */
+export const GIT_SETUP_ASK = {
+  createAsk: 'The agent wants to put a project on GitHub',
+  pushAsk: 'The agent wants to push a project to its repository',
+  tag: 'Git',
+  createVerb: 'Create repository',
+  pushVerb: 'Push',
+} as const

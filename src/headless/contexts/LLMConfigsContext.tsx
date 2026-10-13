@@ -6,6 +6,7 @@ import {
   getActiveRunnerKind as apiGetActiveRunnerKind,
   listLlmConfigs,
   setActiveRunnerKind as apiSetActiveRunnerKind,
+  setAgentRunLlmConfig as apiSetAgentRunLlmConfig,
   updateLlmConfig,
   type CliReasoningEffort,
   type CliTool,
@@ -15,7 +16,8 @@ import {
 } from '../api/generated'
 import { useApi } from '../api'
 import { useAuth } from '../api/AuthContext'
-import { LLM_CONFIGS_EVENT } from '../utils/credentialStoreEventConstants'
+import { AGENT_RUNNER_EVENT, LLM_CONFIGS_EVENT } from '../utils/credentialStoreEventConstants'
+import { agentRunnerSelectionUpdate } from '../utils/agentRunnerSelection'
 import { activeLlmConfig } from '../utils/modelChip'
 import type { SyncKVStorage } from '../hooks/useStorageBackedState'
 
@@ -40,9 +42,14 @@ export type LLMConfigsContextValue = {
   activeChatConfig: GetLlmConfigResponse | null
   setActiveChat: (id: string) => void
   recentChatConfigs: GetLlmConfigResponse[]
-  /** The config the Run button runs on: the one chosen while it exists, else the first. */
+  /**
+   * The API config agent runs use — the Run button's, a launch card's, every
+   * process step's. Backend-persisted and shared by every device: the one
+   * chosen while it exists, else the first, exactly as the server resolves it.
+   */
   activeAgentRunConfigId: string | null
   activeAgentRunConfig: GetLlmConfigResponse | null
+  /** Choose the agent-run API config, here at once and on the server for every run and device. */
   setActiveAgentRun: (id: string) => void
   recentAgentRunConfigs: GetLlmConfigResponse[]
   /**
@@ -79,7 +86,6 @@ export type LLMConfigsContextValue = {
 }
 
 const ACTIVE_CHAT_LS_KEY = 'thefactory-overseer-web:activeChatConfigId'
-const ACTIVE_AGENT_RUN_LS_KEY = 'thefactory-overseer-web:activeAgentRunConfigId'
 const ACTIVE_ACTIVITY_LS_KEY = 'thefactory-overseer-web:activeActivityConfigId'
 const ACTIVE_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:activeActivityCliModel'
 const RECENT_ACTIVITY_CLI_MODEL_LS_KEY = 'thefactory-overseer-web:recentActivityCliModels'
@@ -189,9 +195,7 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const [activeChatConfigId, setActiveChatConfigIdState] = useState<string | null>(() =>
     storage.get(ACTIVE_CHAT_LS_KEY),
   )
-  const [activeAgentRunConfigId, setActiveAgentRunConfigIdState] = useState<string | null>(() =>
-    storage.get(ACTIVE_AGENT_RUN_LS_KEY),
-  )
+  const [activeAgentRunConfigId, setActiveAgentRunConfigIdState] = useState<string | null>(null)
   const [activeActivityConfigId, setActiveActivityConfigIdState] = useState<string | null>(() =>
     storage.get(ACTIVE_ACTIVITY_LS_KEY),
   )
@@ -200,13 +204,14 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   const [recentActivityCliModels, setRecentActivityCliModels] = useState<ActivityCliModel[]>(() =>
     readRecentCliModels(storage, RECENT_ACTIVITY_CLI_MODEL_LS_KEY),
   )
-  // Agent-run (Run button) runner selection. `activeRunnerKind` is backend-
-  // persisted (hydrated below); the API config + CLI pick are remembered
-  // separately, both client-side, like the activity selection above.
+  // Agent-run selection. The runner kind and the API config are backend-
+  // persisted (hydrated below); the CLI pick is client-side, like the activity
+  // selection above, and travels with each Run.
   const [activeRunnerKind, setActiveRunnerKindState] = useState<'api' | 'cli'>('api')
-  // Once the user explicitly flips the runner kind, the (async, fire-and-forget)
-  // backend hydration below must not clobber their choice if it resolves later.
-  const runnerKindTouchedRef = useRef(false)
+  // Count the person's picks, so a backend read that was already out when they
+  // picked never overwrites the pick with what the server held before it.
+  const runnerKindPicksRef = useRef(0)
+  const agentRunConfigPicksRef = useRef(0)
   const [activeAgentRunCliModel, setActiveAgentRunCliModelState] =
     useState<ActivityCliModel | null>(() =>
       readCliModel(storage, ACTIVE_AGENT_RUN_CLI_MODEL_LS_KEY),
@@ -241,21 +246,32 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     [storage],
   )
 
+  const hydrateAgentRunner = useCallback(async () => {
+    const runnerKindPicks = runnerKindPicksRef.current
+    const agentRunConfigPicks = agentRunConfigPicksRef.current
+    const res = await apiGetActiveRunnerKind({ throwOnError: false }).catch(() => undefined)
+    const update = agentRunnerSelectionUpdate(res?.data, {
+      runnerKind: runnerKindPicksRef.current !== runnerKindPicks,
+      llmConfig: agentRunConfigPicksRef.current !== agentRunConfigPicks,
+    })
+    if (update.runnerKind) setActiveRunnerKindState(update.runnerKind)
+    if (update.llmConfigId !== undefined) setActiveAgentRunConfigIdState(update.llmConfigId)
+  }, [])
+
   const setActiveAgentRun = useCallback(
     (id: string) => {
+      agentRunConfigPicksRef.current += 1
       setActiveAgentRunConfigIdState(id)
-      try {
-        storage.set(ACTIVE_AGENT_RUN_LS_KEY, id)
-      } catch {
-        // ignore storage errors (private mode, etc.)
-      }
       setRecentAgentRunIds((prev) => {
         const next = pushRecent(prev, id)
         writeRecents(storage, RECENT_AGENT_RUN_LS_KEY, next)
         return next
       })
+      void apiSetAgentRunLlmConfig({ body: { configId: id }, throwOnError: false })
+        .then((res) => (res.error ? hydrateAgentRunner() : undefined))
+        .catch(() => hydrateAgentRunner())
     },
-    [storage],
+    [storage, hydrateAgentRunner],
   )
 
   const setActiveActivity = useCallback(
@@ -292,15 +308,21 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
     [storage],
   )
 
-  // Flip the Run button between API and CLI — the ONLY place activeRunnerKind
-  // changes (optimistic local update + fire-and-forget backend persist).
-  // Settings → LLM intentionally never calls this, so changing the API agent
-  // there never knocks a CLI-active Run button back to API.
-  const setActiveRunnerKind = useCallback((kind: 'api' | 'cli') => {
-    runnerKindTouchedRef.current = true
-    setActiveRunnerKindState(kind)
-    void apiSetActiveRunnerKind({ body: { kind }, throwOnError: false }).catch(() => {})
-  }, [])
+  // Flip the Run button between API and CLI — the ONLY place this device
+  // changes activeRunnerKind (optimistic local update + backend persist; a
+  // refused write re-reads what the server holds). Settings → LLM never calls
+  // this, so changing the API agent there never knocks a CLI-active Run button
+  // back to API.
+  const setActiveRunnerKind = useCallback(
+    (kind: 'api' | 'cli') => {
+      runnerKindPicksRef.current += 1
+      setActiveRunnerKindState(kind)
+      void apiSetActiveRunnerKind({ body: { kind }, throwOnError: false })
+        .then((res) => (res.error ? hydrateAgentRunner() : undefined))
+        .catch(() => hydrateAgentRunner())
+    },
+    [hydrateAgentRunner],
+  )
 
   const setActiveAgentRunCliModel = useCallback(
     (model: ActivityCliModel | null) => {
@@ -331,22 +353,19 @@ export function LLMConfigsProvider({ storage, children }: LLMConfigsProviderProp
   // Whoever wrote it — another window, an agent's credential form or admin
   // tool — the list refetches, instead of staying the snapshot taken at login.
   useEffect(() => ws.on(LLM_CONFIGS_EVENT, () => void refresh()), [ws, refresh])
+  // Another device, or an agent's tool, changed the agent-run choice.
+  useEffect(
+    () => ws.on(AGENT_RUNNER_EVENT, () => void hydrateAgentRunner()),
+    [ws, hydrateAgentRunner],
+  )
 
   useEffect(() => {
     if (!token) return
     void refresh()
-    // Hydrate the per-user-global runner kind (api|cli) from the backend;
-    // undefined means never chosen → keep the 'api' default.
-    void apiGetActiveRunnerKind({ throwOnError: false })
-      .then((res) => {
-        const kind = res.data?.activeRunnerKind
-        // Don't overwrite a choice the user already made while this was in flight.
-        if (!runnerKindTouchedRef.current && (kind === 'api' || kind === 'cli')) {
-          setActiveRunnerKindState(kind)
-        }
-      })
-      .catch(() => {})
-  }, [token, refresh])
+    // The server's agent-run choice wins over this device's defaults: a runner
+    // never chosen keeps 'api', and the config is the one runs use.
+    void hydrateAgentRunner()
+  }, [token, refresh, hydrateAgentRunner])
 
   const createConfig = useCallback(
     async (input: LlmConfigCreateInput) => {

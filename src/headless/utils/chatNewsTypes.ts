@@ -12,5 +12,5 @@ export type ChatNewsEntry = ChatMessagesShape & {
 /** The newest message for the person each chat held when last looked at, by chat key. */
 export type ChatNewsMarks = ReadonlyMap<string, string>
 
-/** Whether news reached the person since the marks, and the marks to look against next. */
+/** Whether news reached the person since the marks — in a chat, and in a process run's own chat — and the marks to look against next. */
 export type ChatNewsCheck = { arrived: boolean; marks: ChatNewsMarks }

@@ -72,6 +72,8 @@ export type CliDecidedAsk = {
   args?: unknown
   /** Why it expired — `cancelled` when its run was stopped. */
   decisionReason?: string
+  /** Why the host withdrew it: what it acted on was settled elsewhere or no longer stands. */
+  withdrawnReason?: string
   /** What the user answered, for a question. */
   answer?: string
   /** When the approval was carried out — set with or without a kept result. */

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import {
   formatBadgeCount,
+  PROCESS_RUN_FRESH_TITLE,
   PROCESS_RUN_WAITING_TITLE,
   processRunAttentionSections,
   processRunListRow,
@@ -10,13 +11,18 @@ import {
   processRunWorkLabel,
   useAppSettings,
   useDurationTimer,
+  useProcessRunChatNews,
   useProcessRuns,
+  useProcessStopClock,
   type BadgeColor,
   type ProcessNodeRunRef,
   type ProcessRun,
   type ProcessRunAttentionSection,
+  type ProcessRunChatNews,
   type ProcessStatusTone,
 } from '../../headless'
+import DotBadge from '../primitives/DotBadge'
+import { useChatsSeen } from '../compound/notifications/chatsSeen'
 import SegmentedControl from '../primitives/SegmentedControl'
 import Spinner from '../primitives/Spinner'
 import Tooltip from '../primitives/Tooltip'
@@ -80,11 +86,16 @@ export default function ProcessRunsView({
   onOpenGroupRun,
   narrow = false,
 }: ProcessRunsViewProps) {
-  const { isLoaded, current, history } = useProcessRuns(projectId)
+  const { isLoaded, runs, current, history } = useProcessRuns(projectId)
   const { settings } = useAppSettings()
   const badgeColor = settings.notifications.badgeColors.processes
-  const waiting = processRunWaitingCount(current)
-  const sections = useMemo(() => processRunAttentionSections(current), [current])
+  const stopNow = useProcessStopClock()
+  const chatNews = useProcessRunChatNews(useChatsSeen())
+  const waiting = processRunWaitingCount(runs, stopNow, chatNews)
+  const sections = useMemo(
+    () => processRunAttentionSections(runs, stopNow, chatNews),
+    [runs, stopNow, chatNews],
+  )
 
   // The toggle follows the selected run when it can: opening a finished run from
   // elsewhere (a chat card) should land on History, not leave the user on an
@@ -148,7 +159,7 @@ export default function ProcessRunsView({
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {!isLoaded ? (
           <p className="px-2 py-3 text-[12px] text-(--text-muted)">Loading runs…</p>
-        ) : rows.length === 0 ? (
+        ) : (mode === 'current' ? sections.length === 0 : rows.length === 0) ? (
           <p className="px-2 py-3 text-[12px] text-(--text-muted)">
             {mode === 'current'
               ? 'No processes are running. Start work on a story from its chat.'
@@ -162,13 +173,22 @@ export default function ProcessRunsView({
                 section={section}
                 badgeColor={badgeColor}
                 now={now}
+                stopNow={stopNow}
+                chatNews={chatNews}
                 selectedRunId={selectedRunId}
                 onSelectRun={onSelectRun}
               />
             ))}
           </div>
         ) : (
-          <RunList runs={rows} now={now} selectedRunId={selectedRunId} onSelectRun={onSelectRun} />
+          <RunList
+            runs={rows}
+            now={now}
+            stopNow={stopNow}
+            chatNews={chatNews}
+            selectedRunId={selectedRunId}
+            onSelectRun={onSelectRun}
+          />
         )}
       </div>
     </div>
@@ -206,12 +226,16 @@ function RunSection({
   section,
   badgeColor,
   now,
+  stopNow,
+  chatNews,
   selectedRunId,
   onSelectRun,
 }: {
   section: ProcessRunAttentionSection
   badgeColor: BadgeColor
   now: number
+  stopNow: number
+  chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string) => void
 }) {
@@ -244,6 +268,8 @@ function RunSection({
       <RunList
         runs={section.runs}
         now={now}
+        stopNow={stopNow}
+        chatNews={chatNews}
         selectedRunId={selectedRunId}
         onSelectRun={onSelectRun}
       />
@@ -254,11 +280,17 @@ function RunSection({
 function RunList({
   runs,
   now,
+  stopNow,
+  chatNews,
   selectedRunId,
   onSelectRun,
 }: {
   runs: readonly ProcessRun[]
   now: number
+  /** The clock who has a stopped run's stop is read against. */
+  stopNow: number
+  /** What each run's own chat holds for the person, by run id. */
+  chatNews: ReadonlyMap<string, ProcessRunChatNews>
   selectedRunId: string | undefined
   onSelectRun: (runId: string) => void
 }) {
@@ -269,6 +301,8 @@ function RunList({
           <RunRow
             run={run}
             now={now}
+            stopNow={stopNow}
+            chatNews={chatNews.get(run.id)}
             selected={run.id === selectedRunId}
             onClick={() => onSelectRun(run.id)}
           />
@@ -281,16 +315,20 @@ function RunList({
 function RunRow({
   run,
   now,
+  stopNow,
+  chatNews,
   selected,
   onClick,
 }: {
   run: ProcessRun
   /** The list's live clock — a running row's elapsed ticks against it. */
   now: number
+  stopNow: number
+  chatNews: ProcessRunChatNews | undefined
   selected: boolean
   onClick: () => void
 }) {
-  const row = processRunListRow(run)
+  const row = processRunListRow(run, stopNow, chatNews)
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
   return (
@@ -318,6 +356,13 @@ function RunRow({
         </span>
         {row.live ? (
           <Spinner size={12} color={`var(--status-${row.tone}-bg)`} className="shrink-0" />
+        ) : null}
+        {row.fresh ? (
+          <DotBadge
+            className="size-2 shrink-0"
+            colorClass="bg-(--color-brand-600)"
+            title={PROCESS_RUN_FRESH_TITLE}
+          />
         ) : null}
         {work ? <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{work}</span> : null}
       </div>

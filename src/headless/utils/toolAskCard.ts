@@ -5,6 +5,7 @@
 import { grantDetailView } from './approvalGrant'
 import type { AlwaysAllowScope, GrantCovers, PendingToolGrantDecision } from './chatTypes'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
+import type { GitSetupPlan } from './gitSetupApprovalTypes'
 import { PROCESS_GROUP_LAUNCH_BLURB } from './processGroupLaunchConstants'
 import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
@@ -13,6 +14,7 @@ import {
   GIT_CHANGE_ASK,
   GIT_CHANGE_ASK_FALLBACK,
   GIT_CHANGE_VERB,
+  GIT_SETUP_ASK,
   GROUP_WORK_ASK,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
@@ -273,6 +275,20 @@ export function toolAskDecidedLine(
   }
 }
 
+/**
+ * The decided lines still worth showing: those the server has not reported
+ * decided yet. Once it has, the ask's own row in the conversation shows the
+ * decision where it was asked, so its line would only trail behind newer
+ * messages. Pure.
+ */
+export function toolAskDecidedLinesAwaitingRows<T extends { id: string }>(
+  lines: readonly T[],
+  decidedAsks: readonly { id: string }[],
+): T[] {
+  const decided = new Set(decidedAsks.map((a) => a.id))
+  return lines.filter((l) => !decided.has(l.id))
+}
+
 const reasonOf = (args: unknown): { why?: string } => {
   const why = text(record(args).reason)
   return why ? { why } : {}
@@ -365,5 +381,22 @@ export function runProposalAskView(view: RunProposalView, args: unknown): ToolAs
     consequence: view.effect,
     verb: view.approveLabel,
     body: { kind: 'proposal' },
+  }
+}
+
+/**
+ * The card for putting a project on GitHub: a new repository by its plan, or a
+ * push to the one the project already has. Pure.
+ */
+export function gitSetupAskView(plan: GitSetupPlan, args: unknown): ToolAskCardView {
+  return {
+    icon: 'push',
+    tone: 'ask',
+    ask: plan.createsRepo ? GIT_SETUP_ASK.createAsk : GIT_SETUP_ASK.pushAsk,
+    tag: GIT_SETUP_ASK.tag,
+    headline: plan.headline,
+    ...reasonOf(args),
+    verb: plan.createsRepo ? GIT_SETUP_ASK.createVerb : GIT_SETUP_ASK.pushVerb,
+    body: { kind: 'git' },
   }
 }

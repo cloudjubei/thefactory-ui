@@ -76,6 +76,7 @@ describe('processStepRowView', () => {
       inert: false,
       result: 'Approved · Nothing blocks merging',
       waitingOnYou: false,
+      managerOnIt: false,
       expandable: true,
       preview: 'code-review',
     })
@@ -321,6 +322,58 @@ describe('processStageChips', () => {
   it('does not call a verifier pass accepted', () => {
     const [chip] = processStageChips([state({ id: 'v', agentType: 'verifier' })], undefined)
     expect(chip.note).toBeUndefined()
+  })
+})
+
+describe('a stopped step whose stop the agent manager has', () => {
+  const waiting = state(
+    { id: 'f1', name: '35.1 Fonts', kind: 'process' },
+    {
+      outcome: 'waiting',
+      latest: entry({ stepId: 'f1', outcome: 'waiting', childRunId: 'child' }),
+    },
+  )
+  const gate = state({ id: 'g', kind: 'gate' }, { latest: undefined, status: 'pending' })
+
+  it('says the manager is on it, not that it waits on the person', () => {
+    expect(processStepRowView(waiting, 'f1', undefined, 'manager')).toMatchObject({
+      result: 'Manager on it',
+      waitingOnYou: false,
+      managerOnIt: true,
+    })
+    expect(processStepRowView(gate, 'g', undefined, 'manager')).toMatchObject({
+      result: 'Manager on it',
+      waitingOnYou: false,
+    })
+  })
+
+  it('waits on the person again once the stop is theirs', () => {
+    for (const holder of ['person', undefined] as const) {
+      expect(processStepRowView(gate, 'g', undefined, holder)).toMatchObject({
+        result: 'Needs you',
+        waitingOnYou: true,
+        managerOnIt: false,
+      })
+    }
+  })
+
+  it('leaves a step the run is not stopped at alone', () => {
+    expect(processStepRowView(state(), 'other', undefined, 'manager').managerOnIt).toBe(false)
+  })
+
+  it('marks the stopped stage chip as worked on by the manager', () => {
+    const [chip] = processStageChips(
+      [state({ id: 'v', name: 'Verify' }, { latest: undefined, status: 'pending' })],
+      'v',
+      'manager',
+    )
+    expect([chip.mark, chip.note, chip.tone]).toEqual(['…', 'manager on it', 'done'])
+    const [theirs] = processStageChips(
+      [state({ id: 'v', name: 'Verify' }, { latest: undefined, status: 'pending' })],
+      'v',
+      'person',
+    )
+    expect([theirs.mark, theirs.note]).toEqual(['?', 'needs you'])
   })
 })
 

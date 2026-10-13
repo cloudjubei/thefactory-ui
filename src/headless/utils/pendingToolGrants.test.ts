@@ -595,6 +595,21 @@ describe('cliDecidedAsks', () => {
     ])
   })
 
+  it('keeps why the host withdrew an ask settled elsewhere', () => {
+    const [ask] = cliDecidedAsks([
+      {
+        ...action,
+        status: 'expired',
+        decisionReason: 'cancelled',
+        withdrawnReason: 'Settled elsewhere: the run was deleted.',
+      },
+    ])
+    expect(ask).toMatchObject({
+      status: 'expired',
+      withdrawnReason: 'Settled elsewhere: the run was deleted.',
+    })
+  })
+
   it('keeps who decided it and where', () => {
     const [ask] = cliDecidedAsks([
       { ...action, status: 'approved', decidedBy: 'person', decidedVia: 'approve-all' },

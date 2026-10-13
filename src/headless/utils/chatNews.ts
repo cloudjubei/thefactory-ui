@@ -1,4 +1,5 @@
-import { getChatContextKey, isAgentRunChatContext } from 'thefactory-tools/utils'
+import { getChatContext, getChatContextKey } from 'thefactory-tools/utils'
+import { chatChannelOf } from './chatChannel'
 import { chatMessageTimes, chatNeedsYouTimesOf } from './chatListEntry'
 import type { ChatNewsCheck, ChatNewsEntry, ChatNewsMarks } from './chatNewsTypes'
 import type { ChatNotifyLevel } from './chatNotifyTypes'
@@ -9,7 +10,8 @@ import type { ChatNotifyLevel } from './chatNotifyTypes'
  * yet — and the marks to look against next. Each chat is read at its level
  * (`levelOf`, everything when not given): only what needs the person at
  * `needs-me`, nothing at `nothing`. The agents' own exchange is never news,
- * nor is an agent-run chat, which never lights a badge. Pure.
+ * nor is anything in a process run's chats (`chatChannelOf`), which the run
+ * shows on its badges instead. Pure.
  */
 export function chatNewsSince(
   chats: readonly ChatNewsEntry[],
@@ -20,7 +22,7 @@ export function chatNewsSince(
   const next = new Map<string, string>()
   let arrived = false
   for (const chat of chats) {
-    if (isAgentRunChatContext(chat.context)) continue
+    if (chatChannelOf(chat.context) !== 'chat') continue
     const level = levelOf(chat)
     if (level === 'nothing') continue
     const times = level === 'needs-me' ? chatNeedsYouTimesOf(chat) : chatMessageTimes(chat)
@@ -36,7 +38,9 @@ export function chatNewsSince(
 /**
  * Whether an ask came to wait on the person in any chat since the counts were
  * taken — more waiting in a chat than before — and the counts to look against
- * next. A chat set to `nothing` brings no news, yet keeps its count. Pure.
+ * next. An ask in a process run's chats is never told here: the run shows it
+ * on its badges. A chat set to `nothing` brings no news, yet keeps its count.
+ * Pure.
  */
 export function chatAsksNewsSince(
   asks: ReadonlyMap<string, number>,
@@ -45,7 +49,10 @@ export function chatAsksNewsSince(
 ): { arrived: boolean; marks: ReadonlyMap<string, number> } {
   let arrived = false
   for (const [key, count] of asks) {
-    if (count > (marks.get(key) ?? 0) && levelOf(key) !== 'nothing') arrived = true
+    if (count <= (marks.get(key) ?? 0) || levelOf(key) === 'nothing') continue
+    const context = getChatContext(key)
+    if (context && chatChannelOf(context) !== 'chat') continue
+    arrived = true
   }
   return { arrived, marks: new Map(asks) }
 }

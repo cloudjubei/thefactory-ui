@@ -1,4 +1,10 @@
 import { useState, type ReactNode } from 'react'
+import { useLaunchAgentPick } from '../../../headless/hooks/useLaunchAgentPick'
+import {
+  launchAgentPickMetadata,
+  launchAgentPickRunner,
+} from '../../../headless/utils/launchAgentPick'
+import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 
 import {
   LAUNCH_NOTE_MAX_CHARS,
@@ -24,12 +30,7 @@ export type GroupWorkLaunchPanelProps = {
   /** The group the chat belongs to. */
   groupId?: string
   /** The app's model chip for this chat — the agent every project's work runs on. */
-  renderModelChip?: (picked: {
-    model: string | undefined
-    onPick: (modelId: string) => void
-    cli: string | undefined
-    onPickCli: (cli: string, credentialId: string | undefined, model: string | undefined) => void
-  }) => ReactNode
+  renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
   onDecideLater: () => void
   /** The launch was decided — what its one line says. */
   onDecided?: (line: ToolAskDecidedLine) => void
@@ -58,14 +59,15 @@ export default function GroupWorkLaunchPanel({
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
-  const [runModel, setRunModel] = useState<string | undefined>(undefined)
-  const [runCli, setRunCli] = useState<string | undefined>(undefined)
-  const [runCliCredentialId, setRunCliCredentialId] = useState<string | undefined>(undefined)
+  // The agent this WORK runs on — the API or a CLI, a model — seeded from the
+  // chat by the chip and sent with the decision, never written back to the
+  // conversation.
+  const { pick: agentPick, slot: chipSlot } = useLaunchAgentPick()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const turnLimitStart = processGrantTurnLimitView(
     summary.turnLimit,
-    runCli ? 'cli' : (summary.runner ?? grant.chatRunner),
+    launchAgentPickRunner(agentPick, summary.runner ?? grant.chatRunner),
   )
   const [turnLimitPick, setTurnLimitPick] = useState<
     { limited: boolean; maxTurns: number } | undefined
@@ -87,9 +89,7 @@ export default function GroupWorkLaunchPanel({
           ? {
               ...(trimmed ? { note: trimmed } : {}),
               turnLimit: processTurnLimitOfView(turnLimit),
-              ...(runModel ? { cliModel: runModel } : {}),
-              ...(runCli ? { cliTool: runCli } : {}),
-              ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
+              ...launchAgentPickMetadata(agentPick),
             }
           : undefined,
       )
@@ -191,18 +191,7 @@ export default function GroupWorkLaunchPanel({
         ) : null}
 
         {renderModelChip ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {renderModelChip({
-              model: runModel,
-              onPick: setRunModel,
-              cli: runCli,
-              onPickCli: (cli, credentialId, model) => {
-                setRunCli(cli)
-                setRunCliCredentialId(credentialId)
-                setRunModel(model)
-              },
-            })}
-          </div>
+          <div className="flex flex-wrap items-center gap-2">{renderModelChip(chipSlot)}</div>
         ) : null}
         <TurnLimitField
           {...turnLimitStart}

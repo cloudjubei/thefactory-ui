@@ -242,6 +242,16 @@ export type {
 } from './utils/chatNotifyTypes'
 export { useChatNotifyLevel, type UseChatNotifyLevel } from './hooks/useChatNotifyLevel'
 export { useChatNewsNotifier, type ChatNewsNotification } from './hooks/useChatNewsNotifier'
+export { chatBadgeInputOf, chatChannelOf, processRunChatNewsByRun } from './utils/chatChannel'
+export type { ChatChannel, ProcessRunChatNews } from './utils/chatChannelTypes'
+export { useProcessRunChatNews } from './hooks/useProcessRunChatNews'
+export { useProcessStopClock } from './hooks/useProcessStopClock'
+export { processRunManagerLine } from './utils/processRunStop'
+export {
+  PROCESS_NESTED_RUN_OPEN,
+  PROCESS_RUN_MANAGER_LINE,
+  PROCESS_STOP_CLOCK_MS,
+} from './utils/processRunStopConstants'
 export {
   agentExchangeLayout,
   agentExchangeLine,
@@ -288,8 +298,12 @@ export {
   expiredSignInsByScope,
   processRunAgentLogin,
   scopeSignInNames,
+  settingsNavIndicator,
+  signInCardsByChat,
   signInExpiredTitle,
   signInName,
+  signInsExpiredTitle,
+  storedSignInsExpired,
 } from './utils/signInExpiry'
 export type {
   ActiveCliLogin,
@@ -302,7 +316,12 @@ export type {
   SignInLogins,
   SignInRun,
 } from './utils/signInExpiryTypes'
-export { useExpiredSignIns } from './hooks/useExpiredSignIns'
+export {
+  useExpiredSignIns,
+  useStoredSignInsExpired,
+  type ExpiredSignInChat,
+} from './hooks/useExpiredSignIns'
+export { useSignInCardsByChat } from './hooks/useSignInCardsByChat'
 
 // Ink badge — the one layout the web and native badges draw.
 export {
@@ -726,11 +745,18 @@ export {
   uniqueRunModels,
   type RunModel,
 } from './utils/runModel'
-export { activeLlmConfig, modelChipLabel, modelChipProviderLabel } from './utils/modelChip'
+export {
+  activeLlmConfig,
+  chatChipCliSelection,
+  modelChipLabel,
+  modelChipProviderLabel,
+} from './utils/modelChip'
 export type {
   ModelChipConfigLike,
   ModelChipLabel,
   ModelChipLabelInput,
+  ChatChipCliInput,
+  ChatChipCliSelection,
 } from './utils/modelChipTypes'
 export {
   aggregateTestCounts,
@@ -1555,6 +1581,25 @@ export {
 // broker ask of the chat, an API turn's and a CLI run's alike — the approval UI renders.
 export { useChatCliRunner, type UseChatCliRunner } from './hooks/useChatCliRunner'
 export { useActivityChipCli, type ActivityChipCliWiring } from './hooks/useActivityChipCli'
+export {
+  useChatChipCli,
+  type ChatChipCliOverrides,
+  type ChatChipCliWiring,
+} from './hooks/useChatChipCli'
+export { useLaunchAgentPick } from './hooks/useLaunchAgentPick'
+export {
+  launchAgentPickMetadata,
+  launchAgentPickRunner,
+  pickLaunchApi,
+  pickLaunchCli,
+  pickLaunchModel,
+} from './utils/launchAgentPick'
+export { NO_LAUNCH_AGENT_PICK } from './utils/launchAgentPickConstants'
+export type {
+  LaunchAgentPick,
+  LaunchAgentPickMetadata,
+  LaunchModelChipSlot,
+} from './utils/launchAgentPickTypes'
 export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgentRunChipCli'
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
 export { usePendingAsksByChat } from './hooks/usePendingAsksByChat'
@@ -1738,14 +1783,17 @@ export {
   featureWorkAskView,
   featureWorkLaunchCheck,
   gitChangeAskView,
+  gitSetupAskView,
   groupWorkAskView,
   runProposalAskView,
   toolAskCardView,
   toolAskDecidedLine,
+  toolAskDecidedLinesAwaitingRows,
   toolAskScopeOptions,
 } from './utils/toolAskCard'
 export {
   FEATURE_WORK_ASK,
+  GIT_SETUP_ASK,
   GROUP_WORK_ASK,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
@@ -1831,6 +1879,7 @@ export {
   GIT_CREDENTIAL_HOST_UNKNOWN,
 } from './utils/gitCredentialConstants'
 export {
+  AGENT_RUNNER_EVENT,
   LLM_CONFIGS_EVENT,
   PROVIDER_CONNECTIONS_EVENT,
   WEB_SEARCH_KEYS_EVENT,
@@ -2021,7 +2070,8 @@ export {
   PROCESS_TURN_LIMIT_SLIDER_LABEL,
 } from './utils/processTurnLimitViewConstants'
 export { projectManagerSettingsOf, processRunManagerView } from './utils/processManagerView'
-export type { ProcessManagerAutonomy } from 'thefactory-tools/types'
+export type { ProcessManagerAutonomy, ProcessRunStopHolder } from 'thefactory-tools/types'
+export { processRunStopHolder, processRunStopHolderOf } from 'thefactory-tools/utils'
 export type {
   ProcessManagerEscalationView,
   ProcessManagerHandledLineView,
@@ -2097,6 +2147,7 @@ export {
 } from './utils/processRunAttention'
 export {
   PROCESS_RUN_ATTENTION_SECTIONS,
+  PROCESS_RUN_FRESH_TITLE,
   PROCESS_RUN_WAITING_TITLE,
 } from './utils/processRunAttentionConstants'
 export type {

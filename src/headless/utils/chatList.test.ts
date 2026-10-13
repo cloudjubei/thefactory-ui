@@ -70,8 +70,10 @@ const GROUP: ChatContext = { type: 'GROUP', groupId: 'g1' }
 const GROUP_TOPIC: ChatContext = { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 'gt' }
 const RUN_CHAT = processRunChatContext(run())
 
+const NOW = 1_000
+
 function row(input: Partial<ChatListRowInput> & { chat: ChatListRowInput['chat'] }): ChatListRow {
-  return chatListRow({ status: QUIET, ...input })
+  return chatListRow({ status: QUIET, now: NOW, ...input })
 }
 
 describe('isChatInChatList', () => {
@@ -123,15 +125,31 @@ describe('chatListRow — what a row says', () => {
     })
   })
 
-  it('says what a stopped run waits on, and counts it as needing the person', () => {
+  it('says what a stopped run waits on, with no badge — its stop counts on Processes', () => {
     const parked = run({
       status: 'parked',
       park: { reason: 'step-waiting', message: 'Which branch to merge?', parkedAt: 0 },
     } as Partial<ProcessRun>)
     expect(row({ chat: { context: RUN_CHAT }, run: parked })).toMatchObject({
       sub: 'Which branch to merge?',
-      needsYou: 1,
+      pill: { label: 'Needs you' },
+      needsYou: 0,
       running: false,
+      fresh: false,
+    })
+  })
+
+  it('pills a run whose stop its manager has as the manager’s', () => {
+    const managed = run({
+      status: 'parked',
+      park: { reason: 'step-failed', message: 'Implement failed.', parkedAt: 0 },
+      manager: {
+        turn: { runId: 'run-1', parkedAt: 0, signature: 's', startedAt: 900, chatContextId: 'c' },
+      },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: managed }).pill).toEqual({
+      label: 'Manager on it',
+      tone: 'done',
     })
   })
 
@@ -203,26 +221,34 @@ describe('chatListRow — what a row shows of its state', () => {
     expect(row({ chat: { context: TOPIC }, status: { ...QUIET, needsYou: 2 } }).needsYou).toBe(2)
   })
 
-  it('adds a stopped run to what its chat already asks', () => {
+  it('shows no badge on a process run’s chat, whatever waits, runs or is unread in it', () => {
     const parked = run({
       status: 'parked',
       park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
     } as Partial<ProcessRun>)
-    expect(
-      row({ chat: { context: RUN_CHAT }, run: parked, status: { ...QUIET, needsYou: 1 } }).needsYou,
-    ).toBe(2)
+    const busy = { ...QUIET, needsYou: 1, unreadCount: 2, isThinking: true, isAgentRunning: true }
+    for (const r of [parked, run()]) {
+      expect(row({ chat: { context: RUN_CHAT }, run: r, status: busy })).toMatchObject({
+        needsYou: 0,
+        running: false,
+        fresh: false,
+      })
+    }
+    const stepAgent: ChatContext = {
+      type: 'AGENT_RUN_STORY',
+      projectId: 'p1',
+      storyId: 's7',
+      agentRunId: 'a1',
+    }
+    expect(row({ chat: { context: stepAgent }, status: busy })).toMatchObject({
+      needsYou: 0,
+      running: false,
+      fresh: false,
+    })
   })
 
-  it('shows nothing waiting in a chat the person muted, even its stopped run, and says it is muted', () => {
-    const parked = run({
-      status: 'parked',
-      park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
-    } as Partial<ProcessRun>)
-    const muted = row({
-      chat: { context: RUN_CHAT },
-      run: parked,
-      status: { ...QUIET, muted: true },
-    })
+  it('shows nothing waiting in a chat the person muted, and says it is muted', () => {
+    const muted = row({ chat: { context: TOPIC }, status: { ...QUIET, needsYou: 2, muted: true } })
     expect(muted.needsYou).toBe(0)
     expect(muted.muted).toBe(true)
     expect(row({ chat: { context: TOPIC } }).muted).toBe(false)
@@ -238,25 +264,6 @@ describe('chatListRow — what a row shows of its state', () => {
     expect(
       row({ chat: { context: TOPIC }, status: { ...QUIET, isAgentRunning: true } }).running,
     ).toBe(true)
-  })
-
-  it('runs while its process run works, in process ink', () => {
-    expect(row({ chat: { context: RUN_CHAT }, run: run() })).toMatchObject({
-      running: true,
-      runningChannel: 'processes',
-    })
-  })
-
-  it('runs while its run is starting', () => {
-    expect(row({ chat: { context: RUN_CHAT }, run: run({ status: 'pending' }) }).running).toBe(true)
-  })
-
-  it('runs while its run merges the work in', () => {
-    const merging = run({
-      status: 'succeeded',
-      integration: { status: 'integrating' },
-    } as Partial<ProcessRun>)
-    expect(row({ chat: { context: RUN_CHAT }, run: merging }).running).toBe(true)
   })
 
   it('is still once its run finished', () => {
@@ -331,6 +338,10 @@ describe('byChatListAttention', () => {
 describe('matchesChatListFilter', () => {
   it.each([
     ['all', listRow({}), true],
+    ['all', listRow({ kind: 'run', context: RUN_CHAT }), false],
+    ['needs-you', listRow({ kind: 'run', context: RUN_CHAT, needsYou: 1 }), false],
+    ['running', listRow({ kind: 'run', context: RUN_CHAT, running: true }), false],
+    ['runs', listRow({ kind: 'run', context: RUN_CHAT }), true],
     ['needs-you', listRow({ needsYou: 1 }), true],
     ['needs-you', listRow({}), false],
     ['running', listRow({ running: true }), true],
@@ -348,16 +359,16 @@ describe('matchesChatListFilter', () => {
 describe('chatListFilterCounts', () => {
   it('counts each filter’s rows', () => {
     const rows = [
-      listRow({ kind: 'run', needsYou: 1 }),
-      listRow({ kind: 'run', running: true }),
-      listRow({ kind: 'story', running: true }),
+      listRow({ kind: 'run', context: RUN_CHAT, needsYou: 1 }),
+      listRow({ kind: 'run', context: RUN_CHAT, running: true }),
+      listRow({ kind: 'story', running: true, needsYou: 1 }),
       listRow({ kind: 'feature' }),
       listRow({ kind: 'project' }),
     ]
     expect(chatListFilterCounts(rows)).toEqual({
-      all: 5,
+      all: 3,
       'needs-you': 1,
-      running: 2,
+      running: 1,
       runs: 2,
       stories: 2,
     })
@@ -394,9 +405,14 @@ describe('chatListSections — one project', () => {
   })
 
   it('narrows to the chosen filter', () => {
-    const rows = [listRow({ key: 'run', kind: 'run' }), listRow({ key: 'story', kind: 'story' })]
+    const rows = [
+      listRow({ key: 'run', kind: 'run', context: RUN_CHAT }),
+      listRow({ key: 'story', kind: 'story' }),
+    ]
     const [section] = chatListSections({ rows, scope, filter: 'runs', archived: false })
     expect(section?.rows.map((r) => r.key)).toEqual(['run'])
+    const [all] = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(all?.rows.map((r) => r.key)).toEqual(['story'])
   })
 
   it('shows only the archived chats in the archived view, without their badges', () => {
@@ -436,6 +452,22 @@ describe('chatListSections — a group', () => {
       ['group-needs-you', CHAT_LIST_COPY.groupNeedsYou, ['both', 'asking']],
       ['group-running', CHAT_LIST_COPY.groupRunning, ['working']],
     ])
+  })
+
+  it('lists its projects’ run chats only under Runs, in their own section', () => {
+    const runChat = listRow({ key: 'run', kind: 'run', context: RUN_CHAT, projectId: 'p1' })
+    const outsideRun = listRow({ key: 'run-out', kind: 'run', context: RUN_CHAT, projectId: 'p9' })
+    const rows = [groupMain, asking, runChat, outsideRun]
+    const runs = chatListSections({ rows, scope, filter: 'runs', archived: false })
+    expect(runs.map((s) => [s.id, s.label, s.rows.map((r) => r.key)])).toEqual([
+      ['group-runs', CHAT_LIST_COPY.groupRuns, ['run']],
+    ])
+    const all = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(all.flatMap((s) => s.rows.map((r) => r.key))).toEqual(['general', 'asking'])
+    expect(chatListFilterCounts(chatListPool(rows, scope, false))).toMatchObject({
+      all: 2,
+      runs: 1,
+    })
   })
 
   it('drops a section with nothing in it', () => {

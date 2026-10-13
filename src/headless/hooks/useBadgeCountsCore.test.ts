@@ -2,15 +2,29 @@ import { describe, expect, it } from 'vitest'
 import { ZERO_BADGE_COUNTS, chatBadgeTally, computeBadgeCounts } from './useBadgeCountsCore'
 
 describe('computeBadgeCounts — processes channel', () => {
+  it('carries the runs whose own chat has an unread reply, off with the channel', () => {
+    const processes = { running: 0, waiting: 0, failed: 0, unread: 2 }
+    expect(computeBadgeCounts({ chats: [], processes }).processesUnread).toBe(2)
+    expect(
+      computeBadgeCounts({ chats: [], processes, enabled: { processes: false } }).processesUnread,
+    ).toBe(0)
+  })
+
   it('reports running, waiting and failed root runs separately', () => {
-    const out = computeBadgeCounts({ chats: [], processes: { running: 2, waiting: 1, failed: 3 } })
+    const out = computeBadgeCounts({
+      chats: [],
+      processes: { running: 2, waiting: 1, failed: 3, unread: 0 },
+    })
     expect(out.processesRunning).toBe(2)
     expect(out.processesWaiting).toBe(1)
     expect(out.processesFailed).toBe(3)
   })
 
   it('keeps a waiting-only scope from reading as running', () => {
-    const out = computeBadgeCounts({ chats: [], processes: { running: 0, waiting: 1, failed: 0 } })
+    const out = computeBadgeCounts({
+      chats: [],
+      processes: { running: 0, waiting: 1, failed: 0, unread: 0 },
+    })
     expect(out.processesRunning).toBe(0)
     expect(out.processesWaiting).toBe(1)
   })
@@ -18,7 +32,7 @@ describe('computeBadgeCounts — processes channel', () => {
   it('zeroes all three when the processes badge is turned off', () => {
     const out = computeBadgeCounts({
       chats: [],
-      processes: { running: 3, waiting: 2, failed: 1 },
+      processes: { running: 3, waiting: 2, failed: 1, unread: 0 },
       enabled: { processes: false },
     })
     expect(out.processesRunning).toBe(0)
@@ -33,7 +47,7 @@ describe('computeBadgeCounts — processes channel', () => {
   it('does not let another channel toggle gate processes', () => {
     const out = computeBadgeCounts({
       chats: [{ unreadMessages: 2, isThinking: true }],
-      processes: { running: 1, waiting: 1, failed: 0 },
+      processes: { running: 1, waiting: 1, failed: 0, unread: 0 },
       enabled: { chat: false, activity: false },
     })
     expect(out.chat).toBe(0)

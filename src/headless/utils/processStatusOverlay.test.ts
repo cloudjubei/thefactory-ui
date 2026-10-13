@@ -7,9 +7,14 @@ import { PROCESS_STATUS_OVERLAY_TITLES } from './processStatusOverlayConstants'
 const run = (over: Partial<ProcessRun>): Pick<ProcessRun, 'id' | 'status' | 'park'> =>
   ({ id: 'run-1', status: 'running', ...over }) as Pick<ProcessRun, 'id' | 'status' | 'park'>
 
+const NOW = 1_000
+
 describe('processStatusOverlay', () => {
   it('parked at the SIGN-OFF gate → Reviewable, linking to the run', () => {
-    const o = processStatusOverlay(run({ status: 'parked', park: { reason: 'gate' } as never }))
+    const o = processStatusOverlay(
+      run({ status: 'parked', park: { reason: 'gate' } as never }),
+      NOW,
+    )
     expect(o).toEqual({
       label: 'Reviewable',
       semantic: 'review',
@@ -22,7 +27,7 @@ describe('processStatusOverlay', () => {
     // A step-failed / step-waiting / step-errored park is not a sign-off — the
     // Reviewable word must be reserved for the gate, or it would mean "stuck".
     for (const reason of ['step-failed', 'step-waiting', 'step-errored', 'loop-exhausted']) {
-      const o = processStatusOverlay(run({ status: 'parked', park: { reason } as never }))
+      const o = processStatusOverlay(run({ status: 'parked', park: { reason } as never }), NOW)
       expect(o).toEqual({
         label: 'Blocked',
         semantic: 'stuck',
@@ -33,16 +38,16 @@ describe('processStatusOverlay', () => {
   })
 
   it('running or pending → Working', () => {
-    expect(processStatusOverlay(run({ status: 'running' }))?.label).toBe('Working')
-    expect(processStatusOverlay(run({ status: 'pending' }))?.label).toBe('Working')
-    expect(processStatusOverlay(run({ status: 'running' }))?.semantic).toBe('working')
-    expect(processStatusOverlay(run({ status: 'running' }))?.title).toBe(
+    expect(processStatusOverlay(run({ status: 'running' }), NOW)?.label).toBe('Working')
+    expect(processStatusOverlay(run({ status: 'pending' }), NOW)?.label).toBe('Working')
+    expect(processStatusOverlay(run({ status: 'running' }), NOW)?.semantic).toBe('working')
+    expect(processStatusOverlay(run({ status: 'running' }), NOW)?.title).toBe(
       PROCESS_STATUS_OVERLAY_TITLES.working,
     )
   })
 
   it('failed → Blocked', () => {
-    expect(processStatusOverlay(run({ status: 'failed' }))).toEqual({
+    expect(processStatusOverlay(run({ status: 'failed' }), NOW)).toEqual({
       label: 'Blocked',
       semantic: 'stuck',
       title: PROCESS_STATUS_OVERLAY_TITLES.stuck,
@@ -69,12 +74,12 @@ describe('processStatusOverlay', () => {
 
   it('a run a PERSON rejected or abandoned yields NO overlay: its features are pending again', () => {
     for (const choice of ['reject', 'abandon'] as const) {
-      expect(processStatusOverlay(decidedRun(choice))).toBeUndefined()
+      expect(processStatusOverlay(decidedRun(choice), NOW)).toBeUndefined()
     }
   })
 
   it('a run ended on a request for changes says so and links to it, where it is sent back', () => {
-    expect(processStatusOverlay(decidedRun('request-changes'))).toEqual({
+    expect(processStatusOverlay(decidedRun('request-changes'), NOW)).toEqual({
       label: 'Changes requested',
       semantic: 'onhold',
       title: PROCESS_STATUS_OVERLAY_TITLES.changesRequested,
@@ -83,13 +88,13 @@ describe('processStatusOverlay', () => {
   })
 
   it('a run that failed with nobody deciding stays Blocked — it is stuck', () => {
-    expect(processStatusOverlay(decidedRun('retry'))?.label).toBe('Blocked')
+    expect(processStatusOverlay(decidedRun('retry'), NOW)?.label).toBe('Blocked')
   })
 
   it('a finished (succeeded / cancelled) or absent run yields NO overlay — the stored status stands', () => {
-    expect(processStatusOverlay(run({ status: 'succeeded' }))).toBeUndefined()
-    expect(processStatusOverlay(run({ status: 'cancelled' }))).toBeUndefined()
-    expect(processStatusOverlay(undefined)).toBeUndefined()
+    expect(processStatusOverlay(run({ status: 'succeeded' }), NOW)).toBeUndefined()
+    expect(processStatusOverlay(run({ status: 'cancelled' }), NOW)).toBeUndefined()
+    expect(processStatusOverlay(undefined, NOW)).toBeUndefined()
   })
 
   const approvedRun = (integration?: ProcessRun['integration'], shadow = false) =>
@@ -113,7 +118,10 @@ describe('processStatusOverlay', () => {
 
   it('approved work that did not land says so and links to the run, where it is brought in', () => {
     expect(
-      processStatusOverlay(approvedRun({ mode: 'squash', status: 'failed', error: 'x', at: 2 })),
+      processStatusOverlay(
+        approvedRun({ mode: 'squash', status: 'failed', error: 'x', at: 2 }),
+        NOW,
+      ),
     ).toEqual({
       label: 'Not merged',
       semantic: 'onhold',
@@ -123,12 +131,12 @@ describe('processStatusOverlay', () => {
   })
 
   it('approved work in a project without git of its own says it was not brought in', () => {
-    expect(processStatusOverlay(approvedRun(undefined, true))?.label).toBe('Not brought in')
+    expect(processStatusOverlay(approvedRun(undefined, true), NOW)?.label).toBe('Not brought in')
   })
 
   it('approved work being brought in shows it is merging', () => {
     expect(
-      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrating', at: 2 })),
+      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrating', at: 2 }), NOW),
     ).toEqual({
       label: 'Merging',
       semantic: 'working',
@@ -139,19 +147,48 @@ describe('processStatusOverlay', () => {
 
   it('approved work being brought into a project without git of its own says so without git words', () => {
     expect(
-      processStatusOverlay(approvedRun({ mode: 'merge', status: 'integrating', at: 2 }, true))
+      processStatusOverlay(approvedRun({ mode: 'merge', status: 'integrating', at: 2 }, true), NOW)
         ?.label,
     ).toBe('Bringing in')
   })
 
   it('approved work that landed yields NO overlay — the stored status stands', () => {
     expect(
-      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrated', at: 2 })),
+      processStatusOverlay(approvedRun({ mode: 'squash', status: 'integrated', at: 2 }), NOW),
     ).toBeUndefined()
   })
 
   it('parked with no park record at all falls back to Blocked, never Reviewable', () => {
-    expect(processStatusOverlay(run({ status: 'parked' }))?.label).toBe('Blocked')
+    expect(processStatusOverlay(run({ status: 'parked' }), NOW)?.label).toBe('Blocked')
+  })
+})
+
+describe('processStatusOverlay — a stop its agent manager has', () => {
+  const turn = { runId: 'r', parkedAt: 1, signature: 's', startedAt: 900, chatContextId: 'c' }
+  const stopped = (over: Partial<ProcessRun>, reason = 'step-failed') =>
+    ({
+      id: 'r',
+      status: 'parked',
+      park: { reason, message: 'm', parkedAt: 1 },
+      ...over,
+    }) as ProcessRun
+
+  it('reads Working, linking to the run, while the manager is on it', () => {
+    expect(processStatusOverlay(stopped({ manager: { turn } }), NOW)).toEqual({
+      label: 'Working',
+      semantic: 'working',
+      title: 'The agent manager is on it — open the pipeline',
+      runId: 'r',
+    })
+    expect(processStatusOverlay(stopped({ manager: { turn } }, 'gate'), NOW)?.label).toBe('Working')
+  })
+
+  it('reads Blocked or Reviewable again once the stop is the person’s', () => {
+    const stale = 900 + 3 * 60 * 60 * 1000
+    expect(processStatusOverlay(stopped({ manager: { turn } }), stale)?.label).toBe('Blocked')
+    expect(processStatusOverlay(stopped({ manager: { turn } }, 'gate'), stale)?.label).toBe(
+      'Reviewable',
+    )
   })
 })
 

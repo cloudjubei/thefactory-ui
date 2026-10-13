@@ -55,6 +55,10 @@ export const PROCESS_RUN_NEED_NOT_MERGED = {
   shadow: 'not brought into the project folder',
 } as const
 
+/** Asks waiting in the run's own chat — after "Answer:". */
+export const PROCESS_RUN_NEED_CHAT_ASKS = (count: number): string =>
+  count === 1 ? 'a card in its chat' : `${count} cards in its chat`
+
 /** A request for changes with no words of its own — after "Send back:". */
 export const PROCESS_RUN_NEED_SEND_BACK_NO_NOTE = 'your requested changes'
 
@@ -75,3 +79,6 @@ export const PROCESS_RUN_NEED_ATTEMPT = (attempt: number): string => `attempt ${
 /** What a count of runs waiting on the person says on hover. */
 export const PROCESS_RUN_WAITING_TITLE = (count: number): string =>
   `${count} ${count === 1 ? 'run waits' : 'runs wait'} on you`
+
+/** What a row's dot says: its run's own chat holds a reply the person has not read. */
+export const PROCESS_RUN_FRESH_TITLE = 'Its chat has a reply you have not read'

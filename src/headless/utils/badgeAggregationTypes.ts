@@ -1,10 +1,12 @@
 /**
- * Live ROOT process runs for a scope: `running` = pending, running or merging
- * (the moving droplets), `waiting` = parked on the user — at the sign-off gate
- * or any other park, or approved work not brought in yet — and `failed` =
- * approved work whose merge failed (something broke: red).
+ * ROOT process runs for a scope: `running` = pending, running or merging, or
+ * stopped with its agent manager on it (the moving droplets), `waiting` =
+ * waiting on the user — at the sign-off gate or any other stop that is theirs,
+ * approved work not brought in yet, or an ask in the run's own chat — `failed`
+ * = approved work whose merge failed (something broke: red), and `unread` =
+ * runs whose own chat holds a reply the user has not read, nothing waiting.
  */
-export type ProcessTally = { running: number; waiting: number; failed: number }
+export type ProcessTally = { running: number; waiting: number; failed: number; unread: number }
 
 export type BadgeState = {
   /** `unread` = chats with news (an ask counts as news), `waiting` = chats with an ask waiting on the person. */

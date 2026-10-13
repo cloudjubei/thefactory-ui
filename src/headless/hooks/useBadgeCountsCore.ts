@@ -40,6 +40,8 @@ export type BadgeCounts = {
   processesWaiting: number
   /** Root process runs whose approved work failed to merge — counted with the waiting, in red. */
   processesFailed: number
+  /** Root process runs whose own chat holds a reply the person has not read — a dot. */
+  processesUnread: number
   /** The expired sign-ins the scope's live chats use, by name — the Chat tab turns red. */
   chatSignInExpired: readonly string[]
   /** The expired sign-ins the scope's current runs use, by name — the Processes tab turns red. */
@@ -59,6 +61,7 @@ export const ZERO_BADGE_COUNTS: BadgeCounts = {
   processesRunning: 0,
   processesWaiting: 0,
   processesFailed: 0,
+  processesUnread: 0,
   chatSignInExpired: [],
   processesSignInExpired: [],
 }
@@ -116,7 +119,7 @@ export type UseBadgeCountsCoreInput = {
   failingTests?: number
   /** Background activities running in scope (count + working flag). */
   activity?: BadgeActivityInput
-  /** Live root process runs in scope, from `processTallyByProject`. */
+  /** Root process runs in scope, from `processTallyByProject`. */
   processes?: ProcessTally
   /** The expired sign-ins the scope's live chats and current runs use, from `expiredSignInsByScope`. */
   signIn?: ScopeSignIns
@@ -206,6 +209,7 @@ export function computeBadgeCounts(input: UseBadgeCountsCoreInput): BadgeCounts 
     out.processesRunning = input.processes.running
     out.processesWaiting = input.processes.waiting
     out.processesFailed = input.processes.failed
+    out.processesUnread = input.processes.unread
   }
 
   if (enabled.processes && input.signIn) {

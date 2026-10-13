@@ -22,6 +22,7 @@ export const CHAT_LIST_COPY = {
   groupChats: 'Group chats',
   groupNeedsYou: 'Needs you in this group',
   groupRunning: 'Running in this group',
+  groupRuns: 'Runs in this group',
   needsYou: 'Needs you',
   running: 'Working',
   fresh: 'New messages',

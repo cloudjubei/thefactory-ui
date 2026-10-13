@@ -4,6 +4,7 @@ import { PROCESS_RUN_WORDS } from './processViewConstants'
 export const PROCESS_STATUS_OVERLAY_TITLES = {
   review: 'Ready for sign-off — open the pipeline to review and approve',
   working: 'The process is running — open the pipeline',
+  managerOnIt: 'The agent manager is on it — open the pipeline',
   stuck: 'The process is stuck — open the pipeline to unblock it',
   changesRequested: 'You requested changes — open the pipeline to send the work back to be fixed',
   notLanded: 'Approved, but its work was not brought in — open the pipeline to bring it in',

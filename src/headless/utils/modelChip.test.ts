@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { activeLlmConfig, modelChipLabel, modelChipProviderLabel } from './modelChip'
+import {
+  activeLlmConfig,
+  chatChipCliSelection,
+  modelChipLabel,
+  modelChipProviderLabel,
+} from './modelChip'
 
 describe('modelChipProviderLabel', () => {
   it('names a known provider as a person reads it, whatever its case', () => {
@@ -99,5 +104,77 @@ describe('activeLlmConfig', () => {
 
   it('is nothing with no configs', () => {
     expect(activeLlmConfig([], 'a')).toBeNull()
+  })
+})
+
+describe('chatChipCliSelection', () => {
+  const clis = {
+    activeCli: 'claude',
+    activeCliCredentialId: 'cred-active',
+    defaultModel: { claude: 'sonnet', codex: 'gpt-5' } as Record<string, string | undefined>,
+  }
+
+  it('shows an API chat as API, seeded on the active CLI', () => {
+    expect(chatChipCliSelection({ ...clis })).toEqual({
+      useCli: false,
+      selectedCli: 'claude',
+      selectedCliModelId: 'sonnet',
+      credentialId: 'cred-active',
+    })
+  })
+
+  it('shows the chat’s own CLI binding', () => {
+    expect(
+      chatChipCliSelection({
+        ...clis,
+        cliRunner: { tool: 'codex', model: 'gpt-5-mini', credentialId: 'cred-codex' },
+      }),
+    ).toEqual({
+      useCli: true,
+      selectedCli: 'codex',
+      selectedCliModelId: 'gpt-5-mini',
+      credentialId: 'cred-codex',
+    })
+  })
+
+  it('shows the CLI chosen for a run over the chat’s, at that CLI’s default model', () => {
+    expect(
+      chatChipCliSelection({
+        ...clis,
+        cliRunner: { tool: 'claude', model: 'opus' },
+        overrideCli: 'codex',
+      }),
+    ).toMatchObject({ useCli: true, selectedCli: 'codex', selectedCliModelId: 'gpt-5' })
+  })
+
+  it('shows the model chosen for a run over everything else', () => {
+    expect(
+      chatChipCliSelection({
+        ...clis,
+        cliRunner: { tool: 'claude', model: 'opus' },
+        overrideModel: 'haiku',
+      }),
+    ).toMatchObject({ useCli: true, selectedCli: 'claude', selectedCliModelId: 'haiku' })
+  })
+
+  it('shows the API side when the API was chosen for a run, over the chat’s CLI', () => {
+    expect(
+      chatChipCliSelection({
+        ...clis,
+        cliRunner: { tool: 'codex', model: 'gpt-5-mini' },
+        overrideApi: true,
+      }),
+    ).toMatchObject({ useCli: false, selectedCli: 'codex' })
+  })
+
+  it('has no CLI to show when none is active, bound or chosen', () => {
+    expect(
+      chatChipCliSelection({ activeCli: null, activeCliCredentialId: null, defaultModel: {} }),
+    ).toEqual({
+      useCli: false,
+      selectedCli: null,
+      selectedCliModelId: undefined,
+      credentialId: undefined,
+    })
   })
 })

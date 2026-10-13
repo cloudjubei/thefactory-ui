@@ -132,7 +132,7 @@ describe('runReferencePreview', () => {
     expect(runReferencePreview(r, { now: 0, story: '#8 Fixture rework' })).toEqual({
       caption: 'Process run',
       title: 'Test-fixture rework',
-      status: processRunBadge(r),
+      status: processRunBadge(r, 0),
       lines: [
         { label: 'Story', value: '#8 Fixture rework' },
         { label: 'Step', value: 'Sign-off · waiting for you' },

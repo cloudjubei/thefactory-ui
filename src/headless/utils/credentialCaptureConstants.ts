@@ -39,15 +39,22 @@ export const CREDENTIAL_CAPTURE_FIELDS: Record<
   readonly CredentialCaptureFieldSpec[]
 > = {
   git: [
-    { name: 'name', label: 'Name', placeholder: 'GitHub — personal', type: 'text' },
-    { name: 'username', label: 'Username', placeholder: 'your-github-username', type: 'text' },
-    { name: 'email', label: 'Email', placeholder: 'your@email.com', type: 'email' },
+    { name: 'name', label: 'Name', placeholder: 'GitHub — personal', type: 'text', newOnly: true },
+    {
+      name: 'username',
+      label: 'Username',
+      placeholder: 'your-github-username',
+      type: 'text',
+      newOnly: true,
+    },
+    { name: 'email', label: 'Email', placeholder: 'your@email.com', type: 'email', newOnly: true },
     {
       name: 'host',
       label: 'Host (optional)',
       placeholder: 'dev.azure.com',
       type: 'text',
       optional: true,
+      newOnly: true,
     },
     { name: 'token', label: 'Personal access token', placeholder: 'ghp_…', type: 'secret' },
   ],

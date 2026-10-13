@@ -1,4 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { useLaunchAgentPick } from '../../../headless/hooks/useLaunchAgentPick'
+import {
+  launchAgentPickMetadata,
+  launchAgentPickRunner,
+} from '../../../headless/utils/launchAgentPick'
+import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 import { Pressable, Text, View, useWindowDimensions } from 'react-native'
 
@@ -74,6 +80,12 @@ export type ApprovalPanelProps = {
   projectId?: string
   /** The chat's group, for a launch across the group's projects. */
   groupId?: string
+  /**
+   * The app's own model chip, wired to THIS chat. Rendered in place of the
+   * static executor label so the model can be picked before the run starts;
+   * hosts with no connected chip omit it and get the label instead.
+   */
+  renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
   onDecideLater: () => void
   /** The ask was decided on its card — what the card folds to. */
   onDecided?: (line: ToolAskDecidedLine) => void
@@ -96,6 +108,7 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
       <GroupWorkLaunchPanel
         grant={props.grant}
         {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
+        {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
         onDecideLater={props.onDecideLater}
         {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
@@ -125,6 +138,7 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         grant={props.grant}
         {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
         onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
     )
   }
@@ -139,7 +153,13 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
   )
 }
 
-function ToolApprovalPanel({ grant, projectId, onDecideLater, onDecided }: ApprovalPanelProps) {
+function ToolApprovalPanel({
+  grant,
+  projectId,
+  onDecideLater,
+  onDecided,
+  renderModelChip,
+}: ApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
@@ -160,13 +180,17 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater, onDecided }: Appro
   // The card can take most of the screen while it is read through.
   const [expanded, setExpanded] = useState(false)
   const windowHeight = useWindowDimensions().height
+  // The agent this WORK runs on — the API or a CLI, a model — seeded from the
+  // chat by the chip and sent with the decision, never written back to the
+  // conversation.
+  const { pick: agentPick, slot: chipSlot } = useLaunchAgentPick()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // How far each step's agent may go — the person's pick, else what the agent
   // asked for, else the default for the transport the work runs on.
   const turnLimitStart = processGrantTurnLimitView(
     summary.turnLimit,
-    summary.runner ?? grant.chatRunner,
+    launchAgentPickRunner(agentPick, summary.runner ?? grant.chatRunner),
   )
   const [turnLimitPick, setTurnLimitPick] = useState<
     { limited: boolean; maxTurns: number } | undefined
@@ -256,6 +280,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater, onDecided }: Appro
               // agent chose (its Verify → Report chain), so the launch carries
               // the agent's own choice unchanged rather than overriding it here.
               ...(trimmedNote ? { note: trimmedNote } : {}),
+              ...launchAgentPickMetadata(agentPick),
               turnLimit: processTurnLimitOfView(turnLimit),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
@@ -396,31 +421,35 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater, onDecided }: Appro
               flexWrap: 'wrap',
             }}
           >
-            <Tooltip content={<Text style={tipText}>{runnerLabel.tip}</Text>}>
-              <View style={pill}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: runnerLabel.redirected ? status.working.softFg : theme.text.secondary,
-                  }}
-                >
-                  {runnerLabel.label}
-                </Text>
-                <View
-                  style={{
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: theme.border.subtle,
-                    paddingHorizontal: 5,
-                    paddingVertical: 1,
-                  }}
-                >
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.text.secondary }}>
-                    {runnerLabel.pill}
+            {renderModelChip ? (
+              renderModelChip(chipSlot)
+            ) : (
+              <Tooltip content={<Text style={tipText}>{runnerLabel.tip}</Text>}>
+                <View style={pill}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: runnerLabel.redirected ? status.working.softFg : theme.text.secondary,
+                    }}
+                  >
+                    {runnerLabel.label}
                   </Text>
+                  <View
+                    style={{
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: theme.border.subtle,
+                      paddingHorizontal: 5,
+                      paddingVertical: 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '600', color: theme.text.secondary }}>
+                      {runnerLabel.pill}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </Tooltip>
+              </Tooltip>
+            )}
           </View>
           <TurnLimitField
             {...turnLimitStart}

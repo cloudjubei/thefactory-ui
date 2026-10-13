@@ -1,11 +1,18 @@
-import type { ProcessLedgerEntry, ProcessRun, ProcessStepState } from 'thefactory-tools/types'
+import type {
+  ProcessLedgerEntry,
+  ProcessRun,
+  ProcessRunStopHolder,
+  ProcessStepState,
+} from 'thefactory-tools/types'
 
 import { processNodeState, processNodeSummary, processNodeTone } from './processView'
 import {
   PROCESS_REVIEW_VERDICT_WORDS,
+  PROCESS_STAGE_MANAGER_ON_IT,
   PROCESS_STAGE_MARKS,
   PROCESS_STAGE_WORDS,
   PROCESS_STEP_FILING_GRACE_MS,
+  PROCESS_STEP_MANAGER_ON_IT,
   PROCESS_STEP_NOT_NEEDED,
   PROCESS_STEP_RESULT_MAX,
   PROCESS_STEP_SKIPPED,
@@ -72,21 +79,27 @@ function resultLine(
  * A step's row on the pipeline: one short result line read from what the step
  * already recorded, and whether it has anything to preview. A skipped, not
  * needed or not-yet-reached step is inert — nothing to time, cost or open. A
- * story run's sign-off opens to its decision once the person has made it.
+ * story run's sign-off opens to its decision once the person has made it. The
+ * step the run is stopped at waits on the person — unless `stopHolder` (from
+ * `processRunStopHolder`) says the agent manager has the stop: then it says
+ * the manager is on it.
  */
 export function processStepRowView(
   state: ProcessStepState,
   parkStepId: string | undefined,
   run?: Pick<ProcessRun, 'storyId' | 'parentRunId'>,
+  stopHolder?: ProcessRunStopHolder,
 ): ProcessStepRowView {
   const nodeState = processNodeState(state, parkStepId)
+  const managerOnIt = nodeState === 'parked' && stopHolder === 'manager'
   const inert = nodeState === 'skipped' || (nodeState === 'queued' && state.entries.length === 0)
   const preview = previewKind(state, run)
-  const result = resultLine(state, nodeState)
+  const result = managerOnIt ? PROCESS_STEP_MANAGER_ON_IT : resultLine(state, nodeState)
   return {
     inert,
     result: result ? clipLine(result.split('\n')[0], PROCESS_STEP_RESULT_MAX) : undefined,
-    waitingOnYou: nodeState === 'parked',
+    waitingOnYou: nodeState === 'parked' && !managerOnIt,
+    managerOnIt,
     expandable: !inert && preview !== 'none' && state.latest !== undefined,
     preview,
   }
@@ -100,9 +113,12 @@ export function processStepRowView(
 export function processStageChips(
   states: readonly ProcessStepState[],
   parkStepId: string | undefined,
+  stopHolder?: ProcessRunStopHolder,
 ): ProcessStageChip[] {
   return states.map((s) => {
-    const nodeState = processNodeState(s, parkStepId)
+    const stopped = processNodeState(s, parkStepId)
+    const managerOnIt = stopped === 'parked' && stopHolder === 'manager'
+    const nodeState = managerOnIt ? 'working' : stopped
     const accepted =
       s.latest !== undefined &&
       s.step.agentType === 'verifier' &&
@@ -114,7 +130,9 @@ export function processStageChips(
         ? PROCESS_REVIEW_VERDICT_WORDS[review.verdict].toLowerCase()
         : s.attempts > 1 && nodeState === 'done'
           ? `${s.attempts} attempts`
-          : PROCESS_STAGE_WORDS[nodeState]
+          : managerOnIt
+            ? PROCESS_STAGE_MANAGER_ON_IT
+            : PROCESS_STAGE_WORDS[nodeState]
     return {
       stepId: s.step.id,
       label: s.step.name,

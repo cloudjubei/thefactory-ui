@@ -1,4 +1,5 @@
 import type {
+  ProcessRunStopHolder,
   ProcessDefinition,
   ProcessLedgerEntry,
   ProcessNodeRunRef,
@@ -11,6 +12,7 @@ import type {
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
 import { processIntegrationBadge } from './processIntegration'
+import { processRunManagerLine } from './processRunStop'
 import {
   PROCESS_RUN_PERSON_ENDING_VIEW,
   PROCESS_RUN_WORDS,
@@ -30,6 +32,7 @@ import {
   isProcessGateLoop,
   processRunDecision,
   processRunProgress,
+  processRunStopHolder,
   processStepStates,
   processVerifyReview,
 } from 'thefactory-tools/utils'
@@ -148,10 +151,10 @@ export function processRunChain(run: ProcessRun): string {
  * which decision, and the choices that answer it, live in the pipeline where
  * their context is.
  */
-export function processRunChipLabel(run: ProcessRun): string {
+export function processRunChipLabel(run: ProcessRun, now: number): string {
   if (run.status === 'cancelled') return PROCESS_RUN_WORDS.cancelled
   const { completed, total } = processRunProgress(run)
-  return `${processRunBadge(run).label} · ${completed}/${total} steps`
+  return `${processRunBadge(run, now).label} · ${completed}/${total} steps`
 }
 
 /**
@@ -561,14 +564,24 @@ export function processLoopSenders(
 
 /**
  * The run's headline badge — refined for a park, which the plain status view
- * cannot be: a run stopped on the sign-off GATE is "Sign off" (review), one
- * stopped on a question or a failure is "Needs you" (on-hold). Every other
- * status reads straight from {@link PROCESS_RUN_STATUS_VIEW}.
+ * cannot be: a stop its agent manager has (`processRunStopHolder`) is "Manager
+ * on it" in the running tone, a run stopped on the sign-off GATE is "Sign off"
+ * (review), one stopped on a question or a failure is "Needs you" (on-hold).
+ * A nested run passes `stopHolder` as its top-level run reads it
+ * (`processRunStopHolderOf`). Every other status reads straight from
+ * {@link PROCESS_RUN_STATUS_VIEW}.
  */
-export function processRunBadge(run: ProcessRun): { label: string; tone: ProcessStatusTone } {
+export function processRunBadge(
+  run: ProcessRun,
+  now: number,
+  stopHolder: ProcessRunStopHolder | undefined = processRunStopHolder(run, now),
+): { label: string; tone: ProcessStatusTone } {
   const integration = processIntegrationBadge(run)
   if (integration) return integration
   if (run.status === 'parked') {
+    if (stopHolder === 'manager') {
+      return { label: PROCESS_RUN_WORDS.managerOnIt, tone: PROCESS_LIVE_TONE }
+    }
     return run.park?.reason === 'gate'
       ? { label: PROCESS_RUN_WORDS.signOff, tone: 'review' }
       : { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
@@ -598,10 +611,10 @@ export interface ProcessRunCardView {
  * "did it work?" is a normal next message. The counts come from the run itself,
  * so the card can never claim more than happened.
  */
-export function processRunCardView(run: ProcessRun): ProcessRunCardView {
+export function processRunCardView(run: ProcessRun, now: number): ProcessRunCardView {
   const { completed, total } = processRunProgress(run)
   const current = processStepStates(run).find((s) => s.current)
-  const badge = processRunBadge(run)
+  const badge = processRunBadge(run, now)
   const cta = 'Open the pipeline'
   const title = processRunChain(run)
   if (run.status === 'parked') {
@@ -611,9 +624,10 @@ export function processRunCardView(run: ProcessRun): ProcessRunCardView {
       sub: current ? current.step.name : `${completed}/${total} steps`,
       body: {
         text:
-          run.park?.reason === 'gate'
+          processRunManagerLine(run, now) ??
+          (run.park?.reason === 'gate'
             ? 'Ready to sign off — decide in the run'
-            : '1 decision pending — answer it in the run',
+            : '1 decision pending — answer it in the run'),
         tone: badge.tone,
       },
       cta,

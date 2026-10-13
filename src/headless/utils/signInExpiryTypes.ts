@@ -1,4 +1,5 @@
 import type { ProcessRun } from 'thefactory-tools/types'
+import type { ChatChannel } from './chatChannelTypes'
 
 /** A stored CLI login as the app holds it: its CLI and, once checked, whether it is still signed in. */
 export type CliLogin = {
@@ -39,6 +40,10 @@ export type SignInChat = {
   cliRunner?: SignInChatRunner | null
   isThinking: boolean
   pendingAsks?: number
+  /** The stored logins the chat's open sign-in cards sign in again — the chat waits on them. */
+  signInCards?: readonly AgentLogin[]
+  /** The channel the chat counts on (`chatChannelOf`): a process run's chat counts with its project's runs. */
+  channel?: ChatChannel
 }
 
 /** A process run as a scope's sign-in reads it. */

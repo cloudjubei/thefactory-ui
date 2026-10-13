@@ -5,6 +5,7 @@ import { PROCESS_RUN_WORDS } from './processViewConstants'
 export const PROCESS_STEP_RESULT_MAX = 60
 
 export const PROCESS_STEP_WAITING_ON_YOU = PROCESS_RUN_WORDS.needsYou
+export const PROCESS_STEP_MANAGER_ON_IT = PROCESS_RUN_WORDS.managerOnIt
 export const PROCESS_STEP_NOT_NEEDED = 'Not needed — nothing was sent back'
 export const PROCESS_STEP_SKIPPED = 'Skipped'
 export const PROCESS_STEP_WORKING = 'Working…'
@@ -38,6 +39,9 @@ export const PROCESS_STAGE_WORDS: Record<ProcessNodeState, string | undefined> =
   queued: undefined,
   skipped: 'skipped',
 }
+
+/** The word a stage chip says while the agent manager has the stop it is at. */
+export const PROCESS_STAGE_MANAGER_ON_IT = PROCESS_RUN_WORDS.managerOnIt.toLowerCase()
 
 /** How far after an attempt ended its filing may still land and count as its own. */
 export const PROCESS_STEP_FILING_GRACE_MS = 120_000

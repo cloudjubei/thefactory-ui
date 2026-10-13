@@ -114,7 +114,7 @@ describe('chatHeaderView — a process run chat', () => {
     expect(view.kind).toBe('run')
     expect(view.kindLabel).toBe(CHAT_KIND_VIEW.run.label)
     expect(view.title).toBe('Project- and group-defined agent types')
-    expect(view.pill).toEqual(processRunBadge(r))
+    expect(view.pill).toEqual(processRunBadge(r, 0))
     expect(view.context).toBe('Story #7 · Implement')
     expect(view.strip?.label).toBe('Steps')
     expect(view.strip?.entries.map((e) => [e.label, e.phase])).toEqual([

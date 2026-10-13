@@ -107,7 +107,7 @@ function headerTitle(input: ChatHeaderInput, kind: ChatKind): string {
 
 function headerPill(input: ChatHeaderInput, kind: ChatKind): ChatHeaderPill | undefined {
   if (kind === 'assistant') return input.listHidden ? CHAT_HEADER_ARCHIVED_PILL : undefined
-  if (kind === 'run' && input.run) return processRunBadge(input.run)
+  if (kind === 'run' && input.run) return processRunBadge(input.run, input.now)
   const work = kind === 'story' ? input.story : kind === 'feature' ? input.feature : undefined
   return work ? { label: statusLabel(work.status), tone: storyStatusTone(work.status) } : undefined
 }

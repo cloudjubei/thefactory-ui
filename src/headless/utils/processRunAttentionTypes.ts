@@ -35,4 +35,6 @@ export interface ProcessRunListRow {
   asks: boolean
   /** Work is going on — running, or merging — so the row shows it is live. */
   live: boolean
+  /** Its own chat holds a reply the person has not read: the row carries a dot. */
+  fresh: boolean
 }

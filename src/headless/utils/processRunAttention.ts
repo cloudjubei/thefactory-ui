@@ -3,9 +3,11 @@ import {
   isProcessRunAwaitingIntegration,
   processRunDecision,
   processRunSendBackGateId,
+  processRunStopHolder,
   processStepStates,
 } from 'thefactory-tools/utils'
 
+import type { ProcessRunChatNews } from './chatChannelTypes'
 import { cleanCliToolName } from './cliRunner'
 import { latestProcessChecks } from './processChecksView'
 import { processIntegrationView } from './processIntegration'
@@ -14,6 +16,7 @@ import {
   PROCESS_RUN_ATTENTION_SECTIONS,
   PROCESS_RUN_NEED_ATTEMPT,
   PROCESS_RUN_NEED_BASE_CONFLICT,
+  PROCESS_RUN_NEED_CHAT_ASKS,
   PROCESS_RUN_NEED_DECISIONS,
   PROCESS_RUN_NEED_FAILED_TIMES,
   PROCESS_RUN_NEED_NOT_MERGED,
@@ -27,6 +30,7 @@ import type {
   ProcessRunAttentionSectionId,
   ProcessRunListRow,
 } from './processRunAttentionTypes'
+import { processRunManagerLine } from './processRunStop'
 import { processRunBadge, processRunChain, processRunChipLabel } from './processView'
 import { PROCESS_RUN_WORDS } from './processViewConstants'
 import { ledgerCodeReview } from './storySignoff'
@@ -34,15 +38,24 @@ import { ledgerCodeReview } from './storySignoff'
 /**
  * Where a run sits in the Processes list's Current tab: stopped for the person
  * (`needs-you` — a question, an approval, a failure, work that was not merged,
- * changes to send back), at its sign-off (`sign-off`), working (`running`), or
- * merging approved work (`merging`). `undefined` for a run that is history. Pure.
+ * changes to send back, or an ask waiting in its own chat), at its sign-off
+ * (`sign-off`), working (`running` — a stop its agent manager has included,
+ * per `processRunStopHolder`), or merging approved work (`merging`).
+ * `undefined` for a run that is history with nothing waiting in its chat. Pure.
  */
 export function processRunAttentionSection(
   run: ProcessRun,
+  now: number,
+  chatNews?: ProcessRunChatNews,
 ): ProcessRunAttentionSectionId | undefined {
-  if (!isProcessRunCurrent(run)) return undefined
+  const asks = (chatNews?.asks ?? 0) > 0
+  if (!isProcessRunCurrent(run)) return asks ? 'needs-you' : undefined
   if (run.integration?.status === 'integrating') return 'merging'
-  if (run.status === 'parked') return run.park?.reason === 'gate' ? 'sign-off' : 'needs-you'
+  if (run.status === 'parked') {
+    if (processRunStopHolder(run, now) === 'manager') return asks ? 'needs-you' : 'running'
+    return run.park?.reason === 'gate' ? 'sign-off' : 'needs-you'
+  }
+  if (asks) return 'needs-you'
   if (run.status === 'running' || run.status === 'pending') return 'running'
   return 'needs-you'
 }
@@ -50,18 +63,23 @@ export function processRunAttentionSection(
 /**
  * The one line a Processes row says under its title: what the run needs from
  * the person ("Answer: which branch to merge?", "Approve: push work branch",
- * "Decide: failed twice on Verify"), what its sign-off rests on ("Checks 22/22 ·
- * review clean"), the step it is on, or where its work is being merged.
- * `undefined` for a run that is history. Pure.
+ * "Decide: failed twice on Verify", "Answer: a card in its chat"), what its
+ * sign-off rests on ("Checks 22/22 · review clean"), what its manager is doing
+ * on its stop ("Manager: looking at “Verify”"), the step it is on, or where
+ * its work is being merged. `undefined` for a run that is history. Pure.
  */
-export function processRunNeedLine(run: ProcessRun): string | undefined {
-  switch (processRunAttentionSection(run)) {
+export function processRunNeedLine(
+  run: ProcessRun,
+  now: number,
+  chatNews?: ProcessRunChatNews,
+): string | undefined {
+  switch (processRunAttentionSection(run, now, chatNews)) {
     case 'needs-you':
-      return needsYouLine(run)
+      return needsYouLine(run, now, chatNews?.asks ?? 0)
     case 'sign-off':
       return signOffLine(run)
     case 'running':
-      return runningLine(run)
+      return processRunManagerLine(run, now) ?? runningLine(run)
     case 'merging':
       return processIntegrationView(run)?.title ?? PROCESS_RUN_WORDS.merging
     default:
@@ -70,29 +88,37 @@ export function processRunNeedLine(run: ProcessRun): string | undefined {
 }
 
 /** A row of the Processes list — see {@link ProcessRunListRow}. Pure. */
-export function processRunListRow(run: ProcessRun): ProcessRunListRow {
-  const section = processRunAttentionSection(run)
+export function processRunListRow(
+  run: ProcessRun,
+  now: number,
+  chatNews?: ProcessRunChatNews,
+): ProcessRunListRow {
+  const section = processRunAttentionSection(run, now, chatNews)
   return {
     title: run.title.trim() || processRunChain(run),
-    line: processRunNeedLine(run) ?? processRunChipLabel(run),
-    tone: processRunBadge(run).tone,
+    line: processRunNeedLine(run, now, chatNews) ?? processRunChipLabel(run, now),
+    tone: processRunBadge(run, now).tone,
     ...(section ? { section } : {}),
     asks: section === 'needs-you',
     live: section === 'running' || section === 'merging',
+    fresh: (chatNews?.unread ?? 0) > 0,
   }
 }
 
 /**
  * The Current tab's sections — Needs you, Sign off, Running, Merging — each
  * with its runs in the order given; a section with none is left out, and so is
- * every run that is history. Pure.
+ * every run that is history. `chatNews` holds what each run's own chat holds
+ * for the person, by run id. Pure.
  */
 export function processRunAttentionSections<T extends ProcessRun>(
   runs: readonly T[],
+  now: number,
+  chatNews?: ReadonlyMap<string, ProcessRunChatNews>,
 ): ProcessRunAttentionSection<T>[] {
   const bySection = new Map<ProcessRunAttentionSectionId, T[]>()
   for (const run of runs) {
-    const id = processRunAttentionSection(run)
+    const id = processRunAttentionSection(run, now, chatNews?.get(run.id))
     if (!id) continue
     bySection.set(id, [...(bySection.get(id) ?? []), run])
   }
@@ -103,9 +129,13 @@ export function processRunAttentionSections<T extends ProcessRun>(
 }
 
 /** How many runs wait on the person — Needs you and Sign off — what the Current tab counts. Pure. */
-export function processRunWaitingCount(runs: readonly ProcessRun[]): number {
+export function processRunWaitingCount(
+  runs: readonly ProcessRun[],
+  now: number,
+  chatNews?: ReadonlyMap<string, ProcessRunChatNews>,
+): number {
   return runs.filter((run) => {
-    const section = processRunAttentionSection(run)
+    const section = processRunAttentionSection(run, now, chatNews?.get(run.id))
     return section === 'needs-you' || section === 'sign-off'
   }).length
 }
@@ -119,7 +149,9 @@ const firstLine = (text: string): string =>
     .map((line) => line.trim())
     .find((line) => line !== '') ?? ''
 
-function needsYouLine(run: ProcessRun): string {
+function needsYouLine(run: ProcessRun, now: number, chatAsks: number): string {
+  const stoppedForYou = run.status === 'parked' && processRunStopHolder(run, now) === 'person'
+  if (chatAsks > 0 && !stoppedForYou) return need('answer', PROCESS_RUN_NEED_CHAT_ASKS(chatAsks))
   if (isProcessRunAwaitingIntegration(run)) return need('retry', notMergedWhat(run))
   if (processRunSendBackGateId(run) !== undefined) {
     const decision = processRunDecision(run)

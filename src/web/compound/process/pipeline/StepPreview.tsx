@@ -14,6 +14,7 @@ import {
   useStepFiling,
   type ProcessRun,
   type ProcessStepPreviewKind,
+  type ProcessRunStopHolder,
 } from '../../../../headless'
 import type { ProcessStepState } from 'thefactory-tools/types'
 import { IconExternalLink } from '../../../icons'
@@ -26,6 +27,8 @@ export type StepPreviewProps = {
   run: ProcessRun
   state: ProcessStepState
   kind: ProcessStepPreviewKind
+  /** Who has the stop the run waits at — the stopped stage of the nested run it mirrors says so. */
+  stopHolder?: ProcessRunStopHolder
   onOpen: (target: StepPanelTarget) => void
   /** Open a feature's own pipeline in place — its full page. */
   onDrill: (childRunId: string) => void
@@ -59,7 +62,14 @@ function PeekCard({
  * verdict and counts, a report's four tiles, a feature's stages as chips —
  * each opening its full view in the side panel; a decided sign-off, its record.
  */
-export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepPreviewProps) {
+export default function StepPreview({
+  run,
+  state,
+  kind,
+  stopHolder,
+  onOpen,
+  onDrill,
+}: StepPreviewProps) {
   const target = (entryId?: string): StepPanelTarget => ({
     runId: run.id,
     stepId: state.step.id,
@@ -70,7 +80,15 @@ export default function StepPreview({ run, state, kind, onOpen, onDrill }: StepP
   if (kind === 'report')
     return <ReportPreview run={run} state={state} onOpen={() => onOpen(target())} />
   if (kind === 'stages' && state.latest?.childRunId) {
-    return <StagesPreview childRunId={state.latest.childRunId} onOpen={onOpen} onDrill={onDrill} />
+    const childRunId = state.latest.childRunId
+    return (
+      <StagesPreview
+        childRunId={childRunId}
+        {...(stopHolder && run.park?.childRunId === childRunId ? { stopHolder } : {})}
+        onOpen={onOpen}
+        onDrill={onDrill}
+      />
+    )
   }
   if (kind === 'signoff') return <SignoffRecord run={run} state={state} onOpen={onOpen} />
   if (kind === 'checks') {
@@ -192,16 +210,19 @@ function ReportPreview({
 
 function StagesPreview({
   childRunId,
+  stopHolder,
   onOpen,
   onDrill,
 }: {
   childRunId: string
+  /** Who has the stop the nested run is at, as its top-level run reads it. */
+  stopHolder?: ProcessRunStopHolder
   onOpen: (target: StepPanelTarget) => void
   onDrill: (childRunId: string) => void
 }) {
   const { run: child } = useProcessRun(childRunId)
   if (!child) return null
-  const chips = processStageChips(processStepStates(child), child.park?.stepId)
+  const chips = processStageChips(processStepStates(child), child.park?.stepId, stopHolder)
   return (
     <div className="flex flex-wrap items-center gap-2">
       {chips.map((chip) => (

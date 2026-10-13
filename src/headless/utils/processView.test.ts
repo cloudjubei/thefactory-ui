@@ -162,6 +162,7 @@ describe('processRunChipLabel', () => {
         status: 'parked',
         park: { reason: 'gate', message: 'Approve the merge?', parkedAt: 0 },
       }),
+      0,
     )
     expect(label).toBe('Sign off · 0/2 steps')
   })
@@ -172,32 +173,33 @@ describe('processRunChipLabel', () => {
         status: 'parked',
         park: { reason: 'step-waiting', stepId: 'a', message: 'Which branch?', parkedAt: 0 },
       }),
+      0,
     )
     expect(label).toBe('Needs you · 0/2 steps')
   })
 
   it('counts only the steps that actually got past', () => {
-    expect(processRunChipLabel(run({ ledger: [passed('a')] }))).toBe('Running · 1/2 steps')
+    expect(processRunChipLabel(run({ ledger: [passed('a')] }), 0)).toBe('Running · 1/2 steps')
   })
 
   it('reads as done for a succeeded run', () => {
-    expect(processRunChipLabel(run({ status: 'succeeded' }))).toBe('Done · 0/2 steps')
+    expect(processRunChipLabel(run({ status: 'succeeded' }), 0)).toBe('Done · 0/2 steps')
   })
 
   it('reads as failed for a run that broke', () => {
-    expect(processRunChipLabel(run({ status: 'failed' }))).toBe('Failed · 0/2 steps')
+    expect(processRunChipLabel(run({ status: 'failed' }), 0)).toBe('Failed · 0/2 steps')
   })
 
   it('reads as starting for a run that has not begun its first step', () => {
-    expect(processRunChipLabel(run({ status: 'pending' }))).toBe('Starting · 0/2 steps')
+    expect(processRunChipLabel(run({ status: 'pending' }), 0)).toBe('Starting · 0/2 steps')
   })
 
   it('names the decision of a run a person ended, not that it stopped', () => {
-    expect(processRunChipLabel(decided('reject'))).toBe('Rejected · 2/3 steps')
+    expect(processRunChipLabel(decided('reject'), 0)).toBe('Rejected · 2/3 steps')
   })
 
   it('says only "Cancelled" — a step count on abandoned work is noise', () => {
-    expect(processRunChipLabel(run({ status: 'cancelled' }))).toBe('Cancelled')
+    expect(processRunChipLabel(run({ status: 'cancelled' }), 0)).toBe('Cancelled')
   })
 })
 
@@ -222,7 +224,7 @@ describe('the waiting outcome', () => {
         startedAt: 0,
       },
     ]
-    expect(processRunChipLabel(run({ ledger }))).toBe('Running · 0/2 steps')
+    expect(processRunChipLabel(run({ ledger }), 0)).toBe('Running · 0/2 steps')
   })
 })
 
@@ -1049,17 +1051,17 @@ describe('processRunBadge', () => {
       status: 'parked',
       park: { reason: 'gate', stepId: 'b', message: '', parkedAt: 0 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Sign off', tone: 'review' })
+    expect(processRunBadge(r, 0)).toEqual({ label: 'Sign off', tone: 'review' })
   })
   it('a run parked on an agent waiting on the person needs you (on-hold)', () => {
     const r = run({
       status: 'parked',
       park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Needs you', tone: 'on_hold' })
+    expect(processRunBadge(r, 0)).toEqual({ label: 'Needs you', tone: 'on_hold' })
   })
   it('falls through to the plain status view when not parked', () => {
-    expect(processRunBadge(run({ status: 'running' }))).toEqual(PROCESS_RUN_STATUS_VIEW.running)
+    expect(processRunBadge(run({ status: 'running' }), 0)).toEqual(PROCESS_RUN_STATUS_VIEW.running)
   })
   it('says an approved run whose work did not land is not merged, not simply done', () => {
     const r = run({
@@ -1081,7 +1083,7 @@ describe('processRunBadge', () => {
       ],
       integration: { mode: 'merge', status: 'failed', error: 'conflict', at: 2 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Not merged', tone: 'on_hold' })
+    expect(processRunBadge(r, 0)).toEqual({ label: 'Not merged', tone: 'on_hold' })
   })
 })
 
@@ -1159,24 +1161,55 @@ describe('processRunPersonEnding', () => {
   })
 })
 
+describe('processRunBadge — a stop its agent manager has', () => {
+  const turn = { runId: 'r', parkedAt: 0, signature: 's', startedAt: 10, chatContextId: 'c' }
+  const stopped = (over: Partial<ProcessRun>, reason: 'step-failed' | 'gate' = 'step-failed') =>
+    run({ status: 'parked', park: { reason, message: 'm', parkedAt: 0 }, ...over })
+
+  it('reads “Manager on it” in the running tone while the manager is on it', () => {
+    expect(processRunBadge(stopped({ manager: { turn } }), 20)).toEqual({
+      label: 'Manager on it',
+      tone: PROCESS_LIVE_TONE,
+    })
+    expect(processRunChipLabel(stopped({ manager: { turn } }, 'gate'), 20)).toBe(
+      'Manager on it · 0/2 steps',
+    )
+  })
+
+  it('reads “Needs you” or “Sign off” once the stop is the person’s', () => {
+    const stale = 10 + 3 * 60 * 60 * 1000
+    expect(processRunBadge(stopped({ manager: { turn } }), stale).label).toBe('Needs you')
+    expect(processRunBadge(stopped({ manager: { turn } }, 'gate'), stale).label).toBe('Sign off')
+  })
+
+  it('carries the manager’s line on the chat card in place of the pending decision', () => {
+    const card = processRunCardView(stopped({ manager: { turn } }), 20)
+    expect(card.badge.label).toBe('Manager on it')
+    expect(card.body?.text).toMatch(/^Manager: looking at /)
+    expect(processRunCardView(stopped({}), 20).body?.text).toBe(
+      '1 decision pending — answer it in the run',
+    )
+  })
+})
+
 describe('processRunBadge — a run a person ended', () => {
   it('says the person’s decision, never "Failed"', () => {
-    expect(processRunBadge(decided('request-changes', 'x'))).toEqual({
+    expect(processRunBadge(decided('request-changes', 'x'), 0)).toEqual({
       label: 'Changes requested',
       tone: 'on_hold',
     })
-    expect(processRunBadge(decided('reject')).label).toBe('Rejected')
-    expect(processRunBadge(decided('abandon')).label).toBe('Abandoned')
+    expect(processRunBadge(decided('reject'), 0).label).toBe('Rejected')
+    expect(processRunBadge(decided('abandon'), 0).label).toBe('Abandoned')
   })
 
   it('still says Failed for a run that failed on its own', () => {
-    expect(processRunBadge(run({ status: 'failed' }))).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
+    expect(processRunBadge(run({ status: 'failed' }), 0)).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
   })
 })
 
 describe('processRunCardView', () => {
   it('ended by a person: says their decision in the strip, in its own tone', () => {
-    const view = processRunCardView(decided('request-changes', 'Fix the format.'))
+    const view = processRunCardView(decided('request-changes', 'Fix the format.'), 0)
     expect(view.badge.label).toBe('Changes requested')
     expect(view.body).toEqual({
       text: 'Changes requested at Sign-off — “Fix the format.”',
@@ -1185,7 +1218,7 @@ describe('processRunCardView', () => {
   })
 
   it('failed on its own: no strip, as before', () => {
-    expect(processRunCardView(run({ status: 'failed' })).body).toBeUndefined()
+    expect(processRunCardView(run({ status: 'failed' }), 0).body).toBeUndefined()
   })
 
   it('running: shows the current step and no decision strip', () => {
@@ -1194,7 +1227,7 @@ describe('processRunCardView', () => {
       cursor: { stepId: 'a', iteration: 1 },
       ledger: [{ id: 'a', stepId: 'a', iteration: 1, status: 'running', startedAt: 0 }],
     })
-    const view = processRunCardView(r)
+    const view = processRunCardView(r, 0)
     expect(view.sub).toBe('A')
     expect(view.body).toBeUndefined()
     expect(view.cta).toMatch(/open the pipeline/i)
@@ -1207,7 +1240,7 @@ describe('processRunCardView', () => {
       park: { reason: 'step-waiting', stepId: 'a', message: 'q', parkedAt: 0 },
       ledger: [{ id: 'a', stepId: 'a', iteration: 1, status: 'running', startedAt: 0 }],
     })
-    const view = processRunCardView(r)
+    const view = processRunCardView(r, 0)
     expect(view.body?.text).toMatch(/decision pending/i)
     expect(view.body?.text).toMatch(/in the run/i)
     expect(view.badge.tone).toBe('on_hold')
@@ -1218,12 +1251,12 @@ describe('processRunCardView', () => {
       status: 'parked',
       park: { reason: 'gate', stepId: 'b', message: '', parkedAt: 0 },
     })
-    expect(processRunCardView(r).body?.text).toMatch(/sign off/i)
+    expect(processRunCardView(r, 0).body?.text).toMatch(/sign off/i)
   })
 
   it('finished: leaves an honest step-count summary to talk about', () => {
     const r = run({ status: 'succeeded', ledger: [passed('a'), passed('b')] })
-    const view = processRunCardView(r)
+    const view = processRunCardView(r, 0)
     expect(view.body).toEqual({ text: 'Done · 2 of 2 steps', tone: 'done' })
   })
 })

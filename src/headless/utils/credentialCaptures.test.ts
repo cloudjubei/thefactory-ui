@@ -200,6 +200,15 @@ describe('captureFields', () => {
     ).toEqual(['token'])
   })
 
+  it('asks only for the new token when the form replaces a stored git credential', () => {
+    // Observed (wargames): an expired token's form asked for name, username,
+    // email and host again, all of which the stored credential already had.
+    const replacing = capture({ replacesId: 'g-old' })
+    expect(captureFields(replacing, form()).map((field) => field.name)).toEqual(['token'])
+    expect(captureSubmitBody(replacing, form())).toEqual({ kind: 'git', token: 'ghp_example' })
+    expect(isCaptureFormValid(replacing, { token: 'ghp_example' })).toBe(true)
+  })
+
   it('gives every field a label and a placeholder', () => {
     for (const field of captureFields(capture(), form())) {
       expect(field.label.length).toBeGreaterThan(0)

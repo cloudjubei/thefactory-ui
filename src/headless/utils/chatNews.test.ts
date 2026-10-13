@@ -159,6 +159,50 @@ describe('chatNewsSince — at each chat’s notification level', () => {
   })
 })
 
+describe('chatNewsSince — a process run’s own chat', () => {
+  const ownChat = {
+    type: 'PROJECT_TOPIC',
+    projectId: 'p',
+    topicId: 'run-r1',
+  } as ChatNewsEntry['context']
+
+  it('never tells news in a run’s own chat — the run shows it on its badges', () => {
+    const out = chatNewsSince([entry(ownChat, [reply('2026-10-12T10:05:00Z')])], new Map(), since)
+    expect(out).toEqual({ arrived: false, marks: new Map() })
+  })
+
+  it('still tells a chat’s news alongside a run chat’s', () => {
+    const out = chatNewsSince(
+      [
+        entry(ownChat, [reply('2026-10-12T10:05:00Z')]),
+        entry(project, [reply('2026-10-12T10:06:00Z')]),
+      ],
+      new Map(),
+      since,
+    )
+    expect(out.arrived).toBe(true)
+    expect([...out.marks.keys()]).toEqual([getChatContextKey(project)])
+  })
+})
+
+describe('chatAsksNewsSince — the channel each ask counts on', () => {
+  const everything = () => 'everything' as const
+  const ownChatKey = getChatContextKey({ type: 'PROJECT_TOPIC', projectId: 'p', topicId: 'run-r1' })
+  const stepAgentKey = getChatContextKey(agentRun)
+
+  it('never tells an ask in a run’s own chat — the run shows it on its badges', () => {
+    const out = chatAsksNewsSince(new Map([[ownChatKey, 1]]), new Map(), everything)
+    expect(out.arrived).toBe(false)
+    expect(out.marks.get(ownChatKey)).toBe(1)
+  })
+
+  it('never tells a step agent’s ask — it is the run’s own stop, told when the stop is the person’s', () => {
+    const out = chatAsksNewsSince(new Map([[stepAgentKey, 1]]), new Map(), everything)
+    expect(out.arrived).toBe(false)
+    expect(out.marks.get(stepAgentKey)).toBe(1)
+  })
+})
+
 describe('chatAsksNewsSince', () => {
   const everything = () => 'everything' as const
 

@@ -1,5 +1,5 @@
-/** Why an agent's message waits in this chat: an ask of it waits on the person, or a turn runs. */
-export type HeldAgentMessageReason = 'ask' | 'turn'
+/** Why an agent's message waits in this chat: an ask of it waits on the person, a turn runs, or whether it was busy could not be checked. */
+export type HeldAgentMessageReason = 'ask' | 'turn' | 'unknown'
 
 /** One agent's message held for this chat until it is free, as the chat shows it. */
 export type HeldAgentMessageView = {

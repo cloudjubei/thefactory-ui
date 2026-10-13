@@ -1,4 +1,10 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useLaunchAgentPick } from '../../../headless/hooks/useLaunchAgentPick'
+import {
+  launchAgentPickMetadata,
+  launchAgentPickRunner,
+} from '../../../headless/utils/launchAgentPick'
+import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 
 import { Textarea } from '../../primitives/Textarea'
@@ -80,14 +86,7 @@ export type ApprovalPanelProps = {
    * is what the work runs on. Hosts that have no connected chip omit it and get
    * the label instead.
    */
-  renderModelChip?: (picked: {
-    /** The model chosen for THIS run, or `undefined` while it is the chat's. */
-    model: string | undefined
-    onPick: (modelId: string) => void
-    /** The CLI chosen for THIS run, or `undefined` while it is the chat's. */
-    cli: string | undefined
-    onPickCli: (cli: string, credentialId: string | undefined, model: string | undefined) => void
-  }) => ReactNode
+  renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
   /**
    * Restore the composer WITHOUT deciding — the ask stays pending, so the user
    * can type first (a clarification, a change of plan) and decide later from
@@ -156,6 +155,7 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         grant={props.grant}
         {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
         onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
     )
   }
@@ -196,20 +196,15 @@ function ToolApprovalPanel({
   const [agentNoteOpen, setAgentNoteOpen] = useState(false)
   // The card can take the chat's whole height while it is read through.
   const [expanded, setExpanded] = useState(false)
-  // The model this WORK runs on. Seeded from the chat by the chip itself and
-  // sent with the decision — picking here must never change the agent the
-  // conversation is being held with.
-  const [runModel, setRunModel] = useState<string | undefined>(undefined)
-  // The CLI this WORK runs on. Same rule as the model: seeded from the chat and
-  // sent with the decision, never written back — picking an agent for one piece
-  // of work must not move the conversation onto it.
-  const [runCli, setRunCli] = useState<string | undefined>(undefined)
-  const [runCliCredentialId, setRunCliCredentialId] = useState<string | undefined>(undefined)
+  // The agent this WORK runs on — the API or a CLI, a model — seeded from the
+  // chat by the chip and sent with the decision, never written back to the
+  // conversation.
+  const { pick: agentPick, slot: chipSlot } = useLaunchAgentPick()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // How far each step's agent may go — the person's pick, else what the agent
   // asked for, else the default for the transport the work runs on.
-  const launchRunner = runCli ? 'cli' : (summary.runner ?? grant.chatRunner)
+  const launchRunner = launchAgentPickRunner(agentPick, summary.runner ?? grant.chatRunner)
   const turnLimitStart = processGrantTurnLimitView(summary.turnLimit, launchRunner)
   const [turnLimitPick, setTurnLimitPick] = useState<
     { limited: boolean; maxTurns: number } | undefined
@@ -297,9 +292,7 @@ function ToolApprovalPanel({
               // agent chose (its Verify → Report chain), so the launch carries
               // the agent's own choice unchanged rather than overriding it here.
               ...(trimmedNote ? { note: trimmedNote } : {}),
-              ...(runModel ? { cliModel: runModel } : {}),
-              ...(runCli ? { cliTool: runCli } : {}),
-              ...(runCliCredentialId ? { cliCredentialId: runCliCredentialId } : {}),
+              ...launchAgentPickMetadata(agentPick),
               turnLimit: processTurnLimitOfView(turnLimit),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
@@ -396,18 +389,7 @@ function ToolApprovalPanel({
               />
             ) : null}
             {renderModelChip ? (
-              renderModelChip({
-                model: runModel,
-                onPick: setRunModel,
-                cli: runCli,
-                onPickCli: (cli, credentialId, model) => {
-                  setRunCli(cli)
-                  setRunCliCredentialId(credentialId)
-                  // A different CLI has its own models, so the previously picked
-                  // model no longer applies: fall back to that CLI's default.
-                  setRunModel(model)
-                },
-              })
+              renderModelChip(chipSlot)
             ) : (
               <Tooltip
                 placement="top"

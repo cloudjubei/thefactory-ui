@@ -1,5 +1,5 @@
 import type { ProcessRun } from 'thefactory-tools/types'
-import { isProcessRunAwaitingIntegration } from 'thefactory-tools/utils'
+import { isProcessRunAwaitingIntegration, processRunStopHolder } from 'thefactory-tools/utils'
 
 import { processRunPersonEnding } from './processView'
 import {
@@ -15,6 +15,7 @@ import type { StatusSemanticKey } from './status'
  * The stored status says where the work is — Reviewable once verified, Done only
  * once signed off — but it cannot link anywhere. This derives, from the story's
  * process run, the word to show and the run to jump to:
+ *   - stopped with its agent manager on it (`processRunStopHolder`) → Working
  *   - parked at the sign-off gate  → Reviewable (go decide the sign-off)
  *   - running / pending            → Working (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
@@ -49,10 +50,24 @@ export function isReviewable(run: Pick<ProcessRun, 'status' | 'park'> | undefine
 export function processStatusOverlay(
   run:
     | (Pick<ProcessRun, 'id' | 'status' | 'park'> &
-        Partial<Pick<ProcessRun, 'plan' | 'ledger' | 'workBranch' | 'parentRunId' | 'integration'>>)
+        Partial<
+          Pick<
+            ProcessRun,
+            'plan' | 'ledger' | 'workBranch' | 'parentRunId' | 'integration' | 'manager' | 'input'
+          >
+        >)
     | undefined,
+  now: number,
 ): ProcessStatusOverlay | undefined {
   if (!run) return undefined
+  if (processRunStopHolder(run, now) === 'manager') {
+    return {
+      label: 'Working',
+      semantic: 'working',
+      title: PROCESS_STATUS_OVERLAY_TITLES.managerOnIt,
+      runId: run.id,
+    }
+  }
   switch (run.status) {
     case 'running':
     case 'pending':

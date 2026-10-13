@@ -8,9 +8,14 @@ import {
   expiredSignInsByScope,
   processRunAgentLogin,
   scopeSignInNames,
+  settingsNavIndicator,
+  signInCardsByChat,
   signInExpiredTitle,
   signInName,
+  signInsExpiredTitle,
+  storedSignInsExpired,
 } from './signInExpiry'
+import type { CredentialCapture } from './credentialCaptureTypes'
 import type { ActiveCliLogin, CliLogin, SignInLogins } from './signInExpiryTypes'
 
 const expired = (id: string, cli = 'claude-code'): CliLogin => ({
@@ -200,6 +205,29 @@ describe('expiredSignInsByScope', () => {
     expect(out.byProject.get('p3')).toEqual({ chats: [], runs: ['Claude'] })
   })
 
+  it('puts a process run’s chat on its project’s runs, never its chats', () => {
+    const out = expiredSignInsByScope({
+      chats: [
+        {
+          projectId: 'p1',
+          cliRunner: { tool: 'claude-code', credentialId: 'a' },
+          isThinking: true,
+          channel: 'processes',
+        },
+        {
+          projectId: 'p2',
+          isThinking: false,
+          channel: 'processes',
+          signInCards: [{ cli: 'codex', credentialId: 'x' }],
+        },
+      ],
+      runs: [],
+      signIns: logins,
+    })
+    expect(out.byProject.get('p1')).toEqual({ chats: [], runs: ['Claude'] })
+    expect(out.byProject.get('p2')).toEqual({ chats: [], runs: ['Codex'] })
+  })
+
   it('leaves out idle chats, chats on a signed-in login, and work that is not live', () => {
     const out = expiredSignInsByScope({
       chats: [
@@ -237,6 +265,145 @@ describe('expiredSignInsByScope', () => {
     })
     expect(out.byGroup.get('g1')).toEqual(['Claude'])
     expect(out.byProject.size).toBe(0)
+  })
+})
+
+describe('expiredSignInsByScope — a chat waiting on a sign-in card', () => {
+  const logins = signIns([expired('a'), signedIn('b')])
+
+  it('counts a chat whose sign-in card waits, though no agent replies and no ask waits', () => {
+    const out = expiredSignInsByScope({
+      chats: [
+        {
+          projectId: 'p1',
+          cliRunner: { tool: 'claude-code', credentialId: 'a' },
+          isThinking: false,
+          signInCards: [{ cli: 'claude-code', credentialId: 'a' }],
+        },
+      ],
+      runs: [],
+      signIns: logins,
+    })
+    expect(out.byProject.get('p1')).toEqual({ chats: ['Claude'], runs: [] })
+  })
+
+  it('counts the login once, however many chats wait on its card or work on it', () => {
+    const out = expiredSignInsByScope({
+      chats: [
+        {
+          projectId: 'p1',
+          cliRunner: { tool: 'claude-code', credentialId: 'a' },
+          isThinking: true,
+          signInCards: [{ cli: 'claude-code', credentialId: 'a' }],
+        },
+        {
+          projectId: 'p1',
+          isThinking: false,
+          signInCards: [{ cli: 'claude-code', credentialId: 'a' }],
+        },
+      ],
+      runs: [],
+      signIns: logins,
+    })
+    expect(out.byProject.get('p1')).toEqual({ chats: ['Claude'], runs: [] })
+  })
+
+  it('leaves out a card for a login still signed in', () => {
+    const out = expiredSignInsByScope({
+      chats: [
+        {
+          groupId: 'g1',
+          isThinking: false,
+          signInCards: [{ cli: 'claude-code', credentialId: 'b' }],
+        },
+      ],
+      runs: [],
+      signIns: logins,
+    })
+    expect(out.byGroup.size).toBe(0)
+  })
+})
+
+describe('signInCardsByChat', () => {
+  const capture = (over: Partial<CredentialCapture>): CredentialCapture => ({
+    id: 'c',
+    purpose: 'Sign in again',
+    provider: 'cli-login',
+    preset: 'claude-code',
+    replacesId: 'a',
+    chatContextKey: 'chat-1',
+    status: 'requested',
+    requestedAt: '2026-10-13T00:00:00.000Z',
+    ...over,
+  })
+
+  it('is the stored login each chat’s open sign-in card signs in again', () => {
+    const out = signInCardsByChat([
+      capture({}),
+      capture({ id: 'd', preset: 'codex', replacesId: 'x' }),
+      capture({ id: 'e', chatContextKey: 'chat-2' }),
+    ])
+    expect(out.get('chat-1')).toEqual([
+      { cli: 'claude-code', credentialId: 'a' },
+      { cli: 'codex', credentialId: 'x' },
+    ])
+    expect(out.get('chat-2')).toEqual([{ cli: 'claude-code', credentialId: 'a' }])
+  })
+
+  it('leaves out answered cards, other forms, a card for a new login, and one outside a chat', () => {
+    const out = signInCardsByChat([
+      capture({ status: 'submitted' }),
+      capture({ status: 'cancelled' }),
+      capture({ provider: 'git' }),
+      capture({ replacesId: undefined }),
+      capture({ preset: undefined }),
+      capture({ chatContextKey: undefined }),
+    ])
+    expect(out.size).toBe(0)
+  })
+})
+
+describe('storedSignInsExpired', () => {
+  it('names every stored login checked and found signed out, once each', () => {
+    expect(
+      storedSignInsExpired([
+        expired('a'),
+        expired('a2'),
+        signedIn('b', 'codex'),
+        unchecked('c', 'cursor-agent'),
+        expired('x', 'codex'),
+      ]),
+    ).toEqual(['Claude', 'Codex'])
+  })
+
+  it('never counts a login read off the host', () => {
+    expect(storedSignInsExpired([expired(`${AUTH_CREDENTIAL_ID_HOST_PATH_PREFIX}/home`)])).toEqual(
+      [],
+    )
+  })
+})
+
+describe('signInsExpiredTitle', () => {
+  it('names one, two, or more expired sign-ins', () => {
+    expect(signInsExpiredTitle(['Claude'])).toBe('Claude sign-in expired')
+    expect(signInsExpiredTitle(['Claude', 'Codex'])).toBe('Claude and Codex sign-ins expired')
+    expect(signInsExpiredTitle(['Claude', 'Codex', 'Cursor'])).toBe(
+      'Claude, Codex and Cursor sign-ins expired',
+    )
+  })
+})
+
+describe('settingsNavIndicator', () => {
+  it('is nothing while every login is signed in', () => {
+    expect(settingsNavIndicator([])).toEqual({ kind: 'none' })
+  })
+
+  it('is red for each expired sign-in, named in its title', () => {
+    expect(settingsNavIndicator(['Claude', 'Codex'])).toEqual({
+      kind: 'ink',
+      badge: { parts: [{ channel: 'failed', count: 2 }], rollup: false },
+      title: 'Claude and Codex sign-ins expired',
+    })
   })
 })
 

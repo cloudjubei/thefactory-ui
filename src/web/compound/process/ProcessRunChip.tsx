@@ -4,6 +4,7 @@ import {
   processRunWorkLabel,
   useDurationTimer,
   useProcessRun,
+  useProcessStopClock,
   type ProcessStatusTone,
 } from '../../../headless'
 import CostChip from '../chips/CostChip'
@@ -27,6 +28,7 @@ export type ProcessRunChipProps = {
 export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipProps) {
   const { run } = useProcessRun(processRunId)
   const now = useDurationTimer(run?.totals?.ticking === true)
+  const stopNow = useProcessStopClock()
   if (!run) {
     return (
       <div
@@ -37,7 +39,7 @@ export default function ProcessRunChip({ processRunId, onOpen }: ProcessRunChipP
       </div>
     )
   }
-  const view = processRunCardView(run)
+  const view = processRunCardView(run, stopNow)
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
   return (

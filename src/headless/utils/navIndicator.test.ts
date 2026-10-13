@@ -19,7 +19,7 @@ function state(
     git: { incoming: 0, uncommitted: 0, ...over.git },
     tests: { failing: 0, ...over.tests },
     activity: { running: 0, paused: 0, unseen: 0, ...over.activity },
-    process: { running: 0, waiting: 0, failed: 0, ...over.process },
+    process: { running: 0, waiting: 0, failed: 0, unread: 0, ...over.process },
     signIn: { expired: [], ...over.signIn },
   }
 }
@@ -321,6 +321,16 @@ describe('scopeRowIndicator — a project or group row', () => {
     })
   })
 
+  it('a run’s unread chat reply is news on the processes channel, a dot', () => {
+    expect(
+      scopeRowIndicator(state({ process: { unread: 2 }, chat_messages: { unread: 1 } })),
+    ).toEqual({ kind: 'dot', title: '2 runs have news · 1 chat has news' })
+    expect(scopeRowIndicator(state({ process: { unread: 1 } }))).toEqual({
+      kind: 'dot',
+      title: '1 run has news',
+    })
+  })
+
   it('an unread reply never adds to the number — only an ask does', () => {
     expect(scopeRowIndicator(state({ chat_messages: { unread: 5, waiting: 1 } }))).toMatchObject({
       badge: { parts: [{ channel: 'chat', count: 1 }] },
@@ -405,6 +415,17 @@ describe('shellTabIndicator — the Processes tab', () => {
       badge: { parts: [{ channel: 'failed', count: 2 }], running: 'processes', rollup: false },
       title: 'Claude sign-in expired · 1 run needs you · a run is working',
     })
+  })
+
+  it('a run’s unread chat reply is a dot when nothing waits or runs', () => {
+    expect(
+      shellTabIndicator('processes', counts({ processesUnread: 2 }), { viewing: false }),
+    ).toEqual({ kind: 'dot', title: '2 runs have news' })
+    expect(
+      shellTabIndicator('processes', counts({ processesUnread: 2, processesWaiting: 1 }), {
+        viewing: false,
+      }),
+    ).toMatchObject({ kind: 'ink', badge: { parts: [{ channel: 'processes', count: 1 }] } })
   })
 
   it('does not read other channels', () => {

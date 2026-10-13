@@ -6,3 +6,6 @@ export const LLM_CONFIGS_EVENT = 'llmConfigs:updated'
 
 /** WS topic announcing that a web-search key was set or removed. */
 export const WEB_SEARCH_KEYS_EVENT = 'webSearchKeys:updated'
+
+/** WS topic announcing that the agent-run choice — the runner or its API config — changed, on any device or by an agent. */
+export const AGENT_RUNNER_EVENT = 'agentRunner:updated'

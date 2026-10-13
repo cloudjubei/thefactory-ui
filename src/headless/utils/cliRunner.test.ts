@@ -1,6 +1,7 @@
 import type { CliDecidedAsk, CliPendingAsk } from './cliRunActivityTypes'
 import type { ChatMessageLike } from './chatTypes'
 import {
+  ASK_CANCELLED_REASON,
   ASK_DECLINED_REASON,
   DECIDED_BY_RULE_NOTE,
   DECIDED_BY_YOU_APPROVE_ALL_NOTE,
@@ -1348,6 +1349,31 @@ describe('normalizeCliTranscript', () => {
     expect(row.toolCall?.decisionNote).toBe(DECLINED_BY_MOVING_ON_NOTE)
   })
 
+  it('shows an ask withdrawn as settled elsewhere as not run, saying why on the row', () => {
+    const why = 'Settled elsewhere: “Try again” was chosen on the run’s page.'
+    const [row] = cliTranscriptToMessages(askedThen('answerRunPark', 'a1'), {
+      decidedAsks: [
+        decided({
+          status: 'expired',
+          toolName: 'answerRunPark',
+          decisionReason: 'cancelled',
+          withdrawnReason: why,
+        }),
+      ],
+    })
+    expect(row.toolResult?.type).toBe('not_allowed')
+    expect(row.toolResult?.result).toMatchObject({ outcome: 'expired', reason: why })
+    expect(row.toolCall?.decisionNote).toBe(why)
+  })
+
+  it('says only that a cancelled ask’s run was stopped when the host gave no reason', () => {
+    const [row] = cliTranscriptToMessages(askedThen('addStory', 'a1'), {
+      decidedAsks: [decided({ status: 'expired', decisionReason: 'cancelled' })],
+    })
+    expect(row.toolResult?.result).toMatchObject({ reason: ASK_CANCELLED_REASON })
+    expect(row.toolCall?.decisionNote).toBeUndefined()
+  })
+
   it('says which rule approved a call a standing grant covered', () => {
     const [row] = cliTranscriptToMessages(
       [call('t1', 'addFeature', { title: 'T' }), answered('t1', { id: 'f1' })],
@@ -2529,6 +2555,18 @@ describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn
     const [m] = storedChatAskRows([row('a1')], [], [decided('a1', { status: 'denied' })])
     expect(m!.toolResult?.type).toBe('not_allowed')
     expect(m!.toolResult?.result).toMatchObject({ reason: ASK_DECLINED_REASON })
+  })
+
+  it('shows an ask withdrawn as settled elsewhere as not run, and why', () => {
+    const why = 'Settled elsewhere: the story was already deleted.'
+    const [m] = storedChatAskRows(
+      [row('a1')],
+      [],
+      [decided('a1', { status: 'expired', decisionReason: 'cancelled', withdrawnReason: why })],
+    )
+    expect(m!.toolResult?.type).toBe('not_allowed')
+    expect(m!.toolResult?.result).toMatchObject({ reason: why })
+    expect(m!.toolCall?.decisionNote).toBe(why)
   })
 
   it('keeps a settled row’s own outcome, naming the rule that approved it', () => {

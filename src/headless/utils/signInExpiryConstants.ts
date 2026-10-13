@@ -15,3 +15,8 @@ export const SIGN_IN_LIVE_RUN_STATUSES: ReadonlySet<ProcessRunStatus> = new Set(
 ])
 
 export const SIGN_IN_EXPIRED_SUFFIX = 'sign-in expired'
+
+export const SIGN_INS_EXPIRED_SUFFIX = 'sign-ins expired'
+
+/** The form a sign-in card is. */
+export const SIGN_IN_CARD_PROVIDER = 'cli-login'

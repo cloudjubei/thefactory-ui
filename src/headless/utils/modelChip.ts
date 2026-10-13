@@ -8,7 +8,13 @@ import {
   MODEL_CHIP_UNKNOWN_PROVIDER,
   MODEL_CHIP_UNKNOWN_TITLE,
 } from './modelChipConstants'
-import type { ModelChipConfigLike, ModelChipLabel, ModelChipLabelInput } from './modelChipTypes'
+import type {
+  ChatChipCliInput,
+  ChatChipCliSelection,
+  ModelChipConfigLike,
+  ModelChipLabel,
+  ModelChipLabelInput,
+} from './modelChipTypes'
 
 /** A provider key as a person reads it: `openai` → `OpenAI`; an unknown one as given. */
 export function modelChipProviderLabel(provider?: string): string {
@@ -56,4 +62,24 @@ export function activeLlmConfig<T extends ModelChipConfigLike & { id: string }>(
   chosenId: string | null,
 ): T | null {
   return (chosenId ? configs.find((c) => c.id === chosenId) : undefined) ?? configs[0] ?? null
+}
+
+/**
+ * The CLI side a chat's model chip shows. As the chat's own binding: its CLI
+ * and model, else the active CLI at its default. As a chooser for a run about
+ * to start: the run's picked CLI and model, seeded from the chat, never written
+ * back to it. Pure.
+ */
+export function chatChipCliSelection(input: ChatChipCliInput): ChatChipCliSelection {
+  const { cliRunner, overrideCli, overrideModel, defaultModel } = input
+  const selectedCli = overrideCli ?? cliRunner?.tool ?? input.activeCli ?? null
+  return {
+    useCli: input.overrideApi !== true && (!!cliRunner || overrideCli !== undefined),
+    selectedCli,
+    selectedCliModelId:
+      overrideModel ??
+      (overrideCli ? defaultModel[overrideCli] : cliRunner?.model) ??
+      (selectedCli ? defaultModel[selectedCli] : undefined),
+    credentialId: cliRunner?.credentialId ?? input.activeCliCredentialId ?? undefined,
+  }
 }

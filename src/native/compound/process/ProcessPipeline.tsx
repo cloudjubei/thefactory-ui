@@ -46,7 +46,11 @@ import {
   processRunIntegrationModes,
   processRunBadge,
   processRunHeaderModel,
+  processRunManagerLine,
   processRunManagerView,
+  processRunStopHolderOf,
+  PROCESS_LIVE_TONE,
+  PROCESS_NESTED_RUN_OPEN,
   processRunPersonEnding,
   processRunRevivable,
   processRunSendBackGateId,
@@ -71,6 +75,7 @@ import {
   useAppSettings,
   useProcessGroupRun,
   useProcessRun,
+  useProcessStopClock,
   useProjects,
   useStories,
   waitingNoteCopy,
@@ -81,6 +86,7 @@ import {
   type ProcessRetryPick,
   type ProcessRun,
   type ProcessRunManagerView,
+  type ProcessRunStopHolder,
   type ProcessTurnLimit,
   type ProcessWaitingView,
 } from '../../../headless'
@@ -257,6 +263,8 @@ export default function ProcessPipeline({
   const [deleted, setDeleted] = useState(false)
 
   const now = useDurationTimer(run?.totals?.ticking === true)
+  const stopNow = useProcessStopClock()
+  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
 
   const drillTo = useCallback((childId: string) => {
     setPanel(null)
@@ -340,6 +348,10 @@ export default function ProcessPipeline({
   const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
   const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
+  const stopRoot = stack.length > 0 ? drilledRoot : run
+  const stopHolder = processRunStopHolderOf(run, stopRoot, stopNow)
+  const managerLine =
+    stopHolder === 'manager' && stopRoot ? processRunManagerLine(stopRoot, stopNow) : undefined
   const signoff = isStorySignoff(run)
   const mergeHold =
     signoff && group
@@ -362,6 +374,7 @@ export default function ProcessPipeline({
       <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
         <RunHead
           run={run}
+          stopHolder={stopHolder}
           {...(projectName ? { projectName } : {})}
           depth={stack.length}
           now={now}
@@ -467,6 +480,8 @@ export default function ProcessPipeline({
               state={state}
               isLast={index === states.length - 1}
               now={now}
+              stopHolder={stopHolder}
+              managerLine={managerLine}
               addedTag={amendments.addedSteps[state.step.id]}
               onChoose={choose}
               onDelegate={() => delegate().then(() => undefined)}
@@ -697,6 +712,7 @@ function HeadAction({
  */
 function RunHead({
   run,
+  stopHolder,
   depth,
   now,
   projectName,
@@ -710,6 +726,8 @@ function RunHead({
   chat,
 }: {
   run: ProcessRun
+  /** Who has the stop the run waits at — its agent manager, or the person. */
+  stopHolder: ProcessRunStopHolder | undefined
   depth: number
   now: number
   /** The run's project, named on the line under the title. */
@@ -728,7 +746,7 @@ function RunHead({
 }) {
   const { theme, status } = useNativeTheme()
   const [menuOpen, setMenuOpen] = useState(false)
-  const badge = processRunBadge(run)
+  const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
   const model = processRunHeaderModel(run, run.ledger)
@@ -989,6 +1007,8 @@ function PipelineNode({
   state,
   isLast,
   now,
+  stopHolder,
+  managerLine,
   addedTag,
   onChoose,
   onDelegate,
@@ -1002,6 +1022,10 @@ function PipelineNode({
   state: ReturnType<typeof processStepStates>[number]
   isLast: boolean
   now: number
+  /** Who has the stop the run waits at — its agent manager, or the person. */
+  stopHolder: ProcessRunStopHolder | undefined
+  /** What the manager is doing on the stop, while it has it. */
+  managerLine: string | undefined
   addedTag: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
@@ -1022,8 +1046,12 @@ function PipelineNode({
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
-  const look = processNodeLook(nodeState, state.step.kind === 'gate', 0)
-  const row = processStepRowView(state, parkStepId, run)
+  const row = processStepRowView(state, parkStepId, run, stopHolder)
+  const look = processNodeLook(
+    row.managerOnIt ? 'working' : nodeState,
+    state.step.kind === 'gate',
+    0,
+  )
   const isFeature = state.step.kind === 'process'
   const [open, setOpen] = useState(isFeature && (state.current || parked))
   const iteration = processNodeBadge(state, run)
@@ -1160,6 +1188,7 @@ function PipelineNode({
           <StepPreview
             run={run}
             state={state}
+            stopHolder={stopHolder}
             kind={row.preview}
             onOpen={onOpenPanel}
             onDrill={onDrill}
@@ -1171,6 +1200,7 @@ function PipelineNode({
         <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
           <ParkBlock
             run={run}
+            managerLine={managerLine}
             onChoose={onChoose}
             onDelegate={onDelegate}
             {...(onAskAgent ? { onAskAgent } : {})}
@@ -1186,6 +1216,7 @@ function PipelineNode({
 
 function ParkBlock({
   run,
+  managerLine,
   onChoose,
   onDelegate,
   onAskAgent,
@@ -1194,6 +1225,8 @@ function ParkBlock({
   onDrill,
 }: {
   run: ProcessRun
+  /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
+  managerLine: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
@@ -1222,6 +1255,7 @@ function ParkBlock({
     return (
       <WaitingCard
         view={waiting}
+        managerLine={managerLine}
         onChoose={onChoose}
         onDelegate={onDelegate}
         {...(onOpenChat ? { onOpenChat } : {})}
@@ -1231,7 +1265,11 @@ function ParkBlock({
   }
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
-  const variant = park.reason === 'gate' ? status.review : status.on_hold
+  const variant = managerLine
+    ? status[PROCESS_LIVE_TONE]
+    : park.reason === 'gate'
+      ? status.review
+      : status.on_hold
 
   return (
     <View
@@ -1245,11 +1283,13 @@ function ParkBlock({
         gap: nativeSpace[2],
       }}
     >
-      <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>{park.message}</Text>
+      <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>
+        {managerLine ?? park.message}
+      </Text>
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-            Open the nested run to decide →
+            {managerLine ? PROCESS_NESTED_RUN_OPEN.quiet : PROCESS_NESTED_RUN_OPEN.decide}
           </Text>
         </Pressable>
       ) : null}
@@ -1332,12 +1372,15 @@ function ParkBlock({
  */
 function WaitingCard({
   view,
+  managerLine,
   onChoose,
   onDelegate,
   onOpenChat,
   onOpenTranscript,
 }: {
   view: ProcessWaitingView
+  /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
+  managerLine: string | undefined
   onChoose: (choice: ProcessResumeChoice, note?: string) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1346,7 +1389,7 @@ function WaitingCard({
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
   const [delegating, setDelegating] = useState(false)
-  const variant = status.on_hold
+  const variant = managerLine ? status[PROCESS_LIVE_TONE] : status.on_hold
   const transcript = view.transcript
   const delegated = view.delegated
   const delegate = () => {
@@ -1368,7 +1411,7 @@ function WaitingCard({
     >
       <View style={{ gap: 2 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', color: variant.softFg }}>
-          {view.heading}
+          {managerLine ?? view.heading}
         </Text>
         <Text style={{ fontSize: 12, color: theme.text.secondary }}>{view.title}</Text>
       </View>

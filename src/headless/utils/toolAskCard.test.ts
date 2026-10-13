@@ -3,14 +3,17 @@ import {
   featureWorkAskView,
   featureWorkLaunchCheck,
   gitChangeAskView,
+  gitSetupAskView,
   groupWorkAskView,
   runProposalAskView,
   toolAskCardView,
   toolAskDecidedLine,
+  toolAskDecidedLinesAwaitingRows,
   toolAskScopeOptions,
 } from './toolAskCard'
 import {
   FEATURE_WORK_ASK,
+  GIT_SETUP_ASK,
   GROUP_WORK_ASK,
   RUN_PROPOSAL_ASK,
   TOOL_ASK_COPY,
@@ -272,6 +275,30 @@ describe('toolAskDecidedLine', () => {
   })
 })
 
+describe('toolAskDecidedLinesAwaitingRows', () => {
+  const approved = { id: 'a1', line: { tone: 'done' as const, text: 'Approved — Push 2 commits' } }
+  const declined = { id: 'a2', line: { tone: 'declined' as const, text: TOOL_ASK_COPY.declined } }
+
+  it('keeps every line while the server has not reported a decision yet', () => {
+    expect(toolAskDecidedLinesAwaitingRows([approved, declined], [])).toEqual([approved, declined])
+  })
+
+  it.each([
+    ['one decision', [{ id: 'a2' }], [approved]],
+    ['both decisions', [{ id: 'a1' }, { id: 'a2' }], []],
+    ['decisions of other asks only', [{ id: 'zz' }], [approved, declined]],
+  ])(
+    'drops the lines whose row already shows the decision — %s reported',
+    (_label, decided, kept) => {
+      expect(toolAskDecidedLinesAwaitingRows([approved, declined], decided)).toEqual(kept)
+    },
+  )
+
+  it('shows nothing when nothing was decided here', () => {
+    expect(toolAskDecidedLinesAwaitingRows([], [{ id: 'a1' }])).toEqual([])
+  })
+})
+
 describe('gitChangeAskView', () => {
   const card = (over: Partial<GitChangeCardView>): GitChangeCardView => ({
     operation: 'merge',
@@ -485,5 +512,43 @@ describe('runProposalAskView', () => {
 
   it('falls back to the kind when the proposal names no subject', () => {
     expect(runProposalAskView(proposal({ title: '' }), {}).headline).toBe('New feature')
+  })
+})
+
+describe('gitSetupAskView', () => {
+  it('reads creating a repository by its plan, with the agent’s reason', () => {
+    expect(
+      gitSetupAskView(
+        {
+          headline: 'Put Notes on GitHub',
+          lines: ['Creates the private repository me/notes.'],
+          createsRepo: true,
+          target: 'me/notes',
+        },
+        { reason: 'So the work is backed up.' },
+      ),
+    ).toEqual({
+      icon: 'push',
+      tone: 'ask',
+      ask: GIT_SETUP_ASK.createAsk,
+      tag: GIT_SETUP_ASK.tag,
+      headline: 'Put Notes on GitHub',
+      why: 'So the work is backed up.',
+      verb: GIT_SETUP_ASK.createVerb,
+      body: { kind: 'git' },
+    })
+  })
+
+  it('reads a project that already has a repository as a push to it', () => {
+    const view = gitSetupAskView(
+      { headline: 'Push Notes to its repository', lines: [], createsRepo: false },
+      undefined,
+    )
+    expect(view).toMatchObject({
+      ask: GIT_SETUP_ASK.pushAsk,
+      headline: 'Push Notes to its repository',
+      verb: GIT_SETUP_ASK.pushVerb,
+    })
+    expect(view.why).toBeUndefined()
   })
 })

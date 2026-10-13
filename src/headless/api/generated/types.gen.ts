@@ -183,6 +183,7 @@ export type PendingAction = {
       }
   decisionMetadata?: unknown
   decisionReason?: string
+  withdrawnReason?: string
   executedAt?: number
   executedInRun?: string
   execution?: {
@@ -1449,6 +1450,7 @@ export type ProcessManagerEscalationReason =
   | 'guard-limit'
   | 'judgement'
   | 'hold-timeout'
+  | 'no-decision'
 
 export type ProcessResumeChoice =
   | 'continue'
@@ -1480,6 +1482,7 @@ export type ProcessManagerEscalation = {
     | 'guard-limit'
     | 'judgement'
     | 'hold-timeout'
+    | 'no-decision'
   what: string
   found: string
   tried: Array<string>
@@ -2795,8 +2798,8 @@ export type GlobalChatLike = {
     type?: string
     timestamp?: string
   }
-  archivedAt?: string
-  createdAt?: string
+  listHiddenAt?: string | unknown
+  createdAt?: string | unknown
 }
 
 export type VerificationCheckKind = 'compile' | 'tests' | 'command'
@@ -9332,6 +9335,21 @@ export type ProcessManagerTurn = {
   resumedAt?: number
 }
 
+export type ProcessManagerStaleTurnRecord = {
+  runId: string
+  parkedAt: number
+  signature: string
+  stepId?: string
+  startedAt: number
+  at: number
+}
+
+export type ProcessManagerClaim = {
+  runId: string
+  parkedAt: number
+  at: number
+}
+
 export type ProcessManagerStandDown = {
   runId: string
   parkedAt: number
@@ -9343,6 +9361,7 @@ export type ProcessManagerOffReason = 'person' | 'reversed'
 
 export type ProcessRunManager = {
   interventions?: Array<ProcessManagerIntervention>
+  staleTurns?: Array<ProcessManagerStaleTurnRecord>
   turn?: {
     runId: string
     parkedAt: number
@@ -9351,6 +9370,11 @@ export type ProcessRunManager = {
     chatContextId: string
     waitingOn?: Array<ProcessManagerWaitingAsk>
     resumedAt?: number
+  }
+  claim?: {
+    runId: string
+    parkedAt: number
+    at: number
   }
   standDown?: {
     runId: string
@@ -9394,6 +9418,7 @@ export type ProcessRunManager = {
       | 'guard-limit'
       | 'judgement'
       | 'hold-timeout'
+      | 'no-decision'
     what: string
     found: string
     tried: Array<string>
@@ -9415,6 +9440,8 @@ export type ProcessRunManager = {
 }
 
 export type ProcessManagerParkStatus = 'looking' | 'waiting' | 'holding' | 'escalated'
+
+export type ProcessRunStopHolder = 'manager' | 'person'
 
 export type ProcessManagerTrigger =
   | {
@@ -9457,6 +9484,7 @@ export type ProcessManagerRun = {
   }
   manager?: {
     interventions?: Array<ProcessManagerIntervention>
+    staleTurns?: Array<ProcessManagerStaleTurnRecord>
     turn?: {
       runId: string
       parkedAt: number
@@ -9465,6 +9493,11 @@ export type ProcessManagerRun = {
       chatContextId: string
       waitingOn?: Array<ProcessManagerWaitingAsk>
       resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
     }
     standDown?: {
       runId: string
@@ -9508,6 +9541,7 @@ export type ProcessManagerRun = {
         | 'guard-limit'
         | 'judgement'
         | 'hold-timeout'
+        | 'no-decision'
       what: string
       found: string
       tried: Array<string>
@@ -10848,6 +10882,7 @@ export type ProcessRun = {
   }
   manager?: {
     interventions?: Array<ProcessManagerIntervention>
+    staleTurns?: Array<ProcessManagerStaleTurnRecord>
     turn?: {
       runId: string
       parkedAt: number
@@ -10856,6 +10891,11 @@ export type ProcessRun = {
       chatContextId: string
       waitingOn?: Array<ProcessManagerWaitingAsk>
       resumedAt?: number
+    }
+    claim?: {
+      runId: string
+      parkedAt: number
+      at: number
     }
     standDown?: {
       runId: string
@@ -10899,6 +10939,7 @@ export type ProcessRun = {
         | 'guard-limit'
         | 'judgement'
         | 'hold-timeout'
+        | 'no-decision'
       what: string
       found: string
       tried: Array<string>
@@ -10926,6 +10967,7 @@ export type ProcessManagerBriefInput = {
     title: string
     manager?: {
       interventions?: Array<ProcessManagerIntervention>
+      staleTurns?: Array<ProcessManagerStaleTurnRecord>
       turn?: {
         runId: string
         parkedAt: number
@@ -10934,6 +10976,11 @@ export type ProcessManagerBriefInput = {
         chatContextId: string
         waitingOn?: Array<ProcessManagerWaitingAsk>
         resumedAt?: number
+      }
+      claim?: {
+        runId: string
+        parkedAt: number
+        at: number
       }
       standDown?: {
         runId: string
@@ -10977,6 +11024,7 @@ export type ProcessManagerBriefInput = {
           | 'guard-limit'
           | 'judgement'
           | 'hold-timeout'
+          | 'no-decision'
         what: string
         found: string
         tried: Array<string>
@@ -15079,6 +15127,7 @@ export type ToolName =
   | 'listCliAgentActionRules'
   | 'removeCliAgentActionRule'
   | 'cancelCliAgentAction'
+  | 'withdrawCliAgentAction'
   | 'subscribeCliAgentActions'
   | 'subscribeBackgroundJobResults'
   | 'getCliAgentAction'
@@ -16658,6 +16707,7 @@ export type ProcessRunChatState = {
     }
     manager?: {
       interventions?: Array<ProcessManagerIntervention>
+      staleTurns?: Array<ProcessManagerStaleTurnRecord>
       turn?: {
         runId: string
         parkedAt: number
@@ -16666,6 +16716,11 @@ export type ProcessRunChatState = {
         chatContextId: string
         waitingOn?: Array<ProcessManagerWaitingAsk>
         resumedAt?: number
+      }
+      claim?: {
+        runId: string
+        parkedAt: number
+        at: number
       }
       standDown?: {
         runId: string
@@ -16709,6 +16764,7 @@ export type ProcessRunChatState = {
           | 'guard-limit'
           | 'judgement'
           | 'hold-timeout'
+          | 'no-decision'
         what: string
         found: string
         tried: Array<string>
@@ -17639,6 +17695,7 @@ export type ProcessGroupLegStatus =
   | 'start-failed'
   | 'running'
   | 'needs-you'
+  | 'manager-on-it'
   | 'at-sign-off'
   | 'integrating'
   | 'integrated'
@@ -23735,6 +23792,7 @@ export type GetActiveRunnerKindResponses = {
    */
   200: {
     activeRunnerKind?: 'api' | 'cli'
+    activeLlmConfigId?: string
   }
 }
 
@@ -23759,6 +23817,38 @@ export type SetActiveRunnerKindResponses = {
 
 export type SetActiveRunnerKindResponse =
   SetActiveRunnerKindResponses[keyof SetActiveRunnerKindResponses]
+
+export type SetAgentRunLlmConfigData = {
+  body: {
+    configId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/agent-runner/llm-config'
+}
+
+export type SetAgentRunLlmConfigErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetAgentRunLlmConfigError = SetAgentRunLlmConfigErrors[keyof SetAgentRunLlmConfigErrors]
+
+export type SetAgentRunLlmConfigResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type SetAgentRunLlmConfigResponse =
+  SetAgentRunLlmConfigResponses[keyof SetAgentRunLlmConfigResponses]
 
 export type StartGitCredentialGithubRedirectData = {
   body: {
@@ -24044,8 +24134,11 @@ export type RemoveActionRuleResponse = RemoveActionRuleResponses[keyof RemoveAct
 export type ListCredentialCapturesData = {
   body?: never
   path?: never
-  query: {
-    chatContextKey: string
+  query?: {
+    /**
+     * The chat whose captures to list; every chat’s when absent.
+     */
+    chatContextKey?: string
   }
   url: '/api/v1/credential-captures'
 }
@@ -24221,9 +24314,9 @@ export type SubmitCredentialCaptureData = {
   body:
     | {
         kind: 'git'
-        name: string
-        username: string
-        email: string
+        name?: string
+        username?: string
+        email?: string
         token: string
         host?: string
       }
@@ -28711,12 +28804,6 @@ export type SendCompletionWithToolsResponses = {
       }
     >
     error?: string
-    /**
-     * By tool-call id: what the host resolved for each proposed call the person is asked to approve — today the target of each `sendChatMessage`.
-     */
-    approvalDetails?: {
-      [key: string]: ChatMessageSendApprovalDetail
-    }
   }
 }
 
@@ -28929,12 +29016,6 @@ export type SendChatCompletionWithToolsResponses = {
       }
     >
     error?: string
-    /**
-     * By tool-call id: what the host resolved for each proposed call the person is asked to approve — today the target of each `sendChatMessage`.
-     */
-    approvalDetails?: {
-      [key: string]: ChatMessageSendApprovalDetail
-    }
   }
 }
 
@@ -29269,12 +29350,6 @@ export type ResumeCompletionResponses = {
       }
     >
     error?: string
-    /**
-     * By tool-call id: what the host resolved for each proposed call the person is asked to approve — today the target of each `sendChatMessage`.
-     */
-    approvalDetails?: {
-      [key: string]: ChatMessageSendApprovalDetail
-    }
   }
 }
 

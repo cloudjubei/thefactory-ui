@@ -63,6 +63,8 @@ export interface ModelChipProps {
   cliDisabled?: boolean
   /** Caption explaining why CLI is unavailable; shown under the toggle when {@link cliDisabled}. */
   cliDisabledReason?: string
+  /** Why the last API/CLI switch failed — shown under the toggle so a dead-looking tap explains itself. */
+  cliSwitchError?: string | null
   /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" picker row). */
   authWarning?: CliAuthWarning
 }
@@ -175,9 +177,10 @@ export function ModelChip({
   onPickRecentCli,
   cliDisabled,
   cliDisabledReason,
+  cliSwitchError,
   authWarning,
 }: ModelChipProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status: tones } = useNativeTheme()
   const [open, setOpen] = useState(false)
   const [pricesByKey, setPricesByKey] = useState<
     Record<string, ModelPriceRecord | null | undefined>
@@ -440,6 +443,19 @@ export function ModelChip({
               {cliDisabledReason}
             </Text>
           )}
+          {cliSwitchError ? (
+            <Text
+              style={{
+                fontSize: 10,
+                lineHeight: 14,
+                color: tones.stuck.softFg,
+                marginBottom: nativeSpace[2],
+                paddingHorizontal: nativeSpace[1],
+              }}
+            >
+              {cliSwitchError}
+            </Text>
+          ) : null}
 
           {useCli ? (
             <>

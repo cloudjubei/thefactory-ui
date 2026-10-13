@@ -13,6 +13,7 @@ import { chatNotifyLevel } from '../utils/chatNotify'
 import { computeChatRowStatus, type ChatsSeenMap } from '../utils/chatRowStatus'
 import { usePendingAsksByChat } from './usePendingAsksByChat'
 import { useProcessRuns } from './useProcessRuns'
+import { useProcessStopClock } from './useProcessStopClock'
 
 function mainChatOf(scope: ChatListScope): ChatContext {
   return scope.kind === 'project'
@@ -40,6 +41,7 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
   const pendingAsks = usePendingAsksByChat()
   const notifyLevels = useAppSettings().settings.notifications.chatNotifyLevels
   const { runs } = useProcessRuns()
+  const now = useProcessStopClock()
   const { resolveDependency } = useStories()
   const { projectId: activeProjectId } = useActiveProject()
   const { projects } = useProjects()
@@ -86,6 +88,7 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
       return chatListRow({
         chat,
         status,
+        now,
         ...(run ? { run } : {}),
         ...(work ? { work } : {}),
         ...(project ? { projectName: project.title } : {}),
@@ -105,5 +108,6 @@ export function useChatList(scope: ChatListScope, seen: ChatsSeenMap): ChatListR
     groups,
     scope,
     seen,
+    now,
   ])
 }

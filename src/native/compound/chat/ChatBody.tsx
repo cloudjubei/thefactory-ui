@@ -1,5 +1,6 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { useMemo, useState, type ReactNode } from 'react'
+import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import Alert from '../../primitives/Alert'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
@@ -30,6 +31,7 @@ import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
 import { useShownLiveRun } from '../../../headless/hooks/useShownLiveRun'
 import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
+import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
 import type {
@@ -52,6 +54,12 @@ export interface ChatBodyProps {
   projectId?: string
   /** The chat's group, forwarded to a launch across the group's projects. */
   groupId?: string
+  /**
+   * The app's own model chip for THIS chat, rendered inside a launch approval so
+   * the model can be picked before the work starts. A host slot because the
+   * connected chip lives in the app, not in this library.
+   */
+  renderApprovalModelChip?: (picked: LaunchModelChipSlot) => ReactNode
   /** Caller-rendered header (typically `<ChatHeader />`). When omitted no
    * header section is rendered. */
   header?: ReactNode
@@ -210,6 +218,7 @@ export default function ChatBody({
   renderProcessGroupRun,
   projectId,
   groupId,
+  renderApprovalModelChip,
   onShowUsage,
   emptyStateContent,
   leadingContent,
@@ -288,6 +297,7 @@ export default function ChatBody({
   const held = useHeldAgentMessages(chatId, chatMetadata)
   const pendingAskIds = useMemo(() => (grants ?? []).map((g) => g.id), [grants])
   const decidedAsks = useChatDecidedAsks(chatId, pendingAskIds)
+  const shownDecidedLines = toolAskDecidedLinesAwaitingRows(decidedLines, decidedAsks)
   const approvalGrants = useMemo(
     () => panelApprovalGrants(grants, claimedAskIds, { loading: messagesLoading, unsettledRunIds }),
     [grants, claimedAskIds, messagesLoading, unsettledRunIds],
@@ -405,9 +415,9 @@ export default function ChatBody({
           emptyStateContent={emptyStateContent}
           leadingContent={leadingContent}
           tailContent={
-            decidedLines.length > 0 || parkedAsks.length > 0 ? (
+            shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
               <>
-                {decidedLines.map(({ id, line }) => (
+                {shownDecidedLines.map(({ id, line }) => (
                   <ToolAskDecidedRow key={id} line={line} />
                 ))}
                 {parkedAsks.map((ask) =>
@@ -505,6 +515,7 @@ export default function ChatBody({
               {...(groupId ? { groupId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
               onDecided={(line) => addDecidedLine(grant.id, line)}
+              {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
             />
           ))}
         </View>

@@ -28,3 +28,26 @@ export type ModelChipLabel = {
   model: string
   title: string
 }
+
+/** What a chat's model chip reads to show its CLI side: the chat's binding, the clients' CLI settings, and a run's own picks. */
+export type ChatChipCliInput = {
+  /** The chat's CLI binding, when it runs on one. */
+  cliRunner?: { tool: string; model?: string; credentialId?: string } | null
+  activeCli: string | null
+  activeCliCredentialId: string | null
+  defaultModel: Readonly<Record<string, string | undefined>>
+  /** The model picked for a run about to start, shown in place of the chat's. */
+  overrideModel?: string
+  /** The CLI picked for a run about to start, shown in place of the chat's. */
+  overrideCli?: string
+  /** The API was picked for a run about to start, over the chat's CLI. */
+  overrideApi?: boolean
+}
+
+/** The CLI side a chat's model chip shows. */
+export type ChatChipCliSelection = {
+  useCli: boolean
+  selectedCli: string | null
+  selectedCliModelId: string | undefined
+  credentialId: string | undefined
+}

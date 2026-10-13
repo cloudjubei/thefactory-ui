@@ -58,6 +58,12 @@ describe('processGroupBadge', () => {
     })
   })
 
+  it('reads a running group whose project’s stop its manager has as running, not needing you', () => {
+    expect(
+      processGroupBadge(group({ legs: [leg('tools', { status: 'manager-on-it' })] })).label,
+    ).toBe(PROCESS_RUN_STATUS_VIEW.running.label)
+  })
+
   it('reads a running group with nothing for you by its status', () => {
     expect(processGroupBadge(group()).label).toBe(PROCESS_RUN_STATUS_VIEW.running.label)
   })
@@ -104,6 +110,18 @@ describe('processGroupProgress', () => {
 })
 
 describe('processGroupLegRows', () => {
+  it('says a leg whose stop its manager has is the manager’s, in the running tone, to open', () => {
+    const [[row]] = processGroupLegRows(
+      group({ legs: [leg('tools', { status: 'manager-on-it' })] }),
+    )
+    expect(row).toMatchObject({
+      label: 'Manager on it',
+      tone: 'done',
+      openLabel: 'Open its pipeline',
+      readyForSignOff: false,
+    })
+  })
+
   it('draws the legs by dependency level, saying what a blocked one waits for', () => {
     const rows = processGroupLegRows(
       group({

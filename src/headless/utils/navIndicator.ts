@@ -35,9 +35,14 @@ function waitingPhrase({ channel, count }: InkPart): string {
 }
 
 function freshPhrase(part: InkPart): string {
-  return part.channel === 'chat'
-    ? counted(part.count, 'chat has news', 'chats have news')
-    : waitingPhrase(part)
+  switch (part.channel) {
+    case 'chat':
+      return counted(part.count, 'chat has news', 'chats have news')
+    case 'processes':
+      return counted(part.count, 'run has news', 'runs have news')
+    default:
+      return waitingPhrase(part)
+  }
 }
 
 function runningPhrase(channel: InkChannel): string {
@@ -105,8 +110,9 @@ export function navRowIndicator(signals: NavRowSignals): NavRowIndicator {
 /**
  * A project or group row: ONE total of everything waiting on the person —
  * failed merges, expired sign-ins its agents use, runs, chats with an ask, git
- * changes — moving while a run works or an agent replies; unread news alone is
- * a dot. Failing tests stay on the Tests tab. Pure.
+ * changes — moving while a run works or an agent replies; unread news alone —
+ * in a chat, in a run's own chat, or new results — is a dot. Failing tests
+ * stay on the Tests tab. Pure.
  */
 export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
   const runWorking = state.process.running > 0 || state.activity.running > 0
@@ -126,6 +132,7 @@ export function scopeRowIndicator(state: BadgeState): NavRowIndicator {
     paused: state.activity.paused > 0,
     fresh: [
       { channel: 'chat', count: state.chat_messages.unread },
+      { channel: 'processes', count: state.process.unread },
       { channel: 'activity', count: state.activity.unseen },
     ],
     broke: state.signIn.expired.map(signInExpiredTitle),
@@ -161,6 +168,7 @@ export function shellTabIndicator(
           { channel: 'processes', count: counts.processesWaiting },
         ],
         running: counts.processesRunning > 0 ? 'processes' : undefined,
+        fresh: [{ channel: 'processes', count: counts.processesUnread }],
         broke: counts.processesSignInExpired.map(signInExpiredTitle),
         rollup: false,
       })

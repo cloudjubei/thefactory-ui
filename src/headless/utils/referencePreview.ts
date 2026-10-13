@@ -121,7 +121,7 @@ export function runReferencePreview(
   return {
     caption: REFERENCE_KIND_CAPTIONS.run,
     title: run.title,
-    status: processRunBadge(run),
+    status: processRunBadge(run, options.now),
     lines: [
       ...(options.story ? [{ label: RUN_PREVIEW_STORY, value: options.story }] : []),
       ...(where ? [where] : []),

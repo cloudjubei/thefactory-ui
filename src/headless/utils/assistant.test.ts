@@ -242,6 +242,22 @@ describe('assistantExpiredSignIns', () => {
     ).toEqual(['Claude'])
   })
 
+  it('names the expired sign-in a conversation’s open sign-in card waits on, once', () => {
+    const cards = new Map([
+      [getChatContextKey(general('1')), [{ cli: 'claude-code', credentialId: 'a' }]],
+      [getChatContextKey(general('2')), [{ cli: 'claude-code', credentialId: 'a' }]],
+      [getChatContextKey(general('9')), [{ cli: 'codex', credentialId: 'x' }]],
+    ])
+    expect(
+      assistantExpiredSignIns(
+        [row('1'), row('2')],
+        [chat('1', 'codex'), chat('2', 'codex'), chat('9', 'codex')],
+        signIns,
+        cards,
+      ),
+    ).toEqual(['Claude'])
+  })
+
   it('is none when no live conversation uses one', () => {
     expect(
       assistantExpiredSignIns([row('1', { running: true })], [conversation('1')], signIns),
