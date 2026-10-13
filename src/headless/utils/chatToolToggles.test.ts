@@ -11,34 +11,63 @@ import {
 import type { ChatToolCatalogEntry } from './chatToolTogglesTypes'
 
 const CATALOG: ChatToolCatalogEntry[] = [
-  { name: 'readFile', description: 'Read a file.', category: 'file', alwaysOn: false },
-  { name: 'gitLog', description: 'Git log.', category: 'git', alwaysOn: false },
-  { name: 'addStory', description: 'Create a story.', category: 'story', alwaysOn: false },
-  { name: 'askUser', description: 'Ask the user.', category: 'cli', alwaysOn: true },
+  {
+    name: 'readFile',
+    description: 'Read a file.',
+    category: 'file',
+    alwaysOn: false,
+    everyRunner: false,
+  },
+  { name: 'gitLog', description: 'Git log.', category: 'git', alwaysOn: false, everyRunner: true },
+  {
+    name: 'addStory',
+    description: 'Create a story.',
+    category: 'story',
+    alwaysOn: false,
+    everyRunner: true,
+  },
+  {
+    name: 'getStory',
+    description: 'Read a story.',
+    category: 'story',
+    alwaysOn: false,
+    everyRunner: false,
+  },
+  {
+    name: 'askUser',
+    description: 'Ask the user.',
+    category: 'cli',
+    alwaysOn: true,
+    everyRunner: false,
+  },
 ]
 
 describe('buildChatToolToggles — CLI', () => {
-  it('shows every catalogue tool as available when the chat has NO allowlist', () => {
+  const available = (settings: Parameters<typeof buildChatToolToggles>[1], name: string) =>
+    buildChatToolToggles(CATALOG, settings, 'cli').find((r) => r.name === name)?.available
+
+  it('shows every catalogue tool as available when the chat has NO lists', () => {
     const rows = buildChatToolToggles(CATALOG, undefined, 'cli')
     expect(rows.every((r) => r.available)).toBe(true)
   })
 
-  it('reads an EMPTY allowlist as unset, so no tool appears switched off', () => {
-    const rows = buildChatToolToggles(CATALOG, { cliAvailableTools: [] }, 'cli')
+  it('reads EMPTY lists as unset, so no tool appears switched off', () => {
+    const rows = buildChatToolToggles(CATALOG, { availableTools: [], cliAvailableTools: [] }, 'cli')
     expect(rows.every((r) => r.available)).toBe(true)
   })
 
-  it('marks a tool the allowlist omits as unavailable', () => {
-    const rows = buildChatToolToggles(CATALOG, { cliAvailableTools: ['readFile'] }, 'cli')
-    expect(rows.find((r) => r.name === 'gitLog')?.available).toBe(false)
+  it('reads a CLI-only tool from the CLI list', () => {
+    expect(available({ cliAvailableTools: ['getStory'] }, 'readFile')).toBe(false)
+    expect(available({ cliAvailableTools: ['getStory'] }, 'getStory')).toBe(true)
   })
 
-  it('marks a tool the allowlist names as available', () => {
-    const rows = buildChatToolToggles(CATALOG, { cliAvailableTools: ['readFile'] }, 'cli')
-    expect(rows.find((r) => r.name === 'readFile')?.available).toBe(true)
+  it('reads a tool every model is offered from the chat’s own list, as an API chat does', () => {
+    expect(available({ availableTools: ['addStory'] }, 'gitLog')).toBe(false)
+    expect(available({ availableTools: ['addStory'] }, 'addStory')).toBe(true)
+    expect(available({ cliAvailableTools: ['readFile'] }, 'gitLog')).toBe(true)
   })
 
-  it('keeps an always-on tool available and locked even when the allowlist omits it', () => {
+  it('keeps an always-on tool available and locked even when the lists omit it', () => {
     const rows = buildChatToolToggles(CATALOG, { cliAvailableTools: ['readFile'] }, 'cli')
     const askUser = rows.find((r) => r.name === 'askUser')
     expect(askUser).toMatchObject({ available: true, toggleable: false })
@@ -66,45 +95,50 @@ describe('buildChatToolToggles — API', () => {
 })
 
 describe('applyChatToolToggle — CLI', () => {
-  it('materialises the whole catalogue minus one on the first switch-off', () => {
-    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', false)
-    expect(patch.cliAvailableTools).toEqual(['readFile', 'addStory', 'askUser'])
+  it('materialises the CLI-only tools minus one on the first switch-off of one', () => {
+    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'readFile', false)
+    expect(patch).toEqual({ cliAvailableTools: ['getStory', 'askUser'] })
   })
 
-  it('removes a further tool from an existing allowlist', () => {
+  it('removes a further CLI-only tool, and adds one back', () => {
+    expect(
+      applyChatToolToggle(
+        CATALOG,
+        { cliAvailableTools: ['readFile', 'getStory', 'askUser'] },
+        'cli',
+        'getStory',
+        false,
+      ),
+    ).toEqual({ cliAvailableTools: ['readFile', 'askUser'] })
+    expect(
+      applyChatToolToggle(CATALOG, { cliAvailableTools: ['askUser'] }, 'cli', 'readFile', true),
+    ).toEqual({ cliAvailableTools: ['readFile', 'askUser'] })
+  })
+
+  it('switches a tool every model is offered in the chat’s own list, keeping its API-only tools', () => {
     const patch = applyChatToolToggle(
       CATALOG,
-      { cliAvailableTools: ['readFile', 'gitLog', 'askUser'] },
+      { availableTools: ['gitLog', 'addStory', 'writeFile'], cliAvailableTools: ['readFile'] },
       'cli',
       'gitLog',
       false,
     )
-    expect(patch.cliAvailableTools).toEqual(['readFile', 'askUser'])
+    expect(patch).toEqual({ availableTools: ['addStory', 'writeFile'] })
   })
 
-  it('adds a tool back', () => {
-    const patch = applyChatToolToggle(
-      CATALOG,
-      { cliAvailableTools: ['readFile', 'askUser'] },
-      'cli',
-      'gitLog',
-      true,
-    )
-    expect(patch.cliAvailableTools).toEqual(['readFile', 'gitLog', 'askUser'])
+  it('materialises every shared tool minus one when the chat’s own list is unset', () => {
+    expect(applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', false)).toEqual({
+      availableTools: ['addStory'],
+    })
   })
 
-  it('never writes an EMPTY list when the user switches off the last tool — that would read as unset and grant everything back', () => {
-    const patch = applyChatToolToggle(
-      CATALOG,
-      { cliAvailableTools: ['readFile', 'askUser'] },
-      'cli',
-      'readFile',
-      false,
-    )
-    expect(patch.cliAvailableTools).toEqual(['askUser'])
+  it('adds a shared tool back to the chat’s own list', () => {
+    expect(
+      applyChatToolToggle(CATALOG, { availableTools: ['writeFile'] }, 'cli', 'gitLog', true),
+    ).toEqual({ availableTools: ['writeFile', 'gitLog'] })
   })
 
-  it('keeps the always-on names in the written list, so switching off the last toggleable tool cannot collapse to the unset (= everything) reading', () => {
+  it('keeps the always-on names in the CLI list, so switching off the last CLI-only tool cannot collapse to the unset (= everything) reading', () => {
     const patch = applyChatToolToggle(
       CATALOG,
       { cliAvailableTools: ['readFile'] },
@@ -117,11 +151,6 @@ describe('applyChatToolToggle — CLI', () => {
 
   it('refuses to switch off an always-on tool', () => {
     expect(applyChatToolToggle(CATALOG, undefined, 'cli', 'askUser', false)).toEqual({})
-  })
-
-  it('never touches the API allowlist', () => {
-    const patch = applyChatToolToggle(CATALOG, undefined, 'cli', 'gitLog', false)
-    expect(patch.availableTools).toBeUndefined()
   })
 })
 
@@ -218,6 +247,7 @@ describe('groupChatToolToggles', () => {
       'readFile',
       'gitLog',
       'addStory',
+      'getStory',
       'askUser',
     ])
   })
@@ -227,7 +257,13 @@ describe('groupChatToolToggles', () => {
       buildChatToolToggles(
         [
           ...CATALOG,
-          { name: 'gitDiff', description: 'Git diff.', category: 'git', alwaysOn: false },
+          {
+            name: 'gitDiff',
+            description: 'Git diff.',
+            category: 'git',
+            alwaysOn: false,
+            everyRunner: true,
+          },
         ],
         undefined,
         'cli',

@@ -9,6 +9,8 @@ export interface ChatToolCatalogEntry {
   category: string
   /** True when the tool cannot be switched off (asking a human, landing work). */
   alwaysOn: boolean
+  /** True when every model is offered it, so its switch is the chat's own `availableTools`. */
+  everyRunner: boolean
 }
 
 /**

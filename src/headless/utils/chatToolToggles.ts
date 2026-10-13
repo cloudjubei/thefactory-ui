@@ -26,6 +26,15 @@ function isUnsetAllowlist(names: string[] | undefined): boolean {
   return !names || names.length === 0
 }
 
+/**
+ * The list a CLI row's switch is: the chat's own `availableTools` for a tool
+ * every model is offered — one switch whichever model runs the chat — and
+ * `cliAvailableTools` for a CLI-only one.
+ */
+function cliListOf(entry: ChatToolCatalogEntry): 'availableTools' | 'cliAvailableTools' {
+  return entry.everyRunner ? 'availableTools' : 'cliAvailableTools'
+}
+
 /** Rows for the settings surface: the catalogue joined against the chat's own allowlist. */
 export function buildChatToolToggles(
   catalog: readonly ChatToolCatalogEntry[],
@@ -33,16 +42,16 @@ export function buildChatToolToggles(
   runner: ChatToolRunner,
 ): ChatToolToggle[] {
   if (runner === 'cli') {
-    const allowlist = settings?.cliAvailableTools
-    const unset = isUnsetAllowlist(allowlist)
-    const allowed = new Set(allowlist ?? [])
-    return catalog.map((entry) => ({
-      name: entry.name,
-      description: entry.description,
-      category: entry.category,
-      available: entry.alwaysOn || unset || allowed.has(entry.name),
-      toggleable: !entry.alwaysOn,
-    }))
+    return catalog.map((entry) => {
+      const list = settings?.[cliListOf(entry)]
+      return {
+        name: entry.name,
+        description: entry.description,
+        category: entry.category,
+        available: entry.alwaysOn || isUnsetAllowlist(list) || (list ?? []).includes(entry.name),
+        toggleable: !entry.alwaysOn,
+      }
+    })
   }
   const available = new Set(settings?.availableTools ?? [])
   return catalog.map((entry) => ({
@@ -58,12 +67,14 @@ export function buildChatToolToggles(
  * The settings patch one switch produces. Returns only the changed allowlist
  * fields, so the caller can merge them onto the chat's completion settings.
  *
- * On the CLI transport the FIRST switch-off materialises the whole catalogue
- * minus that tool: an unset allowlist means "everything", so writing just the
- * one name would have granted one tool instead of removing one. The always-on
- * names are always written into the list too, which is what keeps a chat with
- * every tool switched off from collapsing back to the unset "everything"
- * reading.
+ * On the CLI transport a tool every model is offered switches in the chat's
+ * own `availableTools` — the list an API turn reads — and a CLI-only one in
+ * `cliAvailableTools`. The FIRST switch-off of an unset list materialises the
+ * tools it governs minus that one: an unset list means "everything", so
+ * writing just the one name would have granted one tool instead of removing
+ * one. The always-on names are always written into the CLI list too, which is
+ * what keeps a chat with every tool switched off from collapsing back to the
+ * unset "everything" reading.
  */
 export function applyChatToolToggle(
   catalog: readonly ChatToolCatalogEntry[],
@@ -74,15 +85,22 @@ export function applyChatToolToggle(
 ): ChatToolSettings {
   if (runner === 'cli') {
     const entry = catalog.find((c) => c.name === toolName)
-    if (entry?.alwaysOn) return {}
-    const allowlist = settings?.cliAvailableTools
-    const granted = isUnsetAllowlist(allowlist)
-      ? new Set(catalog.map((c) => c.name))
-      : new Set(allowlist)
+    if (!entry || entry.alwaysOn) return {}
+    const key = cliListOf(entry)
+    const governed = catalog.filter((c) => c.alwaysOn || cliListOf(c) === key)
+    const list = settings?.[key]
+    const granted = new Set(isUnsetAllowlist(list) ? governed.map((c) => c.name) : list)
     if (next) granted.add(toolName)
     else granted.delete(toolName)
+    if (key === 'availableTools') {
+      return {
+        availableTools: [...granted].filter(
+          (name) => !catalog.find((c) => c.name === name)?.alwaysOn,
+        ),
+      }
+    }
     for (const c of catalog) if (c.alwaysOn) granted.add(c.name)
-    return { cliAvailableTools: catalog.filter((c) => granted.has(c.name)).map((c) => c.name) }
+    return { cliAvailableTools: governed.filter((c) => granted.has(c.name)).map((c) => c.name) }
   }
 
   const available = new Set(settings?.availableTools ?? [])

@@ -31238,6 +31238,10 @@ export type ListChatToolCatalogResponses = {
     description: string
     category: string
     alwaysOn: boolean
+    /**
+     * True when every model is offered the tool, so its switch is the chat's own availableTools.
+     */
+    everyRunner: boolean
   }>
 }
 
