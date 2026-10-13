@@ -532,6 +532,9 @@ import type {
   HealthResponses,
   HealthStartupData,
   HealthStartupResponses,
+  HideChatFromListData,
+  HideChatFromListErrors,
+  HideChatFromListResponses,
   ImportConnectionItemData,
   ImportConnectionItemErrors,
   ImportConnectionItemResponses,
@@ -907,6 +910,9 @@ import type {
   SetActiveCliResponses,
   SetActiveRunnerKindData,
   SetActiveRunnerKindResponses,
+  SetChatNotifyLevelData,
+  SetChatNotifyLevelErrors,
+  SetChatNotifyLevelResponses,
   SetCliDefaultModelData,
   SetCliDefaultModelResponses,
   SetCliEffortData,
@@ -939,6 +945,9 @@ import type {
   SettleProcessRunAlreadyLandedData,
   SettleProcessRunAlreadyLandedErrors,
   SettleProcessRunAlreadyLandedResponses,
+  ShowChatInListData,
+  ShowChatInListErrors,
+  ShowChatInListResponses,
   StartAgentRunData,
   StartAgentRunErrors,
   StartAgentRunResponses,
@@ -3325,6 +3334,58 @@ export const archiveChat = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Hide a chat from the person's chat list. Nothing else changes: it stays open and comes back to the list by itself when something needs the person.
+ */
+export const hideChatFromList = <ThrowOnError extends boolean = false>(
+  options: Options<HideChatFromListData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<HideChatFromListResponses, HideChatFromListErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/hide-from-list',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Show a chat hidden from the list in it again.
+ */
+export const showChatInList = <ThrowOnError extends boolean = false>(
+  options: Options<ShowChatInListData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ShowChatInListResponses, ShowChatInListErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/show-in-list',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setChatNotifyLevel = <ThrowOnError extends boolean = false>(
+  options: Options<SetChatNotifyLevelData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SetChatNotifyLevelResponses,
+    SetChatNotifyLevelErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chats/notify-level',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const rateChat = <ThrowOnError extends boolean = false>(
   options: Options<RateChatData, ThrowOnError>,
 ) =>
@@ -4983,6 +5044,10 @@ export const rejectFeatureRequest = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/feature-requests/{id}/reject',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const startCliAgentRun = <ThrowOnError extends boolean = false>(

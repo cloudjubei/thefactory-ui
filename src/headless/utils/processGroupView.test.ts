@@ -38,22 +38,22 @@ const group = (over: Partial<ProcessGroupRun> = {}): ProcessGroupRun => ({
 })
 
 describe('processGroupBadge', () => {
-  it('reads the group run’s own stop as waiting for you', () => {
+  it('reads the group run’s own stop as needing you', () => {
     expect(processGroupBadge(group({ status: 'parked' }))).toEqual({
-      label: 'Waiting for you',
+      label: 'Needs you',
       tone: 'on_hold',
     })
   })
 
-  it('reads a running group with a project at its own sign-off as ready for you', () => {
+  it('reads a running group with a project at its own sign-off as sign off', () => {
     expect(
       processGroupBadge(group({ legs: [leg('tools', { status: 'at-sign-off' }), leg('ui')] })),
-    ).toEqual({ label: 'Ready for you', tone: 'review' })
+    ).toEqual({ label: 'Sign off', tone: 'review' })
   })
 
-  it('reads a running group with a project waiting on an answer as waiting for you', () => {
+  it('reads a running group with a project waiting on an answer as needing you', () => {
     expect(processGroupBadge(group({ legs: [leg('tools', { status: 'needs-you' })] }))).toEqual({
-      label: 'Waiting for you',
+      label: 'Needs you',
       tone: 'on_hold',
     })
   })
@@ -73,7 +73,7 @@ describe('processGroupBadge', () => {
     ).toEqual({ label: 'Partly done', tone: 'stuck' })
   })
 
-  it('reads a group run that failed with nothing merged as stopped', () => {
+  it('reads a group run that failed with nothing merged as failed', () => {
     expect(
       processGroupBadge(group({ status: 'failed', legs: [leg('ui', { status: 'skipped' })] })),
     ).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
@@ -83,7 +83,7 @@ describe('processGroupBadge', () => {
     expect(
       processGroupBadge(group({ status: 'succeeded', legs: [leg('a', { status: 'at-sign-off' })] }))
         .label,
-    ).toBe('Finished')
+    ).toBe('Done')
   })
 })
 
@@ -122,6 +122,20 @@ describe('processGroupLegRows', () => {
       label: 'Waiting on another project',
       waitsFor: 'Waits for tools',
     })
+  })
+
+  it('says a leg’s status in the words a run says it in', () => {
+    const labels = processGroupLegRows(
+      group({
+        legs: [
+          leg('a', { status: 'needs-you' }),
+          leg('b', { status: 'at-sign-off' }),
+          leg('c', { status: 'integrating' }),
+          leg('d', { status: 'failed' }),
+        ],
+      }),
+    ).flatMap((wave) => wave.map((r) => r.label))
+    expect(labels).toEqual(['Needs you', 'Sign off', 'Merging', 'Failed'])
   })
 
   it('opens a leg at its sign-off to sign it off there', () => {
@@ -202,7 +216,7 @@ describe('processGroupCardView', () => {
     })
     expect(processGroupCardView(parked)).toEqual({
       title: 'Messaging',
-      badge: { label: 'Waiting for you', tone: 'on_hold' },
+      badge: { label: 'Needs you', tone: 'on_hold' },
       sub: '2 projects · 0 merged',
       body: { text: 'tools stopped.', tone: 'on_hold' },
       cta: 'Open the group run',
@@ -227,7 +241,7 @@ describe('processGroupCardView', () => {
       processGroupCardView(
         group({ status: 'succeeded', legs: [leg('a', { status: 'integrated' })] }),
       ).body,
-    ).toEqual({ text: 'Finished · every project merged', tone: 'done' })
+    ).toEqual({ text: 'Done · every project merged', tone: 'done' })
   })
 
   it('counts the rejected projects when it finished with some', () => {
@@ -238,7 +252,7 @@ describe('processGroupCardView', () => {
           legs: [leg('a', { status: 'integrated' }), leg('b', { status: 'rejected' })],
         }),
       ).body?.text,
-    ).toBe('Finished · 1 merged, 1 rejected')
+    ).toBe('Done · 1 merged, 1 rejected')
   })
 
   it('says why it failed, and nothing while nothing is for you', () => {

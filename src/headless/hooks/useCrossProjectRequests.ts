@@ -33,8 +33,8 @@ export interface CrossProjectRequestsState {
   requestById: (id: string) => FeatureRequest | undefined
   /** Accept a pending request (single-tenant: the operator may accept on B's behalf). */
   accept: (id: string) => Promise<FeatureRequest | undefined>
-  /** Reject a pending request. */
-  reject: (id: string) => Promise<FeatureRequest | undefined>
+  /** Reject a pending request; a reason given is kept on it and passed on to the asking chat. */
+  reject: (id: string, reason?: string) => Promise<FeatureRequest | undefined>
 }
 
 /** Accept, optimistically upserting the returned record so the widget/inspector update at once. */
@@ -45,8 +45,12 @@ async function acceptRequest(id: string): Promise<FeatureRequest | undefined> {
   return updated
 }
 
-async function rejectRequest(id: string): Promise<FeatureRequest | undefined> {
-  const res = await rejectFeatureRequest({ path: { id }, throwOnError: true })
+async function rejectRequest(id: string, reason?: string): Promise<FeatureRequest | undefined> {
+  const res = await rejectFeatureRequest({
+    path: { id },
+    body: reason?.trim() ? { reason: reason.trim() } : {},
+    throwOnError: true,
+  })
   const updated = res.data as FeatureRequest | undefined
   if (updated) upsertFeatureRequest(updated)
   return updated

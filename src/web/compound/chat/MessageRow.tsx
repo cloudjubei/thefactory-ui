@@ -26,6 +26,9 @@ import {
 } from '../../../headless/utils/cliRunner'
 import { costDetailsView, messageUsageCost } from '../../../headless/utils/costDetails'
 import CostDetailsPanel from '../chips/CostDetailsPanel'
+import { ManagerCardView } from './ManagerCards'
+import AnsweredQuestionBubble from './AnsweredQuestionBubble'
+import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 
 function formatFriendlyTimestamp(iso: string): string {
   try {
@@ -210,6 +213,8 @@ export type MessageRowProps = {
 
   thinkingLabel?: string
   setLastMessageRef?: (el: HTMLDivElement | null) => void
+  /** How this row's ask was settled, when it waited on one — an answered question folds to a bubble. */
+  decidedAsk?: { status: string; answer?: string } | undefined
 }
 
 function MessageRow({
@@ -245,6 +250,7 @@ function MessageRow({
   onAlwaysAllowTool,
   thinkingLabel,
   setLastMessageRef,
+  decidedAsk,
 }: MessageRowProps) {
   const role = msg.role
   // ABOVE the early returns: a hook that runs on only some renders is the
@@ -295,10 +301,39 @@ function MessageRow({
     )
   }
 
+  const managerCard = role === 'assistant' ? msg.managerCard : undefined
+  if (managerCard && managerCard.kind !== 'brief') {
+    const at = messageIso(msg)
+    return (
+      <div
+        data-msg-idx={globalIndex}
+        ref={isLast ? setLastMessageRef : undefined}
+        className="w-full"
+      >
+        <ManagerCardView
+          card={managerCard}
+          {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
+          links={{ renderReference, onResourceLink }}
+        >
+          {msg.processRunId && renderProcessRun ? renderProcessRun(msg.processRunId) : null}
+        </ManagerCardView>
+      </div>
+    )
+  }
+
   const isSystem = role === 'system'
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'
   const isTool = role === 'tool' || !!msg.toolCall
+  const answeredQuestion = msg.toolCall
+    ? answeredQuestionOf({
+        toolName: msg.toolCall.name,
+        args: msg.toolCall.arguments,
+        result: msg.toolResult?.result,
+        ...(msg.toolResult?.type !== undefined ? { resultType: msg.toolResult.type } : {}),
+        ...(decidedAsk ? { decided: decidedAsk } : {}),
+      })
+    : undefined
   // A user-role turn ANOTHER AGENT handed back (the verifier returning its report
   // to the developer): it sits on the right like a user message, but is styled
   // distinctly so nobody reads it as something the human typed.
@@ -561,7 +596,11 @@ function MessageRow({
             <div className="mt-1.5 w-full">{renderProcessGroupRun(msg.processGroupRunId)}</div>
           ) : null}
 
-          {isTool && msg.toolCall ? (
+          {isTool && msg.toolCall && answeredQuestion ? (
+            <div className="w-full">
+              <AnsweredQuestionBubble view={answeredQuestion} />
+            </div>
+          ) : isTool && msg.toolCall ? (
             <div className="w-full" id={backgroundJobAnchorOf(msg.toolResult?.result)}>
               <ToolCallCard
                 toolCall={msg.toolCall}

@@ -8,6 +8,8 @@ export interface SegmentedOption {
   value: string
   label: string
   icon?: ReactNode
+  /** Drawn after the label — a count the option carries. */
+  badge?: ReactNode
 }
 
 export type SegmentedSize = 'sm' | 'md'
@@ -95,6 +97,7 @@ export default function SegmentedControl({
                 {opt.label}
               </Text>
             )}
+            {opt.badge}
           </Pressable>
         )
       })}

@@ -559,6 +559,35 @@
   color: var(--text-muted);
   text-decoration: line-through;
 }
+/* A story's or feature's number in front of its title — muted, so the title reads. */
+.ref-chip__tag {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.ref-chip__title {
+  max-width: 16em;
+}
+.ref-chip--link .ref-chip__title {
+  color: var(--text-primary);
+}
+.ref-chip__status.badge {
+  flex: 0 0 auto;
+  height: 15px;
+  min-height: 15px;
+  max-height: 15px;
+  padding: 0 5px;
+}
+/* Still being looked up — neutral, never shown as gone meanwhile. */
+.ref-chip--loading {
+  min-width: 4em;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+.ref-chip--missing .ref-chip__glyph {
+  opacity: 0.6;
+}
 
 /* Help chip — explains where a thing came from, never how to use the screen. */
 .help-chip {
@@ -580,4 +609,73 @@
 .help-chip:hover {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+}
+
+/* Ink badge (`InkBadge`) — droplets around a sidebar badge. The layer turns
+   for orbit and comet; splash, float and pulse move each droplet on its own.
+   With reduced motion on, moving droplets fade in and out instead. */
+.tf-ink-badge__layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tf-ink-badge__drop {
+  position: absolute;
+  border-radius: 999px;
+}
+@keyframes tf-ink-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes tf-ink-splash {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tf-ink-dx), var(--tf-ink-dy)) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes tf-ink-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(var(--tf-ink-dx), var(--tf-ink-dy));
+  }
+}
+@keyframes tf-ink-pulse {
+  0%,
+  100% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+@keyframes tf-ink-fade {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tf-ink-badge__layer[data-ink-moving='yes'] {
+    animation: none !important;
+  }
+  .tf-ink-badge__drop[data-ink-moving='yes'] {
+    animation: tf-ink-fade 1.8s ease-in-out infinite !important;
+    transform: none !important;
+  }
 }

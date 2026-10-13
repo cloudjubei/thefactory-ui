@@ -60,6 +60,8 @@ describe('mergeSettings', () => {
         gitBadgeSubToggles: { incoming_commits: false } as never,
         displayDurationSeconds: 10,
         soundsEnabled: true,
+        chatNotifyLevels: DEFAULT_APP_SETTINGS.notifications.chatNotifyLevels,
+        agentMessages: 'full',
       },
     })
     expect(out.notifications.osNotificationsEnabled).toBe(true)
@@ -77,6 +79,59 @@ describe('mergeSettings', () => {
     // missing sub-toggle falls back
     expect(out.notifications.gitBadgeSubToggles.uncommitted_changes).toBe(true)
     expect(out.notifications.chatBadgeCountMode).toBe('total_messages')
+  })
+
+  it('gives a blob predating the badge look the default look: one total, ink splatter, orbit', () => {
+    const out = mergeSettings({
+      userPreferences: { storiesViewMode: 'board' } as never,
+    })
+    expect(out.userPreferences.badgeMode).toBe('total')
+    expect(out.userPreferences.badgeStyle).toBe('splatter')
+    expect(out.userPreferences.badgeMotion).toBe('orbit')
+  })
+
+  it('keeps a stored badge look', () => {
+    const out = mergeSettings({
+      userPreferences: {
+        ...DEFAULT_APP_SETTINGS.userPreferences,
+        badgeMode: 'dots',
+        badgeStyle: 'pie',
+        badgeMotion: 'spinner',
+      },
+    })
+    expect(out.userPreferences).toMatchObject({
+      badgeMode: 'dots',
+      badgeStyle: 'pie',
+      badgeMotion: 'spinner',
+    })
+  })
+
+  it('paints chat blue by default and keeps a colour the person chose', () => {
+    expect(mergeSettings({}).notifications.badgeColors.chat).toBe('blue')
+    const chose = mergeSettings({ notifications: { badgeColors: { chat: 'red' } } as never })
+    expect(chose.notifications.badgeColors.chat).toBe('red')
+    expect(chose.notifications.badgeColors.processes).toBe('green')
+  })
+
+  it('gives a blob predating notification levels the defaults: runs and requests when they need me, messages between agents collapsed', () => {
+    const out = mergeSettings({ notifications: { soundsEnabled: true } as never })
+    expect(out.notifications.chatNotifyLevels).toEqual({
+      run: 'needs-me',
+      work: 'everything',
+      request: 'needs-me',
+      project: 'everything',
+      group: 'everything',
+    })
+    expect(out.notifications.agentMessages).toBe('collapsed')
+  })
+
+  it('keeps the levels the person set and fills a kind added since', () => {
+    const out = mergeSettings({
+      notifications: { chatNotifyLevels: { run: 'everything' }, agentMessages: 'hidden' } as never,
+    })
+    expect(out.notifications.chatNotifyLevels.run).toBe('everything')
+    expect(out.notifications.chatNotifyLevels.request).toBe('needs-me')
+    expect(out.notifications.agentMessages).toBe('hidden')
   })
 
   it('does not mutate the defaults', () => {

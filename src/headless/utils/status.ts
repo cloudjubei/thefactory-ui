@@ -20,7 +20,7 @@ export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhol
 export const STATUS_LABELS: Record<StoryStatus, string> = {
   done: 'Done',
   reviewable: 'Reviewable',
-  in_progress: 'Crunching',
+  in_progress: 'Working',
   pending: 'Pending',
   blocked: 'Blocked',
   deferred: 'Deferred',

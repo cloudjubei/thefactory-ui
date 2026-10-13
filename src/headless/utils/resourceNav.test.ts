@@ -17,6 +17,19 @@ describe('resolveResourceNav', () => {
     ).toEqual({ type: 'path', path: '/projects/p1/design?screen=s1&item=i%2F1' })
   })
 
+  it('maps a run link to its project’s run page', () => {
+    expect(resolveResourceNav({ kind: 'run', projectId: 'p 1', runId: 'r/1' })).toEqual({
+      type: 'path',
+      path: '/projects/p%201/process-runs/r%2F1',
+    })
+  })
+
+  it('hands a process link to the client, whose process library lives at its own route', () => {
+    expect(
+      resolveResourceNav({ kind: 'process', projectId: 'p1', processId: 'story-default' }),
+    ).toEqual({ type: 'process', projectId: 'p1', processId: 'story-default' })
+  })
+
   it('maps a project link to the project route', () => {
     expect(resolveResourceNav({ kind: 'project', projectId: 'p1' })).toEqual({
       type: 'path',

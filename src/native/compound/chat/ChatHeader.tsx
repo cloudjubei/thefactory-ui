@@ -1,91 +1,57 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View, type LayoutChangeEvent } from 'react-native'
-import {
-  IconBug,
-  IconCalculator,
-  IconChevron,
-  IconCode,
-  IconMaximize,
-  IconRefreshChat,
-  IconScroll,
-  IconSettings,
-} from '../../icons'
+
+import type { ChatHeaderView } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import { red } from '../../../tokens/colors'
+import { IconChevron, IconMaximize } from '../../icons'
+import CostChip from '../chips/CostChip'
+import DurationChip from '../chips/DurationChip'
+import ToneBadge from '../chips/ToneBadge'
+import StepsStrip from '../process/StepsStrip'
+import ChatKindTile from './ChatKindTile'
 
 export interface ChatHeaderProps {
-  isCollapsible?: boolean
-  onCollapse?: () => void
-  /** Web's "open chat in own route" affordance — keep on RN too (deep-links). */
-  onMaximize?: () => void
-
-  /** Mobile-only: when set, a back chevron renders on the far left. Web's
-   *  chat header sits inside a routed shell that owns navigation; on a phone
-   *  the chat screen is pushed, so the header carries its own back affordance. */
-  onBack?: () => void
-  /** Mobile-only: a centred title between the left + right icon clusters. */
-  title?: string
-
-  totalCostUSD?: number
-
-  /** Caller-rendered context info button (typically a connected `i` icon). */
+  /** What the header shows — from `useChatHeaderView`. */
+  view: ChatHeaderView
+  /** The "i" button that opens what the chat is about. */
   contextInfoSlot?: ReactNode
-
-  onOpenPrompt: () => void
-  onOpenCosts: () => void
-  onOpenDynamicContext?: () => void
-  /** When set, shows a bug button beside the dynamic-context one that opens
-   *  the chat's rendering diagnostic (`ChatDebugModal`). */
-  onOpenDebug?: () => void
-  onRefresh?: () => void
-  onOpenSettings: () => void
-
-  isSettingsOpen?: boolean
-  /** When the chat is an agent run, the right-side action buttons collapse. */
-  isRunningAgent?: boolean
-
   modelChip?: ReactNode
-  /** Slot rendered immediately below the row. Hosts thread a bottom-sheet
-   *  trigger here on RN — the sheet itself is rendered as a sibling of the
-   *  `<ChatHeader>`, not inside it. */
-  settingsDropdown?: ReactNode
-  /** Optional slot rendered to the far right (after settings). */
+  /** The settings gear and its menu — usually `<ChatSettingsMenu>`. */
+  settingsMenu?: ReactNode
+  /** A panel the header hosts — the turn limit and tools sheet. */
+  settingsPanel?: ReactNode
+  onCollapse?: () => void
+  onMaximize?: () => void
+  /** Mobile-only: a back chevron leads the header on a pushed chat screen. */
+  onBack?: () => void
+  /** Leaves the title to the surrounding chrome — a screen's own header. */
+  hideTitle?: boolean
+  /** Folds the steps strip to its narrow form. */
+  narrow?: boolean
   extraRight?: ReactNode
-
-  /** Auto-hide on scroll. When `true`, the compound slides its full height
-   *  off the top of the viewport over 200ms via `translateY`. Consumers
-   *  toggle this from their scroll handler — see the mobile chat session
-   *  view for the canonical wiring. The space the header would occupy is
-   *  preserved (the underlying wrapper keeps `height`), so list content
-   *  doesn't reflow when the header hides. */
+  /**
+   * Auto-hide on scroll: slides the header its full height off the top over
+   * 200ms. The space it took is kept, so the list does not reflow.
+   */
   hidden?: boolean
 }
 
-function formatUSD(n?: number): string {
-  if (n == null || Number.isNaN(n)) return '—'
-  return `$${n.toFixed(4)}`
-}
-
 function IconBtn({
-  children,
   label,
   onPress,
-  variant = 'ghost',
+  children,
 }: {
-  children: ReactNode
   label: string
-  onPress?: () => void
-  variant?: 'ghost' | 'danger'
+  onPress: () => void
+  children: ReactNode
 }) {
   const { theme } = useNativeTheme()
-  const isDanger = variant === 'danger'
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      disabled={!onPress}
       hitSlop={4}
       style={({ pressed }) => ({
         width: 32,
@@ -94,15 +60,8 @@ function IconBtn({
         justifyContent: 'center',
         borderRadius: nativeRadii[2],
         borderWidth: 1,
-        borderColor: isDanger ? red[500] : theme.border.subtle,
-        backgroundColor: isDanger
-          ? pressed
-            ? `${red[500]}33`
-            : `${red[500]}1a`
-          : pressed
-            ? theme.surface.hover
-            : theme.surface.overlay,
-        opacity: onPress ? 1 : 0.4,
+        borderColor: theme.border.subtle,
+        backgroundColor: pressed ? theme.surface.hover : theme.surface.overlay,
       })}
     >
       {children}
@@ -111,34 +70,22 @@ function IconBtn({
 }
 
 /**
- * Native peer of [web's `ChatHeader`](../../../web/compound/chat/ChatHeader.tsx).
- * Same prop surface plus a mobile-only `hidden` flag for auto-hide on
- * scroll — the typical wiring is to detect downward scrolling in the
- * consumer's `onScroll` and flip the flag.
- *
- * Bottom-sheet dropdowns: on RN, dropdown menus are awkward to anchor
- * accurately, so the convention here is that consumers render the
- * `settingsDropdown` slot as a `<ChatSettingsDropdown>` bottom sheet
- * (controlled by `isSettingsOpen`); the slot mounts at the bottom of the
- * header but the sheet itself overlays the whole screen.
+ * Native peer of [web's `ChatHeader`](../../../web/compound/chat/ChatHeader.tsx):
+ * the kind tile and title with the status pill, the line saying where the chat
+ * sits with its time and cost, the model chip and the settings gear — and under
+ * it, for a run, story or feature chat, the steps strip.
  */
 export default function ChatHeader({
-  isCollapsible,
+  view,
+  contextInfoSlot,
+  modelChip,
+  settingsMenu,
+  settingsPanel,
   onCollapse,
   onMaximize,
   onBack,
-  title,
-  totalCostUSD,
-  contextInfoSlot,
-  onOpenPrompt,
-  onOpenCosts,
-  onOpenDynamicContext,
-  onOpenDebug,
-  onRefresh,
-  onOpenSettings,
-  isRunningAgent,
-  modelChip,
-  settingsDropdown,
+  hideTitle = false,
+  narrow = false,
   extraRight,
   hidden = false,
 }: ChatHeaderProps) {
@@ -158,100 +105,90 @@ export default function ChatHeader({
   }, [hidden, measuredHeight, translateY])
 
   const iconColor = theme.text.secondary
+  const pill = view.pill ? <ToneBadge tone={view.pill.tone} label={view.pill.label} /> : null
 
   return (
     <Animated.View
       onLayout={onLayout}
-      style={{
-        transform: [{ translateY }],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border.subtle,
-        backgroundColor: theme.surface.raised,
-      }}
+      style={{ transform: [{ translateY }], backgroundColor: theme.surface.raised }}
     >
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
+          gap: nativeSpace[2],
           paddingHorizontal: nativeSpace[3],
           paddingVertical: nativeSpace[2],
-          gap: nativeSpace[2],
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border.subtle,
         }}
       >
-        {onBack && (
+        {onBack ? (
           <IconBtn label="Back" onPress={onBack}>
             <View style={{ transform: [{ rotate: '180deg' }] }}>
               <IconChevron size={16} color={iconColor} />
             </View>
           </IconBtn>
-        )}
-        {isCollapsible && (
+        ) : null}
+        {onCollapse ? (
           <IconBtn label="Collapse chat" onPress={onCollapse}>
             <View style={{ transform: [{ rotate: '90deg' }] }}>
               <IconChevron size={16} color={iconColor} />
             </View>
           </IconBtn>
-        )}
-        {contextInfoSlot}
-        {title ? (
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 15,
-              fontWeight: '600',
-              color: theme.text.primary,
-            }}
-            numberOfLines={1}
-            ellipsizeMode="middle"
-          >
-            {title}
-          </Text>
         ) : null}
-        <IconBtn label="View System Prompt" onPress={onOpenPrompt}>
-          <IconScroll size={16} color={iconColor} />
-        </IconBtn>
-        <IconBtn
-          label={
-            typeof totalCostUSD === 'number' && totalCostUSD > 0
-              ? `Usage costs — ${formatUSD(totalCostUSD)}`
-              : 'Usage costs'
-          }
-          onPress={onOpenCosts}
-        >
-          <IconCalculator size={16} color={iconColor} />
-        </IconBtn>
-        {onOpenDynamicContext && (
-          <IconBtn label="Dynamic context" onPress={onOpenDynamicContext}>
-            <IconCode size={16} color={iconColor} />
+        {contextInfoSlot}
+        <ChatKindTile kind={view.kind} label={view.kindLabel} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          {hideTitle ? null : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  flexShrink: 1,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: theme.text.primary,
+                }}
+              >
+                {view.title}
+              </Text>
+              {pill}
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            {hideTitle ? pill : null}
+            {view.context ? (
+              <Text
+                numberOfLines={1}
+                style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}
+              >
+                {view.context}
+              </Text>
+            ) : null}
+            {view.duration ? (
+              <DurationChip
+                label={view.duration.label}
+                details={view.duration.details}
+                title={view.duration.title}
+              />
+            ) : null}
+            {view.cost ? (
+              <CostChip label={view.cost.label} cost={view.cost.cost} title={view.cost.title} />
+            ) : null}
+          </View>
+        </View>
+        {onMaximize ? (
+          <IconBtn label="Open chat in its own view" onPress={onMaximize}>
+            <IconMaximize size={16} color={iconColor} />
           </IconBtn>
-        )}
-        {onOpenDebug && (
-          <IconBtn label="Chat debug dump" onPress={onOpenDebug}>
-            <IconBug size={16} color={iconColor} />
-          </IconBtn>
-        )}
-        {!title && <View style={{ flex: 1 }} />}
-        {!isRunningAgent && (
-          <>
-            {onMaximize && (
-              <IconBtn label="Open chat in its own view" onPress={onMaximize}>
-                <IconMaximize size={16} color={iconColor} />
-              </IconBtn>
-            )}
-            {onRefresh && (
-              <IconBtn label="Clear chat" onPress={onRefresh} variant="danger">
-                <IconRefreshChat size={16} color={red[600]} />
-              </IconBtn>
-            )}
-            {modelChip}
-            <IconBtn label="Chat settings" onPress={onOpenSettings}>
-              <IconSettings size={16} color={iconColor} />
-            </IconBtn>
-            {extraRight}
-          </>
-        )}
+        ) : null}
+        {modelChip}
+        {settingsMenu}
+        {extraRight}
       </View>
-      {settingsDropdown}
+      {view.strip ? <StepsStrip model={view.strip} narrow={narrow} /> : null}
+      {settingsPanel}
     </Animated.View>
   )
 }

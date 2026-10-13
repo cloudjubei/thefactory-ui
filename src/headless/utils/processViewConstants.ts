@@ -1,3 +1,21 @@
+/**
+ * The short words a run's status is said in, on every surface: the list, its
+ * sections, the run header, the chat card, a group's legs and a story's chip.
+ */
+export const PROCESS_RUN_WORDS = {
+  starting: 'Starting',
+  needsYou: 'Needs you',
+  signOff: 'Sign off',
+  running: 'Running',
+  merging: 'Merging',
+  bringingIn: 'Bringing in',
+  notMerged: 'Not merged',
+  notBroughtIn: 'Not brought in',
+  done: 'Done',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+} as const
+
 /** The heading of a run's spend details when no cap stands against it. */
 export const PROCESS_SPEND_TITLE = 'Spent so far'
 

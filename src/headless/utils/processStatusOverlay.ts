@@ -16,7 +16,7 @@ import type { StatusSemanticKey } from './status'
  * once signed off — but it cannot link anywhere. This derives, from the story's
  * process run, the word to show and the run to jump to:
  *   - parked at the sign-off gate  → Reviewable (go decide the sign-off)
- *   - running / pending            → Crunching (watch the ongoing run)
+ *   - running / pending            → Working (watch the ongoing run)
  *   - parked for any other reason, or failed → Blocked (it is stuck; go unstick it)
  *   - ended on a request for changes → Changes requested (open it to send it back)
  *   - approved, its work not landed → Not merged (open it to bring it in)
@@ -37,7 +37,7 @@ export type ProcessStatusOverlay = {
 
 /**
  * Whether a run is parked at its sign-off gate — the "Reviewable" state, the one
- * that follows "Crunching" and precedes "Done", and the one its verified
+ * that follows "Working" and precedes "Done", and the one its verified
  * features are stored in. A gate is always a review point, so this does not
  * require a `storyId` (the pipeline still gates the story sign-off UI on
  * `storyId` separately). Pure.
@@ -57,7 +57,7 @@ export function processStatusOverlay(
     case 'running':
     case 'pending':
       return {
-        label: 'Crunching',
+        label: 'Working',
         semantic: 'working',
         title: PROCESS_STATUS_OVERLAY_TITLES.working,
         runId: run.id,

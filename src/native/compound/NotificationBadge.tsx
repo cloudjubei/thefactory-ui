@@ -3,7 +3,7 @@ import type { StyleProp, ViewStyle } from 'react-native'
 import { nativeLightStatus, nativePalette, type NativeStatusTokens } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 
-export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange'
+export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange' | 'purple'
 
 export interface NotificationBadgeProps {
   text: string
@@ -35,6 +35,8 @@ export function getNotificationBadgeColor(
       return status.done.bg
     case 'orange':
       return nativePalette.orange[500]
+    case 'purple':
+      return nativePalette.purple[600]
   }
 }
 

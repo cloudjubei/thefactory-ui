@@ -4,7 +4,6 @@ import {
   abortChatCompletion,
   abortCliAgentRun,
   addChatMessages,
-  archiveChat as archiveChatApi,
   clearChat as clearChatApi,
   consolidateChat as consolidateChatApi,
   createTopicChat,
@@ -13,11 +12,14 @@ import {
   getChat as getChatApi,
   getChatSummary as getChatSummaryApi,
   getChatsSettings,
+  hideChatFromList as hideChatFromListApi,
   getCliAgentRun,
   listChatSummaries,
   restartChatWithCli,
   sendChatWithCli,
   sendCompletionWithTools,
+  setChatNotifyLevel as setChatNotifyLevelApi,
+  showChatInList as showChatInListApi,
   updateChat,
   uploadAnyChatAttachment,
   uploadChatAttachment,
@@ -36,6 +38,10 @@ import { errorStatus } from '../api/errorMessage'
 import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
 import { chatUpdateTarget, withChat, withFullRefresh } from '../utils/chatUpdates'
+import { withChatNotifyLevel } from '../utils/chatNotify'
+import type { ChatNotifyLevel } from '../utils/chatNotifyTypes'
+import { chatListBackNotice, chatListHiddenNotice, withChatListHidden } from '../utils/chatList'
+import type { ChatListNotice } from '../utils/chatListTypes'
 import {
   isChatLoaded,
   withAppendedMessage,
@@ -187,11 +193,21 @@ export type ChatsContextValue = {
    * desktop's `restartChat`. */
   clearChat: (ctx: ChatCtx) => Promise<void>
   /**
-   * Retire the chat without destroying it: stamps `archivedAt` and keeps every
-   * message, so the conversation stays browsable. This is what a global-chat
-   * reset does — `clearChat` would empty it in place.
+   * Take the chat out of the person's chat list — "Archive from list". It stays
+   * open and comes back by itself when it next needs them. Leaves a
+   * {@link chatListNotice} whose Undo shows it again.
    */
-  archiveChat: (ctx: ChatCtx) => Promise<void>
+  hideChatFromList: (ctx: ChatCtx) => Promise<void>
+  /** Put a chat hidden from the list back in it — "Show in list again", and the notice's Undo. */
+  showChatInList: (ctx: ChatCtx) => Promise<void>
+  /**
+   * The person's own notification level for a chat — "Notify me" — or, with
+   * none, back to the level for its kind. Shown at once; put back if it fails.
+   */
+  setChatNotifyLevel: (ctx: ChatCtx, level: ChatNotifyLevel | undefined) => Promise<void>
+  /** What the chat list last said about a chat leaving or coming back to it, until dismissed. */
+  chatListNotice: ChatListNotice | null
+  dismissChatListNotice: () => void
   /**
    * Summarise a finished agent-run chat into a NEW chat and close this one.
    * Resolves with the successor's context to navigate to.
@@ -1304,12 +1320,59 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       [reloadChat, getChatLiveState, updateLiveState],
     )
 
-    const archiveChat = useCallback(
-      async (ctx: ChatCtx) => {
-        await archiveChatApi({ body: { context: ctx }, throwOnError: true })
-        await reloadChat(ctx)
+    const setChatNotifyLevel = useCallback(
+      async (ctx: ChatCtx, level: ChatNotifyLevel | undefined) => {
+        const before = chatsRef.current.find((c) => sameContext(c.context, ctx))
+        setChats((prev) =>
+          prev.map((c) => (sameContext(c.context, ctx) ? withChatNotifyLevel(c, level) : c)),
+        )
+        try {
+          await setChatNotifyLevelApi({
+            body: { context: ctx, ...(level ? { notifyLevel: level } : {}) },
+            throwOnError: true,
+          })
+        } catch (err) {
+          if (before) {
+            setChats((prev) => prev.map((c) => (sameContext(c.context, ctx) ? before : c)))
+          }
+          throw err
+        }
       },
-      [reloadChat],
+      [],
+    )
+
+    const [chatListNotice, setChatListNotice] = useState<ChatListNotice | null>(null)
+    const dismissChatListNotice = useCallback(() => setChatListNotice(null), [])
+    const setListHidden = useCallback(async (ctx: ChatCtx, listHiddenAt: string | undefined) => {
+      const before = chatsRef.current.find((c) => sameContext(c.context, ctx))
+      setChats((prev) =>
+        prev.map((c) => (sameContext(c.context, ctx) ? withChatListHidden(c, listHiddenAt) : c)),
+      )
+      try {
+        const body = { body: { context: ctx }, throwOnError: true } as const
+        if (listHiddenAt === undefined) await showChatInListApi(body)
+        else await hideChatFromListApi(body)
+      } catch (err) {
+        if (before) {
+          setChats((prev) => prev.map((c) => (sameContext(c.context, ctx) ? before : c)))
+        }
+        throw err
+      }
+      return before
+    }, [])
+    const hideChatFromList = useCallback(
+      async (ctx: ChatCtx) => {
+        const before = await setListHidden(ctx, new Date().toISOString())
+        setChatListNotice(chatListHiddenNotice(ctx, before?.title?.trim() || undefined))
+      },
+      [setListHidden],
+    )
+    const showChatInList = useCallback(
+      async (ctx: ChatCtx) => {
+        const before = await setListHidden(ctx, undefined)
+        setChatListNotice(chatListBackNotice(ctx, before?.title?.trim() || undefined))
+      },
+      [setListHidden],
     )
 
     /**
@@ -1529,7 +1592,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         restartLastTurn,
         abortChat,
         clearChat,
-        archiveChat,
+        hideChatFromList,
+        showChatInList,
+        setChatNotifyLevel,
+        chatListNotice,
+        dismissChatListNotice,
         consolidateChat,
         deleteChat,
         deleteLastMessage,
@@ -1561,7 +1628,11 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         restartLastTurn,
         abortChat,
         clearChat,
-        archiveChat,
+        hideChatFromList,
+        showChatInList,
+        setChatNotifyLevel,
+        chatListNotice,
+        dismissChatListNotice,
         consolidateChat,
         deleteChat,
         deleteLastMessage,

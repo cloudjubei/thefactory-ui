@@ -423,9 +423,6 @@ describe('signoffMergeHold', () => {
     }
     const hold = signoffMergeHold(group, 'ui', nameOf)
     expect(hold?.reason).toBe('Merges after thefactory-a and thefactory-b are merged')
-    expect(hold?.waitingOn.map((l) => l.status)).toEqual([
-      'waiting on another project',
-      'ready for sign-off',
-    ])
+    expect(hold?.waitingOn.map((l) => l.status)).toEqual(['waiting on another project', 'sign off'])
   })
 })

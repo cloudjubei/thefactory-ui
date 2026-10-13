@@ -1,3 +1,5 @@
+import { PROCESS_RUN_WORDS } from './processViewConstants'
+
 /** What pressing a story's process chip does, by the state it shows. */
 export const PROCESS_STATUS_OVERLAY_TITLES = {
   review: 'Ready for sign-off — open the pipeline to review and approve',
@@ -10,12 +12,12 @@ export const PROCESS_STATUS_OVERLAY_TITLES = {
 
 /** The chip on approved work that has not landed: with git words, and without them. */
 export const PROCESS_STATUS_OVERLAY_NOT_LANDED = {
-  git: 'Not merged',
-  shadow: 'Not brought in',
+  git: PROCESS_RUN_WORDS.notMerged,
+  shadow: PROCESS_RUN_WORDS.notBroughtIn,
 } as const
 
 /** The chip on approved work being brought in: with git words, and without them. */
 export const PROCESS_STATUS_OVERLAY_BRINGING_IN = {
-  git: 'Merging',
-  shadow: 'Bringing in',
+  git: PROCESS_RUN_WORDS.merging,
+  shadow: PROCESS_RUN_WORDS.bringingIn,
 } as const

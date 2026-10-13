@@ -78,7 +78,7 @@ describe('cliPendingActionToGrant — ordinary tool asks are decided on their ro
     ).toBe('run-3')
   })
 
-  it.each(['chat-message-send', 'project-file-write', 'project-note-read'])(
+  it.each(['project-note-read'])(
     'decides a host tool’s ask raised as %s on its row, as an MCP tool call',
     (kind) => {
       expect(
@@ -91,17 +91,20 @@ describe('cliPendingActionToGrant — ordinary tool asks are decided on their ro
     },
   )
 
-  it.each(['network-unlock', 'inspect-host-path', 'process-run-chat:answerRunPark'])(
-    'leaves a boundary or a request with a card of its own (%s) for the panel',
-    (kind) => {
-      const grant = cliPendingActionToGrant({
-        id: 'a-5',
-        kind,
-        payload: { tool: 'answerRunPark', args: {} },
-      })
-      expect(grant.inline).toBeUndefined()
-    },
-  )
+  it.each([
+    'network-unlock',
+    'inspect-host-path',
+    'process-run-chat:answerRunPark',
+    'chat-message-send',
+    'project-file-write',
+  ])('leaves a boundary or a request with a card of its own (%s) for the panel', (kind) => {
+    const grant = cliPendingActionToGrant({
+      id: 'a-5',
+      kind,
+      payload: { tool: 'answerRunPark', args: {} },
+    })
+    expect(grant.inline).toBeUndefined()
+  })
 
   it('leaves a request of its own kind for the approval panel', () => {
     const grant = cliPendingActionToGrant({
@@ -199,14 +202,26 @@ describe('cliPendingActionToGrant', () => {
       cliPendingActionToGrant({
         id: 'a-2',
         kind: 'question',
-        payload: { question: 'Which env?', options: ['dev', 'prod'] },
+        payload: {
+          question: 'Which env?',
+          options: [{ label: 'dev', recommended: true }, { label: 'prod' }],
+          answerKind: 'branch',
+        },
       }),
     ).toEqual({
       id: 'a-2',
       chatRunner: 'cli',
       label: 'Question',
-      detail: { question: 'Which env?', options: ['dev', 'prod'] },
-      question: { question: 'Which env?', options: ['dev', 'prod'] },
+      detail: {
+        question: 'Which env?',
+        options: [{ label: 'dev', recommended: true }, { label: 'prod' }],
+        answerKind: 'branch',
+      },
+      question: {
+        question: 'Which env?',
+        options: [{ label: 'dev', recommended: true }, { label: 'prod' }],
+        answerKind: 'branch',
+      },
       alwaysAllowScopes: ['everywhere'],
       grantCovers: 'exact-call',
     })

@@ -18,6 +18,7 @@ import {
   PROCESS_INTEGRATION_COMPARE_LINK,
   PROCESS_INTEGRATION_CONFLICT,
   PROCESS_INTEGRATION_NEVER_TRIED,
+  PROCESS_INTEGRATION_NEVER_TRIED_TITLE,
   PROCESS_INTEGRATION_PR_LINK,
   PROCESS_INTEGRATION_SHADOW,
 } from './processIntegrationConstants'
@@ -115,9 +116,9 @@ const MODE_BUSY: Record<ProcessIntegrationMode, (branch: ProcessWorkBranch) => s
 }
 
 const MODE_FAILED: Record<ProcessIntegrationMode, (baseRef: string) => string> = {
-  merge: (baseRef) => `Approved — not merged into ${baseRef}`,
-  squash: (baseRef) => `Approved — not merged into ${baseRef}`,
-  'pull-request': () => 'Approved — the pull request was not opened',
+  merge: (baseRef) => `Not merged into ${baseRef}`,
+  squash: (baseRef) => `Not merged into ${baseRef}`,
+  'pull-request': () => 'Pull request not opened',
 }
 
 /**
@@ -136,7 +137,7 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
     return isProcessRunAwaitingIntegration(run)
       ? {
           tone: 'on_hold',
-          title: PROCESS_INTEGRATION_BADGE.awaiting,
+          title: PROCESS_INTEGRATION_NEVER_TRIED_TITLE,
           detail: PROCESS_INTEGRATION_NEVER_TRIED,
           canRetry: true,
           busy: false,
@@ -266,7 +267,7 @@ function shadowIntegrationView(run: ProcessRun): ProcessIntegrationView | undefi
     return isProcessRunAwaitingIntegration(run)
       ? {
           tone: 'on_hold',
-          title: PROCESS_INTEGRATION_SHADOW.awaitingBadge,
+          title: PROCESS_INTEGRATION_SHADOW.neverTriedTitle,
           detail: PROCESS_INTEGRATION_SHADOW.neverTried,
           canRetry: true,
           busy: false,
@@ -296,12 +297,21 @@ function shadowIntegrationView(run: ProcessRun): ProcessIntegrationView | undefi
   }
 }
 
-/** The run badge while approved work is being brought in, or has not landed. */
+/**
+ * The run badge while approved work is being merged ("Merging"), or after it
+ * was not ("Not merged") — said without git words for a project with no git of
+ * its own.
+ */
 export function processIntegrationBadge(
   run: ProcessRun,
 ): { label: string; tone: ProcessStatusTone } | undefined {
   if (run.integration?.status === 'integrating') {
-    return { label: PROCESS_INTEGRATION_BADGE.integrating, tone: 'working' }
+    return {
+      label: run.workBranch?.shadow
+        ? PROCESS_INTEGRATION_SHADOW.integratingBadge
+        : PROCESS_INTEGRATION_BADGE.integrating,
+      tone: 'working',
+    }
   }
   if (!isProcessRunAwaitingIntegration(run)) return undefined
   return {

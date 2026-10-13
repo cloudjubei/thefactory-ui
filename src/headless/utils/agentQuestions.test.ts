@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   shownQuestionId,
   answerDecision,
+  answeredQuestionOf,
+  splitParkedAsks,
   canSubmitAnswer,
   declineDecision,
   isQuestionAction,
@@ -11,7 +13,7 @@ import {
   userAsks,
 } from './agentQuestions'
 import { QUESTION_DECLINED_ANSWER, QUESTION_FALLBACK_PROMPT } from './agentQuestionConstants'
-import type { PendingQuestionGrant, PendingToolGrant } from './chatTypes'
+import type { PendingQuestionGrant, PendingToolGrant, UserAsk } from './chatTypes'
 import type { CredentialCapture } from './credentialCaptureTypes'
 
 const noop = async () => {}
@@ -50,18 +52,48 @@ describe('parseQuestionPayload — a reported blocker', () => {
 })
 
 describe('parseQuestionPayload', () => {
-  it('reads question, context and options from a well-formed payload', () => {
+  it('reads question, context and rich options from a well-formed payload', () => {
     expect(
       parseQuestionPayload({
         question: 'Which database should I target?',
         context: 'Both are configured in .env',
-        options: ['postgres', 'sqlite'],
+        options: [
+          { label: 'postgres', detail: 'The server', recommended: true },
+          { label: 'sqlite' },
+        ],
       }),
     ).toEqual({
       question: 'Which database should I target?',
       context: 'Both are configured in .env',
-      options: ['postgres', 'sqlite'],
+      options: [
+        { label: 'postgres', detail: 'The server', recommended: true },
+        { label: 'sqlite' },
+      ],
     })
+  })
+
+  it('reads the kind of answer the agent wants, so the card can offer a picker', () => {
+    expect(parseQuestionPayload({ question: 'Which branch?', answerKind: 'branch' })).toEqual({
+      question: 'Which branch?',
+      answerKind: 'branch',
+    })
+  })
+
+  it('ignores an answer kind it does not know, and plain text', () => {
+    expect(parseQuestionPayload({ question: 'Q', answerKind: 'colour' })).toEqual({ question: 'Q' })
+    expect(parseQuestionPayload({ question: 'Q', answerKind: 'text' })).toEqual({ question: 'Q' })
+  })
+
+  it('marks at most one option as the agent’s pick — the first so marked', () => {
+    expect(
+      parseQuestionPayload({
+        question: 'Q',
+        options: [
+          { label: 'a', recommended: true },
+          { label: 'b', recommended: true },
+        ],
+      }).options,
+    ).toEqual([{ label: 'a', recommended: true }, { label: 'b' }])
   })
 
   it('omits context and options when absent', () => {
@@ -78,13 +110,22 @@ describe('parseQuestionPayload', () => {
     expect(parseQuestionPayload('  Which branch?  ')).toEqual({ question: 'Which branch?' })
   })
 
-  it('keeps only non-empty string options, de-duplicated in order', () => {
+  it('keeps only options with a label, trimmed and de-duplicated in order', () => {
     expect(
       parseQuestionPayload({
         question: 'Pick one',
-        options: ['a', 3, '  b  ', '', null, 'a', {}],
+        options: [
+          { label: 'a' },
+          3,
+          { label: '  b  ', detail: '   ' },
+          { label: '' },
+          null,
+          { label: 'a', detail: 'again' },
+          {},
+          'c',
+        ],
       }),
-    ).toEqual({ question: 'Pick one', options: ['a', 'b'] })
+    ).toEqual({ question: 'Pick one', options: [{ label: 'a' }, { label: 'b' }] })
   })
 
   it('omits options when none survive filtering', () => {
@@ -236,5 +277,89 @@ describe('userAsks', () => {
 
   it('is empty when nothing waits on the user', () => {
     expect(userAsks([], [])).toEqual([])
+  })
+})
+
+describe('answeredQuestionOf', () => {
+  const asked = { question: 'Which branch?', options: [{ label: 'dev' }] }
+
+  it('folds an answered askUser row to its question and answer', () => {
+    expect(
+      answeredQuestionOf({
+        toolName: 'askUser',
+        args: asked,
+        result: { answer: 'dev' },
+        resultType: 'success',
+      }),
+    ).toEqual({ question: 'Which branch?', answer: 'dev', by: 'answered' })
+  })
+
+  it('reads the answer the decision recorded when the row carries none', () => {
+    expect(
+      answeredQuestionOf({
+        toolName: 'mcp__thefactory__askUser',
+        args: asked,
+        result: 'The user answered your question',
+        resultType: 'success',
+        decided: { status: 'approved', answer: 'main' },
+      }),
+    ).toEqual({ question: 'Which branch?', answer: 'main', by: 'answered' })
+  })
+
+  it('says the agent was left to decide when the question was declined', () => {
+    expect(
+      answeredQuestionOf({
+        toolName: 'askUser',
+        args: asked,
+        resultType: 'not_allowed',
+        decided: { status: 'denied' },
+      }),
+    ).toEqual({ question: 'Which branch?', by: 'agent-decides' })
+    expect(
+      answeredQuestionOf({
+        toolName: 'askUser',
+        args: asked,
+        result: { outcome: 'denied' },
+        resultType: 'not_allowed',
+      }),
+    ).toEqual({ question: 'Which branch?', by: 'agent-decides' })
+  })
+
+  it('leaves a question still waiting, expired or withdrawn as its row', () => {
+    expect(
+      answeredQuestionOf({ toolName: 'askUser', args: asked, resultType: 'require_confirmation' }),
+    ).toBeUndefined()
+    expect(
+      answeredQuestionOf({
+        toolName: 'askUser',
+        args: asked,
+        resultType: 'not_allowed',
+        decided: { status: 'expired' },
+      }),
+    ).toBeUndefined()
+  })
+
+  it('is not about any other tool, nor a call with no question', () => {
+    expect(
+      answeredQuestionOf({ toolName: 'readPaths', args: asked, result: { answer: 'x' } }),
+    ).toBeUndefined()
+    expect(
+      answeredQuestionOf({ toolName: 'askUser', args: {}, result: { answer: 'x' } }),
+    ).toBeUndefined()
+  })
+})
+
+describe('splitParkedAsks', () => {
+  const ask = (id: string): UserAsk => ({ kind: 'capture', id, capture: {} as CredentialCapture })
+
+  it('keeps the asks set aside apart from the open ones, each in order', () => {
+    expect(splitParkedAsks([ask('a'), ask('b'), ask('c')], new Set(['b']))).toEqual({
+      open: [ask('a'), ask('c')],
+      parked: [ask('b')],
+    })
+  })
+
+  it('has every ask open when none is set aside', () => {
+    expect(splitParkedAsks([ask('a')], new Set())).toEqual({ open: [ask('a')], parked: [] })
   })
 })

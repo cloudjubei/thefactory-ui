@@ -10,6 +10,7 @@ import {
 import {
   applyChatTurnLimit,
   buildChatTurnLimit,
+  CHAT_SETTINGS_MENU_COPY,
   filterChatToolToggles,
   groupChatToolToggles,
   useAppSettings,
@@ -78,10 +79,6 @@ export interface ChatSettingsDropdownProps {
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
-  onDeleteChat: () => Promise<void> | void
-  /** Hide the delete-chat button (e.g. the General chat cannot be deleted). */
-  canDelete?: boolean
-
   /** Slot beneath the standard fields — host renders history-summarization /
    *  message-sanitization sub-controls here. */
   extraContent?: ReactNode
@@ -94,8 +91,8 @@ export interface ChatSettingsDropdownProps {
 /**
  * Native peer of [web's `ChatSettingsDropdown`](../../../web/compound/chat/ChatSettingsDropdown.tsx).
  * On RN the settings surface is a bottom sheet with a scrollable body:
- * system-prompt editor, completion sliders, per-tool toggles, the
- * `extraContent` slot, and the delete-chat action.
+ * the turn limit, completion sliders, per-tool toggles and the `extraContent`
+ * slot — with the system-prompt editor when "Show developer tools" is on.
  */
 export default function ChatSettingsDropdown({
   isOpen,
@@ -112,10 +109,8 @@ export default function ChatSettingsDropdown({
   onToolApprovalChange,
   rulesChatContextId,
   persistSettings,
-  onDeleteChat,
-  canDelete = true,
   extraContent,
-  title = 'Chat settings',
+  title = CHAT_SETTINGS_MENU_COPY.tune,
   blocked = false,
 }: ChatSettingsDropdownProps) {
   const { theme } = useNativeTheme()
@@ -171,24 +166,25 @@ export default function ChatSettingsDropdown({
         contentContainerStyle={{ gap: nativeSpace[5], paddingBottom: nativeSpace[4] }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* System prompt */}
-        <View style={{ gap: nativeSpace[2] }}>
-          <SectionLabel>System prompt</SectionLabel>
-          <Textarea
-            value={draftPrompt}
-            onChangeText={setDraftPrompt}
-            rows={4}
-            placeholder="Custom system prompt for this chat context…"
-          />
-          <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
-            <Button size="sm" onPress={() => void onSavePrompt()}>
-              Save prompt
-            </Button>
-            <Button size="sm" variant="secondary" onPress={() => void onResetPrompt()}>
-              Reset to defaults
-            </Button>
+        {prefs.showDeveloperTools === true ? (
+          <View style={{ gap: nativeSpace[2] }}>
+            <SectionLabel>System prompt</SectionLabel>
+            <Textarea
+              value={draftPrompt}
+              onChangeText={setDraftPrompt}
+              rows={4}
+              placeholder="Custom system prompt for this chat context…"
+            />
+            <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
+              <Button size="sm" onPress={() => void onSavePrompt()}>
+                Save prompt
+              </Button>
+              <Button size="sm" variant="secondary" onPress={() => void onResetPrompt()}>
+                Reset to defaults
+              </Button>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {completion ? (
           <View style={{ gap: nativeSpace[4] }}>
@@ -417,25 +413,6 @@ export default function ChatSettingsDropdown({
             )}
           </View>
         </View>
-
-        {canDelete ? (
-          // Compact destructive button, left-aligned (per user feedback —
-          // sits where the rest of the section's content starts, not flush
-          // to the right edge).
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              paddingTop: nativeSpace[3],
-              borderTopWidth: 1,
-              borderTopColor: theme.border.subtle,
-            }}
-          >
-            <Button size="sm" variant="danger" onPress={() => void onDeleteChat()}>
-              Delete this chat
-            </Button>
-          </View>
-        ) : null}
       </ScrollView>
     </BottomSheet>
   )

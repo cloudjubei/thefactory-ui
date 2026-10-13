@@ -4,6 +4,7 @@ import {
   chatLastActivityAt,
   chatMessageCount,
   chatMessageTimes,
+  chatNeedsYouTimesOf,
   isChatLoaded,
   type ChatListEntry,
   type ChatSummaryLike,
@@ -28,6 +29,7 @@ const summary = (n: number, updatedAt = 'u1'): ChatSummaryLike => ({
   title: 'T',
   messageCount: n,
   messageTimes: Array.from({ length: n }, (_, i) => `t${i}`),
+  needsYouTimes: [],
 })
 
 describe('chat list entries', () => {
@@ -129,5 +131,29 @@ describe('chatMessageTimes — a loaded chat the run’s manager worked in', () 
       ] as unknown as ChatListEntry['messages'],
     }
     expect(chatMessageTimes(entry)).toEqual(['a', 'e', 'f'])
+  })
+})
+
+describe('chatNeedsYouTimesOf', () => {
+  it('times what needs the person in a loaded chat, as the summary does', () => {
+    const entry: ChatListEntry = {
+      context: ctx,
+      updatedAt: 'u1',
+      messages: [
+        { role: 'assistant', content: 'done', completedAt: 'a' },
+        {
+          role: 'assistant',
+          content: 'needs you',
+          managerCard: { kind: 'escalation', escalation: { why: 'scope' } },
+          completedAt: 'b',
+        },
+      ] as unknown as ChatListEntry['messages'],
+    }
+    expect(chatNeedsYouTimesOf(entry)).toEqual(['b'])
+  })
+
+  it('reads a summary’s own times, and nothing from one that has none', () => {
+    expect(chatNeedsYouTimesOf({ ...summary(1), needsYouTimes: ['t0'] })).toEqual(['t0'])
+    expect(chatNeedsYouTimesOf({})).toEqual([])
   })
 })

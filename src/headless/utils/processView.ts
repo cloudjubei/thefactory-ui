@@ -13,6 +13,7 @@ import { costChipLabel, formatCostUSD } from './costDetails'
 import { processIntegrationBadge } from './processIntegration'
 import {
   PROCESS_RUN_PERSON_ENDING_VIEW,
+  PROCESS_RUN_WORDS,
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_SPEND_TITLE,
   PROCESS_STEP_FINISHED_COPY,
@@ -84,18 +85,18 @@ export const PROCESS_RUN_STATUS_VIEW: Record<
   ProcessRun['status'],
   { label: string; tone: ProcessStatusTone }
 > = {
-  pending: { label: 'Starting', tone: 'queued' },
-  running: { label: 'Running', tone: PROCESS_LIVE_TONE },
-  parked: { label: 'Waiting for you', tone: 'blocked' },
-  succeeded: { label: 'Finished', tone: 'done' },
-  failed: { label: 'Stopped', tone: 'stuck' },
-  cancelled: { label: 'Cancelled', tone: 'empty' },
+  pending: { label: PROCESS_RUN_WORDS.starting, tone: 'queued' },
+  running: { label: PROCESS_RUN_WORDS.running, tone: PROCESS_LIVE_TONE },
+  parked: { label: PROCESS_RUN_WORDS.needsYou, tone: 'blocked' },
+  succeeded: { label: PROCESS_RUN_WORDS.done, tone: 'done' },
+  failed: { label: PROCESS_RUN_WORDS.failed, tone: 'stuck' },
+  cancelled: { label: PROCESS_RUN_WORDS.cancelled, tone: 'empty' },
 }
 
 /**
  * How a run that a PERSON ended reads — a request for changes, a rejection, or
  * a stop — named as their decision, with where it was made and their words,
- * instead of the "Stopped" a run that broke shows. `undefined` for every other run.
+ * instead of the "Failed" a run that broke shows. `undefined` for every other run.
  */
 export function processRunPersonEnding(
   run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'>,
@@ -141,26 +142,16 @@ export function processRunChain(run: ProcessRun): string {
 }
 
 /**
- * One line for the chat card that launched a run.
+ * One line for a run: its status word and how far it got.
  *
- * A parked run says a decision is PENDING and nothing more — which one, and the
- * choices that answer it, live in the pipeline where their context is.
+ * A parked run says only that it needs the person, or is ready to sign off —
+ * which decision, and the choices that answer it, live in the pipeline where
+ * their context is.
  */
 export function processRunChipLabel(run: ProcessRun): string {
+  if (run.status === 'cancelled') return PROCESS_RUN_WORDS.cancelled
   const { completed, total } = processRunProgress(run)
-  const steps = `${completed}/${total} steps`
-  switch (run.status) {
-    case 'parked':
-      return `A decision is pending · ${steps}`
-    case 'succeeded':
-      return `Finished · ${steps}`
-    case 'failed':
-      return `${processRunPersonEnding(run)?.label ?? 'Stopped'} · ${steps}`
-    case 'cancelled':
-      return 'Cancelled'
-    default:
-      return `Running · ${steps}`
-  }
+  return `${processRunBadge(run).label} · ${completed}/${total} steps`
 }
 
 /**
@@ -570,17 +561,17 @@ export function processLoopSenders(
 
 /**
  * The run's headline badge — refined for a park, which the plain status view
- * cannot be: a run stopped on the sign-off GATE is "Ready for you" (review),
- * one stopped on a question or a failure is "Waiting for you" (on-hold). Every
- * other status reads straight from {@link PROCESS_RUN_STATUS_VIEW}.
+ * cannot be: a run stopped on the sign-off GATE is "Sign off" (review), one
+ * stopped on a question or a failure is "Needs you" (on-hold). Every other
+ * status reads straight from {@link PROCESS_RUN_STATUS_VIEW}.
  */
 export function processRunBadge(run: ProcessRun): { label: string; tone: ProcessStatusTone } {
   const integration = processIntegrationBadge(run)
   if (integration) return integration
   if (run.status === 'parked') {
     return run.park?.reason === 'gate'
-      ? { label: 'Ready for you', tone: 'review' }
-      : { label: 'Waiting for you', tone: 'on_hold' }
+      ? { label: PROCESS_RUN_WORDS.signOff, tone: 'review' }
+      : { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
   }
   const ending = processRunPersonEnding(run)
   if (ending) return { label: ending.label, tone: ending.tone }
@@ -633,7 +624,7 @@ export function processRunCardView(run: ProcessRun): ProcessRunCardView {
       title,
       badge,
       sub: `${completed} of ${total} steps`,
-      body: { text: `Finished · ${completed} of ${total} steps done`, tone: 'done' },
+      body: { text: `${PROCESS_RUN_WORDS.done} · ${completed} of ${total} steps`, tone: 'done' },
       cta,
     }
   }

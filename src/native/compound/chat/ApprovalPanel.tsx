@@ -1,23 +1,27 @@
 import { useRef, useState } from 'react'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
 
-import { Button } from '../../primitives/Button'
 import { Textarea } from '../../primitives/Textarea'
 import Tooltip from '../../primitives/Tooltip'
 import {
   LAUNCH_NOTE_MAX_CHARS,
-  grantDetailView,
   isStartFeatureWorkGrant,
   launchRunnerLabel,
   startFeatureWorkGrantSummary,
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
-import { alwaysAllowChoiceView, alwaysAllowDecision } from '../../../headless/utils/alwaysAllow'
-import type { GrantDetailView } from '../../../headless/utils/approvalGrantTypes'
 import type { PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
-import AlwaysAllowControl from './AlwaysAllowControl'
-import RichText from '../files/RichText'
+import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
+import ToolAskApprovalPanel from './ToolAskApprovalPanel'
+import ToolAskCard from './ToolAskCard'
+import {
+  featureWorkAskView,
+  featureWorkLaunchCheck,
+  toolAskDecidedLine,
+} from '../../../headless/utils/toolAskCard'
+import { FEATURE_WORK_ASK } from '../../../headless/utils/toolAskCardConstants'
+import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import {
@@ -48,7 +52,6 @@ import type {
   ProcessOpenWorkChoice,
 } from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
-import { red } from '../../../tokens/colors'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
 import FeatureProcessChooser from './FeatureProcessChooser'
@@ -72,16 +75,18 @@ export type ApprovalPanelProps = {
   /** The chat's group, for a launch across the group's projects. */
   groupId?: string
   onDecideLater: () => void
+  /** The ask was decided on its card — what the card folds to. */
+  onDecided?: (line: ToolAskDecidedLine) => void
 }
 
 /**
  * Native peer of [web's `ApprovalPanel`](../../../web/compound/chat/ApprovalPanel.tsx).
  * Takes the composer's place so the ask is unmissable while the chat stays
- * visible; `onDecideLater` parks a tool ask and hands the composer back. A
- * launch renders as the dock — story, features in pick-up order, what "yes"
- * does, a note for the run — everything else shows the tool and its arguments.
- * The dock answers either way and offers no park; see the web peer for why, and
- * for why this takes no external busy flag.
+ * visible; `onDecideLater` leaves the ask waiting and hands the composer back.
+ * Every ask reads as the one shared tool-ask card: a launch shows the story,
+ * how it runs, the features in pick-up order and a note for the run; everything
+ * else shows the thing it acts on. See the web peer for why this takes no
+ * external busy flag.
  */
 export default function ApprovalPanel(props: ApprovalPanelProps) {
   // Putting a project on GitHub names an account, a repository and a
@@ -92,32 +97,52 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         grant={props.grant}
         {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
         onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
     )
   }
   if (isGitChangeGrant(props.grant)) {
-    return <GitChangeApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
+    return (
+      <GitChangeApprovalPanel
+        grant={props.grant}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
   }
   if (isRunProposalGrant(props.grant)) {
-    return <RunProposalApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
+    return (
+      <RunProposalApprovalPanel
+        grant={props.grant}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
   }
-  return isGitSetupGrant(props.grant) ? (
-    <GitSetupApprovalPanel
-      grant={props.grant}
-      {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
-      onDecideLater={props.onDecideLater}
-    />
-  ) : (
+  if (isGitSetupGrant(props.grant)) {
+    return (
+      <GitSetupApprovalPanel
+        grant={props.grant}
+        {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
+        onDecideLater={props.onDecideLater}
+      />
+    )
+  }
+  return isStartFeatureWorkGrant(props.grant) ? (
     <ToolApprovalPanel {...props} />
+  ) : (
+    <ToolAskApprovalPanel
+      grant={props.grant}
+      onDecideLater={props.onDecideLater}
+      {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+    />
   )
 }
 
-function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelProps) {
+function ToolApprovalPanel({ grant, projectId, onDecideLater, onDecided }: ApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
-  const { headline, detail }: GrantDetailView = isLaunch ? {} : grantDetailView(grant.detail)
-  const alwaysAllowScopes = !isLaunch ? (grant.alwaysAllowScopes ?? []) : []
   const { getStory, resolveDependency } = useStories()
   // The notes this launch will point the run at — resolved to labels so the user
   // sees which stored notes (a login, a key) the run may read before approving.
@@ -196,11 +221,21 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
     joinsOpenRun || saveProofPlans,
     canonicalize,
   )
+  const view = featureWorkAskView({
+    ...(story?.title ? { storyTitle: story.title } : {}),
+    joinsOpenRun,
+    args: runProposalArgs(grant),
+  })
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.
-  const awaitingChoice =
-    (summary.storyId !== undefined && !proposalLoaded) ||
-    (openWork !== undefined && openWorkMeta === undefined)
+  const check = featureWorkLaunchCheck({
+    ...(summary.storyId !== undefined ? { storyId: summary.storyId } : {}),
+    proposalLoaded,
+    ...(refusal !== undefined ? { refusal } : {}),
+    openWorkUnchosen: openWork !== undefined && openWorkMeta === undefined,
+    storyLoaded: story !== undefined,
+    featureCount: features.length,
+  })
 
   const resolvedBullet = (dep: string): ResolvedDependency =>
     dependencyChipOf(resolveDependency(dep)) ?? { kind: 'missing', display: dep }
@@ -228,100 +263,11 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
             }
           : undefined,
       )
+      .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
       .catch((err: unknown) => {
         setBusy(false)
         setError(grantDecideErrorMessage(err))
       })
-  }
-
-  const errorBox =
-    error !== null ? (
-      <View
-        style={{
-          padding: nativeSpace[3],
-          borderRadius: nativeRadii[3],
-          borderWidth: 1,
-          borderColor: red[500],
-        }}
-      >
-        <Text style={{ fontSize: 13, color: red[600] }}>{error}</Text>
-      </View>
-    ) : null
-
-  if (!isLaunch) {
-    return (
-      <View
-        style={{
-          margin: nativeSpace[3],
-          padding: nativeSpace[4],
-          borderRadius: nativeRadii[3],
-          borderWidth: 1,
-          borderColor: theme.border.strong ?? theme.border.subtle,
-          backgroundColor: theme.surface.raised ?? theme.surface.muted,
-          gap: nativeSpace[3],
-        }}
-      >
-        <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text.primary }}>
-          The agent needs your approval
-        </Text>
-        <Text style={{ fontSize: 13, color: theme.text.secondary }}>
-          {`It is waiting on this before it can continue: ${grant.label}`}
-        </Text>
-        {headline !== undefined ? <RichText text={headline} /> : null}
-        {detail !== undefined ? (
-          <View
-            style={{
-              padding: nativeSpace[3],
-              borderRadius: nativeRadii[3],
-              backgroundColor: theme.surface.muted,
-            }}
-          >
-            <ScrollView style={{ maxHeight: 160 }}>
-              <Text
-                selectable
-                style={{ fontSize: 12, fontFamily: 'Courier', color: theme.text.primary }}
-              >
-                {detail}
-              </Text>
-            </ScrollView>
-          </View>
-        ) : null}
-        {errorBox}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
-            gap: nativeSpace[2],
-            flexWrap: 'wrap',
-          }}
-        >
-          <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
-            Decide later
-          </Button>
-          {alwaysAllowScopes.length > 0 ? (
-            <AlwaysAllowControl
-              variant="button"
-              view={alwaysAllowChoiceView({
-                scopes: alwaysAllowScopes,
-                toolName: grant.label,
-                covers: grant.grantCovers ?? 'exact-call',
-              })}
-              toolName={grant.label}
-              onChoose={(scope) => {
-                if (scope) decide(alwaysAllowDecision(scope))
-              }}
-              disabled={busy}
-            />
-          ) : null}
-          <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            Not now
-          </Button>
-          <Button size="sm" onPress={() => decide('once')} loading={busy}>
-            Approve
-          </Button>
-        </View>
-      </View>
-    )
   }
 
   const pill = {
@@ -358,96 +304,68 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
   return (
     // Bounded by the window, with its own scroll: a story of a dozen features
     // used to push the decision off the screen. Header and decision stay put.
-    <View
-      style={{
-        borderTopWidth: 1,
-        borderTopColor: theme.border.strong ?? theme.border.subtle,
-        backgroundColor: theme.surface.raised ?? theme.surface.muted,
-        ...(expanded ? { height: windowHeight * 0.88 } : { maxHeight: windowHeight * 0.66 }),
-      }}
-    >
-      <View
-        style={{
-          paddingHorizontal: nativeSpace[3],
-          paddingTop: nativeSpace[3],
-          paddingBottom: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: nativeSpace[2],
-        }}
+    <View style={{ margin: nativeSpace[3] }}>
+      <ToolAskCard
+        view={view}
+        busy={busy}
+        error={error}
+        ready={check.ready}
+        {...(check.problem !== undefined ? { problem: check.problem } : {})}
+        maxHeight={windowHeight * (expanded ? 0.88 : 0.66)}
+        onApprove={() => decide('once')}
+        onDeny={() => decide('deny')}
+        onLater={onDecideLater}
+        headerAction={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? 'Shrink the card' : 'Expand the card'}
+            accessibilityState={{ expanded }}
+            onPress={() => setExpanded((v) => !v)}
+            hitSlop={8}
+            style={{
+              width: 24,
+              height: 24,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 7,
+              backgroundColor: theme.surface.raised,
+            }}
+          >
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              {expanded ? '▾' : '▴'}
+            </Text>
+          </Pressable>
+        }
       >
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-            <View
-              style={{
-                ...pill,
-                height: 20,
-                paddingHorizontal: 6,
-                borderStyle: 'dashed',
-                borderColor: status.review.softBorder,
-                backgroundColor: 'transparent',
-              }}
+        {summary.storyId ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: nativeSpace[2],
+              paddingHorizontal: nativeSpace[3],
+              paddingVertical: nativeSpace[2],
+              borderRadius: nativeRadii[2],
+              borderWidth: 1,
+              borderColor: theme.border.subtle,
+            }}
+          >
+            <DependencyBullet
+              resolved={resolvedBullet(summary.storyId)}
+              dependency={summary.storyId}
+              // Not pressable: this panel has no navigation seam — a control that
+              // looks tappable and does nothing is worse than a plain marker.
+              interactive={false}
+            />
+            <Text
+              numberOfLines={1}
+              style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}
             >
-              <View
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 999,
-                  borderWidth: 1.5,
-                  borderColor: status.review.softFg,
-                }}
-              />
-              <Text style={{ fontSize: 10, color: status.review.softFg }}>Needs you</Text>
-            </View>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text.primary }}>
-              Start work on this story?
+              {story?.title ?? FEATURE_WORK_ASK.untitled}
             </Text>
           </View>
-          {summary.storyId ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
-              <DependencyBullet
-                resolved={resolvedBullet(summary.storyId)}
-                dependency={summary.storyId}
-                // Not pressable: this panel has no navigation seam — a control that
-                // looks tappable and does nothing is worse than a plain marker.
-                interactive={false}
-              />
-              <Text
-                numberOfLines={1}
-                style={{ flex: 1, fontSize: 13, color: theme.text.secondary }}
-              >
-                {story?.title ?? 'Story'}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={expanded ? 'Shrink the card' : 'Expand the card'}
-          accessibilityState={{ expanded }}
-          onPress={() => setExpanded((v) => !v)}
-          hitSlop={8}
-          style={{
-            width: 36,
-            height: 36,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: nativeRadii[2],
-            borderWidth: 1,
-            borderColor: theme.border.default,
-          }}
-        >
-          <Text style={{ fontSize: 14, color: theme.text.secondary }}>{expanded ? '▾' : '▴'}</Text>
-        </Pressable>
-      </View>
+        ) : null}
 
-      <ScrollView
-        style={{ flexGrow: 0, flexShrink: 1 }}
-        contentContainerStyle={{ padding: nativeSpace[3], gap: nativeSpace[3] }}
-        keyboardShouldPersistTaps="handled"
-      >
         {openWork ? (
           <OpenWorkChooser
             openWork={openWork}
@@ -503,19 +421,6 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
                 </View>
               </View>
             </Tooltip>
-            <Tooltip
-              content={
-                <Text style={tipText}>
-                  The run gets its own copy of the repo and its own branch. Your files and the
-                  branch you are on are never touched, even if it fails.
-                </Text>
-              }
-            >
-              <View style={pill}>
-                <Text style={{ fontSize: 12, color: theme.text.secondary }}>Isolated copy</Text>
-              </View>
-            </Tooltip>
-            <Text style={{ fontSize: 11.5, color: theme.text.muted }}>Merges nothing.</Text>
           </View>
           <TurnLimitField
             {...turnLimitStart}
@@ -544,17 +449,11 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
             }
             onSaveChange={setSaveProofPlans}
           />
-        ) : (
+        ) : features.length > 0 || check.problem === undefined ? (
           <View style={{ gap: 6 }}>
             <Text style={sectionHeading}>Features to work on</Text>
-            {refusal !== undefined ? (
-              <Text style={{ fontSize: 12, color: theme.text.secondary }}>{refusal}</Text>
-            ) : features.length === 0 ? (
-              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-                {story
-                  ? 'Every feature on this story is done or deferred — it will be refused when launched.'
-                  : 'Loading the story…'}
-              </Text>
+            {features.length === 0 ? (
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>Loading the story…</Text>
             ) : (
               features.map((feature) => (
                 <View
@@ -578,7 +477,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
               ))
             )}
           </View>
-        )}
+        ) : null}
 
         {flaggedNotes.length > 0 ? (
           // Which stored notes this launch lets the run read (a login, a key).
@@ -666,67 +565,7 @@ function ToolApprovalPanel({ grant, projectId, onDecideLater }: ApprovalPanelPro
             </View>
           ) : null}
         </View>
-      </ScrollView>
-
-      <View
-        style={{
-          paddingHorizontal: nativeSpace[3],
-          paddingTop: nativeSpace[2],
-          paddingBottom: nativeSpace[3],
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
-          gap: nativeSpace[2],
-        }}
-      >
-        {errorBox}
-        <Tooltip
-          content={
-            <Text style={tipText}>
-              {`${features.length} feature${features.length === 1 ? ' is' : 's are'} picked up, an isolated copy is made and the agent begins. You can watch it, and you can cancel it at any point. Merges nothing; your branch is not touched.`}
-            </Text>
-          }
-        >
-          <Button
-            size="md"
-            variant="primary"
-            onPress={() => decide('once')}
-            loading={busy}
-            // `features` is legitimately empty while the story loads.
-            disabled={
-              refusal !== undefined ||
-              awaitingChoice ||
-              (story !== undefined && features.length === 0)
-            }
-          >
-            {openWorkChoice === 'extend' && openWorkMeta ? 'Add to that run' : 'Start work'}
-          </Button>
-        </Tooltip>
-        <View style={{ flexDirection: 'row', gap: nativeSpace[2] }}>
-          <View style={{ flex: 1 }}>
-            <Button variant="ghost" size="md" onPress={onDecideLater} disabled={busy}>
-              Decide later
-            </Button>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Tooltip
-              content={
-                <Text style={tipText}>
-                  The run is not started and the story is left exactly as it is. The agent is told
-                  you said no, so it can suggest something else or wait. Nothing is cancelled or
-                  deleted, and you can ask again at any time.
-                </Text>
-              }
-            >
-              <Button variant="danger" size="md" onPress={() => decide('deny')} disabled={busy}>
-                No — cancel
-              </Button>
-            </Tooltip>
-          </View>
-        </View>
-        <Text style={{ fontSize: 11, color: theme.text.muted, textAlign: 'center' }}>
-          Nothing goes in without your sign-off.
-        </Text>
-      </View>
+      </ToolAskCard>
     </View>
   )
 }

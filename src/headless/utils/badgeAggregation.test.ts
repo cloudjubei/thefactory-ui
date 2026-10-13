@@ -11,11 +11,12 @@ import type { BadgeState } from './badgeAggregationTypes'
 
 function makeState(over: Record<string, any> = {}): BadgeState {
   return {
-    chat_messages: { unread: 0, thinking: false, ...(over.chat_messages || {}) },
+    chat_messages: { unread: 0, waiting: 0, thinking: false, ...(over.chat_messages || {}) },
     git: { incoming: 0, uncommitted: 0, ...(over.git || {}) },
     tests: { failing: 0, ...(over.tests || {}) },
     activity: { running: 0, paused: 0, unseen: 0, ...(over.activity || {}) },
-    process: { running: 0, waiting: 0, ...(over.process || {}) },
+    process: { running: 0, waiting: 0, failed: 0, ...(over.process || {}) },
+    signIn: { expired: [], ...(over.signIn || {}) },
   }
 }
 
@@ -68,11 +69,12 @@ const gatePark = (): ProcessRun['park'] => ({
 describe('EMPTY_BADGE_STATE', () => {
   it('is all-zero / all-false and reports no badge', () => {
     expect(EMPTY_BADGE_STATE).toEqual({
-      chat_messages: { unread: 0, thinking: false },
+      chat_messages: { unread: 0, waiting: 0, thinking: false },
       git: { incoming: 0, uncommitted: 0 },
       tests: { failing: 0 },
       activity: { running: 0, paused: 0, unseen: 0 },
-      process: { running: 0, waiting: 0 },
+      process: { running: 0, waiting: 0, failed: 0 },
+      signIn: { expired: [] },
     })
     expect(hasAnyBadge(EMPTY_BADGE_STATE)).toBe(false)
   })
@@ -82,6 +84,7 @@ describe('hasAnyBadge', () => {
   it('is true when any single channel is non-zero/true', () => {
     expect(hasAnyBadge(makeState({ chat_messages: { unread: 2, thinking: false } }))).toBe(true)
     expect(hasAnyBadge(makeState({ chat_messages: { unread: 0, thinking: true } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ chat_messages: { waiting: 1 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ git: { incoming: 1, uncommitted: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ git: { incoming: 0, uncommitted: 3 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ tests: { failing: 1 } }))).toBe(true)
@@ -93,6 +96,11 @@ describe('hasAnyBadge', () => {
   it('badges a running process and a waiting process independently', () => {
     expect(hasAnyBadge(makeState({ process: { running: 1, waiting: 0 } }))).toBe(true)
     expect(hasAnyBadge(makeState({ process: { running: 0, waiting: 1 } }))).toBe(true)
+    expect(hasAnyBadge(makeState({ process: { failed: 1 } }))).toBe(true)
+  })
+
+  it('badges an expired sign-in the scope’s agents use', () => {
+    expect(hasAnyBadge(makeState({ signIn: { expired: ['Claude'] } }))).toBe(true)
   })
 })
 
@@ -109,17 +117,17 @@ describe('formatBadgeCount', () => {
 describe('processTallyByProject', () => {
   it('counts a running root run as running, not waiting', () => {
     const tally = processTallyByProject([run('r1', 'p1', 'running')])
-    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0 })
+    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0, failed: 0 })
   })
 
   it('counts a pending root run as running — it is live but not waiting on the user', () => {
     const tally = processTallyByProject([run('r1', 'p1', 'pending')])
-    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0 })
+    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0, failed: 0 })
   })
 
   it('counts a root run parked at the sign-off gate as waiting', () => {
     const tally = processTallyByProject([run('r1', 'p1', 'parked', { park: gatePark() })])
-    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1 })
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0 })
   })
 
   it('counts a root run parked for any other reason as waiting', () => {
@@ -129,21 +137,32 @@ describe('processTallyByProject', () => {
       }),
       run('r2', 'p1', 'parked'),
     ])
-    expect(tally.get('p1')).toEqual({ running: 0, waiting: 2 })
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 2, failed: 0 })
   })
 
-  it('counts approved work that did not land as waiting on the user', () => {
+  it('counts approved work that was never brought in as waiting on the user', () => {
+    const tally = processTallyByProject([run('r1', 'p1', 'succeeded', approvedWork())])
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0 })
+  })
+
+  it('counts approved work whose merge failed as failed — something broke, not waiting', () => {
     const tally = processTallyByProject([
       run('r1', 'p1', 'succeeded', approvedWork({ mode: 'squash', status: 'failed', at: 2 })),
+      run('r2', 'p1', 'succeeded', approvedWork({ mode: 'merge', status: 'failed', at: 3 })),
+      run('r3', 'p1', 'parked', { park: gatePark() }),
     ])
-    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1 })
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 2 })
+  })
+
+  it('does not count a run that failed and was let go', () => {
+    expect(processTallyByProject([run('r1', 'p1', 'failed')]).has('p1')).toBe(false)
   })
 
   it('counts approved work being brought in as running', () => {
     const tally = processTallyByProject([
       run('r1', 'p1', 'succeeded', approvedWork({ mode: 'squash', status: 'integrating', at: 2 })),
     ])
-    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0 })
+    expect(tally.get('p1')).toEqual({ running: 1, waiting: 0, failed: 0 })
   })
 
   it('does not count approved work that landed', () => {
@@ -160,7 +179,7 @@ describe('processTallyByProject', () => {
       run('child-parked', 'p1', 'parked', { parentRunId: 'parent', park: gatePark() }),
       run('child-pending', 'p1', 'pending', { parentRunId: 'parent' }),
     ])
-    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1 })
+    expect(tally.get('p1')).toEqual({ running: 0, waiting: 1, failed: 0 })
   })
 
   it('leaves out a project whose only runs are children or finished', () => {
@@ -186,9 +205,9 @@ describe('processTallyByProject', () => {
       run('g2', 'gamma', 'cancelled'),
     ])
     expect(Object.fromEntries(tally)).toEqual({
-      alpha: { running: 2, waiting: 1 },
-      beta: { running: 0, waiting: 1 },
-      gamma: { running: 1, waiting: 0 },
+      alpha: { running: 2, waiting: 1, failed: 0 },
+      beta: { running: 0, waiting: 1, failed: 0 },
+      gamma: { running: 1, waiting: 0, failed: 0 },
     })
   })
 
@@ -201,25 +220,26 @@ describe('aggregateGroupBadgeState', () => {
   it('sums numeric channels and ORs the thinking flag across members', () => {
     const byProject: Record<string, BadgeState> = {
       a: makeState({
-        chat_messages: { unread: 3, thinking: false },
+        chat_messages: { unread: 3, waiting: 1, thinking: false },
         git: { incoming: 1, uncommitted: 4 },
         tests: { failing: 1 },
-        process: { running: 2, waiting: 1 },
+        process: { running: 2, waiting: 1, failed: 1 },
       }),
       b: makeState({
-        chat_messages: { unread: 5, thinking: true },
+        chat_messages: { unread: 5, waiting: 2, thinking: true },
         git: { incoming: 2, uncommitted: 6 },
         tests: { failing: 2 },
-        process: { running: 0, waiting: 3 },
+        process: { running: 0, waiting: 3, failed: 2 },
       }),
     }
     const agg = aggregateGroupBadgeState(['a', 'b'], byProject)
     expect(agg).toEqual({
-      chat_messages: { unread: 8, thinking: true },
+      chat_messages: { unread: 8, waiting: 3, thinking: true },
       git: { incoming: 3, uncommitted: 10 },
       tests: { failing: 3 },
       activity: { running: 0, paused: 0, unseen: 0 },
-      process: { running: 2, waiting: 4 },
+      process: { running: 2, waiting: 4, failed: 3 },
+      signIn: { expired: [] },
     })
   })
 
@@ -232,15 +252,19 @@ describe('aggregateGroupBadgeState', () => {
     ])
     const byProject: Record<string, BadgeState> = {}
     for (const pid of ['a', 'b', 'c']) {
-      byProject[pid] = makeState({ process: tally.get(pid) ?? { running: 0, waiting: 0 } })
+      byProject[pid] = makeState({
+        process: tally.get(pid) ?? { running: 0, waiting: 0, failed: 0 },
+      })
     }
     expect(aggregateGroupBadgeState(['a', 'b'], byProject).process).toEqual({
       running: 1,
       waiting: 1,
+      failed: 0,
     })
     expect(aggregateGroupBadgeState(['b', 'c'], byProject).process).toEqual({
       running: 0,
       waiting: 2,
+      failed: 0,
     })
   })
 
@@ -261,5 +285,17 @@ describe('aggregateGroupBadgeState', () => {
     }
     expect(aggregateGroupBadgeState(['a', 'missing'], byProject).git.uncommitted).toBe(2)
     expect(aggregateGroupBadgeState([], {})).toEqual(EMPTY_BADGE_STATE)
+  })
+
+  it('names each expired sign-in its members use once, however many use it', () => {
+    const byProject: Record<string, BadgeState> = {
+      a: makeState({ signIn: { expired: ['Claude'] } }),
+      b: makeState({ signIn: { expired: ['Codex', 'Claude'] } }),
+      c: makeState(),
+    }
+    expect(aggregateGroupBadgeState(['a', 'b', 'c'], byProject).signIn.expired).toEqual([
+      'Claude',
+      'Codex',
+    ])
   })
 })

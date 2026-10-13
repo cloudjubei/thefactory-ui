@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   AccessibilityInfo,
   Animated,
@@ -61,6 +62,8 @@ import {
   processStepWorkMs,
   processTimeDetailsView,
   processStepStates,
+  processRunStripEntries,
+  STEPS_STRIP_LABELS,
   processWaitingView,
   signoffMergeHold,
   SIGNOFF_GROUP_CHIP_LABEL,
@@ -79,7 +82,6 @@ import {
   type ProcessRun,
   type ProcessRunManagerView,
   type ProcessTurnLimit,
-  type ProcessStatusTone,
   type ProcessWaitingView,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
@@ -101,8 +103,11 @@ import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import StepPreview from './pipeline/StepPreview'
 import StepScreen, { type StepPanelTarget } from './pipeline/StepScreen'
-import { DurCostChips, RunModelChip, type SaveFileHandler } from '../chat/signoff'
+import { RunModelChip, type SaveFileHandler } from '../chat/signoff'
 import CostChip from '../chips/CostChip'
+import ToneBadge from '../chips/ToneBadge'
+import ChatKindTile from '../chat/ChatKindTile'
+import StepsStrip from './StepsStrip'
 import DurationChip from '../chips/DurationChip'
 import DependencyRef from '../stories/DependencyRef'
 import { Button } from '../../primitives/Button'
@@ -224,6 +229,10 @@ export default function ProcessPipeline({
       isSending: false,
       seen: chatsSeen,
       pendingAsks: runChatAsks,
+      level: chatNotifyLevel(
+        getChat(runChat) ?? { context: runChat },
+        settings.notifications.chatNotifyLevels,
+      ),
     }).isUnread
   const canChat = stack.length === 0 && !run?.parentRunId && !!onOpenRunChat
   const openRunChat = useCallback(
@@ -328,6 +337,7 @@ export default function ProcessPipeline({
       }
     : undefined
   const states = processStepStates(run)
+  const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
   const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
   const signoff = isStorySignoff(run)
@@ -352,6 +362,7 @@ export default function ProcessPipeline({
       <ScrollView contentContainerStyle={{ paddingBottom: nativeSpace[5] }}>
         <RunHead
           run={run}
+          {...(projectName ? { projectName } : {})}
           depth={stack.length}
           now={now}
           onCrumb={popTo}
@@ -629,25 +640,6 @@ function RunChatDraftScope({
   return open ? <RunChatDraftProvider value={open}>{children}</RunChatDraftProvider> : children
 }
 
-function ToneBadge({ tone, label }: { tone: ProcessStatusTone; label: string }) {
-  const { status } = useNativeTheme()
-  const variant = status[tone]
-  return (
-    <View
-      style={{
-        backgroundColor: variant.softBg,
-        borderColor: variant.softBorder,
-        borderWidth: 1,
-        borderRadius: nativeRadii[2],
-        paddingHorizontal: nativeSpace[2],
-        paddingVertical: 1,
-      }}
-    >
-      <Text style={{ fontSize: 11, color: variant.softFg }}>{label}</Text>
-    </View>
-  )
-}
-
 /** The sign-off's "Needs you" cards can be discussed and settled — when the run has a chat to discuss them in. */
 function NeedsYouScope({
   value,
@@ -696,15 +688,18 @@ function HeadAction({
 }
 
 /**
- * The run head: where you are, the state, time and spend — then icon-only
- * actions: the Group chip for a group's leg, Stop while the run can still do
- * work, and ⋯ for the rare ones (download the report, delete — which still
- * asks first).
+ * The run head — the chat header's layout: the run tile, the run's title and
+ * status, then its story, process and project with its time and spend; then
+ * the manager, model and turn limit, the Group chip for a group's leg, the
+ * run's chat, Stop while the run can still do work, and ⋯ for the rare ones. A
+ * nested run leads with the breadcrumb back up and has no chat of its own.
+ * Under it, the steps strip.
  */
 function RunHead({
   run,
   depth,
   now,
+  projectName,
   onCrumb,
   onCancel,
   onDelete,
@@ -717,6 +712,8 @@ function RunHead({
   run: ProcessRun
   depth: number
   now: number
+  /** The run's project, named on the line under the title. */
+  projectName?: string
   onCrumb: (depth: number) => void
   onCancel: () => void
   onDelete?: () => void
@@ -729,12 +726,13 @@ function RunHead({
   /** The run's own chat: open it, and whether it has news. */
   chat?: { onOpen: () => void; unread: boolean }
 }) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const badge = processRunBadge(run)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
   const model = processRunHeaderModel(run, run.ledger)
+  const steps = useMemo(() => processRunStripEntries(run), [run])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   const actions: ActionMenuItem[] = [
     ...(onDownloadReport
@@ -763,23 +761,23 @@ function RunHead({
         ]
       : []),
   ]
+  const where = [run.plan.name, projectName].filter(Boolean).join(' · ')
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: nativeSpace[2],
-        paddingHorizontal: nativeSpace[3],
-        paddingVertical: nativeSpace[3],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border.subtle,
-        backgroundColor: theme.surface.raised,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+    <View style={{ backgroundColor: theme.surface.raised }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: nativeSpace[2],
+          paddingHorizontal: nativeSpace[3],
+          paddingVertical: nativeSpace[2],
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border.subtle,
+        }}
+      >
         {depth > 0 ? (
-          <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Pressable
               onPress={() => onCrumb(0)}
               accessibilityRole="button"
@@ -797,85 +795,102 @@ function RunHead({
               </View>
             ))}
             <Text style={{ fontSize: 12, color: theme.border.strong }}>/</Text>
-          </>
+          </View>
         ) : null}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          {run.title}
-        </Text>
-      </View>
-      <View style={{ flex: 1 }} />
-      <ToneBadge tone={badge.tone} label={badge.label} />
-      {model ? <RunModelChip model={model} /> : null}
-      <RunTurnLimitChip
-        run={run}
-        {...((run.status === 'running' || run.status === 'pending' || run.status === 'parked') &&
-        onSetTurnLimit
-          ? { onSet: onSetTurnLimit }
-          : {})}
-      />
-      {manager && depth === 0 ? (
-        <RunManagerChip
-          view={manager.view}
-          {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
-        />
-      ) : null}
-      <DurCostChips
-        facts={{
-          durationLabel: workMs !== undefined ? formatProcessDuration(workMs) : undefined,
-          costLabel: spend?.label,
-          cost: run.totals,
-          timeDetails:
-            workMs !== undefined ? processTimeDetailsView(run.totals?.time, workMs) : undefined,
-        }}
-        costTitle={spend?.title}
-        timeTitle="Time spent working, across every attempt"
-      />
-      {onOpenGroup && depth === 0 ? (
-        <HeadAction label={SIGNOFF_GROUP_CHIP_TITLE} onPress={onOpenGroup}>
-          <IconGroup size={16} color={theme.text.secondary} />
-          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
-            {SIGNOFF_GROUP_CHIP_LABEL}
-          </Text>
-        </HeadAction>
-      ) : null}
-      {chat && depth === 0 ? (
-        <HeadAction label={RUN_CHAT_OPEN_LABEL} onPress={chat.onOpen}>
-          <IconChat size={16} color={theme.text.secondary} />
-          {chat.unread ? (
-            <View
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: theme.accent.primary,
-              }}
+        <ChatKindTile kind="run" />
+        <View style={{ flex: 1, minWidth: 180, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+            <Text
+              numberOfLines={1}
+              style={{ flexShrink: 1, fontSize: 15, fontWeight: '600', color: theme.text.primary }}
+            >
+              {run.title}
+            </Text>
+            <ToneBadge tone={badge.tone} label={badge.label} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            {run.storyId ? (
+              <DependencyRef dependency={run.storyId} projectId={run.projectId} interactive />
+            ) : null}
+            {where ? (
+              <Text
+                numberOfLines={1}
+                style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}
+              >
+                {where}
+              </Text>
+            ) : null}
+            {workMs !== undefined ? (
+              <DurationChip
+                label={formatProcessDuration(workMs)}
+                details={processTimeDetailsView(run.totals?.time, workMs)}
+                title="Time spent working, across every attempt"
+              />
+            ) : null}
+            {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          {manager && depth === 0 ? (
+            <RunManagerChip
+              view={manager.view}
+              {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
             />
           ) : null}
-        </HeadAction>
-      ) : null}
-      {stoppable ? (
-        <HeadAction label="Stop the run" onPress={onCancel}>
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 2,
-              backgroundColor: theme.text.secondary,
-            }}
+          {model ? <RunModelChip model={model} /> : null}
+          <RunTurnLimitChip
+            run={run}
+            {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
           />
-        </HeadAction>
-      ) : null}
-      {actions.length > 0 ? (
-        <HeadAction label="More actions" onPress={() => setMenuOpen(true)}>
-          <View style={{ transform: [{ rotate: '90deg' }] }}>
-            <IconDotsVertical size={16} color={theme.text.secondary} />
-          </View>
-        </HeadAction>
-      ) : null}
-      <ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} actions={actions} />
+          {onOpenGroup && depth === 0 ? (
+            <HeadAction label={SIGNOFF_GROUP_CHIP_TITLE} onPress={onOpenGroup}>
+              <IconGroup size={16} color={theme.text.secondary} />
+              <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                {SIGNOFF_GROUP_CHIP_LABEL}
+              </Text>
+            </HeadAction>
+          ) : null}
+          {chat && depth === 0 ? (
+            <HeadAction label={RUN_CHAT_OPEN_LABEL} onPress={chat.onOpen}>
+              <IconChat size={16} color={theme.text.secondary} />
+              {chat.unread ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: theme.accent.primary,
+                  }}
+                />
+              ) : null}
+            </HeadAction>
+          ) : null}
+          {stoppable ? (
+            <HeadAction label="Stop the run" onPress={onCancel}>
+              <View
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 2,
+                  backgroundColor: status.stuck.bg,
+                }}
+              />
+            </HeadAction>
+          ) : null}
+          {actions.length > 0 ? (
+            <HeadAction label="More actions" onPress={() => setMenuOpen(true)}>
+              <View style={{ transform: [{ rotate: '90deg' }] }}>
+                <IconDotsVertical size={16} color={theme.text.secondary} />
+              </View>
+            </HeadAction>
+          ) : null}
+        </View>
+        <ActionMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} actions={actions} />
+      </View>
+      <StepsStrip model={{ label: STEPS_STRIP_LABELS.steps, entries: steps }} />
     </View>
   )
 }

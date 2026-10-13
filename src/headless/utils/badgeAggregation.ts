@@ -12,18 +12,19 @@ import type { BadgeState, ProcessTally } from './badgeAggregationTypes'
 import { isProcessRunCurrent } from './processRunCurrent'
 
 export const EMPTY_BADGE_STATE: BadgeState = {
-  chat_messages: { unread: 0, thinking: false },
+  chat_messages: { unread: 0, waiting: 0, thinking: false },
   git: { incoming: 0, uncommitted: 0 },
   tests: { failing: 0 },
   activity: { running: 0, paused: 0, unseen: 0 },
-  process: { running: 0, waiting: 0 },
+  process: { running: 0, waiting: 0, failed: 0 },
+  signIn: { expired: [] },
 }
 
 /**
  * Bucket current ROOT process runs by project (`isProcessRunCurrent`): one
- * working — or bringing its approved work in — counts as running, one waiting
- * on the person — parked, or approved with work that did not land — as
- * waiting. A child run (a feature step's own pipeline) is reached through its
+ * working — or bringing its approved work in — counts as running, one whose
+ * merge failed as failed, one waiting on the person — parked, or approved
+ * with work not brought in yet — as waiting. A child run (a feature step's own pipeline) is reached through its
  * parent, so it never counts on its own; done runs never count. A project
  * with nothing current is absent.
  */
@@ -41,8 +42,9 @@ export function processTallyByProject(
     if (r.parentRunId || !isProcessRunCurrent(r)) continue
     const running =
       r.status === 'pending' || r.status === 'running' || r.integration?.status === 'integrating'
-    const tally = out.get(r.projectId) ?? { running: 0, waiting: 0 }
+    const tally = out.get(r.projectId) ?? { running: 0, waiting: 0, failed: 0 }
     if (running) tally.running += 1
+    else if (r.integration?.status === 'failed') tally.failed += 1
     else tally.waiting += 1
     out.set(r.projectId, tally)
   }
@@ -55,16 +57,19 @@ export function aggregateGroupBadgeState(
   badgeStateByProject: Readonly<Record<string, BadgeState>>,
 ): BadgeState {
   const agg: BadgeState = {
-    chat_messages: { unread: 0, thinking: false },
+    chat_messages: { unread: 0, waiting: 0, thinking: false },
     git: { incoming: 0, uncommitted: 0 },
     tests: { failing: 0 },
     activity: { running: 0, paused: 0, unseen: 0 },
-    process: { running: 0, waiting: 0 },
+    process: { running: 0, waiting: 0, failed: 0 },
+    signIn: { expired: [] },
   }
+  const expired = new Set<string>()
   for (const pid of memberProjectIds) {
     const st = badgeStateByProject[pid]
     if (!st) continue
     agg.chat_messages.unread += st.chat_messages.unread
+    agg.chat_messages.waiting += st.chat_messages.waiting
     agg.chat_messages.thinking = agg.chat_messages.thinking || st.chat_messages.thinking
     agg.git.incoming += st.git.incoming
     agg.git.uncommitted += st.git.uncommitted
@@ -74,7 +79,10 @@ export function aggregateGroupBadgeState(
     agg.activity.unseen += st.activity.unseen
     agg.process.running += st.process.running
     agg.process.waiting += st.process.waiting
+    agg.process.failed += st.process.failed
+    for (const name of st.signIn.expired) expired.add(name)
   }
+  agg.signIn = { expired: [...expired] }
   return agg
 }
 
@@ -82,6 +90,7 @@ export function aggregateGroupBadgeState(
 export function hasAnyBadge(s: BadgeState): boolean {
   return (
     s.chat_messages.unread > 0 ||
+    s.chat_messages.waiting > 0 ||
     s.chat_messages.thinking ||
     s.git.incoming > 0 ||
     s.git.uncommitted > 0 ||
@@ -90,7 +99,9 @@ export function hasAnyBadge(s: BadgeState): boolean {
     s.activity.paused > 0 ||
     s.activity.unseen > 0 ||
     s.process.running > 0 ||
-    s.process.waiting > 0
+    s.process.waiting > 0 ||
+    s.process.failed > 0 ||
+    s.signIn.expired.length > 0
   )
 }
 

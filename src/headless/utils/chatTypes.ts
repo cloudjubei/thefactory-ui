@@ -7,7 +7,11 @@
 // the tools package this one already peers on, so a cost reads the same here
 // as in every ledger and run record.
 
-import type { BillingBasis, ChatBackgroundJobResult } from 'thefactory-tools/types'
+import type {
+  BillingBasis,
+  ChatBackgroundJobResult,
+  ProcessManagerChatCard,
+} from 'thefactory-tools/types'
 
 import type { AgentQuestion } from './agentQuestionTypes'
 import type { AgentRemedy } from './agentRemedyTypes'
@@ -145,6 +149,10 @@ export type ChatMessageLike = {
    * the right (it IS a user turn to act on) but renders visually distinct from what the human typed.
    */
   handoffFrom?: string
+  /** Set on each message a turn wrote in answer to another agent's hand-off — names that agent. */
+  answersHandoffFrom?: string
+  /** A message about a run's manager — its brief, or what the host recorded of its turn — shown as a card. */
+  managerCard?: ProcessManagerChatCard
   /**
    * Set on the message the host delivered results of earlier calls by — calls
    * that finished in the background, one entry per call.

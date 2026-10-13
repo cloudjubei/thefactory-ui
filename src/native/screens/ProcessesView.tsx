@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
@@ -39,12 +39,20 @@ import ChainChip from '../compound/process/ChainChip'
  * The rule the screen exists to make visible is the SHADOW: a project entry
  * that overrides a shared one by id says so on its row.
  */
-export default function ProcessesView() {
+export type ProcessesViewProps = {
+  /** The process to open on, as a link to it names it. */
+  selectedProcessId?: string
+}
+
+export default function ProcessesView({ selectedProcessId }: ProcessesViewProps = {}) {
   const { theme } = useNativeTheme()
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
   const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
+  useEffect(() => {
+    if (selectedProcessId) setSelectedId(selectedProcessId)
+  }, [selectedProcessId])
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
 
   const selected = useMemo(

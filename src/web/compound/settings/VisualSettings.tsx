@@ -10,6 +10,7 @@ import {
   type Theme,
 } from '../../../headless'
 import { Button } from '../../primitives/Button'
+import BadgeSettings from './BadgeSettings'
 import { Input } from '../../primitives/Input'
 import {
   Select,
@@ -30,7 +31,12 @@ const CODE_BLOCK_THEME_LABEL: Record<CodeBlockTheme, string> = {
   dark: 'Dark',
 }
 
-export default function VisualSettings() {
+export type VisualSettingsProps = {
+  /** Opens Settings › Notifications — the Badges section links there for the channel colours. */
+  onOpenNotifications?: () => void
+}
+
+export default function VisualSettings({ onOpenNotifications }: VisualSettingsProps = {}) {
   const { settings, setTheme, setUserPreferences } = useAppSettings()
 
   const captureCombo = useCallback((e: React.KeyboardEvent<HTMLInputElement>): string => {
@@ -125,6 +131,8 @@ export default function VisualSettings() {
           This controls which key acts as the modifier for app shortcuts like Cmd/Ctrl+K and +N.
         </div>
       </div>
+
+      <BadgeSettings onOpenNotifications={onOpenNotifications} />
 
       <div className="space-y-2 mt-8">
         <h3 className="text-lg font-semibold">Keyboard Shortcuts</h3>

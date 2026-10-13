@@ -1,7 +1,7 @@
 // iOS-style notification badge — round for single digits, pill for two+,
 // always high-contrast with a ring so it pops on any surface.
 
-export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange'
+export type NotificationBadgeColor = 'red' | 'blue' | 'green' | 'orange' | 'purple'
 
 export interface NotificationBadgeProps {
   text: string
@@ -21,6 +21,7 @@ const COLOR_CLASS: Record<NotificationBadgeColor, string> = {
   blue: 'bg-blue-500',
   green: 'bg-(--status-done-bg)',
   orange: 'bg-orange-500',
+  purple: 'bg-purple-600',
 }
 
 export function getNotificationBadgeColorClass(

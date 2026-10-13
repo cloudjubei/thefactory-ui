@@ -2,7 +2,15 @@
 // broker action path as a permission grant, but it is answered with text
 // rather than approved — these helpers keep that split out of the components.
 
-import type { AgentQuestion, AgentQuestionDecision } from './agentQuestionTypes'
+import { ASK_USER_ANSWER_KINDS, ASK_USER_TOOL_NAME } from 'thefactory-tools/constants'
+import type {
+  AgentQuestion,
+  AgentQuestionDecision,
+  AgentQuestionOption,
+  AnsweredQuestionView,
+  QuestionPickerKind,
+} from './agentQuestionTypes'
+import { cleanCliToolName } from './cliRunner'
 import {
   BLOCKER_ACTION_KIND,
   QUESTION_ACTION_KIND,
@@ -34,14 +42,38 @@ function readText(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function readOptions(value: unknown): string[] | undefined {
+function readRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function readOptions(value: unknown): AgentQuestionOption[] | undefined {
   if (!Array.isArray(value)) return undefined
-  const seen = new Set<string>()
+  const options: AgentQuestionOption[] = []
+  let picked = false
   for (const entry of value) {
-    const text = readText(entry)
-    if (text) seen.add(text)
+    const record = readRecord(entry)
+    const label = readText(record?.label)
+    if (!label || options.some((o) => o.label === label)) continue
+    const detail = readText(record?.detail)
+    const recommended = record?.recommended === true && !picked
+    if (recommended) picked = true
+    options.push({
+      label,
+      ...(detail ? { detail } : {}),
+      ...(recommended ? { recommended: true as const } : {}),
+    })
   }
-  return seen.size > 0 ? [...seen] : undefined
+  return options.length > 0 ? options : undefined
+}
+
+function readAnswerKind(value: unknown): QuestionPickerKind | undefined {
+  return typeof value === 'string' &&
+    value !== 'text' &&
+    (ASK_USER_ANSWER_KINDS as readonly string[]).includes(value)
+    ? (value as QuestionPickerKind)
+    : undefined
 }
 
 /**
@@ -53,10 +85,7 @@ export function parseQuestionPayload(payload: unknown): AgentQuestion {
   const direct = readText(payload)
   if (direct) return { question: direct }
 
-  const record =
-    typeof payload === 'object' && payload !== null && !Array.isArray(payload)
-      ? (payload as Record<string, unknown>)
-      : undefined
+  const record = readRecord(payload)
 
   const blocker = readText(record?.blocker)
   const needed = readText(record?.needFromPerson)
@@ -70,10 +99,12 @@ export function parseQuestionPayload(payload: unknown): AgentQuestion {
       : undefined)
   const context = readText(record?.context) ?? (tried ? `What it tried: ${tried}` : undefined)
   const options = readOptions(record?.options)
+  const answerKind = readAnswerKind(record?.answerKind)
 
   const parsed: AgentQuestion = { question: question ?? QUESTION_FALLBACK_PROMPT }
   if (context) parsed.context = context
   if (options) parsed.options = options
+  if (answerKind) parsed.answerKind = answerKind
   if (!question) parsed.raw = payload
   return parsed
 }
@@ -147,4 +178,46 @@ export function shownQuestionId(
 ): string | undefined {
   if (chosenId !== undefined && openIds.includes(chosenId)) return chosenId
   return openIds[0]
+}
+
+function answerIn(result: unknown): string | undefined {
+  const record = readRecord(result)
+  return typeof record?.answer === 'string' ? record.answer : undefined
+}
+
+/**
+ * An `askUser` row folded to its question and answer once it is settled — the
+ * answer the row carries, else the one its decision recorded — or `undefined`
+ * while it still waits, or when it ended without an answer (withdrawn,
+ * expired), so the row shows as it is. Pure.
+ */
+export function answeredQuestionOf(input: {
+  toolName: string
+  args?: unknown
+  result?: unknown
+  resultType?: string
+  decided?: { status: string; answer?: string }
+}): AnsweredQuestionView | undefined {
+  if (cleanCliToolName(input.toolName) !== ASK_USER_TOOL_NAME) return undefined
+  const question = readText(readRecord(input.args)?.question)
+  if (!question) return undefined
+  const outcome = readRecord(input.result)?.outcome
+  if (input.decided?.status === 'denied' || outcome === 'denied') {
+    return { question, by: 'agent-decides' }
+  }
+  const answer =
+    (input.resultType === 'success' ? answerIn(input.result) : undefined) ??
+    (input.decided?.status === 'approved' ? input.decided.answer : undefined)
+  return answer !== undefined ? { question, answer, by: 'answered' } : undefined
+}
+
+/** The asks set aside ("Not now") apart from the open ones, each in order. Pure. */
+export function splitParkedAsks(
+  asks: readonly UserAsk[],
+  parkedIds: ReadonlySet<string>,
+): { open: UserAsk[]; parked: UserAsk[] } {
+  return {
+    open: asks.filter((a) => !parkedIds.has(a.id)),
+    parked: asks.filter((a) => parkedIds.has(a.id)),
+  }
 }

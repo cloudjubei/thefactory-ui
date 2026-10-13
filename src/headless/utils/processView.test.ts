@@ -117,8 +117,17 @@ describe('PROCESS_RUN_STATUS_VIEW', () => {
     }
   })
 
-  it('says a parked run is waiting for the user rather than that it is running', () => {
-    expect(PROCESS_RUN_STATUS_VIEW.parked.label).toMatch(/waiting for you/i)
+  it('says each status in the short words the whole app shares', () => {
+    expect(
+      Object.fromEntries(Object.entries(PROCESS_RUN_STATUS_VIEW).map(([k, v]) => [k, v.label])),
+    ).toEqual({
+      pending: 'Starting',
+      running: 'Running',
+      parked: 'Needs you',
+      succeeded: 'Done',
+      failed: 'Failed',
+      cancelled: 'Cancelled',
+    })
   })
 
   it('shows a running run in the SAME green as a finished one — live work is good news', () => {
@@ -147,24 +156,40 @@ describe('processStepTone', () => {
 })
 
 describe('processRunChipLabel', () => {
-  it('says a decision is pending, and NOT which one — that belongs in the pipeline', () => {
+  it('says a run at its gate is ready to sign off, and NOT the decision — that belongs in the pipeline', () => {
     const label = processRunChipLabel(
-      run({ status: 'parked', park: { reason: 'gate', message: 'Sign off?', parkedAt: 0 } }),
+      run({
+        status: 'parked',
+        park: { reason: 'gate', message: 'Approve the merge?', parkedAt: 0 },
+      }),
     )
-    expect(label).toMatch(/decision is pending/i)
-    expect(label).not.toMatch(/sign off/i)
+    expect(label).toBe('Sign off · 0/2 steps')
+  })
+
+  it('says any other park needs the person, without the question it asks', () => {
+    const label = processRunChipLabel(
+      run({
+        status: 'parked',
+        park: { reason: 'step-waiting', stepId: 'a', message: 'Which branch?', parkedAt: 0 },
+      }),
+    )
+    expect(label).toBe('Needs you · 0/2 steps')
   })
 
   it('counts only the steps that actually got past', () => {
     expect(processRunChipLabel(run({ ledger: [passed('a')] }))).toBe('Running · 1/2 steps')
   })
 
-  it('reads as finished for a succeeded run', () => {
-    expect(processRunChipLabel(run({ status: 'succeeded' }))).toMatch(/^Finished/)
+  it('reads as done for a succeeded run', () => {
+    expect(processRunChipLabel(run({ status: 'succeeded' }))).toBe('Done · 0/2 steps')
   })
 
-  it('reads as stopped for a failed run', () => {
-    expect(processRunChipLabel(run({ status: 'failed' }))).toMatch(/^Stopped/)
+  it('reads as failed for a run that broke', () => {
+    expect(processRunChipLabel(run({ status: 'failed' }))).toBe('Failed · 0/2 steps')
+  })
+
+  it('reads as starting for a run that has not begun its first step', () => {
+    expect(processRunChipLabel(run({ status: 'pending' }))).toBe('Starting · 0/2 steps')
   })
 
   it('names the decision of a run a person ended, not that it stopped', () => {
@@ -1019,19 +1044,19 @@ describe('processLoopSenders', () => {
 })
 
 describe('processRunBadge', () => {
-  it('a run parked on the gate is ready-for-you (review)', () => {
+  it('a run parked on the gate is sign off (review)', () => {
     const r = run({
       status: 'parked',
       park: { reason: 'gate', stepId: 'b', message: '', parkedAt: 0 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Ready for you', tone: 'review' })
+    expect(processRunBadge(r)).toEqual({ label: 'Sign off', tone: 'review' })
   })
-  it('a run parked on an agent waiting on the person is waiting-for-you (on-hold)', () => {
+  it('a run parked on an agent waiting on the person needs you (on-hold)', () => {
     const r = run({
       status: 'parked',
       park: { reason: 'step-waiting', stepId: 'a', message: '', parkedAt: 0 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Waiting for you', tone: 'on_hold' })
+    expect(processRunBadge(r)).toEqual({ label: 'Needs you', tone: 'on_hold' })
   })
   it('falls through to the plain status view when not parked', () => {
     expect(processRunBadge(run({ status: 'running' }))).toEqual(PROCESS_RUN_STATUS_VIEW.running)
@@ -1056,7 +1081,7 @@ describe('processRunBadge', () => {
       ],
       integration: { mode: 'merge', status: 'failed', error: 'conflict', at: 2 },
     })
-    expect(processRunBadge(r)).toEqual({ label: 'Approved — not merged', tone: 'on_hold' })
+    expect(processRunBadge(r)).toEqual({ label: 'Not merged', tone: 'on_hold' })
   })
 })
 
@@ -1135,7 +1160,7 @@ describe('processRunPersonEnding', () => {
 })
 
 describe('processRunBadge — a run a person ended', () => {
-  it('says the person’s decision, never "Stopped"', () => {
+  it('says the person’s decision, never "Failed"', () => {
     expect(processRunBadge(decided('request-changes', 'x'))).toEqual({
       label: 'Changes requested',
       tone: 'on_hold',
@@ -1144,7 +1169,7 @@ describe('processRunBadge — a run a person ended', () => {
     expect(processRunBadge(decided('abandon')).label).toBe('Abandoned')
   })
 
-  it('still says Stopped for a run that failed on its own', () => {
+  it('still says Failed for a run that failed on its own', () => {
     expect(processRunBadge(run({ status: 'failed' }))).toEqual(PROCESS_RUN_STATUS_VIEW.failed)
   })
 })
@@ -1199,8 +1224,7 @@ describe('processRunCardView', () => {
   it('finished: leaves an honest step-count summary to talk about', () => {
     const r = run({ status: 'succeeded', ledger: [passed('a'), passed('b')] })
     const view = processRunCardView(r)
-    expect(view.body?.tone).toBe('done')
-    expect(view.body?.text).toMatch(/finished/i)
+    expect(view.body).toEqual({ text: 'Done · 2 of 2 steps', tone: 'done' })
   })
 })
 

@@ -5,6 +5,8 @@ import { extract, searchResultLines, tryString } from '../../../../headless/util
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
+import { featureRequestBriefOfToolArgs } from '../../../../headless/utils/featureRequestView'
+import FeatureRequestBriefCard from '../../FeatureRequestBriefCard'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCallLike, ToolResultTypeLike } from '../../../../headless/utils/chatTypes'
@@ -166,6 +168,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'runShellCommand',
   'shell',
   'requestProjectFeature',
+  'acceptProjectFeatureRequest',
+  'rejectProjectFeatureRequest',
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
@@ -752,7 +756,47 @@ export function renderToolPreviewNative({
         </View>
       )
     }
-    // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+    const brief = featureRequestBriefOfToolArgs(args)
+    if (brief) {
+      const target = tryString(args.targetProjectId) || 'another project'
+      return (
+        <FeatureRequestBriefCard
+          brief={brief}
+          fromLabel="this project"
+          provenance={
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                color: theme.text.secondary,
+              }}
+            >
+              Request to {target}
+            </Text>
+          }
+        />
+      )
+    }
+  }
+
+  // ---- deciding a request sent to this project (its live card) ----
+  if (name === 'acceptProjectFeatureRequest' || name === 'rejectProjectFeatureRequest') {
+    const requestId = tryString(args.id)
+    if (requestId && hooks?.renderFeatureRequestWidget) {
+      const reason = name === 'rejectProjectFeatureRequest' ? tryString(args.reason) : ''
+      return (
+        <View style={{ gap: nativeSpace[2] }}>
+          {hooks.renderFeatureRequestWidget({ requestId })}
+          {reason ? (
+            <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+              Reason: <Text style={{ fontStyle: 'italic' }}>“{reason}”</Text>
+            </Text>
+          ) : null}
+        </View>
+      )
+    }
   }
 
   // ---- generic project-data reads/writes (F.1) → tappable resource-link chips (F.3) ----

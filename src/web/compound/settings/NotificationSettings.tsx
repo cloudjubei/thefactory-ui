@@ -10,6 +10,7 @@ import {
 import { useProjectSettingsConnected } from '../../hooks/useProjectSettingsConnected'
 import { getNotificationBadgeColorClass } from '../NotificationBadge'
 import { useWebNotifications } from '../../hooks/useWebNotifications'
+import ChatNotifySettings from './ChatNotifySettings'
 import {
   Alert,
   Button,
@@ -187,6 +188,10 @@ export default function NotificationSettings() {
             </div>
           </div>
         )}
+
+        <div className="pt-2 border-t border-(--border-subtle)">
+          <ChatNotifySettings />
+        </div>
 
         <div className="space-y-2 pt-2 border-t border-(--border-subtle)">
           <h3 className="font-medium mb-2">Chat Badge Counting Mode</h3>

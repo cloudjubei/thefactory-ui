@@ -134,7 +134,9 @@ export {
   ProjectChip,
   RefChip,
   ReferenceChip,
+  ReferencePreviewCard,
   RunActionButton,
+  RunReferenceChip,
   SetUpWithAgentButton,
   StatusChip,
   StatusIcon,
@@ -152,7 +154,9 @@ export {
   type RefChipKind,
   type RefChipProps,
   type ReferenceChipProps,
+  type ReferencePreviewCardProps,
   type RunActionButtonProps,
+  type RunReferenceChipProps,
   type SetUpWithAgentButtonProps,
   type StatusChipProps,
 } from './compound/chips'
@@ -235,9 +239,22 @@ export {
   type FeatureRequestCardStatus,
 } from './compound/FeatureRequestCard'
 export {
-  FeatureRequestIntroPanel,
-  type FeatureRequestIntroPanelProps,
-} from './compound/FeatureRequestIntroPanel'
+  default as FeatureRequestBriefCard,
+  type FeatureRequestBriefCardProps,
+} from './compound/FeatureRequestBriefCard'
+export {
+  default as FeatureRequestDecision,
+  type FeatureRequestDecisionProps,
+} from './compound/FeatureRequestDecision'
+export {
+  default as FeatureRequestFullView,
+  type FeatureRequestFullViewProps,
+} from './compound/FeatureRequestFullView'
+export {
+  default as IncomingFeatureRequestCard,
+  FeatureRequestProvenance,
+  type IncomingFeatureRequestCardProps,
+} from './compound/IncomingFeatureRequestCard'
 export {
   default as StatusControl,
   StatusPicker,
@@ -304,6 +321,7 @@ export {
 export { default as LoadingScreen, type LoadingScreenProps } from './compound/shell/LoadingScreen'
 export { default as BackendStartupGate } from './compound/shell/BackendStartupGate'
 export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
+export { default as InkBadge, type InkBadgeProps } from './compound/shell/InkBadge'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
 
 // Project timeline (Gantt) — shared types, date / item utils, grid row,
@@ -347,7 +365,14 @@ export { TimelineGridRow } from './compound/projectTimeline/TimelineGridRow'
 export { TimelineHoverCard } from './compound/projectTimeline/TimelineHoverCard'
 
 // Settings panels (connected to the lifted contexts).
-export { default as VisualSettings } from './compound/settings/VisualSettings'
+export {
+  default as VisualSettings,
+  type VisualSettingsProps,
+} from './compound/settings/VisualSettings'
+export {
+  default as BadgeSettings,
+  type BadgeSettingsProps,
+} from './compound/settings/BadgeSettings'
 export { default as NotificationSettings } from './compound/settings/NotificationSettings'
 export { default as CrossProjectSettings } from './compound/settings/CrossProjectSettings'
 export {
@@ -417,6 +442,21 @@ export {
   type ChatSidebarPanelProps,
 } from './compound/ChatSidebarPanel'
 
+export { default as ChatNotifySettings } from './compound/settings/ChatNotifySettings'
+// A chat's "Notify me", and the agents' own exchange drawn quietly.
+export {
+  AgentExchangeBlock,
+  ChatNotifyLevelPicker,
+  ManagerBriefCardView,
+  ManagerCardView,
+  ManagerEscalationCardView,
+  ManagerOutcomeCardView,
+  ManagerStopLine,
+  type AgentExchangeBlockProps,
+  type ChatNotifyLevelPickerProps,
+  type ManagerCardLinks,
+} from './compound/chat'
+
 // Chat view (lifted from web + desktop's ChatView)
 export {
   AgentQuestionCard,
@@ -426,6 +466,8 @@ export {
   ChatDebugModal,
   ChatDynamicContextModal,
   ChatHeader,
+  ChatKindTile,
+  ChatSettingsMenu,
   ChatInput,
   ChatDropController,
   useChatDropTarget,
@@ -435,7 +477,6 @@ export {
   ChatTopicCreateModal,
   ChatTopicCreateModalConnected,
   CredentialCaptureCard,
-  GlobalChatOverlay,
   HistorySummarizationSettings,
   SystemPromptViewerConnected,
   UsageModalConnected,
@@ -457,6 +498,8 @@ export {
   type ChatBodyProps,
   type ChatContextLike,
   type ChatHeaderProps,
+  type ChatKindTileProps,
+  type ChatSettingsMenuProps,
   type ChatInputProps,
   type ChatLiveStateLike,
   type ChatMessageLike,
@@ -466,7 +509,6 @@ export {
   type ChatDebugModalProps,
   type ChatDynamicContextModalProps,
   type CredentialCaptureCardProps,
-  type GlobalChatOverlayProps,
   type SystemPromptViewerConnectedProps,
   type UsageModalConnectedProps,
   type CompletionSettingsLike,
@@ -745,6 +787,9 @@ export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export { default as StepsStrip, type StepsStripProps } from './compound/process/StepsStrip'
+export { default as HeaderBar, type HeaderBarProps } from './compound/HeaderBar'
+export { default as ToneBadge, type ToneBadgeProps } from './compound/chips/ToneBadge'
 export {
   default as ProcessRunChip,
   type ProcessRunChipProps,
@@ -818,3 +863,8 @@ export {
   default as ProcessCleanupCard,
   type ProcessCleanupCardProps,
 } from './compound/process/signoff/ProcessCleanupCard'
+export { default as ChatList, type ChatListProps } from './compound/chat/ChatList'
+export {
+  default as AssistantConversationList,
+  type AssistantConversationListProps,
+} from './compound/chat/AssistantConversationList'

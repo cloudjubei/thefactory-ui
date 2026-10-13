@@ -1,5 +1,5 @@
 import type { ChatAudienceMessage } from 'thefactory-tools/types'
-import { chatNewsTimes } from 'thefactory-tools/utils'
+import { chatNeedsYouTimes, chatNewsTimes } from 'thefactory-tools/utils'
 import type { GetChatResponse, ListChatSummariesResponse } from '../api/generated'
 
 /**
@@ -7,8 +7,12 @@ import type { GetChatResponse, ListChatSummariesResponse } from '../api/generate
  * thefactory-tools `ChatSummary`). The generated type reads the `null` of a
  * message without a time as `unknown`.
  */
-export type ChatSummaryLike = Omit<ListChatSummariesResponse[number], 'messageTimes'> & {
+export type ChatSummaryLike = Omit<
+  ListChatSummariesResponse[number],
+  'messageTimes' | 'needsYouTimes'
+> & {
   messageTimes: (string | null)[]
+  needsYouTimes: (string | null)[]
 }
 
 /**
@@ -19,6 +23,7 @@ export type ChatSummaryLike = Omit<ListChatSummariesResponse[number], 'messageTi
 export type ChatListEntry = GetChatResponse & {
   messageCount?: number
   messageTimes?: (string | null)[]
+  needsYouTimes?: (string | null)[]
 }
 
 /** Whether the entry holds the chat's messages, not just their count and times. */
@@ -31,6 +36,7 @@ export type ChatMessagesShape = {
   messages?: readonly ChatAudienceMessage[]
   messageCount?: number
   messageTimes?: readonly (string | null)[]
+  needsYouTimes?: readonly (string | null)[]
 }
 
 /** How many messages the chat has, loaded or not. */
@@ -46,6 +52,12 @@ export function chatMessageCount(entry: ChatMessagesShape): number {
 export function chatMessageTimes(entry: ChatMessagesShape): readonly (string | null)[] {
   if (entry.messages) return chatNewsTimes(entry.messages)
   return entry.messageTimes ?? []
+}
+
+/** The time of each message that needs the person — loaded or not. */
+export function chatNeedsYouTimesOf(entry: ChatMessagesShape): readonly (string | null)[] {
+  if (entry.messages) return chatNeedsYouTimes(entry.messages)
+  return entry.needsYouTimes ?? []
 }
 
 /** What a chat's last activity is read from: its messages' times and its own. */

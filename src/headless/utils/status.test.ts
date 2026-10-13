@@ -22,6 +22,10 @@ describe('status vocabulary', () => {
     expect(statusKey('reviewable')).not.toBe(statusKey('done'))
   })
 
+  it('labels in-progress work plainly as Working', () => {
+    expect(statusLabel('in_progress')).toBe('Working')
+  })
+
   it('orders the lifecycle as it runs: pending, working, reviewable, done, then the set-asides', () => {
     expect(STATUS_ORDER).toEqual([
       'pending',

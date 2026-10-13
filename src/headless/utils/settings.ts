@@ -41,6 +41,10 @@ export function mergeSettings(parsed: Partial<AppSettings>): AppSettings {
         ...DEFAULT_APP_SETTINGS.notifications.gitBadgeSubToggles,
         ...(parsed.notifications?.gitBadgeSubToggles ?? {}),
       },
+      chatNotifyLevels: {
+        ...DEFAULT_APP_SETTINGS.notifications.chatNotifyLevels,
+        ...(parsed.notifications?.chatNotifyLevels ?? {}),
+      },
     },
   }
 }

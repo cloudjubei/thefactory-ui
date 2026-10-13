@@ -44,6 +44,7 @@ import type {
   ProcessGroupResumeView,
 } from './processGroupViewTypes'
 import { PROCESS_RUN_STATUS_VIEW, type ProcessStatusTone } from './processView'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 
 const MERGED = ['integrated', 'rebuilding', 'rebuild-failed']
 
@@ -57,20 +58,20 @@ const andList = (names: readonly string[]): string =>
 
 /**
  * How a group run reads in one word: a project ready for its own sign-off is
- * "Ready for you", the group's own stop or a project's ask "Waiting for you",
- * and one that ended with only some projects merged "Partly done".
+ * "Sign off", the group's own stop or a project's ask "Needs you", and one
+ * that ended with only some projects merged "Partly done".
  */
 export function processGroupBadge(group: Pick<ProcessGroupRun, 'status' | 'legs'>): {
   label: string
   tone: ProcessStatusTone
 } {
-  if (group.status === 'parked') return { label: 'Waiting for you', tone: 'on_hold' }
+  if (group.status === 'parked') return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
   if (group.status === 'running' || group.status === 'pending') {
     if (group.legs.some((l) => l.status === 'at-sign-off')) {
-      return { label: 'Ready for you', tone: 'review' }
+      return { label: PROCESS_RUN_WORDS.signOff, tone: 'review' }
     }
     if (group.legs.some((l) => l.status === 'needs-you')) {
-      return { label: 'Waiting for you', tone: 'on_hold' }
+      return { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' }
     }
   }
   if (group.status === 'failed' && group.legs.some((l) => MERGED.includes(l.status))) {
@@ -164,8 +165,8 @@ function cardBody(
       body: {
         text:
           rejected > 0
-            ? `Finished · ${merged} merged, ${rejected} rejected`
-            : 'Finished · every project merged',
+            ? `${PROCESS_RUN_WORDS.done} · ${merged} merged, ${rejected} rejected`
+            : `${PROCESS_RUN_WORDS.done} · every project merged`,
         tone: 'done',
       },
     }

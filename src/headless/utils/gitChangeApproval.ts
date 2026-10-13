@@ -66,12 +66,15 @@ export function gitChangeProblem(
 export function gitChangeDecisionMetadata(
   card: GitChangeCardView,
   values: Record<string, string>,
-): { args: Record<string, string> } | undefined {
+): { args: Record<string, string | boolean> } | undefined {
   const start = gitChangeEditValues(card)
   const changed = Object.fromEntries(
     (card.edits ?? [])
-      .map((edit) => [edit.arg, (values[edit.arg] ?? '').trim()] as const)
-      .filter(([arg, next]) => next !== (start[arg] ?? '').trim()),
+      .filter((edit) => (values[edit.arg] ?? '').trim() !== (start[edit.arg] ?? '').trim())
+      .map((edit) => {
+        const next = (values[edit.arg] ?? '').trim()
+        return [edit.arg, edit.kind === 'toggle' ? next === 'true' : next] as const
+      }),
   )
   return Object.keys(changed).length > 0 ? { args: changed } : undefined
 }

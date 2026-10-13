@@ -22,6 +22,8 @@ import {
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
+import { featureRequestBriefOfToolArgs } from '../../../../headless/utils/featureRequestView'
+import FeatureRequestBriefCard from '../../FeatureRequestBriefCard'
 import { parseResourceLink } from 'thefactory-tools/utils'
 import type { ResourceLink } from 'thefactory-tools/types'
 
@@ -220,6 +222,8 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'runShellCommand',
   'shell',
   'requestProjectFeature',
+  'acceptProjectFeatureRequest',
+  'rejectProjectFeatureRequest',
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
@@ -739,7 +743,39 @@ export function renderToolPreview({
         </>
       )
     }
-    // No requestId yet (in flight) or no host hook — fall through to the JSON fallback.
+    const brief = featureRequestBriefOfToolArgs(args)
+    if (brief) {
+      const target = tryString(args.targetProjectId) || 'another project'
+      return (
+        <FeatureRequestBriefCard
+          brief={brief}
+          fromLabel="this project"
+          provenance={
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-(--text-secondary)">
+              Request to {target}
+            </div>
+          }
+        />
+      )
+    }
+  }
+
+  // ---- deciding a request sent to this project (its live card) ----
+  if (name === 'acceptProjectFeatureRequest' || name === 'rejectProjectFeatureRequest') {
+    const requestId = tryString(args.id)
+    if (requestId && hooks?.renderFeatureRequestWidget) {
+      const reason = name === 'rejectProjectFeatureRequest' ? tryString(args.reason) : ''
+      return (
+        <div className="flex flex-col gap-1.5">
+          {hooks.renderFeatureRequestWidget({ requestId })}
+          {reason ? (
+            <div className="text-[12px] text-(--text-secondary)">
+              Reason: <span className="italic">“{reason}”</span>
+            </div>
+          ) : null}
+        </div>
+      )
+    }
   }
 
   // ---- generic project-data reads/writes (F.1) → clickable resource-link chips (F.3) ----

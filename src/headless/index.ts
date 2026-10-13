@@ -65,6 +65,44 @@ export {
   useCrossProjectRequests,
   type CrossProjectRequestsState,
 } from './hooks/useCrossProjectRequests'
+export {
+  useFeatureRequestDecision,
+  type FeatureRequestDecisionState,
+} from './hooks/useFeatureRequestDecision'
+export {
+  useIncomingFeatureRequest,
+  type IncomingFeatureRequestState,
+} from './hooks/useIncomingFeatureRequest'
+export {
+  featureRequestAcceptHint,
+  featureRequestBriefOfToolArgs,
+  featureRequestCountsLine,
+  featureRequestCycleWarning,
+  featureRequestRejectedLine,
+  featureRequestRejectPrompt,
+  featureRequestSections,
+  featureRequestStatusView,
+  featureRequestStoryLabel,
+  featureRequestSummary,
+  featureRequestViaLabel,
+  featureRequestWaitingLine,
+  hiddenFeatureRequestIntro,
+} from './utils/featureRequestView'
+export {
+  FEATURE_REQUEST_ACCEPTANCE_LINES,
+  FEATURE_REQUEST_COMPOSER_HINT,
+  FEATURE_REQUEST_DECIDE_HEADING,
+  FEATURE_REQUEST_OPEN_FULL_LABEL,
+  FEATURE_REQUEST_SECTION_TITLES,
+  FEATURE_REQUEST_STATUS_VIEW,
+} from './utils/featureRequestViewConstants'
+export type {
+  FeatureRequestItemView,
+  FeatureRequestPhase,
+  FeatureRequestSectionId,
+  FeatureRequestSectionView,
+  FeatureRequestStatusView,
+} from './utils/featureRequestViewTypes'
 export { crossProjectNotification, type CrossProjectNotification } from './utils/crossProjectNotify'
 export {
   useCrossProjectSettings,
@@ -163,6 +201,7 @@ export {
 // `chat` + `isSending` (from `useChats`) and `seen` (from `useChatsSeen`).
 export {
   chatUnreadMessages,
+  chatNotifyCountsOf,
   computeChatRowStatus,
   chatRowBadge,
   isChatUnread,
@@ -174,14 +213,53 @@ export { useOpenChat } from './hooks/useOpenChat'
 export {
   chatMessageCount,
   chatMessageTimes,
+  chatNeedsYouTimesOf,
   chatLastActivityAt,
   byLastActivity,
   isChatLoaded,
   type ChatListEntry,
   type ChatMessagesShape,
 } from './utils/chatListEntry'
-export { chatNewsSince } from './utils/chatNews'
+export { chatAsksNewsSince, chatNewsSince } from './utils/chatNews'
 export type { ChatNewsCheck, ChatNewsEntry, ChatNewsMarks } from './utils/chatNewsTypes'
+export {
+  chatKindNotifyLevel,
+  chatNotifyKind,
+  chatNotifyLevel,
+  chatNotifyLevelOptions,
+  chatNotifyNews,
+  withChatNotifyLevel,
+} from './utils/chatNotify'
+export * from './utils/chatNotifyConstants'
+export type {
+  AgentMessagesDisplay,
+  ChatNotifyCounts,
+  ChatNotifyKind,
+  ChatNotifyLevel,
+  ChatNotifyLevelOption,
+  ChatNotifyLevels,
+  ChatNotifyNews,
+} from './utils/chatNotifyTypes'
+export { useChatNotifyLevel, type UseChatNotifyLevel } from './hooks/useChatNotifyLevel'
+export { useChatNewsNotifier, type ChatNewsNotification } from './hooks/useChatNewsNotifier'
+export {
+  agentExchangeLayout,
+  agentExchangeLine,
+  agentExchangeStartOf,
+} from './utils/agentExchanges'
+export * from './utils/agentExchangesConstants'
+export type {
+  AgentExchange,
+  AgentExchangeLayout,
+  AgentExchangeLineView,
+} from './utils/agentExchangesTypes'
+export { managerBriefView, managerEscalationView, managerOutcomeView } from './utils/managerCards'
+export * from './utils/managerCardsConstants'
+export type {
+  ManagerBriefView,
+  ManagerEscalationView,
+  ManagerOutcomeView,
+} from './utils/managerCardsTypes'
 
 // Badge aggregation
 export {
@@ -196,20 +274,84 @@ export type { BadgeState, ProcessTally } from './utils/badgeAggregationTypes'
 // Nav-row indicator — the one precedence web `NavRow` and native `NavDrawer` render.
 export {
   groupTabIndicator,
-  navBadgeLabel,
+  inkBadgeTitle,
   navRowIndicator,
+  navRowTitle,
   scopeRowIndicator,
   shellTabIndicator,
 } from './utils/navIndicator'
-export type { NavBadge, NavRowIndicator, NavRowSignals } from './utils/navIndicatorTypes'
-
-// Chat grouping for the Categories navigation view (topics + per-story buckets)
+export type { NavRowIndicator, NavRowSignals } from './utils/navIndicatorTypes'
 export {
-  groupChats,
-  type ChatFeatureGroup,
-  type ChatStoryGroup,
-  type GroupedChats,
-} from './utils/chatGrouping'
+  chatAgentLogin,
+  cliLoginOf,
+  expiredSignInNames,
+  expiredSignInsByScope,
+  processRunAgentLogin,
+  scopeSignInNames,
+  signInExpiredTitle,
+  signInName,
+} from './utils/signInExpiry'
+export type {
+  ActiveCliLogin,
+  AgentLogin,
+  CliLogin,
+  ExpiredSignIns,
+  ScopeSignIns,
+  SignInChat,
+  SignInChatRunner,
+  SignInLogins,
+  SignInRun,
+} from './utils/signInExpiryTypes'
+export { useExpiredSignIns } from './hooks/useExpiredSignIns'
+
+// Ink badge — the one layout the web and native badges draw.
+export {
+  inkBadgeLayout,
+  inkBadgeLook,
+  inkBadgeParts,
+  inkBadgeShares,
+  inkChannelColors,
+} from './utils/inkBadge'
+export {
+  BADGE_CHANGE_COLOURS_LABEL,
+  BADGE_CHANNEL_COLOURS_LABEL,
+  BADGE_CHANNEL_SWATCHES,
+  BADGE_DEFAULT_LABEL,
+  BADGE_MODE_LEGEND,
+  BADGE_MODE_OPTIONS,
+  BADGE_MOTION_LEGEND,
+  BADGE_MOTION_OPTIONS,
+  BADGE_PREVIEW_LABEL,
+  BADGE_PREVIEW_ROWS,
+  BADGE_RESET_LABEL,
+  BADGE_SAMPLE_IDLE,
+  BADGE_SAMPLE_RUNNING,
+  BADGE_SETTINGS_INTRO,
+  BADGE_SETTINGS_TITLE,
+  BADGE_STYLE_LEGEND,
+  BADGE_STYLE_OPTIONS,
+  INK_BADGE_COLORS,
+  INK_BADGE_METRICS,
+  INK_FADE_SECONDS,
+  INK_FRESH_DOT_COLOR,
+  INK_MIXED_TEXT_COLOR,
+  INK_MIXED_TEXT_SHADOW,
+} from './utils/inkBadgeConstants'
+export type {
+  InkBadgeState,
+  InkBadgeLayout,
+  InkBadgeLook,
+  InkBlob,
+  InkChannel,
+  InkColor,
+  InkCore,
+  InkDrop,
+  InkFill,
+  InkMotion,
+  InkPart,
+  InkShare,
+  InkStop,
+} from './utils/inkBadgeTypes'
 
 // Tests format helpers — shared between web + native test viewers.
 export {
@@ -963,6 +1105,7 @@ export {
 // Shell navigation model — shared structure for the web `Sidebar` / responsive
 // drawer and the native `NavDrawer`.
 export {
+  ASSISTANT_NAV_DEF,
   GROUP_TAB_DEFS,
   SHELL_TAB_DEFS,
   groupTabToProjectTab,
@@ -990,6 +1133,9 @@ export {
   AVAILABLE_THEMES,
   BADGE_COLOR_CATEGORIES,
   BADGE_COLORS,
+  BADGE_MODES,
+  BADGE_MOTIONS,
+  BADGE_STYLES,
   CODE_BLOCK_THEMES,
   DEFAULT_APP_SETTINGS,
   DEFAULT_NOTIFICATION_PREFS,
@@ -999,6 +1145,9 @@ export {
   type AppSettings,
   type BadgeColor,
   type BadgeColorCategory,
+  type BadgeMode,
+  type BadgeMotion,
+  type BadgeStyle,
   type CodeBlockTheme,
   type NotificationCategory,
   type NotificationPrefs,
@@ -1067,10 +1216,67 @@ export {
 export { resolveResourceNav, type ResourceNav } from './utils/resourceNav'
 export { linkedFeatureStep } from './utils/featureLink'
 export { FEATURE_LINK_PARAM } from './utils/featureLinkConstants'
+export { PROCESS_LINK_PARAM } from './utils/processLinkConstants'
+export { referencePreview, runReferencePreview } from './utils/referencePreview'
+export type {
+  ReferencePreview,
+  ReferencePreviewAction,
+  RunReferencePreview,
+} from './utils/referencePreviewTypes'
+export { RUN_PREVIEW_OPEN_CHAT } from './utils/referencePreviewConstants'
 export type { LinkedFeatureStep } from './utils/featureLinkTypes'
 export { dependencyResourceLink } from './utils/dependencyLink'
 export type { DependencyLinkTarget } from './utils/dependencyLinkTypes'
 export { contextInfoStory } from './utils/contextInfo'
+export { chatHeaderView, chatKindOf, chatMessagesCost } from './utils/chatHeader'
+export {
+  CHAT_AGENT_RUN_KIND_LABEL,
+  CHAT_HEADER_ASSISTANT_CONTEXT,
+  CHAT_HEADER_CHAT_COST_TITLE,
+  CHAT_HEADER_RUN_TIME_TITLE,
+  CHAT_KIND_VIEW,
+} from './utils/chatHeaderConstants'
+export type {
+  ChatHeaderInput,
+  ChatHeaderPill,
+  ChatHeaderView,
+  ChatKind,
+  ChatKindRamp,
+  ChatKindView,
+} from './utils/chatHeaderTypes'
+export { useChatHeaderView } from './hooks/useChatHeaderView'
+export { chatSettingsMenuItems } from './utils/chatSettingsMenu'
+export {
+  ASSISTANT_SETTINGS_MENU_COPY,
+  CHAT_SETTINGS_MENU_COPY,
+  SHOW_DEVELOPER_TOOLS_COPY,
+} from './utils/chatSettingsMenuConstants'
+export type {
+  ChatSettingsMenuInput,
+  ChatSettingsMenuItem,
+  ChatSettingsMenuKey,
+  ChatSettingsMenuSection,
+} from './utils/chatSettingsMenuTypes'
+export {
+  featureStripEntries,
+  processRunStripEntries,
+  stepsStripView,
+  storyStatusTone,
+  storyStripEntries,
+} from './utils/stepsStrip'
+export {
+  STEPS_STRIP_COPY,
+  STEPS_STRIP_FULL_MAX,
+  STEPS_STRIP_LABELS,
+} from './utils/stepsStripConstants'
+export type {
+  StepsStripEntry,
+  StepsStripItem,
+  StepsStripModel,
+  StepsStripOptions,
+  StepsStripPhase,
+  StepsStripView,
+} from './utils/stepsStripTypes'
 export type { ContextInfoStoryRef } from './utils/contextInfoTypes'
 export { fileLineParam, fileLocationPath, textLineRange } from './utils/fileLocation'
 export { FILE_LINE_PARAM } from './utils/fileLocationConstants'
@@ -1171,27 +1377,31 @@ export type {
 // headers so the title reads identically across all clients.
 export { formatChatTitle, type ChatTitleInputs } from './utils/chatTitle'
 
-// The app-level assistant chat (`GENERAL` context — scoped to neither a project
-// nor a group): which generation is open, its overlay's open/close state, and
-// the reset that archives one generation and starts the next. The pure
-// selectors below are the same rules the provider runs on, exported so a
-// future "past conversations" list can read them directly.
+// The Assistant (`GENERAL` chats — scoped to neither a project nor a group):
+// its page lists its conversations, newest first, those archived from the list
+// in an archived view; its nav item shows what waits on the person in them.
+export { globalChatConversations, isGlobalChat, newGlobalChatContext } from 'thefactory-tools/utils'
 export {
-  GlobalChatProvider,
-  useGlobalChat,
-  type GlobalChatContextValue,
-} from './contexts/GlobalChatContext'
+  assistantConversationRows,
+  assistantExpiredSignIns,
+  assistantNavIndicator,
+} from './utils/assistant'
 export {
-  activeGlobalChat,
-  globalChatHistory,
-  isGlobalChat,
-  newGlobalChatContext,
-} from 'thefactory-tools/utils'
+  ASSISTANT_COPY,
+  assistantArchivedNotice,
+  assistantBackNotice,
+  assistantNewRepliesTitle,
+} from './utils/assistantConstants'
+export type {
+  AssistantChat,
+  AssistantRow,
+  AssistantRowStatus,
+  AssistantRowsInput,
+} from './utils/assistantTypes'
 export {
-  GLOBAL_CHAT_CONTEXT_TYPE,
-  GLOBAL_CHAT_RESET_LABEL,
-  GLOBAL_CHAT_TITLE,
-} from './utils/globalChatConstants'
+  useAssistantConversations,
+  type AssistantConversations,
+} from './hooks/useAssistantConversations'
 
 // Backend API client (WsClient + SDK-independent error/helper utilities +
 // auth / api context providers with adapter hooks for storage / SDK
@@ -1462,27 +1672,95 @@ export type { MessageRestartControl, MessageRestartInput } from './utils/chatMes
 // approved. Pure parsing / decision mappers behind the question card.
 export {
   answerDecision,
+  answeredQuestionOf,
   canSubmitAnswer,
   declineDecision,
   isQuestionAction,
   isQuestionGrant,
   parseQuestionPayload,
   partitionGrants,
+  splitParkedAsks,
   userAsks,
 } from './utils/agentQuestions'
 export {
   QUESTION_ACTION_KIND,
+  QUESTION_AGENT_DECIDES_ANSWER,
+  QUESTION_AGENTS_PICK,
   QUESTION_ANSWER_PLACEHOLDER,
-  QUESTION_BLOCKS_COMPOSER_HINT,
-  QUESTION_CANCEL_LABEL,
-  QUESTION_CARD_SUBTITLE,
+  QUESTION_ANSWERED_BY,
   QUESTION_CARD_TITLE,
   QUESTION_DECLINE_LABEL,
   QUESTION_DECLINED_ANSWER,
   QUESTION_FALLBACK_PROMPT,
+  QUESTION_MORE,
+  QUESTION_OPTION_SEND,
+  QUESTION_PAGER,
+  QUESTION_PARK_LABEL,
+  QUESTION_PICKER_EMPTY,
+  QUESTION_PICKER_FILTER,
+  QUESTION_PICKER_LIMIT,
+  QUESTION_PICKER_LOADING,
+  QUESTION_PICKER_VERB,
+  QUESTION_REOPEN_LABEL,
+  QUESTION_SOMETHING_ELSE,
+  QUESTION_STILL_WAITING,
   QUESTION_SUBMIT_LABEL,
 } from './utils/agentQuestionConstants'
-export type { AgentQuestion, AgentQuestionDecision } from './utils/agentQuestionTypes'
+export type {
+  AgentQuestion,
+  AgentQuestionDecision,
+  AgentQuestionOption,
+  AnsweredQuestionView,
+  QuestionPickerItem,
+  QuestionPickerKind,
+} from './utils/agentQuestionTypes'
+export {
+  branchPickerItems,
+  chatPickerItems,
+  featurePickerItems,
+  filePickerItems,
+  filterPickerItems,
+  processPickerItems,
+  projectPickerItems,
+  storyPickerItems,
+  unmatchedOptions,
+  withAgentPicks,
+} from './utils/questionPicker'
+export {
+  useContextPickerItems,
+  useProcessPickerItems,
+  type QuestionPickerItems,
+} from './hooks/useQuestionPickerItems'
+
+// One card for every tool that waits on the person — what it wants, the thing
+// itself, the agent's reason, a verb on the button.
+export {
+  featureWorkAskView,
+  featureWorkLaunchCheck,
+  gitChangeAskView,
+  groupWorkAskView,
+  runProposalAskView,
+  toolAskCardView,
+  toolAskDecidedLine,
+  toolAskScopeOptions,
+} from './utils/toolAskCard'
+export {
+  FEATURE_WORK_ASK,
+  GROUP_WORK_ASK,
+  RUN_PROPOSAL_ASK,
+  TOOL_ASK_COPY,
+  TOOL_ASK_PREVIEW_LINES,
+  TOOL_ASK_SCOPE,
+} from './utils/toolAskCardConstants'
+export type {
+  ToolAskBody,
+  ToolAskCardView,
+  ToolAskDecidedLine,
+  ToolAskIcon,
+  ToolAskLaunchCheck,
+  ToolAskScopeOption,
+  ToolAskTone,
+} from './utils/toolAskCardTypes'
 
 // In-chat credential capture — an agent asks for credentials, the chat renders
 // the form, and the client posts the fields straight to the credentials API.
@@ -1810,6 +2088,22 @@ export {
   PROCESS_RUN_ACTIVE_STATUSES,
   splitProcessRunsByCurrent,
 } from './utils/processRunCurrent'
+export {
+  processRunAttentionSection,
+  processRunAttentionSections,
+  processRunListRow,
+  processRunNeedLine,
+  processRunWaitingCount,
+} from './utils/processRunAttention'
+export {
+  PROCESS_RUN_ATTENTION_SECTIONS,
+  PROCESS_RUN_WAITING_TITLE,
+} from './utils/processRunAttentionConstants'
+export type {
+  ProcessRunAttentionSection,
+  ProcessRunAttentionSectionId,
+  ProcessRunListRow,
+} from './utils/processRunAttentionTypes'
 export { useProcessProposal, type UseProcessProposal } from './hooks/useProcessProposal'
 export {
   useProcessGroupRun,
@@ -1943,6 +2237,7 @@ export {
   PROCESS_GATE_LOOP_NO_LIMIT,
   PROCESS_PARK_ASK_AGENT_COPY,
   PROCESS_RUN_PERSON_ENDING_VIEW,
+  PROCESS_RUN_WORDS,
   PROCESS_REVIVE_COPY,
   PROCESS_SEND_BACK_COPY,
   PROCESS_SPEND_CAP_TITLE,
@@ -2179,7 +2474,7 @@ export {
   NEEDS_YOU_DISCUSS_LABEL,
   NEEDS_YOU_FINE_LABEL,
   RUN_CHAT_CLOSE_LABEL,
-  RUN_CHAT_INTRO,
+  RUN_CHAT_OPEN_IN_CHAT_LABEL,
   RUN_CHAT_OPEN_LABEL,
   RUN_CHAT_OPENING,
   RUN_CHAT_PLACEHOLDER,
@@ -2611,3 +2906,36 @@ export {
   STORY_NOTES_COPY,
 } from './utils/storyNotesConstants'
 export type { StoryNoteFormValues, StoryNotesTarget } from './utils/storyNotesTypes'
+export {
+  byChatListAttention,
+  chatListBackNotice,
+  chatListFilterCounts,
+  chatListHiddenNotice,
+  chatListPool,
+  chatListRow,
+  chatListSections,
+  isChatInChatList,
+  matchesChatListFilter,
+  withChatListHidden,
+} from './utils/chatList'
+export {
+  CHAT_LIST_COPY,
+  CHAT_LIST_EMPTY,
+  CHAT_LIST_FILTERS,
+  CHAT_LIST_GROUP_MAIN_TITLE,
+  CHAT_LIST_NOTICE_MS,
+  CHAT_LIST_SUBS,
+  chatListShownNotice,
+} from './utils/chatListConstants'
+export type {
+  ChatListChat,
+  ChatListFilter,
+  ChatListNotice,
+  ChatListRow,
+  ChatListRowInput,
+  ChatListScope,
+  ChatListSection,
+  ChatListWork,
+} from './utils/chatListTypes'
+export { useChatList } from './hooks/useChatList'
+export { chatReturnsToList, isChatHiddenFromList } from 'thefactory-tools/utils'

@@ -119,7 +119,7 @@ describe('processStepRowView', () => {
       'sign-off',
     )
     expect(view).toMatchObject({
-      result: 'Waiting for you',
+      result: 'Needs you',
       waitingOnYou: true,
       expandable: false,
       preview: 'none',
@@ -131,7 +131,7 @@ describe('processStepRowView', () => {
       state({ id: 'v' }, { status: 'running', latest: entry({ status: 'running' }) }),
       'v',
     )
-    expect(view.result).toBe('Waiting for you')
+    expect(view.result).toBe('Needs you')
   })
 
   it('makes a skipped step inert, with its own reason', () => {
@@ -303,6 +303,19 @@ describe('processStageChips', () => {
       undefined,
     )
     expect([chip.mark, chip.note, chip.tone]).toEqual(['✗', 'did not pass', 'stuck'])
+  })
+
+  it('says the stage the run stopped on needs you', () => {
+    const [chip] = processStageChips(
+      [
+        state(
+          { id: 'x' },
+          { status: 'running', outcome: undefined, latest: entry({ status: 'running' }) },
+        ),
+      ],
+      'x',
+    )
+    expect([chip.mark, chip.note]).toEqual(['?', 'needs you'])
   })
 
   it('does not call a verifier pass accepted', () => {

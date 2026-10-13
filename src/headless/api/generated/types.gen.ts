@@ -1193,6 +1193,16 @@ export type ResourceLink =
       screenId?: string
       itemId?: string
     }
+  | {
+      kind: 'run'
+      projectId: string
+      runId: string
+    }
+  | {
+      kind: 'process'
+      projectId: string
+      processId: string
+    }
 
 export type CompletionHistorySummarization = {
   enabled: boolean
@@ -1275,7 +1285,218 @@ export type ChatApiTurn = {
   settings: CompletionSettings
 }
 
+export type ChatNotifyLevel = 'everything' | 'needs-me' | 'nothing'
+
 export type CompletionMessageRole = 'system' | 'user' | 'assistant' | 'tool'
+
+export type ProcessManagerTriggerKind = 'triage' | 'permission' | 'diagnose' | 'pre-read'
+
+export type ProcessParkReason =
+  | 'gate'
+  | 'step-failed'
+  | 'step-waiting'
+  | 'budget-spent'
+  | 'time-spent'
+  | 'step-unchecked'
+  | 'step-errored'
+  | 'turn-limit'
+  | 'loop-exhausted'
+  | 'no-steps'
+  | 'unknown-step'
+
+export type ProcessManagerBriefAnswer = {
+  choice: string
+  label: string
+  detail: string
+}
+
+export type ProcessManagerBriefCard = {
+  kind: 'brief'
+  mode: 'triage' | 'diagnose' | 'pre-read'
+  runId: string
+  parkedAt: number
+  stepName: string
+  reason: ProcessParkReason
+  message: string
+  failed: Array<string>
+  answers: Array<ProcessManagerBriefAnswer>
+  tried: Array<string>
+  triesUsed: number
+  triesMax: number
+}
+
+export type ProcessRetryMode = 'continue' | 'fresh'
+
+export type ProcessManagerMove =
+  | {
+      kind: 'read'
+    }
+  | {
+      kind: 'answer-park'
+      choice: string
+      note?: string
+      retryMode?: 'continue' | 'fresh'
+      attemptTurns?: number
+      runTurns?: number
+    }
+  | {
+      kind: 'stage-rerun'
+      stepId: string
+    }
+  | {
+      kind: 'withdraw-change'
+      changeId: string
+    }
+  | {
+      kind: 'resolve-needs-you'
+      resolution: 'resolved' | 'deferred'
+      storyId?: string
+    }
+  | {
+      kind: 'commit'
+      branch?: string
+    }
+  | {
+      kind: 'note'
+      storyId: string
+      featureId?: string
+    }
+  | {
+      kind: 'hold'
+    }
+  | {
+      kind: 'escalate'
+    }
+  | {
+      kind: 'pre-read'
+    }
+  | {
+      kind: 'prepare'
+    }
+  | {
+      kind: 'never'
+    }
+
+export type ProcessManagerInterventionOutcome = 'pending' | 'settled' | 'failed' | 'reversed'
+
+export type ProcessManagerIntervention = {
+  id: string
+  at: number
+  runId: string
+  parkedAt: number
+  signature: string
+  stepId?: string
+  tool: string
+  move:
+    | 'read'
+    | 'answer-park'
+    | 'stage-rerun'
+    | 'withdraw-change'
+    | 'resolve-needs-you'
+    | 'commit'
+    | 'note'
+    | 'hold'
+    | 'escalate'
+    | 'pre-read'
+    | 'prepare'
+    | 'never'
+  what: string
+  why: string
+  result?: string
+  outcome: ProcessManagerInterventionOutcome
+  actionKey: string
+  targetKey: string
+  changeId?: string
+}
+
+export type ProcessManagerInterventionCard = {
+  kind: 'intervention'
+  intervention: ProcessManagerIntervention
+  stepName?: string
+}
+
+export type ProcessManagerParkToken = {
+  runId: string
+  parkedAt: number
+}
+
+export type ProcessManagerNeedsYouFinding = {
+  itemId: string
+  finding: string
+  recommendation: string
+}
+
+export type ProcessManagerPreRead = {
+  runId: string
+  parkedAt: number
+  at: number
+  summary: string
+  items: Array<ProcessManagerNeedsYouFinding>
+}
+
+export type ProcessManagerPreReadCard = {
+  kind: 'pre-read'
+  preRead: ProcessManagerPreRead
+}
+
+export type ProcessManagerEscalationReason =
+  | 'credentials'
+  | 'permission'
+  | 'spend'
+  | 'scope'
+  | 'destructive'
+  | 'repeated-failure'
+  | 'guard-limit'
+  | 'judgement'
+  | 'hold-timeout'
+
+export type ProcessResumeChoice =
+  | 'continue'
+  | 'retry'
+  | 'abandon'
+  | 'approve'
+  | 'request-changes'
+  | 'reject'
+  | 'allow'
+  | 'resolved'
+  | 'more-info'
+  | 'update-base'
+  | 'resolve-base-conflict'
+
+export type ProcessParkAction = ProcessResumeChoice | 'delegate'
+
+export type ProcessManagerEscalation = {
+  runId: string
+  parkedAt: number
+  at: number
+  signature: string
+  why:
+    | 'credentials'
+    | 'permission'
+    | 'spend'
+    | 'scope'
+    | 'destructive'
+    | 'repeated-failure'
+    | 'guard-limit'
+    | 'judgement'
+    | 'hold-timeout'
+  what: string
+  found: string
+  tried: Array<string>
+  recommendation: string
+  recommendedChoice?: ProcessResumeChoice | 'delegate'
+}
+
+export type ProcessManagerEscalationCard = {
+  kind: 'escalation'
+  escalation: ProcessManagerEscalation
+}
+
+export type ProcessManagerChatCard =
+  | ProcessManagerBriefCard
+  | ProcessManagerInterventionCard
+  | ProcessManagerPreReadCard
+  | ProcessManagerEscalationCard
 
 export type CompletionMessageBase = {
   role: CompletionMessageRole
@@ -1284,6 +1505,11 @@ export type CompletionMessageBase = {
   completedAt: string
   durationMs: number
   answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
 }
 
 export type CompletionSystemMessage = {
@@ -1293,6 +1519,11 @@ export type CompletionSystemMessage = {
   completedAt: string
   durationMs: number
   answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
   error?: string
 }
 
@@ -1317,6 +1548,11 @@ export type CompletionUserMessage = {
   completedAt: string
   durationMs: number
   answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
   files?: Array<string>
   images?: Array<CompletionImage>
   handoffFrom?: string
@@ -1362,6 +1598,11 @@ export type CompletionAssistantMessage = {
   completedAt: string
   durationMs: number
   answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
   usage: {
     promptTokens: number
     completionTokens: number
@@ -1397,6 +1638,11 @@ export type CompletionToolMessage = {
   completedAt: string
   durationMs: number
   answersHandoffFrom?: string
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
   model: {
     model: string
     provider: LlmProvider
@@ -1488,6 +1734,11 @@ export type Chat = {
       status: 'succeeded' | 'failed'
       tookMs: number
     }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
     toolCall?: {
       toolCallId: string
       name: string
@@ -1524,6 +1775,8 @@ export type Chat = {
     effort?: string
   }
   archivedAt?: string
+  listHiddenAt?: string
+  notifyLevel?: 'everything' | 'needs-me' | 'nothing'
   createdAt?: string
   updatedAt?: string
 }
@@ -1581,11 +1834,14 @@ export type ChatSummary = {
     settings: CompletionSettings
   }
   archivedAt?: string
+  listHiddenAt?: string
+  notifyLevel?: 'everything' | 'needs-me' | 'nothing'
   createdAt: string
   updatedAt: string
 } & {
   messageCount: number
   messageTimes: Array<string | unknown>
+  needsYouTimes: Array<string | unknown>
 }
 
 export type ChatAudienceMessage = {
@@ -1593,6 +1849,11 @@ export type ChatAudienceMessage = {
   handoffFrom?: string
   answersHandoffFrom?: string
   backgroundResults?: Array<unknown>
+  managerCard?:
+    | ProcessManagerBriefCard
+    | ProcessManagerInterventionCard
+    | ProcessManagerPreReadCard
+    | ProcessManagerEscalationCard
   startedAt?: string
   completedAt?: string
 }
@@ -1642,6 +1903,11 @@ export type ChatCreateInput = {
       status: 'succeeded' | 'failed'
       tookMs: number
     }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
     toolCall?: {
       toolCallId: string
       name: string
@@ -1724,6 +1990,11 @@ export type ChatEditInput = {
       status: 'succeeded' | 'failed'
       tookMs: number
     }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
     toolCall?: {
       toolCallId: string
       name: string
@@ -1822,6 +2093,8 @@ export type ChatUpdate = {
       settings: CompletionSettings
     }
     archivedAt?: string
+    listHiddenAt?: string
+    notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt: string
     updatedAt: string
   }
@@ -3601,6 +3874,22 @@ export type ProjectMetadata = {
   scopeGroupIds: Array<string>
   createdAt: string
   updatedAt: string
+}
+
+export type AskUserAnswerKind =
+  | 'text'
+  | 'branch'
+  | 'file'
+  | 'story'
+  | 'feature'
+  | 'project'
+  | 'chat'
+  | 'process'
+
+export type AskUserOption = {
+  label: string
+  detail?: string
+  recommended?: boolean
 }
 
 export type AuthCredentialReference =
@@ -6461,15 +6750,46 @@ export type FeatureRequestResult = {
   mergeCommit?: string
 }
 
-export type FeatureRequest = {
-  id: string
+export type FeatureRequestCriterion = {
+  text: string
+  byHand?: boolean
+}
+
+export type FeatureRequestBrief = {
   title: string
-  description: string
+  summary?: string
+  description?: string
+  changes?: Array<string>
+  doneWhen?: Array<FeatureRequestCriterion>
+  rules?: Array<string>
+  proof?: Array<ProofKind>
+  adopters?: Array<string>
+  origin?: string
+  references?: Array<string>
+}
+
+export type FeatureRequest = {
+  title: string
+  summary?: string
+  description?: string
+  changes?: Array<string>
+  doneWhen?: Array<FeatureRequestCriterion>
+  rules?: Array<string>
+  proof?: Array<ProofKind>
+  adopters?: Array<string>
+  origin?: string
+  references?: Array<string>
+  id: string
   context?: Array<ExternalRef>
   targetProjectId: string
-  requestedBy: FeatureRequestRequestedBy
-  acceptance: FeatureRequestAcceptance
-  status: FeatureRequestStatus
+  requestedBy: {
+    fromProjectId: string
+    fromChatContext: ChatContext
+    fromRunId?: string
+    parentRequestId?: string
+  }
+  acceptance: 'off' | 'manual' | 'autonomous'
+  status: 'pending' | 'rejected' | 'accepted' | 'in_progress' | 'in_review' | 'completed' | 'failed'
   handling?: {
     receiverChatContext?: {
       type: ChatContextType
@@ -6497,6 +6817,7 @@ export type FeatureRequest = {
     detected: boolean
     path: Array<string>
   }
+  rejectionReason?: string
   resumeToken?: {
     [key: string]: unknown
   }
@@ -6505,13 +6826,26 @@ export type FeatureRequest = {
 }
 
 export type FeatureRequestInput = {
-  id: string
   title: string
-  description: string
+  summary?: string
+  description?: string
+  changes?: Array<string>
+  doneWhen?: Array<FeatureRequestCriterion>
+  rules?: Array<string>
+  proof?: Array<ProofKind>
+  adopters?: Array<string>
+  origin?: string
+  references?: Array<string>
+  id: string
   context?: Array<ExternalRef>
   targetProjectId: string
-  requestedBy: FeatureRequestRequestedBy
-  acceptance: FeatureRequestAcceptance
+  requestedBy: {
+    fromProjectId: string
+    fromChatContext: ChatContext
+    fromRunId?: string
+    parentRequestId?: string
+  }
+  acceptance: 'off' | 'manual' | 'autonomous'
   cycleFlag?: {
     detected: boolean
     path: Array<string>
@@ -6554,6 +6888,7 @@ export type FeatureRequestPatch = {
     detected: boolean
     path: Array<string>
   }
+  rejectionReason?: string
   resumeToken?: {
     [key: string]: unknown
   }
@@ -8926,114 +9261,12 @@ export type ProcessCleanupRegistration = {
   item: ProcessCleanupItem
 }
 
-export type ProcessParkReason =
-  | 'gate'
-  | 'step-failed'
-  | 'step-waiting'
-  | 'budget-spent'
-  | 'time-spent'
-  | 'step-unchecked'
-  | 'step-errored'
-  | 'turn-limit'
-  | 'loop-exhausted'
-  | 'no-steps'
-  | 'unknown-step'
-
 export type ProcessManagerSignature = {
   runId: string
   stepId?: string
   reason: ProcessParkReason
   failureKeys: Array<string>
   tip?: string
-}
-
-export type ProcessManagerParkToken = {
-  runId: string
-  parkedAt: number
-}
-
-export type ProcessManagerInterventionOutcome = 'pending' | 'settled' | 'failed' | 'reversed'
-
-export type ProcessRetryMode = 'continue' | 'fresh'
-
-export type ProcessManagerMove =
-  | {
-      kind: 'read'
-    }
-  | {
-      kind: 'answer-park'
-      choice: string
-      note?: string
-      retryMode?: 'continue' | 'fresh'
-      attemptTurns?: number
-      runTurns?: number
-    }
-  | {
-      kind: 'stage-rerun'
-      stepId: string
-    }
-  | {
-      kind: 'withdraw-change'
-      changeId: string
-    }
-  | {
-      kind: 'resolve-needs-you'
-      resolution: 'resolved' | 'deferred'
-      storyId?: string
-    }
-  | {
-      kind: 'commit'
-      branch?: string
-    }
-  | {
-      kind: 'note'
-      storyId: string
-      featureId?: string
-    }
-  | {
-      kind: 'hold'
-    }
-  | {
-      kind: 'escalate'
-    }
-  | {
-      kind: 'pre-read'
-    }
-  | {
-      kind: 'prepare'
-    }
-  | {
-      kind: 'never'
-    }
-
-export type ProcessManagerIntervention = {
-  id: string
-  at: number
-  runId: string
-  parkedAt: number
-  signature: string
-  stepId?: string
-  tool: string
-  move:
-    | 'read'
-    | 'answer-park'
-    | 'stage-rerun'
-    | 'withdraw-change'
-    | 'resolve-needs-you'
-    | 'commit'
-    | 'note'
-    | 'hold'
-    | 'escalate'
-    | 'pre-read'
-    | 'prepare'
-    | 'never'
-  what: string
-  why: string
-  result?: string
-  outcome: ProcessManagerInterventionOutcome
-  actionKey: string
-  targetKey: string
-  changeId?: string
 }
 
 export type ProcessManagerDependency =
@@ -9074,54 +9307,6 @@ export type ProcessManagerHold = {
   until: number
 }
 
-export type ProcessManagerEscalationReason =
-  | 'credentials'
-  | 'permission'
-  | 'spend'
-  | 'scope'
-  | 'destructive'
-  | 'repeated-failure'
-  | 'guard-limit'
-  | 'judgement'
-  | 'hold-timeout'
-
-export type ProcessResumeChoice =
-  | 'continue'
-  | 'retry'
-  | 'abandon'
-  | 'approve'
-  | 'request-changes'
-  | 'reject'
-  | 'allow'
-  | 'resolved'
-  | 'more-info'
-  | 'update-base'
-  | 'resolve-base-conflict'
-
-export type ProcessParkAction = ProcessResumeChoice | 'delegate'
-
-export type ProcessManagerEscalation = {
-  runId: string
-  parkedAt: number
-  at: number
-  signature: string
-  why:
-    | 'credentials'
-    | 'permission'
-    | 'spend'
-    | 'scope'
-    | 'destructive'
-    | 'repeated-failure'
-    | 'guard-limit'
-    | 'judgement'
-    | 'hold-timeout'
-  what: string
-  found: string
-  tried: Array<string>
-  recommendation: string
-  recommendedChoice?: ProcessResumeChoice | 'delegate'
-}
-
 export type ProcessManagerWaitingAsk = {
   actionId: string
   toolName: string
@@ -9152,20 +9337,6 @@ export type ProcessManagerStandDown = {
   parkedAt: number
   at: number
   by: 'person-message' | 'person-answer'
-}
-
-export type ProcessManagerNeedsYouFinding = {
-  itemId: string
-  finding: string
-  recommendation: string
-}
-
-export type ProcessManagerPreRead = {
-  runId: string
-  parkedAt: number
-  at: number
-  summary: string
-  items: Array<ProcessManagerNeedsYouFinding>
 }
 
 export type ProcessManagerOffReason = 'person' | 'reversed'
@@ -9244,8 +9415,6 @@ export type ProcessRunManager = {
 }
 
 export type ProcessManagerParkStatus = 'looking' | 'waiting' | 'holding' | 'escalated'
-
-export type ProcessManagerTriggerKind = 'triage' | 'permission' | 'diagnose' | 'pre-read'
 
 export type ProcessManagerTrigger =
   | {
@@ -9380,6 +9549,1457 @@ export type ProcessManagerHandledLine = {
 export type ProcessManagerHandledSummary = {
   count: number
   lines: Array<ProcessManagerHandledLine>
+}
+
+export type ProcessWorkBranchStack = {
+  runId: string
+  branch: string
+}
+
+export type ProcessWorkBranch = {
+  name: string
+  baseSha: string
+  baseRef: string
+  stackedOn?: {
+    runId: string
+    branch: string
+  }
+  shadow?: boolean
+}
+
+export type ProcessIntegrationMode = 'merge' | 'squash' | 'pull-request'
+
+export type ProcessIntegrationIdentity = {
+  name: string
+  email: string
+  credentialId: string
+}
+
+export type ProcessPullRequestText = {
+  title: string
+  body: string
+}
+
+export type ProcessIntegrationLanding = {
+  identity?: {
+    name: string
+    email: string
+    credentialId: string
+  }
+  message?: string
+  checkMerge?: boolean
+  credentialId?: string
+  pullRequest?: {
+    title: string
+    body: string
+  }
+}
+
+export type ProcessDecisionClient = 'web' | 'desktop' | 'mobile'
+
+export type ProcessPersonDecisionVia = ProcessDecisionClient | 'chat' | 'feature-question'
+
+export type ProcessDecisionAttribution =
+  | {
+      decidedBy: 'person'
+      decidedVia: ProcessPersonDecisionVia
+    }
+  | {
+      decidedBy: 'agent'
+      decidedVia: 'tool'
+      toolName: string
+      chatContextId: string
+    }
+  | {
+      decidedBy: 'manager'
+      decidedVia: 'manager'
+      toolName: string
+      chatContextId: string
+    }
+
+export type ProcessIntegrationLandedBy = {
+  commit: string
+  subject?: string
+  settledBy?:
+    | {
+        decidedBy: 'person'
+        decidedVia: ProcessPersonDecisionVia
+      }
+    | {
+        decidedBy: 'agent'
+        decidedVia: 'tool'
+        toolName: string
+        chatContextId: string
+      }
+    | {
+        decidedBy: 'manager'
+        decidedVia: 'manager'
+        toolName: string
+        chatContextId: string
+      }
+}
+
+export type ProcessBaseMoved = {
+  baseRef: string
+  baseSha: string
+  commits: number
+}
+
+export type ProcessKeptOneSide = {
+  path: string
+  mergeSha: string
+  kept: 'work' | 'base'
+}
+
+export type ProcessBaseConflict = {
+  baseRef: string
+  baseSha: string
+  commits: number
+  paths: Array<string>
+  workSha?: string
+  keptOneSide?: Array<ProcessKeptOneSide>
+  lostExports?: Array<CodeIntelExportedSymbol>
+}
+
+export type ProcessRunIntegration = {
+  mode: ProcessIntegrationMode
+  status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+  landing?: {
+    identity?: {
+      name: string
+      email: string
+      credentialId: string
+    }
+    message?: string
+    checkMerge?: boolean
+    credentialId?: string
+    pullRequest?: {
+      title: string
+      body: string
+    }
+  }
+  sha?: string
+  landedBy?: {
+    commit: string
+    subject?: string
+    settledBy?:
+      | {
+          decidedBy: 'person'
+          decidedVia: ProcessPersonDecisionVia
+        }
+      | {
+          decidedBy: 'agent'
+          decidedVia: 'tool'
+          toolName: string
+          chatContextId: string
+        }
+      | {
+          decidedBy: 'manager'
+          decidedVia: 'manager'
+          toolName: string
+          chatContextId: string
+        }
+  }
+  pullRequestUrl?: string
+  compareUrl?: string
+  branch?: string
+  error?: string
+  conflict?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    paths: Array<string>
+    workSha?: string
+    keptOneSide?: Array<ProcessKeptOneSide>
+    lostExports?: Array<CodeIntelExportedSymbol>
+  }
+  checks?: {
+    status: MergeChecksStatus
+    summary: string
+    sha?: string
+    checks: Array<VerificationCheckResult>
+  }
+  at: number
+}
+
+export type ProcessScope = 'global' | 'project'
+
+export type ProcessStepKind =
+  | 'agent'
+  | 'check'
+  | 'capture'
+  | 'judge'
+  | 'report'
+  | 'gate'
+  | 'process'
+  | 'cleanup'
+
+export type ProcessStepExpansion = 'features'
+
+export type ProcessStep = {
+  id: string
+  name: string
+  kind: ProcessStepKind
+  description?: string
+  enabled?: boolean
+  agentType?: string
+  processId?: string
+  expand?: 'features'
+  onlyWhenSentBack?: boolean
+}
+
+export type ProcessSubject = {
+  kind: 'feature'
+  id: string
+  title: string
+}
+
+export type ProcessPlanStep = {
+  id: string
+  name: string
+  kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
+  description?: string
+  enabled?: boolean
+  agentType?: string
+  processId?: string
+  expand?: 'features'
+  onlyWhenSentBack?: boolean
+  subject?: {
+    kind: 'feature'
+    id: string
+    title: string
+  }
+}
+
+export type ProcessStepOutcome =
+  | 'passed'
+  | 'failed'
+  | 'unchecked'
+  | 'waiting'
+  | 'skipped'
+  | 'errored'
+
+export type ProcessLoop = {
+  id: string
+  from: string
+  to: string
+  when: Array<ProcessStepOutcome>
+  maxIterations: number
+}
+
+export type ProcessRunReopening = {
+  status: 'succeeded' | 'failed'
+  endedAt?: number
+  error?: string
+  approvalEntryId?: string
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    conflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+    checks?: {
+      status: MergeChecksStatus
+      summary: string
+      sha?: string
+      checks: Array<VerificationCheckResult>
+    }
+    at: number
+  }
+}
+
+export type ProcessPlanAmendment = {
+  at: number
+  stepIds: Array<string>
+  afterStepId?: string
+  sendBackLoopId?: string
+  closedEntryId?: string
+  reopened?: {
+    status: 'succeeded' | 'failed'
+    endedAt?: number
+    error?: string
+    approvalEntryId?: string
+    integration?: {
+      mode: ProcessIntegrationMode
+      status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+      landing?: {
+        identity?: {
+          name: string
+          email: string
+          credentialId: string
+        }
+        message?: string
+        checkMerge?: boolean
+        credentialId?: string
+        pullRequest?: {
+          title: string
+          body: string
+        }
+      }
+      sha?: string
+      landedBy?: {
+        commit: string
+        subject?: string
+        settledBy?:
+          | {
+              decidedBy: 'person'
+              decidedVia: ProcessPersonDecisionVia
+            }
+          | {
+              decidedBy: 'agent'
+              decidedVia: 'tool'
+              toolName: string
+              chatContextId: string
+            }
+          | {
+              decidedBy: 'manager'
+              decidedVia: 'manager'
+              toolName: string
+              chatContextId: string
+            }
+      }
+      pullRequestUrl?: string
+      compareUrl?: string
+      branch?: string
+      error?: string
+      conflict?: {
+        baseRef: string
+        baseSha: string
+        commits: number
+        paths: Array<string>
+        workSha?: string
+        keptOneSide?: Array<ProcessKeptOneSide>
+        lostExports?: Array<CodeIntelExportedSymbol>
+      }
+      checks?: {
+        status: MergeChecksStatus
+        summary: string
+        sha?: string
+        checks: Array<VerificationCheckResult>
+      }
+      at: number
+    }
+  }
+  integrationConflict?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    paths: Array<string>
+    workSha?: string
+    keptOneSide?: Array<ProcessKeptOneSide>
+    lostExports?: Array<CodeIntelExportedSymbol>
+  }
+  loopCountsReset?: {
+    [key: string]: number
+  }
+}
+
+export type ProcessPlan = {
+  definitionId: string
+  definitionScope: ProcessScope
+  definitionVersion: number
+  name: string
+  steps: Array<ProcessPlanStep>
+  loops: Array<ProcessLoop>
+  frozenAt: number
+  amendments?: Array<ProcessPlanAmendment>
+}
+
+export type ProcessRunStatus =
+  | 'pending'
+  | 'running'
+  | 'parked'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+
+export type ProcessRunCursor = {
+  stepId: string
+  iteration: number
+}
+
+export type ProcessBudget = {
+  spendUsdCap?: number
+  wallClockMs?: number
+}
+
+export type ProcessRunRevival = {
+  stoppedAt: number
+  at: number
+}
+
+export type ProcessRunModel = {
+  runner: 'cli' | 'api'
+  cli?: string
+  model?: string
+  effort?: string
+}
+
+export type ProcessRunModelOverride = {
+  runner: 'cli' | 'api'
+  cli?: string
+  model?: string
+  effort?: string
+  authCredentialId?: string
+  apiKeyCredentialId?: string
+  at: number
+}
+
+export type ProcessTurnLimit = {
+  limitTurns: boolean
+  maxTurns: number
+}
+
+export type ProcessFeatureClosureStatus = 'pending' | 'blocked' | 'deferred' | 'done'
+
+export type ProcessFeatureClosure = {
+  featureId: string
+  status: ProcessFeatureClosureStatus
+  reason?: string
+}
+
+export type ProcessRunClosure = {
+  features: Array<ProcessFeatureClosure>
+  at: number
+} & (
+  | {
+      decidedBy?: 'person'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+    }
+  | {
+      decidedBy?: 'agent'
+      decidedVia?: 'tool'
+      toolName?: string
+      chatContextId?: string
+    }
+  | {
+      decidedBy?: 'manager'
+      decidedVia?: 'manager'
+      toolName?: string
+      chatContextId?: string
+    }
+)
+
+export type ProcessNodeRunRef = {
+  runId: string
+  agentRunId?: string
+  chatContextId?: string
+  runner?: 'api' | 'cli'
+}
+
+export type ProcessWaitingKind = 'permission' | 'question' | 'blocker'
+
+export type ProcessWaitingRequest = {
+  actionId: string
+  actionKind: string
+  toolName?: string
+  host?: string
+  packageName?: string
+  ecosystem?: string
+  url?: string
+  args?: {
+    [key: string]: unknown
+  }
+}
+
+export type ProcessWaitingDelegation = {
+  chatContextId: string
+  topicId: string
+  at: number
+}
+
+export type ProcessWaitingAsk = {
+  kind: ProcessWaitingKind
+  agent: string
+  title: string
+  detail: string
+  request?: {
+    actionId: string
+    actionKind: string
+    toolName?: string
+    host?: string
+    packageName?: string
+    ecosystem?: string
+    url?: string
+    args?: {
+      [key: string]: unknown
+    }
+  }
+  featureQuestionId?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+  delegatedTo?: {
+    chatContextId: string
+    topicId: string
+    at: number
+  }
+}
+
+export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
+
+export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
+
+export type ProcessProofPair = {
+  subject: string
+  beforeId: string
+  afterId: string
+  changedPixels?: number
+  totalPixels?: number
+  sameScreen?: number
+  counted: boolean
+  reason?: string
+  newScreen?: boolean
+  newStateOf?: string
+}
+
+export type ProcessProofNewScreen = {
+  subject: string
+  afterId: string
+}
+
+export type ProcessProofUnpaired = {
+  subject: string
+  afterId: string
+  reason: string
+}
+
+export type ProofKindStatus = 'met' | 'unmet' | 'unchecked' | 'pending' | 'at-sign-off'
+
+export type ProofKindStanding = {
+  kind: ProofKind
+  status: ProofKindStatus
+  detail: string
+}
+
+export type ProofPlanJudgement = {
+  kinds: Array<ProofKindStanding>
+  changeTests?: Array<string>
+  captureUnavailable?: string
+}
+
+export type ProcessVerifyProof = {
+  baseSha?: string
+  headSha?: string
+  seams?: Array<string>
+  pairs: Array<ProcessProofPair>
+  newScreenIds: Array<string>
+  newScreensAfterOnly?: Array<ProcessProofNewScreen>
+  recordingIds: Array<string>
+  mode?: 'live' | 'dry'
+  dryAssumptions?: string
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  reason?: string
+  reasons?: Array<string>
+  judged?: boolean
+  unpaired?: Array<ProcessProofUnpaired>
+  plan?: {
+    kinds: Array<ProofKindStanding>
+    changeTests?: Array<string>
+    captureUnavailable?: string
+  }
+}
+
+export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
+
+export type ProcessReviewVerdict = {
+  verdict: ReviewEvidenceVerdict
+  reason?: string
+}
+
+export type ProcessAlreadyMet = {
+  checks: Array<ProjectCheckKind>
+  evidence: string
+  sha?: string
+}
+
+export type ProcessBaseUpdate = {
+  baseRef: string
+  baseSha: string
+  commits: number
+  sha: string
+  at: number
+  exportsUnchecked?: Array<string>
+}
+
+export type ProcessEntryCost = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+}
+
+export type ProcessToolTime = {
+  name: string
+  calls: number
+  ms: number
+}
+
+export type ProcessEntryTime = {
+  agentMs: number
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  tools: Array<ProcessToolTime>
+}
+
+export type ProcessAgentStop = 'turn-limit' | 'interrupted'
+
+export type ProcessLedgerEntry = {
+  id: string
+  stepId: string
+  iteration: number
+  status: 'running' | 'done'
+  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+  summary?: string
+  runRef?: {
+    runId: string
+    agentRunId?: string
+    chatContextId?: string
+    runner?: 'api' | 'cli'
+  }
+  childRunId?: string
+  viaLoopId?: string
+  ask?: {
+    kind: ProcessWaitingKind
+    agent: string
+    title: string
+    detail: string
+    request?: {
+      actionId: string
+      actionKind: string
+      toolName?: string
+      host?: string
+      packageName?: string
+      ecosystem?: string
+      url?: string
+      args?: {
+        [key: string]: unknown
+      }
+    }
+    featureQuestionId?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    delegatedTo?: {
+      chatContextId: string
+      topicId: string
+      at: number
+    }
+  }
+  continues?: string
+  override?: {
+    choice: ProcessResumeChoice
+    at: number
+    note?: string
+    integration?: 'merge' | 'squash' | 'pull-request'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    requestedProof?: Array<ProofKind>
+    retryMode?: 'continue' | 'fresh'
+    turnLimit?: {
+      limitTurns: boolean
+      maxTurns: number
+    }
+    attemptTurnLimit?: {
+      limitTurns: boolean
+      maxTurns: number
+    }
+    decidedBy?: 'person' | 'agent' | 'manager'
+    decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
+    toolName?: string
+    chatContextId?: string
+    shownEvidenceIds?: Array<string>
+  }
+  unmetRequest?: string
+  cleanup?: {
+    outcomes: Array<ProcessCleanupOutcome>
+    keptIds: Array<string>
+  }
+  proof?: {
+    baseSha?: string
+    headSha?: string
+    seams?: Array<string>
+    pairs: Array<ProcessProofPair>
+    newScreenIds: Array<string>
+    newScreensAfterOnly?: Array<ProcessProofNewScreen>
+    recordingIds: Array<string>
+    mode?: 'live' | 'dry'
+    dryAssumptions?: string
+    outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
+    reason?: string
+    reasons?: Array<string>
+    judged?: boolean
+    unpaired?: Array<ProcessProofUnpaired>
+    plan?: {
+      kinds: Array<ProofKindStanding>
+      changeTests?: Array<string>
+      captureUnavailable?: string
+    }
+  }
+  review?: {
+    verdict: ReviewEvidenceVerdict
+    reason?: string
+  }
+  alreadyMet?: {
+    checks: Array<ProjectCheckKind>
+    evidence: string
+    sha?: string
+  }
+  checks?: Array<VerificationCheckResult>
+  checkedSha?: string
+  baseUpdate?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    sha: string
+    at: number
+    exportsUnchecked?: Array<string>
+  }
+  baseConflict?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    paths: Array<string>
+    workSha?: string
+    keptOneSide?: Array<ProcessKeptOneSide>
+    lostExports?: Array<CodeIntelExportedSymbol>
+  }
+  cost?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+  }
+  time?: {
+    agentMs: number
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    tools: Array<ProcessToolTime>
+  }
+  startedAt: number
+  endedAt?: number
+  suspendedMs?: number
+  waitedMs?: number
+  waitingSince?: number
+  model?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+  }
+  turnLimit?: {
+    limitTurns: boolean
+    maxTurns: number
+  }
+  agentStop?: 'turn-limit' | 'interrupted'
+  retryMode?: 'continue' | 'fresh'
+  resumes?: string
+  retries?: Array<ProcessStepRetry>
+  backoffMs?: number
+  backoffSince?: number
+}
+
+export type ProcessPendingEntry = {
+  cursor: ProcessRunCursor
+  viaLoopId?: string
+  continuesEntryId?: string
+  retryMode?: 'continue' | 'fresh'
+  resumesEntryId?: string
+}
+
+export type ProcessPark = {
+  reason: ProcessParkReason
+  stepId?: string
+  loopId?: string
+  message: string
+  parkedAt: number
+  pending?: {
+    cursor: ProcessRunCursor
+    viaLoopId?: string
+    continuesEntryId?: string
+    retryMode?: 'continue' | 'fresh'
+    resumesEntryId?: string
+  }
+  ask?: {
+    kind: ProcessWaitingKind
+    agent: string
+    title: string
+    detail: string
+    request?: {
+      actionId: string
+      actionKind: string
+      toolName?: string
+      host?: string
+      packageName?: string
+      ecosystem?: string
+      url?: string
+      args?: {
+        [key: string]: unknown
+      }
+    }
+    featureQuestionId?: string
+    runRef?: {
+      runId: string
+      agentRunId?: string
+      chatContextId?: string
+      runner?: 'api' | 'cli'
+    }
+    delegatedTo?: {
+      chatContextId: string
+      topicId: string
+      at: number
+    }
+  }
+  stepInFlight?: boolean
+  childRunId?: string
+  baseConflict?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+    paths: Array<string>
+    workSha?: string
+    keptOneSide?: Array<ProcessKeptOneSide>
+    lostExports?: Array<CodeIntelExportedSymbol>
+  }
+}
+
+export type ProcessTimeBreakdown = {
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  runningMs: number
+  waitingMs: number
+  tools: Array<ProcessToolTime>
+}
+
+export type ProcessAttemptTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  entryId: string
+  workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
+}
+
+export type ProcessStepTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
+  attempts: Array<ProcessAttemptTotals>
+}
+
+export type ProcessRunTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    tools: Array<ProcessToolTime>
+  }
+  ticking: boolean
+  at: number
+  steps: {
+    [key: string]: ProcessStepTotals
+  }
+}
+
+export type ProcessNeedsYouResolutionKind = 'resolved' | 'changed' | 'deferred'
+
+export type ProcessNeedsYouChange = {
+  kind: 'feature-added' | 'feature-changed' | 'story-created'
+  storyId?: string
+  featureId?: string
+  title: string
+}
+
+export type ProcessNeedsYouResolution = {
+  itemId: string
+  text: string
+  kind: ProcessNeedsYouResolutionKind
+  summary?: string
+  change?: {
+    kind: 'feature-added' | 'feature-changed' | 'story-created'
+    storyId?: string
+    featureId?: string
+    title: string
+  }
+  decidedBy?: 'person' | 'agent' | 'manager'
+  at: number
+}
+
+export type ProcessStepRerun = {
+  stepId: string
+  note?: string
+  at: number
+  fromLedgerIndex: number
+  retryMode?: 'continue' | 'fresh'
+}
+
+export type ProcessRunPendingChangeBase = {
+  id: string
+  title: string
+  summary: string
+  needsYouItemId?: string
+  at: number
+}
+
+export type ProcessRunFeaturePendingChange = {
+  id: string
+  title: string
+  summary: string
+  needsYouItemId?: string
+  at: number
+  kind: 'feature-changed' | 'feature-added'
+  featureId: string
+  note?: string
+  proofKinds?: Array<ProofKind>
+}
+
+export type ProcessRunStepRerunPendingChange = {
+  id: string
+  title: string
+  summary: string
+  needsYouItemId?: string
+  at: number
+  kind: 'step-rerun'
+  stepId: string
+  note: string
+  retryMode?: 'continue' | 'fresh'
+}
+
+export type ProcessRunPendingChange =
+  | ProcessRunFeaturePendingChange
+  | ProcessRunStepRerunPendingChange
+
+export type ProcessWorkBranchChangeInput = {
+  operation: string
+  summary: string
+  previousSha?: string
+  sha: string
+  decidedBy: 'person' | 'manager'
+  decidedVia?: 'card' | 'approve-all' | 'manager'
+  actionId?: string
+  toolName?: string
+  chatContextId?: string
+}
+
+export type ProcessWorkBranchChange = {
+  operation: string
+  summary: string
+  previousSha?: string
+  sha: string
+  decidedBy: 'person' | 'manager'
+  decidedVia?: 'card' | 'approve-all' | 'manager'
+  actionId?: string
+  toolName?: string
+  chatContextId?: string
+  id: string
+  at: number
+}
+
+export type ProcessRun = {
+  id: string
+  projectId: string
+  storyId?: string
+  featureId?: string
+  chatContextId?: string
+  parentRunId?: string
+  parentStepId?: string
+  groupRunId?: string
+  groupLegId?: string
+  title: string
+  input?: {
+    [key: string]: unknown
+  }
+  workBranch?: {
+    name: string
+    baseSha: string
+    baseRef: string
+    stackedOn?: {
+      runId: string
+      branch: string
+    }
+    shadow?: boolean
+  }
+  integration?: {
+    mode: ProcessIntegrationMode
+    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
+    landing?: {
+      identity?: {
+        name: string
+        email: string
+        credentialId: string
+      }
+      message?: string
+      checkMerge?: boolean
+      credentialId?: string
+      pullRequest?: {
+        title: string
+        body: string
+      }
+    }
+    sha?: string
+    landedBy?: {
+      commit: string
+      subject?: string
+      settledBy?:
+        | {
+            decidedBy: 'person'
+            decidedVia: ProcessPersonDecisionVia
+          }
+        | {
+            decidedBy: 'agent'
+            decidedVia: 'tool'
+            toolName: string
+            chatContextId: string
+          }
+        | {
+            decidedBy: 'manager'
+            decidedVia: 'manager'
+            toolName: string
+            chatContextId: string
+          }
+    }
+    pullRequestUrl?: string
+    compareUrl?: string
+    branch?: string
+    error?: string
+    conflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+    checks?: {
+      status: MergeChecksStatus
+      summary: string
+      sha?: string
+      checks: Array<VerificationCheckResult>
+    }
+    at: number
+  }
+  plan: ProcessPlan
+  status: ProcessRunStatus
+  cursor?: {
+    stepId: string
+    iteration: number
+  }
+  loopCounts: {
+    [key: string]: number
+  }
+  budget?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  budgetGrants?: {
+    spendUsdCap?: number
+    wallClockMs?: number
+  }
+  spentUsd?: number
+  parkedMs?: number
+  revivals?: Array<ProcessRunRevival>
+  suspendedMs?: number
+  iterationGrants?: {
+    [key: string]: number
+  }
+  modelOverride?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+    authCredentialId?: string
+    apiKeyCredentialId?: string
+    at: number
+  }
+  turnLimit?: {
+    limitTurns: boolean
+    maxTurns: number
+  }
+  closure?: {
+    features: Array<{
+      featureId: string
+      status: 'pending' | 'blocked' | 'deferred' | 'done'
+      reason?: string
+    }>
+    at: number
+  } & (
+    | {
+        decidedBy?: 'person'
+        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+      }
+    | {
+        decidedBy?: 'agent'
+        decidedVia?: 'tool'
+        toolName?: string
+        chatContextId?: string
+      }
+    | {
+        decidedBy?: 'manager'
+        decidedVia?: 'manager'
+        toolName?: string
+        chatContextId?: string
+      }
+  )
+  ledger: Array<ProcessLedgerEntry>
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+  startedAt: number
+  updatedAt: number
+  endedAt?: number
+  error?: string
+  totals?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    workMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      tools: Array<ProcessToolTime>
+    }
+    ticking: boolean
+    at: number
+    steps: {
+      [key: string]: ProcessStepTotals
+    }
+  }
+  baseUpdates?: Array<ProcessBaseUpdate>
+  baseMoved?: {
+    baseRef: string
+    baseSha: string
+    commits: number
+  }
+  workBranchTip?: string
+  needsYouResolutions?: {
+    [key: string]: ProcessNeedsYouResolution
+  }
+  reruns?: Array<ProcessStepRerun>
+  pendingChanges?: Array<ProcessRunPendingChange>
+  workBranchChanges?: Array<ProcessWorkBranchChange>
+  cleanup?: {
+    items: Array<ProcessCleanupItem>
+    choices?: {
+      [key: string]: boolean
+    }
+    off?: boolean
+  }
+  manager?: {
+    interventions?: Array<ProcessManagerIntervention>
+    turn?: {
+      runId: string
+      parkedAt: number
+      signature: string
+      startedAt: number
+      chatContextId: string
+      waitingOn?: Array<ProcessManagerWaitingAsk>
+      resumedAt?: number
+    }
+    standDown?: {
+      runId: string
+      parkedAt: number
+      at: number
+      by: 'person-message' | 'person-answer'
+    }
+    hold?: {
+      runId: string
+      parkedAt: number
+      dependsOn:
+        | {
+            kind: 'run'
+            runId: string
+          }
+        | {
+            kind: 'feature-request'
+            requestId: string
+          }
+        | {
+            kind: 'base-fix'
+            sha: string
+          }
+      resume: 'retry' | 'update-base'
+      why: string
+      at: number
+      until: number
+    }
+    escalation?: {
+      runId: string
+      parkedAt: number
+      at: number
+      signature: string
+      why:
+        | 'credentials'
+        | 'permission'
+        | 'spend'
+        | 'scope'
+        | 'destructive'
+        | 'repeated-failure'
+        | 'guard-limit'
+        | 'judgement'
+        | 'hold-timeout'
+      what: string
+      found: string
+      tried: Array<string>
+      recommendation: string
+      recommendedChoice?: ProcessResumeChoice | 'delegate'
+    }
+    preRead?: {
+      runId: string
+      parkedAt: number
+      at: number
+      summary: string
+      items: Array<ProcessManagerNeedsYouFinding>
+    }
+    off?: {
+      at: number
+      reason: ProcessManagerOffReason
+    }
+    reversedKeys?: Array<string>
+  }
+}
+
+export type ProcessManagerBriefInput = {
+  root: {
+    id: string
+    title: string
+    manager?: {
+      interventions?: Array<ProcessManagerIntervention>
+      turn?: {
+        runId: string
+        parkedAt: number
+        signature: string
+        startedAt: number
+        chatContextId: string
+        waitingOn?: Array<ProcessManagerWaitingAsk>
+        resumedAt?: number
+      }
+      standDown?: {
+        runId: string
+        parkedAt: number
+        at: number
+        by: 'person-message' | 'person-answer'
+      }
+      hold?: {
+        runId: string
+        parkedAt: number
+        dependsOn:
+          | {
+              kind: 'run'
+              runId: string
+            }
+          | {
+              kind: 'feature-request'
+              requestId: string
+            }
+          | {
+              kind: 'base-fix'
+              sha: string
+            }
+        resume: 'retry' | 'update-base'
+        why: string
+        at: number
+        until: number
+      }
+      escalation?: {
+        runId: string
+        parkedAt: number
+        at: number
+        signature: string
+        why:
+          | 'credentials'
+          | 'permission'
+          | 'spend'
+          | 'scope'
+          | 'destructive'
+          | 'repeated-failure'
+          | 'guard-limit'
+          | 'judgement'
+          | 'hold-timeout'
+        what: string
+        found: string
+        tried: Array<string>
+        recommendation: string
+        recommendedChoice?: ProcessResumeChoice | 'delegate'
+      }
+      preRead?: {
+        runId: string
+        parkedAt: number
+        at: number
+        summary: string
+        items: Array<ProcessManagerNeedsYouFinding>
+      }
+      off?: {
+        at: number
+        reason: ProcessManagerOffReason
+      }
+      reversedKeys?: Array<string>
+    }
+  }
+  holder: ProcessRun
+  signature: ProcessManagerSignature
+  kind: 'triage' | 'diagnose' | 'pre-read'
 }
 
 export type DataCapabilityView = {
@@ -10264,14 +11884,6 @@ export type ResolvedProofPlan = {
   source: ProofPlanSource
 }
 
-export type ProofKindStatus = 'met' | 'unmet' | 'unchecked' | 'pending' | 'at-sign-off'
-
-export type ProofKindStanding = {
-  kind: ProofKind
-  status: ProofKindStatus
-  detail: string
-}
-
 export type ProofKindUnavailable = {
   kind: ProofKind
   reason: string
@@ -10286,12 +11898,6 @@ export type LaunchProofPlan = {
   looksUi?: boolean
 }
 
-export type ProofPlanJudgement = {
-  kinds: Array<ProofKindStanding>
-  changeTests?: Array<string>
-  captureUnavailable?: string
-}
-
 export type ProofPlanStepFact = {
   outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   summary?: string
@@ -10302,8 +11908,6 @@ export type ProofPlanChecksFact = {
   summary?: string
   results: Array<VerificationCheckResult>
 }
-
-export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected'
 
 export type ProofPlanReviewFact = {
   outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -12260,6 +13864,16 @@ export type ChatReference =
       screenId: string
       itemId?: string
     }
+  | {
+      kind: 'run'
+      projectId?: string
+      runId: string
+    }
+  | {
+      kind: 'process'
+      projectId?: string
+      processId: string
+    }
 
 export type TypedReference =
   | {
@@ -12311,70 +13925,15 @@ export type ChatAttachmentsOwner = {
   chatKey: string
 }
 
-export type ReferenceDescription = {
-  kind:
-    | 'file'
-    | 'story'
-    | 'feature'
-    | 'note'
-    | 'groupNote'
-    | 'attachment'
-    | 'design'
-    | 'project'
-    | 'chat'
-    | 'app'
+export type ReferenceProcess = {
+  id: string
+  name: string
+  steps: Array<string>
+}
+
+export type ReferenceFact = {
   label: string
-  detail?: string
-  missing?: boolean
-  link?:
-    | {
-        kind: 'project'
-        projectId: string
-      }
-    | {
-        kind: 'story'
-        projectId: string
-        storyId: string
-      }
-    | {
-        kind: 'feature'
-        projectId: string
-        storyId: string
-        featureId: string
-      }
-    | {
-        kind: 'chat'
-        context: ChatContext
-      }
-    | {
-        kind: 'app'
-        projectId: string
-        view?: string
-        params?: {
-          [key: string]: string
-        }
-      }
-    | {
-        kind: 'note'
-        projectId: string
-        noteId: string
-      }
-    | {
-        kind: 'groupNote'
-        groupId: string
-        noteId: string
-      }
-    | {
-        kind: 'file'
-        projectId: string
-        path: string
-      }
-    | {
-        kind: 'design'
-        projectId: string
-        screenId?: string
-        itemId?: string
-      }
+  value: string
 }
 
 export type ReferenceSuggestion = {
@@ -13480,6 +15039,8 @@ export type ToolName =
   | 'deleteLastChatMessage'
   | 'clearChat'
   | 'archiveChat'
+  | 'hideChatFromList'
+  | 'showChatInList'
   | 'updateDynamicContext'
   | 'deleteChat'
   | 'getChatSettings'
@@ -14478,733 +16039,10 @@ export type HostReadHealth = {
   action: string
 }
 
-export type ProcessStepOutcome =
-  | 'passed'
-  | 'failed'
-  | 'unchecked'
-  | 'waiting'
-  | 'skipped'
-  | 'errored'
-
-export type ProcessNodeRunRef = {
-  runId: string
-  agentRunId?: string
-  chatContextId?: string
-  runner?: 'api' | 'cli'
-}
-
-export type ProcessWaitingKind = 'permission' | 'question' | 'blocker'
-
-export type ProcessWaitingRequest = {
-  actionId: string
-  actionKind: string
-  toolName?: string
-  host?: string
-  packageName?: string
-  ecosystem?: string
-  url?: string
-  args?: {
-    [key: string]: unknown
-  }
-}
-
-export type ProcessWaitingDelegation = {
-  chatContextId: string
-  topicId: string
-  at: number
-}
-
-export type ProcessWaitingAsk = {
-  kind: ProcessWaitingKind
-  agent: string
-  title: string
-  detail: string
-  request?: {
-    actionId: string
-    actionKind: string
-    toolName?: string
-    host?: string
-    packageName?: string
-    ecosystem?: string
-    url?: string
-    args?: {
-      [key: string]: unknown
-    }
-  }
-  featureQuestionId?: string
-  runRef?: {
-    runId: string
-    agentRunId?: string
-    chatContextId?: string
-    runner?: 'api' | 'cli'
-  }
-  delegatedTo?: {
-    chatContextId: string
-    topicId: string
-    at: number
-  }
-}
-
-export type ProcessIntegrationMode = 'merge' | 'squash' | 'pull-request'
-
-export type ProcessIntegrationIdentity = {
-  name: string
-  email: string
-  credentialId: string
-}
-
-export type ProcessPullRequestText = {
-  title: string
-  body: string
-}
-
-export type ProcessIntegrationLanding = {
-  identity?: {
-    name: string
-    email: string
-    credentialId: string
-  }
-  message?: string
-  checkMerge?: boolean
-  credentialId?: string
-  pullRequest?: {
-    title: string
-    body: string
-  }
-}
-
-export type ProcessTurnLimit = {
-  limitTurns: boolean
-  maxTurns: number
-}
-
-export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
-
-export type ProcessDecisionClient = 'web' | 'desktop' | 'mobile'
-
-export type ProcessPersonDecisionVia = ProcessDecisionClient | 'chat' | 'feature-question'
-
-export type ProcessDecidedVia = ProcessPersonDecisionVia | 'tool' | 'manager'
-
-export type ProcessProofPair = {
-  subject: string
-  beforeId: string
-  afterId: string
-  changedPixels?: number
-  totalPixels?: number
-  sameScreen?: number
-  counted: boolean
-  reason?: string
-  newScreen?: boolean
-  newStateOf?: string
-}
-
-export type ProcessProofNewScreen = {
-  subject: string
-  afterId: string
-}
-
-export type ProcessProofUnpaired = {
-  subject: string
-  afterId: string
-  reason: string
-}
-
-export type ProcessVerifyProof = {
-  baseSha?: string
-  headSha?: string
-  seams?: Array<string>
-  pairs: Array<ProcessProofPair>
-  newScreenIds: Array<string>
-  newScreensAfterOnly?: Array<ProcessProofNewScreen>
-  recordingIds: Array<string>
-  mode?: 'live' | 'dry'
-  dryAssumptions?: string
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
-  reason?: string
-  reasons?: Array<string>
-  judged?: boolean
-  unpaired?: Array<ProcessProofUnpaired>
-  plan?: {
-    kinds: Array<ProofKindStanding>
-    changeTests?: Array<string>
-    captureUnavailable?: string
-  }
-}
-
-export type ProcessReviewVerdict = {
-  verdict: ReviewEvidenceVerdict
-  reason?: string
-}
-
-export type ProcessAlreadyMet = {
-  checks: Array<ProjectCheckKind>
-  evidence: string
-  sha?: string
-}
-
-export type ProcessBaseMoved = {
-  baseRef: string
-  baseSha: string
-  commits: number
-}
-
-export type ProcessBaseUpdate = {
-  baseRef: string
-  baseSha: string
-  commits: number
-  sha: string
-  at: number
-  exportsUnchecked?: Array<string>
-}
-
-export type ProcessKeptOneSide = {
-  path: string
-  mergeSha: string
-  kept: 'work' | 'base'
-}
-
-export type ProcessBaseConflict = {
-  baseRef: string
-  baseSha: string
-  commits: number
-  paths: Array<string>
-  workSha?: string
-  keptOneSide?: Array<ProcessKeptOneSide>
-  lostExports?: Array<CodeIntelExportedSymbol>
-}
-
-export type ProcessEntryCost = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-}
-
-export type ProcessToolTime = {
-  name: string
-  calls: number
-  ms: number
-}
-
-export type ProcessEntryTime = {
-  agentMs: number
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  tools: Array<ProcessToolTime>
-}
-
-export type ProcessRunModel = {
-  runner: 'cli' | 'api'
-  cli?: string
-  model?: string
-  effort?: string
-}
-
-export type ProcessAgentStop = 'turn-limit' | 'interrupted'
-
-export type ProcessLedgerEntry = {
-  id: string
-  stepId: string
-  iteration: number
-  status: 'running' | 'done'
-  outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
-  summary?: string
-  runRef?: {
-    runId: string
-    agentRunId?: string
-    chatContextId?: string
-    runner?: 'api' | 'cli'
-  }
-  childRunId?: string
-  viaLoopId?: string
-  ask?: {
-    kind: ProcessWaitingKind
-    agent: string
-    title: string
-    detail: string
-    request?: {
-      actionId: string
-      actionKind: string
-      toolName?: string
-      host?: string
-      packageName?: string
-      ecosystem?: string
-      url?: string
-      args?: {
-        [key: string]: unknown
-      }
-    }
-    featureQuestionId?: string
-    runRef?: {
-      runId: string
-      agentRunId?: string
-      chatContextId?: string
-      runner?: 'api' | 'cli'
-    }
-    delegatedTo?: {
-      chatContextId: string
-      topicId: string
-      at: number
-    }
-  }
-  continues?: string
-  override?: {
-    choice: ProcessResumeChoice
-    at: number
-    note?: string
-    integration?: 'merge' | 'squash' | 'pull-request'
-    landing?: {
-      identity?: {
-        name: string
-        email: string
-        credentialId: string
-      }
-      message?: string
-      checkMerge?: boolean
-      credentialId?: string
-      pullRequest?: {
-        title: string
-        body: string
-      }
-    }
-    requestedProof?: Array<ProofKind>
-    retryMode?: 'continue' | 'fresh'
-    turnLimit?: {
-      limitTurns: boolean
-      maxTurns: number
-    }
-    attemptTurnLimit?: {
-      limitTurns: boolean
-      maxTurns: number
-    }
-    decidedBy?: 'person' | 'agent' | 'manager'
-    decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
-    toolName?: string
-    chatContextId?: string
-    shownEvidenceIds?: Array<string>
-  }
-  unmetRequest?: string
-  cleanup?: {
-    outcomes: Array<ProcessCleanupOutcome>
-    keptIds: Array<string>
-  }
-  proof?: {
-    baseSha?: string
-    headSha?: string
-    seams?: Array<string>
-    pairs: Array<ProcessProofPair>
-    newScreenIds: Array<string>
-    newScreensAfterOnly?: Array<ProcessProofNewScreen>
-    recordingIds: Array<string>
-    mode?: 'live' | 'dry'
-    dryAssumptions?: string
-    outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
-    reason?: string
-    reasons?: Array<string>
-    judged?: boolean
-    unpaired?: Array<ProcessProofUnpaired>
-    plan?: {
-      kinds: Array<ProofKindStanding>
-      changeTests?: Array<string>
-      captureUnavailable?: string
-    }
-  }
-  review?: {
-    verdict: ReviewEvidenceVerdict
-    reason?: string
-  }
-  alreadyMet?: {
-    checks: Array<ProjectCheckKind>
-    evidence: string
-    sha?: string
-  }
-  checks?: Array<VerificationCheckResult>
-  checkedSha?: string
-  baseUpdate?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-    sha: string
-    at: number
-    exportsUnchecked?: Array<string>
-  }
-  baseConflict?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-    paths: Array<string>
-    workSha?: string
-    keptOneSide?: Array<ProcessKeptOneSide>
-    lostExports?: Array<CodeIntelExportedSymbol>
-  }
-  cost?: {
-    costUsd?: number
-    unpricedTokens?: number
-    includedTokens?: number
-    listCostUsd?: number
-    byModel?: Array<ModelSpend>
-  }
-  time?: {
-    agentMs: number
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    tools: Array<ProcessToolTime>
-  }
-  startedAt: number
-  endedAt?: number
-  suspendedMs?: number
-  waitedMs?: number
-  waitingSince?: number
-  model?: {
-    runner: 'cli' | 'api'
-    cli?: string
-    model?: string
-    effort?: string
-  }
-  turnLimit?: {
-    limitTurns: boolean
-    maxTurns: number
-  }
-  agentStop?: 'turn-limit' | 'interrupted'
-  retryMode?: 'continue' | 'fresh'
-  resumes?: string
-  retries?: Array<ProcessStepRetry>
-  backoffMs?: number
-  backoffSince?: number
-}
-
 export type ChecksOutcome = {
   outcome?: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   checks?: Array<VerificationCheckResult>
   checkedSha?: string
-}
-
-export type ProcessScope = 'global' | 'project'
-
-export type ProcessStepKind =
-  | 'agent'
-  | 'check'
-  | 'capture'
-  | 'judge'
-  | 'report'
-  | 'gate'
-  | 'process'
-  | 'cleanup'
-
-export type ProcessStepExpansion = 'features'
-
-export type ProcessStep = {
-  id: string
-  name: string
-  kind: ProcessStepKind
-  description?: string
-  enabled?: boolean
-  agentType?: string
-  processId?: string
-  expand?: 'features'
-  onlyWhenSentBack?: boolean
-}
-
-export type ProcessSubject = {
-  kind: 'feature'
-  id: string
-  title: string
-}
-
-export type ProcessPlanStep = {
-  id: string
-  name: string
-  kind: 'agent' | 'check' | 'capture' | 'judge' | 'report' | 'gate' | 'process' | 'cleanup'
-  description?: string
-  enabled?: boolean
-  agentType?: string
-  processId?: string
-  expand?: 'features'
-  onlyWhenSentBack?: boolean
-  subject?: {
-    kind: 'feature'
-    id: string
-    title: string
-  }
-}
-
-export type ProcessLoop = {
-  id: string
-  from: string
-  to: string
-  when: Array<ProcessStepOutcome>
-  maxIterations: number
-}
-
-export type ProcessDecisionAttribution =
-  | {
-      decidedBy: 'person'
-      decidedVia: ProcessPersonDecisionVia
-    }
-  | {
-      decidedBy: 'agent'
-      decidedVia: 'tool'
-      toolName: string
-      chatContextId: string
-    }
-  | {
-      decidedBy: 'manager'
-      decidedVia: 'manager'
-      toolName: string
-      chatContextId: string
-    }
-
-export type ProcessIntegrationLandedBy = {
-  commit: string
-  subject?: string
-  settledBy?:
-    | {
-        decidedBy: 'person'
-        decidedVia: ProcessPersonDecisionVia
-      }
-    | {
-        decidedBy: 'agent'
-        decidedVia: 'tool'
-        toolName: string
-        chatContextId: string
-      }
-    | {
-        decidedBy: 'manager'
-        decidedVia: 'manager'
-        toolName: string
-        chatContextId: string
-      }
-}
-
-export type ProcessRunIntegration = {
-  mode: ProcessIntegrationMode
-  status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
-  landing?: {
-    identity?: {
-      name: string
-      email: string
-      credentialId: string
-    }
-    message?: string
-    checkMerge?: boolean
-    credentialId?: string
-    pullRequest?: {
-      title: string
-      body: string
-    }
-  }
-  sha?: string
-  landedBy?: {
-    commit: string
-    subject?: string
-    settledBy?:
-      | {
-          decidedBy: 'person'
-          decidedVia: ProcessPersonDecisionVia
-        }
-      | {
-          decidedBy: 'agent'
-          decidedVia: 'tool'
-          toolName: string
-          chatContextId: string
-        }
-      | {
-          decidedBy: 'manager'
-          decidedVia: 'manager'
-          toolName: string
-          chatContextId: string
-        }
-  }
-  pullRequestUrl?: string
-  compareUrl?: string
-  branch?: string
-  error?: string
-  conflict?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-    paths: Array<string>
-    workSha?: string
-    keptOneSide?: Array<ProcessKeptOneSide>
-    lostExports?: Array<CodeIntelExportedSymbol>
-  }
-  checks?: {
-    status: MergeChecksStatus
-    summary: string
-    sha?: string
-    checks: Array<VerificationCheckResult>
-  }
-  at: number
-}
-
-export type ProcessRunReopening = {
-  status: 'succeeded' | 'failed'
-  endedAt?: number
-  error?: string
-  approvalEntryId?: string
-  integration?: {
-    mode: ProcessIntegrationMode
-    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
-    landing?: {
-      identity?: {
-        name: string
-        email: string
-        credentialId: string
-      }
-      message?: string
-      checkMerge?: boolean
-      credentialId?: string
-      pullRequest?: {
-        title: string
-        body: string
-      }
-    }
-    sha?: string
-    landedBy?: {
-      commit: string
-      subject?: string
-      settledBy?:
-        | {
-            decidedBy: 'person'
-            decidedVia: ProcessPersonDecisionVia
-          }
-        | {
-            decidedBy: 'agent'
-            decidedVia: 'tool'
-            toolName: string
-            chatContextId: string
-          }
-        | {
-            decidedBy: 'manager'
-            decidedVia: 'manager'
-            toolName: string
-            chatContextId: string
-          }
-    }
-    pullRequestUrl?: string
-    compareUrl?: string
-    branch?: string
-    error?: string
-    conflict?: {
-      baseRef: string
-      baseSha: string
-      commits: number
-      paths: Array<string>
-      workSha?: string
-      keptOneSide?: Array<ProcessKeptOneSide>
-      lostExports?: Array<CodeIntelExportedSymbol>
-    }
-    checks?: {
-      status: MergeChecksStatus
-      summary: string
-      sha?: string
-      checks: Array<VerificationCheckResult>
-    }
-    at: number
-  }
-}
-
-export type ProcessPlanAmendment = {
-  at: number
-  stepIds: Array<string>
-  afterStepId?: string
-  sendBackLoopId?: string
-  closedEntryId?: string
-  reopened?: {
-    status: 'succeeded' | 'failed'
-    endedAt?: number
-    error?: string
-    approvalEntryId?: string
-    integration?: {
-      mode: ProcessIntegrationMode
-      status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
-      landing?: {
-        identity?: {
-          name: string
-          email: string
-          credentialId: string
-        }
-        message?: string
-        checkMerge?: boolean
-        credentialId?: string
-        pullRequest?: {
-          title: string
-          body: string
-        }
-      }
-      sha?: string
-      landedBy?: {
-        commit: string
-        subject?: string
-        settledBy?:
-          | {
-              decidedBy: 'person'
-              decidedVia: ProcessPersonDecisionVia
-            }
-          | {
-              decidedBy: 'agent'
-              decidedVia: 'tool'
-              toolName: string
-              chatContextId: string
-            }
-          | {
-              decidedBy: 'manager'
-              decidedVia: 'manager'
-              toolName: string
-              chatContextId: string
-            }
-      }
-      pullRequestUrl?: string
-      compareUrl?: string
-      branch?: string
-      error?: string
-      conflict?: {
-        baseRef: string
-        baseSha: string
-        commits: number
-        paths: Array<string>
-        workSha?: string
-        keptOneSide?: Array<ProcessKeptOneSide>
-        lostExports?: Array<CodeIntelExportedSymbol>
-      }
-      checks?: {
-        status: MergeChecksStatus
-        summary: string
-        sha?: string
-        checks: Array<VerificationCheckResult>
-      }
-      at: number
-    }
-  }
-  integrationConflict?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-    paths: Array<string>
-    workSha?: string
-    keptOneSide?: Array<ProcessKeptOneSide>
-    lostExports?: Array<CodeIntelExportedSymbol>
-  }
-  loopCountsReset?: {
-    [key: string]: number
-  }
-}
-
-export type ProcessPlan = {
-  definitionId: string
-  definitionScope: ProcessScope
-  definitionVersion: number
-  name: string
-  steps: Array<ProcessPlanStep>
-  loops: Array<ProcessLoop>
-  frozenAt: number
-  amendments?: Array<ProcessPlanAmendment>
 }
 
 export type LoopedRun = {
@@ -15213,636 +16051,6 @@ export type LoopedRun = {
     loops: Array<ProcessLoop>
   }
   ledger: Array<ProcessLedgerEntry>
-}
-
-export type ProcessWorkBranchStack = {
-  runId: string
-  branch: string
-}
-
-export type ProcessWorkBranch = {
-  name: string
-  baseSha: string
-  baseRef: string
-  stackedOn?: {
-    runId: string
-    branch: string
-  }
-  shadow?: boolean
-}
-
-export type ProcessRunStatus =
-  | 'pending'
-  | 'running'
-  | 'parked'
-  | 'succeeded'
-  | 'failed'
-  | 'cancelled'
-
-export type ProcessRunCursor = {
-  stepId: string
-  iteration: number
-}
-
-export type ProcessBudget = {
-  spendUsdCap?: number
-  wallClockMs?: number
-}
-
-export type ProcessRunRevival = {
-  stoppedAt: number
-  at: number
-}
-
-export type ProcessRunModelOverride = {
-  runner: 'cli' | 'api'
-  cli?: string
-  model?: string
-  effort?: string
-  authCredentialId?: string
-  apiKeyCredentialId?: string
-  at: number
-}
-
-export type ProcessFeatureClosureStatus = 'pending' | 'blocked' | 'deferred' | 'done'
-
-export type ProcessFeatureClosure = {
-  featureId: string
-  status: ProcessFeatureClosureStatus
-  reason?: string
-}
-
-export type ProcessRunClosure = {
-  features: Array<ProcessFeatureClosure>
-  at: number
-} & (
-  | {
-      decidedBy?: 'person'
-      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
-    }
-  | {
-      decidedBy?: 'agent'
-      decidedVia?: 'tool'
-      toolName?: string
-      chatContextId?: string
-    }
-  | {
-      decidedBy?: 'manager'
-      decidedVia?: 'manager'
-      toolName?: string
-      chatContextId?: string
-    }
-)
-
-export type ProcessPendingEntry = {
-  cursor: ProcessRunCursor
-  viaLoopId?: string
-  continuesEntryId?: string
-  retryMode?: 'continue' | 'fresh'
-  resumesEntryId?: string
-}
-
-export type ProcessPark = {
-  reason: ProcessParkReason
-  stepId?: string
-  loopId?: string
-  message: string
-  parkedAt: number
-  pending?: {
-    cursor: ProcessRunCursor
-    viaLoopId?: string
-    continuesEntryId?: string
-    retryMode?: 'continue' | 'fresh'
-    resumesEntryId?: string
-  }
-  ask?: {
-    kind: ProcessWaitingKind
-    agent: string
-    title: string
-    detail: string
-    request?: {
-      actionId: string
-      actionKind: string
-      toolName?: string
-      host?: string
-      packageName?: string
-      ecosystem?: string
-      url?: string
-      args?: {
-        [key: string]: unknown
-      }
-    }
-    featureQuestionId?: string
-    runRef?: {
-      runId: string
-      agentRunId?: string
-      chatContextId?: string
-      runner?: 'api' | 'cli'
-    }
-    delegatedTo?: {
-      chatContextId: string
-      topicId: string
-      at: number
-    }
-  }
-  stepInFlight?: boolean
-  childRunId?: string
-  baseConflict?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-    paths: Array<string>
-    workSha?: string
-    keptOneSide?: Array<ProcessKeptOneSide>
-    lostExports?: Array<CodeIntelExportedSymbol>
-  }
-}
-
-export type ProcessTimeBreakdown = {
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  runningMs: number
-  waitingMs: number
-  tools: Array<ProcessToolTime>
-}
-
-export type ProcessAttemptTotals = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  entryId: string
-  workMs: number
-  time: {
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    runningMs: number
-    waitingMs: number
-    tools: Array<ProcessToolTime>
-  }
-}
-
-export type ProcessStepTotals = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  workMs: number
-  time: {
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    runningMs: number
-    waitingMs: number
-    tools: Array<ProcessToolTime>
-  }
-  attempts: Array<ProcessAttemptTotals>
-}
-
-export type ProcessRunTotals = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-  workMs: number
-  time: {
-    thinkingMs: number
-    toolMs: number
-    systemMs: number
-    otherMs: number
-    runningMs: number
-    waitingMs: number
-    tools: Array<ProcessToolTime>
-  }
-  ticking: boolean
-  at: number
-  steps: {
-    [key: string]: ProcessStepTotals
-  }
-}
-
-export type ProcessNeedsYouResolutionKind = 'resolved' | 'changed' | 'deferred'
-
-export type ProcessNeedsYouChange = {
-  kind: 'feature-added' | 'feature-changed' | 'story-created'
-  storyId?: string
-  featureId?: string
-  title: string
-}
-
-export type ProcessNeedsYouResolution = {
-  itemId: string
-  text: string
-  kind: ProcessNeedsYouResolutionKind
-  summary?: string
-  change?: {
-    kind: 'feature-added' | 'feature-changed' | 'story-created'
-    storyId?: string
-    featureId?: string
-    title: string
-  }
-  decidedBy?: 'person' | 'agent' | 'manager'
-  at: number
-}
-
-export type ProcessStepRerun = {
-  stepId: string
-  note?: string
-  at: number
-  fromLedgerIndex: number
-  retryMode?: 'continue' | 'fresh'
-}
-
-export type ProcessRunPendingChangeBase = {
-  id: string
-  title: string
-  summary: string
-  needsYouItemId?: string
-  at: number
-}
-
-export type ProcessRunFeaturePendingChange = {
-  id: string
-  title: string
-  summary: string
-  needsYouItemId?: string
-  at: number
-  kind: 'feature-changed' | 'feature-added'
-  featureId: string
-  note?: string
-  proofKinds?: Array<ProofKind>
-}
-
-export type ProcessRunStepRerunPendingChange = {
-  id: string
-  title: string
-  summary: string
-  needsYouItemId?: string
-  at: number
-  kind: 'step-rerun'
-  stepId: string
-  note: string
-  retryMode?: 'continue' | 'fresh'
-}
-
-export type ProcessRunPendingChange =
-  | ProcessRunFeaturePendingChange
-  | ProcessRunStepRerunPendingChange
-
-export type ProcessWorkBranchChangeInput = {
-  operation: string
-  summary: string
-  previousSha?: string
-  sha: string
-  decidedBy: 'person' | 'manager'
-  decidedVia?: 'card' | 'approve-all' | 'manager'
-  actionId?: string
-  toolName?: string
-  chatContextId?: string
-}
-
-export type ProcessWorkBranchChange = {
-  operation: string
-  summary: string
-  previousSha?: string
-  sha: string
-  decidedBy: 'person' | 'manager'
-  decidedVia?: 'card' | 'approve-all' | 'manager'
-  actionId?: string
-  toolName?: string
-  chatContextId?: string
-  id: string
-  at: number
-}
-
-export type ProcessRun = {
-  id: string
-  projectId: string
-  storyId?: string
-  featureId?: string
-  chatContextId?: string
-  parentRunId?: string
-  parentStepId?: string
-  groupRunId?: string
-  groupLegId?: string
-  title: string
-  input?: {
-    [key: string]: unknown
-  }
-  workBranch?: {
-    name: string
-    baseSha: string
-    baseRef: string
-    stackedOn?: {
-      runId: string
-      branch: string
-    }
-    shadow?: boolean
-  }
-  integration?: {
-    mode: ProcessIntegrationMode
-    status: 'integrating' | 'integrated' | 'already-landed' | 'failed'
-    landing?: {
-      identity?: {
-        name: string
-        email: string
-        credentialId: string
-      }
-      message?: string
-      checkMerge?: boolean
-      credentialId?: string
-      pullRequest?: {
-        title: string
-        body: string
-      }
-    }
-    sha?: string
-    landedBy?: {
-      commit: string
-      subject?: string
-      settledBy?:
-        | {
-            decidedBy: 'person'
-            decidedVia: ProcessPersonDecisionVia
-          }
-        | {
-            decidedBy: 'agent'
-            decidedVia: 'tool'
-            toolName: string
-            chatContextId: string
-          }
-        | {
-            decidedBy: 'manager'
-            decidedVia: 'manager'
-            toolName: string
-            chatContextId: string
-          }
-    }
-    pullRequestUrl?: string
-    compareUrl?: string
-    branch?: string
-    error?: string
-    conflict?: {
-      baseRef: string
-      baseSha: string
-      commits: number
-      paths: Array<string>
-      workSha?: string
-      keptOneSide?: Array<ProcessKeptOneSide>
-      lostExports?: Array<CodeIntelExportedSymbol>
-    }
-    checks?: {
-      status: MergeChecksStatus
-      summary: string
-      sha?: string
-      checks: Array<VerificationCheckResult>
-    }
-    at: number
-  }
-  plan: ProcessPlan
-  status: ProcessRunStatus
-  cursor?: {
-    stepId: string
-    iteration: number
-  }
-  loopCounts: {
-    [key: string]: number
-  }
-  budget?: {
-    spendUsdCap?: number
-    wallClockMs?: number
-  }
-  budgetGrants?: {
-    spendUsdCap?: number
-    wallClockMs?: number
-  }
-  spentUsd?: number
-  parkedMs?: number
-  revivals?: Array<ProcessRunRevival>
-  suspendedMs?: number
-  iterationGrants?: {
-    [key: string]: number
-  }
-  modelOverride?: {
-    runner: 'cli' | 'api'
-    cli?: string
-    model?: string
-    effort?: string
-    authCredentialId?: string
-    apiKeyCredentialId?: string
-    at: number
-  }
-  turnLimit?: {
-    limitTurns: boolean
-    maxTurns: number
-  }
-  closure?: {
-    features: Array<{
-      featureId: string
-      status: 'pending' | 'blocked' | 'deferred' | 'done'
-      reason?: string
-    }>
-    at: number
-  } & (
-    | {
-        decidedBy?: 'person'
-        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
-      }
-    | {
-        decidedBy?: 'agent'
-        decidedVia?: 'tool'
-        toolName?: string
-        chatContextId?: string
-      }
-    | {
-        decidedBy?: 'manager'
-        decidedVia?: 'manager'
-        toolName?: string
-        chatContextId?: string
-      }
-  )
-  ledger: Array<ProcessLedgerEntry>
-  park?: {
-    reason: ProcessParkReason
-    stepId?: string
-    loopId?: string
-    message: string
-    parkedAt: number
-    pending?: {
-      cursor: ProcessRunCursor
-      viaLoopId?: string
-      continuesEntryId?: string
-      retryMode?: 'continue' | 'fresh'
-      resumesEntryId?: string
-    }
-    ask?: {
-      kind: ProcessWaitingKind
-      agent: string
-      title: string
-      detail: string
-      request?: {
-        actionId: string
-        actionKind: string
-        toolName?: string
-        host?: string
-        packageName?: string
-        ecosystem?: string
-        url?: string
-        args?: {
-          [key: string]: unknown
-        }
-      }
-      featureQuestionId?: string
-      runRef?: {
-        runId: string
-        agentRunId?: string
-        chatContextId?: string
-        runner?: 'api' | 'cli'
-      }
-      delegatedTo?: {
-        chatContextId: string
-        topicId: string
-        at: number
-      }
-    }
-    stepInFlight?: boolean
-    childRunId?: string
-    baseConflict?: {
-      baseRef: string
-      baseSha: string
-      commits: number
-      paths: Array<string>
-      workSha?: string
-      keptOneSide?: Array<ProcessKeptOneSide>
-      lostExports?: Array<CodeIntelExportedSymbol>
-    }
-  }
-  startedAt: number
-  updatedAt: number
-  endedAt?: number
-  error?: string
-  totals?: {
-    costUsd?: number
-    unpricedTokens?: number
-    includedTokens?: number
-    listCostUsd?: number
-    byModel?: Array<ModelSpend>
-    workMs: number
-    time: {
-      thinkingMs: number
-      toolMs: number
-      systemMs: number
-      otherMs: number
-      runningMs: number
-      waitingMs: number
-      tools: Array<ProcessToolTime>
-    }
-    ticking: boolean
-    at: number
-    steps: {
-      [key: string]: ProcessStepTotals
-    }
-  }
-  baseUpdates?: Array<ProcessBaseUpdate>
-  baseMoved?: {
-    baseRef: string
-    baseSha: string
-    commits: number
-  }
-  workBranchTip?: string
-  needsYouResolutions?: {
-    [key: string]: ProcessNeedsYouResolution
-  }
-  reruns?: Array<ProcessStepRerun>
-  pendingChanges?: Array<ProcessRunPendingChange>
-  workBranchChanges?: Array<ProcessWorkBranchChange>
-  cleanup?: {
-    items: Array<ProcessCleanupItem>
-    choices?: {
-      [key: string]: boolean
-    }
-    off?: boolean
-  }
-  manager?: {
-    interventions?: Array<ProcessManagerIntervention>
-    turn?: {
-      runId: string
-      parkedAt: number
-      signature: string
-      startedAt: number
-      chatContextId: string
-      waitingOn?: Array<ProcessManagerWaitingAsk>
-      resumedAt?: number
-    }
-    standDown?: {
-      runId: string
-      parkedAt: number
-      at: number
-      by: 'person-message' | 'person-answer'
-    }
-    hold?: {
-      runId: string
-      parkedAt: number
-      dependsOn:
-        | {
-            kind: 'run'
-            runId: string
-          }
-        | {
-            kind: 'feature-request'
-            requestId: string
-          }
-        | {
-            kind: 'base-fix'
-            sha: string
-          }
-      resume: 'retry' | 'update-base'
-      why: string
-      at: number
-      until: number
-    }
-    escalation?: {
-      runId: string
-      parkedAt: number
-      at: number
-      signature: string
-      why:
-        | 'credentials'
-        | 'permission'
-        | 'spend'
-        | 'scope'
-        | 'destructive'
-        | 'repeated-failure'
-        | 'guard-limit'
-        | 'judgement'
-        | 'hold-timeout'
-      what: string
-      found: string
-      tried: Array<string>
-      recommendation: string
-      recommendedChoice?: ProcessResumeChoice | 'delegate'
-    }
-    preRead?: {
-      runId: string
-      parkedAt: number
-      at: number
-      summary: string
-      items: Array<ProcessManagerNeedsYouFinding>
-    }
-    off?: {
-      at: number
-      reason: ProcessManagerOffReason
-    }
-    reversedKeys?: Array<string>
-  }
 }
 
 export type RetryRun = {
@@ -18321,6 +18529,11 @@ export type AddMessagesInput = {
       status: 'succeeded' | 'failed'
       tookMs: number
     }>
+    managerCard?:
+      | ProcessManagerBriefCard
+      | ProcessManagerInterventionCard
+      | ProcessManagerPreReadCard
+      | ProcessManagerEscalationCard
     toolCall?: {
       toolCallId: string
       name: string
@@ -24416,10 +24629,13 @@ export type ListChatSummariesResponses = {
       effort?: string
     }
     archivedAt?: string
+    listHiddenAt?: string
+    notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt?: string
     updatedAt?: string
     messageCount: number
     messageTimes: Array<string | unknown>
+    needsYouTimes: Array<string | unknown>
   }>
 }
 
@@ -24486,10 +24702,13 @@ export type GetChatSummaryResponses = {
       effort?: string
     }
     archivedAt?: string
+    listHiddenAt?: string
+    notifyLevel?: 'everything' | 'needs-me' | 'nothing'
     createdAt?: string
     updatedAt?: string
     messageCount: number
     messageTimes: Array<string | unknown>
+    needsYouTimes: Array<string | unknown>
   }
 }
 
@@ -24783,6 +25002,97 @@ export type ArchiveChatResponses = {
 }
 
 export type ArchiveChatResponse = ArchiveChatResponses[keyof ArchiveChatResponses]
+
+export type HideChatFromListData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/hide-from-list'
+}
+
+export type HideChatFromListErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type HideChatFromListError = HideChatFromListErrors[keyof HideChatFromListErrors]
+
+export type HideChatFromListResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type HideChatFromListResponse = HideChatFromListResponses[keyof HideChatFromListResponses]
+
+export type ShowChatInListData = {
+  body: ChatContextBody
+  path?: never
+  query?: never
+  url: '/api/v1/chats/show-in-list'
+}
+
+export type ShowChatInListErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ShowChatInListError = ShowChatInListErrors[keyof ShowChatInListErrors]
+
+export type ShowChatInListResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type ShowChatInListResponse = ShowChatInListResponses[keyof ShowChatInListResponses]
+
+export type SetChatNotifyLevelData = {
+  body: {
+    context: ChatContext
+    notifyLevel?: 'everything' | 'needs-me' | 'nothing'
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chats/notify-level'
+}
+
+export type SetChatNotifyLevelErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetChatNotifyLevelError = SetChatNotifyLevelErrors[keyof SetChatNotifyLevelErrors]
+
+export type SetChatNotifyLevelResponses = {
+  /**
+   * Default Response
+   */
+  200: Chat
+}
+
+export type SetChatNotifyLevelResponse =
+  SetChatNotifyLevelResponses[keyof SetChatNotifyLevelResponses]
 
 export type RateChatData = {
   body: RateChatInput
@@ -28090,6 +28400,11 @@ export type SendCompletionData = {
           status: 'succeeded' | 'failed'
           tookMs: number
         }>
+        managerCard?:
+          | ProcessManagerBriefCard
+          | ProcessManagerInterventionCard
+          | ProcessManagerPreReadCard
+          | ProcessManagerEscalationCard
         toolCall?: {
           toolCallId: string
           name: string
@@ -28196,6 +28511,11 @@ export type SendCompletionResponses = {
         status: 'succeeded' | 'failed'
         tookMs: number
       }>
+      managerCard?:
+        | ProcessManagerBriefCard
+        | ProcessManagerInterventionCard
+        | ProcessManagerPreReadCard
+        | ProcessManagerEscalationCard
       toolCall?: {
         toolCallId: string
         name: string
@@ -28351,6 +28671,11 @@ export type SendCompletionWithToolsResponses = {
             status: 'succeeded' | 'failed'
             tookMs: number
           }>
+          managerCard?:
+            | ProcessManagerBriefCard
+            | ProcessManagerInterventionCard
+            | ProcessManagerPreReadCard
+            | ProcessManagerEscalationCard
           toolCall?: {
             toolCallId: string
             name: string
@@ -28455,6 +28780,11 @@ export type SendChatCompletionWithToolsData = {
         status: 'succeeded' | 'failed'
         tookMs: number
       }>
+      managerCard?:
+        | ProcessManagerBriefCard
+        | ProcessManagerInterventionCard
+        | ProcessManagerPreReadCard
+        | ProcessManagerEscalationCard
       toolCall?: {
         toolCallId: string
         name: string
@@ -28559,6 +28889,11 @@ export type SendChatCompletionWithToolsResponses = {
             status: 'succeeded' | 'failed'
             tookMs: number
           }>
+          managerCard?:
+            | ProcessManagerBriefCard
+            | ProcessManagerInterventionCard
+            | ProcessManagerPreReadCard
+            | ProcessManagerEscalationCard
           toolCall?: {
             toolCallId: string
             name: string
@@ -28663,6 +28998,11 @@ export type SendChatWithCliData = {
         status: 'succeeded' | 'failed'
         tookMs: number
       }>
+      managerCard?:
+        | ProcessManagerBriefCard
+        | ProcessManagerInterventionCard
+        | ProcessManagerPreReadCard
+        | ProcessManagerEscalationCard
       toolCall?: {
         toolCallId: string
         name: string
@@ -28889,6 +29229,11 @@ export type ResumeCompletionResponses = {
             status: 'succeeded' | 'failed'
             tookMs: number
           }>
+          managerCard?:
+            | ProcessManagerBriefCard
+            | ProcessManagerInterventionCard
+            | ProcessManagerPreReadCard
+            | ProcessManagerEscalationCard
           toolCall?: {
             toolCallId: string
             name: string
@@ -30374,9 +30719,17 @@ export type ListFeatureRequestsResponse =
 
 export type CreateFeatureRequestData = {
   body: {
-    targetProjectId: string
     title: string
-    description: string
+    summary?: string
+    description?: string
+    changes?: Array<string>
+    doneWhen?: Array<FeatureRequestCriterion>
+    rules?: Array<string>
+    proof?: Array<ProofKind>
+    adopters?: Array<string>
+    origin?: string
+    references?: Array<string>
+    targetProjectId: string
     context?: Array<ExternalRef>
     fromProjectId?: string
   }
@@ -30488,7 +30841,9 @@ export type AcceptFeatureRequestResponse =
   AcceptFeatureRequestResponses[keyof AcceptFeatureRequestResponses]
 
 export type RejectFeatureRequestData = {
-  body?: never
+  body: {
+    reason?: string
+  }
   path: {
     id: string
   }

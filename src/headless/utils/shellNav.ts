@@ -94,6 +94,21 @@ export function shellTabForProject(tab: ShellTabKey, metadata: ShellTabProjectFl
   return projectShowsShellTab(tab, metadata) ? tab : 'stories'
 }
 
+/**
+ * The Assistant: the first nav item in every scope — a project's, a group's, or
+ * none — above the scope's own tabs. Its page lists the Assistant's
+ * conversations, which belong to no project.
+ */
+export const ASSISTANT_NAV_DEF = {
+  key: 'assistant',
+  label: 'Assistant',
+  icon: 'chat',
+} as const satisfies {
+  key: string
+  label: string
+  icon: NavIconKey
+}
+
 /** Per-group shell surface keys. Map to URL segments `/groups/:id/{key}`. */
 export type GroupTabKey = 'home' | 'chat' | 'notes' | 'tools' | 'processes' | 'settings'
 

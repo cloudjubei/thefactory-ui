@@ -33,6 +33,9 @@ import {
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 import SubagentSteps from './ToolCall/SubagentSteps'
 import BackgroundResultsRow from './BackgroundResultsRow'
+import { ManagerCardView } from './ManagerCards'
+import AnsweredQuestionBubble from './AnsweredQuestionBubble'
+import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -238,6 +241,8 @@ export interface MessageRowProps {
   onShowUsage?: (msg: ChatMessageLike) => void
 
   thinkingLabel?: string
+  /** How this row's ask was settled, when it waited on one — an answered question folds to a bubble. */
+  decidedAsk?: { status: string; answer?: string } | undefined
 }
 
 function Avatar({
@@ -314,6 +319,7 @@ function MessageRow({
   renderProcessGroupRun,
   onShowUsage,
   thinkingLabel,
+  decidedAsk,
 }: MessageRowProps) {
   const { theme, status } = useNativeTheme()
   // ABOVE any early return: a hook that runs on only some renders crashes.
@@ -329,6 +335,29 @@ function MessageRow({
       />
     )
   }
+  const managerCard = role === 'assistant' ? msg.managerCard : undefined
+  if (managerCard && managerCard.kind !== 'brief') {
+    const at = messageIso(msg)
+    return (
+      <ManagerCardView
+        card={managerCard}
+        {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
+        links={{ renderReference, onResourceLink }}
+      >
+        {msg.processRunId && renderProcessRun ? renderProcessRun(msg.processRunId) : null}
+      </ManagerCardView>
+    )
+  }
+  const answeredQuestion = msg.toolCall
+    ? answeredQuestionOf({
+        toolName: msg.toolCall.name,
+        args: msg.toolCall.arguments,
+        result: msg.toolResult?.result,
+        ...(msg.toolResult?.type !== undefined ? { resultType: msg.toolResult.type } : {}),
+        ...(decidedAsk ? { decided: decidedAsk } : {}),
+      })
+    : undefined
+  if (answeredQuestion) return <AnsweredQuestionBubble view={answeredQuestion} />
   const isSystem = role === 'system'
   const isUser = role === 'user'
   const isAssistant = role === 'assistant'

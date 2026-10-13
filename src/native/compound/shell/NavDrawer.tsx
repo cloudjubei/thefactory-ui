@@ -18,7 +18,11 @@ import {
 } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { NavRowIndicator } from '../../../headless/utils/navIndicatorTypes'
+import { navRowTitle } from '../../../headless/utils/navIndicator'
+import { inkBadgeLook } from '../../../headless/utils/inkBadge'
+import type { InkBadgeLook } from '../../../headless/utils/inkBadgeTypes'
 import {
+  DEFAULT_APP_SETTINGS,
   DEFAULT_NOTIFICATION_PREFS,
   type BadgeColor,
   type BadgeColorCategory,
@@ -65,6 +69,8 @@ export interface NavDrawerProps {
   title?: string
   /** Optional brand mark rendered left of the title (the app icon). */
   logo?: ReactNode
+  /** The first row, above the nav section in every scope — the Assistant. */
+  leadItem?: NavDrawerItem
   /** Pinned nav section (shell tabs or group tabs). */
   navItems?: NavDrawerItem[]
   /** Ungrouped projects, listed above the groups. */
@@ -79,18 +85,16 @@ export interface NavDrawerProps {
   projectsEmptyLabel?: string
   /** Pinned bottom row — typically Settings. */
   footerItem?: NavDrawerItem
-  /**
-   * Icon-only actions pinned to the RIGHT of {@link footerItem} on the same
-   * row — e.g. the app-level assistant chat. Each item's `icon` and `label`
-   * are used; `label` becomes the accessibility name.
-   */
-  footerActions?: NavDrawerItem[]
   /** Per-category indicator colours (`settings.notifications.badgeColors`). */
   badgeColors?: BadgeColors
+  /** The person's badge look (`inkBadgeLook(settings.userPreferences)`). */
+  badgeLook?: InkBadgeLook
   /** Safe-area insets supplied by the host (avoids a safe-area dependency here). */
   topInset?: number
   bottomInset?: number
 }
+
+const DEFAULT_BADGE_LOOK = inkBadgeLook(DEFAULT_APP_SETTINGS.userPreferences)
 
 const MAX_WIDTH = 320
 const WIDTH_FRACTION = 0.86
@@ -106,6 +110,7 @@ export default function NavDrawer({
   onClose,
   title,
   logo,
+  leadItem,
   navItems,
   projects,
   groups,
@@ -113,8 +118,8 @@ export default function NavDrawer({
   projectsHeaderAction,
   projectsEmptyLabel = 'No projects yet.',
   footerItem,
-  footerActions,
   badgeColors = DEFAULT_NOTIFICATION_PREFS.badgeColors,
+  badgeLook = DEFAULT_BADGE_LOOK,
   topInset = 0,
   bottomInset = 0,
 }: NavDrawerProps) {
@@ -231,17 +236,24 @@ export default function NavDrawer({
           </Text>
         </View>
 
+        {leadItem ? (
+          <View style={{ paddingHorizontal: nativeSpace[2], paddingTop: nativeSpace[2] }}>
+            <Row item={leadItem} badgeColors={badgeColors} look={badgeLook} />
+          </View>
+        ) : null}
+        {leadItem && (navItems?.length ?? 0) > 0 ? <Divider /> : null}
+
         {/* Fixed nav section — only the projects list below scrolls, matching
             web's `Sidebar` (nav rows `shrink-0`, projects `overflow-auto`). */}
         {navItems && navItems.length > 0 ? (
           <View style={{ paddingHorizontal: nativeSpace[2], paddingTop: nativeSpace[2] }}>
             {navItems.map((item) => (
-              <Row key={item.key} item={item} badgeColors={badgeColors} />
+              <Row key={item.key} item={item} badgeColors={badgeColors} look={badgeLook} />
             ))}
           </View>
         ) : null}
 
-        {(navItems?.length ?? 0) > 0 ? <Divider /> : null}
+        {leadItem || (navItems?.length ?? 0) > 0 ? <Divider /> : null}
 
         <View
           style={{
@@ -249,7 +261,7 @@ export default function NavDrawer({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: nativeSpace[4],
-            paddingTop: (navItems?.length ?? 0) > 0 ? nativeSpace[1] : nativeSpace[3],
+            paddingTop: leadItem || (navItems?.length ?? 0) > 0 ? nativeSpace[1] : nativeSpace[3],
             paddingBottom: nativeSpace[1],
           }}
         >
@@ -288,14 +300,14 @@ export default function NavDrawer({
             </Text>
           ) : null}
           {projects?.map((item) => (
-            <Row key={item.key} item={item} badgeColors={badgeColors} />
+            <Row key={item.key} item={item} badgeColors={badgeColors} look={badgeLook} />
           ))}
           {groups?.map((group) => (
-            <GroupFolder key={group.key} group={group} badgeColors={badgeColors} />
+            <GroupFolder key={group.key} group={group} badgeColors={badgeColors} look={badgeLook} />
           ))}
         </ScrollView>
 
-        {footerItem || (footerActions?.length ?? 0) > 0 ? (
+        {footerItem ? (
           <View
             style={{
               flexDirection: 'row',
@@ -308,43 +320,12 @@ export default function NavDrawer({
             }}
           >
             <View style={{ flex: 1 }}>
-              {footerItem ? <Row item={footerItem} badgeColors={badgeColors} /> : null}
+              <Row item={footerItem} badgeColors={badgeColors} look={badgeLook} />
             </View>
-            {footerActions?.map((action) => (
-              <FooterAction key={action.key} item={action} />
-            ))}
           </View>
         ) : null}
       </Animated.View>
     </View>
-  )
-}
-
-/** Icon-only footer control — the trailing half of the pinned bottom row. */
-function FooterAction({ item }: { item: NavDrawerItem }) {
-  const { theme } = useNativeTheme()
-  return (
-    <Pressable
-      onPress={item.onPress}
-      testID={item.testID}
-      accessibilityRole="button"
-      accessibilityLabel={item.label}
-      accessibilityState={{ selected: !!item.active }}
-      style={({ pressed }) => ({
-        height: 44,
-        width: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: nativeRadii[2],
-        backgroundColor: item.active
-          ? nativePalette.brand[50]
-          : pressed
-            ? theme.surface.hover
-            : 'transparent',
-      })}
-    >
-      {item.icon}
-    </Pressable>
   )
 }
 
@@ -365,11 +346,13 @@ function Divider() {
 function Row({
   item,
   badgeColors,
+  look,
   indent = false,
   trailing,
 }: {
   item: NavDrawerItem
   badgeColors: BadgeColors
+  look: InkBadgeLook
   indent?: boolean
   trailing?: ReactNode
 }) {
@@ -379,6 +362,7 @@ function Row({
       onPress={item.onPress}
       testID={item.testID}
       accessibilityRole="button"
+      accessibilityLabel={navRowTitle(item.label, item.indicator ?? { kind: 'none' })}
       accessibilityState={{ selected: !!item.active }}
       style={({ pressed }) => ({
         flexDirection: 'row',
@@ -409,14 +393,22 @@ function Row({
         {item.label}
       </Text>
       {item.indicator ? (
-        <NavIndicator indicator={item.indicator} badgeColors={badgeColors} />
+        <NavIndicator indicator={item.indicator} badgeColors={badgeColors} look={look} />
       ) : null}
       {trailing}
     </Pressable>
   )
 }
 
-function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColors: BadgeColors }) {
+function GroupFolder({
+  group,
+  badgeColors,
+  look,
+}: {
+  group: NavDrawerGroup
+  badgeColors: BadgeColors
+  look: InkBadgeLook
+}) {
   const { theme } = useNativeTheme()
   const [open, setOpen] = useState(() => group.projects.some((p) => p.active))
 
@@ -434,6 +426,7 @@ function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColor
           indicator: group.indicator,
         }}
         badgeColors={badgeColors}
+        look={look}
       />
     )
   }
@@ -473,6 +466,7 @@ function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColor
         <Pressable
           onPress={group.onPress}
           accessibilityRole="button"
+          accessibilityLabel={navRowTitle(group.label, headerIndicator ?? { kind: 'none' })}
           accessibilityState={{ selected: !!group.active }}
           style={{ flex: 1, paddingVertical: nativeSpace[2] }}
         >
@@ -489,7 +483,7 @@ function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColor
         </Pressable>
         {headerIndicator && headerIndicator.kind !== 'none' ? (
           <View style={{ paddingHorizontal: nativeSpace[1] }}>
-            <NavIndicator indicator={headerIndicator} badgeColors={badgeColors} />
+            <NavIndicator indicator={headerIndicator} badgeColors={badgeColors} look={look} />
           </View>
         ) : null}
         <Pressable
@@ -508,7 +502,7 @@ function GroupFolder({ group, badgeColors }: { group: NavDrawerGroup; badgeColor
       </View>
       {open
         ? group.projects.map((project) => (
-            <Row key={project.key} item={project} badgeColors={badgeColors} indent />
+            <Row key={project.key} item={project} badgeColors={badgeColors} look={look} indent />
           ))
         : null}
     </View>

@@ -32,9 +32,9 @@ describe('processStatusOverlay', () => {
     }
   })
 
-  it('running or pending → Crunching', () => {
-    expect(processStatusOverlay(run({ status: 'running' }))?.label).toBe('Crunching')
-    expect(processStatusOverlay(run({ status: 'pending' }))?.label).toBe('Crunching')
+  it('running or pending → Working', () => {
+    expect(processStatusOverlay(run({ status: 'running' }))?.label).toBe('Working')
+    expect(processStatusOverlay(run({ status: 'pending' }))?.label).toBe('Working')
     expect(processStatusOverlay(run({ status: 'running' }))?.semantic).toBe('working')
     expect(processStatusOverlay(run({ status: 'running' }))?.title).toBe(
       PROCESS_STATUS_OVERLAY_TITLES.working,

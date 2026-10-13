@@ -219,8 +219,7 @@ export function isComposerBlocked(blockers: ChatComposerBlockers): boolean {
     blockers.askShown ||
     blockers.approvalShown ||
     blockers.historyLocked ||
-    blockers.inputOverridden ||
-    blockers.inputHidden
+    blockers.inputOverridden
   )
 }
 

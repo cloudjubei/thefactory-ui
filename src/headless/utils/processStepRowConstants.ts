@@ -1,9 +1,10 @@
 import type { ProcessNodeState } from './processView'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 
 /** How long a step's one-line result may run. */
 export const PROCESS_STEP_RESULT_MAX = 60
 
-export const PROCESS_STEP_WAITING_ON_YOU = 'Waiting for you'
+export const PROCESS_STEP_WAITING_ON_YOU = PROCESS_RUN_WORDS.needsYou
 export const PROCESS_STEP_NOT_NEEDED = 'Not needed — nothing was sent back'
 export const PROCESS_STEP_SKIPPED = 'Skipped'
 export const PROCESS_STEP_WORKING = 'Working…'
@@ -30,7 +31,7 @@ export const PROCESS_STAGE_MARKS: Record<ProcessNodeState, string> = {
 export const PROCESS_STAGE_WORDS: Record<ProcessNodeState, string | undefined> = {
   done: undefined,
   failed: 'did not pass',
-  parked: 'waiting for you',
+  parked: PROCESS_RUN_WORDS.needsYou.toLowerCase(),
   working: 'running',
   requeued: 'next',
   rechecked: 'sent to checks',

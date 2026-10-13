@@ -4,6 +4,7 @@ import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../tokens/nativ
 // Spacing/radii tokens are integer-keyed objects (e.g. `nativeSpace[3]`), not callables.
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import { Button } from '../primitives/Button'
+import { FEATURE_REQUEST_OPEN_FULL_LABEL } from '../../headless/utils/featureRequestViewConstants'
 
 /** The seven cross-project feature-request lifecycle states (mirrors `FeatureRequestStatus`). */
 export type FeatureRequestCardStatus =
@@ -26,8 +27,14 @@ export interface FeatureRequestCardData {
   status: FeatureRequestCardStatus
   /** A → B → A deadlock detected at emit (D.5) — surfaced as a warning, never blocking. */
   cycleDetected?: boolean
-  /** The review branch B landed the work on, once in review / completed. */
+  /** The review branch B put the work on, once in review / completed. */
   reviewBranch?: string
+  /** The request's summary (or, on an older request, its description). */
+  summary?: string
+  /** Its filled parts and their counts, e.g. "Done when 5 · Rules 3". */
+  countsLine?: string
+  /** Why B rejected it, when it said why. */
+  rejectionReason?: string
 }
 
 const STATUS_LABEL: Record<FeatureRequestCardStatus, string> = {
@@ -59,6 +66,8 @@ export interface FeatureRequestCardProps {
   onReject?: () => void
   /** True while an accept/reject call is in flight — disables the buttons. */
   busy?: boolean
+  /** Open the whole request. Renders a link when provided. */
+  onOpenFull?: () => void
   /** Extra slot rendered in the footer. */
   footer?: ReactNode
 }
@@ -73,10 +82,21 @@ export function FeatureRequestCard({
   onAccept,
   onReject,
   busy,
+  onOpenFull,
   footer,
 }: FeatureRequestCardProps) {
   const { theme } = useNativeTheme()
-  const { title, targetProjectId, fromProjectId, status, cycleDetected, reviewBranch } = request
+  const {
+    title,
+    targetProjectId,
+    fromProjectId,
+    status,
+    cycleDetected,
+    reviewBranch,
+    summary,
+    countsLine,
+    rejectionReason,
+  } = request
   const canDecide = status === 'pending' && (onAccept || onReject)
   const mono = { fontFamily: nativeFontFamilies.mono }
 
@@ -110,6 +130,25 @@ export function FeatureRequestCard({
 
       {title ? <Text style={{ fontSize: 13, color: theme.text.primary }}>{title}</Text> : null}
 
+      {summary ? (
+        <Text
+          numberOfLines={2}
+          style={{ fontSize: 12, lineHeight: 17, color: theme.text.secondary }}
+        >
+          {summary}
+        </Text>
+      ) : null}
+
+      {countsLine ? (
+        <Text style={{ fontSize: 11, color: theme.text.secondary }}>{countsLine}</Text>
+      ) : null}
+
+      {status === 'rejected' && rejectionReason ? (
+        <Text style={{ fontSize: 12, fontStyle: 'italic', color: theme.text.secondary }}>
+          “{rejectionReason}”
+        </Text>
+      ) : null}
+
       {cycleDetected ? (
         <Text style={{ fontSize: 11, color: '#d97706' }}>
           ⚠ {targetProjectId} is already waiting on {fromProjectId ?? 'this project'} — this may
@@ -121,7 +160,7 @@ export function FeatureRequestCard({
         <Text style={{ fontSize: 11, color: theme.text.secondary, ...mono }}>{reviewBranch}</Text>
       ) : null}
 
-      {(canDecide || footer) && (
+      {(canDecide || onOpenFull || footer) && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
           {canDecide ? (
             <>
@@ -136,6 +175,11 @@ export function FeatureRequestCard({
                 </Button>
               ) : null}
             </>
+          ) : null}
+          {onOpenFull ? (
+            <Button size="sm" variant="link" onPress={onOpenFull}>
+              {FEATURE_REQUEST_OPEN_FULL_LABEL}
+            </Button>
           ) : null}
           {footer}
         </View>

@@ -118,6 +118,31 @@ describe('the card’s edits', () => {
     })
   })
 
+  it('send a switch as true or false, not as its words', () => {
+    const merge = {
+      ...card,
+      operation: 'merge',
+      edits: [
+        { arg: 'source', label: 'Branch to merge', value: 'feat', kind: 'branch' as const },
+        { arg: 'buildFirst', label: 'Build first', value: 'true', kind: 'toggle' as const },
+      ],
+    }
+    expect(gitChangeDecisionMetadata(merge, { source: 'feat', buildFirst: 'false' })).toEqual({
+      args: { buildFirst: false },
+    })
+  })
+
+  it('send a branch picked in place of the one asked about', () => {
+    const merge = {
+      ...card,
+      operation: 'merge',
+      edits: [{ arg: 'source', label: 'Branch to merge', value: 'feat', kind: 'branch' as const }],
+    }
+    expect(gitChangeDecisionMetadata(merge, { source: 'other' })).toEqual({
+      args: { source: 'other' },
+    })
+  })
+
   it('are never sent from a card that offers none', () => {
     expect(
       gitChangeDecisionMetadata({ ...card, edits: undefined }, { message: 'x' }),

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import * as chatHeaderConstants from './chatHeaderConstants'
+import * as chatSettingsMenuConstants from './chatSettingsMenuConstants'
 import * as processCleanupViewConstants from './processCleanupViewConstants'
 import * as processGroupViewConstants from './processGroupViewConstants'
 import * as processIntegrationConstants from './processIntegrationConstants'
@@ -8,9 +10,12 @@ import * as processStatusOverlayConstants from './processStatusOverlayConstants'
 import * as processTimeDetailsConstants from './processTimeDetailsConstants'
 import * as runProposalViewConstants from './runProposalViewConstants'
 import * as runReviewConstants from './runReviewConstants'
+import * as stepsStripConstants from './stepsStripConstants'
 import * as verifyProofConstants from './verifyProofConstants'
 
 const COPY_MODULES: Record<string, Record<string, unknown>> = {
+  chatHeaderConstants,
+  chatSettingsMenuConstants,
   processCleanupViewConstants,
   processGroupViewConstants,
   processIntegrationConstants,
@@ -19,6 +24,7 @@ const COPY_MODULES: Record<string, Record<string, unknown>> = {
   processTimeDetailsConstants,
   runProposalViewConstants,
   runReviewConstants,
+  stepsStripConstants,
   verifyProofConstants,
 }
 

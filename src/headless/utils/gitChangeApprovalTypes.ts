@@ -20,6 +20,8 @@ export type GitChangeEditView = {
   value: string
   multiline?: boolean
   required?: boolean
+  /** Free text (the default), a pick among the project's branches, or an on/off switch valued `'true'` / `'false'`. */
+  kind?: 'text' | 'branch' | 'toggle'
 }
 
 /**

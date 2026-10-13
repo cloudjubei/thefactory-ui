@@ -1,23 +1,27 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
 
-import { Button } from '../../primitives/Button'
-import Surface from '../../primitives/Surface'
 import { Textarea } from '../../primitives/Textarea'
 import Tooltip from '../../primitives/Tooltip'
 import { IconChevron } from '../../icons'
 import {
   LAUNCH_NOTE_MAX_CHARS,
-  grantDetailView,
   isStartFeatureWorkGrant,
   launchRunnerLabel,
   startFeatureWorkGrantSummary,
 } from '../../../headless/utils/approvalGrant'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
-import { alwaysAllowChoiceView, alwaysAllowDecision } from '../../../headless/utils/alwaysAllow'
-import type { GrantDetailView } from '../../../headless/utils/approvalGrantTypes'
 import type { PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
-import AlwaysAllowControl from './AlwaysAllowControl'
+import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
+import ToolAskApprovalPanel from './ToolAskApprovalPanel'
+import ToolAskCard from './ToolAskCard'
+import {
+  featureWorkAskView,
+  featureWorkLaunchCheck,
+  toolAskDecidedLine,
+} from '../../../headless/utils/toolAskCard'
+import { FEATURE_WORK_ASK } from '../../../headless/utils/toolAskCardConstants'
+import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import {
   featureProcessChoice,
@@ -55,7 +59,6 @@ import GitSetupApprovalPanel from './GitSetupApprovalPanel'
 import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
-import RichText from '../files/RichText'
 import { TurnLimitField } from '../TurnLimitField'
 
 export type ApprovalPanelProps = {
@@ -92,6 +95,8 @@ export type ApprovalPanelProps = {
    * approve-or-deny.
    */
   onDecideLater: () => void
+  /** The ask was decided on its card — what the card folds to. */
+  onDecided?: (line: ToolAskDecidedLine) => void
 }
 
 const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
@@ -99,19 +104,14 @@ const TIP = 'max-w-[300px] text-xs text-(--text-primary)'
 /**
  * The inline approval surface for the one ask a chat is blocked on. It takes the
  * composer's place (rather than a modal over the whole chat) so the conversation
- * stays visible and the decision is unmissable, while `onDecideLater` leaves a
- * tool ask parked and hands the composer back.
+ * stays visible and the decision is unmissable, while `onDecideLater` leaves the
+ * ask waiting and hands the composer back.
  *
- * A feature-work launch is not a tool permission — approving it spends an agent
- * run — so it renders as a dock that says what is about to happen: the story,
- * the features in the order they will be picked up, what happens after "yes",
- * and a note field that goes into the run's opening prompt. Every other gated
- * ask shows the tool and its arguments.
- *
- * The dock answers the agent either way and offers no park: "later" would end
- * exactly where "no" ends — back in the chat with the work not started — so a
- * third button only made the user rank two words for the same outcome. A tool
- * ask still parks, because there the agent is mid-turn and waiting.
+ * Every ask reads as the one shared tool-ask card. A feature-work launch is not
+ * a tool permission — approving it spends an agent run — so its card says what
+ * is about to happen: the story, how it runs and on which agent, the features
+ * in the order they will be picked up, and a note field that goes into the
+ * run's opening prompt. Every other gated ask shows the thing it acts on.
  *
  * It deliberately takes NO external `busy` flag. The agent is by definition
  * mid-turn while it waits on this decision, so disabling the controls on "the
@@ -128,23 +128,45 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
         {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
         onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
     )
   }
   if (isGitChangeGrant(props.grant)) {
-    return <GitChangeApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
+    return (
+      <GitChangeApprovalPanel
+        grant={props.grant}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
   }
   if (isRunProposalGrant(props.grant)) {
-    return <RunProposalApprovalPanel grant={props.grant} onDecideLater={props.onDecideLater} />
+    return (
+      <RunProposalApprovalPanel
+        grant={props.grant}
+        onDecideLater={props.onDecideLater}
+        {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+      />
+    )
   }
-  return isGitSetupGrant(props.grant) ? (
-    <GitSetupApprovalPanel
-      grant={props.grant}
-      {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
-      onDecideLater={props.onDecideLater}
-    />
-  ) : (
+  if (isGitSetupGrant(props.grant)) {
+    return (
+      <GitSetupApprovalPanel
+        grant={props.grant}
+        {...(props.projectId !== undefined ? { projectId: props.projectId } : {})}
+        onDecideLater={props.onDecideLater}
+      />
+    )
+  }
+  return isStartFeatureWorkGrant(props.grant) ? (
     <ToolApprovalPanel {...props} />
+  ) : (
+    <ToolAskApprovalPanel
+      grant={props.grant}
+      onDecideLater={props.onDecideLater}
+      {...(props.onDecided ? { onDecided: props.onDecided } : {})}
+    />
   )
 }
 
@@ -152,12 +174,11 @@ function ToolApprovalPanel({
   grant,
   projectId,
   onDecideLater,
+  onDecided,
   renderModelChip,
 }: ApprovalPanelProps) {
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
-  const { headline, detail }: GrantDetailView = isLaunch ? {} : grantDetailView(grant.detail)
-  const alwaysAllowScopes = !isLaunch ? (grant.alwaysAllowScopes ?? []) : []
   const { getStory } = useStories()
   // The notes this launch will point the run at — resolved to labels so you can
   // see exactly which stored notes (a login, a key) the run is sanctioned to read
@@ -244,11 +265,21 @@ function ToolApprovalPanel({
     joinsOpenRun || saveProofPlans,
     canonicalize,
   )
+  const view = featureWorkAskView({
+    ...(story?.title ? { storyTitle: story.title } : {}),
+    joinsOpenRun,
+    args: runProposalArgs(grant),
+  })
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.
-  const awaitingChoice =
-    (summary.storyId !== undefined && !proposalLoaded) ||
-    (openWork !== undefined && openWorkMeta === undefined)
+  const check = featureWorkLaunchCheck({
+    ...(summary.storyId !== undefined ? { storyId: summary.storyId } : {}),
+    proposalLoaded,
+    ...(refusal !== undefined ? { refusal } : {}),
+    openWorkUnchosen: openWork !== undefined && openWorkMeta === undefined,
+    storyLoaded: story !== undefined,
+    featureCount: features.length,
+  })
 
   const decide = (decision: PendingToolGrantDecision) => {
     setBusy(true)
@@ -276,64 +307,11 @@ function ToolApprovalPanel({
             }
           : undefined,
       )
+      .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
       .catch((err: unknown) => {
         setBusy(false)
         setError(grantDecideErrorMessage(err))
       })
-  }
-
-  if (!isLaunch) {
-    return (
-      <Surface className="m-3 p-4 flex flex-col gap-3 border border-(--border-strong)">
-        <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold">The agent needs your approval</div>
-          <p className="text-xs opacity-80">
-            It is waiting on this before it can continue: <code>{grant.label}</code>
-          </p>
-        </div>
-        {headline !== undefined && (
-          <div className="text-sm text-(--text-primary)">
-            <RichText text={headline} />
-          </div>
-        )}
-        {detail !== undefined && (
-          <pre className="rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word max-h-40 overflow-auto opacity-90">
-            {detail}
-          </pre>
-        )}
-        {error !== null && (
-          <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
-            {error}
-          </div>
-        )}
-        <div className="flex items-center justify-end gap-2 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={onDecideLater} disabled={busy}>
-            Decide later
-          </Button>
-          {alwaysAllowScopes.length > 0 && (
-            <AlwaysAllowControl
-              variant="button"
-              view={alwaysAllowChoiceView({
-                scopes: alwaysAllowScopes,
-                toolName: grant.label,
-                covers: grant.grantCovers ?? 'exact-call',
-              })}
-              toolName={grant.label}
-              onChoose={(scope) => {
-                if (scope) decide(alwaysAllowDecision(scope))
-              }}
-              disabled={busy}
-            />
-          )}
-          <Button variant="secondary" size="sm" onClick={() => decide('deny')} disabled={busy}>
-            Not now
-          </Button>
-          <Button size="sm" onClick={() => decide('once')} loading={busy}>
-            Approve
-          </Button>
-        </div>
-      </Surface>
-    )
   }
 
   return (
@@ -341,59 +319,57 @@ function ToolApprovalPanel({
     // a dozen features used to push the decision off the screen with no way to
     // reach it. The header and the decision stay put while the middle scrolls.
     <div
-      className={`flex min-h-0 flex-col border-t border-(--border-default) bg-(--surface-raised) shadow-[0_-1px_0_var(--border-subtle)] ${
-        expanded ? 'h-screen' : 'max-h-[min(62vh,600px)]'
-      }`}
+      className={`m-3 flex min-h-0 flex-col ${expanded ? 'h-screen' : 'max-h-[min(70vh,640px)]'}`}
     >
-      <div className="flex shrink-0 items-start gap-2 border-b border-(--border-subtle) px-3 pt-3 pb-2.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-(--text-primary)">
-            <span className="badge badge--soft badge--review badge--sm">
-              <span className="badge__dot badge__dot--hollow" />
-              Needs you
-            </span>
-            Start work on this story?
-          </div>
-          {summary.storyId ? (
-            <div className="flex min-w-0 items-baseline gap-2">
-              <DependencyBullet dependency={summary.storyId} interactive />
-              <span className="min-w-0 truncate text-[13px] text-(--text-secondary)">
-                {story?.title ?? 'Story'}
-              </span>
-            </div>
-          ) : null}
-        </div>
-        <Tooltip
-          placement="top"
-          content={<div className={TIP}>{expanded ? 'Back to the chat' : 'Expand'}</div>}
-        >
-          <button
-            type="button"
-            aria-label={expanded ? 'Back to the chat' : 'Expand'}
-            aria-pressed={expanded}
-            onClick={() => setExpanded((v) => !v)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-base) text-(--text-secondary) hover:border-(--border-strong) hover:text-(--text-primary)"
+      <ToolAskCard
+        view={view}
+        busy={busy}
+        error={error}
+        ready={check.ready}
+        {...(check.problem !== undefined ? { problem: check.problem } : {})}
+        onApprove={() => decide('once')}
+        onDeny={() => decide('deny')}
+        onLater={onDecideLater}
+        headerAction={
+          <Tooltip
+            placement="top"
+            content={<div className={TIP}>{expanded ? 'Back to the chat' : 'Expand'}</div>}
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden
+            <button
+              type="button"
+              aria-label={expanded ? 'Back to the chat' : 'Expand'}
+              aria-pressed={expanded}
+              onClick={() => setExpanded((v) => !v)}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-(--surface-raised) hover:text-(--text-primary)"
             >
-              {expanded ? (
-                <path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
-              ) : (
-                <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
-              )}
-            </svg>
-          </button>
-        </Tooltip>
-      </div>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden
+              >
+                {expanded ? (
+                  <path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
+                ) : (
+                  <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
+                )}
+              </svg>
+            </button>
+          </Tooltip>
+        }
+      >
+        {summary.storyId ? (
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-(--border-subtle) px-3 py-2.5">
+            <DependencyBullet dependency={summary.storyId} interactive />
+            <span className="min-w-0 truncate text-[13.5px] font-semibold text-(--text-primary)">
+              {story?.title ?? FEATURE_WORK_ASK.untitled}
+            </span>
+          </div>
+        ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2.5">
         {openWork ? (
           <OpenWorkChooser
             openWork={openWork}
@@ -456,23 +432,6 @@ function ToolApprovalPanel({
                 </span>
               </Tooltip>
             )}
-            <Tooltip
-              placement="top"
-              content={
-                <div className={TIP}>
-                  <b>Isolation</b>
-                  <p className="mt-0.5">
-                    The run gets its own copy of the repo and its own branch. Your files and the
-                    branch you are on are never touched, even if it fails.
-                  </p>
-                </div>
-              }
-            >
-              <span className="inline-flex h-[26px] items-center rounded-full border border-(--border-default) bg-(--surface-base) px-2.5 text-[12px] text-(--text-secondary)">
-                Isolated copy
-              </span>
-            </Tooltip>
-            <span className="text-[11.5px] text-(--text-muted)">Merges nothing.</span>
           </div>
           <TurnLimitField
             {...turnLimitStart}
@@ -500,19 +459,13 @@ function ToolApprovalPanel({
             }
             onSaveChange={setSaveProofPlans}
           />
-        ) : (
+        ) : features.length > 0 || check.problem === undefined ? (
           <div className="flex flex-col gap-1.5 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
               Features to work on
             </span>
-            {refusal !== undefined ? (
-              <span className="text-[12px] text-(--text-secondary)">{refusal}</span>
-            ) : features.length === 0 ? (
-              <span className="text-[12px] text-(--text-secondary)">
-                {story
-                  ? 'Every feature on this story is done or deferred — it will be refused when launched.'
-                  : 'Loading the story…'}
-              </span>
+            {features.length === 0 ? (
+              <span className="text-[12px] text-(--text-secondary)">Loading the story…</span>
             ) : (
               features.map((feature) => (
                 <div key={feature.id} className="flex items-center gap-2 text-[12.5px]">
@@ -524,7 +477,7 @@ function ToolApprovalPanel({
               ))
             )}
           </div>
-        )}
+        ) : null}
 
         <div className="flex flex-col gap-1.5">
           {flaggedNotes.length > 0 ? (
@@ -597,74 +550,7 @@ function ToolApprovalPanel({
             </label>
           ) : null}
         </div>
-      </div>
-
-      {error !== null && (
-        <div className="mx-3 mb-2 shrink-0 rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
-          {error}
-        </div>
-      )}
-
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-(--border-subtle) px-3 py-2.5">
-        <span className="text-[11.5px] text-(--text-muted)">
-          Nothing goes in without your sign-off.
-        </span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onDecideLater} disabled={busy}>
-            Decide later
-          </Button>
-          <Tooltip
-            placement="top"
-            content={
-              <div className={TIP}>
-                <b>Answers the agent: no</b>
-                <p className="mt-0.5">
-                  The run is not started and the story is left exactly as it is. The agent is told
-                  you said no, so it can suggest something else or wait.
-                </p>
-                <p className="mt-1 text-(--text-muted)">
-                  Nothing is cancelled or deleted, and you can ask again at any time.
-                </p>
-              </div>
-            }
-          >
-            <Button variant="danger" size="sm" onClick={() => decide('deny')} disabled={busy}>
-              No — cancel
-            </Button>
-          </Tooltip>
-          <Tooltip
-            placement="top"
-            content={
-              <div className={TIP}>
-                <b>Launches the run now</b>
-                <p className="mt-0.5">
-                  {features.length} feature{features.length === 1 ? ' is' : 's are'} picked up, an
-                  isolated copy is made and the agent begins. You can watch it, and you can cancel
-                  it at any point.
-                </p>
-                <p className="mt-1 text-(--text-muted)">
-                  Merges nothing. Your branch is not touched.
-                </p>
-              </div>
-            }
-          >
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => decide('once')}
-              loading={busy}
-              // `features` is legitimately empty while the story loads.
-              disabled={
-                refusal !== undefined ||
-                awaitingChoice ||
-                (story !== undefined && features.length === 0)
-              }
-            >
-              {openWorkChoice === 'extend' && openWorkMeta ? 'Add to that run' : 'Start work'}
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
+      </ToolAskCard>
     </div>
   )
 }

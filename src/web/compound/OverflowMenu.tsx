@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { IconDotsVertical } from '../icons'
@@ -7,6 +7,10 @@ export type OverflowMenuItem = {
   key: string
   label: string
   icon?: ReactNode
+  /** The value it sits at, drawn muted after the label — `Everything ›`. */
+  hint?: string
+  /** A heading the item sits under, after a divider; consecutive items share it. */
+  section?: string
   /** Drawn in the danger tone, after a divider. */
   destructive?: boolean
   disabled?: boolean
@@ -17,6 +21,8 @@ export type OverflowMenuProps = {
   items: readonly OverflowMenuItem[]
   /** Names the button for a screen reader and its tooltip. */
   label?: string
+  /** The button's glyph. Defaults to the ⋯ dots. */
+  icon?: ReactNode
   className?: string
 }
 
@@ -28,6 +34,7 @@ export type OverflowMenuProps = {
 export default function OverflowMenu({
   items,
   label = 'More actions',
+  icon,
   className,
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false)
@@ -66,7 +73,7 @@ export default function OverflowMenu({
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex size-8 items-center justify-center rounded-md border ${open ? 'border-(--accent-primary) bg-(--accent-primary)/10 text-(--accent-primary)' : 'border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)'} ${className ?? ''}`}
       >
-        <IconDotsVertical className="size-4 rotate-90" />
+        {icon ?? <IconDotsVertical className="size-4 rotate-90" />}
       </button>
       {open
         ? createPortal(
@@ -85,8 +92,17 @@ export default function OverflowMenu({
                   right: Math.max(8, window.innerWidth - (anchor?.right ?? window.innerWidth - 8)),
                 }}
               >
-                {safe.map((item) => (
-                  <MenuRow key={item.key} item={item} onDone={() => setOpen(false)} />
+                {safe.map((item, i) => (
+                  <Fragment key={item.key}>
+                    {item.section && item.section !== safe[i - 1]?.section ? (
+                      <div
+                        className={`px-2.5 pb-0.5 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-(--text-muted) ${i > 0 ? 'mt-1 border-t border-(--border-subtle)' : ''}`}
+                      >
+                        {item.section}
+                      </div>
+                    ) : null}
+                    <MenuRow item={item} onDone={() => setOpen(false)} />
+                  </Fragment>
                 ))}
                 {safe.length > 0 && destructive.length > 0 ? (
                   <div className="my-1 h-px bg-(--border-subtle)" />
@@ -116,7 +132,10 @@ function MenuRow({ item, onDone }: { item: OverflowMenuItem; onDone: () => void 
       className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] hover:bg-(--surface-hover) disabled:opacity-50 ${item.destructive ? 'text-(--status-stuck-soft-fg)' : 'text-(--text-primary)'}`}
     >
       {item.icon}
-      {item.label}
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {item.hint ? (
+        <span className="shrink-0 text-[12px] text-(--text-secondary)">{item.hint}</span>
+      ) : null}
     </button>
   )
 }

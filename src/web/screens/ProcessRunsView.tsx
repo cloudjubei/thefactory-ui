@@ -1,19 +1,28 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import {
-  processRunCardView,
+  formatBadgeCount,
+  PROCESS_RUN_WAITING_TITLE,
+  processRunAttentionSections,
+  processRunListRow,
   processRunSpend,
+  processRunWaitingCount,
   processRunWorkLabel,
+  useAppSettings,
   useDurationTimer,
   useProcessRuns,
+  type BadgeColor,
   type ProcessNodeRunRef,
   type ProcessRun,
+  type ProcessRunAttentionSection,
   type ProcessStatusTone,
 } from '../../headless'
 import SegmentedControl from '../primitives/SegmentedControl'
+import Spinner from '../primitives/Spinner'
 import Tooltip from '../primitives/Tooltip'
 import { IconSettings, IconWorkflow } from '../icons'
 import CostChip from '../compound/chips/CostChip'
+import NotificationBadge from '../compound/NotificationBadge'
 import { DURATION_CHIP_CLASS } from '../compound/chat/ToolCall/StatusIcon'
 import ProcessPipeline from '../compound/process/ProcessPipeline'
 import type { ChatContext } from '../../headless/api'
@@ -52,9 +61,12 @@ type Mode = 'current' | 'history'
 /**
  * The Processes tab: the process RUNS (not the blueprints — those moved to
  * Settings → Processes, reached by the header cog). An inner sidebar lists the
- * runs with a Current / History toggle, mirroring the chat sidebar; selecting
- * one shows its pipeline in the detail pane — the same pipeline the chat card
- * opens, so there is one place a run is watched.
+ * runs with a Current / History toggle, mirroring the chat sidebar. Current is
+ * grouped by what each run needs — Needs you, Sign off, Running, Merging — and
+ * its tab counts the runs waiting on the person; each row says in one line
+ * what its run needs. Selecting one shows its pipeline in the detail pane — the
+ * same pipeline the chat card opens, so there is one place a run is watched,
+ * and the only place it is decided.
  */
 export default function ProcessRunsView({
   projectId,
@@ -69,6 +81,10 @@ export default function ProcessRunsView({
   narrow = false,
 }: ProcessRunsViewProps) {
   const { isLoaded, current, history } = useProcessRuns(projectId)
+  const { settings } = useAppSettings()
+  const badgeColor = settings.notifications.badgeColors.processes
+  const waiting = processRunWaitingCount(current)
+  const sections = useMemo(() => processRunAttentionSections(current), [current])
 
   // The toggle follows the selected run when it can: opening a finished run from
   // elsewhere (a chat card) should land on History, not leave the user on an
@@ -95,7 +111,22 @@ export default function ProcessRunsView({
           value={mode}
           onChange={(v) => setMode(v as Mode)}
           options={[
-            { value: 'current', label: 'Current' },
+            {
+              value: 'current',
+              label: 'Current',
+              ...(waiting > 0
+                ? {
+                    badge: (
+                      <NotificationBadge
+                        text={formatBadgeCount(waiting)}
+                        color={badgeColor}
+                        tooltipLabel={PROCESS_RUN_WAITING_TITLE(waiting)}
+                        className="h-4 min-w-4 px-1 text-[10px] ring-0"
+                      />
+                    ),
+                  }
+                : {}),
+            },
             { value: 'history', label: 'History' },
           ]}
           className="flex-1"
@@ -123,19 +154,21 @@ export default function ProcessRunsView({
               ? 'No processes are running. Start work on a story from its chat.'
               : 'No finished processes yet.'}
           </p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {rows.map((run) => (
-              <li key={run.id}>
-                <RunRow
-                  run={run}
-                  now={now}
-                  selected={run.id === selectedRunId}
-                  onClick={() => onSelectRun(run.id)}
-                />
-              </li>
+        ) : mode === 'current' ? (
+          <div className="flex flex-col gap-2">
+            {sections.map((section) => (
+              <RunSection
+                key={section.id}
+                section={section}
+                badgeColor={badgeColor}
+                now={now}
+                selectedRunId={selectedRunId}
+                onSelectRun={onSelectRun}
+              />
             ))}
-          </ul>
+          </div>
+        ) : (
+          <RunList runs={rows} now={now} selectedRunId={selectedRunId} onSelectRun={onSelectRun} />
         )}
       </div>
     </div>
@@ -169,6 +202,82 @@ export default function ProcessRunsView({
   )
 }
 
+function RunSection({
+  section,
+  badgeColor,
+  now,
+  selectedRunId,
+  onSelectRun,
+}: {
+  section: ProcessRunAttentionSection
+  badgeColor: BadgeColor
+  now: number
+  selectedRunId: string | undefined
+  onSelectRun: (runId: string) => void
+}) {
+  const count = section.runs.length
+  return (
+    <section aria-label={section.label} className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-2 px-2.5 pt-1 pb-0.5">
+        <span
+          className="min-w-0 flex-1 text-[11.5px] font-semibold"
+          style={{ color: `var(--status-${section.tone}-soft-fg)` }}
+        >
+          {section.label}
+        </span>
+        {section.counted ? (
+          <NotificationBadge
+            text={formatBadgeCount(count)}
+            color={badgeColor}
+            tooltipLabel={PROCESS_RUN_WAITING_TITLE(count)}
+            className="h-4 min-w-4 px-1 text-[10px] ring-0"
+          />
+        ) : (
+          <span
+            className="text-[11.5px] font-semibold"
+            style={{ color: `var(--status-${section.tone}-soft-fg)` }}
+          >
+            {count}
+          </span>
+        )}
+      </div>
+      <RunList
+        runs={section.runs}
+        now={now}
+        selectedRunId={selectedRunId}
+        onSelectRun={onSelectRun}
+      />
+    </section>
+  )
+}
+
+function RunList({
+  runs,
+  now,
+  selectedRunId,
+  onSelectRun,
+}: {
+  runs: readonly ProcessRun[]
+  now: number
+  selectedRunId: string | undefined
+  onSelectRun: (runId: string) => void
+}) {
+  return (
+    <ul className="flex flex-col gap-1">
+      {runs.map((run) => (
+        <li key={run.id}>
+          <RunRow
+            run={run}
+            now={now}
+            selected={run.id === selectedRunId}
+            onClick={() => onSelectRun(run.id)}
+          />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function RunRow({
   run,
   now,
@@ -181,7 +290,7 @@ function RunRow({
   selected: boolean
   onClick: () => void
 }) {
-  const view = processRunCardView(run)
+  const row = processRunListRow(run)
   const spend = processRunSpend(run)
   const work = processRunWorkLabel(run, now)
   return (
@@ -196,34 +305,37 @@ function RunRow({
         type="button"
         onClick={onClick}
         aria-current={selected}
-        aria-label={`${view.title} · ${view.badge.label}`}
+        aria-label={`${row.title} · ${row.line}`}
         className="absolute inset-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
       />
       <div className="pointer-events-none flex items-center gap-2">
-        <StatusDot tone={view.badge.tone} />
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)">
-          {view.title}
+        <StatusDot tone={row.tone} />
+        <span
+          className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-(--text-primary)"
+          title={row.title}
+        >
+          {row.title}
         </span>
+        {row.live ? (
+          <Spinner size={12} color={`var(--status-${row.tone}-bg)`} className="shrink-0" />
+        ) : null}
         {work ? <span className={`shrink-0 ${DURATION_CHIP_CLASS}`}>{work}</span> : null}
       </div>
-      <div className="pointer-events-none flex flex-wrap items-center gap-2 pl-4">
+      <div className="pointer-events-none flex items-center gap-2 pl-4">
         <span
-          className="rounded-full px-1.5 py-px text-[9.5px]"
-          style={{
-            background: `var(--status-${view.badge.tone}-soft-bg)`,
-            color: `var(--status-${view.badge.tone}-soft-fg)`,
-          }}
+          className={`min-w-0 flex-1 truncate text-[11.5px] ${
+            row.asks ? 'font-semibold' : 'text-(--text-secondary)'
+          }`}
+          style={row.asks ? { color: `var(--status-${row.tone}-soft-fg)` } : undefined}
+          title={row.line}
         >
-          {view.badge.label}
+          {row.line}
         </span>
         {spend ? (
-          <span className="pointer-events-auto relative inline-flex">
+          <span className="pointer-events-auto relative inline-flex shrink-0">
             <CostChip label={spend.label} cost={run.totals} title={spend.title} />
           </span>
         ) : null}
-        <span className="min-w-0 flex-1 truncate text-[11px] text-(--text-secondary)">
-          {view.sub}
-        </span>
       </div>
     </div>
   )

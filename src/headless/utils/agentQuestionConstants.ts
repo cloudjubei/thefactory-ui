@@ -16,28 +16,82 @@ export const QUESTION_DECLINED_ANSWER =
   'The user declined to answer. Proceed using your best judgement.'
 
 /** Card heading — the same wording on every client. */
-export const QUESTION_CARD_TITLE = 'The agent has a question'
+export const QUESTION_CARD_TITLE = 'Waiting on your answer'
 
-/** Card sub-heading, explaining that the run is parked until an answer lands. */
-export const QUESTION_CARD_SUBTITLE =
-  'It is waiting on this — answer whenever you like, or cancel to carry on typing.'
+/** The pill on the option the agent would pick itself. */
+export const QUESTION_AGENTS_PICK = 'Agent’s pick'
 
-export const QUESTION_ANSWER_PLACEHOLDER = 'Type your answer…'
+/** What an option row says it does on a click. */
+export const QUESTION_OPTION_SEND = 'Send'
+
+/** Opens the box for an answer in the person's own words. */
+export const QUESTION_SOMETHING_ELSE = 'Something else…'
+
+export const QUESTION_ANSWER_PLACEHOLDER = 'Type your answer — @ to point at a file'
 
 export const QUESTION_SUBMIT_LABEL = 'Send answer'
 
 export const QUESTION_DECLINE_LABEL = 'Let the agent decide'
 
-/**
- * Withdraw the question. NOT the same as declining: declining is an answer the
- * agent carries on from, this takes the question off the table and hands the
- * composer back.
- */
-export const QUESTION_CANCEL_LABEL = 'Cancel question'
+/** Sets the question aside without answering it; it stays waiting. */
+export const QUESTION_PARK_LABEL = 'Not now — keep it waiting'
 
-/**
- * Why the composer is gone. The question owns it, so the user's options are
- * exactly two: answer it, or cancel it and type anything again.
- */
-export const QUESTION_BLOCKS_COMPOSER_HINT =
-  'Cancel the question to go back to typing your own message.'
+/** The slim row a question set aside folds to. */
+export const QUESTION_STILL_WAITING = 'Still waiting:'
+
+/** Brings a question set aside back to answer it. */
+export const QUESTION_REOPEN_LABEL = 'Answer'
+
+/** Shows the rest of a long background. */
+export const QUESTION_MORE = 'More'
+
+/** The pager over several open asks. */
+export const QUESTION_PAGER = (shown: number, total: number): string =>
+  `${shown} of ${total} waiting on you`
+
+/** What an answered question's bubble says under it. */
+export const QUESTION_ANSWERED_BY = {
+  answered: 'You answered',
+  'agent-decides': 'You let the agent decide',
+} as const
+
+/** The answer line of a question handed back to the agent. */
+export const QUESTION_AGENT_DECIDES_ANSWER = 'Your call — decide as you think best.'
+
+/** The picker's primary button, by what it picks. */
+export const QUESTION_PICKER_VERB = {
+  branch: 'Use this branch',
+  file: 'Use this file',
+  story: 'Use this story',
+  feature: 'Use this feature',
+  project: 'Use this project',
+  chat: 'Use this chat',
+  process: 'Use this process',
+} as const
+
+/** The picker's filter placeholder, by what it lists. */
+export const QUESTION_PICKER_FILTER = {
+  branch: (n: number) => `Filter ${n} ${n === 1 ? 'branch' : 'branches'}`,
+  file: (n: number) => `Filter ${n} ${n === 1 ? 'file' : 'files'}`,
+  story: (n: number) => `Filter ${n} ${n === 1 ? 'story' : 'stories'}`,
+  feature: (n: number) => `Filter ${n} ${n === 1 ? 'feature' : 'features'}`,
+  project: (n: number) => `Filter ${n} ${n === 1 ? 'project' : 'projects'}`,
+  chat: (n: number) => `Filter ${n} ${n === 1 ? 'chat' : 'chats'}`,
+  process: (n: number) => `Filter ${n} ${n === 1 ? 'process' : 'processes'}`,
+} as const
+
+/** The picker when nothing of its kind is at hand, or nothing matches the filter. */
+export const QUESTION_PICKER_EMPTY = 'Nothing here matches.'
+
+/** The picker while the host is still reading its items. */
+export const QUESTION_PICKER_LOADING = 'Loading…'
+
+/** The most rows a picker lists at once — the filter reaches the rest. */
+export const QUESTION_PICKER_LIMIT = 50
+
+/** A branch row's second line. */
+export const QUESTION_BRANCH_DETAIL = {
+  current: 'The checked-out branch',
+  default: 'The default branch',
+  remoteOnly: 'Only on the remote',
+} as const

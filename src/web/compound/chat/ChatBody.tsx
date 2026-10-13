@@ -1,7 +1,6 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
 import { useMemo, useState, type ReactNode } from 'react'
 import Alert from '../../primitives/Alert'
-import { Button } from '../../primitives/Button'
 import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
 import RemedyCard from './RemedyCard'
@@ -13,7 +12,16 @@ import PendingMessagesStack from './PendingMessagesStack'
 import HeldAgentMessagesStack from './HeldAgentMessagesStack'
 import type { ChatPendingQueue } from '../../../headless/hooks/useChatComposer'
 import { usePendingAutoDispatch } from '../../../headless/hooks/usePendingAutoDispatch'
-import { partitionGrants, shownQuestionId, userAsks } from '../../../headless/utils/agentQuestions'
+import {
+  partitionGrants,
+  shownQuestionId,
+  splitParkedAsks,
+  userAsks,
+} from '../../../headless/utils/agentQuestions'
+import { QUESTION_PAGER } from '../../../headless/utils/agentQuestionConstants'
+import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
+import StillWaitingRow from './StillWaitingRow'
+import { ToolAskDecidedRow } from './ToolAskCard'
 import { panelApprovalGrants } from '../../../headless/utils/approvalGrant'
 import { useClaimedAsks } from '../../../headless/hooks/useInlineApprovals'
 import { useHeldAgentMessages } from '../../../headless/hooks/useHeldAgentMessages'
@@ -65,11 +73,6 @@ export type ChatBodyProps = {
   /** When provided, replaces the standard chat input (e.g. for read-only
    * agent-run chats). */
   inputOverride?: ReactNode
-
-  /** When true, the composer (and any `inputOverride`) is not rendered at all —
-   * the canvas is action-only (e.g. a pending feature-request chat whose only
-   * actions live in the centered `emptyStateContent`). */
-  hideInput?: boolean
 
   /**
    * True when this chat's history is closed and deliberately kept (archived /
@@ -180,6 +183,8 @@ export type ChatBodyProps = {
 
   /** Caller-rendered empty-state for the MessageList. */
   emptyStateContent?: ReactNode
+  /** Forwarded to the MessageList: the conversation's opening, above every message. */
+  leadingContent?: ReactNode
 
   /** Host-supplied tool-preview fetcher — see `MessageList.previewTool`. */
   previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
@@ -200,6 +205,8 @@ export type ChatBodyProps = {
   pendingQueue?: ChatPendingQueue
 }
 
+const NO_IDS: ReadonlySet<string> = new Set()
+
 /**
  * The single canonical chat canvas — header slot, message list, optional
  * error banner, input, and the approval panel. Used by both the full
@@ -214,7 +221,6 @@ export default function ChatBody({
   header,
   sendError,
   inputOverride,
-  hideInput,
   historyLocked,
   messages,
   messagesLoading = false,
@@ -244,6 +250,7 @@ export default function ChatBody({
   onReadLatest,
   scrollToBottomSignal,
   emptyStateContent,
+  leadingContent,
   previewTool,
   grants,
   credentialCaptures,
@@ -274,13 +281,38 @@ export default function ChatBody({
     () => userAsks(partitionGrants(grants).questions, answerableCaptures),
     [grants, answerableCaptures],
   )
+  // "Not now" sets a question aside, still waiting: it gives the composer back
+  // and stays as a slim row in the conversation — this chat's own, forgotten
+  // when another chat opens.
+  const [parked, setParked] = useState<{ chatId?: string; ids: ReadonlySet<string> }>({
+    ids: new Set(),
+  })
+  const parkedIds = parked.chatId === chatId ? parked.ids : NO_IDS
+  const setAskParked = (id: string, on: boolean) => {
+    const next = new Set(parkedIds)
+    if (on) next.add(id)
+    else next.delete(id)
+    setParked({ ...(chatId !== undefined ? { chatId } : {}), ids: next })
+  }
+  const { open: openAsks, parked: parkedAsks } = splitParkedAsks(asks, parkedIds)
   const [chosenAskId, setChosenAskId] = useState<string>()
   const shownAskKey = shownQuestionId(
-    asks.map((a) => a.id),
+    openAsks.map((a) => a.id),
     chosenAskId,
   )
-  const shownIndex = asks.findIndex((a) => a.id === shownAskKey)
-  const shownAsk = shownIndex >= 0 ? asks[shownIndex] : undefined
+  const shownIndex = openAsks.findIndex((a) => a.id === shownAskKey)
+  const shownAsk = shownIndex >= 0 ? openAsks[shownIndex] : undefined
+  // A card decided here folds to one line in the conversation.
+  const [decided, setDecided] = useState<{
+    chatId?: string
+    lines: { id: string; line: ToolAskDecidedLine }[]
+  }>({ lines: [] })
+  const decidedLines = decided.chatId === chatId ? decided.lines : []
+  const addDecidedLine = (id: string, line: ToolAskDecidedLine) =>
+    setDecided({
+      ...(chatId !== undefined ? { chatId } : {}),
+      lines: [...decidedLines.filter((l) => l.id !== id), { id, line }],
+    })
   const remedyGrants = useMemo(() => partitionGrants(grants).remedies, [grants])
   // EVERY pending approval takes the composer's place so the asks are unmissable
   // while the conversation stays visible. They stack: an ask outlives the turn
@@ -312,12 +344,11 @@ export default function ChatBody({
   const composerBlockers = useMemo(
     () => ({
       askShown: !!shownAsk,
-      approvalShown: !hideInput && showApprovalPanel,
+      approvalShown: showApprovalPanel,
       historyLocked: !!historyLocked,
       inputOverridden: !!inputOverride,
-      inputHidden: !!hideInput,
     }),
-    [shownAsk, hideInput, showApprovalPanel, historyLocked, inputOverride],
+    [shownAsk, showApprovalPanel, historyLocked, inputOverride],
   )
   usePendingAutoDispatch({
     chatId,
@@ -332,6 +363,30 @@ export default function ChatBody({
         ? { role: 'assistant' as const, content: pendingAssistant.content || '…' }
         : null,
     [cliRunId, pendingAssistant],
+  )
+
+  const askPager = (
+    <span className="flex items-center gap-1.5 text-xs font-normal">
+      <button
+        type="button"
+        aria-label="Previous"
+        className="rounded p-0.5 hover:bg-(--surface-hover) disabled:opacity-40"
+        onClick={() => setChosenAskId(openAsks[shownIndex - 1]?.id)}
+        disabled={shownIndex <= 0}
+      >
+        <IconChevronLeft className="w-4 h-4" />
+      </button>
+      <span className="tabular-nums">{QUESTION_PAGER(shownIndex + 1, openAsks.length)}</span>
+      <button
+        type="button"
+        aria-label="Next"
+        className="rounded p-0.5 hover:bg-(--surface-hover) disabled:opacity-40"
+        onClick={() => setChosenAskId(openAsks[shownIndex + 1]?.id)}
+        disabled={shownIndex >= openAsks.length - 1}
+      >
+        <IconChevronRight className="w-4 h-4" />
+      </button>
+    </span>
   )
 
   return (
@@ -376,6 +431,30 @@ export default function ChatBody({
           isSending={isSending}
           isDeleting={liveState.isDeleting === true}
           emptyStateContent={emptyStateContent}
+          leadingContent={leadingContent}
+          tailContent={
+            decidedLines.length > 0 || parkedAsks.length > 0 ? (
+              // Settled and set-aside asks no longer hold the agent up on the
+              // person, so they read in the conversation rather than in the way.
+              <div className="flex flex-col gap-2">
+                {decidedLines.map(({ id, line }) => (
+                  <ToolAskDecidedRow key={id} line={line} />
+                ))}
+                {parkedAsks.map((ask) =>
+                  ask.kind === 'question' ? (
+                    <StillWaitingRow
+                      key={ask.id}
+                      question={ask.grant.question.question}
+                      onReopen={() => {
+                        setAskParked(ask.id, false)
+                        setChosenAskId(ask.id)
+                      }}
+                    />
+                  ) : null,
+                )}
+              </div>
+            ) : null
+          }
         />
       </div>
 
@@ -397,52 +476,34 @@ export default function ChatBody({
       {/* A question or a credential form TAKES the composer rather than sitting
           above a live one: the agent's next step depends on the answer, so a
           free-text message sent past it would be typed into a conversation that
-          is not listening. Cancelling it is the way back to typing anything.
-
-          It outranks `hideInput` deliberately. A parked ask now waits forever
-          by design, so a surface that hides the composer must NOT also hide the
-          one control that can release it. */}
+          is not listening. Answering, cancelling or "Not now" is the way back to
+          typing. One ask at a time, paged, so several never read as the same
+          question asked twice. Capped and scrollable, so a tall card never
+          pushes its own decision off-screen. */}
       {shownAsk ? (
-        <div className="flex flex-col gap-2 border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
-          {asks.length > 1 ? (
-            // One ask at a time, paged — several stacked filled the screen
-            // and read as the same question asked twice.
-            <div className="flex items-center justify-end gap-2 text-xs text-(--text-secondary)">
-              <Button
-                variant="secondary"
-                size="icon"
-                aria-label="Previous"
-                onClick={() => setChosenAskId(asks[shownIndex - 1]?.id)}
-                disabled={shownIndex === 0}
-              >
-                <IconChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="tabular-nums">
-                {shownIndex + 1} of {asks.length} waiting on you
-              </span>
-              <Button
-                variant="secondary"
-                size="icon"
-                aria-label="Next"
-                onClick={() => setChosenAskId(asks[shownIndex + 1]?.id)}
-                disabled={shownIndex === asks.length - 1}
-              >
-                <IconChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : null}
+        <div className="flex max-h-[65%] min-h-0 shrink flex-col gap-2 overflow-y-auto border-t border-(--border-default) bg-(--surface-raised) px-3 py-3">
           {shownAsk.kind === 'question' ? (
-            <AgentQuestionCard key={shownAsk.id} grant={shownAsk.grant} />
-          ) : (
-            <CredentialCaptureCard
+            <AgentQuestionCard
               key={shownAsk.id}
-              capture={shownAsk.capture}
-              onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
-              onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+              grant={shownAsk.grant}
+              onPark={() => setAskParked(shownAsk.id, true)}
+              {...(openAsks.length > 1 ? { pager: askPager } : {})}
             />
+          ) : (
+            <>
+              {openAsks.length > 1 ? (
+                <div className="flex justify-end text-(--text-secondary)">{askPager}</div>
+              ) : null}
+              <CredentialCaptureCard
+                key={shownAsk.id}
+                capture={shownAsk.capture}
+                onSubmit={(fields) => onSubmitCredentialCapture!(shownAsk.id, fields)}
+                onCancel={() => onCancelCredentialCapture!(shownAsk.id)}
+              />
+            </>
           )}
         </div>
-      ) : hideInput ? null : showApprovalPanel ? (
+      ) : showApprovalPanel ? (
         // Shrinkable and capped, so a tall card scrolls inside itself and the
         // messages above stay in reach — never pushes its own decision off-screen.
         <div className="flex max-h-[65%] min-h-0 shrink flex-col overflow-y-auto">
@@ -453,6 +514,7 @@ export default function ChatBody({
               {...(projectId ? { projectId } : {})}
               {...(groupId ? { groupId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+              onDecided={(line) => addDecidedLine(grant.id, line)}
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
             />
           ))}

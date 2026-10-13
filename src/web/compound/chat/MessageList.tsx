@@ -14,6 +14,9 @@ import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
+import AgentExchangeBlock from './AgentExchangeBlock'
+import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
+import { agentExchangeLayout, agentExchangeStartOf } from '../../../headless/utils/agentExchanges'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -159,6 +162,14 @@ export type MessageListProps = {
   /** Caller-rendered empty-state. When omitted the list shows the default
    * "Start chatting" hint matching desktop. */
   emptyStateContent?: ReactNode
+
+  /** Caller-rendered opening of the conversation — above every message, never
+   * scrolled away by paging, and standing in for the empty state (e.g. the card
+   * of the request a request chat was opened for). */
+  leadingContent?: ReactNode
+
+  /** Caller-rendered close of the conversation — below every message, scrolled with it (asks already decided or set aside with "Not now"). */
+  tailContent?: ReactNode
 }
 
 const DEFAULT_VISIBLE = 50
@@ -198,6 +209,8 @@ export default function MessageList({
   isDeleting = false,
   isBusy,
   emptyStateContent,
+  leadingContent,
+  tailContent,
 }: MessageListProps) {
   const messageListRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -208,6 +221,10 @@ export default function MessageList({
   // decision arrives — held as under way meanwhile (see withAsksAwaitingOutcome).
   const rowAsks = useMemo(() => cliRowAsks(cliAsks), [cliAsks])
   const decidedIds = useMemo(() => new Set((decidedAsks ?? []).map((a) => a.id)), [decidedAsks])
+  const decidedById = useMemo(
+    () => new Map((decidedAsks ?? []).map((a) => [a.id, a])),
+    [decidedAsks],
+  )
   const shownAsksRef = useRef<CliPendingAsk[]>([])
   const pendingRowAsks = useMemo(
     () => withAsksAwaitingOutcome(rowAsks, shownAsksRef.current, decidedIds),
@@ -352,6 +369,16 @@ export default function MessageList({
   const turnInFlight = (isBusy ?? false) || isThinking || pending !== null || isSending
   const deleting = isDeleting
 
+  // The agents' own exchange, drawn as the person chose: one quiet line or
+  // card each, every message, or not at all. A last exchange still working —
+  // or with asks waiting — is drawn in full, so nothing it asks is hidden.
+  const agentMessages = useAppSettings().settings.notifications.agentMessages
+  const exchangeOpenTail = turnInFlight || (cliAsks?.length ?? 0) > 0
+  const exchanges = useMemo(
+    () => agentExchangeLayout(messagesToDisplay, agentMessages, { openTail: exchangeOpenTail }),
+    [messagesToDisplay, agentMessages, exchangeOpenTail],
+  )
+
   // ---- Opening a chat where reading resumes ------------------------------
   // The last-read mark as it stood when the chat opened. It moves as soon as
   // the list reports being at the bottom, which a chat whose replies are still
@@ -365,8 +392,9 @@ export default function MessageList({
   // The FIRST reply the user has not read — where reading resumes — or `null`
   // to open at the bottom.
   const firstUnreadIndex = useMemo(
-    () => firstUnreadMessageIndex(messagesToDisplay, openLastReadIso),
-    [messagesToDisplay, openLastReadIso],
+    () =>
+      agentExchangeStartOf(exchanges, firstUnreadMessageIndex(messagesToDisplay, openLastReadIso)),
+    [exchanges, messagesToDisplay, openLastReadIso],
   )
 
   const applyOpenAnchor = useCallback(() => {
@@ -625,7 +653,9 @@ export default function MessageList({
         />
       ) : null}
 
-      {messagesToDisplay.length === 0 && !isThinking
+      {leadingContent ? <div className="mb-3 flex justify-center">{leadingContent}</div> : null}
+
+      {messagesToDisplay.length === 0 && !isThinking && !leadingContent
         ? (emptyStateContent ?? (
             <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
               <div className="text-[18px] font-medium">Start chatting about the project</div>
@@ -658,7 +688,20 @@ export default function MessageList({
 
         {visibleMessages.map((msg, index) => {
           const globalIndex = startIndex + index
+          if (exchanges.hidden.has(globalIndex)) return null
           const showCutoff = cutoffIndexInWindow !== null && index === cutoffIndexInWindow
+          const exchange = exchanges.starts.get(globalIndex)
+          if (exchange) {
+            return (
+              <div key={`exchange-${globalIndex}`} data-msg-anchor={globalIndex}>
+                <AgentExchangeBlock
+                  exchange={exchange}
+                  links={{ renderReference, onResourceLink }}
+                  renderProcessRun={renderProcessRun}
+                />
+              </div>
+            )
+          }
           const isLast = globalIndex === messagesToDisplay.length - 1
           const deleteControl = describeLastMessageDelete({
             hasDeleteAction: !!onDeleteLastMessage,
@@ -774,6 +817,9 @@ export default function MessageList({
                   setLastMessageRef={(el) => {
                     lastMessageRef.current = el
                   }}
+                  {...(msg.role === 'tool' && msg.toolResult?.actionId !== undefined
+                    ? { decidedAsk: decidedById.get(msg.toolResult.actionId) }
+                    : {})}
                 />
               )}
             </div>
@@ -855,6 +901,7 @@ export default function MessageList({
               : { spinnerLabel: 'Working…' })}
           />
         ) : null}
+        {tailContent}
       </div>
     </div>
   )

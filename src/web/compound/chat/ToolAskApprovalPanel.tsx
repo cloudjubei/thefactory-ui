@@ -1,0 +1,171 @@
+import { useState } from 'react'
+import { Switch } from '../../primitives/Switch'
+import RichText from '../files/RichText'
+import ToolAskCard, { ToolAskScopeChoice } from './ToolAskCard'
+import { useStories } from '../../../headless/contexts/StoriesContext'
+import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
+import {
+  toolAskCardView,
+  toolAskDecidedLine,
+  toolAskScopeOptions,
+} from '../../../headless/utils/toolAskCard'
+import { TOOL_ASK_COPY, TOOL_ASK_PREVIEW_LINES } from '../../../headless/utils/toolAskCardConstants'
+import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
+import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
+
+export type ToolAskApprovalPanelProps = {
+  grant: PendingToolGrant
+  /** Leave the ask waiting and hand the composer back. */
+  onDecideLater: () => void
+  /** The card was decided — what its one line says. */
+  onDecided?: (line: ToolAskDecidedLine) => void
+}
+
+function DeleteStoryBox({ storyId, featureId }: { storyId: string; featureId?: string }) {
+  const { getStory, storyDisplayIndex, featureDisplayIndex } = useStories()
+  const story = getStory(storyId)
+  const feature = featureId ? story?.features.find((f) => f.id === featureId) : undefined
+  const index = storyDisplayIndex(storyId)
+  const number = featureId
+    ? `#${index ?? '?'}.${featureDisplayIndex(storyId, featureId) ?? '?'}`
+    : `#${index ?? '?'}`
+  const title = featureId ? (feature?.title ?? featureId) : (story?.title ?? storyId)
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-(--status-blocked-soft-border) bg-(--status-blocked-soft-bg) p-3">
+      <span className="text-[14px] font-semibold text-(--text-primary)">
+        {number} · {title}
+      </span>
+      {!featureId && story ? (
+        <span className="text-[12.5px] text-(--text-secondary)">
+          {story.features.length} {story.features.length === 1 ? 'feature' : 'features'}
+        </span>
+      ) : null}
+      <span className="text-[12.5px] font-semibold text-(--status-blocked-soft-fg)">
+        {featureId ? TOOL_ASK_COPY.featureGoes : TOOL_ASK_COPY.storyGoes}
+      </span>
+    </div>
+  )
+}
+
+function NewFilePreview({ body }: { body: Extract<ToolAskBody, { kind: 'write' }> }) {
+  const lines = body.content.split('\n')
+  const shown = lines.slice(0, TOOL_ASK_PREVIEW_LINES)
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 text-[12.5px]">
+        <span className="rounded-md border border-(--border-default) px-2 py-0.5 font-mono">
+          {body.path}
+        </span>
+        <span className="font-semibold text-(--status-done-soft-fg)">
+          {TOOL_ASK_COPY.lines(body.lines)}
+        </span>
+        <span className="text-(--text-muted)">{TOOL_ASK_COPY.newFile}</span>
+      </div>
+      <pre className="m-0 max-h-60 overflow-auto rounded-lg border border-(--border-subtle) bg-(--surface-base) px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-(--status-done-soft-fg)">
+        {shown.map((line) => `+ ${line}`).join('\n')}
+        {lines.length > shown.length ? `\n${TOOL_ASK_COPY.more(lines.length - shown.length)}` : ''}
+      </pre>
+    </div>
+  )
+}
+
+/**
+ * A waiting tool's ask on the shared card: the package, host, page, message,
+ * new file or delete it is about, the radio for how far an approval reaches
+ * where one may stand, and a message's wait-for-reply the person may change.
+ */
+export default function ToolAskApprovalPanel({
+  grant,
+  onDecideLater,
+  onDecided,
+}: ToolAskApprovalPanelProps) {
+  const view = toolAskCardView(grant)
+  const scopes = toolAskScopeOptions(
+    grant.alwaysAllowScopes ?? [],
+    grant.label,
+    grant.grantCovers ?? 'exact-call',
+  )
+  const [scope, setScope] = useState<PendingToolGrantDecision>('once')
+  const startAwait = view.body.kind === 'message' ? view.body.awaitReply : false
+  const [awaitReply, setAwaitReply] = useState(startAwait)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const decide = (decision: PendingToolGrantDecision) => {
+    setBusy(true)
+    setError(null)
+    const metadata =
+      decision !== 'deny' && view.body.kind === 'message' && awaitReply !== startAwait
+        ? { args: { awaitReply } }
+        : undefined
+    grant
+      .decide(decision, metadata)
+      .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
+      .catch((err: unknown) => {
+        setBusy(false)
+        setError(grantDecideErrorMessage(err))
+      })
+  }
+
+  const body = view.body
+  return (
+    <ToolAskCard
+      view={view}
+      busy={busy}
+      error={error}
+      onApprove={() => decide(scope)}
+      onDeny={() => decide('deny')}
+      onLater={onDecideLater}
+    >
+      {body.kind === 'package' ? (
+        <div className="flex items-center gap-3 rounded-lg border border-(--border-subtle) px-3 py-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-(--status-stuck-soft-bg) text-[11px] font-bold text-(--status-stuck-soft-fg)">
+            {body.ecosystem}
+          </span>
+          <span className="min-w-0 font-mono text-[13.5px] font-semibold text-(--text-primary)">
+            {body.name}
+            {body.version ? `@${body.version}` : ''}
+          </span>
+        </div>
+      ) : body.kind === 'network' || body.kind === 'fetch' ? (
+        <div className="rounded-lg border border-(--border-subtle) px-3 py-2.5 font-mono text-[13px] break-all text-(--text-primary)">
+          {body.kind === 'network' ? body.host : body.url}
+        </div>
+      ) : body.kind === 'message' ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-(--text-secondary)">
+            {TOOL_ASK_COPY.to}
+            <span className="inline-flex h-7 items-center rounded-md border border-(--border-default) px-2.5 text-(--text-primary)">
+              {body.target}
+            </span>
+          </div>
+          <div className="rounded-lg border border-(--border-subtle) bg-(--surface-base) px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap wrap-break-word">
+            <RichText text={body.message} />
+          </div>
+          <Switch
+            checked={awaitReply}
+            onCheckedChange={setAwaitReply}
+            disabled={busy}
+            label={TOOL_ASK_COPY.waitForReply}
+          />
+        </>
+      ) : body.kind === 'write' ? (
+        <NewFilePreview body={body} />
+      ) : body.kind === 'delete-story' ? (
+        <DeleteStoryBox
+          storyId={body.storyId}
+          {...(body.featureId ? { featureId: body.featureId } : {})}
+        />
+      ) : body.kind === 'delete' ? (
+        <div className="rounded-lg border border-(--status-blocked-soft-border) bg-(--status-blocked-soft-bg) px-3 py-2.5 text-[13px] font-semibold text-(--status-blocked-soft-fg)">
+          {body.what}
+        </div>
+      ) : body.kind === 'details' && body.text ? (
+        <pre className="m-0 max-h-40 overflow-auto rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word opacity-90">
+          {body.text}
+        </pre>
+      ) : null}
+      <ToolAskScopeChoice options={scopes} value={scope} onChange={setScope} disabled={busy} />
+    </ToolAskCard>
+  )
+}

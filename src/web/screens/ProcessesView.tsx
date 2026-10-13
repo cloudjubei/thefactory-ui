@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AGENT_RUN_TYPES,
   PROCESS_KIND_BLURB,
@@ -38,6 +38,8 @@ export type ProcessesViewProps = {
    * collapses.
    */
   narrow?: boolean
+  /** The process to open on, as a link to it names it. */
+  selectedProcessId?: string
 }
 
 /**
@@ -48,11 +50,14 @@ export type ProcessesViewProps = {
  * that overrides a shared one by id says so on its row, because "why is this
  * different here" is the only question this list is asked.
  */
-export default function ProcessesView({ narrow = false }: ProcessesViewProps) {
+export default function ProcessesView({ narrow = false, selectedProcessId }: ProcessesViewProps) {
   const { projectId } = useActiveProject()
   const { isLoaded, loadError, processes, implementedKinds, save, remove } = useProcesses(projectId)
   const [editing, setEditing] = useState<ProcessDefinition | undefined>(undefined)
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [selectedId, setSelectedId] = useState<string | undefined>(selectedProcessId)
+  useEffect(() => {
+    if (selectedProcessId) setSelectedId(selectedProcessId)
+  }, [selectedProcessId])
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
 
   const selected = useMemo(

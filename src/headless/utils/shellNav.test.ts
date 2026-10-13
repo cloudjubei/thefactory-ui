@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ASSISTANT_NAV_DEF,
   GROUP_TAB_DEFS,
   SHELL_TAB_DEFS,
   groupTabToProjectTab,
@@ -10,6 +11,14 @@ import {
   shellTabForProject,
   splitGroupsAndProjects,
 } from './shellNav'
+
+describe('ASSISTANT_NAV_DEF', () => {
+  it('is the Assistant, drawn with the chat icon, in no project’s or group’s tabs', () => {
+    expect(ASSISTANT_NAV_DEF).toEqual({ key: 'assistant', label: 'Assistant', icon: 'chat' })
+    expect(SHELL_TAB_DEFS.map((t) => t.key)).not.toContain('assistant')
+    expect(GROUP_TAB_DEFS.map((t) => t.key)).not.toContain('assistant')
+  })
+})
 
 describe('SHELL_TAB_DEFS', () => {
   it('lists the per-project surfaces in display order', () => {

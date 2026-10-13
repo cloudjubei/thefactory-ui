@@ -11,6 +11,7 @@ import {
 } from 'thefactory-tools/utils'
 import type {
   ParsedReference,
+  ProcessDefinition,
   ReferenceDescription,
   ReferenceGroup,
   ReferenceIndex,
@@ -22,6 +23,7 @@ import {
   getProjectDesign,
   getStoriesOrder,
   listGroupNotes,
+  listProcesses,
   listProjectNotes,
   listStories,
 } from '../api'
@@ -37,6 +39,7 @@ import {
 } from '../utils/mention'
 import { referenceGroupId } from '../utils/referenceScope'
 import { referenceDesignOf } from '../utils/design'
+import { referenceProcessesOf } from '../utils/referenceProcesses'
 
 /**
  * Where references resolve: a project, a group's projects, or — a scope naming
@@ -138,12 +141,12 @@ function loadReferenceGroupNotes(groupId: string): Promise<ReferenceGroup['notes
   return notes
 }
 
-/** A project's stories in list order, its notes and its design, fetched once a minute at most. */
+/** A project's stories in list order, its notes, its design and its processes, fetched once a minute at most. */
 function loadReferenceProject(projectId: string): Promise<LoadedProject> {
   const cached = loadedProjects.get(projectId)
   if (cached && Date.now() - cached.at < REFERENCE_PROJECT_TTL_MS) return cached.project
   const project = (async (): Promise<LoadedProject> => {
-    const [stories, order, notes, design] = await Promise.all([
+    const [stories, order, notes, design, processes] = await Promise.all([
       listStories({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
       getStoriesOrder({ path: { projectId }, throwOnError: true }).then((r) => r.data ?? []),
       listProjectNotes({ path: { projectId }, throwOnError: true }).then(
@@ -154,6 +157,10 @@ function loadReferenceProject(projectId: string): Promise<LoadedProject> {
         (r) => (r.data ? referenceDesignOf(r.data) : undefined),
         () => undefined,
       ),
+      listProcesses({ query: { projectId }, throwOnError: true }).then(
+        (r) => referenceProcessesOf((r.data ?? []) as ProcessDefinition[]),
+        () => undefined,
+      ),
     ])
     const rank = new Map((order as string[]).map((id, i) => [id, i]))
     const ordered = [...stories].sort(
@@ -162,17 +169,14 @@ function loadReferenceProject(projectId: string): Promise<LoadedProject> {
     )
     return {
       projectId,
-      stories: ordered.map((s) => ({
-        id: s.id,
-        title: s.title,
-        features: (s.features ?? []).map((f) => ({ id: f.id, title: f.title })),
-      })),
+      stories: ordered.map(referenceStoryOf),
       notes: notes.map((n) => ({
         id: n.id,
         label: n.label,
         ...(n.description ? { description: n.description } : {}),
       })),
       ...(design ? { design } : {}),
+      ...(processes ? { processes } : {}),
     }
   })()
   loadedProjects.set(projectId, { at: Date.now(), project })
@@ -180,8 +184,27 @@ function loadReferenceProject(projectId: string): Promise<LoadedProject> {
   return project
 }
 
+/** A story as a reference reaches it: title and status, and its features' too. */
+function referenceStoryOf(story: {
+  id: string
+  title: string
+  status?: string
+  features?: ReadonlyArray<{ id: string; title: string; status?: string }>
+}): ReferenceProject['stories'][number] {
+  return {
+    id: story.id,
+    title: story.title,
+    ...(story.status ? { status: story.status } : {}),
+    features: (story.features ?? []).map((f) => ({
+      id: f.id,
+      title: f.title,
+      ...(f.status ? { status: f.status } : {}),
+    })),
+  }
+}
+
 /**
- * References — the stories, features, notes, designs and attachments a text points at —
+ * References — the stories, features, notes, designs, processes, runs and attachments a text points at —
  * resolved for showing as chips, offered in `#` and `&` dropdowns, and turned
  * into ids when the text is saved or sent. A project scope reaches its own
  * project, live; a group scope its member projects; no scope every project.
@@ -267,6 +290,7 @@ export function useReferences({
   }, [notesGroupId, groupVersion])
 
   const [fetched, setFetched] = useState<ReadonlyMap<string, LoadedProject>>(new Map())
+  const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set())
   useEffect(() => {
     let live = true
     void Promise.all(
@@ -279,6 +303,7 @@ export function useReferences({
     ).then((loaded) => {
       if (!live) return
       setFetched(new Map(loaded.flatMap((p) => (p ? [[p.projectId, p] as const] : []))))
+      setAnswered(new Set(scopeIds))
     })
     return () => {
       live = false
@@ -290,14 +315,7 @@ export function useReferences({
     const byId = new Map<string, ReferenceProject>()
     for (const id of scopeIds) {
       const loaded = fetched.get(id)
-      const live =
-        id === activeProjectId
-          ? stories.map((s) => ({
-              id: s.id,
-              title: s.title,
-              features: (s.features ?? []).map((f) => ({ id: f.id, title: f.title })),
-            }))
-          : undefined
+      const live = id === activeProjectId ? stories.map(referenceStoryOf) : undefined
       if (!loaded && !live) continue
       byId.set(id, {
         projectId: id,
@@ -305,8 +323,10 @@ export function useReferences({
         stories: live ?? loaded?.stories ?? [],
         notes: loaded?.notes ?? [],
         ...(loaded?.design ? { design: loaded.design } : {}),
+        ...(loaded?.processes ? { processes: loaded.processes } : {}),
       })
     }
+    const loading = new Set(scopeIds.filter((id) => !byId.has(id) && !answered.has(id)))
     const group =
       notesGroupId && groupNotes?.groupId === notesGroupId
         ? {
@@ -320,10 +340,12 @@ export function useReferences({
       ...(ownProjectId ? { projectId: ownProjectId } : {}),
       attachments,
       ...(group ? { group } : {}),
+      ...(loading.size > 0 ? { loading } : {}),
     }
   }, [
     scopeIds,
     fetched,
+    answered,
     activeProjectId,
     stories,
     projects,

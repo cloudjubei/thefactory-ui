@@ -1,0 +1,565 @@
+import { describe, expect, it } from 'vitest'
+import type { ChatContext, ProcessLedgerEntry, ProcessRun } from 'thefactory-tools/types'
+import { getChatContextKey, processRunChatContext } from 'thefactory-tools/utils'
+
+import {
+  byChatListAttention,
+  chatListBackNotice,
+  chatListFilterCounts,
+  chatListHiddenNotice,
+  chatListPool,
+  chatListRow,
+  chatListSections,
+  isChatInChatList,
+  matchesChatListFilter,
+  withChatListHidden,
+} from './chatList'
+import { CHAT_LIST_COPY, chatListShownNotice } from './chatListConstants'
+import type { ChatListRow, ChatListRowInput, ChatListScope } from './chatListTypes'
+
+const QUIET = {
+  isThinking: false,
+  isAgentRunning: false,
+  unreadCount: 0,
+  needsYou: 0,
+  muted: false,
+}
+
+function run(over: Partial<ProcessRun> = {}): ProcessRun {
+  return {
+    id: 'run-1',
+    projectId: 'p1',
+    storyId: 's7',
+    title: 'Let unit tests watch their files',
+    plan: {
+      definitionId: 'd',
+      definitionScope: 'global',
+      definitionVersion: 1,
+      name: 'Story delivery',
+      steps: [
+        { id: 'impl', name: 'Implement', kind: 'agent', agentType: 'developer' },
+        { id: 'signoff', name: 'Sign-off', kind: 'gate' },
+      ],
+      loops: [],
+      frozenAt: 0,
+    },
+    status: 'running',
+    cursor: { stepId: 'impl' } as ProcessRun['cursor'],
+    loopCounts: {},
+    ledger: [
+      {
+        id: 'e1',
+        stepId: 'impl',
+        iteration: 1,
+        status: 'running',
+        startedAt: 0,
+      } as ProcessLedgerEntry,
+    ],
+    startedAt: 0,
+    updatedAt: 0,
+    ...over,
+  } as ProcessRun
+}
+
+const PROJECT: ChatContext = { type: 'PROJECT', projectId: 'p1' }
+const TOPIC: ChatContext = { type: 'PROJECT_TOPIC', projectId: 'p1', topicId: 't1' }
+const STORY: ChatContext = { type: 'STORY', projectId: 'p1', storyId: 's4' }
+const FEATURE: ChatContext = { type: 'FEATURE', projectId: 'p1', storyId: 's3', featureId: 'f2' }
+const REQUEST: ChatContext = { type: 'FEATURE_REQUEST', projectId: 'p1', featureRequestId: 'r1' }
+const GROUP: ChatContext = { type: 'GROUP', groupId: 'g1' }
+const GROUP_TOPIC: ChatContext = { type: 'GROUP_TOPIC', groupId: 'g1', topicId: 'gt' }
+const RUN_CHAT = processRunChatContext(run())
+
+function row(input: Partial<ChatListRowInput> & { chat: ChatListRowInput['chat'] }): ChatListRow {
+  return chatListRow({ status: QUIET, ...input })
+}
+
+describe('isChatInChatList', () => {
+  it.each([PROJECT, TOPIC, STORY, FEATURE, REQUEST, GROUP, GROUP_TOPIC, RUN_CHAT])(
+    'lists a %o chat',
+    (context) => {
+      expect(isChatInChatList(context)).toBe(true)
+    },
+  )
+
+  it('leaves out the assistant’s conversations — they have a page of their own', () => {
+    expect(isChatInChatList({ type: 'GENERAL', timestamp: '1' })).toBe(false)
+  })
+
+  it('leaves out an agent run’s own chat — its process drives it', () => {
+    const agentRun: ChatContext = {
+      type: 'AGENT_RUN_STORY',
+      projectId: 'p1',
+      storyId: 's1',
+      agentRunId: 'a1',
+    }
+    expect(isChatInChatList(agentRun)).toBe(false)
+  })
+})
+
+describe('chatListRow — what a row says', () => {
+  it('names the project chat after its project', () => {
+    expect(row({ chat: { context: PROJECT }, projectName: 'TheFactory Tools' })).toMatchObject({
+      kind: 'project',
+      title: 'TheFactory Tools Chat',
+      sub: 'Project chat',
+    })
+  })
+
+  it('names a topic by its own title', () => {
+    expect(row({ chat: { context: TOPIC, title: 'Release notes draft' } })).toMatchObject({
+      kind: 'topic',
+      title: 'Release notes draft',
+      sub: 'Topic',
+    })
+  })
+
+  it('names a run chat by its run, with its status pill and step', () => {
+    expect(row({ chat: { context: RUN_CHAT, title: 'old title' }, run: run() })).toMatchObject({
+      kind: 'run',
+      title: 'Let unit tests watch their files',
+      sub: 'Implement',
+      pill: { label: 'Running' },
+    })
+  })
+
+  it('says what a stopped run waits on, and counts it as needing the person', () => {
+    const parked = run({
+      status: 'parked',
+      park: { reason: 'step-waiting', message: 'Which branch to merge?', parkedAt: 0 },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: parked })).toMatchObject({
+      sub: 'Which branch to merge?',
+      needsYou: 1,
+      running: false,
+    })
+  })
+
+  it('names a run chat whose run is not read yet by its stored title', () => {
+    expect(row({ chat: { context: RUN_CHAT, title: 'Close stash gaps' } })).toMatchObject({
+      title: 'Close stash gaps',
+      sub: 'Process run',
+    })
+  })
+
+  it('names a story chat by its story, with the story’s status', () => {
+    const work = { title: 'Agent-to-agent chat messaging', status: 'in_progress', ref: '#4' }
+    expect(row({ chat: { context: STORY }, work })).toMatchObject({
+      kind: 'story',
+      title: 'Agent-to-agent chat messaging',
+      sub: 'Story #4',
+      pill: { label: 'Working', tone: 'working' },
+    })
+  })
+
+  it('names a feature chat by its feature', () => {
+    const work = { title: 'Process references in chat', status: 'pending', ref: '#3.2' }
+    expect(row({ chat: { context: FEATURE }, work })).toMatchObject({
+      kind: 'feature',
+      title: 'Process references in chat',
+      sub: 'Feature #3.2',
+      pill: { label: 'Pending' },
+    })
+  })
+
+  it('falls back to the story’s number while the story is not read', () => {
+    expect(row({ chat: { context: STORY } }).title).toMatch(/^Story #/)
+    expect(row({ chat: { context: STORY } }).pill).toBeUndefined()
+  })
+
+  it('names an incoming request by its title', () => {
+    expect(row({ chat: { context: REQUEST, title: 'Shared approval card' } })).toMatchObject({
+      kind: 'request',
+      title: 'Shared approval card',
+      sub: 'Incoming request',
+    })
+  })
+
+  it('names a group’s main chat General, and a group topic by its title', () => {
+    expect(row({ chat: { context: GROUP }, groupName: 'TheFactory' })).toMatchObject({
+      kind: 'group',
+      title: 'General',
+      sub: 'TheFactory group chat',
+    })
+    expect(row({ chat: { context: GROUP_TOPIC, title: 'Release train' } })).toMatchObject({
+      title: 'Release train',
+      sub: 'Group topic',
+    })
+  })
+
+  it('carries the project it belongs to', () => {
+    expect(
+      row({ chat: { context: TOPIC }, projectName: 'TheFactory UI', projectIcon: 'palette' }),
+    ).toMatchObject({ projectId: 'p1', projectName: 'TheFactory UI', projectIcon: 'palette' })
+  })
+
+  it('keys a row by its chat', () => {
+    expect(row({ chat: { context: TOPIC } }).key).toBe(getChatContextKey(TOPIC))
+  })
+})
+
+describe('chatListRow — what a row shows of its state', () => {
+  it('counts what waits on the person in the chat', () => {
+    expect(row({ chat: { context: TOPIC }, status: { ...QUIET, needsYou: 2 } }).needsYou).toBe(2)
+  })
+
+  it('adds a stopped run to what its chat already asks', () => {
+    const parked = run({
+      status: 'parked',
+      park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
+    } as Partial<ProcessRun>)
+    expect(
+      row({ chat: { context: RUN_CHAT }, run: parked, status: { ...QUIET, needsYou: 1 } }).needsYou,
+    ).toBe(2)
+  })
+
+  it('shows nothing waiting in a chat the person muted, even its stopped run, and says it is muted', () => {
+    const parked = run({
+      status: 'parked',
+      park: { reason: 'gate', message: 'Sign off', parkedAt: 0 },
+    } as Partial<ProcessRun>)
+    const muted = row({
+      chat: { context: RUN_CHAT },
+      run: parked,
+      status: { ...QUIET, muted: true },
+    })
+    expect(muted.needsYou).toBe(0)
+    expect(muted.muted).toBe(true)
+    expect(row({ chat: { context: TOPIC } }).muted).toBe(false)
+  })
+
+  it('runs while its agent is thinking, in chat ink', () => {
+    expect(row({ chat: { context: TOPIC }, status: { ...QUIET, isThinking: true } })).toMatchObject(
+      { running: true, runningChannel: 'chat' },
+    )
+  })
+
+  it('runs while an agent run in it works', () => {
+    expect(
+      row({ chat: { context: TOPIC }, status: { ...QUIET, isAgentRunning: true } }).running,
+    ).toBe(true)
+  })
+
+  it('runs while its process run works, in process ink', () => {
+    expect(row({ chat: { context: RUN_CHAT }, run: run() })).toMatchObject({
+      running: true,
+      runningChannel: 'processes',
+    })
+  })
+
+  it('runs while its run is starting', () => {
+    expect(row({ chat: { context: RUN_CHAT }, run: run({ status: 'pending' }) }).running).toBe(true)
+  })
+
+  it('runs while its run merges the work in', () => {
+    const merging = run({
+      status: 'succeeded',
+      integration: { status: 'integrating' },
+    } as Partial<ProcessRun>)
+    expect(row({ chat: { context: RUN_CHAT }, run: merging }).running).toBe(true)
+  })
+
+  it('is still once its run finished', () => {
+    expect(row({ chat: { context: RUN_CHAT }, run: run({ status: 'succeeded' }) }).running).toBe(
+      false,
+    )
+  })
+
+  it('is new while it has unread messages', () => {
+    expect(row({ chat: { context: TOPIC }, status: { ...QUIET, unreadCount: 3 } }).fresh).toBe(true)
+    expect(row({ chat: { context: TOPIC } }).fresh).toBe(false)
+  })
+
+  it('is hidden once the person archived it from the list', () => {
+    expect(row({ chat: { context: TOPIC, listHiddenAt: '2026-10-12T00:00:00Z' } }).hidden).toBe(
+      true,
+    )
+    expect(row({ chat: { context: TOPIC, listHiddenAt: null } }).hidden).toBe(false)
+  })
+
+  it('reads its last activity from its messages, else its own times', () => {
+    expect(
+      row({
+        chat: {
+          context: TOPIC,
+          messageTimes: ['2026-10-12T10:00:00Z'],
+          updatedAt: '2026-10-01T00:00:00Z',
+        },
+      }).lastActivityAt,
+    ).toBe('2026-10-12T10:00:00Z')
+  })
+})
+
+function listRow(over: Partial<ChatListRow>): ChatListRow {
+  return {
+    key: over.key ?? 'k',
+    context: TOPIC,
+    kind: 'topic',
+    kindLabel: 'Topic',
+    title: 'T',
+    sub: '',
+    needsYou: 0,
+    running: false,
+    runningChannel: 'chat',
+    fresh: false,
+    hidden: false,
+    muted: false,
+    projectId: 'p1',
+    ...over,
+  }
+}
+
+describe('byChatListAttention', () => {
+  it('puts what needs the person first, then what runs, then the most recent', () => {
+    const rows = [
+      listRow({ key: 'old', lastActivityAt: '2026-10-01T00:00:00Z' }),
+      listRow({ key: 'running', running: true, lastActivityAt: '2026-09-01T00:00:00Z' }),
+      listRow({ key: 'recent', lastActivityAt: '2026-10-12T00:00:00Z' }),
+      listRow({ key: 'needs', needsYou: 1, lastActivityAt: '2026-08-01T00:00:00Z' }),
+      listRow({ key: 'never' }),
+    ]
+    expect([...rows].sort(byChatListAttention).map((r) => r.key)).toEqual([
+      'needs',
+      'running',
+      'recent',
+      'old',
+      'never',
+    ])
+  })
+})
+
+describe('matchesChatListFilter', () => {
+  it.each([
+    ['all', listRow({}), true],
+    ['needs-you', listRow({ needsYou: 1 }), true],
+    ['needs-you', listRow({}), false],
+    ['running', listRow({ running: true }), true],
+    ['running', listRow({}), false],
+    ['runs', listRow({ kind: 'run' }), true],
+    ['runs', listRow({ kind: 'story' }), false],
+    ['stories', listRow({ kind: 'story' }), true],
+    ['stories', listRow({ kind: 'feature' }), true],
+    ['stories', listRow({ kind: 'run' }), false],
+  ] as const)('%s keeps %o: %s', (filter, r, kept) => {
+    expect(matchesChatListFilter(r, filter)).toBe(kept)
+  })
+})
+
+describe('chatListFilterCounts', () => {
+  it('counts each filter’s rows', () => {
+    const rows = [
+      listRow({ kind: 'run', needsYou: 1 }),
+      listRow({ kind: 'run', running: true }),
+      listRow({ kind: 'story', running: true }),
+      listRow({ kind: 'feature' }),
+      listRow({ kind: 'project' }),
+    ]
+    expect(chatListFilterCounts(rows)).toEqual({
+      all: 5,
+      'needs-you': 1,
+      running: 2,
+      runs: 2,
+      stories: 2,
+    })
+  })
+})
+
+describe('chatListSections — one project', () => {
+  const scope: ChatListScope = { kind: 'project', projectId: 'p1' }
+
+  it('lists the project’s chats in one section, most urgent first', () => {
+    const rows = [
+      listRow({ key: 'a', lastActivityAt: '2026-10-12T00:00:00Z' }),
+      listRow({ key: 'b', needsYou: 1 }),
+    ]
+    expect(chatListSections({ rows, scope, filter: 'all', archived: false })).toEqual([
+      { id: 'chats', rows: [rows[1], rows[0]] },
+    ])
+  })
+
+  it('leaves out other projects’ chats and group chats', () => {
+    const rows = [
+      listRow({ key: 'mine' }),
+      listRow({ key: 'other', projectId: 'p2' }),
+      listRow({ key: 'group', kind: 'group', context: GROUP, projectId: undefined }),
+    ]
+    const [section] = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(section?.rows.map((r) => r.key)).toEqual(['mine'])
+  })
+
+  it('leaves out the chats the person archived from the list', () => {
+    const rows = [listRow({ key: 'shown' }), listRow({ key: 'hidden', hidden: true })]
+    const [section] = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(section?.rows.map((r) => r.key)).toEqual(['shown'])
+  })
+
+  it('narrows to the chosen filter', () => {
+    const rows = [listRow({ key: 'run', kind: 'run' }), listRow({ key: 'story', kind: 'story' })]
+    const [section] = chatListSections({ rows, scope, filter: 'runs', archived: false })
+    expect(section?.rows.map((r) => r.key)).toEqual(['run'])
+  })
+
+  it('shows only the archived chats in the archived view, without their badges', () => {
+    const rows = [
+      listRow({ key: 'shown' }),
+      listRow({ key: 'hidden', hidden: true, needsYou: 2, running: true, fresh: true }),
+    ]
+    expect(chatListSections({ rows, scope, filter: 'running', archived: true })).toEqual([
+      {
+        id: 'archived',
+        rows: [{ ...rows[1], needsYou: 0, running: false, fresh: false }],
+      },
+    ])
+  })
+})
+
+describe('chatListSections — a group', () => {
+  const scope: ChatListScope = { kind: 'group', groupId: 'g1', projectIds: ['p1', 'p2'] }
+  const groupMain = listRow({ key: 'general', kind: 'group', context: GROUP, projectId: undefined })
+  const otherGroup = listRow({
+    key: 'other-group',
+    kind: 'group',
+    context: { type: 'GROUP', groupId: 'g2' },
+    projectId: undefined,
+  })
+  const asking = listRow({ key: 'asking', projectId: 'p2', needsYou: 1 })
+  const working = listRow({ key: 'working', projectId: 'p1', running: true })
+  const askingAndWorking = listRow({ key: 'both', projectId: 'p1', needsYou: 1, running: true })
+  const quiet = listRow({ key: 'quiet', projectId: 'p1' })
+  const outside = listRow({ key: 'outside', projectId: 'p9', needsYou: 1 })
+
+  it('shows the group’s own chats, then what needs the person and what runs in its projects', () => {
+    const rows = [groupMain, otherGroup, asking, working, askingAndWorking, quiet, outside]
+    const sections = chatListSections({ rows, scope, filter: 'all', archived: false })
+    expect(sections.map((s) => [s.id, s.label, s.rows.map((r) => r.key)])).toEqual([
+      ['group-chats', CHAT_LIST_COPY.groupChats, ['general']],
+      ['group-needs-you', CHAT_LIST_COPY.groupNeedsYou, ['both', 'asking']],
+      ['group-running', CHAT_LIST_COPY.groupRunning, ['working']],
+    ])
+  })
+
+  it('drops a section with nothing in it', () => {
+    const sections = chatListSections({ rows: [groupMain], scope, filter: 'all', archived: false })
+    expect(sections.map((s) => s.id)).toEqual(['group-chats'])
+  })
+
+  it('narrows every section to the chosen filter', () => {
+    const rows = [groupMain, asking, working]
+    const sections = chatListSections({ rows, scope, filter: 'running', archived: false })
+    expect(sections.map((s) => s.id)).toEqual(['group-running'])
+  })
+
+  it('shows the group’s own archived chats in the archived view', () => {
+    const hiddenTopic = listRow({
+      key: 'hidden-topic',
+      kind: 'group',
+      context: GROUP_TOPIC,
+      projectId: undefined,
+      hidden: true,
+    })
+    const hiddenProjectChat = listRow({
+      key: 'hidden-p',
+      projectId: 'p1',
+      hidden: true,
+      needsYou: 1,
+      running: true,
+    })
+    const sections = chatListSections({
+      rows: [groupMain, hiddenTopic, hiddenProjectChat],
+      scope,
+      filter: 'all',
+      archived: true,
+    })
+    expect(sections.map((s) => s.rows.map((r) => r.key))).toEqual([['hidden-topic']])
+  })
+})
+
+describe('chatListHiddenNotice', () => {
+  it('says where the chat went, with Undo bringing it back', () => {
+    expect(chatListHiddenNotice(TOPIC, 'Release notes')).toEqual({
+      text: CHAT_LIST_COPY.hidden,
+      undo: TOPIC,
+    })
+  })
+
+  it('names an Assistant conversation it archived, with Undo', () => {
+    const conversation: ChatContext = { type: 'GENERAL', timestamp: '1' }
+    expect(chatListHiddenNotice(conversation, 'Set up git')).toEqual({
+      text: 'Archived “Set up git”.',
+      undo: conversation,
+    })
+    expect(chatListHiddenNotice(conversation).text).toBe('Conversation archived.')
+  })
+})
+
+describe('chatListBackNotice', () => {
+  it('says a chat is back in the list, by name', () => {
+    expect(chatListBackNotice(TOPIC, 'Release notes')).toEqual({
+      text: chatListShownNotice('Release notes'),
+    })
+  })
+
+  it('says an Assistant conversation is back in conversations', () => {
+    const conversation: ChatContext = { type: 'GENERAL', timestamp: '1' }
+    expect(chatListBackNotice(conversation, 'Set up git')).toEqual({
+      text: '“Set up git” is back in conversations.',
+    })
+    expect(chatListBackNotice(conversation).text).toBe('The conversation is back in conversations.')
+  })
+})
+
+describe('withChatListHidden', () => {
+  type Entry = { context: ChatContext; listHiddenAt?: string }
+
+  it('stamps the time the chat left the list', () => {
+    const entry: Entry = { context: TOPIC }
+    expect(withChatListHidden(entry, '2026-10-12T00:00:00Z')).toEqual({
+      context: TOPIC,
+      listHiddenAt: '2026-10-12T00:00:00Z',
+    })
+  })
+
+  it('drops the stamp when the chat is back in the list', () => {
+    const entry: Entry = { context: TOPIC, listHiddenAt: '2026-10-12T00:00:00Z' }
+    expect(withChatListHidden(entry, undefined)).toEqual({ context: TOPIC })
+  })
+})
+
+describe('chatListShownNotice', () => {
+  it('names the chat that is back', () => {
+    expect(chatListShownNotice('Release notes')).toBe('“Release notes” is back in your list.')
+  })
+
+  it('says a chat is back when it has no name of its own', () => {
+    expect(chatListShownNotice(undefined)).toBe('The chat is back in your list.')
+  })
+})
+
+describe('chatListPool', () => {
+  const group: ChatListScope = { kind: 'group', groupId: 'g1', projectIds: ['p1'] }
+  const groupMain = listRow({ key: 'general', kind: 'group', context: GROUP, projectId: undefined })
+
+  it('draws a project’s list from its own chats still in the list', () => {
+    const rows = [listRow({ key: 'in' }), listRow({ key: 'out', hidden: true })]
+    expect(
+      chatListPool(rows, { kind: 'project', projectId: 'p1' }, false).map((r) => r.key),
+    ).toEqual(['in'])
+  })
+
+  it('draws the archived view from the chats hidden from the list', () => {
+    const rows = [listRow({ key: 'in' }), listRow({ key: 'out', hidden: true })]
+    expect(
+      chatListPool(rows, { kind: 'project', projectId: 'p1' }, true).map((r) => r.key),
+    ).toEqual(['out'])
+  })
+
+  it('leaves a quiet chat of a group’s project out of the group’s list', () => {
+    const rows = [groupMain, listRow({ key: 'quiet' }), listRow({ key: 'busy', running: true })]
+    expect(chatListPool(rows, group, false).map((r) => r.key)).toEqual(['general', 'busy'])
+  })
+
+  it('leaves out a row with no project when it is not the group’s own', () => {
+    const stray = listRow({ key: 'stray', projectId: undefined, needsYou: 1 })
+    expect(chatListPool([stray], group, false)).toEqual([])
+  })
+})

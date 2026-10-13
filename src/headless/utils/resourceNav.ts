@@ -9,9 +9,14 @@ import { NOTE_LINK_PARAM } from './projectNotesConstants'
  * story's page opened on it via `?feature=` — app tab, a project's or group's notes, a project's design);
  * the `chat` variant hands the client the {@link ChatContext} to build its own chat URL (web encodes
  * the full key into one segment, mobile uses relative path segments — see the per-client
- * `navigateToResource`).
+ * `navigateToResource`); the `process` variant hands it a process to open in its process library,
+ * which each client keeps at its own route (a project's Settings › Processes on web and desktop,
+ * Settings › Processes on mobile), selected by `?process=<processId>`.
  */
-export type ResourceNav = { type: 'path'; path: string } | { type: 'chat'; context: ChatContext }
+export type ResourceNav =
+  | { type: 'path'; path: string }
+  | { type: 'chat'; context: ChatContext }
+  | { type: 'process'; projectId: string; processId: string }
 
 /** Map a {@link ResourceLink} to its {@link ResourceNav}. Pure — no routing side effects. */
 export function resolveResourceNav(link: ResourceLink): ResourceNav {
@@ -50,6 +55,13 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
       const base = `/projects/${enc(link.projectId)}/design`
       return { type: 'path', path: query ? `${base}?${query}` : base }
     }
+    case 'run':
+      return {
+        type: 'path',
+        path: `/projects/${enc(link.projectId)}/process-runs/${enc(link.runId)}`,
+      }
+    case 'process':
+      return { type: 'process', projectId: link.projectId, processId: link.processId }
     case 'chat':
       return { type: 'chat', context: link.context }
   }

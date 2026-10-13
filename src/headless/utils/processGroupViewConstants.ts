@@ -1,5 +1,6 @@
 import type { ProcessGroupLegStatus, ProcessIntegrationMode } from 'thefactory-tools/types'
 import type { ProcessStatusTone } from './processView'
+import { PROCESS_RUN_WORDS } from './processViewConstants'
 
 /** How a leg reads in one word, and the tone it carries. */
 export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
@@ -7,18 +8,18 @@ export const PROCESS_GROUP_LEG_STATUS_VIEW: Record<
   { label: string; tone: ProcessStatusTone }
 > = {
   blocked: { label: 'Waiting on another project', tone: 'queued' },
-  starting: { label: 'Starting', tone: 'queued' },
+  starting: { label: PROCESS_RUN_WORDS.starting, tone: 'queued' },
   'start-failed': { label: 'Could not start', tone: 'stuck' },
-  running: { label: 'Running', tone: 'done' },
-  'needs-you': { label: 'Waiting for you', tone: 'on_hold' },
-  'at-sign-off': { label: 'Ready for sign-off', tone: 'review' },
-  integrating: { label: 'Merging', tone: 'done' },
+  running: { label: PROCESS_RUN_WORDS.running, tone: 'done' },
+  'needs-you': { label: PROCESS_RUN_WORDS.needsYou, tone: 'on_hold' },
+  'at-sign-off': { label: PROCESS_RUN_WORDS.signOff, tone: 'review' },
+  integrating: { label: PROCESS_RUN_WORDS.merging, tone: 'done' },
   integrated: { label: 'Merged', tone: 'done' },
   rebuilding: { label: 'Merged · building', tone: 'done' },
   'rebuild-failed': { label: 'Merged · build failed', tone: 'stuck' },
   'integration-failed': { label: 'Merge failed', tone: 'stuck' },
-  failed: { label: 'Stopped', tone: 'stuck' },
-  cancelled: { label: 'Cancelled', tone: 'empty' },
+  failed: { label: PROCESS_RUN_WORDS.failed, tone: 'stuck' },
+  cancelled: { label: PROCESS_RUN_WORDS.cancelled, tone: 'empty' },
   rejected: { label: 'Rejected', tone: 'empty' },
   skipped: { label: 'Skipped', tone: 'empty' },
 }

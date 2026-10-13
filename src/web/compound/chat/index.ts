@@ -13,7 +13,8 @@ export {
   type CredentialCaptureCardProps,
 } from './CredentialCaptureCard'
 export { default as ChatHeader, type ChatHeaderProps } from './ChatHeader'
-export { default as GlobalChatOverlay, type GlobalChatOverlayProps } from './GlobalChatOverlay'
+export { default as ChatKindTile, type ChatKindTileProps } from './ChatKindTile'
+export { default as ChatSettingsMenu, type ChatSettingsMenuProps } from './ChatSettingsMenu'
 export { default as ChatInput, type ChatInputProps } from './ChatInput'
 export { ChatDropController, useChatDropTarget } from './ChatDropController'
 export {
@@ -58,6 +59,19 @@ export {
   type UsageModalProps as UsageModalConnectedProps,
 } from './UsageModalConnected'
 export { default as MessageList, type MessageListProps } from './MessageList'
+export {
+  default as ChatNotifyLevelPicker,
+  type ChatNotifyLevelPickerProps,
+} from './ChatNotifyLevelPicker'
+export { default as AgentExchangeBlock, type AgentExchangeBlockProps } from './AgentExchangeBlock'
+export {
+  ManagerBriefCardView,
+  ManagerCardView,
+  ManagerEscalationCardView,
+  ManagerOutcomeCardView,
+  ManagerStopLine,
+  type ManagerCardLinks,
+} from './ManagerCards'
 export { default as MessageRow, type MessageRowProps } from './MessageRow'
 export { default as SystemPromptBubble, type SystemPromptBubbleProps } from './SystemPromptBubble'
 export {

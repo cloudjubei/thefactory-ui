@@ -11,6 +11,9 @@ import ThinkingRow from './ThinkingRow'
 import MessageRow from './MessageRow'
 import CliRunMessages from './CliRunMessages'
 import ToolApprovalFooter from './ToolApprovalFooter'
+import AgentExchangeBlock from './AgentExchangeBlock'
+import { useAppSettings } from '../../../headless/contexts/AppSettingsContext'
+import { agentExchangeLayout, agentExchangeStartOf } from '../../../headless/utils/agentExchanges'
 import { formatDurationMs, useInlineApprovals } from '../../../headless'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
@@ -142,6 +145,13 @@ export interface MessageListProps {
   /** Caller-rendered content shown when the message list is empty (e.g. a call-to-action panel). */
   emptyStateContent?: ReactNode
 
+  /** Caller-rendered opening of the conversation — above every message, and standing in for the
+   * empty state (e.g. the card of the request a request chat was opened for). Matches web. */
+  leadingContent?: ReactNode
+
+  /** Caller-rendered close of the conversation — below every message, scrolled with it (asks already decided or set aside with "Not now"). Matches web. */
+  tailContent?: ReactNode
+
   thinkingLabel?: string
 }
 
@@ -179,6 +189,8 @@ export default function MessageList({
   renderProcessGroupRun,
   onShowUsage,
   emptyStateContent,
+  leadingContent,
+  tailContent,
   thinkingLabel,
 }: MessageListProps) {
   const { theme } = useNativeTheme()
@@ -280,6 +292,10 @@ export default function MessageList({
   // decision arrives.
   const rowAsks = useMemo(() => cliRowAsks(cliAsks), [cliAsks])
   const decidedIds = useMemo(() => new Set((decidedAsks ?? []).map((a) => a.id)), [decidedAsks])
+  const decidedById = useMemo(
+    () => new Map((decidedAsks ?? []).map((a) => [a.id, a])),
+    [decidedAsks],
+  )
   const shownAsksRef = useRef<CliPendingAsk[]>([])
   const pendingRowAsks = useMemo(
     () => withAsksAwaitingOutcome(rowAsks, shownAsksRef.current, decidedIds),
@@ -316,6 +332,15 @@ export default function MessageList({
   const startIndex = Math.max(0, renderable.length - visibleCount)
   const windowed = useMemo(() => renderable.slice(startIndex), [renderable, startIndex])
 
+  // The agents' own exchange, drawn as the person chose — see web's MessageList.
+  const agentMessages = useAppSettings().settings.notifications.agentMessages
+  const exchangeOpenTail =
+    (isBusy ?? false) || isThinking || !!pending || isSending || (cliAsks?.length ?? 0) > 0
+  const exchanges = useMemo(
+    () => agentExchangeLayout(renderable, agentMessages, { openTail: exchangeOpenTail }),
+    [renderable, agentMessages, exchangeOpenTail],
+  )
+
   // ---- First-unread positioning ------------------------------------------
   // Judged against the last-read mark as it stood when the chat opened: the
   // live mark moves the moment the list reports reaching the bottom.
@@ -323,10 +348,11 @@ export default function MessageList({
   if (openedReadRef.current.chatId !== chatId || renderable.length === 0)
     openedReadRef.current = { chatId, lastReadIso }
   const openLastReadIso = openedReadRef.current.lastReadIso
-  const firstUnreadInWindow = useMemo(
-    () => firstUnreadMessageIndex(windowed, openLastReadIso),
-    [windowed, openLastReadIso],
-  )
+  const firstUnreadInWindow = useMemo(() => {
+    const first = firstUnreadMessageIndex(windowed, openLastReadIso)
+    const start = agentExchangeStartOf(exchanges, first === null ? null : first + startIndex)
+    return start === null ? null : Math.max(0, start - startIndex)
+  }, [exchanges, windowed, openLastReadIso, startIndex])
   firstUnreadRef.current = firstUnreadInWindow
 
   // ---- Context cut-off divider -------------------------------------------
@@ -391,7 +417,10 @@ export default function MessageList({
         {systemPrompt && messages.length === 0 && !turnInFlight && (
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
-        {messages.length === 0 && !isThinking && emptyStateContent ? emptyStateContent : null}
+        {leadingContent ?? null}
+        {messages.length === 0 && !isThinking && !leadingContent && emptyStateContent
+          ? emptyStateContent
+          : null}
         {startIndex > 0 && (
           // Single tappable chip — label + load action in one affordance.
           // Mirrors web's `MessageList` older-messages pill.
@@ -415,6 +444,8 @@ export default function MessageList({
           </Pressable>
         )}
         {windowed.map((msg, i) => {
+          if (exchanges.hidden.has(startIndex + i)) return null
+          const exchange = exchanges.starts.get(startIndex + i)
           // Per-message thinking label = time between this assistant
           // message's iso and the previous message's iso, formatted as
           // `+X ms` / `+X s`. Mirrors web's `MessageList.thinkingLabel`
@@ -441,7 +472,14 @@ export default function MessageList({
             role: msg.role,
             turnInFlight,
           })
-          const row = (
+          const row = exchange ? (
+            <AgentExchangeBlock
+              key={`exchange-${startIndex + i}`}
+              exchange={exchange}
+              links={{ renderReference, onResourceLink }}
+              renderProcessRun={renderProcessRun}
+            />
+          ) : (
             // A CLI-run message keys on its runId so the live (trailing) and
             // persisted (inline) blocks share ONE key — React moves the mounted
             // CliRunMessages in place across the handoff (no finish flash).
@@ -506,6 +544,9 @@ export default function MessageList({
                   renderProcessGroupRun={renderProcessGroupRun}
                   onShowUsage={onShowUsage}
                   thinkingLabel={perMsgThinking}
+                  {...(msg.role === 'tool' && msg.toolResult?.actionId !== undefined
+                    ? { decidedAsk: decidedById.get(msg.toolResult.actionId) }
+                    : {})}
                 />
               )}
             </View>
@@ -598,6 +639,7 @@ export default function MessageList({
               : { spinnerLabel: 'Working…' })}
           />
         )}
+        {tailContent ? <View style={{ gap: 8, marginTop: 8 }}>{tailContent}</View> : null}
       </ScrollView>
       {!atBottom && (
         <Pressable

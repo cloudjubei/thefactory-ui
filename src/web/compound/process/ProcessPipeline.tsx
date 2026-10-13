@@ -1,4 +1,5 @@
-import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { chatNotifyLevel } from '../../../headless/utils/chatNotify'
 import {
   choiceTakesNote,
   computeChatRowStatus,
@@ -47,6 +48,8 @@ import {
   processStepWorkMs,
   processTimeDetailsView,
   processStepStates,
+  processRunStripEntries,
+  STEPS_STRIP_LABELS,
   processWaitingView,
   signoffMergeHold,
   SIGNOFF_GROUP_CHIP_LABEL,
@@ -65,7 +68,6 @@ import {
   type ProcessRetryPick,
   type ProcessRun,
   type ProcessRunManagerView,
-  type ProcessStatusTone,
   type ProcessTurnLimit,
   type ProcessWaitingView,
   type RunNeedsYouActions,
@@ -84,6 +86,10 @@ import {
 } from '../../icons'
 import OverflowMenu, { type OverflowMenuItem } from '../OverflowMenu'
 import CostChip from '../chips/CostChip'
+import ToneBadge from '../chips/ToneBadge'
+import HeaderBar from '../HeaderBar'
+import ChatKindTile from '../chat/ChatKindTile'
+import StepsStrip from './StepsStrip'
 import DurationChip from '../chips/DurationChip'
 import { downloadDataUri } from '../chat/signoff/download'
 import RunModelChip from '../chat/signoff/RunModelChip'
@@ -203,6 +209,10 @@ export default function ProcessPipeline({
     isSending: false,
     seen: chatsSeen,
     pendingAsks: runChatAsks,
+    level: chatNotifyLevel(
+      getChat(runChat) ?? { context: runChat },
+      settings.notifications.chatNotifyLevels,
+    ),
   }).isUnread
   const canChat = stack.length === 0 && !run?.parentRunId && (!!renderChat || !!onOpenChat)
 
@@ -296,6 +306,7 @@ export default function ProcessPipeline({
       }
     : undefined
   const states = processStepStates(run)
+  const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
   const managerView = stack.length === 0 ? processRunManagerView(run, now) : undefined
   const signoff = isStorySignoff(run) && !isReflectedPark(run.park!)
@@ -323,6 +334,7 @@ export default function ProcessPipeline({
         <RunHead
           now={now}
           run={run}
+          {...(projectName ? { projectName } : {})}
           depth={stack.length}
           onCrumb={popTo}
           onCancel={() => setConfirmStop(true)}
@@ -457,7 +469,17 @@ export default function ProcessPipeline({
         {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
 
         {renderChat && (chat || chatOpening) ? (
-          <RunChatDrawer {...(run.storyId ? { storyId: run.storyId } : {})} onClose={closeChat}>
+          <RunChatDrawer
+            {...(chat && onOpenChat
+              ? {
+                  onOpenInChat: () => {
+                    closeChat()
+                    onOpenChat(chat.context)
+                  },
+                }
+              : {})}
+            onClose={closeChat}
+          >
             {chat ? (
               <Fragment key={chat.version}>{renderChat(chat.context, closeChat)}</Fragment>
             ) : null}
@@ -589,32 +611,20 @@ function entryIdOf(
   return state.entries.find((e) => e.runRef?.runId === ref.runId)?.id
 }
 
-/** A soft status pill in the package's own semantic palette. */
-function ToneBadge({ tone, children }: { tone: ProcessStatusTone; children: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px]"
-      style={{
-        background: `var(--status-${tone}-soft-bg)`,
-        color: `var(--status-${tone}-soft-fg)`,
-        border: `1px solid var(--status-${tone}-soft-border)`,
-      }}
-    >
-      {children}
-    </span>
-  )
-}
-
 /**
- * The run header: where you are, the headline state, time and spend — then
- * icon-only actions: the Group chip when the run is a group's leg, Stop while
- * the run can still do work, and ⋯ for the rare ones (copy the link, download
- * the report, delete — which still asks first).
+ * The run header — the chat header's layout: the run tile, the run's title and
+ * status, then its story, process and project with its time and spend; on the
+ * right the manager, model and turn limit, the Group chip for a group's leg,
+ * the run's chat, Stop while the run can still do work, and ⋯ for the rare
+ * ones (copy the link, download the report, delete — which still asks first).
+ * A nested run leads with the breadcrumb back up and has no chat of its own.
+ * Under it, the steps strip.
  */
 function RunHead({
   run,
   depth,
   now,
+  projectName,
   onCrumb,
   onCancel,
   onDelete,
@@ -627,6 +637,8 @@ function RunHead({
   run: ProcessRun
   depth: number
   now: number
+  /** The run's project, named on the line under the title. */
+  projectName?: string
   onCrumb: (depth: number) => void
   onCancel: () => void
   onDelete?: () => void
@@ -643,6 +655,7 @@ function RunHead({
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
   const model = processRunHeaderModel(run, run.ledger)
+  const steps = useMemo(() => processRunStripEntries(run), [run])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   const menu: OverflowMenuItem[] = [
     ...(typeof navigator !== 'undefined' && navigator.clipboard
@@ -681,101 +694,118 @@ function RunHead({
         ]
       : []),
   ]
+  const where = [run.plan.name, projectName].filter(Boolean).join(' · ')
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-(--border-subtle) bg-(--surface-raised) px-3 py-2.5">
-      <nav className="flex min-w-0 flex-wrap items-center gap-1 text-[12px]">
-        {depth > 0 ? (
+    <div className="sticky top-0 z-10 flex flex-col">
+      <HeaderBar
+        leading={
           <>
-            <button
-              type="button"
-              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
-              onClick={() => onCrumb(0)}
-            >
-              <IconChevronLeft className="size-3.5" />
-              Top
-            </button>
-            {Array.from({ length: depth - 1 }).map((_, i) => (
-              <span key={i} className="flex items-center gap-1">
-                <span className="text-(--border-strong)">/</span>
+            {depth > 0 ? (
+              <nav className="flex items-center gap-1 text-[12px]">
                 <button
                   type="button"
-                  className="rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
-                  onClick={() => onCrumb(i + 1)}
+                  className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
+                  onClick={() => onCrumb(0)}
                 >
-                  …
+                  <IconChevronLeft className="size-3.5" />
+                  Top
                 </button>
-              </span>
-            ))}
-            <span className="text-(--border-strong)">/</span>
+                {Array.from({ length: depth - 1 }).map((_, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <span className="text-(--border-strong)">/</span>
+                    <button
+                      type="button"
+                      className="rounded px-1 py-0.5 text-(--text-muted) hover:bg-(--surface-hover) hover:text-(--text-primary)"
+                      onClick={() => onCrumb(i + 1)}
+                    >
+                      …
+                    </button>
+                  </span>
+                ))}
+                <span className="text-(--border-strong)">/</span>
+              </nav>
+            ) : null}
+            <ChatKindTile kind="run" />
           </>
-        ) : null}
-        <span className="font-semibold text-(--text-primary)">{run.title}</span>
-      </nav>
-      <span className="grow" />
-      <ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>
-      {model ? <RunModelChip model={model} /> : null}
-      <RunTurnLimitChip
-        run={run}
-        {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
-      />
-      {manager && depth === 0 ? (
-        <RunManagerChip
-          view={manager.view}
-          {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
-        />
-      ) : null}
-      {workMs !== undefined ? (
-        <DurationChip
-          label={formatProcessDuration(workMs)}
-          details={processTimeDetailsView(run.totals?.time, workMs)}
-          title="Time spent working, across every attempt"
-        />
-      ) : null}
-      {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
-      {onOpenGroup || chat || stoppable || menu.length > 0 ? (
-        <span aria-hidden className="mx-1 h-6 w-px bg-(--border-subtle)" />
-      ) : null}
-      {onOpenGroup && depth === 0 ? (
-        <button
-          type="button"
-          onClick={onOpenGroup}
-          aria-label={SIGNOFF_GROUP_CHIP_TITLE}
-          title={SIGNOFF_GROUP_CHIP_TITLE}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-(--border-default) px-2.5 text-[12px] text-(--text-secondary) hover:bg-(--surface-hover)"
-        >
-          <IconGroup className="size-4" />
-          {SIGNOFF_GROUP_CHIP_LABEL}
-        </button>
-      ) : null}
-      {chat && depth === 0 ? (
-        <button
-          type="button"
-          onClick={chat.onOpen}
-          aria-label={RUN_CHAT_OPEN_LABEL}
-          title={RUN_CHAT_OPEN_LABEL}
-          className="relative inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
-        >
-          <IconChat className="size-4" />
-          {chat.unread ? (
-            <span
-              aria-hidden
-              className="absolute right-1 top-1 size-2 rounded-full bg-(--accent-primary)"
+        }
+        title={run.title}
+        pill={<ToneBadge tone={badge.tone}>{badge.label}</ToneBadge>}
+        meta={
+          <>
+            {run.storyId ? <DependencyBullet dependency={run.storyId} interactive /> : null}
+            {where ? <span className="min-w-0 truncate">{where}</span> : null}
+            {workMs !== undefined ? (
+              <DurationChip
+                label={formatProcessDuration(workMs)}
+                details={processTimeDetailsView(run.totals?.time, workMs)}
+                title="Time spent working, across every attempt"
+              />
+            ) : null}
+            {spend ? <CostChip label={spend.label} cost={run.totals} title={spend.title} /> : null}
+          </>
+        }
+        trailing={
+          <>
+            {manager && depth === 0 ? (
+              <RunManagerChip
+                view={manager.view}
+                {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
+              />
+            ) : null}
+            {model ? <RunModelChip model={model} /> : null}
+            <RunTurnLimitChip
+              run={run}
+              {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
             />
-          ) : null}
-        </button>
-      ) : null}
-      {stoppable ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label="Stop the run"
-          title="Stop the run"
-          className="inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
-        >
-          <span aria-hidden className="size-3 rounded-[2px] bg-current" />
-        </button>
-      ) : null}
-      {menu.length > 0 ? <OverflowMenu items={menu} /> : null}
+            {onOpenGroup && depth === 0 ? (
+              <button
+                type="button"
+                onClick={onOpenGroup}
+                aria-label={SIGNOFF_GROUP_CHIP_TITLE}
+                title={SIGNOFF_GROUP_CHIP_TITLE}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-(--border-default) px-2.5 text-[12px] text-(--text-secondary) hover:bg-(--surface-hover)"
+              >
+                <IconGroup className="size-4" />
+                {SIGNOFF_GROUP_CHIP_LABEL}
+              </button>
+            ) : null}
+            {chat && depth === 0 ? (
+              <button
+                type="button"
+                onClick={chat.onOpen}
+                aria-label={RUN_CHAT_OPEN_LABEL}
+                title={RUN_CHAT_OPEN_LABEL}
+                className="relative inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
+              >
+                <IconChat className="size-4" />
+                {chat.unread ? (
+                  <span
+                    aria-hidden
+                    className="absolute right-1 top-1 size-2 rounded-full bg-(--accent-primary)"
+                  />
+                ) : null}
+              </button>
+            ) : null}
+            {stoppable ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Stop the run"
+                title="Stop the run"
+                className="inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) hover:bg-(--surface-hover)"
+              >
+                <span
+                  aria-hidden
+                  className="size-3 rounded-[2px]"
+                  style={{ background: 'var(--status-stuck-bg)' }}
+                />
+              </button>
+            ) : null}
+            {menu.length > 0 ? <OverflowMenu items={menu} /> : null}
+          </>
+        }
+      />
+      <StepsStrip model={{ label: STEPS_STRIP_LABELS.steps, entries: steps }} />
     </div>
   )
 }

@@ -156,14 +156,28 @@ describe('a project with no git of its own', () => {
       tone: 'done',
       title: 'Nothing to bring in — the project folder already had this work',
     })
-    expect(views[3]).toMatchObject({ tone: 'stuck', detail: 'x', canRetry: true })
+    expect(views[3]).toMatchObject({
+      tone: 'stuck',
+      title: 'Not brought into the project folder',
+      detail: 'x',
+      canRetry: true,
+    })
+    expect(views[0]).toMatchObject({ title: 'Not brought in' })
   })
 
   it('badges an approved run whose work has not come in without git words', () => {
     const badge = processIntegrationBadge(
       shadowRun({ integration: { mode: 'merge', status: 'failed', at: 1 } }),
     )
-    expect(badge?.tone).toBe('on_hold')
+    expect(badge).toEqual({ label: 'Not brought in', tone: 'on_hold' })
+    expect(badge?.label).not.toMatch(GIT_WORDS)
+  })
+
+  it('badges work being brought in without git words, never as merging', () => {
+    const badge = processIntegrationBadge(
+      shadowRun({ integration: { mode: 'merge', status: 'integrating', at: 1 } }),
+    )
+    expect(badge).toEqual({ label: 'Bringing in', tone: 'working' })
     expect(badge?.label).not.toMatch(GIT_WORDS)
   })
 })
@@ -210,6 +224,7 @@ describe('processIntegrationView', () => {
   it('offers a retry for an approved run whose work was never brought in', () => {
     expect(processIntegrationView(run())).toMatchObject({
       tone: 'on_hold',
+      title: 'Not merged',
       detail: PROCESS_INTEGRATION_NEVER_TRIED,
       canRetry: true,
     })
@@ -374,7 +389,7 @@ describe('processIntegrationView', () => {
     expect(view?.link).toBeUndefined()
   })
 
-  it('shows a failed merge as approved-but-not-merged, with the reason and a retry', () => {
+  it('shows a failed merge as not merged, with the reason and a retry', () => {
     expect(
       processIntegrationView(
         run({
@@ -383,7 +398,7 @@ describe('processIntegrationView', () => {
       ),
     ).toEqual({
       tone: 'stuck',
-      title: 'Approved — not merged into main',
+      title: 'Not merged into main',
       detail: 'Conflicts in a.ts.',
       canRetry: true,
       busy: false,
@@ -410,7 +425,7 @@ describe('processIntegrationView', () => {
       ),
     ).toEqual({
       tone: 'stuck',
-      title: 'Approved — not merged into main',
+      title: 'Not merged into main',
       detail: 'The work conflicts with main in src/file/fileConstants.ts',
       conflict: { baseRef: 'main', paths: ['src/file/fileConstants.ts'] },
       canRetry: true,
@@ -423,23 +438,23 @@ describe('processIntegrationView', () => {
       processIntegrationView(
         run({ integration: { mode: 'pull-request', status: 'failed', error: 'x', at: 1 } }),
       )?.title,
-    ).toBe('Approved — the pull request was not opened')
+    ).toBe('Pull request not opened')
   })
 })
 
 describe('processIntegrationBadge', () => {
-  it('says the work is being brought in while it is', () => {
+  it('says the work is merging while it is', () => {
     expect(
       processIntegrationBadge(
         run({ integration: { mode: 'merge', status: 'integrating', at: 1 } }),
       ),
-    ).toEqual({ label: 'Bringing the work in', tone: 'working' })
+    ).toEqual({ label: 'Merging', tone: 'working' })
   })
 
   it('says an approved run is not merged while its work has not landed', () => {
     expect(
       processIntegrationBadge(run({ integration: { mode: 'merge', status: 'failed', at: 1 } })),
-    ).toEqual({ label: 'Approved — not merged', tone: 'on_hold' })
+    ).toEqual({ label: 'Not merged', tone: 'on_hold' })
   })
 
   it('has nothing to say once the work has landed', () => {

@@ -47,7 +47,6 @@ const NO_BLOCKERS: ChatComposerBlockers = {
   approvalShown: false,
   historyLocked: false,
   inputOverridden: false,
-  inputHidden: false,
 }
 
 describe('chatDraftStorageKey', () => {

@@ -50,23 +50,19 @@ Steps 1–7 and 9 run end to end today; the run in step 8 verifies and reports, 
 - **`POST /git/merge-apply` bypasses the sign-off gate.** The `require` policy is enforced in `mergeCliRunReview`; merging the review branch directly from the Git panel performs the same merge with no check. Defensible (it is a deliberate user action outside the flow), but if the gate is meant to be absolute, that route needs the same check.
 - **Auto-verification is opt-in by declaration**, because it runs agent-authored code on the host outside the sandbox. A project that declares nothing gets no automatic evidence — only an on-demand verify. Revisit if the default should instead be a _sandboxed_ verification run.
 
-#### G — Global assistant chat + project onboarding
+#### G — Assistant + project onboarding
 
 The app-level assistant and the tools that take a project from "it's on disk" to "set up in the
 Overseer". What remains:
 
-- **Conversation history.** `globalChatHistory` and `Chat.archivedAt` are in place and reset already
-  archives, so past conversations are kept — but nothing renders them. Add a history list to the
-  overlay when the user wants to find an earlier conversation.
 - **Group membership is recorded on both sides by hand.** `importProjectFromPath` reconciles the
   project spec AND the group's `projects[]` itself, because it calls `createProject` directly rather
   than going through `POST /projects`, which owns the reconciliation. Two implementations of one
   invariant will drift; lift the reconciliation into `ProjectTools` (or a shared helper both callers
   use) so a group link cannot be half-written.
-- **Mobile shows two headers in the global chat.** `ChatSessionScreen` hard-wires `ScreenShell`, so
-  the overlay's header and the screen's header both render. Web and desktop suppress theirs via
-  `ChatPanelBody`'s `embedded` prop; mobile needs the equivalent knob on `ChatSessionScreen`, which
-  three routes share. The same duplication already ships in mobile's `ChatBottomSheet`.
+- **Mobile's `ChatBottomSheet` shows two headers.** `ChatSessionScreen` hard-wires `ScreenShell`, so
+  the sheet's header and the screen's header both render; `ChatSessionScreen` needs a knob to drop
+  its own.
 - **Credential captures do not survive a backend restart.** The store is in-process by design (a
   capture is one half of a live handshake, and `requestGitCredentials` now blocks on it). A client
   reload is covered by the listing route, but a server restart drops open captures — and takes the

@@ -5,6 +5,8 @@ export type SegmentedOption = {
   value: string
   label: string
   icon?: ReactNode
+  /** Drawn after the label — a count the option carries. */
+  badge?: ReactNode
 }
 
 export type SegmentedSize = 'sm' | 'md'
@@ -99,6 +101,7 @@ export default function SegmentedControl({
               </span>
             )}
             <span className={cn('segmented__label', hideLabels && 'sr-only')}>{opt.label}</span>
+            {opt.badge}
           </button>
         )
       })}

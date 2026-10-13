@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CHAT_TOOLS_HINT } from '../../../headless/utils/chatToolTogglesConstants'
 import {
   CHAT_TURN_LIMIT_HINT,
@@ -8,6 +8,7 @@ import {
 import {
   applyChatTurnLimit,
   buildChatTurnLimit,
+  CHAT_SETTINGS_MENU_COPY,
   filterChatToolToggles,
   groupChatToolToggles,
   useAppSettings,
@@ -54,9 +55,6 @@ export type ChatSettingsDropdownProps = {
   isOpen: boolean
   onClose: () => void
 
-  /** Anchor: the settings button. Used to ignore clicks for outside-click detection. */
-  settingsBtnRef: RefObject<HTMLButtonElement | null>
-
   completion?: CompletionSettingsLike
 
   draftPrompt: string
@@ -76,8 +74,6 @@ export type ChatSettingsDropdownProps = {
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
-  onDeleteChat: () => Promise<void> | void
-
   /** Slot beneath the standard fields. Used by hosts that need to render
    * their own history-summarization / message-sanitization sub-controls. */
   extraContent?: React.ReactNode
@@ -92,7 +88,6 @@ export type ChatSettingsDropdownProps = {
 export default function ChatSettingsDropdown({
   isOpen,
   onClose,
-  settingsBtnRef,
   completion,
   draftPrompt,
   setDraftPrompt,
@@ -105,7 +100,6 @@ export default function ChatSettingsDropdown({
   onToolApprovalChange,
   rulesChatContextId,
   persistSettings,
-  onDeleteChat,
   extraContent,
   asModal = false,
   blocked = false,
@@ -125,7 +119,6 @@ export default function ChatSettingsDropdown({
     function onDocClick(e: MouseEvent) {
       const t = e.target as Node
       if (dropdownRef.current && dropdownRef.current.contains(t)) return
-      if (settingsBtnRef.current && settingsBtnRef.current.contains(t)) return
       onClose()
     }
     function onKey(e: KeyboardEvent) {
@@ -137,7 +130,7 @@ export default function ChatSettingsDropdown({
       document.removeEventListener('mousedown', onDocClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [isOpen, asModal, onClose, settingsBtnRef])
+  }, [isOpen, asModal, onClose])
 
   if (!isOpen) return null
 
@@ -156,21 +149,23 @@ export default function ChatSettingsDropdown({
           </div>
         </div>
       ) : null}
-      <div className="space-y-2">
-        <div className="text-xs font-medium text-(--text-secondary)">System Prompt</div>
-        <textarea
-          value={draftPrompt}
-          onChange={(e) => setDraftPrompt(e.target.value)}
-          className="w-full min-h-[100px] p-2 border border-(--border-subtle) bg-(--surface-overlay) rounded-md text-sm"
-          placeholder="Custom system prompt for this chat context…"
-        />
-        <div className="flex items-center gap-2">
-          <Button onClick={() => void onSavePrompt()}>Save prompt</Button>
-          <Button variant="secondary" onClick={() => void onResetPrompt()}>
-            Reset to defaults
-          </Button>
+      {prefs.showDeveloperTools === true ? (
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-(--text-secondary)">System Prompt</div>
+          <textarea
+            value={draftPrompt}
+            onChange={(e) => setDraftPrompt(e.target.value)}
+            className="w-full min-h-[100px] p-2 border border-(--border-subtle) bg-(--surface-overlay) rounded-md text-sm"
+            placeholder="Custom system prompt for this chat context…"
+          />
+          <div className="flex items-center gap-2">
+            <Button onClick={() => void onSavePrompt()}>Save prompt</Button>
+            <Button variant="secondary" onClick={() => void onResetPrompt()}>
+              Reset to defaults
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {completion ? (
         <div className="space-y-3">
@@ -354,18 +349,18 @@ export default function ChatSettingsDropdown({
           )}
         </div>
       </div>
-
-      <div className="pt-2 border-t border-(--border-subtle)">
-        <Button variant="danger" onClick={() => void onDeleteChat()}>
-          Delete this chat
-        </Button>
-      </div>
     </div>
   )
 
   if (asModal) {
     return (
-      <Modal isOpen onClose={onClose} title="Chat Settings" size="lg" contentClassName="p-0">
+      <Modal
+        isOpen
+        onClose={onClose}
+        title={CHAT_SETTINGS_MENU_COPY.tune}
+        size="lg"
+        contentClassName="p-0"
+      >
         {body}
       </Modal>
     )
@@ -375,11 +370,13 @@ export default function ChatSettingsDropdown({
     <div
       ref={dropdownRef}
       className="absolute top-full right-3 left-3 mt-2 w-auto max-w-[520px] ml-auto rounded-md border border-(--border-subtle) bg-(--surface-raised) shadow-xl z-50"
-      role="menu"
-      aria-label="Chat Settings"
+      role="dialog"
+      aria-label={CHAT_SETTINGS_MENU_COPY.tune}
     >
       <div className="px-3 py-2 border-b border-(--border-subtle)">
-        <div className="text-sm font-semibold text-(--text-primary)">Chat Settings</div>
+        <div className="text-sm font-semibold text-(--text-primary)">
+          {CHAT_SETTINGS_MENU_COPY.tune}
+        </div>
         <div className="text-xs text-(--text-secondary)">Controls for this chat</div>
       </div>
       {body}

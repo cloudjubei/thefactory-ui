@@ -1,3 +1,5 @@
+import { PROCESS_RUN_WORDS } from './processViewConstants'
+
 /** Heads the three choices Approve reveals. */
 export const PROCESS_INTEGRATION_CHOOSER_HEAD = 'How should the approved work come in?'
 
@@ -43,9 +45,13 @@ export const PROCESS_INTEGRATION_COMPARE_LINK = 'Open a pull request'
 export const PROCESS_INTEGRATION_NEVER_TRIED =
   'The story was approved, but its work branch was not brought in.'
 
+/** What the sign-off's merge panel is headed with when approved work was never brought in. */
+export const PROCESS_INTEGRATION_NEVER_TRIED_TITLE = PROCESS_RUN_WORDS.notMerged
+
+/** The run's status word while its approved work is being merged, or after it was not. */
 export const PROCESS_INTEGRATION_BADGE = {
-  integrating: 'Bringing the work in',
-  awaiting: 'Approved — not merged',
+  integrating: PROCESS_RUN_WORDS.merging,
+  awaiting: PROCESS_RUN_WORDS.notMerged,
 } as const
 
 /**
@@ -59,7 +65,9 @@ export const PROCESS_INTEGRATION_SHADOW = {
   busy: 'Bringing the work into the project folder…',
   done: 'Brought into the project folder',
   alreadyIn: 'Nothing to bring in — the project folder already had this work',
-  failed: 'Approved — not brought into the project folder',
+  failed: 'Not brought into the project folder',
   neverTried: 'The story was approved, but its work was not brought into the project folder.',
-  awaitingBadge: 'Approved — not brought in',
+  neverTriedTitle: PROCESS_RUN_WORDS.notBroughtIn,
+  integratingBadge: PROCESS_RUN_WORDS.bringingIn,
+  awaitingBadge: PROCESS_RUN_WORDS.notBroughtIn,
 } as const

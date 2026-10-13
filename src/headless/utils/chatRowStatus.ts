@@ -1,5 +1,7 @@
 import type { ChatContextLike } from './chatTypes'
-import { chatMessageTimes, type ChatMessagesShape } from './chatListEntry'
+import { chatMessageTimes, chatNeedsYouTimesOf, type ChatMessagesShape } from './chatListEntry'
+import { chatNotifyNews } from './chatNotify'
+import type { ChatNotifyCounts, ChatNotifyLevel } from './chatNotifyTypes'
 import { formatBadgeCount } from './badgeAggregation'
 import { CHAT_AWAITING_ANSWER_LABEL } from './chatUnreadConstants'
 
@@ -16,6 +18,10 @@ export type ChatRowStatus = {
   awaitingAnswer: boolean
   /** True for agent-run chats currently running. */
   isAgentRunning: boolean
+  /** What waits on the person: unread messages that need them, and asks. */
+  needsYou: number
+  /** The person set the chat to tell them nothing. */
+  muted: boolean
 }
 
 /**
@@ -60,6 +66,26 @@ export function chatUnreadMessages(
 }
 
 /**
+ * What a chat holds for the person since it was last seen — its unread
+ * messages, those of them that need the person, and its asks — before its
+ * notification level says how much reaches them. Pure.
+ */
+export function chatNotifyCountsOf(
+  chat: ChatMessagesShape,
+  seenAt: string | undefined,
+  pendingAsks: number,
+): ChatNotifyCounts {
+  const times = chatMessageTimes(chat)
+  const latest = times[times.length - 1] ?? undefined
+  const unread = latest !== undefined && (!seenAt || latest > seenAt)
+  return {
+    unreadMessages: unread ? chatUnreadMessages(times, seenAt) : 0,
+    unreadNeedsYou: chatUnreadMessages(chatNeedsYouTimesOf(chat), seenAt),
+    pendingAsks,
+  }
+}
+
+/**
  * Pure computation behind each platform's `useChatRowStatus` hook. The
  * thin per-app wrapper reads `chat` + `isSending` via the host's
  * `useChats()` and `seen` via the host's `useChatsSeen()`, then calls this
@@ -76,23 +102,26 @@ export function computeChatRowStatus(input: {
   seen: ChatsSeenMap
   /** Asks this chat has waiting on the user — news even once every message is read. */
   pendingAsks?: number
+  /** How much of the chat reaches the person — everything when not given. */
+  level?: ChatNotifyLevel
 }): ChatRowStatus {
   const { context, contextKey, chat, isSending, seen } = input
-  const pendingAsks = input.pendingAsks ?? 0
+  const level = input.level ?? 'everything'
   const isAgentContext = context.type === 'AGENT_RUN_STORY' || context.type === 'AGENT_RUN_FEATURE'
   const isAgentRunning = Boolean(
     isAgentContext && (chat?.state === 'running' || chat?.state === 'created'),
   )
-  const times = chat ? chatMessageTimes(chat) : []
-  const latest = times[times.length - 1] ?? undefined
-  const isUnread = isChatUnread(seen, contextKey, latest)
-  const unreadCount = isUnread ? chatUnreadMessages(times, seen[contextKey]) : 0
+  const pendingAsks = input.pendingAsks ?? 0
+  const counts = chatNotifyCountsOf(chat ?? {}, seen[contextKey], pendingAsks)
+  const news = chatNotifyNews(counts, level)
   return {
     isThinking: isSending,
-    isUnread: isUnread || pendingAsks > 0,
-    unreadCount,
-    awaitingAnswer: pendingAsks > 0,
+    isUnread: news.unreadMessages > 0 || news.pendingAsks > 0,
+    unreadCount: news.unreadMessages,
+    awaitingAnswer: news.pendingAsks > 0,
     isAgentRunning,
+    needsYou: level === 'nothing' ? 0 : counts.unreadNeedsYou + pendingAsks,
+    muted: level === 'nothing',
   }
 }
 

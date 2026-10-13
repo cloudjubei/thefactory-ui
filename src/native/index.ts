@@ -73,6 +73,7 @@ export {
   default as ProcessPipeline,
   type ProcessPipelineProps,
 } from './compound/process/ProcessPipeline'
+export { default as StepsStrip, type StepsStripProps } from './compound/process/StepsStrip'
 export {
   default as ProcessRunChip,
   type ProcessRunChipProps,
@@ -121,9 +122,22 @@ export {
   type FeatureRequestCardStatus,
 } from './compound/FeatureRequestCard'
 export {
-  FeatureRequestIntroPanel,
-  type FeatureRequestIntroPanelProps,
-} from './compound/FeatureRequestIntroPanel'
+  default as FeatureRequestBriefCard,
+  type FeatureRequestBriefCardProps,
+} from './compound/FeatureRequestBriefCard'
+export {
+  default as FeatureRequestDecision,
+  type FeatureRequestDecisionProps,
+} from './compound/FeatureRequestDecision'
+export {
+  default as FeatureRequestFullView,
+  type FeatureRequestFullViewProps,
+} from './compound/FeatureRequestFullView'
+export {
+  default as IncomingFeatureRequestCard,
+  FeatureRequestProvenance,
+  type IncomingFeatureRequestCardProps,
+} from './compound/IncomingFeatureRequestCard'
 export {
   default as NotificationBadge,
   getNotificationBadgeColor,
@@ -155,6 +169,7 @@ export {
   type ActionMenuProps,
 } from './compound/ActionMenu'
 export { default as CostChip, type CostChipProps } from './compound/chips/CostChip'
+export { default as ToneBadge, type ToneBadgeProps } from './compound/chips/ToneBadge'
 export { default as DurationChip, type DurationChipProps } from './compound/chips/DurationChip'
 export { default as ProjectChip, type ProjectChipProps } from './compound/chips/ProjectChip'
 export {
@@ -179,6 +194,14 @@ export {
   type CommitChipBaseProps,
 } from './compound/chips/CommitChipBase'
 export { default as ReferenceChip, type ReferenceChipProps } from './compound/chips/ReferenceChip'
+export {
+  default as ReferencePreviewSheet,
+  type ReferencePreviewSheetProps,
+} from './compound/chips/ReferencePreviewSheet'
+export {
+  default as RunReferenceChip,
+  type RunReferenceChipProps,
+} from './compound/chips/RunReferenceChip'
 export {
   default as RunActionButton,
   type RunActionButtonProps,
@@ -270,10 +293,28 @@ export {
   type EvidenceImageOverlayProps,
 } from './compound/chat/EvidenceImageOverlay'
 export { default as ChatHeader, type ChatHeaderProps } from './compound/chat/ChatHeader'
+export { default as ChatKindTile, type ChatKindTileProps } from './compound/chat/ChatKindTile'
 export {
-  default as GlobalChatOverlay,
-  type GlobalChatOverlayProps,
-} from './compound/chat/GlobalChatOverlay'
+  default as ChatSettingsMenu,
+  type ChatSettingsMenuProps,
+} from './compound/chat/ChatSettingsMenu'
+export { default as ChatNotifySettings } from './compound/settings/ChatNotifySettings'
+export {
+  default as ChatNotifyLevelPicker,
+  type ChatNotifyLevelPickerProps,
+} from './compound/chat/ChatNotifyLevelPicker'
+export {
+  default as AgentExchangeBlock,
+  type AgentExchangeBlockProps,
+} from './compound/chat/AgentExchangeBlock'
+export {
+  ManagerBriefCardView,
+  ManagerCardView,
+  ManagerEscalationCardView,
+  ManagerOutcomeCardView,
+  ManagerStopLine,
+  type ManagerCardLinks,
+} from './compound/chat/ManagerCards'
 export {
   default as ChatSettingsDropdown,
   type ChatSettingsDropdownProps,
@@ -385,6 +426,7 @@ export {
   type NavDrawerProps,
 } from './compound/shell/NavDrawer'
 export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
+export { default as InkBadge, type InkBadgeProps } from './compound/shell/InkBadge'
 export { default as ScreenShell, type ScreenShellProps } from './compound/shell/ScreenShell'
 
 // Text / code viewers
@@ -571,6 +613,10 @@ export {
   type NotesSettingsProps,
 } from './compound/settings/NotesSettings'
 export {
+  default as BadgeSettings,
+  type BadgeSettingsProps,
+} from './compound/settings/BadgeSettings'
+export {
   default as ProjectNotesForm,
   type ProjectNotesFormProps,
   type ProjectNotesFormMode,
@@ -657,3 +703,8 @@ export {
   default as ProcessCleanupCard,
   type ProcessCleanupCardProps,
 } from './compound/process/signoff/ProcessCleanupCard'
+export { default as ChatList, type ChatListProps } from './compound/chat/ChatList'
+export {
+  default as AssistantConversationList,
+  type AssistantConversationListProps,
+} from './compound/chat/AssistantConversationList'

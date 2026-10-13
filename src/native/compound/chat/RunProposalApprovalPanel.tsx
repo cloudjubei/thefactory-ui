@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import {
   RUN_PROPOSAL_COLLAPSE_LABEL,
@@ -37,10 +37,15 @@ import Markdown from '../Markdown'
 import DependencyRef from '../stories/DependencyRef'
 import RunProposalLandingEditor from './RunProposalLandingEditor'
 import RunProposalEditPanel from './RunProposalEditPanel'
+import ToolAskCard from './ToolAskCard'
+import { runProposalAskView, toolAskDecidedLine } from '../../../headless/utils/toolAskCard'
+import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 
 export type RunProposalApprovalPanelProps = {
   grant: PendingToolGrant
   onDecideLater: () => void
+  /** The proposal was decided — what its one line says. */
+  onDecided?: (line: ToolAskDecidedLine) => void
 }
 
 /** One section's whole content: its words, its numbered criteria, its proof chips. */
@@ -116,14 +121,16 @@ function FoldedSection({ section }: { section: RunProposalSection }) {
 }
 
 /**
- * Native peer of web's `RunProposalApprovalPanel`: kept small in place of the
- * composer — kind, subject and one-line effect with the decision always in
- * reach; the details open below in a bounded scroll, each section closed to a
- * line, or whole in a sheet for reading.
+ * Native peer of web's `RunProposalApprovalPanel`: the proposal on the shared
+ * tool-ask card in place of the composer — kind in the header, subject as the
+ * headline, effect as the consequence, the decision always in reach; the
+ * details open in the card's scroll, each section closed to a line, or whole
+ * in a sheet for reading.
  */
 export default function RunProposalApprovalPanel({
   grant,
   onDecideLater,
+  onDecided,
 }: RunProposalApprovalPanelProps) {
   const { theme, status } = useNativeTheme()
   const { stories } = useStories()
@@ -151,6 +158,7 @@ export default function RunProposalApprovalPanel({
   )
   if (!view) return null
   const tone = status[view.tone]
+  const askView = runProposalAskView(view, args)
   const editProblem = editState?.closure
     ? processRunClosureRowsProblem(editState.closure)
     : undefined
@@ -171,39 +179,43 @@ export default function RunProposalApprovalPanel({
       Object.keys(actionArgs).length > 0
         ? { args: { ...(edits?.args ?? {}), ...actionArgs } }
         : edits
-    void grant.decide(decision, sent).catch((err: unknown) => {
-      setBusy(false)
-      setError(grantDecideErrorMessage(err))
-    })
+    grant
+      .decide(decision, sent)
+      .then(() => onDecided?.(toolAskDecidedLine(askView, decision)))
+      .catch((err: unknown) => {
+        setBusy(false)
+        setError(grantDecideErrorMessage(err))
+      })
   }
 
   const actions = (
-    <View
-      style={{
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-end',
-        gap: nativeSpace[2],
-      }}
-    >
-      <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
-        {RUN_PROPOSAL_LATER_LABEL}
-      </Button>
-      <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
-        {RUN_PROPOSAL_DECLINE_LABEL}
-      </Button>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       <Button
         size="sm"
         variant={view.danger ? 'danger' : 'primary'}
         onPress={() => decide('once')}
         loading={busy}
-        disabled={landingProblem !== undefined || editProblem !== undefined}
+        disabled={busy || landingProblem !== undefined || editProblem !== undefined}
       >
         {view.approveLabel}
+      </Button>
+      <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
+        {RUN_PROPOSAL_DECLINE_LABEL}
+      </Button>
+      <View style={{ flex: 1 }} />
+      <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
+        {RUN_PROPOSAL_LATER_LABEL}
       </Button>
     </View>
   )
 
+  const bullets =
+    (story && feature) || view.storyId ? (
+      <>
+        {story && feature ? <DependencyRef dependency={`${story.id}.${feature.id}`} /> : null}
+        {view.storyId ? <DependencyRef dependency={view.storyId} /> : null}
+      </>
+    ) : null
   const subject = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
       <View
@@ -220,8 +232,7 @@ export default function RunProposalApprovalPanel({
           {view.kindLabel}
         </Text>
       </View>
-      {story && feature ? <DependencyRef dependency={`${story.id}.${feature.id}`} /> : null}
-      {view.storyId ? <DependencyRef dependency={view.storyId} /> : null}
+      {bullets}
       <Text
         numberOfLines={1}
         style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.text.primary }}
@@ -231,30 +242,25 @@ export default function RunProposalApprovalPanel({
     </View>
   )
 
+  const boxStyle = {
+    paddingHorizontal: nativeSpace[3],
+    borderRadius: nativeRadii[2],
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+  }
+
   return (
-    <View
-      style={{
-        margin: nativeSpace[3],
-        maxHeight: 440,
-        borderRadius: nativeRadii[3],
-        borderWidth: 1,
-        borderColor: theme.border.default,
-        backgroundColor: theme.surface.raised,
-        overflow: 'hidden',
-      }}
-    >
-      <View
-        style={{
-          gap: 4,
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-          backgroundColor: theme.surface.base,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          {subject}
+    <View style={{ margin: nativeSpace[3] }}>
+      <ToolAskCard
+        view={askView}
+        busy={busy}
+        error={error}
+        ready={landingProblem === undefined}
+        {...(editProblem !== undefined ? { problem: editProblem } : {})}
+        onApprove={() => decide('once')}
+        onDeny={() => decide('deny')}
+        onLater={onDecideLater}
+        headerAction={
           <IconButton
             size="sm"
             accessibilityLabel={RUN_PROPOSAL_OPEN_FULL_LABEL}
@@ -262,89 +268,70 @@ export default function RunProposalApprovalPanel({
           >
             <IconMaximize size={14} color={theme.text.secondary} />
           </IconButton>
-        </View>
-        <Text numberOfLines={1} style={{ fontSize: 12, color: theme.text.secondary }}>
-          {view.effect}
-        </Text>
-      </View>
-      {view.landing ? (
-        <ScrollView
-          style={{
-            maxHeight: 240,
-            flexShrink: 0,
-            paddingHorizontal: nativeSpace[3],
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border.subtle,
-          }}
-        >
-          <RunProposalLandingEditor
-            landing={view.landing}
-            form={landingForm}
-            busy={busy}
-            onChange={setLandingForm}
-          />
-        </ScrollView>
-      ) : null}
-      {view.edit && editState ? (
-        <ScrollView
-          style={{
-            maxHeight: 280,
-            flexShrink: 0,
-            paddingHorizontal: nativeSpace[3],
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border.subtle,
-          }}
-        >
-          <RunProposalEditPanel
-            edit={view.edit}
-            state={editState}
-            busy={busy}
-            onChange={setEditState}
-          />
-        </ScrollView>
-      ) : null}
-      {view.sections.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          onPress={() => setExpanded((v) => !v)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            paddingHorizontal: nativeSpace[3],
-            paddingVertical: 6,
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '500', color: theme.accent.primary }}>
-            {expanded ? RUN_PROPOSAL_COLLAPSE_LABEL : RUN_PROPOSAL_EXPAND_LABEL}
-          </Text>
-          <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
-            <IconChevronDown size={14} color={theme.accent.primary} />
-          </View>
-        </Pressable>
-      ) : null}
-      {expanded ? (
-        <ScrollView style={{ flexShrink: 1, paddingHorizontal: nativeSpace[3] }}>
-          {view.sections.map((section) => (
-            <FoldedSection key={section.key} section={section} />
-          ))}
-        </ScrollView>
-      ) : null}
-      <View
-        style={{
-          gap: 6,
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
-        }}
+        }
       >
-        {error !== null ? (
-          <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{error}</Text>
+        {bullets ? (
+          <View
+            style={{
+              ...boxStyle,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingVertical: nativeSpace[2],
+            }}
+          >
+            {bullets}
+            <Text
+              numberOfLines={1}
+              style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}
+            >
+              {view.title}
+            </Text>
+          </View>
         ) : null}
-        {actions}
-      </View>
+        {view.landing ? (
+          <View style={boxStyle}>
+            <RunProposalLandingEditor
+              landing={view.landing}
+              form={landingForm}
+              busy={busy}
+              onChange={setLandingForm}
+            />
+          </View>
+        ) : null}
+        {view.edit && editState ? (
+          <View style={boxStyle}>
+            <RunProposalEditPanel
+              edit={view.edit}
+              state={editState}
+              busy={busy}
+              onChange={setEditState}
+            />
+          </View>
+        ) : null}
+        {view.sections.length > 0 ? (
+          <View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              onPress={() => setExpanded((v) => !v)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2 }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '500', color: theme.accent.primary }}>
+                {expanded ? RUN_PROPOSAL_COLLAPSE_LABEL : RUN_PROPOSAL_EXPAND_LABEL}
+              </Text>
+              <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+                <IconChevronDown size={14} color={theme.accent.primary} />
+              </View>
+            </Pressable>
+            {expanded
+              ? view.sections.map((section) => (
+                  <FoldedSection key={section.key} section={section} />
+                ))
+              : null}
+          </View>
+        ) : null}
+      </ToolAskCard>
       <BottomSheet
         isOpen={reading}
         onClose={() => setReading(false)}

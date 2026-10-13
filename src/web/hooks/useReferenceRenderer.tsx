@@ -4,13 +4,16 @@ import { useReferences, type References } from '../../headless/hooks/useReferenc
 import { useReferenceRendering } from '../../headless/contexts/ReferenceRenderingContext'
 import { useFiles } from '../../headless/contexts/FilesContext'
 import ReferenceChip from '../compound/chips/ReferenceChip'
+import RunReferenceChip from '../compound/chips/RunReferenceChip'
 import DesignReferenceChip from '../compound/design/DesignReferenceChip'
 import FileDisplay, { type UikitFileMeta } from '../compound/files/FileDisplay'
+import { referencedRunId, storyChipLabel } from '../../headless/utils/referenceTargets'
 
 /**
  * The chip a chat shows for each thing its messages point at: a project file
- * the project has, with its preview on hover; any other reference or in-app
- * link as a {@link ReferenceChip} that opens it. `undefined` — so the token
+ * the project has, with its preview on hover; a process run as a live
+ * {@link RunReferenceChip}; any other reference or in-app link — a folder, a
+ * process — as a {@link ReferenceChip} that opens it. `undefined` — so the token
  * reads as text or code — for a file the project does not have, or a
  * reference that resolves to nothing.
  */
@@ -27,13 +30,18 @@ export function useReferenceRenderer({
   typed?: boolean
 }): (target: ReferenceTarget) => ReactNode | undefined {
   const { describe, describeLink } = references
+  const storyLabel = useCallback(
+    (projectId: string, storyId: string) => storyChipLabel(describe, projectId, storyId),
+    [describe],
+  )
   return useCallback(
     (target: ReferenceTarget) => {
       if (target.type === 'typed' && !typed) return undefined
       if (
         target.type === 'reference' &&
         target.reference.kind === 'file' &&
-        !target.reference.projectId
+        !target.reference.projectId &&
+        !target.reference.path.endsWith('/')
       ) {
         const meta = onResolveFile?.(target.reference.path) ?? null
         if (!meta) return undefined
@@ -51,6 +59,17 @@ export function useReferenceRenderer({
       }
       const description = target.type === 'link' ? describeLink(target.link) : describe(target)
       if (!description) return undefined
+      const runId = referencedRunId(target)
+      if (runId) {
+        return (
+          <RunReferenceChip
+            runId={runId}
+            description={description}
+            storyLabel={storyLabel}
+            {...(onOpen ? { onOpen } : {})}
+          />
+        )
+      }
       if (description.link?.kind === 'design') {
         return (
           <DesignReferenceChip
@@ -62,7 +81,7 @@ export function useReferenceRenderer({
       }
       return <ReferenceChip description={description} {...(onOpen ? { onOpen } : {})} />
     },
-    [describe, describeLink, onResolveFile, onOpen, typed],
+    [describe, describeLink, onResolveFile, onOpen, typed, storyLabel],
   )
 }
 

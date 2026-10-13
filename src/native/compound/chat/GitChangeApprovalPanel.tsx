@@ -10,18 +10,35 @@ import {
   useProcessRun,
 } from '../../../headless'
 import type { GitChangeCardView, GitChangeCommitView, PendingToolGrant } from '../../../headless'
+import { useGit } from '../../../headless/contexts/GitContext'
+import { useActiveProject } from '../../../headless/contexts/ProjectsContext'
+import { gitChangeArgs } from '../../../headless/utils/gitChangeApproval'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
+import { branchPickerItems } from '../../../headless/utils/questionPicker'
+import { gitChangeAskView, toolAskDecidedLine } from '../../../headless/utils/toolAskCard'
+import { TOOL_ASK_COPY } from '../../../headless/utils/toolAskCardConstants'
+import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { IconChevronDown } from '../../icons'
-import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../primitives/Select'
+import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 import CommitChip from '../chips/CommitChip'
+import ToolAskCard from './ToolAskCard'
 
 export type GitChangeApprovalPanelProps = {
   grant: PendingToolGrant
   onDecideLater: () => void
+  /** The change was decided on its card — what the card folds to. */
+  onDecided?: (line: ToolAskDecidedLine) => void
 }
 
 const STATUS_MARK: Record<string, string> = { added: 'A', modified: 'M', deleted: 'D' }
@@ -154,138 +171,94 @@ function DiffView({ diff }: { diff: NonNullable<GitChangeCardView['diff']> }) {
 }
 
 /**
- * Native peer of web's `GitChangeApprovalPanel`: the repository's path, the
- * branch and the run on it, the exact change, who it is made as and the
- * arguments the card lets the person change — never offered for good, and not approvable
- * while a run works on the branch.
+ * Native peer of web's `GitChangeApprovalPanel`, on the card every waiting
+ * tool shares: what it wants and why, the branch to merge (pickable among the
+ * project's branches) and where it goes, the commits and the diff, who it is
+ * made as and the arguments the card lets the person change — never offered
+ * for good, and not approvable while a run works on the branch.
  */
 export default function GitChangeApprovalPanel({
   grant,
   onDecideLater,
+  onDecided,
 }: GitChangeApprovalPanelProps) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   const card = gitChangeCard(grant)
   const { run } = useProcessRun(card?.run?.id)
+  const { branches } = useGit()
+  const { projectId: activeProjectId } = useActiveProject()
   const [values, setValues] = useState(() => (card ? gitChangeEditValues(card) : {}))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   if (!card) return null
+  const view = gitChangeAskView(card, gitChangeArgs(grant))
   const problem = gitChangeProblem(card, values, run)
   const setValue = (arg: string, value: string) => setValues((v) => ({ ...v, [arg]: value }))
-  const tone = card.danger ? status.stuck : status.working
+  const branchNames =
+    activeProjectId === card.projectId ? branchPickerItems(branches).map((b) => b.label) : []
 
   const decide = (decision: 'once' | 'deny') => {
     setBusy(true)
     setError(null)
     const metadata = decision === 'once' ? gitChangeDecisionMetadata(card, values) : undefined
-    void grant.decide(decision, metadata).catch((err: unknown) => {
-      setBusy(false)
-      setError(grantDecideErrorMessage(err))
-    })
+    grant
+      .decide(decision, metadata)
+      .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
+      .catch((err: unknown) => {
+        setBusy(false)
+        setError(grantDecideErrorMessage(err))
+      })
   }
 
+  const edits = card.edits ?? []
   return (
-    <View
-      style={{
-        margin: nativeSpace[3],
-        maxHeight: 560,
-        borderRadius: nativeRadii[3],
-        borderWidth: 1,
-        borderColor: theme.border.default,
-        backgroundColor: theme.surface.raised,
-        overflow: 'hidden',
-      }}
-    >
-      <View
-        style={{
-          gap: 6,
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-          backgroundColor: theme.surface.base,
-        }}
+    <View style={{ margin: nativeSpace[3] }}>
+      <ToolAskCard
+        view={view}
+        busy={busy}
+        error={error}
+        {...(problem !== undefined ? { problem } : {})}
+        onApprove={() => decide('once')}
+        onDeny={() => decide('deny')}
+        onLater={onDecideLater}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View
-            style={{
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 999,
-              backgroundColor: tone.softBg,
-              borderWidth: 1,
-              borderColor: tone.softBorder,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '600', color: tone.softFg }}>
-              {GIT_CHANGE_COPY.kind}
-            </Text>
-          </View>
-          <Text
-            numberOfLines={2}
-            style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.text.primary }}
-          >
-            {card.headline}
-          </Text>
-        </View>
-        <View
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: nativeRadii[2],
-            borderWidth: 1,
-            borderColor: status.stuck.softBorder,
-            backgroundColor: status.stuck.softBg,
-          }}
-        >
-          <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.stuck.softFg }}>
-            {card.warning}
-          </Text>
-        </View>
-        <Row label={GIT_CHANGE_COPY.repository} value={card.repoPath} mono />
-        {card.branch ? <Row label={GIT_CHANGE_COPY.branch} value={card.branch} mono /> : null}
-        {card.run ? (
-          <Row
-            label={GIT_CHANGE_COPY.run}
-            value={run ? `${card.run.title} · ${run.status}` : card.run.title}
-          />
-        ) : null}
-        {card.identity ? (
-          <Row
-            label={GIT_CHANGE_COPY.commitsAs}
-            value={`${card.identity.name} <${card.identity.email}>`}
-          />
-        ) : null}
-      </View>
-      <ScrollView
-        style={{ flexShrink: 1 }}
-        contentContainerStyle={{ gap: 12, paddingHorizontal: nativeSpace[3], paddingVertical: 8 }}
-      >
-        {(card.edits ?? []).map((edit) => (
-          <View key={edit.arg} style={{ gap: 4 }}>
-            <Label>{edit.label}</Label>
-            {edit.multiline ? (
-              <Textarea
-                value={values[edit.arg] ?? ''}
-                rows={3}
-                disabled={busy}
-                onChangeText={(text) => setValue(edit.arg, text)}
-              />
-            ) : (
-              <Input
-                size="sm"
-                value={values[edit.arg] ?? ''}
-                disabled={busy}
-                onChangeText={(text) => setValue(edit.arg, text)}
-              />
-            )}
-          </View>
-        ))}
-        {card.facts.map((fact) => (
-          <Text key={fact} style={{ fontSize: 12.5, color: theme.text.secondary }}>
-            {`•  ${fact}`}
-          </Text>
-        ))}
+        {edits
+          .filter((edit) => edit.kind === 'branch')
+          .map((edit) => {
+            const value = values[edit.arg] ?? ''
+            const options = branchNames.includes(value) ? branchNames : [value, ...branchNames]
+            return (
+              <View key={edit.arg} style={{ gap: 6 }}>
+                <Label>{edit.label}</Label>
+                {branchNames.length > 0 ? (
+                  <Select value={value} onValueChange={(next) => setValue(edit.arg, next)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    size="sm"
+                    value={value}
+                    disabled={busy}
+                    onChangeText={(text) => setValue(edit.arg, text)}
+                  />
+                )}
+                {card.branch ? (
+                  <Text style={[{ fontSize: 12.5, color: theme.text.secondary }, MONO]}>
+                    {`${TOOL_ASK_COPY.into} ${card.branch}`}
+                  </Text>
+                ) : null}
+              </View>
+            )
+          })}
         {card.commits ? (
           <>
             <CommitList
@@ -302,48 +275,64 @@ export default function GitChangeApprovalPanel({
             />
           </>
         ) : null}
+        {edits
+          .filter((edit) => edit.kind === 'toggle')
+          .map((edit) => (
+            <Switch
+              key={edit.arg}
+              checked={values[edit.arg] === 'true'}
+              disabled={busy}
+              onCheckedChange={(on) => setValue(edit.arg, String(on))}
+              label={edit.label}
+            />
+          ))}
+        {edits
+          .filter((edit) => edit.kind === undefined || edit.kind === 'text')
+          .map((edit) => (
+            <View key={edit.arg} style={{ gap: 4 }}>
+              <Label>{edit.label}</Label>
+              {edit.multiline ? (
+                <Textarea
+                  value={values[edit.arg] ?? ''}
+                  rows={3}
+                  disabled={busy}
+                  onChangeText={(text) => setValue(edit.arg, text)}
+                />
+              ) : (
+                <Input
+                  size="sm"
+                  value={values[edit.arg] ?? ''}
+                  disabled={busy}
+                  onChangeText={(text) => setValue(edit.arg, text)}
+                />
+              )}
+            </View>
+          ))}
+        {card.facts.map((fact) => (
+          <Text key={fact} style={{ fontSize: 12.5, color: theme.text.secondary }}>
+            {`•  ${fact}`}
+          </Text>
+        ))}
         {card.diff ? <DiffView diff={card.diff} /> : null}
-      </ScrollView>
-      <View
-        style={{
-          gap: 6,
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderTopWidth: 1,
-          borderTopColor: theme.border.subtle,
-        }}
-      >
-        {problem ? (
-          <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{problem}</Text>
-        ) : null}
-        {error !== null ? (
-          <Text style={{ fontSize: 12, color: status.stuck.softFg }}>{error}</Text>
-        ) : null}
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'flex-end',
-            gap: nativeSpace[2],
-          }}
-        >
-          <Button variant="ghost" size="sm" onPress={onDecideLater} disabled={busy}>
-            {GIT_CHANGE_COPY.later}
-          </Button>
-          <Button variant="secondary" size="sm" onPress={() => decide('deny')} disabled={busy}>
-            {GIT_CHANGE_COPY.decline}
-          </Button>
-          <Button
-            size="sm"
-            variant={card.danger ? 'danger' : 'primary'}
-            onPress={() => decide('once')}
-            loading={busy}
-            disabled={problem !== undefined}
-          >
-            {card.danger ? GIT_CHANGE_COPY.approveDanger : GIT_CHANGE_COPY.approve}
-          </Button>
+        <View style={{ gap: 2 }}>
+          <Row label={GIT_CHANGE_COPY.repository} value={card.repoPath} mono />
+          {card.branch && !edits.some((e) => e.kind === 'branch') ? (
+            <Row label={GIT_CHANGE_COPY.branch} value={card.branch} mono />
+          ) : null}
+          {card.run ? (
+            <Row
+              label={GIT_CHANGE_COPY.run}
+              value={run ? `${card.run.title} · ${run.status}` : card.run.title}
+            />
+          ) : null}
+          {card.identity ? (
+            <Row
+              label={GIT_CHANGE_COPY.commitsAs}
+              value={`${card.identity.name} <${card.identity.email}>`}
+            />
+          ) : null}
         </View>
-      </View>
+      </ToolAskCard>
     </View>
   )
 }

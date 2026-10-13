@@ -34,9 +34,8 @@ export const RUN_CHAT_TITLE = 'Run chat'
 /** The drawer's close button. */
 export const RUN_CHAT_CLOSE_LABEL = 'Close the chat'
 
-/** The line under the drawer's header saying what the chat can do. */
-export const RUN_CHAT_INTRO =
-  'This chat knows the run — its report, review, checks and diff — and can change the story or add work to this run before you sign off. Nothing changes until you approve a proposal.'
+/** The drawer's way to the same chat on the Chat screen. */
+export const RUN_CHAT_OPEN_IN_CHAT_LABEL = 'Open in Chat ↗'
 
 /** Shown while the run's chat is being opened. */
 export const RUN_CHAT_OPENING = 'Opening the run’s chat…'

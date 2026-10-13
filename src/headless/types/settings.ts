@@ -7,6 +7,11 @@ import type { StoryStatus } from '../utils/status'
 import type { StoryListSorting } from '../utils/storiesOptions'
 import type { Theme } from '../hooks/useResolvedTheme'
 import type { ChatBadgeCountMode } from '../hooks/useBadgeCountsCore'
+import type { AgentMessagesDisplay, ChatNotifyLevels } from '../utils/chatNotifyTypes'
+import {
+  DEFAULT_AGENT_MESSAGES_DISPLAY,
+  DEFAULT_CHAT_NOTIFY_LEVELS,
+} from '../utils/chatNotifyConstants'
 
 // `Theme` and `ChatBadgeCountMode` are owned by the hooks that consume them;
 // re-export here so `AppSettings` can reference them without making consumers
@@ -38,6 +43,31 @@ export type StoriesListStatusFilter = 'all' | 'not-done' | StoryStatus
 /** Syntax-highlight theme for `<Code>` blocks (tool args / results etc.). */
 export type CodeBlockTheme = 'light' | 'dark'
 export const CODE_BLOCK_THEMES: readonly CodeBlockTheme[] = ['light', 'dark'] as const
+
+/** How a project or group row adds up what waits on the person. */
+export type BadgeMode = 'total' | 'stacked' | 'top' | 'dots'
+export const BADGE_MODES: readonly BadgeMode[] = ['total', 'stacked', 'top', 'dots'] as const
+
+/** How a one-total badge mixes its channels' colours. */
+export type BadgeStyle = 'splatter' | 'watercolour' | 'ring' | 'stripes' | 'pie'
+export const BADGE_STYLES: readonly BadgeStyle[] = [
+  'splatter',
+  'watercolour',
+  'ring',
+  'stripes',
+  'pie',
+] as const
+
+/** How a badge shows that something is running. */
+export type BadgeMotion = 'orbit' | 'splash' | 'float' | 'comet' | 'pulse' | 'spinner'
+export const BADGE_MOTIONS: readonly BadgeMotion[] = [
+  'orbit',
+  'splash',
+  'float',
+  'comet',
+  'pulse',
+  'spinner',
+] as const
 
 export type UserPreferences = {
   /** Last project the user was viewing; used to restore selection on boot. */
@@ -71,6 +101,17 @@ export type UserPreferences = {
    * controls whether a viewer sees the Debug surfaces. Off by default.
    */
   showRunDiagnostics?: boolean
+  /**
+   * Adds the Developer section — system prompt, costs, dynamic context, debug —
+   * to every chat's settings menu. Off by default.
+   */
+  showDeveloperTools?: boolean
+  /** How a sidebar row adds up what waits on the person. */
+  badgeMode: BadgeMode
+  /** How a one-total badge mixes its channels' colours. */
+  badgeStyle: BadgeStyle
+  /** How a badge shows that something is running. */
+  badgeMotion: BadgeMotion
 }
 
 export type NotificationCategory =
@@ -101,9 +142,15 @@ export function isBadgeColorCategory(c: NotificationCategory): c is BadgeColorCa
   return (BADGE_COLOR_CATEGORIES as readonly NotificationCategory[]).includes(c)
 }
 
-export type BadgeColor = 'red' | 'blue' | 'green' | 'orange'
+export type BadgeColor = 'red' | 'blue' | 'green' | 'orange' | 'purple'
 
-export const BADGE_COLORS: readonly BadgeColor[] = ['red', 'blue', 'green', 'orange'] as const
+export const BADGE_COLORS: readonly BadgeColor[] = [
+  'red',
+  'blue',
+  'green',
+  'orange',
+  'purple',
+] as const
 
 export type NotificationPrefs = {
   /** Show OS notifications when the tab is hidden. Requires user permission. */
@@ -122,6 +169,10 @@ export type NotificationPrefs = {
   displayDurationSeconds: 3 | 5 | 10 | 0
   /** Whether to play a short sound on notify. */
   soundsEnabled: boolean
+  /** How much of each kind of chat reaches the person; a chat can set its own. */
+  chatNotifyLevels: ChatNotifyLevels
+  /** How the agents' own exchange shows in a conversation. */
+  agentMessages: AgentMessagesDisplay
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -145,10 +196,10 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     storage: true,
   },
   badgeColors: {
-    chat: 'red',
+    chat: 'blue',
     tests: 'green',
     git: 'orange',
-    activity: 'red',
+    activity: 'purple',
     'cross-project': 'blue',
     processes: 'green',
     storage: 'orange',
@@ -157,6 +208,8 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   gitBadgeSubToggles: { incoming_commits: true, uncommitted_changes: true },
   displayDurationSeconds: 5,
   soundsEnabled: false,
+  chatNotifyLevels: DEFAULT_CHAT_NOTIFY_LEVELS,
+  agentMessages: DEFAULT_AGENT_MESSAGES_DISPLAY,
 }
 
 export type AppSettings = {
@@ -182,6 +235,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     codeBlockTheme: 'light',
     cliShowThinking: true,
     showRunDiagnostics: false,
+    showDeveloperTools: false,
+    badgeMode: 'total',
+    badgeStyle: 'splatter',
+    badgeMotion: 'orbit',
   },
   notifications: DEFAULT_NOTIFICATION_PREFS,
 }

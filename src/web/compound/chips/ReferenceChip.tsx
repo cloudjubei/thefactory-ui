@@ -1,59 +1,63 @@
-import type { ComponentType, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
+import { referencePreview, type ReferencePreview } from '../../../headless'
 import Tooltip from '../../primitives/Tooltip'
-import {
-  IconAttach,
-  IconBoard,
-  IconChat,
-  IconDocument,
-  IconFiles,
-  IconFolder,
-  IconList,
-  IconMonitor,
-  IconPalette,
-} from '../../icons'
+import { PROCESS_TONE_BADGE } from '../process/signoff/tones'
+import ReferencePreviewCard from './ReferencePreviewCard'
+import { referenceGlyph } from './referenceGlyphs'
 
 export type ReferenceChipProps = {
   description: ReferenceDescription
   /** Opens what the chip points at. Omitted, or for something gone, the chip is not a button. */
   onOpen?: (link: ResourceLink) => void
-  /** Shown under the label on hover — a design's miniature. */
+  /** Shown in the preview under its lines — a design's miniature. */
   preview?: ReactNode
-}
-
-const GLYPHS: Record<ReferenceDescription['kind'], ComponentType<{ className?: string }>> = {
-  story: IconBoard,
-  feature: IconList,
-  note: IconDocument,
-  groupNote: IconDocument,
-  attachment: IconAttach,
-  file: IconFiles,
-  project: IconFolder,
-  chat: IconChat,
-  app: IconMonitor,
-  design: IconPalette,
+  /** The pill the chip shows, over the one its description has — a run's live status. */
+  status?: ReferencePreview['status']
+  /** The preview card, in place of the one its description makes — a run's, live. */
+  card?: ReactNode
 }
 
 /**
- * Something a message points at — a story, feature, note, attachment, file or
- * in-app link — as a chip: its current number or name, what it is on hover,
- * and a click that opens it. Something gone shows as such and opens nothing.
+ * Something a message points at — a story, feature, process run or process,
+ * note, attachment, file or in-app link — as a chip: its current number or
+ * name with its title and status, a preview card on hover, and a click that
+ * opens it. Something still being looked up shows neutral; something gone
+ * shows dashed and opens nothing.
  */
-export default function ReferenceChip({ description, onOpen, preview }: ReferenceChipProps) {
-  const Glyph = GLYPHS[description.kind]
-  const link = description.missing ? undefined : description.link
+export default function ReferenceChip({
+  description,
+  onOpen,
+  preview,
+  status,
+  card,
+}: ReferenceChipProps) {
+  const Glyph = referenceGlyph(description)
+  const view = referencePreview(description)
+  const pill = status ?? view.status
+  const link = description.missing || description.loading ? undefined : description.link
   const className = [
     'ref-chip',
     'ref-chip--reference',
     link && onOpen ? 'ref-chip--link' : '',
     description.missing ? 'ref-chip--missing' : '',
+    description.loading ? 'ref-chip--loading' : '',
   ]
     .filter(Boolean)
     .join(' ')
+  const title = description.loading ? undefined : description.title
   const body = (
     <>
       <Glyph className="ref-chip__glyph" />
-      <span className="ref-chip__label">{description.label}</span>
+      <span className={title ? 'ref-chip__tag' : 'ref-chip__label'}>{description.label}</span>
+      {title ? <span className="ref-chip__label ref-chip__title">{title}</span> : null}
+      {pill && !description.missing ? (
+        <span
+          className={`badge badge--soft badge--sm ref-chip__status ${PROCESS_TONE_BADGE[pill.tone]}`}
+        >
+          {pill.label}
+        </span>
+      ) : null}
     </>
   )
   return (
@@ -62,13 +66,11 @@ export default function ReferenceChip({ description, onOpen, preview }: Referenc
       allowedPlacements={['top', 'bottom']}
       zIndex={2000}
       content={
-        <div className="flex max-w-80 flex-col gap-1 text-[12px]">
-          <span className="font-semibold text-(--text-primary)">{description.label}</span>
-          {description.detail ? (
-            <span className="text-(--text-secondary)">{description.detail}</span>
-          ) : null}
-          {preview}
-        </div>
+        card ?? (
+          <ReferencePreviewCard view={view} glyph={Glyph} {...(onOpen ? { onOpen } : {})}>
+            {preview}
+          </ReferencePreviewCard>
+        )
       }
     >
       {link && onOpen ? (
@@ -92,7 +94,9 @@ export default function ReferenceChip({ description, onOpen, preview }: Referenc
           {body}
         </button>
       ) : (
-        <span className={className}>{body}</span>
+        <span className={className} aria-busy={description.loading ? true : undefined}>
+          {body}
+        </span>
       )}
     </Tooltip>
   )

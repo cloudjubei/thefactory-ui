@@ -51,8 +51,6 @@ export type ChatComposerBlockers = {
   historyLocked: boolean
   /** The host replaced the composer (e.g. a running agent's read-only bar). */
   inputOverridden: boolean
-  /** The host hid the composer altogether. */
-  inputHidden: boolean
 }
 
 /** Everything the queue's automatic send is decided from. */
