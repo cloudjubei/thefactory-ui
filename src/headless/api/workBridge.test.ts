@@ -92,11 +92,15 @@ describe('dispatchWorkBridge', () => {
 
   it.each(['stories.list', 'runs.list'])('returns [] without a project for %s', async (type) => {
     expect(
-      await dispatchWorkBridge(undefined, { type }, {
-        stories: [story],
-        isLoaded: true,
-        loadError: null,
-      }),
+      await dispatchWorkBridge(
+        undefined,
+        { type },
+        {
+          stories: [story],
+          isLoaded: true,
+          loadError: null,
+        },
+      ),
     ).toEqual([])
     expect(listStories).not.toHaveBeenCalled()
     expect(listProcessRuns).not.toHaveBeenCalled()
@@ -112,12 +116,15 @@ describe('dispatchWorkBridge', () => {
     },
   )
 
-  it.each(['stories.list', 'runs.list'])('surfaces readable backend errors for %s', async (type) => {
-    const error = { response: { data: { error: 'Project is unavailable' } }, message: 'HTTP 404' }
-    vi.mocked(listStories).mockRejectedValueOnce(error)
-    vi.mocked(listProcessRuns).mockRejectedValueOnce(error)
-    await expect(dispatchWorkBridge('p1', { type })).rejects.toThrow('Project is unavailable')
-  })
+  it.each(['stories.list', 'runs.list'])(
+    'surfaces readable backend errors for %s',
+    async (type) => {
+      const error = { response: { data: { error: 'Project is unavailable' } }, message: 'HTTP 404' }
+      vi.mocked(listStories).mockRejectedValueOnce(error)
+      vi.mocked(listProcessRuns).mockRejectedValueOnce(error)
+      await expect(dispatchWorkBridge('p1', { type })).rejects.toThrow('Project is unavailable')
+    },
+  )
 
   it('surfaces the story provider load error instead of a misleading empty list', async () => {
     await expect(

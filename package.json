@@ -56,7 +56,7 @@
     "dist"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p playground",
     "check:uikit": "bash scripts/check-uikit-boundaries.sh",
     "check:hooks": "node scripts/check-hook-order.mjs",
     "generate:tokens": "tsx scripts/generate-tokens-css.ts && prettier --write --ignore-path /dev/null './src/web/styles/tokens.css' './src/native/styles/tokens.css'",
@@ -67,7 +67,9 @@
     "prepublishOnly": "npm run build",
     "dev": "tsup --watch",
     "playground:dev": "vite playground",
-    "playground": "npm run build && vite build playground && vite preview playground",
+    "playground:build": "vite build playground",
+    "playground:serve": "vite preview playground --host 127.0.0.1",
+    "playground": "npm run playground:build && npm run playground:serve",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
@@ -169,5 +171,13 @@
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown"
+  },
+  "factory": {
+    "webApp": {
+      "build": "playground:build",
+      "serve": "playground:serve",
+      "portEnv": "PORT",
+      "readyPath": "/"
+    }
   }
 }

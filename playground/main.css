@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'thefactory-ui/web/styles';
+@source '../src/web';
 
 html,
 body {
@@ -7,4 +8,14 @@ body {
   background: var(--surface-base);
   color: var(--text-primary);
   font-family: var(--font-sans);
+}
+
+/* A state's own URL is screenshotted for proof: no motion and no blinking caret, so every load of
+   one build captures the same frame. */
+html[data-showcase='state'] *,
+html[data-showcase='state'] *::before,
+html[data-showcase='state'] *::after {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
 }

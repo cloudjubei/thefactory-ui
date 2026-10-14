@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "thefactory-ui/web": ["../src/web/index.ts"],
+      "thefactory-ui/headless": ["../src/headless/index.ts"]
+    }
+  },
+  "include": [".", "../src/css.d.ts"],
+  "exclude": ["dist"]
+}

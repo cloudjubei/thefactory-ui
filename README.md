@@ -69,13 +69,13 @@ import { nativeSpace, nativeLightTheme, nativeShadows } from 'thefactory-ui/nati
 ```sh
 npm install
 npm run build           # tsup build of the package
-npm run playground:dev  # vite dev server with the playground (live consumer)
+npm run playground:dev  # vite dev server with the component showcase
 npm run typecheck
 npm run check:uikit     # enforces the four-layer boundary
 npm run generate:tokens # regenerate src/web/styles/tokens.css from src/tokens/*.ts
 ```
 
-The [playground/](./playground/) is the first real consumer. It imports `thefactory-ui/web` via npm self-reference and runs Tailwind v4 — touching it is the fastest way to validate any change end-to-end.
+The [playground/](./playground/) is the component showcase: every component state at its own fixed URL (`/?scene=<id>&state=<state>`), rendered from source with Tailwind v4. Every visible change adds or updates its scene, and is proven by a before/after screenshot of that URL — see [Component showcase](./docs/ARCHITECTURE.md#component-showcase-playground).
 
 ## Contribute
 
