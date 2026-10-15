@@ -269,6 +269,9 @@ import type {
   DetectEnvironmentData,
   DetectEnvironmentErrors,
   DetectEnvironmentResponses,
+  DiscardChatOpenChangesData,
+  DiscardChatOpenChangesErrors,
+  DiscardChatOpenChangesResponses,
   DiscardCliAgentArtifactData,
   DiscardCliAgentArtifactErrors,
   DiscardCliAgentArtifactResponses,
@@ -294,6 +297,9 @@ import type {
   GetAllFileStatsErrors,
   GetAllFileStatsResponses,
   GetChatData,
+  GetChatOpenChangesData,
+  GetChatOpenChangesErrors,
+  GetChatOpenChangesResponses,
   GetChatResponses,
   GetChatsSettingsData,
   GetChatsSettingsResponses,
@@ -767,6 +773,9 @@ import type {
   ReadProjectLiveDataData,
   ReadProjectLiveDataErrors,
   ReadProjectLiveDataResponses,
+  RebuildChatOpenChangesData,
+  RebuildChatOpenChangesErrors,
+  RebuildChatOpenChangesResponses,
   RefreshDataSourceData,
   RefreshDataSourceErrors,
   RefreshDataSourceResponses,
@@ -942,6 +951,9 @@ import type {
   SetProcessRunManagerData,
   SetProcessRunManagerErrors,
   SetProcessRunManagerResponses,
+  SetProcessRunModelData,
+  SetProcessRunModelErrors,
+  SetProcessRunModelResponses,
   SetProcessRunTurnLimitData,
   SetProcessRunTurnLimitErrors,
   SetProcessRunTurnLimitResponses,
@@ -2011,6 +2023,24 @@ export const setProcessRunTurnLimit = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/process-runs/{runId}/turn-limit',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const setProcessRunModel = <ThrowOnError extends boolean = false>(
+  options: Options<SetProcessRunModelData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    SetProcessRunModelResponses,
+    SetProcessRunModelErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/process-runs/{runId}/model',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -5657,6 +5687,56 @@ export const submitCliAuthLoginInput = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-auth/login/{loginId}/input',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const getChatOpenChanges = <ThrowOnError extends boolean = false>(
+  options: Options<GetChatOpenChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetChatOpenChangesResponses,
+    GetChatOpenChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-open-changes',
+    ...options,
+  })
+
+export const discardChatOpenChanges = <ThrowOnError extends boolean = false>(
+  options: Options<DiscardChatOpenChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DiscardChatOpenChangesResponses,
+    DiscardChatOpenChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-open-changes/discard',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const rebuildChatOpenChanges = <ThrowOnError extends boolean = false>(
+  options: Options<RebuildChatOpenChangesData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RebuildChatOpenChangesResponses,
+    RebuildChatOpenChangesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat-open-changes/rebuild',
     ...options,
     headers: {
       'Content-Type': 'application/json',

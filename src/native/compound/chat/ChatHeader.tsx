@@ -27,7 +27,10 @@ export interface ChatHeaderProps {
   onBack?: () => void
   /** Leaves the title to the surrounding chrome — a screen's own header. */
   hideTitle?: boolean
-  /** Folds the steps strip to its narrow form. */
+  /**
+   * A narrow host: the steps strip folds, and the model chip joins the pill and
+   * meta line under the title, so the title keeps its row. Web's rule too.
+   */
   narrow?: boolean
   extraRight?: ReactNode
   /**
@@ -35,6 +38,12 @@ export interface ChatHeaderProps {
    * 200ms. The space it took is kept, so the list does not reflow.
    */
   hidden?: boolean
+  /**
+   * The chat is shown beside what it is about — a run's chat beside its run —
+   * so the header is one slim row: collapse, this label, the model chip and
+   * maximize, with no kind tile, title, status, meta or steps. Web's rule too.
+   */
+  dockedLabel?: string
 }
 
 function IconBtn({
@@ -88,6 +97,7 @@ export default function ChatHeader({
   narrow = false,
   extraRight,
   hidden = false,
+  dockedLabel,
 }: ChatHeaderProps) {
   const { theme } = useNativeTheme()
   const [measuredHeight, setMeasuredHeight] = useState(0)
@@ -106,23 +116,56 @@ export default function ChatHeader({
 
   const iconColor = theme.text.secondary
   const pill = view.pill ? <ToneBadge tone={view.pill.tone} label={view.pill.label} /> : null
+  const rowStyle = {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: nativeSpace[2],
+    paddingHorizontal: nativeSpace[3],
+    paddingVertical: nativeSpace[2],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border.subtle,
+  } as const
+  const collapse = onCollapse ? (
+    <IconBtn label="Collapse chat" onPress={onCollapse}>
+      <View style={{ transform: [{ rotate: '90deg' }] }}>
+        <IconChevron size={16} color={iconColor} />
+      </View>
+    </IconBtn>
+  ) : null
+  const maximize = onMaximize ? (
+    <IconBtn label="Open chat in its own view" onPress={onMaximize}>
+      <IconMaximize size={16} color={iconColor} />
+    </IconBtn>
+  ) : null
+
+  if (dockedLabel !== undefined) {
+    return (
+      <View style={[rowStyle, { backgroundColor: theme.surface.raised }]}>
+        {collapse}
+        <Text
+          numberOfLines={1}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 15,
+            fontWeight: '600',
+            color: theme.text.primary,
+          }}
+        >
+          {dockedLabel}
+        </Text>
+        {modelChip}
+        {maximize}
+      </View>
+    )
+  }
 
   return (
     <Animated.View
       onLayout={onLayout}
       style={{ transform: [{ translateY }], backgroundColor: theme.surface.raised }}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: nativeSpace[2],
-          paddingHorizontal: nativeSpace[3],
-          paddingVertical: nativeSpace[2],
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border.subtle,
-        }}
-      >
+      <View style={rowStyle}>
         {onBack ? (
           <IconBtn label="Back" onPress={onBack}>
             <View style={{ transform: [{ rotate: '180deg' }] }}>
@@ -130,13 +173,7 @@ export default function ChatHeader({
             </View>
           </IconBtn>
         ) : null}
-        {onCollapse ? (
-          <IconBtn label="Collapse chat" onPress={onCollapse}>
-            <View style={{ transform: [{ rotate: '90deg' }] }}>
-              <IconChevron size={16} color={iconColor} />
-            </View>
-          </IconBtn>
-        ) : null}
+        {collapse}
         {contextInfoSlot}
         <ChatKindTile kind={view.kind} label={view.kindLabel} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -176,14 +213,11 @@ export default function ChatHeader({
             {view.cost ? (
               <CostChip label={view.cost.label} cost={view.cost.cost} title={view.cost.title} />
             ) : null}
+            {narrow ? modelChip : null}
           </View>
         </View>
-        {onMaximize ? (
-          <IconBtn label="Open chat in its own view" onPress={onMaximize}>
-            <IconMaximize size={16} color={iconColor} />
-          </IconBtn>
-        ) : null}
-        {modelChip}
+        {maximize}
+        {narrow ? null : modelChip}
         {settingsMenu}
         {extraRight}
       </View>

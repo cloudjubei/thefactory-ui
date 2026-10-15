@@ -15,8 +15,6 @@ import {
 import {
   choiceTakesNote,
   computeChatRowStatus,
-  processRunChatContext,
-  RUN_CHAT_OPEN_LABEL,
   RunChatDraftProvider,
   RunNeedsYouProvider,
   runNeedsYouDiscussDraft,
@@ -24,6 +22,9 @@ import {
   usePendingAsksByChat,
   type ChatsSeenMap,
   type RunNeedsYouActions,
+  type RunModelChipSlot,
+  type RunModelChipView,
+  useRunModelChip,
   fileNameSlug,
   useDurationTimer,
   formatProcessDuration,
@@ -45,7 +46,8 @@ import {
   processRunParkChoices,
   processRunIntegrationModes,
   processRunBadge,
-  processRunHeaderModel,
+  processRunChatContext,
+  processRunModelChipView,
   processRunManagerLine,
   processRunManagerView,
   processRunStopHolderOf,
@@ -75,6 +77,7 @@ import {
   useAppSettings,
   useProcessGroupRun,
   useProcessRun,
+  useProcessRunChat,
   useProcessStopClock,
   useProjects,
   useStories,
@@ -106,8 +109,10 @@ import ParkNoteComposer from './ParkNoteComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
+import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
 import RunManagerPanel from './RunManagerPanel'
+import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
 import RunDiagnosticsView from './RunDiagnosticsView'
 import StorySignoffReview from './StorySignoffReview'
 import StepPreview from './pipeline/StepPreview'
@@ -121,13 +126,7 @@ import DurationChip from '../chips/DurationChip'
 import DependencyRef from '../stories/DependencyRef'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
-import {
-  IconChat,
-  IconChevronLeft,
-  IconChevronRight,
-  IconDotsVertical,
-  IconGroup,
-} from '../../icons'
+import { IconChevronLeft, IconChevronRight, IconDotsVertical, IconGroup } from '../../icons'
 import { getChatContextKey } from 'thefactory-tools/utils'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -151,7 +150,7 @@ export type ProcessPipelineProps = {
   /** Open the group run a project's run is a leg of. */
   onOpenGroupRun?: (groupRunId: string) => void
   /**
-   * Push the run's own chat — native's form of web's chat drawer. Its draft is
+   * Push the run's own chat — native's form of web's docked run chat. Its draft is
    * already set when a "Needs you" item is being discussed.
    */
   onOpenRunChat?: (context: ChatContext) => void
@@ -163,6 +162,12 @@ export type ProcessPipelineProps = {
    * first back press. Defaults to true for a host with no navigation stack.
    */
   isFocused?: boolean
+  /**
+   * Render the host's chooser chip for the run's model — the API or a CLI, its
+   * model and login — from the slot the run hands it. Without it the run's
+   * model is shown read-only.
+   */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
 }
 
 /** The run sits at its story's sign-off — the screen leads with the decision. */
@@ -192,6 +197,7 @@ export default function ProcessPipeline({
   onOpenRunChat,
   chatsSeen,
   isFocused = true,
+  renderModelChip,
 }: ProcessPipelineProps) {
   const { theme, status } = useNativeTheme()
   const [stack, setStack] = useState<string[]>([])
@@ -201,12 +207,13 @@ export default function ProcessPipeline({
   const {
     isLoaded,
     loadError,
-    actionError,
+    actionError: runActionError,
     run,
     resume,
     answerWaitingRequest,
     setTurnLimit,
     setManager,
+    setModel,
     delegate,
     retryIntegration,
     resolveIntegrationConflict,
@@ -215,44 +222,51 @@ export default function ProcessPipeline({
     cancel,
     listBranches,
     deleteRun,
-    openChat,
     askAgent,
     resolveNeedsYou,
     startChanges,
     withdrawChange,
   } = useProcessRun(currentId)
+  const modelChip = useRunModelChip(run, setModel)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
   const { group } = useProcessGroupRun(run?.groupRunId)
   const integrationModes = run ? processRunIntegrationModes(run, group) : undefined
   const { projects } = useProjects()
   const { getChat, setDraft } = useChats()
-  const runChat = processRunChatContext({ id: runId, projectId: run?.projectId ?? '' })
-  const runChatKey = getChatContextKey(runChat)
-  const runChatAsks = usePendingAsksByChat().get(runChatKey) ?? 0
+  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
+  const runChat = useProcessRunChat(stack.length > 0 ? drilledRoot : run)
+  const runChatContext = runChat.context
+  const runChatKey = runChatContext ? getChatContextKey(runChatContext) : undefined
+  const pendingAsksByChat = usePendingAsksByChat()
   const runChatUnread =
     !!chatsSeen &&
+    !!runChatContext &&
+    !!runChatKey &&
     computeChatRowStatus({
-      context: runChat,
+      context: runChatContext,
       contextKey: runChatKey,
-      chat: getChat(runChat),
+      chat: getChat(runChatContext),
       isSending: false,
       seen: chatsSeen,
-      pendingAsks: runChatAsks,
+      pendingAsks: pendingAsksByChat.get(runChatKey) ?? 0,
       level: chatNotifyLevel(
-        getChat(runChat) ?? { context: runChat },
+        getChat(runChatContext) ?? { context: runChatContext },
         settings.notifications.chatNotifyLevels,
       ),
     }).isUnread
-  const canChat = stack.length === 0 && !run?.parentRunId && !!onOpenRunChat
+  const canChat = runChatContext !== undefined && !!onOpenRunChat
+  const atTop = stack.length === 0 && !run?.parentRunId
+  const actionError = runActionError ?? runChat.error
+  const openTreeChat = runChat.open
   const openRunChat = useCallback(
     async (draft?: string) => {
-      const opened = await openChat()
+      const opened = await openTreeChat()
       if (!opened) return
       if (draft) setDraft(opened.context, draft)
       onOpenRunChat?.(opened.context)
     },
-    [openChat, setDraft, onOpenRunChat],
+    [openTreeChat, setDraft, onOpenRunChat],
   )
   const askAgentAboutStep = useCallback(async () => {
     const opened = await askAgent()
@@ -268,7 +282,6 @@ export default function ProcessPipeline({
 
   const now = useDurationTimer(run?.totals?.ticking === true)
   const stopNow = useProcessStopClock()
-  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
 
   const drillTo = useCallback((childId: string) => {
     setPanel(null)
@@ -327,6 +340,9 @@ export default function ProcessPipeline({
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
   const openDraft = canChat ? (draft: string) => void openRunChat(draft) : undefined
+  const chatButton: RunChatButtonProps | undefined = canChat
+    ? { onOpen: () => void openRunChat(), unread: runChatUnread }
+    : undefined
   if (panel) {
     return (
       <RunChatDraftScope open={openDraft}>
@@ -336,18 +352,20 @@ export default function ProcessPipeline({
           {...(renderAgentRun ? { renderAgentRun } : {})}
           {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
           {...(onSaveFile ? { onSaveFile } : {})}
+          {...(chatButton ? { chat: chatButton } : {})}
         />
       </RunChatDraftScope>
     )
   }
 
-  const needsYouActions: RunNeedsYouActions | undefined = canChat
-    ? {
-        resolutions: run.needsYouResolutions,
-        onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
-        onResolve: (card) => void resolveNeedsYou(card.id),
-      }
-    : undefined
+  const needsYouActions: RunNeedsYouActions | undefined =
+    canChat && atTop
+      ? {
+          resolutions: run.needsYouResolutions,
+          onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
+          onResolve: (card) => void resolveNeedsYou(card.id),
+        }
+      : undefined
   const states = processStepStates(run)
   const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
@@ -386,6 +404,22 @@ export default function ProcessPipeline({
           onCancel={() => setConfirmStop(true)}
           onDelete={openDelete}
           onSetTurnLimit={setTurnLimit}
+          {...(modelChip
+            ? {
+                model: {
+                  view: modelChip.view,
+                  ...(renderModelChip && modelChip.view.editable
+                    ? {
+                        chip: renderModelChip({
+                          ...modelChip.slot,
+                          chatContext: processRunChatContext(run),
+                          note: modelChip.view.note,
+                        }),
+                      }
+                    : {}),
+                },
+              }
+            : {})}
           {...(managerView ? { manager: { view: managerView, onSwitch: setManager } } : {})}
           {...(signoff && reportText && onSaveFile
             ? {
@@ -399,9 +433,7 @@ export default function ProcessPipeline({
           {...(run.groupRunId && onOpenGroupRun
             ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
             : {})}
-          {...(canChat
-            ? { chat: { onOpen: () => void openRunChat(), unread: runChatUnread } }
-            : {})}
+          {...(chatButton ? { chat: chatButton } : {})}
         />
         {actionError && !signoff ? (
           <View
@@ -490,7 +522,7 @@ export default function ProcessPipeline({
               onChoose={choose}
               onAnswerRequest={(actionId, choice) => void answerWaitingRequest(actionId, choice)}
               onDelegate={() => delegate().then(() => undefined)}
-              {...(canChat ? { onAskAgent: askAgentAboutStep } : {})}
+              {...(canChat && atTop ? { onAskAgent: askAgentAboutStep } : {})}
               {...(onOpenChat ? { onOpenChat } : {})}
               onDrill={drillTo}
               onOpenPanel={setPanel}
@@ -712,8 +744,8 @@ function HeadAction({
  * status, then its story, process and project with its time and spend; then
  * the manager, model and turn limit, the Group chip for a group's leg, the
  * run's chat, Stop while the run can still do work, and ⋯ for the rare ones. A
- * nested run leads with the breadcrumb back up and has no chat of its own.
- * Under it, the steps strip.
+ * nested run leads with the breadcrumb back up; its chat button pushes the
+ * whole run's chat, like the top run's. Under it, the steps strip.
  */
 function RunHead({
   run,
@@ -727,6 +759,7 @@ function RunHead({
   onOpenGroup,
   onDownloadReport,
   onSetTurnLimit,
+  model,
   manager,
   chat,
 }: {
@@ -744,17 +777,19 @@ function RunHead({
   onDownloadReport?: () => void
   /** Hold the run's step agents to a turn limit from their next step on. */
   onSetTurnLimit?: (limit: ProcessTurnLimit) => Promise<boolean>
+  /** The run's model chip, and the host's chooser chip while it can change; read-only without it. */
+  model?: { view: RunModelChipView; chip?: ReactNode }
   /** The run's agent manager: what it is, and the switch while the run is live. */
   manager?: { view: ProcessRunManagerView; onSwitch: (enabled: boolean) => Promise<boolean> }
-  /** The run's own chat: open it, and whether it has news. */
-  chat?: { onOpen: () => void; unread: boolean }
+  /** The whole run tree's chat: open it, and whether it has news. */
+  chat?: RunChatButtonProps
 }) {
   const { theme, status } = useNativeTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
-  const model = processRunHeaderModel(run, run.ledger)
+  const modelView = model?.view ?? processRunModelChipView(run)
   const steps = useMemo(() => processRunStripEntries(run), [run])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   const actions: ActionMenuItem[] = [
@@ -860,7 +895,7 @@ function RunHead({
               {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
             />
           ) : null}
-          {model ? <RunModelChip model={model} /> : null}
+          <RunModelControl view={modelView} {...(model?.chip ? { chip: model.chip } : {})} />
           <RunTurnLimitChip
             run={run}
             {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
@@ -873,24 +908,7 @@ function RunHead({
               </Text>
             </HeadAction>
           ) : null}
-          {chat && depth === 0 ? (
-            <HeadAction label={RUN_CHAT_OPEN_LABEL} onPress={chat.onOpen}>
-              <IconChat size={16} color={theme.text.secondary} />
-              {chat.unread ? (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: theme.accent.primary,
-                  }}
-                />
-              ) : null}
-            </HeadAction>
-          ) : null}
+          {chat ? <RunChatButton {...chat} /> : null}
           {stoppable ? (
             <HeadAction label="Stop the run" onPress={onCancel}>
               <View

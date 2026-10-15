@@ -61,7 +61,7 @@ function newOnBranchDetail(branch: string | undefined): string {
 }
 
 const FRESH_DETAIL =
-  'Starts from the live branch as if that work did not exist, working every feature left — including ones that run already did. The open work stays unmerged and the two may conflict when merged.'
+  'Starts fresh, as if that work did not exist, working every feature left — including ones that run already did. The open work stays unmerged and the two may conflict when merged.'
 
 const featureList = (features: readonly { title: string }[]): string | undefined =>
   features.length > 0 ? features.map((f) => f.title).join(', ') : undefined

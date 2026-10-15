@@ -167,6 +167,15 @@ describe('managerEscalationView', () => {
       recommendation: 'Retry with a fresh agent.',
     })
   })
+
+  it('heads a turn that never started with why it could not start', () => {
+    expect(
+      managerEscalationView({
+        ...card,
+        escalation: { ...card.escalation, why: 'not-started', startError: 'the session failed' },
+      }).headline,
+    ).toBe('The manager couldn’t start: the session failed')
+  })
 })
 
 describe('managerOutcomeView with where things stand now', () => {

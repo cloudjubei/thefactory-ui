@@ -18,6 +18,7 @@ import SegmentedControl from '../../../primitives/SegmentedControl'
 import { IconChevronLeft, IconExternalLink } from '../../../icons'
 import type { SaveFileHandler } from '../../chat/signoff'
 import ProcessCheckList from '../ProcessCheckList'
+import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
@@ -31,6 +32,8 @@ export type StepScreenProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
   onSaveFile?: SaveFileHandler
+  /** The run's chat — the same one its head pushes — so the step can be discussed from here. */
+  chat?: RunChatButtonProps
 }
 
 type PanelView = 'output' | 'transcript'
@@ -38,7 +41,7 @@ type PanelView = 'output' | 'transcript'
 /**
  * The native form of web's side panel: one step's full output — its code
  * review, report, checks, verify proof or chat — pushed over the pipeline
- * under a head with "‹ Pipeline" and ↗ (open as a full page).
+ * under a head with "‹ Pipeline", the run's chat and ↗ (open as a full page).
  */
 export default function StepScreen({
   target,
@@ -46,6 +49,7 @@ export default function StepScreen({
   renderAgentRun,
   onOpenAgentRun,
   onSaveFile,
+  chat,
 }: StepScreenProps) {
   const { theme } = useNativeTheme()
   const { run } = useProcessRun(target.runId)
@@ -115,6 +119,7 @@ export default function StepScreen({
             ]}
           />
         ) : null}
+        {chat ? <RunChatButton {...chat} compact /> : null}
         {ref && onOpenAgentRun ? (
           <Pressable
             accessibilityRole="button"

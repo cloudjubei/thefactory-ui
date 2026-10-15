@@ -51,7 +51,10 @@ import {
   type ReviewTabId,
   processStepFinishedView,
   chatChangesNotice,
+  heldChatChangesNote,
   CHAT_CHANGES_COPY,
+  discardedEditPaths,
+  withDiscardWarnings,
 } from '../../../headless'
 import { nativeAlpha, nativeRadii } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
@@ -438,9 +441,13 @@ export default function CliRunArtifactPanel({
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const changeFiles: ChangeFile[] = review
-    ? (reviewDiff?.files ?? []).map(toChangeFile)
-    : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
+  const discarded = discardedEditPaths(artifact)
+  const changeFiles: ChangeFile[] = withDiscardWarnings(
+    review
+      ? (reviewDiff?.files ?? []).map(toChangeFile)
+      : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied)),
+    discarded,
+  )
   const changesKnown = review ? reviewDiff !== undefined : preview !== undefined
   // GitHub's "Viewed": the user marks each file read; the change is read once all are.
   const viewedChanges =
@@ -507,6 +514,7 @@ export default function CliRunArtifactPanel({
     storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
 
   const warning = toneChip('warning', theme, status)
+  const danger = toneChip('danger', theme, status)
   // A process-owned run is a STAGE, not a sign-off — a verdict-coloured marker
   // would imply a decision this surface does not make. Neutral for report-only.
   const headMarker = reportOnly
@@ -968,6 +976,23 @@ export default function CliRunArtifactPanel({
               </View>
             ) : null}
 
+            {discarded.size > 0 ? (
+              <View
+                style={{
+                  borderRadius: nativeRadii[2],
+                  borderWidth: 1,
+                  borderColor: danger.border,
+                  backgroundColor: danger.bg,
+                  paddingHorizontal: 8,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '500', color: danger.fg }}>
+                  {CHAT_CHANGES_COPY.discardsUncommittedEditsCount(discarded.size)}
+                </Text>
+              </View>
+            ) : null}
+
             {landing ? (
               <View
                 style={{
@@ -1051,6 +1076,10 @@ export default function CliRunArtifactPanel({
                 ) : conflictCount > 0 && !isApplied ? (
                   <Text style={{ fontSize: 12, color: dangerText }}>
                     {`${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — applying overwrites local edits`}
+                  </Text>
+                ) : heldChatChangesNote(artifact) ? (
+                  <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+                    {heldChatChangesNote(artifact)}
                   </Text>
                 ) : isApplied ? (
                   <Text style={{ fontSize: 12, color: theme.text.secondary }}>

@@ -30,6 +30,10 @@ export type ChatSidebarPanelProps = {
   children: ReactNode | ((args: ChatSidebarPanelChildrenArgs) => ReactNode)
 }
 
+function maxWidthByViewport(): number {
+  return typeof window === 'undefined' ? Infinity : Math.floor(window.innerWidth * 0.5)
+}
+
 function getMetricPx(name: string, fallback: number) {
   try {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name)
@@ -64,10 +68,9 @@ export function ChatSidebarPanel({
   const COLLAPSED_W = getMetricPx('--sidebar-w-collapsed', 64)
 
   const [width, setWidth] = useState<number>(() => {
-    const maxByViewport = Math.floor(window.innerWidth * 0.5)
-    return Math.max(MIN_W, Math.min(maxByViewport, initialWidth))
+    return Math.max(MIN_W, Math.min(maxWidthByViewport(), initialWidth))
   })
-  const resizingRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const resizingRef = useRef<{ startX: number; startWidth: number; lastWidth: number } | null>(null)
 
   useEffect(() => {
     return () => {
@@ -85,7 +88,7 @@ export function ChatSidebarPanel({
     if (collapsed) return
     e.preventDefault()
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    resizingRef.current = { startX: e.clientX, startWidth: width }
+    resizingRef.current = { startX: e.clientX, startWidth: width, lastWidth: width }
     window.addEventListener('pointermove', onResizeMove)
     window.addEventListener('pointerup', onResizeEnd)
   }
@@ -95,17 +98,18 @@ export function ChatSidebarPanel({
     const { startX, startWidth } = resizingRef.current
     const dx = e.clientX - startX
     const next = startWidth - dx
-    const maxByViewport = Math.floor(window.innerWidth * 0.5)
-    const clamped = Math.max(MIN_W, Math.min(maxByViewport, next))
+    const clamped = Math.max(MIN_W, Math.min(maxWidthByViewport(), next))
+    resizingRef.current.lastWidth = clamped
     setWidth(clamped)
     onWidthChange?.(clamped, false)
   }
 
   const onResizeEnd = (_e: PointerEvent) => {
+    const finalWidth = resizingRef.current?.lastWidth ?? width
     resizingRef.current = null
     window.removeEventListener('pointermove', onResizeMove)
     window.removeEventListener('pointerup', onResizeEnd)
-    onWidthChange?.(width, true)
+    onWidthChange?.(finalWidth, true)
   }
 
   const transitionInOut = '200ms cubic-bezier(0.2, 0.8, 0.2, 1)'

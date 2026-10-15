@@ -25,17 +25,11 @@ export const NEEDS_YOU_TITLE_SEPARATORS: readonly string[] = [' — ', ': ', ' �
 /** The longest leading phrase read as an item's title. */
 export const NEEDS_YOU_TITLE_MAX_CHARS = 80
 
-/** The run header's chat button. */
+/** The chat button on every page of a run — its header, a nested run's, a step's. */
 export const RUN_CHAT_OPEN_LABEL = 'Chat about this run'
 
-/** The drawer's title. */
+/** The run chat's label beside its run: its slim header and the docked panel's name. */
 export const RUN_CHAT_TITLE = 'Run chat'
-
-/** The drawer's close button. */
-export const RUN_CHAT_CLOSE_LABEL = 'Close the chat'
-
-/** The drawer's way to the same chat on the Chat screen. */
-export const RUN_CHAT_OPEN_IN_CHAT_LABEL = 'Open in Chat ↗'
 
 /** Shown while the run's chat is being opened. */
 export const RUN_CHAT_OPENING = 'Opening the run’s chat…'

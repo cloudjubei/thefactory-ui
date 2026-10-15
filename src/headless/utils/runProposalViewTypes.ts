@@ -32,6 +32,7 @@ export type RunProposalKind =
   | 'group-resume'
   | 'remove-process'
   | 'turn-limit'
+  | 'model'
   | 'close-features'
   | 'already-landed'
 

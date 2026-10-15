@@ -8,6 +8,7 @@ import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPic
 import { Text, View } from 'react-native'
 
 import {
+  groupBaseBranchMetadata,
   LAUNCH_NOTE_MAX_CHARS,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
@@ -24,6 +25,7 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Textarea } from '../../primitives/Textarea'
 import { TurnLimitField } from '../TurnLimitField'
+import BaseBranchChooser from './BaseBranchChooser'
 import ToolAskCard from './ToolAskCard'
 
 export type GroupWorkLaunchPanelProps = {
@@ -76,6 +78,10 @@ export default function GroupWorkLaunchPanel({
     { limited: boolean; maxTurns: number } | undefined
   >(undefined)
   const turnLimit = turnLimitPick ?? turnLimitStart
+  // Each project's branch to work off — the person's pick, else what the
+  // agent asked, else that project's current branch.
+  const [basePicks, setBasePicks] = useState<Record<string, string>>({})
+  const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
@@ -93,6 +99,7 @@ export default function GroupWorkLaunchPanel({
               ...(trimmed ? { note: trimmed } : {}),
               turnLimit: processTurnLimitOfView(turnLimit),
               ...launchAgentPickMetadata(agentPick),
+              ...(baseBranchMeta ?? {}),
             }
           : undefined,
       )
@@ -178,6 +185,15 @@ export default function GroupWorkLaunchPanel({
                           {`${leg.features} feature${leg.features === 1 ? '' : 's'}`}
                         </Text>
                       </View>
+                      <BaseBranchChooser
+                        options={leg.baseBranches}
+                        {...(leg.baseBranch !== undefined ? { asked: leg.baseBranch } : {})}
+                        picked={basePicks[leg.projectId]}
+                        busy={busy}
+                        onChoose={(branch) =>
+                          setBasePicks((prev) => ({ ...prev, [leg.projectId]: branch }))
+                        }
+                      />
                       {waitsFor ? (
                         <Text style={{ fontSize: 11, color: theme.text.muted }}>{waitsFor}</Text>
                       ) : null}

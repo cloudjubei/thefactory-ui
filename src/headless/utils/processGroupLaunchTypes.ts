@@ -1,9 +1,13 @@
+import type { ProcessBaseBranchOptions } from 'thefactory-tools/types'
+
 /** One project's part of a group run, as a launch asks for it. */
 export interface ProcessGroupLegRequest {
   projectId: string
   storyId: string
   dependsOn?: string[]
   processId?: string
+  /** The branch the agent asked this project's work to go off. */
+  baseBranch?: string
 }
 
 /** One leg as the launch card shows it before the work starts. */
@@ -17,6 +21,10 @@ export interface ProcessGroupLaunchLeg {
   features: number
   isPrerequisite: boolean
   problem?: string
+  /** The branches this project's work may go off, its checkout's own preselected; absent off git. */
+  baseBranches?: ProcessBaseBranchOptions
+  /** The branch the leg would work off — the one asked for, else the preselected one. */
+  baseBranch?: string
 }
 
 /** What a group launch would start, and why it cannot when it cannot. */

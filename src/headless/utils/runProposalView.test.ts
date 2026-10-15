@@ -35,6 +35,7 @@ import {
   RUN_PROPOSAL_NEW_STORY,
   RUN_PROPOSAL_RERUN,
   RUN_PROPOSAL_RESOLVE,
+  RUN_PROPOSAL_MODEL,
 } from './runProposalViewConstants'
 
 describe('isRunProposalGrant', () => {
@@ -388,6 +389,66 @@ describe('runProposalView — answering a stop and stopping the run', () => {
       approveLabel: RUN_PROPOSAL_STOP.approveLabel,
     })
     expect(runProposalView('stopProcessRun', {})?.title).toBe(RUN_PROPOSAL_STOP.untitled)
+  })
+})
+
+describe('runProposalView — changing the run’s model', () => {
+  const detail = (appliesFrom: string) => ({
+    runTitle: 'Read PDFs',
+    current: { runner: 'cli', cli: 'claude-code', model: 'claude-opus-5-5' },
+    model: { runner: 'cli', cli: 'claude-code', model: 'claude-sonnet-5-5' },
+    appliesFrom,
+    effect: 'host words',
+  })
+
+  it('shows the model now and the new one, waiting for the step at work', () => {
+    expect(
+      runProposalView(
+        'setRunModel',
+        { runId: 'r1', runner: 'cli' },
+        undefined,
+        detail('next-step'),
+      ),
+    ).toMatchObject({
+      kind: 'model',
+      kindLabel: RUN_PROPOSAL_MODEL.kindLabel,
+      title: 'Read PDFs',
+      sections: [
+        { key: 'run', summary: 'Read PDFs' },
+        { key: 'model', label: 'Runs on', summary: 'Opus 5.5 → Sonnet 5.5' },
+      ],
+      effect: RUN_PROPOSAL_MODEL.effectNextStep,
+      approveLabel: RUN_PROPOSAL_MODEL.approveLabel,
+    })
+  })
+
+  it('says it applies now while no agent is at work', () => {
+    expect(
+      runProposalView('setRunModel', { runId: 'r1', runner: 'api' }, undefined, {
+        ...detail('now'),
+        model: { runner: 'api' },
+      }),
+    ).toMatchObject({
+      sections: [{ key: 'run' }, { key: 'model', summary: 'Opus 5.5 → API' }],
+      effect: RUN_PROPOSAL_MODEL.effectNow,
+    })
+  })
+
+  it('names only the new model for a run whose launch named none, in the host’s words', () => {
+    expect(
+      runProposalView('setRunModel', { runId: 'r1' }, undefined, {
+        runTitle: 'Read PDFs',
+        model: { runner: 'cli', cli: 'codex' },
+        effect: 'host words',
+      }),
+    ).toMatchObject({
+      sections: [{ key: 'run' }, { key: 'model', summary: 'Codex' }],
+      effect: 'host words',
+    })
+  })
+
+  it('is known as a run proposal', () => {
+    expect(isRunProposalGrant({ toolName: 'setRunModel' })).toBe(true)
   })
 })
 

@@ -61,6 +61,9 @@ export const REMOVE_PROCESS_TOOL_NAME = 'removeProcess'
 /** Set how many turns each step agent of a run takes from now on. */
 export const SET_RUN_TURN_LIMIT_TOOL_NAME = 'setRunTurnLimit'
 
+/** Change the model a run's step agents run on from their next step. */
+export const SET_RUN_MODEL_TOOL_NAME = 'setRunModel'
+
 /** Settle the features a run that ended worked on. */
 export const CLOSE_RUN_FEATURES_TOOL_NAME = 'closeRunFeatures'
 
@@ -89,6 +92,7 @@ export const RUN_PROPOSAL_TOOL_NAMES: readonly string[] = [
   RESUME_ENDED_GROUP_RUN_TOOL_NAME,
   REMOVE_PROCESS_TOOL_NAME,
   SET_RUN_TURN_LIMIT_TOOL_NAME,
+  SET_RUN_MODEL_TOOL_NAME,
   CLOSE_RUN_FEATURES_TOOL_NAME,
   SETTLE_RUN_ALREADY_LANDED_TOOL_NAME,
 ]
@@ -327,6 +331,16 @@ export const RUN_PROPOSAL_TURN_LIMIT = {
   kindLabel: 'Turn limit',
   effect: 'Each step agent of the run takes this many turns from its next step on.',
   approveLabel: 'Set the turn limit',
+} as const
+
+/** Changing the model a run's step agents run on: when it reaches them, as the card says it. */
+export const RUN_PROPOSAL_MODEL = {
+  kindLabel: 'Change the model',
+  effectNextStep:
+    'Takes effect when the current step finishes — the agent at work keeps its model, the next step runs on the new one.',
+  effectNow: 'Applies now — no step agent is at work, so the step that resumes runs on it.',
+  effect: 'The run’s step agents run on this model from their next step.',
+  approveLabel: 'Change the model',
 } as const
 
 /** Settling an ended run's features, when the host stated none of its words. */

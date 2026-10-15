@@ -12,13 +12,16 @@ describe('showcase registry', () => {
     for (const scene of SCENES) expect(SCENE_GROUPS).toContain(scene.group)
   })
 
-  it('seeds the chat surfaces and the primitives', () => {
+  it('seeds the chat surfaces, the run page and the primitives', () => {
     const ids = SCENES.map((s) => s.id)
     for (const id of [
       'message-bubbles',
       'tool-call-rows',
       'approval-panel',
       'approval-card',
+      'docked-chat-header',
+      'run-header',
+      'run-chat-dock',
       'button',
       'modal',
       'toast',

@@ -52,6 +52,8 @@ export type ModelChipConnectedProps = {
    * through to the chat binding and detached the CONVERSATION's agent.
    */
   onOverrideApi?: () => void
+  /** A line the picker opens with — when a pick takes effect, say. */
+  note?: string
 }
 
 const ACTIVITY_API_ONLY_REASON =
@@ -94,10 +96,12 @@ function chooserApiSide(
 function ModelChipWithCli({
   chatContext,
   llm,
+  note,
   ...overrides
 }: {
   chatContext: ChatContext
   llm: ModelChipLlmWiring
+  note?: string
 } & ChatChipCliOverrides) {
   const cli = useChatChipCli(chatContext, overrides)
   const api = chooserApiSide(llm, cli.chooser)
@@ -124,6 +128,7 @@ function ModelChipWithCli({
       onPickCliModel={cli.onPickCliModel}
       authWarning={cli.authWarning}
       cliSwitchError={cli.cliSwitchError}
+      {...(note ? { note } : {})}
     />
   )
 }
@@ -250,6 +255,7 @@ export default function ModelChipConnected({
   onOverrideCli,
   overrideApi,
   onOverrideApi,
+  note,
 }: ModelChipConnectedProps) {
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
@@ -385,6 +391,7 @@ export default function ModelChipConnected({
         {...(onOverrideCli ? { onOverrideCli } : {})}
         {...(overrideApi ? { overrideApi } : {})}
         {...(onOverrideApi ? { onOverrideApi } : {})}
+        {...(note ? { note } : {})}
       />
     )
   }

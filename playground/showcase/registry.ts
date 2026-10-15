@@ -1,14 +1,21 @@
 import { CHAT_SCENES } from '../scenes/chat'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
+import { PROCESS_SCENES } from '../scenes/process'
+import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
 import type { Scene, SceneGroup, SceneState } from './types'
 
 /**
  * Every scene the showcase serves, in the order the index lists them. A visible change to a
  * component adds or updates its scene here — see "Component showcase" in docs/ARCHITECTURE.md.
  */
-export const SCENES: readonly Scene[] = [...CHAT_SCENES, ...PRIMITIVE_SCENES]
+export const SCENES: readonly Scene[] = [
+  ...CHAT_SCENES,
+  ...PROCESS_SCENES,
+  ...PROCESS_MODEL_SCENES,
+  ...PRIMITIVE_SCENES,
+]
 
-export const SCENE_GROUPS: readonly SceneGroup[] = ['Chat', 'Primitives']
+export const SCENE_GROUPS: readonly SceneGroup[] = ['Chat', 'Process', 'Primitives']
 
 /** What a playground URL asks for. */
 export type SceneRoute =

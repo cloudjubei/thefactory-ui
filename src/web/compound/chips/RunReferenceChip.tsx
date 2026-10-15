@@ -1,5 +1,10 @@
 import type { ReferenceDescription, ResourceLink } from 'thefactory-tools/types'
-import { RUN_PREVIEW_OPEN_CHAT, runReferencePreview, useProcessRun } from '../../../headless'
+import {
+  RUN_PREVIEW_OPEN_CHAT,
+  runReferencePreview,
+  useProcessRun,
+  useProcessRunChat,
+} from '../../../headless'
 import ReferenceChip from './ReferenceChip'
 import ReferencePreviewCard from './ReferencePreviewCard'
 import { referenceGlyph } from './referenceGlyphs'
@@ -27,7 +32,8 @@ export default function RunReferenceChip({
   onOpen,
   storyLabel,
 }: RunReferenceChipProps) {
-  const { run, isLoaded, loadError, openChat } = useProcessRun(runId)
+  const { run, isLoaded, loadError } = useProcessRun(runId)
+  const { open: openChat } = useProcessRunChat(run?.parentRunId ? undefined : run)
   if (!run) {
     const gone = isLoaded && loadError !== null
     return (

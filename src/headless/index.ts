@@ -245,6 +245,9 @@ export { useChatNewsNotifier, type ChatNewsNotification } from './hooks/useChatN
 export { chatBadgeInputOf, chatChannelOf, processRunChatNewsByRun } from './utils/chatChannel'
 export type { ChatChannel, ProcessRunChatNews } from './utils/chatChannelTypes'
 export { useProcessRunChatNews } from './hooks/useProcessRunChatNews'
+export { useProcessRunChat, type UseProcessRunChat } from './hooks/useProcessRunChat'
+export { resolveProcessRunChatRoot } from './utils/processRunChatRoot'
+export type { ProcessRunTreeLink, ProcessRunTreeReader } from './utils/processRunChatRootTypes'
 export { useProcessStopClock } from './hooks/useProcessStopClock'
 export { processRunManagerLine } from './utils/processRunStop'
 export {
@@ -279,6 +282,10 @@ export {
   managerPreReadStanding,
 } from './utils/managerCardStanding'
 export { useManagerCardStanding } from './hooks/useManagerCardStanding'
+export { openChangesCardView } from './utils/openChangesCard'
+export { OPEN_CHANGES_CARD_COPY } from './utils/openChangesCardConstants'
+export type { OpenChangesCardInput, OpenChangesCardView } from './utils/openChangesCardTypes'
+export { useChatOpenChanges, type UseChatOpenChanges } from './hooks/useChatOpenChanges'
 export {
   processParkClosure,
   processParkStanding,
@@ -1623,6 +1630,27 @@ export type {
   LaunchAgentPickMetadata,
   LaunchModelChipSlot,
 } from './utils/launchAgentPickTypes'
+export { useRunModelChip } from './hooks/useRunModelChip'
+export {
+  processRunModelChipView,
+  processRunModelPick,
+  runModelChangeBody,
+  runModelChipSlot,
+  runModelShortLabel,
+} from './utils/runModelChange'
+export {
+  RUN_MODEL_API_LABEL,
+  RUN_MODEL_NOTE_NEXT_STEP,
+  RUN_MODEL_NOTE_NOW,
+  RUN_MODEL_NOTE_WAITING,
+  RUN_MODEL_PENDING_SUFFIX,
+} from './utils/runModelChangeConstants'
+export type {
+  RunModelChangeBody,
+  RunModelChipSlot,
+  RunModelChipView,
+  RunModelPending,
+} from './utils/runModelChangeTypes'
 export { useAgentRunChipCli, type AgentRunChipCliWiring } from './hooks/useAgentRunChipCli'
 export { useCliRunArtifact, type UseCliRunArtifact } from './hooks/useCliRunArtifact'
 export { usePendingAsksByChat } from './hooks/usePendingAsksByChat'
@@ -2416,6 +2444,26 @@ export {
   type UseProcessIntegrationOptions,
 } from './hooks/useProcessIntegrationOptions'
 export {
+  baseBranchChoice,
+  baseBranchChoiceView,
+  baseBranchMetadata,
+  groupBaseBranchMetadata,
+} from './utils/processBaseBranch'
+export {
+  BASE_BRANCH_ASKED_MISSING,
+  BASE_BRANCH_CURRENT_TAG,
+  BASE_BRANCH_FOLLOWS_OPEN_RUN,
+  BASE_BRANCH_LABEL,
+  BASE_BRANCH_NOTE,
+  BASE_BRANCH_OTHERS_HEADING,
+} from './utils/processBaseBranchConstants'
+export type {
+  BaseBranchChoiceView,
+  BaseBranchMetadata,
+  BaseBranchRowView,
+  GroupBaseBranchMetadata,
+} from './utils/processBaseBranchTypes'
+export {
   featureProcessChoice,
   featureProcessLabel,
   featureProcessMetadata,
@@ -2556,8 +2604,6 @@ export type {
 export {
   NEEDS_YOU_DISCUSS_LABEL,
   NEEDS_YOU_FINE_LABEL,
-  RUN_CHAT_CLOSE_LABEL,
-  RUN_CHAT_OPEN_IN_CHAT_LABEL,
   RUN_CHAT_OPEN_LABEL,
   RUN_CHAT_OPENING,
   RUN_CHAT_PLACEHOLDER,
@@ -2970,7 +3016,12 @@ export type {
 } from './utils/gitMergeTypes'
 export type { MergeChecks } from 'thefactory-tools/types'
 export { useCommitsToBringIn, type CommitsToBringIn } from './hooks/useCommitsToBringIn'
-export { chatChangesNotice } from './utils/chatChangesView'
+export {
+  chatChangesNotice,
+  discardedEditPaths,
+  heldChatChangesNote,
+  withDiscardWarnings,
+} from './utils/chatChangesView'
 export { CHAT_CHANGES_COPY } from './utils/chatChangesViewConstants'
 export { useProcessCleanup, type UseProcessCleanup } from './hooks/useProcessCleanup'
 export {

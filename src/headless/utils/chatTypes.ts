@@ -10,6 +10,7 @@
 import type {
   BillingBasis,
   ChatBackgroundJobResult,
+  ChatOpenChangesCard,
   ProcessManagerChatCard,
 } from 'thefactory-tools/types'
 
@@ -155,6 +156,8 @@ export type ChatMessageLike = {
   answersHandoffFrom?: string
   /** A message about a run's manager — its brief, or what the host recorded of its turn — shown as a card. */
   managerCard?: ProcessManagerChatCard
+  /** A card the host posted about the chat's open changes — shown live from them, never from the card. */
+  openChangesCard?: ChatOpenChangesCard
   /**
    * Set on the message the host delivered results of earlier calls by — calls
    * that finished in the background, one entry per call.

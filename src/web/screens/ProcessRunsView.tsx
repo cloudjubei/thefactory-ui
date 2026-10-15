@@ -16,6 +16,7 @@ import {
   useProcessStopClock,
   type BadgeColor,
   type ProcessNodeRunRef,
+  type RunModelChipSlot,
   type ProcessRun,
   type ProcessRunAttentionSection,
   type ProcessRunChatNews,
@@ -51,10 +52,12 @@ export type ProcessRunsViewProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open a chat by its context — where a waiting agent's ask was handed. Threaded to the pipeline. */
   onOpenChat?: (context: ChatContext) => void
-  /** Render a run's own chat in the run's chat drawer. Threaded to the pipeline. */
+  /** Render a run's own chat in the sidebar docked beside the run. Threaded to the pipeline. */
   renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
   /** Open the group run a selected run is a leg of. Threaded to the pipeline. */
   onOpenGroupRun?: (groupRunId: string) => void
+  /** Render the host's chooser chip for a run's model. Threaded to the pipeline. */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
   /**
    * Collapse to one pane at a time (small screens): the list, or the detail when
    * a run is selected. A big-screen host omits it and keeps both panes.
@@ -83,6 +86,7 @@ export default function ProcessRunsView({
   renderAgentRun,
   onOpenChat,
   renderChat,
+  renderModelChip,
   onOpenGroupRun,
   narrow = false,
 }: ProcessRunsViewProps) {
@@ -195,7 +199,7 @@ export default function ProcessRunsView({
   )
 
   const detail = selectedRunId ? (
-    <div className="h-full min-h-0 flex-1 overflow-y-auto">
+    <div className="h-full min-h-0 min-w-0 flex-1">
       <ProcessPipeline
         // A different run is a different pipeline: an opened leaf or a drill into
         // run A must not carry over into run B's pane.
@@ -205,7 +209,9 @@ export default function ProcessRunsView({
         {...(renderAgentRun ? { renderAgentRun } : {})}
         {...(onOpenChat ? { onOpenChat } : {})}
         {...(renderChat ? { renderChat } : {})}
+        {...(renderModelChip ? { renderModelChip } : {})}
         {...(onOpenGroupRun ? { onOpenGroupRun } : {})}
+        narrow={narrow}
       />
     </div>
   ) : (

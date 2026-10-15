@@ -115,6 +115,8 @@ export type StartFeatureWorkGrantSummary = {
   processId?: string
   /** The turn limit the agent asked for, as it sent it — read with `processGrantTurnLimitView`. */
   turnLimit?: unknown
+  /** The branch the agent asked the work to go off; the card preselects it when the project has it. */
+  baseBranch?: string
 }
 
 /**
@@ -136,6 +138,7 @@ export function startFeatureWorkGrantSummary(
   const note = record.note
   const runner = record.runner
   const processId = typeof record.processId === 'string' ? record.processId.trim() : ''
+  const baseBranch = typeof record.baseBranch === 'string' ? record.baseBranch.trim() : ''
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
@@ -147,6 +150,7 @@ export function startFeatureWorkGrantSummary(
     ...(relevantNoteIds.length > 0 ? { relevantNoteIds } : {}),
     ...(processId.length > 0 ? { processId } : {}),
     ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
+    ...(baseBranch.length > 0 ? { baseBranch } : {}),
   }
 }
 

@@ -1,3 +1,4 @@
+import type { ProcessRunModel } from 'thefactory-tools/types'
 import { processAlreadyLandedText } from 'thefactory-tools/utils'
 import {
   runProposalLanding,
@@ -37,6 +38,8 @@ import {
   RUN_PROPOSAL_CLOSURE,
   RUN_PROPOSAL_DELETE,
   RUN_PROPOSAL_TURN_LIMIT,
+  RUN_PROPOSAL_MODEL,
+  SET_RUN_MODEL_TOOL_NAME,
   SET_RUN_TURN_LIMIT_TOOL_NAME,
   RUN_PROPOSAL_FEATURE,
   RUN_PROPOSAL_GATE,
@@ -66,6 +69,7 @@ import type {
   RunProposalView,
 } from './runProposalViewTypes'
 import { runProposalEdit } from './runProposalEditView'
+import { runModelShortLabel } from './runModelChange'
 
 type GrantLike = { toolName?: string; args?: unknown; detail?: unknown }
 
@@ -426,6 +430,32 @@ function runSection(
   ]
 }
 
+/** A model the host stated, when it states one. */
+function statedModel(value: unknown): ProcessRunModel | undefined {
+  const model = record(value)
+  if (model.runner === 'api') return { runner: 'api' }
+  if (model.runner !== 'cli') return undefined
+  const cli = typeof model.cli === 'string' ? model.cli : undefined
+  const id = typeof model.model === 'string' ? model.model : undefined
+  return { runner: 'cli', ...(cli ? { cli } : {}), ...(id ? { model: id } : {}) }
+}
+
+/** The model a run runs on now and the one it is switched to, as the card says it. */
+function modelChangeSection(hostDetail: Record<string, unknown>): RunProposalSection[] {
+  const to = statedModel(hostDetail.model)
+  if (!to) return []
+  const from = statedModel(hostDetail.current)
+  return [
+    {
+      key: 'model',
+      label: RUN_PROPOSAL_LINE_LABELS.model,
+      summary: from
+        ? `${runModelShortLabel(from)} → ${runModelShortLabel(to)}`
+        : runModelShortLabel(to),
+    },
+  ]
+}
+
 function landingSection(landing: RunProposalLanding | undefined): RunProposalSection[] {
   if (!landing) return []
   return [
@@ -587,6 +617,24 @@ function runActionView(
       sections: run,
       effect: effect ?? RUN_PROPOSAL_TURN_LIMIT.effect,
       approveLabel: RUN_PROPOSAL_TURN_LIMIT.approveLabel,
+    }
+  }
+  if (toolName === SET_RUN_MODEL_TOOL_NAME) {
+    const appliesFrom = text(hostDetail, 'appliesFrom')
+    return {
+      ...base,
+      kind: 'model',
+      kindLabel: RUN_PROPOSAL_MODEL.kindLabel,
+      tone: 'working',
+      title: runTitle,
+      sections: [...run, ...modelChangeSection(hostDetail)],
+      effect:
+        appliesFrom === 'next-step'
+          ? RUN_PROPOSAL_MODEL.effectNextStep
+          : appliesFrom === 'now'
+            ? RUN_PROPOSAL_MODEL.effectNow
+            : (effect ?? RUN_PROPOSAL_MODEL.effect),
+      approveLabel: RUN_PROPOSAL_MODEL.approveLabel,
     }
   }
   if (toolName === SETTLE_RUN_ALREADY_LANDED_TOOL_NAME) {

@@ -59,6 +59,10 @@ export type ModelChipProps = {
   cliSwitchError?: string | null
   /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" menu entry). */
   authWarning?: CliAuthWarning
+  /** A line the picker opens with — when a pick takes effect, say. */
+  note?: string
+  /** Opens with its picker showing, as a showcase state does. */
+  defaultOpen?: boolean
 }
 
 function providerDotClasses(p?: string) {
@@ -184,6 +188,7 @@ function Picker({
   cliDisabledReason,
   cliSwitchError,
   authWarning,
+  note,
 }: {
   anchorEl: HTMLElement
   onClose: () => void
@@ -206,6 +211,7 @@ function Picker({
   cliDisabledReason?: string
   cliSwitchError?: string | null
   authWarning?: CliAuthWarning
+  note?: string
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [coords, setCoords] = useState<{
@@ -342,6 +348,11 @@ function Picker({
         e.preventDefault()
       }}
     >
+      {note && (
+        <div className="max-w-[260px] px-3 pt-1 pb-2 text-[11px] leading-snug text-[var(--text-secondary)]">
+          {note}
+        </div>
+      )}
       {onToggleUseCli && (
         <div className="flex items-center gap-1 px-2 pt-1 pb-2" role="group" aria-label="Backend">
           <button
@@ -604,9 +615,11 @@ export function ModelChip({
   cliDisabledReason,
   cliSwitchError,
   authWarning,
+  note,
+  defaultOpen = false,
 }: ModelChipProps) {
-  const containerRef = useRef<HTMLSpanElement>(null)
-  const [open, setOpen] = useState(false)
+  const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null)
+  const [open, setOpen] = useState(defaultOpen)
   const needsReauth = !!useCli && !!authWarning?.needsReauth
 
   const cliEnabled = onToggleUseCli != null
@@ -639,7 +652,7 @@ export function ModelChip({
 
   const chipEl = (
     <span
-      ref={containerRef}
+      ref={setAnchor}
       className={[
         'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs',
         ' text-neutral-800  dark:text-neutral-200',
@@ -710,9 +723,9 @@ export function ModelChip({
   return (
     <>
       {chipEl}
-      {editable && open && containerRef.current && (
+      {editable && open && anchor && (
         <Picker
-          anchorEl={containerRef.current}
+          anchorEl={anchor}
           onClose={() => setOpen(false)}
           selectedConfigId={activeConfig?.id}
           onPickConfigId={onPick}
@@ -733,6 +746,7 @@ export function ModelChip({
           cliDisabledReason={cliDisabledReason}
           cliSwitchError={cliSwitchError}
           authWarning={authWarning}
+          note={note}
         />
       )}
     </>

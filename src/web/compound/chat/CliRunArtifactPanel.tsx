@@ -51,7 +51,10 @@ import {
   type SignoffVerdict,
   processStepFinishedView,
   chatChangesNotice,
+  heldChatChangesNote,
   CHAT_CHANGES_COPY,
+  discardedEditPaths,
+  withDiscardWarnings,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
 import { Button } from '../../primitives/Button'
@@ -462,9 +465,13 @@ export default function CliRunArtifactPanel({
   const isMerged = mergeResult?.ok === true || review?.mergedAt != null
   const conflictCount = preview?.files.filter((f) => f.conflict).length ?? 0
 
-  const changeFiles: ChangeFile[] = review
-    ? (reviewDiff?.files ?? []).map(toChangeFile)
-    : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied))
+  const discarded = discardedEditPaths(artifact)
+  const changeFiles: ChangeFile[] = withDiscardWarnings(
+    review
+      ? (reviewDiff?.files ?? []).map(toChangeFile)
+      : (preview?.files ?? []).map((f) => previewToChangeFile(f, isApplied)),
+    discarded,
+  )
   const changesKnown = review ? reviewDiff !== undefined : preview !== undefined
   // GitHub's "Viewed": the user marks each file read; the change is read once all are.
   const viewedChanges =
@@ -965,6 +972,14 @@ export default function CliRunArtifactPanel({
               </div>
             ) : null}
 
+            {discarded.size > 0 ? (
+              <div
+                className={`rounded-md border px-2 py-1.5 text-[12px] font-medium ${TONE_CHIP.danger}`}
+              >
+                {CHAT_CHANGES_COPY.discardsUncommittedEditsCount(discarded.size)}
+              </div>
+            ) : null}
+
             {landing ? (
               <div className={`rounded-md border px-2 py-1.5 text-[12px] ${TONE_CHIP.warning}`}>
                 <div className="font-medium">{landing.title}</div>
@@ -1022,6 +1037,10 @@ export default function CliRunArtifactPanel({
                   <span className={`text-[12px] ${DANGER_TEXT}`}>
                     {conflictCount} conflict{conflictCount === 1 ? '' : 's'} — applying overwrites
                     local edits
+                  </span>
+                ) : heldChatChangesNote(artifact) ? (
+                  <span className="text-[12px] text-(--text-secondary)">
+                    {heldChatChangesNote(artifact)}
                   </span>
                 ) : isApplied ? (
                   <span className="text-[12px] text-(--text-secondary)">Applied to project</span>

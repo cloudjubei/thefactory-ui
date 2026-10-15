@@ -379,6 +379,8 @@ export type AgentRunType =
   | 'report'
   | 'fixer'
 
+export type AgentTypeId = string
+
 export type ChatContextAgentRun = {
   projectId: string
   storyId: string
@@ -417,7 +419,7 @@ export type GitWorkBranch = {
 }
 
 export type AgentRunParams = {
-  agentType: AgentRunType
+  agentType: AgentTypeId
   chatContext: ChatContextAgentRunStory | ChatContextAgentRunFeature
   llmConfig: LlmConfig
   githubCredentials: GithubCredentials
@@ -434,6 +436,16 @@ export type AgentRunParams = {
   }
   workBranchStartSha?: string
   acceptUnchangedFinish?: boolean
+  workspaceFiles?: Array<string>
+  agentRole?:
+    | 'developer'
+    | 'developer-verifier'
+    | 'verifier'
+    | 'capture'
+    | 'judge'
+    | 'remedy'
+    | 'report'
+    | 'fixer'
   commitMessage?: string
 }
 
@@ -928,6 +940,82 @@ export type CliNativeSessionDispatch = {
 }
 
 export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
+
+export type AgentTypeBriefMode = 'append' | 'replace'
+
+export type AgentTypeDefinition = {
+  id: string
+  label: string
+  description?: string
+  baseRole: AgentRunType
+  brief?: string
+  briefMode?: 'append' | 'replace'
+  proves?: boolean
+  tools?: Array<string>
+  contextDocs?: Array<string>
+  version: number
+  updatedAt: number
+}
+
+export type AgentTypeInput = {
+  id: string
+  label: string
+  description?: string
+  baseRole: AgentRunType
+  brief?: string
+  briefMode?: 'append' | 'replace'
+  proves?: boolean
+  tools?: Array<string>
+  contextDocs?: Array<string>
+} & {
+  version?: number
+  updatedAt?: number
+}
+
+export type AgentTypeScope = 'builtin' | 'group' | 'project'
+
+export type ResolvedAgentType = {
+  id: string
+  label: string
+  description?: string
+  scope: AgentTypeScope
+  baseRole: AgentRunType
+  brief?: string
+  briefMode?: 'append' | 'replace'
+  proves?: false
+  tools?: Array<string>
+  contextDocs: Array<string>
+}
+
+export type AgentTypeSlot = 'implementer' | 'verifier'
+
+export type AgentTypeSlotMap = {
+  implementer?: string
+  verifier?: string
+}
+
+export type AgentTypeSlotSource = 'launch' | 'project' | 'group' | 'builtin'
+
+export type AgentTypeOption = {
+  id: AgentTypeId
+  label: string
+  description?: string
+  scope: AgentTypeScope
+  baseRole: AgentRunType
+  proves?: false
+}
+
+export type AgentTypeSlotProposal = {
+  slot: AgentTypeSlot
+  agentTypeId?: string
+  source: AgentTypeSlotSource
+  options: Array<AgentTypeId>
+}
+
+export type AgentTypeLaunchOffer = {
+  agentTypes: Array<AgentTypeOption>
+  agentTypeSlots: Array<AgentTypeSlotProposal>
+}
 
 export type CapabilityId =
   | 'java'
@@ -1453,6 +1541,7 @@ export type ProcessManagerEscalationReason =
   | 'judgement'
   | 'hold-timeout'
   | 'no-decision'
+  | 'not-started'
 
 export type ProcessResumeChoice =
   | 'continue'
@@ -1486,11 +1575,13 @@ export type ProcessManagerEscalation = {
     | 'judgement'
     | 'hold-timeout'
     | 'no-decision'
+    | 'not-started'
   what: string
   found: string
   tried: Array<string>
   recommendation: string
   recommendedChoice?: ProcessResumeChoice | 'delegate'
+  startError?: string
 }
 
 export type ProcessManagerEscalationCard = {
@@ -1504,6 +1595,16 @@ export type ProcessManagerChatCard =
   | ProcessManagerPreReadCard
   | ProcessManagerEscalationCard
 
+export type ChatOpenChangesCard = {
+  kind: 'unfit' | 'waiting'
+  runId: string
+  projectId: string
+  chatContextId: string
+  since: number
+  fileCount: number
+  changedCount?: number
+}
+
 export type CompletionMessageBase = {
   role: CompletionMessageRole
   content: string
@@ -1516,6 +1617,15 @@ export type CompletionMessageBase = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
 }
 
@@ -1531,6 +1641,15 @@ export type CompletionSystemMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
   error?: string
 }
@@ -1561,6 +1680,15 @@ export type CompletionUserMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
   files?: Array<string>
   images?: Array<CompletionImage>
@@ -1612,6 +1740,15 @@ export type CompletionAssistantMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
   usage: {
     promptTokens: number
@@ -1654,6 +1791,15 @@ export type CompletionToolMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
   model: {
     model: string
@@ -1752,6 +1898,15 @@ export type Chat = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -1868,6 +2023,15 @@ export type ChatAudienceMessage = {
     | ProcessManagerInterventionCard
     | ProcessManagerPreReadCard
     | ProcessManagerEscalationCard
+  openChangesCard?: {
+    kind: 'unfit' | 'waiting'
+    runId: string
+    projectId: string
+    chatContextId: string
+    since: number
+    fileCount: number
+    changedCount?: number
+  }
   needsYouClosedAt?: string
   startedAt?: string
   completedAt?: string
@@ -1924,6 +2088,15 @@ export type ChatCreateInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -2013,6 +2186,15 @@ export type ChatEditInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -2949,6 +3131,7 @@ export type VerificationCheckResult = {
     lastErrorLine?: string
   }
   rerunReason?: string
+  rewrittenFiles?: Array<string>
 }
 
 export type VerificationUncheckedReason = {
@@ -3090,11 +3273,20 @@ export type CliChatSessionPolicy = {
   sweepIntervalMs: number
 }
 
+export type ChatWorkspaceBranch = {
+  name: string
+  tipSha: string
+}
+
 export type CliChatSessionIdentity = {
   chatContextId: string
   cli: CliTool
   authCredentialId?: string
   apiKeyCredentialId?: string
+  workspaceBranch?: {
+    name: string
+    tipSha: string
+  }
 }
 
 export type DirSnapshot = unknown
@@ -3105,6 +3297,7 @@ export type CliChatSessionEntry = {
   authDir: string
   workspaceDir: string
   workspaceBaseline?: unknown
+  heldBehindReview?: string
   cliSessionId?: string
   authFilesBaseline?: {
     [key: string]: string
@@ -3124,6 +3317,7 @@ export type CliChatSessionLease = {
   authDir: string
   workspaceDir: string
   workspaceBaseline?: unknown
+  heldBehindReview?: string
   authFilesBaseline?: {
     [key: string]: string
   }
@@ -3134,6 +3328,7 @@ export type CliChatSessionLease = {
 export type CliChatSessionTurnResult = {
   cliSessionId?: string
   workspaceBaseline?: unknown
+  heldBehindReview?: string
   authFilesBaseline?: {
     [key: string]: string
   }
@@ -3143,6 +3338,7 @@ export type ProviderPersistentSession = {
   authDir: string
   workspaceDir: string
   workspaceBaseline?: unknown
+  heldBehindReview?: string
 }
 
 export type PreparedChatSession = {
@@ -3209,6 +3405,7 @@ export type ModelInfo = {
   cli: CliTool
   notes?: string
   isDefault?: boolean
+  supportedEffortLevels?: Array<CliReasoningEffort>
   authModes?: Array<CliModelAuthMode>
   source?: 'live' | 'static'
 }
@@ -3231,6 +3428,7 @@ export type FilesEmittedFile = {
   contentAfterBase64?: string
   gitBlobId?: string
   omittedReason?: 'oversized' | 'unreadable'
+  discardsUncommittedEdits?: boolean
 }
 
 export type FilesEmittedArtifact = {
@@ -3243,8 +3441,10 @@ export type FilesEmittedArtifact = {
     at: number
   }
   discardedAt?: number
+  heldBehindReview?: string
   payload: {
-    files: Array<DirSnapshotChange>
+    files: Array<FilesEmittedFile>
+    workspaceBranch?: string
     mergedCommits?: Array<string>
   }
 }
@@ -3313,6 +3513,12 @@ export type CliRunRetryHistoryEntry = {
   }
 }
 
+export type CliRunReviewUnfit = {
+  at: number
+  paths: Array<string>
+  fileCount: number
+}
+
 export type CliRunReview = {
   branch: string
   baseSha: string
@@ -3326,6 +3532,11 @@ export type CliRunReview = {
   mergedAt?: number
   mergeCommit?: string
   rejectedAt?: number
+  unfit?: {
+    at: number
+    paths: Array<string>
+    fileCount: number
+  }
 }
 
 export type CliRunLandFailureReason =
@@ -3363,6 +3574,16 @@ export type CliRunViewedFile = {
   headSha: string
   at: number
 }
+
+export type CliRunRetention =
+  | {
+      kind: 'until-settled'
+    }
+  | {
+      kind: 'grouped'
+      scope: string
+      group: string
+    }
 
 export type CliRun = {
   id: string
@@ -3437,6 +3658,11 @@ export type CliRun = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    unfit?: {
+      at: number
+      paths: Array<string>
+      fileCount: number
+    }
   }
   landFailure?: {
     reason: CliRunLandFailureReason
@@ -3474,6 +3700,26 @@ export type CliRun = {
     filesReviewed?: number
   }
   viewedFiles?: Array<CliRunViewedFile>
+  retention?:
+    | {
+        kind: 'until-settled'
+      }
+    | {
+        kind: 'grouped'
+        scope: string
+        group: string
+      }
+}
+
+export type PruneCliAgentRunGroupsInput = {
+  scope: string
+  keepLatest: number
+  keepGroups?: Array<string>
+}
+
+export type PruneCliAgentRunGroupsResult = {
+  prunedGroups: Array<string>
+  deletedRuns: number
 }
 
 export type CliRunArtifactFile = {
@@ -3491,6 +3737,7 @@ export type CliRunArtifactSummary = {
     at: number
   }
   discardedAt?: number
+  heldBehindReview?: string
   files: Array<CliRunArtifactFile>
 }
 
@@ -3561,6 +3808,11 @@ export type CliRunSummary = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    unfit?: {
+      at: number
+      paths: Array<string>
+      fileCount: number
+    }
   }
   landFailure?: {
     reason: CliRunLandFailureReason
@@ -3598,6 +3850,15 @@ export type CliRunSummary = {
     filesReviewed?: number
   }
   viewedFiles?: Array<CliRunViewedFile>
+  retention?:
+    | {
+        kind: 'until-settled'
+      }
+    | {
+        kind: 'grouped'
+        scope: string
+        group: string
+      }
 } & {
   artifacts: Array<CliRunArtifactSummary>
 }
@@ -3614,6 +3875,59 @@ export type CliRunArtifactCommit = {
   }>
   error?: string
 }
+
+export type ChatWorkspaceSeed = {
+  seeded: boolean
+  heldBehindReview?: string
+}
+
+export type ChatOpenChanges = {
+  runId: string
+  projectId: string
+  review: CliRunReview
+  openSince: number
+  files: Array<CliRunArtifactFile>
+  changed: Array<{
+    path: string
+    reason: string
+  }>
+  heldRunIds: Array<string>
+}
+
+export type ChatOpenChangesRebuild =
+  | {
+      ok: true
+      runId?: string
+      review?: {
+        branch: string
+        baseSha: string
+        headSha?: string
+        seamSha?: string
+        carriedSeamSha?: string
+        seamError?: string
+        landedAt?: number
+        shadow?: boolean
+        reviewRunId?: string
+        mergedAt?: number
+        mergeCommit?: string
+        rejectedAt?: number
+        unfit?: {
+          at: number
+          paths: Array<string>
+          fileCount: number
+        }
+      }
+      alreadyInCheckout?: boolean
+      replacedRunIds: Array<string>
+    }
+  | {
+      ok: false
+      error: string
+      conflicts?: Array<{
+        path: string
+        reason: string
+      }>
+    }
 
 export type CliRunFailurePolicy = {
   rateLimited?: 'retry' | 'pause' | 'abort'
@@ -3718,6 +4032,7 @@ export type PerCliRunnerExtra = {
     authDir: string
     workspaceDir: string
     workspaceBaseline?: unknown
+    heldBehindReview?: string
   }
   seed?: {
     parent?: {
@@ -3738,6 +4053,10 @@ export type PrepareIsolatedChatWorkspaceInput = {
   sourceDir: string
   workspaceDir: string
   chatContextId: string
+  workspaceBranch?: {
+    name: string
+    tipSha: string
+  }
 }
 
 export type GitIdentity = {
@@ -3758,6 +4077,11 @@ export type FinalizeIsolatedChatTurnInput = {
     name: string
     email: string
   }
+  workspaceBranch?: {
+    name: string
+    tipSha: string
+  }
+  heldBehindReview?: string
 }
 
 export type ClaudeCodeInitMetadata = {
@@ -4092,6 +4416,11 @@ export type CliRunApproveResult = {
       mergedAt?: number
       mergeCommit?: string
       rejectedAt?: number
+      unfit?: {
+        at: number
+        paths: Array<string>
+        fileCount: number
+      }
     }
     landFailure?: {
       reason: CliRunLandFailureReason
@@ -4129,6 +4458,15 @@ export type CliRunApproveResult = {
       filesReviewed?: number
     }
     viewedFiles?: Array<CliRunViewedFile>
+    retention?:
+      | {
+          kind: 'until-settled'
+        }
+      | {
+          kind: 'grouped'
+          scope: string
+          group: string
+        }
   }
 }
 
@@ -8229,6 +8567,12 @@ export type ImageDiffOptions = {
   ignoreTopPx?: number
 }
 
+export type InferenceRecordGroup = {
+  scope: string
+  group: string
+  keepLatestGroups: number
+}
+
 export type InferenceRequest = {
   systemPrompt: string
   userContent: string
@@ -8247,6 +8591,11 @@ export type InferenceRequest = {
   abortSignal?: unknown
   timeoutMs?: number
   images?: Array<CompletionImage>
+  record?: {
+    scope: string
+    group: string
+    keepLatestGroups: number
+  }
 }
 
 export type InferenceResult = {
@@ -9349,6 +9698,15 @@ export type ProcessManagerTurnAsks = {
   }>
 }
 
+export type ProcessManagerTurnEnding =
+  | {
+      started: false
+      error: string
+    }
+  | {
+      started: true
+    }
+
 export type ProcessManagerTurn = {
   runId: string
   parkedAt: number
@@ -9443,11 +9801,13 @@ export type ProcessRunManager = {
       | 'judgement'
       | 'hold-timeout'
       | 'no-decision'
+      | 'not-started'
     what: string
     found: string
     tried: Array<string>
     recommendation: string
     recommendedChoice?: ProcessResumeChoice | 'delegate'
+    startError?: string
   }
   preRead?: {
     runId: string
@@ -9566,11 +9926,13 @@ export type ProcessManagerRun = {
         | 'judgement'
         | 'hold-timeout'
         | 'no-decision'
+        | 'not-started'
       what: string
       found: string
       tried: Array<string>
       recommendation: string
       recommendedChoice?: ProcessResumeChoice | 'delegate'
+      startError?: string
     }
     preRead?: {
       runId: string
@@ -9594,6 +9956,7 @@ export type ProcessManagerPolicyInput = {
   signature: string
   permissionPreApproved?: boolean
   attemptMaxTurns?: number
+  commitResetsToHead?: Array<string>
 }
 
 export type ProcessManagerHandledLine = {
@@ -9801,6 +10164,7 @@ export type ProcessStep = {
   description?: string
   enabled?: boolean
   agentType?: string
+  slot?: 'implementer' | 'verifier'
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
@@ -9819,6 +10183,7 @@ export type ProcessPlanStep = {
   description?: string
   enabled?: boolean
   agentType?: string
+  slot?: 'implementer' | 'verifier'
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
@@ -9827,6 +10192,16 @@ export type ProcessPlanStep = {
     id: string
     title: string
   }
+  agentRole?:
+    | 'developer'
+    | 'developer-verifier'
+    | 'verifier'
+    | 'capture'
+    | 'judge'
+    | 'remedy'
+    | 'report'
+    | 'fixer'
+  agentProves?: false
 }
 
 export type ProcessStepOutcome =
@@ -10047,6 +10422,21 @@ export type ProcessRunModelOverride = {
   authCredentialId?: string
   apiKeyCredentialId?: string
   at: number
+}
+
+export type ProcessRunModelTiming = 'now' | 'next-step'
+
+export type ProcessRunModelChange = {
+  from?: {
+    runner: 'cli' | 'api'
+    cli?: string
+    model?: string
+    effort?: string
+  }
+  to: ProcessRunModel
+  at: number
+  appliesFrom: ProcessRunModelTiming
+  decision: ProcessDecisionAttribution
 }
 
 export type ProcessTurnLimit = {
@@ -10610,6 +11000,7 @@ export type ProcessRunTotals = {
     tools: Array<ProcessToolTime>
   }
   ticking: boolean
+  workingModels?: Array<ProcessRunModel>
   at: number
   steps: {
     [key: string]: ProcessStepTotals
@@ -10827,6 +11218,11 @@ export type ProcessRun = {
     apiKeyCredentialId?: string
     at: number
   }
+  modelChanges?: Array<ProcessRunModelChange>
+  agentTypeSlots?: {
+    implementer?: string
+    verifier?: string
+  }
   turnLimit?: {
     limitTurns: boolean
     maxTurns: number
@@ -10934,6 +11330,7 @@ export type ProcessRun = {
       tools: Array<ProcessToolTime>
     }
     ticking: boolean
+    workingModels?: Array<ProcessRunModel>
     at: number
     steps: {
       [key: string]: ProcessStepTotals
@@ -11019,11 +11416,13 @@ export type ProcessRun = {
         | 'judgement'
         | 'hold-timeout'
         | 'no-decision'
+        | 'not-started'
       what: string
       found: string
       tried: Array<string>
       recommendation: string
       recommendedChoice?: ProcessResumeChoice | 'delegate'
+      startError?: string
     }
     preRead?: {
       runId: string
@@ -11159,11 +11558,13 @@ export type ProcessManagerCardStandingRun = {
         | 'judgement'
         | 'hold-timeout'
         | 'no-decision'
+        | 'not-started'
       what: string
       found: string
       tried: Array<string>
       recommendation: string
       recommendedChoice?: ProcessResumeChoice | 'delegate'
+      startError?: string
     }
     preRead?: {
       runId: string
@@ -11247,11 +11648,13 @@ export type ProcessManagerBriefInput = {
           | 'judgement'
           | 'hold-timeout'
           | 'no-decision'
+          | 'not-started'
         what: string
         found: string
         tried: Array<string>
         recommendation: string
         recommendedChoice?: ProcessResumeChoice | 'delegate'
+        startError?: string
       }
       preRead?: {
         runId: string
@@ -14783,6 +15186,15 @@ export type CliRunIndexEntry = {
   status: CliRunStatus
   chatContextId?: string
   createdAt: number
+  retention?:
+    | {
+        kind: 'until-settled'
+      }
+    | {
+        kind: 'grouped'
+        scope: string
+        group: string
+      }
   rel: string
   mtimeMs: number
   size: number
@@ -15291,6 +15703,20 @@ export type ToolName =
   | 'retryChatCompletionWithTools'
   | 'resumeChatCompletionWithTools'
   | 'startAgentRun'
+  | 'listAgentTypes'
+  | 'getAgentType'
+  | 'saveAgentType'
+  | 'deleteAgentType'
+  | 'validateAgentType'
+  | 'getAgentTypeSlotDefaults'
+  | 'getOwnAgentTypeSlotDefaults'
+  | 'saveAgentTypeSlotDefaults'
+  | 'getAgentTypeLaunchOffer'
+  | 'listGroupAgentTypes'
+  | 'saveGroupAgentType'
+  | 'deleteGroupAgentType'
+  | 'getGroupAgentTypeSlotDefaults'
+  | 'saveGroupAgentTypeSlotDefaults'
   | 'getHostCapabilities'
   | 'getVerificationOptions'
   | 'getChatsDir'
@@ -15368,6 +15794,8 @@ export type ToolName =
   | 'landApiAgentRun'
   | 'prepareIsolatedChatWorkspace'
   | 'finalizeIsolatedChatTurn'
+  | 'readChatOpenChanges'
+  | 'rebuildChatReviewOnCheckout'
   | 'mergeCliRunReview'
   | 'verifyCliRunReview'
   | 'setCliRunVerdict'
@@ -15993,6 +16421,34 @@ export type UiCaptureBuildState = {
   }
 }
 
+export type UiRecordingBuildState = {
+  target: UiTarget
+  connection: UiConnection
+  tainted: boolean
+  deterministic: boolean
+  served?: {
+    platform: 'web'
+    root: string
+    sha: string
+    dirty: boolean
+    overlays?: Array<string>
+    tree?: string
+    recipe: string
+    origin: string
+  }
+  recordedBuild?: {
+    platform: 'web'
+    root: string
+    sha: string
+    dirty: boolean
+    overlays?: Array<string>
+    tree?: string
+    recipe: string
+    origin: string
+  }
+  leftRecordedApp: boolean
+}
+
 export type UiSessionResult = {
   sessionId: string
   target: UiTarget
@@ -16040,6 +16496,7 @@ export type UiScreenshotResult = {
 export type UiCloseResult = {
   ok: boolean
   videoPath?: string
+  noBuildReason?: string
 }
 
 export type UiMeasurement = {
@@ -16465,6 +16922,11 @@ export type ProcessLaunchContext = {
   featureProcessId?: string
 }
 
+export type ProcessRunModelSwitch = {
+  override: ProcessRunModelOverride
+  decision: ProcessDecisionAttribution
+}
+
 export type ExtendProcessRunOptions = {
   reopen?: boolean
   needsYouResolution?: {
@@ -16481,14 +16943,9 @@ export type ExtendProcessRunOptions = {
     decidedBy?: 'person' | 'agent' | 'manager'
     at: number
   }
-  modelOverride?: {
-    runner: 'cli' | 'api'
-    cli?: string
-    model?: string
-    effort?: string
-    authCredentialId?: string
-    apiKeyCredentialId?: string
-    at: number
+  model?: {
+    override: ProcessRunModelOverride
+    decision: ProcessDecisionAttribution
   }
 }
 
@@ -16530,6 +16987,10 @@ export type ProcessLaunchDecision = {
     [key: string]: ProofPlan
   }
   saveProofPlans?: boolean
+  agentTypeSlots?: {
+    implementer?: string
+    verifier?: string
+  }
 }
 
 export type ProcessRetryOffer = {
@@ -16803,6 +17264,11 @@ export type ProcessRunChatState = {
       apiKeyCredentialId?: string
       at: number
     }
+    modelChanges?: Array<ProcessRunModelChange>
+    agentTypeSlots?: {
+      implementer?: string
+      verifier?: string
+    }
     turnLimit?: {
       limitTurns: boolean
       maxTurns: number
@@ -16910,6 +17376,7 @@ export type ProcessRunChatState = {
         tools: Array<ProcessToolTime>
       }
       ticking: boolean
+      workingModels?: Array<ProcessRunModel>
       at: number
       steps: {
         [key: string]: ProcessStepTotals
@@ -16995,11 +17462,13 @@ export type ProcessRunChatState = {
           | 'judgement'
           | 'hold-timeout'
           | 'no-decision'
+          | 'not-started'
         what: string
         found: string
         tried: Array<string>
         recommendation: string
         recommendedChoice?: ProcessResumeChoice | 'delegate'
+        startError?: string
       }
       preRead?: {
         runId: string
@@ -17035,6 +17504,10 @@ export type ProcessRunChatState = {
           toolName: string
           chatContextId: string
         }
+  }
+  workspaceBranch?: {
+    name: string
+    tipSha: string
   }
 }
 
@@ -17087,6 +17560,12 @@ export type ProcessRetryPolicy = {
   initialDelayMs: number
   factor: number
   maxDelayMs: number
+}
+
+export type ProcessBaseBranchOptions = {
+  current?: string
+  preselected?: string
+  branches: Array<string>
 }
 
 export type ProcessWorkBranchHostLinkRepair =
@@ -17472,6 +17951,10 @@ export type ProcessRunSummary = {
     apiKeyCredentialId?: string
     at: number
   }
+  agentTypeSlots?: {
+    implementer?: string
+    verifier?: string
+  }
   turnLimit?: {
     limitTurns: boolean
     maxTurns: number
@@ -17579,6 +18062,7 @@ export type ProcessRunSummary = {
       tools: Array<ProcessToolTime>
     }
     ticking: boolean
+    workingModels?: Array<ProcessRunModel>
     at: number
     steps: {
       [key: string]: ProcessStepTotals
@@ -17656,11 +18140,13 @@ export type ProcessRunSummary = {
         | 'judgement'
         | 'hold-timeout'
         | 'no-decision'
+        | 'not-started'
       what: string
       found: string
       tried: Array<string>
       recommendation: string
       recommendedChoice?: ProcessResumeChoice | 'delegate'
+      startError?: string
     }
     preRead?: {
       runId: string
@@ -17956,6 +18442,10 @@ export type StartProcessRunInput = {
     apiKeyCredentialId?: string
     at: number
   }
+  agentTypeSlots?: {
+    implementer?: string
+    verifier?: string
+  }
   turnLimit?: {
     limitTurns: boolean
     maxTurns: number
@@ -17974,6 +18464,7 @@ export type ProcessRunQuery = {
 
 export type ValidateProcessOptions = {
   implementedKinds?: Array<ProcessStepKind>
+  agentTypeIds?: Array<string>
 }
 
 export type FreezePlanOptions = {
@@ -17982,6 +18473,14 @@ export type FreezePlanOptions = {
   context?: {
     features?: Array<ProcessSubject>
     featureProcessId?: string
+  }
+  agentRoles?: {
+    [key: string]: AgentRunType
+  }
+  nonProvingAgentTypes?: Array<string>
+  agentTypeSlots?: {
+    implementer?: string
+    verifier?: string
   }
 }
 
@@ -18320,6 +18819,7 @@ export type ProcessGroupLeg = {
   dependsOn: Array<string>
   processId?: string
   integrationMode?: 'merge' | 'squash' | 'pull-request'
+  baseBranch?: string
   runId?: string
   previousRunIds?: Array<string>
   status: ProcessGroupLegStatus
@@ -18662,6 +19162,7 @@ export type StartProcessGroupRunInput = {
     dependsOn: Array<string>
     processId?: string
     integrationMode?: 'merge' | 'squash' | 'pull-request'
+    baseBranch?: string
   }>
 }
 
@@ -19156,6 +19657,15 @@ export type AddMessagesInput = {
       | ProcessManagerInterventionCard
       | ProcessManagerPreReadCard
       | ProcessManagerEscalationCard
+    openChangesCard?: {
+      kind: 'unfit' | 'waiting'
+      runId: string
+      projectId: string
+      chatContextId: string
+      since: number
+      fileCount: number
+      changedCount?: number
+    }
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -21211,6 +21721,11 @@ export type PreviewProcessResponses = {
       options: Array<ProcessOpenWorkOption>
       startedAt: number
     }
+    baseBranches?: {
+      current?: string
+      preselected?: string
+      branches: Array<string>
+    }
     proofPlans?: Array<LaunchProofPlan>
   }
 }
@@ -22188,6 +22703,67 @@ export type SetProcessRunTurnLimitResponses = {
 export type SetProcessRunTurnLimitResponse =
   SetProcessRunTurnLimitResponses[keyof SetProcessRunTurnLimitResponses]
 
+export type SetProcessRunModelData = {
+  body: {
+    /**
+     * The API model, or a CLI agent.
+     */
+    runner: 'api' | 'cli'
+    /**
+     * The CLI agent; left out, the run keeps its own.
+     */
+    cliTool?: string
+    /**
+     * The CLI model; left out, the run keeps its own on the same CLI, or takes the CLI’s default.
+     */
+    cliModel?: string
+    /**
+     * The stored login the CLI runs under; left out, as above.
+     */
+    cliCredentialId?: string
+    /**
+     * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
+     */
+    decidedVia: 'web' | 'desktop' | 'mobile'
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/process-runs/{runId}/model'
+}
+
+export type SetProcessRunModelErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SetProcessRunModelError = SetProcessRunModelErrors[keyof SetProcessRunModelErrors]
+
+export type SetProcessRunModelResponses = {
+  /**
+   * Default Response
+   */
+  200: ProcessRun
+}
+
+export type SetProcessRunModelResponse =
+  SetProcessRunModelResponses[keyof SetProcessRunModelResponses]
+
 export type GetProcessRunClosureData = {
   body?: never
   path: {
@@ -22541,6 +23117,10 @@ export type PreviewProcessGroupRunData = {
        */
       dependsOn?: Array<string>
       processId?: string
+      /**
+       * The branch this project's work goes off and back into; its checkout's current branch when absent.
+       */
+      baseBranch?: string
     }>
   }
   path?: never
@@ -22570,6 +23150,15 @@ export type PreviewProcessGroupRunResponses = {
        * Another leg needs this one merged first, so its early merge is asked about.
        */
       isPrerequisite: boolean
+      baseBranches?: {
+        current?: string
+        preselected?: string
+        branches: Array<string>
+      }
+      /**
+       * The branch the leg would work off — the one asked for, else the preselected one.
+       */
+      baseBranch?: string
       /**
        * Why this leg cannot start.
        */
@@ -29201,6 +29790,15 @@ export type SendCompletionData = {
           | ProcessManagerInterventionCard
           | ProcessManagerPreReadCard
           | ProcessManagerEscalationCard
+        openChangesCard?: {
+          kind: 'unfit' | 'waiting'
+          runId: string
+          projectId: string
+          chatContextId: string
+          since: number
+          fileCount: number
+          changedCount?: number
+        }
         needsYouClosedAt?: string
         toolCall?: {
           toolCallId: string
@@ -29314,6 +29912,15 @@ export type SendCompletionResponses = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      openChangesCard?: {
+        kind: 'unfit' | 'waiting'
+        runId: string
+        projectId: string
+        chatContextId: string
+        since: number
+        fileCount: number
+        changedCount?: number
+      }
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -29476,6 +30083,15 @@ export type SendCompletionWithToolsResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          openChangesCard?: {
+            kind: 'unfit' | 'waiting'
+            runId: string
+            projectId: string
+            chatContextId: string
+            since: number
+            fileCount: number
+            changedCount?: number
+          }
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
@@ -29581,6 +30197,15 @@ export type SendChatCompletionWithToolsData = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      openChangesCard?: {
+        kind: 'unfit' | 'waiting'
+        runId: string
+        projectId: string
+        chatContextId: string
+        since: number
+        fileCount: number
+        changedCount?: number
+      }
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -29692,6 +30317,15 @@ export type SendChatCompletionWithToolsResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          openChangesCard?: {
+            kind: 'unfit' | 'waiting'
+            runId: string
+            projectId: string
+            chatContextId: string
+            since: number
+            fileCount: number
+            changedCount?: number
+          }
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
@@ -29797,6 +30431,15 @@ export type SendChatWithCliData = {
         | ProcessManagerInterventionCard
         | ProcessManagerPreReadCard
         | ProcessManagerEscalationCard
+      openChangesCard?: {
+        kind: 'unfit' | 'waiting'
+        runId: string
+        projectId: string
+        chatContextId: string
+        since: number
+        fileCount: number
+        changedCount?: number
+      }
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -30030,6 +30673,15 @@ export type ResumeCompletionResponses = {
             | ProcessManagerInterventionCard
             | ProcessManagerPreReadCard
             | ProcessManagerEscalationCard
+          openChangesCard?: {
+            kind: 'unfit' | 'waiting'
+            runId: string
+            projectId: string
+            chatContextId: string
+            since: number
+            fileCount: number
+            changedCount?: number
+          }
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
@@ -31360,15 +32012,7 @@ export type PreviewToolResponse = PreviewToolResponses[keyof PreviewToolResponse
 export type StartAgentRunData = {
   body: {
     params: {
-      agentType:
-        | 'developer'
-        | 'developer-verifier'
-        | 'verifier'
-        | 'capture'
-        | 'judge'
-        | 'remedy'
-        | 'report'
-        | 'fixer'
+      agentType: string
       chatContext:
         | {
             type: 'AGENT_RUN_STORY'
@@ -33218,6 +33862,158 @@ export type SubmitCliAuthLoginInputResponses = {
 
 export type SubmitCliAuthLoginInputResponse =
   SubmitCliAuthLoginInputResponses[keyof SubmitCliAuthLoginInputResponses]
+
+export type GetChatOpenChangesData = {
+  body?: never
+  path?: never
+  query: {
+    projectId: string
+    chatContextId: string
+  }
+  url: '/api/v1/chat-open-changes'
+}
+
+export type GetChatOpenChangesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type GetChatOpenChangesError = GetChatOpenChangesErrors[keyof GetChatOpenChangesErrors]
+
+export type GetChatOpenChangesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    openChanges: ChatOpenChanges | unknown
+  }
+}
+
+export type GetChatOpenChangesResponse =
+  GetChatOpenChangesResponses[keyof GetChatOpenChangesResponses]
+
+export type DiscardChatOpenChangesData = {
+  body: {
+    projectId: string
+    chatContextId: string
+    reason?: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chat-open-changes/discard'
+}
+
+export type DiscardChatOpenChangesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DiscardChatOpenChangesError =
+  DiscardChatOpenChangesErrors[keyof DiscardChatOpenChangesErrors]
+
+export type DiscardChatOpenChangesResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRun
+}
+
+export type DiscardChatOpenChangesResponse =
+  DiscardChatOpenChangesResponses[keyof DiscardChatOpenChangesResponses]
+
+export type RebuildChatOpenChangesData = {
+  body: {
+    projectId: string
+    chatContextId: string
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/chat-open-changes/rebuild'
+}
+
+export type RebuildChatOpenChangesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RebuildChatOpenChangesError =
+  RebuildChatOpenChangesErrors[keyof RebuildChatOpenChangesErrors]
+
+export type RebuildChatOpenChangesResponses = {
+  /**
+   * Default Response
+   */
+  200: ChatOpenChangesRebuild
+}
+
+export type RebuildChatOpenChangesResponse =
+  RebuildChatOpenChangesResponses[keyof RebuildChatOpenChangesResponses]
 
 export type ListProjectNotesData = {
   body?: never

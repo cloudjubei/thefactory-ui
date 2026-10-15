@@ -5,6 +5,7 @@ import {
   useProcessGroupRuns,
   type ProcessGroupRun,
   type ProcessNodeRunRef,
+  type RunModelChipSlot,
   type ProcessStatusTone,
 } from '../../headless'
 import type { ChatContext } from '../../headless/api'
@@ -26,8 +27,10 @@ export type ProcessGroupRunsViewProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open a chat by its context — threaded to a project's pipeline. */
   onOpenChat?: (context: ChatContext) => void
-  /** Render a run's own chat in the run's chat drawer. Threaded to the pipeline. */
+  /** Render a run's own chat in the sidebar docked beside the run. Threaded to the pipeline. */
   renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
+  /** Render the host's chooser chip for a run's model. Threaded to the pipeline. */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
   /** One pane at a time (small screens). */
   narrow?: boolean
 }
@@ -47,6 +50,7 @@ export default function ProcessGroupRunsView({
   renderAgentRun,
   onOpenChat,
   renderChat,
+  renderModelChip,
   narrow = false,
 }: ProcessGroupRunsViewProps) {
   const { isLoaded, current, history } = useProcessGroupRuns(groupId)
@@ -105,7 +109,7 @@ export default function ProcessGroupRunsView({
 
   const detail = selectedGroupRunId ? (
     legRunId ? (
-      <div className="flex h-full min-h-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
           <button
             type="button"
@@ -116,7 +120,7 @@ export default function ProcessGroupRunsView({
             Group run
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1">
           <ProcessPipeline
             key={legRunId}
             runId={legRunId}
@@ -125,6 +129,8 @@ export default function ProcessGroupRunsView({
             {...(renderAgentRun ? { renderAgentRun } : {})}
             {...(onOpenChat ? { onOpenChat } : {})}
             {...(renderChat ? { renderChat } : {})}
+            {...(renderModelChip ? { renderModelChip } : {})}
+            narrow={narrow}
           />
         </div>
       </div>

@@ -46,6 +46,24 @@ describe('startGroupWorkGrantSummary', () => {
     )
   })
 
+  it('reads the branch each leg asked to go off, trimmed, dropping a blank one', () => {
+    expect(
+      startGroupWorkGrantSummary({
+        detail: {
+          args: {
+            legs: [
+              { projectId: 'tools', storyId: 's1', baseBranch: ' dev ' },
+              { projectId: 'ui', storyId: 's2', baseBranch: ' ' },
+            ],
+          },
+        },
+      }).legs,
+    ).toEqual([
+      { projectId: 'tools', storyId: 's1', dependsOn: [], baseBranch: 'dev' },
+      { projectId: 'ui', storyId: 's2', dependsOn: [] },
+    ])
+  })
+
   it('reads nothing from bare arguments — every ask is the broker’s `{ tool, args }`', () => {
     expect(startGroupWorkGrantSummary({ detail: ARGS })).toEqual({ legs: [], proofRequired: true })
   })

@@ -94,6 +94,23 @@ describe('startFeatureWorkGrantSummary', () => {
     }
   })
 
+  it('reads the branch the agent asked the work to go off, trimmed', () => {
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({ detail: { args: { storyId: 's', baseBranch: ' dev ' } } }),
+      ).baseBranch,
+    ).toBe('dev')
+  })
+
+  it('leaves the branch to the card when none, a blank one or a non-string was asked for', () => {
+    for (const baseBranch of [undefined, '', '  ', 3]) {
+      const summary = startFeatureWorkGrantSummary(
+        grant({ detail: { args: { storyId: 's', baseBranch } } }),
+      )
+      expect(summary).not.toHaveProperty('baseBranch')
+    }
+  })
+
   it('pulls story, note, proof and runner out of the payload', () => {
     const summary = startFeatureWorkGrantSummary(
       grant({

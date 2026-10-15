@@ -14,6 +14,7 @@ import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/type
 import SegmentedControl from '../../../primitives/SegmentedControl'
 import { IconClose, IconExternalLink } from '../../../icons'
 import ProcessCheckList from '../ProcessCheckList'
+import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
@@ -28,6 +29,8 @@ export type StepSidePanelProps = {
   renderAgentRun?: (ref: ProcessNodeRunRef, onBack: () => void) => ReactNode
   /** Open the agent run as a full page — the host's own route. */
   onOpenAgentRun?: (ref: ProcessNodeRunRef) => void
+  /** The run's chat — the same one its header opens — so the step can be discussed from here. */
+  chat?: RunChatButtonProps
 }
 
 type View = 'output' | 'transcript'
@@ -35,13 +38,15 @@ type View = 'output' | 'transcript'
 /**
  * The full view of one step's output, slid in from the right over the
  * pipeline: its code review, report, checks, verify proof or chat, under a
- * head with ↗ (open as a full page) and ✕.
+ * head with the run's chat, ↗ (open as a full page) and ✕. It covers the run's
+ * page column only, so the docked run chat stays open beside it.
  */
 export default function StepSidePanel({
   target,
   onClose,
   renderAgentRun,
   onOpenAgentRun,
+  chat,
 }: StepSidePanelProps) {
   const { run } = useProcessRun(target.runId)
   const [view, setView] = useState<View>('output')
@@ -80,11 +85,11 @@ export default function StepSidePanel({
         type="button"
         aria-label="Close the panel"
         onClick={onClose}
-        className="fixed inset-0 z-40 cursor-default bg-black/20"
+        className="absolute inset-0 z-40 cursor-default bg-black/20"
       />
       <aside
         aria-label={title}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[640px] flex-col border-l border-(--border-subtle) bg-(--surface-raised) shadow-2xl"
+        className="absolute inset-y-0 right-0 z-50 flex w-full max-w-[640px] flex-col border-l border-(--border-subtle) bg-(--surface-raised) shadow-2xl"
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-(--border-subtle) px-4 py-3">
           <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-(--text-primary)">
@@ -102,6 +107,7 @@ export default function StepSidePanel({
               ]}
             />
           ) : null}
+          {chat ? <RunChatButton {...chat} compact /> : null}
           {ref && onOpenAgentRun ? (
             <button
               type="button"

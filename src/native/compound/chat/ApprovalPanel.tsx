@@ -31,6 +31,8 @@ import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import { dependencyChipOf } from '../../../headless/utils/storyDependency'
 import {
+  baseBranchChoice,
+  baseBranchMetadata,
   featureProcessChoice,
   featureProcessMetadata,
   featuresToWork,
@@ -60,6 +62,7 @@ import type {
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import DependencyBullet, { type ResolvedDependency } from '../stories/DependencyBullet'
+import BaseBranchChooser from './BaseBranchChooser'
 import FeatureProcessChooser from './FeatureProcessChooser'
 import OpenWorkChooser from './OpenWorkChooser'
 import LaunchFeatureList from './LaunchFeatureList'
@@ -232,6 +235,15 @@ function ToolApprovalPanel({
   // Work added to an open run is worked the way that run works its own.
   const joinsOpenRun = openWorkChoice === 'extend' && openWorkMeta !== undefined
   const featureProcessMeta = joinsOpenRun ? undefined : featureProcessMetadata(featureProcess)
+  // The branch the work goes off and back into — the person's pick, else the
+  // agent's ask, else the checkout's current branch. Work that joins or builds
+  // on an open run goes back where that run's does.
+  const [basePick, setBasePick] = useState<string | undefined>(undefined)
+  const followsOpenRun =
+    openWorkMeta !== undefined &&
+    (openWorkChoice === 'extend' || openWorkChoice === 'new-on-branch')
+  const baseBranch = baseBranchChoice(proposal?.baseBranches, summary.baseBranch, basePick)
+  const baseBranchMeta = followsOpenRun ? undefined : baseBranchMetadata(baseBranch)
   // How each feature is proven — its requestor's plan, confirmed or added to
   // here. Work joining an open run reads the features' own plans, so it saves.
   const [proofPlanEdits, setProofPlanEdits] = useState<LaunchProofPlanEdits>({})
@@ -284,6 +296,7 @@ function ToolApprovalPanel({
               turnLimit: processTurnLimitOfView(turnLimit),
               ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
               ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
+              ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
               ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
             }
           : undefined,
@@ -413,6 +426,14 @@ function ToolApprovalPanel({
               onChoose={setFeatureProcessPick}
             />
           ) : null}
+          <BaseBranchChooser
+            options={proposal?.baseBranches}
+            {...(summary.baseBranch !== undefined ? { asked: summary.baseBranch } : {})}
+            picked={basePick}
+            followsOpenRun={followsOpenRun}
+            busy={busy}
+            onChoose={setBasePick}
+          />
           <View
             style={{
               flexDirection: 'row',

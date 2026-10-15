@@ -7,6 +7,7 @@ import {
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 
 import {
+  groupBaseBranchMetadata,
   LAUNCH_NOTE_MAX_CHARS,
   processGroupLegWaitsFor,
   processGrantTurnLimitView,
@@ -22,6 +23,7 @@ import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardType
 import { Textarea } from '../../primitives/Textarea'
 import { IconChevron } from '../../icons'
 import { TurnLimitField } from '../TurnLimitField'
+import BaseBranchChooser from './BaseBranchChooser'
 import ToolAskCard from './ToolAskCard'
 
 export type GroupWorkLaunchPanelProps = {
@@ -73,6 +75,10 @@ export default function GroupWorkLaunchPanel({
     { limited: boolean; maxTurns: number } | undefined
   >(undefined)
   const turnLimit = turnLimitPick ?? turnLimitStart
+  // Each project's branch to work off — the person's pick, else what the
+  // agent asked, else that project's current branch.
+  const [basePicks, setBasePicks] = useState<Record<string, string>>({})
+  const baseBranchMeta = groupBaseBranchMetadata(preview?.legs ?? [], basePicks)
 
   const problems = preview?.problems ?? []
   const canStart = isLoaded && preview !== undefined && problems.length === 0
@@ -90,6 +96,7 @@ export default function GroupWorkLaunchPanel({
               ...(trimmed ? { note: trimmed } : {}),
               turnLimit: processTurnLimitOfView(turnLimit),
               ...launchAgentPickMetadata(agentPick),
+              ...(baseBranchMeta ?? {}),
             }
           : undefined,
       )
@@ -141,6 +148,19 @@ export default function GroupWorkLaunchPanel({
                         {leg.features} feature{leg.features === 1 ? '' : 's'}
                       </span>
                     </div>
+                    {leg.baseBranches ? (
+                      <div className="flex">
+                        <BaseBranchChooser
+                          options={leg.baseBranches}
+                          {...(leg.baseBranch !== undefined ? { asked: leg.baseBranch } : {})}
+                          picked={basePicks[leg.projectId]}
+                          busy={busy}
+                          onChoose={(branch) =>
+                            setBasePicks((prev) => ({ ...prev, [leg.projectId]: branch }))
+                          }
+                        />
+                      </div>
+                    ) : null}
                     {processGroupLegWaitsFor(preview, leg.dependsOn) ? (
                       <span className="text-[11px] text-(--text-muted)">
                         {processGroupLegWaitsFor(preview, leg.dependsOn)}

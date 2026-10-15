@@ -34,4 +34,4 @@ export type Scene = {
   states: SceneState[]
 }
 
-export type SceneGroup = 'Chat' | 'Primitives'
+export type SceneGroup = 'Chat' | 'Process' | 'Primitives'

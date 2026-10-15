@@ -15,7 +15,6 @@ import {
   getProcessRun,
   listProcessRunBranches,
   askAgentAboutProcessRunPark,
-  openProcessRunChat,
   resolveProcessRunIntegrationConflict,
   resolveProcessRunNeedsYouItem,
   resumeProcessRun,
@@ -23,6 +22,7 @@ import {
   reviveProcessRun,
   sendProcessRunBackForChanges,
   setProcessRunManager,
+  setProcessRunModel,
   setProcessRunTurnLimit,
   startProcessRunChanges,
   withdrawProcessRunChange,
@@ -31,6 +31,8 @@ import { extractErrorMessage, useApi, useAuth } from '../api'
 import type { ChatContext } from '../api'
 import { cachedProcessRun, processRunCache } from './processViewCache'
 import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
+import type { LaunchAgentPick } from '../utils/launchAgentPickTypes'
+import { runModelChangeBody } from '../utils/runModelChange'
 
 /** A review branch a run tree owns — shown in the delete confirm's list. */
 export type ProcessRunBranch = { projectId: string; branch: string }
@@ -86,6 +88,12 @@ export type UseProcessRun = {
    */
   setManager: (enabled: boolean) => Promise<boolean>
   /**
+   * Run the run's step agents — its nested runs' too — on `pick` from their
+   * next step: an agent at work finishes its step first. Resolves `false` when
+   * it was refused; the reason is in `actionError`.
+   */
+  setModel: (pick: LaunchAgentPick) => Promise<boolean>
+  /**
    * Try again to bring in approved work that did not land, the same way or
    * another. Resolves `false` when it was refused; the reason is in `actionError`.
    */
@@ -113,11 +121,6 @@ export type UseProcessRun = {
    */
   delegate: () => Promise<ProcessRunDelegation | undefined>
   cancel: () => Promise<void>
-  /**
-   * Open the run's own chat, creating it the first time. Resolves to its
-   * context, or `undefined` when it was refused (the reason is in `actionError`).
-   */
-  openChat: () => Promise<ProcessRunChatOpened | undefined>
   /**
    * Ask an agent about the step the run stopped at, in the run's own chat: its
    * turn starts with a message naming the step and what it said last. Resolves
@@ -420,6 +423,26 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
     [runId, setRun],
   )
 
+  const setModel = useCallback(
+    async (pick: LaunchAgentPick) => {
+      if (!runId) return false
+      setActionError(null)
+      try {
+        const { data } = await setProcessRunModel({
+          path: { runId },
+          body: { ...runModelChangeBody(pick), decidedVia: client },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The run’s model could not be changed.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
   const cancel = useCallback(async () => {
     if (!runId) return
     setActionError(null)
@@ -430,18 +453,6 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       setActionError(extractErrorMessage(err, 'The run could not be stopped.'))
     }
   }, [runId, setRun])
-
-  const openChat = useCallback(async (): Promise<ProcessRunChatOpened | undefined> => {
-    if (!runId) return undefined
-    setActionError(null)
-    try {
-      const { data } = await openProcessRunChat({ path: { runId }, throwOnError: true })
-      return data as ProcessRunChatOpened
-    } catch (err) {
-      setActionError(extractErrorMessage(err, 'The run’s chat could not be opened.'))
-      return undefined
-    }
-  }, [runId])
 
   const askAgent = useCallback(async (): Promise<ProcessRunChatOpened | undefined> => {
     if (!runId) return undefined
@@ -545,13 +556,13 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       answerWaitingRequest,
       setTurnLimit,
       setManager,
+      setModel,
       retryIntegration,
       resolveIntegrationConflict,
       sendBack,
       revive,
       delegate,
       cancel,
-      openChat,
       askAgent,
       resolveNeedsYou,
       startChanges,
@@ -569,13 +580,13 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       answerWaitingRequest,
       setTurnLimit,
       setManager,
+      setModel,
       retryIntegration,
       resolveIntegrationConflict,
       sendBack,
       revive,
       delegate,
       cancel,
-      openChat,
       askAgent,
       resolveNeedsYou,
       startChanges,

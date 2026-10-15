@@ -1,10 +1,10 @@
-import { PROCESS_MANAGER_ESCALATION_LABELS } from 'thefactory-tools/constants'
 import type {
   ProcessManagerBriefCard,
   ProcessManagerEscalationCard,
   ProcessManagerInterventionCard,
   ProcessManagerPreReadCard,
 } from 'thefactory-tools/types'
+import { processManagerEscalationLabel } from 'thefactory-tools/utils'
 import {
   MANAGER_BRIEF_LIMITS,
   MANAGER_BRIEF_LINES,
@@ -105,7 +105,7 @@ export function managerEscalationView(
   const { escalation } = card
   return {
     title: MANAGER_ESCALATION_TITLE,
-    headline: PROCESS_MANAGER_ESCALATION_LABELS[escalation.why],
+    headline: processManagerEscalationLabel(escalation),
     what: escalation.what,
     found: escalation.found,
     tried: escalation.tried,

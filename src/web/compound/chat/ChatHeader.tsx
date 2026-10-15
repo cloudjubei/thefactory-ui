@@ -26,17 +26,30 @@ export type ChatHeaderProps = {
   onMaximize?: () => void
   /** Leaves the title to the surrounding chrome — the app bar on a small screen, an overlay's own head. */
   hideTitle?: boolean
-  /** Folds the steps strip to its narrow form. */
+  /**
+   * A narrow host — a docked panel or a sheet: the title keeps its row with the
+   * icon controls, the pill, meta and model chip take a second row, and the
+   * steps strip folds.
+   */
   narrow?: boolean
   /** Controls after the settings gear. */
   extraRight?: ReactNode
+  /**
+   * The chat is docked beside what it is about — a run's chat beside its run —
+   * so the header is one slim row: collapse, this label, the model chip and
+   * maximize. The kind tile, title, status, meta and steps are already on
+   * screen beside it; maximized, the chat gets its full header back.
+   */
+  dockedLabel?: string
 }
 
 /**
  * The chat header: the kind tile and title with the status of the run, story
  * or feature the chat is about; a line saying where it sits with its time and
  * cost; the model chip and the settings gear. Under it, for a run, story or
- * feature chat, the steps strip.
+ * feature chat, the steps strip. Narrow, the title keeps its row with the icon
+ * controls and the pill, meta and model chip take a second row; docked beside
+ * its subject (`dockedLabel`), it is one slim row.
  */
 export default function ChatHeader({
   view,
@@ -49,43 +62,77 @@ export default function ChatHeader({
   hideTitle = false,
   narrow = false,
   extraRight,
+  dockedLabel,
 }: ChatHeaderProps) {
-  const trailing =
-    onMaximize || modelChip || settingsMenu || extraRight ? (
+  const maximize = onMaximize ? (
+    <button
+      type="button"
+      onClick={onMaximize}
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
+      aria-label="Open chat in its own view"
+      title="Open chat in its own view"
+    >
+      <IconMaximize className="size-4" />
+    </button>
+  ) : null
+  const collapse = onCollapse ? (
+    <button
+      type="button"
+      onClick={onCollapse}
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
+      aria-label="Collapse chat sidebar"
+      title="Collapse chat sidebar"
+    >
+      <IconChevron className="size-4" style={{ transform: 'rotate(90deg)' }} />
+    </button>
+  ) : null
+  if (dockedLabel !== undefined) {
+    return (
+      <div className="flex shrink-0 flex-col">
+        <HeaderBar
+          narrow
+          leading={collapse}
+          title={dockedLabel}
+          {...(modelChip || maximize
+            ? {
+                trailing: (
+                  <>
+                    {modelChip}
+                    {maximize}
+                  </>
+                ),
+              }
+            : {})}
+        />
+      </div>
+    )
+  }
+  const trailing = narrow ? (
+    contextInfoSlot || maximize || settingsMenu || extraRight ? (
       <>
-        {onMaximize ? (
-          <button
-            type="button"
-            onClick={onMaximize}
-            className="inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
-            aria-label="Open chat in its own view"
-            title="Open chat in its own view"
-          >
-            <IconMaximize className="size-4" />
-          </button>
-        ) : null}
-        {modelChip}
+        {contextInfoSlot}
+        {maximize}
         {settingsMenu}
         {extraRight}
       </>
     ) : undefined
+  ) : maximize || modelChip || settingsMenu || extraRight ? (
+    <>
+      {maximize}
+      {modelChip}
+      {settingsMenu}
+      {extraRight}
+    </>
+  ) : undefined
   return (
     <div className="flex shrink-0 flex-col">
       <HeaderBar
+        narrow={narrow}
+        {...(narrow && modelChip ? { secondary: modelChip } : {})}
         leading={
           <>
-            {onCollapse ? (
-              <button
-                type="button"
-                onClick={onCollapse}
-                className="inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
-                aria-label="Collapse chat sidebar"
-                title="Collapse chat sidebar"
-              >
-                <IconChevron className="size-4" style={{ transform: 'rotate(90deg)' }} />
-              </button>
-            ) : null}
-            {contextInfoSlot}
+            {collapse}
+            {narrow ? null : contextInfoSlot}
             <ChatKindTile kind={view.kind} label={view.kindLabel} />
           </>
         }

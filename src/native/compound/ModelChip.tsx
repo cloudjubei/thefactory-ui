@@ -67,6 +67,8 @@ export interface ModelChipProps {
   cliSwitchError?: string | null
   /** When the selected CLI credential needs re-auth, flags the chip (warning glyph + a "Re-authenticate in Settings" picker row). */
   authWarning?: CliAuthWarning
+  /** A line the picker opens with — when a pick takes effect, say. */
+  note?: string
 }
 
 const PROVIDER_DOTS: Record<string, string> = {
@@ -179,6 +181,7 @@ export function ModelChip({
   cliDisabledReason,
   cliSwitchError,
   authWarning,
+  note,
 }: ModelChipProps) {
   const { theme, status: tones } = useNativeTheme()
   const [open, setOpen] = useState(false)
@@ -380,6 +383,19 @@ export function ModelChip({
       {chip}
       <BottomSheet isOpen={open} onClose={() => setOpen(false)} title="Select model">
         <View style={{ paddingBottom: nativeSpace[3] }}>
+          {note ? (
+            <Text
+              style={{
+                fontSize: 12,
+                lineHeight: 16,
+                color: theme.text.secondary,
+                marginBottom: nativeSpace[2],
+                paddingHorizontal: nativeSpace[1],
+              }}
+            >
+              {note}
+            </Text>
+          ) : null}
           {onToggleUseCli && (
             <View
               accessibilityRole="radiogroup"

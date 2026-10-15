@@ -4,8 +4,6 @@ import {
   choiceTakesNote,
   computeChatRowStatus,
   markSeen,
-  processRunChatContext,
-  RUN_CHAT_OPEN_LABEL,
   RunChatDraftProvider,
   RunNeedsYouProvider,
   runNeedsYouDiscussDraft,
@@ -31,7 +29,8 @@ import {
   processRunParkChoices,
   processRunIntegrationModes,
   processRunBadge,
-  processRunHeaderModel,
+  processRunChatContext,
+  processRunModelChipView,
   processRunManagerLine,
   processRunManagerView,
   processRunPersonEnding,
@@ -62,6 +61,8 @@ import {
   useDurationTimer,
   useProcessGroupRun,
   useProcessRun,
+  useRunModelChip,
+  useProcessRunChat,
   useProcessStopClock,
   useProjects,
   useStories,
@@ -80,12 +81,13 @@ import {
   type ProcessWaitingRequestView,
   type ProcessWaitingView,
   type RunNeedsYouActions,
+  type RunModelChipSlot,
+  type RunModelChipView,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
 import { Modal } from '../../primitives/Modal'
 import {
-  IconChat,
   IconChevronLeft,
   IconChevronRight,
   IconCopy,
@@ -111,10 +113,12 @@ import ParkNoteComposer from './ParkNoteComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
+import RunModelControl from './RunModelControl'
 import { RunManagerChip } from './RunManagerChip'
 import RunManagerPanel from './RunManagerPanel'
 import RunDiagnosticsView from './RunDiagnosticsView'
-import RunChatDrawer from './RunChatDrawer'
+import RunChatButton, { type RunChatButtonProps } from './RunChatButton'
+import RunChatDock from './RunChatDock'
 import { readChatsSeen, useChatsSeen, writeChatsSeen } from '../notifications/chatsSeen'
 import StorySignoffReview from './StorySignoffReview'
 import StepPreview from './pipeline/StepPreview'
@@ -144,10 +148,18 @@ export type ProcessPipelineProps = {
   /** Open the group run a project's run is a leg of. */
   onOpenGroupRun?: (groupRunId: string) => void
   /**
-   * Render the run's own chat inside the run's chat drawer. `onClose` closes
-   * the drawer. Without it the chat opens through `onOpenChat`.
+   * Render the run's own chat in the sidebar docked beside the run. `onClose`
+   * closes it. Without it the chat opens through `onOpenChat`.
    */
   renderChat?: (context: ChatContext, onClose: () => void) => ReactNode
+  /** Small screens: the run's chat slides up in a sheet instead of docking beside the run. */
+  narrow?: boolean
+  /**
+   * Render the host's chooser chip for the run's model — the API or a CLI, its
+   * model and login — from the slot the run hands it. Without it the run's
+   * model is shown read-only.
+   */
+  renderModelChip?: (slot: RunModelChipSlot) => ReactNode
 }
 
 /** The run sits at its story's sign-off — the whole page leads with the decision. */
@@ -163,7 +175,8 @@ function isStorySignoff(run: ProcessRun): boolean {
  * and cost — and a chevron when it produced something: a preview of its output
  * opens the full view in a side panel. Skipped steps are grey and inert.
  * Drilling into a feature's own pipeline stays inside this component with a
- * breadcrumb.
+ * breadcrumb. Every level — the run, a nested run, a step's panel — offers the
+ * one chat of the whole run tree, docked beside the page.
  */
 export default function ProcessPipeline({
   runId,
@@ -172,6 +185,8 @@ export default function ProcessPipeline({
   onOpenChat,
   onOpenGroupRun,
   renderChat,
+  narrow = false,
+  renderModelChip,
 }: ProcessPipelineProps) {
   const [stack, setStack] = useState<string[]>([])
   const [panel, setPanel] = useState<StepPanelTarget | null>(null)
@@ -180,12 +195,13 @@ export default function ProcessPipeline({
   const {
     isLoaded,
     loadError,
-    actionError,
+    actionError: runActionError,
     run,
     resume,
     answerWaitingRequest,
     setTurnLimit,
     setManager,
+    setModel,
     delegate,
     retryIntegration,
     resolveIntegrationConflict,
@@ -194,12 +210,12 @@ export default function ProcessPipeline({
     cancel,
     listBranches,
     deleteRun,
-    openChat,
     askAgent,
     resolveNeedsYou,
     startChanges,
     withdrawChange,
   } = useProcessRun(currentId)
+  const modelChip = useRunModelChip(run, setModel)
   const { settings } = useAppSettings()
   const showDiagnostics = settings.userPreferences.showRunDiagnostics === true
   const { group } = useProcessGroupRun(run?.groupRunId)
@@ -208,23 +224,32 @@ export default function ProcessPipeline({
   const { getChat, setDraft } = useChats()
   const [chat, setChat] = useState<{ context: ChatContext; version: number } | null>(null)
   const [chatOpening, setChatOpening] = useState(false)
-  const runChat = processRunChatContext({ id: runId, projectId: run?.projectId ?? '' })
-  const runChatKey = getChatContextKey(runChat)
+  const [chatWidth, setChatWidth] = useState<number | undefined>()
+  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
+  const runChat = useProcessRunChat(stack.length > 0 ? drilledRoot : run)
+  const runChatContext = runChat.context
+  const runChatKey = runChatContext ? getChatContextKey(runChatContext) : undefined
   const chatsSeen = useChatsSeen()
-  const runChatAsks = usePendingAsksByChat().get(runChatKey) ?? 0
-  const runChatUnread = computeChatRowStatus({
-    context: runChat,
-    contextKey: runChatKey,
-    chat: getChat(runChat),
-    isSending: false,
-    seen: chatsSeen,
-    pendingAsks: runChatAsks,
-    level: chatNotifyLevel(
-      getChat(runChat) ?? { context: runChat },
-      settings.notifications.chatNotifyLevels,
-    ),
-  }).isUnread
-  const canChat = stack.length === 0 && !run?.parentRunId && (!!renderChat || !!onOpenChat)
+  const pendingAsksByChat = usePendingAsksByChat()
+  const runChatUnread =
+    runChatContext && runChatKey
+      ? computeChatRowStatus({
+          context: runChatContext,
+          contextKey: runChatKey,
+          chat: getChat(runChatContext),
+          isSending: false,
+          seen: chatsSeen,
+          pendingAsks: pendingAsksByChat.get(runChatKey) ?? 0,
+          level: chatNotifyLevel(
+            getChat(runChatContext) ?? { context: runChatContext },
+            settings.notifications.chatNotifyLevels,
+          ),
+        }).isUnread
+      : false
+  const canChat = runChatContext !== undefined && (!!renderChat || !!onOpenChat)
+  const atTop = stack.length === 0 && !run?.parentRunId
+  const actionError = runActionError ?? runChat.error
+  const openTreeChat = runChat.open
 
   const showRunChat = useCallback(
     (context: ChatContext) => {
@@ -239,13 +264,13 @@ export default function ProcessPipeline({
   const openRunChat = useCallback(
     async (draft?: string) => {
       setChatOpening(true)
-      const opened = await openChat()
+      const opened = await openTreeChat()
       setChatOpening(false)
       if (!opened) return
       if (draft) setDraft(opened.context, draft)
       showRunChat(opened.context)
     },
-    [openChat, setDraft, showRunChat],
+    [openTreeChat, setDraft, showRunChat],
   )
   const askAgentAboutStep = useCallback(async () => {
     setChatOpening(true)
@@ -254,7 +279,7 @@ export default function ProcessPipeline({
     if (opened) showRunChat(opened.context)
   }, [askAgent, showRunChat])
   const closeChat = useCallback(() => {
-    writeChatsSeen(markSeen(readChatsSeen(), runChatKey, new Date().toISOString()))
+    if (runChatKey) writeChatsSeen(markSeen(readChatsSeen(), runChatKey, new Date().toISOString()))
     setChat(null)
   }, [runChatKey])
 
@@ -267,7 +292,6 @@ export default function ProcessPipeline({
 
   const now = useDurationTimer(run?.totals?.ticking === true)
   const stopNow = useProcessStopClock()
-  const { run: drilledRoot } = useProcessRun(stack.length > 0 ? runId : undefined)
 
   const drillTo = useCallback((childId: string) => {
     setPanel(null)
@@ -310,13 +334,17 @@ export default function ProcessPipeline({
   if (!isLoaded) return <div className="p-4 text-sm text-(--text-secondary)">Loading…</div>
   if (!run) return <Alert variant="error">This run no longer exists.</Alert>
 
-  const needsYouActions: RunNeedsYouActions | undefined = canChat
-    ? {
-        resolutions: run.needsYouResolutions,
-        onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
-        onResolve: (card) => void resolveNeedsYou(card.id),
-      }
+  const chatButton: RunChatButtonProps | undefined = canChat
+    ? { onOpen: () => void openRunChat(), unread: !chat && runChatUnread }
     : undefined
+  const needsYouActions: RunNeedsYouActions | undefined =
+    canChat && atTop
+      ? {
+          resolutions: run.needsYouResolutions,
+          onDiscuss: (card) => void openRunChat(runNeedsYouDiscussDraft(card.text)),
+          onResolve: (card) => void resolveNeedsYou(card.id),
+        }
+      : undefined
   const states = processStepStates(run)
   const projectName = projects.find((p) => p.id === run.projectId)?.title
   const amendments = processAmendmentView(run)
@@ -344,260 +372,269 @@ export default function ProcessPipeline({
 
   return (
     <RunChatDraftScope open={canChat ? (draft) => void openRunChat(draft) : undefined}>
-      <div
-        className={`flex h-full min-h-0 flex-col overflow-y-auto ${chat || chatOpening ? 'lg:pr-[460px]' : ''}`}
+      <RunChatDock
+        open={!!renderChat && (!!chat || chatOpening)}
+        narrow={narrow}
+        onClose={closeChat}
+        {...(chatWidth !== undefined ? { initialWidth: chatWidth } : {})}
+        onWidthChange={setChatWidth}
+        {...(chat && renderChat
+          ? {
+              chat: <Fragment key={chat.version}>{renderChat(chat.context, closeChat)}</Fragment>,
+            }
+          : {})}
       >
-        <RunHead
-          now={now}
-          run={run}
-          stopHolder={stopHolder}
-          {...(projectName ? { projectName } : {})}
-          depth={stack.length}
-          onCrumb={popTo}
-          onCancel={() => setConfirmStop(true)}
-          onDelete={openDelete}
-          onSetTurnLimit={setTurnLimit}
-          {...(managerView ? { manager: { view: managerView, onSwitch: setManager } } : {})}
-          reportText={signoff ? reportText : undefined}
-          {...(canChat
-            ? { chat: { onOpen: () => void openRunChat(), unread: !chat && runChatUnread } }
-            : {})}
-          {...(run.groupRunId && onOpenGroupRun
-            ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
-            : {})}
-        />
-
-        {actionError && !signoff ? (
-          <div
-            role="alert"
-            className="mx-3 mt-3 rounded-md px-2.5 py-2 text-[12px]"
-            style={{
-              background: 'var(--status-stuck-soft-bg)',
-              border: '1px solid var(--status-stuck-soft-border)',
-              color: 'var(--status-stuck-soft-fg)',
-            }}
-          >
-            {actionError}
-          </div>
-        ) : null}
-
-        {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
-        <WorkBranchChangesNote run={run} />
-        {managerView ? (
-          <RunManagerPanel
-            view={managerView}
-            {...(canChat ? { onOpenChat: () => void openRunChat() } : {})}
-          />
-        ) : null}
-
-        {stack.length === 0 ? (
-          <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
-        ) : null}
-
-        {amendments.notes.length > 0 ? (
-          <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
-              Work added to this run
-            </span>
-            {amendments.notes.map((note) => (
-              <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
-                {note}
-              </p>
-            ))}
-          </div>
-        ) : null}
-
-        <div
-          className={
-            signoff ? 'mx-auto w-full max-w-[1120px] px-3 pb-4 pt-4 sm:px-6' : 'px-3 pb-4 pt-3'
-          }
-        >
-          <ol className="m-0 flex list-none flex-col rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-0 py-1.5">
-            {states.map((state) => (
-              <PipelineNode
-                key={state.step.id}
-                run={run}
-                state={state}
-                now={now}
-                stopHolder={stopHolder}
-                managerLine={managerLine}
-                addedTag={amendments.addedSteps[state.step.id]}
-                onChoose={choose}
-                onAnswerRequest={(actionId, choice) => void answerWaitingRequest(actionId, choice)}
-                onDelegate={() => delegate().then(() => undefined)}
-                {...(canChat ? { onAskAgent: askAgentAboutStep } : {})}
-                {...(onOpenChat ? { onOpenChat } : {})}
-                onDrill={drillTo}
-                onOpenPanel={setPanel}
-                {...(renderAgentRun
-                  ? {
-                      onOpenTranscript: (ref: ProcessNodeRunRef) =>
-                        setPanel({
-                          runId: run.id,
-                          stepId: state.step.id,
-                          entryId: entryIdOf(state, ref),
-                        }),
-                    }
-                  : {})}
-              />
-            ))}
-          </ol>
-        </div>
-
-        <IntegrationResult
-          run={run}
-          {...(integrationModes ? { modes: integrationModes } : {})}
-          onRetry={retryIntegration}
-          onResolve={resolveIntegrationConflict}
-          error={signoff ? null : actionError}
-        />
-
-        {signoff ? (
-          <div className="mx-auto w-full max-w-[1120px] px-3 pb-4 sm:px-6">
-            <NeedsYouScope value={needsYouActions}>
-              <StorySignoffReview
-                projectId={run.projectId}
-                storyId={run.storyId as string}
-                storyRunId={run.id}
-                choices={processRunParkChoices(run)}
-                {...(run.workBranch && isIntegratingApproval(run, 'approve')
-                  ? { workBranch: run.workBranch }
-                  : {})}
-                {...(integrationModes ? { integrationModes } : {})}
-                onChoose={choose}
-                error={actionError}
-                {...(mergeHold
-                  ? {
-                      mergeHold: {
-                        ...mergeHold,
-                        ...(onOpenGroupRun
-                          ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
-                          : {}),
-                      },
-                    }
-                  : {})}
-                onReportText={setReportText}
-                onOpenStep={setPanel}
-              />
-            </NeedsYouScope>
-          </div>
-        ) : null}
-
-        <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
-
-        <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
-        {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
-
-        {renderChat && (chat || chatOpening) ? (
-          <RunChatDrawer
-            {...(chat && onOpenChat
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <RunHead
+            now={now}
+            run={run}
+            stopHolder={stopHolder}
+            {...(projectName ? { projectName } : {})}
+            depth={stack.length}
+            onCrumb={popTo}
+            onCancel={() => setConfirmStop(true)}
+            onDelete={openDelete}
+            onSetTurnLimit={setTurnLimit}
+            {...(modelChip
               ? {
-                  onOpenInChat: () => {
-                    closeChat()
-                    onOpenChat(chat.context)
+                  model: {
+                    view: modelChip.view,
+                    ...(renderModelChip && modelChip.view.editable
+                      ? {
+                          chip: renderModelChip({
+                            ...modelChip.slot,
+                            chatContext: processRunChatContext(run),
+                            note: modelChip.view.note,
+                          }),
+                        }
+                      : {}),
                   },
                 }
               : {})}
-            onClose={closeChat}
-          >
-            {chat ? (
-              <Fragment key={chat.version}>{renderChat(chat.context, closeChat)}</Fragment>
-            ) : null}
-          </RunChatDrawer>
-        ) : null}
+            {...(managerView ? { manager: { view: managerView, onSwitch: setManager } } : {})}
+            reportText={signoff ? reportText : undefined}
+            {...(chatButton ? { chat: chatButton } : {})}
+            {...(run.groupRunId && onOpenGroupRun
+              ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+              : {})}
+          />
 
+          {actionError && !signoff ? (
+            <div
+              role="alert"
+              className="mx-3 mt-3 rounded-md px-2.5 py-2 text-[12px]"
+              style={{
+                background: 'var(--status-stuck-soft-bg)',
+                border: '1px solid var(--status-stuck-soft-border)',
+                color: 'var(--status-stuck-soft-fg)',
+              }}
+            >
+              {actionError}
+            </div>
+          ) : null}
+
+          {signoff ? null : <BaseMovedNote run={run} onChoose={(choice) => choose(choice)} />}
+          <WorkBranchChangesNote run={run} />
+          {managerView ? (
+            <RunManagerPanel
+              view={managerView}
+              {...(canChat ? { onOpenChat: () => void openRunChat() } : {})}
+            />
+          ) : null}
+
+          {stack.length === 0 ? (
+            <RunPendingChanges run={run} onStart={startChanges} onRemove={withdrawChange} />
+          ) : null}
+
+          {amendments.notes.length > 0 ? (
+            <div className="mx-3 mt-3 flex flex-col gap-1 rounded-md border border-(--border-subtle) bg-(--surface-base) px-2.5 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+                Work added to this run
+              </span>
+              {amendments.notes.map((note) => (
+                <p key={note} className="text-[11.5px] leading-relaxed text-(--text-secondary)">
+                  {note}
+                </p>
+              ))}
+            </div>
+          ) : null}
+
+          <div
+            className={
+              signoff ? 'mx-auto w-full max-w-[1120px] px-3 pb-4 pt-4 sm:px-6' : 'px-3 pb-4 pt-3'
+            }
+          >
+            <ol className="m-0 flex list-none flex-col rounded-xl border border-(--border-subtle) bg-(--surface-raised) p-0 py-1.5">
+              {states.map((state) => (
+                <PipelineNode
+                  key={state.step.id}
+                  run={run}
+                  state={state}
+                  now={now}
+                  stopHolder={stopHolder}
+                  managerLine={managerLine}
+                  addedTag={amendments.addedSteps[state.step.id]}
+                  onChoose={choose}
+                  onAnswerRequest={(actionId, choice) =>
+                    void answerWaitingRequest(actionId, choice)
+                  }
+                  onDelegate={() => delegate().then(() => undefined)}
+                  {...(canChat && atTop ? { onAskAgent: askAgentAboutStep } : {})}
+                  {...(onOpenChat ? { onOpenChat } : {})}
+                  onDrill={drillTo}
+                  onOpenPanel={setPanel}
+                  {...(renderAgentRun
+                    ? {
+                        onOpenTranscript: (ref: ProcessNodeRunRef) =>
+                          setPanel({
+                            runId: run.id,
+                            stepId: state.step.id,
+                            entryId: entryIdOf(state, ref),
+                          }),
+                      }
+                    : {})}
+                />
+              ))}
+            </ol>
+          </div>
+
+          <IntegrationResult
+            run={run}
+            {...(integrationModes ? { modes: integrationModes } : {})}
+            onRetry={retryIntegration}
+            onResolve={resolveIntegrationConflict}
+            error={signoff ? null : actionError}
+          />
+
+          {signoff ? (
+            <div className="mx-auto w-full max-w-[1120px] px-3 pb-4 sm:px-6">
+              <NeedsYouScope value={needsYouActions}>
+                <StorySignoffReview
+                  projectId={run.projectId}
+                  storyId={run.storyId as string}
+                  storyRunId={run.id}
+                  choices={processRunParkChoices(run)}
+                  {...(run.workBranch && isIntegratingApproval(run, 'approve')
+                    ? { workBranch: run.workBranch }
+                    : {})}
+                  {...(integrationModes ? { integrationModes } : {})}
+                  onChoose={choose}
+                  error={actionError}
+                  {...(mergeHold
+                    ? {
+                        mergeHold: {
+                          ...mergeHold,
+                          ...(onOpenGroupRun
+                            ? { onOpenGroup: () => onOpenGroupRun(run.groupRunId!) }
+                            : {}),
+                        },
+                      }
+                    : {})}
+                  onReportText={setReportText}
+                  onOpenStep={setPanel}
+                />
+              </NeedsYouScope>
+            </div>
+          ) : null}
+
+          <RunDiagnosticsView runId={currentId} enabled={showDiagnostics} />
+
+          <RunEnding run={run} onSendBack={sendBack} onRevive={revive} />
+          {stack.length === 0 ? <RunClosurePanel run={run} /> : null}
+
+          {confirmStop ? (
+            <Modal
+              isOpen
+              onClose={() => setConfirmStop(false)}
+              title={PROCESS_STOP_CONFIRM_COPY.title}
+              size="sm"
+            >
+              <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+                <p className="m-0">{PROCESS_STOP_CONFIRM_COPY.body}</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmStop(false)}>
+                    {PROCESS_STOP_CONFIRM_COPY.cancel}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {
+                      setConfirmStop(false)
+                      void cancel()
+                    }}
+                  >
+                    {PROCESS_STOP_CONFIRM_COPY.confirm}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          ) : null}
+
+          {confirmDelete ? (
+            <Modal
+              isOpen
+              onClose={() => setConfirmDelete(false)}
+              title="Delete this process run?"
+              size="sm"
+            >
+              <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
+                <p className="m-0">
+                  This removes the run and everything it produced — every step’s agent-run chat and
+                  its record. This cannot be undone.
+                </p>
+                {shadowWork ? null : branches.length > 0 ? (
+                  <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={alsoBranches}
+                      onChange={(e) => setAlsoBranches(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="font-medium text-(--text-primary)">
+                        Also delete {branches.length} git branch{branches.length === 1 ? '' : 'es'}
+                      </span>
+                      <span className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-(--text-muted)">
+                        {branches.map((b) => (
+                          <span key={`${b.projectId}:${b.branch}`} className="truncate">
+                            {b.branch}
+                          </span>
+                        ))}
+                      </span>
+                    </span>
+                  </label>
+                ) : (
+                  <p className="m-0 text-[12px] text-(--text-muted)">
+                    No review branches were found for this run.
+                  </p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={runDelete} disabled={deleting}>
+                    {deleting ? 'Deleting…' : 'Delete run'}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          ) : null}
+        </div>
         {panel ? (
           <StepSidePanel
             target={panel}
             onClose={closePanel}
             {...(renderAgentRun ? { renderAgentRun } : {})}
             {...(onOpenAgentRun ? { onOpenAgentRun } : {})}
+            {...(chatButton ? { chat: chatButton } : {})}
           />
         ) : null}
-
-        {confirmStop ? (
-          <Modal
-            isOpen
-            onClose={() => setConfirmStop(false)}
-            title={PROCESS_STOP_CONFIRM_COPY.title}
-            size="sm"
-          >
-            <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
-              <p className="m-0">{PROCESS_STOP_CONFIRM_COPY.body}</p>
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setConfirmStop(false)}>
-                  {PROCESS_STOP_CONFIRM_COPY.cancel}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => {
-                    setConfirmStop(false)
-                    void cancel()
-                  }}
-                >
-                  {PROCESS_STOP_CONFIRM_COPY.confirm}
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
-
-        {confirmDelete ? (
-          <Modal
-            isOpen
-            onClose={() => setConfirmDelete(false)}
-            title="Delete this process run?"
-            size="sm"
-          >
-            <div className="flex flex-col gap-3 text-[13px] text-(--text-secondary)">
-              <p className="m-0">
-                This removes the run and everything it produced — every step’s agent-run chat and
-                its record. This cannot be undone.
-              </p>
-              {shadowWork ? null : branches.length > 0 ? (
-                <label className="flex items-start gap-2 rounded-md border border-(--border-subtle) bg-(--surface-sunken) p-2.5">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={alsoBranches}
-                    onChange={(e) => setAlsoBranches(e.target.checked)}
-                  />
-                  <span className="min-w-0">
-                    <span className="font-medium text-(--text-primary)">
-                      Also delete {branches.length} git branch{branches.length === 1 ? '' : 'es'}
-                    </span>
-                    <span className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-(--text-muted)">
-                      {branches.map((b) => (
-                        <span key={`${b.projectId}:${b.branch}`} className="truncate">
-                          {b.branch}
-                        </span>
-                      ))}
-                    </span>
-                  </span>
-                </label>
-              ) : (
-                <p className="m-0 text-[12px] text-(--text-muted)">
-                  No review branches were found for this run.
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmDelete(false)}
-                  disabled={deleting}
-                >
-                  Cancel
-                </Button>
-                <Button variant="danger" size="sm" onClick={runDelete} disabled={deleting}>
-                  {deleting ? 'Deleting…' : 'Delete run'}
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
-      </div>
+      </RunChatDock>
     </RunChatDraftScope>
   )
 }
@@ -637,10 +674,10 @@ function entryIdOf(
  * right the manager, model and turn limit, the Group chip for a group's leg,
  * the run's chat, Stop while the run can still do work, and ⋯ for the rare
  * ones (copy the link, download the report, delete — which still asks first).
- * A nested run leads with the breadcrumb back up and has no chat of its own.
- * Under it, the steps strip.
+ * A nested run leads with the breadcrumb back up; its chat button opens the
+ * whole run's chat, like the top run's. Under it, the steps strip.
  */
-function RunHead({
+export function RunHead({
   run,
   stopHolder,
   depth,
@@ -651,6 +688,7 @@ function RunHead({
   onDelete,
   onOpenGroup,
   onSetTurnLimit,
+  model,
   manager,
   reportText,
   chat,
@@ -668,16 +706,18 @@ function RunHead({
   onOpenGroup?: () => void
   /** Hold the run's step agents to a turn limit from their next step on. */
   onSetTurnLimit?: (limit: ProcessTurnLimit) => Promise<boolean>
+  /** The run's model chip, and the host's chooser chip while it can change; read-only without it. */
+  model?: { view: RunModelChipView; chip?: ReactNode }
   /** The run's agent manager: what it is, and the switch while the run is live. */
   manager?: { view: ProcessRunManagerView; onSwitch: (enabled: boolean) => Promise<boolean> }
   reportText?: string
-  /** The run's own chat: open it, and whether it has news. */
-  chat?: { onOpen: () => void; unread: boolean }
+  /** The whole run tree's chat: open it, and whether it has news. */
+  chat?: RunChatButtonProps
 }) {
   const badge = processRunBadge(run, now, stopHolder)
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
-  const model = processRunHeaderModel(run, run.ledger)
+  const modelView = model?.view ?? processRunModelChipView(run)
   const steps = useMemo(() => processRunStripEntries(run), [run])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   const menu: OverflowMenuItem[] = [
@@ -775,7 +815,7 @@ function RunHead({
                 {...(stoppable ? { onSwitch: manager.onSwitch } : {})}
               />
             ) : null}
-            {model ? <RunModelChip model={model} /> : null}
+            <RunModelControl view={modelView} {...(model?.chip ? { chip: model.chip } : {})} />
             <RunTurnLimitChip
               run={run}
               {...(stoppable && onSetTurnLimit ? { onSet: onSetTurnLimit } : {})}
@@ -792,23 +832,7 @@ function RunHead({
                 {SIGNOFF_GROUP_CHIP_LABEL}
               </button>
             ) : null}
-            {chat && depth === 0 ? (
-              <button
-                type="button"
-                onClick={chat.onOpen}
-                aria-label={RUN_CHAT_OPEN_LABEL}
-                title={RUN_CHAT_OPEN_LABEL}
-                className="relative inline-flex size-8 items-center justify-center rounded-md border border-(--border-default) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)"
-              >
-                <IconChat className="size-4" />
-                {chat.unread ? (
-                  <span
-                    aria-hidden
-                    className="absolute right-1 top-1 size-2 rounded-full bg-(--accent-primary)"
-                  />
-                ) : null}
-              </button>
-            ) : null}
+            {chat ? <RunChatButton {...chat} /> : null}
             {stoppable ? (
               <button
                 type="button"

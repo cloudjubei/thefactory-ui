@@ -27,6 +27,7 @@ import {
 import { costDetailsView, messageUsageCost } from '../../../headless/utils/costDetails'
 import CostDetailsPanel from '../chips/CostDetailsPanel'
 import { ManagerCardView } from './ManagerCards'
+import { OpenChangesCardView } from './OpenChangesCard'
 import { RunParkClosure } from './ParkClosureLine'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
@@ -297,6 +298,25 @@ function MessageRow({
           results={msg.backgroundResults}
           content={msg.content}
           {...(at ? { timestamp: formatFriendlyTimestamp(at) } : {})}
+        />
+      </div>
+    )
+  }
+
+  const openChangesCard = role === 'assistant' ? msg.openChangesCard : undefined
+  if (openChangesCard) {
+    const at = messageIso(msg)
+    return (
+      <div
+        data-msg-idx={globalIndex}
+        ref={isLast ? setLastMessageRef : undefined}
+        className="w-full"
+      >
+        <OpenChangesCardView
+          card={openChangesCard}
+          {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
+          formatAt={(ms) => formatFriendlyTimestamp(new Date(ms).toISOString())}
+          {...(renderCliRunArtifact ? { renderReview: renderCliRunArtifact } : {})}
         />
       </div>
     )

@@ -35,7 +35,14 @@ export function startGroupWorkGrantSummary(
       ? raw.dependsOn.filter((d): d is string => typeof d === 'string' && d.length > 0)
       : []
     const processId = text(raw.processId)
-    legs.push({ projectId, storyId, dependsOn, ...(processId ? { processId } : {}) })
+    const baseBranch = text(raw.baseBranch)
+    legs.push({
+      projectId,
+      storyId,
+      dependsOn,
+      ...(processId ? { processId } : {}),
+      ...(baseBranch ? { baseBranch } : {}),
+    })
   }
   const groupId = text(record.groupId)
   const title = text(record.title)
