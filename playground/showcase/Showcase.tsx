@@ -13,6 +13,8 @@ export default function Showcase({ route }: { route: SceneRoute }) {
       return <ScenePage scene={route.scene} />
     case 'state':
       return <StateView scene={route.scene} state={route.state} />
+    case 'play':
+      return <PlayView scene={route.scene} values={route.values} />
     case 'missing':
       return (
         <Missing sceneId={route.sceneId} {...(route.stateId ? { stateId: route.stateId } : {})} />
@@ -74,7 +76,9 @@ function SceneEntry({ scene }: { scene: Scene }) {
 /** One scene, every state stacked under its own heading and link. */
 function ScenePage({ scene }: { scene: Scene }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-6">
+    <main
+      className={`mx-auto flex min-h-screen flex-col gap-6 p-6 ${scene.wide ? 'max-w-6xl' : 'max-w-3xl'}`}
+    >
       <header className="flex flex-col gap-1">
         <a className={`text-[13px] ${LINK}`} href="?">
           ← All scenes
@@ -106,6 +110,15 @@ function ScenePage({ scene }: { scene: Scene }) {
   )
 }
 
+/** A scene set by its controls, alone — the page the Design view's Playground frames and captures. */
+function PlayView({ scene, values }: { scene: Scene; values: Record<string, string> }) {
+  return (
+    <main className="min-h-screen p-6" data-scene={scene.id} aria-label={scene.title}>
+      <div className="mx-auto max-w-3xl">{scene.play?.(values)}</div>
+    </main>
+  )
+}
+
 /** One state on its own, with nothing of the showcase around it. */
 function StateView({ scene, state }: { scene: Scene; state: SceneState }) {
   return (
@@ -115,7 +128,7 @@ function StateView({ scene, state }: { scene: Scene; state: SceneState }) {
       data-state={state.id}
       aria-label={`${scene.title} — ${state.title}`}
     >
-      <div className="mx-auto max-w-3xl">{state.render()}</div>
+      <div className={`mx-auto ${scene.wide ? 'max-w-6xl' : 'max-w-3xl'}`}>{state.render()}</div>
     </main>
   )
 }

@@ -1,3 +1,5 @@
+import type { BranchCommitsReview } from './branchCommitsTypes'
+
 /** The fields a commit row needs; matches `GitLogCommit`. */
 export type BranchCommit = {
   hash: string
@@ -38,4 +40,17 @@ export function commitsSinceBase(
     out.push(commit)
   }
   return []
+}
+
+/**
+ * Where a review's commits are read from, best first. An open review reads its
+ * branch, then the tip it recorded should the branch be gone. Deciding a review
+ * merges or deletes its branch, so a decided one reads only its recorded tip —
+ * and with none there is nothing to read.
+ */
+export function branchCommitsRefs(review: BranchCommitsReview | undefined): string[] {
+  if (!review?.baseSha) return []
+  const decided = review.mergedAt != null || review.rejectedAt != null
+  const refs = decided ? [review.headSha] : [review.branch, review.headSha]
+  return [...new Set(refs.filter((ref): ref is string => !!ref))]
 }

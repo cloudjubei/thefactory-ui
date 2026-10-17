@@ -2,9 +2,11 @@ import type {
   ProcessIntegrationLandedBy,
   ProcessIntegrationMode,
   ProcessIntegrationOptions,
+  ProcessProofChangeOffer,
   ProcessRetryMode,
   ProcessRetryOffer,
   ProcessTurnLimit,
+  ProofKind,
 } from 'thefactory-tools/types'
 
 import type { ProcessRunClosureRow } from './processRunClosureViewTypes'
@@ -119,6 +121,8 @@ export type RunProposalEdit = {
   retry?: ProcessRetryOffer
   turnLimit?: { limit: ProcessTurnLimit; runner: 'api' | 'cli' }
   closure?: ProcessRunClosureRow[]
+  /** A change of what proves a stopped feature: what it needs now and what it can be changed to. */
+  proofChange?: ProcessProofChangeOffer
 }
 
 /** The person's picks on a card's editable parts, as they stand. */
@@ -126,4 +130,6 @@ export type RunProposalEditState = {
   retryMode?: ProcessRetryMode
   turnLimit?: ProcessTurnLimit
   closure?: ProcessRunClosureRow[]
+  /** The kinds that prove the feature from now on, and whether to save them onto it. */
+  proofChange?: { kinds: ProofKind[]; save: boolean }
 }

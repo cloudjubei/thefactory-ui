@@ -16,6 +16,10 @@ export const PROOF_PLAN_SOURCE_LABELS: Record<ProofPlanSource, string> = {
   suggested: 'Suggested — the feature has no plan',
 }
 
+/** Said under a plan for each kind its feature or story asked for that this run can't produce. */
+export const PROOF_PLAN_DROPPED_LINE = (label: string, reason: string): string =>
+  `${label} dropped — can’t be produced here: ${reason}`
+
 /** Said beside a plan the person changed on this launch. */
 export const PROOF_PLAN_EDITED_LABEL = 'Changed for this run'
 

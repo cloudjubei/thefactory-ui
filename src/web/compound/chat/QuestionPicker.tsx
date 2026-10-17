@@ -79,7 +79,7 @@ function PickerList({
                   onClick={() => setChosenId(item.id)}
                   className={`grid w-full grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2 text-left ${
                     i > 0 ? 'border-t border-(--border-subtle)' : ''
-                  } ${on ? 'bg-(--status-review-soft-bg)' : 'hover:bg-(--surface-hover)'}`}
+                  } ${on ? 'bg-(--accent-soft-bg)' : 'hover:bg-(--surface-hover)'}`}
                 >
                   <span
                     className={`flex h-4 w-4 items-center justify-center rounded-full border-[1.5px] ${

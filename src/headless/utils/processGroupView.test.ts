@@ -116,10 +116,29 @@ describe('processGroupLegRows', () => {
     )
     expect(row).toMatchObject({
       label: 'Manager on it',
-      tone: 'done',
+      tone: 'running',
       openLabel: 'Open its pipeline',
       readyForSignOff: false,
     })
+  })
+
+  it('draws a running leg in the running blue, the host merging or building it in orange, merged in green', () => {
+    const rows = processGroupLegRows(
+      group({
+        legs: [
+          leg('tools', { status: 'running' }),
+          leg('db', { status: 'integrating' }),
+          leg('ui', { status: 'rebuilding' }),
+          leg('web', { status: 'integrated' }),
+        ],
+      }),
+    ).flat()
+    expect(rows.map((r) => [r.leg.id, r.label, r.tone])).toEqual([
+      ['tools', 'Running', 'running'],
+      ['db', 'Merging', 'working'],
+      ['ui', 'Merged · building', 'working'],
+      ['web', 'Merged', 'done'],
+    ])
   })
 
   it('draws the legs by dependency level, saying what a blocked one waits for', () => {

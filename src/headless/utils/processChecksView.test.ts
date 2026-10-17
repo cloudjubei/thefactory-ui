@@ -8,6 +8,7 @@ import {
   developerChecksNote,
   latestProcessChecks,
   processCheckRows,
+  processCheckWaitingView,
   verificationStatusOf,
   withProcessChecks,
 } from './processChecksView'
@@ -475,5 +476,37 @@ describe('developerChecksNote', () => {
 
   it('ignores recorded runs filed under any other approach', () => {
     expect(developerChecksNote([ref({ approach: 'compile' })], [])).toBeUndefined()
+  })
+})
+
+describe('processCheckWaitingView', () => {
+  const checkStep = { kind: 'check' as const }
+  const waiting = entry({
+    status: 'running',
+    outcome: undefined,
+    endedAt: undefined,
+    checks: undefined,
+    queued: { reason: 'Waiting for another check run of this project to finish', since: 10_000 },
+  })
+
+  it('says what a running checks step waits for, and for how long up to now', () => {
+    expect(processCheckWaitingView({ step: checkStep, latest: waiting }, 142_000)).toEqual({
+      reason: 'Waiting for another check run of this project to finish',
+      waited: '2m 12s',
+    })
+  })
+
+  it('never reads a clock that has not reached the start of the wait as negative', () => {
+    expect(processCheckWaitingView({ step: checkStep, latest: waiting }, 5_000)?.waited).toBe('0s')
+  })
+
+  it('says nothing once the checks are running, for a finished attempt, or for another step', () => {
+    const { queued: _queued, ...running } = waiting
+    expect(processCheckWaitingView({ step: checkStep, latest: running }, 1)).toBeUndefined()
+    expect(
+      processCheckWaitingView({ step: checkStep, latest: { ...waiting, status: 'done' } }, 1),
+    ).toBeUndefined()
+    expect(processCheckWaitingView({ step: { kind: 'agent' }, latest: waiting }, 1)).toBeUndefined()
+    expect(processCheckWaitingView({ step: checkStep }, 1)).toBeUndefined()
   })
 })

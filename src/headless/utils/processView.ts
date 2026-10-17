@@ -50,6 +50,7 @@ import {
 export type ProcessStatusTone =
   | 'empty'
   | 'done'
+  | 'running'
   | 'working'
   | 'stuck'
   | 'blocked'
@@ -75,13 +76,12 @@ export const PROCESS_OUTCOME_VIEW: Record<
 }
 
 /**
- * The tone of process work that is RUNNING — the same green as work that is
- * done. A run making progress is good news; the orange working token read as a
- * warning, and it is shared with story rows, so processes move off it rather
- * than recolour it. Running and done are told apart by shape: a spinning ring
- * against a filled mark.
+ * The tone of process work an agent is doing right now — its own sky blue, so a
+ * running chip never reads as one of the green done ones beside it, nor as the
+ * gold of a sign-off waiting on the person. The orange working token
+ * stays the story rows' "Working" and the host's merging.
  */
-export const PROCESS_LIVE_TONE: ProcessStatusTone = 'done'
+export const PROCESS_LIVE_TONE: ProcessStatusTone = 'running'
 
 /** How a whole run reads in one word. */
 export const PROCESS_RUN_STATUS_VIEW: Record<
@@ -97,18 +97,29 @@ export const PROCESS_RUN_STATUS_VIEW: Record<
 }
 
 /**
- * How a run that a PERSON ended reads — a request for changes, a rejection, or
- * a stop — named as their decision, with where it was made and their words,
- * instead of the "Failed" a run that broke shows. `undefined` for every other run.
+ * How a run that a PERSON ended reads — a request for changes, a rejection, a
+ * stop, or closing it without merging — named as their decision, with where it
+ * was made and their words, instead of the "Failed" or "Stopped" a run that
+ * broke or was stopped shows. `undefined` for every other run.
  */
 export function processRunPersonEnding(
-  run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'>,
+  run: Pick<ProcessRun, 'status' | 'plan' | 'ledger'> & Partial<Pick<ProcessRun, 'revivals'>>,
 ): ProcessRunPersonEnding | undefined {
-  if (run.status !== 'failed') return undefined
   const decision = processRunDecision(run)
-  if (decision.kind !== 'not-accepted') return undefined
+  if (run.status === 'cancelled' && decision.kind === 'closed') {
+    return personEnding(run, 'close-unmerged', undefined)
+  }
+  if (run.status !== 'failed' || decision.kind !== 'not-accepted') return undefined
   const choice = decision.choice
   if (choice !== 'request-changes' && choice !== 'reject' && choice !== 'abandon') return undefined
+  return personEnding(run, choice, decision.note)
+}
+
+function personEnding(
+  run: Pick<ProcessRun, 'plan' | 'ledger'>,
+  choice: ProcessRunPersonEnding['choice'],
+  note: string | undefined,
+): ProcessRunPersonEnding {
   const decidedAt = [...run.ledger].reverse().find((e) => e.override?.choice === choice)
   const stepName = run.plan.steps.find((s) => s.id === decidedAt?.stepId)?.name
   const { label, tone } = PROCESS_RUN_PERSON_ENDING_VIEW[choice]
@@ -117,7 +128,7 @@ export function processRunPersonEnding(
     choice,
     label,
     tone,
-    line: `${label}${where}${decision.note ? ` — “${decision.note}”` : '.'}`,
+    line: `${label}${where}${note ? ` — “${note}”` : '.'}`,
   }
 }
 
@@ -384,8 +395,8 @@ export function processNodeState(
 }
 
 /** The status tone a node marker carries. A parked GATE reads as review (ready
- * for you), any other park as on-hold (waiting for you) — the design's two
- * distinct purples/blues, not one "blocked" red. */
+ * for you), any other park as on-hold (waiting for you) — the design's gold and
+ * purple, not one "blocked" red. */
 export function processNodeTone(nodeState: ProcessNodeState, isGate: boolean): ProcessStatusTone {
   switch (nodeState) {
     case 'done':

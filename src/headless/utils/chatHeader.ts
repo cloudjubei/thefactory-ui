@@ -1,5 +1,5 @@
 import type { ChatContext } from 'thefactory-tools/types'
-import { processRunIdOfChatContext } from 'thefactory-tools/utils'
+import { processRunIdOfChatContext, processRunStopHolder } from 'thefactory-tools/utils'
 
 import {
   CHAT_AGENT_RUN_KIND_LABEL,
@@ -152,7 +152,7 @@ function headerContext(input: ChatHeaderInput, kind: ChatKind): string {
 function headerStrip(input: ChatHeaderInput, kind: ChatKind): StepsStripModel | undefined {
   const { context, story, feature, run } = input
   if (kind === 'run' && run) {
-    const entries = processRunStripEntries(run)
+    const entries = processRunStripEntries(run, processRunStopHolder(run, input.now))
     return entries.length > 0 ? { label: STEPS_STRIP_LABELS.steps, entries } : undefined
   }
   if (kind === 'story' && story && context.storyId) {

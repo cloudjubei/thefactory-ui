@@ -42,7 +42,7 @@ export default function ParkNoteComposer({
   onSend,
   onCancel,
 }: ParkNoteComposerProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const [draft, setDraft] = useState('')
   const [proof, setProof] = useState<ProofKind[]>(() => [...(proofPreset ?? [])])
   const copy = givenCopy ?? PARK_NOTE_COPY
@@ -75,14 +75,21 @@ export default function ParkNoteComposer({
             {REQUEST_PROOF_HEADING}
           </Text>
           {proofChoices.map((choice) => (
-            <Switch
-              key={choice.kind}
-              checked={proof.includes(choice.kind)}
-              onCheckedChange={(on) =>
-                setProof((kinds) => toggleRequestedProof(kinds, choice.kind, on))
-              }
-              label={choice.label}
-            />
+            <View key={choice.kind} style={{ gap: 2 }}>
+              <Switch
+                checked={proof.includes(choice.kind)}
+                disabled={choice.unavailable !== undefined && !proof.includes(choice.kind)}
+                onCheckedChange={(on) =>
+                  setProof((kinds) => toggleRequestedProof(kinds, choice.kind, on))
+                }
+                label={choice.label}
+              />
+              {choice.unavailable ? (
+                <Text style={{ fontSize: 10.5, color: status.review.softFg, paddingLeft: 40 }}>
+                  {choice.unavailable}
+                </Text>
+              ) : null}
+            </View>
           ))}
         </View>
       ) : null}

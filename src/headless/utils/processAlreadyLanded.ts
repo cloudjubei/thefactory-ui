@@ -8,7 +8,12 @@ import type {
   ProcessRun,
   ProcessWorkBranch,
 } from 'thefactory-tools/types'
-import { processAlreadyLandedSince, processAlreadyLandedText } from 'thefactory-tools/utils'
+import {
+  processAlreadyLandedSince,
+  processAlreadyLandedText,
+  processRunAlreadyLandedOffered,
+  processRunParkAlreadyLandedOffered,
+} from 'thefactory-tools/utils'
 
 import { processIntegrationChoices } from './processIntegration'
 import { PROCESS_ALREADY_LANDED_OFFER_DETAIL } from './processAlreadyLandedConstants'
@@ -17,6 +22,21 @@ import type {
   ProcessAlreadyOnBaseSignOff,
   ProcessRunLandingPreview,
 } from './processAlreadyLandedTypes'
+
+/**
+ * Whether a run's page asks the server whether its base already holds its
+ * work: once it ended approved and unmerged, or — `at: 'stop'` — while it waits
+ * at a stop of its own. Pure.
+ */
+export function processAlreadyLandedAsked(
+  run: ProcessRun | undefined,
+  at: 'ended' | 'stop',
+): boolean {
+  if (!run) return false
+  return at === 'stop'
+    ? processRunParkAlreadyLandedOffered(run)
+    : processRunAlreadyLandedOffered(run)
+}
 
 /**
  * "Finish as already landed" on an approved run whose work did not land: what

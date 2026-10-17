@@ -1,4 +1,5 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
+import { isCompletionErrorNotice } from 'thefactory-tools/utils'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import type {
@@ -31,8 +32,9 @@ import {
 import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
 import { nativeRadii, nativeShadows, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
-import type { NativeToolCallRenderArgs } from './chatNativeTypes'
+import type { NativeAttachmentImages, NativeToolCallRenderArgs } from './chatNativeTypes'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
+import { AGENT_RUN_TRANSCRIPT_EMPTY } from '../../../headless/utils/agentRunTranscriptConstants'
 import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import { CHAT_OPEN_SETTLE_MAX_MS } from '../../../headless/utils/chatUnreadConstants'
 
@@ -131,6 +133,8 @@ export interface MessageListProps {
   onResolveFile?: (token: string) => UikitFileMeta | null
   /** Route an in-app `overseer://…` resource link. Forwarded to MessageRow's Markdown (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /** Shows the images sent with a message as thumbnails that open full size. */
+  attachmentImages?: NativeAttachmentImages
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Render the workspace-diff panel for a CLI-agent reply. Forwarded to MessageRow. */
   renderCliRunArtifact?: (runId: string) => ReactNode
@@ -144,6 +148,11 @@ export interface MessageListProps {
 
   /** Caller-rendered content shown when the message list is empty (e.g. a call-to-action panel). */
   emptyStateContent?: ReactNode
+  /**
+   * The chat is an agent run's transcript, not a conversation a person starts:
+   * with no messages and no turn running it says "No transcript yet". Matches web.
+   */
+  transcript?: boolean
 
   /** Caller-rendered opening of the conversation — above every message, and standing in for the
    * empty state (e.g. the card of the request a request chat was opened for). Matches web. */
@@ -183,12 +192,14 @@ export default function MessageList({
   renderToolCall,
   onResolveFile,
   onResourceLink,
+  attachmentImages,
   renderReference,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
   onShowUsage,
   emptyStateContent,
+  transcript = false,
   leadingContent,
   tailContent,
   thinkingLabel,
@@ -418,8 +429,20 @@ export default function MessageList({
           <SystemPromptBubble content={systemPrompt} timestamp={systemPromptTimestamp} />
         )}
         {leadingContent ?? null}
-        {messages.length === 0 && !isThinking && !leadingContent && emptyStateContent
-          ? emptyStateContent
+        {messages.length === 0 && !isThinking && !leadingContent
+          ? (emptyStateContent ??
+            (transcript && !turnInFlight && !pendingCliRunId ? (
+              <View
+                style={{ alignItems: 'center', gap: nativeSpace[2], paddingTop: nativeSpace[8] }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text.secondary }}>
+                  {AGENT_RUN_TRANSCRIPT_EMPTY.title}
+                </Text>
+                <Text style={{ fontSize: 13, color: theme.text.secondary, textAlign: 'center' }}>
+                  {AGENT_RUN_TRANSCRIPT_EMPTY.body}
+                </Text>
+              </View>
+            ) : null))
           : null}
         {startIndex > 0 && (
           // Single tappable chip — label + load action in one affordance.
@@ -470,6 +493,8 @@ export default function MessageList({
             hasRestartAction: !!onRestartTurn,
             isLast: i === lastIndex,
             role: msg.role,
+            isErrorNotice: isCompletionErrorNotice(msg),
+            ...(i > 0 ? { previousRole: windowed[i - 1]!.role } : {}),
             turnInFlight,
           })
           const row = exchange ? (
@@ -539,6 +564,7 @@ export default function MessageList({
                   onResolveFile={onResolveFile}
                   renderReference={renderReference}
                   onResourceLink={onResourceLink}
+                  attachmentImages={attachmentImages}
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}

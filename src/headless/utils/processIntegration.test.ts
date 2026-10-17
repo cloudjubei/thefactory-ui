@@ -504,9 +504,9 @@ describe('processIntegrationView — a conflict on landing sent to an agent', ()
     })
   }
 
-  it('says an agent is resolving it while the run works', () => {
+  it('says an agent is resolving it while the run works, in the running tone', () => {
     expect(processIntegrationView(resolving())).toEqual({
-      tone: 'working',
+      tone: 'running',
       title: 'An agent is resolving the conflict with main',
       detail:
         'It resolves the files, main is merged into the work and the checks run — then the work comes back to you to confirm how it is merged.',

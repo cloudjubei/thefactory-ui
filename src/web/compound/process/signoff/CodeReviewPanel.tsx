@@ -146,7 +146,7 @@ export default function CodeReviewPanel({ review, verdict }: CodeReviewPanelProp
                     type="button"
                     aria-pressed={groupBy === option.key}
                     onClick={() => setGroupBy(option.key)}
-                    className={`h-6.5 rounded-full border px-2.5 text-[12px] ${groupBy === option.key ? 'border-(--accent-primary) bg-(--status-review-soft-bg) text-(--accent-primary)' : 'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)'}`}
+                    className={`h-6.5 rounded-full border px-2.5 text-[12px] ${groupBy === option.key ? 'border-(--accent-primary) bg-(--accent-soft-bg) text-(--accent-primary)' : 'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)'}`}
                   >
                     {option.label}
                   </button>

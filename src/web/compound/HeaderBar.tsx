@@ -107,7 +107,7 @@ export default function HeaderBar({
         ) : null}
       </div>
       {trailing ? (
-        <div className="relative ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="relative ml-auto flex max-w-full min-w-0 flex-wrap items-center justify-end gap-1.5">
           {trailing}
         </div>
       ) : null}

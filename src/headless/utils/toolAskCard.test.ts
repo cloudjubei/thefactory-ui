@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  featureQuestionAnswerMetadata,
+  featureQuestionAnswerProblem,
   featureWorkAskView,
   featureWorkLaunchCheck,
   gitChangeAskView,
@@ -12,6 +14,8 @@ import {
   toolAskScopeOptions,
 } from './toolAskCard'
 import {
+  CHAT_REVIEW_ASK,
+  FEATURE_QUESTION_ASK,
   FEATURE_WORK_ASK,
   GIT_SETUP_ASK,
   GROUP_WORK_ASK,
@@ -579,5 +583,356 @@ describe('gitSetupAskView', () => {
       verb: GIT_SETUP_ASK.pushVerb,
     })
     expect(view.why).toBeUndefined()
+  })
+})
+
+describe('toolAskCardView — design asks', () => {
+  it('shows a proposal as each image it files, with its new screens’ reasons', () => {
+    const view = toolAskCardView(
+      sandbox('proposeDesign', {
+        projectId: 'p2',
+        appId: 'a1',
+        title: 'Faction cards',
+        entries: [
+          {
+            screenId: 's1',
+            stateId: 'st1',
+            variant: 'Desktop',
+            path: '.factory/attachments/c/12-board.png',
+          },
+          {
+            screenName: 'Faction picker',
+            stateName: 'Open',
+            url: 'https://figma.com/x',
+            links: [],
+          },
+          'junk',
+        ],
+        newScreenReasons: {
+          'Faction picker': { closest: ['Faction list', 3], why: 'A dialog, not the list.' },
+        },
+      }),
+    )
+    expect(view).toMatchObject({
+      icon: 'file',
+      tone: 'ask',
+      ask: 'The agent wants to propose a design',
+      tag: 'Design',
+      headline: 'Propose “Faction cards”',
+      verb: 'Propose',
+      consequence: expect.stringMatching(/nothing current changes until you accept it/),
+      body: {
+        kind: 'design',
+        projectId: 'p2',
+        entries: [
+          { screenId: 's1', stateId: 'st1', variant: 'Desktop', file: '12-board.png' },
+          { screenName: 'Faction picker', stateName: 'Open', file: 'x' },
+          {},
+        ],
+        newScreens: [
+          { name: 'Faction picker', closest: ['Faction list'], why: 'A dialog, not the list.' },
+        ],
+      },
+    })
+  })
+
+  it('counts the images when the proposal has no title, and reads a bare reason list as none', () => {
+    const view = toolAskCardView(
+      sandbox('proposeDesign', { entries: [{}, {}], newScreenReasons: 'nope' }),
+    )
+    expect(view.headline).toBe('Propose “2 images”')
+    expect(view.body).toEqual({ kind: 'design', entries: [{}, {}], newScreens: [] })
+  })
+
+  it('shows an HTML draft by its file or title, where its cases go, and why a new screen', () => {
+    expect(
+      toolAskCardView(
+        sandbox('proposeDesignDraft', { path: 'drafts/00-directions.html', screenId: 's1' }),
+      ),
+    ).toMatchObject({
+      ask: 'The agent wants to propose an HTML draft',
+      headline: 'Propose the draft 00-directions.html',
+      body: {
+        kind: 'design',
+        entries: [{ screenId: 's1', file: '00-directions.html' }],
+        newScreens: [],
+      },
+    })
+    expect(
+      toolAskCardView(
+        sandbox('proposeDesignDraft', {
+          path: 'd.html',
+          title: 'Directions',
+          screenName: 'Board',
+          closest: ['Play board'],
+          why: 'Setup only',
+        }),
+      ),
+    ).toMatchObject({
+      headline: 'Propose “Directions”',
+      body: { newScreens: [{ name: 'Board', closest: ['Play board'], why: 'Setup only' }] },
+    })
+  })
+
+  it('shows a playground save by the state it makes and where, and why a new screen', () => {
+    expect(
+      toolAskCardView(
+        sandbox('saveDesignPlaygroundState', {
+          appId: 'a',
+          address: 'scene=run-header&level=top',
+          screenName: 'Run header',
+          screenKind: 'component',
+          stateName: 'Top-level run',
+        }),
+      ),
+    ).toMatchObject({
+      ask: 'The agent wants to save a playground scene as a state',
+      headline: 'Save “Top-level run” from the Playground',
+      consequence:
+        'Captured light and dark, desktop and phone, it arrives in the Design view’s Proposals; nothing current changes until you accept it.',
+      verb: 'Save',
+      body: {
+        kind: 'design',
+        entries: [{ screenName: 'Run header', stateName: 'Top-level run' }],
+        newScreens: [],
+      },
+    })
+    expect(
+      toolAskCardView(
+        sandbox('saveDesignPlaygroundState', {
+          address: 'scene=x',
+          screenName: 'Header panel',
+          stateId: 'st1',
+          closest: ['Run header'],
+          why: 'The panel, not the header.',
+        }),
+      ),
+    ).toMatchObject({
+      headline: 'Save a state from the Playground',
+      body: {
+        entries: [{ screenName: 'Header panel', stateId: 'st1' }],
+        newScreens: [
+          { name: 'Header panel', closest: ['Run header'], why: 'The panel, not the header.' },
+        ],
+      },
+    })
+  })
+
+  it('shows a new screen with the screens it resembles and why it is not one of them', () => {
+    expect(
+      toolAskCardView(
+        sandbox('addDesignScreen', {
+          name: 'Matchup viewer',
+          closest: ['Matchup results viewer'],
+          why: 'Live, not results.',
+        }),
+      ),
+    ).toMatchObject({
+      ask: 'The agent wants to add a screen',
+      headline: 'Add the screen “Matchup viewer”',
+      verb: 'Add screen',
+      body: {
+        kind: 'design',
+        entries: [],
+        newScreens: [
+          {
+            name: 'Matchup viewer',
+            closest: ['Matchup results viewer'],
+            why: 'Live, not results.',
+          },
+        ],
+      },
+    })
+    expect(toolAskCardView(sandbox('addDesignScreen', { name: 'Settings' })).body).toEqual({
+      kind: 'design',
+      entries: [],
+      newScreens: [],
+    })
+  })
+})
+
+describe('toolAskCardView — a decision on the chat’s open changes', () => {
+  const card = (decision: string, extra: Record<string, unknown> = {}) => ({
+    decision,
+    headline: `Headline for ${decision}`,
+    runId: 'r1',
+    branch: 'agent/abc',
+    target: 'main',
+    fileCount: 8,
+    files: ['a.ts', 'b.ts'],
+    ...extra,
+  })
+  const ask = (decision: string, detail: unknown = card(decision)) =>
+    toolAskCardView({
+      label: 'decideChatOpenChanges',
+      toolName: 'decideChatOpenChanges',
+      args: { decision, reason: 'tests pass' },
+      detail: { tool: 'decideChatOpenChanges', args: { decision }, detail },
+    })
+
+  it('shows a merge by the host’s card: the branch, where it goes, how many files', () => {
+    expect(ask('merge')).toEqual({
+      tone: 'ask',
+      why: 'tests pass',
+      icon: 'merge',
+      ask: CHAT_REVIEW_ASK.ask.merge,
+      tag: CHAT_REVIEW_ASK.tag,
+      headline: 'Headline for merge',
+      consequence: 'They go into main in your checkout.',
+      verb: 'Merge',
+      body: {
+        kind: 'review',
+        branch: 'agent/abc',
+        target: 'main',
+        fileCount: 8,
+        files: ['a.ts', 'b.ts'],
+      },
+    })
+  })
+
+  it('shows a pull request as pushing the branch', () => {
+    expect(ask('pull-request')).toMatchObject({
+      icon: 'push',
+      verb: 'Open pull request',
+      consequence: 'agent/abc is pushed and its pull request opens.',
+    })
+  })
+
+  it('shows approving and asking for changes as keeping the branch', () => {
+    expect(ask('leave-branch')).toMatchObject({
+      icon: 'git',
+      verb: 'Approve',
+      consequence: 'Approved — agent/abc stays unmerged.',
+    })
+    expect(ask('request-changes')).toMatchObject({
+      icon: 'git',
+      verb: 'Ask for changes',
+      consequence: 'The branch stays for the next turn.',
+    })
+  })
+
+  it('shows a rejection as a danger card that cannot be undone', () => {
+    expect(ask('reject')).toMatchObject({
+      tone: 'danger',
+      icon: 'delete',
+      tag: TOOL_ASK_COPY.cannotUndo,
+      verb: 'Discard',
+      consequence: 'The changes and agent/abc go for good.',
+    })
+  })
+
+  it('counts the listed files when the host gave no count, and says a merge goes into the checked-out branch when it named none', () => {
+    const view = ask('merge', card('merge', { fileCount: undefined, target: undefined }))
+    expect(view.body).toEqual({
+      kind: 'review',
+      branch: 'agent/abc',
+      fileCount: 2,
+      files: ['a.ts', 'b.ts'],
+    })
+    expect(view.consequence).toBe('They go into the checked-out branch in your checkout.')
+  })
+
+  it('reads a card the host could not give as a plain ask, never the agent’s words', () => {
+    const view = ask('merge', null)
+    expect(view).toMatchObject({
+      headline: CHAT_REVIEW_ASK.fallbackHeadline,
+      verb: 'Merge',
+      body: { kind: 'review', branch: '', fileCount: 0, files: [] },
+    })
+    expect(view.consequence).toBeUndefined()
+  })
+
+  it('falls back to the generic words for a decision it has none for', () => {
+    expect(ask('squash')).toMatchObject({
+      ask: TOOL_ASK_COPY.genericAsk,
+      verb: TOOL_ASK_COPY.genericVerb,
+    })
+  })
+})
+
+describe('CHAT_REVIEW_ASK.files', () => {
+  it('counts one file and many', () => {
+    expect(CHAT_REVIEW_ASK.files(1)).toBe('1 file')
+    expect(CHAT_REVIEW_ASK.files(3)).toBe('3 files')
+  })
+})
+
+describe('toolAskCardView — an answer to a feature’s question', () => {
+  const card = {
+    headline: 'Answer a question on “Normalize inputs”',
+    projectId: 'p1',
+    storyId: 's1',
+    storyTitle: 'Agent messaging',
+    featureId: 'f1',
+    featureTitle: 'Normalize inputs',
+    questionId: 'q1',
+    question: 'Build against the sibling?',
+    askedAt: '2026-10-14T21:48:44Z',
+    answer: 'Yes, build against it.',
+  }
+  const ask = (detail: unknown, args: Record<string, unknown> = { answer: 'From the args' }) =>
+    toolAskCardView({
+      label: 'submitFeatureQuestionAnswer',
+      toolName: 'submitFeatureQuestionAnswer',
+      args,
+      detail: { tool: 'submitFeatureQuestionAnswer', args, detail },
+    })
+
+  it('shows the question by the host’s card, with the answer the agent proposes', () => {
+    expect(ask(card)).toEqual({
+      tone: 'ask',
+      icon: 'message',
+      ask: FEATURE_QUESTION_ASK.ask,
+      tag: FEATURE_QUESTION_ASK.tag,
+      headline: 'Answer a question on “Normalize inputs”',
+      consequence: FEATURE_QUESTION_ASK.consequence,
+      verb: FEATURE_QUESTION_ASK.verb,
+      body: {
+        kind: 'question',
+        storyTitle: 'Agent messaging',
+        featureTitle: 'Normalize inputs',
+        question: 'Build against the sibling?',
+        answer: 'Yes, build against it.',
+      },
+    })
+  })
+
+  it('reads a card the host could not give as a plain ask, keeping the agent’s answer to change', () => {
+    expect(ask(null)).toMatchObject({
+      headline: FEATURE_QUESTION_ASK.fallbackHeadline,
+      body: { kind: 'question', featureTitle: '', question: '', answer: 'From the args' },
+    })
+    expect(ask(null, {}).body).toEqual({
+      kind: 'question',
+      featureTitle: '',
+      question: '',
+      answer: '',
+    })
+  })
+})
+
+describe('featureQuestionAnswerMetadata', () => {
+  const body = {
+    kind: 'question' as const,
+    featureTitle: 'Normalize inputs',
+    question: 'Build against the sibling?',
+    answer: 'Yes',
+  }
+
+  it('sends nothing when the person kept the agent’s answer', () => {
+    expect(featureQuestionAnswerMetadata(body, ' Yes ')).toBeUndefined()
+  })
+
+  it('sends the person’s own words when they changed it', () => {
+    expect(featureQuestionAnswerMetadata(body, ' No — use the API. ')).toEqual({
+      args: { answer: 'No — use the API.' },
+    })
+  })
+})
+
+describe('featureQuestionAnswerProblem', () => {
+  it('holds the card while the answer is empty', () => {
+    expect(featureQuestionAnswerProblem('  ')).toBe(FEATURE_QUESTION_ASK.empty)
+    expect(featureQuestionAnswerProblem('Yes')).toBeUndefined()
   })
 })

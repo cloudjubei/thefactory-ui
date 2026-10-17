@@ -136,6 +136,13 @@ function Head({ run, depth, unread = false, chat = true }: HeadProps) {
   )
 }
 
+/** Where a run header is in its run tree, as the Playground's control names it. */
+const HEAD_LEVELS: Record<string, { run: ProcessRun; depth: number }> = {
+  top: { run: STORY_RUN, depth: 0 },
+  nested: { run: FEATURE_RUN, depth: 1 },
+  deep: { run: FEATURE_RUN, depth: 2 },
+}
+
 function headState(id: string, title: string, description: string, props: HeadProps) {
   return {
     id,
@@ -276,7 +283,7 @@ function dockState(
   id: string,
   title: string,
   description: string,
-  dock: { run: ProcessRun; depth: number; narrow?: boolean; initialWidth?: number },
+  dock: { run: ProcessRun; depth: number; narrow?: boolean; initialWidth?: number; open?: boolean },
 ) {
   return {
     id,
@@ -286,7 +293,7 @@ function dockState(
     render: (): ReactNode => (
       <div className="fixed inset-0 bg-(--surface-base)">
         <RunChatDock
-          open
+          open={dock.open ?? true}
           chat={<DockedRunChat />}
           onClose={noop}
           {...(dock.narrow ? { narrow: true } : {})}
@@ -409,15 +416,51 @@ export const PROCESS_SCENES: Scene[] = [
         { run: FEATURE_RUN, depth: 2 },
       ),
     ],
+    controls: [
+      {
+        id: 'level',
+        label: 'Run',
+        kind: 'choice',
+        options: [
+          { id: 'top', label: 'Top-level' },
+          { id: 'nested', label: 'Nested' },
+          { id: 'deep', label: 'Two levels down' },
+        ],
+        default: 'top',
+      },
+      { id: 'unread', label: 'Unread in the run chat', kind: 'toggle', default: false },
+    ],
+    presets: [
+      { id: 'top-level', name: 'Top-level run', values: { level: 'top', unread: 'false' } },
+      {
+        id: 'top-level-unread',
+        name: 'Top-level run, unread',
+        values: { level: 'top', unread: 'true' },
+      },
+      { id: 'nested', name: 'Nested run', values: { level: 'nested', unread: 'false' } },
+      { id: 'nested-deep', name: 'Two levels down', values: { level: 'deep', unread: 'false' } },
+    ],
+    play: (values) => (
+      <div className="overflow-hidden rounded-lg border border-(--border-subtle)">
+        <Head {...HEAD_LEVELS[values.level ?? 'top']!} unread={values.unread === 'true'} />
+      </div>
+    ),
   },
   {
     id: 'run-chat-dock',
     title: 'Run page with its chat',
     component: 'RunChatDock',
     group: 'Process',
+    kind: 'screen',
     description:
       'The run chat docked beside the run, the same sidebar a story’s chat uses: flush against the page, no strip between them, dragged at its left edge to open wider. Beside its run the chat’s header is one slim row — collapse, “Run chat”, the chat’s own model chip and maximize — since the run’s title, status and steps are already on screen. Small screens get the story chat’s sheet with the same slim header.',
     states: [
+      dockState(
+        'closed',
+        'Chat closed',
+        'The run page as it opens: the chat closed, the page using the whole width, the header’s chat button ready to open it.',
+        { run: STORY_RUN, depth: 0, open: false },
+      ),
       dockState('docked', 'Docked', 'The chat at its starting width beside a top-level run.', {
         run: STORY_RUN,
         depth: 0,

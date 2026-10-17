@@ -22,6 +22,8 @@ export interface LaunchProofKindView extends ProofKindOptionView {
   checked: boolean
   /** Why this host or process cannot prove it; absent when it can. */
   unavailable?: string
+  /** It cannot be picked: this host or process cannot prove it. One already picked can be dropped. */
+  disabled: boolean
 }
 
 /** A kind the plan asks for that cannot be proven here, and why. */
@@ -43,6 +45,8 @@ export interface LaunchProofPlanRow {
   kinds: LaunchProofKindView[]
   /** Kinds it asks for that this host or process cannot prove. */
   flagged: LaunchProofFlag[]
+  /** What the feature's or story's own plan asked for that was dropped, one line each, with why. */
+  dropped: string[]
   notes: string
   /** No kind is picked: the run then chooses its proof automatically. */
   empty: boolean
@@ -51,6 +55,11 @@ export interface LaunchProofPlanRow {
    * stands, asks for no before/after screens — it will not pass without them.
    */
   uiWarning?: string
+  /**
+   * Only the feature's words mention what users see, and its plan asks for no
+   * screens — a hint, not a warning: screens only if the change shows on screen.
+   */
+  uiHint?: string
 }
 
 /**

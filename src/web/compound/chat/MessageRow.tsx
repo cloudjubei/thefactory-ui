@@ -5,6 +5,8 @@ import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import RichText from '../files/RichText'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
+import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import SentImageAttachment from './SentImageAttachment'
 import Tooltip from '../../primitives/Tooltip'
 import { IconDelete, IconRefresh, IconRefreshChat, IconToolbox } from '../../icons'
 import { SubagentSteps, ToolCallCard, type ToolCall, type ToolResultType } from './ToolCall'
@@ -27,10 +29,11 @@ import {
 import { costDetailsView, messageUsageCost } from '../../../headless/utils/costDetails'
 import CostDetailsPanel from '../chips/CostDetailsPanel'
 import { ManagerCardView } from './ManagerCards'
-import { OpenChangesCardView } from './OpenChangesCard'
 import { RunParkClosure } from './ParkClosureLine'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
+import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
+import OpenQuestionsCard from './OpenQuestionsCard'
 
 function formatFriendlyTimestamp(iso: string): string {
   try {
@@ -196,6 +199,12 @@ export type MessageRowProps = {
    */
   renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
+  /**
+   * A viewable URL for a file sent with a message, so a sent image shows as a
+   * thumbnail that opens full size. Omit where files cannot be read back.
+   */
+  getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
+
   // ----- Inline tool-confirmation flow (forwarded to ToolCallCard) -----
   /** Pre-applied preview (if any) for `require_confirmation` write tools. */
   toolPreview?: unknown
@@ -242,6 +251,7 @@ function MessageRow({
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
+  getAttachmentPreviewUrl,
   toolPreview,
   toolSelectable,
   toolSelected,
@@ -261,6 +271,7 @@ function MessageRow({
 
   if (msg.error) {
     const showRetry = !!onRetry && isLast
+    const errorRestart = onRestartTurn ? restartControl : undefined
     return (
       <div data-msg-idx={globalIndex} className="flex items-start gap-2">
         <div
@@ -273,6 +284,9 @@ function MessageRow({
           <div className="rounded-md border border-(--color-red-500) bg-(--color-red-50) dark:bg-(--color-red-900)/20 px-3 py-2 text-sm text-(--color-red-700) dark:text-(--color-red-300)">
             {String(msg.error)}
           </div>
+          {errorRestart ? (
+            <RestartTurnButton control={errorRestart} onRestart={() => onRestartTurn?.()} />
+          ) : null}
         </div>
         {showRetry ? (
           <button
@@ -303,8 +317,10 @@ function MessageRow({
     )
   }
 
-  const openChangesCard = role === 'assistant' ? msg.openChangesCard : undefined
-  if (openChangesCard) {
+  if (isOpenChangesCardOnlyMessage(msg)) return null
+
+  const openQuestionsCard = role === 'assistant' ? msg.openQuestionsCard : undefined
+  if (openQuestionsCard) {
     const at = messageIso(msg)
     return (
       <div
@@ -312,11 +328,9 @@ function MessageRow({
         ref={isLast ? setLastMessageRef : undefined}
         className="w-full"
       >
-        <OpenChangesCardView
-          card={openChangesCard}
+        <OpenQuestionsCard
+          card={openQuestionsCard}
           {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
-          formatAt={(ms) => formatFriendlyTimestamp(new Date(ms).toISOString())}
-          {...(renderCliRunArtifact ? { renderReview: renderCliRunArtifact } : {})}
         />
       </div>
     )
@@ -422,7 +436,7 @@ function MessageRow({
             className={[
               'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold',
               isHandoff
-                ? 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg) border border-(--status-review-soft-border)'
+                ? 'bg-(--accent-soft-bg) text-(--accent-soft-fg) border border-(--accent-soft-border)'
                 : isUser
                   ? 'bg-(--accent-primary) text-(--text-inverted)'
                   : isSystem || isTool
@@ -554,7 +568,7 @@ function MessageRow({
               ) : null}
             </div>
           ) : isHandoff ? (
-            <div className="mb-1 flex items-baseline gap-1 self-end text-[10px] leading-4 text-(--status-review-soft-fg) select-none">
+            <div className="mb-1 flex items-baseline gap-1 self-end text-[10px] leading-4 text-(--accent-soft-fg) select-none">
               <span className="font-semibold">↩ {handoffLabel} handed this back</span>
               {ts ? <span className="opacity-80">· {ts}</span> : null}
             </div>
@@ -577,7 +591,7 @@ function MessageRow({
                 isUser ? 'overflow-x-auto max-w-full' : 'w-full overflow-x-auto max-w-full',
                 'px-3 py-1.5 rounded-2xl whitespace-pre-wrap break-words shadow',
                 isHandoff
-                  ? 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg) border border-(--status-review-soft-border) rounded-br-md'
+                  ? 'bg-(--accent-soft-bg) text-(--accent-soft-fg) border border-(--accent-soft-border) rounded-br-md'
                   : isUser
                     ? 'bg-(--accent-primary) text-(--text-inverted) rounded-br-md'
                     : isSystem
@@ -668,10 +682,20 @@ function MessageRow({
               ].join(' ')}
             >
               {(msg as unknown as { files: string[] }).files.map((path, i) => {
+                const key = `${globalIndex}-att-${i}-${path}`
+                if (getAttachmentPreviewUrl && isImageAttachment(path)) {
+                  return (
+                    <SentImageAttachment
+                      key={key}
+                      path={path}
+                      getPreviewUrl={getAttachmentPreviewUrl}
+                    />
+                  )
+                }
                 const name = attachmentDisplayName(path)
                 return (
                   <FileDisplay
-                    key={`${globalIndex}-att-${i}-${path}`}
+                    key={key}
                     file={{ name, absolutePath: path, relativePath: path }}
                     density="compact"
                   />
@@ -681,21 +705,34 @@ function MessageRow({
           ) : null}
 
           {restartAffordance ? (
-            <button
-              type="button"
-              title={restartAffordance.label}
-              aria-label={restartAffordance.label}
-              className="mt-1.5 inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
-              onClick={() => onRestartTurn?.()}
-              disabled={restartAffordance.disabled}
-            >
-              <IconRefreshChat className="w-3.5 h-3.5" />
-              <span>{MESSAGE_RESTART_ACTION_LABEL}</span>
-            </button>
+            <RestartTurnButton control={restartAffordance} onRestart={() => onRestartTurn?.()} />
           ) : null}
         </div>
       </div>
     </div>
+  )
+}
+
+/** The control that runs the agent again on the chat's last turn. */
+function RestartTurnButton({
+  control,
+  onRestart,
+}: {
+  control: MessageRestartControl
+  onRestart: () => void
+}) {
+  return (
+    <button
+      type="button"
+      title={control.label}
+      aria-label={control.label}
+      className="mt-1.5 inline-flex items-center gap-1.5 h-6 px-2 rounded border border-(--border-subtle) bg-(--surface-raised) hover:bg-(--surface-hover) text-[11px] text-(--text-secondary) disabled:cursor-not-allowed disabled:hover:bg-(--surface-raised)"
+      onClick={onRestart}
+      disabled={control.disabled}
+    >
+      <IconRefreshChat className="w-3.5 h-3.5" />
+      <span>{MESSAGE_RESTART_ACTION_LABEL}</span>
+    </button>
   )
 }
 

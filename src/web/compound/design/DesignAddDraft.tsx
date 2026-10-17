@@ -23,7 +23,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-/** The ways to add a draft besides a drop: files from this machine, a project file, a link. */
+/** The ways to propose a design besides a drop: files from this machine, a project file, a link. */
 export default function DesignAddDraft({ onAdd, compact }: DesignAddDraftProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [picking, setPicking] = useState(false)

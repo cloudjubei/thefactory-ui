@@ -44,3 +44,11 @@ export type DeveloperChecksNote = {
   text: string
   ran: boolean
 }
+
+/** A running checks step that has not started its checks yet: what it waits for, and for how long. */
+export type ProcessCheckWaitingView = {
+  /** "Waiting for another check run of this project to finish". */
+  reason: string
+  /** How long it has waited so far, e.g. "2m 12s". */
+  waited: string
+}

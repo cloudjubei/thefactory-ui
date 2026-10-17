@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { processAlreadyLandedOffer, processAlreadyOnBaseSignOff } from './processAlreadyLanded'
+import type { ProcessRun } from 'thefactory-tools/types'
+
+import {
+  processAlreadyLandedAsked,
+  processAlreadyLandedOffer,
+  processAlreadyOnBaseSignOff,
+} from './processAlreadyLanded'
 
 const SHA = '1d1ed0a8841681a62be9ccb503bffaee08dedbd8'
 const landedBy = { commit: SHA, subject: 'notes' }
@@ -15,6 +21,46 @@ const preview = {
     { id: 'f4', title: 'Still pending', status: 'pending', after: 'pending' },
   ],
 }
+
+describe('processAlreadyLandedAsked', () => {
+  const stopped = {
+    id: 'ed34ace8',
+    projectId: 'thefactory-tools',
+    storyId: 'c6df09da',
+    title: 'Story',
+    workBranch,
+    status: 'parked',
+    loopCounts: {},
+    startedAt: 0,
+    updatedAt: 0,
+    plan: {
+      definitionId: 'story-default',
+      definitionScope: 'global',
+      definitionVersion: 1,
+      name: 'Story',
+      frozenAt: 0,
+      loops: [],
+      steps: [
+        { id: 'resolve-conflict~2', name: 'Resolve conflict', kind: 'agent' },
+        { id: 'confirm-landing~2', name: 'Confirm the merge', kind: 'gate' },
+      ],
+    },
+    ledger: [],
+    park: { reason: 'step-failed', stepId: 'resolve-conflict~2', message: 'm', parkedAt: 1 },
+  } as ProcessRun
+
+  it('asks for a run at a stop of its own when the stop is what is asked about', () => {
+    expect(processAlreadyLandedAsked(stopped, 'stop')).toBe(true)
+  })
+
+  it('does not ask for a run at a stop when an ended run is what is asked about', () => {
+    expect(processAlreadyLandedAsked(stopped, 'ended')).toBe(false)
+  })
+
+  it('asks nothing without a run', () => {
+    expect(processAlreadyLandedAsked(undefined, 'stop')).toBe(false)
+  })
+})
 
 describe('processAlreadyLandedOffer', () => {
   it('offers finishing as landed, saying where the work already is and what becomes done', () => {

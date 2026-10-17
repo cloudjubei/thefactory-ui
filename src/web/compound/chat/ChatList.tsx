@@ -47,7 +47,7 @@ export type ChatListProps = {
 const SECTION_COLOR: Record<NonNullable<ChatListSection['tone']>, string> = {
   neutral: 'var(--text-secondary)',
   'needs-you': 'var(--color-brand-700)',
-  running: 'var(--status-done-soft-fg)',
+  running: 'var(--status-running-soft-fg)',
 }
 
 /**
@@ -166,27 +166,15 @@ export default function ChatList({
       <div className="flex-1 overflow-auto px-1.5 pb-2">
         {sections.map((section) =>
           section.rows.length === 0 ? null : (
-            <div key={section.id} className="flex flex-col gap-px">
-              {section.label ? (
-                <div
-                  className="px-2 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                  style={{ color: SECTION_COLOR[section.tone ?? 'neutral'] }}
-                >
-                  {section.label}
-                </div>
-              ) : null}
-              {section.rows.map((row) => (
-                <ChatListRowButton
-                  key={row.key}
-                  row={row}
-                  active={row.key === activeKey}
-                  showProject={scope.kind === 'group' && row.kind !== 'group'}
-                  look={look}
-                  badgeColors={badgeColors}
-                  onOpen={onOpen}
-                />
-              ))}
-            </div>
+            <ChatListSectionView
+              key={section.id}
+              section={section}
+              {...(activeKey !== undefined ? { activeKey } : {})}
+              grouped={scope.kind === 'group'}
+              look={look}
+              badgeColors={badgeColors}
+              onOpen={onOpen}
+            />
           ),
         )}
         {empty ? (
@@ -246,6 +234,50 @@ function FilterChip({
       {label}
       {count > 0 ? <span className="text-[11px] font-bold tabular-nums">{count}</span> : null}
     </button>
+  )
+}
+
+/**
+ * One section of the chat list: its heading, in its tone, and its rows. A group
+ * list names each row's project beside it.
+ */
+export function ChatListSectionView({
+  section,
+  activeKey,
+  grouped,
+  look,
+  badgeColors,
+  onOpen,
+}: {
+  section: ChatListSection
+  activeKey?: string
+  grouped: boolean
+  look: InkBadgeLook
+  badgeColors: Readonly<Record<BadgeColorCategory, BadgeColor>>
+  onOpen: (context: ChatContext) => void
+}) {
+  return (
+    <div className="flex flex-col gap-px">
+      {section.label ? (
+        <div
+          className="px-2 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
+          style={{ color: SECTION_COLOR[section.tone ?? 'neutral'] }}
+        >
+          {section.label}
+        </div>
+      ) : null}
+      {section.rows.map((row) => (
+        <ChatListRowButton
+          key={row.key}
+          row={row}
+          active={row.key === activeKey}
+          showProject={grouped && row.kind !== 'group'}
+          look={look}
+          badgeColors={badgeColors}
+          onOpen={onOpen}
+        />
+      ))}
+    </div>
   )
 }
 

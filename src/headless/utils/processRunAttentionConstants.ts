@@ -5,7 +5,7 @@ import type { ProcessRunAttentionSectionHead } from './processRunAttentionTypes'
 export const PROCESS_RUN_ATTENTION_SECTIONS: readonly ProcessRunAttentionSectionHead[] = [
   { id: 'needs-you', label: PROCESS_RUN_WORDS.needsYou, counted: true, tone: 'on_hold' },
   { id: 'sign-off', label: PROCESS_RUN_WORDS.signOff, counted: true, tone: 'review' },
-  { id: 'running', label: PROCESS_RUN_WORDS.running, counted: false, tone: 'done' },
+  { id: 'running', label: PROCESS_RUN_WORDS.running, counted: false, tone: 'running' },
   { id: 'merging', label: PROCESS_RUN_WORDS.merging, counted: false, tone: 'working' },
 ]
 

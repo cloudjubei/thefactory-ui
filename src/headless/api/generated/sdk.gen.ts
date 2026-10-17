@@ -21,6 +21,9 @@ import type {
   AbortTestsRunData,
   AbortTestsRunErrors,
   AbortTestsRunResponses,
+  AcceptDesignProposalData,
+  AcceptDesignProposalErrors,
+  AcceptDesignProposalResponses,
   AcceptFeatureRequestData,
   AcceptFeatureRequestErrors,
   AcceptFeatureRequestResponses,
@@ -45,12 +48,12 @@ import type {
   ApplyCliAgentArtifactData,
   ApplyCliAgentArtifactErrors,
   ApplyCliAgentArtifactResponses,
+  ApplyDesignTidyPlanData,
+  ApplyDesignTidyPlanErrors,
+  ApplyDesignTidyPlanResponses,
   ApproveCliRunReviewData,
   ApproveCliRunReviewErrors,
   ApproveCliRunReviewResponses,
-  ApproveDesignItemData,
-  ApproveDesignItemErrors,
-  ApproveDesignItemResponses,
   ArchiveChatData,
   ArchiveChatErrors,
   ArchiveChatResponses,
@@ -75,6 +78,9 @@ import type {
   CancelProcessRunData,
   CancelProcessRunErrors,
   CancelProcessRunResponses,
+  CaptureDesignPlaygroundData,
+  CaptureDesignPlaygroundErrors,
+  CaptureDesignPlaygroundResponses,
   CheckCliAuthStatusData,
   CheckCliAuthStatusResponses,
   CheckCliImageUpdatesData,
@@ -85,6 +91,9 @@ import type {
   CheckProjectGithubNameData,
   CheckProjectGithubNameErrors,
   CheckProjectGithubNameResponses,
+  ChooseDesignProposalData,
+  ChooseDesignProposalErrors,
+  ChooseDesignProposalResponses,
   ClearChatData,
   ClearChatErrors,
   ClearChatResponses,
@@ -120,12 +129,12 @@ import type {
   CreateDesignAppData,
   CreateDesignAppErrors,
   CreateDesignAppResponses,
-  CreateDesignItemData,
-  CreateDesignItemErrors,
-  CreateDesignItemResponses,
   CreateDesignScreenData,
   CreateDesignScreenErrors,
   CreateDesignScreenResponses,
+  CreateDesignStateData,
+  CreateDesignStateErrors,
+  CreateDesignStateResponses,
   CreateDocumentData,
   CreateDocumentErrors,
   CreateDocumentResponses,
@@ -178,6 +187,9 @@ import type {
   DecideCliAgentActionData,
   DecideCliAgentActionErrors,
   DecideCliAgentActionResponses,
+  DecideDesignTidyMoveData,
+  DecideDesignTidyMoveErrors,
+  DecideDesignTidyMoveResponses,
   DelegateProcessRunAskData,
   DelegateProcessRunAskErrors,
   DelegateProcessRunAskResponses,
@@ -196,12 +208,15 @@ import type {
   DeleteDesignAppData,
   DeleteDesignAppErrors,
   DeleteDesignAppResponses,
-  DeleteDesignItemData,
-  DeleteDesignItemErrors,
-  DeleteDesignItemResponses,
+  DeleteDesignProposalData,
+  DeleteDesignProposalErrors,
+  DeleteDesignProposalResponses,
   DeleteDesignScreenData,
   DeleteDesignScreenErrors,
   DeleteDesignScreenResponses,
+  DeleteDesignStateData,
+  DeleteDesignStateErrors,
+  DeleteDesignStateResponses,
   DeleteDocumentData,
   DeleteDocumentErrors,
   DeleteDocumentResponses,
@@ -277,12 +292,18 @@ import type {
   DiscardCliAgentArtifactResponses,
   DiscardHeldAgentMessageData,
   DiscardHeldAgentMessageResponses,
+  DismissDesignTidyPlanData,
+  DismissDesignTidyPlanErrors,
+  DismissDesignTidyPlanResponses,
   EditCodeData,
   EditCodeErrors,
   EditCodeResponses,
   ExecuteToolData,
   ExecuteToolErrors,
   ExecuteToolResponses,
+  FileDesignProposalEntryData,
+  FileDesignProposalEntryErrors,
+  FileDesignProposalEntryResponses,
   ForkCliAgentRunData,
   ForkCliAgentRunErrors,
   ForkCliAgentRunResponses,
@@ -340,8 +361,12 @@ import type {
   GetDataSourceResponses,
   GetDbHealthData,
   GetDbHealthResponses,
-  GetDesignItemContentData,
-  GetDesignItemContentResponses,
+  GetDesignPlaygroundData,
+  GetDesignPlaygroundResponses,
+  GetDesignProposalEntryContentData,
+  GetDesignProposalEntryContentResponses,
+  GetDesignVersionContentData,
+  GetDesignVersionContentResponses,
   GetDocumentData,
   GetDocumentErrors,
   GetDocumentResponses,
@@ -556,6 +581,9 @@ import type {
   InitializeRepoData,
   InitializeRepoErrors,
   InitializeRepoResponses,
+  KeepDesignProposalAsAlternativeData,
+  KeepDesignProposalAsAlternativeErrors,
+  KeepDesignProposalAsAlternativeResponses,
   ListActionRulesData,
   ListActionRulesErrors,
   ListActionRulesResponses,
@@ -737,6 +765,9 @@ import type {
   PreviewCliAgentArtifactData,
   PreviewCliAgentArtifactErrors,
   PreviewCliAgentArtifactResponses,
+  PreviewDesignTidyPlanData,
+  PreviewDesignTidyPlanErrors,
+  PreviewDesignTidyPlanResponses,
   PreviewProcessData,
   PreviewProcessErrors,
   PreviewProcessGroupRunData,
@@ -745,6 +776,12 @@ import type {
   PreviewToolData,
   PreviewToolErrors,
   PreviewToolResponses,
+  ProposeDesignData,
+  ProposeDesignDraftData,
+  ProposeDesignDraftErrors,
+  ProposeDesignDraftResponses,
+  ProposeDesignErrors,
+  ProposeDesignResponses,
   ProxyProjectViewImageData,
   ProxyProjectViewImageResponses,
   PushOverseerData,
@@ -798,12 +835,9 @@ import type {
   RemoveStoryNoteData,
   RemoveStoryNoteErrors,
   RemoveStoryNoteResponses,
-  RenameDesignItemData,
-  RenameDesignItemErrors,
-  RenameDesignItemResponses,
-  RenameDesignScreenData,
-  RenameDesignScreenErrors,
-  RenameDesignScreenResponses,
+  RenameDesignProposalData,
+  RenameDesignProposalErrors,
+  RenameDesignProposalResponses,
   RenameFilesData,
   RenameFilesErrors,
   RenameFilesResponses,
@@ -838,6 +872,9 @@ import type {
   RestartChatWithCliData,
   RestartChatWithCliErrors,
   RestartChatWithCliResponses,
+  RestoreDesignVersionsData,
+  RestoreDesignVersionsErrors,
+  RestoreDesignVersionsResponses,
   ResumeActivityData,
   ResumeActivityErrors,
   ResumeActivityResponses,
@@ -906,6 +943,9 @@ import type {
   SearchFilesData,
   SearchFilesErrors,
   SearchFilesResponses,
+  SendBackDesignProposalData,
+  SendBackDesignProposalErrors,
+  SendBackDesignProposalResponses,
   SendChatCompletionWithToolsData,
   SendChatCompletionWithToolsErrors,
   SendChatCompletionWithToolsResponses,
@@ -921,6 +961,8 @@ import type {
   SendProcessRunBackForChangesData,
   SendProcessRunBackForChangesErrors,
   SendProcessRunBackForChangesResponses,
+  ServeDesignPlaygroundData,
+  ServeDesignPlaygroundResponses,
   SetActiveCliData,
   SetActiveCliResponses,
   SetActiveRunnerKindData,
@@ -1038,6 +1080,12 @@ import type {
   UpdateDesignAppData,
   UpdateDesignAppErrors,
   UpdateDesignAppResponses,
+  UpdateDesignScreenData,
+  UpdateDesignScreenErrors,
+  UpdateDesignScreenResponses,
+  UpdateDesignStateData,
+  UpdateDesignStateErrors,
+  UpdateDesignStateResponses,
   UpdateDocumentData,
   UpdateDocumentErrors,
   UpdateDocumentResponses,
@@ -1094,6 +1142,8 @@ import type {
   VerifyCliRunReviewData,
   VerifyCliRunReviewErrors,
   VerifyCliRunReviewResponses,
+  ViewDesignPlaygroundData,
+  ViewDesignPlaygroundResponses,
   ViewProjectFileData,
   ViewProjectFileResponses,
   WebSearchData,
@@ -2398,6 +2448,9 @@ export const getReviewEvidenceDiff = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
+/**
+ * The project's design as it is kept: apps, screens, states, versions, proposals and tidy-up plans.
+ */
 export const getProjectDesign = <ThrowOnError extends boolean = false>(
   options: Options<GetProjectDesignData, ThrowOnError>,
 ) =>
@@ -2423,7 +2476,7 @@ export const createDesignApp = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Delete an app with its screens, their drafts and built versions.
+ * Delete an app with its screens, their states and versions, and its proposals.
  */
 export const deleteDesignApp = <ThrowOnError extends boolean = false>(
   options: Options<DeleteDesignAppData, ThrowOnError>,
@@ -2451,6 +2504,9 @@ export const updateDesignApp = <ThrowOnError extends boolean = false>(
     },
   })
 
+/**
+ * Add a screen, or a component (`kind: component`, listed in its `group`).
+ */
 export const createDesignScreen = <ThrowOnError extends boolean = false>(
   options: Options<CreateDesignScreenData, ThrowOnError>,
 ) =>
@@ -2470,7 +2526,7 @@ export const createDesignScreen = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * Delete a screen with its drafts and built versions.
+ * Delete a screen with its states and their versions.
  */
 export const deleteDesignScreen = <ThrowOnError extends boolean = false>(
   options: Options<DeleteDesignScreenData, ThrowOnError>,
@@ -2485,12 +2541,15 @@ export const deleteDesignScreen = <ThrowOnError extends boolean = false>(
     ...options,
   })
 
-export const renameDesignScreen = <ThrowOnError extends boolean = false>(
-  options: Options<RenameDesignScreenData, ThrowOnError>,
+/**
+ * Rename a screen, make it a component or a screen, set its group, description, the components it uses, or its variants.
+ */
+export const updateDesignScreen = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDesignScreenData, ThrowOnError>,
 ) =>
   (options.client ?? client).patch<
-    RenameDesignScreenResponses,
-    RenameDesignScreenErrors,
+    UpdateDesignScreenResponses,
+    UpdateDesignScreenErrors,
     ThrowOnError
   >({
     responseType: 'json',
@@ -2503,66 +2562,17 @@ export const renameDesignScreen = <ThrowOnError extends boolean = false>(
     },
   })
 
-/**
- * Add a draft to a screen: an uploaded file (base64, as large as a chat attachment), a project file (pointed at; one in a swept store is copied) or a link.
- */
-export const createDesignItem = <ThrowOnError extends boolean = false>(
-  options: Options<CreateDesignItemData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<CreateDesignItemResponses, CreateDesignItemErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/projects/{projectId}/design/items',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
-export const deleteDesignItem = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteDesignItemData, ThrowOnError>,
-) =>
-  (options.client ?? client).delete<
-    DeleteDesignItemResponses,
-    DeleteDesignItemErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/projects/{projectId}/design/items/{itemId}',
-    ...options,
-  })
-
-export const renameDesignItem = <ThrowOnError extends boolean = false>(
-  options: Options<RenameDesignItemData, ThrowOnError>,
-) =>
-  (options.client ?? client).patch<RenameDesignItemResponses, RenameDesignItemErrors, ThrowOnError>(
-    {
-      responseType: 'json',
-      security: [{ scheme: 'bearer', type: 'http' }],
-      url: '/api/v1/projects/{projectId}/design/items/{itemId}',
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    },
-  )
-
-/**
- * Mark a draft as its screen's approved design (the one approved before is unmarked), or unmark it.
- */
-export const approveDesignItem = <ThrowOnError extends boolean = false>(
-  options: Options<ApproveDesignItemData, ThrowOnError>,
+export const createDesignState = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDesignStateData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    ApproveDesignItemResponses,
-    ApproveDesignItemErrors,
+    CreateDesignStateResponses,
+    CreateDesignStateErrors,
     ThrowOnError
   >({
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/projects/{projectId}/design/items/{itemId}/approve',
+    url: '/api/v1/projects/{projectId}/design/states',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2571,14 +2581,316 @@ export const approveDesignItem = <ThrowOnError extends boolean = false>(
   })
 
 /**
- * An item's file, with its media type. HTML and SVG are served sandboxed (CSP `sandbox allow-scripts`): embed them in an <iframe sandbox="allow-scripts">. A link has no content here — open its url.
+ * Delete a state with all its versions.
  */
-export const getDesignItemContent = <ThrowOnError extends boolean = false>(
-  options: Options<GetDesignItemContentData, ThrowOnError>,
+export const deleteDesignState = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDesignStateData, ThrowOnError>,
 ) =>
-  (options.client ?? client).get<GetDesignItemContentResponses, unknown, ThrowOnError>({
+  (options.client ?? client).delete<
+    DeleteDesignStateResponses,
+    DeleteDesignStateErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/projects/{projectId}/design/items/{itemId}/content',
+    url: '/api/v1/projects/{projectId}/design/states/{stateId}',
+    ...options,
+  })
+
+export const updateDesignState = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDesignStateData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateDesignStateResponses,
+    UpdateDesignStateErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/states/{stateId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Propose images (uploads, project files or links) for states of an app’s screens, with the links drawn between them and the pieces they share. Nothing current changes until it is accepted.
+ */
+export const proposeDesign = <ThrowOnError extends boolean = false>(
+  options: Options<ProposeDesignData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ProposeDesignResponses, ProposeDesignErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Propose an HTML draft. The cases it declares in its `design-cases` script become proposals: one per choice — alternatives to one another — with an entry per variant.
+ */
+export const proposeDesignDraft = <ThrowOnError extends boolean = false>(
+  options: Options<ProposeDesignDraftData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ProposeDesignDraftResponses,
+    ProposeDesignDraftErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/draft',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Delete a proposal and the files only it holds.
+ */
+export const deleteDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteDesignProposalResponses,
+    DeleteDesignProposalErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}',
+    ...options,
+  })
+
+export const renameDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<RenameDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    RenameDesignProposalResponses,
+    RenameDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * File one image of a proposal as a state of a screen — an existing one by id, a new one by name.
+ */
+export const fileDesignProposalEntry = <ThrowOnError extends boolean = false>(
+  options: Options<FileDesignProposalEntryData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    FileDesignProposalEntryResponses,
+    FileDesignProposalEntryErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/entries/{entryId}/file',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Accept a proposal as the new version of the states it shows — whole, or the cells named. What it replaces becomes history; the other answers to its question become alternatives.
+ */
+export const acceptDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<AcceptDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AcceptDesignProposalResponses,
+    AcceptDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/accept',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Keep a proposal on file without choosing it; it can still be accepted.
+ */
+export const keepDesignProposalAsAlternative = <ThrowOnError extends boolean = false>(
+  options: Options<KeepDesignProposalAsAlternativeData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    KeepDesignProposalAsAlternativeResponses,
+    KeepDesignProposalAsAlternativeErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/keep',
+    ...options,
+  })
+
+/**
+ * Choose one answer to a question — e.g. a direction of an HTML draft: it stays open to be filed and accepted, and the other open answers are kept as alternatives.
+ */
+export const chooseDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<ChooseDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ChooseDesignProposalResponses,
+    ChooseDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/choose',
+    ...options,
+  })
+
+/**
+ * Send a proposal back to its author with a note: the note goes into the chat its agent proposed it from (or its run’s chat), and the next try arrives as a new proposal.
+ */
+export const sendBackDesignProposal = <ThrowOnError extends boolean = false>(
+  options: Options<SendBackDesignProposalData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendBackDesignProposalResponses,
+    SendBackDesignProposalErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/send-back',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Bring earlier versions back as a new proposal; nothing current changes until it is accepted.
+ */
+export const restoreDesignVersions = <ThrowOnError extends boolean = false>(
+  options: Options<RestoreDesignVersionsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RestoreDesignVersionsResponses,
+    RestoreDesignVersionsErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/versions/restore',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const decideDesignTidyMove = <ThrowOnError extends boolean = false>(
+  options: Options<DecideDesignTidyMoveData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DecideDesignTidyMoveResponses,
+    DecideDesignTidyMoveErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/moves/{moveId}/decide',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Apps and screens before and after the plan’s accepted moves, or why they cannot be applied.
+ */
+export const previewDesignTidyPlan = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewDesignTidyPlanData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    PreviewDesignTidyPlanResponses,
+    PreviewDesignTidyPlanErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/preview',
+    ...options,
+  })
+
+/**
+ * Apply the plan’s accepted moves. Every image stays; only where it sits changes.
+ */
+export const applyDesignTidyPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ApplyDesignTidyPlanData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ApplyDesignTidyPlanResponses,
+    ApplyDesignTidyPlanErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/apply',
+    ...options,
+  })
+
+export const dismissDesignTidyPlan = <ThrowOnError extends boolean = false>(
+  options: Options<DismissDesignTidyPlanData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DismissDesignTidyPlanResponses,
+    DismissDesignTidyPlanErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/dismiss',
+    ...options,
+  })
+
+/**
+ * A version's file, with its media type. HTML and SVG are served sandboxed (CSP `sandbox allow-scripts`): embed them in an <iframe sandbox="allow-scripts">, with the version's `caseQuery` after the URL for a draft case. A link has no content here — open its url.
+ */
+export const getDesignVersionContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetDesignVersionContentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetDesignVersionContentResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/versions/{versionId}/content',
+    ...options,
+  })
+
+/**
+ * A proposal entry's file, served as a version's is; for a draft case, put the entry's `caseQuery` after the URL.
+ */
+export const getDesignProposalEntryContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetDesignProposalEntryContentData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetDesignProposalEntryContentResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/entries/{entryId}/content',
     ...options,
   })
 
@@ -2609,6 +2921,65 @@ export const getStorageUsage = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/storage-usage',
+    ...options,
+  })
+
+/**
+ * Where the project's design playground is, without starting it: `none` when its web app declares none (package.json → factory.designPlayground).
+ */
+export const getDesignPlayground = <ThrowOnError extends boolean = false>(
+  options: Options<GetDesignPlaygroundData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<GetDesignPlaygroundResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/playground',
+    ...options,
+  })
+
+/**
+ * Serve the playground as the checkout holds it now — built again when the checkout changed, what was served before shown meanwhile. Answers within a moment: `building` until it is ready.
+ */
+export const serveDesignPlayground = <ThrowOnError extends boolean = false>(
+  options: Options<ServeDesignPlaygroundData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<ServeDesignPlaygroundResponses, unknown, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/playground/serve',
+    ...options,
+  })
+
+/**
+ * Save what the playground shows at an address as a state: captured light and dark, desktop and phone, and proposed — it waits for approval. Every later approved sign-off captures it again.
+ */
+export const captureDesignPlayground = <ThrowOnError extends boolean = false>(
+  options: Options<CaptureDesignPlaygroundData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CaptureDesignPlaygroundResponses,
+    CaptureDesignPlaygroundErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/design/playground/capture',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * A page or file of the project's served design playground.
+ */
+export const viewDesignPlayground = <ThrowOnError extends boolean = false>(
+  options: Options<ViewDesignPlaygroundData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<ViewDesignPlaygroundResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/view/_playground/{*}',
     ...options,
   })
 

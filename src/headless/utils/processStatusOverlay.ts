@@ -1,6 +1,7 @@
 import type { ProcessRun } from 'thefactory-tools/types'
 import { isProcessRunAwaitingIntegration, processRunStopHolder } from 'thefactory-tools/utils'
 
+import { isProcessRunActive } from './processRunCurrent'
 import { processRunPersonEnding } from './processView'
 import {
   PROCESS_STATUS_OVERLAY_BRINGING_IN,
@@ -106,6 +107,60 @@ export function processStatusOverlay(
     default:
       return undefined
   }
+}
+
+/**
+ * The overlay a story's ROOT process run puts on ONE of its features — the
+ * same chip as the story's ({@link processStatusOverlay}), scoped to the
+ * feature the run is acting on:
+ *   - only a feature in the run's plan (a step whose `subject` is that
+ *     feature) ever gets one; any other feature keeps its stored status;
+ *   - while the run's cursor is on a feature's step — its pipeline building it,
+ *     stopped on it, or the manager on it — ONLY that feature shows it, and the
+ *     features still queued behind it show nothing;
+ *   - while the cursor is on any other step (walkthrough, code review, the
+ *     sign-off gate, merging) the run is acting on all of them, so every plan
+ *     feature shows it;
+ *   - a run with no cursor — ended, or not yet on its first step — shows on no
+ *     feature: its ending (Not merged, Changes requested…) is the story's, on
+ *     the story's own chip.
+ * Pure.
+ */
+export function featureProcessOverlay(
+  run:
+    | (Parameters<typeof processStatusOverlay>[0] & Partial<Pick<ProcessRun, 'cursor'>>)
+    | undefined,
+  featureId: string,
+  now: number,
+): ProcessStatusOverlay | undefined {
+  if (!run || !planCarriesFeature(run, featureId)) return undefined
+  const stepId = run.cursor?.stepId
+  if (stepId === undefined) return undefined
+  const subject = run.plan?.steps.find((s) => s.id === stepId)?.subject
+  if (subject?.kind === 'feature' && subject.id !== featureId) return undefined
+  return processStatusOverlay(run, now)
+}
+
+/**
+ * Whether a feature is in a story's LIVE process run — still pending, running
+ * or parked (`isProcessRunActive`, the same statuses {@link processStatusOverlay}
+ * reads as Working, Reviewable or Blocked) — and in its plan, by the same
+ * membership {@link featureProcessOverlay} uses. Queued, being worked, or behind
+ * a story-level step, the run already covers the feature, so nothing offers to
+ * run it on its own. An ended run, or a feature it does not carry, leaves the
+ * feature's own Run in place. Pure.
+ */
+export function isFeatureInLiveRun(
+  run: (Pick<ProcessRun, 'status'> & Partial<Pick<ProcessRun, 'plan'>>) | undefined,
+  featureId: string,
+): boolean {
+  return run !== undefined && isProcessRunActive(run) && planCarriesFeature(run, featureId)
+}
+
+function planCarriesFeature(run: Partial<Pick<ProcessRun, 'plan'>>, featureId: string): boolean {
+  return (run.plan?.steps ?? []).some(
+    (s) => s.subject?.kind === 'feature' && s.subject.id === featureId,
+  )
 }
 
 function blocked(runId: string): ProcessStatusOverlay {

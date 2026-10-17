@@ -154,11 +154,14 @@ export default function LaunchFeatureList({
                   <Pressable
                     key={kind.kind}
                     accessibilityRole="checkbox"
-                    accessibilityState={{ checked: kind.checked, disabled: busy || !open }}
+                    accessibilityState={{
+                      checked: kind.checked,
+                      disabled: busy || !open || kind.disabled,
+                    }}
                     accessibilityHint={
                       kind.unavailable ? `${kind.meaning} ${kind.unavailable}` : kind.meaning
                     }
-                    disabled={busy || !open}
+                    disabled={busy || !open || kind.disabled}
                     onPress={() => onToggleKind(row.featureId, kind.kind)}
                     style={{
                       minHeight: 32,
@@ -242,6 +245,11 @@ export default function LaunchFeatureList({
                 {flag.label} cannot be proven here: {flag.reason}
               </Text>
             ))}
+            {proof?.dropped.map((line) => (
+              <Text key={line} style={{ fontSize: 11, color: theme.text.secondary }}>
+                {line}
+              </Text>
+            ))}
             {proof?.uiWarning ? (
               <Text
                 accessibilityRole="alert"
@@ -256,6 +264,9 @@ export default function LaunchFeatureList({
               >
                 {proof.uiWarning}
               </Text>
+            ) : null}
+            {proof?.uiHint ? (
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{proof.uiHint}</Text>
             ) : null}
             {open && proof ? (
               <>

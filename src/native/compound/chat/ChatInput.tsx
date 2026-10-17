@@ -1,6 +1,6 @@
 import { attachmentDisplayName } from 'thefactory-tools/utils'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { IconAttach, IconMic, IconSend } from '../../icons'
 import FileMentionsTextarea, {
   type FileMentionsTextareaHandle,
@@ -17,6 +17,9 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import { Modal } from '../../primitives/Modal'
 import { Button } from '../../primitives/Button'
 import DictationWave from './DictationWave'
+import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import type { NativeAttachmentImages } from './chatNativeTypes'
+import { COMPOSER_IMAGE_THUMB_SIZE } from './sentImageAttachmentConstants'
 
 type SendReason = 'user' | 'suggested_action'
 
@@ -52,6 +55,8 @@ export interface ChatInputProps {
   /** Mobile-only: opens a file picker provided by the host. When omitted the
    *  attach button is hidden. */
   onPickAttachment?: () => void
+  /** Shows image attachments as thumbnails — here and under sent messages. */
+  attachmentImages?: NativeAttachmentImages
 
   /** `@`-file mention paths. When omitted the `@` autocomplete is disabled. */
   filePaths?: string[]
@@ -88,6 +93,7 @@ export default function ChatInput({
   queueWhileThinking = false,
   suggestedActions,
   onPickAttachment,
+  attachmentImages,
   filePaths,
   searchFiles,
   describeFile,
@@ -261,6 +267,7 @@ export default function ChatInput({
                 borderColor: theme.border.subtle,
               }}
             >
+              <AttachmentThumb path={path} images={attachmentImages} />
               <Text style={{ fontSize: 12, color: theme.text.secondary }}>
                 {attachmentDisplayName(path)}
               </Text>
@@ -579,4 +586,29 @@ function dictationErrorHint(raw: string | undefined): string {
     default:
       return ''
   }
+}
+
+function AttachmentThumb({
+  path,
+  images,
+}: {
+  path: string
+  images: NativeAttachmentImages | undefined
+}) {
+  const [failed, setFailed] = useState(false)
+  const source = images && isImageAttachment(path) ? images.sourceOf(path) : undefined
+  if (!source || failed) return null
+  return (
+    <Image
+      source={source}
+      onError={() => setFailed(true)}
+      accessibilityIgnoresInvertColors
+      style={{
+        width: COMPOSER_IMAGE_THUMB_SIZE,
+        height: COMPOSER_IMAGE_THUMB_SIZE,
+        borderRadius: nativeRadii.round,
+        marginLeft: -nativeSpace[2],
+      }}
+    />
+  )
 }

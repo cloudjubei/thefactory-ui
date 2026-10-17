@@ -1,3 +1,5 @@
+import type { ToolPreviewResult } from '../api/sdkTypes'
+
 /**
  * Defensive accessors used by the tool-call preview registry on both web
  * and native. Tool payloads are loosely-typed — these helpers extract
@@ -340,4 +342,46 @@ export function searchResultLines(result: unknown): string[] {
     const line = searchHitLine(hit)
     return line === undefined ? [] : [line]
   })
+}
+
+/**
+ * The story an `updateStory` call leaves behind: the one the call returned or
+ * proposed, or — before one comes back, or when something else did — the
+ * current story with the patch applied. Pure.
+ */
+export function storyAfterPatch<T extends object>(
+  story: T | undefined,
+  patch: Record<string, unknown>,
+  result: unknown,
+): T | undefined {
+  const returned =
+    result !== null &&
+    typeof result === 'object' &&
+    typeof (result as { id?: unknown }).id === 'string'
+  if (returned) return result as T
+  return story ? ({ ...story, ...patch } as T) : undefined
+}
+
+/**
+ * The preview a chat shows for a call waiting on approval, from the host's
+ * answer: the proposed result as text, or nothing for a tool that cannot
+ * preview. Pure.
+ */
+export function chatToolPreviewOf(
+  answer: ToolPreviewResult,
+): { status: 'ready'; patch: string } | undefined {
+  if (answer.kind === 'not_supported') return undefined
+  const { preview } = answer
+  return {
+    status: 'ready',
+    patch: typeof preview === 'string' ? preview : JSON.stringify(preview, null, 2),
+  }
+}
+
+/** The id of the feature a `reorderFeature` call moved: the one now at its target index. Pure. */
+export function reorderedFeatureId(args: unknown, order: readonly unknown[]): string | undefined {
+  const toIndex = extract(extract(args, ['payload']), ['toIndex'])
+  if (typeof toIndex !== 'number') return undefined
+  const id = extract(order[toIndex], ['id'])
+  return typeof id === 'string' ? id : undefined
 }

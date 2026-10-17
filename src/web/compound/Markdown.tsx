@@ -38,10 +38,11 @@ const components: Partial<Components> = {
   ),
   code: (props) => {
     const { children, className, ...rest } = props
-    // Fenced code block: parent <pre> already styles the box; just pass through.
+    // Fenced code block: parent <pre> already styles the box. The theme's text colour wins over
+    // prism-tomorrow's `code[class*="language-"]` grey, which is meant for its dark surface.
     if (/language-(\w+)/.exec(className || '')) {
       return (
-        <code className={className} {...rest}>
+        <code className={`${className} text-(--text-primary)!`} {...rest}>
           {children}
         </code>
       )

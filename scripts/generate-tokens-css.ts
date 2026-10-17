@@ -58,6 +58,8 @@ function statusVars(s: StatusTokens): string[] {
   out.push(`  --status-empty-fg: ${s.empty.fg};`)
   out.push(`  --status-done-bg: ${s.done.bg};`)
   out.push(`  --status-done-fg: ${s.done.fg};`)
+  out.push(`  --status-running-bg: ${s.running.bg};`)
+  out.push(`  --status-running-fg: ${s.running.fg};`)
   out.push(`  --status-working-bg: ${s.working.bg};`)
   out.push(`  --status-working-fg: ${s.working.fg};`)
   out.push(`  --status-stuck-bg: ${s.stuck.bg};`)
@@ -75,6 +77,7 @@ function statusVars(s: StatusTokens): string[] {
   for (const key of [
     'empty',
     'done',
+    'running',
     'working',
     'stuck',
     'on_hold',
@@ -119,6 +122,9 @@ function semanticVars(theme: SemanticTheme): string[] {
   out.push(`  --accent-primary: ${theme.accent.primary};`)
   out.push(`  --accent-primary-hover: ${theme.accent.primaryHover};`)
   out.push(`  --accent-primary-active: ${theme.accent.primaryActive};`)
+  out.push(`  --accent-soft-bg: ${theme.accent.softBg};`)
+  out.push(`  --accent-soft-fg: ${theme.accent.softFg};`)
+  out.push(`  --accent-soft-border: ${theme.accent.softBorder};`)
   out.push('')
   out.push(`  --focus-ring: ${theme.focusRing};`)
   out.push('')
@@ -230,6 +236,9 @@ function nativeSemanticVars(theme: NativeSemanticTheme): string[] {
   out.push(`  --accent-primary: ${theme.accent.primary};`)
   out.push(`  --accent-primary-hover: ${theme.accent.primaryHover};`)
   out.push(`  --accent-primary-active: ${theme.accent.primaryActive};`)
+  out.push(`  --accent-soft-bg: ${theme.accent.softBg};`)
+  out.push(`  --accent-soft-fg: ${theme.accent.softFg};`)
+  out.push(`  --accent-soft-border: ${theme.accent.softBorder};`)
   out.push('')
   out.push(`  --focus-ring: ${theme.focusRing};`)
   out.push('')
@@ -242,6 +251,7 @@ function nativeStatusVars(s: NativeStatusTokens): string[] {
   for (const key of [
     'empty',
     'done',
+    'running',
     'working',
     'stuck',
     'on_hold',

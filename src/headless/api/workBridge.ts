@@ -1,5 +1,6 @@
 import { listProcessRuns, listStories, type GetStoryResponse } from './generated'
 import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
+import { compareRunsNewestFirst } from '../utils/processRunOrder'
 
 type StorySource = {
   stories: GetStoryResponse[]
@@ -40,7 +41,7 @@ export async function dispatchWorkBridge(
     return (data ?? [])
       .filter((run) => run.projectId === projectId)
       .slice()
-      .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))
+      .sort(compareRunsNewestFirst)
       .map(({ id, title, status, plan, storyId, cursor, park, updatedAt }) => ({
         id,
         title,

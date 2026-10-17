@@ -1,3 +1,5 @@
+import { isRunChat } from 'thefactory-tools/utils'
+
 import type {
   ChatToolApprovalToggle,
   ChatToolCatalogEntry,
@@ -180,4 +182,16 @@ export function buildChatToolApprovalToggle(
  */
 export function applyChatToolApprovalMode(auto: boolean): ChatToolSettings {
   return { toolApprovalMode: auto ? 'auto' : 'ask' }
+}
+
+/**
+ * Whether a chat offers "Finish turn on errors": only a person's own chat on
+ * an API model, where the person is there to read the failure and answer. A CLI
+ * agent and a run's agents always read a failed tool's answer and go on.
+ */
+export function chatOffersFinishTurnOnErrors(
+  context: Parameters<typeof isRunChat>[0],
+  runner: ChatToolRunner,
+): boolean {
+  return runner === 'api' && !isRunChat(context)
 }

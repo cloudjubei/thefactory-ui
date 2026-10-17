@@ -3,7 +3,7 @@
 // Some values use color-mix(), which is CSS-only — a future RN target
 // must supply its own SemanticTheme with flat hex values.
 
-import { brand, gray, green, orange, red, purple, blue } from './colors'
+import { brand, gray, green, orange, red, purple, sky, gold } from './colors'
 
 export interface SemanticTheme {
   colorScheme: 'light' | 'dark'
@@ -38,6 +38,10 @@ export interface SemanticTheme {
     primary: string
     primaryHover: string
     primaryActive: string
+    /** A selection, a note or a hand-off tinted in the brand blue — never a status. */
+    softBg: string
+    softFg: string
+    softBorder: string
   }
 
   focusRing: string
@@ -48,9 +52,12 @@ export interface SemanticTheme {
 export interface StatusTokens {
   empty: StatusVariant
   done: StatusVariant
+  /** Work an agent is doing right now — sky blue, apart from done's green and the sign-off's gold. */
+  running: StatusVariant
   working: StatusVariant
   stuck: StatusVariant
   on_hold: StatusVariant
+  /** A decision waiting on the person, the sign-off first — gold, yellower than working's orange. */
   review: StatusVariant
   queued: StatusVariant
   blocked: StatusVariant
@@ -93,6 +100,9 @@ export const lightTheme: SemanticTheme = {
     primary: brand[600],
     primaryHover: brand[700],
     primaryActive: brand[800],
+    softBg: 'color-mix(in srgb, var(--color-brand-600) 10%, transparent)',
+    softFg: brand[700],
+    softBorder: brand[300],
   },
 
   focusRing: brand[400],
@@ -111,6 +121,13 @@ export const lightTheme: SemanticTheme = {
       softBg: 'color-mix(in srgb, var(--color-green-600) 15%, transparent)',
       softFg: green[800],
       softBorder: green[400],
+    },
+    running: {
+      bg: sky[700],
+      fg: '#ffffff',
+      softBg: 'color-mix(in srgb, var(--color-sky-600) 14%, transparent)',
+      softFg: sky[700],
+      softBorder: sky[400],
     },
     working: {
       bg: orange[650],
@@ -134,11 +151,11 @@ export const lightTheme: SemanticTheme = {
       softBorder: purple[400],
     },
     review: {
-      bg: blue[650],
-      fg: '#ffffff',
-      softBg: 'color-mix(in srgb, var(--color-blue-650) 12%, transparent)',
-      softFg: blue[700],
-      softBorder: blue[400],
+      bg: gold[500],
+      fg: '#2b2200',
+      softBg: 'color-mix(in srgb, var(--color-gold-500) 18%, transparent)',
+      softFg: gold[800],
+      softBorder: gold[400],
     },
     queued: {
       bg: '#eaeaea',
@@ -186,6 +203,9 @@ export const darkTheme: SemanticTheme = {
     primary: brand[500],
     primaryHover: brand[400],
     primaryActive: brand[600],
+    softBg: 'color-mix(in srgb, var(--color-brand-500) 18%, transparent)',
+    softFg: brand[200],
+    softBorder: 'color-mix(in srgb, var(--color-brand-500) 55%, transparent)',
   },
 
   focusRing: brand[400],
@@ -204,6 +224,13 @@ export const darkTheme: SemanticTheme = {
       softBg: 'color-mix(in srgb, var(--color-green-600) 18%, transparent)',
       softFg: '#bbf7e1',
       softBorder: 'color-mix(in srgb, var(--color-green-600) 60%, transparent)',
+    },
+    running: {
+      bg: 'color-mix(in srgb, var(--color-sky-500) 90%, #0b0f14)',
+      fg: '#04202e',
+      softBg: 'color-mix(in srgb, var(--color-sky-500) 18%, transparent)',
+      softFg: sky[200],
+      softBorder: 'color-mix(in srgb, var(--color-sky-500) 60%, transparent)',
     },
     working: {
       bg: 'color-mix(in srgb, var(--color-orange-650) 80%, #0b0f14)',
@@ -227,11 +254,11 @@ export const darkTheme: SemanticTheme = {
       softBorder: 'color-mix(in srgb, var(--color-purple-650) 60%, transparent)',
     },
     review: {
-      bg: 'color-mix(in srgb, var(--color-blue-650) 85%, #0b0f14)',
-      fg: '#f2f7ff',
-      softBg: 'color-mix(in srgb, var(--color-blue-650) 16%, transparent)',
-      softFg: '#d9e7ff',
-      softBorder: 'color-mix(in srgb, var(--color-blue-650) 60%, transparent)',
+      bg: 'color-mix(in srgb, var(--color-gold-500) 85%, #0b0f14)',
+      fg: '#1f1800',
+      softBg: 'color-mix(in srgb, var(--color-gold-500) 18%, transparent)',
+      softFg: gold[200],
+      softBorder: 'color-mix(in srgb, var(--color-gold-500) 60%, transparent)',
     },
     queued: {
       bg: '#313843',

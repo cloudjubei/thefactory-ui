@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  chatOffersFinishTurnOnErrors,
   applyChatToolApprovalMode,
   applyChatToolToggle,
   buildChatToolApprovalToggle,
@@ -297,5 +298,32 @@ describe('applyChatToolApprovalMode', () => {
 
   it('writes an explicit ask when switched back off', () => {
     expect(applyChatToolApprovalMode(false)).toEqual({ toolApprovalMode: 'ask' })
+  })
+})
+
+describe('chatOffersFinishTurnOnErrors', () => {
+  const featureChat = { type: 'FEATURE', projectId: 'p', storyId: 's', featureId: 'f' } as const
+  const runChat = { type: 'PROJECT_TOPIC', projectId: 'p', topicId: 'run-r1' } as const
+  const agentRunChat = {
+    type: 'AGENT_RUN_FEATURE',
+    projectId: 'p',
+    storyId: 's',
+    featureId: 'f',
+    agentRunId: 'a',
+  } as const
+
+  it('offers it in a person’s own chat on an API model', () => {
+    expect(chatOffersFinishTurnOnErrors(featureChat, 'api')).toBe(true)
+  })
+
+  it('never offers it to a CLI agent — it reads the failure and goes on', () => {
+    expect(chatOffersFinishTurnOnErrors(featureChat, 'cli')).toBe(false)
+  })
+
+  it('never offers it in a run’s chat, on any model', () => {
+    for (const runner of ['api', 'cli'] as const) {
+      expect(chatOffersFinishTurnOnErrors(runChat, runner)).toBe(false)
+      expect(chatOffersFinishTurnOnErrors(agentRunChat, runner)).toBe(false)
+    }
   })
 })

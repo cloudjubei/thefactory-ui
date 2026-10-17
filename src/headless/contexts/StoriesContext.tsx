@@ -10,6 +10,7 @@ import {
   getStoriesOrder,
   listStories,
   removeStoryNote,
+  reorderFeatures,
   reorderStories,
   updateFeature,
   updateStory,
@@ -166,6 +167,8 @@ export type StoriesContextValue = {
   moveStory: (storyId: string, direction: 'up' | 'down') => Promise<void>
   /** Moves a story to an arbitrary 0-based position. No-op when target == current. */
   reorderStory: (storyId: string, toIndex: number) => Promise<void>
+  /** Moves a feature to a 0-based position among its story's features. No-op when target == current. */
+  reorderFeature: (storyId: string, featureId: string, toIndex: number) => Promise<void>
 
   refresh: () => Promise<void>
 }
@@ -646,6 +649,24 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
     [requireProject, refresh, stories],
   )
 
+  const reorderFeature = useCallback(
+    async (storyId: string, featureId: string, toIndex: number) => {
+      const id = requireProject()
+      const features = storyIndex.byId.get(storyId)?.features ?? []
+      const fromIndex = features.findIndex((f) => f.id === featureId)
+      if (fromIndex === -1) return
+      const clamped = Math.max(0, Math.min(features.length - 1, toIndex))
+      if (clamped === fromIndex) return
+      await reorderFeatures({
+        path: { projectId: id, storyId },
+        body: { fromIndex, toIndex: clamped },
+        throwOnError: true,
+      })
+      await refresh()
+    },
+    [requireProject, refresh, storyIndex],
+  )
+
   const value = useMemo<StoriesContextValue>(
     () => ({
       isLoaded,
@@ -670,6 +691,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       removeStoryNote: removeStoryNoteImpl,
       moveStory,
       reorderStory,
+      reorderFeature,
       refresh,
     }),
     [
@@ -695,6 +717,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       removeStoryNoteImpl,
       moveStory,
       reorderStory,
+      reorderFeature,
       refresh,
     ],
   )

@@ -75,7 +75,7 @@ export default function CodeReviewPanel({
       borderRadius: nativeRadii.round,
       borderWidth: 1,
       borderColor: active ? theme.accent.primary : theme.border.subtle,
-      backgroundColor: active ? status.review.softBg : theme.surface.raised,
+      backgroundColor: active ? theme.accent.softBg : theme.surface.raised,
     }) as const
 
   return (

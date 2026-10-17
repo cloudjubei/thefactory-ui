@@ -150,7 +150,7 @@ describe('chatListRow — what a row says', () => {
     } as Partial<ProcessRun>)
     expect(row({ chat: { context: RUN_CHAT }, run: managed }).pill).toEqual({
       label: 'Manager on it',
-      tone: 'done',
+      tone: 'running',
     })
   })
 

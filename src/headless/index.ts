@@ -119,6 +119,7 @@ export {
   applyChatToolToggle,
   buildChatToolApprovalToggle,
   buildChatToolToggles,
+  chatOffersFinishTurnOnErrors,
   filterChatToolToggles,
   groupChatToolToggles,
   resetChatToolToggles,
@@ -147,6 +148,7 @@ export {
   type UseResolvedThemeOptions,
 } from './hooks/useResolvedTheme'
 export { CodeBlockThemeProvider, useCodeBlockTheme } from './hooks/useCodeBlockTheme'
+export { CODE_BLOCK_PALETTES, CODE_BLOCK_SURFACES } from './utils/codeBlockConstants'
 export {
   useChatLastRead,
   type ChatLastReadStore,
@@ -282,10 +284,21 @@ export {
   managerPreReadStanding,
 } from './utils/managerCardStanding'
 export { useManagerCardStanding } from './hooks/useManagerCardStanding'
-export { openChangesCardView } from './utils/openChangesCard'
-export { OPEN_CHANGES_CARD_COPY } from './utils/openChangesCardConstants'
-export type { OpenChangesCardInput, OpenChangesCardView } from './utils/openChangesCardTypes'
-export { useChatOpenChanges, type UseChatOpenChanges } from './hooks/useChatOpenChanges'
+export { isOpenChangesCardOnlyMessage, openChangesNoticeView } from './utils/openChangesNotice'
+export { OPEN_CHANGES_NOTICE_COPY } from './utils/openChangesNoticeConstants'
+export type {
+  OpenChangesNoticeBusy,
+  OpenChangesNoticeInput,
+  OpenChangesNoticeView,
+} from './utils/openChangesNoticeTypes'
+export { chatChangesHeader } from './utils/chatChangesHeader'
+export { CHAT_CHANGES_HEADER_COPY } from './utils/chatChangesHeaderConstants'
+export type { ChatChangesHeaderInput, ChatChangesHeaderView } from './utils/chatChangesHeaderTypes'
+export {
+  useChatOpenChanges,
+  type ChatOpenChangesTarget,
+  type UseChatOpenChanges,
+} from './hooks/useChatOpenChanges'
 export {
   processParkClosure,
   processParkStanding,
@@ -460,7 +473,9 @@ export {
   isCompletelyNewFile,
   isFilePathTool,
   looksLikeDiffPatchText,
+  reorderedFeatureId,
   searchResultLines,
+  storyAfterPatch,
   toLines,
   tryString,
 } from './utils/toolPreview'
@@ -558,6 +573,7 @@ export { processTimeDetailsView } from './utils/processTimeDetails'
 export {
   PROCESS_TIME_PART_HINTS,
   PROCESS_TIME_PART_LABELS,
+  PROCESS_TIME_QUEUED_LABEL,
   PROCESS_TIME_TOOLS_SHOWN,
   PROCESS_TIME_WAITING_LABEL,
 } from './utils/processTimeDetailsConstants'
@@ -630,6 +646,7 @@ export {
   developerChecksNote,
   latestProcessChecks,
   processCheckRows,
+  processCheckWaitingView,
   withProcessChecks,
 } from './utils/processChecksView'
 export {
@@ -643,6 +660,7 @@ export {
 export type {
   DeveloperChecksNote,
   ProcessCheckRow,
+  ProcessCheckWaitingView,
   ProcessChecksResult,
 } from './utils/processChecksViewTypes'
 export { agentRoleLabel } from './utils/agentRole'
@@ -720,10 +738,17 @@ export type {
   PairViewerPaneLayout,
   PairViewerSize,
 } from './utils/pairViewerFitTypes'
-export { censusFeatures, featuresToWork, incompleteStoryReason } from 'thefactory-tools/utils'
+export { censusFeatures, incompleteStoryReason, storyOpenFeatures } from 'thefactory-tools/utils'
 export { storyFeatureCounts } from './utils/storyFeatureCounts'
 export type { StoryFeatureCounts } from './utils/storyFeatureCountsTypes'
 export { openFeatureQuestions } from './utils/featureQuestions'
+export { openQuestionsCardView } from './utils/openQuestionsCard'
+export type { OpenQuestionsCardView } from './utils/openQuestionsCardTypes'
+export { OPEN_QUESTIONS_COPY } from './utils/openQuestionsCardConstants'
+export {
+  useFeatureQuestionAnswers,
+  type UseFeatureQuestionAnswers,
+} from './hooks/useFeatureQuestionAnswers'
 export { chatClosure } from './utils/chatClosure'
 export { chatCloseAction } from './utils/chatCloseAction'
 export {
@@ -814,7 +839,9 @@ export {
   TERMINAL_RAW_OUTPUT_LABEL,
 } from './utils/terminalOutputConstants'
 export type { TerminalColor, TerminalOutputView, TerminalSpan } from './utils/terminalOutputTypes'
-export { commitsSinceBase, type BranchCommit } from './utils/branchCommits'
+export { branchCommitsRefs, commitsSinceBase, type BranchCommit } from './utils/branchCommits'
+export type { BranchCommitsReview } from './utils/branchCommitsTypes'
+export { useBranchCommits } from './hooks/useBranchCommits'
 export {
   isInDeleteRange,
   lastMessageDeleteFromIndex,
@@ -1095,7 +1122,7 @@ export type { ChatCloseAction } from './utils/chatCloseAction'
 export type { ChatClosure } from './utils/chatClosure'
 export type { OpenFeatureQuestion } from './utils/featureQuestions'
 export type { StoryFeatureCensus } from 'thefactory-tools/types'
-export type { ProofKind, ProofPlan } from 'thefactory-tools/types'
+export type { ProofKind, ProofKindUnavailable, ProofPlan } from 'thefactory-tools/types'
 export {
   CHECK_STATUS_TONES,
   LAND_FAILURE_REASON_LABELS,
@@ -1135,7 +1162,12 @@ export {
   type StatusSemanticKey,
   type StoryStatus,
 } from './utils/status'
-export { isReviewable, processStatusOverlay } from './utils/processStatusOverlay'
+export {
+  featureProcessOverlay,
+  isFeatureInLiveRun,
+  isReviewable,
+  processStatusOverlay,
+} from './utils/processStatusOverlay'
 export type { ProcessStatusOverlay } from './utils/processStatusOverlay'
 export { PROCESS_STATUS_OVERLAY_TITLES } from './utils/processStatusOverlayConstants'
 
@@ -2014,10 +2046,19 @@ export { useProjectData, type UseProjectData } from './hooks/useProjectData'
 // conventions) an agent can reach for, plus the deliberate one-at-a-time
 // reveal of a stored value.
 export { useProjectNotes, type UseNotes, type UseProjectNotes } from './hooks/useProjectNotes'
-// Design — a project's apps, screens, drafts and built versions, and its storage usage.
+// Design — a project's apps, screens and components, states, versions,
+// proposals and tidy-up plans, and its storage usage.
 export { useDesign, type UseDesign } from './hooks/useDesign'
 export { useDesignPreview, type UseDesignPreview } from './hooks/useDesignPreview'
 export { useDesignViewToken } from './hooks/useDesignViewToken'
+export { useDesignPlayground, type UseDesignPlayground } from './hooks/useDesignPlayground'
+export {
+  designPlaygroundFrameUrl,
+  designPlaygroundPresetName,
+  designPlaygroundSavedAt,
+  designPlaygroundSaveTargets,
+  designPlaygroundSceneGroups,
+} from './utils/designPlayground'
 export { useStorageUsage } from './hooks/useStorageUsage'
 export {
   designActionsFor,
@@ -2034,50 +2075,80 @@ export {
 } from './hooks/designStore'
 export type {
   DesignActions,
+  DesignPlaygroundStatus,
   DesignProjectState,
+  DesignProposeEntry,
+  DesignSourceChoice,
   DesignUploadInput,
   DesignViewToken,
   StorageTotalsState,
 } from './hooks/designStoreTypes'
 export {
-  designCompareBaseline,
+  designAppNav,
+  designAskSummary,
+  designCaseMatrix,
+  designComponentUsers,
   designDeleteSummary,
   designDiscussDraft,
-  designItemAddedByLabel,
-  designItemFileName,
-  designPreviewItem,
+  designFileTargets,
+  designFirstProposal,
+  designHistory,
+  designOriginText,
+  designPreviewShown,
+  designProposalGroups,
+  designProposalSummary,
   designReferencePreview,
   designSelection,
+  designTidyMoveView,
   storageUsageBreakdown,
   storageUsageSummary,
   storageWarningNotification,
 } from './utils/designView'
 export {
   DESIGN_APP_KIND_LABELS,
+  DESIGN_CELL_STATUS_LABELS,
+  DESIGN_COMPARE_MARK_LABELS,
+  DESIGN_PLAYGROUND_POLL_MS,
+  DESIGN_PROPOSAL_STATUS_LABELS,
+  DESIGN_TAB_LABELS,
   DESIGN_TEXT,
+  DESIGN_TIDY_KIND_LABELS,
   STORAGE_WARNING_TAG,
   STORAGE_WARNING_TEXT,
 } from './utils/designViewConstants'
 export type {
-  DesignCompareBaseline,
+  DesignAppNav,
+  DesignAskSummary,
+  DesignCaseMatrix,
   DesignDeleteTarget,
+  DesignFileTarget,
+  DesignHistoryScreen,
+  DesignNavScreen,
+  DesignPlaygroundDevice,
+  DesignPlaygroundSaveTarget,
+  DesignPlaygroundSceneGroup,
+  DesignProposalGroup,
+  DesignProposalListItem,
   DesignSelection,
   DesignSelectionParams,
+  DesignTab,
+  DesignTidyMoveView,
   StorageUsageRow,
   StorageWarningNotification,
 } from './utils/designViewTypes'
 export {
-  approvedDesignItem,
-  designItemContentUrl,
-  designItemMediaType,
-  designItemViewKind,
-  designScreenItems,
-  findDesignItem,
+  designContentUrl,
+  designShownOfEntry,
+  designShownOfVersion,
+  designSourceFileName,
+  designSourceMediaType,
+  designViewKind,
   findDesignScreen,
+  findDesignState,
   referenceDesignOf,
   storageUsageFraction,
 } from './utils/design'
-export type { DesignItemViewKind } from './utils/designTypes'
+export type { DesignShown, DesignViewKind } from './utils/designTypes'
 export { useGroupNotes } from './hooks/useGroupNotes'
 export { referenceGroupId } from './utils/referenceScope'
 export { useProjectNoteTexts } from './hooks/useProjectNoteTexts'
@@ -2165,6 +2236,7 @@ export {
 } from './utils/processAlreadyLandedConstants'
 export type {
   ProcessAlreadyLandedOffer,
+  ProcessAlreadyMergedAction,
   ProcessAlreadyOnBaseSignOff,
   ProcessRunLandingPreview,
 } from './utils/processAlreadyLandedTypes'
@@ -2189,6 +2261,7 @@ export {
   PROCESS_RUN_ACTIVE_STATUSES,
   splitProcessRunsByCurrent,
 } from './utils/processRunCurrent'
+export { compareRunsNewestFirst } from './utils/processRunOrder'
 export {
   processRunAttentionSection,
   processRunAttentionSections,
@@ -2348,13 +2421,16 @@ export {
   PROCESS_SEND_BACK_COPY,
   PROCESS_SPEND_CAP_TITLE,
   PROCESS_STOP_CONFIRM_COPY,
+  PROCESS_CLOSE_UNMERGED_CONFIRM_COPY,
   PROCESS_SPEND_TITLE,
 } from './utils/processViewConstants'
 export {
   choiceTakesNote,
+  parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
+  requestProofChoices,
   toggleRequestedProof,
   waitingNoteCopy,
 } from './utils/processParkNote'
@@ -2370,6 +2446,7 @@ export {
   PARK_NOTE_REQUIRED_CHOICES,
   REQUEST_PROOF_CHOICES,
   REQUEST_PROOF_HEADING,
+  SEND_TO_DEVELOPER_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './utils/processParkNoteConstants'
 export {
@@ -2528,6 +2605,24 @@ export type {
   LaunchFeatureRow,
 } from './utils/proofPlanViewTypes'
 export {
+  proofChangeDraftStart,
+  proofChangeView,
+  toggleProofChangeKind,
+} from './utils/processProofChangeView'
+export {
+  PROOF_CHANGE_CANCEL_LABEL,
+  PROOF_CHANGE_HEADING,
+  PROOF_CHANGE_HINT,
+  PROOF_CHANGE_NOTE_PLACEHOLDER,
+  PROOF_CHANGE_SAVE_LABEL,
+  PROOF_CHANGE_SEND_LABEL,
+} from './utils/processProofChangeViewConstants'
+export type {
+  ProofChangeDraft,
+  ProofChangeKindView,
+  ProofChangeView,
+} from './utils/processProofChangeViewTypes'
+export {
   processAmendmentView,
   processOpenWorkMetadata,
   processOpenWorkView,
@@ -2573,6 +2668,7 @@ export type {
   ProcessBaseMoved,
   ProcessBaseUpdate,
   ProcessParkChoice,
+  ProcessProofChangeOffer,
   ProcessStepState,
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
@@ -2654,6 +2750,7 @@ export {
 export {
   runProposalEdit,
   runProposalEditArgs,
+  runProposalEditProblem,
   runProposalEditStart,
 } from './utils/runProposalEditView'
 export {
@@ -2678,6 +2775,11 @@ export type {
 export { processBaseMovedView } from './utils/processBaseMovedView'
 export type { ProcessBaseMovedView } from './utils/processBaseMovedViewTypes'
 export { isAgentRunChatContext } from 'thefactory-tools/utils'
+export { agentNeverStartedNote, isAgentRunChatKey } from './utils/agentRunTranscript'
+export {
+  AGENT_NEVER_STARTED,
+  AGENT_RUN_TRANSCRIPT_EMPTY,
+} from './utils/agentRunTranscriptConstants'
 export { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 export type {
   ProcessDefinition,
@@ -3082,3 +3184,12 @@ export type {
 } from './utils/chatListTypes'
 export { useChatList } from './hooks/useChatList'
 export { chatReturnsToList, isChatHiddenFromList } from 'thefactory-tools/utils'
+export { listDropSide, listReorderToIndex } from './utils/listReorder'
+export {
+  listDragSlot,
+  listMoveTarget,
+  listRowShift,
+  listSettleOffset,
+  listSlotTops,
+} from './utils/listDragSlots'
+export type { ListDropSide, ListDropTarget } from './utils/listReorderTypes'

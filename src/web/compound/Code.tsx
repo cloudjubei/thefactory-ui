@@ -30,11 +30,11 @@ export type CodeProps = {
 }
 
 // Syntax-highlighted code block. Falls back to a plain `<pre>` for unknown
-// languages or when the requested grammar isn't loaded yet. Both themes
-// use the prism-tomorrow token palette — only the surface colour swaps so
-// mobile + web read identically:
-//   `light` → white surface, dark text for plain fallback
-//   `dark`  → `#2d2d2d` surface (the canonical prism-tomorrow background)
+// languages or when the requested grammar isn't loaded yet. Each theme has
+// its own surface and token colours (`CODE_BLOCK_PALETTES`, the same on
+// mobile): `dark` is prism-tomorrow on `#2d2d2d`; `light` is white with the
+// light palette, which `styles/components/code-block.css` paints over Prism's
+// tokens.
 // The `!` modifiers are required because `prism-tomorrow.css` sets
 // `background` on `pre[class*="language-"]` with class-level specificity,
 // and our Tailwind classes are loaded earlier in the cascade.
@@ -53,14 +53,11 @@ export default function Code({ code, language, theme }: CodeProps) {
     return highlight(code, grammar, lang)
   }, [code, lang])
 
-  const bgClass = blockTheme === 'dark' ? 'bg-[#2d2d2d]!' : 'bg-white!'
+  const themeClass = blockTheme === 'dark' ? 'bg-[#2d2d2d]! text-[#ccc]' : 'code-light bg-white!'
 
   if (lang === 'text' || html === null) {
-    const plainTextClass = blockTheme === 'dark' ? 'text-[#ccc]' : 'text-(--text-primary)'
     return (
-      <pre
-        className={`text-sm ${plainTextClass} ${bgClass} p-2 rounded-md overflow-x-auto whitespace-pre-wrap`}
-      >
+      <pre className={`text-sm ${themeClass} p-2 rounded-md overflow-x-auto whitespace-pre-wrap`}>
         <code>{code}</code>
       </pre>
     )
@@ -68,7 +65,7 @@ export default function Code({ code, language, theme }: CodeProps) {
 
   return (
     <pre
-      className={`language-${lang} text-sm ${bgClass} p-2 rounded-md overflow-x-auto`}
+      className={`language-${lang} text-sm ${themeClass} p-2 rounded-md overflow-x-auto`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

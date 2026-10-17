@@ -13,8 +13,12 @@ describe('resolveResourceNav', () => {
       path: '/projects/p1/design?screen=s1',
     })
     expect(
-      resolveResourceNav({ kind: 'design', projectId: 'p1', screenId: 's1', itemId: 'i/1' }),
-    ).toEqual({ type: 'path', path: '/projects/p1/design?screen=s1&item=i%2F1' })
+      resolveResourceNav({ kind: 'design', projectId: 'p1', screenId: 's1', stateId: 'i/1' }),
+    ).toEqual({ type: 'path', path: '/projects/p1/design?screen=s1&state=i%2F1' })
+    expect(resolveResourceNav({ kind: 'design', projectId: 'p1', proposalId: 'p/1' })).toEqual({
+      type: 'path',
+      path: '/projects/p1/design?proposal=p%2F1',
+    })
   })
 
   it('maps a run link to its project’s run page', () => {

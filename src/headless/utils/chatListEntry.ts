@@ -133,3 +133,19 @@ export function withAppendedMessage(
 ): ChatListEntry {
   return entry.messages ? { ...entry, messages: [...entry.messages, message] } : entry
 }
+
+/**
+ * Whether the chat holds a message sent from here: the same role and words,
+ * stamped at the same moment. A send the server refused is kept with the
+ * refusal under it, so it was sent — it is restarted from there, never typed
+ * again. A chat read without its messages holds none.
+ */
+export function chatHoldsSentMessage(
+  entry: Pick<ChatListEntry, 'messages'>,
+  message: Pick<NonNullable<ChatListEntry['messages']>[number], 'role' | 'content' | 'startedAt'>,
+): boolean {
+  return (entry.messages ?? []).some(
+    (m) =>
+      m.role === message.role && m.startedAt === message.startedAt && m.content === message.content,
+  )
+}

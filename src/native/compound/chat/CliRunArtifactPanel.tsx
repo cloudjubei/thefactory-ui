@@ -2,12 +2,13 @@ import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffCons
 import RichText from '../files/RichText'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
+import { useBranchCommits } from '../../../headless/hooks/useBranchCommits'
 import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
-import { answerFeatureQuestion, getGitLog } from '../../../headless/api'
+import { answerFeatureQuestion } from '../../../headless/api'
 import {
   aggregateTestCounts,
   approveActionDescriptors,
@@ -30,7 +31,6 @@ import {
   reviewTabs,
   runReports,
   runReviewFacts,
-  commitsSinceBase,
   screenPairFileStem,
   screenPairs,
   signoffVerdict,
@@ -47,13 +47,15 @@ import {
   type CheckMethodRow,
   type HandoffPurpose,
   type HandoffRequest,
-  type BranchCommit,
   type ReviewTabId,
   processStepFinishedView,
   chatChangesNotice,
   heldChatChangesNote,
   CHAT_CHANGES_COPY,
+  chatChangesHeader,
   discardedEditPaths,
+  openChangesNoticeView,
+  useChatOpenChanges,
   withDiscardWarnings,
 } from '../../../headless'
 import { nativeAlpha, nativeRadii } from '../../../tokens/native'
@@ -65,6 +67,7 @@ import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
 import CostChip from '../chips/CostChip'
 import RefChip from '../chips/RefChip'
+import { OpenChangesNotice } from './OpenChangesNotice'
 import {
   ChangesTab,
   CheckChipRow,
@@ -192,6 +195,7 @@ export default function CliRunArtifactPanel({
     diffReview,
     reviewInProgress,
     storyId,
+    chatContextId,
     processRunId,
     processRole,
     landFailure,
@@ -280,6 +284,11 @@ export default function CliRunArtifactPanel({
     runId,
     ...(storyId ? { storyId } : {}),
   })
+  const openChanges = useChatOpenChanges(
+    !reportOnly && settledNotice === undefined && artifact !== undefined && chatContextId
+      ? { projectId, chatContextId }
+      : undefined,
+  )
 
   useEffect(() => {
     if (error || settledNotice !== undefined) return
@@ -358,24 +367,9 @@ export default function CliRunArtifactPanel({
   // a line at the top rather than yanking them anywhere — the chips above may
   // have moved while they were reading. ABOVE the early returns: a hook that
   // runs on only some renders is the "rendered more hooks" crash.
-  // The branch's own commits, for the Changes header. Loaded once the diff is
-  // being shown; a failure leaves the header without a count rather than
-  // blocking the diff itself.
-  const [commits, setCommits] = useState<BranchCommit[]>([])
-  useEffect(() => {
-    const branch = review?.branch
-    const baseSha = review?.baseSha
-    if (!branch || !baseSha || !projectId) return
-    let cancelled = false
-    void getGitLog({ path: { projectId }, query: { ref: branch, maxCount: 100 } })
-      .then(({ data }) => {
-        if (!cancelled && data) setCommits(commitsSinceBase(data.commits, baseSha))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [review?.branch, review?.baseSha, projectId])
+  // The branch's own commits, for the Changes header; without them the header
+  // has no count and the diff still shows.
+  const commits = useBranchCommits(projectId, review)
 
   const isWorking = reviewInProgress || verifying || requestingReview !== undefined
   const wasWorking = useRef(false)
@@ -421,6 +415,11 @@ export default function CliRunArtifactPanel({
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
+  const changesHeader = chatChangesHeader({
+    fileCount: counts.total,
+    ...(review ? { branch: review.branch, shadow: review.shadow === true } : {}),
+  })
+  const noticeView = openChangesNoticeView({ runId, ...openChanges }, Date.now())
   // A process step that emitted files is the developer/editing step: its terminal
   // view is a hand-off + its diff, not the verifier's review surface (see the web
   // peer for the full rationale).
@@ -667,13 +666,20 @@ export default function CliRunArtifactPanel({
           />
         </View>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text.primary }}>
-          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not committed'}
+          {reportOnly
+            ? 'Stage output'
+            : artifact
+              ? changesHeader.title
+              : 'Agent changes were not committed'}
         </Text>
+        {!reportOnly && artifact ? (
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>{changesHeader.meta}</Text>
+        ) : null}
         {review && !review.shadow ? (
           <Tooltip
             content={
               <Text style={{ fontSize: 12, color: theme.text.primary, maxWidth: 260 }}>
-                The review branch — every commit this run made lives here. Your own branch is
+                Its own branch — every commit this agent made lives here. Your own branch is
                 untouched until you approve.
               </Text>
             }
@@ -703,6 +709,13 @@ export default function CliRunArtifactPanel({
       </View>
 
       <View style={{ gap: 12, paddingHorizontal: 12, paddingVertical: 12 }}>
+        {noticeView ? (
+          <OpenChangesNotice
+            view={noticeView}
+            onDiscard={() => void openChanges.discard()}
+            onRebuild={() => void openChanges.rebuild()}
+          />
+        ) : null}
         {sentHandoff ? (
           <View
             style={{
@@ -791,17 +804,17 @@ export default function CliRunArtifactPanel({
                   gap: 8,
                   borderRadius: nativeRadii[2],
                   borderWidth: 1,
-                  borderColor: status.review.softBorder,
-                  backgroundColor: status.review.softBg,
+                  borderColor: theme.accent.softBorder,
+                  backgroundColor: theme.accent.softBg,
                   paddingHorizontal: 10,
                   paddingVertical: 8,
                 }}
               >
                 <View style={{ gap: 3 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.review.softFg }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.accent.softFg }}>
                     {finishedView.title}
                   </Text>
-                  <Text style={{ fontSize: 12, color: status.review.softFg }}>
+                  <Text style={{ fontSize: 12, color: theme.accent.softFg }}>
                     {finishedView.detail}
                   </Text>
                 </View>

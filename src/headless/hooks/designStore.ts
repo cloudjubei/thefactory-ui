@@ -1,38 +1,54 @@
 /**
- * Each project's Design — apps, screens, drafts and built versions — and its
- * storage usage, kept in one module store so every surface showing a project's
- * design (its tab, a chip's preview) reads the same copy. Read through
- * {@link useDesign}; kept current by `design:updated`.
+ * Each project's Design — apps, screens and components, states, versions,
+ * proposals and tidy-up plans — and its storage usage, kept in one module store
+ * so every surface showing a project's design (its tab, a chip's preview) reads
+ * the same copy. Read through {@link useDesign}; kept current by `design:updated`.
  */
 
+import { emptyDesignIndex } from 'thefactory-tools/utils'
 import {
-  approveDesignItem,
+  acceptDesignProposal,
+  applyDesignTidyPlan,
+  captureDesignPlayground,
+  chooseDesignProposal,
   createDesignApp,
-  createDesignItem,
   createDesignScreen,
+  createDesignState,
+  decideDesignTidyMove,
   deleteDesignApp,
-  deleteDesignItem,
+  deleteDesignProposal,
   deleteDesignScreen,
-  getDesignItemContent,
+  deleteDesignState,
+  dismissDesignTidyPlan,
+  fileDesignProposalEntry,
+  getDesignProposalEntryContent,
+  getDesignVersionContent,
   getProjectDesign,
   getProjectStorageUsage,
   getStorageUsage,
   grantProjectAppViewToken,
-  renameDesignItem,
-  renameDesignScreen,
+  keepDesignProposalAsAlternative,
+  previewDesignTidyPlan,
+  proposeDesign,
+  proposeDesignDraft,
+  renameDesignProposal,
+  restoreDesignVersions,
+  sendBackDesignProposal,
   updateDesignApp,
+  updateDesignScreen,
+  updateDesignState,
 } from '../api/generated'
+import type { DesignIndex } from '../api'
 import { computeRefreshDelayMs } from '../utils/viewTokenSchedule'
 import type {
   DesignActions,
   DesignProjectState,
-  DesignUploadInput,
   DesignViewToken,
   StorageTotalsState,
 } from './designStoreTypes'
 
 const EMPTY: DesignProjectState = {
-  tree: { apps: [] },
+  index: emptyDesignIndex() as DesignIndex,
   isLoaded: false,
   loadError: null,
   usage: undefined,
@@ -95,7 +111,7 @@ export async function refreshDesign(projectId: string): Promise<void> {
   try {
     const { data } = await getProjectDesign({ path: { projectId }, throwOnError: true })
     if (epochs.get(projectId) !== epoch) return
-    patch(projectId, { tree: data, isLoaded: true, loadError: null })
+    patch(projectId, { index: data, isLoaded: true, loadError: null })
   } catch (err) {
     if (epochs.get(projectId) !== epoch) return
     patch(projectId, {
@@ -176,8 +192,8 @@ export async function refreshStorageUsage(projectId: string): Promise<void> {
 
 /**
  * What a person can do to a project's design. Each change reloads the design —
- * and, for a draft added or anything deleted, the usage — and then tells
- * `onChanged` (the reference cache), so a new `&design/…` resolves at once.
+ * and, for anything added or deleted, the usage — and then tells `onChanged`
+ * (the reference cache), so a new `&design/…` resolves at once.
  */
 export function designActionsFor(projectId: string, onChanged: () => void): DesignActions {
   const after = async <T>(made: T, usage = false): Promise<T> => {
@@ -189,6 +205,10 @@ export function designActionsFor(projectId: string, onChanged: () => void): Desi
     return made
   }
   const path = { projectId }
+  const done = async (call: Promise<unknown>, usage = false): Promise<void> => {
+    await call
+    await after(undefined, usage)
+  }
   return {
     createApp: async (name, kind) =>
       after((await createDesignApp({ path, body: { name, kind }, throwOnError: true })).data),
@@ -197,89 +217,122 @@ export function designActionsFor(projectId: string, onChanged: () => void): Desi
         (await updateDesignApp({ path: { ...path, appId }, body: change, throwOnError: true }))
           .data,
       ),
-    deleteApp: async (appId) => {
-      await deleteDesignApp({ path: { ...path, appId }, throwOnError: true })
-      await after(undefined, true)
-    },
-    createScreen: async (appId, name) =>
-      after((await createDesignScreen({ path, body: { appId, name }, throwOnError: true })).data),
-    renameScreen: async (screenId, name) =>
+    deleteApp: (appId) =>
+      done(deleteDesignApp({ path: { ...path, appId }, throwOnError: true }), true),
+    createScreen: async (input) =>
+      after((await createDesignScreen({ path, body: input, throwOnError: true })).data),
+    updateScreen: async (screenId, change) =>
       after(
         (
-          await renameDesignScreen({
+          await updateDesignScreen({
             path: { ...path, screenId },
-            body: { name },
+            body: change,
             throwOnError: true,
           })
         ).data,
       ),
-    deleteScreen: async (screenId) => {
-      await deleteDesignScreen({ path: { ...path, screenId }, throwOnError: true })
-      await after(undefined, true)
-    },
-    uploadDraft: async (screenId, file: DesignUploadInput, name) =>
+    deleteScreen: (screenId) =>
+      done(deleteDesignScreen({ path: { ...path, screenId }, throwOnError: true }), true),
+    createState: async (input) =>
+      after((await createDesignState({ path, body: input, throwOnError: true })).data),
+    updateState: async (stateId, change) =>
       after(
-        (
-          await createDesignItem({
-            path,
-            body: { screenId, ...(name ? { name } : {}), source: { type: 'upload', ...file } },
-            throwOnError: true,
-          })
-        ).data,
-        true,
-      ),
-    addProjectFileDraft: async (screenId, filePath, name) =>
-      after(
-        (
-          await createDesignItem({
-            path,
-            body: {
-              screenId,
-              ...(name ? { name } : {}),
-              source: { type: 'project-file', path: filePath },
-            },
-            throwOnError: true,
-          })
-        ).data,
-        true,
-      ),
-    addLinkDraft: async (screenId, url, name) =>
-      after(
-        (
-          await createDesignItem({
-            path,
-            body: { screenId, ...(name ? { name } : {}), source: { type: 'link', url } },
-            throwOnError: true,
-          })
-        ).data,
-        true,
-      ),
-    renameItem: async (itemId, name) =>
-      after(
-        (await renameDesignItem({ path: { ...path, itemId }, body: { name }, throwOnError: true }))
+        (await updateDesignState({ path: { ...path, stateId }, body: change, throwOnError: true }))
           .data,
       ),
-    approveItem: async (itemId, approved) =>
+    deleteState: (stateId) =>
+      done(deleteDesignState({ path: { ...path, stateId }, throwOnError: true }), true),
+    propose: async (input) =>
+      after((await proposeDesign({ path, body: input, throwOnError: true })).data, true),
+    proposeDraft: async (input) =>
+      after((await proposeDesignDraft({ path, body: input, throwOnError: true })).data, true),
+    fileEntry: async (proposalId, entryId, target) =>
       after(
         (
-          await approveDesignItem({
-            path: { ...path, itemId },
-            body: { approved },
+          await fileDesignProposalEntry({
+            path: { ...path, proposalId, entryId },
+            body: { target },
             throwOnError: true,
           })
         ).data,
       ),
-    deleteItem: async (itemId) => {
-      await deleteDesignItem({ path: { ...path, itemId }, throwOnError: true })
-      await after(undefined, true)
-    },
-    fetchContent: async (itemId, responseType) =>
-      (
-        await getDesignItemContent({
-          path: { ...path, itemId },
-          responseType,
-          throwOnError: true,
-        } as never)
+    acceptProposal: async (proposalId, entryIds) =>
+      after(
+        (
+          await acceptDesignProposal({
+            path: { ...path, proposalId },
+            body: entryIds ? { entryIds } : {},
+            throwOnError: true,
+          })
+        ).data,
+      ),
+    keepProposal: async (proposalId) =>
+      after(
+        (
+          await keepDesignProposalAsAlternative({
+            path: { ...path, proposalId },
+            throwOnError: true,
+          })
+        ).data,
+      ),
+    chooseProposal: async (proposalId) =>
+      after(
+        (await chooseDesignProposal({ path: { ...path, proposalId }, throwOnError: true })).data,
+      ),
+    sendBackProposal: async (proposalId, note) =>
+      after(
+        (
+          await sendBackDesignProposal({
+            path: { ...path, proposalId },
+            body: { note },
+            throwOnError: true,
+          })
+        ).data,
+      ),
+    renameProposal: async (proposalId, title) =>
+      after(
+        (
+          await renameDesignProposal({
+            path: { ...path, proposalId },
+            body: { title },
+            throwOnError: true,
+          })
+        ).data,
+      ),
+    deleteProposal: (proposalId) =>
+      done(deleteDesignProposal({ path: { ...path, proposalId }, throwOnError: true }), true),
+    restoreVersions: async (versionIds) =>
+      after((await restoreDesignVersions({ path, body: { versionIds }, throwOnError: true })).data),
+    savePlaygroundState: async (input) =>
+      after((await captureDesignPlayground({ path, body: input, throwOnError: true })).data, true),
+    decideTidyMove: async (planId, moveId, decision) =>
+      after(
+        (
+          await decideDesignTidyMove({
+            path: { ...path, planId, moveId },
+            body: { decision },
+            throwOnError: true,
+          })
+        ).data,
+      ),
+    previewTidy: async (planId) =>
+      (await previewDesignTidyPlan({ path: { ...path, planId }, throwOnError: true })).data,
+    applyTidy: async (planId) =>
+      after((await applyDesignTidyPlan({ path: { ...path, planId }, throwOnError: true })).data),
+    dismissTidy: async (planId) =>
+      after((await dismissDesignTidyPlan({ path: { ...path, planId }, throwOnError: true })).data),
+    fetchContent: async (ref, responseType) =>
+      ('versionId' in ref
+        ? await getDesignVersionContent({
+            path: { ...path, versionId: ref.versionId },
+            responseType,
+            throwOnError: true,
+          } as never)
+        : await getDesignProposalEntryContent({
+            path: { ...path, proposalId: ref.proposalId, entryId: ref.entryId },
+            responseType,
+            throwOnError: true,
+          } as never)
       ).data as never,
     mintViewToken: async () => (await grantProjectAppViewToken({ path, throwOnError: true })).data,
   }

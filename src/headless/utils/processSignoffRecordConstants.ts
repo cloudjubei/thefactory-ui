@@ -18,6 +18,9 @@ export const PROCESS_SIGNOFF_DECISION_VIEW: Record<
   'more-info': { label: 'Answered', tone: 'empty' },
   'update-base': { label: 'Base updated', tone: 'empty' },
   'resolve-base-conflict': { label: 'Sent to resolve the conflict', tone: 'empty' },
+  'change-proof': { label: 'Proof changed', tone: 'empty' },
+  'send-to-developer': { label: 'Sent to the developer', tone: 'empty' },
+  recheck: { label: 'Checks run again', tone: 'empty' },
 }
 
 /** Where a person decided, as a decision's record says it. */

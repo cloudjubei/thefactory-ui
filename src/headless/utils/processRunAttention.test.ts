@@ -548,6 +548,15 @@ describe('processRunAttentionSections', () => {
     )
   })
 
+  it('heads Running in the running blue, apart from Sign off’s gold and Merging’s orange', () => {
+    const sections = processRunAttentionSections([merging, signOff, working], NOW)
+    expect(sections.map((s) => [s.id, s.tone])).toEqual([
+      ['sign-off', 'review'],
+      ['running', 'running'],
+      ['merging', 'working'],
+    ])
+  })
+
   it('leaves out a section with no runs, and every run that is history', () => {
     const sections = processRunAttentionSections(
       [signOff, run({ id: 'h', status: 'cancelled' })],
@@ -631,7 +640,7 @@ describe('a run whose stop its manager has', () => {
   it('sits under Running, reading “Manager on it” in the running tone, live', () => {
     for (const r of [nested, looking, signOffPreRead]) {
       expect(processRunAttentionSection(r, NOW)).toBe('running')
-      expect(processRunBadge(r, NOW)).toEqual({ label: 'Manager on it', tone: 'done' })
+      expect(processRunBadge(r, NOW)).toEqual({ label: 'Manager on it', tone: 'running' })
       expect(processRunListRow(r, NOW)).toMatchObject({
         section: 'running',
         asks: false,

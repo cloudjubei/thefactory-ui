@@ -122,6 +122,7 @@ export const STORY_WIDE_ONLY_TITLE = 'No feature has been verified'
 export const STORY_STEP_NOTE_TONE: Record<ProcessStatusTone, VerifyVerdictNote['tone']> = {
   done: 'done',
   stuck: 'stuck',
+  running: 'review',
   working: 'review',
   blocked: 'review',
   queued: 'review',

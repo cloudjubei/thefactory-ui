@@ -6,6 +6,8 @@ import RichText from '../files/RichText'
 import Markdown from '../Markdown'
 import type { ResourceLink } from 'thefactory-tools/types'
 import FileDisplay, { type UikitFileMeta } from '../files/FileDisplay'
+import { isImageAttachment } from '../../../headless/utils/chatDrop'
+import SentImageAttachment from './SentImageAttachment'
 import { IconDelete, IconRefreshChat, IconToolbox } from '../../icons'
 import type {
   AlwaysAllowScope,
@@ -30,14 +32,15 @@ import {
   parseCliAgentModelTag,
   shortCliModelLabel,
 } from '../../../headless/utils/cliRunner'
-import type { NativeToolCallRenderArgs } from './chatNativeTypes'
+import type { NativeAttachmentImages, NativeToolCallRenderArgs } from './chatNativeTypes'
 import SubagentSteps from './ToolCall/SubagentSteps'
 import BackgroundResultsRow from './BackgroundResultsRow'
 import { ManagerCardView } from './ManagerCards'
-import { OpenChangesCardView } from './OpenChangesCard'
 import { RunParkClosure } from './ParkClosureLine'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
+import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
+import OpenQuestionsCard from './OpenQuestionsCard'
 
 function formatFriendlyTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -218,6 +221,8 @@ export interface MessageRowProps {
   renderReference?: (target: ReferenceTarget) => ReactNode | undefined
   /** Route an in-app `overseer://…` resource link the assistant emitted (F.2). */
   onResourceLink?: (link: ResourceLink) => void
+  /** Shows the images sent with a message as thumbnails that open full size. */
+  attachmentImages?: NativeAttachmentImages
   /** Render the workspace-diff panel for a CLI-agent reply (`msg.cliRunId`). */
   renderCliRunArtifact?: (runId: string) => ReactNode
   /**
@@ -254,18 +259,18 @@ function Avatar({
   kind: 'user' | 'ai' | 'tool'
   handoffInitial?: string
 }) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   const isUser = kind === 'user'
   const isTool = kind === 'tool'
   const isHandoff = !!handoffInitial
   const bg = isHandoff
-    ? status.review.softBg
+    ? theme.accent.softBg
     : isUser
       ? theme.accent.primary
       : isTool
         ? theme.surface.overlay
         : nativePalette.blue[50]
-  const fg = isHandoff ? status.review.softFg : isUser ? theme.text.inverted : theme.text.primary
+  const fg = isHandoff ? theme.accent.softFg : isUser ? theme.text.inverted : theme.text.primary
   return (
     <View
       accessibilityElementsHidden
@@ -277,7 +282,7 @@ function Avatar({
         justifyContent: 'center',
         backgroundColor: bg,
         borderWidth: isUser && !isHandoff ? 0 : 1,
-        borderColor: isHandoff ? status.review.softBorder : theme.border.subtle,
+        borderColor: isHandoff ? theme.accent.softBorder : theme.border.subtle,
       }}
     >
       {isTool ? (
@@ -316,6 +321,7 @@ function MessageRow({
   onResolveFile,
   renderReference,
   onResourceLink,
+  attachmentImages,
   renderCliRunArtifact,
   renderProcessRun,
   renderProcessGroupRun,
@@ -323,7 +329,7 @@ function MessageRow({
   thinkingLabel,
   decidedAsk,
 }: MessageRowProps) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   // ABOVE any early return: a hook that runs on only some renders crashes.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const role = msg.role
@@ -337,15 +343,14 @@ function MessageRow({
       />
     )
   }
-  const openChangesCard = role === 'assistant' ? msg.openChangesCard : undefined
-  if (openChangesCard) {
+  if (isOpenChangesCardOnlyMessage(msg)) return null
+  const openQuestionsCard = role === 'assistant' ? msg.openQuestionsCard : undefined
+  if (openQuestionsCard) {
     const at = messageIso(msg)
     return (
-      <OpenChangesCardView
-        card={openChangesCard}
+      <OpenQuestionsCard
+        card={openQuestionsCard}
         {...(at ? { at: formatFriendlyTimestamp(at) } : {})}
-        formatAt={(ms) => formatFriendlyTimestamp(new Date(ms).toISOString())}
-        {...(renderCliRunArtifact ? { renderReview: renderCliRunArtifact } : {})}
       />
     )
   }
@@ -406,6 +411,9 @@ function MessageRow({
           }}
         >
           <Text style={{ fontSize: 14, color: nativePalette.red[700] }}>{String(msg.error)}</Text>
+          {onRestartTurn && restartControl ? (
+            <RestartTurnButton control={restartControl} onRestart={onRestartTurn} />
+          ) : null}
         </View>
         {onRetry && isLast && (
           <Pressable
@@ -633,7 +641,7 @@ function MessageRow({
         {isHandoff ? (
           <Text
             selectable={false}
-            style={{ fontSize: 10, color: status.review.softFg, alignSelf: 'flex-end' }}
+            style={{ fontSize: 10, color: theme.accent.softFg, alignSelf: 'flex-end' }}
           >
             {`↩ ${handoffLabel} handed this back${ts ? ` · ${ts}` : ''}`}
           </Text>
@@ -664,9 +672,9 @@ function MessageRow({
               },
               isHandoff
                 ? {
-                    backgroundColor: status.review.softBg,
+                    backgroundColor: theme.accent.softBg,
                     borderWidth: 1,
-                    borderColor: status.review.softBorder,
+                    borderColor: theme.accent.softBorder,
                     borderBottomRightRadius: nativeRadii[1],
                   }
                 : isUser
@@ -696,8 +704,8 @@ function MessageRow({
                   renderReference={renderReference}
                   typedReferences
                   // User bubble is blue → text must be white to read against it.
-                  // A hand-off bubble is review-soft, so its text takes that fg.
-                  textColor={isHandoff ? status.review.softFg : theme.text.inverted}
+                  // A hand-off bubble is accent-soft, so its text takes that fg.
+                  textColor={isHandoff ? theme.accent.softFg : theme.text.inverted}
                 />
               ) : (
                 <Markdown
@@ -801,6 +809,15 @@ function MessageRow({
             }}
           >
             {files.map((path, i) => {
+              if (attachmentImages && isImageAttachment(path)) {
+                return (
+                  <SentImageAttachment
+                    key={`att-${i}-${path}`}
+                    path={path}
+                    images={attachmentImages}
+                  />
+                )
+              }
               const name = attachmentDisplayName(path)
               return (
                 <FileDisplay
@@ -814,35 +831,51 @@ function MessageRow({
         )}
 
         {onRestartTurn && restartControl && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={restartControl.label}
-            onPress={onRestartTurn}
-            disabled={restartControl.disabled}
-            hitSlop={4}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: nativeSpace[2],
-              alignSelf: isUser ? 'flex-end' : 'flex-start',
-              marginTop: nativeSpace[2],
-              height: 24,
-              paddingHorizontal: nativeSpace[4],
-              borderRadius: nativeRadii[1],
-              borderWidth: 1,
-              borderColor: theme.border.subtle,
-              backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
-              opacity: restartControl.disabled ? 0.4 : 1,
-            })}
-          >
-            <IconRefreshChat size={12} color={theme.text.secondary} />
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>
-              {MESSAGE_RESTART_ACTION_LABEL}
-            </Text>
-          </Pressable>
+          <RestartTurnButton control={restartControl} onRestart={onRestartTurn} alignEnd={isUser} />
         )}
       </View>
     </View>
+  )
+}
+
+/** The control that runs the agent again on the chat's last turn. */
+function RestartTurnButton({
+  control,
+  onRestart,
+  alignEnd = false,
+}: {
+  control: MessageRestartControl
+  onRestart: () => void
+  alignEnd?: boolean
+}) {
+  const { theme } = useNativeTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={control.label}
+      onPress={onRestart}
+      disabled={control.disabled}
+      hitSlop={4}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: nativeSpace[2],
+        alignSelf: alignEnd ? 'flex-end' : 'flex-start',
+        marginTop: nativeSpace[2],
+        height: 24,
+        paddingHorizontal: nativeSpace[4],
+        borderRadius: nativeRadii[1],
+        borderWidth: 1,
+        borderColor: theme.border.subtle,
+        backgroundColor: pressed ? theme.surface.muted : theme.surface.raised,
+        opacity: control.disabled ? 0.4 : 1,
+      })}
+    >
+      <IconRefreshChat size={12} color={theme.text.secondary} />
+      <Text style={{ fontSize: 11, color: theme.text.secondary }}>
+        {MESSAGE_RESTART_ACTION_LABEL}
+      </Text>
+    </Pressable>
   )
 }
 

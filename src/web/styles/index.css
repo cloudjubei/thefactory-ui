@@ -14,6 +14,7 @@
 @import './components/file-mentions.css';
 @import './components/chat.css';
 @import './components/markdown.css';
+@import './components/code-block.css';
 @import './components/standard-picker.css';
 @import './layout/nav.css';
 @import './utilities/semantic-utilities.css';

@@ -10,6 +10,7 @@ import { toolAskCardView, type PendingToolGrant } from 'thefactory-ui/headless'
 // Not on the package's public surface: the chat renders them itself. The showcase reaches into
 // the source for them, as the playground renders the library from source anyway.
 import ApprovalPanel from '../../src/web/compound/chat/ApprovalPanel'
+import ApprovalStack from '../../src/web/compound/chat/ApprovalStack'
 import ToolAskCard from '../../src/web/compound/chat/ToolAskCard'
 import type { Scene } from '../showcase/types'
 
@@ -271,6 +272,21 @@ const DELETE = grant(
   { alwaysAllowScopes: [] },
 )
 
+const MANY_DELETES: PendingToolGrant[] = Array.from({ length: 26 }, (_, i) =>
+  grant(
+    'deleteDesignProposal',
+    { proposalId: `proposal-${String(i + 1).padStart(2, '0')}` },
+    {
+      id: `grant-delete-${i + 1}`,
+      alwaysAllowScopes: [],
+      detail: {
+        tool: 'deleteDesignProposal',
+        detail: `Delete the proposal 'Draft ${String(i + 1).padStart(2, '0')} — chip slots' (1 image) from WarGames`,
+      },
+    },
+  ),
+)
+
 const GENERIC = grant(
   'runShellCommand',
   { reason: 'Rebuild the playground.' },
@@ -409,6 +425,20 @@ export const CHAT_SCENES: Scene[] = [
       { id: 'write-file', title: 'Write a file', render: () => <DockPanel of={WRITE} /> },
       { id: 'delete', title: 'Delete (cannot undo)', render: () => <DockPanel of={DELETE} /> },
       { id: 'generic-tool', title: 'Any other tool', render: () => <DockPanel of={GENERIC} /> },
+      {
+        id: 'many-waiting',
+        title: 'Twenty-six waiting at once',
+        description:
+          'An agent asked to delete 26 design proposals: one card at a time with its full decision, paged; deciding one shows the next.',
+        render: () => (
+          <div className="flex h-[560px] flex-col rounded-xl border border-(--border-subtle) bg-(--surface-base)">
+            <div className="flex-1 p-4 text-[13px] text-(--text-secondary)">
+              The conversation stays above.
+            </div>
+            <ApprovalStack grants={MANY_DELETES} onDecideLater={noop} />
+          </div>
+        ),
+      },
     ],
   },
   {

@@ -94,6 +94,30 @@
   --color-blue-800: var(--color-blue-800);
   --color-blue-900: var(--color-blue-900);
 
+  /* sky */
+  --color-sky-50: var(--color-sky-50);
+  --color-sky-100: var(--color-sky-100);
+  --color-sky-200: var(--color-sky-200);
+  --color-sky-300: var(--color-sky-300);
+  --color-sky-400: var(--color-sky-400);
+  --color-sky-500: var(--color-sky-500);
+  --color-sky-600: var(--color-sky-600);
+  --color-sky-700: var(--color-sky-700);
+  --color-sky-800: var(--color-sky-800);
+  --color-sky-900: var(--color-sky-900);
+
+  /* gold */
+  --color-gold-50: var(--color-gold-50);
+  --color-gold-100: var(--color-gold-100);
+  --color-gold-200: var(--color-gold-200);
+  --color-gold-300: var(--color-gold-300);
+  --color-gold-400: var(--color-gold-400);
+  --color-gold-500: var(--color-gold-500);
+  --color-gold-600: var(--color-gold-600);
+  --color-gold-700: var(--color-gold-700);
+  --color-gold-800: var(--color-gold-800);
+  --color-gold-900: var(--color-gold-900);
+
   /* teal */
   --color-teal-50: var(--color-teal-50);
   --color-teal-100: var(--color-teal-100);

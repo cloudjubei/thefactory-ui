@@ -51,7 +51,7 @@ export interface ChatListProps {
  * the title and the new-chat button.
  */
 export default function ChatList({ scope, seen, onOpen, activeKey }: ChatListProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const rows = useChatList(scope, seen)
   const { chatListNotice, dismissChatListNotice, showChatInList } = useChats()
   const { settings } = useAppSettings()
@@ -88,7 +88,7 @@ export default function ChatList({ scope, seen, onOpen, activeKey }: ChatListPro
   const sectionColor: Record<NonNullable<ChatListSection['tone']>, string> = {
     neutral: theme.text.secondary,
     'needs-you': palette.brand[700],
-    running: palette.green[800],
+    running: status.running.softFg,
   }
 
   return (

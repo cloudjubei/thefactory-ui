@@ -1,13 +1,17 @@
 import {
   PROCESS_CHECK_ADVISORY_LABEL,
   processCheckRows,
+  processCheckWaitingView,
+  useDurationTimer,
   type ProcessLedgerEntry,
   type ProcessStep,
 } from '../../../headless'
 
 export type ProcessCheckListProps = {
   step: Pick<ProcessStep, 'kind'>
-  latest: Pick<ProcessLedgerEntry, 'checks'> | undefined
+  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued'> | undefined
+  /** A fixed clock for the waiting time; omitted ⇒ it ticks every second while the step waits. */
+  now?: number
 }
 
 /**
@@ -15,10 +19,28 @@ export type ProcessCheckListProps = {
  * type check, lint, format, unit tests — with how it came out, whether it was
  * only advisory, where it ran (sandbox or host, the reason and the code outside
  * the checkout it built against on hover), whether its failure already fails at
- * the change's base, and how long it took. Nothing for any other step.
+ * the change's base, and how long it took. While the step waits its turn behind
+ * another check run of the project, that wait and how long it has lasted.
+ * Nothing for any other step.
  */
-export default function ProcessCheckList({ step, latest }: ProcessCheckListProps) {
+export default function ProcessCheckList({ step, latest, now }: ProcessCheckListProps) {
+  const waitingNow = latest?.status === 'running' && latest.queued !== undefined
+  const ticking = useDurationTimer(waitingNow && now === undefined)
+  const waiting = processCheckWaitingView({ step, ...(latest ? { latest } : {}) }, now ?? ticking)
   const rows = processCheckRows({ step, ...(latest ? { latest } : {}) })
+  if (waiting) {
+    return (
+      <p
+        className="m-0 flex min-w-0 items-baseline gap-2 px-1.5 pt-1 text-[12px]"
+        style={{ color: 'var(--status-queued-soft-fg)' }}
+      >
+        <span className="min-w-0 truncate">{waiting.reason}</span>
+        <span className="ml-auto shrink-0 tabular-nums text-[11px] text-(--text-muted)">
+          {waiting.waited}
+        </span>
+      </p>
+    )
+  }
   if (rows.length === 0) return null
   return (
     <ul className="m-0 flex list-none flex-col gap-0.5 px-1.5 pt-1">

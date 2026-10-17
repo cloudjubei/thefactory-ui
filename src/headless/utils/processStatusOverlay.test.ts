@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ProcessRun } from 'thefactory-tools/types'
 
-import { isReviewable, processStatusOverlay } from './processStatusOverlay'
+import {
+  featureProcessOverlay,
+  isFeatureInLiveRun,
+  isReviewable,
+  processStatusOverlay,
+} from './processStatusOverlay'
 import { PROCESS_STATUS_OVERLAY_TITLES } from './processStatusOverlayConstants'
 
 const run = (over: Partial<ProcessRun>): Pick<ProcessRun, 'id' | 'status' | 'park'> =>
@@ -201,5 +206,169 @@ describe('isReviewable', () => {
     expect(isReviewable(run({ status: 'parked' }))).toBe(false)
     expect(isReviewable(run({ status: 'running' }))).toBe(false)
     expect(isReviewable(undefined)).toBe(false)
+  })
+})
+
+describe('featureProcessOverlay', () => {
+  const plan = {
+    definitionId: 'story-default',
+    definitionScope: 'global',
+    definitionVersion: 1,
+    name: 'Story',
+    steps: [
+      {
+        id: 'features:a',
+        name: 'Feature A',
+        kind: 'process',
+        subject: { kind: 'feature', id: 'a', title: 'A' },
+      },
+      {
+        id: 'features:b',
+        name: 'Feature B',
+        kind: 'process',
+        subject: { kind: 'feature', id: 'b', title: 'B' },
+      },
+      { id: 'walkthrough', name: 'Walkthrough', kind: 'agent' },
+      { id: 'sign-off', name: 'Sign-off', kind: 'gate' },
+    ],
+    loops: [],
+  }
+  const storyRun = (over: Partial<ProcessRun>) =>
+    ({
+      id: 'root',
+      projectId: 'p',
+      status: 'running',
+      plan,
+      ledger: [],
+      loopCounts: {},
+      startedAt: 0,
+      updatedAt: 0,
+      ...over,
+    }) as ProcessRun
+
+  it('shows only on the feature whose step the run is on; a queued feature shows nothing', () => {
+    const r = storyRun({ cursor: { stepId: 'features:a', iteration: 1 } })
+    expect(featureProcessOverlay(r, 'a', NOW)).toEqual({
+      label: 'Working',
+      semantic: 'working',
+      title: PROCESS_STATUS_OVERLAY_TITLES.working,
+      runId: 'root',
+    })
+    expect(featureProcessOverlay(r, 'b', NOW)).toBeUndefined()
+  })
+
+  it('moves with the cursor to the next feature', () => {
+    const r = storyRun({ cursor: { stepId: 'features:b', iteration: 1 } })
+    expect(featureProcessOverlay(r, 'a', NOW)).toBeUndefined()
+    expect(featureProcessOverlay(r, 'b', NOW)?.label).toBe('Working')
+  })
+
+  it('shows on every plan feature while the run is on a story-level step', () => {
+    const walking = storyRun({ cursor: { stepId: 'walkthrough', iteration: 1 } })
+    expect(featureProcessOverlay(walking, 'a', NOW)?.label).toBe('Working')
+    expect(featureProcessOverlay(walking, 'b', NOW)?.label).toBe('Working')
+    const atGate = storyRun({
+      status: 'parked',
+      park: { reason: 'gate', message: 'm', parkedAt: 1 },
+      cursor: { stepId: 'sign-off', iteration: 1 },
+    })
+    expect(featureProcessOverlay(atGate, 'a', NOW)?.label).toBe('Reviewable')
+    expect(featureProcessOverlay(atGate, 'b', NOW)?.label).toBe('Reviewable')
+  })
+
+  it('never shows on a feature the run does not carry', () => {
+    expect(
+      featureProcessOverlay(
+        storyRun({ cursor: { stepId: 'walkthrough', iteration: 1 } }),
+        'z',
+        NOW,
+      ),
+    ).toBeUndefined()
+    expect(
+      featureProcessOverlay(storyRun({ cursor: { stepId: 'features:a', iteration: 1 } }), 'z', NOW),
+    ).toBeUndefined()
+  })
+
+  it('shows nothing without a run', () => {
+    expect(featureProcessOverlay(undefined, 'a', NOW)).toBeUndefined()
+  })
+
+  it('shows Blocked only on the feature whose own pipeline stopped', () => {
+    const r = storyRun({
+      status: 'parked',
+      park: { reason: 'step-failed', message: 'm', parkedAt: 1 },
+      cursor: { stepId: 'features:a', iteration: 1 },
+    })
+    expect(featureProcessOverlay(r, 'a', NOW)?.label).toBe('Blocked')
+    expect(featureProcessOverlay(r, 'b', NOW)).toBeUndefined()
+  })
+
+  it('shows the manager on it only on the feature it is on', () => {
+    const turn = { runId: 'm', parkedAt: 1, signature: 's', startedAt: 900, chatContextId: 'c' }
+    const r = storyRun({
+      status: 'parked',
+      park: { reason: 'step-failed', message: 'm', parkedAt: 1 },
+      cursor: { stepId: 'features:b', iteration: 1 },
+      manager: { turn },
+    } as Partial<ProcessRun>)
+    expect(featureProcessOverlay(r, 'b', NOW)).toEqual({
+      label: 'Working',
+      semantic: 'working',
+      title: PROCESS_STATUS_OVERLAY_TITLES.managerOnIt,
+      runId: 'root',
+    })
+    expect(featureProcessOverlay(r, 'a', NOW)).toBeUndefined()
+  })
+
+  it('shows nothing once the run has ended or before it reaches a step', () => {
+    expect(featureProcessOverlay(storyRun({ status: 'failed' }), 'a', NOW)).toBeUndefined()
+    expect(featureProcessOverlay(storyRun({ status: 'succeeded' }), 'a', NOW)).toBeUndefined()
+    expect(featureProcessOverlay(storyRun({ status: 'pending' }), 'a', NOW)).toBeUndefined()
+  })
+
+  describe('isFeatureInLiveRun', () => {
+    it('is true for a queued feature and the feature being worked while the run works', () => {
+      const r = storyRun({ cursor: { stepId: 'features:a', iteration: 1 } })
+      expect(isFeatureInLiveRun(r, 'a')).toBe(true)
+      expect(isFeatureInLiveRun(r, 'b')).toBe(true)
+    })
+
+    it('is true behind a story-level step, parked or waiting to start', () => {
+      expect(
+        isFeatureInLiveRun(
+          storyRun({
+            status: 'parked',
+            park: { reason: 'gate', message: 'm', parkedAt: 1 },
+            cursor: { stepId: 'sign-off', iteration: 1 },
+          }),
+          'b',
+        ),
+      ).toBe(true)
+      expect(isFeatureInLiveRun(storyRun({ status: 'pending' }), 'a')).toBe(true)
+    })
+
+    it('is false for a feature the run does not carry', () => {
+      expect(
+        isFeatureInLiveRun(storyRun({ cursor: { stepId: 'features:a', iteration: 1 } }), 'z'),
+      ).toBe(false)
+    })
+
+    it('is false once the run has ended, and without a run', () => {
+      for (const status of ['succeeded', 'failed', 'cancelled'] as const) {
+        expect(isFeatureInLiveRun(storyRun({ status }), 'a')).toBe(false)
+      }
+      expect(isFeatureInLiveRun(undefined, 'a')).toBe(false)
+    })
+
+    it('is false for a run without a plan', () => {
+      expect(isFeatureInLiveRun({ id: 'r', status: 'running' } as unknown as ProcessRun, 'a')).toBe(
+        false,
+      )
+    })
+  })
+
+  it('shows nothing on a step whose run state has no overlay', () => {
+    const r = storyRun({ status: 'cancelled', cursor: { stepId: 'features:a', iteration: 1 } })
+    expect(featureProcessOverlay(r, 'a', NOW)).toBeUndefined()
   })
 })

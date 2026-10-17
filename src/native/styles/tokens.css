@@ -84,6 +84,28 @@
   --color-blue-800: #1e40af;
   --color-blue-900: #1e3a8a;
 
+  --color-sky-50: #f0f9ff;
+  --color-sky-100: #e0f2fe;
+  --color-sky-200: #bae6fd;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-sky-700: #0369a1;
+  --color-sky-800: #075985;
+  --color-sky-900: #0c4a6e;
+
+  --color-gold-50: #fffbe6;
+  --color-gold-100: #fff4bf;
+  --color-gold-200: #ffe98a;
+  --color-gold-300: #fbdc52;
+  --color-gold-400: #f5cc1f;
+  --color-gold-500: #e6b800;
+  --color-gold-600: #bf9900;
+  --color-gold-700: #957700;
+  --color-gold-800: #6e5800;
+  --color-gold-900: #4d3d00;
+
   --color-teal-50: #e6fbfc;
   --color-teal-100: #ccf7f8;
   --color-teal-200: #99eff1;
@@ -132,6 +154,9 @@
   --accent-primary: #0073ea;
   --accent-primary-hover: #005dc1;
   --accent-primary-active: #004798;
+  --accent-soft-bg: rgba(0, 115, 234, 0.1);
+  --accent-soft-fg: #005dc1;
+  --accent-soft-border: #66abf8;
 
   --focus-ring: #338ff4;
 
@@ -140,14 +165,16 @@
   --status-empty-fg: #000000;
   --status-done-bg: #00c875;
   --status-done-fg: #053b2e;
+  --status-running-bg: #0369a1;
+  --status-running-fg: #ffffff;
   --status-working-bg: #fdab3d;
   --status-working-fg: #231200;
   --status-stuck-bg: #e2445c;
   --status-stuck-fg: #ffffff;
   --status-on_hold-bg: #a25ddc;
   --status-on_hold-fg: #ffffff;
-  --status-review-bg: #579bfc;
-  --status-review-fg: #ffffff;
+  --status-review-bg: #e6b800;
+  --status-review-fg: #2b2200;
   --status-queued-bg: #eaeaea;
   --status-queued-fg: #1f2937;
   --status-blocked-bg: #b42318;
@@ -182,6 +209,9 @@
   --accent-primary: #0f7eeb;
   --accent-primary-hover: #338ff4;
   --accent-primary-active: #0073ea;
+  --accent-soft-bg: rgba(15, 126, 235, 0.18);
+  --accent-soft-fg: #99c7fb;
+  --accent-soft-border: rgba(15, 126, 235, 0.55);
 
   --focus-ring: #338ff4;
 
@@ -190,14 +220,16 @@
   --status-empty-fg: #f5f7fa;
   --status-done-bg: #00a862;
   --status-done-fg: #e9fff6;
+  --status-running-bg: #0ea5e9;
+  --status-running-fg: #04202e;
   --status-working-bg: #d97500;
   --status-working-fg: #1b1200;
   --status-stuck-bg: #c22f45;
   --status-stuck-fg: #fff5f6;
   --status-on_hold-bg: #6632c2;
   --status-on_hold-fg: #f7f1ff;
-  --status-review-bg: #1d4ed8;
-  --status-review-fg: #f2f7ff;
+  --status-review-bg: #bf9900;
+  --status-review-fg: #1f1800;
   --status-queued-bg: #313843;
   --status-queued-fg: #e5e7eb;
   --status-blocked-bg: #b42318;

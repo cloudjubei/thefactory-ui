@@ -1,5 +1,5 @@
-import { extractServerError } from '../api/helpers'
-import { COMMIT_DETAILS_TEXT, GIT_REF_UNAVAILABLE_CODE } from './commitDetailsConstants'
+import { extractServerError, isGitRefUnavailableResponse } from '../api/helpers'
+import { COMMIT_DETAILS_TEXT } from './commitDetailsConstants'
 import type {
   CommitChanges,
   CommitDetailsSettled,
@@ -43,7 +43,10 @@ export function commitDetailsState(
       },
     }
   }
-  if (!diff.ok && extractServerError(diff.error, '').code === GIT_REF_UNAVAILABLE_CODE) {
+  if (
+    isGitRefUnavailableResponse(log.error) ||
+    (!diff.ok && isGitRefUnavailableResponse(diff.error))
+  ) {
     return { status: 'missing' }
   }
   return {

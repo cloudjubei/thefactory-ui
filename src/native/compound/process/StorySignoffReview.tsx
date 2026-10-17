@@ -16,8 +16,8 @@ import {
   overlayPairsFor,
   processAlreadyOnBaseSignOff,
   ranReviewChecks,
-  REQUEST_PROOF_CHOICES,
   requestChangesProofPreset,
+  requestProofChoices,
   reviewCheckGroups,
   reviewTabOrder,
   reviewTabs,
@@ -62,6 +62,7 @@ import {
   type SignoffMergeHold,
   type ProcessWorkBranch,
   type ProofKind,
+  type ProofKindUnavailable,
   type ReviewTabId,
   type ScreenPair,
   type SignoffFeatureRowView,
@@ -131,6 +132,10 @@ export type StorySignoffReviewProps = {
   onSaveFile?: SaveFileHandler
   /** Open a step's output on its own screen — the fix pass chip's target. */
   onOpenStep?: (target: SignoffStepTarget) => void
+  /** What proof the run cannot produce here: never preset for a request for changes, and never choosable. */
+  proofUnavailable?: readonly ProofKindUnavailable[]
+  /** The files of the story's change that alter what users see; empty, and screens are never preset. */
+  changeUiPaths?: readonly string[]
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -245,6 +250,8 @@ function StorySignoffPanel({
   onReportText,
   onSaveFile,
   onOpenStep,
+  proofUnavailable,
+  changeUiPaths,
   signoff,
   evidence,
   evidenceState,
@@ -285,6 +292,8 @@ function StorySignoffPanel({
     features,
     scope: uiChangeScopeOf(projects.find((p) => p.id === projectId)?.metadata),
     plannedKinds: signoff.features.flatMap((f) => f.proofPlan?.map((r) => r.kind) ?? []),
+    ...(proofUnavailable ? { unavailable: proofUnavailable } : {}),
+    ...(changeUiPaths ? { uiPaths: changeUiPaths } : {}),
   })
 
   const sections = useMemo(
@@ -702,7 +711,7 @@ function StorySignoffPanel({
 
         {canDecide && step === 'note' ? (
           <ParkNoteComposer
-            proofChoices={REQUEST_PROOF_CHOICES}
+            proofChoices={requestProofChoices(proofUnavailable)}
             proofPreset={proofPreset}
             onSend={(note, requestedProof) =>
               decide('request-changes', note, undefined, requestedProof)

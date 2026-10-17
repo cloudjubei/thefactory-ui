@@ -4,6 +4,7 @@
 
 import type { CoverageResult, TestsResult } from './generated'
 import type { GrepHit, GrepResult, LastCoverageRaw, LastTestsRunRaw } from './sdkTypes'
+import { GIT_REF_UNAVAILABLE_CODE } from '../utils/commitDetailsConstants'
 
 /** True when a `last-*` test endpoint returned a real run (not the empty placeholder). */
 export function isTestRun(value: LastTestsRunRaw): value is TestsResult {
@@ -94,6 +95,15 @@ export function extractServerError(err: unknown, fallback = 'Request failed'): S
   if (err instanceof Error && err.message) return { message: err.message }
   if (typeof err === 'string' && err.length > 0) return { message: err }
   return { message: fallback }
+}
+
+/**
+ * True when the server answered that git does not have the ref asked about — a
+ * branch deleted with its review, a commit never fetched. A normal state to
+ * read past quietly, not a failure to show.
+ */
+export function isGitRefUnavailableResponse(err: unknown): boolean {
+  return extractServerError(err, '').code === GIT_REF_UNAVAILABLE_CODE
 }
 
 /**

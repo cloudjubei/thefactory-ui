@@ -408,7 +408,9 @@ describe('signoffMergeHold', () => {
     const group = { legs: [leg('backend', 'running'), leg('ui', 'at-sign-off', ['backend'])] }
     expect(signoffMergeHold(group, 'ui', nameOf)).toEqual({
       reason: 'Merges after thefactory-backend is merged',
-      waitingOn: [{ key: 'backend', name: 'thefactory-backend', status: 'running', tone: 'done' }],
+      waitingOn: [
+        { key: 'backend', name: 'thefactory-backend', status: 'running', tone: 'running' },
+      ],
     })
   })
 

@@ -280,6 +280,7 @@ export {
 } from './compound/GroupHome'
 export { default as BottomSheet, type BottomSheetProps } from './primitives/BottomSheet'
 export { default as ChatBody, type ChatBodyProps } from './compound/chat/ChatBody'
+export type { NativeAttachmentImages } from './compound/chat/chatNativeTypes'
 export {
   default as PendingMessagesStack,
   type PendingMessagesStackProps,
@@ -458,6 +459,10 @@ export {
   type FileTreeProps,
 } from './compound/files/FileTree'
 export { default as ImageViewer, type ImageViewerProps } from './compound/files/ImageViewer'
+export {
+  default as DragReorderList,
+  type DragReorderListProps,
+} from './compound/lists/DragReorderList'
 export { default as FileTypeIcon, type FileTypeIconProps } from './compound/files/FileTypeIcon'
 export {
   default as FilePaneHeader,
@@ -469,27 +474,28 @@ export {
   default as ProjectSearchView,
   type ProjectSearchViewProps,
 } from './compound/search/ProjectSearchView'
-// Design — a project's drafts and built versions in miniature and full screen,
+// Design — a project's design files in miniature and full screen, the compare,
 // its storage meter, and the chip a design reference renders as. The web view
 // and PDF view come from the app through `DesignHostProvider`, so this barrel
 // stays free of `react-native-webview`.
 export { DesignHostProvider, useDesignHost } from './compound/design/DesignHostContext'
 export type { DesignHost } from './compound/design/designNativeTypes'
 export {
-  default as DesignItemThumb,
-  type DesignItemThumbProps,
-} from './compound/design/DesignItemThumb'
+  default as DesignFileThumb,
+  type DesignFileThumbProps,
+} from './compound/design/DesignFileThumb'
 export {
-  default as DesignItemBody,
-  type DesignItemBodyProps,
-} from './compound/design/DesignItemBody'
+  default as DesignFileBody,
+  type DesignFileBodyProps,
+} from './compound/design/DesignFileBody'
 export {
-  default as DesignItemViewer,
-  type DesignItemViewerProps,
-} from './compound/design/DesignItemViewer'
+  default as DesignFileViewer,
+  type DesignFileViewerProps,
+} from './compound/design/DesignFileViewer'
 export {
   default as DesignCompareOverlay,
   type DesignCompareOverlayProps,
+  type DesignCompareSide,
 } from './compound/design/DesignCompareOverlay'
 export {
   default as DesignReferenceChip,

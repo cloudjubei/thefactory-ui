@@ -29,7 +29,8 @@ function toolLabel(name: string, calls: number): string {
  * total, then agent thinking and tools & commands — always, so the split the
  * chip promises is never missing — and setup, other and still-running work
  * only when there is some, each with its duration and share; the slowest
- * tools; and time waiting on a person beside the total.
+ * tools; and, beside the total, time waiting on a person and time waiting a
+ * turn behind other check runs (`queuedMs`, part of `waitingMs`), each apart.
  *
  * `workMs` is the chip's own total, live while a step runs: work the breakdown
  * has not placed yet — the clock carried on since the totals were read — is
@@ -51,6 +52,8 @@ export function processTimeDetailsView(
   }
   const total = Math.max(workMs, placed + parts.running)
   if (total <= 0 && time.waitingMs <= 0) return undefined
+  const queuedMs = Math.min(time.queuedMs ?? 0, time.waitingMs)
+  const personMs = time.waitingMs - queuedMs
   const rows: ProcessTimeDetailsRow[] = []
   for (const key of Object.keys(parts) as ProcessTimePart[]) {
     const ms = parts[key]
@@ -76,6 +79,7 @@ export function processTimeDetailsView(
     total: formatProcessDuration(total),
     rows,
     tools,
-    ...(time.waitingMs > 0 ? { waiting: formatProcessDuration(time.waitingMs) } : {}),
+    ...(personMs > 0 ? { waiting: formatProcessDuration(personMs) } : {}),
+    ...(queuedMs > 0 ? { queued: formatProcessDuration(queuedMs) } : {}),
   }
 }

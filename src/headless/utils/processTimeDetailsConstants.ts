@@ -23,3 +23,6 @@ export const PROCESS_TIME_TOOLS_SHOWN = 3
 
 /** The line that says time waiting on a person was left out of the total. */
 export const PROCESS_TIME_WAITING_LABEL = 'Waiting on a person — not counted'
+
+/** The line that says time waiting a turn behind other check runs was left out of the total. */
+export const PROCESS_TIME_QUEUED_LABEL = 'Waiting for other check runs — not counted'

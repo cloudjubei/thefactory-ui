@@ -84,7 +84,7 @@ export default function StorySpecCard({
             aria-expanded={criteriaOpen}
             title={SIGNOFF_SPEC_CRITERIA_CHIP}
             onClick={() => setCriteriaOpen((v) => !v)}
-            className={`inline-flex h-6.5 items-center gap-1.5 rounded-full border px-2.5 text-[12px] ${criteriaOpen ? 'border-(--accent-primary) bg-(--status-review-soft-bg) text-(--accent-primary)' : 'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)'}`}
+            className={`inline-flex h-6.5 items-center gap-1.5 rounded-full border px-2.5 text-[12px] ${criteriaOpen ? 'border-(--accent-primary) bg-(--accent-soft-bg) text-(--accent-primary)' : 'border-(--border-subtle) bg-(--surface-raised) text-(--text-secondary) hover:bg-(--surface-hover)'}`}
           >
             <IconChecklist className="size-3.5" />
             {SIGNOFF_SPEC_CRITERIA_CHIP}

@@ -63,6 +63,15 @@ describe('applyProcessRunUpdate', () => {
     expect(next?.map((r) => r.id)).toEqual(['b', 'c', 'a'])
   })
 
+  it('puts a run that has not started yet ahead of every started run', () => {
+    const pending = rootRun({ id: 'pending', status: 'pending' })
+    const prev = [run('b', 20), run('a', 10)]
+    const next = applyProcessRunUpdate(prev, { runId: 'pending', run: pending }, 'p1')
+    expect(next?.map((r) => r.id)).toEqual(['pending', 'b', 'a'])
+    const after = applyProcessRunUpdate(next, { runId: 'c', run: run('c', 30) }, 'p1')
+    expect(after?.map((r) => r.id)).toEqual(['pending', 'c', 'b', 'a'])
+  })
+
   it('replaces a run it holds in place of the old copy', () => {
     const prev = [run('a', 10, { status: 'running' })]
     const next = applyProcessRunUpdate(

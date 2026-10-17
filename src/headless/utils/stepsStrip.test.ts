@@ -171,7 +171,7 @@ describe('processRunStripEntries', () => {
     })
     expect(processRunStripEntries(r).map((e) => [e.key, e.phase, e.tone])).toEqual([
       ['impl', 'done', 'done'],
-      ['verify', 'current', 'done'],
+      ['verify', 'current', 'running'],
       ['signoff', 'upcoming', 'queued'],
       ['cleanup', 'upcoming', 'queued'],
     ])
@@ -189,6 +189,32 @@ describe('processRunStripEntries', () => {
     })
     const signoff = processRunStripEntries(r).find((e) => e.key === 'signoff')
     expect(signoff).toMatchObject({ phase: 'current', tone: 'review' })
+  })
+
+  it('draws a stop its agent manager has as work going on, gate or not — current, in the running tone', () => {
+    const failed = run({
+      status: 'parked',
+      park: { reason: 'step-failed', stepId: 'verify', message: '', parkedAt: 0 },
+      ledger: [entry('impl'), entry('verify', { outcome: 'failed' })],
+    })
+    const gate = run({
+      status: 'parked',
+      park: { reason: 'gate', stepId: 'signoff', message: '', parkedAt: 0 },
+      ledger: [entry('impl'), entry('verify')],
+    })
+    expect(processRunStripEntries(failed, 'manager')[1]).toMatchObject({
+      phase: 'current',
+      tone: 'running',
+    })
+    expect(processRunStripEntries(gate, 'manager')[2]).toMatchObject({
+      phase: 'current',
+      tone: 'running',
+    })
+    expect(processRunStripEntries(failed, 'person')[1]).toMatchObject({
+      phase: 'current',
+      tone: 'on_hold',
+    })
+    expect(processRunStripEntries(gate)[2]).toMatchObject({ phase: 'current', tone: 'review' })
   })
 
   it('makes a step parked on a question current in the on-hold tone', () => {

@@ -1,13 +1,14 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
+import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
 import Alert from '../../primitives/Alert'
-import { IconChevronLeft, IconChevronRight } from '../../icons'
 import AgentQuestionCard from './AgentQuestionCard'
 import RemedyCard from './RemedyCard'
 import ChatInput, { type ChatInputProps } from './ChatInput'
 import CredentialCaptureCard from './CredentialCaptureCard'
-import ApprovalPanel from './ApprovalPanel'
+import ApprovalStack from './ApprovalStack'
+import ChatPager from './ChatPager'
 import MessageList from './MessageList'
 import PendingMessagesStack from './PendingMessagesStack'
 import HeldAgentMessagesStack from './HeldAgentMessagesStack'
@@ -19,7 +20,6 @@ import {
   splitParkedAsks,
   userAsks,
 } from '../../../headless/utils/agentQuestions'
-import { QUESTION_PAGER } from '../../../headless/utils/agentQuestionConstants'
 import type { ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import StillWaitingRow from './StillWaitingRow'
 import { ToolAskDecidedRow } from './ToolAskCard'
@@ -31,6 +31,7 @@ import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
+import { isAgentRunChatKey } from '../../../headless/utils/agentRunTranscript'
 import type { UikitFileMeta } from '../files/FileDisplay'
 import type { ResourceLink } from 'thefactory-tools/types'
 import type { ToolCall, ToolResultType } from './ToolCall'
@@ -45,7 +46,10 @@ import type {
 } from '../../../headless/utils/credentialCaptureTypes'
 
 export type ChatBodyProps = {
-  /** Stable id for the chat — drives MessageList scroll/visibility resets. */
+  /**
+   * The chat's key (`getChatContextKey`) — drives MessageList scroll/visibility
+   * resets, and an agent run's chat (`isAgentRunChatKey`) reads as its transcript.
+   */
   chatId?: string
   /** The chat's project, forwarded to the launch approval so it can resolve the
    * process proposal a user reads before approving. */
@@ -182,7 +186,7 @@ export type ChatBodyProps = {
   leadingContent?: ReactNode
 
   /** Host-supplied tool-preview fetcher — see `MessageList.previewTool`. */
-  previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
+  previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<ToolPreviewResult>
 
   /** Forwarded to the lifted `ChatInput`. */
   inputProps?: Omit<
@@ -362,27 +366,7 @@ export default function ChatBody({
   )
 
   const askPager = (
-    <span className="flex items-center gap-1.5 text-xs font-normal">
-      <button
-        type="button"
-        aria-label="Previous"
-        className="rounded p-0.5 hover:bg-(--surface-hover) disabled:opacity-40"
-        onClick={() => setChosenAskId(openAsks[shownIndex - 1]?.id)}
-        disabled={shownIndex <= 0}
-      >
-        <IconChevronLeft className="w-4 h-4" />
-      </button>
-      <span className="tabular-nums">{QUESTION_PAGER(shownIndex + 1, openAsks.length)}</span>
-      <button
-        type="button"
-        aria-label="Next"
-        className="rounded p-0.5 hover:bg-(--surface-hover) disabled:opacity-40"
-        onClick={() => setChosenAskId(openAsks[shownIndex + 1]?.id)}
-        disabled={shownIndex >= openAsks.length - 1}
-      >
-        <IconChevronRight className="w-4 h-4" />
-      </button>
-    </span>
+    <ChatPager ids={openAsks.map((a) => a.id)} index={shownIndex} onChoose={setChosenAskId} />
   )
 
   return (
@@ -424,9 +408,11 @@ export default function ChatBody({
           onRetry={onRetry ? () => void onRetry() : undefined}
           onRestartTurn={onRestartTurn ? () => void onRestartTurn() : undefined}
           previewTool={previewTool}
+          getAttachmentPreviewUrl={inputProps?.getAttachmentPreviewUrl}
           isSending={isSending}
           isDeleting={liveState.isDeleting === true}
           emptyStateContent={emptyStateContent}
+          transcript={isAgentRunChatKey(chatId)}
           leadingContent={leadingContent}
           tailContent={
             shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
@@ -502,19 +488,14 @@ export default function ChatBody({
       ) : showApprovalPanel ? (
         // Shrinkable and capped, so a tall card scrolls inside itself and the
         // messages above stay in reach — never pushes its own decision off-screen.
-        <div className="flex max-h-[65%] min-h-0 shrink flex-col overflow-y-auto">
-          {approvalGrants.map((grant) => (
-            <ApprovalPanel
-              key={grant.id}
-              grant={grant}
-              {...(projectId ? { projectId } : {})}
-              {...(groupId ? { groupId } : {})}
-              onDecideLater={() => setApprovalDismissedKey(approvalKey)}
-              onDecided={(line) => addDecidedLine(grant.id, line)}
-              {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
-            />
-          ))}
-        </div>
+        <ApprovalStack
+          grants={approvalGrants}
+          {...(projectId ? { projectId } : {})}
+          {...(groupId ? { groupId } : {})}
+          onDecideLater={() => setApprovalDismissedKey(approvalKey)}
+          onDecided={addDecidedLine}
+          {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
+        />
       ) : historyLocked ? (
         // A closed chat keeps its history and takes no new work. Archiving is
         // one-way by design — reopening would contradict the very locking that

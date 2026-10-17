@@ -1,4 +1,9 @@
 import type { ReactNode } from 'react'
+import type {
+  DesignPlaygroundControl,
+  DesignPlaygroundPreset,
+  DesignScreenKind,
+} from 'thefactory-tools/types'
 
 /**
  * One state of a component, at its own fixed URL: `/?scene=<scene id>&state=<state id>`.
@@ -32,6 +37,22 @@ export type Scene = {
   group: SceneGroup
   description: string
   states: SceneState[]
+  /**
+   * What the Design view's Playground changes the scene with. Declared beside its states, so the
+   * Playground, the states saved from it and their captures at every sign-off read one list.
+   */
+  controls?: DesignPlaygroundControl[]
+  /** Settings of its controls worth a name, offered in the Playground. */
+  presets?: DesignPlaygroundPreset[]
+  /**
+   * The scene drawn with one value per control, at `/?scene=<id>&play=1&<control>=<value>`. Fixed
+   * sample data only, as `render`: a saved state is captured again at every sign-off.
+   */
+  play?: (values: Record<string, string>) => ReactNode
+  /** What a state saved from it is filed as in the Design view. Defaults to a component. */
+  kind?: DesignScreenKind
+  /** A whole page, shown at a desktop's width rather than a column's. */
+  wide?: boolean
 }
 
-export type SceneGroup = 'Chat' | 'Process' | 'Primitives'
+export type SceneGroup = 'Chat' | 'Process' | 'Design' | 'Primitives'

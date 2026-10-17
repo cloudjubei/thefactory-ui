@@ -70,46 +70,51 @@ export function ChatSidebarPanel({
   const [width, setWidth] = useState<number>(() => {
     return Math.max(MIN_W, Math.min(maxWidthByViewport(), initialWidth))
   })
-  const resizingRef = useRef<{ startX: number; startWidth: number; lastWidth: number } | null>(null)
+  const dragRef = useRef<{
+    move: (e: PointerEvent) => void
+    end: (e: PointerEvent) => void
+  } | null>(null)
 
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('pointermove', onResizeMove)
-      window.removeEventListener('pointerup', onResizeEnd)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  useEffect(
+    () => () => {
+      const drag = dragRef.current
+      if (!drag) return
+      dragRef.current = null
+      window.removeEventListener('pointermove', drag.move)
+      window.removeEventListener('pointerup', drag.end)
+    },
+    [],
+  )
 
   // After every hook: closing the panel must not change the hook count, or
   // toggling `isOpen` crashes the tree with "rendered fewer hooks than expected".
   if (!isOpen) return null
 
   const onResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (collapsed) return
+    if (collapsed || dragRef.current) return
     e.preventDefault()
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    resizingRef.current = { startX: e.clientX, startWidth: width, lastWidth: width }
-    window.addEventListener('pointermove', onResizeMove)
-    window.addEventListener('pointerup', onResizeEnd)
-  }
-
-  const onResizeMove = (e: PointerEvent) => {
-    if (!resizingRef.current) return
-    const { startX, startWidth } = resizingRef.current
-    const dx = e.clientX - startX
-    const next = startWidth - dx
-    const clamped = Math.max(MIN_W, Math.min(maxWidthByViewport(), next))
-    resizingRef.current.lastWidth = clamped
-    setWidth(clamped)
-    onWidthChange?.(clamped, false)
-  }
-
-  const onResizeEnd = (_e: PointerEvent) => {
-    const finalWidth = resizingRef.current?.lastWidth ?? width
-    resizingRef.current = null
-    window.removeEventListener('pointermove', onResizeMove)
-    window.removeEventListener('pointerup', onResizeEnd)
-    onWidthChange?.(finalWidth, true)
+    const startX = e.clientX
+    const startWidth = width
+    let lastWidth = width
+    const move = (ev: PointerEvent) => {
+      const clamped = Math.max(
+        MIN_W,
+        Math.min(maxWidthByViewport(), startWidth - (ev.clientX - startX)),
+      )
+      lastWidth = clamped
+      setWidth(clamped)
+      onWidthChange?.(clamped, false)
+    }
+    const end = () => {
+      dragRef.current = null
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', end)
+      onWidthChange?.(lastWidth, true)
+    }
+    dragRef.current = { move, end }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', end)
   }
 
   const transitionInOut = '200ms cubic-bezier(0.2, 0.8, 0.2, 1)'

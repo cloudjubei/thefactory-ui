@@ -8,7 +8,7 @@ export type VerdictBadgeProps = {
 
 /**
  * A verdict is always a SOLID pill; its absence signal is the hollow dot alone.
- * Both undecided verdicts take review blue — the hue for "not proven" — never the
+ * Both undecided verdicts take sign-off gold — the hue for "not proven" — never the
  * neutral grey that means "not set up". Kept in one place so the story header,
  * each feature section and the single-run panel all draw the verdict identically.
  */

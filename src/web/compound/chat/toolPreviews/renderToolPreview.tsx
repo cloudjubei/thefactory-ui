@@ -15,8 +15,10 @@ import { WriteToolsPreview, type ToolPreview } from './WriteToolsPreview'
 import {
   canonicalToolPreviewName,
   extract,
+  reorderedFeatureId,
   safePreviewString,
   searchResultLines,
+  storyAfterPatch,
   tryString,
 } from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
@@ -317,11 +319,7 @@ export function renderToolPreview({
       typeof (result as { patch?: string })?.patch === 'string'
         ? safeParseJson((result as { patch: string }).patch)
         : result
-    const resultStory =
-      resultObject && typeof resultObject === 'object' && !Array.isArray(resultObject)
-        ? (resultObject as StoryShape)
-        : undefined
-    const nextStory = resultStory ?? (story ? ({ ...story, ...patch } as StoryShape) : undefined)
+    const nextStory = storyAfterPatch<StoryShape>(story, patch, resultObject)
     const isComplete = !isInFlight
     const completedCard =
       isComplete && hooks?.renderStoryCard && nextStory
@@ -1037,8 +1035,8 @@ export function renderToolPreview({
         extract(feature, ['order']) ||
         extract(feature, ['features'])) ??
       []
-    const movedId = tryString(extract(args, ['featureId']) || extract(result, ['featureId']))
-    if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
+    if (Array.isArray(order))
+      return <ReorderList items={order} movedId={reorderedFeatureId(args, order)} />
     return <div className="text-[11px] text-(--text-secondary)">No reorder data</div>
   }
   if (name === 'completeAssignment' || name === 'blockFeature') {

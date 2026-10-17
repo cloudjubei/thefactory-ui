@@ -57,6 +57,9 @@ function thefactoryToolsAliases(): Alias[] {
 
 export default defineConfig({
   root: __dirname,
+  // Relative asset URLs: the Overseer frames the built playground under a path of its own
+  // (`/api/v1/projects/<id>/view/_playground/`), not at the root of an origin.
+  base: './',
   plugins: [react(), tailwindcss()],
   // The playground renders the library from source, so it builds without a `tsup` pass
   // (whose declaration build needs thefactory-tools' types) and always shows the code as it stands.

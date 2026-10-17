@@ -1,3 +1,5 @@
+import { chatRestartMessages } from 'thefactory-tools/utils'
+
 import { MESSAGE_RESTART_BUSY_LABEL, MESSAGE_RESTART_LABEL } from './chatMessageRestartConstants'
 import type { MessageRestartControl, MessageRestartInput } from './chatMessageRestartTypes'
 
@@ -8,15 +10,16 @@ import type { MessageRestartControl, MessageRestartInput } from './chatMessageRe
  *
  * The trigger is the message shape, not an error flag: a failed turn's error
  * lives in session-local live state and is gone after a reload, whereas "the
- * conversation ends on my message and nothing answered it" is visible to every
- * client at any time.
+ * conversation ends on my message, or on the failure notice under it, and
+ * nothing answered it" is visible to every client at any time.
  */
 export function describeLastUserMessageRestart(
   input: MessageRestartInput,
 ): MessageRestartControl | undefined {
   if (!input.hasRestartAction) return undefined
   if (!input.isLast) return undefined
-  if (input.role !== 'user') return undefined
+  const failedUnderPerson = input.isErrorNotice && input.previousRole === 'user'
+  if (input.role !== 'user' && !failedUnderPerson) return undefined
 
   return {
     label: input.turnInFlight ? MESSAGE_RESTART_BUSY_LABEL : MESSAGE_RESTART_LABEL,
@@ -31,7 +34,8 @@ export function describeLastUserMessageRestart(
  * click (another client's turn landing, a background refresh), and re-running a
  * conversation whose tail has since changed would run the wrong prompt.
  */
-export function isRestartableChatTail(messages: readonly { role: string }[] | undefined): boolean {
-  if (!messages || messages.length === 0) return false
-  return messages[messages.length - 1]?.role === 'user'
+export function isRestartableChatTail(
+  messages: readonly { role: string; content?: unknown; error?: unknown }[] | undefined,
+): boolean {
+  return chatRestartMessages(messages) !== undefined
 }

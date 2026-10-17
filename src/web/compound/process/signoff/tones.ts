@@ -29,6 +29,7 @@ export const REVIEW_TONE_SURFACE: Record<CodeReviewTone, string> = {
 export const PROCESS_TONE_BADGE: Record<ProcessStatusTone, string> = {
   empty: 'badge--empty',
   done: 'badge--done',
+  running: 'badge--running',
   working: 'badge--working',
   stuck: 'badge--stuck',
   blocked: 'badge--blocked',

@@ -62,7 +62,7 @@ function PickerList({
   onSend,
   renderOtherOptions,
 }: QuestionPickerProps & { source: QuestionPickerItems }) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   const [query, setQuery] = useState('')
   const [chosenId, setChosenId] = useState<string>()
   const selectedId = chosenId ?? source.items.find((i) => i.recommended)?.id
@@ -113,7 +113,7 @@ function PickerList({
                     paddingVertical: 8,
                     borderTopWidth: i > 0 ? 1 : 0,
                     borderTopColor: theme.border.subtle,
-                    backgroundColor: on ? status.review.softBg : theme.surface.raised,
+                    backgroundColor: on ? theme.accent.softBg : theme.surface.raised,
                   }}
                 >
                   <View

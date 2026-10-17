@@ -174,6 +174,23 @@ function Head({ run, open = false }: { run: ProcessRun; open?: boolean }) {
   )
 }
 
+/** The runs the Playground's "Run" control names. */
+const RUNS: Record<string, ProcessRun> = {
+  running: RUNNING,
+  pending: PENDING,
+  parked: PARKED,
+  ended: ENDED,
+}
+
+function headFrame(run: ProcessRun, open: boolean): ReactNode {
+  const frame = (
+    <div className="overflow-hidden rounded-lg border border-(--border-subtle)">
+      <Head run={run} open={open} />
+    </div>
+  )
+  return open ? <div className="min-h-[420px]">{frame}</div> : frame
+}
+
 function headState(
   id: string,
   title: string,
@@ -181,17 +198,12 @@ function headState(
   run: ProcessRun,
   open = false,
 ): SceneState {
-  const frame = (
-    <div className="overflow-hidden rounded-lg border border-(--border-subtle)">
-      <Head run={run} open={open} />
-    </div>
-  )
   return {
     id,
     title,
     description,
     ...(open ? { overlay: true } : {}),
-    render: (): ReactNode => (open ? <div className="min-h-[420px]">{frame}</div> : frame),
+    render: (): ReactNode => headFrame(run, open),
   }
 }
 
@@ -279,6 +291,36 @@ export const PROCESS_MODEL_SCENES: Scene[] = [
         true,
       ),
     ],
+    controls: [
+      {
+        id: 'run',
+        label: 'Run',
+        kind: 'choice',
+        options: [
+          { id: 'running', label: 'Live, nothing waiting' },
+          { id: 'pending', label: 'Change waiting for the next step' },
+          { id: 'parked', label: 'Waiting on you' },
+          { id: 'ended', label: 'Ended' },
+        ],
+        default: 'running',
+      },
+      { id: 'picker', label: 'Picker open', kind: 'toggle', default: false },
+    ],
+    presets: [
+      { id: 'idle-editable', name: 'Live, nothing waiting', values: { run: 'running' } },
+      {
+        id: 'pending-next-step',
+        name: 'Change waiting for the step at work',
+        values: { run: 'pending' },
+      },
+      {
+        id: 'parked-applies-now',
+        name: 'Waiting on the person — applies now',
+        values: { run: 'parked' },
+      },
+      { id: 'ended-read-only', name: 'Ended — read-only', values: { run: 'ended' } },
+    ],
+    play: (values) => headFrame(RUNS[values.run ?? 'running']!, values.picker === 'true'),
   },
   {
     id: 'run-chat-model-chip',

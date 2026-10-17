@@ -88,6 +88,20 @@ describe('processTimeDetailsView', () => {
     expect(view?.rows.map((r) => r.share)).toEqual(['0%', '100%'])
   })
 
+  it('says a wait for a turn behind other check runs apart from a wait on a person', () => {
+    const view = processTimeDetailsView(
+      breakdown({ systemMs: MIN, waitingMs: 9 * MIN, queuedMs: 4 * MIN }),
+      MIN,
+    )
+    expect(view).toMatchObject({ waiting: '5m 00s', queued: '4m 00s', total: '1m 00s' })
+  })
+
+  it('says only the wait for a turn when nobody was waited on', () => {
+    const view = processTimeDetailsView(breakdown({ waitingMs: 3 * MIN, queuedMs: 3 * MIN }), 0)
+    expect(view?.queued).toBe('3m 00s')
+    expect(view).not.toHaveProperty('waiting')
+  })
+
   it('says nothing of waiting when there was none', () => {
     expect(processTimeDetailsView(overall, OVERALL_MS)).not.toHaveProperty('waiting')
   })

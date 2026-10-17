@@ -4,7 +4,7 @@ import { IconClose } from '../../icons'
 
 const TONE_CLASS: Record<GitMergeOutcomeLine['tone'], string> = {
   success: 'bg-(--status-done-soft-bg) text-(--status-done-soft-fg)',
-  info: 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg)',
+  info: 'bg-(--accent-soft-bg) text-(--accent-soft-fg)',
   warning: 'bg-(--status-working-soft-bg) text-(--text-primary)',
   error: 'bg-(--status-stuck-soft-bg) text-(--status-stuck-soft-fg)',
 }

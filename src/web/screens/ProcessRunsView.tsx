@@ -228,7 +228,8 @@ export default function ProcessRunsView({
   )
 }
 
-function RunSection({
+/** One section of the Current tab: its heading and count in its tone, and its run rows. */
+export function RunSection({
   section,
   badgeColor,
   now,

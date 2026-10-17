@@ -99,7 +99,7 @@ export default function ScreensTab({
         {/* Say it is still running. Without this the strip looks finished and a
             partial set reads as the whole answer. */}
         {capturing ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-(--status-review-soft-bg) px-2 py-0.5 text-[11px] font-medium text-(--status-review-fg)">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-(--status-running-soft-bg) px-2 py-0.5 text-[11px] font-medium text-(--status-running-soft-fg)">
             <span className="size-1.5 animate-pulse rounded-full bg-current" />
             Still capturing
           </span>

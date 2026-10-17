@@ -11,6 +11,7 @@ import type {
   BillingBasis,
   ChatBackgroundJobResult,
   ChatOpenChangesCard,
+  ChatOpenQuestionsCard,
   ProcessManagerChatCard,
 } from 'thefactory-tools/types'
 
@@ -158,6 +159,8 @@ export type ChatMessageLike = {
   managerCard?: ProcessManagerChatCard
   /** A card the host posted about the chat's open changes — shown live from them, never from the card. */
   openChangesCard?: ChatOpenChangesCard
+  /** The questions a paused run waits on — shown live from the story, each with its answer box. */
+  openQuestionsCard?: ChatOpenQuestionsCard
   /**
    * Set on the message the host delivered results of earlier calls by — calls
    * that finished in the background, one entry per call.

@@ -83,6 +83,28 @@
   --color-blue-800: #1e40af;
   --color-blue-900: #1e3a8a;
 
+  --color-sky-50: #f0f9ff;
+  --color-sky-100: #e0f2fe;
+  --color-sky-200: #bae6fd;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-sky-700: #0369a1;
+  --color-sky-800: #075985;
+  --color-sky-900: #0c4a6e;
+
+  --color-gold-50: #fffbe6;
+  --color-gold-100: #fff4bf;
+  --color-gold-200: #ffe98a;
+  --color-gold-300: #fbdc52;
+  --color-gold-400: #f5cc1f;
+  --color-gold-500: #e6b800;
+  --color-gold-600: #bf9900;
+  --color-gold-700: #957700;
+  --color-gold-800: #6e5800;
+  --color-gold-900: #4d3d00;
+
   --color-teal-50: #e6fbfc;
   --color-teal-100: #ccf7f8;
   --color-teal-200: #99eff1;
@@ -132,6 +154,9 @@
   --accent-primary: #0073ea;
   --accent-primary-hover: #005dc1;
   --accent-primary-active: #004798;
+  --accent-soft-bg: color-mix(in srgb, var(--color-brand-600) 10%, transparent);
+  --accent-soft-fg: #005dc1;
+  --accent-soft-border: #66abf8;
 
   --focus-ring: #338ff4;
 
@@ -140,14 +165,16 @@
   --status-empty-fg: #000000;
   --status-done-bg: #00c875;
   --status-done-fg: #053b2e;
+  --status-running-bg: #0369a1;
+  --status-running-fg: #ffffff;
   --status-working-bg: #fdab3d;
   --status-working-fg: #231200;
   --status-stuck-bg: #e2445c;
   --status-stuck-fg: #ffffff;
   --status-on_hold-bg: #a25ddc;
   --status-on_hold-fg: #ffffff;
-  --status-review-bg: #579bfc;
-  --status-review-fg: #ffffff;
+  --status-review-bg: #e6b800;
+  --status-review-fg: #2b2200;
   --status-queued-bg: #eaeaea;
   --status-queued-fg: #1f2937;
   --status-blocked-bg: #b42318;
@@ -160,6 +187,9 @@
   --status-done-soft-bg: color-mix(in srgb, var(--color-green-600) 15%, transparent);
   --status-done-soft-fg: #00884f;
   --status-done-soft-border: #3fe1ab;
+  --status-running-soft-bg: color-mix(in srgb, var(--color-sky-600) 14%, transparent);
+  --status-running-soft-fg: #0369a1;
+  --status-running-soft-border: #38bdf8;
   --status-working-soft-bg: color-mix(in srgb, var(--color-orange-650) 18%, transparent);
   --status-working-soft-fg: #b15f00;
   --status-working-soft-border: #fda23d;
@@ -169,9 +199,9 @@
   --status-on_hold-soft-bg: color-mix(in srgb, var(--color-purple-650) 12%, transparent);
   --status-on_hold-soft-fg: #6632c2;
   --status-on_hold-soft-border: #9b55e2;
-  --status-review-soft-bg: color-mix(in srgb, var(--color-blue-650) 12%, transparent);
-  --status-review-soft-fg: #1d4ed8;
-  --status-review-soft-border: #60a5fa;
+  --status-review-soft-bg: color-mix(in srgb, var(--color-gold-500) 18%, transparent);
+  --status-review-soft-fg: #6e5800;
+  --status-review-soft-border: #f5cc1f;
   --status-queued-soft-bg: color-mix(in srgb, var(--status-queued-bg) 30%, transparent);
   --status-queued-soft-fg: #1f2937;
   --status-queued-soft-border: #d4d4d4;
@@ -286,6 +316,9 @@
   --accent-primary: #0f7eeb;
   --accent-primary-hover: #338ff4;
   --accent-primary-active: #0073ea;
+  --accent-soft-bg: color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+  --accent-soft-fg: #99c7fb;
+  --accent-soft-border: color-mix(in srgb, var(--color-brand-500) 55%, transparent);
 
   --focus-ring: #338ff4;
 
@@ -294,14 +327,16 @@
   --status-empty-fg: var(--text-primary);
   --status-done-bg: color-mix(in srgb, var(--color-green-600) 85%, #0b0f14);
   --status-done-fg: #e9fff6;
+  --status-running-bg: color-mix(in srgb, var(--color-sky-500) 90%, #0b0f14);
+  --status-running-fg: #04202e;
   --status-working-bg: color-mix(in srgb, var(--color-orange-650) 80%, #0b0f14);
   --status-working-fg: #1b1200;
   --status-stuck-bg: color-mix(in srgb, var(--color-red-600) 85%, #0b0f14);
   --status-stuck-fg: #fff5f6;
   --status-on_hold-bg: color-mix(in srgb, var(--color-purple-650) 85%, #0b0f14);
   --status-on_hold-fg: #f7f1ff;
-  --status-review-bg: color-mix(in srgb, var(--color-blue-650) 85%, #0b0f14);
-  --status-review-fg: #f2f7ff;
+  --status-review-bg: color-mix(in srgb, var(--color-gold-500) 85%, #0b0f14);
+  --status-review-fg: #1f1800;
   --status-queued-bg: #313843;
   --status-queued-fg: #e5e7eb;
   --status-blocked-bg: color-mix(in srgb, #b42318 85%, #0b0f14);
@@ -314,6 +349,9 @@
   --status-done-soft-bg: color-mix(in srgb, var(--color-green-600) 18%, transparent);
   --status-done-soft-fg: #bbf7e1;
   --status-done-soft-border: color-mix(in srgb, var(--color-green-600) 60%, transparent);
+  --status-running-soft-bg: color-mix(in srgb, var(--color-sky-500) 18%, transparent);
+  --status-running-soft-fg: #bae6fd;
+  --status-running-soft-border: color-mix(in srgb, var(--color-sky-500) 60%, transparent);
   --status-working-soft-bg: color-mix(in srgb, var(--color-orange-650) 20%, transparent);
   --status-working-soft-fg: #ffe6c7;
   --status-working-soft-border: color-mix(in srgb, var(--color-orange-650) 60%, transparent);
@@ -323,9 +361,9 @@
   --status-on_hold-soft-bg: color-mix(in srgb, var(--color-purple-650) 16%, transparent);
   --status-on_hold-soft-fg: #e7d8ff;
   --status-on_hold-soft-border: color-mix(in srgb, var(--color-purple-650) 60%, transparent);
-  --status-review-soft-bg: color-mix(in srgb, var(--color-blue-650) 16%, transparent);
-  --status-review-soft-fg: #d9e7ff;
-  --status-review-soft-border: color-mix(in srgb, var(--color-blue-650) 60%, transparent);
+  --status-review-soft-bg: color-mix(in srgb, var(--color-gold-500) 18%, transparent);
+  --status-review-soft-fg: #ffe98a;
+  --status-review-soft-border: color-mix(in srgb, var(--color-gold-500) 60%, transparent);
   --status-queued-soft-bg: color-mix(in srgb, var(--status-queued-bg) 40%, transparent);
   --status-queued-soft-fg: #e5e7eb;
   --status-queued-soft-border: #505963;

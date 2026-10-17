@@ -150,6 +150,11 @@ export default function LaunchFeatureList({
                   {flag.label} cannot be proven here: {flag.reason}
                 </span>
               ))}
+              {proof?.dropped.map((line) => (
+                <span key={line} className="text-[11px] text-(--text-secondary)">
+                  {line}
+                </span>
+              ))}
               {proof?.uiWarning ? (
                 <span
                   role="alert"
@@ -157,6 +162,9 @@ export default function LaunchFeatureList({
                 >
                   {proof.uiWarning}
                 </span>
+              ) : null}
+              {proof?.uiHint ? (
+                <span className="text-[11px] text-(--text-secondary)">{proof.uiHint}</span>
               ) : null}
 
               {open && proof ? (
@@ -174,7 +182,7 @@ export default function LaunchFeatureList({
                         title={
                           kind.unavailable ? `${kind.meaning} — ${kind.unavailable}` : kind.meaning
                         }
-                        disabled={busy}
+                        disabled={busy || kind.disabled}
                         onClick={() => onToggleKind(row.featureId, kind.kind)}
                         className={`rounded-full border px-2 py-0.5 text-[11.5px] focus-visible:outline-2 focus-visible:outline-(--accent-primary) disabled:opacity-50 ${
                           kind.checked

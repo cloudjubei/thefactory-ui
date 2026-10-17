@@ -131,6 +131,8 @@ export type UseCliRunArtifact = {
   reviewInProgress: boolean
   /** The story this run executes a FEATURE of, when it is a story sub-run. */
   storyId: string | undefined
+  /** The chat whose turn this run is (`getChatContextKey`), when a chat started it. */
+  chatContextId: string | undefined
   /**
    * The owning `ProcessRun.id` when this CLI run is a process STEP. Its presence
    * makes the sign-off surface report-only — evidence is shown, but the verdict
@@ -943,6 +945,7 @@ export function useCliRunArtifact(
     verdict,
     reviewInProgress,
     storyId,
+    chatContextId,
     processRunId,
     processRole,
     landFailure,

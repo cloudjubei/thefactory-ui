@@ -76,6 +76,12 @@ export interface ChatSettingsDropdownProps {
   onToolApprovalChange?: (auto: boolean) => Promise<void> | void
   /** This chat's key: shows "Rules for this chat" — its own always-allow rules, removable. Hidden when absent. */
   rulesChatContextId?: string
+  /**
+   * Whether this chat may end a turn on a failed tool — only a person's own
+   * chat on an API model. A CLI agent and a run's agents always read the
+   * failure and go on, so the row is hidden for them.
+   */
+  offersFinishTurnOnErrors: boolean
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -108,6 +114,7 @@ export default function ChatSettingsDropdown({
   toolApproval,
   onToolApprovalChange,
   rulesChatContextId,
+  offersFinishTurnOnErrors,
   persistSettings,
   extraContent,
   title = CHAT_SETTINGS_MENU_COPY.tune,
@@ -211,33 +218,35 @@ export default function ChatSettingsDropdown({
               max={50}
               onChange={(v) => void persistSettings({ numberMessagesToSend: v })}
             />
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: nativeSpace[3],
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: '500',
-                    color: theme.text.secondary,
-                  }}
-                >
-                  Finish turn on errors
-                </Text>
-                <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
-                  When enabled, the agent ends the current turn if a tool call errors.
-                </Text>
+            {offersFinishTurnOnErrors ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: nativeSpace[3],
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '500',
+                      color: theme.text.secondary,
+                    }}
+                  >
+                    Finish turn on errors
+                  </Text>
+                  <Text style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+                    When enabled, the agent ends the current turn if a tool call errors.
+                  </Text>
+                </View>
+                <Switch
+                  checked={!!completion.finishTurnOnErrors}
+                  onCheckedChange={(c) => void persistSettings({ finishTurnOnErrors: c })}
+                />
               </View>
-              <Switch
-                checked={!!completion.finishTurnOnErrors}
-                onCheckedChange={(c) => void persistSettings({ finishTurnOnErrors: c })}
-              />
-            </View>
+            ) : null}
           </View>
         ) : null}
 

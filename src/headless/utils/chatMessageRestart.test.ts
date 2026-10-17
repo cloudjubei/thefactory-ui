@@ -7,7 +7,14 @@ const base: MessageRestartInput = {
   hasRestartAction: true,
   isLast: true,
   role: 'user',
+  isErrorNotice: false,
   turnInFlight: false,
+}
+const failureNotice: MessageRestartInput = {
+  ...base,
+  role: 'system',
+  isErrorNotice: true,
+  previousRole: 'user',
 }
 
 describe('describeLastUserMessageRestart', () => {
@@ -23,8 +30,28 @@ describe('describeLastUserMessageRestart', () => {
     expect(describeLastUserMessageRestart({ ...base, role: 'assistant' })).toBeUndefined()
   })
 
-  it('offers nothing on a trailing system row, which is what a persisted error is', () => {
+  it('offers nothing on a trailing system row that is no failure notice', () => {
     expect(describeLastUserMessageRestart({ ...base, role: 'system' })).toBeUndefined()
+  })
+
+  it('offers the re-run on the failure notice that followed the person’s message', () => {
+    expect(describeLastUserMessageRestart(failureNotice)).toEqual({
+      label: MESSAGE_RESTART_LABEL,
+      disabled: false,
+    })
+  })
+
+  it('offers nothing on a failure notice that followed no message of the person’s', () => {
+    expect(
+      describeLastUserMessageRestart({ ...failureNotice, previousRole: 'assistant' }),
+    ).toBeUndefined()
+    expect(
+      describeLastUserMessageRestart({ ...failureNotice, previousRole: undefined }),
+    ).toBeUndefined()
+  })
+
+  it('offers nothing on a failure notice that is not the last message', () => {
+    expect(describeLastUserMessageRestart({ ...failureNotice, isLast: false })).toBeUndefined()
   })
 
   it('offers nothing on a trailing tool row', () => {
@@ -63,8 +90,23 @@ describe('isRestartableChatTail', () => {
     expect(isRestartableChatTail([{ role: 'user' }, { role: 'assistant' }])).toBe(false)
   })
 
-  it('refuses a conversation that ends on a persisted error row', () => {
+  it('refuses a conversation that ends on a system row that is no failure notice', () => {
     expect(isRestartableChatTail([{ role: 'user' }, { role: 'system' }])).toBe(false)
+  })
+
+  it('accepts a conversation that ends on the failure notice under the person’s message', () => {
+    expect(
+      isRestartableChatTail([{ role: 'user' }, { role: 'system', content: 'Error', error: 'x' }]),
+    ).toBe(true)
+  })
+
+  it('refuses a failure notice under anything but the person’s message', () => {
+    expect(
+      isRestartableChatTail([
+        { role: 'assistant' },
+        { role: 'system', content: 'Error', error: 'x' },
+      ]),
+    ).toBe(false)
   })
 
   it('refuses an empty conversation', () => {

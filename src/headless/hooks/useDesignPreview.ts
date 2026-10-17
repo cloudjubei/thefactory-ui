@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiContext'
 import { useAuth } from '../api/AuthContext'
-import { designItemContentUrl } from '../utils/design'
+import { designContentUrl } from '../utils/design'
+import type { DesignShown } from '../utils/designTypes'
 import { designSnapshot, designStateOf, ensureDesign, subscribeDesign } from './designStore'
 import type { DesignProjectState } from './designStoreTypes'
 import { useDesignViewToken } from './useDesignViewToken'
 
-/** A project's design as a preview shows it, with where each item's file is served. */
-export type UseDesignPreview = Pick<DesignProjectState, 'tree' | 'isLoaded'> & {
-  /** An item's file with the view token; `undefined` until the token is minted. */
-  contentUrl: (itemId: string) => string | undefined
+/** A project's design as a preview shows it, with where each file is served. */
+export type UseDesignPreview = Pick<DesignProjectState, 'index' | 'isLoaded'> & {
+  /** A shown file's address with the view token; `undefined` until the token is minted. */
+  contentUrl: (shown: DesignShown) => string | undefined
 }
 
 /**
@@ -21,7 +22,7 @@ export function useDesignPreview(projectId: string | undefined): UseDesignPrevie
   const { ws, apiBaseUrl } = useApi()
   const { token: bearer } = useAuth()
   const snapshot = useSyncExternalStore(subscribeDesign, designSnapshot, designSnapshot)
-  const { tree, isLoaded } = designStateOf(snapshot, projectId)
+  const { index, isLoaded } = designStateOf(snapshot, projectId)
   const { token } = useDesignViewToken(projectId)
 
   useEffect(() => {
@@ -37,11 +38,14 @@ export function useDesignPreview(projectId: string | undefined): UseDesignPrevie
   }, [ws, projectId])
 
   const contentUrl = useCallback(
-    (itemId: string) =>
+    (shown: DesignShown) =>
       token && projectId
-        ? designItemContentUrl(apiBaseUrl ?? '', projectId, itemId, token)
+        ? designContentUrl(apiBaseUrl ?? '', projectId, shown.ref, {
+            viewToken: token,
+            ...(shown.caseQuery ? { caseQuery: shown.caseQuery } : {}),
+          })
         : undefined,
     [apiBaseUrl, projectId, token],
   )
-  return { tree, isLoaded, contentUrl }
+  return { index, isLoaded, contentUrl }
 }

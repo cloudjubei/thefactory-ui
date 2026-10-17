@@ -1,4 +1,4 @@
-import type { Feature, ProcessRun } from 'thefactory-tools/types'
+import type { Feature, ProcessRun, ProcessRunStopHolder } from 'thefactory-tools/types'
 import { processStepStates } from 'thefactory-tools/utils'
 
 import { processNodeBadge, processNodeState, processNodeTone } from './processView'
@@ -91,12 +91,18 @@ export function stepsStripView(
 /**
  * A process run's steps as strip entries: the step it sits on — running or
  * parked — is current, steps it finished are done, and steps it has not reached
- * or will run again are upcoming. A retried step carries its attempt pill. Pure.
+ * or will run again are upcoming. A retried step carries its attempt pill. The
+ * step a run is stopped at reads as work going on while `stopHolder` says its
+ * agent manager has the stop. Pure.
  */
-export function processRunStripEntries(run: ProcessRun): StepsStripEntry[] {
+export function processRunStripEntries(
+  run: ProcessRun,
+  stopHolder?: ProcessRunStopHolder,
+): StepsStripEntry[] {
   const parkStepId = run.park?.stepId
   return processStepStates(run).map((state) => {
-    const nodeState = processNodeState(state, parkStepId)
+    const stopped = processNodeState(state, parkStepId)
+    const nodeState = stopped === 'parked' && stopHolder === 'manager' ? 'working' : stopped
     const phase: StepsStripPhase =
       state.current || nodeState === 'parked' || nodeState === 'working'
         ? 'current'

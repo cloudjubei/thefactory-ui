@@ -8,7 +8,7 @@ import type {
 import {
   isReflectedPark,
   processAgentLabel,
-  processParkChoices,
+  processRunParkChoices,
   processWaitingItemChoices,
   processWaitingOpenItems,
 } from 'thefactory-tools/utils'
@@ -89,7 +89,7 @@ function processWaitingRequestView(item: ProcessWaitingItem): ProcessWaitingRequ
  * the nested run.
  */
 export function processWaitingView(
-  run: Pick<ProcessRun, 'park' | 'projectId'>,
+  run: Parameters<typeof processRunParkChoices>[0] & Pick<ProcessRun, 'projectId'>,
 ): ProcessWaitingView | undefined {
   const park = run.park
   const ask = park?.ask
@@ -108,7 +108,7 @@ export function processWaitingView(
     details: processWaitingDetails(ask),
     ...(ask.runRef?.chatContextId ? { transcript: ask.runRef } : {}),
     transcriptLabel: `Open the ${processAgentLabel(ask.agent)}’s transcript →`,
-    choices: processParkChoices('step-waiting', { ask }),
+    choices: processRunParkChoices(run),
     ...(ask.items ? { requests: ask.items.map(processWaitingRequestView) } : {}),
     ...(chatContext ? { delegated: { chatContext, label: WAITING_DELEGATED_LABEL } } : {}),
   }

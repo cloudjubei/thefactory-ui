@@ -1,299 +1,473 @@
 import { describe, expect, it } from 'vitest'
-import type { DesignItem, DesignScreenTree, DesignTree } from '../api'
+import type { DesignIndex, DesignProposal, DesignSource, DesignVersion } from '../api'
 import {
-  designCompareBaseline,
+  designAppNav,
+  designAskSummary,
+  designCaseMatrix,
+  designComponentUsers,
   designDeleteSummary,
   designDiscussDraft,
-  designItemAddedByLabel,
-  designItemFileName,
-  designPreviewItem,
+  designFileTargets,
+  designFirstProposal,
+  designHistory,
+  designOriginText,
+  designPreviewShown,
+  designProposalGroups,
+  designProposalSummary,
   designReferencePreview,
   designSelection,
+  designTidyMoveView,
   storageUsageBreakdown,
   storageUsageSummary,
   storageWarningNotification,
 } from './designView'
-import { STORAGE_WARNING_TEXT } from './designViewConstants'
 
-const SHA = 'a'.repeat(64)
-const MB = 1024 * 1024
-const GB = 1024 * MB
-
-const item = (over: Partial<DesignItem>): DesignItem => ({
-  id: 'i1',
-  screenId: 's1',
-  kind: 'design',
-  name: 'mock.png',
-  source: { type: 'blob', sha256: SHA, mediaType: 'image/png', bytes: 4, originalName: 'mock.png' },
-  addedBy: { by: 'person' },
-  createdAt: 1,
-  updatedAt: 1,
+const at = { createdAt: 1, updatedAt: 1 }
+const blob = (ch: string): DesignSource => ({
+  type: 'blob',
+  sha256: ch.repeat(64),
+  mediaType: 'image/png',
+  bytes: 3,
+  originalName: `${ch}.png`,
+})
+const version = (
+  id: string,
+  stateId: string,
+  variant: string,
+  number: number,
+  ch: string,
+  createdAt = number,
+): DesignVersion => ({
+  id,
+  stateId,
+  variant,
+  number,
+  source: blob(ch),
+  origin: { by: 'person' },
+  createdAt,
+})
+const proposal = (over: Partial<DesignProposal> & Pick<DesignProposal, 'id'>): DesignProposal => ({
+  appId: 'a1',
+  title: over.id,
+  status: 'open',
+  origin: { by: 'agent' },
+  entries: [],
+  pieces: [],
+  ...at,
   ...over,
 })
-
-const screenOf = (id: string, items: DesignItem[], appId = 'a1'): DesignScreenTree => ({
+const entry = (id: string, target: object, variant: string, ch: string) => ({
   id,
-  appId,
-  name: `Screen ${id}`,
-  createdAt: 1,
-  updatedAt: 1,
-  items: items.map((i) => ({ ...i, screenId: id })),
+  target,
+  variant,
+  source: blob(ch),
+  links: [],
+  pieces: [],
 })
 
-const html = item({
-  id: 'h1',
-  name: 'mock.html',
-  source: { type: 'project-file', path: 'design/mock.html' },
-})
-
-const login = screenOf('s1', [
-  item({ id: 'd1' }),
-  item({ id: 'd2', approved: true, createdAt: 2 }),
-  item({ id: 'b1', kind: 'built', createdAt: 3 }),
-  item({ id: 'b2', kind: 'built', createdAt: 5 }),
-  item({ id: 'b3', kind: 'built', createdAt: 4 }),
-])
-const empty = screenOf('s2', [])
-
-const tree: DesignTree = {
-  apps: [
-    { id: 'a0', name: 'Web', kind: 'product', createdAt: 1, updatedAt: 1, screens: [] },
-    {
-      id: 'a1',
-      name: 'Android',
-      kind: 'product',
-      createdAt: 1,
-      updatedAt: 1,
-      screens: [login, empty],
-    },
-  ],
+function design(): DesignIndex {
+  return {
+    version: 2,
+    apps: [
+      { id: 'a1', name: 'Game', kind: 'product', aliases: [], ...at },
+      { id: 'a2', name: 'Site', kind: 'product', aliases: [], ...at },
+    ],
+    screens: [
+      {
+        id: 's1',
+        appId: 'a1',
+        name: 'Army setup',
+        kind: 'screen',
+        aliases: [],
+        uses: ['c1'],
+        variants: ['Light', 'Dark'],
+        ...at,
+      },
+      {
+        id: 'c1',
+        appId: 'a1',
+        name: 'Faction chip',
+        kind: 'component',
+        group: 'Chips',
+        aliases: [],
+        uses: [],
+        variants: [],
+        ...at,
+      },
+      {
+        id: 'c2',
+        appId: 'a1',
+        name: 'Loose',
+        kind: 'component',
+        aliases: [],
+        uses: [],
+        variants: [],
+        ...at,
+      },
+      {
+        id: 's2',
+        appId: 'a2',
+        name: 'Home',
+        kind: 'screen',
+        aliases: [],
+        uses: [],
+        variants: [],
+        ...at,
+      },
+    ],
+    states: [
+      { id: 'st1', screenId: 's1', name: 'Empty army', ...at },
+      { id: 'st2', screenId: 's1', name: 'Full army', ...at },
+    ],
+    versions: [
+      version('v1', 'st1', 'Light', 1, 'a', 1),
+      version('v2', 'st1', 'Light', 2, 'b', 5),
+      { ...version('v3', 'st1', 'Dark', 1, 'c', 3), proposalId: 'old' },
+    ],
+    proposals: [
+      proposal({
+        id: 'faction',
+        title: 'Faction cards',
+        createdAt: 30,
+        entries: [
+          entry('e1', { screenId: 's1', stateId: 'st1' }, 'Light', 'd'),
+          entry('e2', { screenName: 'Picker' }, 'Light', 'e'),
+        ],
+      }),
+      proposal({
+        id: 'compact',
+        title: 'Compact',
+        question: 'How should it look?',
+        status: 'accepted',
+        createdAt: 10,
+        entries: [entry('f1', {}, 'Visual', 'f')],
+      }),
+      proposal({
+        id: 'grid',
+        title: 'Grid',
+        question: 'How should it look?',
+        status: 'alternative',
+        createdAt: 11,
+        entries: [entry('g1', {}, 'Visual', 'g'), entry('g2', {}, 'Readable', 'h')],
+      }),
+      proposal({ id: 'old', title: 'Old look', status: 'accepted', createdAt: 2 }),
+      proposal({ id: 'site', appId: 'a2', createdAt: 40 }),
+    ],
+    tidyPlans: [],
+  }
 }
 
 describe('designSelection', () => {
-  it('opens the item a link names, on its own screen, even when the screen is not named', () => {
-    expect(designSelection(tree, { item: 'b2' })).toEqual({ screenId: 's1', itemId: 'b2' })
+  it('opens a proposal in its app’s proposals', () => {
+    expect(designSelection(design(), { proposal: 'site', tab: 'history' })).toEqual({
+      appId: 'a2',
+      tab: 'proposals',
+      proposalId: 'site',
+    })
   })
 
-  it('goes by the item over a screen it is not on', () => {
-    expect(designSelection(tree, { screen: 's2', item: 'b2' })).toEqual({
+  it('opens a state, with its variant, in its app’s current design', () => {
+    expect(designSelection(design(), { state: 'st2', variant: 'Dark' })).toEqual({
+      appId: 'a1',
+      tab: 'current',
       screenId: 's1',
-      itemId: 'b2',
+      stateId: 'st2',
+      variant: 'Dark',
     })
+    expect(designSelection(design(), { state: 'st2' })).not.toHaveProperty('variant')
   })
 
-  it('selects the screen a link names and opens nothing', () => {
-    expect(designSelection(tree, { screen: 's2' })).toEqual({ screenId: 's2' })
-  })
-
-  it('falls back to the first screen when what the link names is gone', () => {
-    expect(designSelection(tree, { screen: 'gone', item: 'gone' })).toEqual({ screenId: 's1' })
-  })
-
-  it('selects the first screen of the first app that has one', () => {
-    expect(designSelection(tree, {})).toEqual({ screenId: 's1' })
-  })
-
-  it('selects nothing in a design with no screens', () => {
-    expect(designSelection({ apps: [] }, { screen: 's1' })).toEqual({})
-    expect(designSelection({ apps: [tree.apps[0]!] }, {})).toEqual({})
+  it('opens a screen on the tab asked for, else an app, else the first app', () => {
+    expect(designSelection(design(), { screen: 's1', tab: 'history' })).toEqual({
+      appId: 'a1',
+      tab: 'history',
+      screenId: 's1',
+    })
+    expect(designSelection(design(), { app: 'a2', tab: 'tidy' })).toEqual({
+      appId: 'a2',
+      tab: 'tidy',
+    })
+    expect(designSelection(design(), { app: 'nope', tab: 'weird' })).toEqual({
+      appId: 'a1',
+      tab: 'current',
+    })
+    expect(designSelection(design(), { proposal: 'nope', state: 'nope', screen: 'nope' })).toEqual({
+      appId: 'a1',
+      tab: 'current',
+    })
+    expect(designSelection({ ...design(), apps: [] }, {})).toEqual({ tab: 'current' })
   })
 })
 
-describe('designPreviewItem', () => {
-  it('shows a screen by its approved design', () => {
-    expect(designPreviewItem(login)?.id).toBe('d2')
-  })
-
-  it('shows the latest built version when no draft is approved', () => {
-    const unapproved = screenOf('s3', [
-      item({ id: 'd1' }),
-      item({ id: 'b1', kind: 'built', createdAt: 3 }),
-      item({ id: 'b2', kind: 'built', createdAt: 9 }),
+describe('designAppNav', () => {
+  it('lists screens with what waits on them, components by group, and the app’s counts', () => {
+    const nav = designAppNav(design(), 'a1')!
+    expect(nav.screens).toEqual([{ id: 's1', name: 'Army setup', states: 2, waiting: 1 }])
+    expect(nav.componentGroups).toEqual([
+      { group: 'Chips', components: [{ id: 'c1', name: 'Faction chip', states: 0, waiting: 0 }] },
+      { group: 'Components', components: [{ id: 'c2', name: 'Loose', states: 0, waiting: 0 }] },
     ])
-    expect(designPreviewItem(unapproved)?.id).toBe('b2')
-  })
-
-  it('has nothing to show for a screen with only unapproved drafts, or nothing', () => {
-    expect(designPreviewItem(screenOf('s3', [item({ id: 'd1' })]))).toBeUndefined()
-    expect(designPreviewItem(empty)).toBeUndefined()
+    expect(nav.openProposals).toBe(1)
+    expect(nav.versions).toBe(3)
+    expect(designAppNav(design(), 'nope')).toBeUndefined()
   })
 })
 
-describe('designReferencePreview', () => {
-  it('previews the item a link names', () => {
-    expect(designReferencePreview(tree, { screenId: 's1', itemId: 'b1' })?.id).toBe('b1')
+describe('proposals', () => {
+  it('sums up what a proposal changes', () => {
+    expect(designProposalSummary([])).toBe('0 images')
+    expect(
+      designProposalSummary([
+        { entryId: 'a', variant: 'L', mark: 'changed' },
+        { entryId: 'b', variant: 'L', mark: 'new-screen' },
+        { entryId: 'c', variant: 'L', mark: 'new' },
+        { entryId: 'd', variant: 'L', mark: 'unchanged' },
+        { entryId: 'e', variant: 'L', mark: 'unfiled' },
+      ]),
+    ).toBe('1 changed · 2 new · 1 unchanged · 1 not filed')
   })
 
-  it('previews a screen link by what the screen shows', () => {
-    expect(designReferencePreview(tree, { screenId: 's1' })?.id).toBe('d2')
+  it('groups an app’s proposals: waiting, the answers to each question, then the decided, newest first', () => {
+    const groups = designProposalGroups(design(), 'a1')
+    expect(groups.map((g) => [g.key, g.title, g.items.map((i) => i.proposal.id)])).toEqual([
+      ['waiting', 'Waiting for you', ['faction']],
+      ['q:How should it look?', 'Answers to “How should it look?”', ['grid', 'compact']],
+      ['decided', 'Decided', ['old']],
+    ])
+    expect(groups[0]!.items[0]!.summary).toBe('1 changed · 1 new')
+    expect(groups[1]!.question).toBe('How should it look?')
+    expect(designProposalGroups(design(), 'a2').map((g) => g.key)).toEqual(['waiting'])
+    expect(designProposalGroups({ ...design(), proposals: [] }, 'a1')).toEqual([])
   })
 
-  it('previews nothing for a link to what is gone', () => {
-    expect(designReferencePreview(tree, { screenId: 's1', itemId: 'gone' })).toBeUndefined()
-    expect(designReferencePreview(tree, { screenId: 'gone' })).toBeUndefined()
-    expect(designReferencePreview(tree, {})).toBeUndefined()
+  it('picks the proposal asked for, else the newest open one, else the newest', () => {
+    expect(designFirstProposal(design(), 'a1', 'grid')?.id).toBe('grid')
+    expect(designFirstProposal(design(), 'a1')?.id).toBe('faction')
+    const decided = {
+      ...design(),
+      proposals: design().proposals.map((p) => ({ ...p, status: 'accepted' as const })),
+    }
+    expect(designFirstProposal(decided, 'a1')?.id).toBe('faction')
+    expect(designFirstProposal(design(), 'nope')).toBeUndefined()
+  })
+
+  it('lays the answers to a question out as cases: a row per choice, a column per variant', () => {
+    const matrix = designCaseMatrix(design(), 'a1', 'How should it look?')!
+    expect(matrix.variants).toEqual(['Visual', 'Readable'])
+    expect(matrix.rows.map((r) => [r.proposal.id, r.cells.map((c) => c?.id ?? null)])).toEqual([
+      ['compact', ['f1', null]],
+      ['grid', ['g1', 'g2']],
+    ])
+    expect(designCaseMatrix(design(), 'a1', 'Nobody asked')).toBeUndefined()
   })
 })
 
-describe('designCompareBaseline', () => {
-  it('compares a built version with the approved design when that is an image', () => {
-    expect(designCompareBaseline(login, 'b3')).toEqual({
-      item: expect.objectContaining({ id: 'd2' }),
-      label: 'Approved design',
+describe('designHistory', () => {
+  it('lists each screen’s states with their versions newest first, the current marked, and where each came from', () => {
+    const history = designHistory(design(), 'a1')
+    expect(history).toHaveLength(1)
+    expect(history[0]!.screen.id).toBe('s1')
+    expect(history[0]!.states.map((s) => s.state.id)).toEqual(['st1'])
+    expect(history[0]!.states[0]!.versions.map((v) => [v.version.id, v.current, v.from])).toEqual([
+      ['v2', true, 'From you'],
+      ['v3', true, 'Old look'],
+      ['v1', false, 'From you'],
+    ])
+    expect(designHistory(design(), 'a2')).toEqual([])
+  })
+
+  it('says where a version or proposal came from', () => {
+    expect(designOriginText({ by: 'run' })).toBe('From a run')
+    expect(designOriginText({ by: 'agent' })).toBe('From an agent')
+    expect(designOriginText({ by: 'person' })).toBe('From you')
+  })
+})
+
+describe('designTidyMoveView', () => {
+  it('names what each kind of move takes and where it goes', () => {
+    const index = design()
+    const view = (move: Parameters<typeof designTidyMoveView>[1]) => designTidyMoveView(index, move)
+    const base = { id: 'm', title: 't', why: 'w' }
+    expect(
+      view({ ...base, kind: 'merge-apps', from: ['a2', 'gone'], to: { id: 'a1' } }),
+    ).toMatchObject({
+      kindLabel: 'Merge apps',
+      from: ['Site', 'gone'],
+      to: 'Game',
     })
-  })
-
-  it('compares with the built version before it when the approved design is not an image', () => {
-    const screen = screenOf('s3', [
-      { ...html, approved: true },
-      item({ id: 'b1', kind: 'built', createdAt: 3 }),
-      item({ id: 'b2', kind: 'built', createdAt: 5 }),
-    ])
-    expect(designCompareBaseline(screen, 'b2')).toEqual({
-      item: expect.objectContaining({ id: 'b1' }),
-      label: 'Previous built version',
+    expect(
+      view({ ...base, kind: 'merge-screens', from: ['s2'], to: { name: 'Standings' } }),
+    ).toMatchObject({
+      from: ['Site › Home'],
+      to: 'Standings',
     })
+    expect(
+      view({
+        ...base,
+        kind: 'fold-history',
+        from: ['st2'],
+        to: { screenId: 's1', name: 'Current' },
+      }),
+    ).toMatchObject({
+      from: ['Army setup › Full army'],
+      to: 'Army setup › Current',
+    })
+    expect(view({ ...base, kind: 'fold-history', from: ['st2'], to: { id: 'st1' } }).to).toBe(
+      'Army setup › Empty army',
+    )
+    expect(
+      view({ ...base, kind: 'remove-duplicate', from: ['v1'], to: { id: 'v2' } }),
+    ).toMatchObject({
+      from: ['Army setup › Empty army · Light · v1'],
+      to: 'Army setup › Empty army · Light · v2',
+    })
+    expect(view({ ...base, kind: 'merge-screens', from: [], to: {} }).to).toBe('')
+  })
+})
+
+describe('filing, components and previews', () => {
+  it('offers the app’s screens and components, each with its states', () => {
+    expect(designFileTargets(design(), 'a1')).toEqual([
+      {
+        screenId: 's1',
+        screenName: 'Army setup',
+        kind: 'screen',
+        states: [
+          { id: 'st1', name: 'Empty army' },
+          { id: 'st2', name: 'Full army' },
+        ],
+      },
+      { screenId: 'c1', screenName: 'Faction chip', kind: 'component', states: [] },
+      { screenId: 'c2', screenName: 'Loose', kind: 'component', states: [] },
+    ])
   })
 
-  it('compares with the built version before it when no draft is approved', () => {
-    const screen = screenOf('s3', [
-      item({ id: 'b1', kind: 'built', createdAt: 3 }),
-      item({ id: 'b2', kind: 'built', createdAt: 5 }),
-      item({ id: 'b0', kind: 'built', createdAt: 1 }),
-    ])
-    expect(designCompareBaseline(screen, 'b1')?.item.id).toBe('b0')
+  it('names the screens that use a component', () => {
+    expect(designComponentUsers(design(), 'c1')).toEqual(['Army setup'])
+    expect(designComponentUsers(design(), 'c2')).toEqual([])
   })
 
-  it('has nothing to compare the oldest built version with, nor a draft, nor what is gone', () => {
-    const screen = screenOf('s3', [
-      item({ id: 'd1' }),
-      item({ id: 'b1', kind: 'built', createdAt: 3 }),
-    ])
-    expect(designCompareBaseline(screen, 'b1')).toBeUndefined()
-    expect(designCompareBaseline(login, 'd1')).toBeUndefined()
-    expect(designCompareBaseline(login, 'gone')).toBeUndefined()
+  it('previews a screen by its first current look, and a state by its own', () => {
+    expect(designPreviewShown(design(), 's1')?.ref).toEqual({ versionId: 'v2' })
+    expect(designPreviewShown(design(), 'c1')).toBeUndefined()
+    expect(designReferencePreview(design(), { stateId: 'st1' })?.ref).toEqual({ versionId: 'v2' })
+    expect(designReferencePreview(design(), { stateId: 'st2' })).toBeUndefined()
+    expect(designReferencePreview(design(), { stateId: 'nope' })).toBeUndefined()
+    expect(designReferencePreview(design(), { screenId: 's1' })?.ref).toEqual({ versionId: 'v2' })
+    expect(designReferencePreview(design(), {})).toBeUndefined()
   })
 })
 
 describe('designDeleteSummary', () => {
-  it('says how many screens and items go with an app', () => {
-    expect(designDeleteSummary({ kind: 'app', app: tree.apps[1]! })).toBe(
-      'Delete “Android”? Its 2 screens and 5 items go with it.',
+  it('says what goes with what is deleted', () => {
+    const index = design()
+    expect(designDeleteSummary(index, { kind: 'proposal', proposal: index.proposals[0]! })).toBe(
+      'Delete the proposal “Faction cards”?',
     )
-  })
-
-  it('counts one of each in the singular', () => {
-    const app = { ...tree.apps[1]!, screens: [screenOf('s9', [item({})])] }
-    expect(designDeleteSummary({ kind: 'app', app })).toBe(
-      'Delete “Android”? Its 1 screen and 1 item go with it.',
+    expect(designDeleteSummary(index, { kind: 'state', state: index.states[0]! })).toBe(
+      'Delete “Empty army”? Its 3 versions go with it.',
     )
-  })
-
-  it('says how many items go with a screen', () => {
-    expect(designDeleteSummary({ kind: 'screen', screen: login })).toBe(
-      'Delete “Screen s1”? Its 5 items go with it.',
+    expect(designDeleteSummary(index, { kind: 'state', state: index.states[1]! })).toBe(
+      'Delete “Full army”? It has no versions.',
     )
-  })
-
-  it('says when nothing goes with it', () => {
-    expect(designDeleteSummary({ kind: 'screen', screen: empty })).toBe(
-      'Delete “Screen s2”? It has nothing in it.',
+    expect(designDeleteSummary(index, { kind: 'screen', screen: index.screens[0]! })).toBe(
+      'Delete “Army setup”? Its 2 states and 3 versions go with it.',
     )
-    expect(designDeleteSummary({ kind: 'app', app: tree.apps[0]! })).toBe(
-      'Delete “Web”? It has nothing in it.',
+    expect(designDeleteSummary(index, { kind: 'screen', screen: index.screens[1]! })).toBe(
+      'Delete “Faction chip”? It has nothing in it.',
     )
-  })
-
-  it('names an item alone', () => {
-    expect(designDeleteSummary({ kind: 'item', item: item({ name: 'v2.png' }) })).toBe(
-      'Delete “v2.png”?',
+    expect(designDeleteSummary(index, { kind: 'app', app: index.apps[0]! })).toBe(
+      'Delete “Game”? Its 3 screens, 3 versions and 4 proposals go with it.',
+    )
+    const bare = { ...index, screens: [], proposals: [] }
+    expect(designDeleteSummary(bare, { kind: 'app', app: index.apps[1]! })).toBe(
+      'Delete “Site”? It has nothing in it.',
     )
   })
 })
 
 describe('designDiscussDraft', () => {
-  it('puts a screen reference in an empty draft', () => {
+  it('adds a screen or state token to the draft, spaced', () => {
     expect(designDiscussDraft('', { screenId: 's1' })).toBe('&design/s1 ')
-  })
-
-  it('puts an item reference after what is already written, apart from it', () => {
-    expect(designDiscussDraft('Look at', { screenId: 's1', itemId: 'b2' })).toBe(
-      'Look at &design/s1/b2 ',
+    expect(designDiscussDraft('Look at', { screenId: 's1', stateId: 'st1' })).toBe(
+      'Look at &design/s1/st1 ',
     )
-  })
-
-  it('adds no second space after a draft that already ends in one', () => {
-    expect(designDiscussDraft('Look at\n', { screenId: 's1' })).toBe('Look at\n&design/s1 ')
+    expect(designDiscussDraft('Look at ', { screenId: 's1' })).toBe('Look at &design/s1 ')
   })
 })
 
-describe('designItemFileName', () => {
-  it('names an item by the file it was made from', () => {
-    expect(designItemFileName(item({}))).toBe('mock.png')
-    expect(designItemFileName(html)).toBe('mock.html')
-  })
+describe('storage usage', () => {
+  const usage = {
+    designBytes: 2048,
+    evidenceBytes: 1024,
+    uiTestBytes: 0,
+    mobileTestBytes: 0,
+    totalBytes: 3072,
+  }
 
-  it('names a link by the item’s own name', () => {
-    expect(
-      designItemFileName(
-        item({ name: 'Figma frame', source: { type: 'link', url: 'https://x.y' } }),
-      ),
-    ).toBe('Figma frame')
-  })
-})
-
-describe('designItemAddedByLabel', () => {
-  it('says who added an item', () => {
-    expect(designItemAddedByLabel(item({ addedBy: { by: 'person' } }))).toBe('Added by you')
-    expect(designItemAddedByLabel(item({ addedBy: { by: 'agent' } }))).toBe('Added by an agent')
-    expect(designItemAddedByLabel(item({ addedBy: { by: 'run', runId: 'r1' } }))).toBe('From a run')
-  })
-})
-
-const usage = {
-  designBytes: 3 * MB,
-  evidenceBytes: 10 * MB,
-  uiTestBytes: 0,
-  mobileTestBytes: 512 * 1024,
-  totalBytes: 13 * MB + 512 * 1024,
-}
-
-describe('storageUsageSummary', () => {
-  it('reads the project, then every project against the threshold', () => {
+  it('sums up and breaks down a project’s usage', () => {
     expect(
       storageUsageSummary({
-        projectId: 'p1',
+        projectId: 'p',
         usage,
-        standing: { totalBytes: 300 * MB, thresholdBytes: GB, over: false },
+        standing: { totalBytes: 3072, thresholdBytes: 1_048_576, over: false },
       }),
-    ).toBe('13.5 MB · all projects 300 MB of 1 GB')
-  })
-})
-
-describe('storageUsageBreakdown', () => {
-  it('lists each store with its size, the ones holding nothing included', () => {
-    expect(storageUsageBreakdown(usage)).toEqual([
-      { key: 'design', label: 'Design', bytes: 3 * MB, size: '3 MB' },
-      { key: 'evidence', label: 'Run proof', bytes: 10 * MB, size: '10 MB' },
-      { key: 'ui-test', label: 'UI tests', bytes: 0, size: '0 B' },
-      { key: 'mobile-test', label: 'Mobile tests', bytes: 512 * 1024, size: '512 KB' },
+    ).toBe('3 KB · all projects 3 KB of 1 MB')
+    expect(storageUsageBreakdown(usage).map((r) => [r.key, r.size])).toEqual([
+      ['design', '2 KB'],
+      ['evidence', '1 KB'],
+      ['ui-test', '0 B'],
+      ['mobile-test', '0 B'],
     ])
   })
+
+  it('words the warning notification', () => {
+    expect(
+      storageWarningNotification({ totalBytes: 2048, thresholdBytes: 1024, over: true }),
+    ).toMatchObject({
+      title: 'Project files use 2 KB of 1 KB',
+      tag: 'storage:usage-warning',
+    })
+  })
 })
 
-describe('storageWarningNotification', () => {
-  it('tells the total against the threshold, with the banner’s words', () => {
+describe('designAskSummary', () => {
+  it('reads each screen an ask names as found or new, with the states it replaces or adds, and the variants once', () => {
+    const index = {
+      ...design(),
+      screens: design().screens.map((s) => (s.id === 's1' ? { ...s, aliases: ['Setup'] } : s)),
+    }
     expect(
-      storageWarningNotification({
-        totalBytes: 1.5 * GB,
-        thresholdBytes: GB,
-        over: true,
-        projectId: 'p1',
-      }),
+      designAskSummary(index, [
+        { screenId: 's1', stateId: 'st1', variant: 'Light' },
+        { screenName: 'setup', stateName: 'Full army', variant: 'Dark' },
+        { screenName: 'Army setup', stateName: 'Brand new', variant: 'Light' },
+        { screenName: 'Picker', stateName: 'Open' },
+        { screenName: 'Picker' },
+        {},
+        { variant: 'Phone' },
+      ]),
     ).toEqual({
-      title: 'Project files use 1.5 GB of 1 GB',
-      body: STORAGE_WARNING_TEXT.body,
-      tag: 'storage:usage-warning',
+      screens: [
+        {
+          name: 'Army setup',
+          found: { app: 'Game', versions: 3 },
+          states: [
+            { name: 'Empty army', tag: 'replaces' },
+            { name: 'Full army', tag: 'new' },
+            { name: 'Brand new', tag: 'new' },
+          ],
+        },
+        {
+          name: 'Picker',
+          states: [
+            { name: 'Open', tag: 'new' },
+            { name: 'Default', tag: 'new' },
+          ],
+        },
+      ],
+      unfiled: 2,
+      variants: ['Light', 'Dark', 'Phone'],
     })
   })
 })

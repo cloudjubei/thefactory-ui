@@ -21,7 +21,7 @@ function badgeLook(key: SignoffVerdict['key'], status: NativeStatusTokens): Badg
       return { bg: status.stuck.bg, fg: status.stuck.fg, border: status.stuck.bg, dashed: false }
     // A verdict is always a SOLID pill; its absence signal is the hollow dot
     // alone. Dashed belongs to the check CHIPS ("nobody looked") and means
-    // something different there. Both undecided verdicts take review blue — the
+    // something different there. Both undecided verdicts take sign-off gold — the
     // hue for "not proven" — never the grey that means "not set up".
     case 'partly':
       return { bg: status.review.bg, fg: status.review.fg, border: status.review.bg, dashed: false }

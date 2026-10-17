@@ -3,6 +3,7 @@ import type { ProcessGroupRun } from 'thefactory-tools/types'
 import { listProcessGroupRuns, useApi, useAuth } from '../api'
 import type { ProcessGroupRunUpdate } from './useProcessGroupRun'
 import { isProcessRunActive } from '../utils/processRunCurrent'
+import { compareRunsNewestFirst } from '../utils/processRunOrder'
 
 /**
  * Whether a live `process:group-run-update` belongs in a list scoped to
@@ -30,8 +31,6 @@ export type UseProcessGroupRuns = {
   refresh: () => Promise<void>
 }
 
-const byStartedDesc = (a: ProcessGroupRun, b: ProcessGroupRun) => b.startedAt - a.startedAt
-
 /** Every group run of a group (or of every group), kept live. */
 export function useProcessGroupRuns(groupId?: string): UseProcessGroupRuns {
   const { token } = useAuth()
@@ -46,7 +45,7 @@ export function useProcessGroupRuns(groupId?: string): UseProcessGroupRuns {
         query: groupId ? { groupId } : {},
         throwOnError: true,
       })
-      setRuns(((data as ProcessGroupRun[] | undefined) ?? []).slice().sort(byStartedDesc))
+      setRuns(((data as ProcessGroupRun[] | undefined) ?? []).slice().sort(compareRunsNewestFirst))
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err : new Error(String(err)))
@@ -70,7 +69,9 @@ export function useProcessGroupRuns(groupId?: string): UseProcessGroupRuns {
       }
       if (!shouldTrackProcessGroupRunUpdate(update, groupId)) return
       setRuns((prev) =>
-        [...prev.filter((r) => r.id !== update.groupRunId), update.run].sort(byStartedDesc),
+        [...prev.filter((r) => r.id !== update.groupRunId), update.run].sort(
+          compareRunsNewestFirst,
+        ),
       )
     })
   }, [ws, token, groupId])

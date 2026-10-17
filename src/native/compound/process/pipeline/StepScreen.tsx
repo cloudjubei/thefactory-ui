@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
 import {
+  agentNeverStartedNote,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
@@ -40,7 +41,8 @@ type PanelView = 'output' | 'transcript'
 
 /**
  * The native form of web's side panel: one step's full output — its code
- * review, report, checks, verify proof or chat — pushed over the pipeline
+ * review, report, checks, verify proof or chat, or why its agent never
+ * started in place of an empty chat — pushed over the pipeline
  * under a head with "‹ Pipeline", the run's chat and ↗ (open as a full page).
  */
 export default function StepScreen({
@@ -73,6 +75,15 @@ export default function StepScreen({
       ? processLeafReview(run, processAttemptLeaf(entry, state.step.name) ?? {})
       : undefined
   const switchable = canTranscript && (hasOutput || leafReview !== undefined)
+  const neverStarted = agentNeverStartedNote(entry)
+  const transcript =
+    neverStarted !== undefined ? (
+      <Text style={{ padding: nativeSpace[4], fontSize: 13, color: theme.text.secondary }}>
+        {neverStarted}
+      </Text>
+    ) : renderAgentRun && ref ? (
+      renderAgentRun(ref, onBack)
+    ) : undefined
 
   return (
     <View style={{ flex: 1 }}>
@@ -120,7 +131,7 @@ export default function StepScreen({
           />
         ) : null}
         {chat ? <RunChatButton {...chat} compact /> : null}
-        {ref && onOpenAgentRun ? (
+        {ref && onOpenAgentRun && neverStarted === undefined ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open as a full page"
@@ -143,15 +154,15 @@ export default function StepScreen({
         <Text style={{ padding: nativeSpace[4], fontSize: 12.5, color: theme.text.secondary }}>
           Loading…
         </Text>
-      ) : view === 'transcript' && ref && renderAgentRun ? (
-        <View style={{ flex: 1 }}>{renderAgentRun(ref, onBack)}</View>
+      ) : view === 'transcript' && transcript ? (
+        <View style={{ flex: 1 }}>{transcript}</View>
       ) : (
         <StepOutput
           run={run}
           state={state}
           entry={entry}
           leafReview={leafReview}
-          {...(renderAgentRun && ref ? { transcript: renderAgentRun(ref, onBack) } : {})}
+          {...(transcript ? { transcript } : {})}
           {...(onSaveFile ? { onSaveFile } : {})}
         />
       )}

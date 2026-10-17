@@ -1,0 +1,56 @@
+/* A light code block: Prism's tokens in CODE_BLOCK_PALETTES.light (headless/utils/codeBlockConstants.ts),
+   each AA on white. prism-tomorrow.css colours them for its dark surface. */
+pre.code-light,
+pre.code-light[class*='language-'],
+pre.code-light code {
+  color: #383a42;
+  text-shadow: none;
+}
+pre.code-light .token.comment,
+pre.code-light .token.block-comment,
+pre.code-light .token.prolog,
+pre.code-light .token.doctype,
+pre.code-light .token.cdata {
+  color: #6a6d75;
+}
+pre.code-light .token.punctuation {
+  color: #383a42;
+}
+pre.code-light .token.tag,
+pre.code-light .token.attr-name,
+pre.code-light .token.namespace,
+pre.code-light .token.deleted,
+pre.code-light .token.property,
+pre.code-light .token.class-name,
+pre.code-light .token.constant,
+pre.code-light .token.symbol {
+  color: #c8382b;
+}
+pre.code-light .token.function-name,
+pre.code-light .token.function {
+  color: #2d5fc4;
+}
+pre.code-light .token.boolean,
+pre.code-light .token.number {
+  color: #8a5d00;
+}
+pre.code-light .token.selector,
+pre.code-light .token.important,
+pre.code-light .token.atrule,
+pre.code-light .token.keyword,
+pre.code-light .token.builtin {
+  color: #9b2393;
+}
+pre.code-light .token.string,
+pre.code-light .token.char,
+pre.code-light .token.attr-value,
+pre.code-light .token.regex,
+pre.code-light .token.variable,
+pre.code-light .token.inserted {
+  color: #3a7d39;
+}
+pre.code-light .token.operator,
+pre.code-light .token.entity,
+pre.code-light .token.url {
+  color: #0a6f9e;
+}

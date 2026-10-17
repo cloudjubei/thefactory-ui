@@ -8,6 +8,7 @@ import {
   PROCESS_RUN_LIST_LINGER_MS,
 } from '../utils/processViewCacheConstants'
 import { splitProcessRunsByCurrent } from '../utils/processRunCurrent'
+import { compareRunsNewestFirst } from '../utils/processRunOrder'
 import { processRunListCache, processRunListKey } from './processViewCache'
 
 /** A `process:run-update` event as it arrives on the socket. */
@@ -43,7 +44,7 @@ export function shouldTrackProcessRunUpdate(
 export type UseProcessRuns = {
   isLoaded: boolean
   loadError: Error | null
-  /** Every run for the scope, newest first (by `startedAt`), as the list route summarises it. */
+  /** Every run for the scope, newest first (`compareRunsNewestFirst`: one not started yet first), as the list route summarises it. */
   runs: ProcessRunSummary[]
   /** The runs that still need the person or are working (`isProcessRunCurrent`), newest first. */
   current: ProcessRunSummary[]
@@ -55,9 +56,6 @@ export type UseProcessRuns = {
   parked: number
   refresh: () => Promise<void>
 }
-
-const byStartedDesc = (a: ProcessRunSummary, b: ProcessRunSummary) =>
-  (b.startedAt ?? 0) - (a.startedAt ?? 0)
 
 /**
  * A scope's list after one `process:run-update`: a deleted run dropped, a root
@@ -76,7 +74,7 @@ export function applyProcessRunUpdate(
   if (!shouldTrackProcessRunUpdate(update, scopedProjectId)) return prev
   const next = (prev ?? []).filter((r) => r.id !== update.runId)
   next.push(update.run)
-  return next.sort(byStartedDesc)
+  return next.sort(compareRunsNewestFirst)
 }
 
 type WsLike = ReturnType<typeof useApi>['ws']
@@ -97,7 +95,7 @@ function processRunListStoreFor(ws: WsLike): LiveResourceStore<ProcessRunSummary
         query: { rootOnly: true, ...(projectId ? { projectId } : {}) },
         throwOnError: true,
       })
-      return ((data as ProcessRunSummary[] | undefined) ?? []).slice().sort(byStartedDesc)
+      return ((data as ProcessRunSummary[] | undefined) ?? []).slice().sort(compareRunsNewestFirst)
     },
     connect: (key, live) => {
       const projectId = projectIdOfKey(key)

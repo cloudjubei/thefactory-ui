@@ -79,7 +79,7 @@ export default function ToolAskCard({
   const { theme, status } = useNativeTheme()
   const Icon = ICONS[view.icon]
   const danger = view.tone === 'danger'
-  const tone = danger ? status.blocked : status.review
+  const tone = danger ? status.blocked : theme.accent
   return (
     <View
       style={{
@@ -198,7 +198,7 @@ export function ToolAskScopeChoice({
   onChange: (decision: PendingToolGrantDecision) => void
   disabled?: boolean
 }) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   if (options.length === 0) return null
   return (
     <View
@@ -228,7 +228,7 @@ export function ToolAskScopeChoice({
               paddingVertical: 8,
               borderTopWidth: i > 0 ? 1 : 0,
               borderTopColor: theme.border.subtle,
-              backgroundColor: on ? status.review.softBg : theme.surface.raised,
+              backgroundColor: on ? theme.accent.softBg : theme.surface.raised,
             }}
           >
             <View

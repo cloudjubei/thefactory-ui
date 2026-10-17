@@ -42,7 +42,7 @@ export default function StorySpecCard({
   features,
   onOpenStory,
 }: StorySpecCardProps) {
-  const { theme, status } = useNativeTheme()
+  const { theme } = useNativeTheme()
   const [expanded, setExpanded] = useState(false)
   const [criteriaOpen, setCriteriaOpen] = useState(false)
   const [contentHeight, setContentHeight] = useState(0)
@@ -91,7 +91,7 @@ export default function StorySpecCard({
               borderRadius: nativeRadii.round,
               borderWidth: 1,
               borderColor: criteriaOpen ? theme.accent.primary : theme.border.subtle,
-              backgroundColor: criteriaOpen ? status.review.softBg : theme.surface.raised,
+              backgroundColor: criteriaOpen ? theme.accent.softBg : theme.surface.raised,
             }}
           >
             <IconChecklist

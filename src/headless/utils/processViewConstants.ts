@@ -55,6 +55,7 @@ export const PROCESS_RUN_PERSON_ENDING_VIEW = {
   'request-changes': { label: 'Changes requested', tone: 'on_hold' },
   reject: { label: 'Rejected', tone: 'empty' },
   abandon: { label: 'Abandoned', tone: 'empty' },
+  'close-unmerged': { label: 'Closed without merging', tone: 'empty' },
 } as const
 
 /** The action on a run that ended on a request for changes, and what it does. */
@@ -72,6 +73,13 @@ export const PROCESS_REVIVE_COPY = {
 } as const
 
 /** What stopping a run asks first: Stop ends everything it is doing. */
+export const PROCESS_CLOSE_UNMERGED_CONFIRM_COPY = {
+  title: 'Close without merging?',
+  body: 'The run ends and its branch stays. Its features keep their statuses — settle them one by one after. You can resume it later.',
+  confirm: 'Close without merging',
+  cancel: 'Keep it open',
+} as const
+
 export const PROCESS_STOP_CONFIRM_COPY = {
   title: 'Stop this run?',
   body: 'Everything it is doing stops now — the step it is on and any nested run. You can resume it later from where it stopped.',

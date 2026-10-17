@@ -36,6 +36,43 @@ export type ToolAskBody =
   | { kind: 'git' }
   | { kind: 'launch' }
   | { kind: 'proposal' }
+  | {
+      kind: 'review'
+      /** The chat's review branch. */
+      branch: string
+      /** Where a merge or pull request takes it. */
+      target?: string
+      fileCount: number
+      /** The first files, as many as the host listed. */
+      files: string[]
+    }
+  | {
+      kind: 'question'
+      storyTitle?: string
+      featureTitle: string
+      /** The question as the run asked it. */
+      question: string
+      /** The answer the agent proposes — the person's to change. */
+      answer: string
+    }
+  | {
+      kind: 'design'
+      /** The project it names, in a chat over several; else the chat's own. */
+      projectId?: string
+      entries: DesignAskEntry[]
+      /** New screens the agent says are not one of those they resemble. */
+      newScreens: Array<{ name: string; closest: string[]; why: string }>
+    }
+
+/** One image a design ask files: the screen and state it names, by id or by name, its variant and file. */
+export type DesignAskEntry = {
+  screenId?: string
+  screenName?: string
+  stateId?: string
+  stateName?: string
+  variant?: string
+  file?: string
+}
 
 /**
  * Every tool that waits on the person, read as one card: the host's plain

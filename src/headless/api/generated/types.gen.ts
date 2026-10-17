@@ -222,7 +222,41 @@ export type ActionChangeEvent =
       action: PendingAction
     }
 
+export type ActivityStopRequest = {
+  activityId: string
+  reason?: string
+}
+
+export type ActivityStopAuthority = {
+  callerId: string
+  approval: {
+    approvalId: string
+    personId: string
+  }
+}
+
+export type ActivityStopProvenance = {
+  attemptId: string
+  callerId: string
+  approvalId: string
+  approvedBy: string
+  reason?: string
+  requestedAt: string
+  settledAt?: string
+  outcome: 'pending' | 'cancelled' | 'failed'
+  failureCode?: string
+}
+
 export type ActivityStatus = 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+
+export type ActivityStopResult = {
+  activityId: string
+  outcome: 'refused' | 'noop' | 'stopped' | 'not-stopped' | 'failed'
+  code?: string
+  status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
+  finishedAt?: string
+  attemptId?: string
+}
 
 export type LlmProvider =
   | 'openai'
@@ -330,6 +364,7 @@ export type ActivityRun = {
   resumeToken?: {
     [key: string]: unknown
   }
+  stopAttempts?: Array<ActivityStopProvenance>
   error?: string
   costUSD?: number
   startedAt: string
@@ -356,6 +391,7 @@ export type ActivityRunInput = {
 }
 
 export type ActivityRunPatch = {
+  stopAttempts?: Array<ActivityStopProvenance>
   status?: 'queued' | 'running' | 'completed' | 'failed' | 'aborted'
   steps?: Array<ActivityStepState>
   error?: string
@@ -434,6 +470,7 @@ export type AgentRunParams = {
     name: string
     baseSha: string
   }
+  workBranchHeadSha?: string
   workBranchStartSha?: string
   acceptUnchangedFinish?: boolean
   workspaceFiles?: Array<string>
@@ -861,6 +898,32 @@ export type AgentTaskResult = {
   costUSD: number
 }
 
+export type OrdinaryLayoutDocsConfig = {
+  primary?: string
+  fallbacks?: Array<string>
+}
+
+export type BuildAgentRunContextFilesResult =
+  | {
+      ok: true
+      contextFiles: Array<string>
+    }
+  | {
+      ok: false
+      missingRequired: Array<string>
+      blockerMessage: string
+    }
+
+export type AgentRunNotStartedEvent = {
+  runId: string
+  reason: string
+}
+
+export type AgentRunFinalMessageEvent = {
+  runId: string
+  message: string
+}
+
 export type ProcessStepRetry = {
   at: number
   retry: number
@@ -940,6 +1003,12 @@ export type CliNativeSessionDispatch = {
 }
 
 export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
+
+export type CrossProjectGuidanceInput = {
+  resolverPresent: boolean
+  exposedToolNames: Array<string>
+  routableReadToolNames?: Array<string>
+}
 
 export type AgentTypeBriefMode = 'append' | 'replace'
 
@@ -1067,6 +1136,16 @@ export type ProjectPlatformInput = {
   framework?: string
   webRecipe?: string
   projectApp?: string
+  serveProblem?: string
+}
+
+export type ProjectWebServe = {
+  recipe?: string
+  problem?: string
+}
+
+export type ProjectWebServeReadOptions = {
+  browser?: boolean
 }
 
 export type ProjectPlatformReadOptions = {
@@ -1282,7 +1361,8 @@ export type ResourceLink =
       kind: 'design'
       projectId: string
       screenId?: string
-      itemId?: string
+      stateId?: string
+      proposalId?: string
     }
   | {
       kind: 'run'
@@ -1304,6 +1384,7 @@ export type CompletionHistorySummarization = {
 export type CompletionMessageSanitization = {
   enabled: boolean
   keepLastMessages?: number
+  protectedChars?: number
   hardMaxToolContentChars?: number
   maxAssistantChars?: number
   maxToolArgChars?: number
@@ -1330,6 +1411,7 @@ export type CompletionSettings = {
   messageSanitization?: {
     enabled: boolean
     keepLastMessages?: number
+    protectedChars?: number
     hardMaxToolContentChars?: number
     maxAssistantChars?: number
     maxToolArgChars?: number
@@ -1556,6 +1638,10 @@ export type ProcessResumeChoice =
   | 'more-info'
   | 'update-base'
   | 'resolve-base-conflict'
+  | 'change-proof'
+  | 'send-to-developer'
+  | 'recheck'
+  | 'close-unmerged'
 
 export type ProcessParkAction = ProcessResumeChoice | 'delegate'
 
@@ -1605,6 +1691,12 @@ export type ChatOpenChangesCard = {
   changedCount?: number
 }
 
+export type ChatOpenQuestionsCard = {
+  projectId: string
+  storyId: string
+  featureIds?: Array<string>
+}
+
 export type CompletionMessageBase = {
   role: CompletionMessageRole
   content: string
@@ -1626,6 +1718,12 @@ export type CompletionMessageBase = {
     fileCount: number
     changedCount?: number
   }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
   needsYouClosedAt?: string
 }
 
@@ -1650,6 +1748,12 @@ export type CompletionSystemMessage = {
     fileCount: number
     changedCount?: number
   }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
   needsYouClosedAt?: string
   error?: string
 }
@@ -1689,6 +1793,12 @@ export type CompletionUserMessage = {
     fileCount: number
     changedCount?: number
   }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
   needsYouClosedAt?: string
   files?: Array<string>
   images?: Array<CompletionImage>
@@ -1749,6 +1859,12 @@ export type CompletionAssistantMessage = {
     fileCount: number
     changedCount?: number
   }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
   needsYouClosedAt?: string
   usage: {
     promptTokens: number
@@ -1800,6 +1916,12 @@ export type CompletionToolMessage = {
     fileCount: number
     changedCount?: number
   }
+  openQuestionsCard?: {
+    projectId: string
+    storyId: string
+    featureIds?: Array<string>
+  }
+  needsYouAt?: string
   needsYouClosedAt?: string
   model: {
     model: string
@@ -1907,6 +2029,12 @@ export type Chat = {
       fileCount: number
       changedCount?: number
     }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -2032,6 +2160,7 @@ export type ChatAudienceMessage = {
     fileCount: number
     changedCount?: number
   }
+  needsYouAt?: string
   needsYouClosedAt?: string
   startedAt?: string
   completedAt?: string
@@ -2097,6 +2226,12 @@ export type ChatCreateInput = {
       fileCount: number
       changedCount?: number
     }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -2195,6 +2330,12 @@ export type ChatEditInput = {
       fileCount: number
       changedCount?: number
     }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -3076,6 +3217,7 @@ export type VerificationTestReport = {
   count: VerificationTestCount
   suites: Array<VerificationTestSuite>
   suitesOmitted: number
+  timedOutSuites?: Array<string>
 }
 
 export type VerificationTestReportMissingCause =
@@ -3131,6 +3273,7 @@ export type VerificationCheckResult = {
     lastErrorLine?: string
   }
   rerunReason?: string
+  environmentNote?: string
   rewrittenFiles?: Array<string>
 }
 
@@ -3287,6 +3430,7 @@ export type CliChatSessionIdentity = {
     name: string
     tipSha: string
   }
+  readOnlyWorkspace?: boolean
 }
 
 export type DirSnapshot = unknown
@@ -3444,7 +3588,6 @@ export type FilesEmittedArtifact = {
   heldBehindReview?: string
   payload: {
     files: Array<FilesEmittedFile>
-    workspaceBranch?: string
     mergedCommits?: Array<string>
   }
 }
@@ -3590,6 +3733,7 @@ export type CliRun = {
   projectId: string
   chatContextId?: string
   storyId?: string
+  featureIds?: Array<string>
   processRunId?: string
   status: CliRunStatus
   cli?: {
@@ -3746,6 +3890,7 @@ export type CliRunSummary = {
   projectId: string
   chatContextId?: string
   storyId?: string
+  featureIds?: Array<string>
   processRunId?: string
   status: CliRunStatus
   cli?: {
@@ -3962,7 +4107,7 @@ export type RetryPlan =
       action: 'abort'
     }
 
-export type CliTurnLimitReason = 'max-turns' | 'tool-error'
+export type CliTurnLimitReason = 'max-turns'
 
 export type CliRunResult = {
   runId: string
@@ -3988,12 +4133,11 @@ export type CliRunResult = {
   modelUsage?: Array<ModelSpend>
   billing?: 'subscription' | 'metered' | 'free'
   reportedModel?: string
-  turnLimitReached?: 'max-turns' | 'tool-error'
+  turnLimitReached?: 'max-turns'
 }
 
 export type CliTurnLimits = {
   maxTurns?: number
-  finishTurnOnErrors?: boolean
 }
 
 export type WorkspaceCapState = 'under' | 'warn' | 'over'
@@ -4057,6 +4201,7 @@ export type PrepareIsolatedChatWorkspaceInput = {
     name: string
     tipSha: string
   }
+  readOnly?: boolean
 }
 
 export type GitIdentity = {
@@ -4077,10 +4222,7 @@ export type FinalizeIsolatedChatTurnInput = {
     name: string
     email: string
   }
-  workspaceBranch?: {
-    name: string
-    tipSha: string
-  }
+  readOnly?: boolean
   heldBehindReview?: string
 }
 
@@ -4302,6 +4444,17 @@ export type CliRunApproveOutcome = {
   blockedReason?: string
 }
 
+export type CliRunApprovalPlan = {
+  allowed: boolean
+  needsPush: boolean
+  needsMerge: boolean
+  prUrl?: string
+  blockedReason?: string
+  action: 'leave-branch' | 'create-pr' | 'merge'
+  branch: string
+  target: string
+}
+
 export type GitConflictType =
   | 'both_modified'
   | 'both_added'
@@ -4348,6 +4501,7 @@ export type CliRunApproveResult = {
     projectId: string
     chatContextId?: string
     storyId?: string
+    featureIds?: Array<string>
     processRunId?: string
     status: CliRunStatus
     cli?: {
@@ -5100,6 +5254,18 @@ export type SummarizeOptions = {
   maxResultChars?: number
 }
 
+export type NormalizedSanitization = {
+  enabled: boolean
+  keepLastMessages: number
+  hardMaxToolContentChars: number
+  maxAssistantChars: number
+  maxToolArgChars: number
+  maxToolContentChars: number
+  toolContentPreviewChars: number
+} & {
+  protectedChars?: number
+}
+
 export type ToolCallConfirmation =
   | {
       outcome: 'run'
@@ -5156,55 +5322,30 @@ export type CompletionResponseWithTools = CompletionResponse & {
   mode?: 'api' | 'cli'
 }
 
+export type CompletionToolFailure = {
+  toolName: string
+  error: string
+  count: number
+}
+
 export type CompletionResponseTurns = {
   resultType: AgentToolsResultType
   results: Array<CompletionResponseWithTools>
   error?: unknown
-}
-
-export type JsonSchema = {
-  [key: string]: unknown
-}
-
-export type AgentToolSchema = {
-  category?: string
-  name: string
-  description: string
-  examples?: Array<string>
-  parameters: JsonValue
-  returns?: unknown
-  source?: string
-}
-
-export type CompletionRequest = {
-  chatContext: ChatContext
-  llmConfig: LlmConfig
-  systemPrompt?: string
-  messages: Array<CompletionMessage>
-  abortSignal?: unknown
-  availableTools?: Array<string>
-  extraToolSchemas?: Array<AgentToolSchema>
-  numberMessagesToSend?: number
-  structuredOutput?: boolean
-  historySummarization?: {
-    enabled: boolean
-    keepLastTurns?: number
-    maxOpsInSummary?: number
-  }
-  messageSanitization?: {
-    enabled: boolean
-    keepLastMessages?: number
-    hardMaxToolContentChars?: number
-    maxAssistantChars?: number
-    maxToolArgChars?: number
-    maxToolContentChars?: number
-    toolContentPreviewChars?: number
+  toolFailure?: {
+    toolName: string
+    error: string
+    count: number
   }
 }
 
 export type TokenizableMessage = {
   role: CompletionMessageRole
   content: string
+}
+
+export type JsonSchema = {
+  [key: string]: unknown
 }
 
 export type NormalizedUsage = {
@@ -6520,27 +6661,48 @@ export type CorroboratedItem = {
   sources: Array<string>
 }
 
+export type Raw = {
+  [key: string]: unknown
+}
+
 export type DesignAppKind = 'product' | 'overseer-app'
 
 export type DesignApp = {
   id: string
   name: string
   kind: DesignAppKind
+  aliases: Array<string>
   createdAt: number
   updatedAt: number
 }
+
+export type DesignScreenKind = 'screen' | 'component'
 
 export type DesignScreen = {
   id: string
   appId: string
   name: string
+  kind: DesignScreenKind
+  group?: string
+  description?: string
+  aliases: Array<string>
+  uses: Array<string>
+  variants: Array<string>
   createdAt: number
   updatedAt: number
 }
 
-export type DesignItemKind = 'design' | 'built'
+export type DesignState = {
+  id: string
+  screenId: string
+  name: string
+  description?: string
+  address?: string
+  createdAt: number
+  updatedAt: number
+}
 
-export type DesignItemSource =
+export type DesignSource =
   | {
       type: 'blob'
       sha256: string
@@ -6557,39 +6719,126 @@ export type DesignItemSource =
       url: string
     }
 
-export type DesignItemAddedBy = {
+export type DesignOrigin = {
   by: 'person' | 'agent' | 'run'
   chatContextId?: string
   runId?: string
-}
-
-export type DesignBuiltCapture = {
-  runId: string
-  evidenceId: string
+  evidenceId?: string
   sha?: string
-  variant?: string
+  build?: string
   dirty?: boolean
   capturedOn?: string
-  adoptedAt: number
 }
 
-export type DesignItem = {
+export type DesignVersion = {
   id: string
-  screenId: string
-  kind: DesignItemKind
-  name: string
-  approved?: boolean
-  source: DesignItemSource
-  addedBy: DesignItemAddedBy
-  built?: {
-    runId: string
-    evidenceId: string
-    sha?: string
-    variant?: string
-    dirty?: boolean
-    capturedOn?: string
-    adoptedAt: number
-  }
+  stateId: string
+  variant: string
+  number: number
+  source: DesignSource
+  caseQuery?: string
+  origin: DesignOrigin
+  proposalId?: string
+  createdAt: number
+}
+
+export type DesignRect = {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type DesignHotspot = {
+  x: number
+  y: number
+  w: number
+  h: number
+  label: string
+  toEntryId: string
+}
+
+export type DesignPiece = {
+  id: string
+  label: string
+}
+
+export type DesignPieceMark = {
+  x: number
+  y: number
+  w: number
+  h: number
+  pieceId: string
+}
+
+export type DesignEntryTarget = {
+  screenId?: string
+  screenName?: string
+  screenKind?: 'screen' | 'component'
+  stateId?: string
+  stateName?: string
+}
+
+export type DesignProposalEntry = {
+  id: string
+  target: DesignEntryTarget
+  variant: string
+  source: DesignSource
+  caseQuery?: string
+  address?: string
+  links: Array<DesignHotspot>
+  pieces: Array<DesignPieceMark>
+  evidenceId?: string
+  accepted?: boolean
+  restoredFrom?: string
+}
+
+export type DesignProposalStatus = 'open' | 'accepted' | 'alternative' | 'sent-back'
+
+export type DesignProposal = {
+  id: string
+  appId: string
+  title: string
+  question?: string
+  status: DesignProposalStatus
+  origin: DesignOrigin
+  note?: string
+  entries: Array<DesignProposalEntry>
+  pieces: Array<DesignPiece>
+  createdAt: number
+  updatedAt: number
+  decidedAt?: number
+}
+
+export type DesignTidyMoveKind =
+  | 'merge-apps'
+  | 'merge-screens'
+  | 'fold-history'
+  | 'remove-duplicate'
+
+export type DesignTidyTarget = {
+  id?: string
+  name?: string
+  screenId?: string
+}
+
+export type DesignTidyMove = {
+  id: string
+  kind: DesignTidyMoveKind
+  title: string
+  from: Array<string>
+  to: DesignTidyTarget
+  why: string
+  decision?: 'accept' | 'leave'
+}
+
+export type DesignTidyPlanStatus = 'open' | 'applied' | 'dismissed'
+
+export type DesignTidyPlan = {
+  id: string
+  origin: DesignOrigin
+  moves: Array<DesignTidyMove>
+  status: DesignTidyPlanStatus
   createdAt: number
   updatedAt: number
 }
@@ -6598,32 +6847,124 @@ export type DesignIndex = {
   version: number
   apps: Array<DesignApp>
   screens: Array<DesignScreen>
-  items: Array<DesignItem>
+  states: Array<DesignState>
+  versions: Array<DesignVersion>
+  proposals: Array<DesignProposal>
+  tidyPlans: Array<DesignTidyPlan>
+}
+
+export type DesignStateTree = {
+  id: string
+  screenId: string
+  name: string
+  description?: string
+  address?: string
+  createdAt: number
+  updatedAt: number
+  versions: Array<DesignVersion>
 }
 
 export type DesignScreenTree = {
   id: string
   appId: string
   name: string
+  kind: 'screen' | 'component'
+  group?: string
+  description?: string
+  aliases: Array<string>
+  uses: Array<string>
+  variants: Array<string>
   createdAt: number
   updatedAt: number
-  items: Array<DesignItem>
+  states: Array<DesignStateTree>
 }
 
 export type DesignAppTree = {
   id: string
   name: string
   kind: 'product' | 'overseer-app'
+  aliases: Array<string>
   createdAt: number
   updatedAt: number
   screens: Array<DesignScreenTree>
+  proposals: Array<DesignProposal>
 }
 
 export type DesignTree = {
   apps: Array<DesignAppTree>
+  tidyPlans: Array<DesignTidyPlan>
 }
 
-export type DesignItemSourceInput =
+export type DesignCellStatus = 'approved' | 'changed' | 'new' | 'missing'
+
+export type DesignCell = {
+  stateId?: string
+  variant: string
+  status: DesignCellStatus
+  current?: {
+    id: string
+    stateId: string
+    variant: string
+    number: number
+    source: DesignSource
+    caseQuery?: string
+    origin: DesignOrigin
+    proposalId?: string
+    createdAt: number
+  }
+  waiting: Array<{
+    proposalId: string
+    entryId: string
+  }>
+}
+
+export type DesignGridRow = {
+  stateId?: string
+  name: string
+  description?: string
+  address?: string
+  cells: Array<DesignCell>
+}
+
+export type DesignScreenGrid = {
+  variants: Array<string>
+  rows: Array<DesignGridRow>
+}
+
+export type DesignCompareMark = 'changed' | 'unchanged' | 'new' | 'new-screen' | 'unfiled'
+
+export type DesignCompareRow = {
+  entryId: string
+  screenId?: string
+  screenName?: string
+  stateId?: string
+  stateName?: string
+  variant: string
+  mark: DesignCompareMark
+  current?: {
+    id: string
+    stateId: string
+    variant: string
+    number: number
+    source: DesignSource
+    caseQuery?: string
+    origin: DesignOrigin
+    proposalId?: string
+    createdAt: number
+  }
+}
+
+export type DesignTidyPreview = {
+  appsBefore: number
+  appsAfter: number
+  screensBefore: number
+  screensAfter: number
+  accepted: number
+  moves: number
+  problem?: string
+}
+
+export type DesignSourceInput =
   | {
       type: 'upload'
       data: unknown
@@ -6649,38 +6990,221 @@ export type UpdateDesignAppInput = {
   kind?: 'product' | 'overseer-app'
 }
 
+export type DesignNewScreenReason = {
+  closest: Array<string>
+  why: string
+}
+
 export type AddDesignScreenInput = {
   appId: string
   name: string
+  kind?: 'screen' | 'component'
+  group?: string
+  description?: string
+  variants?: Array<string>
+  reason?: {
+    closest: Array<string>
+    why: string
+  }
 }
 
-export type AddDesignItemInput = {
-  screenId: string
+export type UpdateDesignScreenInput = {
   name?: string
-  source: DesignItemSourceInput
-  addedBy: DesignItemAddedBy
+  kind?: 'screen' | 'component'
+  group?: string
+  description?: string
+  uses?: Array<string>
+  variants?: Array<string>
 }
 
-export type AdoptBuiltCaptureInput = {
+export type AddDesignStateInput = {
+  screenId: string
+  name: string
+  description?: string
+  address?: string
+}
+
+export type UpdateDesignStateInput = {
+  name?: string
+  description?: string
+  address?: string
+}
+
+export type DesignHotspotInput = {
+  x: number
+  y: number
+  w: number
+  h: number
+  label: string
+  to: string
+}
+
+export type DesignPieceMarkInput = {
+  x: number
+  y: number
+  w: number
+  h: number
+  piece: string
+}
+
+export type DesignProposalEntryInput = {
+  key?: string
+  target?: {
+    screenId?: string
+    screenName?: string
+    screenKind?: 'screen' | 'component'
+    stateId?: string
+    stateName?: string
+  }
+  variant?: string
+  source: DesignSourceInput
+  caseQuery?: string
+  address?: string
+  links?: Array<DesignHotspotInput>
+  pieces?: Array<DesignPieceMarkInput>
+}
+
+export type ProposeDesignInput = {
+  appId: string
+  title: string
+  question?: string
+  entries: Array<DesignProposalEntryInput>
+  pieces?: Array<DesignPiece>
+  origin: DesignOrigin
+  newScreenReasons?: {
+    [key: string]: DesignNewScreenReason
+  }
+}
+
+export type ProposeDesignDraftInput = {
+  appId: string
+  source: DesignSourceInput
+  title?: string
+  target?: {
+    screenId?: string
+    screenName?: string
+    screenKind?: 'screen' | 'component'
+    stateId?: string
+    stateName?: string
+  }
+  origin: DesignOrigin
+  newScreenReasons?: {
+    [key: string]: DesignNewScreenReason
+  }
+}
+
+export type DesignRunCaptureInput = {
   app: string
   screen: string
-  appKind: DesignAppKind
-  name: string
+  state: string
+  variant: string
   sourcePath: string
   mediaType: string
   originalName: string
-  built: {
-    runId: string
-    evidenceId: string
-    sha?: string
-    variant?: string
-    dirty?: boolean
-    capturedOn?: string
-  }
-  addedBy: DesignItemAddedBy
+  evidenceId: string
+  sha?: string
+  build?: string
+  dirty?: boolean
+  capturedOn?: string
 }
 
-export type DesignItemContent =
+export type ProposeRunCapturesInput = {
+  runId: string
+  title: string
+  captures: Array<DesignRunCaptureInput>
+}
+
+export type ProposeDesignTidyInput = {
+  moves: Array<{
+    kind: DesignTidyMoveKind
+    title: string
+    from: Array<string>
+    to: DesignTidyTarget
+    why: string
+  }>
+  origin: DesignOrigin
+}
+
+export type DesignCaseAxisValue = {
+  id: string
+  label: string
+}
+
+export type DesignCaseManifest = {
+  choose: Array<{
+    axis: string
+    values: Array<DesignCaseAxisValue>
+  }>
+  variants: Array<{
+    axis: string
+    values: Array<DesignCaseAxisValue>
+  }>
+}
+
+export type DesignCase = {
+  choice: {
+    [key: string]: string
+  }
+  choiceLabel: string
+  variant: string
+  query: string
+}
+
+export type DesignEntryDraft = {
+  key?: string
+  target?: {
+    screenId?: string
+    screenName?: string
+    screenKind?: 'screen' | 'component'
+    stateId?: string
+    stateName?: string
+  }
+  variant?: string
+  source: DesignSource
+  caseQuery?: string
+  address?: string
+  evidenceId?: string
+  links?: Array<DesignHotspotInput>
+  pieces?: Array<DesignPieceMarkInput>
+  restoredFrom?: string
+}
+
+export type DesignProposalDraft = {
+  appId: string
+  title: string
+  question?: string
+  origin: DesignOrigin
+  entries: Array<DesignEntryDraft>
+  pieces?: Array<DesignPiece>
+  newScreenReasons?: {
+    [key: string]: DesignNewScreenReason
+  }
+}
+
+export type DesignProposalOptions = {
+  requireReason?: boolean
+}
+
+export type DesignRunCaptureDraft = {
+  app: string
+  screen: string
+  state: string
+  variant: string
+  source: DesignSource
+  evidenceId: string
+  build?: string
+}
+
+export type DesignContentRef =
+  | {
+      versionId: string
+    }
+  | {
+      proposalId: string
+      entryId: string
+    }
+
+export type DesignContent =
   | {
       type: 'file'
       absPath: string
@@ -6696,6 +7220,69 @@ export type DesignItemContent =
       type: 'missing'
       reason: string
     }
+
+export type DesignPlaygroundControl =
+  | {
+      id: string
+      label: string
+      kind: 'choice'
+      options: Array<DesignCaseAxisValue>
+      default: string
+    }
+  | {
+      id: string
+      label: string
+      kind: 'toggle'
+      default: boolean
+    }
+
+export type DesignPlaygroundPreset = {
+  id: string
+  name: string
+  values: {
+    [key: string]: string
+  }
+}
+
+export type DesignPlaygroundScene = {
+  id: string
+  name: string
+  kind: DesignScreenKind
+  group?: string
+  controls: Array<DesignPlaygroundControl>
+  presets: Array<DesignPlaygroundPreset>
+}
+
+export type DesignPlaygroundManifest = {
+  scenes: Array<DesignPlaygroundScene>
+}
+
+export type DesignPlaygroundTheme = 'light' | 'dark'
+
+export type DesignPlaygroundVariant = {
+  name: string
+  theme: DesignPlaygroundTheme
+  device: 'desktop' | 'phone'
+  viewport: {
+    width: number
+    height: number
+  }
+}
+
+export type DesignPlaygroundAddress = {
+  sceneId?: string
+  values: {
+    [key: string]: string
+  }
+}
+
+export type DesignPlaygroundShot = {
+  variant: string
+  data: unknown
+  width: number
+  height: number
+  sha256: string
+}
 
 export type RunDiagnosticsPhase =
   | 'process'
@@ -7451,6 +8038,11 @@ export type CapturedFileContent =
       reason: DirSnapshotOmittedReason
     }
 
+export type CreateOwnedTempWorkDirOptions = {
+  prefix: string
+  rootDir?: string
+}
+
 export type TempDirOwner = {
   pid: number
   hostname: string
@@ -7470,6 +8062,15 @@ export type NotesStoreAccess = 'withheld' | 'open'
 export type SearchNotesGroup = {
   groupId: string
   root: string
+}
+
+export type DependencyLinkRepoint = {
+  root: string
+  dependencyDirs: Array<string>
+  found: Array<{
+    copyPath: string
+    target: string
+  }>
 }
 
 export type SweptDirectoryLifetime = 'watch' | 'settling'
@@ -8051,6 +8652,19 @@ export type GitApplyTextRecoveryResult = {
   removedBytes?: number
 }
 
+export type GitBranchDiffSummaryArgs = {
+  baseRef: string
+  headRef: string
+  incomingOnly?: boolean
+  includePatch?: boolean
+  paths?: Array<string>
+}
+
+export type GitBranchDiffSummaryError = {
+  error: string
+  reason: 'ref-with-path' | 'invalid-ref' | 'ref-unavailable' | 'invalid-path'
+}
+
 export type GitDiffSummary = {
   baseRef: string
   headRef: string
@@ -8495,6 +9109,18 @@ export type GroupNoteSummary = {
   updatedAt: string
 } & {
   groupId: string
+}
+
+export type HostFileSample = {
+  freeVnodes: number
+  maxVnodes: number
+}
+
+export type HostFilePressureSnapshot = {
+  freeVnodes: number
+  maxVnodes: number
+  usedRatio: number
+  pressured: boolean
 }
 
 export type HostPathMarker = {
@@ -9956,6 +10582,7 @@ export type ProcessManagerPolicyInput = {
   signature: string
   permissionPreApproved?: boolean
   attemptMaxTurns?: number
+  attemptAgentNotStarted?: boolean
   commitResetsToHead?: Array<string>
 }
 
@@ -10583,6 +11210,20 @@ export type ProcessWaitingAsk = {
     topicId: string
     at: number
   }
+  agentFailed?: true
+}
+
+export type ProcessProofPlanChange = {
+  featureId?: string
+  stepId?: string
+  from: Array<ProofKind>
+  to: Array<ProofKind>
+  saved?: boolean
+  outcome: 'moved-on' | 'rerun'
+  rejudged?: {
+    outcome: ProcessStepOutcome
+    summary?: string
+  }
 }
 
 export type ProcessDecidedBy = 'person' | 'agent' | 'manager'
@@ -10625,6 +11266,12 @@ export type ProofPlanJudgement = {
   kinds: Array<ProofKindStanding>
   changeTests?: Array<string>
   captureUnavailable?: string
+  screensNotNeeded?: boolean
+}
+
+export type ProcessProofCannotProduce = {
+  reason: string
+  screens: boolean
 }
 
 export type ProcessVerifyProof = {
@@ -10646,6 +11293,11 @@ export type ProcessVerifyProof = {
     kinds: Array<ProofKindStanding>
     changeTests?: Array<string>
     captureUnavailable?: string
+    screensNotNeeded?: boolean
+  }
+  cannotProduce?: {
+    reason: string
+    screens: boolean
   }
 }
 
@@ -10696,6 +11348,11 @@ export type ProcessEntryTime = {
 
 export type ProcessAgentStop = 'turn-limit' | 'interrupted'
 
+export type ProcessQueueWait = {
+  reason: string
+  since: number
+}
+
 export type ProcessLedgerEntry = {
   id: string
   stepId: string
@@ -10741,6 +11398,7 @@ export type ProcessLedgerEntry = {
       topicId: string
       at: number
     }
+    agentFailed?: true
   }
   continues?: string
   override?: {
@@ -10772,6 +11430,18 @@ export type ProcessLedgerEntry = {
       limitTurns: boolean
       maxTurns: number
     }
+    proofChange?: {
+      featureId?: string
+      stepId?: string
+      from: Array<ProofKind>
+      to: Array<ProofKind>
+      saved?: boolean
+      outcome: 'moved-on' | 'rerun'
+      rejudged?: {
+        outcome: ProcessStepOutcome
+        summary?: string
+      }
+    }
     decidedBy?: 'person' | 'agent' | 'manager'
     decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
     toolName?: string
@@ -10802,6 +11472,11 @@ export type ProcessLedgerEntry = {
       kinds: Array<ProofKindStanding>
       changeTests?: Array<string>
       captureUnavailable?: string
+      screensNotNeeded?: boolean
+    }
+    cannotProduce?: {
+      reason: string
+      screens: boolean
     }
   }
   review?: {
@@ -10863,11 +11538,17 @@ export type ProcessLedgerEntry = {
     maxTurns: number
   }
   agentStop?: 'turn-limit' | 'interrupted'
+  agentNotStarted?: string
   retryMode?: 'continue' | 'fresh'
   resumes?: string
   retries?: Array<ProcessStepRetry>
   backoffMs?: number
   backoffSince?: number
+  queuedMs?: number
+  queued?: {
+    reason: string
+    since: number
+  }
 }
 
 export type ProcessPendingEntry = {
@@ -10921,6 +11602,7 @@ export type ProcessPark = {
       topicId: string
       at: number
     }
+    agentFailed?: true
   }
   stepInFlight?: boolean
   childRunId?: string
@@ -10942,6 +11624,7 @@ export type ProcessTimeBreakdown = {
   otherMs: number
   runningMs: number
   waitingMs: number
+  queuedMs?: number
   tools: Array<ProcessToolTime>
 }
 
@@ -10960,6 +11643,7 @@ export type ProcessAttemptTotals = {
     otherMs: number
     runningMs: number
     waitingMs: number
+    queuedMs?: number
     tools: Array<ProcessToolTime>
   }
 }
@@ -10978,6 +11662,7 @@ export type ProcessStepTotals = {
     otherMs: number
     runningMs: number
     waitingMs: number
+    queuedMs?: number
     tools: Array<ProcessToolTime>
   }
   attempts: Array<ProcessAttemptTotals>
@@ -10997,6 +11682,7 @@ export type ProcessRunTotals = {
     otherMs: number
     runningMs: number
     waitingMs: number
+    queuedMs?: number
     tools: Array<ProcessToolTime>
   }
   ticking: boolean
@@ -11005,6 +11691,11 @@ export type ProcessRunTotals = {
   steps: {
     [key: string]: ProcessStepTotals
   }
+}
+
+export type ProofKindUnavailable = {
+  kind: ProofKind
+  reason: string
 }
 
 export type ProcessNeedsYouResolutionKind = 'resolved' | 'changed' | 'deferred'
@@ -11296,6 +11987,7 @@ export type ProcessRun = {
         topicId: string
         at: number
       }
+      agentFailed?: true
     }
     stepInFlight?: boolean
     childRunId?: string
@@ -11327,6 +12019,7 @@ export type ProcessRun = {
       otherMs: number
       runningMs: number
       waitingMs: number
+      queuedMs?: number
       tools: Array<ProcessToolTime>
     }
     ticking: boolean
@@ -11343,6 +12036,8 @@ export type ProcessRun = {
     commits: number
   }
   workBranchTip?: string
+  proofUnavailable?: Array<ProofKindUnavailable>
+  changeUiPaths?: Array<string>
   needsYouResolutions?: {
     [key: string]: ProcessNeedsYouResolution
   }
@@ -11485,6 +12180,7 @@ export type ProcessManagerCardStandingRun = {
         topicId: string
         at: number
       }
+      agentFailed?: true
     }
     stepInFlight?: boolean
     childRunId?: string
@@ -11997,6 +12693,14 @@ export type ProjectCheckHostTreeOptions = {
 }
 
 export type ProjectCheckBaselineCache = unknown
+
+export type ProjectCheckQueueScope = 'project' | 'host'
+
+export type ProjectCheckQueueWait = {
+  scope: ProjectCheckQueueScope
+  reason: string
+  since: number
+}
 
 export type SandboxImageToolchain = {
   image: string
@@ -12557,10 +13261,7 @@ export type ResolvedProofPlan = {
   source: ProofPlanSource
 }
 
-export type ProofKindUnavailable = {
-  kind: ProofKind
-  reason: string
-}
+export type UiChangeSignal = 'files' | 'words'
 
 export type LaunchProofPlan = {
   featureId: string
@@ -12568,7 +13269,9 @@ export type LaunchProofPlan = {
   plan: ProofPlan
   source: ProofPlanSource
   unavailable?: Array<ProofKindUnavailable>
+  dropped?: Array<ProofKindUnavailable>
   looksUi?: boolean
+  looksUiByWords?: boolean
 }
 
 export type ProofPlanStepFact = {
@@ -12630,6 +13333,7 @@ export type ProofPlanFacts = {
   }
   changeTests?: Array<string>
   captureUnavailable?: string
+  screensNotNeeded?: boolean
   ahead?: {
     checks?: boolean
     review?: boolean
@@ -12682,9 +13386,16 @@ export type ChangeScreensInput = {
   uiPaths?: Array<string>
   features?: Array<UiChangeFeature>
   requestNote?: string
+  screensInWords?: boolean
   scope?: {
     appDir?: string
   }
+}
+
+export type PendingChangeRequestOptions = {
+  findings?: string
+  unavailable?: Array<ProofKindUnavailable>
+  uiPaths?: Array<string>
 }
 
 export type JudgingProofPlanInput = {
@@ -14535,7 +15246,7 @@ export type ChatReference =
       kind: 'design'
       projectId?: string
       screenId: string
-      itemId?: string
+      stateId?: string
     }
   | {
       kind: 'run'
@@ -14792,6 +15503,8 @@ export type ReviewEvidenceKind = 'screenshot' | 'recording' | 'report' | 'log'
 export type ReviewEvidenceDesignAttribution = {
   app: string
   screen: string
+  state?: string
+  variant?: string
 }
 
 export type ReviewEvidenceComparison = {
@@ -14894,6 +15607,8 @@ export type ReviewEvidenceRef = {
   design?: {
     app: string
     screen: string
+    state?: string
+    variant?: string
   }
   approach?: string
   capturedOn?: string
@@ -15073,6 +15788,8 @@ export type RecordReviewEvidenceInput = {
   design?: {
     app: string
     screen: string
+    state?: string
+    variant?: string
   }
   approach?: string
   capturedOn?: string
@@ -15095,6 +15812,36 @@ export type RecordReviewEvidenceInput = {
     decisions: Array<string>
     needsYou: Array<string>
   }
+}
+
+export type ReviewEvidenceTextCut = {
+  totalChars: number
+  headChars: number
+  tailChars: number
+}
+
+export type ReviewEvidenceContent = {
+  id: string
+  kind?: 'screenshot' | 'recording' | 'report' | 'log'
+  mediaType?: string
+  label?: string
+  subject?: string
+  phase?: 'before' | 'after'
+  text?: string
+  truncated?: {
+    totalChars: number
+    headChars: number
+    tailChars: number
+  }
+  viewedImage?: {
+    path: string
+    mediaType: string
+    base64?: string
+  }
+  stills?: number
+  still?: number
+  note?: string
+  error?: string
 }
 
 export type ReviewEvidenceBuildHint = {
@@ -15177,8 +15924,6 @@ export type SearchNoteOwner =
       groupId: string
     }
 
-export type SearchRecordGroup = 'notes' | 'stories'
-
 export type CliRunIndexEntry = {
   id: string
   projectId: string
@@ -15249,23 +15994,24 @@ export type StorageUsageStanding = {
   over: boolean
 }
 
-export type FeatureTransitionEvent =
-  | 'implement-started'
-  | 'verified'
-  | 'signed-off'
-  | 'not-accepted'
-  | 'process-deleted'
-  | 'reopened'
-  | 'sent-back'
+export type LiveRunFeatureProgress = 'not-in-run' | 'not-started' | 'started'
 
-export type FeatureTransitionOptions = {
-  note?: string
-  questionsAskedSince?: string
-}
-
-export type RetireQuestionsOptions = {
-  answer?: string
-  askedSince?: string
+export type LiveRunFeatureUpdateContext = {
+  runFeatureIds?: Array<string>
+  feature: {
+    id: string
+    title: string
+    description: string
+    acceptance?: string
+    proofPlan?: {
+      kinds: Array<
+        'unit-tests' | 'checks' | 'code-review' | 'ui-before-after' | 'live-backend' | 'manual'
+      >
+      notes?: string
+    }
+    status: Status
+    blockers?: Array<string>
+  }
 }
 
 export type FeatureCreateInput = {
@@ -15306,6 +16052,56 @@ export type FeatureEditInput = {
   rejection?: string
   questions?: Array<FeatureQuestion>
   externalIds?: Array<ExternalRef>
+}
+
+export type LiveRunFeatureUpdateApply = {
+  action: 'apply'
+  patch: FeatureEditInput
+  syncProofPlan?: ProofPlan | unknown
+  removeFromRun?: boolean
+}
+
+export type LiveRunFeatureUpdateRework = {
+  action: 'rework'
+  patch: FeatureEditInput
+  pendingChange: {
+    title: string
+    summary: string
+    needsYouItemId?: string
+    kind: 'feature-changed' | 'feature-added'
+    featureId: string
+    note?: string
+    proofKinds?: Array<ProofKind>
+  }
+}
+
+export type LiveRunFeatureUpdateRefuse = {
+  action: 'refuse'
+  reason: string
+}
+
+export type LiveRunFeatureUpdateDecision =
+  | LiveRunFeatureUpdateApply
+  | LiveRunFeatureUpdateRework
+  | LiveRunFeatureUpdateRefuse
+
+export type FeatureTransitionEvent =
+  | 'implement-started'
+  | 'verified'
+  | 'signed-off'
+  | 'not-accepted'
+  | 'process-deleted'
+  | 'reopened'
+  | 'sent-back'
+
+export type FeatureTransitionOptions = {
+  note?: string
+  questionsAskedSince?: string
+}
+
+export type RetireQuestionsOptions = {
+  answer?: string
+  askedSince?: string
 }
 
 export type FeatureSummary = {
@@ -15465,6 +16261,13 @@ export type StoryBlockerProject = {
       id: string
     }>
   }>
+}
+
+export type WorkableFeature = {
+  id: string
+  title: string
+  status: Status
+  blockers?: Array<string>
 }
 
 export type CreateTestTempDirOptions = {
@@ -15740,6 +16543,7 @@ export type ToolName =
   | 'archiveChat'
   | 'hideChatFromList'
   | 'showChatInList'
+  | 'raiseChatOpenChanges'
   | 'updateDynamicContext'
   | 'deleteChat'
   | 'getChatSettings'
@@ -15796,12 +16600,12 @@ export type ToolName =
   | 'finalizeIsolatedChatTurn'
   | 'readChatOpenChanges'
   | 'rebuildChatReviewOnCheckout'
-  | 'mergeCliRunReview'
   | 'verifyCliRunReview'
   | 'setCliRunVerdict'
   | 'recordCliRunDiffReview'
   | 'setCliRunFileViewed'
   | 'rejectCliRunReview'
+  | 'readCliRunApprovalPlan'
   | 'approveCliRunReview'
   | 'planCliRunVerification'
   | 'startCliAuthLogin'
@@ -16116,6 +16920,7 @@ export type ToolName =
   | 'recordReviewEvidence'
   | 'listReviewEvidence'
   | 'getReviewEvidence'
+  | 'readReviewEvidence'
   | 'deleteReviewEvidence'
   | 'runSandbox'
   | 'startSandboxProxy'
@@ -16195,6 +17000,22 @@ export type ToolName =
   | 'listProcessGroupRuns'
   | 'deleteProcessRun'
   | 'getRunDiagnostics'
+
+export type Args = {
+  [key: string]: unknown
+}
+
+export type AgentToolSchema = {
+  category?: string
+  name: string
+  description: string
+  examples?: Array<string>
+  parameters: JsonValue
+  returns?: unknown
+  source?: string
+}
+
+export type CrossProjectDiscoveryToolName = 'listProjects' | 'getProject'
 
 export type ValidationResult = {
   valid: boolean
@@ -16778,12 +17599,209 @@ export type ChecksOutcome = {
   checkedSha?: string
 }
 
+export type CloseRun = {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+} & {
+  storyId?: string
+  parentRunId?: string
+  groupRunId?: string
+}
+
 export type LoopedRun = {
   plan: {
     steps: Array<ProcessPlanStep>
     loops: Array<ProcessLoop>
   }
   ledger: Array<ProcessLedgerEntry>
+}
+
+export type ProofChangeRun = {
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+} & {
+  featureId?: string
+  input?: {
+    [key: string]: unknown
+  }
+  status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  proofUnavailable?: Array<ProofKindUnavailable>
+}
+
+export type RecheckRun = {
+  plan: ProcessPlan
+  ledger: Array<ProcessLedgerEntry>
+  park?: {
+    reason: ProcessParkReason
+    stepId?: string
+    loopId?: string
+    message: string
+    parkedAt: number
+    pending?: {
+      cursor: ProcessRunCursor
+      viaLoopId?: string
+      continuesEntryId?: string
+      retryMode?: 'continue' | 'fresh'
+      resumesEntryId?: string
+    }
+    ask?: {
+      kind: ProcessWaitingKind
+      agent: string
+      title: string
+      detail: string
+      request?: {
+        actionId: string
+        actionKind: string
+        toolName?: string
+        host?: string
+        packageName?: string
+        ecosystem?: string
+        url?: string
+        args?: {
+          [key: string]: unknown
+        }
+      }
+      items?: Array<ProcessWaitingItem>
+      featureQuestionId?: string
+      runRef?: {
+        runId: string
+        agentRunId?: string
+        chatContextId?: string
+        runner?: 'api' | 'cli'
+      }
+      delegatedTo?: {
+        chatContextId: string
+        topicId: string
+        at: number
+      }
+      agentFailed?: true
+    }
+    stepInFlight?: boolean
+    childRunId?: string
+    baseConflict?: {
+      baseRef: string
+      baseSha: string
+      commits: number
+      paths: Array<string>
+      workSha?: string
+      keptOneSide?: Array<ProcessKeptOneSide>
+      lostExports?: Array<CodeIntelExportedSymbol>
+    }
+  }
+} & {
+  workBranchTip?: string
 }
 
 export type RetryRun = {
@@ -16983,6 +18001,7 @@ export type ProcessLaunchDecision = {
     state?: 'running' | 'parked' | 'awaiting-sign-off' | 'unmerged'
   }
   featureProcessId?: string
+  featureIds?: Array<string>
   proofPlans?: {
     [key: string]: ProofPlan
   }
@@ -17037,6 +18056,7 @@ export type ProcessChangeRequest = {
   from: 'sign-off' | 'code-review'
   note?: string
   proofKinds?: Array<ProofKind>
+  chosenProofKinds?: Array<ProofKind>
 }
 
 export type StageProcessRunChangeInput =
@@ -17342,6 +18362,7 @@ export type ProcessRunChatState = {
           topicId: string
           at: number
         }
+        agentFailed?: true
       }
       stepInFlight?: boolean
       childRunId?: string
@@ -17373,6 +18394,7 @@ export type ProcessRunChatState = {
         otherMs: number
         runningMs: number
         waitingMs: number
+        queuedMs?: number
         tools: Array<ProcessToolTime>
       }
       ticking: boolean
@@ -17389,6 +18411,8 @@ export type ProcessRunChatState = {
       commits: number
     }
     workBranchTip?: string
+    proofUnavailable?: Array<ProofKindUnavailable>
+    changeUiPaths?: Array<string>
     needsYouResolutions?: {
       [key: string]: ProcessNeedsYouResolution
     }
@@ -18028,6 +19052,7 @@ export type ProcessRunSummary = {
         topicId: string
         at: number
       }
+      agentFailed?: true
     }
     stepInFlight?: boolean
     childRunId?: string
@@ -18059,6 +19084,7 @@ export type ProcessRunSummary = {
       otherMs: number
       runningMs: number
       waitingMs: number
+      queuedMs?: number
       tools: Array<ProcessToolTime>
     }
     ticking: boolean
@@ -18074,6 +19100,8 @@ export type ProcessRunSummary = {
     commits: number
   }
   workBranchTip?: string
+  proofUnavailable?: Array<ProofKindUnavailable>
+  changeUiPaths?: Array<string>
   cleanup?: {
     items: Array<ProcessCleanupItem>
     choices?: {
@@ -18182,7 +19210,14 @@ export type ProcessRunDecision =
         | 'more-info'
         | 'update-base'
         | 'resolve-base-conflict'
+        | 'change-proof'
+        | 'send-to-developer'
+        | 'recheck'
+        | 'close-unmerged'
       note?: string
+    }
+  | {
+      kind: 'closed'
     }
   | {
       kind: 'none'
@@ -18298,6 +19333,11 @@ export type ProcessStepResult = {
       kinds: Array<ProofKindStanding>
       changeTests?: Array<string>
       captureUnavailable?: string
+      screensNotNeeded?: boolean
+    }
+    cannotProduce?: {
+      reason: string
+      screens: boolean
     }
   }
   review?: {
@@ -18373,8 +19413,10 @@ export type ProcessStepResult = {
       topicId: string
       at: number
     }
+    agentFailed?: true
   }
   agentStop?: 'turn-limit' | 'interrupted'
+  agentNotStarted?: string
   unmetRequest?: string
   cleanup?: {
     outcomes: Array<ProcessCleanupOutcome>
@@ -18534,6 +19576,7 @@ export type ProcessStepState = {
         topicId: string
         at: number
       }
+      agentFailed?: true
     }
     continues?: string
     override?: {
@@ -18565,6 +19608,18 @@ export type ProcessStepState = {
         limitTurns: boolean
         maxTurns: number
       }
+      proofChange?: {
+        featureId?: string
+        stepId?: string
+        from: Array<ProofKind>
+        to: Array<ProofKind>
+        saved?: boolean
+        outcome: 'moved-on' | 'rerun'
+        rejudged?: {
+          outcome: ProcessStepOutcome
+          summary?: string
+        }
+      }
       decidedBy?: 'person' | 'agent' | 'manager'
       decidedVia?: ProcessPersonDecisionVia | 'tool' | 'manager'
       toolName?: string
@@ -18595,6 +19650,11 @@ export type ProcessStepState = {
         kinds: Array<ProofKindStanding>
         changeTests?: Array<string>
         captureUnavailable?: string
+        screensNotNeeded?: boolean
+      }
+      cannotProduce?: {
+        reason: string
+        screens: boolean
       }
     }
     review?: {
@@ -18656,11 +19716,17 @@ export type ProcessStepState = {
       maxTurns: number
     }
     agentStop?: 'turn-limit' | 'interrupted'
+    agentNotStarted?: string
     retryMode?: 'continue' | 'fresh'
     resumes?: string
     retries?: Array<ProcessStepRetry>
     backoffMs?: number
     backoffSince?: number
+    queuedMs?: number
+    queued?: {
+      reason: string
+      since: number
+    }
   }
   entries: Array<ProcessLedgerEntry>
   current: boolean
@@ -18677,6 +19743,14 @@ export type ProcessRunProgress = {
   currentStepId?: string
 }
 
+export type ProcessProofChangeOffer = {
+  featureId?: string
+  stepId: string
+  current: Array<ProofKind>
+  standings: Array<ProofKindStanding>
+  unavailable: Array<ProofKindUnavailable>
+}
+
 export type ProcessParkChoice = {
   choice: ProcessParkAction
   label: string
@@ -18690,6 +19764,13 @@ export type ProcessParkChoice = {
   turnLimit?: {
     current: ProcessTurnLimit
     suggested: number
+  }
+  proofChange?: {
+    featureId?: string
+    stepId: string
+    current: Array<ProofKind>
+    standings: Array<ProofKindStanding>
+    unavailable: Array<ProofKindUnavailable>
   }
 }
 
@@ -18749,6 +19830,11 @@ export type ProcessResumeOptions = {
     limitTurns: boolean
     maxTurns: number
   }
+  proofPlan?: {
+    kinds: Array<ProofKind>
+    notes?: string
+  }
+  saveProofPlan?: boolean
 }
 
 export type ProcessGroupLegStatus =
@@ -19091,6 +20177,7 @@ export type ProcessGroupRunTotals = {
     otherMs: number
     runningMs: number
     waitingMs: number
+    queuedMs?: number
     tools: Array<ProcessToolTime>
   }
   ticking: boolean
@@ -19136,6 +20223,7 @@ export type ProcessGroupRun = {
       otherMs: number
       runningMs: number
       waitingMs: number
+      queuedMs?: number
       tools: Array<ProcessToolTime>
     }
     ticking: boolean
@@ -19248,6 +20336,7 @@ export type ParkChoicesRun = {
         topicId: string
         at: number
       }
+      agentFailed?: true
     }
     stepInFlight?: boolean
     childRunId?: string
@@ -19298,6 +20387,12 @@ export type ParkChoicesRun = {
   }
   baseUpdates?: Array<ProcessBaseUpdate>
   workBranchChanges?: Array<ProcessWorkBranchChange>
+  featureId?: string
+  status?: 'pending' | 'running' | 'parked' | 'succeeded' | 'failed' | 'cancelled'
+  proofUnavailable?: Array<ProofKindUnavailable>
+  storyId?: string
+  parentRunId?: string
+  groupRunId?: string
 }
 
 export type ChunkKind = 'code' | 'markdown' | 'text' | 'summary'
@@ -19666,6 +20761,12 @@ export type AddMessagesInput = {
       fileCount: number
       changedCount?: number
     }
+    openQuestionsCard?: {
+      projectId: string
+      storyId: string
+      featureIds?: Array<string>
+    }
+    needsYouAt?: string
     needsYouClosedAt?: string
     toolCall?: {
       toolCallId: string
@@ -19731,6 +20832,7 @@ export type UpdateCompletionSettingsInput = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        protectedChars?: number
         hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
@@ -21994,6 +23096,10 @@ export type ResumeProcessRunData = {
       | 'more-info'
       | 'update-base'
       | 'resolve-base-conflict'
+      | 'change-proof'
+      | 'send-to-developer'
+      | 'recheck'
+      | 'close-unmerged'
     /**
      * The app the person decided on — recorded on the decision with `decidedBy: person`. Required: a decision nobody can attribute is refused.
      */
@@ -22023,6 +23129,14 @@ export type ResumeProcessRunData = {
       limitTurns: boolean
       maxTurns: number
     }
+    proofPlan?: {
+      kinds: Array<ProofKind>
+      notes?: string
+    }
+    /**
+     * With change-proof: also write the plan onto the feature, so later runs start from it.
+     */
+    saveProofPlan?: boolean
   }
   path: {
     runId: string
@@ -23737,7 +24851,7 @@ export type GetProjectDesignResponses = {
   /**
    * Default Response
    */
-  200: DesignTree
+  200: DesignIndex
 }
 
 export type GetProjectDesignResponse = GetProjectDesignResponses[keyof GetProjectDesignResponses]
@@ -23895,6 +25009,10 @@ export type CreateDesignScreenData = {
   body: {
     appId: string
     name: string
+    kind?: 'screen' | 'component'
+    group?: string
+    description?: string
+    variants?: Array<string>
   }
   path: {
     projectId: string
@@ -23991,9 +25109,23 @@ export type DeleteDesignScreenResponses = {
 export type DeleteDesignScreenResponse =
   DeleteDesignScreenResponses[keyof DeleteDesignScreenResponses]
 
-export type RenameDesignScreenData = {
+export type UpdateDesignScreenData = {
   body: {
-    name: string
+    name?: string
+    kind?: 'screen' | 'component'
+    /**
+     * '' clears it.
+     */
+    group?: string
+    /**
+     * '' clears it.
+     */
+    description?: string
+    /**
+     * Component screen ids.
+     */
+    uses?: Array<string>
+    variants?: Array<string>
   }
   path: {
     projectId: string
@@ -24003,7 +25135,7 @@ export type RenameDesignScreenData = {
   url: '/api/v1/projects/{projectId}/design/screens/{screenId}'
 }
 
-export type RenameDesignScreenErrors = {
+export type UpdateDesignScreenErrors = {
   /**
    * Default Response
    */
@@ -24030,52 +25162,239 @@ export type RenameDesignScreenErrors = {
   }
 }
 
-export type RenameDesignScreenError = RenameDesignScreenErrors[keyof RenameDesignScreenErrors]
+export type UpdateDesignScreenError = UpdateDesignScreenErrors[keyof UpdateDesignScreenErrors]
 
-export type RenameDesignScreenResponses = {
+export type UpdateDesignScreenResponses = {
   /**
    * Default Response
    */
   200: DesignScreen
 }
 
-export type RenameDesignScreenResponse =
-  RenameDesignScreenResponses[keyof RenameDesignScreenResponses]
+export type UpdateDesignScreenResponse =
+  UpdateDesignScreenResponses[keyof UpdateDesignScreenResponses]
 
-export type CreateDesignItemData = {
+export type CreateDesignStateData = {
   body: {
     screenId: string
-    name?: string
-    source:
-      | {
-          type: 'upload'
-          /**
-           * The file name it was uploaded with.
-           */
-          name: string
-          contentBase64: string
-          mediaType?: string
-        }
-      | {
-          type: 'project-file'
-          /**
-           * A path relative to the project root.
-           */
-          path: string
-        }
-      | {
-          type: 'link'
-          url: string
-        }
+    name: string
+    description?: string
+    address?: string
   }
   path: {
     projectId: string
   }
   query?: never
-  url: '/api/v1/projects/{projectId}/design/items'
+  url: '/api/v1/projects/{projectId}/design/states'
 }
 
-export type CreateDesignItemErrors = {
+export type CreateDesignStateErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CreateDesignStateError = CreateDesignStateErrors[keyof CreateDesignStateErrors]
+
+export type CreateDesignStateResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignState
+}
+
+export type CreateDesignStateResponse = CreateDesignStateResponses[keyof CreateDesignStateResponses]
+
+export type DeleteDesignStateData = {
+  body?: never
+  path: {
+    projectId: string
+    stateId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/states/{stateId}'
+}
+
+export type DeleteDesignStateErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DeleteDesignStateError = DeleteDesignStateErrors[keyof DeleteDesignStateErrors]
+
+export type DeleteDesignStateResponses = {
+  /**
+   * Default Response
+   */
+  204: void
+}
+
+export type DeleteDesignStateResponse = DeleteDesignStateResponses[keyof DeleteDesignStateResponses]
+
+export type UpdateDesignStateData = {
+  body: {
+    name?: string
+    /**
+     * '' clears it.
+     */
+    description?: string
+    /**
+     * '' clears it.
+     */
+    address?: string
+  }
+  path: {
+    projectId: string
+    stateId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/states/{stateId}'
+}
+
+export type UpdateDesignStateErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type UpdateDesignStateError = UpdateDesignStateErrors[keyof UpdateDesignStateErrors]
+
+export type UpdateDesignStateResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignState
+}
+
+export type UpdateDesignStateResponse = UpdateDesignStateResponses[keyof UpdateDesignStateResponses]
+
+export type ProposeDesignData = {
+  body: {
+    appId: string
+    title: string
+    question?: string
+    entries: Array<{
+      key?: string
+      target?: {
+        screenId?: string
+        screenName?: string
+        screenKind?: 'screen' | 'component'
+        stateId?: string
+        stateName?: string
+      }
+      variant?: string
+      source:
+        | {
+            type: 'upload'
+            /**
+             * The file name it was uploaded with.
+             */
+            name: string
+            contentBase64: string
+            mediaType?: string
+          }
+        | {
+            type: 'project-file'
+            /**
+             * A path relative to the project root.
+             */
+            path: string
+          }
+        | {
+            type: 'link'
+            url: string
+          }
+      caseQuery?: string
+      links?: Array<{
+        x: number
+        y: number
+        w: number
+        h: number
+        label: string
+        to: string
+      }>
+      pieces?: Array<{
+        x: number
+        y: number
+        w: number
+        h: number
+        piece: string
+      }>
+    }>
+    pieces?: Array<DesignPiece>
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals'
+}
+
+export type ProposeDesignErrors = {
   /**
    * Default Response
    */
@@ -24110,28 +25429,115 @@ export type CreateDesignItemErrors = {
   }
 }
 
-export type CreateDesignItemError = CreateDesignItemErrors[keyof CreateDesignItemErrors]
+export type ProposeDesignError = ProposeDesignErrors[keyof ProposeDesignErrors]
 
-export type CreateDesignItemResponses = {
+export type ProposeDesignResponses = {
   /**
    * Default Response
    */
-  200: DesignItem
+  200: DesignProposal
 }
 
-export type CreateDesignItemResponse = CreateDesignItemResponses[keyof CreateDesignItemResponses]
+export type ProposeDesignResponse = ProposeDesignResponses[keyof ProposeDesignResponses]
 
-export type DeleteDesignItemData = {
+export type ProposeDesignDraftData = {
+  body: {
+    appId: string
+    title?: string
+    source:
+      | {
+          type: 'upload'
+          /**
+           * The file name it was uploaded with.
+           */
+          name: string
+          contentBase64: string
+          mediaType?: string
+        }
+      | {
+          type: 'project-file'
+          /**
+           * A path relative to the project root.
+           */
+          path: string
+        }
+      | {
+          type: 'link'
+          url: string
+        }
+    target?: {
+      screenId?: string
+      screenName?: string
+      screenKind?: 'screen' | 'component'
+      stateId?: string
+      stateName?: string
+    }
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/draft'
+}
+
+export type ProposeDesignDraftErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  413: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ProposeDesignDraftError = ProposeDesignDraftErrors[keyof ProposeDesignDraftErrors]
+
+export type ProposeDesignDraftResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<DesignProposal>
+}
+
+export type ProposeDesignDraftResponse =
+  ProposeDesignDraftResponses[keyof ProposeDesignDraftResponses]
+
+export type DeleteDesignProposalData = {
   body?: never
   path: {
     projectId: string
-    itemId: string
+    proposalId: string
   }
   query?: never
-  url: '/api/v1/projects/{projectId}/design/items/{itemId}'
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}'
 }
 
-export type DeleteDesignItemErrors = {
+export type DeleteDesignProposalErrors = {
   /**
    * Default Response
    */
@@ -24158,30 +25564,31 @@ export type DeleteDesignItemErrors = {
   }
 }
 
-export type DeleteDesignItemError = DeleteDesignItemErrors[keyof DeleteDesignItemErrors]
+export type DeleteDesignProposalError = DeleteDesignProposalErrors[keyof DeleteDesignProposalErrors]
 
-export type DeleteDesignItemResponses = {
+export type DeleteDesignProposalResponses = {
   /**
    * Default Response
    */
   204: void
 }
 
-export type DeleteDesignItemResponse = DeleteDesignItemResponses[keyof DeleteDesignItemResponses]
+export type DeleteDesignProposalResponse =
+  DeleteDesignProposalResponses[keyof DeleteDesignProposalResponses]
 
-export type RenameDesignItemData = {
+export type RenameDesignProposalData = {
   body: {
-    name: string
+    title: string
   }
   path: {
     projectId: string
-    itemId: string
+    proposalId: string
   }
   query?: never
-  url: '/api/v1/projects/{projectId}/design/items/{itemId}'
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}'
 }
 
-export type RenameDesignItemErrors = {
+export type RenameDesignProposalErrors = {
   /**
    * Default Response
    */
@@ -24208,33 +25615,87 @@ export type RenameDesignItemErrors = {
   }
 }
 
-export type RenameDesignItemError = RenameDesignItemErrors[keyof RenameDesignItemErrors]
+export type RenameDesignProposalError = RenameDesignProposalErrors[keyof RenameDesignProposalErrors]
 
-export type RenameDesignItemResponses = {
+export type RenameDesignProposalResponses = {
   /**
    * Default Response
    */
-  200: DesignItem
+  200: DesignProposal
 }
 
-export type RenameDesignItemResponse = RenameDesignItemResponses[keyof RenameDesignItemResponses]
+export type RenameDesignProposalResponse =
+  RenameDesignProposalResponses[keyof RenameDesignProposalResponses]
 
-export type ApproveDesignItemData = {
+export type FileDesignProposalEntryData = {
+  body: {
+    target: DesignEntryTarget
+  }
+  path: {
+    projectId: string
+    proposalId: string
+    entryId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/entries/{entryId}/file'
+}
+
+export type FileDesignProposalEntryErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type FileDesignProposalEntryError =
+  FileDesignProposalEntryErrors[keyof FileDesignProposalEntryErrors]
+
+export type FileDesignProposalEntryResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignProposal
+}
+
+export type FileDesignProposalEntryResponse =
+  FileDesignProposalEntryResponses[keyof FileDesignProposalEntryResponses]
+
+export type AcceptDesignProposalData = {
   body: {
     /**
-     * true marks it the approved design; false unmarks it.
+     * Accept only these cells; left out, every one still waiting.
      */
-    approved: boolean
+    entryIds?: Array<string>
   }
   path: {
     projectId: string
-    itemId: string
+    proposalId: string
   }
   query?: never
-  url: '/api/v1/projects/{projectId}/design/items/{itemId}/approve'
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/accept'
 }
 
-export type ApproveDesignItemErrors = {
+export type AcceptDesignProposalErrors = {
   /**
    * Default Response
    */
@@ -24261,22 +25722,437 @@ export type ApproveDesignItemErrors = {
   }
 }
 
-export type ApproveDesignItemError = ApproveDesignItemErrors[keyof ApproveDesignItemErrors]
+export type AcceptDesignProposalError = AcceptDesignProposalErrors[keyof AcceptDesignProposalErrors]
 
-export type ApproveDesignItemResponses = {
+export type AcceptDesignProposalResponses = {
   /**
    * Default Response
    */
-  200: DesignItem
+  200: {
+    proposal: DesignProposal
+    versions: Array<DesignVersion>
+  }
 }
 
-export type ApproveDesignItemResponse = ApproveDesignItemResponses[keyof ApproveDesignItemResponses]
+export type AcceptDesignProposalResponse =
+  AcceptDesignProposalResponses[keyof AcceptDesignProposalResponses]
 
-export type GetDesignItemContentData = {
+export type KeepDesignProposalAsAlternativeData = {
   body?: never
   path: {
     projectId: string
-    itemId: string
+    proposalId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/keep'
+}
+
+export type KeepDesignProposalAsAlternativeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type KeepDesignProposalAsAlternativeError =
+  KeepDesignProposalAsAlternativeErrors[keyof KeepDesignProposalAsAlternativeErrors]
+
+export type KeepDesignProposalAsAlternativeResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignProposal
+}
+
+export type KeepDesignProposalAsAlternativeResponse =
+  KeepDesignProposalAsAlternativeResponses[keyof KeepDesignProposalAsAlternativeResponses]
+
+export type ChooseDesignProposalData = {
+  body?: never
+  path: {
+    projectId: string
+    proposalId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/choose'
+}
+
+export type ChooseDesignProposalErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ChooseDesignProposalError = ChooseDesignProposalErrors[keyof ChooseDesignProposalErrors]
+
+export type ChooseDesignProposalResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignProposal
+}
+
+export type ChooseDesignProposalResponse =
+  ChooseDesignProposalResponses[keyof ChooseDesignProposalResponses]
+
+export type SendBackDesignProposalData = {
+  body: {
+    note: string
+  }
+  path: {
+    projectId: string
+    proposalId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/send-back'
+}
+
+export type SendBackDesignProposalErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type SendBackDesignProposalError =
+  SendBackDesignProposalErrors[keyof SendBackDesignProposalErrors]
+
+export type SendBackDesignProposalResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    proposal: DesignProposal
+    delivery: {
+      delivered: boolean
+      held?: boolean
+      chatId?: string
+      note?: string
+    }
+  }
+}
+
+export type SendBackDesignProposalResponse =
+  SendBackDesignProposalResponses[keyof SendBackDesignProposalResponses]
+
+export type RestoreDesignVersionsData = {
+  body: {
+    versionIds: Array<string>
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/versions/restore'
+}
+
+export type RestoreDesignVersionsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type RestoreDesignVersionsError =
+  RestoreDesignVersionsErrors[keyof RestoreDesignVersionsErrors]
+
+export type RestoreDesignVersionsResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignProposal
+}
+
+export type RestoreDesignVersionsResponse =
+  RestoreDesignVersionsResponses[keyof RestoreDesignVersionsResponses]
+
+export type DecideDesignTidyMoveData = {
+  body: {
+    decision: 'accept' | 'leave'
+  }
+  path: {
+    projectId: string
+    planId: string
+    moveId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/moves/{moveId}/decide'
+}
+
+export type DecideDesignTidyMoveErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DecideDesignTidyMoveError = DecideDesignTidyMoveErrors[keyof DecideDesignTidyMoveErrors]
+
+export type DecideDesignTidyMoveResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignTidyPlan
+}
+
+export type DecideDesignTidyMoveResponse =
+  DecideDesignTidyMoveResponses[keyof DecideDesignTidyMoveResponses]
+
+export type PreviewDesignTidyPlanData = {
+  body?: never
+  path: {
+    projectId: string
+    planId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/preview'
+}
+
+export type PreviewDesignTidyPlanErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewDesignTidyPlanError =
+  PreviewDesignTidyPlanErrors[keyof PreviewDesignTidyPlanErrors]
+
+export type PreviewDesignTidyPlanResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignTidyPreview
+}
+
+export type PreviewDesignTidyPlanResponse =
+  PreviewDesignTidyPlanResponses[keyof PreviewDesignTidyPlanResponses]
+
+export type ApplyDesignTidyPlanData = {
+  body?: never
+  path: {
+    projectId: string
+    planId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/apply'
+}
+
+export type ApplyDesignTidyPlanErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ApplyDesignTidyPlanError = ApplyDesignTidyPlanErrors[keyof ApplyDesignTidyPlanErrors]
+
+export type ApplyDesignTidyPlanResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignTidyPlan
+}
+
+export type ApplyDesignTidyPlanResponse =
+  ApplyDesignTidyPlanResponses[keyof ApplyDesignTidyPlanResponses]
+
+export type DismissDesignTidyPlanData = {
+  body?: never
+  path: {
+    projectId: string
+    planId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/tidy-plans/{planId}/dismiss'
+}
+
+export type DismissDesignTidyPlanErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type DismissDesignTidyPlanError =
+  DismissDesignTidyPlanErrors[keyof DismissDesignTidyPlanErrors]
+
+export type DismissDesignTidyPlanResponses = {
+  /**
+   * Default Response
+   */
+  200: DesignTidyPlan
+}
+
+export type DismissDesignTidyPlanResponse =
+  DismissDesignTidyPlanResponses[keyof DismissDesignTidyPlanResponses]
+
+export type GetDesignVersionContentData = {
+  body?: never
+  path: {
+    projectId: string
+    versionId: string
   }
   query?: {
     /**
@@ -24284,10 +26160,33 @@ export type GetDesignItemContentData = {
      */
     viewToken?: string
   }
-  url: '/api/v1/projects/{projectId}/design/items/{itemId}/content'
+  url: '/api/v1/projects/{projectId}/design/versions/{versionId}/content'
 }
 
-export type GetDesignItemContentResponses = {
+export type GetDesignVersionContentResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
+
+export type GetDesignProposalEntryContentData = {
+  body?: never
+  path: {
+    projectId: string
+    proposalId: string
+    entryId: string
+  }
+  query?: {
+    /**
+     * A project's App view token (POST /projects/:projectId/view/grant), for an <img> or <iframe> that cannot send a bearer.
+     */
+    viewToken?: string
+  }
+  url: '/api/v1/projects/{projectId}/design/proposals/{proposalId}/entries/{entryId}/content'
+}
+
+export type GetDesignProposalEntryContentResponses = {
   /**
    * Default Response
    */
@@ -24355,6 +26254,154 @@ export type GetStorageUsageResponses = {
 }
 
 export type GetStorageUsageResponse = GetStorageUsageResponses[keyof GetStorageUsageResponses]
+
+export type GetDesignPlaygroundData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/playground'
+}
+
+export type GetDesignPlaygroundResponses = {
+  /**
+   * Where the project's design playground is: none declared, not served yet, building, ready with the code it shows, or failed with why.
+   */
+  200:
+    | {
+        status: 'none'
+      }
+    | {
+        status: 'stopped'
+      }
+    | {
+        status: 'building'
+      }
+    | {
+        status: 'ready'
+        sha: string
+        dirty: boolean
+      }
+    | {
+        status: 'failed'
+        error: string
+      }
+}
+
+export type GetDesignPlaygroundResponse =
+  GetDesignPlaygroundResponses[keyof GetDesignPlaygroundResponses]
+
+export type ServeDesignPlaygroundData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/playground/serve'
+}
+
+export type ServeDesignPlaygroundResponses = {
+  /**
+   * Where the project's design playground is: none declared, not served yet, building, ready with the code it shows, or failed with why.
+   */
+  200:
+    | {
+        status: 'none'
+      }
+    | {
+        status: 'stopped'
+      }
+    | {
+        status: 'building'
+      }
+    | {
+        status: 'ready'
+        sha: string
+        dirty: boolean
+      }
+    | {
+        status: 'failed'
+        error: string
+      }
+}
+
+export type ServeDesignPlaygroundResponse =
+  ServeDesignPlaygroundResponses[keyof ServeDesignPlaygroundResponses]
+
+export type CaptureDesignPlaygroundData = {
+  body: {
+    appId: string
+    target: DesignEntryTarget
+    /**
+     * The scene and its controls, e.g. `scene=run-header&status=running`.
+     */
+    address: string
+  }
+  path: {
+    projectId: string
+  }
+  query?: never
+  url: '/api/v1/projects/{projectId}/design/playground/capture'
+}
+
+export type CaptureDesignPlaygroundErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type CaptureDesignPlaygroundError =
+  CaptureDesignPlaygroundErrors[keyof CaptureDesignPlaygroundErrors]
+
+export type CaptureDesignPlaygroundResponses = {
+  /**
+   * Default Response
+   */
+  201: DesignProposal
+}
+
+export type CaptureDesignPlaygroundResponse =
+  CaptureDesignPlaygroundResponses[keyof CaptureDesignPlaygroundResponses]
+
+export type ViewDesignPlaygroundData = {
+  body?: never
+  path: {
+    projectId: string
+  }
+  query?: {
+    viewToken?: string
+  }
+  url: '/api/v1/projects/{projectId}/view/_playground/{*}'
+}
+
+export type ViewDesignPlaygroundResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown
+}
 
 export type ListLlmConfigsData = {
   body?: never
@@ -29799,6 +31846,12 @@ export type SendCompletionData = {
           fileCount: number
           changedCount?: number
         }
+        openQuestionsCard?: {
+          projectId: string
+          storyId: string
+          featureIds?: Array<string>
+        }
+        needsYouAt?: string
         needsYouClosedAt?: string
         toolCall?: {
           toolCallId: string
@@ -29825,6 +31878,7 @@ export type SendCompletionData = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        protectedChars?: number
         hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
@@ -29921,6 +31975,12 @@ export type SendCompletionResponses = {
         fileCount: number
         changedCount?: number
       }
+      openQuestionsCard?: {
+        projectId: string
+        storyId: string
+        featureIds?: Array<string>
+      }
+      needsYouAt?: string
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -29983,6 +32043,7 @@ export type SendCompletionWithToolsData = {
       messageSanitization?: {
         enabled: boolean
         keepLastMessages?: number
+        protectedChars?: number
         hardMaxToolContentChars?: number
         maxAssistantChars?: number
         maxToolArgChars?: number
@@ -30092,6 +32153,12 @@ export type SendCompletionWithToolsResponses = {
             fileCount: number
             changedCount?: number
           }
+          openQuestionsCard?: {
+            projectId: string
+            storyId: string
+            featureIds?: Array<string>
+          }
+          needsYouAt?: string
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
@@ -30206,6 +32273,12 @@ export type SendChatCompletionWithToolsData = {
         fileCount: number
         changedCount?: number
       }
+      openQuestionsCard?: {
+        projectId: string
+        storyId: string
+        featureIds?: Array<string>
+      }
+      needsYouAt?: string
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -30326,6 +32399,12 @@ export type SendChatCompletionWithToolsResponses = {
             fileCount: number
             changedCount?: number
           }
+          openQuestionsCard?: {
+            projectId: string
+            storyId: string
+            featureIds?: Array<string>
+          }
+          needsYouAt?: string
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string
@@ -30440,6 +32519,12 @@ export type SendChatWithCliData = {
         fileCount: number
         changedCount?: number
       }
+      openQuestionsCard?: {
+        projectId: string
+        storyId: string
+        featureIds?: Array<string>
+      }
+      needsYouAt?: string
       needsYouClosedAt?: string
       toolCall?: {
         toolCallId: string
@@ -30499,7 +32584,7 @@ export type SendChatWithCliResponses = {
    * Default Response
    */
   202: {
-    runId: string
+    runId?: string
   }
 }
 
@@ -30682,6 +32767,12 @@ export type ResumeCompletionResponses = {
             fileCount: number
             changedCount?: number
           }
+          openQuestionsCard?: {
+            projectId: string
+            storyId: string
+            featureIds?: Array<string>
+          }
+          needsYouAt?: string
           needsYouClosedAt?: string
           toolCall?: {
             toolCallId: string

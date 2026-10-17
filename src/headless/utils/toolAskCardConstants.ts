@@ -1,4 +1,26 @@
 /** The words every waiting tool's card shares. */
+/** How a design ask reads: proposing images or an HTML draft, or adding a screen. */
+export const DESIGN_ASK = {
+  propose: 'The agent wants to propose a design',
+  draft: 'The agent wants to propose an HTML draft',
+  screen: 'The agent wants to add a screen',
+  tag: 'Design',
+  consequence:
+    'It arrives in the Design view’s Proposals; nothing current changes until you accept it.',
+  screenConsequence: 'An empty screen; its states arrive with proposals.',
+  proposeVerb: 'Propose',
+  screenVerb: 'Add screen',
+  headline: (title: string) => `Propose “${title}”`,
+  draftHeadline: (file: string) => `Propose the draft ${file}`,
+  screenHeadline: (name: string) => `Add the screen “${name}”`,
+  playground: 'The agent wants to save a playground scene as a state',
+  playgroundHeadline: (state: string | undefined) =>
+    state ? `Save “${state}” from the Playground` : 'Save a state from the Playground',
+  playgroundConsequence:
+    'Captured light and dark, desktop and phone, it arrives in the Design view’s Proposals; nothing current changes until you accept it.',
+  playgroundVerb: 'Save',
+} as const
+
 export const TOOL_ASK_COPY = {
   why: 'Why:',
   notNow: 'Not now',
@@ -125,4 +147,53 @@ export const GIT_SETUP_ASK = {
   tag: 'Git',
   createVerb: 'Create repository',
   pushVerb: 'Push',
+} as const
+
+/** The tool that decides a chat's open changes, as the review panel does. */
+export const CHAT_REVIEW_TOOL = 'decideChatOpenChanges'
+
+/** Copy for a decision on a chat's open changes, by decision. */
+export const CHAT_REVIEW_ASK = {
+  tag: 'Sign-off',
+  fallbackHeadline: 'Decide this chat’s changes',
+  ask: {
+    merge: 'The agent wants to merge this chat’s changes',
+    'pull-request': 'The agent wants to open a pull request',
+    'leave-branch': 'The agent wants to approve this chat’s changes',
+    'request-changes': 'The agent wants to ask for changes',
+    reject: 'The agent wants to discard this chat’s changes',
+  } as Partial<Record<string, string>>,
+  verb: {
+    merge: 'Merge',
+    'pull-request': 'Open pull request',
+    'leave-branch': 'Approve',
+    'request-changes': 'Ask for changes',
+    reject: 'Discard',
+  } as Partial<Record<string, string>>,
+  consequence: {
+    merge: (target?: string) =>
+      `They go into ${target ?? 'the checked-out branch'} in your checkout.`,
+    'pull-request': (branch: string) => `${branch} is pushed and its pull request opens.`,
+    'leave-branch': (branch: string) => `Approved — ${branch} stays unmerged.`,
+    'request-changes': () => 'The branch stays for the next turn.',
+    reject: (branch: string) => `The changes and ${branch} go for good.`,
+  } as Partial<Record<string, (branchOrTarget?: string) => string>>,
+  files: (n: number) => `${n} ${n === 1 ? 'file' : 'files'}`,
+  moreFiles: (n: number) => `and ${n} more`,
+  into: 'into',
+}
+
+/** The tool that answers a question a run raised on a feature. */
+export const FEATURE_QUESTION_TOOL = 'submitFeatureQuestionAnswer'
+
+/** Copy for an answer to a feature's question. */
+export const FEATURE_QUESTION_ASK = {
+  ask: 'The agent wants to answer a question',
+  tag: 'Story',
+  fallbackHeadline: 'Answer a question',
+  consequence: 'It is saved as your answer, and the work waiting on it carries on.',
+  verb: 'Send answer',
+  answer: 'Your answer',
+  on: (featureTitle: string) => `On ${featureTitle}`,
+  empty: 'Write an answer first.',
 } as const

@@ -30,6 +30,43 @@ export type ParkNoteComposerProps = {
   onCancel: () => void
 }
 
+/**
+ * The proof a request for changes can require, one switch each — a kind the
+ * run cannot produce here held off with why, unless it is already on.
+ */
+export function RequestProofSwitches({
+  choices,
+  picked,
+  onToggle,
+}: {
+  choices: readonly RequestProofChoice[]
+  picked: readonly ProofKind[]
+  onToggle: (kind: ProofKind, on: boolean) => void
+}) {
+  return (
+    <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+      <legend className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-(--text-muted)">
+        {REQUEST_PROOF_HEADING}
+      </legend>
+      {choices.map((choice) => (
+        <div key={choice.kind} className="flex flex-col gap-0.5">
+          <Switch
+            checked={picked.includes(choice.kind)}
+            disabled={choice.unavailable !== undefined && !picked.includes(choice.kind)}
+            onCheckedChange={(on) => onToggle(choice.kind, on)}
+            label={choice.label}
+          />
+          {choice.unavailable ? (
+            <span className="pl-10 text-[10.5px] text-(--status-review-soft-fg)">
+              {choice.unavailable}
+            </span>
+          ) : null}
+        </div>
+      ))}
+    </fieldset>
+  )
+}
+
 /** The note a choice like "Request changes" carries, written in place of the choice row. */
 export default function ParkNoteComposer({
   copy: givenCopy,
@@ -59,21 +96,11 @@ export default function ParkNoteComposer({
         className="text-[12.5px]"
       />
       {proofChoices && proofChoices.length > 0 ? (
-        <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
-          <legend className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-(--text-muted)">
-            {REQUEST_PROOF_HEADING}
-          </legend>
-          {proofChoices.map((choice) => (
-            <Switch
-              key={choice.kind}
-              checked={proof.includes(choice.kind)}
-              onCheckedChange={(on) =>
-                setProof((kinds) => toggleRequestedProof(kinds, choice.kind, on))
-              }
-              label={choice.label}
-            />
-          ))}
-        </fieldset>
+        <RequestProofSwitches
+          choices={proofChoices}
+          picked={proof}
+          onToggle={(kind, on) => setProof((kinds) => toggleRequestedProof(kinds, kind, on))}
+        />
       ) : null}
       <div className="flex items-center gap-2">
         <Button

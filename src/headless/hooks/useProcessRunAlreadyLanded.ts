@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { processRunAlreadyLandedOffered } from 'thefactory-tools/utils'
 import type { ProcessRun } from 'thefactory-tools/types'
 
 import {
@@ -9,7 +8,7 @@ import {
   useApi,
   useAuth,
 } from '../api'
-import { processAlreadyLandedOffer } from '../utils/processAlreadyLanded'
+import { processAlreadyLandedAsked, processAlreadyLandedOffer } from '../utils/processAlreadyLanded'
 import type {
   ProcessAlreadyLandedOffer,
   ProcessRunLandingPreview,
@@ -25,12 +24,14 @@ export type UseProcessRunAlreadyLanded = {
 }
 
 /**
- * "Finish as already landed" on an approved run whose work did not land: what
- * the server's landing check reads — asked only for a run that offers it — and
- * a way to finish the run, attributed to this app.
+ * "Finish as already merged" on an approved run whose work did not land — or,
+ * `at: 'stop'`, on a run waiting at a stop of its own: what the server's landing
+ * check reads — asked only for a run that offers it there — and a way to finish
+ * the run, attributed to this app.
  */
 export function useProcessRunAlreadyLanded(
   run: ProcessRun | undefined,
+  at: 'ended' | 'stop' = 'ended',
 ): UseProcessRunAlreadyLanded {
   const { token } = useAuth()
   const { client } = useApi()
@@ -38,8 +39,8 @@ export function useProcessRunAlreadyLanded(
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const runId = run?.id
-  const offered = run ? processRunAlreadyLandedOffered(run) : false
-  const failedAt = run?.integration?.at
+  const offered = processAlreadyLandedAsked(run, at)
+  const failedAt = run?.integration?.at ?? run?.park?.parkedAt
 
   useEffect(() => {
     if (!runId || !offered || !token) {
@@ -80,7 +81,7 @@ export function useProcessRunAlreadyLanded(
   }, [runId, client])
 
   return {
-    offer: run ? processAlreadyLandedOffer(run, preview) : undefined,
+    offer: run && offered ? processAlreadyLandedOffer(run, preview) : undefined,
     actionError,
     busy,
     settle,

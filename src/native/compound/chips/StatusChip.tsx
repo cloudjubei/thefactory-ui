@@ -5,6 +5,7 @@ import {
   nativeRadii,
   nativeSpace,
   type NativeSemanticTheme,
+  type NativeStatusTokens,
 } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -19,6 +20,7 @@ export interface StatusChipProps {
 
 function stateColors(
   theme: NativeSemanticTheme,
+  status: NativeStatusTokens,
 ): Record<ChipState, { bg: string; fg: string; border: string }> {
   return {
     created: {
@@ -27,9 +29,9 @@ function stateColors(
       border: theme.border.subtle,
     },
     running: {
-      bg: nativePalette.blue[100],
-      fg: nativePalette.blue[800],
-      border: nativePalette.blue[200],
+      bg: status.running.softBg,
+      fg: status.running.softFg,
+      border: status.running.softBorder,
     },
     completed: {
       bg: nativePalette.green[100],
@@ -57,9 +59,9 @@ function StateGlyph({ state, color }: { state: ChipState; color: string }) {
 }
 
 export default function StatusChip({ state, label }: StatusChipProps) {
-  const { theme } = useNativeTheme()
+  const { theme, status } = useNativeTheme()
   const text = label ?? state
-  const colors = stateColors(theme)[state]
+  const colors = stateColors(theme, status)[state]
   return (
     <Tooltip content={<Text style={{ fontSize: 12, color: theme.text.primary }}>{text}</Text>}>
       <View

@@ -2,10 +2,12 @@ import { useState } from 'react'
 import {
   DESIGN_APP_KIND_LABELS,
   DESIGN_TEXT,
+  designAppNav,
   designDeleteSummary,
-  type UseDesign,
+  type DesignActions,
+  type DesignNavScreen,
 } from '../../../headless'
-import type { DesignAppKind, DesignAppTree } from '../../../headless/api'
+import type { DesignAppKind, DesignIndex, DesignScreenKind } from '../../../headless/api'
 import { Button } from '../../primitives/Button'
 import { Input } from '../../primitives/Input'
 import { NativeSelect } from '../../primitives/NativeSelect'
@@ -13,15 +15,22 @@ import { IconDelete, IconEdit, IconPlus } from '../../icons'
 import { InlineConfirm, InlineRename, KindBadge } from './DesignInline'
 
 export type DesignSidebarProps = {
-  design: UseDesign
+  index: DesignIndex
+  appId: string | undefined
   selectedScreenId: string | undefined
+  onSelectApp: (appId: string) => void
   onSelectScreen: (screenId: string) => void
+  actions: Pick<
+    DesignActions,
+    'createApp' | 'updateApp' | 'deleteApp' | 'createScreen' | 'updateScreen' | 'deleteScreen'
+  >
   /** Runs a change, showing its refusal; resolves `true` when it went through. */
   run: (change: () => Promise<unknown>) => Promise<boolean>
 }
 
 type Editing =
-  | { kind: 'rename-app' | 'delete-app' | 'add-screen'; appId: string }
+  | { kind: 'rename-app' | 'delete-app'; appId: string }
+  | { kind: 'add'; screenKind: DesignScreenKind }
   | { kind: 'rename-screen' | 'delete-screen'; screenId: string }
 
 function RowActions({
@@ -98,13 +107,17 @@ export function NewAppFields({
   )
 }
 
-function AddApp({ design, run }: Pick<DesignSidebarProps, 'design' | 'run'>) {
+function AddApp({
+  actions,
+  run,
+  onAdded,
+}: Pick<DesignSidebarProps, 'actions' | 'run'> & { onAdded: (appId: string) => void }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<DesignAppKind>('product')
   if (!open) {
     return (
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)} className="self-start">
         <IconPlus className="h-3.5 w-3.5" />
         {DESIGN_TEXT.addApp}
       </Button>
@@ -116,9 +129,11 @@ function AddApp({ design, run }: Pick<DesignSidebarProps, 'design' | 'run'>) {
       onSubmit={async (e) => {
         e.preventDefault()
         if (!name.trim()) return
-        if (await run(() => design.createApp(name.trim(), kind))) {
+        let made: string | undefined
+        if (await run(async () => (made = (await actions.createApp(name.trim(), kind)).id))) {
           setName('')
           setOpen(false)
+          if (made) onAdded(made)
         }
       }}
     >
@@ -136,26 +151,37 @@ function AddApp({ design, run }: Pick<DesignSidebarProps, 'design' | 'run'>) {
 }
 
 function AddScreen({
-  app,
-  design,
+  appId,
+  screenKind,
+  actions,
   run,
   onDone,
   onAdded,
-}: Pick<DesignSidebarProps, 'design' | 'run'> & {
-  app: DesignAppTree
+}: Pick<DesignSidebarProps, 'actions' | 'run'> & {
+  appId: string
+  screenKind: DesignScreenKind
   onDone: () => void
   onAdded: (screenId: string) => void
 }) {
   const [name, setName] = useState('')
+  const [group, setGroup] = useState('')
+  const component = screenKind === 'component'
   return (
     <form
-      className="flex items-center gap-1 py-1 pl-4"
+      className="flex flex-col gap-1 py-1 pl-3"
       onSubmit={async (e) => {
         e.preventDefault()
         if (!name.trim()) return
         let made: string | undefined
         const ok = await run(async () => {
-          made = (await design.createScreen(app.id, name.trim())).id
+          made = (
+            await actions.createScreen({
+              appId,
+              name: name.trim(),
+              kind: screenKind,
+              ...(component && group.trim() ? { group: group.trim() } : {}),
+            })
+          ).id
         })
         if (ok && made) {
           onAdded(made)
@@ -166,136 +192,212 @@ function AddScreen({
       <Input
         size="sm"
         autoFocus
-        placeholder="Screen name, e.g. Login"
-        aria-label={`New screen in ${app.name}`}
+        placeholder={component ? 'Component name, e.g. Status pill' : 'Screen name, e.g. Login'}
+        aria-label={component ? 'New component' : 'New screen'}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onDone()}
-        className="min-w-0 flex-1"
       />
-      <Button type="submit" size="sm" variant="primary" disabled={!name.trim()}>
-        Add
-      </Button>
+      {component ? (
+        <Input
+          size="sm"
+          placeholder="Group, e.g. Chips and tones"
+          aria-label="Component group"
+          value={group}
+          onChange={(e) => setGroup(e.target.value)}
+        />
+      ) : null}
+      <div className="flex gap-1">
+        <Button type="submit" size="sm" variant="primary" disabled={!name.trim()}>
+          Add
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
     </form>
   )
 }
 
-/** The Design tab's left side: each app with its kind and its screens, and what can be done to them. */
+/**
+ * The Design tab's left side: the app shown — switch, rename, delete — its
+ * screens with how many of their cells wait on a decision, and its components
+ * by group.
+ */
 export default function DesignSidebar({
-  design,
+  index,
+  appId,
   selectedScreenId,
+  onSelectApp,
   onSelectScreen,
+  actions,
   run,
 }: DesignSidebarProps) {
   const [editing, setEditing] = useState<Editing | undefined>(undefined)
   const done = () => setEditing(undefined)
+  const nav = appId ? designAppNav(index, appId) : undefined
+
+  const screenRow = (s: DesignNavScreen) => {
+    const screen = index.screens.find((x) => x.id === s.id)!
+    if (editing?.kind === 'rename-screen' && editing.screenId === s.id) {
+      return (
+        <div key={s.id} className="py-0.5 pl-3">
+          <InlineRename
+            value={s.name}
+            ariaLabel={`Rename ${s.name}`}
+            onCancel={done}
+            onSave={async (name) => {
+              if (await run(() => actions.updateScreen(s.id, { name }))) done()
+            }}
+          />
+        </div>
+      )
+    }
+    return (
+      <li key={s.id} className="flex flex-col">
+        <div
+          className={[
+            'group flex min-w-0 items-center gap-1 rounded-md py-1 pr-1 pl-3 text-[13px]',
+            s.id === selectedScreenId
+              ? 'bg-(--surface-hover) text-(--text-primary)'
+              : 'text-(--text-secondary) hover:bg-(--surface-hover)',
+          ].join(' ')}
+        >
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+            aria-current={s.id === selectedScreenId ? 'page' : undefined}
+            onClick={() => onSelectScreen(s.id)}
+          >
+            <span className="truncate">{s.name}</span>
+            {s.waiting > 0 ? (
+              <span
+                className="rounded-full px-1.5 text-[10.5px] font-semibold"
+                style={{
+                  background: 'var(--status-review-soft-bg)',
+                  color: 'var(--status-review-soft-fg)',
+                }}
+                title={`${s.waiting} waiting for you`}
+              >
+                {s.waiting}
+              </span>
+            ) : null}
+          </button>
+          <RowActions
+            name={s.name}
+            onRename={() => setEditing({ kind: 'rename-screen', screenId: s.id })}
+            onDelete={() => setEditing({ kind: 'delete-screen', screenId: s.id })}
+          />
+        </div>
+        {editing?.kind === 'delete-screen' && editing.screenId === s.id ? (
+          <div className="pl-3">
+            <InlineConfirm
+              message={designDeleteSummary(index, { kind: 'screen', screen })}
+              onCancel={done}
+              onConfirm={async () => {
+                if (await run(() => actions.deleteScreen(s.id))) done()
+              }}
+            />
+          </div>
+        ) : null}
+      </li>
+    )
+  }
+
+  const addButton = (screenKind: DesignScreenKind) =>
+    nav && editing?.kind === 'add' && editing.screenKind === screenKind ? (
+      <AddScreen
+        appId={nav.app.id}
+        screenKind={screenKind}
+        actions={actions}
+        run={run}
+        onDone={done}
+        onAdded={onSelectScreen}
+      />
+    ) : (
+      <button
+        type="button"
+        className="flex items-center gap-1 self-start rounded px-3 py-0.5 text-[12px] text-(--text-muted) hover:text-(--text-primary)"
+        onClick={() => setEditing({ kind: 'add', screenKind })}
+      >
+        <IconPlus className="h-3 w-3" />
+        {screenKind === 'component' ? DESIGN_TEXT.addComponent : DESIGN_TEXT.addScreen}
+      </button>
+    )
+
   return (
-    <nav className="flex flex-col gap-3" aria-label="Apps and screens">
-      {design.tree.apps.map((app) => (
-        <section key={app.id} className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-4" aria-label="Apps, screens and components">
+      {index.apps.length > 1 ? (
+        <NativeSelect
+          size="sm"
+          aria-label="App"
+          value={appId ?? ''}
+          onChange={(e) => onSelectApp(e.target.value)}
+        >
+          {index.apps.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </NativeSelect>
+      ) : null}
+      {nav ? (
+        <>
           <div className="group flex min-w-0 items-center gap-1.5 px-1">
-            {editing?.kind === 'rename-app' && editing.appId === app.id ? (
+            {editing?.kind === 'rename-app' ? (
               <InlineRename
-                value={app.name}
-                ariaLabel={`Rename ${app.name}`}
+                value={nav.app.name}
+                ariaLabel={`Rename ${nav.app.name}`}
                 onCancel={done}
                 onSave={async (name) => {
-                  if (await run(() => design.updateApp(app.id, { name }))) done()
+                  if (await run(() => actions.updateApp(nav.app.id, { name }))) done()
                 }}
               />
             ) : (
               <>
-                <span className="min-w-0 truncate text-[13px] font-semibold text-(--text-primary)">
-                  {app.name}
+                <span className="min-w-0 truncate text-[14px] font-semibold text-(--text-primary)">
+                  {nav.app.name}
                 </span>
-                <KindBadge label={DESIGN_APP_KIND_LABELS[app.kind]} />
+                <KindBadge label={DESIGN_APP_KIND_LABELS[nav.app.kind]} />
                 <RowActions
-                  name={app.name}
-                  onRename={() => setEditing({ kind: 'rename-app', appId: app.id })}
-                  onDelete={() => setEditing({ kind: 'delete-app', appId: app.id })}
+                  name={nav.app.name}
+                  onRename={() => setEditing({ kind: 'rename-app', appId: nav.app.id })}
+                  onDelete={() => setEditing({ kind: 'delete-app', appId: nav.app.id })}
                 />
               </>
             )}
           </div>
-          {editing?.kind === 'delete-app' && editing.appId === app.id ? (
+          {editing?.kind === 'delete-app' ? (
             <InlineConfirm
-              message={designDeleteSummary({ kind: 'app', app })}
+              message={designDeleteSummary(index, { kind: 'app', app: nav.app })}
               onCancel={done}
               onConfirm={async () => {
-                if (await run(() => design.deleteApp(app.id))) done()
+                if (await run(() => actions.deleteApp(nav.app.id))) done()
               }}
             />
           ) : null}
-          <ul className="flex flex-col">
-            {app.screens.map((screen) => (
-              <li key={screen.id} className="flex flex-col">
-                {editing?.kind === 'rename-screen' && editing.screenId === screen.id ? (
-                  <div className="py-0.5 pl-3">
-                    <InlineRename
-                      value={screen.name}
-                      ariaLabel={`Rename ${screen.name}`}
-                      onCancel={done}
-                      onSave={async (name) => {
-                        if (await run(() => design.renameScreen(screen.id, name))) done()
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className={[
-                      'group flex min-w-0 items-center gap-1 rounded-md py-1 pr-1 pl-3 text-[13px]',
-                      screen.id === selectedScreenId
-                        ? 'bg-(--surface-hover) text-(--text-primary)'
-                        : 'text-(--text-secondary) hover:bg-(--surface-hover)',
-                    ].join(' ')}
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 truncate text-left"
-                      aria-current={screen.id === selectedScreenId ? 'page' : undefined}
-                      onClick={() => onSelectScreen(screen.id)}
-                    >
-                      {screen.name}
-                      <span className="ml-1.5 text-[11px] text-(--text-muted)">
-                        {screen.items.length}
-                      </span>
-                    </button>
-                    <RowActions
-                      name={screen.name}
-                      onRename={() => setEditing({ kind: 'rename-screen', screenId: screen.id })}
-                      onDelete={() => setEditing({ kind: 'delete-screen', screenId: screen.id })}
-                    />
-                  </div>
-                )}
-                {editing?.kind === 'delete-screen' && editing.screenId === screen.id ? (
-                  <div className="pl-3">
-                    <InlineConfirm
-                      message={designDeleteSummary({ kind: 'screen', screen })}
-                      onCancel={done}
-                      onConfirm={async () => {
-                        if (await run(() => design.deleteScreen(screen.id))) done()
-                      }}
-                    />
-                  </div>
-                ) : null}
-              </li>
+          <section className="flex flex-col gap-0.5">
+            <h4 className="px-1 text-[11px] font-semibold tracking-wide text-(--text-muted) uppercase">
+              {DESIGN_TEXT.screens}
+            </h4>
+            <ul className="flex flex-col">{nav.screens.map(screenRow)}</ul>
+            {addButton('screen')}
+          </section>
+          <section className="flex flex-col gap-0.5">
+            <h4 className="px-1 text-[11px] font-semibold tracking-wide text-(--text-muted) uppercase">
+              {DESIGN_TEXT.components}
+            </h4>
+            {nav.componentGroups.map((g) => (
+              <div key={g.group} className="flex flex-col">
+                <span className="px-3 pt-1 text-[11.5px] text-(--text-muted)">{g.group}</span>
+                <ul className="flex flex-col">{g.components.map(screenRow)}</ul>
+              </div>
             ))}
-          </ul>
-          {editing?.kind === 'add-screen' && editing.appId === app.id ? (
-            <AddScreen app={app} design={design} run={run} onDone={done} onAdded={onSelectScreen} />
-          ) : (
-            <button
-              type="button"
-              className="flex items-center gap-1 self-start rounded px-3 py-0.5 text-[12px] text-(--text-muted) hover:text-(--text-primary)"
-              onClick={() => setEditing({ kind: 'add-screen', appId: app.id })}
-            >
-              <IconPlus className="h-3 w-3" />
-              {DESIGN_TEXT.addScreen}
-            </button>
-          )}
-        </section>
-      ))}
-      <AddApp design={design} run={run} />
+            {addButton('component')}
+          </section>
+        </>
+      ) : null}
+      <AddApp actions={actions} run={run} onAdded={onSelectApp} />
     </nav>
   )
 }

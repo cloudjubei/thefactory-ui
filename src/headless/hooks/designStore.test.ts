@@ -7,33 +7,63 @@ vi.mock('../api/generated', () => ({
   updateDesignApp: vi.fn(),
   deleteDesignApp: vi.fn(),
   createDesignScreen: vi.fn(),
-  renameDesignScreen: vi.fn(),
+  updateDesignScreen: vi.fn(),
   deleteDesignScreen: vi.fn(),
-  createDesignItem: vi.fn(),
-  renameDesignItem: vi.fn(),
-  approveDesignItem: vi.fn(),
-  deleteDesignItem: vi.fn(),
-  getDesignItemContent: vi.fn(),
+  createDesignState: vi.fn(),
+  updateDesignState: vi.fn(),
+  deleteDesignState: vi.fn(),
+  proposeDesign: vi.fn(),
+  proposeDesignDraft: vi.fn(),
+  fileDesignProposalEntry: vi.fn(),
+  acceptDesignProposal: vi.fn(),
+  keepDesignProposalAsAlternative: vi.fn(),
+  sendBackDesignProposal: vi.fn(),
+  renameDesignProposal: vi.fn(),
+  deleteDesignProposal: vi.fn(),
+  restoreDesignVersions: vi.fn(),
+  decideDesignTidyMove: vi.fn(),
+  previewDesignTidyPlan: vi.fn(),
+  applyDesignTidyPlan: vi.fn(),
+  chooseDesignProposal: vi.fn(),
+  captureDesignPlayground: vi.fn(),
+  dismissDesignTidyPlan: vi.fn(),
+  getDesignVersionContent: vi.fn(),
+  getDesignProposalEntryContent: vi.fn(),
   grantProjectAppViewToken: vi.fn(),
   getStorageUsage: vi.fn(),
 }))
 
 import {
-  approveDesignItem,
+  acceptDesignProposal,
+  applyDesignTidyPlan,
+  captureDesignPlayground,
+  chooseDesignProposal,
   createDesignApp,
-  createDesignItem,
   createDesignScreen,
+  createDesignState,
+  decideDesignTidyMove,
   deleteDesignApp,
-  deleteDesignItem,
+  deleteDesignProposal,
   deleteDesignScreen,
-  getDesignItemContent,
+  deleteDesignState,
+  dismissDesignTidyPlan,
+  fileDesignProposalEntry,
+  getDesignProposalEntryContent,
+  getDesignVersionContent,
   getProjectDesign,
   getProjectStorageUsage,
   getStorageUsage,
   grantProjectAppViewToken,
-  renameDesignItem,
-  renameDesignScreen,
+  keepDesignProposalAsAlternative,
+  previewDesignTidyPlan,
+  proposeDesign,
+  proposeDesignDraft,
+  renameDesignProposal,
+  restoreDesignVersions,
+  sendBackDesignProposal,
   updateDesignApp,
+  updateDesignScreen,
+  updateDesignState,
 } from '../api/generated'
 import {
   designActionsFor,
@@ -51,9 +81,24 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asMock = (fn: unknown) => fn as any
-const tree = (name: string) => ({
-  apps: [{ id: 'a1', name, kind: 'product', createdAt: 1, updatedAt: 1, screens: [] }],
+const index = (name: string) => ({
+  version: 2,
+  apps: [{ id: 'a1', name, kind: 'product', aliases: [], createdAt: 1, updatedAt: 1 }],
+  screens: [],
+  states: [],
+  versions: [],
+  proposals: [],
+  tidyPlans: [],
 })
+const EMPTY_INDEX = {
+  version: 2,
+  apps: [],
+  screens: [],
+  states: [],
+  versions: [],
+  proposals: [],
+  tidyPlans: [],
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -63,7 +108,7 @@ beforeEach(() => {
 describe('designStore', () => {
   it('starts every project empty and unloaded', () => {
     expect(designStateOf(designSnapshot(), 'p1')).toEqual({
-      tree: { apps: [] },
+      index: EMPTY_INDEX,
       isLoaded: false,
       loadError: null,
       usage: undefined,
@@ -71,13 +116,13 @@ describe('designStore', () => {
   })
 
   it('loads a project’s design and tells every subscriber', async () => {
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('Android') })
     const heard = vi.fn()
     const off = subscribeDesign(heard)
     await refreshDesign('p1')
     expect(getProjectDesign).toHaveBeenCalledWith({ path: { projectId: 'p1' }, throwOnError: true })
     expect(designStateOf(designSnapshot(), 'p1')).toMatchObject({
-      tree: tree('Android'),
+      index: index('Android'),
       isLoaded: true,
       loadError: null,
     })
@@ -86,12 +131,12 @@ describe('designStore', () => {
   })
 
   it('keeps what it had and says why when a load fails', async () => {
-    asMock(getProjectDesign).mockResolvedValueOnce({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValueOnce({ data: index('Android') })
     await refreshDesign('p1')
     asMock(getProjectDesign).mockRejectedValueOnce(new Error('offline'))
     await refreshDesign('p1')
     const state = designStateOf(designSnapshot(), 'p1')
-    expect(state.tree).toEqual(tree('Android'))
+    expect(state.index).toEqual(index('Android'))
     expect(state.loadError?.message).toBe('offline')
   })
 
@@ -99,12 +144,12 @@ describe('designStore', () => {
     let first!: (v: unknown) => void
     asMock(getProjectDesign)
       .mockImplementationOnce(() => new Promise((r) => (first = r)))
-      .mockResolvedValueOnce({ data: tree('New') })
+      .mockResolvedValueOnce({ data: index('New') })
     const slow = refreshDesign('p1')
     await refreshDesign('p1')
-    first({ data: tree('Old') })
+    first({ data: index('Old') })
     await slow
-    expect(designStateOf(designSnapshot(), 'p1').tree).toEqual(tree('New'))
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('New'))
   })
 
   it('loads the project’s usage with how the total stands', async () => {
@@ -130,108 +175,231 @@ describe('designStore', () => {
 
 describe('designActionsFor', () => {
   beforeEach(() => {
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('Android') })
     asMock(getProjectStorageUsage).mockResolvedValue({ data: undefined })
   })
 
-  it('calls each route with the project and returns what it made, then reloads the design', async () => {
+  it('calls each route with the project and returns what it made, then reloads the design and tells the cache', async () => {
     const changed = vi.fn()
     const actions = designActionsFor('p1', changed)
-    asMock(createDesignApp).mockResolvedValue({ data: { id: 'a1' } })
-    asMock(createDesignScreen).mockResolvedValue({ data: { id: 's1' } })
-    asMock(createDesignItem).mockResolvedValue({ data: { id: 'i1' } })
-    expect(await actions.createApp('Android', 'product')).toEqual({ id: 'a1' })
-    expect(createDesignApp).toHaveBeenCalledWith({
-      path: { projectId: 'p1' },
-      body: { name: 'Android', kind: 'product' },
-      throwOnError: true,
-    })
-    expect(await actions.createScreen('a1', 'Login')).toEqual({ id: 's1' })
-    expect(createDesignScreen).toHaveBeenCalledWith({
-      path: { projectId: 'p1' },
-      body: { appId: 'a1', name: 'Login' },
-      throwOnError: true,
-    })
-    await actions.uploadDraft('s1', { name: 'a.png', contentBase64: 'AAAA' }, 'Mock')
-    expect(createDesignItem).toHaveBeenLastCalledWith({
-      path: { projectId: 'p1' },
-      body: {
-        screenId: 's1',
-        name: 'Mock',
-        source: { type: 'upload', name: 'a.png', contentBase64: 'AAAA' },
-      },
-      throwOnError: true,
-    })
-    await actions.addProjectFileDraft('s1', 'docs/a.html')
-    expect(createDesignItem).toHaveBeenLastCalledWith({
-      path: { projectId: 'p1' },
-      body: { screenId: 's1', source: { type: 'project-file', path: 'docs/a.html' } },
-      throwOnError: true,
-    })
-    await actions.addLinkDraft('s1', 'https://figma.com/x', 'Figma')
-    expect(createDesignItem).toHaveBeenLastCalledWith({
-      path: { projectId: 'p1' },
-      body: { screenId: 's1', name: 'Figma', source: { type: 'link', url: 'https://figma.com/x' } },
-      throwOnError: true,
-    })
-    expect(changed).toHaveBeenCalledTimes(5)
-    expect(getProjectDesign).toHaveBeenCalledTimes(5)
-    expect(getProjectStorageUsage).toHaveBeenCalledTimes(3)
-  })
-
-  it('renames, approves and deletes through their routes', async () => {
-    const actions = designActionsFor('p1', () => {})
-    for (const fn of [updateDesignApp, renameDesignScreen, renameDesignItem, approveDesignItem]) {
-      asMock(fn).mockResolvedValue({ data: { id: 'x' } })
+    const made = { id: 'x' }
+    const cases: Array<[unknown, () => Promise<unknown>, unknown]> = [
+      [
+        createDesignApp,
+        () => actions.createApp('Web', 'product'),
+        { path: { projectId: 'p1' }, body: { name: 'Web', kind: 'product' }, throwOnError: true },
+      ],
+      [
+        updateDesignApp,
+        () => actions.updateApp('a1', { name: 'W' }),
+        { path: { projectId: 'p1', appId: 'a1' }, body: { name: 'W' }, throwOnError: true },
+      ],
+      [
+        createDesignScreen,
+        () =>
+          actions.createScreen({ appId: 'a1', name: 'Chip', kind: 'component', group: 'Chips' }),
+        {
+          path: { projectId: 'p1' },
+          body: { appId: 'a1', name: 'Chip', kind: 'component', group: 'Chips' },
+          throwOnError: true,
+        },
+      ],
+      [
+        updateDesignScreen,
+        () => actions.updateScreen('s1', { uses: ['c1'] }),
+        { path: { projectId: 'p1', screenId: 's1' }, body: { uses: ['c1'] }, throwOnError: true },
+      ],
+      [
+        createDesignState,
+        () => actions.createState({ screenId: 's1', name: 'Filled' }),
+        { path: { projectId: 'p1' }, body: { screenId: 's1', name: 'Filled' }, throwOnError: true },
+      ],
+      [
+        updateDesignState,
+        () => actions.updateState('st1', { name: 'Typed' }),
+        { path: { projectId: 'p1', stateId: 'st1' }, body: { name: 'Typed' }, throwOnError: true },
+      ],
+      [
+        proposeDesign,
+        () =>
+          actions.propose({
+            appId: 'a1',
+            title: 'T',
+            entries: [{ source: { type: 'link', url: 'https://x' } }],
+          }),
+        {
+          path: { projectId: 'p1' },
+          body: {
+            appId: 'a1',
+            title: 'T',
+            entries: [{ source: { type: 'link', url: 'https://x' } }],
+          },
+          throwOnError: true,
+        },
+      ],
+      [
+        proposeDesignDraft,
+        () =>
+          actions.proposeDraft({ appId: 'a1', source: { type: 'project-file', path: 'd.html' } }),
+        {
+          path: { projectId: 'p1' },
+          body: { appId: 'a1', source: { type: 'project-file', path: 'd.html' } },
+          throwOnError: true,
+        },
+      ],
+      [
+        fileDesignProposalEntry,
+        () => actions.fileEntry('pr1', 'e1', { screenId: 's1' }),
+        {
+          path: { projectId: 'p1', proposalId: 'pr1', entryId: 'e1' },
+          body: { target: { screenId: 's1' } },
+          throwOnError: true,
+        },
+      ],
+      [
+        acceptDesignProposal,
+        () => actions.acceptProposal('pr1'),
+        { path: { projectId: 'p1', proposalId: 'pr1' }, body: {}, throwOnError: true },
+      ],
+      [
+        acceptDesignProposal,
+        () => actions.acceptProposal('pr1', ['e1']),
+        {
+          path: { projectId: 'p1', proposalId: 'pr1' },
+          body: { entryIds: ['e1'] },
+          throwOnError: true,
+        },
+      ],
+      [
+        keepDesignProposalAsAlternative,
+        () => actions.keepProposal('pr1'),
+        { path: { projectId: 'p1', proposalId: 'pr1' }, throwOnError: true },
+      ],
+      [
+        chooseDesignProposal,
+        () => actions.chooseProposal('pr1'),
+        { path: { projectId: 'p1', proposalId: 'pr1' }, throwOnError: true },
+      ],
+      [
+        sendBackDesignProposal,
+        () => actions.sendBackProposal('pr1', 'Bigger'),
+        {
+          path: { projectId: 'p1', proposalId: 'pr1' },
+          body: { note: 'Bigger' },
+          throwOnError: true,
+        },
+      ],
+      [
+        renameDesignProposal,
+        () => actions.renameProposal('pr1', 'New'),
+        {
+          path: { projectId: 'p1', proposalId: 'pr1' },
+          body: { title: 'New' },
+          throwOnError: true,
+        },
+      ],
+      [
+        restoreDesignVersions,
+        () => actions.restoreVersions(['v1']),
+        { path: { projectId: 'p1' }, body: { versionIds: ['v1'] }, throwOnError: true },
+      ],
+      [
+        captureDesignPlayground,
+        () =>
+          actions.savePlaygroundState({
+            appId: 'a1',
+            target: { screenName: 'Run header', screenKind: 'component', stateName: 'Running' },
+            address: 'scene=run-header',
+          }),
+        {
+          path: { projectId: 'p1' },
+          body: {
+            appId: 'a1',
+            target: { screenName: 'Run header', screenKind: 'component', stateName: 'Running' },
+            address: 'scene=run-header',
+          },
+          throwOnError: true,
+        },
+      ],
+      [
+        decideDesignTidyMove,
+        () => actions.decideTidyMove('t1', 'm1', 'accept'),
+        {
+          path: { projectId: 'p1', planId: 't1', moveId: 'm1' },
+          body: { decision: 'accept' },
+          throwOnError: true,
+        },
+      ],
+      [
+        applyDesignTidyPlan,
+        () => actions.applyTidy('t1'),
+        { path: { projectId: 'p1', planId: 't1' }, throwOnError: true },
+      ],
+      [
+        dismissDesignTidyPlan,
+        () => actions.dismissTidy('t1'),
+        { path: { projectId: 'p1', planId: 't1' }, throwOnError: true },
+      ],
+    ]
+    for (const [route, call, args] of cases) {
+      asMock(route).mockResolvedValue({ data: made })
+      asMock(getProjectDesign).mockClear()
+      expect(await call()).toBe(made)
+      expect(route).toHaveBeenLastCalledWith(args)
+      expect(getProjectDesign).toHaveBeenCalledTimes(1)
     }
-    await actions.updateApp('a1', { name: 'Phone', kind: 'overseer-app' })
-    expect(updateDesignApp).toHaveBeenCalledWith({
-      path: { projectId: 'p1', appId: 'a1' },
-      body: { name: 'Phone', kind: 'overseer-app' },
-      throwOnError: true,
-    })
-    await actions.renameScreen('s1', 'Sign in')
-    expect(renameDesignScreen).toHaveBeenCalledWith({
-      path: { projectId: 'p1', screenId: 's1' },
-      body: { name: 'Sign in' },
-      throwOnError: true,
-    })
-    await actions.renameItem('i1', 'v2')
-    expect(renameDesignItem).toHaveBeenCalledWith({
-      path: { projectId: 'p1', itemId: 'i1' },
-      body: { name: 'v2' },
-      throwOnError: true,
-    })
-    await actions.approveItem('i1', true)
-    expect(approveDesignItem).toHaveBeenCalledWith({
-      path: { projectId: 'p1', itemId: 'i1' },
-      body: { approved: true },
-      throwOnError: true,
-    })
-    await actions.deleteItem('i1')
-    await actions.deleteScreen('s1')
-    await actions.deleteApp('a1')
-    expect(deleteDesignItem).toHaveBeenCalledWith({
-      path: { projectId: 'p1', itemId: 'i1' },
-      throwOnError: true,
-    })
-    expect(deleteDesignScreen).toHaveBeenCalledWith({
-      path: { projectId: 'p1', screenId: 's1' },
-      throwOnError: true,
-    })
-    expect(deleteDesignApp).toHaveBeenCalledWith({
-      path: { projectId: 'p1', appId: 'a1' },
-      throwOnError: true,
-    })
+    expect(changed).toHaveBeenCalledTimes(cases.length)
   })
 
-  it('fetches an item’s bytes or text with the bearer, and a view token for an <img> or <iframe>', async () => {
+  it('previews a tidy-up plan without reloading anything', async () => {
     const actions = designActionsFor('p1', () => {})
-    asMock(getDesignItemContent).mockResolvedValue({ data: 'bytes' })
-    expect(await actions.fetchContent('i1', 'arraybuffer')).toBe('bytes')
-    expect(getDesignItemContent).toHaveBeenCalledWith({
-      path: { projectId: 'p1', itemId: 'i1' },
+    asMock(previewDesignTidyPlan).mockResolvedValue({ data: { appsBefore: 2 } })
+    expect(await actions.previewTidy('t1')).toEqual({ appsBefore: 2 })
+    expect(getProjectDesign).not.toHaveBeenCalled()
+  })
+
+  it('deletes through its route, then reloads the design and the usage', async () => {
+    const actions = designActionsFor('p1', () => {})
+    const cases: Array<[unknown, () => Promise<void>, unknown]> = [
+      [deleteDesignApp, () => actions.deleteApp('a1'), { projectId: 'p1', appId: 'a1' }],
+      [deleteDesignScreen, () => actions.deleteScreen('s1'), { projectId: 'p1', screenId: 's1' }],
+      [deleteDesignState, () => actions.deleteState('st1'), { projectId: 'p1', stateId: 'st1' }],
+      [
+        deleteDesignProposal,
+        () => actions.deleteProposal('pr1'),
+        { projectId: 'p1', proposalId: 'pr1' },
+      ],
+    ]
+    for (const [route, call, path] of cases) {
+      asMock(route).mockResolvedValue({})
+      asMock(getProjectStorageUsage).mockClear()
+      await call()
+      expect(route).toHaveBeenLastCalledWith({ path, throwOnError: true })
+      expect(getProjectStorageUsage).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('reloads the usage after a proposal, which keeps new files', async () => {
+    const actions = designActionsFor('p1', () => {})
+    asMock(proposeDesign).mockResolvedValue({ data: { id: 'pr' } })
+    await actions.propose({ appId: 'a1', title: 'T', entries: [] })
+    expect(getProjectStorageUsage).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetches a version’s or an entry’s bytes or text with the bearer, and a view token for an <img> or <iframe>', async () => {
+    const actions = designActionsFor('p1', () => {})
+    asMock(getDesignVersionContent).mockResolvedValue({ data: 'bytes' })
+    expect(await actions.fetchContent({ versionId: 'v1' }, 'arraybuffer')).toBe('bytes')
+    expect(getDesignVersionContent).toHaveBeenCalledWith({
+      path: { projectId: 'p1', versionId: 'v1' },
       responseType: 'arraybuffer',
+      throwOnError: true,
+    })
+    asMock(getDesignProposalEntryContent).mockResolvedValue({ data: '<p>' })
+    expect(await actions.fetchContent({ proposalId: 'pr', entryId: 'e' }, 'text')).toBe('<p>')
+    expect(getDesignProposalEntryContent).toHaveBeenCalledWith({
+      path: { projectId: 'p1', proposalId: 'pr', entryId: 'e' },
+      responseType: 'text',
       throwOnError: true,
     })
     asMock(grantProjectAppViewToken).mockResolvedValue({ data: { token: 't', expiresAt: 'e' } })
@@ -241,25 +409,25 @@ describe('designActionsFor', () => {
 
 describe('ensureDesign', () => {
   it('loads a project once for every surface asking at the same time', async () => {
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('Android') })
     await Promise.all([ensureDesign('p1'), ensureDesign('p1'), ensureDesign('p1')])
     expect(getProjectDesign).toHaveBeenCalledTimes(1)
-    expect(designStateOf(designSnapshot(), 'p1').tree).toEqual(tree('Android'))
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('Android'))
   })
 
   it('does not load a project it already has, unless told it changed', async () => {
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('Android') })
     await ensureDesign('p1')
     await ensureDesign('p1')
     expect(getProjectDesign).toHaveBeenCalledTimes(1)
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('iOS') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('iOS') })
     await ensureDesign('p1', { changed: true })
     expect(getProjectDesign).toHaveBeenCalledTimes(2)
-    expect(designStateOf(designSnapshot(), 'p1').tree).toEqual(tree('iOS'))
+    expect(designStateOf(designSnapshot(), 'p1').index).toEqual(index('iOS'))
   })
 
   it('loads each project on its own', async () => {
-    asMock(getProjectDesign).mockResolvedValue({ data: tree('Android') })
+    asMock(getProjectDesign).mockResolvedValue({ data: index('Android') })
     await Promise.all([ensureDesign('p1'), ensureDesign('p2')])
     expect(getProjectDesign).toHaveBeenCalledTimes(2)
   })

@@ -731,16 +731,17 @@ export {
   default as ProjectSearchView,
   type ProjectSearchViewProps,
 } from './compound/search/ProjectSearchView'
-// Design — a project's apps, screens, drafts and built versions; storage usage.
+// Design — a project's screens and components, states, versions, proposals and
+// tidy-up plans; storage usage.
 export { default as DesignView, type DesignViewProps } from './compound/design/DesignView'
 export {
-  default as DesignItemViewer,
-  type DesignItemViewerProps,
-} from './compound/design/DesignItemViewer'
+  default as DesignFileViewer,
+  type DesignFileViewerProps,
+} from './compound/design/DesignFileViewer'
 export {
-  default as DesignItemThumb,
-  type DesignItemThumbProps,
-} from './compound/design/DesignItemThumb'
+  default as DesignFileThumb,
+  type DesignFileThumbProps,
+} from './compound/design/DesignFileThumb'
 export {
   default as DesignReferenceChip,
   type DesignReferenceChipProps,
@@ -843,6 +844,9 @@ export {
 // Drives the narrow / master-detail layout switches in `CommitDiffViewer`
 // and any other layout that flips at the same width.
 export { useIsNarrowViewport } from './hooks/useIsNarrowViewport'
+// `useDragReorder` — drag a list's rows to reorder them, beside the row dropped on.
+export { useDragReorder } from './hooks/useDragReorder'
+export type { DragReorder, DragReorderOptions, DragReorderRowProps } from './hooks/useDragReorder'
 export { useProjectReferenceRenderer, useReferenceRenderer } from './hooks/useReferenceRenderer'
 export { default as ReferenceRenderingProvider } from './compound/ReferenceRenderingProvider'
 

@@ -34,6 +34,7 @@ import { useChatDecidedAsks } from '../../../headless/hooks/useChatDecidedAsks'
 import { toolAskDecidedLinesAwaitingRows } from '../../../headless/utils/toolAskCard'
 import { blockedOnFromGrants } from '../../../headless/utils/cliRunActivity'
 import { capturesBlockedOn } from '../../../headless/utils/credentialCaptures'
+import { isAgentRunChatKey } from '../../../headless/utils/agentRunTranscript'
 import type {
   ChatLiveStateLike,
   ChatMessageLike,
@@ -48,6 +49,10 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 import type { NativeToolCallRenderArgs } from './chatNativeTypes'
 
 export interface ChatBodyProps {
+  /**
+   * The chat's key (`getChatContextKey`) — an agent run's chat
+   * (`isAgentRunChatKey`) reads as its transcript. Matches web.
+   */
   chatId?: string
   /** The chat's project, forwarded to the launch approval so it can resolve the
    * process proposal a user reads before approving. */
@@ -305,6 +310,12 @@ export default function ChatBody({
   const approvalKey = approvalGrants.map((g) => g.id).join('|')
   const [approvalDismissedKey, setApprovalDismissedKey] = useState<string | null>(null)
   const showApprovalPanel = approvalGrants.length > 0 && approvalKey !== approvalDismissedKey
+  // One approval at a time, paged like the questions — parity with web.
+  const approvalIds = useMemo(() => approvalGrants.map((g) => g.id), [approvalGrants])
+  const [chosenApprovalId, setChosenApprovalId] = useState<string>()
+  const shownApprovalId = shownQuestionId(approvalIds, chosenApprovalId)
+  const shownApprovalIndex = approvalIds.findIndex((id) => id === shownApprovalId)
+  const shownApproval = approvalGrants[shownApprovalIndex]
   // While a CLI run streams, show the live Agent-run panel for its runId instead
   // of the raw-text pending bubble (which flashed into the final message). Falls
   // back to the run the SERVER reports for this chat, so a reload keeps watching
@@ -355,31 +366,37 @@ export default function ChatBody({
       }
     : undefined
 
-  const askPager = (
+  const pager = (ids: readonly string[], index: number, choose: (id?: string) => void) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Previous"
-        onPress={() => setChosenAskId(openAsks[shownIndex - 1]?.id)}
-        disabled={shownIndex <= 0}
-        style={{ opacity: shownIndex <= 0 ? 0.4 : 1 }}
+        onPress={() => choose(ids[index - 1])}
+        disabled={index <= 0}
+        style={{ opacity: index <= 0 ? 0.4 : 1 }}
       >
         <IconChevronLeft size={16} color={theme.text.secondary} />
       </Pressable>
       <Text style={{ fontSize: 12, fontVariant: ['tabular-nums'], color: theme.text.secondary }}>
-        {QUESTION_PAGER(shownIndex + 1, openAsks.length)}
+        {QUESTION_PAGER(index + 1, ids.length)}
       </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Next"
-        onPress={() => setChosenAskId(openAsks[shownIndex + 1]?.id)}
-        disabled={shownIndex >= openAsks.length - 1}
-        style={{ opacity: shownIndex >= openAsks.length - 1 ? 0.4 : 1 }}
+        onPress={() => choose(ids[index + 1])}
+        disabled={index >= ids.length - 1}
+        style={{ opacity: index >= ids.length - 1 ? 0.4 : 1 }}
       >
         <IconChevronRight size={16} color={theme.text.secondary} />
       </Pressable>
     </View>
   )
+  const askPager = pager(
+    openAsks.map((a) => a.id),
+    shownIndex,
+    setChosenAskId,
+  )
+  const approvalPager = pager(approvalIds, shownApprovalIndex, setChosenApprovalId)
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.surface.base }}>
@@ -408,11 +425,13 @@ export default function ChatBody({
           onResolveFile={onResolveFile}
           renderReference={renderReference}
           onResourceLink={onResourceLink}
+          attachmentImages={inputProps?.attachmentImages}
           renderCliRunArtifact={renderCliRunArtifact}
           renderProcessRun={renderProcessRun}
           renderProcessGroupRun={renderProcessGroupRun}
           onShowUsage={onShowUsage}
           emptyStateContent={emptyStateContent}
+          transcript={isAgentRunChatKey(chatId)}
           leadingContent={leadingContent}
           tailContent={
             shownDecidedLines.length > 0 || parkedAsks.length > 0 ? (
@@ -507,17 +526,22 @@ export default function ChatBody({
         </ScrollView>
       ) : showApprovalPanel ? (
         <View>
-          {approvalGrants.map((grant) => (
+          {approvalGrants.length > 1 ? (
+            <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 8 }}>
+              {approvalPager}
+            </View>
+          ) : null}
+          {shownApproval ? (
             <ApprovalPanel
-              key={grant.id}
-              grant={grant}
+              key={shownApproval.id}
+              grant={shownApproval}
               {...(projectId ? { projectId } : {})}
               {...(groupId ? { groupId } : {})}
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
-              onDecided={(line) => addDecidedLine(grant.id, line)}
+              onDecided={(line) => addDecidedLine(shownApproval.id, line)}
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
             />
-          ))}
+          ) : null}
         </View>
       ) : historyLocked ? (
         // Parity with web: a closed chat keeps its history and takes no new work.

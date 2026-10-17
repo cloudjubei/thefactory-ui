@@ -10,6 +10,11 @@ import { PROCESS_GROUP_LAUNCH_BLURB } from './processGroupLaunchConstants'
 import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
 import {
+  CHAT_REVIEW_ASK,
+  CHAT_REVIEW_TOOL,
+  DESIGN_ASK,
+  FEATURE_QUESTION_ASK,
+  FEATURE_QUESTION_TOOL,
   FEATURE_WORK_ASK,
   GIT_CHANGE_ASK,
   GIT_CHANGE_ASK_FALLBACK,
@@ -23,6 +28,8 @@ import {
   TOOL_ASK_SITE_HINT,
 } from './toolAskCardConstants'
 import type {
+  DesignAskEntry,
+  ToolAskBody,
   ToolAskCardView,
   ToolAskDecidedLine,
   ToolAskLaunchCheck,
@@ -43,6 +50,227 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
+function designEntry(raw: Record<string, unknown>): DesignAskEntry {
+  const pick = (key: keyof DesignAskEntry) => {
+    const v = text(raw[key])
+    return v ? { [key]: v } : {}
+  }
+  const file = text(raw.path) ?? text(raw.url)
+  return {
+    ...pick('screenId'),
+    ...pick('screenName'),
+    ...pick('stateId'),
+    ...pick('stateName'),
+    ...pick('variant'),
+    ...(file ? { file: file.split('/').pop() ?? file } : {}),
+  }
+}
+
+function newScreenReasons(raw: unknown): Array<{ name: string; closest: string[]; why: string }> {
+  return Object.entries(record(raw)).map(([name, r]) => {
+    const reason = record(r)
+    const closest = Array.isArray(reason.closest)
+      ? reason.closest.filter((c): c is string => typeof c === 'string')
+      : []
+    return { name, closest, why: text(reason.why) ?? '' }
+  })
+}
+
+/** A design ask's card: what is proposed or added, in the agent's names until the design names them. Pure. */
+function designAskView(
+  tool: 'proposeDesign' | 'proposeDesignDraft' | 'addDesignScreen' | 'saveDesignPlaygroundState',
+  args: Record<string, unknown>,
+): Omit<ToolAskCardView, 'tone'> {
+  const projectId = text(args.projectId)
+  const project = projectId ? { projectId } : {}
+  if (tool === 'saveDesignPlaygroundState') {
+    const name = text(args.screenName)
+    const why = text(args.why)
+    return {
+      icon: 'file',
+      ask: DESIGN_ASK.playground,
+      tag: DESIGN_ASK.tag,
+      headline: DESIGN_ASK.playgroundHeadline(text(args.stateName)),
+      consequence: DESIGN_ASK.playgroundConsequence,
+      verb: DESIGN_ASK.playgroundVerb,
+      body: {
+        kind: 'design',
+        ...project,
+        entries: [designEntry(args)],
+        newScreens:
+          name && why
+            ? [
+                {
+                  name,
+                  closest: Array.isArray(args.closest)
+                    ? args.closest.filter((c): c is string => typeof c === 'string')
+                    : [],
+                  why,
+                },
+              ]
+            : [],
+      },
+    }
+  }
+  if (tool === 'addDesignScreen') {
+    const name = text(args.name) ?? ''
+    const closest = Array.isArray(args.closest)
+      ? args.closest.filter((c): c is string => typeof c === 'string')
+      : []
+    const why = text(args.why)
+    return {
+      icon: 'file',
+      ask: DESIGN_ASK.screen,
+      tag: DESIGN_ASK.tag,
+      headline: DESIGN_ASK.screenHeadline(name),
+      consequence: DESIGN_ASK.screenConsequence,
+      verb: DESIGN_ASK.screenVerb,
+      body: {
+        kind: 'design',
+        ...project,
+        entries: [],
+        newScreens: closest.length || why ? [{ name, closest, why: why ?? '' }] : [],
+      },
+    }
+  }
+  if (tool === 'proposeDesignDraft') {
+    const file = (text(args.path) ?? '').split('/').pop() ?? ''
+    const target = designEntry(args)
+    const why = text(args.why)
+    const name = text(args.screenName)
+    return {
+      icon: 'file',
+      ask: DESIGN_ASK.draft,
+      tag: DESIGN_ASK.tag,
+      headline: text(args.title)
+        ? DESIGN_ASK.headline(text(args.title)!)
+        : DESIGN_ASK.draftHeadline(file),
+      consequence: DESIGN_ASK.consequence,
+      verb: DESIGN_ASK.proposeVerb,
+      body: {
+        kind: 'design',
+        ...project,
+        entries: [{ ...target, file }],
+        newScreens:
+          name && why
+            ? [
+                {
+                  name,
+                  closest: Array.isArray(args.closest)
+                    ? args.closest.filter((c): c is string => typeof c === 'string')
+                    : [],
+                  why,
+                },
+              ]
+            : [],
+      },
+    }
+  }
+  const entries = Array.isArray(args.entries) ? args.entries.map((e) => designEntry(record(e))) : []
+  return {
+    icon: 'file',
+    ask: DESIGN_ASK.propose,
+    tag: DESIGN_ASK.tag,
+    headline: DESIGN_ASK.headline(text(args.title) ?? plural(entries.length, 'image')),
+    consequence: DESIGN_ASK.consequence,
+    verb: DESIGN_ASK.proposeVerb,
+    body: {
+      kind: 'design',
+      ...project,
+      entries,
+      newScreens: newScreenReasons(args.newScreenReasons),
+    },
+  }
+}
+
+/**
+ * A decision on a chat's open changes, from the card the host read before
+ * asking: the branch, where it goes, how many files — never the agent's own
+ * description of it. Pure.
+ */
+function chatReviewAskView(
+  detail: unknown,
+  args: Record<string, unknown>,
+): Omit<ToolAskCardView, 'tone'> & {
+  tone: ToolAskCardView['tone']
+} {
+  const card = record(detail)
+  const decision = text(card.decision) ?? text(args.decision) ?? ''
+  const branch = text(card.branch) ?? ''
+  const target = text(card.target)
+  const files = Array.isArray(card.files)
+    ? card.files.filter((f): f is string => typeof f === 'string')
+    : []
+  const fileCount = typeof card.fileCount === 'number' ? card.fileCount : files.length
+  const consequence = CHAT_REVIEW_ASK.consequence[decision]
+  return {
+    icon:
+      decision === 'merge'
+        ? 'merge'
+        : decision === 'pull-request'
+          ? 'push'
+          : decision === 'reject'
+            ? 'delete'
+            : 'git',
+    tone: decision === 'reject' ? 'danger' : 'ask',
+    ask: CHAT_REVIEW_ASK.ask[decision] ?? TOOL_ASK_COPY.genericAsk,
+    tag: decision === 'reject' ? TOOL_ASK_COPY.cannotUndo : CHAT_REVIEW_ASK.tag,
+    headline: text(card.headline) ?? CHAT_REVIEW_ASK.fallbackHeadline,
+    ...(consequence && branch
+      ? { consequence: consequence(decision === 'merge' ? target : branch) }
+      : {}),
+    verb: CHAT_REVIEW_ASK.verb[decision] ?? TOOL_ASK_COPY.genericVerb,
+    body: { kind: 'review', branch, ...(target ? { target } : {}), fileCount, files },
+  }
+}
+
+/**
+ * An answer to a feature's question, from the card the host read before
+ * asking: the question as the run asked it, where, and the agent's answer for
+ * the person to change. Pure.
+ */
+function featureQuestionAskView(
+  detail: unknown,
+  args: Record<string, unknown>,
+): Omit<ToolAskCardView, 'tone'> {
+  const card = record(detail)
+  const storyTitle = text(card.storyTitle)
+  return {
+    icon: 'message',
+    ask: FEATURE_QUESTION_ASK.ask,
+    tag: FEATURE_QUESTION_ASK.tag,
+    headline: text(card.headline) ?? FEATURE_QUESTION_ASK.fallbackHeadline,
+    consequence: FEATURE_QUESTION_ASK.consequence,
+    verb: FEATURE_QUESTION_ASK.verb,
+    body: {
+      kind: 'question',
+      ...(storyTitle ? { storyTitle } : {}),
+      featureTitle: text(card.featureTitle) ?? '',
+      question: text(card.question) ?? '',
+      answer:
+        typeof card.answer === 'string'
+          ? card.answer
+          : typeof args.answer === 'string'
+            ? args.answer
+            : '',
+    },
+  }
+}
+
+/** The decision's metadata for an answer: the person's own words, only when they changed the agent's. Pure. */
+export function featureQuestionAnswerMetadata(
+  body: Extract<ToolAskBody, { kind: 'question' }>,
+  value: string,
+): { args: { answer: string } } | undefined {
+  const answer = value.trim()
+  return answer === body.answer.trim() ? undefined : { args: { answer } }
+}
+
+/** Why an answer cannot be sent as it stands, or `undefined`. Pure. */
+export function featureQuestionAnswerProblem(value: string): string | undefined {
+  return value.trim().length === 0 ? FEATURE_QUESTION_ASK.empty : undefined
+}
+
 /**
  * The card for a waiting tool: which one it is, named by the grant or by its
  * payload; its arguments, the grant's or the payload's; the host's sentence
@@ -56,6 +284,20 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   const why = text(args.reason)
   const base = { tone: 'ask' as const, ...(why ? { why } : {}) }
 
+  if (
+    tool === 'proposeDesign' ||
+    tool === 'proposeDesignDraft' ||
+    tool === 'addDesignScreen' ||
+    tool === 'saveDesignPlaygroundState'
+  ) {
+    return { ...base, ...designAskView(tool, args) }
+  }
+  if (tool === CHAT_REVIEW_TOOL) {
+    return { ...base, ...chatReviewAskView(payload.detail, args) }
+  }
+  if (tool === FEATURE_QUESTION_TOOL) {
+    return { ...base, ...featureQuestionAskView(payload.detail, args) }
+  }
   if (tool === 'requestInstallPackage') {
     const ecosystem = text(args.ecosystem) ?? ''
     const name = text(args.name) ?? ''

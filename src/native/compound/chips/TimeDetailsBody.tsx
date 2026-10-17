@@ -1,6 +1,10 @@
 import { Text, View, type TextStyle } from 'react-native'
 
-import { PROCESS_TIME_WAITING_LABEL, type ProcessTimeDetailsView } from '../../../headless'
+import {
+  PROCESS_TIME_QUEUED_LABEL,
+  PROCESS_TIME_WAITING_LABEL,
+  type ProcessTimeDetailsView,
+} from '../../../headless'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 
@@ -85,6 +89,14 @@ export default function TimeDetailsBody({ view }: TimeDetailsBodyProps) {
             {PROCESS_TIME_WAITING_LABEL}
           </Text>
           <Text style={[number, { color: theme.text.muted }]}>{view.waiting}</Text>
+        </View>
+      ) : null}
+      {view.queued ? (
+        <View style={[divider, { flexDirection: 'row', justifyContent: 'space-between', gap: 12 }]}>
+          <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.muted }}>
+            {PROCESS_TIME_QUEUED_LABEL}
+          </Text>
+          <Text style={[number, { color: theme.text.muted }]}>{view.queued}</Text>
         </View>
       ) : null}
     </View>

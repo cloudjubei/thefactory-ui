@@ -1,4 +1,5 @@
 import type { ReferenceTarget } from 'thefactory-tools/types'
+import { isCompletionErrorNotice } from 'thefactory-tools/utils'
 import {
   useCallback,
   useEffect,
@@ -23,6 +24,9 @@ import type { ToolCall, ToolResultType } from './ToolCall'
 import type { ChatMessageLike, PendingToolGrant } from '../../../headless/utils/chatTypes'
 import { describeLastMessageDelete } from '../../../headless/utils/chatMessageDelete'
 import { firstUnreadMessageIndex } from '../../../headless/utils/chatUnread'
+import { chatToolPreviewOf } from '../../../headless/utils/toolPreview'
+import type { ToolPreviewResult } from '../../../headless/api/sdkTypes'
+import { AGENT_RUN_TRANSCRIPT_EMPTY } from '../../../headless/utils/agentRunTranscriptConstants'
 import type { CliDecidedAsk, CliPendingAsk } from '../../../headless/utils/cliRunActivityTypes'
 import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
 import { useInlineApprovals } from '../../../headless/hooks/useInlineApprovals'
@@ -142,11 +146,16 @@ export type MessageListProps = {
   /** Forwarded to each row: the live group run an announcement launched. */
   renderProcessGroupRun?: (groupRunId: string) => ReactNode
 
+  /**
+   * A viewable URL for a file sent with a message, so a sent image shows as a
+   * thumbnail that opens full size. Omit where files cannot be read back.
+   */
+  getAttachmentPreviewUrl?: (path: string) => Promise<string | null>
   /** Host-supplied tool-preview fetcher — called for each call waiting on
    * an ask decided on its row, so the user sees the proposed diff/patch inside
    * the hover card before approving. Result is cached internally per
    * `toolCallId`. Omit to disable preview fetching. */
-  previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<unknown>
+  previewTool?: (toolCallId: string, toolName: string, args: unknown) => Promise<ToolPreviewResult>
   /** True while a send this session made is in flight. */
   isSending?: boolean
   /** A delete is still landing on the server — blocks a second one. */
@@ -160,8 +169,15 @@ export type MessageListProps = {
   isBusy?: boolean
 
   /** Caller-rendered empty-state. When omitted the list shows the default
-   * "Start chatting" hint matching desktop. */
+   * "Start chatting" hint matching desktop — or, for {@link transcript}, says
+   * there is no transcript yet. */
   emptyStateContent?: ReactNode
+  /**
+   * The chat is an agent run's transcript, not a conversation a person starts:
+   * with no messages and no turn running it says "No transcript yet" instead of
+   * inviting a chat.
+   */
+  transcript?: boolean
 
   /** Caller-rendered opening of the conversation — above every message, never
    * scrolled away by paging, and standing in for the empty state (e.g. the card
@@ -205,10 +221,12 @@ export default function MessageList({
   renderProcessRun,
   renderProcessGroupRun,
   previewTool,
+  getAttachmentPreviewUrl,
   isSending = false,
   isDeleting = false,
   isBusy,
   emptyStateContent,
+  transcript = false,
   leadingContent,
   tailContent,
 }: MessageListProps) {
@@ -607,16 +625,10 @@ export default function MessageList({
       setToolPreviewById((prev) => ({ ...prev, [toolCallId]: { status: 'pending' } }))
       ;(async () => {
         try {
-          const res = await previewTool(toolCallId, toolName, m.toolCall?.arguments)
-          if (
-            res &&
-            typeof res === 'object' &&
-            (res as { type?: string }).type === 'not_supported'
-          ) {
-            return
-          }
-          const patch = typeof res === 'string' ? res : JSON.stringify(res, null, 2)
-          const ready = { status: 'ready' as const, patch }
+          const ready = chatToolPreviewOf(
+            await previewTool(toolCallId, toolName, m.toolCall?.arguments),
+          )
+          if (!ready) return
           toolPreviewByIdRef.current = { ...toolPreviewByIdRef.current, [toolCallId]: ready }
           setToolPreviewById((prev) => ({ ...prev, [toolCallId]: ready }))
         } catch (e) {
@@ -656,17 +668,14 @@ export default function MessageList({
       {leadingContent ? <div className="mb-3 flex justify-center">{leadingContent}</div> : null}
 
       {messagesToDisplay.length === 0 && !isThinking && !leadingContent
-        ? (emptyStateContent ?? (
-            <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
-              <div className="text-[18px] font-medium">Start chatting about the project</div>
-              <div className="mt-4 inline-block rounded-lg border border-(--border-default) bg-(--surface-raised) px-4 py-3 text-[13px]">
-                Attach or drop files and images to give context
-                <br />
-                Mention files with @<br />
-                Reference stories/features with #
-              </div>
-            </div>
-          ))
+        ? (emptyStateContent ??
+          (transcript ? (
+            turnInFlight || pendingCliRunId ? null : (
+              <TranscriptEmpty />
+            )
+          ) : (
+            <ChatStartHint />
+          )))
         : null}
 
       <div ref={contentRef} className="w-full space-y-3">
@@ -717,6 +726,8 @@ export default function MessageList({
             hasRestartAction: !!onRestartTurn,
             isLast,
             role: msg.role,
+            isErrorNotice: isCompletionErrorNotice(msg),
+            ...(globalIndex > 0 ? { previousRole: messagesToDisplay[globalIndex - 1]!.role } : {}),
             turnInFlight,
           })
 
@@ -808,6 +819,7 @@ export default function MessageList({
                   renderCliRunArtifact={renderCliRunArtifact}
                   renderProcessRun={renderProcessRun}
                   renderProcessGroupRun={renderProcessGroupRun}
+                  getAttachmentPreviewUrl={getAttachmentPreviewUrl}
                   toolPreview={
                     msg.role === 'tool' && msg.toolCall?.toolCallId
                       ? toolPreviewById[String(msg.toolCall.toolCallId)]
@@ -903,6 +915,29 @@ export default function MessageList({
         ) : null}
         {tailContent}
       </div>
+    </div>
+  )
+}
+
+function ChatStartHint() {
+  return (
+    <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
+      <div className="text-[18px] font-medium">Start chatting about the project</div>
+      <div className="mt-4 inline-block rounded-lg border border-(--border-default) bg-(--surface-raised) px-4 py-3 text-[13px]">
+        Attach or drop files and images to give context
+        <br />
+        Mention files with @<br />
+        Reference stories/features with #
+      </div>
+    </div>
+  )
+}
+
+function TranscriptEmpty() {
+  return (
+    <div className="mt-10 mx-auto max-w-[720px] text-center text-(--text-secondary)">
+      <div className="text-[15px] font-medium">{AGENT_RUN_TRANSCRIPT_EMPTY.title}</div>
+      <div className="mt-2 text-[13px]">{AGENT_RUN_TRANSCRIPT_EMPTY.body}</div>
     </div>
   )
 }

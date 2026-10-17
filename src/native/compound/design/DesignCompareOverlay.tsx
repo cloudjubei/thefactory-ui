@@ -1,33 +1,33 @@
 import { useState } from 'react'
 import { Image, Text, View, useWindowDimensions } from 'react-native'
-import { DESIGN_TEXT, designItemViewKind, type DesignCompareBaseline } from '../../../headless'
-import type { DesignItem } from '../../../headless/api'
+import { DESIGN_TEXT, designViewKind, type DesignShown } from '../../../headless'
 import { nativeSpace } from '../../../tokens/native'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import FullScreenOverlay from '../../primitives/FullScreenOverlay'
 import SegmentedControl from '../../primitives/SegmentedControl'
 import { Slider } from '../../primitives/Slider'
-import DesignItemBody from './DesignItemBody'
+import DesignFileBody from './DesignFileBody'
 import { useDesignHost } from './DesignHostContext'
 
+/** One side of a compare: a file and what it is. */
+export type DesignCompareSide = { shown: DesignShown; label: string }
+
 export type DesignCompareOverlayProps = {
-  /** The built version to compare; `undefined` keeps the compare closed. */
-  built: DesignItem | undefined
-  baseline: DesignCompareBaseline | undefined
-  srcOf: (itemId: string) => string | undefined
+  /** What is current; with `proposed`, `undefined` keeps the compare closed. */
+  current: DesignCompareSide | undefined
+  proposed: DesignCompareSide | undefined
+  srcOf: (shown: DesignShown) => string | undefined
   onClose: () => void
 }
 
 type Mode = 'side' | 'slider'
 
 function Pane({
-  label,
-  item,
+  side,
   src,
   divided,
 }: {
-  label: string
-  item: DesignItem
+  side: DesignCompareSide
   src: string | undefined
   divided: 'right' | 'bottom' | undefined
 }) {
@@ -55,10 +55,11 @@ function Pane({
           paddingVertical: nativeSpace[3],
         }}
       >
-        <Text style={{ fontWeight: '600', color: theme.text.primary }}>{label}</Text> · {item.name}
+        <Text style={{ fontWeight: '600', color: theme.text.primary }}>{side.label}</Text> ·{' '}
+        {side.shown.name}
       </Text>
       <View style={{ flex: 1, minHeight: 0 }}>
-        <DesignItemBody item={item} src={src} />
+        <DesignFileBody shown={side.shown} src={src} />
       </View>
     </View>
   )
@@ -114,32 +115,33 @@ function SliderCompare({ before, after }: { before: string; after: string }) {
 }
 
 /**
- * Native peer of web's `DesignCompareOverlay`: a built version against what it
- * is compared with — the approved design when that is an image, else the built
- * version before it — one beside the other (stacked on a phone held upright),
- * or, for two images, one over the other with a slider.
+ * Native peer of web's `DesignCompareOverlay`: a proposed look beside what is
+ * current — one beside the other (stacked on a phone held upright), or, for two
+ * images, one over the other with a slider.
  */
 export default function DesignCompareOverlay({
-  built,
-  baseline,
+  current,
+  proposed,
   srcOf,
   onClose,
 }: DesignCompareOverlayProps) {
   const { topInset, bottomInset } = useDesignHost()
   const { width, height } = useWindowDimensions()
   const [mode, setMode] = useState<Mode>('side')
-  const open = built !== undefined && baseline !== undefined
+  const open = current !== undefined && proposed !== undefined
   const canSlide =
-    open && designItemViewKind(built) === 'image' && designItemViewKind(baseline.item) === 'image'
-  const beforeSrc = baseline ? srcOf(baseline.item.id) : undefined
-  const afterSrc = built ? srcOf(built.id) : undefined
+    open &&
+    designViewKind(current.shown.source) === 'image' &&
+    designViewKind(proposed.shown.source) === 'image'
+  const beforeSrc = current ? srcOf(current.shown) : undefined
+  const afterSrc = proposed ? srcOf(proposed.shown) : undefined
   const shown: Mode = canSlide ? mode : 'side'
   const across = width > height
   return (
     <FullScreenOverlay
       isOpen={open}
       onClose={onClose}
-      {...(built ? { title: `${DESIGN_TEXT.compare} · ${built.name}` } : {})}
+      {...(proposed ? { title: `${DESIGN_TEXT.compareWithCurrent} · ${proposed.shown.name}` } : {})}
       {...(canSlide
         ? {
             headerActions: (
@@ -164,13 +166,8 @@ export default function DesignCompareOverlay({
           <SliderCompare before={beforeSrc} after={afterSrc} />
         ) : (
           <View style={{ flex: 1, minHeight: 0, flexDirection: across ? 'row' : 'column' }}>
-            <Pane
-              label={baseline.label}
-              item={baseline.item}
-              src={beforeSrc}
-              divided={across ? 'right' : 'bottom'}
-            />
-            <Pane label="Built version" item={built} src={afterSrc} divided={undefined} />
+            <Pane side={current} src={beforeSrc} divided={across ? 'right' : 'bottom'} />
+            <Pane side={proposed} src={afterSrc} divided={undefined} />
           </View>
         )
       ) : null}

@@ -34,6 +34,27 @@ function parked(
 ) {
   return {
     projectId: 'p',
+    plan: {
+      definitionId: 'feature-default',
+      definitionScope: 'global' as const,
+      definitionVersion: 1,
+      name: 'Feature',
+      steps: [{ id: 'verify', name: 'Verify', kind: 'agent' as const, agentType: 'verifier' }],
+      loops: [],
+      frozenAt: 0,
+    },
+    ledger: [
+      {
+        id: 'e1',
+        stepId: 'verify',
+        iteration: 1,
+        status: 'done' as const,
+        outcome: 'waiting' as const,
+        startedAt: 0,
+        runRef: { runId: 'r1', agentRunId: 'a1', runner: 'api' as const },
+      },
+    ],
+    input: { runner: 'api' as const },
     park: {
       reason: 'step-waiting' as const,
       stepId: 'verify',
@@ -170,12 +191,91 @@ describe('processWaitingView', () => {
     expect(view.transcript).toBeUndefined()
   })
 
+  it('offers changing what proves the work at a fixer blocked on screens the run cannot produce', () => {
+    const blocker: ProcessWaitingAsk = {
+      kind: 'blocker',
+      agent: 'fixer',
+      title: 'The fixer is blocked',
+      detail: 'No affected runnable screen.',
+    }
+    const run = parked(blocker, { stepId: 'implement' })
+    const view = processWaitingView({
+      ...run,
+      plan: {
+        ...run.plan,
+        steps: [
+          { id: 'implement', name: 'Implement', kind: 'agent', agentType: 'fixer' },
+          ...run.plan.steps,
+        ],
+      },
+      input: { changeRequest: { from: 'code-review', proofKinds: ['ui-before-after'] } },
+      ledger: [
+        {
+          id: 'v1',
+          stepId: 'verify',
+          iteration: 1,
+          status: 'done',
+          outcome: 'failed',
+          startedAt: 0,
+          proof: {
+            pairs: [],
+            newScreenIds: [],
+            recordingIds: [],
+            outcome: 'failed',
+            reason: 'Could not produce the screenshots.',
+            judged: false,
+          },
+        },
+        {
+          id: 'i2',
+          stepId: 'implement',
+          iteration: 2,
+          status: 'done',
+          outcome: 'waiting',
+          startedAt: 1,
+        },
+      ],
+      proofUnavailable: [{ kind: 'ui-before-after', reason: 'No runnable browser app.' }],
+    })!
+    const change = view.choices.find((c) => c.choice === 'change-proof')
+    expect(change).toMatchObject({
+      label: 'Change what proves it',
+      proofChange: { stepId: 'verify', current: ['ui-before-after'] },
+    })
+    expect(change?.detail).toContain('“Verify” runs again')
+    expect(view.choices.at(-1)?.choice).toBe('abandon')
+  })
+
   it('leads a blocker with "Issue resolved — Continue"', () => {
     const view = processWaitingView(
       parked({ kind: 'blocker', agent: 'developer', title: 't', detail: 'Locked.' }),
     )!
     expect(view.heading).toBe('The developer is blocked')
     expect(view.choices[0]).toMatchObject({ choice: 'resolved', primary: true })
+  })
+
+  it('leads an agent that could not go on with Try again, saying how its agent starts', () => {
+    const view = processWaitingView(
+      parked({
+        kind: 'blocker',
+        agent: 'judge',
+        title: 'openai stopped with an error',
+        detail: 'The code reviewer could not go on.',
+        agentFailed: true,
+      }),
+    )!
+    expect(view.choices.map((c) => c.choice)).toEqual([
+      'retry',
+      'resolved',
+      'more-info',
+      'delegate',
+      'abandon',
+    ])
+    expect(view.choices[0]).toMatchObject({
+      label: 'Try again',
+      primary: true,
+      retry: { canContinue: true, defaultMode: 'fresh' },
+    })
   })
 
   it('offers the chat an ask was handed to', () => {
@@ -198,7 +298,8 @@ describe('processWaitingView', () => {
   it('is nothing for any other park, or a waiting park that lost its ask', () => {
     expect(processWaitingView(parked(permission, { reason: 'step-failed' }))).toBeUndefined()
     expect(processWaitingView(parked(undefined))).toBeUndefined()
-    expect(processWaitingView({ projectId: 'p' })).toBeUndefined()
+    const { park: _park, ...unparked } = parked(permission)
+    expect(processWaitingView(unparked)).toBeUndefined()
   })
 })
 

@@ -57,9 +57,9 @@ const SEMANTIC_COLORS: Record<StatusSemanticKey, StatusColors> = {
     border: nativePalette.purple[300],
   },
   review: {
-    bg: nativePalette.blue[100],
-    fg: nativePalette.blue[800],
-    border: nativePalette.blue[300],
+    bg: nativePalette.gold[100],
+    fg: nativePalette.gold[800],
+    border: nativePalette.gold[300],
   },
 }
 

@@ -5,7 +5,7 @@ const TYPE_CLASS: Record<BranchChipType, string> = {
   remote: 'badge--working',
   current: 'badge--done',
   same: 'badge--empty',
-  updated: 'badge--review',
+  updated: 'badge--accent',
   story: 'badge--queued',
 }
 

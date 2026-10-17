@@ -34,7 +34,7 @@ import {
   baseBranchMetadata,
   featureProcessChoice,
   featureProcessMetadata,
-  featuresToWork,
+  storyOpenFeatures,
   isGitSetupGrant,
   isGitChangeGrant,
   isRunProposalGrant,
@@ -215,7 +215,9 @@ function ToolApprovalPanel({
   const turnLimit = turnLimitPick ?? turnLimitStart
 
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
-  const features = story ? featuresToWork(story) : []
+  // The story's open features, never its launch plan: whether they may start
+  // (a blocker not done yet) is the proposal's refusal, shown on the card.
+  const features = story ? storyOpenFeatures(story) : []
   // How each feature is worked — the person's pick, never the agent's. Until
   // they pick, the story process's own; the proposal nests whichever is picked.
   const [featureProcessPick, setFeatureProcessPick] = useState<string | undefined>(undefined)

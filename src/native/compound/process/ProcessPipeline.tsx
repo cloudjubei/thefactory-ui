@@ -15,11 +15,14 @@ import {
 import {
   choiceTakesNote,
   computeChatRowStatus,
+  parkNoteCopy,
   RunChatDraftProvider,
   RunNeedsYouProvider,
   runNeedsYouDiscussDraft,
   useChats,
   usePendingAsksByChat,
+  useProcessRunAlreadyLanded,
+  type ProcessAlreadyMergedAction,
   type ChatsSeenMap,
   type RunNeedsYouActions,
   type RunModelChipSlot,
@@ -33,7 +36,7 @@ import {
   PROCESS_PARK_ASK_AGENT_COPY,
   processParkAskableStepId,
   isResumeParkChoice,
-  REQUEST_PROOF_CHOICES,
+  requestProofChoices,
   parkNoteRequired,
   processAmendmentView,
   processNodeBadge,
@@ -83,9 +86,11 @@ import {
   useStories,
   waitingNoteCopy,
   type ProcessIntegrationDecision,
+  type ProofChangeDraft,
   type ProofKind,
   type ProcessNodeRunRef,
   type ProcessResumeChoice,
+  type ProcessRetryOffer,
   type ProcessRetryPick,
   type ProcessRun,
   type ProcessRunManagerView,
@@ -101,11 +106,14 @@ import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
+import AlreadyMergedOffer from './AlreadyMergedOffer'
 import BaseMovedNote from './BaseMovedNote'
+import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
 import RunPendingChanges from './RunPendingChanges'
 import IntegrationResult from './IntegrationResult'
 import ParkNoteComposer from './ParkNoteComposer'
+import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
 import RunClosurePanel from './RunClosurePanel'
 import RunTurnLimitChip from './RunTurnLimitChip'
@@ -210,6 +218,7 @@ export default function ProcessPipeline({
     actionError: runActionError,
     run,
     resume,
+    changeProof,
     answerWaitingRequest,
     setTurnLimit,
     setManager,
@@ -282,6 +291,7 @@ export default function ProcessPipeline({
 
   const now = useDurationTimer(run?.totals?.ticking === true)
   const stopNow = useProcessStopClock()
+  const parkAlreadyLanded = useProcessRunAlreadyLanded(run, 'stop')
 
   const drillTo = useCallback((childId: string) => {
     setPanel(null)
@@ -390,6 +400,14 @@ export default function ProcessPipeline({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => resume(choice, note, integration, requestedProof, retry)
+  const alreadyMerged: ProcessAlreadyMergedAction | undefined = parkAlreadyLanded.offer
+    ? {
+        offer: parkAlreadyLanded.offer,
+        busy: parkAlreadyLanded.busy,
+        error: parkAlreadyLanded.actionError,
+        onSettle: () => void parkAlreadyLanded.settle(),
+      }
+    : undefined
 
   return (
     <RunChatDraftScope open={openDraft}>
@@ -518,8 +536,10 @@ export default function ProcessPipeline({
               now={now}
               stopHolder={stopHolder}
               managerLine={managerLine}
+              {...(alreadyMerged ? { alreadyMerged } : {})}
               addedTag={amendments.addedSteps[state.step.id]}
               onChoose={choose}
+              onChangeProof={(draft) => void changeProof(draft)}
               onAnswerRequest={(actionId, choice) => void answerWaitingRequest(actionId, choice)}
               onDelegate={() => delegate().then(() => undefined)}
               {...(canChat && atTop ? { onAskAgent: askAgentAboutStep } : {})}
@@ -557,6 +577,8 @@ export default function ProcessPipeline({
                 storyId={run.storyId as string}
                 storyRunId={run.id}
                 choices={processRunParkChoices(run)}
+                {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
+                {...(run.changeUiPaths ? { changeUiPaths: run.changeUiPaths } : {})}
                 {...(run.workBranch && isIntegratingApproval(run, 'approve')
                   ? { workBranch: run.workBranch }
                   : {})}
@@ -790,7 +812,7 @@ function RunHead({
   const spend = processRunSpend(run)
   const workMs = processRunWorkMs(run, now)
   const modelView = model?.view ?? processRunModelChipView(run)
-  const steps = useMemo(() => processRunStripEntries(run), [run])
+  const steps = useMemo(() => processRunStripEntries(run, stopHolder), [run, stopHolder])
   const stoppable = run.status === 'running' || run.status === 'pending' || run.status === 'parked'
   const actions: ActionMenuItem[] = [
     ...(onDownloadReport
@@ -1032,8 +1054,10 @@ function PipelineNode({
   now,
   stopHolder,
   managerLine,
+  alreadyMerged,
   addedTag,
   onChoose,
+  onChangeProof,
   onAnswerRequest,
   onDelegate,
   onAskAgent,
@@ -1050,6 +1074,8 @@ function PipelineNode({
   stopHolder: ProcessRunStopHolder | undefined
   /** What the manager is doing on the stop, while it has it. */
   managerLine: string | undefined
+  /** Finishing the run as already merged from its stop, when its base already holds the work. */
+  alreadyMerged?: ProcessAlreadyMergedAction
   addedTag: string | undefined
   onChoose: (
     choice: ProcessResumeChoice,
@@ -1057,6 +1083,8 @@ function PipelineNode({
     integration?: ProcessIntegrationDecision,
     requestedProof?: readonly ProofKind[],
   ) => Promise<boolean>
+  /** Change what proves the stopped feature. */
+  onChangeProof: (draft: ProofChangeDraft) => void
   /** Decide one of several requests a waiting agent left open. */
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
@@ -1072,7 +1100,7 @@ function PipelineNode({
   const parkStepId = run.park?.stepId
   const parked = parkStepId === state.step.id
   const nodeState = processNodeState(state, parkStepId)
-  const row = processStepRowView(state, parkStepId, run, stopHolder)
+  const row = processStepRowView(state, parkStepId, run, stopHolder, now)
   const look = processNodeLook(
     row.managerOnIt ? 'working' : nodeState,
     state.step.kind === 'gate',
@@ -1227,7 +1255,9 @@ function PipelineNode({
           <ParkBlock
             run={run}
             managerLine={managerLine}
+            {...(alreadyMerged ? { alreadyMerged } : {})}
             onChoose={onChoose}
+            onChangeProof={onChangeProof}
             onAnswerRequest={onAnswerRequest}
             onDelegate={onDelegate}
             {...(onAskAgent ? { onAskAgent } : {})}
@@ -1244,7 +1274,9 @@ function PipelineNode({
 function ParkBlock({
   run,
   managerLine,
+  alreadyMerged,
   onChoose,
+  onChangeProof,
   onAnswerRequest,
   onDelegate,
   onAskAgent,
@@ -1255,6 +1287,8 @@ function ParkBlock({
   run: ProcessRun
   /** What the agent manager is doing on the stop, while it has it — said in place of what waits on the person. */
   managerLine: string | undefined
+  /** Finishing the run as already merged, when its base already holds the work. */
+  alreadyMerged?: ProcessAlreadyMergedAction
   onChoose: (
     choice: ProcessResumeChoice,
     note?: string,
@@ -1262,6 +1296,7 @@ function ParkBlock({
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => void
+  onChangeProof: (draft: ProofChangeDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onAskAgent?: () => Promise<void>
@@ -1272,29 +1307,56 @@ function ParkBlock({
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [changingProof, setChangingProof] = useState(false)
   const [asking, setAsking] = useState(false)
   const retryChoice = processRetryChoiceOf(run.park ? processRunParkChoices(run) : [])
   const [retryPick, setRetryPick] = useState<ProcessRetryPick | undefined>()
+  const [confirmingClose, setConfirmingClose] = useState(false)
   const parkedAt = run.park?.parkedAt
   useEffect(() => setRetryPick(undefined), [parkedAt])
   const park = run.park
   if (!park) return null
+  const choose: typeof onChoose = (choice, ...rest) =>
+    choice === 'close-unmerged' ? setConfirmingClose(true) : onChoose(choice, ...rest)
+  const closeConfirm = confirmingClose ? (
+    <CloseUnmergedConfirm
+      onCancel={() => setConfirmingClose(false)}
+      onConfirm={() => {
+        setConfirmingClose(false)
+        onChoose('close-unmerged')
+      }}
+    />
+  ) : null
   const waiting = processWaitingView(run)
   if (waiting) {
     return (
-      <WaitingCard
-        view={waiting}
-        managerLine={managerLine}
-        onChoose={onChoose}
-        onAnswerRequest={onAnswerRequest}
-        onDelegate={onDelegate}
-        {...(onOpenChat ? { onOpenChat } : {})}
-        {...(onOpenTranscript ? { onOpenTranscript } : {})}
-      />
+      <>
+        <WaitingCard
+          view={waiting}
+          managerLine={managerLine}
+          {...(retryChoice?.retry
+            ? {
+                retry: {
+                  offer: retryChoice.retry,
+                  pick: retryPick ?? processRetryPickStart(retryChoice),
+                  onPick: setRetryPick,
+                },
+              }
+            : {})}
+          onChoose={choose}
+          onChangeProof={onChangeProof}
+          onAnswerRequest={onAnswerRequest}
+          onDelegate={onDelegate}
+          {...(onOpenChat ? { onOpenChat } : {})}
+          {...(onOpenTranscript ? { onOpenTranscript } : {})}
+        />
+        {closeConfirm}
+      </>
     )
   }
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
+  const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'
@@ -1325,9 +1387,21 @@ function ParkBlock({
       ) : null}
       {noteFor ? (
         <ParkNoteComposer
-          {...(noteFor === 'request-changes' ? { proofChoices: REQUEST_PROOF_CHOICES } : {})}
+          copy={parkNoteCopy(noteFor)}
+          {...(noteFor === 'request-changes'
+            ? { proofChoices: requestProofChoices(run.proofUnavailable) }
+            : {})}
           onSend={(note, requestedProof) => onChoose(noteFor, note, undefined, requestedProof)}
           onCancel={() => setNoteFor(undefined)}
+        />
+      ) : changingProof && proofChange ? (
+        <ProofChangeComposer
+          offer={proofChange}
+          onSend={(draft) => {
+            setChangingProof(false)
+            onChangeProof(draft)
+          }}
+          onCancel={() => setChangingProof(false)}
         />
       ) : (
         <>
@@ -1353,17 +1427,19 @@ function ParkBlock({
                 size="sm"
                 variant={choice.primary ? 'primary' : 'secondary'}
                 onPress={() =>
-                  choiceTakesNote(choice.choice)
-                    ? setNoteFor(choice.choice)
-                    : choice.choice === 'retry' && retryChoice
-                      ? onChoose(
-                          'retry',
-                          undefined,
-                          undefined,
-                          undefined,
-                          retryPick ?? processRetryPickStart(retryChoice),
-                        )
-                      : onChoose(choice.choice)
+                  choice.choice === 'change-proof'
+                    ? setChangingProof(true)
+                    : choiceTakesNote(choice.choice)
+                      ? setNoteFor(choice.choice)
+                      : choice.choice === 'retry' && retryChoice
+                        ? onChoose(
+                            'retry',
+                            undefined,
+                            undefined,
+                            undefined,
+                            retryPick ?? processRetryPickStart(retryChoice),
+                          )
+                        : choose(choice.choice)
                 }
               >
                 {choice.label}
@@ -1389,8 +1465,12 @@ function ParkBlock({
               </Text>
             </View>
           ) : null}
+          {alreadyMerged && !reflected ? (
+            <AlreadyMergedOffer projectId={run.projectId} {...alreadyMerged} />
+          ) : null}
         </>
       )}
+      {closeConfirm}
     </View>
   )
 }
@@ -1478,7 +1558,9 @@ function WaitingRequestRow({
 function WaitingCard({
   view,
   managerLine,
+  retry,
   onChoose,
+  onChangeProof,
   onAnswerRequest,
   onDelegate,
   onOpenChat,
@@ -1487,7 +1569,21 @@ function WaitingCard({
   view: ProcessWaitingView
   /** What the agent manager is doing on the ask, while it has it — said in place of the ask's heading. */
   managerLine: string | undefined
-  onChoose: (choice: ProcessResumeChoice, note?: string) => void
+  /** How "Try again" starts the step's agent, where its agent could not go on. */
+  retry?: {
+    offer: ProcessRetryOffer
+    pick: ProcessRetryPick
+    onPick: (pick: ProcessRetryPick) => void
+  }
+  onChoose: (
+    choice: ProcessResumeChoice,
+    note?: string,
+    integration?: ProcessIntegrationDecision,
+    requestedProof?: readonly ProofKind[],
+    retry?: ProcessRetryPick,
+  ) => void
+  /** Change what proves the work, where the agent's block is proof the run cannot give. */
+  onChangeProof: (draft: ProofChangeDraft) => void
   onAnswerRequest: (actionId: string, choice: ProcessWaitingItemChoice) => void
   onDelegate: () => Promise<void>
   onOpenChat?: (context: ChatContext) => void
@@ -1495,6 +1591,8 @@ function WaitingCard({
 }) {
   const { theme, status } = useNativeTheme()
   const [noteFor, setNoteFor] = useState<ProcessResumeChoice | undefined>()
+  const [changingProof, setChangingProof] = useState(false)
+  const proofChange = view.choices.find((c) => c.choice === 'change-proof')?.proofChange
   const [delegating, setDelegating] = useState(false)
   const variant = managerLine ? status[PROCESS_LIVE_TONE] : status.on_hold
   const transcript = view.transcript
@@ -1567,24 +1665,42 @@ function WaitingCard({
           onSend={(note) => onChoose(noteFor, note)}
           onCancel={() => setNoteFor(undefined)}
         />
+      ) : changingProof && proofChange ? (
+        <ProofChangeComposer
+          offer={proofChange}
+          onSend={(draft) => {
+            setChangingProof(false)
+            onChangeProof(draft)
+          }}
+          onCancel={() => setChangingProof(false)}
+        />
       ) : (
-        view.choices.map((choice) => (
-          <View key={choice.choice} style={{ gap: 2 }}>
-            <Button
-              size="sm"
-              variant={choice.primary ? 'primary' : 'secondary'}
-              disabled={choice.choice === 'delegate' && delegating}
-              onPress={() => {
-                if (!isResumeParkChoice(choice)) return delegate()
-                if (choiceTakesNote(choice.choice)) return setNoteFor(choice.choice)
-                onChoose(choice.choice)
-              }}
-            >
-              {choice.label}
-            </Button>
-            <Text style={{ fontSize: 11, color: theme.text.secondary }}>{choice.detail}</Text>
-          </View>
-        ))
+        <>
+          {retry ? (
+            <RetryChoiceOptions retry={retry.offer} pick={retry.pick} onPick={retry.onPick} />
+          ) : null}
+          {view.choices.map((choice) => (
+            <View key={choice.choice} style={{ gap: 2 }}>
+              <Button
+                size="sm"
+                variant={choice.primary ? 'primary' : 'secondary'}
+                disabled={choice.choice === 'delegate' && delegating}
+                onPress={() => {
+                  if (!isResumeParkChoice(choice)) return delegate()
+                  if (choice.choice === 'change-proof') return setChangingProof(true)
+                  if (choiceTakesNote(choice.choice)) return setNoteFor(choice.choice)
+                  if (choice.choice === 'retry' && retry) {
+                    return onChoose('retry', undefined, undefined, undefined, retry.pick)
+                  }
+                  onChoose(choice.choice)
+                }}
+              >
+                {choice.label}
+              </Button>
+              <Text style={{ fontSize: 11, color: theme.text.secondary }}>{choice.detail}</Text>
+            </View>
+          ))}
+        </>
       )}
     </View>
   )

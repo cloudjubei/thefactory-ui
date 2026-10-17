@@ -3,7 +3,7 @@
 // Source of truth stays in `./colors` + `./metrics` + `./semantic`; this
 // module just re-shapes them.
 
-import { brand, gray, green, orange, red, purple, blue, palette } from './colors'
+import { brand, gray, green, orange, red, purple, sky, gold, palette } from './colors'
 import { controls, fontSizes, lineHeights, motion, radii, space, zIndex } from './metrics'
 
 export { palette as nativePalette } from './colors'
@@ -151,7 +151,14 @@ export interface NativeSemanticTheme {
   surface: { base: string; raised: string; overlay: string; muted: string; hover: string }
   text: { primary: string; secondary: string; muted: string; inverted: string }
   border: { subtle: string; default: string; strong: string; focus: string }
-  accent: { primary: string; primaryHover: string; primaryActive: string }
+  accent: {
+    primary: string
+    primaryHover: string
+    primaryActive: string
+    softBg: string
+    softFg: string
+    softBorder: string
+  }
   focusRing: string
 }
 
@@ -182,6 +189,9 @@ export const nativeLightTheme: NativeSemanticTheme = {
     primary: brand[600],
     primaryHover: brand[700],
     primaryActive: brand[800],
+    softBg: nativeAlpha(brand[600], 0.1),
+    softFg: brand[700],
+    softBorder: brand[300],
   },
   focusRing: brand[400],
 }
@@ -212,6 +222,9 @@ export const nativeDarkTheme: NativeSemanticTheme = {
     primary: brand[500],
     primaryHover: brand[400],
     primaryActive: brand[600],
+    softBg: nativeAlpha(brand[500], 0.18),
+    softFg: brand[200],
+    softBorder: nativeAlpha(brand[500], 0.55),
   },
   focusRing: brand[400],
 }
@@ -235,6 +248,7 @@ export interface NativeStatusVariant {
 export interface NativeStatusTokens {
   empty: NativeStatusVariant
   done: NativeStatusVariant
+  running: NativeStatusVariant
   working: NativeStatusVariant
   stuck: NativeStatusVariant
   on_hold: NativeStatusVariant
@@ -258,6 +272,13 @@ export const nativeLightStatus: NativeStatusTokens = {
     softFg: green[800],
     softBorder: green[400],
   },
+  running: {
+    bg: sky[700],
+    fg: '#ffffff',
+    softBg: nativeAlpha(sky[600], 0.14),
+    softFg: sky[700],
+    softBorder: sky[400],
+  },
   working: {
     bg: orange[650],
     fg: '#231200',
@@ -280,11 +301,11 @@ export const nativeLightStatus: NativeStatusTokens = {
     softBorder: purple[400],
   },
   review: {
-    bg: blue[650],
-    fg: '#ffffff',
-    softBg: nativeAlpha(blue[650], 0.12),
-    softFg: blue[700],
-    softBorder: blue[400],
+    bg: gold[500],
+    fg: '#2b2200',
+    softBg: nativeAlpha(gold[500], 0.18),
+    softFg: gold[800],
+    softBorder: gold[400],
   },
   queued: {
     bg: '#eaeaea',
@@ -317,6 +338,13 @@ export const nativeDarkStatus: NativeStatusTokens = {
     softFg: '#bbf7e1',
     softBorder: nativeAlpha(green[600], 0.6),
   },
+  running: {
+    bg: sky[500],
+    fg: '#04202e',
+    softBg: nativeAlpha(sky[500], 0.18),
+    softFg: sky[200],
+    softBorder: nativeAlpha(sky[500], 0.6),
+  },
   working: {
     bg: orange[700],
     fg: '#1b1200',
@@ -339,11 +367,11 @@ export const nativeDarkStatus: NativeStatusTokens = {
     softBorder: nativeAlpha(purple[650], 0.6),
   },
   review: {
-    bg: blue[700],
-    fg: '#f2f7ff',
-    softBg: nativeAlpha(blue[650], 0.16),
-    softFg: '#d9e7ff',
-    softBorder: nativeAlpha(blue[650], 0.6),
+    bg: gold[600],
+    fg: '#1f1800',
+    softBg: nativeAlpha(gold[500], 0.18),
+    softFg: gold[200],
+    softBorder: nativeAlpha(gold[500], 0.6),
   },
   queued: {
     bg: '#313843',

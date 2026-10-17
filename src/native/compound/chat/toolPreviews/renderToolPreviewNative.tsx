@@ -1,7 +1,13 @@
 import { type ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { extract, searchResultLines, tryString } from '../../../../headless/utils/toolPreview'
+import {
+  extract,
+  reorderedFeatureId,
+  searchResultLines,
+  storyAfterPatch,
+  tryString,
+} from '../../../../headless/utils/toolPreview'
 import { toolResultResourceLinks } from '../../../../headless/utils/toolResultLinks'
 import { runProposalView } from '../../../../headless/utils/runProposalView'
 import { RUN_PROPOSAL_TOOL_NAMES } from '../../../../headless/utils/runProposalViewConstants'
@@ -267,11 +273,7 @@ export function renderToolPreviewNative({
       typeof (result as { patch?: string })?.patch === 'string'
         ? safeParseJson((result as { patch: string }).patch)
         : result
-    const resultStory =
-      resultObject && typeof resultObject === 'object' && !Array.isArray(resultObject)
-        ? (resultObject as StoryShape)
-        : undefined
-    const nextStory = resultStory ?? (story ? ({ ...story, ...patch } as StoryShape) : undefined)
+    const nextStory = storyAfterPatch<StoryShape>(story, patch, resultObject)
     const isComplete = !isInFlight
     const completedCard =
       isComplete && hooks?.renderStoryCard && nextStory
@@ -626,8 +628,8 @@ export function renderToolPreviewNative({
         extract(feature, ['order']) ||
         extract(feature, ['features'])) ??
       []
-    const movedId = tryString(extract(args, ['featureId']) || extract(result, ['featureId']))
-    if (Array.isArray(order)) return <ReorderList items={order} movedId={movedId} />
+    if (Array.isArray(order))
+      return <ReorderList items={order} movedId={reorderedFeatureId(args, order)} />
     return <SecondaryText>No reorder data</SecondaryText>
   }
   if (name === 'startFeatureWork') {

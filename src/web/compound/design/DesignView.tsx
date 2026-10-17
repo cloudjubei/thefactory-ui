@@ -1,38 +1,37 @@
-import { useCallback, useState, type DragEvent, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useState, type DragEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { ChatContext, ResourceLink } from 'thefactory-tools/types'
 import {
   CHAT_ATTACHMENT_MAX_BYTES,
   DESIGN_TEXT,
   FILE_DROP_ZONE_ATTRIBUTE,
   attachmentUploadError,
-  designCompareBaseline,
   designDiscussDraft,
-  designScreenItems,
   designSelection,
   isFileDrag,
-  useChats,
   projectShowsShellTab,
+  useChats,
   useDesign,
+  useDesignPlayground,
   useDesignViewToken,
   useProjects,
+  type DesignProposeEntry,
+  type DesignShown,
   type ShellTabProjectFlags,
 } from '../../../headless'
-import type { DesignAppKind, DesignItem, DesignScreenTree } from '../../../headless/api'
+import type { DesignEntryTarget, DesignProposal } from '../../../headless/api'
 import Alert from '../../primitives/Alert'
-import { Button } from '../../primitives/Button'
-import { Input } from '../../primitives/Input'
-import { NativeSelect } from '../../primitives/NativeSelect'
 import Spinner from '../../primitives/Spinner'
-import { IconChat, IconClose, IconPalette } from '../../icons'
+import { IconClose, IconPalette } from '../../icons'
 import { arrayBufferToBase64 } from '../../utils/uploadEncoding'
 import DesignAddDraft from './DesignAddDraft'
-import DesignCompareOverlay from './DesignCompareOverlay'
-import DesignItemCard from './DesignItemCard'
-import DesignItemViewer from './DesignItemViewer'
-import DesignSidebar, { NewAppFields } from './DesignSidebar'
+import DesignCompareOverlay, { type DesignCompareSide } from './DesignCompareOverlay'
+import DesignFileViewer from './DesignFileViewer'
+import DesignPage, { type DesignNavigation } from './DesignPage'
+import DesignPlayground, { type DesignPlaygroundAt } from './DesignPlayground'
+import type { DesignCellRef } from './DesignScreenGrid'
 import { DesignStorageMeter, DesignStorageWarning } from './DesignStorageMeter'
-import type { DesignDraftSource, DesignUploadRow } from './designWebTypes'
+import type { DesignDraftSource } from './designWebTypes'
 
 export type DesignViewProps = {
   projectId: string | undefined
@@ -40,158 +39,60 @@ export type DesignViewProps = {
   onOpenResource?: (link: ResourceLink) => void
 }
 
-const NEW_APP = '__new__'
-
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
-/** Asks where drafts go when there is no screen yet: an app (picked or new) and a screen. */
-function NewScreenForm({
-  apps,
-  pending,
-  onCreate,
-  onCancel,
-}: {
-  apps: { id: string; name: string }[]
-  pending: DesignDraftSource | undefined
-  onCreate: (target: {
-    appId?: string
-    appName?: string
-    kind: DesignAppKind
-    screenName: string
-  }) => Promise<void>
-  onCancel: () => void
-}) {
-  const [appId, setAppId] = useState(apps[0]?.id ?? NEW_APP)
-  const [appName, setAppName] = useState('')
-  const [kind, setKind] = useState<DesignAppKind>('product')
-  const [screenName, setScreenName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const isNew = appId === NEW_APP
-  const valid = screenName.trim() !== '' && (!isNew || appName.trim() !== '')
-  const waiting =
-    pending?.type === 'files'
-      ? `${pending.files.length} ${pending.files.length === 1 ? 'file' : 'files'}`
-      : pending?.type === 'paths'
-        ? `${pending.paths.length} project ${pending.paths.length === 1 ? 'file' : 'files'}`
-        : pending?.type === 'link'
-          ? 'a link'
-          : undefined
-  return (
-    <form
-      className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-(--border-subtle) p-4"
-      style={{ background: 'var(--surface-raised)' }}
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (!valid) return
-        setBusy(true)
-        try {
-          await onCreate({
-            ...(isNew ? { appName: appName.trim() } : { appId }),
-            kind,
-            screenName: screenName.trim(),
-          })
-        } finally {
-          setBusy(false)
-        }
-      }}
-    >
-      <div className="text-sm font-semibold text-(--text-primary)">
-        {waiting ? `Which screen are ${waiting} for?` : DESIGN_TEXT.addDraft}
-      </div>
-      {apps.length > 0 ? (
-        <NativeSelect
-          size="sm"
-          aria-label="App"
-          value={appId}
-          onChange={(e) => setAppId(e.target.value)}
-        >
-          {apps.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-          <option value={NEW_APP}>New app…</option>
-        </NativeSelect>
-      ) : null}
-      {isNew ? (
-        <NewAppFields name={appName} kind={kind} onName={setAppName} onKind={setKind} autoFocus />
-      ) : null}
-      <Input
-        size="sm"
-        placeholder="Screen name, e.g. Login"
-        aria-label="Screen name"
-        value={screenName}
-        autoFocus={!isNew}
-        onChange={(e) => setScreenName(e.target.value)}
-      />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" variant="primary" disabled={!valid} loading={busy}>
-          {waiting ? 'Add here' : DESIGN_TEXT.addScreen}
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-function Column({
-  title,
-  count,
-  children,
-  actions,
-}: {
-  title: string
-  count: number
-  children: ReactNode
-  actions?: ReactNode
-}) {
-  return (
-    <section className="flex min-w-0 flex-col gap-2">
-      <header className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[13px] font-semibold text-(--text-primary)">
-          {title} <span className="font-normal text-(--text-muted)">{count}</span>
-        </h3>
-        {actions ? <div className="ml-auto">{actions}</div> : null}
-      </header>
-      {children}
-    </section>
-  )
+function isHtml(name: string): boolean {
+  return /\.html?$/i.test(name)
 }
 
 /**
- * A project's Design tab: its apps and screens on the left; a screen's drafts —
- * one of them the approved design — beside the versions runs built, newest
- * first. Everything opens in a viewer as stored; a built version compares with
- * the approved design or the one before it; files dropped anywhere become
- * drafts. Honours `?screen=&item=` links.
+ * A project's Design tab, wired to the project's design: the page, its address
+ * (`?app=&tab=&screen=&state=&variant=&proposal=`), the viewer and the compare,
+ * and proposing — files dropped anywhere, uploaded, picked from the project, or
+ * linked arrive as a proposal for what is selected.
  */
 export default function DesignView({ projectId, onOpenResource }: DesignViewProps) {
   const design = useDesign(projectId)
   const { token } = useDesignViewToken(projectId)
   const { projects } = useProjects()
   const { updateDraftState } = useChats()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [error, setError] = useState<string | undefined>(undefined)
-  const [uploads, setUploads] = useState<DesignUploadRow[]>([])
-  const [asking, setAsking] = useState<{ pending: DesignDraftSource | undefined } | undefined>(
-    undefined,
-  )
+  const [uploading, setUploading] = useState(0)
   const [dragging, setDragging] = useState(false)
-  const [comparing, setComparing] = useState<string | undefined>(undefined)
+  const [viewing, setViewing] = useState<DesignShown | undefined>(undefined)
+  const [comparing, setComparing] = useState<
+    { current: DesignCompareSide; proposed: DesignCompareSide } | undefined
+  >(undefined)
 
-  const selection = designSelection(design.tree, {
+  const selection = designSelection(design.index, {
+    app: params.get('app'),
+    tab: params.get('tab'),
     screen: params.get('screen'),
-    item: params.get('item'),
+    state: params.get('state'),
+    variant: params.get('variant'),
+    proposal: params.get('proposal'),
   })
-  const selected = selection.screenId ? design.findScreen(selection.screenId) : undefined
-  const viewing = selection.itemId ? design.findItem(selection.itemId)?.item : undefined
+  const playground = useDesignPlayground(projectId, { open: selection.tab === 'playground' })
+  const [cell, setCell] = useState<DesignCellRef | undefined>(undefined)
+  useEffect(() => {
+    setCell(
+      selection.stateId && selection.variant
+        ? { stateId: selection.stateId, variant: selection.variant }
+        : undefined,
+    )
+  }, [selection.stateId, selection.variant, selection.screenId])
+
   const srcOf = useCallback(
-    (itemId: string) => (token ? design.contentUrl(itemId, token) : undefined),
+    (shown: DesignShown) =>
+      token
+        ? design.contentUrl(shown.ref, {
+            viewToken: token,
+            ...(shown.caseQuery ? { caseQuery: shown.caseQuery } : {}),
+          })
+        : undefined,
     [token, design],
   )
 
@@ -206,78 +107,145 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
     }
   }, [])
 
-  const selectScreen = (screenId: string) => setParams({ screen: screenId })
-  const openItem = (item: DesignItem) => setParams({ screen: item.screenId, item: item.id })
-  const closeItem = () => {
-    const next = new URLSearchParams(params)
-    next.delete('item')
-    setParams(next, { replace: true })
+  const navigate = (to: DesignNavigation) => {
+    const next = new URLSearchParams()
+    for (const [key, value] of Object.entries(to)) if (value) next.set(key, value)
+    setParams(next)
   }
 
-  const discuss = (ref: { screenId: string; itemId?: string }) => {
+  /** The Playground's place, kept in the address so a reload or a link opens it there. */
+  const onPlaygroundMove = useCallback(
+    (at: DesignPlaygroundAt) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (at.address) next.set('at', at.address)
+          else next.delete('at')
+          next.set('theme', at.theme)
+          next.set('device', at.device)
+          return next
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
+
+  const discuss = (ref: { screenId: string; stateId?: string }) => {
     if (!projectId) return
     const context: ChatContext = { type: 'PROJECT', projectId }
     updateDraftState(context, (prev) => ({ ...prev, text: designDiscussDraft(prev.text, ref) }))
     onOpenResource?.({ kind: 'chat', context })
   }
 
-  const uploadFile = async (screenId: string, file: File) => {
-    const key = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const tooLarge = attachmentUploadError(file, CHAT_ATTACHMENT_MAX_BYTES)
-    if (tooLarge) {
-      setUploads((u) => [
-        ...u,
-        { key, name: file.name, screenId, status: 'failed', error: tooLarge },
-      ])
+  /** Where proposed files go: the selected cell's state, else the selected screen, else nowhere yet. */
+  const target = (): { target?: DesignEntryTarget; variant?: string } => {
+    if (selection.tab !== 'current' || !selection.screenId) return {}
+    if (cell) {
+      return {
+        target: {
+          screenId: selection.screenId,
+          ...(cell.stateId
+            ? { stateId: cell.stateId }
+            : cell.stateName
+              ? { stateName: cell.stateName }
+              : {}),
+        },
+        variant: cell.variant,
+      }
+    }
+    return { target: { screenId: selection.screenId } }
+  }
+
+  const propose = async (source: DesignDraftSource) => {
+    const appId = selection.appId
+    if (!appId) {
+      setError('Add an app first — a proposal belongs to an app.')
       return
     }
-    setUploads((u) => [...u, { key, name: file.name, screenId, status: 'uploading' }])
-    try {
-      const contentBase64 = arrayBufferToBase64(await file.arrayBuffer())
-      await design.uploadDraft(screenId, {
-        name: file.name,
-        contentBase64,
-        ...(file.type ? { mediaType: file.type } : {}),
+    const where = target()
+    const at = {
+      ...(where.target ? { target: where.target } : {}),
+      ...(where.variant ? { variant: where.variant } : {}),
+    }
+    let made: string | undefined
+    if (source.type === 'link') {
+      await run(async () => {
+        made = (
+          await design.propose({
+            appId,
+            title: source.name || source.url,
+            entries: [{ ...at, source: { type: 'link', url: source.url } }],
+          })
+        ).id
       })
-      setUploads((u) => u.filter((r) => r.key !== key))
-    } catch (err) {
-      setUploads((u) =>
-        u.map((r) => (r.key === key ? { ...r, status: 'failed', error: errorText(err) } : r)),
-      )
-    }
-  }
-
-  const addDrafts = async (screenId: string, source: DesignDraftSource) => {
-    if (source.type === 'files') {
-      await Promise.all(source.files.map((f) => uploadFile(screenId, f)))
     } else if (source.type === 'paths') {
-      for (const path of source.paths) await run(() => design.addProjectFileDraft(screenId, path))
+      const html = source.paths.filter(isHtml)
+      const rest = source.paths.filter((p) => !isHtml(p))
+      await run(async () => {
+        for (const path of html) {
+          made = (
+            await design.proposeDraft({
+              appId,
+              source: { type: 'project-file', path },
+              ...(where.target ? { target: where.target } : {}),
+            })
+          )[0]?.id
+        }
+        if (rest.length) {
+          made = (
+            await design.propose({
+              appId,
+              title: rest.length === 1 ? rest[0]!.split('/').pop()! : `${rest.length} files`,
+              entries: rest.map((path) => ({ ...at, source: { type: 'project-file', path } })),
+            })
+          ).id
+        }
+      })
     } else {
-      await run(() => design.addLinkDraft(screenId, source.url, source.name))
+      const refused = source.files
+        .map((f) => attachmentUploadError(f, CHAT_ATTACHMENT_MAX_BYTES))
+        .find(Boolean)
+      if (refused) {
+        setError(refused)
+        return
+      }
+      setUploading(source.files.length)
+      try {
+        await run(async () => {
+          const encoded = await Promise.all(
+            source.files.map(async (f) => ({
+              type: 'upload' as const,
+              name: f.name,
+              contentBase64: arrayBufferToBase64(await f.arrayBuffer()),
+              ...(f.type ? { mediaType: f.type } : {}),
+            })),
+          )
+          for (const file of encoded.filter((f) => isHtml(f.name))) {
+            made = (
+              await design.proposeDraft({
+                appId,
+                source: file,
+                ...(where.target ? { target: where.target } : {}),
+              })
+            )[0]?.id
+          }
+          const images = encoded.filter((f) => !isHtml(f.name))
+          if (images.length) {
+            const entries: DesignProposeEntry[] = images.map((file) => ({ ...at, source: file }))
+            made = (
+              await design.propose({
+                appId,
+                title: images.length === 1 ? images[0]!.name : `${images.length} files`,
+                entries,
+              })
+            ).id
+          }
+        })
+      } finally {
+        setUploading(0)
+      }
     }
-  }
-
-  const addOrAsk = (source: DesignDraftSource) => {
-    if (selected) void addDrafts(selected.screen.id, source)
-    else setAsking({ pending: source })
-  }
-
-  const createTarget = async (target: {
-    appId?: string
-    appName?: string
-    kind: DesignAppKind
-    screenName: string
-  }) => {
-    let screenId: string | undefined
-    const ok = await run(async () => {
-      const appId = target.appId ?? (await design.createApp(target.appName ?? '', target.kind)).id
-      screenId = (await design.createScreen(appId, target.screenName)).id
-    })
-    if (!ok || !screenId) return
-    const pending = asking?.pending
-    setAsking(undefined)
-    selectScreen(screenId)
-    if (pending) await addDrafts(screenId, pending)
+    if (made) navigate({ app: appId, tab: 'proposals', proposal: made })
   }
 
   const onDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -295,7 +263,7 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
     e.preventDefault()
     setDragging(false)
     const files = Array.from(e.dataTransfer.files ?? [])
-    if (files.length > 0) addOrAsk({ type: 'files', files })
+    if (files.length > 0) void propose({ type: 'files', files })
   }
 
   if (!projectId) return null
@@ -308,37 +276,6 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
       </div>
     )
   }
-
-  const screen = selected?.screen
-  const items = screen ? designScreenItems(screen) : { designs: [], built: [] }
-  const comparingItem = comparing ? design.findItem(comparing)?.item : undefined
-  const baseline = screen && comparing ? designCompareBaseline(screen, comparing) : undefined
-  const screenUploads = uploads.filter((u) => u.screenId === screen?.id)
-
-  const card = (item: DesignItem, opts: { current?: boolean; s: DesignScreenTree }) => (
-    <DesignItemCard
-      key={item.id}
-      projectId={projectId}
-      item={item}
-      src={srcOf(item.id)}
-      {...(opts.current ? { current: true } : {})}
-      onOpen={() => openItem(item)}
-      onDiscuss={() => discuss({ screenId: item.screenId, itemId: item.id })}
-      onRename={(name) => run(() => design.renameItem(item.id, name))}
-      onDelete={() => run(() => design.deleteItem(item.id))}
-      {...(item.kind === 'design'
-        ? { onApprove: (approved: boolean) => run(() => design.approveItem(item.id, approved)) }
-        : {})}
-      {...(item.kind === 'built' && designCompareBaseline(opts.s, item.id)
-        ? { onCompare: () => setComparing(item.id) }
-        : {})}
-      onOpenRun={(runId) =>
-        navigate(
-          `/projects/${encodeURIComponent(projectId)}/process-runs/${encodeURIComponent(runId)}`,
-        )
-      }
-    />
-  )
 
   return (
     <div
@@ -371,173 +308,84 @@ export default function DesignView({ projectId, onOpenResource }: DesignViewProp
           </Alert>
         ) : null}
         {design.loadError ? <Alert>{design.loadError.message}</Alert> : null}
+        {uploading > 0 ? (
+          <span className="flex items-center gap-2 text-[12.5px] text-(--text-secondary)">
+            <Spinner size={14} /> Uploading {uploading} {uploading === 1 ? 'file' : 'files'}…
+          </span>
+        ) : null}
       </div>
       {!design.isLoaded ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner size={20} />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <aside className="shrink-0 overflow-auto border-b border-(--border-subtle) p-3 md:w-64 md:border-r md:border-b-0">
-            <DesignSidebar
-              design={design}
-              selectedScreenId={screen?.id}
-              onSelectScreen={selectScreen}
-              run={run}
-            />
-          </aside>
-          <main className="min-h-0 min-w-0 flex-1 overflow-auto p-4">
-            {asking ? (
-              <div className="flex justify-center py-6">
-                <NewScreenForm
-                  apps={design.tree.apps}
-                  pending={asking.pending}
-                  onCreate={createTarget}
-                  onCancel={() => setAsking(undefined)}
-                />
-              </div>
-            ) : !screen ? (
-              <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <IconPalette className="h-8 w-8" />
-                <div className="text-[15px] font-semibold text-(--text-primary)">
-                  {design.tree.apps.length === 0 ? DESIGN_TEXT.emptyTitle : DESIGN_TEXT.noScreen}
-                </div>
-                <p className="max-w-md text-sm text-(--text-secondary)">{DESIGN_TEXT.emptyBody}</p>
-                <DesignAddDraft onAdd={(source) => setAsking({ pending: source })} />
-                <Button variant="ghost" onClick={() => setAsking({ pending: undefined })}>
-                  {design.tree.apps.length === 0
-                    ? `${DESIGN_TEXT.addApp} and a screen`
-                    : DESIGN_TEXT.addScreen}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="min-w-0 truncate text-[15px] font-semibold text-(--text-primary)">
-                    <span className="text-(--text-secondary)">{selected?.app.name} › </span>
-                    {screen.name}
-                  </h3>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => discuss({ screenId: screen.id })}
-                  >
-                    <IconChat className="h-3.5 w-3.5" />
-                    {DESIGN_TEXT.discuss}
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <Column
-                    title={DESIGN_TEXT.designs}
-                    count={items.designs.length}
-                    actions={<DesignAddDraft compact onAdd={addOrAsk} />}
-                  >
-                    {screenUploads.length > 0 ? (
-                      <ul className="flex flex-col gap-1">
-                        {screenUploads.map((u) => (
-                          <li
-                            key={u.key}
-                            className="flex items-center gap-2 rounded-md border border-(--border-subtle) px-2 py-1.5 text-[12.5px]"
-                          >
-                            {u.status === 'uploading' ? <Spinner size={14} /> : null}
-                            <span className="min-w-0 flex-1 truncate">{u.name}</span>
-                            {u.status === 'failed' ? (
-                              <>
-                                <span className="text-(--status-stuck-soft-fg)">{u.error}</span>
-                                <button
-                                  type="button"
-                                  aria-label={`Dismiss ${u.name}`}
-                                  onClick={() =>
-                                    setUploads((all) => all.filter((r) => r.key !== u.key))
-                                  }
-                                >
-                                  <IconClose className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-(--text-muted)">Uploading…</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {items.designs.length === 0 ? (
-                      <p className="rounded-md border border-dashed border-(--border-default) px-3 py-6 text-center text-[12.5px] text-(--text-muted)">
-                        {DESIGN_TEXT.noDesigns}
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-2">
-                        {items.designs.map((item) => card(item, { s: screen }))}
-                      </ul>
-                    )}
-                  </Column>
-                  <Column title={DESIGN_TEXT.built} count={items.built.length}>
-                    {items.built.length === 0 ? (
-                      <p className="rounded-md border border-dashed border-(--border-default) px-3 py-6 text-center text-[12.5px] text-(--text-muted)">
-                        {DESIGN_TEXT.noBuilt}
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-2">
-                        {items.built.map((item, i) => card(item, { current: i === 0, s: screen }))}
-                      </ul>
-                    )}
-                  </Column>
-                </div>
-              </div>
-            )}
-          </main>
-        </div>
+        <DesignPage
+          index={design.index}
+          selection={selection}
+          cell={cell}
+          onCell={setCell}
+          onNavigate={navigate}
+          srcOf={srcOf}
+          actions={design}
+          run={run}
+          onOpen={setViewing}
+          onCompare={(current, proposed) =>
+            setComparing({
+              current: { shown: current, label: DESIGN_TEXT.current },
+              proposed: { shown: proposed, label: DESIGN_TEXT.proposed },
+            })
+          }
+          onDiscuss={discuss}
+          proposeSlot={<DesignAddDraft compact onAdd={(source) => void propose(source)} />}
+          {...(playground.status && playground.status.status !== 'none' && selection.appId
+            ? {
+                playgroundSlot: (
+                  <DesignPlayground
+                    index={design.index}
+                    appId={selection.appId}
+                    status={playground.status}
+                    frameSrc={playground.frameUrl}
+                    initial={{
+                      ...(params.get('at') ? { address: params.get('at')! } : {}),
+                      ...(params.get('theme') === 'dark' ? { theme: 'dark' as const } : {}),
+                      ...(params.get('device') === 'phone' ? { device: 'phone' as const } : {}),
+                    }}
+                    onChange={onPlaygroundMove}
+                    onRetry={playground.retry}
+                    onSave={async (input) => {
+                      let made: DesignProposal | undefined
+                      await run(async () => {
+                        made = await design.savePlaygroundState({
+                          appId: selection.appId!,
+                          ...input,
+                        })
+                      })
+                      return made
+                    }}
+                    onOpenProposal={(proposal) =>
+                      navigate({ app: selection.appId!, tab: 'proposals', proposal })
+                    }
+                  />
+                ),
+              }
+            : {})}
+        />
       )}
       {dragging ? (
         <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-(--accent-primary) bg-(--accent-primary)/10">
           <span className="rounded-lg bg-(--accent-primary) px-4 py-2 text-sm font-medium text-white shadow-lg">
-            {screen ? `${DESIGN_TEXT.dropHere} — ${screen.name}` : DESIGN_TEXT.dropHere}
+            {DESIGN_TEXT.dropHere}
           </span>
         </div>
       ) : null}
-      <DesignItemViewer
-        item={viewing}
-        src={viewing ? srcOf(viewing.id) : undefined}
-        onClose={closeItem}
-        actions={
-          viewing ? (
-            <div className="flex gap-1.5">
-              {viewing.kind === 'design' ? (
-                <Button
-                  size="sm"
-                  variant={viewing.approved ? 'secondary' : 'primary'}
-                  onClick={() => void run(() => design.approveItem(viewing.id, !viewing.approved))}
-                >
-                  {viewing.approved ? DESIGN_TEXT.unapprove : DESIGN_TEXT.approve}
-                </Button>
-              ) : null}
-              {viewing.kind === 'built' && screen && designCompareBaseline(screen, viewing.id) ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    closeItem()
-                    setComparing(viewing.id)
-                  }}
-                >
-                  {DESIGN_TEXT.compare}
-                </Button>
-              ) : null}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => discuss({ screenId: viewing.screenId, itemId: viewing.id })}
-              >
-                <IconChat className="h-3.5 w-3.5" />
-                {DESIGN_TEXT.discuss}
-              </Button>
-            </div>
-          ) : undefined
-        }
+      <DesignFileViewer
+        shown={viewing}
+        src={viewing ? srcOf(viewing) : undefined}
+        onClose={() => setViewing(undefined)}
       />
       <DesignCompareOverlay
-        built={comparingItem}
-        baseline={baseline}
+        current={comparing?.current}
+        proposed={comparing?.proposed}
         srcOf={srcOf}
         onClose={() => setComparing(undefined)}
       />

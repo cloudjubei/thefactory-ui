@@ -50,7 +50,8 @@ export function resolveResourceNav(link: ResourceLink): ResourceNav {
     case 'design': {
       const query = buildQuery(undefined, {
         ...(link.screenId !== undefined ? { screen: link.screenId } : {}),
-        ...(link.itemId !== undefined ? { item: link.itemId } : {}),
+        ...(link.stateId !== undefined ? { state: link.stateId } : {}),
+        ...(link.proposalId !== undefined ? { proposal: link.proposalId } : {}),
       })
       const base = `/projects/${enc(link.projectId)}/design`
       return { type: 'path', path: query ? `${base}?${query}` : base }

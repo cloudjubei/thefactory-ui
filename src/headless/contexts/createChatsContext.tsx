@@ -35,14 +35,24 @@ import type {
 } from '../api'
 import { useApi, useAuth } from '../api'
 import { errorStatus } from '../api/errorMessage'
-import { getChatContextKey, normalizeChatContext } from 'thefactory-tools/utils'
+import {
+  chatRestartMessages,
+  getChatContextKey,
+  normalizeChatContext,
+} from 'thefactory-tools/utils'
 import { applyChatLiveStatePatch } from '../utils/chatLiveState'
+import {
+  parseCompletionProgressEvent,
+  routeCompletionProgress,
+} from '../utils/chatCompletionProgress'
+import type { CompletionProgressClaim } from '../utils/chatCompletionProgressTypes'
 import { chatUpdateTarget, withChat, withFullRefresh } from '../utils/chatUpdates'
 import { withChatNotifyLevel } from '../utils/chatNotify'
 import type { ChatNotifyLevel } from '../utils/chatNotifyTypes'
 import { chatListBackNotice, chatListHiddenNotice, withChatListHidden } from '../utils/chatList'
 import type { ChatListNotice } from '../utils/chatListTypes'
 import {
+  chatHoldsSentMessage,
   isChatLoaded,
   withAppendedMessage,
   withSummary,
@@ -420,19 +430,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
     const settingsFailedKeysRef = useRef<Set<string>>(new Set())
     const [settingsBlocked, setSettingsBlocked] = useState(false)
 
-    /**
-     * Tracks the chat context that currently has a `sendCompletionWithTools`
-     * in flight, so the global `completion:progress` WS
-     * stream can be routed back to the right per-chat `pendingAssistant`. The
-     * backend's progress payload doesn't echo the chatContext today, so this
-     * ref is the only way to disambiguate when multiple chats are visible.
-     */
-    const inFlightCtxRef = useRef<ChatCtx | null>(null)
+    // Each chat with a send or restart in flight from this client, keyed by the
+    // chat's key: a `completion:progress` event names its chat and turn, and
+    // only the chat it names shows it — two chats' turns never share a preview.
+    const inFlightSendsRef = useRef<Map<string, { ctx: ChatCtx; claim: CompletionProgressClaim }>>(
+      new Map(),
+    )
     // Per chat, the number of the latest `sendMessage` — see the guard there.
     const sendSeqRef = useRef<Map<string, number>>(new Map())
     // CLI runs are dispatched fast (the route returns the runId and detaches),
     // so a run keeps streaming `cli:run-update` after `sendMessage` resolves —
-    // past the lifetime of the single `inFlightCtxRef`. Map each live runId to
+    // past the lifetime of its send. Map each live runId to
     // its chat so the stream routes correctly even for concurrent detached runs;
     // entries are removed on the run's terminal event.
     const cliRunCtxByRunIdRef = useRef<Map<string, ChatCtx>>(new Map())
@@ -713,28 +721,17 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       }
     }, [])
 
-    // Subscribe to completion progress: per-turn partial messages and a final
-    // `done` envelope. The backend's payload is loosely typed so we narrow
-    // defensively before reading from it. Routes back to the in-flight chat
-    // via `inFlightCtxRef`.
+    // Completion progress: per-turn partial messages and a final `done`, each
+    // naming its chat and turn — shown on that chat alone.
     useEffect(() => {
-      type ProgressTurn = { turn: number; assistantMessage?: { content?: string } }
-      type ProgressDone = { done: true }
-      const isTurn = (v: unknown): v is ProgressTurn =>
-        typeof v === 'object' && v !== null && typeof (v as ProgressTurn).turn === 'number'
-      const isDone = (v: unknown): v is ProgressDone =>
-        typeof v === 'object' && v !== null && (v as ProgressDone).done === true
       return ws.on('completion:progress', (data) => {
-        const target = inFlightCtxRef.current
-        if (!target) return
-        if (isDone(data)) {
-          updateLiveState(target, { pendingAssistant: null })
-          return
-        }
-        if (isTurn(data)) {
-          const content = data.assistantMessage?.content ?? ''
-          updateLiveState(target, { pendingAssistant: { turn: data.turn, content } })
-        }
+        const event = parseCompletionProgressEvent(data)
+        if (!event) return
+        const sending = inFlightSendsRef.current.get(event.chatContextId)
+        const route = routeCompletionProgress(sending?.claim, event)
+        if (!sending || !route) return
+        sending.claim = route.claim
+        updateLiveState(sending.ctx, { pendingAssistant: route.pendingAssistant })
       })
     }, [ws, updateLiveState])
 
@@ -758,7 +755,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
 
     // Stream a CLI-backed run's transcript into the same `pendingAssistant`
     // live preview (the API path uses `completion:progress`; CLI runs broadcast
-    // on `cli:run-update`). Routed to the in-flight chat via `inFlightCtxRef`.
+    // on `cli:run-update`), routed by runId.
     useEffect(() => {
       return ws.on('cli:run-update', (data) => {
         const parsed = parseCliRunUpdateEvent(data)
@@ -767,7 +764,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         // or the chat was cleared/aborted) — a late stray event must not
         // re-mount a dead/cleared run.
         if (finalizedCliRunIdsRef.current.has(parsed.runId)) return
-        // Route by runId (the run may be detached, past `inFlightCtxRef`'s
+        // Route by runId (the run may be detached, past its send's
         // lifetime). Only fall back to the in-flight chat for a runId we have
         // never mapped — and never stamp an error through that fallback, since
         // it may resolve to a different chat (a second send in the race window).
@@ -819,26 +816,26 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
       })
     }, [ws, updateLiveState])
 
-    // Reconcile the optimistic `pendingAssistant` bubble against the persisted
-    // messages: once the in-flight turn's assistant message is persisted (it now
-    // renders as a normal row — pulled in by a mid-loop `chats:updated` refresh),
-    // drop the trailing pending bubble so the same text doesn't double-render.
+    // Reconcile each in-flight chat's optimistic `pendingAssistant` bubble against
+    // its persisted messages: once the turn's assistant message is persisted (it
+    // now renders as a normal row — pulled in by a mid-loop `chats:updated`
+    // refresh), drop the trailing pending bubble so the same text doesn't
+    // double-render.
     useEffect(() => {
-      const ctx = inFlightCtxRef.current
-      if (!ctx) return
-      const key = getChatContextKey(ctx)
-      const pending = liveStateByKey.get(key)?.pendingAssistant
-      if (!pending) return
-      const messages = chats.find((c) => sameContext(c.context, ctx))?.messages ?? []
-      let lastAssistant: string | undefined
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'assistant') {
-          lastAssistant = messages[i].content ?? ''
-          break
+      for (const [key, { ctx }] of inFlightSendsRef.current) {
+        const pending = liveStateByKey.get(key)?.pendingAssistant
+        if (!pending) continue
+        const messages = chats.find((c) => sameContext(c.context, ctx))?.messages ?? []
+        let lastAssistant: string | undefined
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === 'assistant') {
+            lastAssistant = messages[i].content ?? ''
+            break
+          }
         }
-      }
-      if (lastAssistant !== undefined && lastAssistant === pending.content) {
-        updateLiveState(ctx, { pendingAssistant: null })
+        if (lastAssistant !== undefined && lastAssistant === pending.content) {
+          updateLiveState(ctx, { pendingAssistant: null })
+        }
       }
     }, [chats, liveStateByKey, updateLiveState])
 
@@ -1029,7 +1026,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           sendError: null,
           pendingAssistant: null,
         })
-        inFlightCtxRef.current = ctx
+        const sending = { ctx, claim: {} }
+        inFlightSendsRef.current.set(sendKey, sending)
         // Set when the send dispatches a CLI run that keeps streaming after this
         // call resolves — the finally then leaves the live state (isSending /
         // cliRunId) for the run's terminal `cli:run-update` to clear.
@@ -1072,15 +1070,27 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
                 },
                 throwOnError: true,
               }),
-            )
+            ).catch(async (err: unknown) => {
+              // A refused send is kept with its refusal under it: restarted
+              // from there, so the composer does not get it back to send twice.
+              const kept = await fetchChat(ctx).catch(() => undefined)
+              delivered = kept ? chatHoldsSentMessage(kept, userMessage) : false
+              throw err
+            })
+            delivered = true
+            // No run started: the message answered what a paused run waits on,
+            // as an API send's would — the turn is done.
+            if (!data?.runId) {
+              await reloadChat(ctx)
+              return delivered
+            }
             // The run is now detached server-side: route its `cli:run-update`
             // stream to this chat by runId, and mount the live run view. The run
             // keeps `isSending` true (the spinner / Stop button stay) until its
             // terminal event clears it — `detachedCli` keeps the finally below
             // from prematurely clearing the live state.
             detachedCli = true
-            delivered = true
-            registerDetachedCliRun(ctx, data?.runId)
+            registerDetachedCliRun(ctx, data.runId)
             // Reconcile the optimistic user message with the persisted copy.
             await reloadChat(ctx)
             return delivered
@@ -1125,12 +1135,12 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
           return delivered
         } finally {
           const superseded = sendSeqRef.current.get(sendKey) !== sendSeq
-          if (!superseded && inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
-            inFlightCtxRef.current = null
+          if (inFlightSendsRef.current.get(sendKey) === sending) {
+            inFlightSendsRef.current.delete(sendKey)
           }
           // A detached CLI run is still streaming — leave isSending / cliRunId /
           // pendingAssistant for its terminal `cli:run-update` to clear (routing
-          // now goes through the runId map, not inFlightCtxRef). For the API path
+          // now goes through the runId map). For the API path
           // (and CLI start failures) the turn is done: clear the live markers.
           //
           // `cliModel` is cleared here too. It is set optimistically BEFORE the CLI
@@ -1152,6 +1162,7 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         activeLLMConfig,
         buildToolSettings,
         ensureChatLoaded,
+        fetchChat,
         getChat,
         reloadChat,
         registerDetachedCliRun,
@@ -1171,13 +1182,24 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
         if (getChatLiveState(ctx).isSending) return
         const messages = (await ensureChatLoaded(ctx)).messages ?? []
         if (!isRestartableChatTail(messages)) return
+        // A failure notice under the message goes as the restart takes its place;
+        // the server takes it off the stored chat as the turn starts.
+        setChats((prev) =>
+          prev.map((c) =>
+            sameContext(c.context, ctx) && c.messages
+              ? { ...c, messages: chatRestartMessages(c.messages) ?? c.messages }
+              : c,
+          ),
+        )
 
         updateLiveState(ctx, {
           isSending: true,
           sendError: null,
           pendingAssistant: null,
         })
-        inFlightCtxRef.current = ctx
+        const restartKey = getChatContextKey(ctx)
+        const sending = { ctx, claim: {} }
+        inFlightSendsRef.current.set(restartKey, sending)
         let detachedCli = false
         try {
           const { settings, systemPrompt } = buildToolSettings(ctx)
@@ -1229,8 +1251,8 @@ export function createChatsContext(deps: CreateChatsContextDeps): {
             sendError: err instanceof Error ? err : new Error(String(err)),
           })
         } finally {
-          if (inFlightCtxRef.current && sameContext(inFlightCtxRef.current, ctx)) {
-            inFlightCtxRef.current = null
+          if (inFlightSendsRef.current.get(restartKey) === sending) {
+            inFlightSendsRef.current.delete(restartKey)
           }
           if (!detachedCli) {
             updateLiveState(ctx, {

@@ -3,6 +3,8 @@ import { Text, View } from 'react-native'
 import {
   PROCESS_CHECK_ADVISORY_LABEL,
   processCheckRows,
+  processCheckWaitingView,
+  useDurationTimer,
   type ProcessLedgerEntry,
   type ProcessStep,
 } from '../../../headless'
@@ -10,7 +12,9 @@ import { useNativeTheme } from '../../hooks/useNativeTheme'
 
 export type ProcessCheckListProps = {
   step: Pick<ProcessStep, 'kind'>
-  latest: Pick<ProcessLedgerEntry, 'checks'> | undefined
+  latest: Pick<ProcessLedgerEntry, 'checks' | 'status' | 'queued'> | undefined
+  /** A fixed clock for the waiting time; omitted ⇒ it ticks every second while the step waits. */
+  now?: number
 }
 
 /**
@@ -18,11 +22,41 @@ export type ProcessCheckListProps = {
  * command its newest attempt ran, how it came out, whether it was only
  * advisory, where it ran (sandbox or host, the reason and the code outside the
  * checkout it built against read aloud), whether its failure already fails at
- * the change's base, and how long it took. Nothing for any other step.
+ * the change's base, and how long it took. While the step waits its turn behind
+ * another check run of the project, that wait and how long it has lasted.
+ * Nothing for any other step.
  */
-export default function ProcessCheckList({ step, latest }: ProcessCheckListProps) {
+export default function ProcessCheckList({ step, latest, now }: ProcessCheckListProps) {
   const { theme, status } = useNativeTheme()
+  const waitingNow = latest?.status === 'running' && latest.queued !== undefined
+  const ticking = useDurationTimer(waitingNow && now === undefined)
+  const waiting = processCheckWaitingView({ step, ...(latest ? { latest } : {}) }, now ?? ticking)
   const rows = processCheckRows({ step, ...(latest ? { latest } : {}) })
+  if (waiting) {
+    return (
+      <View
+        accessibilityLabel={`${waiting.reason}, ${waiting.waited}`}
+        style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingTop: 4, minWidth: 0 }}
+      >
+        <Text
+          numberOfLines={1}
+          style={{ flexShrink: 1, fontSize: 12, color: status.queued.softFg }}
+        >
+          {waiting.reason}
+        </Text>
+        <Text
+          style={{
+            marginLeft: 'auto',
+            fontSize: 11,
+            color: theme.text.muted,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {waiting.waited}
+        </Text>
+      </View>
+    )
+  }
   if (rows.length === 0) return null
   return (
     <View style={{ gap: 2, paddingTop: 4 }}>

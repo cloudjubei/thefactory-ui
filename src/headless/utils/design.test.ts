@@ -1,124 +1,164 @@
 import { describe, expect, it } from 'vitest'
-import type { DesignItem, DesignScreenTree, DesignTree } from '../api'
+import type { DesignIndex, DesignProposal, DesignSource } from '../api'
 import {
-  approvedDesignItem,
-  designItemContentUrl,
-  designItemMediaType,
-  designItemViewKind,
-  designScreenItems,
-  findDesignItem,
+  designContentUrl,
+  designShownOfEntry,
+  designShownOfVersion,
+  designSourceFileName,
+  designSourceMediaType,
+  designViewKind,
   findDesignScreen,
+  findDesignState,
   referenceDesignOf,
   storageUsageFraction,
 } from './design'
 
-const SHA = 'a'.repeat(64)
-const item = (over: Partial<DesignItem>): DesignItem => ({
-  id: 'i1',
-  screenId: 's1',
-  kind: 'design',
-  name: 'mock.png',
-  source: { type: 'blob', sha256: SHA, mediaType: 'image/png', bytes: 4, originalName: 'mock.png' },
-  addedBy: { by: 'person' },
-  createdAt: 1,
-  updatedAt: 1,
-  ...over,
+const at = { createdAt: 1, updatedAt: 1 }
+const blob = (mediaType: string, originalName = 'a.png'): DesignSource => ({
+  type: 'blob',
+  sha256: 'a'.repeat(64),
+  mediaType,
+  bytes: 3,
+  originalName,
 })
 
-const screen: DesignScreenTree = {
-  id: 's1',
-  appId: 'a1',
-  name: 'Login',
-  createdAt: 1,
-  updatedAt: 1,
-  items: [
-    item({}),
-    item({ id: 'i2', name: 'v2', approved: true, createdAt: 2 }),
-    item({ id: 'b1', kind: 'built', name: 'Run 1', createdAt: 3 }),
-    item({ id: 'b2', kind: 'built', name: 'Run 2', createdAt: 5 }),
+const index: DesignIndex = {
+  version: 2,
+  apps: [{ id: 'a1', name: 'Game', kind: 'product', aliases: [], ...at }],
+  screens: [
+    {
+      id: 's1',
+      appId: 'a1',
+      name: 'Login',
+      kind: 'screen',
+      aliases: [],
+      uses: [],
+      variants: ['Light'],
+      ...at,
+    },
   ],
-}
-const tree: DesignTree = {
-  apps: [
-    { id: 'a1', name: 'Android', kind: 'product', createdAt: 1, updatedAt: 1, screens: [screen] },
+  states: [{ id: 'st1', screenId: 's1', name: 'Filled', ...at }],
+  versions: [
+    {
+      id: 'v1',
+      stateId: 'st1',
+      variant: 'Light',
+      number: 2,
+      source: blob('image/png'),
+      caseQuery: '?mode=a',
+      origin: { by: 'person' },
+      createdAt: 2,
+    },
+    {
+      id: 'v9',
+      stateId: 'gone',
+      variant: 'Dark',
+      number: 1,
+      source: blob('image/png'),
+      origin: { by: 'person' },
+      createdAt: 2,
+    },
   ],
+  proposals: [],
+  tidyPlans: [],
 }
 
-describe('referenceDesignOf', () => {
-  it('keeps what the & dropdown and the chips need: names, kinds and the approved draft', () => {
-    expect(referenceDesignOf(tree)).toEqual({
-      apps: [{ id: 'a1', name: 'Android' }],
+describe('design', () => {
+  it('gives the references the apps, screens and states by id and name', () => {
+    expect(referenceDesignOf(index)).toEqual({
+      apps: [{ id: 'a1', name: 'Game' }],
       screens: [{ id: 's1', appId: 'a1', name: 'Login' }],
-      items: [
-        { id: 'i1', screenId: 's1', name: 'mock.png', kind: 'design' },
-        { id: 'i2', screenId: 's1', name: 'v2', kind: 'design', approved: true },
-        { id: 'b1', screenId: 's1', name: 'Run 1', kind: 'built' },
-        { id: 'b2', screenId: 's1', name: 'Run 2', kind: 'built' },
-      ],
+      states: [{ id: 'st1', screenId: 's1', name: 'Filled' }],
     })
   })
-})
 
-describe('finding in a design', () => {
-  it('finds a screen and an item with what they belong to', () => {
-    expect(findDesignScreen(tree, 's1')).toMatchObject({ app: { id: 'a1' }, screen: { id: 's1' } })
-    expect(findDesignItem(tree, 'b2')).toMatchObject({
+  it('finds a screen and a state with what they belong to', () => {
+    expect(findDesignScreen(index, 's1')).toMatchObject({ app: { id: 'a1' }, screen: { id: 's1' } })
+    expect(findDesignScreen(index, 'nope')).toBeUndefined()
+    expect(findDesignState(index, 'st1')).toMatchObject({
       app: { id: 'a1' },
       screen: { id: 's1' },
-      item: { name: 'Run 2' },
+      state: { id: 'st1' },
     })
-    expect(findDesignScreen(tree, 'nope')).toBeUndefined()
-    expect(findDesignItem(tree, 'nope')).toBeUndefined()
+    expect(findDesignState(index, 'nope')).toBeUndefined()
   })
 
-  it('splits a screen into its drafts, in the order added, and its built versions, newest first', () => {
-    const { designs, built } = designScreenItems(screen)
-    expect(designs.map((i) => i.id)).toEqual(['i1', 'i2'])
-    expect(built.map((i) => i.id)).toEqual(['b2', 'b1'])
-    expect(approvedDesignItem(screen)?.id).toBe('i2')
-    expect(approvedDesignItem({ ...screen, items: [item({})] })).toBeUndefined()
+  it('shows a version named by where it is, and one whose state is gone by its variant alone', () => {
+    expect(designShownOfVersion(index, index.versions[0]!)).toEqual({
+      ref: { versionId: 'v1' },
+      source: blob('image/png'),
+      caseQuery: '?mode=a',
+      name: 'Login › Filled · Light · v2',
+    })
+    expect(designShownOfVersion(index, index.versions[1]!).name).toBe('Dark · v1')
   })
-})
 
-describe('designItemContentUrl', () => {
-  it('is the item’s content route, with a view token for an <img> or <iframe>', () => {
-    expect(designItemContentUrl('http://localhost:3000/', 'p 1', 'i/1')).toBe(
-      'http://localhost:3000/api/v1/projects/p%201/design/items/i%2F1/content',
+  it('shows a proposal’s image by its proposal', () => {
+    const proposal = { id: 'p', title: 'Faction cards' } as DesignProposal
+    const entry = {
+      id: 'e',
+      variant: 'Phone',
+      source: blob('image/png'),
+      target: {},
+      links: [],
+      pieces: [],
+    }
+    expect(designShownOfEntry(proposal, entry, 'Login')).toEqual({
+      ref: { proposalId: 'p', entryId: 'e' },
+      source: blob('image/png'),
+      name: 'Login · Phone — Faction cards',
+    })
+    expect(designShownOfEntry(proposal, { ...entry, caseQuery: '?x=1' }).name).toBe(
+      'Phone — Faction cards',
     )
-    expect(designItemContentUrl('http://h', 'p1', 'i1', 'a.b+c')).toBe(
-      'http://h/api/v1/projects/p1/design/items/i1/content?viewToken=a.b%2Bc',
-    )
+    expect(designShownOfEntry(proposal, { ...entry, caseQuery: '?x=1' }).caseQuery).toBe('?x=1')
   })
-})
 
-describe('designItemViewKind', () => {
-  it('says how a viewer shows each item, whatever its file', () => {
-    const blob = (name: string, mediaType: string) =>
-      item({ source: { type: 'blob', sha256: SHA, mediaType, bytes: 1, originalName: name } })
-    expect(designItemViewKind(blob('a.png', 'image/png'))).toBe('image')
-    expect(designItemViewKind(blob('a.svg', 'image/svg+xml'))).toBe('html')
-    expect(designItemViewKind(blob('a.html', 'text/html'))).toBe('html')
-    expect(designItemViewKind(blob('a.pdf', 'application/pdf'))).toBe('pdf')
-    expect(designItemViewKind(blob('a.mp4', 'video/mp4'))).toBe('video')
-    expect(designItemViewKind(blob('a.md', 'text/markdown'))).toBe('text')
-    expect(designItemViewKind(blob('a.fig', 'application/octet-stream'))).toBe('file')
-    expect(designItemViewKind(item({ source: { type: 'link', url: 'https://x.io' } }))).toBe('link')
-    expect(designItemViewKind(item({ source: { type: 'project-file', path: 'docs/A.JPG' } }))).toBe(
-      'image',
+  it('serves a version or an entry, with the view token and a case’s address', () => {
+    expect(designContentUrl('http://h/', 'p 1', { versionId: 'v/1' })).toBe(
+      'http://h/api/v1/projects/p%201/design/versions/v%2F1/content',
     )
     expect(
-      designItemMediaType(item({ source: { type: 'project-file', path: 'docs/a.psd' } })),
-    ).toBe('image/vnd.adobe.photoshop')
-    expect(
-      designItemMediaType(item({ source: { type: 'link', url: 'https://x.io' } })),
-    ).toBeUndefined()
+      designContentUrl(
+        'http://h',
+        'p1',
+        { proposalId: 'pr', entryId: 'e' },
+        { viewToken: 't', caseQuery: '?mode=dark&pack=game' },
+      ),
+    ).toBe(
+      'http://h/api/v1/projects/p1/design/proposals/pr/entries/e/content?mode=dark&pack=game&viewToken=t',
+    )
+    expect(designContentUrl('', 'p1', { versionId: 'v' }, { caseQuery: 'a=1' })).toBe(
+      '/api/v1/projects/p1/design/versions/v/content?a=1',
+    )
   })
-})
 
-describe('storageUsageFraction', () => {
-  it('is how far the total is toward the warning threshold', () => {
-    expect(storageUsageFraction({ totalBytes: 50, thresholdBytes: 200, over: false })).toBe(0.25)
-    expect(storageUsageFraction({ totalBytes: 300, thresholdBytes: 200, over: true })).toBe(1.5)
-    expect(storageUsageFraction({ totalBytes: 1, thresholdBytes: 0, over: true })).toBe(1)
+  it('reads a source’s media type and how a viewer shows it', () => {
+    expect(designSourceMediaType({ type: 'link', url: 'https://x' })).toBeUndefined()
+    expect(designSourceMediaType({ type: 'project-file', path: 'd/a.html' })).toBe('text/html')
+    const kinds: Array<[DesignSource, string]> = [
+      [{ type: 'link', url: 'https://x' }, 'link'],
+      [blob('text/html'), 'html'],
+      [blob('image/svg+xml'), 'html'],
+      [blob('application/pdf'), 'pdf'],
+      [blob('image/png'), 'image'],
+      [blob('image/vnd.adobe.photoshop'), 'file'],
+      [blob('video/mp4'), 'video'],
+      [blob('text/markdown'), 'text'],
+      [blob('application/json'), 'text'],
+      [blob('application/octet-stream'), 'file'],
+    ]
+    for (const [source, kind] of kinds) expect(designViewKind(source)).toBe(kind)
+  })
+
+  it('names the file a design was made from', () => {
+    expect(designSourceFileName(blob('image/png', 'mock.png'))).toBe('mock.png')
+    expect(designSourceFileName({ type: 'project-file', path: 'docs/a/b.pdf' })).toBe('b.pdf')
+    expect(designSourceFileName({ type: 'link', url: 'https://figma.com/x' })).toBe('figma.com/x')
+  })
+
+  it('says how far the total is toward the threshold', () => {
+    expect(storageUsageFraction({ totalBytes: 5, thresholdBytes: 10, over: false })).toBe(0.5)
+    expect(storageUsageFraction({ totalBytes: 5, thresholdBytes: 0, over: true })).toBe(1)
   })
 })

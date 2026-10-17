@@ -2,11 +2,12 @@ import { GIT_DIFF_SUPPRESSED_MESSAGE } from '../../../headless/utils/gitDiffCons
 import RichText from '../files/RichText'
 import ReferenceTextarea from '../files/ReferenceTextarea'
 import { useCanonicalizeReferences } from '../../../headless/contexts/ReferenceRenderingContext'
+import { useBranchCommits } from '../../../headless/hooks/useBranchCommits'
 import { viewedFilesProgress } from '../../../headless/utils/runReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FilesEmittedFilePreview, GitDiffSummary } from '../../../headless/api'
-import { answerFeatureQuestion, getGitLog } from '../../../headless/api'
+import { answerFeatureQuestion } from '../../../headless/api'
 import {
   aggregateTestCounts,
   approveActionDescriptors,
@@ -29,7 +30,6 @@ import {
   reviewTabs,
   runReports,
   runReviewFacts,
-  commitsSinceBase,
   screenPairFileStem,
   screenPairs,
   signoffVerdict,
@@ -46,14 +46,15 @@ import {
   type CheckMethodRow,
   type HandoffPurpose,
   type HandoffRequest,
-  type BranchCommit,
   type ReviewTabId,
-  type SignoffVerdict,
   processStepFinishedView,
   chatChangesNotice,
   heldChatChangesNote,
   CHAT_CHANGES_COPY,
+  chatChangesHeader,
   discardedEditPaths,
+  openChangesNoticeView,
+  useChatOpenChanges,
   withDiscardWarnings,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
@@ -61,8 +62,10 @@ import { Button } from '../../primitives/Button'
 import Alert from '../../primitives/Alert'
 import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
-import { CostChip, RefChip } from '../chips'
 import { downloadDataUri, saveSideBySide } from './signoff/download'
+import { OpenChangesNotice } from './OpenChangesNotice'
+import { RunChangesHead } from './RunChangesHead'
+import { RunVerdictLine } from './RunVerdictLine'
 import {
   ChangesTab,
   CheckChipRow,
@@ -71,7 +74,6 @@ import {
   DecisionBar,
   ReportTab,
   ReviewTabBar,
-  RunModelChip,
   ScreensTab,
   WalkthroughTab,
   WorkBar,
@@ -107,37 +109,6 @@ export type CliRunArtifactPanelProps = {
    * stages live. Only meaningful (and only shown) when the run is process-owned.
    */
   onBackToPipeline?: (processRunId: string) => void
-}
-
-/**
- * The verdict word as a bold status badge.
- *
- * A verdict is always a SOLID pill; its absence signal is the hollow dot alone.
- * The dashed treatment belongs to the check CHIPS ("nobody looked") and putting
- * it on a headline verdict borrows a grammar that does not mean the same thing
- * there. Both undecided verdicts take review blue — the hue for "not proven" —
- * never the neutral grey that means "not set up".
- */
-const VERDICT_BADGE: Record<SignoffVerdict['key'], string> = {
-  proven: 'badge--done',
-  partly: 'badge--review',
-  failed: 'badge--stuck',
-  'not-run': 'badge--review',
-}
-
-/**
- * The header MARKER — a dot, not a text pill.
- *
- * Kept separate from {@link VERDICT_BADGE} because the badge recipe owns a
- * 20px height clamp and horizontal padding that a 16px square cannot override,
- * which is what drew the marker as an ellipse. Status tokens directly, so the
- * two surfaces still take their colour from the same place.
- */
-const VERDICT_MARKER: Record<SignoffVerdict['key'], string> = {
-  proven: 'bg-(--status-done-soft-bg) text-(--status-done-fg)',
-  partly: 'bg-(--status-review-soft-bg) text-(--status-review-fg)',
-  failed: 'bg-(--status-stuck-soft-bg) text-(--status-stuck-fg)',
-  'not-run': 'bg-(--status-review-soft-bg) text-(--status-review-fg)',
 }
 
 const DANGER_TEXT = 'text-(--color-red-700) dark:text-(--color-red-300)'
@@ -213,6 +184,7 @@ export default function CliRunArtifactPanel({
     diffReview,
     reviewInProgress,
     storyId,
+    chatContextId,
     processRunId,
     processRole,
     landFailure,
@@ -302,6 +274,11 @@ export default function CliRunArtifactPanel({
     runId,
     ...(storyId ? { storyId } : {}),
   })
+  const openChanges = useChatOpenChanges(
+    !reportOnly && settledNotice === undefined && artifact !== undefined && chatContextId
+      ? { projectId, chatContextId }
+      : undefined,
+  )
 
   useEffect(() => {
     if (error || settledNotice !== undefined) return
@@ -379,24 +356,9 @@ export default function CliRunArtifactPanel({
   // a line at the top rather than yanking them anywhere — the chips above may
   // have moved while they were reading. ABOVE the early returns: a hook that
   // runs on only some renders is the "rendered more hooks" crash.
-  // The branch's own commits, for the Changes header. Loaded once the diff is
-  // being shown; a failure leaves the header without a count rather than
-  // blocking the diff itself.
-  const [commits, setCommits] = useState<BranchCommit[]>([])
-  useEffect(() => {
-    const branch = review?.branch
-    const baseSha = review?.baseSha
-    if (!branch || !baseSha || !projectId) return
-    let cancelled = false
-    void getGitLog({ path: { projectId }, query: { ref: branch, maxCount: 100 } })
-      .then(({ data }) => {
-        if (!cancelled && data) setCommits(commitsSinceBase(data.commits, baseSha))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [review?.branch, review?.baseSha, projectId])
+  // The branch's own commits, for the Changes header; without them the header
+  // has no count and the diff still shows.
+  const commits = useBranchCommits(projectId, review)
 
   const isWorking = reviewInProgress || verifying || requestingReview !== undefined
   const wasWorking = useRef(false)
@@ -442,6 +404,11 @@ export default function CliRunArtifactPanel({
 
   const files = artifact?.payload.files ?? []
   const counts = reviewChangeCounts(files)
+  const changesHeader = chatChangesHeader({
+    fileCount: counts.total,
+    ...(review ? { branch: review.branch, shadow: review.shadow === true } : {}),
+  })
+  const noticeView = openChangesNoticeView({ runId, ...openChanges }, Date.now())
   // A process step that EMITTED FILES is the developer (or any editing step): its
   // job is to implement and HAND OFF, so its terminal view is a hand-off + its
   // diff — not the review surface. The "what was checked" chips and the
@@ -638,77 +605,31 @@ export default function CliRunArtifactPanel({
 
   return (
     <div className="mt-2 rounded-md border border-(--border-default) bg-(--surface-raised)">
-      {/* Head — the run as a tool row: what, where, how long. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-(--border-subtle) px-3 py-2">
-        {/* The head carries the verdict's colour too, so the run's state is
-            readable before the eye reaches the verdict line below. */}
-        {/* Its OWN box, not a borrowed text pill. `.badge--sm` clamps
-            min/max-height to 20px, which an inline `height: 16` cannot beat, so
-            the 16px-wide marker was drawn 16×20 — and a 999px radius on a
-            non-square box is an ellipse, not a circle. `shrink-0` because it is
-            a flex item in a wrapping row and must never be squeezed further. */}
-        <span
-          aria-hidden
-          className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full ${
-            reportOnly ? 'bg-(--surface-sunken) text-(--text-muted)' : VERDICT_MARKER[headline.key]
-          }`}
-        >
-          <span className="size-1.5 rounded-full bg-current" />
-        </span>
-        {/* A process-owned run is a STAGE, not a sign-off — the sign-off lives in
-            the pipeline over the whole story, never on one step. */}
-        <span className="text-[13px] font-semibold text-(--text-primary)">
-          {reportOnly ? 'Stage output' : artifact ? 'Sign-off' : 'Agent changes were not committed'}
-        </span>
-        {review && !review.shadow ? (
-          <Tooltip
-            placement="bottom"
-            content={
-              <div className="max-w-[260px] text-xs">
-                <b className="mb-0.5 block font-semibold">The review branch</b>
-                <span>
-                  Every commit this run made lives here. Your own branch is untouched until you
-                  approve.
-                </span>
-              </div>
-            }
-          >
-            <span className="inline-flex">
-              <RefChip kind="branch" value={review.branch} />
-            </span>
-          </Tooltip>
-        ) : null}
-        <RunModelChip model={runModel} />
-        <span className="flex-1" />
-        {/* What the run COST, in both currencies, together at the top right.
-            The money was already computed and was rendered on the left of the
-            spacer as unstyled secondary text, where it read as a footnote to
-            the model chip rather than as the run's price. */}
-        {facts.durationLabel || facts.costLabel ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums">
-            {facts.durationLabel ? (
-              <span className="text-(--text-secondary)">{facts.durationLabel}</span>
-            ) : null}
-            {facts.durationLabel && facts.costLabel ? (
-              <span aria-hidden className="text-(--text-tertiary)">
-                ·
-              </span>
-            ) : null}
-            {facts.costLabel ? (
-              <span className="font-medium text-(--text-primary)">
-                <CostChip
-                  label={facts.costLabel}
-                  cost={facts.cost}
-                  title="This run"
-                  appearance="text"
-                />
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-      </div>
+      <RunChangesHead
+        marker={reportOnly ? 'stage' : headline.key}
+        title={
+          reportOnly
+            ? 'Stage output'
+            : artifact
+              ? changesHeader.title
+              : 'Agent changes were not committed'
+        }
+        {...(!reportOnly && artifact ? { meta: changesHeader.meta } : {})}
+        {...(review && !review.shadow ? { branch: review.branch } : {})}
+        model={runModel}
+        {...(facts.durationLabel ? { durationLabel: facts.durationLabel } : {})}
+        {...(facts.costLabel ? { costLabel: facts.costLabel } : {})}
+        {...(facts.cost ? { cost: facts.cost } : {})}
+      />
 
       <div className="flex flex-col gap-3 px-3 py-3">
+        {noticeView ? (
+          <OpenChangesNotice
+            view={noticeView}
+            onDiscard={() => void openChanges.discard()}
+            onRebuild={() => void openChanges.rebuild()}
+          />
+        ) : null}
         {openQuestions.length > 0 ? (
           <>
             <p className="text-[12px] text-(--text-secondary)">
@@ -776,12 +697,12 @@ export default function CliRunArtifactPanel({
               // the step did and changed — the verdict and sign-off happen in the
               // pipeline, so no verdict headline or decision is offered here, just
               // the way back to the pipeline to carry on to the next stage.
-              <div className="flex flex-col gap-2 rounded-md border border-(--status-review-soft-border) bg-(--status-review-soft-bg) px-2.5 py-2">
+              <div className="flex flex-col gap-2 rounded-md border border-(--accent-soft-border) bg-(--accent-soft-bg) px-2.5 py-2">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[12.5px] font-semibold text-(--status-review-soft-fg)">
+                  <span className="text-[12.5px] font-semibold text-(--accent-soft-fg)">
                     {finishedView.title}
                   </span>
-                  <p className="max-w-[64ch] text-[12px] text-(--status-review-soft-fg)">
+                  <p className="max-w-[64ch] text-[12px] text-(--accent-soft-fg)">
                     {finishedView.detail}
                   </p>
                 </div>
@@ -798,21 +719,7 @@ export default function CliRunArtifactPanel({
                 ) : null}
               </div>
             ) : (
-              /* Verdict — the chip and the sentence say the same thing. */
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`badge badge--bold ${VERDICT_BADGE[headline.key]}`}>
-                    <span className={`badge__dot ${headline.hollow ? 'badge__dot--hollow' : ''}`} />
-                    {headline.word}
-                  </span>
-                  <span className="text-[14px] font-semibold text-(--text-primary)">
-                    {headline.title}
-                  </span>
-                </div>
-                <p className="max-w-[64ch] text-[12.5px] text-(--text-secondary)">
-                  {headline.detail}
-                </p>
-              </div>
+              <RunVerdictLine headline={headline} />
             )}
 
             {!reportOnly && census ? (

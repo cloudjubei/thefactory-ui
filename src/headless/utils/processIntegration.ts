@@ -239,7 +239,7 @@ function conflictResolutionView(run: ProcessRun): ProcessIntegrationView | undef
   const { baseRef, paths } = resolution.conflict
   if (run.status === 'running') {
     return {
-      tone: 'working',
+      tone: 'running',
       title: PROCESS_INTEGRATION_CONFLICT.resolving(baseRef),
       detail: PROCESS_INTEGRATION_CONFLICT.resolvingDetail(baseRef),
       files: paths,

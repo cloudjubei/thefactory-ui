@@ -12,6 +12,7 @@ export const PARK_NOTE_COUNTER_FROM = 1800
 export const PARK_NOTE_CHOICES: ReadonlySet<ProcessParkAction> = new Set([
   'request-changes',
   'more-info',
+  'send-to-developer',
 ])
 
 /** The park choices whose note is the whole answer, so they cannot be sent empty. */
@@ -22,6 +23,12 @@ export const PARK_NOTE_COPY: ParkNoteCopy = {
   prompt:
     'What should change? Optional — the code review’s findings are sent to the fix either way, and the work comes back here.',
   submitLabel: 'Send back to be fixed',
+}
+
+/** The composer's words when a feature's checks send its work back to the developer. */
+export const SEND_TO_DEVELOPER_NOTE_COPY: ParkNoteCopy = {
+  prompt: 'What should the developer do? Optional — the checks’ findings go with it.',
+  submitLabel: 'Send back',
 }
 
 export const PARK_NOTE_CANCEL = 'Cancel'

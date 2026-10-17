@@ -12,7 +12,7 @@ import type { Status } from 'thefactory-tools/types'
 
 export type StoryStatus = Status
 
-// `review` is the blue palette of work that passed verification and waits for
+// `review` is the gold palette of work that passed verification and waits for
 // its sign-off: the stored `reviewable` status, and the story-level overlay of a
 // pipeline parked at its sign-off gate (`processStatusOverlay`).
 export type StatusSemanticKey = 'queued' | 'working' | 'done' | 'stuck' | 'onhold' | 'review'

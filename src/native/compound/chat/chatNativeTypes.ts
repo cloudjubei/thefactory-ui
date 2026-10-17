@@ -26,3 +26,15 @@ export type NativeToolCallRenderArgs = {
   /** Mark "Always allow" in `scope`, or (`undefined`) unmark — offered beside the toggle. */
   onAlwaysAllow?: (scope: AlwaysAllowScope | undefined) => void
 }
+
+/**
+ * How a native chat shows the images sent with its messages: as thumbnails in
+ * the composer and under a sent message, opening full size.
+ */
+export type NativeAttachmentImages = {
+  /** Where a sent file's image is read from, or `undefined` where it cannot be. */
+  sourceOf: (path: string) => { uri: string; headers?: Record<string, string> } | undefined
+  /** Safe-area insets for the full-size view, supplied by the host. */
+  topInset?: number
+  bottomInset?: number
+}

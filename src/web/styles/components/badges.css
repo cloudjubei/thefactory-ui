@@ -78,6 +78,11 @@
   color: var(--status-done-soft-fg);
   border-color: var(--status-done-soft-border);
 }
+.badge--soft.badge--running {
+  background: var(--status-running-soft-bg);
+  color: var(--status-running-soft-fg);
+  border-color: var(--status-running-soft-border);
+}
 .badge--soft.badge--working {
   background: var(--status-working-soft-bg);
   color: var(--status-working-soft-fg);
@@ -98,6 +103,11 @@
   color: var(--status-review-soft-fg);
   border-color: var(--status-review-soft-border);
 }
+.badge--soft.badge--accent {
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
+  border-color: var(--accent-soft-border);
+}
 .badge--soft.badge--queued {
   background: var(--status-queued-soft-bg);
   color: var(--status-queued-soft-fg);
@@ -117,6 +127,10 @@
 .badge--bold.badge--done {
   background: var(--status-done-bg);
   color: var(--status-done-fg);
+}
+.badge--bold.badge--running {
+  background: var(--status-running-bg);
+  color: var(--status-running-fg);
 }
 .badge--bold.badge--working {
   background: var(--status-working-bg);
@@ -324,8 +338,8 @@
   text-overflow: ellipsis;
 }
 .chip--ok {
-  background: color-mix(in srgb, var(--status-review-soft-bg) 42%, transparent);
-  border-color: var(--status-review-soft-border);
+  background: color-mix(in srgb, var(--accent-soft-bg) 42%, transparent);
+  border-color: var(--accent-soft-border);
   color: var(--text-primary);
 }
 .chip--missing {
@@ -413,7 +427,7 @@
  * Check chip — one per verification method, same 24 px recipe as `.chip`.
  * State is carried on `data-state`; flagged (only advisory checks failed) is
  * amber, never the red of a failure; the two absence states share a dashed
- * edge and differ only in hue (an open question in review-blue, "nothing
+ * edge and differ only in hue (an open question in sign-off gold, "nothing
  * here" in neutral). */
 .check-chip {
   display: inline-flex;

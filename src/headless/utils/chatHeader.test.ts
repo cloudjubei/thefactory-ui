@@ -123,6 +123,34 @@ describe('chatHeaderView — a process run chat', () => {
     ])
   })
 
+  it('draws the step a run is stopped at as going on while its agent manager has the stop', () => {
+    const turn = { runId: 'run-1', parkedAt: 0, signature: 's', startedAt: 50, chatContextId: 'c' }
+    const stopped = (over: Partial<ProcessRun>) =>
+      run({
+        status: 'parked',
+        park: { reason: 'step-failed', stepId: 'impl', message: 'Implement failed.', parkedAt: 0 },
+        ledger: [
+          {
+            id: 'e1',
+            stepId: 'impl',
+            iteration: 1,
+            status: 'done',
+            outcome: 'failed',
+            startedAt: 0,
+          },
+        ],
+        ...over,
+      })
+    const managed = chatHeaderView(
+      input({ context: runChat, run: stopped({ manager: { turn } }), now: 60 }),
+    )
+    expect(managed.pill).toEqual({ label: 'Manager on it', tone: 'running' })
+    expect(managed.strip?.entries[0]).toMatchObject({ phase: 'current', tone: 'running' })
+    const theirs = chatHeaderView(input({ context: runChat, run: stopped({}), now: 60 }))
+    expect(theirs.pill?.tone).toBe('on_hold')
+    expect(theirs.strip?.entries[0]).toMatchObject({ phase: 'current', tone: 'on_hold' })
+  })
+
   it('shows the run’s working time and spend, not the chat’s messages', () => {
     const r = run({
       totals: {

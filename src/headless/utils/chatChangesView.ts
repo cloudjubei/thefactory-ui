@@ -2,22 +2,14 @@ import type { FilesEmittedArtifact } from '../api'
 import { CHAT_CHANGES_COPY } from './chatChangesViewConstants'
 
 /**
- * What a chat turn's sign-off shows in place of its review once its changes
+ * What a chat turn's change card shows in place of its review once its changes
  * were settled elsewhere — a later turn of the chat captured them again, or the
- * person discarded them — or are a run chat's, which reach its work branch only
- * by a commit the chat makes there; `undefined` while they still wait on the
- * person. Pure.
+ * person discarded them; `undefined` while they still wait on the person. Pure.
  */
 export function chatChangesNotice(
-  artifact:
-    | (Pick<FilesEmittedArtifact, 'supersededBy' | 'discardedAt' | 'appliedAt'> & {
-        payload?: Pick<FilesEmittedArtifact['payload'], 'workspaceBranch'>
-      })
-    | undefined,
+  artifact: Pick<FilesEmittedArtifact, 'supersededBy' | 'discardedAt' | 'appliedAt'> | undefined,
 ): string | undefined {
   if (!artifact || artifact.appliedAt != null) return undefined
-  const branch = artifact.payload?.workspaceBranch
-  if (branch) return CHAT_CHANGES_COPY.onWorkBranch(branch)
   if (artifact.supersededBy) return CHAT_CHANGES_COPY.superseded
   return artifact.discardedAt != null ? CHAT_CHANGES_COPY.discarded : undefined
 }

@@ -29,7 +29,7 @@ export function StatusIcon({ state, className }: { state: ChipState; className?:
 function bgClasses(state: ChipState) {
   switch (state) {
     case 'running':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-100 border-blue-200 dark:border-blue-800'
+      return 'bg-(--status-running-soft-bg) text-(--status-running-soft-fg) border-(--status-running-soft-border)'
     case 'completed':
       return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-100 border-green-200 dark:border-green-800'
     case 'error':

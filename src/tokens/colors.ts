@@ -100,6 +100,32 @@ export const blue: RampWithMid = {
   900: '#1e3a8a',
 }
 
+export const gold: Ramp = {
+  50: '#fffbe6',
+  100: '#fff4bf',
+  200: '#ffe98a',
+  300: '#fbdc52',
+  400: '#f5cc1f',
+  500: '#e6b800',
+  600: '#bf9900',
+  700: '#957700',
+  800: '#6e5800',
+  900: '#4d3d00',
+}
+
+export const sky: Ramp = {
+  50: '#f0f9ff',
+  100: '#e0f2fe',
+  200: '#bae6fd',
+  300: '#7dd3fc',
+  400: '#38bdf8',
+  500: '#0ea5e9',
+  600: '#0284c7',
+  700: '#0369a1',
+  800: '#075985',
+  900: '#0c4a6e',
+}
+
 export const teal: Ramp = {
   50: '#e6fbfc',
   100: '#ccf7f8',
@@ -134,6 +160,8 @@ export const palette = {
   red,
   purple,
   blue,
+  sky,
+  gold,
   teal,
   pink,
 }

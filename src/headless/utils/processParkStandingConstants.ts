@@ -14,6 +14,10 @@ export const PROCESS_PARK_ANSWER_WORDS: Record<ProcessResumeChoice, string> = {
   reject: 'rejected it',
   'update-base': 'brought the base in',
   'resolve-base-conflict': 'sent it to resolve the conflict',
+  'change-proof': 'changed what proves it',
+  'send-to-developer': 'sent it back to the developer',
+  recheck: 'ran the checks again',
+  'close-unmerged': 'closed the run without merging',
 }
 
 /** Who answered a park, as a closing line names them. */

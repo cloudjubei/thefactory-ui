@@ -22,6 +22,15 @@ export interface ProcessAlreadyLandedOffer {
   detail: string
 }
 
+/** Finishing a run at a stop as already merged, as its stop offers it. */
+export interface ProcessAlreadyMergedAction {
+  offer: ProcessAlreadyLandedOffer
+  busy: boolean
+  /** Why the last try was refused. */
+  error: string | null
+  onSettle: () => void
+}
+
 /** A sign-off whose work branch adds nothing its base does not already hold. */
 export interface ProcessAlreadyOnBaseSignOff {
   /** What the decision card says up front. */

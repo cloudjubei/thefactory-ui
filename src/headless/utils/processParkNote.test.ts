@@ -3,9 +3,11 @@ import type { ProcessParkAction } from 'thefactory-tools/types'
 
 import {
   choiceTakesNote,
+  parkNoteCopy,
   parkNoteCounter,
   parkNoteRequired,
   parkNoteToSend,
+  requestProofChoices,
   toggleRequestedProof,
   waitingNoteCopy,
 } from './processParkNote'
@@ -13,6 +15,8 @@ import {
   PARK_NOTE_COPY,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
+  REQUEST_PROOF_CHOICES,
+  SEND_TO_DEVELOPER_NOTE_COPY,
 } from './processParkNoteConstants'
 
 const EVERY_CHOICE: ProcessParkAction[] = [
@@ -25,18 +29,34 @@ const EVERY_CHOICE: ProcessParkAction[] = [
   'allow',
   'resolved',
   'more-info',
+  'send-to-developer',
   'delegate',
 ]
+const NOTED: ProcessParkAction[] = ['request-changes', 'more-info', 'send-to-developer']
 
 describe('choiceTakesNote', () => {
-  it('asks for a note when changes are requested, and when a waiting agent is told more', () => {
-    expect(EVERY_CHOICE.filter(choiceTakesNote)).toEqual(['request-changes', 'more-info'])
+  it('asks for a note when changes are requested, a waiting agent is told more, or work goes back to the developer', () => {
+    expect(EVERY_CHOICE.filter(choiceTakesNote)).toEqual(NOTED)
   })
 
   it('lets every other choice act at once', () => {
-    for (const choice of EVERY_CHOICE.filter((c) => c !== 'request-changes' && c !== 'more-info')) {
+    for (const choice of EVERY_CHOICE.filter((c) => !NOTED.includes(c))) {
       expect(choiceTakesNote(choice)).toBe(false)
     }
+  })
+})
+
+describe('parkNoteCopy', () => {
+  it('asks what the developer should do when the checks send work back to it', () => {
+    expect(parkNoteCopy('send-to-developer')).toBe(SEND_TO_DEVELOPER_NOTE_COPY)
+    expect(SEND_TO_DEVELOPER_NOTE_COPY).toEqual({
+      prompt: 'What should the developer do? Optional — the checks’ findings go with it.',
+      submitLabel: 'Send back',
+    })
+  })
+
+  it('keeps the gate’s words for a request for changes', () => {
+    expect(parkNoteCopy('request-changes')).toBe(PARK_NOTE_COPY)
   })
 })
 
@@ -134,6 +154,24 @@ describe('toggleRequestedProof', () => {
   it('switches a kind off', () => {
     expect(toggleRequestedProof(['unit-tests', 'ui-before-after'], 'unit-tests', false)).toEqual([
       'ui-before-after',
+    ])
+  })
+})
+
+describe('requestProofChoices', () => {
+  it('offers every kind a request can require, each pickable, when the run can produce them all', () => {
+    expect(requestProofChoices()).toEqual(REQUEST_PROOF_CHOICES)
+  })
+
+  it('holds off a kind the run cannot produce, saying why', () => {
+    const choices = requestProofChoices([
+      { kind: 'ui-before-after', reason: 'No runnable browser app.' },
+      { kind: 'manual', reason: 'not offered here' },
+    ])
+    expect(choices.map((c) => [c.kind, c.unavailable])).toEqual([
+      ['ui-before-after', 'No runnable browser app.'],
+      ['unit-tests', undefined],
+      ['live-backend', undefined],
     ])
   })
 })

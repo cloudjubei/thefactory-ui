@@ -50,6 +50,7 @@ const NO_TIME = emptyProcessTimeBreakdown()
 const TOKEN_STATUSES = [
   'empty',
   'done',
+  'running',
   'working',
   'stuck',
   'blocked',
@@ -130,9 +131,19 @@ describe('PROCESS_RUN_STATUS_VIEW', () => {
     })
   })
 
-  it('shows a running run in the SAME green as a finished one — live work is good news', () => {
-    expect(PROCESS_RUN_STATUS_VIEW.running.tone).toBe(PROCESS_LIVE_TONE)
-    expect(PROCESS_LIVE_TONE).toBe(PROCESS_RUN_STATUS_VIEW.succeeded.tone)
+  it('shows a running run in its own running blue — never the green of a finished one', () => {
+    expect(PROCESS_LIVE_TONE).toBe('running')
+    expect(PROCESS_RUN_STATUS_VIEW.running.tone).toBe('running')
+    expect(PROCESS_RUN_STATUS_VIEW.succeeded.tone).toBe('done')
+  })
+
+  it('keeps every other run status off the running tone', () => {
+    const others = (
+      Object.keys(PROCESS_RUN_STATUS_VIEW) as (keyof typeof PROCESS_RUN_STATUS_VIEW)[]
+    )
+      .filter((status) => status !== 'running')
+      .map((status) => PROCESS_RUN_STATUS_VIEW[status].tone)
+    expect(others).not.toContain('running')
   })
 })
 
@@ -141,8 +152,10 @@ describe('processStepTone', () => {
     expect(processStepTone('pending', undefined)).toBe('empty')
   })
 
-  it('shows a running step in the live green, whatever a previous attempt ended as', () => {
-    expect(processStepTone('running', 'failed')).toBe(PROCESS_LIVE_TONE)
+  it('shows a running step in the running tone, whatever a previous attempt ended as', () => {
+    expect(processStepTone('running', 'failed')).toBe('running')
+    expect(processStepTone('running', 'passed')).toBe('running')
+    expect(processStepTone('running', undefined)).toBe('running')
   })
 
   it('takes its tone from the outcome once the step is done', () => {
@@ -660,8 +673,10 @@ describe('processNodeTone', () => {
     expect(processNodeTone('rechecked', false)).toBe('queued')
   })
 
-  it('draws a working step in the live green', () => {
-    expect(processNodeTone('working', false)).toBe(PROCESS_LIVE_TONE)
+  it('draws a working step in the running tone, gate or not — never the done green', () => {
+    expect(processNodeTone('working', false)).toBe('running')
+    expect(processNodeTone('working', true)).toBe('running')
+    expect(processNodeTone('done', false)).toBe('done')
   })
 
   it('only ever names a status the package has tokens for', () => {
@@ -694,9 +709,9 @@ describe('processNodeGlyph', () => {
 })
 
 describe('processNodeLook', () => {
-  it('draws running work as a green ring that spins, and finished work as a filled green check', () => {
+  it('draws running work as a blue ring that spins, and finished work as a filled green check', () => {
     expect(processNodeLook('working', false, 1)).toEqual({
-      tone: PROCESS_LIVE_TONE,
+      tone: 'running',
       shape: 'ring',
       spin: true,
       glyph: '1',
@@ -1089,7 +1104,7 @@ describe('processRunBadge', () => {
 
 /** A run a person ended at its gate `g`, the way the driver records the decision. */
 function decided(
-  choice: 'request-changes' | 'reject' | 'abandon',
+  choice: 'request-changes' | 'reject' | 'abandon' | 'close-unmerged',
   note?: string,
   over: Partial<ProcessRun> = {},
 ): ProcessRun {
@@ -1147,6 +1162,25 @@ describe('processRunPersonEnding', () => {
     expect(processRunPersonEnding(run({ status: 'failed', ledger: [passed('a')] }))).toBeUndefined()
   })
 
+  it('names a run a person closed without merging, where they closed it', () => {
+    expect(
+      processRunPersonEnding(decided('close-unmerged', undefined, { status: 'cancelled' })),
+    ).toEqual({
+      choice: 'close-unmerged',
+      label: 'Closed without merging',
+      tone: 'empty',
+      line: 'Closed without merging at Sign-off.',
+    })
+  })
+
+  it('is nothing for a closed run taken back up and stopped again', () => {
+    const stopped = decided('close-unmerged', undefined, {
+      status: 'cancelled',
+      revivals: [{ stoppedAt: 3, at: 4 }],
+    })
+    expect(processRunPersonEnding(stopped)).toBeUndefined()
+  })
+
   it.each(['succeeded', 'cancelled', 'running', 'parked'] as const)(
     'is nothing for a run that is %s',
     (status) => {
@@ -1169,7 +1203,7 @@ describe('processRunBadge — a stop its agent manager has', () => {
   it('reads “Manager on it” in the running tone while the manager is on it', () => {
     expect(processRunBadge(stopped({ manager: { turn } }), 20)).toEqual({
       label: 'Manager on it',
-      tone: PROCESS_LIVE_TONE,
+      tone: 'running',
     })
     expect(processRunChipLabel(stopped({ manager: { turn } }, 'gate'), 20)).toBe(
       'Manager on it · 0/2 steps',

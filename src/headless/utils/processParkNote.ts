@@ -1,18 +1,31 @@
-import type { ProcessParkAction, ProcessWaitingKind, ProofKind } from 'thefactory-tools/types'
+import type {
+  ProcessParkAction,
+  ProcessWaitingKind,
+  ProofKind,
+  ProofKindUnavailable,
+} from 'thefactory-tools/types'
 import { canonicalProofKinds } from 'thefactory-tools/utils'
 
 import {
   PARK_NOTE_CHOICES,
   PARK_NOTE_COUNTER_FROM,
   PARK_NOTE_MAX_LENGTH,
+  PARK_NOTE_COPY,
   PARK_NOTE_REQUIRED_CHOICES,
+  REQUEST_PROOF_CHOICES,
+  SEND_TO_DEVELOPER_NOTE_COPY,
   WAITING_NOTE_COPY,
 } from './processParkNoteConstants'
-import type { ParkNoteCopy } from './processParkNoteTypes'
+import type { ParkNoteCopy, RequestProofChoice } from './processParkNoteTypes'
 
 /** Whether choosing this at a park opens a note composer rather than acting at once. */
 export function choiceTakesNote(choice: ProcessParkAction): boolean {
   return PARK_NOTE_CHOICES.has(choice)
+}
+
+/** The composer's words for a park choice that takes a note: sending work back to the developer, else a request for changes. */
+export function parkNoteCopy(choice: ProcessParkAction): ParkNoteCopy {
+  return choice === 'send-to-developer' ? SEND_TO_DEVELOPER_NOTE_COPY : PARK_NOTE_COPY
 }
 
 /** Whether the note IS the answer, so the composer will not send it blank. */
@@ -38,6 +51,20 @@ export function toggleRequestedProof(
   on: boolean,
 ): ProofKind[] {
   return canonicalProofKinds(on ? [...kinds, kind] : kinds.filter((k) => k !== kind))
+}
+
+/**
+ * The proof a request for changes can require, as its switches offer it: each
+ * kind the run cannot produce here (`unavailable`, the run's `proofUnavailable`)
+ * held off with why, so it is never chosen only to fail later. Pure.
+ */
+export function requestProofChoices(
+  unavailable: readonly ProofKindUnavailable[] = [],
+): RequestProofChoice[] {
+  return REQUEST_PROOF_CHOICES.map((choice) => {
+    const reason = unavailable.find((u) => u.kind === choice.kind)?.reason
+    return reason ? { ...choice, unavailable: reason } : { ...choice }
+  })
 }
 
 /** The note a draft sends: trimmed, within the limit, and none at all when blank. */

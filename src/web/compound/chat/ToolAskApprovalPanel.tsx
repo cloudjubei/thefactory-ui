@@ -1,17 +1,26 @@
 import { useState } from 'react'
 import { Switch } from '../../primitives/Switch'
+import { Textarea } from '../../primitives/Textarea'
 import RichText from '../files/RichText'
 import ToolAskCard, { ToolAskScopeChoice } from './ToolAskCard'
 import { useStories } from '../../../headless/contexts/StoriesContext'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import {
+  featureQuestionAnswerMetadata,
+  featureQuestionAnswerProblem,
   toolAskCardView,
   toolAskDecidedLine,
   toolAskScopeOptions,
 } from '../../../headless/utils/toolAskCard'
-import { TOOL_ASK_COPY, TOOL_ASK_PREVIEW_LINES } from '../../../headless/utils/toolAskCardConstants'
+import {
+  CHAT_REVIEW_ASK,
+  FEATURE_QUESTION_ASK,
+  TOOL_ASK_COPY,
+  TOOL_ASK_PREVIEW_LINES,
+} from '../../../headless/utils/toolAskCardConstants'
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
+import DesignAskBox from '../design/DesignAskBox'
 
 export type ToolAskApprovalPanelProps = {
   grant: PendingToolGrant
@@ -69,10 +78,85 @@ function NewFilePreview({ body }: { body: Extract<ToolAskBody, { kind: 'write' }
   )
 }
 
+const CHIP =
+  'rounded-md border border-(--border-default) px-2 py-0.5 font-mono text-(--text-primary)'
+
+/** A decision on the chat's open changes: the branch, where it goes, and its files. */
+function ReviewBox({ body }: { body: Extract<ToolAskBody, { kind: 'review' }> }) {
+  const more = body.fileCount - body.files.length
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-(--border-subtle) px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+        <span className={CHIP}>{body.branch}</span>
+        {body.target ? (
+          <>
+            <span className="text-(--text-muted)">{CHAT_REVIEW_ASK.into}</span>
+            <span className={CHIP}>{body.target}</span>
+          </>
+        ) : null}
+        <span className="text-(--text-secondary)">{CHAT_REVIEW_ASK.files(body.fileCount)}</span>
+      </div>
+      {body.files.length > 0 ? (
+        <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-[12px] text-(--text-secondary)">
+          {body.files.map((file) => (
+            <li key={file} className="truncate">
+              {file}
+            </li>
+          ))}
+          {more > 0 ? (
+            <li className="text-(--text-muted)">{CHAT_REVIEW_ASK.moreFiles(more)}</li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+/** An answer to a feature's question: the question as the run asked it, and the answer to send. */
+function QuestionBox({
+  body,
+  answer,
+  onAnswer,
+  disabled,
+}: {
+  body: Extract<ToolAskBody, { kind: 'question' }>
+  answer: string
+  onAnswer: (next: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1 rounded-lg border border-(--border-subtle) px-3 py-2.5">
+        <span className="text-[13.5px] leading-relaxed text-(--text-primary)">
+          <RichText text={body.question} />
+        </span>
+        {body.featureTitle ? (
+          <span className="text-[12px] text-(--text-secondary)">
+            {FEATURE_QUESTION_ASK.on(body.featureTitle)}
+          </span>
+        ) : null}
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className="text-[12px] font-medium text-(--text-secondary)">
+          {FEATURE_QUESTION_ASK.answer}
+        </span>
+        <Textarea
+          rows={3}
+          value={answer}
+          disabled={disabled}
+          onChange={(e) => onAnswer(e.target.value)}
+          className="text-[13.5px]"
+        />
+      </label>
+    </div>
+  )
+}
+
 /**
  * A waiting tool's ask on the shared card: the package, host, page, message,
  * new file or delete it is about, the radio for how far an approval reaches
- * where one may stand, and a message's wait-for-reply the person may change.
+ * where one may stand, and what the person may change before approving: a
+ * message's wait-for-reply, an answer's words.
  */
 export default function ToolAskApprovalPanel({
   grant,
@@ -89,6 +173,7 @@ export default function ToolAskApprovalPanel({
   const [scope, setScope] = useState<PendingToolGrantDecision>('once')
   const startAwait = view.body.kind === 'message' ? view.body.awaitReply : false
   const [awaitReply, setAwaitReply] = useState(startAwait)
+  const [answer, setAnswer] = useState(view.body.kind === 'question' ? view.body.answer : '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -96,9 +181,13 @@ export default function ToolAskApprovalPanel({
     setBusy(true)
     setError(null)
     const metadata =
-      decision !== 'deny' && view.body.kind === 'message' && awaitReply !== startAwait
-        ? { args: { awaitReply } }
-        : undefined
+      decision === 'deny'
+        ? undefined
+        : view.body.kind === 'message' && awaitReply !== startAwait
+          ? { args: { awaitReply } }
+          : view.body.kind === 'question'
+            ? featureQuestionAnswerMetadata(view.body, answer)
+            : undefined
     grant
       .decide(decision, metadata)
       .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
@@ -109,11 +198,13 @@ export default function ToolAskApprovalPanel({
   }
 
   const body = view.body
+  const problem = body.kind === 'question' ? featureQuestionAnswerProblem(answer) : undefined
   return (
     <ToolAskCard
       view={view}
       busy={busy}
       error={error}
+      {...(problem ? { problem } : {})}
       onApprove={() => decide(scope)}
       onDeny={() => decide('deny')}
       onLater={onDecideLater}
@@ -161,6 +252,16 @@ export default function ToolAskApprovalPanel({
         <div className="rounded-lg border border-(--status-blocked-soft-border) bg-(--status-blocked-soft-bg) px-3 py-2.5 text-[13px] font-semibold text-(--status-blocked-soft-fg)">
           {body.what}
         </div>
+      ) : body.kind === 'review' ? (
+        <ReviewBox body={body} />
+      ) : body.kind === 'question' ? (
+        <QuestionBox body={body} answer={answer} onAnswer={setAnswer} disabled={busy} />
+      ) : body.kind === 'design' ? (
+        <DesignAskBox
+          {...(body.projectId ? { projectId: body.projectId } : {})}
+          entries={body.entries}
+          newScreens={body.newScreens}
+        />
       ) : body.kind === 'details' && body.text ? (
         <pre className="m-0 max-h-40 overflow-auto rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word opacity-90">
           {body.text}

@@ -1,19 +1,123 @@
-import type { DesignAppTree, DesignItem, DesignScreenTree } from '../api'
+import type {
+  DesignApp,
+  DesignCompareRow,
+  DesignEntryTarget,
+  DesignPlaygroundScene,
+  DesignProposal,
+  DesignProposalEntry,
+  DesignScreen,
+  DesignState,
+  DesignTidyMove,
+  DesignVersion,
+} from '../api'
 
-/** What the Design tab has selected: a screen, and an item open in the viewer. */
-export type DesignSelection = { screenId?: string; itemId?: string }
+/** The part of an app's design the Design tab shows. */
+export type DesignTab = 'current' | 'proposals' | 'history' | 'tidy' | 'playground'
 
-/** What a `?screen=&item=` link asks the Design tab to show. */
-export type DesignSelectionParams = { screen?: string | null; item?: string | null }
+/** What the Design tab has selected. */
+export type DesignSelection = {
+  appId?: string
+  tab: DesignTab
+  screenId?: string
+  stateId?: string
+  variant?: string
+  proposalId?: string
+}
+
+/** What a `?app=&tab=&screen=&state=&variant=&proposal=` link asks the Design tab to show. */
+export type DesignSelectionParams = {
+  app?: string | null
+  tab?: string | null
+  screen?: string | null
+  state?: string | null
+  variant?: string | null
+  proposal?: string | null
+}
+
+/** A screen or component as the sidebar lists it. */
+export type DesignNavScreen = {
+  id: string
+  name: string
+  states: number
+  /** Cells with a proposal waiting on them. */
+  waiting: number
+}
+
+/** An app's design as the sidebar lists it. */
+export type DesignAppNav = {
+  app: DesignApp
+  screens: DesignNavScreen[]
+  componentGroups: Array<{ group: string; components: DesignNavScreen[] }>
+  openProposals: number
+  versions: number
+}
+
+/** A proposal in the list, with what it would change in a few words. */
+export type DesignProposalListItem = {
+  proposal: DesignProposal
+  rows: DesignCompareRow[]
+  summary: string
+}
+
+/** A group of the proposal list: waiting ones, the answers to one question, or those decided. */
+export type DesignProposalGroup = {
+  key: string
+  title: string
+  question?: string
+  items: DesignProposalListItem[]
+}
+
+/** The answers to one question laid out as a draft's cases: a row per choice, a column per variant. */
+export type DesignCaseMatrix = {
+  variants: string[]
+  rows: Array<{ proposal: DesignProposal; cells: Array<DesignProposalEntry | undefined> }>
+}
+
+/** A screen's history: every state with its versions, newest first. */
+export type DesignHistoryScreen = {
+  screen: DesignScreen
+  states: Array<{
+    state: DesignState
+    versions: Array<{ version: DesignVersion; current: boolean; from: string }>
+  }>
+}
+
+/** A tidy-up move in the names the person knows. */
+export type DesignTidyMoveView = {
+  move: DesignTidyMove
+  kindLabel: string
+  from: string[]
+  to: string
+}
+
+/** Where an image can be filed: a screen of the app and its states. */
+export type DesignFileTarget = {
+  screenId: string
+  screenName: string
+  kind: DesignScreen['kind']
+  states: Array<{ id: string; name: string }>
+}
+
+/** What a design ask files, in the names the person knows: each screen, found or new, and its states. */
+export type DesignAskSummary = {
+  screens: Array<{
+    name: string
+    /** The screen the design already has, and how many versions it holds. */
+    found?: { app: string; versions: number }
+    states: Array<{ name: string; tag: 'replaces' | 'new' }>
+  }>
+  /** Images that name no screen yet. */
+  unfiled: number
+  /** The variants the images are drawn in, said once. */
+  variants: string[]
+}
 
 /** Something a person can delete from a project's design. */
 export type DesignDeleteTarget =
-  | { kind: 'app'; app: DesignAppTree }
-  | { kind: 'screen'; screen: DesignScreenTree }
-  | { kind: 'item'; item: DesignItem }
-
-/** What a built version is compared with, and how the compare names it. */
-export type DesignCompareBaseline = { item: DesignItem; label: string }
+  | { kind: 'app'; app: DesignApp }
+  | { kind: 'screen'; screen: DesignScreen }
+  | { kind: 'state'; state: DesignState }
+  | { kind: 'proposal'; proposal: DesignProposal }
 
 /** One store of a project's usage, as the breakdown lists it. */
 export type StorageUsageRow = {
@@ -25,3 +129,18 @@ export type StorageUsageRow = {
 
 /** The OS notification for a storage warning. */
 export type StorageWarningNotification = { title: string; body: string; tag: string }
+
+/** Where a state saved from a playground scene can be filed, as the save's "Where" lists it. */
+export type DesignPlaygroundSaveTarget = {
+  key: string
+  label: string
+  target: Pick<DesignEntryTarget, 'screenId' | 'screenName' | 'screenKind'>
+}
+
+/** The scenes of one group, as the Playground lists them. */
+export type DesignPlaygroundSceneGroup = {
+  group: string
+  scenes: DesignPlaygroundScene[]
+}
+
+export type DesignPlaygroundDevice = 'desktop' | 'phone'

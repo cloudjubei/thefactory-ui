@@ -85,7 +85,7 @@ export default function ToolAskCard({
         className={`flex shrink-0 items-center gap-2.5 px-3.5 py-2 ${
           danger
             ? 'bg-(--status-blocked-soft-bg) text-(--status-blocked-soft-fg)'
-            : 'bg-(--status-review-soft-bg) text-(--status-review-soft-fg)'
+            : 'bg-(--accent-soft-bg) text-(--accent-soft-fg)'
         }`}
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-(--surface-raised)">
@@ -178,7 +178,7 @@ export function ToolAskScopeChoice({
             onClick={() => onChange(option.decision)}
             className={`grid w-full grid-cols-[18px_minmax(0,1fr)] items-center gap-2.5 px-3 py-2 text-left ${
               i > 0 ? 'border-t border-(--border-subtle)' : ''
-            } ${on ? 'bg-(--status-review-soft-bg)' : 'bg-(--surface-raised) hover:bg-(--surface-hover)'}`}
+            } ${on ? 'bg-(--accent-soft-bg)' : 'bg-(--surface-raised) hover:bg-(--surface-hover)'}`}
           >
             <span
               className={`flex h-4 w-4 items-center justify-center rounded-full border-[1.5px] ${

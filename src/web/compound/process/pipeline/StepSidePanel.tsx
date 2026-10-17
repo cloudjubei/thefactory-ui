@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
+  agentNeverStartedNote,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
@@ -39,16 +40,24 @@ type View = 'output' | 'transcript'
  * The full view of one step's output, slid in from the right over the
  * pipeline: its code review, report, checks, verify proof or chat, under a
  * head with the run's chat, ↗ (open as a full page) and ✕. It covers the run's
- * page column only, so the docked run chat stays open beside it.
+ * page column only, so the docked run chat stays open beside it. An attempt
+ * the host stopped before its agent began has no chat to show: the panel says
+ * why instead, in both views.
  */
-export default function StepSidePanel({
+export default function StepSidePanel(props: StepSidePanelProps) {
+  const { run } = useProcessRun(props.target.runId)
+  return <StepSidePanelView {...props} run={run} />
+}
+
+/** The panel for a run already read — what {@link StepSidePanel} draws once `useProcessRun` has it. */
+export function StepSidePanelView({
+  run,
   target,
   onClose,
   renderAgentRun,
   onOpenAgentRun,
   chat,
-}: StepSidePanelProps) {
-  const { run } = useProcessRun(target.runId)
+}: StepSidePanelProps & { run: ProcessRun | undefined }) {
   const [view, setView] = useState<View>('output')
 
   useEffect(() => {
@@ -78,6 +87,13 @@ export default function StepSidePanel({
       ? processLeafReview(run, processAttemptLeaf(entry, state.step.name) ?? {})
       : undefined
   const switchable = canTranscript && (hasOutput || leafReview !== undefined)
+  const neverStarted = agentNeverStartedNote(entry)
+  const transcript =
+    neverStarted !== undefined ? (
+      <div className="p-4 text-[13px] text-(--text-secondary)">{neverStarted}</div>
+    ) : renderAgentRun && ref ? (
+      renderAgentRun(ref, onClose)
+    ) : undefined
 
   return (
     <>
@@ -108,7 +124,7 @@ export default function StepSidePanel({
             />
           ) : null}
           {chat ? <RunChatButton {...chat} compact /> : null}
-          {ref && onOpenAgentRun ? (
+          {ref && onOpenAgentRun && neverStarted === undefined ? (
             <button
               type="button"
               aria-label="Open as a full page"
@@ -132,15 +148,15 @@ export default function StepSidePanel({
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {!run || !state ? (
             <div className="p-4 text-[12.5px] text-(--text-secondary)">Loading…</div>
-          ) : view === 'transcript' && ref && renderAgentRun ? (
-            <div className="flex min-h-0 flex-1 flex-col">{renderAgentRun(ref, onClose)}</div>
+          ) : view === 'transcript' && transcript ? (
+            <div className="flex min-h-0 flex-1 flex-col">{transcript}</div>
           ) : (
             <StepOutput
               run={run}
               state={state}
               entry={entry}
               leafReview={leafReview}
-              {...(renderAgentRun && ref ? { transcript: renderAgentRun(ref, onClose) } : {})}
+              {...(transcript ? { transcript } : {})}
             />
           )}
         </div>

@@ -3,8 +3,11 @@ import { ToolSchemas } from 'thefactory-tools/constants'
 import {
   MAX_TOOL_PREVIEW_CHARS,
   canonicalToolPreviewName,
+  chatToolPreviewOf,
   getToolHeaderPath,
   isFilePathTool,
+  reorderedFeatureId,
+  storyAfterPatch,
   safePreviewString,
   searchResultLines,
   toolArgDisplay,
@@ -274,5 +277,88 @@ describe('searchResultLines', () => {
   it('skips what it cannot name', () => {
     expect(searchResultLines([42, { other: true }, { record: {} }])).toEqual([])
     expect(searchResultLines(undefined)).toEqual([])
+  })
+})
+
+describe('storyAfterPatch', () => {
+  const story = { id: 's1', title: 'T', description: 'Old words' }
+  const patch = { description: 'New words' }
+
+  it('applies the patch to the current story while no story came back', () => {
+    expect(storyAfterPatch(story, patch, { status: 'pending' })).toEqual({
+      id: 's1',
+      title: 'T',
+      description: 'New words',
+    })
+    expect(storyAfterPatch(story, patch, undefined)?.description).toBe('New words')
+  })
+
+  it('applies the patch when the call returned something that is not a story', () => {
+    expect(storyAfterPatch(story, patch, { ok: true })?.description).toBe('New words')
+    expect(storyAfterPatch(story, patch, 'done')?.description).toBe('New words')
+    expect(storyAfterPatch(story, patch, [story])?.description).toBe('New words')
+    expect(storyAfterPatch(story, patch, { kind: 'supported', preview: story })?.description).toBe(
+      'New words',
+    )
+  })
+
+  it('takes the story the call returned or proposed', () => {
+    const saved = { id: 's1', title: 'T', description: 'Saved words' }
+    expect(storyAfterPatch(story, patch, saved)).toBe(saved)
+  })
+
+  it('takes a returned story even when the current one is not known', () => {
+    const saved = { id: 's1', description: 'Saved words' }
+    expect(storyAfterPatch(undefined, patch, saved)).toBe(saved)
+  })
+
+  it('has nothing to show without a current story or a returned one', () => {
+    expect(storyAfterPatch(undefined, patch, undefined)).toBeUndefined()
+  })
+})
+
+describe('chatToolPreviewOf', () => {
+  it('carries a supported preview as text', () => {
+    expect(chatToolPreviewOf({ kind: 'supported', preview: { id: 's1', title: 'T' } })).toEqual({
+      status: 'ready',
+      patch: JSON.stringify({ id: 's1', title: 'T' }, null, 2),
+    })
+  })
+
+  it('carries a text preview as it is', () => {
+    expect(chatToolPreviewOf({ kind: 'supported', preview: '--- a\n+++ b' })).toEqual({
+      status: 'ready',
+      patch: '--- a\n+++ b',
+    })
+  })
+
+  it('carries an empty preview as null text', () => {
+    expect(chatToolPreviewOf({ kind: 'supported', preview: null })).toEqual({
+      status: 'ready',
+      patch: 'null',
+    })
+  })
+
+  it('has no preview for a tool that cannot preview', () => {
+    expect(
+      chatToolPreviewOf({ kind: 'not_supported', toolName: 'reorderFeature', reason: 'x' }),
+    ).toBeUndefined()
+  })
+})
+
+describe('reorderedFeatureId', () => {
+  const order = [{ id: 'f2' }, { id: 'f1' }, { id: 'f3' }]
+
+  it('names the feature now at the target index', () => {
+    expect(reorderedFeatureId({ payload: { fromIndex: 1, toIndex: 0 } }, order)).toBe('f2')
+    expect(reorderedFeatureId({ payload: { fromIndex: 0, toIndex: 2 } }, order)).toBe('f3')
+  })
+
+  it('names nothing when the call carries no usable target index', () => {
+    expect(reorderedFeatureId({}, order)).toBeUndefined()
+    expect(reorderedFeatureId({ payload: { toIndex: '1' } }, order)).toBeUndefined()
+    expect(reorderedFeatureId({ payload: { toIndex: 9 } }, order)).toBeUndefined()
+    expect(reorderedFeatureId({ payload: { toIndex: 0 } }, ['f2'])).toBeUndefined()
+    expect(reorderedFeatureId({ payload: { toIndex: 0 } }, [{ id: 7 }])).toBeUndefined()
   })
 })

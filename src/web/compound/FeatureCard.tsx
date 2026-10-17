@@ -19,6 +19,8 @@ export type FeatureCardProps = {
   headerLeft?: ReactNode
   /** Hover-revealed slot in the top-right header. */
   actions?: ReactNode
+  /** Keep {@link actions} shown, not only on hover — when the slot holds a live state, such as the chip of a run working on the feature. */
+  pinActions?: boolean
   /** Custom slot rendered between description and the status row. */
   footer?: ReactNode
   /** Renderer for each blocker chip — see `StoryCardProps.renderBlocker`. */
@@ -41,6 +43,7 @@ export function FeatureCard({
   feature,
   headerLeft,
   actions,
+  pinActions = false,
   footer,
   showStatus = true,
   onStatusChange,
@@ -76,7 +79,13 @@ export function FeatureCard({
         <div className="flex items-center justify-between text-xs mb-2 min-h-5">
           <div className="min-w-0">{headerLeft}</div>
           {actions && (
-            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 ease-out flex items-center gap-2">
+            <div
+              className={cn(
+                'flex items-center gap-2',
+                !pinActions &&
+                  'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 ease-out',
+              )}
+            >
               {actions}
             </div>
           )}

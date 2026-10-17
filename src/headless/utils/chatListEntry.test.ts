@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   byLastActivity,
+  chatHoldsSentMessage,
   chatLastActivityAt,
   chatMessageCount,
   chatMessageTimes,
@@ -79,6 +80,30 @@ describe('withAppendedMessage', () => {
   it('leaves a summary alone — one message is not the chat', () => {
     const entry = summary(4)
     expect(withAppendedMessage(entry, message)).toBe(entry)
+  })
+})
+
+describe('chatHoldsSentMessage — a refused send the server kept', () => {
+  const sent = { role: 'user' as const, content: 'm1', startedAt: 's1' }
+
+  it('holds the message stored with the same words at the same moment', () => {
+    expect(chatHoldsSentMessage(loaded(2), sent)).toBe(true)
+  })
+
+  it('does not hold the same words sent at another moment', () => {
+    expect(chatHoldsSentMessage(loaded(2), { ...sent, startedAt: 's9' })).toBe(false)
+  })
+
+  it('does not hold other words sent at that moment', () => {
+    expect(chatHoldsSentMessage(loaded(2), { ...sent, content: 'other' })).toBe(false)
+  })
+
+  it('does not hold a message another role wrote at that moment', () => {
+    expect(chatHoldsSentMessage(loaded(2), { ...sent, role: 'system' as const })).toBe(false)
+  })
+
+  it('holds nothing of a chat read without its messages', () => {
+    expect(chatHoldsSentMessage(withSummary(undefined, summary(2)), sent)).toBe(false)
   })
 })
 

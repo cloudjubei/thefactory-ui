@@ -80,6 +80,16 @@ describe('commitDetailsState', () => {
     ).toEqual({ status: 'missing' })
   })
 
+  it('says the commit is not here when its log answers that git cannot find it', () => {
+    expect(
+      commitDetailsState(
+        SHA,
+        failed(httpError(409, 'GIT_REF_UNAVAILABLE')),
+        failed(httpError(500)),
+      ),
+    ).toEqual({ status: 'missing' })
+  })
+
   it('reports a failure that is not a missing commit, in the server’s words', () => {
     expect(commitDetailsState(SHA, failed(httpError(500)), failed(httpError(500)))).toEqual({
       status: 'failed',

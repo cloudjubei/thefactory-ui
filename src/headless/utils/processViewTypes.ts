@@ -22,8 +22,8 @@ export interface ProcessNodeSummary {
 
 /** How a run a person ended reads — see `processRunPersonEnding`. */
 export interface ProcessRunPersonEnding {
-  choice: 'request-changes' | 'reject' | 'abandon'
-  /** One word or two for a badge: "Changes requested", "Rejected", "Abandoned". */
+  choice: 'request-changes' | 'reject' | 'abandon' | 'close-unmerged'
+  /** One word or two for a badge: "Changes requested", "Rejected", "Abandoned", "Closed without merging". */
   label: string
   tone: ProcessStatusTone
   /** The decision as a sentence: where it was made, and the person's words. */

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { runProposalEdit, runProposalEditArgs, runProposalEditStart } from './runProposalEditView'
+import {
+  runProposalEdit,
+  runProposalEditArgs,
+  runProposalEditProblem,
+  runProposalEditStart,
+} from './runProposalEditView'
 
 const retry = {
   canContinue: true,
@@ -106,5 +111,114 @@ describe('runProposalEditArgs', () => {
 
   it('sends nothing for no picks', () => {
     expect(runProposalEditArgs({})).toEqual({})
+  })
+})
+
+describe('a change of what proves a stopped feature, on its card', () => {
+  const detail = {
+    proofChange: {
+      featureId: 'aa3e3acb',
+      current: ['checks', 'code-review', 'ui-before-after'],
+      standings: [
+        { kind: 'checks', status: 'pending', detail: 'ahead' },
+        { kind: 'ui-before-after', status: 'unmet', detail: 'filed no evidence' },
+        { kind: 'vibes', status: 'met', detail: 'x' },
+      ],
+      unavailable: [{ kind: 'live-backend', reason: 'No prover step.' }],
+      proofKinds: ['checks', 'code-review'],
+      saveToFeature: true,
+    },
+  }
+
+  it('reads what the feature needs now and what cannot be added', () => {
+    expect(runProposalEdit(detail)?.proofChange).toEqual({
+      featureId: 'aa3e3acb',
+      stepId: '',
+      current: ['checks', 'code-review', 'ui-before-after'],
+      standings: [
+        { kind: 'checks', status: 'pending', detail: 'ahead' },
+        { kind: 'ui-before-after', status: 'unmet', detail: 'filed no evidence' },
+      ],
+      unavailable: [{ kind: 'live-backend', reason: 'No prover step.' }],
+    })
+  })
+
+  it('reads a story fix’s change, which names the step judged again and no feature', () => {
+    const fix = {
+      proofChange: {
+        stepId: 'verify',
+        judgedStepName: 'Verify',
+        current: ['ui-before-after'],
+        standings: [{ kind: 'ui-before-after', status: 'unmet', detail: 'no screens' }],
+        unavailable: [{ kind: 'ui-before-after', reason: 'No app.' }],
+        proofKinds: ['checks', 'code-review'],
+      },
+    }
+    const edit = runProposalEdit(fix)!
+    expect(edit.proofChange).toEqual({
+      stepId: 'verify',
+      current: ['ui-before-after'],
+      standings: [{ kind: 'ui-before-after', status: 'unmet', detail: 'no screens' }],
+      unavailable: [{ kind: 'ui-before-after', reason: 'No app.' }],
+    })
+    expect(
+      runProposalEditProblem(edit, {
+        proofChange: { kinds: ['checks', 'code-review'], save: true },
+      }),
+    ).toBeUndefined()
+  })
+
+  it('ignores a change it cannot read', () => {
+    expect(runProposalEdit({ proofChange: { current: ['checks'] } })).toBeUndefined()
+  })
+
+  it('starts from the kinds and the saving the agent proposed', () => {
+    expect(runProposalEditStart(runProposalEdit(detail)!, detail).proofChange).toEqual({
+      kinds: ['checks', 'code-review'],
+      save: true,
+    })
+  })
+
+  it('sends the picks as the tool’s own arguments', () => {
+    expect(runProposalEditArgs({ proofChange: { kinds: ['checks'], save: true } })).toEqual({
+      proofKinds: ['checks'],
+      saveToFeature: true,
+    })
+    expect(runProposalEditArgs({ proofChange: { kinds: ['checks'], save: false } })).toEqual({
+      proofKinds: ['checks'],
+    })
+  })
+
+  it('refuses approving a change that adds what the run cannot produce, or changes nothing', () => {
+    const edit = runProposalEdit(detail)!
+    expect(
+      runProposalEditProblem(edit, {
+        proofChange: { kinds: ['checks', 'live-backend'], save: false },
+      }),
+    ).toBe('Live backend can’t be produced here: No prover step.')
+    expect(
+      runProposalEditProblem(edit, {
+        proofChange: { kinds: ['checks', 'code-review', 'ui-before-after'], save: false },
+      }),
+    ).toBe('That is the proof it already needs.')
+    expect(runProposalEditProblem(edit, { proofChange: { kinds: ['checks'], save: false } })).toBe(
+      undefined,
+    )
+  })
+
+  it('refuses a feature left blocked without a reason', () => {
+    const closure = [
+      {
+        featureId: 'f1',
+        title: 'One',
+        currentStatus: 'in_progress',
+        suggested: 'pending' as const,
+        why: '',
+        work: [],
+        status: 'blocked' as const,
+        reason: '',
+      },
+    ]
+    expect(runProposalEditProblem({ closure }, { closure })).toBeTruthy()
   })
 })

@@ -71,6 +71,12 @@ export type ChatSettingsDropdownProps = {
   onToolApprovalChange?: (auto: boolean) => Promise<void> | void
   /** This chat's key: shows "Rules for this chat" — its own always-allow rules, removable. Hidden when absent. */
   rulesChatContextId?: string
+  /**
+   * Whether this chat may end a turn on a failed tool — only a person's own
+   * chat on an API model. A CLI agent and a run's agents always read the
+   * failure and go on, so the row is hidden for them.
+   */
+  offersFinishTurnOnErrors: boolean
 
   persistSettings: (patch: Partial<CompletionSettingsLike>) => Promise<void> | void
 
@@ -99,6 +105,7 @@ export default function ChatSettingsDropdown({
   toolApproval,
   onToolApprovalChange,
   rulesChatContextId,
+  offersFinishTurnOnErrors,
   persistSettings,
   extraContent,
   asModal = false,
@@ -218,20 +225,24 @@ export default function ChatSettingsDropdown({
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-(--text-secondary)">
-                Finish turn on errors
-              </span>
-              <span className="text-[10px] text-(--text-tertiary)">
-                When enabled, the agent ends the current turn if a tool call errors.
-              </span>
+          {offersFinishTurnOnErrors ? (
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-(--text-secondary)">
+                  Finish turn on errors
+                </span>
+                <span className="text-[10px] text-(--text-tertiary)">
+                  When enabled, the agent ends the current turn if a tool call errors.
+                </span>
+              </div>
+              <Switch
+                checked={!!completion.finishTurnOnErrors}
+                onCheckedChange={(checked) =>
+                  void persistSettings({ finishTurnOnErrors: !!checked })
+                }
+              />
             </div>
-            <Switch
-              checked={!!completion.finishTurnOnErrors}
-              onCheckedChange={(checked) => void persistSettings({ finishTurnOnErrors: !!checked })}
-            />
-          </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -7,6 +7,7 @@ import {
 import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/types'
 
 import { processStageChips, processStepRowView, stepFilingOf } from './processStepRow'
+import { PROCESS_STEP_RESULT_MAX, PROCESS_STEP_WAITING_ON_YOU } from './processStepRowConstants'
 import type { EvidenceTile } from './reviewEvidenceViewTypes'
 
 const entry = (overrides: Partial<ProcessLedgerEntry> = {}): ProcessLedgerEntry => ({
@@ -39,6 +40,57 @@ const state = (
 }
 
 describe('processStepRowView', () => {
+  const waitingChecks = () =>
+    state(
+      { id: 'checks', name: 'Checks', kind: 'check' },
+      {
+        status: 'running',
+        outcome: undefined,
+        latest: entry({
+          stepId: 'checks',
+          status: 'running',
+          outcome: undefined,
+          endedAt: undefined,
+          queued: {
+            reason: 'Waiting for another check run of this project to finish',
+            since: 1_000,
+          },
+        }),
+      },
+    )
+
+  it('says a running checks step waits its turn, with how long, on the clock it is given', () => {
+    const line = processStepRowView(waitingChecks(), undefined, undefined, undefined, 76_000).result
+    expect(line).toBe('Waiting for another check run of this project to… · 1m 15s')
+    expect(line?.length).toBeLessThanOrEqual(PROCESS_STEP_RESULT_MAX)
+  })
+
+  it('says the step waits on you, not its turn, when the run is stopped at it', () => {
+    expect(processStepRowView(waitingChecks(), 'checks', undefined, undefined, 76_000).result).toBe(
+      PROCESS_STEP_WAITING_ON_YOU,
+    )
+  })
+
+  it('says nothing of a wait an attempt that already ended left behind', () => {
+    const ended = waitingChecks()
+    const latest = { ...ended.latest!, status: 'done' as const, summary: 'Build ✓' }
+    expect(
+      processStepRowView(
+        { ...ended, latest, entries: [latest] },
+        undefined,
+        undefined,
+        undefined,
+        76_000,
+      ).result,
+    ).toBe('Build ✓')
+  })
+
+  it('says what a running checks step waits for without a clock', () => {
+    expect(processStepRowView(waitingChecks(), undefined).result).toBe(
+      'Waiting for another check run of this project to finish',
+    )
+  })
+
   it('says a step whose Try again ran the checks first so, whole — not its old failure', () => {
     const view = processStepRowView(
       state(
@@ -367,7 +419,7 @@ describe('a stopped step whose stop the agent manager has', () => {
       'v',
       'manager',
     )
-    expect([chip.mark, chip.note, chip.tone]).toEqual(['…', 'manager on it', 'done'])
+    expect([chip.mark, chip.note, chip.tone]).toEqual(['…', 'manager on it', 'running'])
     const [theirs] = processStageChips(
       [state({ id: 'v', name: 'Verify' }, { latest: undefined, status: 'pending' })],
       'v',

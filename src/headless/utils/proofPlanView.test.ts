@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { UI_CHANGE_PLAN_WARNING } from 'thefactory-tools/constants'
+import { UI_CHANGE_PLAN_WARNING, UI_CHANGE_WORDS_HINT } from 'thefactory-tools/constants'
 import type { ProcessProposal, ProcessRun } from 'thefactory-tools/types'
 
 import {
@@ -133,11 +133,45 @@ describe('launchProofPlanRows', () => {
     )
   })
 
-  it('flags a picked kind this host cannot prove, with why', () => {
-    const edits = toggleLaunchProofKind(proposal, {}, 'f1', 'ui-before-after')
-    expect(launchProofPlanRows(proposal, edits)[0]?.flagged).toEqual([
+  it('holds off a kind this host cannot prove: it cannot be picked, and picking it changes nothing', () => {
+    const edits = {}
+    expect(toggleLaunchProofKind(proposal, edits, 'f1', 'ui-before-after')).toBe(edits)
+    expect(
+      launchProofPlanRows(proposal, edits)[0]?.kinds.find((k) => k.kind === 'ui-before-after'),
+    ).toMatchObject({ unavailable: 'No app to capture.', checked: false, disabled: true })
+  })
+
+  it('flags a kind an older plan still asks for that this host cannot prove, and lets it be dropped', () => {
+    const older: Pick<ProcessProposal, 'proofPlans'> = {
+      proofPlans: [
+        {
+          ...proposal.proofPlans![0]!,
+          plan: { kinds: ['unit-tests', 'ui-before-after'] },
+        },
+      ],
+    }
+    const [row] = launchProofPlanRows(older, {})
+    expect(row?.flagged).toEqual([
       { kind: 'ui-before-after', label: 'Before/after screens', reason: 'No app to capture.' },
     ])
+    expect(row?.kinds.find((k) => k.kind === 'ui-before-after')?.disabled).toBe(false)
+    const dropped = toggleLaunchProofKind(older, {}, 'f1', 'ui-before-after')
+    expect(launchProofPlanRows(older, dropped)[0]?.flagged).toEqual([])
+  })
+
+  it('names what the feature’s own plan asked for that this run cannot produce, with why', () => {
+    const withDropped: Pick<ProcessProposal, 'proofPlans'> = {
+      proofPlans: [
+        {
+          ...proposal.proofPlans![0]!,
+          dropped: [{ kind: 'ui-before-after', reason: 'No app to capture.' }],
+        },
+      ],
+    }
+    expect(launchProofPlanRows(withDropped, {})[0]?.dropped).toEqual([
+      'Before/after screens dropped — can’t be produced here: No app to capture.',
+    ])
+    expect(launchProofPlanRows(proposal, {})[0]?.dropped).toEqual([])
   })
 
   it('does not flag an unavailable kind nobody picked', () => {
@@ -327,6 +361,22 @@ describe('launchProofPlanRows — a feature that changes what users see', () => 
 
   it('does not warn for a feature that does not look like one', () => {
     expect(launchProofPlanRows(proposal, {})[0]).not.toHaveProperty('uiWarning')
+  })
+
+  it('only hints, and never warns, when just its words say so', () => {
+    const byWords: Pick<ProcessProposal, 'proofPlans'> = {
+      proofPlans: [{ ...uiProposal.proofPlans![0]!, looksUiByWords: true }],
+    }
+    const row = launchProofPlanRows(byWords, {})[0]
+    expect([row?.uiHint, row?.uiWarning]).toEqual([UI_CHANGE_WORDS_HINT, undefined])
+  })
+
+  it('drops the hint once the person adds screens', () => {
+    const byWords: Pick<ProcessProposal, 'proofPlans'> = {
+      proofPlans: [{ ...uiProposal.proofPlans![0]!, looksUiByWords: true }],
+    }
+    const edits = toggleLaunchProofKind(byWords, {}, 'f1', 'ui-before-after')
+    expect(launchProofPlanRows(byWords, edits)[0]).not.toHaveProperty('uiHint')
   })
 })
 

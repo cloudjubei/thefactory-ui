@@ -90,6 +90,17 @@ describe('dispatchWorkBridge', () => {
     expect(runs.map((r) => r.id)).toEqual(['r1', 'r2', 'foreign'])
   })
 
+  it('lists a run that has not started yet first', async () => {
+    const runs = [
+      run({ id: 'old', startedAt: 5 }),
+      run({ id: 'pending', status: 'pending', startedAt: undefined }),
+      run({ id: 'new', startedAt: 40 }),
+    ]
+    vi.mocked(listProcessRuns).mockResolvedValueOnce({ data: runs } as never)
+    const listed = (await dispatchWorkBridge('p1', { type: 'runs.list' })) as { id: string }[]
+    expect(listed.map((r) => r.id)).toEqual(['pending', 'new', 'old'])
+  })
+
   it.each(['stories.list', 'runs.list'])('returns [] without a project for %s', async (type) => {
     expect(
       await dispatchWorkBridge(

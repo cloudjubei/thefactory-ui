@@ -8,8 +8,8 @@ import {
   RUN_PROPOSAL_LATER_LABEL,
   RUN_PROPOSAL_OPEN_FULL_LABEL,
   runProposalArgs,
-  processRunClosureRowsProblem,
   runProposalEditArgs,
+  runProposalEditProblem,
   runProposalEditStart,
   runProposalHostDetail,
   runProposalLandingEdits,
@@ -159,9 +159,8 @@ export default function RunProposalApprovalPanel({
   if (!view) return null
   const tone = status[view.tone]
   const askView = runProposalAskView(view, args)
-  const editProblem = editState?.closure
-    ? processRunClosureRowsProblem(editState.closure)
-    : undefined
+  const editProblem =
+    view.edit && editState ? runProposalEditProblem(view.edit, editState) : undefined
   const landingProblem =
     landingForm && view.landing?.options
       ? runProposalLandingProblem(landingForm, view.landing.options)

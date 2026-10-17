@@ -16,6 +16,7 @@ export {
   getResponseDataMessage,
   isCoverage,
   isGitCredentialError,
+  isGitRefUnavailableResponse,
   isGrepHit,
   isTestRun,
   unwrapGitEnvelope,

@@ -4,6 +4,8 @@ import type { ProofKind } from 'thefactory-tools/types'
 export interface RequestProofChoice {
   kind: ProofKind
   label: string
+  /** Why the run cannot produce it here — it cannot be switched on. */
+  unavailable?: string
 }
 
 /** The words a park's note composer says, which depend on where the requested changes go. */

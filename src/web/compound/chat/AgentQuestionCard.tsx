@@ -54,7 +54,7 @@ function OptionRow({
       type="button"
       disabled={disabled}
       onClick={onSend}
-      className="flex w-full items-center gap-2.5 rounded-lg border border-(--border-default) bg-(--surface-raised) px-3 py-2.5 text-left hover:border-(--accent-primary) hover:bg-(--status-review-soft-bg) disabled:opacity-60"
+      className="flex w-full items-center gap-2.5 rounded-lg border border-(--border-default) bg-(--surface-raised) px-3 py-2.5 text-left hover:border-(--accent-primary) hover:bg-(--accent-soft-bg) disabled:opacity-60"
     >
       <span className="h-[18px] w-[18px] shrink-0 rounded-full border-[1.5px] border-(--border-strong)" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">

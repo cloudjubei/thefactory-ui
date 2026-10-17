@@ -21,7 +21,7 @@ export default function MergeOutcomeNotice({
   const { theme, status } = useNativeTheme()
   const tone = {
     success: status.done,
-    info: status.review,
+    info: theme.accent,
     warning: status.working,
     error: status.stuck,
   }[line.tone]

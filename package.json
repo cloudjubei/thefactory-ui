@@ -178,6 +178,7 @@
       "serve": "playground:serve",
       "portEnv": "PORT",
       "readyPath": "/"
-    }
+    },
+    "designPlayground": "/"
   }
 }

@@ -19,12 +19,6 @@ describe('chatChangesNotice', () => {
     expect(chatChangesNotice({ discardedAt: 2 })).toBe(CHAT_CHANGES_COPY.discarded)
   })
 
-  it('says a run chat’s edits join the run only once committed to its work branch', () => {
-    expect(chatChangesNotice({ payload: { workspaceBranch: 'factory/s-1a2b3c4d' } })).toBe(
-      CHAT_CHANGES_COPY.onWorkBranch('factory/s-1a2b3c4d'),
-    )
-  })
-
   it('shows the review while the changes still wait, and once they were applied', () => {
     expect(chatChangesNotice({})).toBeUndefined()
     expect(chatChangesNotice(undefined)).toBeUndefined()
@@ -77,7 +71,6 @@ describe('withDiscardWarnings', () => {
 describe('the copy', () => {
   it('never says land, landed or landing', () => {
     const words = [
-      CHAT_CHANGES_COPY.onWorkBranch('factory/x'),
       CHAT_CHANGES_COPY.discardsUncommittedEdits,
       CHAT_CHANGES_COPY.discardsUncommittedEditsCount(2),
     ]

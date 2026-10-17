@@ -5,7 +5,12 @@ import type {
   ProcessStepState,
 } from 'thefactory-tools/types'
 
-import { processNodeState, processNodeSummary, processNodeTone } from './processView'
+import {
+  formatProcessDuration,
+  processNodeState,
+  processNodeSummary,
+  processNodeTone,
+} from './processView'
 import {
   PROCESS_REVIEW_VERDICT_WORDS,
   PROCESS_STAGE_MANAGER_ON_IT,
@@ -55,11 +60,29 @@ function reviewLine(entry: ProcessLedgerEntry | undefined): string | undefined {
   return entry.review.reason ? `${word} · ${entry.review.reason}` : word
 }
 
+/**
+ * A running step waiting its turn behind work the host runs one at a time:
+ * what for, and how long on `now`'s clock — the reason cut short first, so the
+ * time always shows.
+ */
+function queuedLine(state: ProcessStepState, now: number | undefined): string | undefined {
+  const queued = state.latest?.status === 'running' ? state.latest.queued : undefined
+  if (!queued) return undefined
+  if (now === undefined) return queued.reason
+  const waited = ` · ${formatProcessDuration(now - queued.since)}`
+  return `${clipLine(queued.reason, PROCESS_STEP_RESULT_MAX - waited.length)}${waited}`
+}
+
 function resultLine(
   state: ProcessStepState,
   nodeState: ReturnType<typeof processNodeState>,
+  now: number | undefined,
 ): string | undefined {
   if (nodeState === 'parked' && state.step.kind === 'gate') return PROCESS_STEP_WAITING_ON_YOU
+  if (nodeState === 'working') {
+    const queued = queuedLine(state, now)
+    if (queued) return queued
+  }
   const summary = processNodeSummary(state)?.text
   if (nodeState === 'skipped') {
     return summary ?? (state.step.onlyWhenSentBack ? PROCESS_STEP_NOT_NEEDED : PROCESS_STEP_SKIPPED)
@@ -82,19 +105,22 @@ function resultLine(
  * story run's sign-off opens to its decision once the person has made it. The
  * step the run is stopped at waits on the person — unless `stopHolder` (from
  * `processRunStopHolder`) says the agent manager has the stop: then it says
- * the manager is on it.
+ * the manager is on it. A running step waiting its turn behind work the host
+ * runs one at a time — a checks step behind another check run of the project —
+ * says so, with how long it has waited when it is given `now`.
  */
 export function processStepRowView(
   state: ProcessStepState,
   parkStepId: string | undefined,
   run?: Pick<ProcessRun, 'storyId' | 'parentRunId'>,
   stopHolder?: ProcessRunStopHolder,
+  now?: number,
 ): ProcessStepRowView {
   const nodeState = processNodeState(state, parkStepId)
   const managerOnIt = nodeState === 'parked' && stopHolder === 'manager'
   const inert = nodeState === 'skipped' || (nodeState === 'queued' && state.entries.length === 0)
   const preview = previewKind(state, run)
-  const result = managerOnIt ? PROCESS_STEP_MANAGER_ON_IT : resultLine(state, nodeState)
+  const result = managerOnIt ? PROCESS_STEP_MANAGER_ON_IT : resultLine(state, nodeState, now)
   return {
     inert,
     result: result ? clipLine(result.split('\n')[0], PROCESS_STEP_RESULT_MAX) : undefined,

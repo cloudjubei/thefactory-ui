@@ -36,7 +36,9 @@ import type {
   DeveloperChecksNote,
   ProcessCheckRow,
   ProcessChecksResult,
+  ProcessCheckWaitingView,
 } from './processChecksViewTypes'
+import { formatProcessDuration } from './processView'
 import { checkTestCounts, testCountLabel } from './testCounts'
 import { formatDurationMs } from './time'
 
@@ -177,4 +179,22 @@ export function developerChecksNote(
   return roles.some((role) => DEVELOPER_CHECK_ROLES.includes(role))
     ? { text: DEVELOPER_RAN_NO_CHECKS, ran: false }
     : undefined
+}
+
+/**
+ * What a running checks step is waiting for before its checks start — its
+ * turn behind another check run of the project — and how long it has waited
+ * up to `now`; `undefined` for any other step, an attempt that is not running,
+ * or one whose checks have started. Pure.
+ */
+export function processCheckWaitingView(
+  state: {
+    step: Pick<ProcessPlanStep, 'kind'>
+    latest?: Pick<ProcessLedgerEntry, 'status' | 'queued'>
+  },
+  now: number,
+): ProcessCheckWaitingView | undefined {
+  const queued = state.latest?.status === 'running' ? state.latest.queued : undefined
+  if (state.step.kind !== 'check' || !queued) return undefined
+  return { reason: queued.reason, waited: formatProcessDuration(now - queued.since) }
 }

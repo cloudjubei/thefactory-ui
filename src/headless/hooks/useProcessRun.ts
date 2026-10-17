@@ -31,6 +31,7 @@ import { extractErrorMessage, useApi, useAuth } from '../api'
 import type { ChatContext } from '../api'
 import { cachedProcessRun, processRunCache } from './processViewCache'
 import type { ProcessRetryPick } from '../utils/processTurnLimitViewTypes'
+import type { ProofChangeDraft } from '../utils/processProofChangeViewTypes'
 import type { LaunchAgentPick } from '../utils/launchAgentPickTypes'
 import { runModelChangeBody } from '../utils/runModelChange'
 
@@ -71,6 +72,11 @@ export type UseProcessRun = {
     requestedProof?: readonly ProofKind[],
     retry?: ProcessRetryPick,
   ) => Promise<boolean>
+  /**
+   * Change what proves the stopped feature for the rest of the run — the
+   * stop's "Change what proves it" — saving it onto the feature when asked.
+   */
+  changeProof: (draft: ProofChangeDraft) => Promise<boolean>
   /**
    * Decide ONE of several requests the waiting agent left open; the run carries
    * on once the last is decided. Resolves `false` when it was refused; the
@@ -281,6 +287,33 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
         return true
       } catch (err) {
         setActionError(extractErrorMessage(err, 'The run could not be answered.'))
+        return false
+      }
+    },
+    [runId, client, setRun],
+  )
+
+  const changeProof = useCallback(
+    async (draft: ProofChangeDraft) => {
+      if (!runId) return false
+      setActionError(null)
+      const note = draft.note.trim()
+      try {
+        const { data } = await resumeProcessRun({
+          path: { runId },
+          body: {
+            choice: 'change-proof',
+            decidedVia: client,
+            ...(note ? { note } : {}),
+            proofPlan: { kinds: [...draft.kinds] },
+            ...(draft.save ? { saveProofPlan: true } : {}),
+          },
+          throwOnError: true,
+        })
+        setRun(data as ProcessRun)
+        return true
+      } catch (err) {
+        setActionError(extractErrorMessage(err, 'The proof could not be changed.'))
         return false
       }
     },
@@ -553,6 +586,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      changeProof,
       answerWaitingRequest,
       setTurnLimit,
       setManager,
@@ -577,6 +611,7 @@ export function useProcessRun(runId: string | undefined): UseProcessRun {
       run,
       refresh,
       resume,
+      changeProof,
       answerWaitingRequest,
       setTurnLimit,
       setManager,

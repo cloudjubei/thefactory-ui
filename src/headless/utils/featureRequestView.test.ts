@@ -104,18 +104,19 @@ describe('featureRequestSections', () => {
 })
 
 describe('featureRequestStatusView', () => {
-  it.each<[FeatureRequestStatus, string, string]>([
-    ['pending', 'Needs you', 'pending'],
-    ['accepted', 'Starting', 'accepted'],
-    ['in_progress', 'Running', 'accepted'],
-    ['in_review', 'Sign off', 'accepted'],
-    ['completed', 'Done', 'accepted'],
-    ['failed', 'Failed', 'accepted'],
-    ['rejected', 'Rejected', 'rejected'],
-  ])('reads %s as %s', (status, label, phase) => {
+  it.each<[FeatureRequestStatus, string, string, string]>([
+    ['pending', 'Needs you', 'pending', 'blocked'],
+    ['accepted', 'Starting', 'accepted', 'queued'],
+    ['in_progress', 'Running', 'accepted', 'running'],
+    ['in_review', 'Sign off', 'accepted', 'review'],
+    ['completed', 'Done', 'accepted', 'done'],
+    ['failed', 'Failed', 'accepted', 'stuck'],
+    ['rejected', 'Rejected', 'rejected', 'stuck'],
+  ])('reads %s as %s', (status, label, phase, tone) => {
     const view = featureRequestStatusView(status)
     expect(view.label).toBe(label)
     expect(view.phase).toBe(phase)
+    expect(view.tone).toBe(tone)
   })
 })
 

@@ -1,5 +1,5 @@
 import type { ProcessTimeDetailsView } from '../../../headless'
-import { PROCESS_TIME_WAITING_LABEL } from '../../../headless'
+import { PROCESS_TIME_QUEUED_LABEL, PROCESS_TIME_WAITING_LABEL } from '../../../headless'
 
 export type TimeDetailsPanelProps = {
   view: ProcessTimeDetailsView
@@ -11,7 +11,7 @@ export type TimeDetailsPanelProps = {
  * Where a time went — the one view every time chip opens. The chip says the
  * total; this splits it into agent thinking, tools & commands and the rest,
  * each with its share, names the slowest tools, and says how long a person was
- * waited on beside it. Worded in headless (`processTimeDetailsView`) so the
+ * waited on, and how long it waited for other check runs, beside it. Worded in headless (`processTimeDetailsView`) so the
  * native sheet reads the same.
  */
 export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps) {
@@ -59,6 +59,12 @@ export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps)
         <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2 text-(--text-muted)">
           <span>{PROCESS_TIME_WAITING_LABEL}</span>
           <span className="tabular-nums">{view.waiting}</span>
+        </div>
+      ) : null}
+      {view.queued ? (
+        <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2 text-(--text-muted)">
+          <span>{PROCESS_TIME_QUEUED_LABEL}</span>
+          <span className="tabular-nums">{view.queued}</span>
         </div>
       ) : null}
     </div>

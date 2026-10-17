@@ -3,6 +3,7 @@ import {
   PROOF_KIND_LABELS,
   PROOF_KIND_MEANINGS,
   UI_CHANGE_PLAN_WARNING,
+  UI_CHANGE_WORDS_HINT,
 } from 'thefactory-tools/constants'
 import type {
   LaunchProofPlan,
@@ -21,6 +22,7 @@ import {
   PROOF_KIND_STATUS_TONES,
   PROOF_KIND_STATUS_WORDS,
   PROOF_PLAN_CLEARED_TEXT,
+  PROOF_PLAN_DROPPED_LINE,
   PROOF_PLAN_NOTES_PREFIX,
   PROOF_PLAN_SOURCE_LABELS,
 } from './proofPlanViewConstants'
@@ -78,9 +80,10 @@ function launchDraft(plan: LaunchProofPlan, edits: LaunchProofPlanEdits): ProofP
 
 /**
  * Each feature's proof plan as the launch shows it: the person's change if
- * they made one, else the proposal's — every kind marked picked or not, and
- * what this host or process cannot prove marked with why, and flagged when the
- * plan asks for it.
+ * they made one, else the proposal's — every kind marked picked or not, what
+ * this host or process cannot prove marked with why and held off (never
+ * picked, only dropped), flagged when the plan asks for it, and what the
+ * feature's or story's own plan asked for that was dropped.
  */
 export function launchProofPlanRows(
   proposal: Pick<ProcessProposal, 'proofPlans'> | undefined,
@@ -89,11 +92,16 @@ export function launchProofPlanRows(
   return (proposal?.proofPlans ?? []).map((plan) => {
     const draft = launchDraft(plan, edits)
     const unavailable = new Map((plan.unavailable ?? []).map((u) => [u.kind, u.reason]))
-    const kinds = proofKindOptions().map((option) => ({
-      ...option,
-      checked: draft.kinds.includes(option.kind),
-      ...(unavailable.has(option.kind) ? { unavailable: unavailable.get(option.kind) } : {}),
-    }))
+    const kinds = proofKindOptions().map((option) => {
+      const checked = draft.kinds.includes(option.kind)
+      const reason = unavailable.get(option.kind)
+      return {
+        ...option,
+        checked,
+        ...(reason !== undefined ? { unavailable: reason } : {}),
+        disabled: reason !== undefined && !checked,
+      }
+    })
     return {
       featureId: plan.featureId,
       title: plan.title,
@@ -104,10 +112,15 @@ export function launchProofPlanRows(
       flagged: kinds.flatMap((k) =>
         k.checked && k.unavailable ? [{ kind: k.kind, label: k.label, reason: k.unavailable }] : [],
       ),
+      dropped: (plan.dropped ?? []).map((u) =>
+        PROOF_PLAN_DROPPED_LINE(PROOF_KIND_LABELS[u.kind], u.reason),
+      ),
       notes: draft.notes,
       empty: draft.kinds.length === 0,
       ...(plan.looksUi && !draft.kinds.includes('ui-before-after')
-        ? { uiWarning: UI_CHANGE_PLAN_WARNING }
+        ? plan.looksUiByWords
+          ? { uiHint: UI_CHANGE_WORDS_HINT }
+          : { uiWarning: UI_CHANGE_PLAN_WARNING }
         : {}),
     }
   })
@@ -122,7 +135,10 @@ export function toggleLaunchProofKind(
 ): LaunchProofPlanEdits {
   const plan = proposal?.proofPlans?.find((p) => p.featureId === featureId)
   if (!plan) return edits
-  return { ...edits, [featureId]: toggleProofPlanDraftKind(launchDraft(plan, edits), kind) }
+  const draft = launchDraft(plan, edits)
+  const adding = !draft.kinds.includes(kind)
+  if (adding && (plan.unavailable ?? []).some((u) => u.kind === kind)) return edits
+  return { ...edits, [featureId]: toggleProofPlanDraftKind(draft, kind) }
 }
 
 /** The launch's edits with one feature's notes replaced. */
