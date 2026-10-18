@@ -101,6 +101,9 @@ export default function SignoffRecord({ run, state, onOpen }: SignoffRecordProps
             {REQUEST_PROOF_HEADING}: {latest.requestedProof.join(' · ')}
           </span>
         ) : null}
+        {latest.merged ? (
+          <span className="text-[11.5px] text-(--text-secondary)">{latest.merged}</span>
+        ) : null}
       </section>
 
       {earlier.length > 0 ? (

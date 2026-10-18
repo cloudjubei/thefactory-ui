@@ -135,6 +135,22 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
                 </Text>
               </View>
             ) : null}
+            {row.flaky ? (
+              <View
+                accessibilityLabel={row.flaky.detail}
+                style={{
+                  borderColor: theme.status.on_hold.softBorder,
+                  backgroundColor: theme.status.on_hold.softBg,
+                  borderWidth: 1,
+                  borderRadius: 999,
+                  paddingHorizontal: 5,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: theme.status.on_hold.softFg }}>
+                  {row.flaky.label}
+                </Text>
+              </View>
+            ) : null}
             {row.status !== 'passed' && row.summary ? (
               <Text
                 numberOfLines={1}

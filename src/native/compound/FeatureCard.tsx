@@ -6,6 +6,8 @@ import { nativeRadii, nativeShadows, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import StatusControl from './StatusControl'
 import Markdown from './Markdown'
+import FeatureKindChip from './stories/FeatureKindChip'
+import { featureKindChipLabel } from '../../headless/utils/featureKind'
 
 export interface FeatureCardData {
   id: string
@@ -13,6 +15,8 @@ export interface FeatureCardData {
   description?: string
   status: StoryStatus
   blockers?: ReadonlyArray<string>
+  /** Design features carry a "Design" chip; absent is code. */
+  kind?: 'design' | 'code'
 }
 
 export interface FeatureCardProps {
@@ -115,7 +119,12 @@ export function FeatureCard({
         </View>
       )}
       {footer}
-      {showStatus && <StatusControl status={feature.status} onChange={onStatusChange} />}
+      {(showStatus || featureKindChipLabel(feature)) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[2] }}>
+          {showStatus && <StatusControl status={feature.status} onChange={onStatusChange} />}
+          <FeatureKindChip feature={feature} />
+        </View>
+      )}
     </>
   )
 

@@ -73,6 +73,7 @@ export const GIT_CHANGE_ASK: Record<string, string> = {
   'delete-branch': 'The agent wants to delete a branch',
   merge: 'The agent wants to merge a branch',
   'abort-merge': 'The agent wants to abort a merge',
+  'resolve-conflicts': 'The agent wants to resolve merge conflicts',
   push: 'The agent wants to push a branch',
   pull: 'The agent wants to pull a branch',
   fetch: 'The agent wants to fetch a remote',
@@ -98,6 +99,7 @@ export const GIT_CHANGE_VERB: Record<string, string> = {
   'create-branch': 'Create branch',
   'switch-branch': 'Switch',
   merge: 'Merge',
+  'resolve-conflicts': 'Resolve',
   pull: 'Pull',
   fetch: 'Fetch',
   stage: 'Stage',
@@ -123,6 +125,9 @@ export const FEATURE_WORK_ASK = {
   joinVerb: 'Add to that run',
   nothingLeft: 'Every feature on this story is done or deferred — there is nothing to start.',
   chooseOpenWork: 'Choose what happens to the open work first.',
+  waitsOn: (blockers: readonly string[]) =>
+    `It waits on ${blockers.map((b) => `#${b}`).join(', ')} first, and starts by itself once ` +
+    `${blockers.length === 1 ? 'that is' : 'they are'} done.`,
 } as const
 
 /** The words a launch across a group's projects says. */
@@ -183,6 +188,23 @@ export const CHAT_REVIEW_ASK = {
   into: 'into',
 }
 
+/** The tool that closes a chat's open changes as already on their base. */
+export const CHAT_TO_BASE_TOOL = 'resolveChatOpenChangesToBase'
+
+/** Copy for closing a chat's open changes as already on their base. */
+export const CHAT_TO_BASE_ASK = {
+  ask: 'The agent wants to close this chat’s changes',
+  tag: 'Review',
+  fallbackHeadline: 'Close this chat’s changes',
+  consequence:
+    'Nothing on disk is discarded. The review closes and its branch is removed, recorded for restore.',
+  verb: 'Close it',
+  held: (base: string) => `${base} already holds them.`,
+  superseded: (base: string) => `A later commit on ${base} replaced every file they changed.`,
+  force: (base: string, lacking?: string) =>
+    `${base} lacks ${lacking ?? 'some of them'}. Approving closes them anyway.`,
+} as const
+
 /** The tool that answers a question a run raised on a feature. */
 export const FEATURE_QUESTION_TOOL = 'submitFeatureQuestionAnswer'
 
@@ -197,3 +219,24 @@ export const FEATURE_QUESTION_ASK = {
   on: (featureTitle: string) => `On ${featureTitle}`,
   empty: 'Write an answer first.',
 } as const
+
+/** The cards for a feature's status or blockers changed from a chat — always asked. */
+export const STORY_DECISION_ASK = {
+  tag: 'Stories',
+  done: {
+    ask: 'The agent wants to mark a feature done',
+    headline: 'Mark this feature done',
+    verb: 'Mark done',
+  },
+  deferred: {
+    ask: 'The agent wants to defer a feature',
+    headline: 'Leave this feature for later',
+    verb: 'Defer',
+  },
+  blocker: {
+    ask: 'The agent wants to lift a blocker',
+    headline: 'Stop waiting on a blocker',
+    verb: 'Remove blocker',
+    body: (work: string, blocker: string) => `${work} no longer waits on #${blocker}`,
+  },
+}

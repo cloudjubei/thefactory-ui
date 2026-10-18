@@ -8,6 +8,7 @@ import {
   resolveInLookup,
   storyLookup,
   withoutOwnProject,
+  featureShownStatus,
 } from './storyDependency'
 import { DEPENDENCY_LOADING_DISPLAY } from './storyDependencyConstants'
 import type { DependencyResolution, ForeignStoriesState } from './storyDependencyTypes'
@@ -236,5 +237,44 @@ describe('dependencyChipOf', () => {
       projectId: BACKEND,
       project: 'Backend',
     })
+  })
+})
+
+describe('featureShownStatus', () => {
+  const storyRef = (status: string): DependencyResolution =>
+    ({
+      kind: 'story',
+      id: 's18',
+      storyId: 's18',
+      story: { id: 's18', status },
+      display: '#18',
+    }) as never
+  const featureRef = (status: string): DependencyResolution =>
+    ({
+      kind: 'feature',
+      id: 's21.f1',
+      storyId: 's21',
+      featureId: 'f1',
+      story: { id: 's21' },
+      feature: { id: 'f1', status },
+      display: '#21.1',
+    }) as never
+  const lost = { id: 'x', code: 'STORY_NOT_FOUND', message: 'no' } as DependencyResolution
+
+  it('shows a pending feature blocked while anything it or its story waits on is not done', () => {
+    expect(featureShownStatus('pending', [featureRef('in_progress')], [])).toBe('blocked')
+    expect(featureShownStatus('pending', [], [storyRef('in_progress')])).toBe('blocked')
+  })
+
+  it('shows its own status once what it waits on is reviewable or done', () => {
+    expect(featureShownStatus('pending', [featureRef('reviewable')], [storyRef('done')])).toBe(
+      'pending',
+    )
+  })
+
+  it('never changes a status past pending, and reads a blocker it cannot resolve as nothing', () => {
+    expect(featureShownStatus('in_progress', [featureRef('pending')], [])).toBe('in_progress')
+    expect(featureShownStatus('done', [], [storyRef('pending')])).toBe('done')
+    expect(featureShownStatus('pending', [lost], [])).toBe('pending')
   })
 })

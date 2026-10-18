@@ -30,6 +30,7 @@ export const PROCESS_SIGNOFF_DECIDED_VIA_TEXT: Record<ProcessPersonDecisionVia, 
   mobile: 'on mobile',
   chat: 'in the agent’s chat',
   'feature-question': 'on the feature’s question',
+  design: 'in the Design view',
 }
 
 /** The words of a decided sign-off's record. */

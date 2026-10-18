@@ -1,6 +1,7 @@
 import { parseReferenceToken } from 'thefactory-tools/utils'
 
 import type { GetStoryResponse } from '../api/generated'
+import type { StoryStatus } from './status'
 import { DEPENDENCY_LOADING_DISPLAY } from './storyDependencyConstants'
 import type {
   DependencyElsewhere,
@@ -163,4 +164,24 @@ export function dependencyChipOf(resolution: DependencyResolution): ResolvedDepe
     },
     ...where,
   }
+}
+
+/**
+ * The status a feature shows: a pending feature reads as blocked while anything
+ * it, or its story, waits on is not done yet — reviewable or done — so a
+ * feature waiting on a blocker never looks ready to work. Any other status
+ * shows as it is; a blocker that cannot be resolved counts as nothing. Pure.
+ */
+export function featureShownStatus(
+  status: StoryStatus,
+  featureBlockers: readonly DependencyResolution[],
+  storyBlockers: readonly DependencyResolution[],
+): StoryStatus {
+  if (status !== 'pending') return status
+  const waits = [...featureBlockers, ...storyBlockers].some((b) => {
+    if (!('kind' in b)) return false
+    const blockerStatus = b.kind === 'feature' ? b.feature.status : b.story.status
+    return blockerStatus !== 'done' && blockerStatus !== 'reviewable'
+  })
+  return waits ? 'blocked' : status
 }

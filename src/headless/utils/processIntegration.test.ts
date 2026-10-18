@@ -290,6 +290,28 @@ describe('processIntegrationView', () => {
     ).toMatchObject({ tone: 'stuck', detail: 'main did not move.', checks, canRetry: true })
   })
 
+  it('says which generated files a merge rebuilt with no one asked again, and where its checks passed', () => {
+    const checks = { status: 'passed' as const, summary: 'It builds.', sha: SHA, checks: [] }
+    expect(
+      processIntegrationView(
+        run({
+          integration: {
+            mode: 'merge',
+            status: 'integrated',
+            sha: SHA,
+            checks,
+            regenerated: ['src/tools/generated/ToolSchemas.ts'],
+            at: 1,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      tone: 'done',
+      detail: `Merged after regenerating src/tools/generated/ToolSchemas.ts; checks passed at ${SHA.slice(0, 7)}.`,
+      checks,
+    })
+  })
+
   it('carries the result’s checks on a landing that passed them', () => {
     const checks = { status: 'passed' as const, summary: 'It builds.', checks: [] }
     expect(

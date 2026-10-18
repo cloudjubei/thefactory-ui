@@ -562,6 +562,9 @@ import type {
   GrepFilesData,
   GrepFilesErrors,
   GrepFilesResponses,
+  HandOverFeatureRequestData,
+  HandOverFeatureRequestErrors,
+  HandOverFeatureRequestResponses,
   HealthData,
   HealthResponses,
   HealthStartupData,
@@ -724,6 +727,9 @@ import type {
   LiveCliAgentProbeData,
   LiveCliAgentProbeErrors,
   LiveCliAgentProbeResponses,
+  MarkFeatureRequestDeliveredData,
+  MarkFeatureRequestDeliveredErrors,
+  MarkFeatureRequestDeliveredResponses,
   MarkProcessGroupLegLandedData,
   MarkProcessGroupLegLandedErrors,
   MarkProcessGroupLegLandedResponses,
@@ -765,6 +771,9 @@ import type {
   PreviewCliAgentArtifactData,
   PreviewCliAgentArtifactErrors,
   PreviewCliAgentArtifactResponses,
+  PreviewCliRunReviewToBaseData,
+  PreviewCliRunReviewToBaseErrors,
+  PreviewCliRunReviewToBaseResponses,
   PreviewDesignTidyPlanData,
   PreviewDesignTidyPlanErrors,
   PreviewDesignTidyPlanResponses,
@@ -863,6 +872,9 @@ import type {
   RequestCliRunReviewResponses,
   ResetOverseerData,
   ResetOverseerResponses,
+  ResolveCliRunReviewToBaseData,
+  ResolveCliRunReviewToBaseErrors,
+  ResolveCliRunReviewToBaseResponses,
   ResolveProcessRunIntegrationConflictData,
   ResolveProcessRunIntegrationConflictErrors,
   ResolveProcessRunIntegrationConflictResponses,
@@ -5533,6 +5545,42 @@ export const rejectFeatureRequest = <ThrowOnError extends boolean = false>(
     },
   })
 
+export const markFeatureRequestDelivered = <ThrowOnError extends boolean = false>(
+  options: Options<MarkFeatureRequestDeliveredData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    MarkFeatureRequestDeliveredResponses,
+    MarkFeatureRequestDeliveredErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/deliver',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const handOverFeatureRequest = <ThrowOnError extends boolean = false>(
+  options: Options<HandOverFeatureRequestData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    HandOverFeatureRequestResponses,
+    HandOverFeatureRequestErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/hand-over',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
 export const startCliAgentRun = <ThrowOnError extends boolean = false>(
   options: Options<StartCliAgentRunData, ThrowOnError>,
 ) =>
@@ -5954,6 +6002,38 @@ export const rejectCliRunReview = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/cli-runs/{runId}/reject-review',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const previewCliRunReviewToBase = <ThrowOnError extends boolean = false>(
+  options: Options<PreviewCliRunReviewToBaseData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    PreviewCliRunReviewToBaseResponses,
+    PreviewCliRunReviewToBaseErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/resolve-review-to-base/preview',
+    ...options,
+  })
+
+export const resolveCliRunReviewToBase = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveCliRunReviewToBaseData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResolveCliRunReviewToBaseResponses,
+    ResolveCliRunReviewToBaseErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/cli-runs/{runId}/resolve-review-to-base',
     ...options,
     headers: {
       'Content-Type': 'application/json',

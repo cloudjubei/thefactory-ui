@@ -26,8 +26,12 @@ import {
   viewedFilesProgress,
 } from './runReview'
 import {
+  ALREADY_ON_BASE_MESSAGE,
+  ALREADY_ON_BASE_TITLE,
   CHANGE_REQUEST_MESSAGE_PREFIX,
+  LAND_FAILURE_LEAD,
   LAND_FAILURE_TITLE,
+  NO_SOURCE_CHANGES_TITLE,
   MERGE_BLOCKED_FALLBACK,
   MERGE_FAILED_FALLBACK,
   LEGACY_CHECK_RECORD_NOTE,
@@ -314,33 +318,74 @@ describe('verdictSummary', () => {
 
 describe('landFailureSummary', () => {
   const base: CliRunLandFailure = { reason: 'not-a-git-repo', at: 5 }
+  const failed = (reason: string) => `${LAND_FAILURE_LEAD} — ${reason}.`
 
-  it('explains each reason', () => {
+  it('explains each failure reason as a warning', () => {
     expect(landFailureSummary(base)).toEqual({
+      tone: 'warning',
       title: LAND_FAILURE_TITLE,
-      message: 'the project is not a git repository',
+      message: failed('the project is not a git repository'),
     })
     expect(landFailureSummary({ ...base, reason: 'detached-head' }).message).toBe(
-      'the project checkout is on a detached HEAD',
+      failed('the project checkout is on a detached HEAD'),
     )
     expect(landFailureSummary({ ...base, reason: 'commit-failed' }).message).toBe(
-      'the review commit could not be created',
+      failed('the review commit could not be created'),
     )
     expect(landFailureSummary({ ...base, reason: 'changes-not-applied' }).message).toBe(
-      'part of the run’s change could not be applied, so none of it was committed',
+      failed('part of the run’s change could not be applied, so none of it was committed'),
     )
     expect(landFailureSummary({ ...base, reason: 'error' }).message).toBe(
-      'the review branch could not be created',
+      failed('the review branch could not be created'),
     )
+  })
+
+  it('titles a run that only touched ignored files as nothing to review', () => {
+    expect(landFailureSummary({ ...base, reason: 'no-source-changes' })).toEqual({
+      tone: 'warning',
+      title: NO_SOURCE_CHANGES_TITLE,
+      message: failed('the run only touched files the repository ignores'),
+    })
   })
 
   it('appends the backend message when present', () => {
     expect(landFailureSummary({ ...base, message: '  fatal: not a repo ' }).message).toBe(
-      'the project is not a git repository — fatal: not a repo',
+      failed('the project is not a git repository — fatal: not a repo'),
     )
     expect(landFailureSummary({ ...base, message: '   ' }).message).toBe(
-      'the project is not a git repository',
+      failed('the project is not a git repository'),
     )
+  })
+
+  it('says work already on its branch is there, not that it failed', () => {
+    expect(
+      landFailureSummary({
+        reason: 'already-on-base',
+        baseRef: 'dev',
+        message: 'Every change this run made to its 2 files already reads that way on dev.',
+        at: 5,
+      }),
+    ).toEqual({
+      tone: 'neutral',
+      title: ALREADY_ON_BASE_TITLE('dev'),
+      message: ALREADY_ON_BASE_MESSAGE,
+    })
+  })
+
+  it('names the branch as the base branch when the record does not say which', () => {
+    expect(landFailureSummary({ reason: 'already-on-base', at: 5 }).title).toBe(
+      ALREADY_ON_BASE_TITLE(undefined),
+    )
+  })
+})
+
+describe('ALREADY_ON_BASE_TITLE', () => {
+  it('names the branch', () => {
+    expect(ALREADY_ON_BASE_TITLE('dev')).toBe('Already on dev')
+  })
+
+  it('falls back to the base branch', () => {
+    expect(ALREADY_ON_BASE_TITLE(undefined)).toBe('Already on the base branch')
   })
 })
 
@@ -483,9 +528,9 @@ describe('runReviewFacts', () => {
     })
   })
 
-  it('labels a subscription run $0.00 — a real charge, with its tokens in the details only', () => {
+  it('labels a subscription run’s charge unknown — never a $0.00 that reads as free — with its tokens in the details only', () => {
     const facts = runReviewFacts({ cost: subscriptionRun, durationMs: 1500 })
-    expect(facts.costLabel).toBe('$0.00')
+    expect(facts.costLabel).toBe('Unknown (subscription)')
     expect(facts.cost).toBe(subscriptionRun)
   })
 

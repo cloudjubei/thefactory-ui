@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const listFeatureRequests = vi.fn()
+const markFeatureRequestDelivered = vi.fn()
+const handOverFeatureRequest = vi.fn()
 
 vi.mock('../api/generated', () => ({
   listFeatureRequests: (...args: unknown[]) => listFeatureRequests(...args),
   acceptFeatureRequest: vi.fn(),
   rejectFeatureRequest: vi.fn(),
+  markFeatureRequestDelivered: (...args: unknown[]) => markFeatureRequestDelivered(...args),
+  handOverFeatureRequest: (...args: unknown[]) => handOverFeatureRequest(...args),
 }))
 vi.mock('../api/ApiContext', () => ({ useApi: vi.fn() }))
 
 import { featureRequestsSnapshot, replaceFeatureRequests } from './featureRequestsStore'
-import { holdFeatureRequests } from './useCrossProjectRequests'
+import {
+  handOverRequest,
+  holdFeatureRequests,
+  markRequestDelivered,
+} from './useCrossProjectRequests'
 
 type Handler = (data: unknown) => void
 
@@ -81,5 +89,46 @@ describe('holdFeatureRequests', () => {
     await Promise.resolve()
     expect(Object.keys(featureRequestsSnapshot())).toEqual(['kept'])
     release()
+  })
+})
+
+describe('settling a request elsewhere', () => {
+  beforeEach(() => {
+    replaceFeatureRequests([])
+    markFeatureRequestDelivered.mockReset()
+    handOverFeatureRequest.mockReset()
+  })
+
+  it('marks a request delivered with the reference trimmed, and keeps the answer', async () => {
+    const delivered = { ...request('fr-1'), status: 'completed' }
+    markFeatureRequestDelivered.mockResolvedValue({ data: delivered })
+    expect(await markRequestDelivered('fr-1', { ref: ' a1b2c3d ', note: ' Same change ' })).toBe(
+      delivered,
+    )
+    expect(markFeatureRequestDelivered).toHaveBeenCalledWith({
+      path: { id: 'fr-1' },
+      body: { ref: 'a1b2c3d', note: 'Same change' },
+      throwOnError: true,
+    })
+    expect(featureRequestsSnapshot()['fr-1']).toBe(delivered)
+  })
+
+  it('leaves a blank note out', async () => {
+    markFeatureRequestDelivered.mockResolvedValue({ data: undefined })
+    await markRequestDelivered('fr-1', { ref: 'x', note: '  ' })
+    expect(markFeatureRequestDelivered.mock.calls[0][0].body).toEqual({ ref: 'x' })
+    expect(featureRequestsSnapshot()).toEqual({})
+  })
+
+  it('hands a request over with each part trimmed, and keeps the answer', async () => {
+    const handed = { ...request('fr-1'), status: 'handed_over' }
+    handOverFeatureRequest.mockResolvedValue({ data: handed })
+    await handOverRequest('fr-1', { projectId: ' backend ', ref: ' fr-9 ', note: '' })
+    expect(handOverFeatureRequest).toHaveBeenCalledWith({
+      path: { id: 'fr-1' },
+      body: { projectId: 'backend', ref: 'fr-9' },
+      throwOnError: true,
+    })
+    expect(featureRequestsSnapshot()['fr-1']).toBe(handed)
   })
 })

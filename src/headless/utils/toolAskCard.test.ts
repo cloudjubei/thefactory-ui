@@ -15,8 +15,12 @@ import {
 } from './toolAskCard'
 import {
   CHAT_REVIEW_ASK,
+  CHAT_TO_BASE_ASK,
+  CHAT_TO_BASE_TOOL,
   FEATURE_QUESTION_ASK,
   FEATURE_WORK_ASK,
+  GIT_CHANGE_ASK,
+  GIT_CHANGE_VERB,
   GIT_SETUP_ASK,
   GROUP_WORK_ASK,
   RUN_PROPOSAL_ASK,
@@ -142,6 +146,48 @@ describe('toolAskCardView — chats, files and deletes', () => {
       verb: 'Write it',
       body: { kind: 'write', projectId: 'p1', path: 'docs/plan.md', content: 'a\nb\nc', lines: 3 },
     })
+  })
+
+  it.each([
+    ['done', 'The agent wants to mark a feature done', 'Mark done'],
+    ['deferred', 'The agent wants to defer a feature', 'Defer'],
+  ])('asks the person to set a feature %s, with the agent’s reason', (status, ask, verb) => {
+    const view = toolAskCardView({
+      label: 'setFeatureStatus',
+      toolName: 'setFeatureStatus',
+      args: { storyId: 's18', featureId: 'f1', status, reason: 'Approved in this chat.' },
+    })
+    expect(view).toMatchObject({
+      tone: 'ask',
+      ask,
+      verb,
+      why: 'Approved in this chat.',
+      body: { kind: 'references', text: '#s18.f1' },
+    })
+  })
+
+  it('asks the person to lift a blocker, naming it and what it blocks', () => {
+    const view = toolAskCardView({
+      label: 'removeBlocker',
+      toolName: 'removeBlocker',
+      args: { storyId: 's21', featureId: 'f2', blocker: 's18', reason: 'Not needed first.' },
+    })
+    expect(view).toMatchObject({
+      tone: 'ask',
+      ask: 'The agent wants to lift a blocker',
+      headline: 'Stop waiting on a blocker',
+      verb: 'Remove blocker',
+      why: 'Not needed first.',
+      body: { kind: 'references', text: '#s21.f2 no longer waits on #s18' },
+    })
+    expect(view.headline).not.toContain('#')
+    expect(
+      toolAskCardView({
+        label: 'removeBlocker',
+        toolName: 'removeBlocker',
+        args: { storyId: 's21', blocker: 's18' },
+      }),
+    ).toMatchObject({ body: { kind: 'references', text: '#s21 no longer waits on #s18' } })
   })
 
   it('makes a story delete a danger card naming the story', () => {
@@ -377,6 +423,16 @@ describe('gitChangeAskView', () => {
     })
   })
 
+  it('reads a conflict resolution as finishing a merge', () => {
+    expect(gitChangeAskView(card({ operation: 'resolve-conflicts' }), {})).toMatchObject({
+      icon: 'merge',
+      tone: 'ask',
+      ask: GIT_CHANGE_ASK['resolve-conflicts'],
+      verb: GIT_CHANGE_VERB['resolve-conflicts'],
+      body: { kind: 'git' },
+    })
+  })
+
   it('reads an operation it has no words for as a git change', () => {
     expect(gitChangeAskView(card({ operation: 'something-new' }), {})).toMatchObject({
       icon: 'git',
@@ -405,6 +461,23 @@ describe('featureWorkAskView', () => {
       verb: 'Start work',
       body: { kind: 'launch' },
     })
+  })
+
+  it('says first what the run waits on, and that it then starts by itself', () => {
+    const view = featureWorkAskView({
+      storyTitle: 'Rules guide',
+      joinsOpenRun: false,
+      waitingOn: ['story-18', 'story-19'],
+    })
+    expect(view.consequence).toBe(
+      `${FEATURE_WORK_ASK.waitsOn(['story-18', 'story-19'])} ${FEATURE_WORK_ASK.consequence}`,
+    )
+    expect(FEATURE_WORK_ASK.waitsOn(['story-18'])).toBe(
+      'It waits on #story-18 first, and starts by itself once that is done.',
+    )
+    expect(featureWorkAskView({ joinsOpenRun: false, waitingOn: [] }).consequence).toBe(
+      FEATURE_WORK_ASK.consequence,
+    )
   })
 
   it('reads work added to the story’s open run as joining it', () => {
@@ -748,6 +821,75 @@ describe('toolAskCardView — design asks', () => {
       entries: [],
       newScreens: [],
     })
+  })
+})
+
+describe('toolAskCardView — closing the chat’s changes as already on their base', () => {
+  const card = (standing: string, extra: Record<string, unknown> = {}) => ({
+    standing,
+    headline: `Close agent/abc — ${standing}`,
+    runId: 'r1',
+    branch: 'agent/abc',
+    baseRef: 'main',
+    fileCount: 3,
+    files: ['a.ts', 'b.ts'],
+    ...extra,
+  })
+  const ask = (detail: unknown, args: Record<string, unknown> = {}) =>
+    toolAskCardView({
+      label: CHAT_TO_BASE_TOOL,
+      toolName: CHAT_TO_BASE_TOOL,
+      args: { ...args, reason: 'merged by hand' },
+      detail: { tool: CHAT_TO_BASE_TOOL, args, detail },
+    })
+
+  it('shows changes the base holds by the host’s card: the branch, its files, and that the base holds them', () => {
+    expect(ask(card('held'))).toEqual({
+      tone: 'ask',
+      why: 'merged by hand',
+      icon: 'git',
+      ask: CHAT_TO_BASE_ASK.ask,
+      tag: CHAT_TO_BASE_ASK.tag,
+      headline: 'Close agent/abc — held',
+      consequence: CHAT_TO_BASE_ASK.consequence,
+      verb: CHAT_TO_BASE_ASK.verb,
+      body: {
+        kind: 'review',
+        branch: 'agent/abc',
+        fileCount: 3,
+        files: ['a.ts', 'b.ts'],
+        note: 'main already holds them.',
+      },
+    })
+  })
+
+  it('says a later commit replaced them', () => {
+    expect(ask(card('superseded', { supersededBy: 'c'.repeat(40) })).body).toMatchObject({
+      note: 'A later commit on main replaced every file they changed.',
+    })
+  })
+
+  it('shows closing them on the person’s word as a danger card naming the files the base lacks', () => {
+    expect(ask(card('force', { lacking: ['a.ts', 'b.ts'] }), { force: true })).toMatchObject({
+      tone: 'danger',
+      body: { note: 'main lacks a.ts, b.ts. Approving closes them anyway.' },
+    })
+  })
+
+  it('says the base lacks some of them when the host named none', () => {
+    expect(ask(card('force'), { force: true }).body).toMatchObject({
+      note: 'main lacks some of them. Approving closes them anyway.',
+    })
+  })
+
+  it('reads a card without its standing as one closed on the person’s word when they asked for it', () => {
+    const view = ask({ branch: 'agent/abc', files: ['a.ts'] }, { force: true })
+    expect(view).toMatchObject({
+      tone: 'danger',
+      headline: CHAT_TO_BASE_ASK.fallbackHeadline,
+      body: { kind: 'review', branch: 'agent/abc', fileCount: 1, files: ['a.ts'] },
+    })
+    expect(view.body).not.toHaveProperty('note')
   })
 })
 

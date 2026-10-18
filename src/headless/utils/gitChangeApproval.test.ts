@@ -9,7 +9,7 @@ import {
   gitChangeProblem,
   isGitChangeGrant,
 } from './gitChangeApproval'
-import { GIT_CHANGE_COPY, GIT_CHANGE_RUN_BUSY } from './gitChangeApprovalConstants'
+import { GIT_CHANGE_COPY, GIT_CHANGE_DONE, GIT_CHANGE_RUN_BUSY } from './gitChangeApprovalConstants'
 import { toolRowMilestone } from './gitSetupApproval'
 
 const card = {
@@ -46,6 +46,11 @@ const runAs = (status: ProcessRun['status'], park?: ProcessRun['park']) =>
 describe('isGitChangeGrant', () => {
   it('knows a git change by the grant’s tool', () => {
     expect(isGitChangeGrant({ toolName: 'mergeGitBranch' })).toBe(true)
+  })
+
+  it('knows a conflict resolution as one, and the read of the conflicts as none', () => {
+    expect(isGitChangeGrant({ toolName: 'resolveGitMergeConflicts' })).toBe(true)
+    expect(isGitChangeGrant({ toolName: 'readGitMergeConflicts' })).toBe(false)
   })
 
   it('knows one by its payload’s tool', () => {
@@ -189,6 +194,36 @@ describe('gitChangeProblem', () => {
 
   it('lets an optional edit stay empty', () => {
     expect(gitChangeProblem(prCard, { title: 'Add w', body: '' }, undefined)).toBeUndefined()
+  })
+})
+
+describe('gitChangeMilestone — a conflict resolution', () => {
+  const resolved = (committed: boolean) =>
+    gitChangeMilestone(
+      {
+        operation: 'resolve-conflicts',
+        ok: true,
+        repoPath: '/Users/me/repo',
+        branch: 'dev',
+        sha: '8322d8721234abcd',
+        resolved: ['app/style.css'],
+        remaining: [],
+        committed,
+      },
+      'success',
+      false,
+    )
+
+  it('says the merge was committed when it was', () => {
+    expect(resolved(true)).toEqual({
+      tone: 'success',
+      title: `${GIT_CHANGE_COPY.mergeCommitted} 8322d872 on dev`,
+      detail: '/Users/me/repo',
+    })
+  })
+
+  it('says the merge is still open when it was not', () => {
+    expect(resolved(false)?.title).toBe(`${GIT_CHANGE_DONE['resolve-conflicts']} 8322d872 on dev`)
   })
 })
 

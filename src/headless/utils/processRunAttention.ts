@@ -58,6 +58,7 @@ export function processRunAttentionSection(
   if (!isProcessRunCurrent(run)) return asks ? 'needs-you' : undefined
   if (run.integration?.status === 'integrating') return 'merging'
   if (run.status === 'parked') {
+    if (run.park?.reason === 'waiting-on-blockers') return asks ? 'needs-you' : 'waiting'
     if (processRunStopHolder(run, now) === 'manager') return asks ? 'needs-you' : 'running'
     return run.park?.reason === 'gate' ? 'sign-off' : 'needs-you'
   }
@@ -88,6 +89,8 @@ export function processRunNeedLine(
       return processRunManagerLine(run, now) ?? runningLine(run)
     case 'merging':
       return processIntegrationView(run)?.title ?? PROCESS_RUN_WORDS.merging
+    case 'waiting':
+      return run.park?.message ?? PROCESS_RUN_WORDS.waiting
     default:
       return undefined
   }
@@ -112,7 +115,7 @@ export function processRunListRow(
 }
 
 /**
- * The Current tab's sections — Needs you, Sign off, Running, Merging — each
+ * The Current tab's sections — Needs you, Sign off, Running, Merging, Waiting — each
  * with its runs in the order given; a section with none is left out, and so is
  * every run that is history. `chatNews` holds what each run's own chat holds
  * for the person, by run id. Pure.

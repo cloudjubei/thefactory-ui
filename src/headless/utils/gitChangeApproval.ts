@@ -109,7 +109,10 @@ export function gitChangeMilestone(
   }
   const sha = typeof out.sha === 'string' ? out.sha.slice(0, 8) : undefined
   const branch = typeof out.branch === 'string' ? out.branch : undefined
-  const verb = GIT_CHANGE_DONE[typeof out.operation === 'string' ? out.operation : ''] ?? 'Done'
+  const verb =
+    out.operation === 'resolve-conflicts' && out.committed === true
+      ? GIT_CHANGE_COPY.mergeCommitted
+      : (GIT_CHANGE_DONE[typeof out.operation === 'string' ? out.operation : ''] ?? 'Done')
   const link =
     typeof out.pullRequestUrl === 'string'
       ? { url: out.pullRequestUrl, label: GIT_CHANGE_COPY.pullRequest }

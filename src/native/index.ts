@@ -218,6 +218,10 @@ export {
   type ExclamationChipProps,
 } from './compound/stories/ExclamationChip'
 export {
+  default as FeatureKindChip,
+  type FeatureKindChipProps,
+} from './compound/stories/FeatureKindChip'
+export {
   default as StoryAndFeatureCallout,
   type StoryAndFeatureCalloutProps,
 } from './compound/stories/StoryAndFeatureCallout'

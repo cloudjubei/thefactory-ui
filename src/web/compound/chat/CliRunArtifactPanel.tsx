@@ -54,7 +54,9 @@ import {
   chatChangesHeader,
   discardedEditPaths,
   openChangesNoticeView,
+  reviewOnBaseOfferView,
   useChatOpenChanges,
+  useReviewOnBase,
   withDiscardWarnings,
 } from '../../../headless'
 import { Input } from '../../primitives/Input'
@@ -64,7 +66,9 @@ import { Modal } from '../../primitives/Modal'
 import Tooltip from '../../primitives/Tooltip'
 import { downloadDataUri, saveSideBySide } from './signoff/download'
 import { OpenChangesNotice } from './OpenChangesNotice'
+import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
 import { RunChangesHead } from './RunChangesHead'
+import { RunLandNotice } from './RunLandNotice'
 import { RunVerdictLine } from './RunVerdictLine'
 import {
   ChangesTab,
@@ -279,6 +283,17 @@ export default function CliRunArtifactPanel({
       ? { projectId, chatContextId }
       : undefined,
   )
+  const onBase = useReviewOnBase(
+    !reportOnly &&
+      settledNotice === undefined &&
+      review &&
+      !review.shadow &&
+      review.landedAt !== undefined &&
+      review.mergedAt == null &&
+      review.rejectedAt == null
+      ? { runId, projectId }
+      : undefined,
+  )
 
   useEffect(() => {
     if (error || settledNotice !== undefined) return
@@ -482,6 +497,8 @@ export default function CliRunArtifactPanel({
     partOfStoryRun: storyId !== undefined,
   })
   const busy = merging || approving || rejecting || requestingChanges
+  const onBaseView =
+    actionMode === 'actions' && !isMerged && !decided ? reviewOnBaseOfferView(onBase) : undefined
   const reasonValid = isReviewReasonValid(reason)
   const capturedLabel = timeLabel(
     evidence.refs.length > 0 ? Math.min(...evidence.refs.map((r) => r.createdAt)) : undefined,
@@ -887,15 +904,7 @@ export default function CliRunArtifactPanel({
               </div>
             ) : null}
 
-            {landing ? (
-              <div className={`rounded-md border px-2 py-1.5 text-[12px] ${TONE_CHIP.warning}`}>
-                <div className="font-medium">{landing.title}</div>
-                <div>
-                  The agent produced changes but they were not committed to a review branch —{' '}
-                  {landing.message}.
-                </div>
-              </div>
-            ) : null}
+            {landing ? <RunLandNotice summary={landing} /> : null}
           </>
         )}
       </div>
@@ -992,6 +1001,10 @@ export default function CliRunArtifactPanel({
               ) : null}
             </div>
           )}
+
+          {onBaseView && !working ? (
+            <ReviewOnBaseOffer view={onBaseView} onClose={(force) => void onBase.close(force)} />
+          ) : null}
 
           {reasonFor ? (
             <div className="flex items-center gap-2">

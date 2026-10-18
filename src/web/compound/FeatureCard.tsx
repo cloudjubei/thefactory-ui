@@ -3,6 +3,8 @@ import { cn } from '../utils/cn'
 import Markdown from './Markdown'
 import type { StoryStatus } from './StoryCard'
 import StatusControl from './StatusControl'
+import FeatureKindChip from './stories/FeatureKindChip'
+import { featureKindChipLabel } from '../../headless/utils/featureKind'
 
 /** Minimal feature shape this card renders. */
 export type FeatureCardData = {
@@ -11,6 +13,8 @@ export type FeatureCardData = {
   description?: string
   status: StoryStatus
   blockers?: ReadonlyArray<string>
+  /** Design features carry a "Design" chip; absent is code. */
+  kind?: 'design' | 'code'
 }
 
 export type FeatureCardProps = {
@@ -122,9 +126,10 @@ export function FeatureCard({
 
       {footer}
 
-      {showStatus && (
+      {(showStatus || featureKindChipLabel(feature)) && (
         <div className="flex items-center gap-2 mt-1">
-          <StatusControl status={feature.status} onChange={onStatusChange} />
+          {showStatus && <StatusControl status={feature.status} onChange={onStatusChange} />}
+          <FeatureKindChip feature={feature} />
         </div>
       )}
     </div>

@@ -23,6 +23,7 @@ import {
   formatProcessDuration,
   processIterationBadge,
   processLoopSenders,
+  isProcessRunAtSignOff,
   processRunBadge,
   processRunCardView,
   hasIsolatedAttempts,
@@ -300,7 +301,25 @@ describe('processRunSpend', () => {
     expect(processRunSpend(r)?.label).toBe('$1.50 of $5.00')
   })
 
-  it('shows a run a subscription covered as a real $0.00', () => {
+  const planSpend = {
+    provider: 'anthropic',
+    model: 'claude-opus-5-5',
+    billing: 'subscription' as const,
+    inputTokens: 36,
+    outputTokens: 6_623,
+    cacheReadTokens: 1_248_888,
+    cacheWriteTokens: 52_624,
+    costUsd: 0,
+  }
+
+  it('says a run a subscription paid for has an unknown charge, never a $0.00 that reads as free', () => {
+    const r = run({
+      totals: totals({ costUsd: 0, includedTokens: 1_308_171, byModel: [planSpend] }),
+    })
+    expect(processRunSpend(r)?.label).toBe('Unknown (subscription)')
+  })
+
+  it('keeps a run read without its models at the $0.00 its totals say', () => {
     const r = run({ totals: totals({ costUsd: 0, includedTokens: 1_308_171 }) })
     expect(processRunSpend(r)?.label).toBe('$0.00')
   })
@@ -335,6 +354,29 @@ describe('processRunSpend', () => {
       totals: totals({ costUsd: 0, includedTokens: 50_000 }),
     })
     expect(processRunSpend(covered)?.label).toBe('$0.00 of $5.00')
+  })
+
+  it('names a subscription’s unknown share beside the cap, not as $0.00 spent of it', () => {
+    const planSpend = {
+      provider: 'cursor',
+      model: 'composer-2.5',
+      billing: 'subscription' as const,
+      inputTokens: 5_825,
+      outputTokens: 860,
+      cacheReadTokens: 8_016,
+      cacheWriteTokens: 0,
+      costUsd: 0,
+    }
+    const capped = run({
+      budget: { spendUsdCap: 5 },
+      totals: totals({ costUsd: 0, includedTokens: 14_701, byModel: [planSpend] }),
+    })
+    expect(processRunSpend(capped)).toEqual({
+      spent: 0,
+      cap: 5,
+      label: 'Unknown (subscription) · cap $5.00',
+      title: 'Spent against the cap',
+    })
   })
 
   it('titles its details by whether a cap stands against the spend', () => {
@@ -1075,6 +1117,13 @@ describe('processRunBadge', () => {
     })
     expect(processRunBadge(r, 0)).toEqual({ label: 'Needs you', tone: 'on_hold' })
   })
+  it('a run waiting on work elsewhere is waiting (queued) — it starts by itself, nobody needs to act', () => {
+    const r = run({
+      status: 'parked',
+      park: { reason: 'waiting-on-blockers', stepId: 'a', message: '', parkedAt: 0 },
+    })
+    expect(processRunBadge(r, 0)).toEqual({ label: 'Waiting', tone: 'queued' })
+  })
   it('falls through to the plain status view when not parked', () => {
     expect(processRunBadge(run({ status: 'running' }), 0)).toEqual(PROCESS_RUN_STATUS_VIEW.running)
   })
@@ -1541,5 +1590,48 @@ describe('processStepFinishedView', () => {
   it('reads as a hand-off while the role is not yet known, and as finished when nothing changed', () => {
     expect(processStepFinishedView({ changedFiles: true }).kind).toBe('handoff')
     expect(processStepFinishedView({ changedFiles: false, role: 'verifier' }).kind).toBe('finished')
+  })
+})
+
+describe('isProcessRunAtSignOff', () => {
+  const plan = (gateKind?: 'design') => ({
+    definitionId: 'd',
+    definitionScope: 'global' as const,
+    definitionVersion: 1,
+    name: 'P',
+    steps: [
+      { id: 'work', name: 'Work', kind: 'agent' as const },
+      { id: 'gate', name: 'Gate', kind: 'gate' as const, ...(gateKind ? { gateKind } : {}) },
+    ],
+    loops: [],
+    frozenAt: 0,
+  })
+  const at = (over: Partial<ProcessRun>) =>
+    run({
+      status: 'parked',
+      storyId: 's1',
+      plan: plan(),
+      park: { reason: 'gate', stepId: 'gate', message: '', parkedAt: 0 },
+      ...over,
+    })
+
+  it('is a story run stopped at its sign-off gate', () => {
+    expect(isProcessRunAtSignOff(at({}))).toBe(true)
+  })
+
+  it('is never a design approval, a mirrored stop, another step, or a run with no story', () => {
+    expect(isProcessRunAtSignOff(at({ plan: plan('design') }))).toBe(false)
+    expect(
+      isProcessRunAtSignOff(
+        at({ park: { reason: 'gate', stepId: 'gate', message: '', parkedAt: 0, childRunId: 'c' } }),
+      ),
+    ).toBe(false)
+    expect(
+      isProcessRunAtSignOff(
+        at({ park: { reason: 'gate', stepId: 'work', message: '', parkedAt: 0 } }),
+      ),
+    ).toBe(false)
+    expect(isProcessRunAtSignOff(at({ storyId: undefined }))).toBe(false)
+    expect(isProcessRunAtSignOff(at({ status: 'running', park: undefined }))).toBe(false)
   })
 })

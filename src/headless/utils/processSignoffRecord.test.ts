@@ -50,6 +50,28 @@ describe('processSignoffRecord', () => {
     ])
   })
 
+  it('says the approval’s work came in after its merge rebuilt generated files, and where the checks passed', () => {
+    const integration = {
+      mode: 'squash' as const,
+      status: 'integrated' as const,
+      sha: 'b'.repeat(40),
+      regenerated: ['gen/list.ts'],
+      checks: { status: 'passed' as const, summary: 'ok', sha: 'c'.repeat(40), checks: [] },
+      at: 400,
+    }
+    const record = processSignoffRecord(
+      { ...ids, workBranch, integration },
+      { entries: [asked, approved] },
+    )
+    expect(record?.latest.merged).toBe(
+      'Merged after regenerating gen/list.ts; checks passed at ccccccc.',
+    )
+    expect(
+      processSignoffRecord({ ...ids, workBranch, integration }, { entries: [approved, asked] })
+        ?.latest.merged,
+    ).toBeUndefined()
+  })
+
   it('carries the note and the proof a request for changes required, in words', () => {
     const record = processSignoffRecord({ ...ids, workBranch }, { entries: [asked, proofAsked] })
     expect(record?.latest.requestedProof).toEqual([

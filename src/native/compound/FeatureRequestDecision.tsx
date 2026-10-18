@@ -8,12 +8,22 @@ import { IconXCircle } from '../icons/IconXCircle'
 import { Button } from '../primitives/Button'
 import { Textarea } from '../primitives/Textarea'
 import {
+  canSettleFeatureRequest,
   featureRequestAcceptHint,
+  featureRequestPhase,
   featureRequestRejectedLine,
   featureRequestRejectPrompt,
+  featureRequestSettledLine,
   featureRequestStatusView,
+  featureRequestTakenOverLinks,
 } from '../../headless/utils/featureRequestView'
 import { FEATURE_REQUEST_OPEN_FULL_LABEL } from '../../headless/utils/featureRequestViewConstants'
+import type { FeatureRequestSettleMode } from '../../headless/utils/featureRequestViewTypes'
+import type {
+  FeatureRequestDeliveryForm,
+  FeatureRequestHandoverForm,
+} from '../../headless/hooks/useCrossProjectRequests'
+import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
 
 export interface FeatureRequestDecisionProps {
   request: FeatureRequest
@@ -31,6 +41,16 @@ export interface FeatureRequestDecisionProps {
   placedOn?: { label: string; onOpen?: () => void }
   /** Open the whole request — offered beside the decision when given. */
   onOpenFull?: () => void
+  /** Mark the request delivered by other work — offered while it can still be settled. */
+  onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
+  /** Hand the request over to another project's request or story — offered likewise. */
+  onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Another request's title, for the links between requests handed over and taken over. */
+  requestTitle?: (requestId: string) => string | undefined
+  /** Open another request, from those links. */
+  onOpenRequest?: (requestId: string) => void
+  /** Opens a settle form at once, for a fixed showcase state. */
+  initialSettleMode?: FeatureRequestSettleMode
 }
 
 function OpenFull({ onOpenFull }: Pick<FeatureRequestDecisionProps, 'onOpenFull'>) {
@@ -47,7 +67,10 @@ function Pending({
   onReject,
   busy,
   onOpenFull,
-}: Omit<FeatureRequestDecisionProps, 'request' | 'error' | 'placedOn'>) {
+}: Pick<
+  FeatureRequestDecisionProps,
+  'fromLabel' | 'onAccept' | 'onReject' | 'busy' | 'onOpenFull'
+>) {
   const { theme, status } = useNativeTheme()
   const [confirming, setConfirming] = useState(false)
   const [reason, setReason] = useState('')
@@ -104,18 +127,48 @@ function Pending({
 /**
  * Native peer of web's `FeatureRequestDecision` — Accept & start work / Reject… (with an optional
  * reason, confirmed in place) while the request waits; the story it was placed on and how the work
- * stands once accepted; who was told once rejected. Purely presentational.
+ * stands once accepted; who was told once rejected; where its work went once handed over. Mark as
+ * delivered… and Hand over… stay offered until it is settled. Purely presentational.
  */
 export default function FeatureRequestDecision(props: FeatureRequestDecisionProps) {
-  const { request, fromLabel, error, placedOn, onOpenFull } = props
+  const { request, fromLabel, error, placedOn, onOpenFull, busy } = props
   const { theme, status } = useNativeTheme()
   const view = featureRequestStatusView(request.status)
   const tone = status[view.tone]
+  const titleOf = props.requestTitle ?? (() => undefined)
+  const phase = featureRequestPhase(request)
+  const pill = (
+    <Text
+      style={{
+        fontSize: 11.5,
+        fontWeight: '600',
+        color: tone.softFg,
+        backgroundColor: tone.softBg,
+        borderRadius: nativeRadii.round,
+        paddingHorizontal: nativeSpace[2],
+        overflow: 'hidden',
+      }}
+    >
+      {view.label}
+    </Text>
+  )
   return (
     <>
-      {view.phase === 'pending' ? (
+      {phase === 'settled' ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: nativeSpace[2],
+          }}
+        >
+          {pill}
+          <OpenFull onOpenFull={onOpenFull} />
+        </View>
+      ) : phase === 'pending' ? (
         <Pending {...props} />
-      ) : view.phase === 'accepted' ? (
+      ) : phase === 'accepted' ? (
         <View
           style={{
             flexDirection: 'row',
@@ -147,19 +200,7 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
               </Pressable>
             </>
           ) : null}
-          <Text
-            style={{
-              fontSize: 11.5,
-              fontWeight: '600',
-              color: tone.softFg,
-              backgroundColor: tone.softBg,
-              borderRadius: nativeRadii.round,
-              paddingHorizontal: nativeSpace[2],
-              overflow: 'hidden',
-            }}
-          >
-            {view.label}
-          </Text>
+          {pill}
           <OpenFull onOpenFull={onOpenFull} />
         </View>
       ) : (
@@ -186,6 +227,20 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </View>
       )}
+      <FeatureRequestSettledNote
+        settled={featureRequestSettledLine(request, titleOf)}
+        takenOver={featureRequestTakenOverLinks(request, titleOf)}
+        onOpenRequest={props.onOpenRequest}
+      />
+      {canSettleFeatureRequest(request) ? (
+        <FeatureRequestSettleActions
+          fromLabel={fromLabel}
+          onMarkDelivered={props.onMarkDelivered}
+          onHandOver={props.onHandOver}
+          busy={busy}
+          initialMode={props.initialSettleMode}
+        />
+      ) : null}
       {error ? <Text style={{ fontSize: 12, color: status.stuck.fg }}>{error}</Text> : null}
     </>
   )

@@ -1,8 +1,8 @@
-import type { ProcessTimeBreakdown } from 'thefactory-tools/types'
+import type { ModelSpend, ProcessManagerTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
 import { describe, expect, it } from 'vitest'
 
 import { processTimeDetailsView } from './processTimeDetails'
-import { PROCESS_TIME_TOOLS_SHOWN } from './processTimeDetailsConstants'
+import { PROCESS_TIME_MANAGER_LABEL, PROCESS_TIME_TOOLS_SHOWN } from './processTimeDetailsConstants'
 
 const MIN = 60_000
 
@@ -129,5 +129,63 @@ describe('processTimeDetailsView', () => {
 
   it('still opens for a gate that only waited', () => {
     expect(processTimeDetailsView(breakdown({ waitingMs: MIN }), 0)?.waiting).toBe('1m 00s')
+  })
+})
+
+describe('processTimeDetailsView — the agent manager', () => {
+  const spend = (over: Partial<ModelSpend>): ModelSpend => ({
+    provider: 'anthropic',
+    model: 'claude-sonnet-5',
+    billing: 'metered',
+    inputTokens: 1_000,
+    outputTokens: 200,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    ...over,
+  })
+  const manager = (over: Partial<ProcessManagerTotals>): ProcessManagerTotals => ({
+    turns: 2,
+    workMs: 3 * MIN,
+    time: breakdown({ thinkingMs: 3 * MIN }),
+    ...over,
+  })
+
+  it('adds a line with what its turns cost and how long they worked', () => {
+    const view = processTimeDetailsView(
+      overall,
+      OVERALL_MS,
+      manager({ costUsd: 0.42, byModel: [spend({ costUsd: 0.42 })] }),
+    )
+    expect(view?.manager).toEqual({ label: PROCESS_TIME_MANAGER_LABEL, value: '$0.42 · 3m 00s' })
+  })
+
+  it('says a subscription’s share is unknown rather than $0.00', () => {
+    const view = processTimeDetailsView(
+      overall,
+      OVERALL_MS,
+      manager({
+        costUsd: 0,
+        includedTokens: 1_200,
+        byModel: [spend({ billing: 'subscription', costUsd: 0 })],
+      }),
+    )
+    expect(view?.manager?.value).toBe('Unknown (subscription) · 3m 00s')
+  })
+
+  it('says a cost with no known price is unknown', () => {
+    const view = processTimeDetailsView(
+      overall,
+      OVERALL_MS,
+      manager({ unpricedTokens: 1_200, byModel: [spend({})] }),
+    )
+    expect(view?.manager?.value).toBe('No known price · 3m 00s')
+  })
+
+  it('gives only the time when its turns measured no cost', () => {
+    expect(processTimeDetailsView(overall, OVERALL_MS, manager({}))?.manager?.value).toBe('3m 00s')
+  })
+
+  it('has no line when the manager took no turns on the run', () => {
+    expect(processTimeDetailsView(overall, OVERALL_MS)).not.toHaveProperty('manager')
   })
 })

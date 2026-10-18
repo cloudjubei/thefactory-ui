@@ -273,6 +273,8 @@ export type LlmModel = {
   provider: LlmProvider
 }
 
+export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
 export type BillingBasis = 'subscription' | 'metered' | 'free'
 
 export type LlmConfig = {
@@ -282,6 +284,8 @@ export type LlmConfig = {
   name?: string
   apiKey: string
   apiUrlOverride?: string
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
   costCacheReadInputPerMTokensUSD?: number
@@ -290,12 +294,11 @@ export type LlmConfig = {
 
 export type CliTool = 'claude-code' | 'cursor-agent' | 'codex'
 
-export type CliReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-
 export type ModelSelection =
   | {
       kind: 'api'
       llmConfig: LlmConfig
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     }
   | {
       kind: 'cli'
@@ -309,6 +312,7 @@ export type ModelSelection =
 export type ModelRef = {
   kind: 'api' | 'cli'
   label: string
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
 
 export type ActivityStepSpec = {
@@ -359,7 +363,9 @@ export type ActivityRun = {
   modelRef?: {
     kind: 'api' | 'cli'
     label: string
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   }
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   market?: string
   resumeToken?: {
     [key: string]: unknown
@@ -382,7 +388,9 @@ export type ActivityRunInput = {
   modelRef?: {
     kind: 'api' | 'cli'
     label: string
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   }
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   market?: string
   resumeToken?: {
     [key: string]: unknown
@@ -413,6 +421,7 @@ export type AgentRunType =
   | 'judge'
   | 'remedy'
   | 'report'
+  | 'designer'
   | 'fixer'
 
 export type AgentTypeId = string
@@ -482,6 +491,7 @@ export type AgentRunParams = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'designer'
     | 'fixer'
   commitMessage?: string
 }
@@ -949,6 +959,7 @@ export type CliRunFailureKind =
   | 'sandbox-killed'
   | 'tool-protocol'
   | 'native-tool-used'
+  | 'launch-failed'
   | 'unknown'
 
 export type CliRunFailure = {
@@ -1003,6 +1014,8 @@ export type CliNativeSessionDispatch = {
 }
 
 export type ProofSeamRoute = 'manifest' | 'tool' | 'none'
+
+export type StoryRunFeatureOutcome = 'completed' | 'blocked' | 'unfinished'
 
 export type CrossProjectGuidanceInput = {
   resolverPresent: boolean
@@ -1449,6 +1462,8 @@ export type ChatApiTurn = {
     id?: string
     name?: string
     apiUrlOverride?: string
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     costInputPerMTokensUSD?: number
     costOutputPerMTokensUSD?: number
     costCacheReadInputPerMTokensUSD?: number
@@ -1476,6 +1491,7 @@ export type ProcessParkReason =
   | 'loop-exhausted'
   | 'no-steps'
   | 'unknown-step'
+  | 'waiting-on-blockers'
 
 export type ProcessManagerBriefAnswer = {
   choice: string
@@ -1806,6 +1822,19 @@ export type CompletionUserMessage = {
   backgroundResults?: Array<ChatBackgroundJobResult>
 }
 
+export type UsageTokenField = 'input' | 'output' | 'cacheRead' | 'cacheWrite'
+
+export type UsageTokenFieldStatus = 'reported' | 'derived' | 'unavailable'
+
+export type UsageTokenFields = {
+  input: UsageTokenFieldStatus
+  output: UsageTokenFieldStatus
+  cacheRead: UsageTokenFieldStatus
+  cacheWrite: UsageTokenFieldStatus
+}
+
+export type PriceSource = 'provider-reported' | 'price-table' | 'unknown'
+
 export type ModelSpend = {
   provider: string
   model: string
@@ -1819,6 +1848,13 @@ export type ModelSpend = {
   listCostUsd?: number
   outputTokensNotReported?: true
   tokensNotReported?: true
+  tokenFields?: {
+    input?: 'reported' | 'derived' | 'unavailable'
+    output?: 'reported' | 'derived' | 'unavailable'
+    cacheRead?: 'reported' | 'derived' | 'unavailable'
+    cacheWrite?: 'reported' | 'derived' | 'unavailable'
+  }
+  priceSource?: 'provider-reported' | 'price-table' | 'unknown'
 }
 
 export type CompletionUsage = {
@@ -2114,6 +2150,7 @@ export type ChatSummary = {
     model?: string
     effort?: string
   }
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiTurn?: {
     id: string
     llmConfig: {
@@ -2122,6 +2159,8 @@ export type ChatSummary = {
       id?: string
       name?: string
       apiUrlOverride?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       costInputPerMTokensUSD?: number
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
@@ -2410,6 +2449,7 @@ export type ChatUpdate = {
       model?: string
       effort?: string
     }
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     apiTurn?: {
       id: string
       llmConfig: {
@@ -2426,6 +2466,8 @@ export type ChatUpdate = {
         id?: string
         name?: string
         apiUrlOverride?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
         costInputPerMTokensUSD?: number
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
@@ -2793,6 +2835,7 @@ export type Feature = {
   context: Array<string>
   files?: Array<string>
   plan?: string
+  kind?: 'design' | 'code'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -2894,6 +2937,7 @@ export type ChatContextArguments = {
     context: Array<string>
     files?: Array<string>
     plan?: string
+    kind?: 'design' | 'code'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -2918,6 +2962,7 @@ export type ChatContextArguments = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'designer'
     | 'fixer'
 }
 
@@ -3034,6 +3079,7 @@ export type ChatContextArgumentsFeature = {
     context: Array<string>
     files?: Array<string>
     plan?: string
+    kind?: 'design' | 'code'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -3114,6 +3160,7 @@ export type ChatContextArgumentsAgentRunFeature = {
     context: Array<string>
     files?: Array<string>
     plan?: string
+    kind?: 'design' | 'code'
     acceptance?: string
     proofPlan?: {
       kinds: Array<
@@ -3202,6 +3249,13 @@ export type VerificationTestFailure = {
   message?: string
 }
 
+export type VerificationFlakyTest = {
+  suite: string
+  module?: string
+  name?: string
+  message?: string
+}
+
 export type VerificationTestSuite = {
   name: string
   module?: string
@@ -3217,7 +3271,7 @@ export type VerificationTestReport = {
   count: VerificationTestCount
   suites: Array<VerificationTestSuite>
   suitesOmitted: number
-  timedOutSuites?: Array<string>
+  failingSuites?: Array<string>
 }
 
 export type VerificationTestReportMissingCause =
@@ -3274,6 +3328,7 @@ export type VerificationCheckResult = {
   }
   rerunReason?: string
   environmentNote?: string
+  flakyTests?: Array<VerificationFlakyTest>
   rewrittenFiles?: Array<string>
 }
 
@@ -3299,6 +3354,7 @@ export type RunVerification = {
   startedAt: number
   finishedAt: number
   sha?: string
+  environmentFingerprint?: string
   changedPaths?: Array<string>
 }
 
@@ -3514,6 +3570,19 @@ export type CliRunStatus =
   | 'aborted'
   | 'paused'
 
+export type UsageCompletenessReason =
+  | 'cursor-acp-no-usage'
+  | 'usage-not-reported'
+  | 'interrupted'
+  | 'fallback-model'
+  | 'stream-without-final'
+  | 'estimated-usage'
+  | 'turn-usage-only'
+  | 'counter-decreased'
+  | 'first-request-not-counted'
+  | 'output-not-reported'
+  | 'cache-not-reported'
+
 export type CliRunUsage = {
   tokensIn: number
   tokensOut: number
@@ -3521,6 +3590,46 @@ export type CliRunUsage = {
   cacheCreationTokens?: number
   cacheCreation1hTokens?: number
   outputTokensNotReported?: true
+  incompleteReasons?: Array<UsageCompletenessReason>
+}
+
+export type LlmCostSourceKind = 'api' | 'cli'
+
+export type UsageEventOrigin = {
+  source: LlmCostSourceKind
+  requestId?: string
+  runId?: string
+  attempt?: number
+  sessionId?: string
+  turn?: number
+  part?: string
+}
+
+export type ModelAttribution = 'exact' | 'fallback'
+
+export type AuthRoute = 'api-key' | 'subscription' | 'local'
+
+export type UsageEventToolCall = {
+  id: string
+  name: string
+}
+
+export type UsageEventProvenance = {
+  origin: UsageEventOrigin
+  usageAt: number
+  modelAttribution?: 'exact' | 'fallback'
+  completenessReasons?: Array<UsageCompletenessReason>
+  authRoute?: 'api-key' | 'subscription' | 'local'
+  cli?: {
+    name: string
+    version?: string
+  }
+  toolCalls?: Array<UsageEventToolCall>
+}
+
+export type CliLedgerEvent = {
+  spend: ModelSpend
+  provenance: UsageEventProvenance
 }
 
 export type CliModelTokens = {
@@ -3533,6 +3642,14 @@ export type CliModelTokens = {
   cacheWrite1hTokens?: number
   listCostUsd?: number
   outputTokensNotReported?: true
+  tokenFields?: {
+    input?: 'reported' | 'derived' | 'unavailable'
+    output?: 'reported' | 'derived' | 'unavailable'
+    cacheRead?: 'reported' | 'derived' | 'unavailable'
+    cacheWrite?: 'reported' | 'derived' | 'unavailable'
+  }
+  incompleteReasons?: Array<UsageCompletenessReason>
+  modelAttribution?: 'fallback'
 }
 
 export type CliBillingConflict = {
@@ -3547,6 +3664,7 @@ export type ModelInfo = {
   id: string
   label: string
   cli: CliTool
+  effortLevels?: Array<CliReasoningEffort>
   notes?: string
   isDefault?: boolean
   supportedEffortLevels?: Array<CliReasoningEffort>
@@ -3632,8 +3750,10 @@ export type CliRunSpend = {
     cacheCreationTokens?: number
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   modelUsage?: Array<ModelSpend>
+  ledgerEvents?: Array<CliLedgerEvent>
 }
 
 export type CliRunRetryHistoryEntry = {
@@ -3651,8 +3771,10 @@ export type CliRunRetryHistoryEntry = {
       cacheCreationTokens?: number
       cacheCreation1hTokens?: number
       outputTokensNotReported?: true
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     modelUsage?: Array<ModelSpend>
+    ledgerEvents?: Array<CliLedgerEvent>
   }
 }
 
@@ -3675,6 +3797,7 @@ export type CliRunReview = {
   mergedAt?: number
   mergeCommit?: string
   rejectedAt?: number
+  resolution?: string
   unfit?: {
     at: number
     paths: Array<string>
@@ -3687,12 +3810,14 @@ export type CliRunLandFailureReason =
   | 'detached-head'
   | 'commit-failed'
   | 'no-source-changes'
+  | 'already-on-base'
   | 'changes-not-applied'
   | 'error'
 
 export type CliRunLandFailure = {
   reason: CliRunLandFailureReason
   message?: string
+  baseRef?: string
   at: number
 }
 
@@ -3765,9 +3890,11 @@ export type CliRun = {
     cacheCreationTokens?: number
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   costUSD?: number
   modelUsage?: Array<ModelSpend>
+  ledgerEvents?: Array<CliLedgerEvent>
   billing?: 'subscription' | 'metered' | 'free'
   authSource?: string
   reportedModel?: string
@@ -3802,6 +3929,7 @@ export type CliRun = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    resolution?: string
     unfit?: {
       at: number
       paths: Array<string>
@@ -3811,6 +3939,7 @@ export type CliRun = {
   landFailure?: {
     reason: CliRunLandFailureReason
     message?: string
+    baseRef?: string
     at: number
   }
   verification?: {
@@ -3829,6 +3958,7 @@ export type CliRun = {
     startedAt: number
     finishedAt: number
     sha?: string
+    environmentFingerprint?: string
     changedPaths?: Array<string>
   }
   verdict?: {
@@ -3853,6 +3983,92 @@ export type CliRun = {
         scope: string
         group: string
       }
+}
+
+export type GitContainedBy = 'merged' | 'no-change' | 'tree' | 'patch-id' | 'reverse-apply'
+
+export type ChatReviewOnBase =
+  | {
+      kind: 'none'
+    }
+  | {
+      kind: 'resolved'
+      branch: string
+      tip: string
+      by: GitContainedBy
+      branchKept?: string
+    }
+  | {
+      kind: 'left-open'
+      branch: string
+      reason: string
+    }
+
+export type CliRunReviewResolvedBy = GitContainedBy | 'superseded' | 'person'
+
+export type CliRunReviewToBase =
+  | {
+      kind: 'none'
+    }
+  | {
+      kind: 'resolved'
+      branch: string
+      tip?: string
+      by: CliRunReviewResolvedBy
+      runIds: Array<string>
+      branchKept?: string
+    }
+  | {
+      kind: 'left-open'
+      branch: string
+      reason: string
+    }
+
+export type ResolveCliRunReviewToBaseInput = {
+  runId: string
+  repoPath: string
+  baseRef: string
+  recoveryLogPath: string
+  supersededBy?: string
+  force?: boolean
+}
+
+export type CliRunReviewOnBase =
+  | {
+      kind: 'none'
+    }
+  | {
+      kind: 'held'
+      branch: string
+      baseRef: string
+      by: GitContainedBy
+    }
+  | {
+      kind: 'superseded'
+      branch: string
+      baseRef: string
+      supersededBy: string
+    }
+  | {
+      kind: 'neither'
+      branch: string
+      baseRef: string
+      reason: string
+      paths?: Array<string>
+    }
+
+export type ReadCliRunReviewOnBaseInput = {
+  runId: string
+  repoPath: string
+  baseRef: string
+  supersededBy?: string
+}
+
+export type SettleCliRunReviewsInput = {
+  projectId: string
+  branch: string
+  reason: string
+  mergeCommit?: string
 }
 
 export type PruneCliAgentRunGroupsInput = {
@@ -3916,9 +4132,11 @@ export type CliRunSummary = {
     cacheCreationTokens?: number
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   costUSD?: number
   modelUsage?: Array<ModelSpend>
+  ledgerEvents?: Array<CliLedgerEvent>
   billing?: 'subscription' | 'metered' | 'free'
   authSource?: string
   reportedModel?: string
@@ -3953,6 +4171,7 @@ export type CliRunSummary = {
     mergedAt?: number
     mergeCommit?: string
     rejectedAt?: number
+    resolution?: string
     unfit?: {
       at: number
       paths: Array<string>
@@ -3962,6 +4181,7 @@ export type CliRunSummary = {
   landFailure?: {
     reason: CliRunLandFailureReason
     message?: string
+    baseRef?: string
     at: number
   }
   verification?: {
@@ -3980,6 +4200,7 @@ export type CliRunSummary = {
     startedAt: number
     finishedAt: number
     sha?: string
+    environmentFingerprint?: string
     changedPaths?: Array<string>
   }
   verdict?: {
@@ -4014,6 +4235,7 @@ export type CliRunArtifactCommit = {
   seamSha?: string
   seamError?: string
   empty?: true
+  ignored?: number
   unapplied?: Array<{
     path: string
     reason: string
@@ -4056,6 +4278,7 @@ export type ChatOpenChangesRebuild =
         mergedAt?: number
         mergeCommit?: string
         rejectedAt?: number
+        resolution?: string
         unfit?: {
           at: number
           paths: Array<string>
@@ -4128,9 +4351,11 @@ export type CliRunResult = {
     cacheCreationTokens?: number
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
   costUSD?: number
   modelUsage?: Array<ModelSpend>
+  ledgerEvents?: Array<CliLedgerEvent>
   billing?: 'subscription' | 'metered' | 'free'
   reportedModel?: string
   turnLimitReached?: 'max-turns'
@@ -4254,6 +4479,7 @@ export type CodexTokenCount = {
     cacheCreationTokens?: number
     cacheCreation1hTokens?: number
     outputTokensNotReported?: true
+    incompleteReasons?: Array<UsageCompletenessReason>
   }
 }
 
@@ -4533,9 +4759,11 @@ export type CliRunApproveResult = {
       cacheCreationTokens?: number
       cacheCreation1hTokens?: number
       outputTokensNotReported?: true
+      incompleteReasons?: Array<UsageCompletenessReason>
     }
     costUSD?: number
     modelUsage?: Array<ModelSpend>
+    ledgerEvents?: Array<CliLedgerEvent>
     billing?: 'subscription' | 'metered' | 'free'
     authSource?: string
     reportedModel?: string
@@ -4570,6 +4798,7 @@ export type CliRunApproveResult = {
       mergedAt?: number
       mergeCommit?: string
       rejectedAt?: number
+      resolution?: string
       unfit?: {
         at: number
         paths: Array<string>
@@ -4579,6 +4808,7 @@ export type CliRunApproveResult = {
     landFailure?: {
       reason: CliRunLandFailureReason
       message?: string
+      baseRef?: string
       at: number
     }
     verification?: {
@@ -4597,6 +4827,7 @@ export type CliRunApproveResult = {
       startedAt: number
       finishedAt: number
       sha?: string
+      environmentFingerprint?: string
       changedPaths?: Array<string>
     }
     verdict?: {
@@ -4683,6 +4914,23 @@ export type CliAuthVerdict = {
   authenticated: boolean
   reason?: 'auth-expired' | 'missing' | 'unknown'
   message?: string
+}
+
+export type CliLedgerWriteSummary = {
+  recorded: number
+  duplicate: number
+  failed: number
+  earliestRecordedUsageAt?: number
+}
+
+export type CliLedgerReconcileSummary = {
+  recorded: number
+  duplicate: number
+  failed: number
+  earliestRecordedUsageAt?: number
+  runs: number
+  backfilledRunIds: Array<string>
+  dailySummariesFromDay?: string
 }
 
 export type CliNativeSessionManifest = {
@@ -5457,10 +5705,11 @@ export type AnthropicRequestBody = {
     type: 'auto'
   }
   output_config?: {
-    format: {
+    format?: {
       type: 'json_schema'
       schema: JsonSchema
     }
+    effort?: string
   }
 }
 
@@ -5582,6 +5831,10 @@ export type OpenAiJsonSchemaFormat = {
 
 export type OpenAiRequestBody = {
   model: string
+  reasoning?: {
+    effort: string
+  }
+  reasoning_effort?: string
   tools?: Array<OpenAiResponsesTool> | Array<OpenAiChatTool>
   tool_choice?: 'auto'
   messages?: Array<OpenAiChatMessage>
@@ -5750,8 +6003,13 @@ export type GeminiRequestBody = {
     }
   }
   generationConfig?: {
-    responseMimeType: 'application/json'
-    responseJsonSchema: JsonSchema
+    responseMimeType?: 'application/json'
+    responseJsonSchema?: {
+      [key: string]: unknown
+    }
+    thinkingConfig?: {
+      thinkingLevel: 'low' | 'medium' | 'high'
+    }
   }
 }
 
@@ -6163,6 +6421,7 @@ export type LlmConfigEntry = {
   name: string
   provider: LlmProvider
   model: string
+  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiKey: string
   apiUrlOverride?: string
   costInputPerMTokensUSD?: number
@@ -6177,6 +6436,7 @@ export type LlmConfigCreateInput = {
   name: string
   provider: LlmProvider
   model: string
+  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiKey: string
   apiUrlOverride?: string
   costInputPerMTokensUSD?: number
@@ -6305,6 +6565,11 @@ export type CliConfigsActiveState = {
   effort?: {
     [key: string]: string
   }
+  modelEffort?: {
+    [key: string]: {
+      [key: string]: string
+    }
+  }
 }
 
 export type AgentRunnerKind = 'api' | 'cli'
@@ -6318,6 +6583,7 @@ export type RedactedLlmConfigEntry = {
   name: string
   provider: LlmProvider
   model: string
+  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiUrlOverride?: string
   costInputPerMTokensUSD?: number
   costOutputPerMTokensUSD?: number
@@ -7652,8 +7918,10 @@ export type FeatureRequestStatus =
   | 'accepted'
   | 'in_progress'
   | 'in_review'
+  | 'blocked'
   | 'completed'
   | 'failed'
+  | 'handed_over'
 
 export type FeatureRequestAcceptance = 'off' | 'manual' | 'autonomous'
 
@@ -7692,6 +7960,20 @@ export type FeatureRequestResult = {
   featureIds?: Array<string>
   reviewBranch?: string
   mergeCommit?: string
+}
+
+export type FeatureRequestDelivery = {
+  ref: string
+  note?: string
+  at: string
+}
+
+export type FeatureRequestHandover = {
+  projectId: string
+  ref: string
+  requestId?: string
+  note?: string
+  at: string
 }
 
 export type FeatureRequestCriterion = {
@@ -7733,7 +8015,16 @@ export type FeatureRequest = {
     parentRequestId?: string
   }
   acceptance: 'off' | 'manual' | 'autonomous'
-  status: 'pending' | 'rejected' | 'accepted' | 'in_progress' | 'in_review' | 'completed' | 'failed'
+  status:
+    | 'pending'
+    | 'rejected'
+    | 'accepted'
+    | 'in_progress'
+    | 'in_review'
+    | 'blocked'
+    | 'completed'
+    | 'failed'
+    | 'handed_over'
   handling?: {
     receiverChatContext?: {
       type: ChatContextType
@@ -7762,6 +8053,20 @@ export type FeatureRequest = {
     path: Array<string>
   }
   rejectionReason?: string
+  statusReason?: string
+  deliveredBy?: {
+    ref: string
+    note?: string
+    at: string
+  }
+  handedOverTo?: {
+    projectId: string
+    ref: string
+    requestId?: string
+    note?: string
+    at: string
+  }
+  takenOverFrom?: Array<string>
   resumeToken?: {
     [key: string]: unknown
   }
@@ -7803,8 +8108,10 @@ export type FeatureRequestPatch = {
     | 'accepted'
     | 'in_progress'
     | 'in_review'
+    | 'blocked'
     | 'completed'
     | 'failed'
+    | 'handed_over'
   handling?: {
     receiverChatContext?: {
       type: ChatContextType
@@ -7833,9 +8140,42 @@ export type FeatureRequestPatch = {
     path: Array<string>
   }
   rejectionReason?: string
+  statusReason?: string
+  deliveredBy?: {
+    ref: string
+    note?: string
+    at: string
+  }
+  handedOverTo?: {
+    projectId: string
+    ref: string
+    requestId?: string
+    note?: string
+    at: string
+  }
+  takenOverFrom?: Array<string>
   resumeToken?: {
     [key: string]: unknown
   }
+}
+
+export type FeatureRequestOutcomeInput = {
+  features?: Array<{
+    title: string
+    status: Status
+    questions?: Array<FeatureQuestion>
+  }>
+  review?: {
+    landedAt?: number
+    mergedAt?: number
+    rejectedAt?: number
+  }
+  rejection?: string
+}
+
+export type FeatureRequestOutcome = {
+  status: 'in_review' | 'blocked' | 'completed'
+  reason?: string
 }
 
 export type FeatureRequestCandidate = {
@@ -8113,6 +8453,88 @@ export type AzureDevOpsPullRequest = {
   pullRequestId: number
   url: string
 }
+
+export type GitBranchTip = {
+  branch: string
+  tip: string
+}
+
+export type GitBranchRecoveryRecord = {
+  at: number
+  repoPath: string
+  branch: string
+  tip: string
+  reason: string
+  kept?: boolean
+}
+
+export type GitBranchRemoval =
+  | {
+      kind: 'removed'
+      branch: string
+      tip: string
+      base: string
+      by: GitContainedBy
+    }
+  | {
+      kind: 'would-remove'
+      branch: string
+      tip: string
+      base: string
+      by: GitContainedBy
+    }
+  | {
+      kind: 'kept-unique'
+      branch: string
+      tip: string
+      base: string
+      paths: Array<string>
+    }
+  | {
+      kind: 'kept-unreadable'
+      branch: string
+      reason: string
+    }
+  | {
+      kind: 'kept-refused'
+      branch: string
+      tip: string
+      reason: string
+    }
+
+export type GitContainment =
+  | {
+      kind: 'contained'
+      tip: string
+      baseTip: string
+      by: GitContainedBy
+    }
+  | {
+      kind: 'not-contained'
+      tip: string
+      baseTip: string
+      paths: Array<string>
+    }
+  | {
+      kind: 'unreadable'
+      reason: string
+    }
+
+export type GitSupersession =
+  | {
+      kind: 'superseded'
+      tip: string
+      paths: Array<string>
+    }
+  | {
+      kind: 'not-superseded'
+      tip: string
+      paths: Array<string>
+    }
+  | {
+      kind: 'unreadable'
+      reason: string
+    }
 
 export type GitExecResult = {
   code: number
@@ -9203,6 +9625,7 @@ export type InferenceRequest = {
   systemPrompt: string
   userContent: string
   model: ModelSelection
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   chatContext?: {
     type: ChatContextType
     groupId?: string
@@ -9253,6 +9676,13 @@ export type InferenceResult = {
       listCostUsd?: number
       outputTokensNotReported?: true
       tokensNotReported?: true
+      tokenFields?: {
+        input?: 'reported' | 'derived' | 'unavailable'
+        output?: 'reported' | 'derived' | 'unavailable'
+        cacheRead?: 'reported' | 'derived' | 'unavailable'
+        cacheWrite?: 'reported' | 'derived' | 'unavailable'
+      }
+      priceSource?: 'provider-reported' | 'price-table' | 'unknown'
     }>
   }
 }
@@ -9466,6 +9896,41 @@ export type CostModelRef = {
   label?: string
 }
 
+export type UsageCompleteness = 'complete' | 'partial' | 'unavailable'
+
+export type ChargeStatus = 'confirmed-amount' | 'included-in-plan-confirmed' | 'unknown'
+
+export type ToolAllocationUnattributedReason = 'no-tool-calls' | 'no-metadata' | 'cli-run-level'
+
+export type ToolCallAllocation = {
+  index: number
+  toolCallId: string
+  toolName: string
+  usageFromAverageCost: boolean
+  usage: {
+    promptTokens?: number
+    completionTokens?: number
+    cachedReadInputTokens?: number
+    cacheWriteInputTokens?: number
+  }
+  costMicroUSD?: number
+  listCostMicroUSD?: number
+}
+
+export type ResponseToolAllocation =
+  | {
+      attributed: true
+      basis: 'requesting-response'
+      toolCallCount: number
+      allocations: Array<ToolCallAllocation>
+    }
+  | {
+      attributed: false
+      reason: ToolAllocationUnattributedReason
+    }
+
+export type UsageEventWriteOutcome = 'recorded' | 'duplicate' | 'no-ledger' | 'failed'
+
 export type PricingState = {
   updatedAt: string
   prices: Array<ModelPrice>
@@ -9477,16 +9942,14 @@ export type PricingConfig = {
   }
 }
 
-export type LlmCostSourceKind = 'api' | 'cli'
-
 export type LlmCostLedgerEntryContent = {
   costUSD?: number
   listCostUSD?: number
   billing?: 'subscription' | 'metered' | 'free'
   usage: {
-    promptTokens: number
-    completionTokens: number
-    cachedReadInputTokens: number
+    promptTokens?: number
+    completionTokens?: number
+    cachedReadInputTokens?: number
     cacheWriteInputTokens?: number
   }
   outputTokensNotReported?: true
@@ -9497,6 +9960,36 @@ export type LlmCostLedgerEntryContent = {
   sourceExtra?: string
   chatKeys: Array<string>
   recordedAt: number
+  originId?: string
+  origin?: {
+    source: LlmCostSourceKind
+    requestId?: string
+    runId?: string
+    attempt?: number
+    sessionId?: string
+    turn?: number
+    part?: string
+  }
+  usageAt?: number
+  tokenFields?: {
+    input: UsageTokenFieldStatus
+    output: UsageTokenFieldStatus
+    cacheRead: UsageTokenFieldStatus
+    cacheWrite: UsageTokenFieldStatus
+  }
+  completeness?: 'complete' | 'partial' | 'unavailable'
+  completenessReasons?: Array<UsageCompletenessReason>
+  authRoute?: 'api-key' | 'subscription' | 'local'
+  chargeStatus?: 'confirmed-amount' | 'included-in-plan-confirmed' | 'unknown'
+  priceSource?: 'provider-reported' | 'price-table' | 'unknown'
+  modelAttribution?: 'exact' | 'fallback'
+  cli?: {
+    name: string
+    version?: string
+  }
+  toolCallCount?: number
+  toolCalls?: Array<UsageEventToolCall>
+  pendingChatKeys?: Array<string>
 }
 
 export type CostLedgerPlacement = {
@@ -9537,6 +10030,7 @@ export type LlmCostBreakdown = {
   unlistedTokens?: number
   outputTokensNotReported?: true
   tokensNotReported?: true
+  tokenFieldsNotReported?: Array<UsageTokenField>
   billing?: 'subscription' | 'metered' | 'free'
 }
 
@@ -9571,6 +10065,7 @@ export type LlmCostAggregateContent = {
       unlistedTokens?: number
       outputTokensNotReported?: true
       tokensNotReported?: true
+      tokenFieldsNotReported?: Array<UsageTokenField>
       billing?: 'subscription' | 'metered' | 'free'
     }
     cli?: {
@@ -9589,9 +10084,11 @@ export type LlmCostAggregateContent = {
       unlistedTokens?: number
       outputTokensNotReported?: true
       tokensNotReported?: true
+      tokenFieldsNotReported?: Array<UsageTokenField>
       billing?: 'subscription' | 'metered' | 'free'
     }
   }
+  foldedOriginIds?: Array<string>
 }
 
 export type LlmCostAggregateEntity = {
@@ -9606,6 +10103,187 @@ export type LlmCostAggregateEntity = {
   metadata?: {
     [key: string]: unknown
   }
+}
+
+export type DailyTokenFieldTotal = {
+  known: number
+  unavailable: number
+}
+
+export type DailyUsageMeasures = {
+  count: number
+  tokens: {
+    input: DailyTokenFieldTotal
+    output: DailyTokenFieldTotal
+    cacheRead: DailyTokenFieldTotal
+    cacheWrite: DailyTokenFieldTotal
+  }
+  chargedMicroUSD: number
+  chargeUnknown: number
+  listValueMicroUSD: number
+  listValueUnknown: number
+}
+
+export type DailyUsageTotals = {
+  count: number
+  tokens: {
+    input: DailyTokenFieldTotal
+    output: DailyTokenFieldTotal
+    cacheRead: DailyTokenFieldTotal
+    cacheWrite: DailyTokenFieldTotal
+  }
+  chargedMicroUSD: number
+  chargeUnknown: number
+  listValueMicroUSD: number
+  listValueUnknown: number
+  byChargeStatus: {
+    'confirmed-amount': {
+      events: number
+      chargedMicroUSD: number
+    }
+    'included-in-plan-confirmed': {
+      events: number
+      chargedMicroUSD: number
+    }
+    unknown: {
+      events: number
+    }
+  }
+  byCompleteness: {
+    complete: number
+    partial: number
+    unavailable: number
+  }
+}
+
+export type DailyCacheEfficiency = {
+  eligibleEvents: number
+  eligibleInputTokens: number
+  eligibleCacheReadTokens: number
+  cacheReadShare?: number
+  cacheReadUnavailableEvents: number
+  ineligibleEvents: number
+}
+
+export type DailyUsageCohort = {
+  source: LlmCostSourceKind
+  provider: string
+  model: string
+  totals: DailyUsageTotals
+  cacheEfficiency: DailyCacheEfficiency
+}
+
+export type CacheAnomalyThresholds = {
+  minEligibleInputTokens: number
+  minEligibleEvents: number
+  baselineDays: number
+  minBaselineDays: number
+  lookbackDays: number
+  minAbsoluteChange: number
+  minRelativeChange: number
+  maxIneligibleEventShare: number
+}
+
+export type CacheAnomalyRule = {
+  ruleVersion: number
+  thresholds: CacheAnomalyThresholds
+}
+
+export type CacheEfficiencyAnomaly = {
+  source: LlmCostSourceKind
+  provider: string
+  model: string
+  kind: 'spike' | 'drop'
+  metric: 'cache-read-share'
+  share: number
+  baseline: number
+  absoluteChange: number
+  relativeChange: number | unknown
+  baselineDays: Array<string>
+  eligibleEvents: number
+  eligibleInputTokens: number
+  eligibleCacheReadTokens: number
+  rule: CacheAnomalyRule
+}
+
+export type DailyToolTotals = {
+  toolName: string
+  directOnly: DailyUsageMeasures
+  includingAveraged: DailyUsageMeasures & {
+    averagedCalls: number
+  }
+}
+
+export type LlmDailyUsageSummaryContent = {
+  chatKey: string
+  day: string
+  rulesVersion: number
+  total: DailyUsageTotals
+  cohorts: Array<DailyUsageCohort>
+  tools: Array<DailyToolTotals>
+  unattributed: {
+    'no-tool-calls': DailyUsageMeasures
+    'no-metadata': DailyUsageMeasures
+    'cli-run-level': DailyUsageMeasures
+  }
+  cacheAnomalyRule: CacheAnomalyRule
+  cacheAnomalies: Array<CacheEfficiencyAnomaly>
+}
+
+export type LlmDailyUsageSummaryEntity = {
+  id: string
+  projectId: string
+  type: string & 'cost-daily-summary'
+  shouldEmbed: boolean
+  content: unknown & LlmDailyUsageSummaryContent
+  externalKey?: string | unknown
+  createdAt: string
+  updatedAt: string
+  metadata?: {
+    [key: string]: unknown
+  }
+}
+
+export type LlmDailyUsageSummaryStateContent = {
+  chatKey: string
+  latestDay: string
+  rulesVersion: number
+  cacheAnomalyRule?: {
+    ruleVersion: number
+    thresholds: CacheAnomalyThresholds
+  }
+}
+
+export type DailyUsageRecomputeOptions = {
+  fromDay?: string
+  full?: boolean
+  now?: number
+  cacheAnomalyThresholds?: {
+    minEligibleInputTokens?: number
+    minEligibleEvents?: number
+    baselineDays?: number
+    minBaselineDays?: number
+    lookbackDays?: number
+    minAbsoluteChange?: number
+    minRelativeChange?: number
+    maxIneligibleEventShare?: number
+  }
+}
+
+export type DailyUsageRecomputeResult = {
+  days: Array<string>
+  events: number
+  rulesVersion: number
+}
+
+export type PendingFoldSweepOptions = {
+  since: number
+}
+
+export type PendingFoldSweepResult = {
+  pending: number
+  finished: number
+  failed: number
 }
 
 export type LoggerConfig = {
@@ -9732,6 +10410,15 @@ export type MergeBranchWithChecksOutcome = {
     checks: Array<VerificationCheckResult>
   }
 }
+
+export type MergeRegenerateOutcome =
+  | {
+      ok: true
+    }
+  | {
+      ok: false
+      reason: string
+    }
 
 export type MobilePlatform = 'android' | 'ios'
 
@@ -10309,6 +10996,88 @@ export type ProcessManagerHold = {
   until: number
 }
 
+export type ProcessManagerLastEscalation = {
+  signature: string
+  at: number
+}
+
+export type ProcessEntryCost = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+}
+
+export type ProcessToolTime = {
+  name: string
+  calls: number
+  ms: number
+}
+
+export type ProcessEntryTime = {
+  agentMs: number
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  tools: Array<ProcessToolTime>
+}
+
+export type ProcessManagerTurnCost = {
+  runId: string
+  parkedAt: number
+  turnStartedAt: number
+  from: number
+  to: number
+  cost?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+  }
+  time?: {
+    agentMs: number
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    tools: Array<ProcessToolTime>
+  }
+}
+
+export type ProcessTimeBreakdown = {
+  thinkingMs: number
+  toolMs: number
+  systemMs: number
+  otherMs: number
+  runningMs: number
+  waitingMs: number
+  queuedMs?: number
+  tools: Array<ProcessToolTime>
+}
+
+export type ProcessManagerTotals = {
+  costUsd?: number
+  unpricedTokens?: number
+  includedTokens?: number
+  listCostUsd?: number
+  byModel?: Array<ModelSpend>
+  turns: number
+  workMs: number
+  time: {
+    thinkingMs: number
+    toolMs: number
+    systemMs: number
+    otherMs: number
+    runningMs: number
+    waitingMs: number
+    queuedMs?: number
+    tools: Array<ProcessToolTime>
+  }
+}
+
 export type ProcessManagerWaitingAsk = {
   actionId: string
   toolName: string
@@ -10435,6 +11204,11 @@ export type ProcessRunManager = {
     recommendedChoice?: ProcessResumeChoice | 'delegate'
     startError?: string
   }
+  lastEscalated?: {
+    signature: string
+    at: number
+  }
+  turnCosts?: Array<ProcessManagerTurnCost>
   preRead?: {
     runId: string
     parkedAt: number
@@ -10560,6 +11334,11 @@ export type ProcessManagerRun = {
       recommendedChoice?: ProcessResumeChoice | 'delegate'
       startError?: string
     }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
       parkedAt: number
@@ -10645,7 +11424,11 @@ export type ProcessIntegrationLanding = {
 
 export type ProcessDecisionClient = 'web' | 'desktop' | 'mobile'
 
-export type ProcessPersonDecisionVia = ProcessDecisionClient | 'chat' | 'feature-question'
+export type ProcessPersonDecisionVia =
+  | ProcessDecisionClient
+  | 'chat'
+  | 'feature-question'
+  | 'design'
 
 export type ProcessDecisionAttribution =
   | {
@@ -10767,6 +11550,7 @@ export type ProcessRunIntegration = {
     sha?: string
     checks: Array<VerificationCheckResult>
   }
+  regenerated?: Array<string>
   at: number
 }
 
@@ -10792,6 +11576,7 @@ export type ProcessStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
+  gateKind?: 'design'
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
@@ -10801,6 +11586,7 @@ export type ProcessSubject = {
   kind: 'feature'
   id: string
   title: string
+  work?: 'design'
 }
 
 export type ProcessPlanStep = {
@@ -10811,6 +11597,7 @@ export type ProcessPlanStep = {
   enabled?: boolean
   agentType?: string
   slot?: 'implementer' | 'verifier'
+  gateKind?: 'design'
   processId?: string
   expand?: 'features'
   onlyWhenSentBack?: boolean
@@ -10818,6 +11605,7 @@ export type ProcessPlanStep = {
     kind: 'feature'
     id: string
     title: string
+    work?: 'design'
   }
   agentRole?:
     | 'developer'
@@ -10827,6 +11615,7 @@ export type ProcessPlanStep = {
     | 'judge'
     | 'remedy'
     | 'report'
+    | 'designer'
     | 'fixer'
   agentProves?: false
 }
@@ -10910,8 +11699,15 @@ export type ProcessRunReopening = {
       sha?: string
       checks: Array<VerificationCheckResult>
     }
+    regenerated?: Array<string>
     at: number
   }
+}
+
+export type ProcessResolutionReview = {
+  conflict: ProcessBaseConflict
+  checksStepId: string
+  resolverStepId?: string
 }
 
 export type ProcessPlanAmendment = {
@@ -10983,6 +11779,7 @@ export type ProcessPlanAmendment = {
         sha?: string
         checks: Array<VerificationCheckResult>
       }
+      regenerated?: Array<string>
       at: number
     }
   }
@@ -10994,6 +11791,11 @@ export type ProcessPlanAmendment = {
     workSha?: string
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
+  }
+  resolutionReview?: {
+    conflict: ProcessBaseConflict
+    checksStepId: string
+    resolverStepId?: string
   }
   loopCountsReset?: {
     [key: string]: number
@@ -11085,7 +11887,7 @@ export type ProcessRunClosure = {
 } & (
   | {
       decidedBy?: 'person'
-      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
     }
   | {
       decidedBy?: 'agent'
@@ -11130,7 +11932,7 @@ export type ProcessWaitingItemAnswer = {
 } & (
   | {
       decidedBy?: 'person'
-      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+      decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
     }
   | {
       decidedBy?: 'agent'
@@ -11157,7 +11959,7 @@ export type ProcessWaitingItem = {
   } & (
     | {
         decidedBy?: 'person'
-        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question'
+        decidedVia?: ProcessDecisionClient | 'chat' | 'feature-question' | 'design'
       }
     | {
         decidedBy?: 'agent'
@@ -11306,12 +12108,22 @@ export type ReviewEvidenceVerdict = 'approved' | 'changes-requested' | 'rejected
 export type ProcessReviewVerdict = {
   verdict: ReviewEvidenceVerdict
   reason?: string
+  headSha?: string
 }
 
 export type ProcessAlreadyMet = {
   checks: Array<ProjectCheckKind>
   evidence: string
   sha?: string
+}
+
+export type ProjectCheckNotCausedCause = 'not-reproducible' | 'pre-existing' | 'environment'
+
+export type ProjectCheckNotCausedReport = {
+  check: ProjectCheckKind
+  cause: ProjectCheckNotCausedCause
+  evidence: string
+  reportedAt: number
 }
 
 export type ProcessBaseUpdate = {
@@ -11321,29 +12133,6 @@ export type ProcessBaseUpdate = {
   sha: string
   at: number
   exportsUnchecked?: Array<string>
-}
-
-export type ProcessEntryCost = {
-  costUsd?: number
-  unpricedTokens?: number
-  includedTokens?: number
-  listCostUsd?: number
-  byModel?: Array<ModelSpend>
-}
-
-export type ProcessToolTime = {
-  name: string
-  calls: number
-  ms: number
-}
-
-export type ProcessEntryTime = {
-  agentMs: number
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  tools: Array<ProcessToolTime>
 }
 
 export type ProcessAgentStop = 'turn-limit' | 'interrupted'
@@ -11482,7 +12271,9 @@ export type ProcessLedgerEntry = {
   review?: {
     verdict: ReviewEvidenceVerdict
     reason?: string
+    headSha?: string
   }
+  outsideScope?: Array<string>
   alreadyMet?: {
     checks: Array<ProjectCheckKind>
     evidence: string
@@ -11490,6 +12281,9 @@ export type ProcessLedgerEntry = {
   }
   checks?: Array<VerificationCheckResult>
   checkedSha?: string
+  checkedEnvironment?: string
+  reusedChecksOf?: string
+  notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
     baseRef: string
     baseSha: string
@@ -11615,17 +12409,7 @@ export type ProcessPark = {
     keptOneSide?: Array<ProcessKeptOneSide>
     lostExports?: Array<CodeIntelExportedSymbol>
   }
-}
-
-export type ProcessTimeBreakdown = {
-  thinkingMs: number
-  toolMs: number
-  systemMs: number
-  otherMs: number
-  runningMs: number
-  waitingMs: number
-  queuedMs?: number
-  tools: Array<ProcessToolTime>
+  waitingOn?: Array<string>
 }
 
 export type ProcessAttemptTotals = {
@@ -11690,6 +12474,25 @@ export type ProcessRunTotals = {
   at: number
   steps: {
     [key: string]: ProcessStepTotals
+  }
+  manager?: {
+    costUsd?: number
+    unpricedTokens?: number
+    includedTokens?: number
+    listCostUsd?: number
+    byModel?: Array<ModelSpend>
+    turns: number
+    workMs: number
+    time: {
+      thinkingMs: number
+      toolMs: number
+      systemMs: number
+      otherMs: number
+      runningMs: number
+      waitingMs: number
+      queuedMs?: number
+      tools: Array<ProcessToolTime>
+    }
   }
 }
 
@@ -11874,6 +12677,7 @@ export type ProcessRun = {
       sha?: string
       checks: Array<VerificationCheckResult>
     }
+    regenerated?: Array<string>
     at: number
   }
   plan: ProcessPlan
@@ -11928,7 +12732,7 @@ export type ProcessRun = {
   } & (
     | {
         decidedBy?: 'person'
-        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question' | 'design'
       }
     | {
         decidedBy?: 'agent'
@@ -12000,6 +12804,7 @@ export type ProcessRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
   startedAt: number
   updatedAt: number
@@ -12027,6 +12832,25 @@ export type ProcessRun = {
     at: number
     steps: {
       [key: string]: ProcessStepTotals
+    }
+    manager?: {
+      costUsd?: number
+      unpricedTokens?: number
+      includedTokens?: number
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
+      turns: number
+      workMs: number
+      time: {
+        thinkingMs: number
+        toolMs: number
+        systemMs: number
+        otherMs: number
+        runningMs: number
+        waitingMs: number
+        queuedMs?: number
+        tools: Array<ProcessToolTime>
+      }
     }
   }
   baseUpdates?: Array<ProcessBaseUpdate>
@@ -12119,6 +12943,11 @@ export type ProcessRun = {
       recommendedChoice?: ProcessResumeChoice | 'delegate'
       startError?: string
     }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
       parkedAt: number
@@ -12193,6 +13022,7 @@ export type ProcessManagerCardStandingRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
   manager?: {
     interventions?: Array<ProcessManagerIntervention>
@@ -12262,6 +13092,11 @@ export type ProcessManagerCardStandingRun = {
       recommendedChoice?: ProcessResumeChoice | 'delegate'
       startError?: string
     }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
       parkedAt: number
@@ -12352,6 +13187,11 @@ export type ProcessManagerBriefInput = {
         recommendedChoice?: ProcessResumeChoice | 'delegate'
         startError?: string
       }
+      lastEscalated?: {
+        signature: string
+        at: number
+      }
+      turnCosts?: Array<ProcessManagerTurnCost>
       preRead?: {
         runId: string
         parkedAt: number
@@ -12869,6 +13709,12 @@ export type ProjectCheckTestReportRead =
       missing: VerificationTestReportMissingCause
     }
 
+export type ProjectCheckRerunInput = {
+  failing: Array<string>
+  rerun: Array<string>
+  againFailing?: Array<string>
+}
+
 export type NodePackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
 export type ProjectCheckTestFilter = {
@@ -12876,6 +13722,12 @@ export type ProjectCheckTestFilter = {
   each: Array<string>
   join?: string
   describe: string
+}
+
+export type ProjectCheckPreStep = {
+  argv: Array<string>
+  command: string
+  source: string
 }
 
 export type ProjectCheck = {
@@ -12905,6 +13757,7 @@ export type ProjectCheck = {
   }
   modules?: Array<string>
   coverageNote?: string
+  preSteps?: Array<ProjectCheckPreStep>
 }
 
 export type AndroidBuildVariant = {
@@ -13013,6 +13866,31 @@ export type ProjectCheckRunMemory = {
   hostReason?: string
 }
 
+export type ProjectCheckFlakeFeature = {
+  storyId: string
+  featureId: string
+  title: string
+  filedAt: number
+}
+
+export type ProjectCheckKnownFlake = {
+  key: string
+  suite: string
+  module?: string
+  name?: string
+  message?: string
+  count: number
+  firstSeenAt: number
+  lastSeenAt: number
+  runs: Array<string>
+  feature?: {
+    storyId: string
+    featureId: string
+    title: string
+    filedAt: number
+  }
+}
+
 export type ProjectChecksRecord = {
   ecosystem: 'node' | 'python' | 'android' | 'ios' | 'jvm' | 'go' | 'rust' | 'unknown'
   checks: Array<ProjectCheck>
@@ -13028,6 +13906,7 @@ export type ProjectChecksRecord = {
   fingerprint: string
   probes: Array<ProjectCheckProbe>
   lastRuns: Array<ProjectCheckRunMemory>
+  knownFlakes?: Array<ProjectCheckKnownFlake>
 }
 
 export type ProjectCheckPlacement = {
@@ -13053,6 +13932,7 @@ export type ProjectChecksListing = {
   head: string
   fingerprint: string
   lastRuns: Array<ProjectCheckRunMemory>
+  knownFlakes?: Array<ProjectCheckKnownFlake>
   freshness: 'stored' | 'scanned'
   placements?: Array<ProjectCheckPlacement>
 }
@@ -13096,15 +13976,6 @@ export type RunProjectChecksAtRefOptions = {
 export type ProjectChecksGateResult = {
   scan: ProjectChecksScan
   verification: RunVerification
-}
-
-export type ProjectCheckNotCausedCause = 'not-reproducible' | 'pre-existing' | 'environment'
-
-export type ProjectCheckNotCausedReport = {
-  check: ProjectCheckKind
-  cause: ProjectCheckNotCausedCause
-  evidence: string
-  reportedAt: number
 }
 
 export type ProjectCheckAlreadyMetReport = {
@@ -13279,10 +14150,20 @@ export type ProofPlanStepFact = {
   summary?: string
 }
 
+export type ProofPlanChecksAcceptance = {
+  by?: 'person' | 'agent' | 'manager'
+  note?: string
+}
+
 export type ProofPlanChecksFact = {
   outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
   summary?: string
   results: Array<VerificationCheckResult>
+  accepted?: {
+    by?: 'person' | 'agent' | 'manager'
+    note?: string
+  }
+  notCaused?: Array<ProjectCheckNotCausedReport>
 }
 
 export type ProofPlanReviewFact = {
@@ -13314,6 +14195,11 @@ export type ProofPlanFacts = {
     outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
     summary?: string
     results: Array<VerificationCheckResult>
+    accepted?: {
+      by?: 'person' | 'agent' | 'manager'
+      note?: string
+    }
+    notCaused?: Array<ProjectCheckNotCausedReport>
   }
   review?: {
     outcome: 'passed' | 'failed' | 'unchecked' | 'waiting' | 'skipped' | 'errored'
@@ -14992,6 +15878,7 @@ export type VerifyProductImageryParams = {
     | {
         kind: 'api'
         llmConfig: LlmConfig
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       }
     | {
         kind: 'cli'
@@ -15970,6 +16857,7 @@ export type CliRunFilter = {
   storyId?: string
   status?: 'running' | 'awaiting-approval' | 'succeeded' | 'errored' | 'aborted' | 'paused'
   chatContextId?: string
+  createdSince?: number
 }
 
 export type CliRunFilterable = {
@@ -15977,6 +16865,7 @@ export type CliRunFilterable = {
   storyId?: string
   status: CliRunStatus
   chatContextId?: string
+  createdAt: number
 }
 
 export type ProjectStorageUsage = {
@@ -16021,6 +16910,7 @@ export type FeatureCreateInput = {
 } & {
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
+  kind?: 'design' | 'code'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -16041,6 +16931,7 @@ export type FeatureEditInput = {
 } & {
   status?: 'pending' | 'in_progress' | 'reviewable' | 'done' | 'blocked' | 'deferred'
   plan?: string
+  kind?: 'design' | 'code'
   acceptance?: string
   proofPlan?: {
     kinds: Array<
@@ -16093,6 +16984,8 @@ export type FeatureTransitionEvent =
   | 'process-deleted'
   | 'reopened'
   | 'sent-back'
+  | 'delivered-elsewhere'
+  | 'handed-over'
 
 export type FeatureTransitionOptions = {
   note?: string
@@ -16268,6 +17161,7 @@ export type WorkableFeature = {
   title: string
   status: Status
   blockers?: Array<string>
+  kind?: 'design' | 'code'
 }
 
 export type CreateTestTempDirOptions = {
@@ -16695,6 +17589,7 @@ export type ToolName =
   | 'setCliEnabled'
   | 'setCliDefaultModel'
   | 'setCliEffort'
+  | 'setCliModelEffort'
   | 'getActiveRunnerKind'
   | 'setActiveRunnerKind'
   | 'listWebSearchKeys'
@@ -16815,6 +17710,9 @@ export type ToolName =
   | 'priceSpend'
   | 'getCost'
   | 'getCostSince'
+  | 'recomputeDailySummaries'
+  | 'sweepPendingFolds'
+  | 'getDailySummaries'
   | 'listPrices'
   | 'upsertPrices'
   | 'getPrice'
@@ -16946,6 +17844,8 @@ export type ToolName =
   | 'listStoryNotes'
   | 'listStories'
   | 'deleteStory'
+  | 'setFeatureStatus'
+  | 'removeBlocker'
   | 'addStoryNote'
   | 'updateStoryNote'
   | 'removeStoryNote'
@@ -17656,6 +18556,7 @@ export type CloseRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
 } & {
   storyId?: string
@@ -17728,6 +18629,7 @@ export type ProofChangeRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
   plan: ProcessPlan
   ledger: Array<ProcessLedgerEntry>
@@ -17799,6 +18701,7 @@ export type RecheckRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
 } & {
   workBranchTip?: string
@@ -17838,7 +18741,7 @@ export type ClosureRun = {
   } & (
     | {
         decidedBy?: 'person'
-        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question' | 'design'
       }
     | {
         decidedBy?: 'agent'
@@ -17914,6 +18817,7 @@ export type ClosureRun = {
       sha?: string
       checks: Array<VerificationCheckResult>
     }
+    regenerated?: Array<string>
     at: number
   }
 }
@@ -17938,6 +18842,28 @@ export type ProcessDefinition = {
 export type ProcessLaunchContext = {
   features?: Array<ProcessSubject>
   featureProcessId?: string
+}
+
+export type ProcessResolutionChange = {
+  reviewedSha: string
+  baseSha: string
+  tipSha: string
+  files: Array<string>
+  generated: Array<string>
+  diff: string
+}
+
+export type ProcessBaseFailure = {
+  baseRef: string
+  baseSha?: string
+  key: string
+  keys: Array<string>
+  headline: string
+}
+
+export type ProcessBaseFixInput = {
+  key: string
+  baseRef: string
 }
 
 export type ProcessRunModelSwitch = {
@@ -17988,6 +18914,14 @@ export type ProcessOpenWork = {
   startedAt: number
 }
 
+export type ProcessFeatureDelivery = {
+  featureId: string
+  featureTitle: string
+  runId: string
+  runTitle: string
+  sha?: string
+}
+
 export type ProcessOpenWorkDecision = {
   openWork: ProcessOpenWorkChoice
   runId: string
@@ -18009,6 +18943,28 @@ export type ProcessLaunchDecision = {
   agentTypeSlots?: {
     implementer?: string
     verifier?: string
+  }
+}
+
+export type ProcessLaunchOverlapRun = {
+  runId: string
+  title: string
+  branch?: string
+  files: Array<string>
+}
+
+export type ProcessLaunchOverlapBase = {
+  baseRef: string
+  commits: number
+  files: Array<string>
+}
+
+export type ProcessLaunchOverlap = {
+  runs: Array<ProcessLaunchOverlapRun>
+  base?: {
+    baseRef: string
+    commits: number
+    files: Array<string>
   }
 }
 
@@ -18164,6 +19120,7 @@ export type ProcessRunChatState = {
     head: string
     fingerprint: string
     lastRuns: Array<ProjectCheckRunMemory>
+    knownFlakes?: Array<ProjectCheckKnownFlake>
     freshness: 'stored' | 'scanned'
     placements?: Array<ProjectCheckPlacement>
   }
@@ -18249,6 +19206,7 @@ export type ProcessRunChatState = {
         sha?: string
         checks: Array<VerificationCheckResult>
       }
+      regenerated?: Array<string>
       at: number
     }
     plan: ProcessPlan
@@ -18303,7 +19261,7 @@ export type ProcessRunChatState = {
     } & (
       | {
           decidedBy?: 'person'
-          decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+          decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question' | 'design'
         }
       | {
           decidedBy?: 'agent'
@@ -18375,6 +19333,7 @@ export type ProcessRunChatState = {
         keptOneSide?: Array<ProcessKeptOneSide>
         lostExports?: Array<CodeIntelExportedSymbol>
       }
+      waitingOn?: Array<string>
     }
     startedAt: number
     updatedAt: number
@@ -18402,6 +19361,25 @@ export type ProcessRunChatState = {
       at: number
       steps: {
         [key: string]: ProcessStepTotals
+      }
+      manager?: {
+        costUsd?: number
+        unpricedTokens?: number
+        includedTokens?: number
+        listCostUsd?: number
+        byModel?: Array<ModelSpend>
+        turns: number
+        workMs: number
+        time: {
+          thinkingMs: number
+          toolMs: number
+          systemMs: number
+          otherMs: number
+          runningMs: number
+          waitingMs: number
+          queuedMs?: number
+          tools: Array<ProcessToolTime>
+        }
       }
     }
     baseUpdates?: Array<ProcessBaseUpdate>
@@ -18494,6 +19472,11 @@ export type ProcessRunChatState = {
         recommendedChoice?: ProcessResumeChoice | 'delegate'
         startError?: string
       }
+      lastEscalated?: {
+        signature: string
+        at: number
+      }
+      turnCosts?: Array<ProcessManagerTurnCost>
       preRead?: {
         runId: string
         parkedAt: number
@@ -18840,6 +19823,7 @@ export type ProcessIntegrationOutcome = {
     sha?: string
     checks: Array<VerificationCheckResult>
   }
+  regenerated?: Array<string>
 }
 
 export type ProcessWorkBranchReplay = {
@@ -18941,6 +19925,7 @@ export type ProcessRunSummary = {
       sha?: string
       checks: Array<VerificationCheckResult>
     }
+    regenerated?: Array<string>
     at: number
   }
   plan: ProcessPlan
@@ -18993,7 +19978,7 @@ export type ProcessRunSummary = {
   } & (
     | {
         decidedBy?: 'person'
-        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question'
+        decidedVia?: 'web' | 'desktop' | 'mobile' | 'chat' | 'feature-question' | 'design'
       }
     | {
         decidedBy?: 'agent'
@@ -19065,6 +20050,7 @@ export type ProcessRunSummary = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
   startedAt: number
   updatedAt: number
@@ -19092,6 +20078,25 @@ export type ProcessRunSummary = {
     at: number
     steps: {
       [key: string]: ProcessStepTotals
+    }
+    manager?: {
+      costUsd?: number
+      unpricedTokens?: number
+      includedTokens?: number
+      listCostUsd?: number
+      byModel?: Array<ModelSpend>
+      turns: number
+      workMs: number
+      time: {
+        thinkingMs: number
+        toolMs: number
+        systemMs: number
+        otherMs: number
+        runningMs: number
+        waitingMs: number
+        queuedMs?: number
+        tools: Array<ProcessToolTime>
+      }
     }
   }
   baseMoved?: {
@@ -19176,6 +20181,11 @@ export type ProcessRunSummary = {
       recommendedChoice?: ProcessResumeChoice | 'delegate'
       startError?: string
     }
+    lastEscalated?: {
+      signature: string
+      at: number
+    }
+    turnCosts?: Array<ProcessManagerTurnCost>
     preRead?: {
       runId: string
       parkedAt: number
@@ -19248,6 +20258,7 @@ export type ProcessTransition =
         resumesEntryId?: string
       }
       message?: string
+      waitingOn?: Array<string>
     }
   | {
       kind: 'cancelled'
@@ -19343,7 +20354,9 @@ export type ProcessStepResult = {
   review?: {
     verdict: ReviewEvidenceVerdict
     reason?: string
+    headSha?: string
   }
+  outsideScope?: Array<string>
   alreadyMet?: {
     checks: Array<ProjectCheckKind>
     evidence: string
@@ -19351,6 +20364,9 @@ export type ProcessStepResult = {
   }
   checks?: Array<VerificationCheckResult>
   checkedSha?: string
+  checkedEnvironment?: string
+  reusedChecksOf?: string
+  notCaused?: Array<ProjectCheckNotCausedReport>
   baseUpdate?: {
     baseRef: string
     baseSha: string
@@ -19660,7 +20676,9 @@ export type ProcessStepState = {
     review?: {
       verdict: ReviewEvidenceVerdict
       reason?: string
+      headSha?: string
     }
+    outsideScope?: Array<string>
     alreadyMet?: {
       checks: Array<ProjectCheckKind>
       evidence: string
@@ -19668,6 +20686,9 @@ export type ProcessStepState = {
     }
     checks?: Array<VerificationCheckResult>
     checkedSha?: string
+    checkedEnvironment?: string
+    reusedChecksOf?: string
+    notCaused?: Array<ProjectCheckNotCausedReport>
     baseUpdate?: {
       baseRef: string
       baseSha: string
@@ -19919,6 +20940,7 @@ export type ProcessGroupLeg = {
   }
   noticedParkAt?: number
   startedAt?: number
+  startError?: string
   landedBy?: {
     commit: string
     baseRef: string
@@ -20349,6 +21371,7 @@ export type ParkChoicesRun = {
       keptOneSide?: Array<ProcessKeptOneSide>
       lostExports?: Array<CodeIntelExportedSymbol>
     }
+    waitingOn?: Array<string>
   }
   plan: ProcessPlan
   ledger: Array<ProcessLedgerEntry>
@@ -20930,6 +21953,7 @@ export type LlmConfigEditInput = {
   name?: string
   provider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'xai' | 'qwen' | 'llama' | 'custom'
   model?: string
+  defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   apiKey?: string
   apiUrlOverride?: string
   costInputPerMTokensUSD?: number
@@ -22823,12 +23847,22 @@ export type PreviewProcessResponses = {
       options: Array<ProcessOpenWorkOption>
       startedAt: number
     }
+    alreadyDone?: Array<ProcessFeatureDelivery>
     baseBranches?: {
       current?: string
       preselected?: string
       branches: Array<string>
     }
     proofPlans?: Array<LaunchProofPlan>
+    waitingOn?: Array<string>
+    overlap?: {
+      runs: Array<ProcessLaunchOverlapRun>
+      base?: {
+        baseRef: string
+        commits: number
+        files: Array<string>
+      }
+    }
   }
 }
 
@@ -23727,6 +24761,14 @@ export type ReviveProcessRunErrors = {
     code?: string
     requestId?: string
   }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
 }
 
 export type ReviveProcessRunError = ReviveProcessRunErrors[keyof ReviveProcessRunErrors]
@@ -24277,6 +25319,14 @@ export type PreviewProcessGroupRunResponses = {
        * Why this leg cannot start.
        */
       problem?: string
+      /**
+       * The story’s open run that keeps this leg from starting.
+       */
+      openRunId?: string
+      /**
+       * The features an earlier run already delivered, one line per run.
+       */
+      alreadyDone?: Array<string>
     }>
     /**
      * Leg ids by dependency level: each level starts once the one before is merged.
@@ -31782,6 +32832,8 @@ export type SendCompletionData = {
         id?: string
         name?: string
         apiUrlOverride?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
         costInputPerMTokensUSD?: number
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
@@ -32026,6 +33078,8 @@ export type SendCompletionWithToolsData = {
         id?: string
         name?: string
         apiUrlOverride?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
         costInputPerMTokensUSD?: number
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
@@ -32210,6 +33264,8 @@ export type SendChatCompletionWithToolsData = {
       id?: string
       name?: string
       apiUrlOverride?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       costInputPerMTokensUSD?: number
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
@@ -32456,6 +33512,8 @@ export type SendChatWithCliData = {
       id?: string
       name?: string
       apiUrlOverride?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       costInputPerMTokensUSD?: number
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
@@ -32599,6 +33657,8 @@ export type RestartChatWithCliData = {
       id?: string
       name?: string
       apiUrlOverride?: string
+      effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
       costInputPerMTokensUSD?: number
       costOutputPerMTokensUSD?: number
       costCacheReadInputPerMTokensUSD?: number
@@ -34138,6 +35198,8 @@ export type StartAgentRunData = {
         id?: string
         name?: string
         apiUrlOverride?: string
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+        defaultEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
         costInputPerMTokensUSD?: number
         costOutputPerMTokensUSD?: number
         costCacheReadInputPerMTokensUSD?: number
@@ -34411,6 +35473,120 @@ export type RejectFeatureRequestResponses = {
 
 export type RejectFeatureRequestResponse =
   RejectFeatureRequestResponses[keyof RejectFeatureRequestResponses]
+
+export type MarkFeatureRequestDeliveredData = {
+  body: {
+    /**
+     * The commit, run or story that delivered it.
+     */
+    ref: string
+    note?: string
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/feature-requests/{id}/deliver'
+}
+
+export type MarkFeatureRequestDeliveredErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type MarkFeatureRequestDeliveredError =
+  MarkFeatureRequestDeliveredErrors[keyof MarkFeatureRequestDeliveredErrors]
+
+export type MarkFeatureRequestDeliveredResponses = {
+  /**
+   * Default Response
+   */
+  200: FeatureRequest
+}
+
+export type MarkFeatureRequestDeliveredResponse =
+  MarkFeatureRequestDeliveredResponses[keyof MarkFeatureRequestDeliveredResponses]
+
+export type HandOverFeatureRequestData = {
+  body: {
+    /**
+     * The project the work moved to.
+     */
+    projectId: string
+    /**
+     * The feature request id or story that took it over.
+     */
+    ref: string
+    note?: string
+  }
+  path: {
+    id: string
+  }
+  query?: never
+  url: '/api/v1/feature-requests/{id}/hand-over'
+}
+
+export type HandOverFeatureRequestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  409: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type HandOverFeatureRequestError =
+  HandOverFeatureRequestErrors[keyof HandOverFeatureRequestErrors]
+
+export type HandOverFeatureRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: FeatureRequest
+}
+
+export type HandOverFeatureRequestResponse =
+  HandOverFeatureRequestResponses[keyof HandOverFeatureRequestResponses]
 
 export type StartCliAgentRunData = {
   body: {
@@ -35679,6 +36855,109 @@ export type RejectCliRunReviewResponses = {
 
 export type RejectCliRunReviewResponse =
   RejectCliRunReviewResponses[keyof RejectCliRunReviewResponses]
+
+export type PreviewCliRunReviewToBaseData = {
+  body?: never
+  path: {
+    runId: string
+  }
+  query: {
+    projectId: string
+  }
+  url: '/api/v1/cli-runs/{runId}/resolve-review-to-base/preview'
+}
+
+export type PreviewCliRunReviewToBaseErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type PreviewCliRunReviewToBaseError =
+  PreviewCliRunReviewToBaseErrors[keyof PreviewCliRunReviewToBaseErrors]
+
+export type PreviewCliRunReviewToBaseResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRunReviewOnBase
+}
+
+export type PreviewCliRunReviewToBaseResponse =
+  PreviewCliRunReviewToBaseResponses[keyof PreviewCliRunReviewToBaseResponses]
+
+export type ResolveCliRunReviewToBaseData = {
+  body: {
+    projectId: string
+    force?: boolean
+  }
+  path: {
+    runId: string
+  }
+  query?: never
+  url: '/api/v1/cli-runs/{runId}/resolve-review-to-base'
+}
+
+export type ResolveCliRunReviewToBaseErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  404: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+  /**
+   * Default Response
+   */
+  500: {
+    error: string
+    code?: string
+    requestId?: string
+  }
+}
+
+export type ResolveCliRunReviewToBaseError =
+  ResolveCliRunReviewToBaseErrors[keyof ResolveCliRunReviewToBaseErrors]
+
+export type ResolveCliRunReviewToBaseResponses = {
+  /**
+   * Default Response
+   */
+  200: CliRunReviewToBase
+}
+
+export type ResolveCliRunReviewToBaseResponse =
+  ResolveCliRunReviewToBaseResponses[keyof ResolveCliRunReviewToBaseResponses]
 
 export type MergeCliRunReviewData = {
   body: {

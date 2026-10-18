@@ -33,18 +33,22 @@ export type ToolAskBody =
   | { kind: 'delete-story'; storyId: string; featureId?: string }
   | { kind: 'delete'; what: string }
   | { kind: 'details'; text?: string }
+  /** Text naming stories and features by id — drawn with their chips. */
+  | { kind: 'references'; text: string }
   | { kind: 'git' }
   | { kind: 'launch' }
   | { kind: 'proposal' }
   | {
       kind: 'review'
-      /** The chat's review branch. */
+      /** The chat's review branch — decided, or closed as already on its base. */
       branch: string
       /** Where a merge or pull request takes it. */
       target?: string
       fileCount: number
       /** The first files, as many as the host listed. */
       files: string[]
+      /** How they stand against their base, when closing them as already on it. */
+      note?: string
     }
   | {
       kind: 'question'

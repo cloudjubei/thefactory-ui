@@ -38,7 +38,10 @@ function excerpt(output: string | undefined): string {
  * sign off on.
  */
 export function handoffRequest(
-  row: Pick<CheckMethodRow, 'id' | 'label' | 'noun' | 'setupVerb' | 'detail' | 'output'>,
+  row: Pick<
+    CheckMethodRow,
+    'id' | 'label' | 'noun' | 'setupVerb' | 'detail' | 'output' | 'errored'
+  >,
   purpose: HandoffPurpose,
   context: { branch: string | undefined },
 ): HandoffRequest {
@@ -59,7 +62,7 @@ export function handoffRequest(
       caveat:
         'Removing or skipping a check does not count as fixing it. New commits also invalidate the checks you have just read — they are re-run before it comes back to you.',
       message:
-        `On ${onBranch}, ${row.noun} failed: ${row.detail}. ` +
+        `On ${onBranch}, ${row.noun} ${row.errored ? 'could not finish' : 'failed'}: ${row.detail}. ` +
         `Fix the cause — do not remove or skip the check — then run it again on that branch and file the result as evidence on this run.` +
         excerpt(row.output),
     }

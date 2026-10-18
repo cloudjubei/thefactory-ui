@@ -59,6 +59,19 @@ describe('handoffRequest — fix', () => {
     ).not.toContain('Output:')
   })
 
+  // A tests check that errored with every counted test passing read "tests failed: 132/132 passed".
+  it('tells the agent a check that errored could not finish, not that it failed', () => {
+    const tests = {
+      ...lint,
+      noun: 'the tests',
+      detail: '132/132 passed — errored: src/b.test.ts — SyntaxError: x',
+      errored: true,
+    }
+    expect(handoffRequest(tests, 'fix', { branch: 'agent/abc' }).message).toContain(
+      'On the review branch agent/abc, the tests could not finish: 132/132 passed — errored: src/b.test.ts — SyntaxError: x.',
+    )
+  })
+
   it('falls back to a generic branch name when none is known', () => {
     const req2 = handoffRequest(lint, 'fix', { branch: undefined })
     expect(req2.facts[0].value).toBe('the review branch')

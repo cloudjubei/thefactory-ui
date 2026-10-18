@@ -531,8 +531,15 @@ export function checkMethodRows(input: {
       action: actionFor(id, state, approaches, finding),
       checkIds: matched.map((c) => c.id),
       ...(available ? { available } : {}),
+      ...(isErroredOnly(matched) ? { errored: true } : {}),
     }
   })
+}
+
+/** Whether checks failed only by erroring — none failed outright. */
+function isErroredOnly(checks: readonly VerificationCheckResult[]): boolean {
+  const failing = checks.filter(isFailing)
+  return failing.length > 0 && failing.every((c) => c.status === 'error')
 }
 
 /** The mark and accessible state a chip shows, on every client. */

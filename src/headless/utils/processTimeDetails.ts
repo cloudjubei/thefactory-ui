@@ -1,11 +1,14 @@
-import type { ProcessTimeBreakdown } from 'thefactory-tools/types'
+import type { ProcessManagerTotals, ProcessTimeBreakdown } from 'thefactory-tools/types'
 
+import { costChipLabel } from './costDetails'
 import {
+  PROCESS_TIME_MANAGER_LABEL,
   PROCESS_TIME_PART_HINTS,
   PROCESS_TIME_PART_LABELS,
   PROCESS_TIME_TOOLS_SHOWN,
 } from './processTimeDetailsConstants'
 import type {
+  ProcessTimeDetailsLine,
   ProcessTimeDetailsRow,
   ProcessTimeDetailsTool,
   ProcessTimeDetailsView,
@@ -24,6 +27,13 @@ function toolLabel(name: string, calls: number): string {
   return calls > 1 ? `${name} ×${calls}` : name
 }
 
+/** The agent manager's line: its turns' charge as a cost chip words it, then their work time. */
+function managerLine(manager: ProcessManagerTotals): ProcessTimeDetailsLine {
+  const cost = costChipLabel(manager)
+  const time = formatProcessDuration(manager.workMs)
+  return { label: PROCESS_TIME_MANAGER_LABEL, value: cost ? `${cost} · ${time}` : time }
+}
+
 /**
  * Where a piece of work's time went, worded for the time chip's details: the
  * total, then agent thinking and tools & commands — always, so the split the
@@ -35,11 +45,12 @@ function toolLabel(name: string, calls: number): string {
  * `workMs` is the chip's own total, live while a step runs: work the breakdown
  * has not placed yet — the clock carried on since the totals were read — is
  * still running. Undefined when the totals carry no breakdown, or there is no
- * time to explain.
+ * time to explain. A run's `manager` totals add the agent manager's line.
  */
 export function processTimeDetailsView(
   time: ProcessTimeBreakdown | undefined,
   workMs: number,
+  manager?: ProcessManagerTotals,
 ): ProcessTimeDetailsView | undefined {
   if (!time) return undefined
   const placed = time.thinkingMs + time.toolMs + time.systemMs + time.otherMs
@@ -81,5 +92,6 @@ export function processTimeDetailsView(
     tools,
     ...(personMs > 0 ? { waiting: formatProcessDuration(personMs) } : {}),
     ...(queuedMs > 0 ? { queued: formatProcessDuration(queuedMs) } : {}),
+    ...(manager ? { manager: managerLine(manager) } : {}),
   }
 }

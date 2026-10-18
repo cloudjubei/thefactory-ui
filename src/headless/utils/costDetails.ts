@@ -2,7 +2,9 @@
  * A cost, the one way every surface shows it.
  *
  * A chip says what was CHARGED, in dollars and nothing else — `$0.00` is a real
- * value for work a subscription covered. Everything else a cost knows (which
+ * value for a free model's work, never for a subscription's: a plan can bill
+ * usage past its allowance, so what it charged is unknown, and the chip says
+ * so. Everything else a cost knows (which
  * model ran, how its tokens were paid for, what they are worth at list price,
  * which tokens have no known price) lives in one details view, worded here once
  * so the web popover and the native sheet cannot drift. Pure: no React, no I/O.
@@ -17,6 +19,7 @@ import {
   COST_BILLING_UNRECORDED,
   COST_CHARGE_PENDING,
   COST_CHARGE_PENDING_SHORT,
+  COST_CHARGE_SUBSCRIPTION,
   COST_CHARGE_UNKNOWN,
   COST_COUNTS_PENDING,
   COST_LIST_OUTPUT_NOT_REPORTED,
@@ -57,7 +60,7 @@ const TOKENS = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
 /**
  * Dollars as a label. Sub-cent amounts keep four decimals so a `$0.0012` run
- * does not read as `$0.00` — which, now that `$0.00` means "covered by a plan",
+ * does not read as `$0.00` — which, now that `$0.00` means "charged nothing",
  * would say something false.
  */
 export function formatCostUSD(costUSD: number | undefined): string | undefined {
@@ -110,14 +113,31 @@ function lacksPrice(cost: CostSource, rows: readonly CostSpend[]): boolean {
   return unpriced.length === 0 || unpriced.some((s) => !s.outputTokensNotReported)
 }
 
+const isSubscription = (s: CostSpend): boolean => s.billing === 'subscription'
+
 /**
  * What a cost chip says: the charge in dollars, and never a token count. When
  * no charge is known the chip says why — still to come on a run in flight, no
  * price for its tokens, usage the CLI has not reported yet, or usage it never
- * reported — rather than a `$0.00` it never was. Undefined when nothing was
- * measured.
+ * reported — rather than a `$0.00` it never was. A subscription's share is
+ * unknown (a plan can bill past its allowance): alone it is
+ * {@link COST_CHARGE_SUBSCRIPTION}, beside other charges it follows them.
+ * Undefined when nothing was measured.
  */
 export function costChipLabel(cost: CostSource | undefined): string | undefined {
+  const rows = cost?.byModel ?? []
+  if (!cost || !rows.some(isSubscription)) return chargeLabel(cost)
+  const others = rows.filter((s) => !isSubscription(s))
+  const costUsd = others.reduce<number | undefined>((sum, s) => addMoney(sum, s.costUsd), undefined)
+  const { costUsd: _withSubscription, ...rest } = cost
+  const known =
+    others.length > 0
+      ? chargeLabel({ ...rest, byModel: others, ...(costUsd !== undefined ? { costUsd } : {}) })
+      : undefined
+  return known ? `${known} + ${COST_CHARGE_SUBSCRIPTION}` : sentenceCase(COST_CHARGE_SUBSCRIPTION)
+}
+
+function chargeLabel(cost: CostSource | undefined): string | undefined {
   const charged = formatCostUSD(cost?.costUsd)
   if (charged !== undefined || !cost) return charged
   const rows = cost.byModel ?? []
@@ -481,7 +501,9 @@ function detailsRow(s: CostSpend): CostDetailsRow {
     billingLabel: billingLabel(s),
     ...rowTokens(s),
     ...(s.costUsd !== undefined ? { chargedUsd: s.costUsd } : {}),
-    charged: chargedWords(s.costUsd, s.chargePending === true),
+    charged: isSubscription(s)
+      ? sentenceCase(COST_CHARGE_SUBSCRIPTION)
+      : chargedWords(s.costUsd, s.chargePending === true),
     ...(s.listCostUsd !== undefined ? { listCostUsd: s.listCostUsd } : {}),
     listValue: listValue(s),
   }
@@ -588,7 +610,12 @@ export function costDetailsView(cost: CostSource | undefined): CostDetailsView |
       : includedTokens + unpricedTokens
   const pending = rows.some((s) => s.chargePending)
   const summary: CostDetailsLine[] = [
-    { label: 'Charged', value: chargedWords(cost.costUsd, pending) },
+    {
+      label: 'Charged',
+      value: rows.some(isSubscription)
+        ? (charged ?? sentenceCase(COST_CHARGE_SUBSCRIPTION))
+        : chargedWords(cost.costUsd, pending),
+    },
   ]
   if (includedTokens > 0) {
     summary.push({ label: 'Included tokens', value: TOKENS.format(includedTokens) })

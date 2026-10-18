@@ -78,7 +78,10 @@ export type ReviewVerdictSummary = {
 
 /** The "changes were produced but never landed" warning. */
 export type ReviewLandFailureSummary = {
+  /** `warning` when the changes could not be committed; `neutral` when there was nothing new to commit. */
+  tone: ReviewTone
   title: string
+  /** The whole line under the title, as shown. */
   message: string
 }
 

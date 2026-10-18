@@ -16,7 +16,10 @@ import type {
   VerificationCheckStatus,
 } from '../api/generated'
 import {
+  ALREADY_ON_BASE_MESSAGE,
+  ALREADY_ON_BASE_TITLE,
   CHECK_STATUS_TONES,
+  LAND_FAILURE_LEAD,
   LAND_FAILURE_REASON_LABELS,
   LAND_FAILURE_TITLE,
   NO_SOURCE_CHANGES_TITLE,
@@ -210,11 +213,19 @@ export function verdictSummary(verdict: CliRunVerdict): ReviewVerdictSummary {
 }
 
 export function landFailureSummary(failure: CliRunLandFailure): ReviewLandFailureSummary {
+  if (failure.reason === 'already-on-base') {
+    return {
+      tone: 'neutral',
+      title: ALREADY_ON_BASE_TITLE(trimmedOrUndefined(failure.baseRef)),
+      message: ALREADY_ON_BASE_MESSAGE,
+    }
+  }
   const reason = LAND_FAILURE_REASON_LABELS[failure.reason] ?? failure.reason
   const detail = trimmedOrUndefined(failure.message)
   return {
+    tone: 'warning',
     title: failure.reason === 'no-source-changes' ? NO_SOURCE_CHANGES_TITLE : LAND_FAILURE_TITLE,
-    message: detail ? `${reason} — ${detail}` : reason,
+    message: `${LAND_FAILURE_LEAD} — ${detail ? `${reason} — ${detail}` : reason}.`,
   }
 }
 

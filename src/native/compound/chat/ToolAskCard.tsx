@@ -136,15 +136,13 @@ export default function ToolAskCard({
         ) : null}
         {children}
         {view.consequence ? (
-          <Text
-            style={{
-              fontSize: 12.5,
-              fontWeight: danger ? '600' : '400',
-              color: danger ? status.blocked.softFg : theme.text.secondary,
-            }}
-          >
-            {view.consequence}
-          </Text>
+          danger ? (
+            <Text style={{ fontSize: 12.5, fontWeight: '600', color: status.blocked.softFg }}>
+              {view.consequence}
+            </Text>
+          ) : (
+            <RichText text={view.consequence} textColor={theme.text.secondary} fontSize={12.5} />
+          )
         ) : null}
       </ScrollView>
       <View

@@ -221,6 +221,23 @@ describe('processCheckRows', () => {
     expect(row.summary).toMatch(/^0 tests ran/)
   })
 
+  it('flags the tests a check found failing in the full run and passing alone', () => {
+    const [flaky, steady] = processCheckRows({
+      step: checkStep,
+      latest: entry({
+        checks: [
+          result({ id: 'test', flakyTests: [{ suite: 'src/a.test.ts', name: 'adds' }] }),
+          result({ id: 'build' }),
+        ],
+      }),
+    })
+    expect(flaky?.flaky).toEqual({
+      label: '1 flaky',
+      detail: 'Failed in the full run, passed alone: adds',
+    })
+    expect(steady?.flaky).toBeUndefined()
+  })
+
   it('counts nothing for a check that did not count', () => {
     const [row] = processCheckRows({ step: checkStep, latest: entry({ checks: [result()] }) })
     expect(row.testCountLabel).toBeUndefined()

@@ -19,6 +19,8 @@ export type ProcessSignoffDecisionView = {
   requestedProof?: string[]
   /** Who decided it and where, in words; none on a decision recorded before decisions were attributed. */
   decidedBy?: string
+  /** For the approval the work came in by: the generated files the merge rebuilt with no one asked again, and where its checks passed. */
+  merged?: string
 }
 
 /** What was decided at a story's sign-off: the latest decision, then the earlier ones newest first. */

@@ -273,9 +273,28 @@ describe('isUnreported', () => {
 })
 
 describe('costChipLabel', () => {
-  it('shows the charge in dollars — a subscription run is a real $0.00', () => {
-    expect(costChipLabel({ costUsd: 0, includedTokens: 14_701 })).toBe('$0.00')
+  it('shows the charge in dollars', () => {
     expect(costChipLabel({ costUsd: 1.25 })).toBe('$1.25')
+  })
+
+  it('says a subscription run’s charge is unknown — a plan can bill past its allowance — never a $0.00 that reads as free', () => {
+    expect(costChipLabel(cliRunCost(cursorRun))).toBe('Unknown (subscription)')
+    expect(costChipLabel(cliRunCost(cursorAcpTurn))).toBe('Unknown (subscription)')
+  })
+
+  it('shows what an API key was charged beside a subscription’s unknown share', () => {
+    const cost = addCost(cliRunCost(cursorRun), {
+      costUsd: 0.5265756,
+      listCostUsd: 0.5265756,
+      byModel: [sonnetMetered],
+    })
+    expect(costChipLabel(cost)).toBe('$0.53 + unknown (subscription)')
+  })
+
+  it('keeps a free model’s charge a real $0.00', () => {
+    expect(costChipLabel({ costUsd: 0, byModel: [{ ...composerSpend, billing: 'free' }] })).toBe(
+      '$0.00',
+    )
   })
 
   it('keeps sub-cent spend visible', () => {
@@ -605,7 +624,7 @@ describe('cliRunSpendRecord', () => {
   it("reads a landed record's spend off the run it mirrors — the mirror carries none of its own", () => {
     const source = cliRunSpendRecord(landed, [verifier, landed, workRun])
     expect(source).toBe(workRun)
-    expect(costChipLabel(cliRunCost(source!))).toBe('$0.00')
+    expect(costChipLabel(cliRunCost(source!))).toBe('Unknown (subscription)')
     expect(source?.durationMs).toBe(21_852)
     expect(cliRunCost(landed)).toBeUndefined()
   })
@@ -825,11 +844,11 @@ describe('pickCost', () => {
 })
 
 describe('costDetailsView', () => {
-  it('opens a subscription run as $0 charged, its tokens included, and its list value', () => {
+  it('opens a subscription run with its charge unknown, its tokens included, and its list value', () => {
     const view = costDetailsView(cliRunCost(cursorRun))
-    expect(view?.charged).toBe('$0.00')
+    expect(view?.charged).toBe('Unknown (subscription)')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: '$0.00' },
+      { label: 'Charged', value: 'Unknown (subscription)' },
       { label: 'Included tokens', value: '14,701' },
       { label: 'At list price', value: '≈ $0.0067' },
       { label: 'Total tokens', value: '14,701' },
@@ -853,7 +872,7 @@ describe('costDetailsView', () => {
           { label: 'Cache write', value: '0' },
         ],
         chargedUsd: 0,
-        charged: '$0.00',
+        charged: 'Unknown (subscription)',
         listCostUsd: 0.0066657,
         listValue: '≈ $0.0067 at list price',
       },
@@ -887,7 +906,7 @@ describe('costDetailsView', () => {
     })
     expect(view?.summary).toContainEqual({ label: 'Unpriced tokens', value: '131,194' })
     const [included, unpriced] = view!.rows
-    expect(included.charged).toBe('$0.00')
+    expect(included.charged).toBe('Unknown (subscription)')
     expect(unpriced.billingLabel).toBe('API key — billed per token')
     expect(unpriced.charged).toBe('Unknown')
     expect(unpriced.listValue).toBe('No known price')
@@ -995,9 +1014,9 @@ describe('costDetailsView', () => {
 
   it("opens a Cursor resident turn that reported no tokens: its model, its plan, and 'not reported by Cursor' where the counts would be", () => {
     const view = costDetailsView(cliRunCost(cursorAcpTurn))
-    expect(view?.charged).toBe('$0.00')
+    expect(view?.charged).toBe('Unknown (subscription)')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: '$0.00' },
+      { label: 'Charged', value: 'Unknown (subscription)' },
       { label: 'Total tokens', value: 'Not reported by Cursor' },
     ])
     expect(view?.rows).toEqual([
@@ -1010,7 +1029,7 @@ describe('costDetailsView', () => {
         billingLabel: 'Included in your Cursor subscription',
         tokens: [{ label: 'Tokens', value: 'Not reported by Cursor' }],
         chargedUsd: 0,
-        charged: '$0.00',
+        charged: 'Unknown (subscription)',
         listValue: 'Unknown: its tokens were not reported',
       },
     ])
@@ -1127,7 +1146,7 @@ describe('costDetailsView', () => {
   it('opens a turn cut off before its output was reported: real input and cache counts, the output not reported — never 0', () => {
     const view = costDetailsView(cliRunCost(claudeCutShort))
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: '$0.00' },
+      { label: 'Charged', value: 'Unknown (subscription)' },
       { label: 'Included tokens', value: '41,932' },
       { label: 'Total tokens', value: '41,932 + not reported by Claude Code' },
     ])
@@ -1140,7 +1159,7 @@ describe('costDetailsView', () => {
     ])
     expect(row).not.toHaveProperty('outputTokens')
     expect(row.inputTokens).toBe(2)
-    expect(row.charged).toBe('$0.00')
+    expect(row.charged).toBe('Unknown (subscription)')
     expect(row.listValue).toBe('Unknown: its output was not reported')
     expect(view?.notes).toEqual([COST_NOTE_OVERAGE, CLAUDE_OUTPUT_NOT_REPORTED])
   })
@@ -1164,11 +1183,11 @@ describe('costDetailsView', () => {
     expect(view?.notes).toEqual([COST_NOTE_PENDING, CLAUDE_OUTPUT_PENDING])
   })
 
-  it('opens a subscription Claude Code run still streaming as $0 so far, its output still to come', () => {
+  it('opens a subscription Claude Code run still streaming with its charge unknown, its output still to come', () => {
     const view = costDetailsView(cliRunCost({ ...claudeStreaming, billing: 'subscription' }))
-    expect(view?.charged).toBe('$0.00')
+    expect(view?.charged).toBe('Unknown (subscription)')
     expect(view?.summary).toEqual([
-      { label: 'Charged', value: '$0.00' },
+      { label: 'Charged', value: 'Unknown (subscription)' },
       { label: 'Included tokens', value: '41,932' },
       { label: 'Total tokens', value: '41,932 + not reported yet' },
     ])
@@ -1400,7 +1419,7 @@ describe('messageUsageCost', () => {
     const view = costDetailsView(messageUsageCost(usage, 'cli-agent/cursor-agent/composer-2.5'))
     expect(view?.rows.map((r) => r.billingLabel)).toEqual(['Included in your Cursor subscription'])
     expect(view?.rows.map((r) => r.model)).toEqual(['Composer 2.5'])
-    expect(view?.charged).toBe('$0.00')
+    expect(view?.charged).toBe('Unknown (subscription)')
   })
 
   it("names the row after the message's model over an older turn's model kept on its usage", () => {

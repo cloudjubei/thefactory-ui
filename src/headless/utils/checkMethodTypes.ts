@@ -103,6 +103,8 @@ export type CheckMethodRow = {
   durationLabel: string | undefined
   /** Raw output when a check carried some — console text, failing test names. */
   output: string | undefined
+  /** Set when every failing check that rolled up errored: it could not finish, rather than failed. */
+  errored?: boolean
   fill: CheckMethodFill
   action: CheckMethodAction
   /** Ids of the verification checks that rolled up into this row. */

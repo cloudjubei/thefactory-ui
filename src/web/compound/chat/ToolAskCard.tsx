@@ -110,7 +110,7 @@ export default function ToolAskCard({
           <div
             className={`text-[12.5px] ${danger ? 'font-semibold text-(--status-blocked-soft-fg)' : 'text-(--text-secondary)'}`}
           >
-            {view.consequence}
+            <RichText text={view.consequence} />
           </div>
         ) : null}
       </div>

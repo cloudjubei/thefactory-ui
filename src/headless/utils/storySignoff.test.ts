@@ -979,7 +979,7 @@ describe('buildStorySignoff — cost details', () => {
     listCostUsd: 0.0066657,
   })
 
-  it('opens a subscription story as $0.00 charged, its features merged per model in the details', () => {
+  it('opens a subscription story with its charge unknown, its features merged per model in the details', () => {
     const signoff = buildStorySignoff({
       features: [
         { id: 'f1', title: 'One' },
@@ -1006,7 +1006,7 @@ describe('buildStorySignoff — cost details', () => {
       ],
       evidence: [],
     })
-    expect(signoff.facts.costLabel).toBe('$0.00')
+    expect(signoff.facts.costLabel).toBe('Unknown (subscription)')
     expect(signoff.facts.cost).toMatchObject({
       costUsd: 0,
       includedTokens: 14_701 + 9_876,

@@ -263,6 +263,7 @@ function ToolApprovalPanel({
     ...(story?.title ? { storyTitle: story.title } : {}),
     joinsOpenRun,
     args: runProposalArgs(grant),
+    ...(proposal?.waitingOn ? { waitingOn: proposal.waitingOn } : {}),
   })
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.

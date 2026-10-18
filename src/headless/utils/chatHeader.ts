@@ -181,7 +181,9 @@ export function chatHeaderView(input: ChatHeaderInput): ChatHeaderView {
   const runChat = kind === 'run' && !isAgentRun(input.context) ? run : undefined
   const workMs = runChat ? processRunWorkMs(runChat, input.now) : undefined
   const timeDetails =
-    workMs !== undefined ? processTimeDetailsView(runChat?.totals?.time, workMs) : undefined
+    workMs !== undefined
+      ? processTimeDetailsView(runChat?.totals?.time, workMs, runChat?.totals?.manager)
+      : undefined
   const spend = runChat ? processRunSpend(runChat) : undefined
   const chatCost = runChat ? undefined : costChipLabel(input.messagesCost)
   const pill = headerPill(input, kind)

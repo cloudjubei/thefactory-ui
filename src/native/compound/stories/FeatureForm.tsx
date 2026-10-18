@@ -9,8 +9,11 @@ import {
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 
 import {
+  FEATURE_KIND_HINTS,
+  FEATURE_KIND_OPTIONS,
   useFeatureForm,
   type FeatureFormInitialValues,
+  type FeatureKind,
   type FeatureFormValues,
   type ProofPlan,
   type ReferenceSuggestion,
@@ -19,6 +22,7 @@ import {
 import Field from '../../primitives/Field'
 import { Input } from '../../primitives/Input'
 import { Modal } from '../../primitives/Modal'
+import SegmentedControl from '../../primitives/SegmentedControl'
 import FileMentionsTextarea from '../files/FileMentionsTextarea'
 import type { ReferenceSigil } from '../../../headless/utils/reference'
 import FileSelector from '../files/FileSelector'
@@ -124,7 +128,7 @@ function AddChip({
  * Native peer of
  * [web's `FeatureForm`](../../../../../thefactory-overseer-web/src/ui/components/stories/FeatureForm.tsx).
  * Same `useFeatureForm` hook, same field flow: a header with the status pill,
- * the project chip, and the parent-story chip; then title, description,
+ * the project chip, and the parent-story chip; then title, kind, description,
  * acceptance criteria, the proof plan, rejection reason (always shown,
  * matching web), a bordered context-files box and a bordered blockers box —
  * each with an inline "+ Add".
@@ -245,6 +249,18 @@ const FeatureForm = forwardRef<FeatureFormHandle, FeatureFormProps>(function Fea
           onChangeText={form.setTitle}
           disabled={submitting}
           returnKeyType="next"
+        />
+      </Field>
+
+      <Field label="Kind" hint={FEATURE_KIND_HINTS[form.values.kind]}>
+        <SegmentedControl
+          options={[...FEATURE_KIND_OPTIONS]}
+          value={form.values.kind}
+          onChange={(v) => form.setKind(v as FeatureKind)}
+          size="sm"
+          ariaLabel="Feature kind"
+          testID="feature-kind"
+          style={{ alignSelf: 'flex-start' }}
         />
       </Field>
 

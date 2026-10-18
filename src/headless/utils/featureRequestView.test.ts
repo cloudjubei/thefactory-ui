@@ -1,15 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import type { FeatureRequestBrief, FeatureRequestStatus } from 'thefactory-tools/types'
+import type {
+  FeatureRequest,
+  FeatureRequestBrief,
+  FeatureRequestStatus,
+} from 'thefactory-tools/types'
 
 import {
+  canSettleFeatureRequest,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
+  featureRequestChatContext,
   featureRequestCountsLine,
   featureRequestCycleWarning,
+  featureRequestPhase,
   featureRequestRejectedLine,
   featureRequestRejectPrompt,
   featureRequestSections,
+  featureRequestSettledLine,
+  featureRequestSettleFormReady,
+  featureRequestSettleHint,
   featureRequestStatusView,
+  featureRequestTakenOverLinks,
   featureRequestStoryLabel,
   featureRequestSummary,
   featureRequestViaLabel,
@@ -242,5 +253,144 @@ describe('featureRequestStoryLabel', () => {
 
   it('says a story while it has not loaded', () => {
     expect(featureRequestStoryLabel(undefined, undefined)).toBe('a story')
+  })
+})
+
+describe('canSettleFeatureRequest', () => {
+  it.each(['pending', 'accepted', 'in_review', 'blocked', 'failed', 'rejected'] as const)(
+    'offers to settle a %s request elsewhere',
+    (status) => {
+      expect(canSettleFeatureRequest({ status })).toBe(true)
+    },
+  )
+
+  it.each(['completed', 'handed_over', 'in_progress'] as const)(
+    'offers nothing for a %s request',
+    (status) => {
+      expect(canSettleFeatureRequest({ status })).toBe(false)
+    },
+  )
+})
+
+describe('featureRequestSettledLine', () => {
+  const titleOf = (id: string) => (id === 'fr-9' ? 'Server-side stop' : undefined)
+
+  it('says what delivered a request, with its note', () => {
+    expect(
+      featureRequestSettledLine(
+        { deliveredBy: { ref: 'a1b2c3d', note: 'Same change', at: 't' } },
+        titleOf,
+      ),
+    ).toEqual({ text: 'Delivered by a1b2c3d', note: 'Same change' })
+  })
+
+  it('names the request a request was handed over to, by its title', () => {
+    expect(
+      featureRequestSettledLine(
+        { handedOverTo: { projectId: 'backend', ref: 'fr-9', requestId: 'fr-9', at: 't' } },
+        titleOf,
+      ),
+    ).toEqual({
+      text: 'Handed over to backend',
+      link: { requestId: 'fr-9', label: 'Server-side stop' },
+    })
+  })
+
+  it('names a request it does not know yet by its reference', () => {
+    expect(
+      featureRequestSettledLine(
+        { handedOverTo: { projectId: 'backend', ref: 'fr-7', requestId: 'fr-7', at: 't' } },
+        titleOf,
+      ),
+    ).toEqual({ text: 'Handed over to backend', link: { requestId: 'fr-7', label: 'fr-7' } })
+  })
+
+  it('names a story it was handed over to in words', () => {
+    expect(
+      featureRequestSettledLine(
+        { handedOverTo: { projectId: 'web', ref: '#web/s4', note: 'Moved', at: 't' } },
+        titleOf,
+      ),
+    ).toEqual({ text: 'Handed over to web/#web/s4', note: 'Moved' })
+  })
+
+  it('is nothing for a request settled by its own run', () => {
+    expect(featureRequestSettledLine({}, titleOf)).toBeUndefined()
+  })
+})
+
+describe('featureRequestTakenOverLinks', () => {
+  it('links each request whose work this one took over, by title or id', () => {
+    const request = { takenOverFrom: ['fr-1', 'fr-2'] } as Pick<FeatureRequest, 'takenOverFrom'>
+    expect(
+      featureRequestTakenOverLinks(request, (id) => (id === 'fr-1' ? 'Stop UI' : undefined)),
+    ).toEqual([
+      { requestId: 'fr-1', label: 'Stop UI' },
+      { requestId: 'fr-2', label: 'fr-2' },
+    ])
+  })
+
+  it('is empty for a request that took nothing over', () => {
+    expect(featureRequestTakenOverLinks({}, () => undefined)).toEqual([])
+  })
+})
+
+describe('featureRequestSettleHint', () => {
+  it('says who hears it', () => {
+    expect(featureRequestSettleHint('Tools')).toBe('Tools’s chat is told. Its review closes.')
+  })
+})
+
+describe('featureRequestStatusView — handed over', () => {
+  it('reads a request handed over as on hold, with its own word', () => {
+    expect(featureRequestStatusView('handed_over')).toEqual({
+      label: 'Handed over',
+      tone: 'on_hold',
+      phase: 'settled',
+    })
+  })
+})
+
+describe('featureRequestSettleFormReady', () => {
+  it('is ready to mark delivered once something is named', () => {
+    expect(featureRequestSettleFormReady('delivered', { projectId: '', ref: 'a1b2' })).toBe(true)
+  })
+
+  it('is not ready to mark delivered with a blank reference', () => {
+    expect(featureRequestSettleFormReady('delivered', { projectId: 'p', ref: '  ' })).toBe(false)
+  })
+
+  it('needs both a project and a reference to hand over', () => {
+    expect(featureRequestSettleFormReady('handed-over', { projectId: 'p', ref: 'r' })).toBe(true)
+    expect(featureRequestSettleFormReady('handed-over', { projectId: ' ', ref: 'r' })).toBe(false)
+    expect(featureRequestSettleFormReady('handed-over', { projectId: 'p', ref: '' })).toBe(false)
+  })
+})
+
+describe('featureRequestPhase', () => {
+  it('reads a request marked delivered as settled, though its status is completed', () => {
+    expect(featureRequestPhase({ status: 'completed', deliveredBy: { ref: 'a', at: 't' } })).toBe(
+      'settled',
+    )
+  })
+
+  it('reads a request handed over as settled', () => {
+    expect(featureRequestPhase({ status: 'handed_over' })).toBe('settled')
+  })
+
+  it('reads every other request by its status', () => {
+    expect(featureRequestPhase({ status: 'completed' })).toBe('accepted')
+    expect(featureRequestPhase({ status: 'pending' })).toBe('pending')
+    expect(featureRequestPhase({ status: 'rejected' })).toBe('rejected')
+  })
+})
+
+describe('featureRequestChatContext', () => {
+  it('is the request’s own chat, in the project it was sent to', () => {
+    expect(featureRequestChatContext({ id: 'fr-9', targetProjectId: 'backend' })).toEqual({
+      type: 'FEATURE_REQUEST',
+      projectId: 'backend',
+      featureRequestId: 'fr-9',
+    })
   })
 })

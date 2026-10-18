@@ -5,16 +5,29 @@ import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../tokens/nativ
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import { Button } from '../primitives/Button'
 import { FEATURE_REQUEST_OPEN_FULL_LABEL } from '../../headless/utils/featureRequestViewConstants'
+import { canSettleFeatureRequest } from '../../headless/utils/featureRequestView'
+import type {
+  FeatureRequestLinkView,
+  FeatureRequestSettledView,
+  FeatureRequestSettleMode,
+} from '../../headless/utils/featureRequestViewTypes'
+import type {
+  FeatureRequestDeliveryForm,
+  FeatureRequestHandoverForm,
+} from '../../headless/hooks/useCrossProjectRequests'
+import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
 
-/** The seven cross-project feature-request lifecycle states (mirrors `FeatureRequestStatus`). */
+/** The cross-project feature-request lifecycle states (mirrors `FeatureRequestStatus`). */
 export type FeatureRequestCardStatus =
   | 'pending'
   | 'rejected'
   | 'accepted'
   | 'in_progress'
   | 'in_review'
+  | 'blocked'
   | 'completed'
   | 'failed'
+  | 'handed_over'
 
 /** Minimal shape this card renders — hosts pass the matching subset of the live `FeatureRequest`. */
 export interface FeatureRequestCardData {
@@ -35,6 +48,12 @@ export interface FeatureRequestCardData {
   countsLine?: string
   /** Why B rejected it, when it said why. */
   rejectionReason?: string
+  /** Why its work waits, while it is `blocked` — e.g. "2 of 3 features are blocked: …". */
+  statusReason?: string
+  /** What delivered it, or where its work was handed over, once settled elsewhere. */
+  settled?: FeatureRequestSettledView
+  /** The requests whose work this one took over. */
+  takenOver?: FeatureRequestLinkView[]
 }
 
 const STATUS_LABEL: Record<FeatureRequestCardStatus, string> = {
@@ -43,8 +62,10 @@ const STATUS_LABEL: Record<FeatureRequestCardStatus, string> = {
   accepted: 'Accepted',
   in_progress: 'In progress',
   in_review: 'In review',
+  blocked: 'Blocked',
   completed: 'Completed',
   failed: 'Failed',
+  handed_over: 'Handed over',
 }
 
 /** Pill colour per status — amber (waiting) · blue (working) · violet (review) · green · red. */
@@ -53,9 +74,11 @@ const STATUS_COLOR: Record<FeatureRequestCardStatus, string> = {
   accepted: '#2563eb',
   in_progress: '#2563eb',
   in_review: '#7c3aed',
+  blocked: '#d97706',
   completed: '#16a34a',
   failed: '#dc2626',
   rejected: '#dc2626',
+  handed_over: '#64748b',
 }
 
 export interface FeatureRequestCardProps {
@@ -68,6 +91,14 @@ export interface FeatureRequestCardProps {
   busy?: boolean
   /** Open the whole request. Renders a link when provided. */
   onOpenFull?: () => void
+  /** Mark the request delivered by other work — offered until it is settled, a rejected one included. */
+  onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
+  /** Hand the request over to another project's request or story — offered likewise. */
+  onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Open another request, from the links between requests handed over and taken over. */
+  onOpenRequest?: (requestId: string) => void
+  /** Opens a settle form at once, for a fixed showcase state. */
+  initialSettleMode?: FeatureRequestSettleMode
   /** Extra slot rendered in the footer. */
   footer?: ReactNode
 }
@@ -83,6 +114,10 @@ export function FeatureRequestCard({
   onReject,
   busy,
   onOpenFull,
+  onMarkDelivered,
+  onHandOver,
+  onOpenRequest,
+  initialSettleMode,
   footer,
 }: FeatureRequestCardProps) {
   const { theme } = useNativeTheme()
@@ -96,6 +131,9 @@ export function FeatureRequestCard({
     summary,
     countsLine,
     rejectionReason,
+    statusReason,
+    settled,
+    takenOver,
   } = request
   const canDecide = status === 'pending' && (onAccept || onReject)
   const mono = { fontFamily: nativeFontFamilies.mono }
@@ -149,12 +187,22 @@ export function FeatureRequestCard({
         </Text>
       ) : null}
 
+      {status === 'blocked' && statusReason ? (
+        <Text style={{ fontSize: 12, color: '#d97706' }}>{statusReason}</Text>
+      ) : null}
+
       {cycleDetected ? (
         <Text style={{ fontSize: 11, color: '#d97706' }}>
           ⚠ {targetProjectId} is already waiting on {fromProjectId ?? 'this project'} — this may
           deadlock.
         </Text>
       ) : null}
+
+      <FeatureRequestSettledNote
+        settled={settled}
+        takenOver={takenOver}
+        onOpenRequest={onOpenRequest}
+      />
 
       {reviewBranch ? (
         <Text style={{ fontSize: 11, color: theme.text.secondary, ...mono }}>{reviewBranch}</Text>
@@ -184,6 +232,15 @@ export function FeatureRequestCard({
           {footer}
         </View>
       )}
+      {canSettleFeatureRequest({ status }) ? (
+        <FeatureRequestSettleActions
+          fromLabel={fromProjectId ?? targetProjectId}
+          onMarkDelivered={onMarkDelivered}
+          onHandOver={onHandOver}
+          busy={busy}
+          initialMode={initialSettleMode}
+        />
+      ) : null}
     </View>
   )
 }

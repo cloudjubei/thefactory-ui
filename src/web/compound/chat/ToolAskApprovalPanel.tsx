@@ -81,7 +81,7 @@ function NewFilePreview({ body }: { body: Extract<ToolAskBody, { kind: 'write' }
 const CHIP =
   'rounded-md border border-(--border-default) px-2 py-0.5 font-mono text-(--text-primary)'
 
-/** A decision on the chat's open changes: the branch, where it goes, and its files. */
+/** A decision on the chat's open changes — or closing them as already on their base: the branch, where it goes or how it stands, and its files. */
 function ReviewBox({ body }: { body: Extract<ToolAskBody, { kind: 'review' }> }) {
   const more = body.fileCount - body.files.length
   return (
@@ -96,6 +96,7 @@ function ReviewBox({ body }: { body: Extract<ToolAskBody, { kind: 'review' }> })
         ) : null}
         <span className="text-(--text-secondary)">{CHAT_REVIEW_ASK.files(body.fileCount)}</span>
       </div>
+      {body.note ? <span className="text-[12.5px] text-(--text-primary)">{body.note}</span> : null}
       {body.files.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-[12px] text-(--text-secondary)">
           {body.files.map((file) => (
@@ -262,6 +263,10 @@ export default function ToolAskApprovalPanel({
           entries={body.entries}
           newScreens={body.newScreens}
         />
+      ) : body.kind === 'references' ? (
+        <div className="rounded-md bg-(--surface-muted) p-3 text-[13px]">
+          <RichText text={body.text} />
+        </div>
       ) : body.kind === 'details' && body.text ? (
         <pre className="m-0 max-h-40 overflow-auto rounded-md bg-(--surface-muted) p-3 font-mono text-xs whitespace-pre-wrap wrap-break-word opacity-90">
           {body.text}

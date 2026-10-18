@@ -11,11 +11,14 @@ import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
 import {
   CHAT_REVIEW_ASK,
+  CHAT_TO_BASE_ASK,
+  CHAT_TO_BASE_TOOL,
   CHAT_REVIEW_TOOL,
   DESIGN_ASK,
   FEATURE_QUESTION_ASK,
   FEATURE_QUESTION_TOOL,
   FEATURE_WORK_ASK,
+  STORY_DECISION_ASK,
   GIT_CHANGE_ASK,
   GIT_CHANGE_ASK_FALLBACK,
   GIT_CHANGE_VERB,
@@ -225,6 +228,54 @@ function chatReviewAskView(
 }
 
 /**
+ * Closing the chat's open changes as already on their base, from the card the
+ * host read before asking: the branch, its files, and why it may close — the
+ * base holds them, a later commit replaced them, or the person's word with the
+ * files the base lacks (a danger card). Pure.
+ */
+function chatToBaseAskView(
+  detail: unknown,
+  args: Record<string, unknown>,
+): Omit<ToolAskCardView, 'tone'> & { tone: ToolAskCardView['tone'] } {
+  const card = record(detail)
+  const standing = text(card.standing)
+  const base = text(card.baseRef)
+  const files = Array.isArray(card.files)
+    ? card.files.filter((f): f is string => typeof f === 'string')
+    : []
+  const lacking = Array.isArray(card.lacking)
+    ? card.lacking.filter((f): f is string => typeof f === 'string')
+    : []
+  const forced =
+    standing === 'force' || (standing === undefined && String(args.force).toLowerCase() === 'true')
+  const note = !base
+    ? undefined
+    : standing === 'held'
+      ? CHAT_TO_BASE_ASK.held(base)
+      : standing === 'superseded'
+        ? CHAT_TO_BASE_ASK.superseded(base)
+        : standing === 'force'
+          ? CHAT_TO_BASE_ASK.force(base, lacking.length > 0 ? lacking.join(', ') : undefined)
+          : undefined
+  return {
+    icon: 'git',
+    tone: forced ? 'danger' : 'ask',
+    ask: CHAT_TO_BASE_ASK.ask,
+    tag: CHAT_TO_BASE_ASK.tag,
+    headline: text(card.headline) ?? CHAT_TO_BASE_ASK.fallbackHeadline,
+    consequence: CHAT_TO_BASE_ASK.consequence,
+    verb: CHAT_TO_BASE_ASK.verb,
+    body: {
+      kind: 'review',
+      branch: text(card.branch) ?? '',
+      fileCount: typeof card.fileCount === 'number' ? card.fileCount : files.length,
+      files,
+      ...(note ? { note } : {}),
+    },
+  }
+}
+
+/**
  * An answer to a feature's question, from the card the host read before
  * asking: the question as the run asked it, where, and the agent's answer for
  * the person to change. Pure.
@@ -294,6 +345,9 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   }
   if (tool === CHAT_REVIEW_TOOL) {
     return { ...base, ...chatReviewAskView(payload.detail, args) }
+  }
+  if (tool === CHAT_TO_BASE_TOOL) {
+    return { ...base, ...chatToBaseAskView(payload.detail, args) }
   }
   if (tool === FEATURE_QUESTION_TOOL) {
     return { ...base, ...featureQuestionAskView(payload.detail, args) }
@@ -380,6 +434,33 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
       },
     }
   }
+  if (tool === 'setFeatureStatus' || tool === 'removeBlocker') {
+    const storyId = text(args.storyId) ?? ''
+    const featureId = text(args.featureId)
+    const work = `#${storyId}${featureId ? `.${featureId}` : ''}`
+    const copy = STORY_DECISION_ASK
+    if (tool === 'removeBlocker') {
+      return {
+        ...base,
+        icon: 'run',
+        ask: copy.blocker.ask,
+        tag: copy.tag,
+        headline: sentence ?? copy.blocker.headline,
+        verb: copy.blocker.verb,
+        body: { kind: 'references', text: copy.blocker.body(work, text(args.blocker) ?? '') },
+      }
+    }
+    const status = args.status === 'done' ? copy.done : copy.deferred
+    return {
+      ...base,
+      icon: 'run',
+      ask: status.ask,
+      tag: copy.tag,
+      headline: sentence ?? status.headline,
+      verb: status.verb,
+      body: { kind: 'references', text: work },
+    }
+  }
   if (tool === 'deleteStory' || tool === 'deleteFeature') {
     const storyId = text(args.storyId) ?? ''
     const featureId = text(args.featureId)
@@ -448,7 +529,9 @@ export function gitChangeAskView(card: GitChangeCardView, args: unknown): ToolAs
       : (GIT_CHANGE_VERB[card.operation] ?? TOOL_ASK_COPY.genericVerb)
   const icon = card.danger
     ? 'delete'
-    : card.operation === 'merge' || card.operation === 'merge-plan'
+    : card.operation === 'merge' ||
+        card.operation === 'merge-plan' ||
+        card.operation === 'resolve-conflicts'
       ? 'merge'
       : card.operation === 'push' || card.operation === 'pull-request'
         ? 'push'
@@ -549,13 +632,15 @@ const reasonOf = (args: unknown): { why?: string } => {
 
 /**
  * The card for starting a story's work in its own run: the story by title,
- * joining the story's open run where the person chose that, and what the run
- * leaves alone. Pure.
+ * joining the story's open run where the person chose that, what it waits on
+ * first, and what the run leaves alone. Pure.
  */
 export function featureWorkAskView(input: {
   storyTitle?: string
   joinsOpenRun: boolean
   args?: unknown
+  /** The work elsewhere, not done yet, the run waits on before it starts. */
+  waitingOn?: readonly string[]
 }): ToolAskCardView {
   const title = input.storyTitle ?? FEATURE_WORK_ASK.untitled
   return {
@@ -567,7 +652,10 @@ export function featureWorkAskView(input: {
       ? FEATURE_WORK_ASK.joinHeadline(title)
       : FEATURE_WORK_ASK.headline(title),
     ...reasonOf(input.args),
-    consequence: FEATURE_WORK_ASK.consequence,
+    consequence:
+      input.waitingOn && input.waitingOn.length > 0
+        ? `${FEATURE_WORK_ASK.waitsOn(input.waitingOn)} ${FEATURE_WORK_ASK.consequence}`
+        : FEATURE_WORK_ASK.consequence,
     verb: input.joinsOpenRun ? FEATURE_WORK_ASK.joinVerb : FEATURE_WORK_ASK.verb,
     body: { kind: 'launch' },
   }

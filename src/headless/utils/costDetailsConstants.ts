@@ -46,6 +46,9 @@ export const UNREPORTED_MODEL = 'unknown'
 /** The charge of metered tokens with no known price — unknown, never $0. */
 export const COST_CHARGE_UNKNOWN = 'Unknown'
 
+/** What a subscription's work was charged: unknown, since a plan can bill usage past its allowance. */
+export const COST_CHARGE_SUBSCRIPTION = 'unknown (subscription)'
+
 /** A chip, or a row's list value, when no price is known. */
 export const COST_NO_KNOWN_PRICE = 'No known price'
 

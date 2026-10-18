@@ -6,6 +6,7 @@ import {
   checkMethodRows,
   earnedApproveActions,
   openChangesNoticeView,
+  reviewOnBaseOfferView,
   reviewTabOrder,
   reviewTabs,
   runProposalView,
@@ -17,6 +18,7 @@ import { CHAT_OPEN_CHANGES_NEEDS_YOU_AFTER_MS } from 'thefactory-tools/constants
 // its dock. The showcase reaches into the source for them, as the playground renders the library
 // from source anyway.
 import { OpenChangesNotice } from '../../src/web/compound/chat/OpenChangesNotice'
+import { ReviewOnBaseOffer } from '../../src/web/compound/chat/ReviewOnBaseOffer'
 import { RunChangesHead } from '../../src/web/compound/chat/RunChangesHead'
 import { RunVerdictLine } from '../../src/web/compound/chat/RunVerdictLine'
 import {
@@ -26,7 +28,7 @@ import {
   ReviewTabBar,
 } from '../../src/web/compound/chat/signoff'
 import ToolAskCard from '../../src/web/compound/chat/ToolAskCard'
-import type { ChatOpenChanges } from '../../src/headless/api/generated'
+import type { ChatOpenChanges, CliRunReviewOnBase } from '../../src/headless/api/generated'
 import { runProposalAskView } from '../../src/headless/utils/toolAskCard'
 import type { Scene } from '../showcase/types'
 
@@ -69,8 +71,20 @@ const OPEN: ChatOpenChanges = {
   heldRunIds: [],
 }
 
+/** How the review stands against its base, as the server reads it, and the offer's state. */
+type OnBase = { preview: CliRunReviewOnBase; confirming?: boolean; error?: string }
+
+/** A review whose base lacks one of its files. */
+const LACKS: CliRunReviewOnBase = {
+  kind: 'neither',
+  branch: BRANCH,
+  baseRef: 'dev',
+  reason: 'dev does not hold all of this review yet — a file differs: index.html.',
+  paths: ['index.html'],
+}
+
 /** The card as `CliRunArtifactPanel` lays it out, from the same parts, on fixed data. */
-function ChangeCard({ openChanges }: { openChanges?: ChatOpenChanges }) {
+function ChangeCard({ openChanges, onBase }: { openChanges?: ChatOpenChanges; onBase?: OnBase }) {
   const header = chatChangesHeader({ fileCount: FILES.length, branch: BRANCH })
   const rows = checkMethodRows({ verification: undefined, approaches: [], evidence: [] })
   const headline = signoffVerdict({ rows, verified: false })
@@ -94,6 +108,12 @@ function ChangeCard({ openChanges }: { openChanges?: ChatOpenChanges }) {
   )
   const notice = openChanges
     ? openChangesNoticeView({ runId: openChanges.runId, openChanges }, NOW)
+    : undefined
+  const offer = onBase
+    ? reviewOnBaseOfferView({
+        preview: onBase.preview,
+        ...(onBase.error ? { error: onBase.error } : {}),
+      })
     : undefined
   return (
     <div className="max-w-3xl rounded-md border border-(--border-default) bg-(--surface-raised)">
@@ -149,6 +169,13 @@ function ChangeCard({ openChanges }: { openChanges?: ChatOpenChanges }) {
             onReject={noop}
           />
         </div>
+        {offer ? (
+          <ReviewOnBaseOffer
+            view={offer}
+            onClose={noop}
+            {...(onBase?.confirming ? { defaultConfirming: true } : {})}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -234,7 +261,7 @@ export const CHAT_CHANGES_SCENES: Scene[] = [
   {
     id: 'chat-change-card',
     title: 'Change card',
-    component: 'CliRunArtifactPanel (RunChangesHead, OpenChangesNotice)',
+    component: 'CliRunArtifactPanel (RunChangesHead, OpenChangesNotice, ReviewOnBaseOffer)',
     group: 'Chat',
     description:
       'The one card under a chat turn whose agent changed files: its head says whose changes they are, how many files and the branch of their own they wait on — never a process run’s sign-off. Once they wait past the limit, or no longer fit the checkout, the same card says so, with Discard there; no second card is posted.',
@@ -263,6 +290,61 @@ export const CHAT_CHANGES_SCENES: Scene[] = [
               ...OPEN,
               openSince: NOW - HOUR,
               changed: [{ path: 'index.html', reason: 'changed in the checkout' }],
+            }}
+          />
+        ),
+      },
+      {
+        id: 'already-on-base',
+        title: 'Already on its base',
+        description:
+          'The base already holds the change: “Already on dev — close it” under the decision. Closing removes the branch, recorded for restore.',
+        render: () => (
+          <ChangeCard
+            onBase={{ preview: { kind: 'held', branch: BRANCH, baseRef: 'dev', by: 'patch-id' } }}
+          />
+        ),
+      },
+      {
+        id: 'replaced-on-base',
+        title: 'Replaced on its base',
+        description: 'A later commit on the base rewrote every file the change touched.',
+        render: () => (
+          <ChangeCard
+            onBase={{
+              preview: {
+                kind: 'superseded',
+                branch: BRANCH,
+                baseRef: 'dev',
+                supersededBy: '4f1c2a9e7b3d5c8a0e6f2b1d9c7a5e3f1b8d6c4a',
+              },
+            }}
+          />
+        ),
+      },
+      {
+        id: 'close-anyway',
+        title: 'Base lacks some of it',
+        description:
+          'The base lacks a file: a quieter “Close as already on dev…” that names it, and asks first.',
+        render: () => <ChangeCard onBase={{ preview: LACKS }} />,
+      },
+      {
+        id: 'close-anyway-confirm',
+        title: 'Close anyway — confirm',
+        description:
+          'The confirm: nothing on disk is discarded; the review closes and its branch is removed, recorded for restore.',
+        render: () => <ChangeCard onBase={{ preview: LACKS, confirming: true }} />,
+      },
+      {
+        id: 'close-refused',
+        title: 'Close refused',
+        description: 'The base moved on before the close: nothing changed, and the card says why.',
+        render: () => (
+          <ChangeCard
+            onBase={{
+              preview: { kind: 'held', branch: BRANCH, baseRef: 'dev', by: 'tree' },
+              error: 'dev does not hold all of this review yet — a file differs: index.html.',
             }}
           />
         ),

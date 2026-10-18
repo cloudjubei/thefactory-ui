@@ -22,6 +22,12 @@ export type ProcessTimeDetailsTool = {
   value: string
 }
 
+/** One `label: value` line beside a time's breakdown. */
+export type ProcessTimeDetailsLine = {
+  label: string
+  value: string
+}
+
 /**
  * Where a time chip's time went — the one view every time chip opens. Worded
  * here so the web popover and the native sheet read the same.
@@ -36,4 +42,6 @@ export type ProcessTimeDetailsView = {
   waiting?: string
   /** Time spent waiting a turn behind other check runs of the project, beside the total and never in it. */
   queued?: string
+  /** What the agent manager's turns on a run cost and how long they worked — counted in the total. */
+  manager?: ProcessTimeDetailsLine
 }

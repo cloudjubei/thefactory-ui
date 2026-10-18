@@ -7,6 +7,7 @@ export const GIT_CHANGE_TOOL_NAMES: readonly string[] = [
   'deleteGitBranch',
   'mergeGitBranch',
   'abortGitMerge',
+  'resolveGitMergeConflicts',
   'pushGitBranch',
   'pullGitBranch',
   'fetchGitRemote',
@@ -44,6 +45,7 @@ export const GIT_CHANGE_COPY = {
   failed: 'The git change was not made',
   pullRequest: 'Open the pull request',
   pullRequestPage: 'Open a pull request from its page',
+  mergeCommitted: 'Merge committed',
 } as const
 
 /** Why the card cannot be approved while a run works on the branch. */
@@ -59,6 +61,7 @@ export const GIT_CHANGE_DONE: Record<string, string> = {
   'delete-branch': 'Branch deleted',
   merge: 'Merged — branch at',
   'abort-merge': 'Merge aborted — back at',
+  'resolve-conflicts': 'Resolved — merge still open at',
   push: 'Pushed — remote at',
   pull: 'Pulled — branch at',
   fetch: 'Fetched',

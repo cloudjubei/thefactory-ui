@@ -100,12 +100,14 @@ import {
   type ProcessWaitingItemChoice,
   type ProcessWaitingRequestView,
   type ProcessWaitingView,
+  isProcessRunAtSignOff,
 } from '../../../headless'
 import type { ChatContext } from '../../../headless/api'
 import { nativeRadii, nativeSpace } from '../../../tokens/native'
 import type { ProcessRunBranch } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import ActionMenu, { type ActionMenuItem } from '../ActionMenu'
+import RichText from '../files/RichText'
 import AlreadyMergedOffer from './AlreadyMergedOffer'
 import BaseMovedNote from './BaseMovedNote'
 import CloseUnmergedConfirm from './CloseUnmergedConfirm'
@@ -179,14 +181,7 @@ export type ProcessPipelineProps = {
 }
 
 /** The run sits at its story's sign-off — the screen leads with the decision. */
-function isStorySignoff(run: ProcessRun): boolean {
-  return (
-    run.status === 'parked' &&
-    run.park?.reason === 'gate' &&
-    !!run.storyId &&
-    !isReflectedPark(run.park)
-  )
-}
+const isStorySignoff = (run: ProcessRun): boolean => isProcessRunAtSignOff(run)
 
 /**
  * Native peer of
@@ -903,7 +898,7 @@ function RunHead({
             {workMs !== undefined ? (
               <DurationChip
                 label={formatProcessDuration(workMs)}
-                details={processTimeDetailsView(run.totals?.time, workMs)}
+                details={processTimeDetailsView(run.totals?.time, workMs, run.totals?.manager)}
                 title="Time spent working, across every attempt"
               />
             ) : null}
@@ -1375,9 +1370,12 @@ function ParkBlock({
         gap: nativeSpace[2],
       }}
     >
-      <Text style={{ fontSize: 13, fontWeight: '600', color: variant.softFg }}>
-        {managerLine ?? park.message}
-      </Text>
+      <RichText
+        text={managerLine ?? park.message}
+        textColor={variant.softFg}
+        fontSize={13}
+        fontWeight="600"
+      />
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>

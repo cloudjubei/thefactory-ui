@@ -1,4 +1,5 @@
 import { PROOF_KIND_LABELS } from 'thefactory-tools/constants'
+import { featureRequestHandoverTarget, featureRequestSettleRefusal } from 'thefactory-tools/utils'
 import type {
   ChatContext,
   FeatureRequest,
@@ -12,8 +13,12 @@ import {
   FEATURE_REQUEST_STATUS_VIEW,
 } from './featureRequestViewConstants'
 import type {
+  FeatureRequestLinkView,
+  FeatureRequestPhase,
   FeatureRequestSectionId,
   FeatureRequestSectionView,
+  FeatureRequestSettledView,
+  FeatureRequestSettleMode,
   FeatureRequestStatusView,
 } from './featureRequestViewTypes'
 
@@ -90,6 +95,24 @@ export function featureRequestStatusView(status: FeatureRequestStatus): FeatureR
   return FEATURE_REQUEST_STATUS_VIEW[status]
 }
 
+/** Which footer a request's card shows: settled once delivered or handed over elsewhere, else by its status. */
+export function featureRequestPhase(
+  request: Pick<FeatureRequest, 'status' | 'deliveredBy'>,
+): FeatureRequestPhase {
+  return request.deliveredBy ? 'settled' : featureRequestStatusView(request.status).phase
+}
+
+/** The request's own chat, in the project it was sent to — where a link to the request opens. */
+export function featureRequestChatContext(
+  request: Pick<FeatureRequest, 'id' | 'targetProjectId'>,
+): ChatContext {
+  return {
+    type: 'FEATURE_REQUEST',
+    projectId: request.targetProjectId,
+    featureRequestId: request.id,
+  }
+}
+
 /** Which of the asking project's chats sent the request, in a few words. */
 export function featureRequestViaLabel(context: ChatContext): string {
   switch (context.type) {
@@ -164,6 +187,68 @@ export function featureRequestWaitingLine(fromLabel: string): string {
 /** The line a rejected request's card shows. */
 export function featureRequestRejectedLine(fromLabel: string): string {
   return `${fromLabel} was told; nothing was started.`
+}
+
+/** Whether a request can still be marked delivered or handed over — a rejected one included. */
+export function canSettleFeatureRequest(request: Pick<FeatureRequest, 'status'>): boolean {
+  return featureRequestSettleRefusal(request) === undefined
+}
+
+/** Whether the open settle form names enough to send: a reference, and a project to hand over to. */
+export function featureRequestSettleFormReady(
+  mode: FeatureRequestSettleMode,
+  values: { projectId: string; ref: string },
+): boolean {
+  if (!values.ref.trim()) return false
+  return mode === 'delivered' || values.projectId.trim() !== ''
+}
+
+/** Under the settle form: who hears it, and what else closes. */
+export function featureRequestSettleHint(fromLabel: string): string {
+  return `${fromLabel}’s chat is told. Its review closes.`
+}
+
+function requestLink(
+  requestId: string,
+  titleOf: (id: string) => string | undefined,
+): FeatureRequestLinkView {
+  return { requestId, label: titleOf(requestId) ?? requestId }
+}
+
+/**
+ * How a request settled outside its own run reads: what delivered it, or where its work was handed
+ * over — linking the request that took it over, by title once known. Nothing for any other request.
+ */
+export function featureRequestSettledLine(
+  request: Pick<FeatureRequest, 'deliveredBy' | 'handedOverTo'>,
+  titleOf: (id: string) => string | undefined,
+): FeatureRequestSettledView | undefined {
+  const { deliveredBy, handedOverTo } = request
+  const settled = deliveredBy
+    ? { text: `Delivered by ${deliveredBy.ref}`, note: deliveredBy.note }
+    : handedOverTo?.requestId
+      ? {
+          text: `Handed over to ${handedOverTo.projectId}`,
+          link: requestLink(handedOverTo.requestId, titleOf),
+          note: handedOverTo.note,
+        }
+      : handedOverTo
+        ? {
+            text: `Handed over to ${featureRequestHandoverTarget(handedOverTo)}`,
+            note: handedOverTo.note,
+          }
+        : undefined
+  if (!settled) return undefined
+  const { note, ...rest } = settled
+  return note ? { ...rest, note } : rest
+}
+
+/** The requests whose work this one took over, each a link by title once known. */
+export function featureRequestTakenOverLinks(
+  request: Pick<FeatureRequest, 'takenOverFrom'>,
+  titleOf: (id: string) => string | undefined,
+): FeatureRequestLinkView[] {
+  return (request.takenOverFrom ?? []).map((id) => requestLink(id, titleOf))
 }
 
 function parsedArgs(args: unknown): Record<string, unknown> | undefined {

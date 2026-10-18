@@ -1,4 +1,5 @@
 import type { VerificationCheckResult, VerificationCheckStatus } from '../api/generated'
+import type { CheckFlakyChip } from './projectFlakesTypes'
 import type { ProcessStatusTone } from './processView'
 
 /** What a run's newest checks step recorded: one result per command, and when it finished. */
@@ -36,6 +37,8 @@ export type ProcessCheckRow = {
   baselineDetail: string | undefined
   /** "Built against thefactory-tools at 1a2b3c4 with uncommitted changes" — the code outside the checkout it ran against. */
   dependencyDetail: string | undefined
+  /** "2 flaky" — tests that failed in the full run and passed alone, named on hover. */
+  flaky: CheckFlakyChip | undefined
 }
 
 /** What a sign-off section says about the checks its developer ran before handing over. */

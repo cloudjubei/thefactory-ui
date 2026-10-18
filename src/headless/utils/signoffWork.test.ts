@@ -387,11 +387,11 @@ describe('signoffTimeView', () => {
 describe('signoffCostView', () => {
   it('says what was billed, how, the list price, and the runs and models behind it', () => {
     const view = signoffCostView(work())!
-    expect(view.headline).toBe('$0.00 billed')
+    expect(view.headline).toBe('Unknown (subscription)')
     expect(view.billing).toBe('subscription · list price $9.00')
     expect(view.runs).toBe('7 agent runs')
     expect(view.models.map((m) => m.model)).toEqual(['claude-opus-5-5'])
-    expect(view.note).toMatch(/^Billed on your subscription/)
+    expect(view.note).toMatch(/^Billed on your subscription: what it charged is unknown/)
   })
 
   it('breaks the list price down by agent role, bars on the priciest one’s scale', () => {
@@ -436,10 +436,15 @@ describe('signoffCostView', () => {
       costUsd: 2,
     }
     const view = signoffCostView(work({ cost }))!
-    expect(view.headline).toBe('$2.00 billed')
+    expect(view.headline).toBe('$2.00 + unknown (subscription)')
     expect(view.billing).toBe('mixed billing · list price $3.00')
     expect(view.models.map((m) => m.model)).toEqual(['claude-opus-5-5'])
     expect(view.note).toMatch(/^Part of this ran on a subscription/)
+  })
+
+  it('says what an API key alone was billed', () => {
+    const cost = { byModel: [spend('gpt-6', 'metered', 2)], listCostUsd: 2, costUsd: 2 }
+    expect(signoffCostView(work({ cost }))!.headline).toBe('$2.00 billed')
   })
 
   it('is nothing when no cost was measured', () => {

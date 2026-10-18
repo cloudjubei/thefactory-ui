@@ -16,11 +16,13 @@ import type {
 /**
  * What the person decided at a story's sign-off, from the gate's own attempts:
  * the latest decision — its choice, when, who decided it and where, their note,
- * how approved work came in and the proof a request for changes required — then
+ * how approved work came in — and, when its merge rebuilt conflicting generated
+ * files with no one asked again, which and where its checks passed — and the
+ * proof a request for changes required — then
  * the earlier ones, newest first. `undefined` while no attempt was decided.
  */
 export function processSignoffRecord(
-  run: Pick<ProcessRun, 'id' | 'projectId' | 'workBranch'>,
+  run: Pick<ProcessRun, 'id' | 'projectId' | 'workBranch' | 'integration'>,
   state: Pick<ProcessStepState, 'entries'>,
 ): ProcessSignoffRecordView | undefined {
   const decisions: ProcessSignoffDecisionView[] = []
@@ -48,8 +50,11 @@ export function processSignoffRecord(
       ...(requestedProof.length > 0 ? { requestedProof } : {}),
     })
   })
-  const latest = decisions.pop()
-  return latest ? { latest, earlier: decisions.reverse() } : undefined
+  const last = decisions.pop()
+  if (!last) return undefined
+  const merged =
+    last.choice === 'approve' ? processRegeneratedMergeNote(run.integration) : undefined
+  return { latest: merged ? { ...last, merged } : last, earlier: decisions.reverse() }
 }
 
 /** Who took a decision and where, in words; none when the decision does not say. */

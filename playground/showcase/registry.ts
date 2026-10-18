@@ -2,6 +2,8 @@ import { CHAT_SCENES } from '../scenes/chat'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
+import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
+import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
 import { PARK_CLOSING_SCENES } from '../scenes/parkClosing'
 import { PROCESS_SCENES } from '../scenes/process'
@@ -10,6 +12,8 @@ import { PROCESS_FEATURE_SCENES } from '../scenes/processFeatures'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
+import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
+import { STORY_WORK_SCENES } from '../scenes/storyWork'
 import {
   DESIGN_PLAYGROUND_PLAY_PARAM,
   DESIGN_PLAYGROUND_SCENE_PARAM,
@@ -28,13 +32,17 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_SCENES,
   ...CHAT_CHANGES_SCENES,
   ...CHAT_PAUSED_RUN_SCENES,
+  ...FEATURE_REQUEST_CARD_SCENES,
+  ...LAND_NOTICE_SCENES,
   ...PROCESS_SCENES,
+  ...RUN_TIME_DETAILS_SCENES,
   ...PROCESS_CHECKS_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
   ...PROOF_CHANGE_SCENES,
   ...PARK_CLOSING_SCENES,
   ...RUNNING_TONE_SCENES,
+  ...STORY_WORK_SCENES,
   ...DESIGN_SCENES,
   ...PRIMITIVE_SCENES,
 ]

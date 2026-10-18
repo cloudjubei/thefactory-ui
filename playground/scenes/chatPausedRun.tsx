@@ -79,6 +79,70 @@ function DecisionDock({ choice, reason }: { choice: string; reason: string }) {
   )
 }
 
+/** Closing the chat's changes as already on their base, as the host raises it: the card it read before asking. */
+function closeOnBase(standing: 'held' | 'superseded' | 'force', reason: string): PendingToolGrant {
+  const force = standing === 'force'
+  const args = { reason, ...(force ? { force: true } : {}) }
+  const card = {
+    standing,
+    headline:
+      standing === 'held'
+        ? `Close ${BRANCH} — already on main`
+        : standing === 'superseded'
+          ? `Close ${BRANCH} — replaced on main`
+          : `Close ${BRANCH} without merging it into main`,
+    runId: '9ab3dee0',
+    branch: BRANCH,
+    baseRef: 'main',
+    fileCount: FILES.length,
+    files: FILES,
+    ...(standing === 'superseded'
+      ? { supersededBy: '4f1c2a9e7b3d5c8a0e6f2b1d9c7a5e3f1b8d6c4a' }
+      : {}),
+    ...(force ? { lacking: [FILES[0]] } : {}),
+  }
+  return {
+    id: `grant-close-on-base-${standing}`,
+    chatRunner: 'api',
+    label: 'resolveChatOpenChangesToBase',
+    toolName: 'resolveChatOpenChangesToBase',
+    args,
+    alwaysAllowScopes: [],
+    grantCovers: 'exact-call',
+    detail: { tool: 'resolveChatOpenChangesToBase', args, detail: card },
+    decide: () => new Promise<void>(noop),
+  }
+}
+
+function CloseOnBaseDock({
+  standing,
+  reason,
+}: {
+  standing: 'held' | 'superseded' | 'force'
+  reason: string
+}) {
+  return (
+    <Dock>
+      <ApprovalPanel grant={closeOnBase(standing, reason)} onDecideLater={noop} />
+    </Dock>
+  )
+}
+
+/** Closing changes the base lacks, asked without the person's word: refused before any card, saying which files. */
+const CLOSE_REFUSED: ToolCallCardProps = {
+  toolCall: {
+    toolCallId: 't-close-refused',
+    name: 'resolveChatOpenChangesToBase',
+    arguments: { reason: 'The person merged it by hand.' },
+  },
+  resultType: 'errored',
+  result: {
+    error:
+      'main does not hold all of this review yet — a file differs: src/tools/normalize.ts. Closing them anyway takes `force: true` — only when the person says they are in.',
+  },
+  durationMs: 52,
+}
+
 /** A merge approved after a later turn added commits: nothing was merged, and the row says so. */
 const MOVED: ToolCallCardProps = {
   toolCall: {
@@ -293,6 +357,50 @@ export const CHAT_PAUSED_RUN_SCENES: Scene[] = [
         render: () => (
           <div className="max-w-2xl">
             <ToolCallCard {...MOVED} />
+          </div>
+        ),
+      },
+    ],
+  },
+  {
+    id: 'chat-close-on-base',
+    title: 'Closing a chat’s changes as already in',
+    component: 'ApprovalPanel',
+    group: 'Chat',
+    description:
+      'An agent asks to close the chat’s open changes because their base already has them. The card is what the host read before asking: the branch, its files, and why it may close — the base holds them, a later commit replaced them, or the person’s word. Always asked; no “Always allow”.',
+    states: [
+      {
+        id: 'held',
+        title: 'Base holds them',
+        render: () => (
+          <CloseOnBaseDock standing="held" reason="The person cherry-picked it onto main." />
+        ),
+      },
+      {
+        id: 'superseded',
+        title: 'Replaced by a later commit',
+        render: () => (
+          <CloseOnBaseDock standing="superseded" reason="The run’s merge rewrote these files." />
+        ),
+      },
+      {
+        id: 'force',
+        title: 'On the person’s word',
+        description:
+          'The base lacks a file, and the person says it is in: a danger card naming the file.',
+        render: () => (
+          <CloseOnBaseDock standing="force" reason="The person says it went in another way." />
+        ),
+      },
+      {
+        id: 'refused',
+        title: 'Refused, with why',
+        description:
+          'The base lacks a file and the person never said it is in: refused before any card.',
+        render: () => (
+          <div className="max-w-2xl">
+            <ToolCallCard {...CLOSE_REFUSED} />
           </div>
         ),
       },

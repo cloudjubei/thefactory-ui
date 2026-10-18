@@ -55,7 +55,9 @@ import {
   chatChangesHeader,
   discardedEditPaths,
   openChangesNoticeView,
+  reviewOnBaseOfferView,
   useChatOpenChanges,
+  useReviewOnBase,
   withDiscardWarnings,
 } from '../../../headless'
 import { nativeAlpha, nativeRadii } from '../../../tokens/native'
@@ -68,6 +70,7 @@ import Tooltip from '../../primitives/Tooltip'
 import CostChip from '../chips/CostChip'
 import RefChip from '../chips/RefChip'
 import { OpenChangesNotice } from './OpenChangesNotice'
+import { ReviewOnBaseOffer } from './ReviewOnBaseOffer'
 import {
   ChangesTab,
   CheckChipRow,
@@ -289,6 +292,17 @@ export default function CliRunArtifactPanel({
       ? { projectId, chatContextId }
       : undefined,
   )
+  const onBase = useReviewOnBase(
+    !reportOnly &&
+      settledNotice === undefined &&
+      review &&
+      !review.shadow &&
+      review.landedAt !== undefined &&
+      review.mergedAt == null &&
+      review.rejectedAt == null
+      ? { runId, projectId }
+      : undefined,
+  )
 
   useEffect(() => {
     if (error || settledNotice !== undefined) return
@@ -490,6 +504,8 @@ export default function CliRunArtifactPanel({
     partOfStoryRun: storyId !== undefined,
   })
   const busy = merging || approving || rejecting || requestingChanges
+  const onBaseView =
+    actionMode === 'actions' && !isMerged && !decided ? reviewOnBaseOfferView(onBase) : undefined
   const reasonValid = isReviewReasonValid(reason)
   const capturedLabel = timeLabel(
     evidence.refs.length > 0 ? Math.min(...evidence.refs.map((r) => r.createdAt)) : undefined,
@@ -512,8 +528,8 @@ export default function CliRunArtifactPanel({
   const approveDisabledReason =
     storyIncomplete ?? (!reviewDiff && review ? 'Loading the diff…' : undefined)
 
-  const warning = toneChip('warning', theme, status)
   const danger = toneChip('danger', theme, status)
+  const landingTone = landing ? toneChip(landing.tone, theme, status) : undefined
   // A process-owned run is a STAGE, not a sign-off — a verdict-coloured marker
   // would imply a decision this surface does not make. Neutral for report-only.
   const headMarker = reportOnly
@@ -1006,24 +1022,22 @@ export default function CliRunArtifactPanel({
               </View>
             ) : null}
 
-            {landing ? (
+            {landing && landingTone ? (
               <View
                 style={{
                   gap: 2,
                   borderRadius: nativeRadii[2],
                   borderWidth: 1,
-                  borderColor: warning.border,
-                  backgroundColor: warning.bg,
+                  borderColor: landingTone.border,
+                  backgroundColor: landingTone.bg,
                   paddingHorizontal: 8,
                   paddingVertical: 6,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '500', color: warning.fg }}>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: landingTone.fg }}>
                   {landing.title}
                 </Text>
-                <Text style={{ fontSize: 12, color: warning.fg }}>
-                  {`The agent produced changes but they were not committed to a review branch — ${landing.message}.`}
-                </Text>
+                <Text style={{ fontSize: 12, color: landingTone.fg }}>{landing.message}</Text>
               </View>
             ) : null}
           </>
@@ -1138,6 +1152,10 @@ export default function CliRunArtifactPanel({
               ) : null}
             </View>
           )}
+
+          {onBaseView && !working ? (
+            <ReviewOnBaseOffer view={onBaseView} onClose={(force) => void onBase.close(force)} />
+          ) : null}
 
           {reasonFor ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

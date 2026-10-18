@@ -104,7 +104,7 @@ function NewFilePreview({ body }: { body: Extract<ToolAskBody, { kind: 'write' }
   )
 }
 
-/** A decision on the chat's open changes: the branch, where it goes, and its files. */
+/** A decision on the chat's open changes — or closing them as already on their base: the branch, where it goes or how it stands, and its files. */
 function ReviewBox({ body }: { body: Extract<ToolAskBody, { kind: 'review' }> }) {
   const { theme } = useNativeTheme()
   const more = body.fileCount - body.files.length
@@ -134,6 +134,9 @@ function ReviewBox({ body }: { body: Extract<ToolAskBody, { kind: 'review' }> })
           {CHAT_REVIEW_ASK.files(body.fileCount)}
         </Text>
       </View>
+      {body.note ? (
+        <Text style={{ fontSize: 12.5, color: theme.text.primary }}>{body.note}</Text>
+      ) : null}
       {body.files.map((file) => (
         <Text
           key={file}
@@ -299,6 +302,10 @@ export default function ToolAskApprovalPanel({
             entries={body.entries}
             newScreens={body.newScreens}
           />
+        ) : body.kind === 'references' ? (
+          <Boxed>
+            <RichText text={body.text} textColor={theme.text.secondary} fontSize={13} />
+          </Boxed>
         ) : body.kind === 'details' && body.text ? (
           <Boxed>
             <Text selectable style={[{ fontSize: 12, color: theme.text.secondary }, MONO]}>

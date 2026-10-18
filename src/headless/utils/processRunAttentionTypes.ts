@@ -2,7 +2,12 @@ import type { ProcessRun } from 'thefactory-tools/types'
 import type { ProcessStatusTone } from './processView'
 
 /** Where a current run sits in the Processes list: what it waits on, or what it is doing. */
-export type ProcessRunAttentionSectionId = 'needs-you' | 'sign-off' | 'running' | 'merging'
+export type ProcessRunAttentionSectionId =
+  | 'needs-you'
+  | 'sign-off'
+  | 'running'
+  | 'merging'
+  | 'waiting'
 
 /** How a section of the Processes list's Current tab is headed. */
 export interface ProcessRunAttentionSectionHead {

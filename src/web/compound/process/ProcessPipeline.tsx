@@ -88,6 +88,7 @@ import {
   type RunNeedsYouActions,
   type RunModelChipSlot,
   type RunModelChipView,
+  isProcessRunAtSignOff,
 } from '../../../headless'
 import Alert from '../../primitives/Alert'
 import { Button } from '../../primitives/Button'
@@ -101,6 +102,7 @@ import {
   IconGroup,
 } from '../../icons'
 import OverflowMenu, { type OverflowMenuItem } from '../OverflowMenu'
+import RichText from '../files/RichText'
 import CostChip from '../chips/CostChip'
 import ToneBadge from '../chips/ToneBadge'
 import HeaderBar from '../HeaderBar'
@@ -170,10 +172,8 @@ export type ProcessPipelineProps = {
   renderModelChip?: (slot: RunModelChipSlot) => ReactNode
 }
 
-/** The run sits at its story's sign-off — the whole page leads with the decision. */
-function isStorySignoff(run: ProcessRun): boolean {
-  return run.status === 'parked' && run.park?.reason === 'gate' && !!run.storyId
-}
+/** The run sits at its story's sign-off — the screen leads with the decision. */
+const isStorySignoff = (run: ProcessRun): boolean => isProcessRunAtSignOff(run)
 
 /**
  * The surface a process run is watched on — a pipeline, not a transcript.
@@ -822,7 +822,7 @@ export function RunHead({
             {workMs !== undefined ? (
               <DurationChip
                 label={formatProcessDuration(workMs)}
-                details={processTimeDetailsView(run.totals?.time, workMs)}
+                details={processTimeDetailsView(run.totals?.time, workMs, run.totals?.manager)}
                 title="Time spent working, across every attempt"
               />
             ) : null}
@@ -1212,7 +1212,7 @@ export function ParkBlock({
       }}
     >
       <div className="text-[13px] font-semibold" style={{ color: `var(--status-${tone}-soft-fg)` }}>
-        {managerLine ?? park.message}
+        <RichText text={managerLine ?? park.message} />
       </div>
       {reflected && park.childRunId ? (
         <button

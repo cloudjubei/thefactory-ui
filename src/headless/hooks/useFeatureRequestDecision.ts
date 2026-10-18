@@ -1,7 +1,11 @@
 import { useCallback, useState } from 'react'
 import type { FeatureRequest } from 'thefactory-tools/types'
 import { extractErrorMessage } from '../api/errorMessage'
-import { useCrossProjectRequests } from './useCrossProjectRequests'
+import {
+  useCrossProjectRequests,
+  type FeatureRequestDeliveryForm,
+  type FeatureRequestHandoverForm,
+} from './useCrossProjectRequests'
 
 export interface FeatureRequestDecisionState {
   /** The live request, or `undefined` until the store has it. */
@@ -12,17 +16,19 @@ export interface FeatureRequestDecisionState {
   error: string | undefined
   accept: () => Promise<void>
   reject: (reason?: string) => Promise<void>
+  markDelivered: (input: FeatureRequestDeliveryForm) => Promise<void>
+  handOver: (input: FeatureRequestHandoverForm) => Promise<void>
 }
 
 /**
- * One request's decision, as its card makes it: the live record, accept, and reject with an
- * optional reason — with the call in flight and the reason it failed, so the card can say so
+ * One request's decision, as its card makes it: the live record, accept, reject with an optional
+ * reason, and marking it delivered or handing it over — with the call in flight and the reason it failed, so the card can say so
  * instead of silently staying as it was.
  */
 export function useFeatureRequestDecision(
   requestId: string | undefined,
 ): FeatureRequestDecisionState {
-  const { requestById, accept, reject } = useCrossProjectRequests()
+  const { requestById, accept, reject, markDelivered, handOver } = useCrossProjectRequests()
   const request = requestId ? requestById(requestId) : undefined
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -48,5 +54,24 @@ export function useFeatureRequestDecision(
     [decide, reject, requestId],
   )
 
-  return { request, busy, error, accept: acceptRequest, reject: rejectRequest }
+  const markRequestDelivered = useCallback(
+    (input: FeatureRequestDeliveryForm) =>
+      requestId ? decide(() => markDelivered(requestId, input)) : Promise.resolve(),
+    [decide, markDelivered, requestId],
+  )
+  const handOverRequest = useCallback(
+    (input: FeatureRequestHandoverForm) =>
+      requestId ? decide(() => handOver(requestId, input)) : Promise.resolve(),
+    [decide, handOver, requestId],
+  )
+
+  return {
+    request,
+    busy,
+    error,
+    accept: acceptRequest,
+    reject: rejectRequest,
+    markDelivered: markRequestDelivered,
+    handOver: handOverRequest,
+  }
 }

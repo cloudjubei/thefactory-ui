@@ -69,7 +69,7 @@ export function processTallyByProject(
     else if (isWorking(r, now)) {
       tally.running += 1
       if (unread) tally.unread += 1
-    } else tally.waiting += 1
+    } else if (r.park?.reason !== 'waiting-on-blockers') tally.waiting += 1
     out.set(r.projectId, tally)
   }
   return out

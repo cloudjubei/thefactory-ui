@@ -64,6 +64,8 @@ export {
 export {
   useCrossProjectRequests,
   type CrossProjectRequestsState,
+  type FeatureRequestDeliveryForm,
+  type FeatureRequestHandoverForm,
 } from './hooks/useCrossProjectRequests'
 export {
   useFeatureRequestDecision,
@@ -74,16 +76,23 @@ export {
   type IncomingFeatureRequestState,
 } from './hooks/useIncomingFeatureRequest'
 export {
+  canSettleFeatureRequest,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
+  featureRequestChatContext,
   featureRequestCountsLine,
   featureRequestCycleWarning,
+  featureRequestPhase,
   featureRequestRejectedLine,
   featureRequestRejectPrompt,
   featureRequestSections,
+  featureRequestSettledLine,
+  featureRequestSettleFormReady,
+  featureRequestSettleHint,
   featureRequestStatusView,
   featureRequestStoryLabel,
   featureRequestSummary,
+  featureRequestTakenOverLinks,
   featureRequestViaLabel,
   featureRequestWaitingLine,
   hiddenFeatureRequestIntro,
@@ -94,11 +103,15 @@ export {
   FEATURE_REQUEST_DECIDE_HEADING,
   FEATURE_REQUEST_OPEN_FULL_LABEL,
   FEATURE_REQUEST_SECTION_TITLES,
+  FEATURE_REQUEST_SETTLE_WORDS,
   FEATURE_REQUEST_STATUS_VIEW,
 } from './utils/featureRequestViewConstants'
 export type {
   FeatureRequestItemView,
+  FeatureRequestLinkView,
   FeatureRequestPhase,
+  FeatureRequestSettledView,
+  FeatureRequestSettleMode,
   FeatureRequestSectionId,
   FeatureRequestSectionView,
   FeatureRequestStatusView,
@@ -291,6 +304,14 @@ export type {
   OpenChangesNoticeInput,
   OpenChangesNoticeView,
 } from './utils/openChangesNoticeTypes'
+export { reviewOnBaseOfferView } from './utils/reviewOnBase'
+export { REVIEW_ON_BASE_COPY, REVIEW_ON_BASE_ERROR } from './utils/reviewOnBaseConstants'
+export type { ReviewOnBaseInput, ReviewOnBaseOfferView } from './utils/reviewOnBaseTypes'
+export {
+  useReviewOnBase,
+  type ReviewOnBaseTarget,
+  type UseReviewOnBase,
+} from './hooks/useReviewOnBase'
 export { chatChangesHeader } from './utils/chatChangesHeader'
 export { CHAT_CHANGES_HEADER_COPY } from './utils/chatChangesHeaderConstants'
 export type { ChatChangesHeaderInput, ChatChangesHeaderView } from './utils/chatChangesHeaderTypes'
@@ -571,6 +592,7 @@ export type {
 // waiting beside it — worded once for the web popover and the native sheet.
 export { processTimeDetailsView } from './utils/processTimeDetails'
 export {
+  PROCESS_TIME_MANAGER_LABEL,
   PROCESS_TIME_PART_HINTS,
   PROCESS_TIME_PART_LABELS,
   PROCESS_TIME_QUEUED_LABEL,
@@ -578,6 +600,7 @@ export {
   PROCESS_TIME_WAITING_LABEL,
 } from './utils/processTimeDetailsConstants'
 export type {
+  ProcessTimeDetailsLine,
   ProcessTimeDetailsRow,
   ProcessTimeDetailsTool,
   ProcessTimeDetailsView,
@@ -741,6 +764,13 @@ export type {
 export { censusFeatures, incompleteStoryReason, storyOpenFeatures } from 'thefactory-tools/utils'
 export { storyFeatureCounts } from './utils/storyFeatureCounts'
 export type { StoryFeatureCounts } from './utils/storyFeatureCountsTypes'
+export { featureKindChipLabel, featureKindOf, featureKindPatch } from './utils/featureKind'
+export {
+  FEATURE_KIND_DESIGN_CHIP,
+  FEATURE_KIND_HINTS,
+  FEATURE_KIND_OPTIONS,
+} from './utils/featureKindConstants'
+export type { FeatureKind, FeatureKindOption } from './utils/featureKindTypes'
 export { openFeatureQuestions } from './utils/featureQuestions'
 export { openQuestionsCardView } from './utils/openQuestionsCard'
 export type { OpenQuestionsCardView } from './utils/openQuestionsCardTypes'
@@ -861,6 +891,16 @@ export type { UseReviewEvidence } from './hooks/useReviewEvidence'
 export { useStorySignoff } from './hooks/useStorySignoff'
 export { useProjectChecks } from './hooks/useProjectChecks'
 export type { UseProjectChecks } from './hooks/useProjectChecks'
+export { checkFlakyChip, projectFlakeRows } from './utils/projectFlakes'
+export {
+  PROJECT_FLAKES_HEADING,
+  PROJECT_FLAKES_NONE,
+  checkFlakyChipDetail,
+  checkFlakyChipLabel,
+  projectFlakeFixFiled,
+  projectFlakeSeen,
+} from './utils/projectFlakesConstants'
+export type { CheckFlakyChip, ProjectFlakeRow } from './utils/projectFlakesTypes'
 export type { UseStorySignoff } from './hooks/useStorySignoff'
 export { useVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
 export type { UseVerifyAttemptEvidence } from './hooks/useVerifyAttemptEvidence'
@@ -1124,7 +1164,10 @@ export type { OpenFeatureQuestion } from './utils/featureQuestions'
 export type { StoryFeatureCensus } from 'thefactory-tools/types'
 export type { ProofKind, ProofKindUnavailable, ProofPlan } from 'thefactory-tools/types'
 export {
+  ALREADY_ON_BASE_MESSAGE,
+  ALREADY_ON_BASE_TITLE,
   CHECK_STATUS_TONES,
+  LAND_FAILURE_LEAD,
   LAND_FAILURE_REASON_LABELS,
   LAND_FAILURE_TITLE,
   NO_SOURCE_CHANGES_TITLE,
@@ -2389,6 +2432,7 @@ export {
   processStepCostTitle,
   processIterationBadge,
   processLoopSenders,
+  isProcessRunAtSignOff,
   processRunBadge,
   processRunCardView,
   hasIsolatedAttempts,
@@ -2948,7 +2992,7 @@ export type {
   ResolvedRef,
   ResolvedStoryRef,
 } from './utils/storyDependencyTypes'
-export { dependencyChipOf } from './utils/storyDependency'
+export { dependencyChipOf, featureShownStatus } from './utils/storyDependency'
 
 // Web-search API key store (per-provider). Token-gated initial load; CRUD
 // goes through `/web-search/keys` endpoints. Shared across all clients.

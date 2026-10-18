@@ -9,6 +9,7 @@ import {
   isProcessIntegrationRequired,
   isProcessRunAwaitingIntegration,
   processAlreadyLandedText,
+  processRegeneratedMergeNote,
   processGroupLegIntegrationModes,
   processIntegrationConflictResolution,
   processIntegrationModesOffered,
@@ -191,9 +192,11 @@ export function processIntegrationView(run: ProcessRun): ProcessIntegrationView 
     }
   }
   if (integration.mode !== 'pull-request') {
+    const regenerated = processRegeneratedMergeNote(integration)
     return {
       tone: 'done',
       title: MODE_DONE[integration.mode](workBranch.baseRef),
+      ...(regenerated ? { detail: regenerated } : {}),
       ...(sha ? { sha } : {}),
       ...checks,
       canRetry: false,

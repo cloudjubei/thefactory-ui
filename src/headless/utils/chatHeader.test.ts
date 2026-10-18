@@ -171,6 +171,25 @@ describe('chatHeaderView — a process run chat', () => {
     expect(view.cost?.cost).toBe(r.totals)
   })
 
+  it('names the agent manager’s share in the run’s time details', () => {
+    const r = run({
+      totals: {
+        workMs: 5 * 60_000,
+        time: emptyProcessTimeBreakdown(),
+        ticking: false,
+        at: 1_000,
+        steps: {},
+        costUsd: 1.5,
+        manager: { turns: 1, workMs: 60_000, time: emptyProcessTimeBreakdown(), costUsd: 0.25 },
+      },
+    })
+    const view = chatHeaderView(input({ context: runChat, run: r, now: 1_000 }))
+    expect(view.duration?.details?.manager).toEqual({
+      label: 'Agent manager',
+      value: '$0.25 · 1m 00s',
+    })
+  })
+
   it('falls back to the stored title and the project before the run is read', () => {
     const view = chatHeaderView(
       input({ context: runChat, chatTitle: 'Run: agent types', projectName: 'Tools' }),

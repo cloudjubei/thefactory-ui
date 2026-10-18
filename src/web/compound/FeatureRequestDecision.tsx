@@ -4,12 +4,22 @@ import { Button } from '../primitives/Button'
 import { Textarea } from '../primitives/Textarea'
 import { IconCheckCircle, IconXCircle } from '../icons'
 import {
+  canSettleFeatureRequest,
   featureRequestAcceptHint,
+  featureRequestPhase,
   featureRequestRejectedLine,
   featureRequestRejectPrompt,
+  featureRequestSettledLine,
   featureRequestStatusView,
+  featureRequestTakenOverLinks,
 } from '../../headless/utils/featureRequestView'
 import { FEATURE_REQUEST_OPEN_FULL_LABEL } from '../../headless/utils/featureRequestViewConstants'
+import type { FeatureRequestSettleMode } from '../../headless/utils/featureRequestViewTypes'
+import type {
+  FeatureRequestDeliveryForm,
+  FeatureRequestHandoverForm,
+} from '../../headless/hooks/useCrossProjectRequests'
+import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
 
 export type FeatureRequestDecisionProps = {
   request: FeatureRequest
@@ -27,6 +37,16 @@ export type FeatureRequestDecisionProps = {
   placedOn?: { label: string; onOpen?: () => void }
   /** Open the whole request — offered beside the decision when given. */
   onOpenFull?: () => void
+  /** Mark the request delivered by other work — offered while it can still be settled. */
+  onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
+  /** Hand the request over to another project's request or story — offered likewise. */
+  onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Another request's title, for the links between requests handed over and taken over. */
+  requestTitle?: (requestId: string) => string | undefined
+  /** Open another request, from those links. */
+  onOpenRequest?: (requestId: string) => void
+  /** Opens a settle form at once, for a fixed showcase state. */
+  initialSettleMode?: FeatureRequestSettleMode
 }
 
 function OpenFull({ onOpenFull }: Pick<FeatureRequestDecisionProps, 'onOpenFull'>) {
@@ -43,7 +63,10 @@ function Pending({
   onReject,
   busy,
   onOpenFull,
-}: Omit<FeatureRequestDecisionProps, 'request' | 'error' | 'placedOn'>) {
+}: Pick<
+  FeatureRequestDecisionProps,
+  'fromLabel' | 'onAccept' | 'onReject' | 'busy' | 'onOpenFull'
+>) {
   const [confirming, setConfirming] = useState(false)
   const [reason, setReason] = useState('')
   if (confirming) {
@@ -95,16 +118,35 @@ function Pending({
 /**
  * What the person does with a request, or what became of it: Accept & start work / Reject… (with
  * an optional reason, confirmed in place) while it waits; the story it was placed on and how the
- * work stands once accepted; who was told once rejected. Purely presentational.
+ * work stands once accepted; who was told once rejected; where its work went once handed over.
+ * Mark as delivered… and Hand over… stay offered until it is settled — a rejected request
+ * included. Purely presentational.
  */
 export default function FeatureRequestDecision(props: FeatureRequestDecisionProps) {
-  const { request, fromLabel, error, placedOn, onOpenFull } = props
+  const { request, fromLabel, error, placedOn, onOpenFull, busy } = props
   const status = featureRequestStatusView(request.status)
+  const titleOf = props.requestTitle ?? (() => undefined)
+  const settled = featureRequestSettledLine(request, titleOf)
+  const takenOver = featureRequestTakenOverLinks(request, titleOf)
+  const phase = featureRequestPhase(request)
   return (
     <>
-      {status.phase === 'pending' ? (
+      {phase === 'settled' ? (
+        <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
+          <span
+            className="rounded-full px-2 text-[11.5px] font-semibold leading-4.5"
+            style={{
+              background: `var(--status-${status.tone}-soft-bg)`,
+              color: `var(--status-${status.tone}-soft-fg)`,
+            }}
+          >
+            {status.label}
+          </span>
+          <OpenFull onOpenFull={onOpenFull} />
+        </div>
+      ) : phase === 'pending' ? (
         <Pending {...props} />
-      ) : status.phase === 'accepted' ? (
+      ) : phase === 'accepted' ? (
         <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
           <IconCheckCircle className="h-4.5 w-4.5 text-(--status-done-fg)" />
           <span className="font-semibold text-(--text-primary)">Accepted</span>
@@ -147,6 +189,20 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </div>
       )}
+      <FeatureRequestSettledNote
+        settled={settled}
+        takenOver={takenOver}
+        onOpenRequest={props.onOpenRequest}
+      />
+      {canSettleFeatureRequest(request) ? (
+        <FeatureRequestSettleActions
+          fromLabel={fromLabel}
+          onMarkDelivered={props.onMarkDelivered}
+          onHandOver={props.onHandOver}
+          busy={busy}
+          initialMode={props.initialSettleMode}
+        />
+      ) : null}
       {error ? <div className="text-[12px] text-(--status-stuck-fg)">{error}</div> : null}
     </>
   )

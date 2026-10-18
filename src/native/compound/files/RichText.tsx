@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Text, View } from 'react-native'
+import { Text, View, type TextStyle } from 'react-native'
 import { splitReferences } from 'thefactory-tools/utils'
 import { useEffectiveReferenceRenderer } from '../../../headless/contexts/ReferenceRenderingContext'
 import type { ReferenceTarget } from 'thefactory-tools/types'
@@ -22,6 +22,10 @@ export interface RichTextProps {
    * messages to render white text on the blue background (matches web).
    */
   textColor?: string
+  /** The size of the plain text between chips; 14 when left out. */
+  fontSize?: number
+  /** The weight of the plain text between chips. */
+  fontWeight?: TextStyle['fontWeight']
 }
 
 export default function RichText({
@@ -30,6 +34,8 @@ export default function RichText({
   renderReference: ownRenderReference,
   typedReferences = false,
   textColor,
+  fontSize = 14,
+  fontWeight,
 }: RichTextProps) {
   const { theme } = useNativeTheme()
   const TOKEN_PILL_STYLE = {
@@ -48,7 +54,7 @@ export default function RichText({
       {segments.map((seg, idx) => {
         if (seg.type === 'text') {
           return (
-            <Text key={idx} style={{ fontSize: 14, color: baseColor }}>
+            <Text key={idx} style={{ fontSize, fontWeight, color: baseColor }}>
               {seg.value}
             </Text>
           )
@@ -62,7 +68,7 @@ export default function RichText({
           const chip = renderReference?.(seg)
           if (chip) return <View key={idx}>{chip}</View>
           return (
-            <Text key={idx} style={{ fontSize: 14, color: baseColor }}>
+            <Text key={idx} style={{ fontSize, fontWeight, color: baseColor }}>
               {seg.raw}
             </Text>
           )

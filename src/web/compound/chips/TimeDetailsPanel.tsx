@@ -55,6 +55,12 @@ export default function TimeDetailsPanel({ view, title }: TimeDetailsPanelProps)
           </dl>
         </div>
       ) : null}
+      {view.manager ? (
+        <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2">
+          <span className="text-(--text-secondary)">{view.manager.label}</span>
+          <span className="tabular-nums">{view.manager.value}</span>
+        </div>
+      ) : null}
       {view.waiting ? (
         <div className="flex items-baseline justify-between gap-3 border-t border-(--border-subtle) pt-2 text-(--text-muted)">
           <span>{PROCESS_TIME_WAITING_LABEL}</span>

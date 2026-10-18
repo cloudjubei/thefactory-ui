@@ -85,6 +85,14 @@ export default function ProcessCheckList({ step, latest, now }: ProcessCheckList
               {row.baselineLabel}
             </span>
           ) : null}
+          {row.flaky ? (
+            <span
+              className="shrink-0 rounded-full border border-(--status-on_hold-soft-border) bg-(--status-on_hold-soft-bg) px-1.5 text-[10px] text-(--status-on_hold-soft-fg)"
+              title={row.flaky.detail}
+            >
+              {row.flaky.label}
+            </span>
+          ) : null}
           {row.status !== 'passed' && row.summary ? (
             <span className="min-w-0 truncate text-(--text-secondary)">{row.summary}</span>
           ) : null}

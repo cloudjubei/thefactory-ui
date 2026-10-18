@@ -26,3 +26,6 @@ export const PROCESS_TIME_WAITING_LABEL = 'Waiting on a person — not counted'
 
 /** The line that says time waiting a turn behind other check runs was left out of the total. */
 export const PROCESS_TIME_QUEUED_LABEL = 'Waiting for other check runs — not counted'
+
+/** The line naming the agent manager's share of a run's cost and time. */
+export const PROCESS_TIME_MANAGER_LABEL = 'Agent manager'

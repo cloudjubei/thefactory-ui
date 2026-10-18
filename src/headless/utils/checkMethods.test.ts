@@ -252,6 +252,26 @@ describe('checkMethodRows', () => {
     expect(row(rows({ verification: v }), 'types').state).toBe('failed')
   })
 
+  it('marks a row whose failing checks all errored as one that could not finish', () => {
+    const v = verification({ checks: [check({ status: 'error', summary: '132/132 passed' })] })
+    expect(row(rows({ verification: v }), 'types').errored).toBe(true)
+  })
+
+  it('does not mark a row whose checks passed as one that could not finish', () => {
+    const v = verification({ checks: [check({ status: 'passed', summary: 'No type errors' })] })
+    expect(row(rows({ verification: v }), 'types')).not.toHaveProperty('errored')
+  })
+
+  it('does not mark a row whose checks failed as one that could not finish', () => {
+    const v = verification({
+      checks: [
+        check({ id: 'a', status: 'error', summary: 'harness died' }),
+        check({ id: 'b', status: 'failed', summary: '1 type error' }),
+      ],
+    })
+    expect(row(rows({ verification: v }), 'types')).not.toHaveProperty('errored')
+  })
+
   it('matched checks that all skipped read as not run', () => {
     const v = verification({ checks: [check({ status: 'skipped' })] })
     expect(row(rows({ verification: v }), 'types').state).toBe('unchecked')

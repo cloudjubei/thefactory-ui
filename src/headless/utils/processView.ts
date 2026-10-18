@@ -35,6 +35,7 @@ import {
   processRunStopHolder,
   processStepStates,
   processVerifyReview,
+  processSignOffGateId,
 } from 'thefactory-tools/utils'
 
 /**
@@ -177,8 +178,9 @@ export function processRunChipLabel(run: ProcessRun, now: number): string {
  * The label is the charge alone: tokens a plan covered or no price is known for
  * are in the cost's details, never on the chip. A cap is charged dollars only,
  * because only charged dollars count against it — so a capped run whose charge
- * is unknown says so beside the cap, rather than a `$0.00` that would read like
- * a run a plan covered. `spent` is absent then; `title` heads the details.
+ * is unknown says so beside the cap, rather than a `$0.00` spent of it: no
+ * charge known (`spent` is absent then), or a subscription's share, which a
+ * plan can bill past its allowance. `title` heads the details.
  */
 export function processRunSpend(
   run: ProcessRun,
@@ -188,6 +190,7 @@ export function processRunSpend(
   const charged = costChipLabel(run.totals)
   if (cap === undefined && charged === undefined) return undefined
   const spent = run.totals?.costUsd ?? (charged === undefined ? 0 : undefined)
+  const subscriptionShare = (run.totals?.byModel ?? []).some((s) => s.billing === 'subscription')
   const money = (usd: number) => formatCostUSD(usd) ?? ''
   if (cap === undefined) {
     return {
@@ -201,7 +204,10 @@ export function processRunSpend(
   return {
     ...(spent !== undefined ? { spent } : {}),
     cap: limit,
-    label: spent === undefined ? `${charged} · cap ${ceiling}` : `${money(spent)} of ${ceiling}`,
+    label:
+      spent === undefined || subscriptionShare
+        ? `${charged} · cap ${ceiling}`
+        : `${money(spent)} of ${ceiling}`,
     title: PROCESS_SPEND_CAP_TITLE,
   }
 }
@@ -590,6 +596,9 @@ export function processRunBadge(
   const integration = processIntegrationBadge(run)
   if (integration) return integration
   if (run.status === 'parked') {
+    if (run.park?.reason === 'waiting-on-blockers') {
+      return { label: PROCESS_RUN_WORDS.waiting, tone: 'queued' }
+    }
     if (stopHolder === 'manager') {
       return { label: PROCESS_RUN_WORDS.managerOnIt, tone: PROCESS_LIVE_TONE }
     }
@@ -819,4 +828,21 @@ export function processStepFinishedView(input: { changedFiles: boolean; role?: s
       ? 'selfProven'
       : 'handoff'
   return { kind, ...PROCESS_STEP_FINISHED_COPY[kind] }
+}
+
+/**
+ * Whether a story run is stopped at its sign-off — the screen leads with the
+ * decision: its own stop (not one mirrored from a run below it), at the gate
+ * that signs the work off — never a design approval. Pure.
+ */
+export function isProcessRunAtSignOff(
+  run: Pick<ProcessRun, 'status' | 'park' | 'storyId' | 'plan'>,
+): boolean {
+  return (
+    run.status === 'parked' &&
+    run.park?.reason === 'gate' &&
+    !!run.storyId &&
+    run.park.childRunId === undefined &&
+    processSignOffGateId(run.plan) === run.park.stepId
+  )
 }

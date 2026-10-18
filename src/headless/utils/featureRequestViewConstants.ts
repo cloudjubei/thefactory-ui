@@ -9,10 +9,28 @@ export const FEATURE_REQUEST_STATUS_VIEW: Record<FeatureRequestStatus, FeatureRe
   accepted: { label: PROCESS_RUN_WORDS.starting, tone: 'queued', phase: 'accepted' },
   in_progress: { label: PROCESS_RUN_WORDS.running, tone: PROCESS_LIVE_TONE, phase: 'accepted' },
   in_review: { label: PROCESS_RUN_WORDS.signOff, tone: 'review', phase: 'accepted' },
+  blocked: { label: PROCESS_RUN_WORDS.needsYou, tone: 'blocked', phase: 'accepted' },
   completed: { label: PROCESS_RUN_WORDS.done, tone: 'done', phase: 'accepted' },
   failed: { label: PROCESS_RUN_WORDS.failed, tone: 'stuck', phase: 'accepted' },
   rejected: { label: 'Rejected', tone: 'stuck', phase: 'rejected' },
+  handed_over: { label: 'Handed over', tone: 'on_hold', phase: 'settled' },
 }
+
+/** The words of marking a request delivered by other work, or handing it over elsewhere. */
+export const FEATURE_REQUEST_SETTLE_WORDS = {
+  markDelivered: 'Mark as delivered',
+  handOver: 'Hand over',
+  deliveredRef: 'What delivered it?',
+  deliveredRefPlaceholder: 'Commit, run or story',
+  handOverProject: 'To which project?',
+  handOverRef: 'Which request or story?',
+  handOverRefPlaceholder: 'Request id or #project/story',
+  notePlaceholder: 'Optional note',
+  confirmDelivered: 'Mark delivered',
+  confirmHandOver: 'Hand over',
+  cancel: 'Cancel',
+  takesOver: 'Takes over',
+} as const
 
 /** What each section of a request is called. */
 export const FEATURE_REQUEST_SECTION_TITLES: Record<FeatureRequestSectionId, string> = {

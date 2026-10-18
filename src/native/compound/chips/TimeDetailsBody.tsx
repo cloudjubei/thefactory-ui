@@ -83,6 +83,14 @@ export default function TimeDetailsBody({ view }: TimeDetailsBodyProps) {
           ))}
         </View>
       ) : null}
+      {view.manager ? (
+        <View style={[divider, { flexDirection: 'row', justifyContent: 'space-between', gap: 12 }]}>
+          <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.secondary }}>
+            {view.manager.label}
+          </Text>
+          <Text style={[number, { fontSize: 12 }]}>{view.manager.value}</Text>
+        </View>
+      ) : null}
       {view.waiting ? (
         <View style={[divider, { flexDirection: 'row', justifyContent: 'space-between', gap: 12 }]}>
           <Text style={{ flexShrink: 1, fontSize: 12, color: theme.text.muted }}>

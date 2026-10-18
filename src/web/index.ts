@@ -287,6 +287,7 @@ export {
 export {
   WarningChip,
   ExclamationChip,
+  FeatureKindChip,
   ContextFileChip,
   ContextInfoButton,
   StoryAndFeatureCalloutBase,
@@ -296,6 +297,7 @@ export {
   DependencyBullet,
   type WarningChipProps,
   type ExclamationChipProps,
+  type FeatureKindChipProps,
   type ContextFileChipProps,
   type ContextInfoButtonProps,
   type StoryAndFeatureCalloutBaseProps,

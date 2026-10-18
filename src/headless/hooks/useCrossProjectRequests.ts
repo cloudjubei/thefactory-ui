@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import type { FeatureRequest } from 'thefactory-tools/types'
-import { acceptFeatureRequest, listFeatureRequests, rejectFeatureRequest } from '../api/generated'
+import {
+  acceptFeatureRequest,
+  handOverFeatureRequest,
+  listFeatureRequests,
+  markFeatureRequestDelivered,
+  rejectFeatureRequest,
+} from '../api/generated'
 import { useApi } from '../api/ApiContext'
 import {
   badgeCount,
@@ -35,6 +41,58 @@ export interface CrossProjectRequestsState {
   accept: (id: string) => Promise<FeatureRequest | undefined>
   /** Reject a pending request; a reason given is kept on it and passed on to the asking chat. */
   reject: (id: string, reason?: string) => Promise<FeatureRequest | undefined>
+  /** Mark a request delivered by other work — a commit, run or story. */
+  markDelivered: (
+    id: string,
+    input: FeatureRequestDeliveryForm,
+  ) => Promise<FeatureRequest | undefined>
+  /** Hand a request over to another project's request or story. */
+  handOver: (id: string, input: FeatureRequestHandoverForm) => Promise<FeatureRequest | undefined>
+}
+
+/** What the person typed to mark a request delivered. */
+export interface FeatureRequestDeliveryForm {
+  ref: string
+  note?: string
+}
+
+/** What the person typed to hand a request over. */
+export interface FeatureRequestHandoverForm {
+  projectId: string
+  ref: string
+  note?: string
+}
+
+const withNote = (note: string | undefined) => (note?.trim() ? { note: note.trim() } : {})
+
+/** Mark a request delivered, keeping the record the server answers with. */
+export async function markRequestDelivered(
+  id: string,
+  input: FeatureRequestDeliveryForm,
+): Promise<FeatureRequest | undefined> {
+  const res = await markFeatureRequestDelivered({
+    path: { id },
+    body: { ref: input.ref.trim(), ...withNote(input.note) },
+    throwOnError: true,
+  })
+  const updated = res.data as FeatureRequest | undefined
+  if (updated) upsertFeatureRequest(updated)
+  return updated
+}
+
+/** Hand a request over, keeping the record the server answers with. */
+export async function handOverRequest(
+  id: string,
+  input: FeatureRequestHandoverForm,
+): Promise<FeatureRequest | undefined> {
+  const res = await handOverFeatureRequest({
+    path: { id },
+    body: { projectId: input.projectId.trim(), ref: input.ref.trim(), ...withNote(input.note) },
+    throwOnError: true,
+  })
+  const updated = res.data as FeatureRequest | undefined
+  if (updated) upsertFeatureRequest(updated)
+  return updated
 }
 
 /** Accept, optimistically upserting the returned record so the widget/inspector update at once. */
@@ -123,5 +181,7 @@ export function useCrossProjectRequests(): CrossProjectRequestsState {
     requestById: requestByIdFn,
     accept: acceptRequest,
     reject: rejectRequest,
+    markDelivered: markRequestDelivered,
+    handOver: handOverRequest,
   }
 }

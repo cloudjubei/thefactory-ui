@@ -39,6 +39,7 @@ import type {
   ProcessCheckWaitingView,
 } from './processChecksViewTypes'
 import { formatProcessDuration } from './processView'
+import { checkFlakyChip } from './projectFlakes'
 import { checkTestCounts, testCountLabel } from './testCounts'
 import { formatDurationMs } from './time'
 
@@ -160,6 +161,7 @@ export function processCheckRows(state: {
         : undefined,
       baselineDetail: checkBaselineLine(check),
       dependencyDetail: dependencyRevisionsLine(check.dependencyRevisions),
+      flaky: checkFlakyChip(check),
     }
   })
 }

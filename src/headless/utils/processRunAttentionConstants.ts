@@ -7,6 +7,7 @@ export const PROCESS_RUN_ATTENTION_SECTIONS: readonly ProcessRunAttentionSection
   { id: 'sign-off', label: PROCESS_RUN_WORDS.signOff, counted: true, tone: 'review' },
   { id: 'running', label: PROCESS_RUN_WORDS.running, counted: false, tone: 'running' },
   { id: 'merging', label: PROCESS_RUN_WORDS.merging, counted: false, tone: 'working' },
+  { id: 'waiting', label: PROCESS_RUN_WORDS.waiting, counted: false, tone: 'queued' },
 ]
 
 /** The verb each kind of need opens with. */

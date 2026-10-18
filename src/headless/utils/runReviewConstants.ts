@@ -35,12 +35,23 @@ export const LAND_FAILURE_REASON_LABELS: Record<CliRunLandFailureReason, string>
   'detached-head': 'the project checkout is on a detached HEAD',
   'commit-failed': 'the review commit could not be created',
   'no-source-changes': 'the run only touched files the repository ignores',
+  'already-on-base': 'every change is already on the branch it was for',
   'changes-not-applied':
     'part of the run’s change could not be applied, so none of it was committed',
   error: 'the review branch could not be created',
 }
 
 export const LAND_FAILURE_TITLE = 'Changes were not committed for review'
+
+/** What a land failure's details open with, before its reason. */
+export const LAND_FAILURE_LEAD =
+  'The agent produced changes but they were not committed to a review branch'
+
+/** A run whose every change its branch already has: nothing failed, there is nothing to review. */
+export const ALREADY_ON_BASE_TITLE = (baseRef: string | undefined): string =>
+  `Already on ${baseRef ?? 'the base branch'}`
+
+export const ALREADY_ON_BASE_MESSAGE = 'Nothing new to review — it’s already there.'
 
 /**
  * A run whose only output was ignored build files did not FAIL — there is

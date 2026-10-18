@@ -105,6 +105,20 @@ describe('processRunAttentionSection', () => {
     ).toBe('needs-you')
   })
 
+  it('puts a run waiting on work elsewhere under Waiting, saying what it waits on — never Needs you', () => {
+    const waiting = parked({
+      reason: 'waiting-on-blockers',
+      stepId: 'features:f1',
+      message: 'Drafts waits on #s18 — it starts by itself once that is done.',
+    })
+    expect(processRunAttentionSection(waiting, NOW)).toBe('waiting')
+    expect(processRunNeedLine(waiting, NOW)).toBe(
+      'Drafts waits on #s18 — it starts by itself once that is done.',
+    )
+    expect(processRunWaitingCount([waiting], NOW)).toBe(0)
+    expect(processRunAttentionSection(waiting, NOW, { unread: 0, asks: 1 })).toBe('needs-you')
+  })
+
   it('puts a run at its gate under Sign off', () => {
     expect(processRunAttentionSection(parked({ reason: 'gate', stepId: 'sign-off' }), NOW)).toBe(
       'sign-off',

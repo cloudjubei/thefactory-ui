@@ -111,6 +111,7 @@ export default function SignoffRecord({ run, state, onOpen }: SignoffRecordProps
             {REQUEST_PROOF_HEADING}: {latest.requestedProof.join(' · ')}
           </Text>
         ) : null}
+        {latest.merged ? <Text style={small}>{latest.merged}</Text> : null}
         {discuss ? (
           <Button
             size="sm"

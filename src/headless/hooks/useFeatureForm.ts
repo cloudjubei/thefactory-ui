@@ -7,13 +7,14 @@ import {
   proofPlanOfDraft,
   toggleProofPlanDraftKind,
 } from '../utils/proofPlanView'
+import type { FeatureKind } from '../utils/featureKindTypes'
 import type { ProofPlanDraft } from '../utils/proofPlanViewTypes'
 import type { StoryStatus } from '../utils/status'
 
 /**
  * Headless state machine for the "create / edit feature" form used by both
  * overseer-local and the web client (and the upcoming RN target). Owns:
- *   - field state for title / description / acceptance / proof plan /
+ *   - field state for title / description / kind / acceptance / proof plan /
  *     rejection / status / blockers / context-files
  *   - dirty tracking (compared against an initial snapshot)
  *   - validation (title required)
@@ -30,6 +31,7 @@ import type { StoryStatus } from '../utils/status'
 export type FeatureFormInitialValues = {
   title?: string
   description?: string
+  kind?: FeatureKind
   acceptance?: string
   proofPlan?: ProofPlan
   rejection?: string
@@ -41,6 +43,8 @@ export type FeatureFormInitialValues = {
 export type FeatureFormValues = {
   title: string
   description: string
+  /** Who works it — code unless the feature is design. */
+  kind: FeatureKind
   /** What done means — empty when cleared. */
   acceptance: string
   /** How it will be shown to be right — `undefined` when no kind is picked. */
@@ -77,6 +81,7 @@ export type UseFeatureForm = {
   values: FeatureFormValues
   setTitle: (v: string) => void
   setDescription: (v: string) => void
+  setKind: (v: FeatureKind) => void
   setAcceptance: (v: string) => void
   /** The proof plan as the editor toggles it — kinds in canonical order, notes as typed. */
   proofPlanDraft: ProofPlanDraft
@@ -109,6 +114,7 @@ export type UseFeatureForm = {
 const DEFAULTS: FeatureFormValues = {
   title: '',
   description: '',
+  kind: 'code',
   acceptance: '',
   proofPlan: undefined,
   rejection: '',
@@ -121,6 +127,7 @@ function seedValues(v?: FeatureFormInitialValues): FeatureFormValues {
   return {
     title: v?.title ?? DEFAULTS.title,
     description: v?.description ?? DEFAULTS.description,
+    kind: v?.kind ?? DEFAULTS.kind,
     acceptance: v?.acceptance ?? DEFAULTS.acceptance,
     proofPlan: v?.proofPlan,
     rejection: v?.rejection ?? DEFAULTS.rejection,
@@ -174,6 +181,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
 
   const [title, setTitle] = useState(seed.title)
   const [description, setDescription] = useState(shown.description)
+  const [kind, setKind] = useState<FeatureKind>(seed.kind)
   const [acceptance, setAcceptance] = useState(shown.acceptance)
   const [proofPlanDraft, setProofPlanDraft] = useState<ProofPlanDraft>(() => ({
     ...proofPlanDraftOf(seed.proofPlan),
@@ -220,6 +228,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   const dirty =
     title !== baseline.title ||
     description !== baseline.description ||
+    kind !== baseline.kind ||
     acceptance !== baseline.acceptance ||
     !proofPlanDraftsEqual(proofPlanDraft, proofPlanDraftOf(baseline.proofPlan)) ||
     rejection !== baseline.rejection ||
@@ -255,7 +264,8 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   )
 
   const toggleProofKind = useCallback(
-    (kind: ProofKind) => setProofPlanDraft((prev) => toggleProofPlanDraftKind(prev, kind)),
+    (proofKind: ProofKind) =>
+      setProofPlanDraft((prev) => toggleProofPlanDraftKind(prev, proofKind)),
     [],
   )
 
@@ -278,6 +288,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
       await onSubmit({
         title: title.trim(),
         description: canonicalize(description.trim(), seed.description),
+        kind,
         acceptance: canonicalize(acceptance.trim(), seed.acceptance),
         proofPlan: proofPlanOfDraft({
           ...proofPlanDraft,
@@ -294,6 +305,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
   }, [
     title,
     description,
+    kind,
     acceptance,
     proofPlanDraft,
     rejection,
@@ -320,6 +332,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     values: {
       title,
       description,
+      kind,
       acceptance,
       proofPlan: proofPlanOfDraft(proofPlanDraft),
       rejection,
@@ -329,6 +342,7 @@ export function useFeatureForm(opts: UseFeatureFormOptions): UseFeatureForm {
     },
     setTitle,
     setDescription,
+    setKind,
     setAcceptance,
     proofPlanDraft,
     toggleProofKind,

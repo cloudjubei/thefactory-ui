@@ -5,6 +5,7 @@
 export const PROCESS_RUN_WORDS = {
   starting: 'Starting',
   needsYou: 'Needs you',
+  waiting: 'Waiting',
   managerOnIt: 'Manager on it',
   signOff: 'Sign off',
   running: 'Running',
