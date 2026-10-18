@@ -675,6 +675,9 @@ import type {
   ListProjectDataData,
   ListProjectDataErrors,
   ListProjectDataResponses,
+  ListProjectDataSourcesData,
+  ListProjectDataSourcesErrors,
+  ListProjectDataSourcesResponses,
   ListProjectDataSubscriptionsData,
   ListProjectDataSubscriptionsErrors,
   ListProjectDataSubscriptionsResponses,
@@ -1023,9 +1026,6 @@ import type {
   ShowChatInListData,
   ShowChatInListErrors,
   ShowChatInListResponses,
-  StartAgentRunData,
-  StartAgentRunErrors,
-  StartAgentRunResponses,
   StartCliAgentRunData,
   StartCliAgentRunErrors,
   StartCliAgentRunResponses,
@@ -1044,6 +1044,12 @@ import type {
   StartDbData,
   StartDbErrors,
   StartDbResponses,
+  StartFeatureRequestAgainData,
+  StartFeatureRequestAgainErrors,
+  StartFeatureRequestAgainResponses,
+  StartFeatureRequestWorkData,
+  StartFeatureRequestWorkErrors,
+  StartFeatureRequestWorkResponses,
   StartGitCredentialGithubDeviceData,
   StartGitCredentialGithubDeviceErrors,
   StartGitCredentialGithubDeviceResponses,
@@ -1056,6 +1062,9 @@ import type {
   StartProcessRunChangesData,
   StartProcessRunChangesErrors,
   StartProcessRunChangesResponses,
+  StartStoryWorkData,
+  StartStoryWorkErrors,
+  StartStoryWorkResponses,
   StartTestsRunAllData,
   StartTestsRunAllErrors,
   StartTestsRunAllResponses,
@@ -1071,6 +1080,9 @@ import type {
   SubscribeProjectDataSourceData,
   SubscribeProjectDataSourceErrors,
   SubscribeProjectDataSourceResponses,
+  SuggestLaunchSetupData,
+  SuggestLaunchSetupErrors,
+  SuggestLaunchSetupResponses,
   TrustSiteData,
   TrustSiteErrors,
   TrustSiteResponses,
@@ -5445,20 +5457,6 @@ export const previewTool = <ThrowOnError extends boolean = false>(
     },
   })
 
-export const startAgentRun = <ThrowOnError extends boolean = false>(
-  options: Options<StartAgentRunData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<StartAgentRunResponses, StartAgentRunErrors, ThrowOnError>({
-    responseType: 'json',
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/completions/start-agent-run',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
-
 export const abortCompletion = <ThrowOnError extends boolean = false>(
   options: Options<AbortCompletionData, ThrowOnError>,
 ) =>
@@ -5525,6 +5523,28 @@ export const acceptFeatureRequest = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/feature-requests/{id}/accept',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startFeatureRequestWork = <ThrowOnError extends boolean = false>(
+  options: Options<StartFeatureRequestWorkData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartFeatureRequestWorkResponses,
+    StartFeatureRequestWorkErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/start-work',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   })
 
 export const rejectFeatureRequest = <ThrowOnError extends boolean = false>(
@@ -5574,6 +5594,56 @@ export const handOverFeatureRequest = <ThrowOnError extends boolean = false>(
     responseType: 'json',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/feature-requests/{id}/hand-over',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startFeatureRequestAgain = <ThrowOnError extends boolean = false>(
+  options: Options<StartFeatureRequestAgainData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    StartFeatureRequestAgainResponses,
+    StartFeatureRequestAgainErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/feature-requests/{id}/start-again',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const startStoryWork = <ThrowOnError extends boolean = false>(
+  options: Options<StartStoryWorkData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<StartStoryWorkResponses, StartStoryWorkErrors, ThrowOnError>({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/stories/{storyId}/start-work',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+export const suggestLaunchSetup = <ThrowOnError extends boolean = false>(
+  options: Options<SuggestLaunchSetupData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SuggestLaunchSetupResponses,
+    SuggestLaunchSetupErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/processes/suggest-setup',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -6502,6 +6572,20 @@ export const listSourceRecords = <ThrowOnError extends boolean = false>(
       ...options,
     },
   )
+
+export const listProjectDataSources = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectDataSourcesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListProjectDataSourcesResponses,
+    ListProjectDataSourcesErrors,
+    ThrowOnError
+  >({
+    responseType: 'json',
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/projects/{projectId}/live-data/sources',
+    ...options,
+  })
 
 export const listProjectDataSubscriptions = <ThrowOnError extends boolean = false>(
   options: Options<ListProjectDataSubscriptionsData, ThrowOnError>,

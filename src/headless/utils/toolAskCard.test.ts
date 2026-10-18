@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  acceptRequestDecisionMetadata,
   featureQuestionAnswerMetadata,
   featureQuestionAnswerProblem,
   featureWorkAskView,
@@ -14,6 +15,7 @@ import {
   toolAskScopeOptions,
 } from './toolAskCard'
 import {
+  ACCEPT_REQUEST_ASK,
   CHAT_REVIEW_ASK,
   CHAT_TO_BASE_ASK,
   CHAT_TO_BASE_TOOL,
@@ -1076,5 +1078,40 @@ describe('featureQuestionAnswerProblem', () => {
   it('holds the card while the answer is empty', () => {
     expect(featureQuestionAnswerProblem('  ')).toBe(FEATURE_QUESTION_ASK.empty)
     expect(featureQuestionAnswerProblem('Yes')).toBeUndefined()
+  })
+})
+
+describe('toolAskCardView — accepting a feature request', () => {
+  const accept = (args: Record<string, unknown>) =>
+    toolAskCardView(sandbox('acceptProjectFeatureRequest', args))
+
+  it('names the request and the way the agent proposed to start its work', () => {
+    expect(accept({ id: 'fr1', mode: 'chat', reason: 'It is small.' })).toEqual({
+      icon: 'run',
+      tone: 'ask',
+      ask: ACCEPT_REQUEST_ASK.ask,
+      tag: ACCEPT_REQUEST_ASK.tag,
+      headline: ACCEPT_REQUEST_ASK.headline,
+      why: 'It is small.',
+      consequence: ACCEPT_REQUEST_ASK.consequence,
+      verb: ACCEPT_REQUEST_ASK.verb,
+      body: { kind: 'accept-request', requestId: 'fr1', mode: 'chat' },
+    })
+  })
+
+  it('leaves the way to the person when the agent named none, or one that is not a way', () => {
+    expect(accept({ id: 'fr1' }).body).toEqual({ kind: 'accept-request', requestId: 'fr1' })
+    expect(accept({ id: 'fr1', mode: 'inline' }).body).toEqual({
+      kind: 'accept-request',
+      requestId: 'fr1',
+    })
+    expect(accept({}).body).toEqual({ kind: 'accept-request', requestId: '' })
+  })
+})
+
+describe('acceptRequestDecisionMetadata', () => {
+  it('starts the work the way the person picked on the card', () => {
+    expect(acceptRequestDecisionMetadata('chat')).toEqual({ args: { mode: 'chat' } })
+    expect(acceptRequestDecisionMetadata('process')).toEqual({ args: { mode: 'process' } })
   })
 })

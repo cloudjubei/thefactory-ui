@@ -43,6 +43,7 @@ import {
   CHECK_METHOD_ABSENT_NOUNS,
   CHECK_STATE_LABELS,
   CHECK_STATE_SENTENCES,
+  CHECK_UNSERVABLE_LEAD,
   IMPLEMENTED_CHECK_METHOD_ORDER,
   NOT_RUN_TITLE,
   PROVEN_DETAIL,
@@ -471,6 +472,43 @@ describe('checkMethodRows', () => {
     expect(row(list, 'types').tone).toBe('positive')
     expect(row(list, 'lint').tone).toBe('neutral')
     expect(row(list, 'tests').tone).toBe('absent')
+  })
+})
+
+describe('checkMethodRows › a capture of a page that cannot be served', () => {
+  const UNSERVED =
+    'The project declares the viewer app but has no way to serve it: no viewer/index.html.'
+  const unservable = [
+    approach('screenshot-diff', { status: 'unservable', reason: UNSERVED }),
+    approach('screen-recording', { status: 'unservable', reason: UNSERVED }),
+    approach('code-explanation'),
+  ]
+
+  it.each(['screens', 'walkthrough'] as const)(
+    'says why the %s cannot be captured, and offers an agent to set it up — no install hint',
+    (id) => {
+      const r = row(rows({ verification: verification(), approaches: unservable }), id)
+      expect(r.state).toBe('unconfigured')
+      expect(r.detail).toBe(UNSERVED)
+      expect(r.action).toMatchObject({ kind: 'request', purpose: 'setup' })
+    },
+  )
+
+  it('leads its callout with why nothing can be captured, never that the project has none', () => {
+    const r = row(rows({ verification: verification(), approaches: unservable }), 'screens')
+    expect(r.unservable).toBe(true)
+    expect(checkCallout(r)).toEqual({ lead: CHECK_UNSERVABLE_LEAD, detail: UNSERVED })
+  })
+
+  it('marks no row of a capture that can be served, or that was captured', () => {
+    const list = rows({ verification: verification(), approaches: [approach('screenshot-diff')] })
+    expect(row(list, 'screens')).not.toHaveProperty('unservable')
+    const captured = rows({
+      verification: verification(),
+      approaches: unservable,
+      evidence: [evidence({ id: 'a' })],
+    })
+    expect(row(captured, 'screens')).not.toHaveProperty('unservable')
   })
 })
 

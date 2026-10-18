@@ -29,11 +29,13 @@ import {
   PROCESS_MANAGER_PROJECT_DETAIL,
   PROCESS_MANAGER_PROJECT_LABEL,
   projectManagerSettingsOf,
+  projectStableBranchOf,
   readTicketConnection,
   useProjectsGroups,
   type ProcessManagerAutonomy,
 } from '../../../headless'
 import ProjectCodeInfoModal, { type CodeInfoValue } from './ProjectCodeInfoModal'
+import ProjectStableBranchField from './ProjectStableBranchField'
 import TicketConnectionPicker from './TicketConnectionPicker'
 
 export type ProjectFormState = {
@@ -53,6 +55,8 @@ export type ProjectFormState = {
     ticketConnection?: TicketConnectionBinding | 'none'
     /** The agent manager over the project's runs. */
     processManager?: { enabled: boolean; autonomy: ProcessManagerAutonomy }
+    /** The branch other projects are checked against when this one's pending changes break them. */
+    stableBranch?: string
   }
   codeInfo?: ProjectCodeInfo
   /**
@@ -85,6 +89,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
   const isUiApp = md.isUiApp !== false
   const appDir = typeof md.appDir === 'string' && md.appDir.trim() ? md.appDir : undefined
   const ticketConnection = readTicketConnection(md.ticketConnection)
+  const stableBranch = projectStableBranchOf(md)
   const anyP = p as unknown as Record<string, unknown>
   return {
     id: p.id,
@@ -100,6 +105,7 @@ export function projectToFormState(p: GetProjectResponse): ProjectFormState {
       isUiApp,
       ...(ticketConnection ? { ticketConnection } : {}),
       processManager: projectManagerSettingsOf(md),
+      ...(stableBranch ? { stableBranch } : {}),
     },
     codeInfo: anyP.codeInfo as ProjectFormState['codeInfo'],
     mainGroupId: typeof anyP.mainGroupId === 'string' ? (anyP.mainGroupId as string) : undefined,
@@ -377,6 +383,16 @@ export function ProjectEditorForm({
           </SelectContent>
         </Select>
       </Field>
+
+      <ProjectStableBranchField
+        value={form.metadata.stableBranch}
+        onChange={(stableBranch) =>
+          setForm((s) => {
+            const { stableBranch: _was, ...metadata } = s.metadata
+            return { ...s, metadata: stableBranch ? { ...metadata, stableBranch } : metadata }
+          })
+        }
+      />
 
       {mode === 'edit' ? (
         <TicketConnectionPicker

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -17,19 +18,23 @@ export type OpenWorkChooserProps = {
   choice: ProcessOpenWorkChoice | undefined
   busy?: boolean
   onChoose: (choice: ProcessOpenWorkChoice) => void
+  /** The host's live card for a process run, opening it on press — shows the open run. */
+  renderRun?: (processRunId: string) => ReactNode
 }
 
 /**
  * The story already has open work — a run still going, or finished and not
- * merged. Says which run, where it stands and what could go wrong, then offers
- * the three ways to proceed, each with what it entails; the launch waits for a
- * pick. Web peer: `web/compound/chat/OpenWorkChooser`.
+ * merged. Says which run (its live card, when the host gives one), where it
+ * stands and what could go wrong, then offers the ways to proceed — only adding
+ * to a run still live — each with what it entails; the launch waits for a pick,
+ * or says it cannot start when no way is open. Web peer: `web/compound/chat/OpenWorkChooser`.
  */
 export default function OpenWorkChooser({
   openWork,
   choice,
   busy = false,
   onChoose,
+  renderRun,
 }: OpenWorkChooserProps) {
   const { theme, status } = useNativeTheme()
   const view = processOpenWorkView(openWork)
@@ -51,6 +56,7 @@ export default function OpenWorkChooser({
       <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.text.primary }}>
         {view.headline}
       </Text>
+      {renderRun ? renderRun(openWork.runId) : null}
       {view.holds ? <Text style={line}>It holds: {view.holds}</Text> : null}
       {view.adds ? <Text style={line}>This launch adds: {view.adds}</Text> : null}
       {view.warnings.map((warning) => (
@@ -129,7 +135,11 @@ export default function OpenWorkChooser({
           )
         })}
       </View>
-      {choice === undefined ? (
+      {view.blocked ? (
+        <Text style={{ fontSize: 11.5, fontWeight: '500', color: status.stuck.softFg }}>
+          {view.blocked}
+        </Text>
+      ) : choice === undefined ? (
         <Text style={{ fontSize: 11, fontWeight: '500', color: status.working.softFg }}>
           {OPEN_WORK_PICK_HINT}
         </Text>

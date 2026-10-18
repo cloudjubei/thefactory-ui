@@ -33,3 +33,17 @@ export type LaunchModelChipSlot = {
   api: boolean
   onPickApi: () => void
 }
+
+/** The CLI, model and sign-in an agent's launch asked for. */
+export interface LaunchAgentAsked {
+  cliTool?: string
+  cliModel?: string
+  cliCredentialId?: string
+}
+
+/** The CLI agent a launch's suggested setup is asked of; none is the API. */
+export interface LaunchSuggestionAgent {
+  cliTool?: string
+  model?: string
+  cliCredentialId?: string
+}

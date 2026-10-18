@@ -29,3 +29,7 @@ export const AMENDMENT_SEND_BACK =
 
 /** Said under the open-work choices until one is picked — the launch waits for it. */
 export const OPEN_WORK_PICK_HINT = 'Pick one to start.'
+
+/** Said when the story's open run can take none of this launch's work — the launch cannot start beside it. */
+export const OPEN_WORK_BLOCKED =
+  'It can’t take this work, and no second run starts beside it. Open it and see it through.'

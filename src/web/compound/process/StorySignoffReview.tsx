@@ -18,6 +18,8 @@ import {
   ranReviewChecks,
   requestChangesProofPreset,
   requestProofChoices,
+  screensDecisionNote,
+  screensDecisionUiImpact,
   reviewCheckGroups,
   reviewTabOrder,
   reviewTabs,
@@ -62,6 +64,7 @@ import {
   type SignoffMergeHold,
   type ProcessWorkBranch,
   type ProofKind,
+  type ChangeScreensDecision,
   type ProofKindUnavailable,
   type ReviewTabId,
   type ScreenPair,
@@ -85,11 +88,14 @@ import {
   VerdictBadge,
   WalkthroughTab,
 } from '../chat/signoff'
+import ProjectFlakesList from './ProjectFlakesList'
 import DependencyBullet from '../stories/DependencyBullet'
 import FeatureReviewSection from './FeatureReviewSection'
 import IntegrationChooser from './IntegrationChooser'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProofPlanMarks from './ProofPlanMarks'
+import ScreensDecisionNote from './ScreensDecisionNote'
+import OutsideScopeNote from './signoff/OutsideScopeNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
 import ProcessCleanupCard from './signoff/ProcessCleanupCard'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
@@ -133,6 +139,8 @@ export type StorySignoffReviewProps = {
   proofUnavailable?: readonly ProofKindUnavailable[]
   /** The files of the story's change that alter what users see; empty, and screens are never preset. */
   changeUiPaths?: readonly string[]
+  /** Whether the story's change must be shown on screen, what decided it and why. */
+  changeScreensDecision?: ChangeScreensDecision
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -235,6 +243,7 @@ function StorySignoffPanel({
   onOpenStep,
   proofUnavailable,
   changeUiPaths,
+  changeScreensDecision,
   signoff,
   evidence,
   evidenceState,
@@ -277,7 +286,11 @@ function StorySignoffPanel({
     plannedKinds: signoff.features.flatMap((f) => f.proofPlan?.map((r) => r.kind) ?? []),
     ...(proofUnavailable ? { unavailable: proofUnavailable } : {}),
     ...(changeUiPaths ? { uiPaths: changeUiPaths } : {}),
+    ...(screensDecisionUiImpact(changeScreensDecision)
+      ? { uiImpact: screensDecisionUiImpact(changeScreensDecision) }
+      : {}),
   })
+  const screensNote = screensDecisionNote(changeScreensDecision)
 
   const sections = useMemo(
     () => signoffSections(signoff, evidence.tiles),
@@ -620,6 +633,7 @@ function StorySignoffPanel({
               {signoff.headline.detail}
             </div>
           ) : null}
+          {signoff.outsideScope ? <OutsideScopeNote line={signoff.outsideScope} /> : null}
           <SignoffDecisionList
             items={decisionItems}
             onOpenPair={setOpenPairKey}
@@ -879,6 +893,8 @@ function StorySignoffPanel({
         </div>
       </section>
 
+      {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
+
       {overall && chips.length > 0 ? (
         <section
           aria-label={SIGNOFF_SECTION_TITLES.evidence}
@@ -919,13 +935,16 @@ function StorySignoffPanel({
                 />
               </div>
             ) : current?.target.tab === 'tests' ? (
-              <div className="pt-3">
+              <div className="flex flex-col gap-2 pt-3">
                 <ChecksTab
                   methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
                   checks={testChecks}
                   branch={undefined}
                   busyId={undefined}
                 />
+                {projectChecks?.knownFlakes ? (
+                  <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+                ) : null}
               </div>
             ) : current?.target.tab === 'build' ? (
               <div className="pt-3">

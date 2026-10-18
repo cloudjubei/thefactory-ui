@@ -34,6 +34,7 @@ describe('showcase registry', () => {
       'docked-chat-header',
       'run-header',
       'run-time-details',
+      'going-in-circles',
       'run-chat-dock',
       'running-vs-done',
       'design-current',

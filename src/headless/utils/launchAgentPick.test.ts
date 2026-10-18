@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   launchAgentPickMetadata,
+  launchAgentPickSuggestionAgent,
   launchAgentPickRunner,
   pickLaunchApi,
   pickLaunchCli,
@@ -53,5 +54,37 @@ describe('launch agent picks', () => {
     expect(launchAgentPickMetadata(pickLaunchModel(pickLaunchApi(), 'opus'))).toEqual({
       cliModel: 'opus',
     })
+  })
+})
+
+describe('launchAgentPickSuggestionAgent', () => {
+  const asked = { cliTool: 'codex', cliModel: 'gpt-5', cliCredentialId: 'c1' }
+
+  it('asks the CLI the agent asked for when nothing is picked', () => {
+    expect(launchAgentPickSuggestionAgent(NO_LAUNCH_AGENT_PICK, asked)).toEqual({
+      cliTool: 'codex',
+      model: 'gpt-5',
+      cliCredentialId: 'c1',
+    })
+    expect(launchAgentPickSuggestionAgent(NO_LAUNCH_AGENT_PICK, {})).toEqual({})
+  })
+
+  it('asks the CLI picked, with its own sign-in and model, never the agent’s for another CLI', () => {
+    expect(
+      launchAgentPickSuggestionAgent(pickLaunchCli('claude-code', 'c2', 'opus'), asked),
+    ).toEqual({ cliTool: 'claude-code', model: 'opus', cliCredentialId: 'c2' })
+    expect(
+      launchAgentPickSuggestionAgent(pickLaunchCli('claude-code', undefined, undefined), asked),
+    ).toEqual({ cliTool: 'claude-code' })
+  })
+
+  it('asks a model picked on the agent’s own CLI', () => {
+    expect(
+      launchAgentPickSuggestionAgent(pickLaunchModel(NO_LAUNCH_AGENT_PICK, 'o3'), asked),
+    ).toEqual({ cliTool: 'codex', model: 'o3', cliCredentialId: 'c1' })
+  })
+
+  it('asks no CLI when the API is picked', () => {
+    expect(launchAgentPickSuggestionAgent(pickLaunchApi(), asked)).toEqual({})
   })
 })

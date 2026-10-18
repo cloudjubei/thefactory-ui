@@ -7,6 +7,7 @@ import type {
 
 import {
   canSettleFeatureRequest,
+  canStartFeatureRequestAgain,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
   featureRequestChatContext,
@@ -19,6 +20,7 @@ import {
   featureRequestSettledLine,
   featureRequestSettleFormReady,
   featureRequestSettleHint,
+  featureRequestStartAgainChoice,
   featureRequestStatusView,
   featureRequestTakenOverLinks,
   featureRequestStoryLabel,
@@ -217,7 +219,7 @@ describe('hiddenFeatureRequestIntro', () => {
 describe('the decision copy', () => {
   it('names the asking project in each line', () => {
     expect(featureRequestAcceptHint('Knowledge')).toBe(
-      'Accepting places it on a story here, starts an agent in this chat, and reports each step back to Knowledge.',
+      'Accepting places it on a story here and starts the work the way you choose. Each step is reported back to Knowledge.',
     )
     expect(featureRequestRejectPrompt('Knowledge')).toBe('Why? Knowledge’s chat is told.')
     expect(featureRequestRejectedLine('Knowledge')).toBe('Knowledge was told; nothing was started.')
@@ -239,6 +241,48 @@ describe('featureRequestCycleWarning', () => {
       undefined,
     )
     expect(featureRequestCycleWarning({}, 'K')).toBe(undefined)
+  })
+
+  const waitCycle = {
+    waits: [
+      {
+        requestId: 'be',
+        projectId: 'thefactory-backend',
+        onRequestId: 'ui',
+        onProjectId: 'thefactory-ui',
+        reason: 'r1',
+      },
+      {
+        requestId: 'ui',
+        projectId: 'thefactory-ui',
+        onRequestId: 'be',
+        onProjectId: 'thefactory-backend',
+        reason: 'r2',
+      },
+    ],
+    decideFirstRequestId: 'be',
+    detectedAt: '2026-10-18T12:00:00.000Z',
+  }
+
+  it('tells the side that owns what the other waits on to decide first', () => {
+    expect(featureRequestCycleWarning({ id: 'be', waitCycle }, 'K')).toBe(
+      'This request and the request in thefactory-ui are waiting on each other. This side owns what the other waits on: decide it here first.',
+    )
+  })
+
+  it('tells the other side where to decide first', () => {
+    expect(featureRequestCycleWarning({ id: 'ui', waitCycle }, 'K')).toBe(
+      'This request and the request in thefactory-backend are waiting on each other. Decide first in thefactory-backend, which owns what this side waits on.',
+    )
+  })
+
+  it('puts the wait it is in before the one accepting could cause', () => {
+    expect(
+      featureRequestCycleWarning(
+        { id: 'ui', waitCycle, cycleFlag: { detected: true, path: ['a', 'b', 'a'] } },
+        'K',
+      ),
+    ).toContain('are waiting on each other')
   })
 })
 
@@ -392,5 +436,41 @@ describe('featureRequestChatContext', () => {
       projectId: 'backend',
       featureRequestId: 'fr-9',
     })
+  })
+})
+
+describe('canStartFeatureRequestAgain', () => {
+  const placed = { storyId: 's1' }
+
+  it.each(['blocked', 'failed'] as const)('offers starting a %s request again', (status) => {
+    expect(canStartFeatureRequestAgain({ status, handling: placed })).toBe(true)
+  })
+
+  it('does not offer it for a request never placed on a story', () => {
+    expect(canStartFeatureRequestAgain({ status: 'blocked' })).toBe(false)
+  })
+
+  it.each(['pending', 'accepted', 'in_progress', 'in_review', 'completed', 'rejected'] as const)(
+    'does not offer it for a %s request',
+    (status) => {
+      expect(canStartFeatureRequestAgain({ status, handling: placed })).toBe(false)
+    },
+  )
+})
+
+describe('featureRequestStartAgainChoice', () => {
+  it('goes the way the last work went', () => {
+    expect(
+      featureRequestStartAgainChoice({
+        handling: { work: { mode: 'process', processRunId: 'r1', startedAt: 't' } },
+      }),
+    ).toEqual({ mode: 'process' })
+  })
+
+  it('works it in the request’s chat when no work started before', () => {
+    expect(featureRequestStartAgainChoice({ handling: { storyId: 's1' } })).toEqual({
+      mode: 'chat',
+    })
+    expect(featureRequestStartAgainChoice(undefined)).toEqual({ mode: 'chat' })
   })
 })

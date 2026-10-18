@@ -4504,3 +4504,40 @@ describe('signoffLoadingLabel', () => {
     )
   })
 })
+
+describe('buildStorySignoff — files outside the features’ scope (run 424a4671)', () => {
+  it('says which changed files a code review was told lie outside the scope', () => {
+    const reviewed = {
+      ...proc('pr1', 'f1', ['ra']),
+      plan: { steps: [{ id: 'code-review', name: 'Code review', kind: 'judge' }] },
+      ledger: [
+        { runRef: { runId: 'ra' } },
+        {
+          id: 'cr',
+          stepId: 'code-review',
+          status: 'done',
+          outsideScope: ['src/agentRunner/agentRunnerOrchestrator.ts'],
+        },
+      ],
+    } as unknown as StorySignoffProcessRun
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [reviewed],
+      cliRuns: [run({ id: 'ra' })],
+      evidence: [],
+    })
+    expect(signoff.outsideScope).toBe(
+      'Outside the feature’s scope: src/agentRunner/agentRunnerOrchestrator.ts',
+    )
+  })
+
+  it('says nothing when every file was in scope', () => {
+    const signoff = buildStorySignoff({
+      features: [{ id: 'f1', title: 'One' }],
+      processRuns: [proc('pr1', 'f1', ['ra'])],
+      cliRuns: [run({ id: 'ra' })],
+      evidence: [],
+    })
+    expect(signoff).not.toHaveProperty('outsideScope')
+  })
+})

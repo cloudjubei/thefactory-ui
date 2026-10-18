@@ -1,5 +1,9 @@
 import type { ProcessLedgerEntry, ProcessRun, ProcessStepState } from 'thefactory-tools/types'
-import { getChatContextKey, processRunChatContext } from 'thefactory-tools/utils'
+import {
+  getChatContextKey,
+  processRegeneratedMergeNote,
+  processRunChatContext,
+} from 'thefactory-tools/utils'
 
 import { processIntegrationChoices } from './processIntegration'
 import { REQUEST_PROOF_CHOICES } from './processParkNoteConstants'

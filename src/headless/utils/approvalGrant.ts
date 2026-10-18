@@ -1,7 +1,9 @@
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { partitionGrants } from './agentQuestions'
 import type { ApprovalPanelHold, PendingToolGrant } from './chatTypes'
 import type { GrantDetailView } from './approvalGrantTypes'
 import { START_GROUP_WORK_TOOL_NAME } from './processGroupLaunchConstants'
+import { ACCEPT_REQUEST_TOOL } from './toolAskCardConstants'
 
 /**
  * The tool that launches an isolated feature-work run. Kept as a named constant
@@ -33,10 +35,15 @@ export function isStartFeatureWorkGrant(grant: Pick<PendingToolGrant, 'toolName'
 /**
  * Whether a tool call's ask is decided on the row that shows it. A feature-work
  * or group launch is not, though it is gated like any tool call: approving it starts a
- * separate run, and the panel is where its launch options are chosen.
+ * separate run, and the panel is where its launch options are chosen. Nor is
+ * accepting a feature request: its card is where the way its work starts is picked.
  */
 export function isToolAskDecidedOnRow(toolName: string | undefined): boolean {
-  return toolName !== START_FEATURE_WORK_TOOL_NAME && toolName !== START_GROUP_WORK_TOOL_NAME
+  return (
+    toolName !== START_FEATURE_WORK_TOOL_NAME &&
+    toolName !== START_GROUP_WORK_TOOL_NAME &&
+    toolName !== ACCEPT_REQUEST_TOOL
+  )
 }
 
 export type StartFeatureWorkRunner = 'cli' | 'api'
@@ -117,6 +124,21 @@ export type StartFeatureWorkGrantSummary = {
   turnLimit?: unknown
   /** The branch the agent asked the work to go off; the card preselects it when the project has it. */
   baseBranch?: string
+  /** The way the agent proposed to do the work — the card starts on it, the person may switch. */
+  mode?: WorkLaunchMode
+  /** Only these of the story's pending features, when the launch names any. */
+  featureIds?: string[]
+  /** The CLI the agent asked the work to run on. */
+  cliTool?: string
+  /** The model the agent asked for on that CLI. */
+  cliModel?: string
+  /** The CLI sign-in the agent asked for. */
+  cliCredentialId?: string
+}
+
+/** A string argument, trimmed; blank or not a string is none. */
+function textArg(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 /**
@@ -139,6 +161,12 @@ export function startFeatureWorkGrantSummary(
   const runner = record.runner
   const processId = typeof record.processId === 'string' ? record.processId.trim() : ''
   const baseBranch = typeof record.baseBranch === 'string' ? record.baseBranch.trim() : ''
+  const featureIds = Array.isArray(record.featureIds)
+    ? record.featureIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    : []
+  const cliTool = textArg(record.cliTool)
+  const cliModel = textArg(record.cliModel)
+  const cliCredentialId = textArg(record.cliCredentialId)
   const relevantNoteIds = Array.isArray(record.relevantNoteIds)
     ? record.relevantNoteIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : []
@@ -151,6 +179,11 @@ export function startFeatureWorkGrantSummary(
     ...(processId.length > 0 ? { processId } : {}),
     ...(record.turnLimit !== undefined ? { turnLimit: record.turnLimit } : {}),
     ...(baseBranch.length > 0 ? { baseBranch } : {}),
+    ...(record.mode === 'process' || record.mode === 'chat' ? { mode: record.mode } : {}),
+    ...(featureIds.length > 0 ? { featureIds } : {}),
+    ...(cliTool ? { cliTool } : {}),
+    ...(cliModel ? { cliModel } : {}),
+    ...(cliCredentialId ? { cliCredentialId } : {}),
   }
 }
 

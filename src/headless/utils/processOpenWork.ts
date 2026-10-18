@@ -4,12 +4,14 @@ import type {
   ProcessOpenWorkState,
   ProcessRun,
 } from 'thefactory-tools/types'
+import { PROCESS_RESOLUTION_REVIEW_TEXT } from 'thefactory-tools/constants'
 import {
   AMENDMENT_CLOSED_SIGN_OFF,
   AMENDMENT_REOPENED_APPROVED,
   AMENDMENT_REOPENED_ENDED,
   AMENDMENT_SEND_BACK,
   AMENDMENT_SET_ASIDE_PARK,
+  OPEN_WORK_BLOCKED,
   OPEN_WORK_EXTEND_LABEL,
   OPEN_WORK_FRESH_LABEL,
   OPEN_WORK_NEW_ON_BRANCH_LABEL,
@@ -68,7 +70,9 @@ const featureList = (features: readonly { title: string }[]): string | undefined
 
 /**
  * A story's open work as the launch approval shows it: which run, where it
- * stands, what could go wrong, and each way to proceed with what it entails.
+ * stands, what could go wrong, and each way to proceed with what it entails —
+ * a live run offers only adding to it, and says so when it can take none of
+ * the work.
  */
 export function processOpenWorkView(openWork: ProcessOpenWork): ProcessOpenWorkView {
   const details: Record<ProcessOpenWorkChoice, { label: string; detail: string }> = {
@@ -88,12 +92,17 @@ export function processOpenWorkView(openWork: ProcessOpenWork): ProcessOpenWorkV
   }))
   const holds = featureList(openWork.features)
   const adds = featureList(openWork.newFeatures)
+  const separateRun = options.some((o) => o.available && o.choice !== 'extend')
+  const blocked = options.every((o) => !o.available)
   return {
     headline: HEADLINE[openWork.state](openWork.title),
-    warnings: [...WARNINGS[openWork.state]],
+    warnings: WARNINGS[openWork.state].filter(
+      (warning) => separateRun || warning !== OPEN_WORK_WARNING_PARALLEL,
+    ),
     ...(holds ? { holds } : {}),
     ...(adds ? { adds } : {}),
     options,
+    ...(blocked ? { blocked: OPEN_WORK_BLOCKED } : {}),
   }
 }
 
@@ -139,6 +148,10 @@ export function processAmendmentView(
     if (sentBackFrom) {
       const gate = run.plan.steps.find((s) => s.id === sentBackFrom)?.name ?? sentBackFrom
       lines.push(AMENDMENT_SEND_BACK.replaceAll('{gate}', gate))
+    }
+    if (amendment.resolutionReview) lines.push(PROCESS_RESOLUTION_REVIEW_TEXT.amendmentNote)
+    if (amendment.managerChangeReview) {
+      lines.push(PROCESS_RESOLUTION_REVIEW_TEXT.managerAmendmentNote)
     }
     if (amendment.reopened) {
       lines.push(

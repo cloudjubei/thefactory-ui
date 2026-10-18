@@ -57,3 +57,10 @@ export interface FeatureRequestSettledView {
 
 /** Which settle form is open: marking a request delivered, or handing it over. */
 export type FeatureRequestSettleMode = 'delivered' | 'handed-over'
+
+/** How a request's work is carried out when it starts again: a process run, or its own chat. */
+export interface FeatureRequestStartAgainChoice {
+  mode: 'process' | 'chat'
+  /** The launch card's picks, for a process run. */
+  decision?: Record<string, unknown>
+}

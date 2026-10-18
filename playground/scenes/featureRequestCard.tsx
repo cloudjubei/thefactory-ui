@@ -24,9 +24,11 @@ const REQUEST: FeatureRequestCardData = {
 function Card({
   request,
   initialSettleMode,
+  startAgain,
 }: {
   request: FeatureRequestCardData
   initialSettleMode?: FeatureRequestSettleMode
+  startAgain?: boolean
 }) {
   return (
     <div className="max-w-xl">
@@ -35,6 +37,7 @@ function Card({
         onOpenFull={noop}
         onMarkDelivered={noop}
         onHandOver={noop}
+        onStartAgain={startAgain ? noop : undefined}
         onOpenRequest={noop}
         initialSettleMode={initialSettleMode}
       />
@@ -69,9 +72,11 @@ const TITLES: Record<string, string> = {
 function Incoming({
   request,
   initialSettleMode,
+  startAgain,
 }: {
   request: FeatureRequest
   initialSettleMode?: FeatureRequestSettleMode
+  startAgain?: boolean
 }) {
   return (
     <div className="max-w-2xl">
@@ -82,6 +87,7 @@ function Incoming({
         onReject={noop}
         onMarkDelivered={noop}
         onHandOver={noop}
+        onStartAgain={startAgain ? noop : undefined}
         onOpenFull={noop}
         onOpenRequest={noop}
         requestTitle={(id) => TITLES[id]}
@@ -112,7 +118,7 @@ export const FEATURE_REQUEST_CARD_SCENES: Scene[] = [
         id: 'blocked-features',
         title: 'Blocked — features blocked',
         description:
-          'The run landed a review, but a feature it placed is blocked: Blocked, naming the feature, instead of In review.',
+          'The run left a review, but a feature it placed is blocked: Blocked, naming the feature, instead of In review.',
         render: () => (
           <Card
             request={{
@@ -123,6 +129,30 @@ export const FEATURE_REQUEST_CARD_SCENES: Scene[] = [
             }}
           />
         ),
+      },
+      {
+        id: 'blocked-start-again',
+        title: 'Blocked — start again',
+        description:
+          'Paired with Blocked — features blocked: where the person may start the work again, Start again is offered with why.',
+        render: () => (
+          <Card
+            startAgain
+            request={{
+              ...REQUEST,
+              status: 'blocked',
+              statusReason:
+                '1 of 5 features are blocked: Detect deterministic refusal repetition with a small window.',
+            }}
+          />
+        ),
+      },
+      {
+        id: 'failed-start-again',
+        title: 'Failed — start again',
+        description:
+          'Paired with Blocked — start again: a failed request offers the same, saying its work failed.',
+        render: () => <Card startAgain request={{ ...REQUEST, status: 'failed' }} />,
       },
       {
         id: 'blocked-review-rejected',
@@ -271,6 +301,25 @@ export const FEATURE_REQUEST_CARD_SCENES: Scene[] = [
         description:
           'The look-alike base: accepted, its work blocked, with the settle actions offered.',
         render: () => <Incoming request={INCOMING} />,
+      },
+      {
+        id: 'blocked-start-again',
+        title: 'Accepted — work blocked, start again',
+        description:
+          'Paired with Accepted — work blocked: Start again readies what its work left blocked and starts it again on its story — needed even with no question open.',
+        render: () => <Incoming request={INCOMING} startAgain />,
+      },
+      {
+        id: 'failed-start-again',
+        title: 'Accepted — work failed, start again',
+        description:
+          'Paired with Accepted — work blocked, start again: a failed run offers the same.',
+        render: () => (
+          <Incoming
+            request={{ ...INCOMING, status: 'failed', statusReason: undefined }}
+            startAgain
+          />
+        ),
       },
       {
         id: 'mark-delivered-form',

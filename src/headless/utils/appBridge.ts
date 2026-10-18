@@ -62,7 +62,12 @@ export function parseBridgeMessage(raw: unknown): BridgeRequest | null {
  * Same `{view, params}` payload, so the app applies both through one path.
  */
 export function buildNavOpenMessage(deepLink: AppDeepLink): BridgeRequest {
-  return { type: BRIDGE_PREFIX + 'nav.open', payload: deepLink }
+  return buildBridgePush('nav.open', deepLink)
+}
+
+/** A host→app push: fire-and-forget, no `id`, named `overseer:<name>`. */
+export function buildBridgePush(name: string, payload: unknown): BridgeRequest {
+  return { type: BRIDGE_PREFIX + name, payload }
 }
 
 export function buildBridgeResponse(

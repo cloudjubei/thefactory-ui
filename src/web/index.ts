@@ -322,6 +322,7 @@ export {
 } from './compound/shell/ShellTabs'
 export { default as LoadingScreen, type LoadingScreenProps } from './compound/shell/LoadingScreen'
 export { default as BackendStartupGate } from './compound/shell/BackendStartupGate'
+export { default as RouterLeaveGuard } from './compound/shell/RouterLeaveGuard'
 export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
 export { default as InkBadge, type InkBadgeProps } from './compound/shell/InkBadge'
 export { default as UnifiedDiffView } from './compound/files/UnifiedDiffView'
@@ -704,6 +705,15 @@ export {
   type TicketConnectionPickerValue,
 } from './compound/projects/TicketConnectionPicker'
 export {
+  default as ProjectStableBranchField,
+  type ProjectStableBranchFieldProps,
+} from './compound/projects/ProjectStableBranchField'
+export {
+  default as SiblingFallbackNotice,
+  RunSiblingFallbackNotice,
+  type SiblingFallbackNoticeProps,
+} from './compound/process/SiblingFallbackNotice'
+export {
   default as ProjectTicketSettings,
   type ProjectTicketSettingsProps,
 } from './compound/projects/ProjectTicketSettings'
@@ -856,6 +866,14 @@ export { default as ReferenceRenderingProvider } from './compound/ReferenceRende
 // wizard. Headless data + scheduling live in `useProjectAppView` and
 // `TemplatesContext` respectively.
 export { default as ProjectAppView, type ProjectAppViewProps } from './compound/ProjectAppView'
+export {
+  default as AppWorkStartDialog,
+  type AppWorkStartDialogProps,
+} from './compound/AppWorkStartDialog'
+export {
+  default as LiveDataTaskSourceFields,
+  type LiveDataTaskSourceFieldsProps,
+} from './compound/LiveDataTaskSourceFields'
 export { default as TemplatePicker, type TemplatePickerProps } from './compound/TemplatePicker'
 export {
   default as AlwaysAllowControl,
@@ -874,3 +892,19 @@ export {
   default as AssistantConversationList,
   type AssistantConversationListProps,
 } from './compound/chat/AssistantConversationList'
+export {
+  default as WorkLaunchChooser,
+  type WorkLaunchChooserProps,
+} from './compound/WorkLaunchChooser'
+export {
+  default as StoryLaunchDock,
+  type StoryLaunchDockProps,
+} from './compound/chat/StoryLaunchDock'
+export {
+  default as LaunchSuggestionPanel,
+  type LaunchSuggestionPanelProps,
+} from './compound/chat/LaunchSuggestionPanel'
+export {
+  default as StartWorkDialog,
+  type StartWorkDialogProps,
+} from './compound/chat/StartWorkDialog'

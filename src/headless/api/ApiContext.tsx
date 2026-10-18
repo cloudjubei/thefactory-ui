@@ -148,6 +148,11 @@ export function ApiProvider({ apiBaseUrl, wsBaseUrl, client, children }: ApiProv
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>
 }
 
+/** The API when an `ApiProvider` is above — `null` where none is (a showcase, a static render). */
+export function useOptionalApi(): ApiContextValue | null {
+  return useContext(ApiContext)
+}
+
 export function useApi(): ApiContextValue {
   const ctx = useContext(ApiContext)
   if (!ctx) throw new Error('useApi must be used within ApiProvider')

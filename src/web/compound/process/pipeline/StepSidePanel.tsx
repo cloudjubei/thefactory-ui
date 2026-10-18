@@ -2,10 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   agentNeverStartedNote,
+  attemptUiImpactNote,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
   reportBodyView,
+  reviewUiImpactNote,
   useProcessRun,
   useStepFiling,
   type ProcessNodeRunRef,
@@ -19,6 +21,7 @@ import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
+import UiImpactNote from '../UiImpactNote'
 
 /** Which step's output the side panel shows — an attempt of it, when one is named. */
 export type StepPanelTarget = { runId: string; stepId: string; entryId?: string }
@@ -88,6 +91,12 @@ export function StepSidePanelView({
       : undefined
   const switchable = canTranscript && (hasOutput || leafReview !== undefined)
   const neverStarted = agentNeverStartedNote(entry)
+  const impact =
+    run && state && entry
+      ? state.step.kind === 'judge'
+        ? reviewUiImpactNote(entry, run.ledger)
+        : attemptUiImpactNote(entry)
+      : undefined
   const transcript =
     neverStarted !== undefined ? (
       <div className="p-4 text-[13px] text-(--text-secondary)">{neverStarted}</div>
@@ -151,13 +160,20 @@ export function StepSidePanelView({
           ) : view === 'transcript' && transcript ? (
             <div className="flex min-h-0 flex-1 flex-col">{transcript}</div>
           ) : (
-            <StepOutput
-              run={run}
-              state={state}
-              entry={entry}
-              leafReview={leafReview}
-              {...(transcript ? { transcript } : {})}
-            />
+            <>
+              {impact ? (
+                <div className="px-4 pt-4">
+                  <UiImpactNote note={impact} />
+                </div>
+              ) : null}
+              <StepOutput
+                run={run}
+                state={state}
+                entry={entry}
+                leafReview={leafReview}
+                {...(transcript ? { transcript } : {})}
+              />
+            </>
           )}
         </div>
       </aside>

@@ -7,6 +7,7 @@ import { dispatchAppSettingsBridge } from '../api/appSettingsBridge'
 import { dispatchRunnersBridge } from '../api/runnersBridge'
 import { dispatchProjectsBridge } from '../api/projectsBridge'
 import { dispatchWorkBridge } from '../api/workBridge'
+import { dispatchUserBridge } from '../api/userBridge'
 import { useStories } from '../contexts/StoriesContext'
 import { useProjects } from '../contexts/ProjectsContext'
 import { useLLMConfigs } from '../contexts/LLMConfigsContext'
@@ -14,8 +15,9 @@ import { bridgeMessageName, type BridgeRequest } from '../utils/appBridge'
 
 /**
  * Build the `onBridgeMessage` handler that services an embedded app's
- * `overseer:data.*` (read/write the project's own records), `live-data.read`
- * (its subscribed live data), `analysis.*` (run an analysis job), `activities.*`
+ * `overseer:data.*` (read/write the project's own records), `live-data.*` (read its
+ * subscribed live data; read, refresh and schedule its own declared sources),
+ * `user.current` (who the person is), `analysis.*` (run an analysis job), `activities.*`
  * (start/observe a detached background activity), and `settings.*` (read/write
  * layered user-global + per-app settings) requests against the active project.
  * Each dispatcher returns `undefined` for messages it doesn't own; an unhandled
@@ -66,6 +68,8 @@ export function useProjectDataBridge(
       if (runners !== undefined) return runners
       const projects = await dispatchProjectsBridge(req)
       if (projects !== undefined) return projects
+      const user = await dispatchUserBridge(req)
+      if (user !== undefined) return user
       const work = await dispatchWorkBridge(
         projectId,
         req,

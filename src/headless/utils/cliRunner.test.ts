@@ -39,6 +39,7 @@ import {
   isPlaceholderCliToolName,
   isEmptyToolInput,
   acpToolOrigin,
+  storedChatAskIds,
   storedChatAskRows,
 } from './cliRunner'
 import { cliRunMessageUsage } from './costDetails'
@@ -2483,6 +2484,28 @@ describe('a call that carries on in the background', () => {
   })
 })
 
+describe('storedChatAskIds', () => {
+  it('names each ask a stored row stands for, and nothing else', () => {
+    const messages = [
+      { role: 'user', content: 'Proceed' },
+      { role: 'assistant', content: '', cliRunId: 'run-1' },
+      {
+        role: 'tool',
+        content: '',
+        toolCall: { toolCallId: 'ask-a1', name: 'askUser', arguments: {} },
+        toolResult: { type: 'require_confirmation', result: '', actionId: 'a1' },
+      },
+      {
+        role: 'tool',
+        content: '',
+        toolCall: { toolCallId: 'c2', name: 'readPaths', arguments: {} },
+        toolResult: { type: 'success', result: '' },
+      },
+    ] as ChatMessageLike[]
+    expect([...storedChatAskIds(messages)]).toEqual(['a1'])
+  })
+})
+
 describe('storedChatAskRows — an API chat’s rows show its asks as a CLI turn’s do', () => {
   const row = (actionId: string | undefined, type = 'require_confirmation', name = 'editProject') =>
     ({
@@ -2748,6 +2771,28 @@ describe('every CLI runner’s rows tie to their asks the same way', () => {
     it(`${runner.name}: an approved ask nothing has carried out yet reads as queued`, () => {
       const rows = cliTranscriptToMessages(runner.waiting(), { decidedAsks: [approved] })
       expect(rows[0]!.toolResult?.type).toBe('pending')
+    })
+
+    it(`${runner.name}: a call whose ask the chat stores as its own row leaves it to that row`, () => {
+      const storedAskIds = new Set(['a1'])
+      expect(
+        cliTranscriptToMessages(runner.waiting(), { pendingAsks: [ask], storedAskIds }),
+      ).toEqual([])
+      expect(
+        cliTranscriptToMessages(runner.called(), { pendingAsks: [ask], storedAskIds }),
+      ).toEqual([])
+      expect(
+        cliTranscriptToMessages(runner.waiting(), { decidedAsks: [approved], storedAskIds }),
+      ).toEqual([])
+    })
+
+    it(`${runner.name}: a stored row for another ask leaves this call’s row as it was`, () => {
+      const rows = cliTranscriptToMessages(runner.waiting(), {
+        pendingAsks: [ask],
+        storedAskIds: new Set(['a2']),
+      })
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.toolCall).toMatchObject({ approvalId: 'a1' })
     })
   }
 

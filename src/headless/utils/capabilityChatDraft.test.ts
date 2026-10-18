@@ -137,6 +137,25 @@ describe('capabilityChatDraft', () => {
     expect(draft).toContain('the command that runs the suite')
   })
 
+  it('says a capture approach whose page cannot be served cannot be served, and why', () => {
+    const draft = capabilityChatDraft(
+      { id: 'walkthrough', label: 'Walkthrough', detail: 'The page cannot be served.' },
+      {
+        platform: 'web',
+        approaches: [
+          approach('screen-recording', 'Screen recording', {
+            status: 'unservable',
+            reason: 'The declared App has no page at this commit.',
+          }),
+        ],
+        inRun: false,
+      },
+    )
+    expect(draft).toContain(
+      '- Screen recording: cannot be served — The declared App has no page at this commit.',
+    )
+  })
+
   it('asks a project of unknown platform missing walkthroughs outside a run, with no scan and no options to suggest', () => {
     const draft = capabilityChatDraft(
       {

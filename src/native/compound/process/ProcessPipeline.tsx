@@ -14,6 +14,10 @@ import {
 
 import {
   choiceTakesNote,
+  circlingRetryTakesNote,
+  PROCESS_CIRCLING_NOTE_COPY,
+  processParkCirclingView,
+  processStepCirclingView,
   computeChatRowStatus,
   parkNoteCopy,
   RunChatDraftProvider,
@@ -114,6 +118,7 @@ import CloseUnmergedConfirm from './CloseUnmergedConfirm'
 import WorkBranchChangesNote from './WorkBranchChangesNote'
 import RunPendingChanges from './RunPendingChanges'
 import IntegrationResult from './IntegrationResult'
+import { CirclingChip, CirclingNotice } from './CirclingNotice'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProofChangeComposer from './ProofChangeComposer'
 import RetryChoiceOptions from './RetryChoiceOptions'
@@ -574,6 +579,9 @@ export default function ProcessPipeline({
                 choices={processRunParkChoices(run)}
                 {...(run.proofUnavailable ? { proofUnavailable: run.proofUnavailable } : {})}
                 {...(run.changeUiPaths ? { changeUiPaths: run.changeUiPaths } : {})}
+                {...(run.changeScreensDecision
+                  ? { changeScreensDecision: run.changeScreensDecision }
+                  : {})}
                 {...(run.workBranch && isIntegratingApproval(run, 'approve')
                   ? { workBranch: run.workBranch }
                   : {})}
@@ -1115,6 +1123,7 @@ function PipelineNode({
       : undefined
   const resolves = featureRef ? !('code' in resolveDependency(featureRef)) : false
   const signoffGate = parked && isStorySignoff(run)
+  const circling = processStepCirclingView(run, state.step.id, state.latest)
 
   return (
     <View
@@ -1167,6 +1176,7 @@ function PipelineNode({
                 <Text style={{ fontSize: 10.5, color: theme.text.secondary }}>{addedTag}</Text>
               </View>
             ) : null}
+            {circling && !row.inert ? <CirclingChip view={circling} /> : null}
             {iteration && !row.inert ? (
               <View
                 style={{
@@ -1352,6 +1362,7 @@ function ParkBlock({
   const reflected = isReflectedPark(park)
   const choices = processRunParkChoices(run)
   const proofChange = choices.find((c) => c.choice === 'change-proof')?.proofChange
+  const circling = processParkCirclingView(run)
   const variant = managerLine
     ? status[PROCESS_LIVE_TONE]
     : park.reason === 'gate'
@@ -1376,6 +1387,12 @@ function ParkBlock({
         fontSize={13}
         fontWeight="600"
       />
+      {circling ? (
+        <CirclingNotice
+          view={circling}
+          showHint={circling.afterManager && !reflected && !managerLine}
+        />
+      ) : null}
       {reflected && park.childRunId ? (
         <Pressable onPress={() => onDrill(park.childRunId as string)} accessibilityRole="button">
           <Text style={{ fontSize: 11, color: theme.text.secondary }}>
@@ -1383,7 +1400,22 @@ function ParkBlock({
           </Text>
         </Pressable>
       ) : null}
-      {noteFor ? (
+      {noteFor === 'retry' ? (
+        <ParkNoteComposer
+          copy={PROCESS_CIRCLING_NOTE_COPY}
+          required
+          onSend={(note) =>
+            onChoose(
+              'retry',
+              note,
+              undefined,
+              undefined,
+              retryChoice ? (retryPick ?? processRetryPickStart(retryChoice)) : undefined,
+            )
+          }
+          onCancel={() => setNoteFor(undefined)}
+        />
+      ) : noteFor ? (
         <ParkNoteComposer
           copy={parkNoteCopy(noteFor)}
           {...(noteFor === 'request-changes'
@@ -1427,7 +1459,7 @@ function ParkBlock({
                 onPress={() =>
                   choice.choice === 'change-proof'
                     ? setChangingProof(true)
-                    : choiceTakesNote(choice.choice)
+                    : choiceTakesNote(choice.choice) || circlingRetryTakesNote(choice)
                       ? setNoteFor(choice.choice)
                       : choice.choice === 'retry' && retryChoice
                         ? onChoose(

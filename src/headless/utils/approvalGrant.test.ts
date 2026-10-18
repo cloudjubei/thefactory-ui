@@ -72,6 +72,43 @@ describe('startFeatureWorkGrantSummary', () => {
     expect(summary).toEqual({ proofRequired: true })
   })
 
+  it('reads the way the agent proposed to do the work, and only a known one', () => {
+    const of = (mode: unknown) =>
+      startFeatureWorkGrantSummary(grant({ detail: { args: { storyId: 's', mode } } })).mode
+    expect(of('chat')).toBe('chat')
+    expect(of('process')).toBe('process')
+    expect(of('inline')).toBeUndefined()
+  })
+
+  it('reads the CLI, model and sign-in the agent asked for, dropping blanks and non-strings', () => {
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({
+          detail: {
+            args: { storyId: 's', cliTool: ' codex ', cliModel: 'gpt-5', cliCredentialId: 'c1' },
+          },
+        }),
+      ),
+    ).toMatchObject({ cliTool: 'codex', cliModel: 'gpt-5', cliCredentialId: 'c1' })
+    const blank = startFeatureWorkGrantSummary(
+      grant({ detail: { args: { storyId: 's', cliTool: ' ', cliModel: 4, cliCredentialId: '' } } }),
+    )
+    expect(blank).not.toHaveProperty('cliTool')
+    expect(blank).not.toHaveProperty('cliModel')
+    expect(blank).not.toHaveProperty('cliCredentialId')
+  })
+
+  it('reads the features the launch names, dropping what is not an id', () => {
+    expect(
+      startFeatureWorkGrantSummary(
+        grant({ detail: { args: { storyId: 's', featureIds: ['f1', '', 3, 'f2'] } } }),
+      ).featureIds,
+    ).toEqual(['f1', 'f2'])
+    expect(
+      startFeatureWorkGrantSummary(grant({ detail: { args: { storyId: 's', featureIds: [] } } })),
+    ).not.toHaveProperty('featureIds')
+  })
+
   it('reads the process the agent chose', () => {
     expect(
       startFeatureWorkGrantSummary(
@@ -301,6 +338,11 @@ describe('isToolAskDecidedOnRow', () => {
   it('leaves a feature-work or group launch to its own panel', () => {
     expect(isToolAskDecidedOnRow('startFeatureWork')).toBe(false)
     expect(isToolAskDecidedOnRow('startGroupWork')).toBe(false)
+  })
+
+  it('leaves accepting a feature request to its own card, where the way its work starts is picked', () => {
+    expect(isToolAskDecidedOnRow('acceptProjectFeatureRequest')).toBe(false)
+    expect(isToolAskDecidedOnRow('rejectProjectFeatureRequest')).toBe(true)
   })
 })
 

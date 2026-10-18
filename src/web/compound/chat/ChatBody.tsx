@@ -495,6 +495,7 @@ export default function ChatBody({
           onDecideLater={() => setApprovalDismissedKey(approvalKey)}
           onDecided={addDecidedLine}
           {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
+          {...(renderProcessRun ? { renderProcessRun } : {})}
         />
       ) : historyLocked ? (
         // A closed chat keeps its history and takes no new work. Archiving is

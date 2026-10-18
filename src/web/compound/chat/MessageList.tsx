@@ -42,6 +42,7 @@ import {
   cliLabel,
   messageModelTag,
   parseCliAgentModelTag,
+  storedChatAskIds,
   storedChatAskRows,
 } from '../../../headless/utils/cliRunner'
 
@@ -253,6 +254,8 @@ export default function MessageList({
     () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
     [messages, pendingRowAsks, decidedAsks],
   )
+  // A CLI turn's call whose ask the chat stores a row for is shown by that row alone.
+  const storedAskIds = useMemo(() => storedChatAskIds(messages), [messages])
 
   const enhancedMessages = useMemo(() => {
     type Enhanced = ChatMessageLike & { showModel?: boolean; isFirstInGroup?: boolean }
@@ -787,6 +790,7 @@ export default function MessageList({
                     : {})}
                   cliAsks={cliAsks}
                   decidedAsks={decidedAsks}
+                  storedAskIds={storedAskIds}
                   onClaimAsks={onClaimAsks}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
@@ -872,6 +876,7 @@ export default function MessageList({
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
               cliAsks={cliAsks}
               decidedAsks={decidedAsks}
+              storedAskIds={storedAskIds}
               onClaimAsks={onClaimAsks}
             />
           </div>

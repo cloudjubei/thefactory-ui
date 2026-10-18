@@ -3,6 +3,7 @@ import {
   BRIDGE_PREFIX,
   bridgeMessageName,
   buildBridgeResponse,
+  buildBridgePush,
   buildNavOpenMessage,
   parseBridgeMessage,
 } from './appBridge'
@@ -78,5 +79,17 @@ describe('buildBridgeResponse', () => {
     expect(parseBridgeMessage(msg)).toEqual({ type: 'overseer:nav.open', payload: dl })
     expect((msg as { overseerBridgeResponse?: unknown }).overseerBridgeResponse).toBeUndefined()
     expect(bridgeMessageName(msg.type)).toBe('nav.open')
+  })
+})
+
+describe('buildBridgePush', () => {
+  it('builds a prefixed push with no id that the app parses as a request', () => {
+    const msg = buildBridgePush('live-data.changed', { sourceId: 's', status: 'fresh', at: 'x' })
+    expect(msg).toEqual({
+      type: 'overseer:live-data.changed',
+      payload: { sourceId: 's', status: 'fresh', at: 'x' },
+    })
+    expect('id' in msg).toBe(false)
+    expect(parseBridgeMessage(msg)).toEqual(msg)
   })
 })

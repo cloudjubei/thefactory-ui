@@ -62,8 +62,92 @@ comes from `useProjectAppView`, which mints a short-lived **view token** and poi
 host route `…/projects/<id>/view/<file>?viewToken=…`. The host serves the project's `metadata.appDir`
 (falling back to the checkout root) with `Cache-Control: no-store`. The app talks back to the host only
 through the **`OverseerBridge` postMessage protocol** (`headless/utils/appBridge.ts`; the `data.*` / `settings.*` payloads are read by thefactory-tools' `projectAppDataQueryOf` / `projectAppDataPutOf` / `projectAppDataRefOf` / `projectAppSettings*Of`, the same readers the backend's App capture harness answers with) — `data.*`,
-`activities.*`, `settings.*`, `chat.discuss`/`chat.requestSidebar`, `story.create`, etc.; the host holds
-every credential, the app never does.
+`activities.*`, `settings.*`, `live-data.*`, `user.current`, `work.start`, `nav.*`, `chat.discuss`/`chat.requestSidebar`,
+`story.create`, etc.; the host holds every credential, the app never does.
+
+### Unsaved changes (`overseer:app.dirty`)
+
+An app tells the host its unsaved state, fire-and-forget, once at boot and whenever it changes (the
+boot post is what clears a stale state after the app reloads itself inside a still-mounted frame):
+
+```js
+parent.postMessage({ type: 'overseer:app.dirty', payload: { dirty: true, message: '2 scenarios not saved.' } }, '*')
+// …and { dirty: false } once saved or discarded. `message` is optional.
+```
+
+(On native the app posts the same object through `window.ReactNativeWebView.postMessage(JSON.stringify(…))`.)
+`APP_DIRTY_TYPE` / `parseAppDirtyPayload` / `appDirtyLeaveMessage` (`headless/utils/appDirty.ts`) read it;
+a payload without a boolean `dirty` is ignored. `useAppDirtyGuard(mountKey)` holds the state per mounted
+app — a new `mountKey` (project + surface URL + remount key, so every host remount and project switch)
+starts clean — and while dirty it blocks leaving through the shell's **leave guard** with the app's
+message, or `APP_DIRTY_DEFAULT_MESSAGE` ("This app has unsaved changes. Leave anyway?").
+
+The leave guard is generic: `LeaveGuardStore` (`headless/utils/leaveGuardStore.ts`) holds blockers
+(`useLeaveBlocker(message | null)`) and runs a leave-intent at once or holds it for the person
+(`useRequestLeave()(proceed)`); a confirmed leave runs with blocking suspended so the navigations it
+makes go through. Hosts render the question in the forms' discard-style `ConfirmDialog` ("Unsaved
+changes", one destructive **Leave**, X / Esc / back stays):
+
+- **web / desktop** — `RouterLeaveGuard` (`thefactory-ui/web`) wraps the routes. It patches the router's
+  navigator so any `navigate` / link to another pathname asks (a query-only change, e.g. an App deep-link,
+  does not), intercepts back / forward (`popstate`, reverted and replayed on confirm), and adds
+  `beforeunload` while anything blocks. The sidebar's project switch, which sets the active project before
+  it navigates, goes through `useRequestLeave`. Desktop's main process answers the renderer's
+  `beforeunload` (`will-prevent-unload`) with a native Leave / Stay box, since Electron would otherwise
+  cancel the close silently.
+- **native** — `LeaveGuard` (`thefactory-ui/native`) sits above the navigator and the nav drawer; the App
+  screen routes its removal through `usePreventRemove` → `useRequestLeave`, and the drawer's project switch
+  through `useRequestLeave`.
+
+### Live data, the person, starting work and the URL (`live-data.*`, `user.current`, `work.start`, `nav.*`)
+
+Requests (page → host, `{ id, type, payload }`) are answered with `buildBridgeResponse`; a notification
+or a push has no `id` and gets no answer. None of them has a timeout on the host side.
+
+**Declared source ids.** A project declares task live-data sources in its `package.json`
+(`factory.liveData`, e.g. WarGames' `official-sources`); the backend stores each as
+`<projectId>:<declared id>` and subscribes the project. An app names its sources by the **declared**
+id; `projectSourceId` maps it (an id already under this project is kept, any other is prefixed, so an
+app can never name another project's source), and `findAppSource` accepts only a source whose stored
+id matches **and** whose `projectId` is this project. Answers name the source by its declared id again
+(`declaredSourceId`). Logic: `headless/utils/appLiveData.ts`; dispatcher: `api/liveDataBridge.ts`.
+
+| Message | Payload | Answer |
+| --- | --- | --- |
+| `live-data.read` | `{ sourceId? }` | Without `sourceId`: every subscribed source as before (`SubscribedRecords[]`, stored ids), each with `{ autoUpdate, freshnessMs, lastRefreshedAt }` added when the source is known. With `sourceId`: a one-entry array `[{ sourceId: <declared>, recordType, records, autoUpdate, freshnessMs, lastRefreshedAt }]` (`lastRefreshedAt` is `null` before the first refresh). |
+| `live-data.refresh` | `{ sourceId }` | The backend's `RefreshResult` `{ sourceId: <declared>, recordType, itemCount, at, error? }`. It waits for the task, which can take minutes; a failed run is `error` in the result, not a rejected request. |
+| `live-data.schedule` | `{ sourceId, autoUpdate, freshnessMs? }` | `{ autoUpdate, freshnessMs }` as stored. Sends only `{ autoUpdate, freshness? }`, the fields a task source accepts; a backend 400 comes back as the request's error. |
+| `user.current` | — | `{ name, email?, username? }` from the stored git credentials (`GET /git-credentials`, redacted): the connected GitHub account (`tokenSource: 'oauth'`) first, else the first credential that names someone. `name` is the username — a credential's own `name` is its label ("GitHub OAuth (login)") and is used only when it has no username. None: error `No account connected`. (`utils/appUser.ts`, `api/userBridge.ts`.) |
+| `work.start` | `{ title, description, features?: [{ title, description }] }` | Shown to the person over the App view (`useAppWorkStart` → web `AppWorkStartDialog`, native `AppWorkStartSheet`): title, description and features, editable until Start makes the story. **Start** makes a story, one feature per asked feature (none asked: the work as one feature, since a run works features), then `start-work` with `mode: 'process'` on exactly those features → `{ status: 'started', storyId, runId? }`. **Cancel** / X / dismissing the sheet → `{ status: 'declined' }`. It waits as long as the person takes (no ask expires); asks queue first come first shown (`AppWorkStartStore`). A failed Start keeps its progress (`startAppWork` carries on from the story it made, never a second one) and shows the error for another Start. When the App view unmounts or remounts (`mountKey`), every open ask is declined with `reason: 'The app was closed before an answer.'` — the page that asked is gone. |
+| `nav.current` | — | The deep-link as before, plus `appUrl`: the absolute Overseer URL of the app's route (web / desktop `window.location.href`; mobile `Linking.createURL('projects/<id>/app', { queryParams })`, the `thefactory-overseer://` scheme). Without a deep-link the answer is `{ appUrl }` alone (apps already ignore an answer without `view`). |
+
+**Pushes** (host → page, no `id`, `buildBridgePush`), delivered by `ProjectAppView`'s `pushes` channel
+(`useAppBridgePushes(projectId)` → `AppPushChannel`):
+
+- `overseer:live-data.changed { sourceId: <declared id>, status: 'fetching' | 'fresh' | 'error', at }` on
+  the WS `liveData:updated` of one of this project's own sources (the event's `projectId`, or a stored id
+  under the project when it names none). `at` is when the host received it. Global and other projects'
+  sources are not pushed.
+- `overseer:data.changed { collection }` on the WS `data:updated` (DataStorage record upsert / delete) of
+  this project's records (`scope === projectId`); `collection` is the record `type` — what `data.*` calls
+  `type`. The app's own `data.put` / `data.delete` produce one too.
+
+**`overseer:nav.changed { view, params }`** (page notification). The app says where it is; the host
+mirrors it in its own URL with the same encoding `nav.open` / `appDeepLinkFromParams` read
+(`appDeepLinkQuery`; `parseAppDeepLink` turns number / boolean params into strings and drops route
+params): web / desktop `setSearchParams(…, { replace: true })`, mobile `router.setParams(appDeepLinkParamsPatch(…))`
+(stale params cleared). It is a query-only replace — no history entry, no iframe / WebView remount, no
+leave-guard ask (the guard asks only on a pathname change). `ProjectAppView` handles it when given
+`onNavChanged` and records the reported deep-link as the push baseline first, so the `deepLink` prop that
+comes back from the URL change is **not** echoed to the app as `nav.open`.
+
+**Agents.** Chat agents have no tool to refresh a live-data source or change its schedule yet (no
+live-data names in thefactory-tools' `ALL_CHAT_AGENT_TOOLS`, no host extra tool in the backend).
+
+Showcase: `app-work-start` (`features`, `no-features`, `start-failed`), `live-data-task-source`
+(`schedule`). The Live data edit form of a task source (`sourceToForm` → `adapterKind: 'task'`) shows its
+name and script read-only and saves only `{ freshness, autoUpdate }` (`formToSourcePatch`,
+`LiveDataTaskSourceFields` web + native).
 
 ### Asset-freshness convention (REQUIRED for every app)
 
@@ -238,6 +322,10 @@ Settings → **Git Credentials** (`GitCredentialsSettings` on web/desktop, `GitC
 
 `GitCredentialsProvider` subscribes to the `gitCredentials:updated` ws topic and refetches on it, exactly as `OverseerGitProvider` does with `overseer:git-status-changed`. Without that the list was a snapshot taken at login, and a credential written by any route other than the Settings form — an in-chat capture, a GitHub OAuth device/redirect flow, another window — stayed invisible until a full reload. The event carries `{ action, credentialId }` only: the record holds a decrypted token, so the refetch (authenticated) is the read, never the broadcast. The backend emits it from every git-credential write path — POST/PATCH/DELETE, both OAuth landings, and the capture submit handler.
 
+### Starting work — a process run or in this chat
+
+Every start — a story's or a feature's Run, Accept & start work on a feature request, Start work on one accepted but not started, Start again — makes one choice, drawn by `WorkLaunchChooser` (web + native, options from `workLaunchOptions`, the project's last way — `metadata.workLaunchMode` via `useProjectWorkLaunch` — picked first). Hosts drive it with `useStartWork` (a story or feature) or `useFeatureRequestStart` (a request) and draw it with `StartWorkDialog`: in the chat starts at once (`startStoryWorkRequest` / `startRequestWork` / `startRequestAgain`, the person's active agent as `chatAgent`), a process run opens `StoryLaunchDock` — the same `ApprovalPanel` launch card an agent's `startFeatureWork` raises, fed a `storyLaunchGrant` whose Approve launches with the card's picks. `onStarted` hands the host where the work went (the chat, or the run's pipeline). On every launch card a `SegmentedControl` switches Process run / In this chat (decision metadata `mode`), and "Suggest setup" (`useLaunchSuggestion`, `LaunchSuggestionPanel`) asks the agent the launch runs on once for the setup — the CLI picked on the card or the agent asked for (`launchAgentPickSuggestionAgent`, body by `launchSuggestionBody`), else the API model — each setting with why; a CLI that cannot answer says why on the card. "Use these" sets the card (`launchSuggestionPicks`, `launchSuggestionProofEdits`) and never launches. A launch opened from a page runs on the person's active agent (`storyLaunchGrant`'s `agent`, from `useStartWork().chatAgent`) unless the card picks another. An agent's `acceptProjectFeatureRequest` is decided on its own card, not its row (`isToolAskDecidedOnRow`): the request and a `WorkLaunchChooser` starting on the agent's proposed way; Accept carries the pick as `args.mode` (`acceptRequestDecisionMetadata`). Scenes: `work-launch-choice`, `work-launch-request`, `work-launch-accept-ask`, `launch-suggestion`.
+
 ### Processes — the pipeline surface
 
 **Group runs — work that landed outside the run, and resuming.** `processGroupBadge` reads a group run that ended with only some projects merged as "Partly done" (`PROCESS_GROUP_PARTLY_DONE_BADGE`; the engine now ends such a run `failed` with a summary in `group.error`, shown under the legs and on the chat card). A leg row (`processGroupLegRows`) carries `canMarkLanded` — thefactory-tools `processGroupLegLandingRefusal` allows it: stopped, skipped or not merged — and `landed` once marked ("Landed on main by e9b3c02 — merged by an agent from its run’s chat"). Both pipelines (web and native `ProcessGroupPipeline`) put "Mark as landed" on such a leg, opening `ProcessGroupLegLandingDialog` (web and native) over the shared `useProcessGroupLegLanding`: the person may name a commit, "Check" calls `checkProcessGroupLegLanding` and shows `processGroupLandingCheckView` (the commit, the base branch, where it was found, the story done — or every problem), and "Mark as landed" is enabled only by a check that proved it and records exactly that commit (`markProcessGroupLegLanded`). `processGroupResumeView(group, plans)` puts "Resume" in the header of an ended group run whose skipped legs can now start (confirm modal stating what starts once each merged prerequisite is rebuilt as its real plan says — built (the running server's own checkout in place when nothing reloads it), built in a scratch copy (that checkout under a watcher), only its API description refreshed, nothing, or not here — with the plan's reason; `reopenProcessGroupRun`), or says what a skipped leg still waits on. The plans come from `useProcessGroupRebuildPlans(legIds, planRebuild)` (`GET …/legs/:legId/rebuild-plan`) for `processGroupResumeRebuildLegIds(group)`; a plan not read yet reads "rebuilt if what needs it uses its build output". After a check proves a leg landed, the dialog states what follows for the legs that need it (`processGroupLandedNextView`: in a live group run, the leg's plan, read for `processGroupLandingPlanLegIds`; in an ended one, resume to start them). Wording is thefactory-tools `processGroupRebuildSummary` / `processGroupStartWords`, shared with the backend's cards. `useProcessGroupRun` gained `checkLanding`, `markLanded`, `planRebuild` and `reopen`; refusals land in its `actionError` like the park answers'. The park block (web and native `ProcessGroupParkReview`) renders whatever thefactory-tools `processGroupParkChoices` offers, so a prerequisite-build park (a failed or refused rebuild) shows Build it again, Skip the rebuild (`skip-rebuild` — the legs that need it start without it; the leg records who skipped it) and Stop with no UI change.
@@ -318,8 +406,9 @@ the label, ✓ / ✗ / ! / –, an "advisory" marker on a command whose failure 
 not stop the step (lint, format), where it ran — a "sandbox" / "host" chip whose
 hover (web) or accessibility label (native) says why a host run could not use the
 sandbox (`ranInLabel` / `ranInDetail`) and, for a host run, which revision of
-each dependency outside the checkout it built against ("Built against
-thefactory-tools at 1a2b3c4 with uncommitted changes", `dependencyDetail`) — a
+each dependency outside the checkout it built against, on which branch ("Built
+against thefactory-tools on dev at 1a2b3c4 with uncommitted changes", or "main at
+5d6e7f8 (a clean copy)" for a stable-branch snapshot, `dependencyDetail`) — a
 dashed "pre-existing" / "partly pre-existing" chip on a failure the change's base
 shares, its hover or label saying how it compared (`baselineLabel` /
 `baselineDetail`) — and its duration. The sign-off's check
@@ -362,6 +451,28 @@ the self-verified process's one agent, which implements and proves the change
 itself — is read as a verify attempt filed under its own run, exactly as the
 tools' `processVerifyReview` reads it (`PROVING_AGENT_TYPES`). Every surface that
 names a role does it through `agentRoleLabel` ("developer + verifier").
+
+**Checks against a sibling's stable branch.** When the checks failed against
+out-of-tree code with pending changes and ran again at that code's stable branch,
+the attempt carries `siblingFallback` (`stable-passed` / `stable-failed` /
+`unavailable`). `ProcessCheckList` (web + native) leads with `SiblingFallbackNotice`
+— its heading and tone, the host's sentence ("Passed against shared-db@3161c83;
+your pending changes in shared-db break it: …"), a chip per dependency (its
+working tree, "pending changes", → the stable branch@commit used), what failed
+(collapsed) and why a dependency could not be checked — and a `SegmentedControl`
+between the attempt's two runs ("Stable branch" / "Your pending changes",
+`siblingFallbackCheckSets`); all from `headless/utils/siblingFallbackView.ts`. The
+run's chat gets a host message carrying `processRunChecksEntryId`;
+`RunSiblingFallbackNotice` reads that attempt live off the run
+(`useSiblingFallbackNotice` → `siblingFallbackNoticeState`) and marks it history
+once a newer checks attempt ran ("Checked again since — this no longer applies" /
+"… see the newer notice"). `MergeChecksResult` shows the same notice under its
+summary (which already carries the sentence). The project editor's "Stable
+branch" field (`ProjectStableBranchField`, web + native; `projectStableBranchField`
+/ `projectStableBranchError` in `headless/utils/projectStableBranch.ts`) trims the
+value, drops the key when blank and says inline when git would not take it as a
+branch. Showcase: `checks-stable-branch`, `run-chat-stable-branch-notice`,
+`merge-result-stable-branch`, `project-stable-branch-field`.
 
 **The process the agent chose.** `startFeatureWork` may name a `processId`;
 `startFeatureWorkGrantSummary` reads it (trimmed, on either transport) and both
@@ -461,7 +572,31 @@ until one is picked; the pick rides the decision as `{ openWork, runId, state }`
 (`processOpenWorkMetadata`), as the decision's metadata on every transport —
 the choice is the person's and never the agent's. A run that took added work
 tags each added step "Added <date>" and lists what came in, and what it closed,
-set aside or reopened, above its pipeline (`processAmendmentView`).
+set aside or reopened, above its pipeline (`processAmendmentView`). While the
+open run is live (running, parked, waiting at its sign-off) only adding to it
+is offered — no second run of a story starts beside it — and the chooser shows
+that run as the host's live card (`renderProcessRun`, threaded from `ChatBody`
+through `ApprovalStack` / `ApprovalPanel`, so it opens the run); when it can
+take none of the work the chooser says so (`processOpenWorkView(...).blocked`)
+and Start stays off. Features an earlier merged run already delivered are
+listed under it ("Already done by …", `AlreadyDoneNote`, from the preview's
+`alreadyDone`); a group launch lists them per leg and shows a leg's open run
+by its card (`openRunId`). Showcase: `story-open-run`.
+
+**Flaky tests.** A checks step's row carries a "N flaky" chip naming the tests
+that failed in the full run and passed when their file ran again alone
+(`checkFlakyChip`, on `ProcessCheckRow.flaky`); the sign-off's tests tab lists
+the project's known flaky tests from its checks listing (`knownFlakes`,
+`projectFlakeRows`, `ProjectFlakesList` web + native) — runs seen in, when last,
+and the fix filed for one seen in 3 runs. Showcase: `process-check-list`
+(`flaky-passed`, `flaky-and-failed`), `project-known-flakes`.
+
+**Merged after regenerating.** An approved run whose merge re-conflicted only on
+generated files that were rebuilt and checked merges with no second "Confirm the
+merge"; the run's merge result and its sign-off record say "Merged after
+regenerating <files>; checks passed at <sha>" (`processRegeneratedMergeNote` in
+`processIntegrationView` and `processSignoffRecord`). Showcase:
+`regenerated-merge`.
 
 A park is answered with NAMED choices (`processParkChoices`), never a generic
 "resume": the reasons a run parks are not interchangeable — nothing was
@@ -938,12 +1073,16 @@ the proof (`checkActionOffer`), never a button that does nothing.
 
 - **`TurnLimitField`** (`web|native/compound/TurnLimitField.tsx`) is the one "limit turns" switch and slider: the chat settings use it, and so do the launch docks (`ApprovalPanel`'s "How it runs", `GroupWorkLaunchPanel` — their `turnLimit` rides on the decision metadata, starting from `processGrantTurnLimitView`: what the agent asked, else the transport's default) and the run head's `RunTurnLimitChip` (the run's limit, edited while it runs through `useProcessRun().setTurnLimit`). The words — and what the limit means on an API model vs a CLI — come from `processLaunchTurnLimitView` / `processRunTurnLimitView` (headless).
 - **A park's retry** shows `RetryChoiceOptions` above the buttons when its choice carries `retry` (carry on / start fresh, the default picked, why) or `turnLimit` (the raise, prefilled with the suggested number); `ParkBlock` sends the pick as `resume(..., retry)` (`ProcessRetryPick`).
+- **A step going in circles** (showcase scene `going-in-circles`). thefactory-tools flags an agent attempt that ran out of turns, or nearly, and made no progress (`park.circling`, `entry.circling`; its `docs/AGENT_MANAGER_DESIGN.md` §21). `processCirclingView` ([processCirclingView.ts](../src/headless/utils/processCirclingView.ts)) reads a flag into its name, a sentence of how it ran out (tools' `processCirclingReasons`) and its evidence (tools' `processCirclingEvidenceLines`); `processParkCirclingView` reads it off the stop, its mirror on a parent included, and `processStepCirclingView` off a step's newest attempt or that mirror. `ParkBlock` (web + native) shows `CirclingNotice` under the stop's words — the "what a retry needs" line only once the manager's own retry went round too, since the retry's detail already says it — and `PipelineNode` puts `CirclingChip` on the step's row. The retry there reads "Try again with a change" with `changeRequired` and no raise: `circlingRetryTakesNote` opens `ParkNoteComposer` with `PROCESS_CIRCLING_NOTE_COPY`, required, and the note is sent with the retry; a retry the backend still refuses shows its message in the pipeline's error line. The run's card in a chat says `PROCESS_CIRCLING_CARD_LINE` (`processRunCardView`, read live), the manager's brief card leads with the notice (`managerBriefView` → `circling`), and an escalation with `why: 'circling'` reads "It keeps going in circles" (tools' `processManagerEscalationLabel`). The same on every model and transport.
 - **"Settle its features"** — `RunClosurePanel` under any top-level story run that ended and was not settled (`processRunClosable`; failed, stopped, rejected, or approved but not landed — and a landed one whose features the story still has not done), `useProcessRunClosure`: the candidates from `GET /process-runs/:runId/closure` (empty — no panel — once every feature it worked is done), the person's picks, `POST …/closure`, rendered with the shared `FeatureClosureList`.
 - **"Finish as already landed"** — an approved run whose work did not land but whose base already holds it (runs that ended before landing knew "already landed", e.g. one refused for "holds only test seams"). `useProcessRunAlreadyLanded` reads `GET /process-runs/:runId/landing-check` only for a run that offers it (`processRunAlreadyLandedOffered`) and builds `processAlreadyLandedOffer`: the "Nothing to merge — this work was already on <base> (since <commit>)." line, the commit (`CommitChip`), each feature it worked as a `DependencyBullet` (web) / `DependencyRef` (native) with whether it becomes done, and what finishing does. `IntegrationResult` (web + native) shows it above "Try again" (which turns ghost) with the primary **Finish as already landed** → `POST …/settle-already-landed` (`decidedVia`). Its agent card (`settleRunAlreadyLanded`, kind `already-landed`) shows the same line and the features that become done.
+- **What users see, judged per change** (showcase scenes `step-ui-impact`, `signoff-screens-decision`, `capture-unservable`, in `playground/scenes/uiImpact.tsx`). Whether a change alters what users see is judged for the change, never from the project having an app: the developer, fixer and verifier report it (`reportUiImpact`), the attempt keeps it (`ProcessLedgerEntry.uiImpact`, who judged it), and the code review may file its own view (`ProcessReviewVerdict.uiImpact`), which stands over it. `headless/utils/uiImpactView.ts` reads them: `attemptUiImpactNote` ("Shows on screen" / "Nothing on screen", "Judged by the developer", why), `reviewUiImpactNote` ("Code review disagrees: …" when the newest judgement before it said the other way, else "Code review: …"), `screensDecisionNote` (the sign-off's "Screens needed" / "No screens needed" over the server's `ProcessRun.changeScreensDecision` — its reason names the files users see a not-visible judgement left unshown, all of them in `disputedUiPaths`) and `screensDecisionUiImpact` (a decision a judgement or the code review made, which the sign-off's `requestChangesProofPreset` follows beside `changeUiPaths`). The step panel (web `StepSidePanel`, native `StepScreen`) shows `UiImpactNote` above an attempt's output; `StorySignoffReview` (web + native) shows `ScreensDecisionNote` above the evidence. A capture approach whose page the browser tools cannot serve reads `unservable` in the approach menu: its chip is not set up, its callout leads with `CHECK_UNSERVABLE_LEAD` and the serve reason (`CheckMethodRow.unservable`), with no install hint, and the capability draft says "cannot be served — …".
 - **Ways out of a stuck stop** (showcase scene `park-closing`). At a stop of a top-level run whose base already holds its work, `ProcessPipeline` reads `useProcessRunAlreadyLanded(run, 'stop')` (asked only where `processRunParkAlreadyLandedOffered`, `processAlreadyLandedAsked`) and hands `ParkBlock` an `alreadyMerged` action: the same `AlreadyMergedOffer` (web + native, shared with `IntegrationResult`) under the stop's choices. "Close without merging" (`close-unmerged`) never acts on a click: `ParkBlock` (and its `WaitingCard`) open `CloseUnmergedConfirm` (`PROCESS_CLOSE_UNMERGED_CONFIRM_COPY`) and only its confirm resumes the run; a closed run's ending reads "Closed without merging at <step>." (`processRunPersonEnding`) with Resume. "Have an agent resolve it", "Run the checks again" (leading once retries changed nothing, "Try again" then saying why) and "Accept and run the checks" come from thefactory-tools `processRunParkChoices` as they are.
 - **Already on the base at the sign-off** — `StorySignoffReview` (web + native) reads `useProcessIntegrationOptions` up front for a work branch with git; when `options.alreadyOnBase` is set, `processAlreadyOnBaseSignOff` gives the notice above the buttons, the label **Approve — already on <base>** and the decision it sends (the first way offered — nothing is merged, so `IntegrationChooser` is skipped). A group leg's sign-off is the same component, so it says the same. An agent's `decideRunGate` card carries `landing.alreadyOnBase`: `runProposalLandingForm` is then undefined (nothing to choose) and `runProposalLandingLine` reads "Nothing to merge — …". The run's integration record `already-landed` reads "Nothing to merge — this work was already on <base> (since <commit>)." in `processIntegrationView` (shadow: "Nothing to bring in — the project folder already had this work").
 - **Agent cards** for `answerRunPark`, `proposeStepRerun`, `setRunTurnLimit` and `closeRunFeatures` read what the person can change from the host's detail (`runProposalEdit`) and render it with the same controls in `RunProposalEditPanel`; the picks go back as the tool's own arguments (`runProposalEditArgs`), and `runProposalEditProblem` holds the approval while they cannot be carried out. A `change-proof` answer's card lets the person toggle the kinds and saving to the feature (`proofChange`, judged by `proofChangeView`).
 - **Changing what proves the work at a stop.** Any stop that offers `change-proof` (the tools' `processProofChangeOffer` on `ProcessParkChoice.proofChange` — a feature run's or a story fix's, a failed step or an agent blocked after a proving step, wherever proof the work needs is unmet or unjudged — whether or not the run can produce it; read with the run's `proofUnavailable` the server attaches) opens `ProofChangeComposer` (web + native) in place of the choice row from its "Change what proves it" button — on the park's choices and on a waiting agent's `WaitingCard` alike: every kind as a switch with how it stood (`proofChangeView` in `headless/utils/processProofChangeView.ts`), the ones the run cannot produce held off unless the work already needed them, "Save to the feature" only on a feature's run (`canSave`; the line under the heading says "For this run only" otherwise), and why; it starts from what proves it now less what stopped it (`proofChangeDraftStart`) and sends through `useProcessRun().changeProof` (`resumeProcessRun` with `proofPlan` + `saveProofPlan`). The same reading holds off, with why, every kind a person cannot choose: a request for changes' switches (`requestProofChoices`, `RequestProofSwitches` in web's `ParkNoteComposer`, native inline) and its preset (`StorySignoffReview`'s `proofUnavailable` into `requestChangesProofPreset`, with the run's `changeUiPaths` — the server's reading of what the story's change shows on screen — so a feature's words never pre-tick screens of a change that shows nothing). Screens only words asked for, of a change that shows nothing on screen, are marked met "Not needed — the change shows nothing on screen" (`ProofPlanMarks`, from the tools' marks). Showcase: `playground/scenes/proofChange.tsx` (`proof-change-stop` — offered with screens greyed and with nothing greyed, `proof-screens-not-needed`, `request-changes-proof`, `launch-proof-dropped`).
+
+**Warnings beside a launch and a sign-off, never blocks.** The launch card shows `LaunchOverlapNote` (web and native, beside `OpenWorkChooser` in `ApprovalPanel`) from `launchOverlapView(proposal.overlap)`: other live runs, and the base branch's new commits since the story's open run started, that touch the files the features name. The sign-off's decision card says `signoff.outsideScope` (`OutsideScopeNote` on web) — "Outside the feature’s scope: …", the files each run's newest code review was told lie outside the scope (`signoffOutsideScopeLine`, read off the judge entries' `outsideScope`). Steps the engine adds after approval — a review of a conflict's resolution, checks and a review of the manager's commits — are ordinary steps in the pipeline, and `processAmendmentView` says why they were added. Showcase: `workflowGuards.tsx` (`launch-overlap`, `signoff-outside-scope`, `added-reviews`).
 
 ### Project notes & secrets
 

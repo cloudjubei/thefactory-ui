@@ -2,6 +2,7 @@
 // the thing itself, the agent's reason and the verb on its button — read from
 // the ask the host raised, never from the agent's own description of it.
 
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { grantDetailView } from './approvalGrant'
 import type { AlwaysAllowScope, GrantCovers, PendingToolGrantDecision } from './chatTypes'
 import type { GitChangeCardView } from './gitChangeApprovalTypes'
@@ -10,6 +11,8 @@ import { PROCESS_GROUP_LAUNCH_BLURB } from './processGroupLaunchConstants'
 import type { StartGroupWorkGrantSummary } from './processGroupLaunchTypes'
 import type { RunProposalView } from './runProposalViewTypes'
 import {
+  ACCEPT_REQUEST_ASK,
+  ACCEPT_REQUEST_TOOL,
   CHAT_REVIEW_ASK,
   CHAT_TO_BASE_ASK,
   CHAT_TO_BASE_TOOL,
@@ -308,6 +311,13 @@ function featureQuestionAskView(
   }
 }
 
+/** The decision's metadata for accepting a feature request: the way its work starts, as the person picked it. Pure. */
+export function acceptRequestDecisionMetadata(mode: WorkLaunchMode): {
+  args: { mode: WorkLaunchMode }
+} {
+  return { args: { mode } }
+}
+
 /** The decision's metadata for an answer: the person's own words, only when they changed the agent's. Pure. */
 export function featureQuestionAnswerMetadata(
   body: Extract<ToolAskBody, { kind: 'question' }>,
@@ -351,6 +361,19 @@ export function toolAskCardView(grant: GrantLike): ToolAskCardView {
   }
   if (tool === FEATURE_QUESTION_TOOL) {
     return { ...base, ...featureQuestionAskView(payload.detail, args) }
+  }
+  if (tool === ACCEPT_REQUEST_TOOL) {
+    const mode = args.mode === 'process' || args.mode === 'chat' ? args.mode : undefined
+    return {
+      ...base,
+      icon: 'run',
+      ask: ACCEPT_REQUEST_ASK.ask,
+      tag: ACCEPT_REQUEST_ASK.tag,
+      headline: ACCEPT_REQUEST_ASK.headline,
+      consequence: ACCEPT_REQUEST_ASK.consequence,
+      verb: ACCEPT_REQUEST_ASK.verb,
+      body: { kind: 'accept-request', requestId: text(args.id) ?? '', ...(mode ? { mode } : {}) },
+    }
   }
   if (tool === 'requestInstallPackage') {
     const ecosystem = text(args.ecosystem) ?? ''

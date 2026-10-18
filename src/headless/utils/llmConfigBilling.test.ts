@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { agentRunLlmConfig, llmConfigBilling } from './llmConfigBilling'
+import { llmConfigBilling } from './llmConfigBilling'
 import { DEFAULT_LLM_CONFIG_BILLING, LLM_CONFIG_BILLING_OPTIONS } from './llmConfigBillingConstants'
 import type { StoredLlmConfig } from './llmConfigBillingTypes'
 
@@ -26,52 +26,6 @@ const localOllama: StoredLlmConfig = {
   apiUrlOverride: 'http://localhost:11434/v1',
   billing: 'free',
 }
-
-describe('agentRunLlmConfig', () => {
-  it('carries no key — the backend looks the stored one up', () => {
-    expect(agentRunLlmConfig(anthropicKey)).not.toHaveProperty('apiKey')
-  })
-
-  it('carries the billing a config declares into the run, so its calls are ledgered as it is paid for', () => {
-    expect(agentRunLlmConfig(localOllama)).toEqual({
-      id: localOllama.id,
-      name: 'Qwen 3 (local)',
-      provider: 'custom',
-      model: 'qwen3:32b',
-      apiUrlOverride: 'http://localhost:11434/v1',
-      costInputPerMTokensUSD: undefined,
-      costOutputPerMTokensUSD: undefined,
-      costCacheReadInputPerMTokensUSD: undefined,
-      billing: 'free',
-    })
-  })
-
-  it('carries a subscription the same way', () => {
-    expect(agentRunLlmConfig({ ...anthropicKey, billing: 'subscription' }).billing).toBe(
-      'subscription',
-    )
-  })
-
-  it('declares no billing for a config that declared none — metered, the ledger default', () => {
-    const config = agentRunLlmConfig(anthropicKey)
-    expect(config).not.toHaveProperty('billing')
-    expect(config).toMatchObject({
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
-      costCacheReadInputPerMTokensUSD: 0.3,
-    })
-  })
-
-  it("leaves the entry's bookkeeping behind: a run takes the config, not the record", () => {
-    const stored = {
-      ...anthropicKey,
-      createdAt: '2026-09-01T08:00:00Z',
-      updatedAt: '2026-09-20T08:00:00Z',
-    }
-    expect(agentRunLlmConfig(stored)).not.toHaveProperty('createdAt')
-    expect(agentRunLlmConfig(stored)).not.toHaveProperty('updatedAt')
-  })
-})
 
 describe('llmConfigBilling', () => {
   it('is the billing a config declares', () => {

@@ -29,8 +29,11 @@ export function useProcessProposal(input: {
   processId?: string
   /** How each feature is worked, as the approval chose it — the proposal then nests that process. */
   featureProcessId?: string
+  /** Only these of the story's pending features — a feature's own launch. */
+  featureIds?: readonly string[]
 }): UseProcessProposal {
   const { projectId, storyId, processId, featureProcessId } = input
+  const featureKey = input.featureIds?.join(',') ?? ''
   const { token } = useAuth()
   const [proposal, setProposal] = useState<ProcessProposal | undefined>(undefined)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -54,6 +57,7 @@ export function useProcessProposal(input: {
         storyId,
         ...(processId ? { processId } : {}),
         ...(featureProcessId ? { featureProcessId } : {}),
+        ...(featureKey ? { featureIds: featureKey.split(',') } : {}),
       },
       throwOnError: true,
     })
@@ -72,7 +76,7 @@ export function useProcessProposal(input: {
     return () => {
       live = false
     }
-  }, [token, projectId, storyId, processId, featureProcessId])
+  }, [token, projectId, storyId, processId, featureProcessId, featureKey])
 
   return useMemo<UseProcessProposal>(
     () => ({ isLoaded, loadError, proposal, refusal }),

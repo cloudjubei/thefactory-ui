@@ -79,6 +79,8 @@ export type CliRunMessagesProps = {
   cliAsks?: readonly PendingToolGrant[]
   /** The chat's decided asks — what a row that once waited on one shows now. */
   decidedAsks?: readonly CliDecidedAsk[]
+  /** The asks the chat stores rows of its own for — a call raising one is left to that row. */
+  storedAskIds?: ReadonlySet<string>
   /** Which of {@link cliAsks} this run's rows show; `[]` once it no longer shows any. */
   onClaimAsks?: (runId: string, askIds: string[], settled?: boolean) => void
   /**
@@ -123,6 +125,7 @@ export default function CliRunMessages({
   blockedOn,
   cliAsks,
   decidedAsks,
+  storedAskIds,
   onClaimAsks,
   onDeleteTurn,
   deleteControl,
@@ -161,11 +164,23 @@ export default function CliRunMessages({
           ...(decidedAsks ? { decidedAsks } : {}),
           runId,
           ...(usage ? { usage } : {}),
+          ...(storedAskIds ? { storedAskIds } : {}),
         }),
         status,
         abortReason,
       ),
-    [transcript, model, showThinking, pendingAsks, decidedAsks, runId, usage, status, abortReason],
+    [
+      transcript,
+      model,
+      showThinking,
+      pendingAsks,
+      decidedAsks,
+      runId,
+      usage,
+      storedAskIds,
+      status,
+      abortReason,
+    ],
   )
   // Its rows are known once the record has loaded, failed to, or is still being
   // written (booting shows no rows to wait for) — until then the panel holds

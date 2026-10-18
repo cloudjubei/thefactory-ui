@@ -226,6 +226,7 @@ export const RECOGNIZED_TOOL_PREVIEW_NAMES: ReadonlySet<string> = new Set([
   'requestProjectFeature',
   'acceptProjectFeatureRequest',
   'rejectProjectFeatureRequest',
+  'restartProjectFeatureRequest',
   'recommendTrainingExperiments',
   'queryProjectData',
   'updateProjectRecord',
@@ -759,7 +760,11 @@ export function renderToolPreview({
   }
 
   // ---- deciding a request sent to this project (its live card) ----
-  if (name === 'acceptProjectFeatureRequest' || name === 'rejectProjectFeatureRequest') {
+  if (
+    name === 'acceptProjectFeatureRequest' ||
+    name === 'rejectProjectFeatureRequest' ||
+    name === 'restartProjectFeatureRequest'
+  ) {
     const requestId = tryString(args.id)
     if (requestId && hooks?.renderFeatureRequestWidget) {
       const reason = name === 'rejectProjectFeatureRequest' ? tryString(args.reason) : ''

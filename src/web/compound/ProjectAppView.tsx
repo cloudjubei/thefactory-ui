@@ -1,11 +1,15 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import {
+  bridgeMessageName,
   buildBridgeResponse,
   buildNavOpenMessage,
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import { NAV_CHANGED_MESSAGE } from '../../headless/utils/appBridgeConstants'
+import type { AppPushChannel } from '../../headless/utils/appPushChannel'
 import {
+  parseAppDeepLink,
   serializeAppDeepLink,
   shouldPushDeepLink,
   type AppDeepLink,
@@ -38,6 +42,14 @@ export type ProjectAppViewProps = {
    * under it. Only its own children capture pointer events.
    */
   topRightOverlay?: ReactNode
+  /** Host→app pushes (`useAppBridgePushes`), each delivered into the running app as it is posted. */
+  pushes?: AppPushChannel
+  /**
+   * The app reported where it is (`overseer:nav.changed {view, params}`). The host mirrors it in its own
+   * URL (a replace, never a remount); the deep-link that comes back from that is not pushed to the app
+   * as `nav.open`, since the app is already there. Omit to pass the message to `onBridgeMessage`.
+   */
+  onNavChanged?: (deepLink: AppDeepLink) => void
   className?: string
   style?: CSSProperties
   title?: string
@@ -51,6 +63,8 @@ export default function ProjectAppView({
   onBridgeMessage,
   deepLink,
   topRightOverlay,
+  pushes,
+  onNavChanged,
   className,
   style,
   title = 'Project app view',
@@ -58,6 +72,8 @@ export default function ProjectAppView({
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const handlerRef = useRef(onBridgeMessage)
   handlerRef.current = onBridgeMessage
+  const navChangedRef = useRef(onNavChanged)
+  navChangedRef.current = onNavChanged
 
   const expectedOrigin = url ? safeOrigin(url) : null
 
@@ -80,15 +96,38 @@ export default function ProjectAppView({
   }, [serializedDeepLink, expectedOrigin, remountKey, deepLink])
 
   useEffect(() => {
+    if (!pushes || !expectedOrigin) return
+    return pushes.subscribe((message) =>
+      iframeRef.current?.contentWindow?.postMessage(message, expectedOrigin),
+    )
+  }, [pushes, expectedOrigin])
+
+  useEffect(() => {
     if (!expectedOrigin) return
     const onMessage = async (event: MessageEvent) => {
-      const handler = handlerRef.current
-      if (!handler) return
       const iframe = iframeRef.current
       if (!iframe || event.source !== iframe.contentWindow) return
       if (event.origin !== expectedOrigin) return
       const req = parseBridgeMessage(event.data)
       if (!req) return
+      const onNav = navChangedRef.current
+      if (onNav && bridgeMessageName(req.type) === NAV_CHANGED_MESSAGE) {
+        const reported = parseAppDeepLink(req.payload)
+        if (reported) {
+          // The URL change this causes comes back as the deepLink prop; the app is already there.
+          lastSerializedRef.current = serializeAppDeepLink(reported)
+          onNav(reported)
+        }
+        if (req.id !== undefined) {
+          iframe.contentWindow?.postMessage(
+            buildBridgeResponse(req, { result: { ok: true } }),
+            expectedOrigin,
+          )
+        }
+        return
+      }
+      const handler = handlerRef.current
+      if (!handler) return
       try {
         const result = await handler(req)
         if (req.id !== undefined) {

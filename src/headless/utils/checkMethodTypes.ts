@@ -114,6 +114,11 @@ export type CheckMethodRow = {
    * set only on an `unchecked` row, with the commands that would run it.
    */
   available?: { commands: string[] }
+  /**
+   * Nothing captured it because the project's page cannot be served — set only
+   * on an `unconfigured` capture row; its `detail` says why.
+   */
+  unservable?: true
 }
 
 /** What a chip shows for its state: an available check that never ran reads apart from one nobody knows about. */

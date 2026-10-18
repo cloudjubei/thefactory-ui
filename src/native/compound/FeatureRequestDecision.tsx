@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import type { FeatureRequest } from 'thefactory-tools/types'
+import type { FeatureRequest, WorkLaunchMode } from 'thefactory-tools/types'
+import { workLaunchOptions } from '../../headless/utils/workLaunchView'
 import { nativeRadii, nativeSpace } from '../../tokens/native'
 import { useNativeTheme } from '../hooks/useNativeTheme'
 import { IconCheckCircle } from '../icons/IconCheckCircle'
@@ -9,6 +10,7 @@ import { Button } from '../primitives/Button'
 import { Textarea } from '../primitives/Textarea'
 import {
   canSettleFeatureRequest,
+  canStartFeatureRequestAgain,
   featureRequestAcceptHint,
   featureRequestPhase,
   featureRequestRejectedLine,
@@ -24,13 +26,21 @@ import type {
   FeatureRequestHandoverForm,
 } from '../../headless/hooks/useCrossProjectRequests'
 import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
+import { FeatureRequestStartAgain } from './FeatureRequestStartAgain'
+import WorkLaunchChooser from './WorkLaunchChooser'
 
 export interface FeatureRequestDecisionProps {
   request: FeatureRequest
   /** The asking project's name. */
   fromLabel: string
-  /** Accept the request — the work starts in the request's chat. The host owns the call. */
-  onAccept: () => void
+  /** Accept the request, its work carried out the way the person chose. The host owns the call. */
+  onAccept: (mode: WorkLaunchMode) => void
+  /** How work last started in the request's project — offered first. */
+  defaultMode?: WorkLaunchMode
+  /** Start the work of a request accepted for a process run whose launch card was left unconfirmed. */
+  onStartWork?: (mode: WorkLaunchMode) => void
+  /** Opens the choice of how to start the work at once, for a fixed showcase state. */
+  initialChoosing?: boolean
   /** Reject the request, with the reason the person typed (none when blank). */
   onReject: (reason?: string) => void
   /** A decision is on its way — the buttons wait. */
@@ -45,6 +55,8 @@ export interface FeatureRequestDecisionProps {
   onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
   /** Hand the request over to another project's request or story — offered likewise. */
   onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Start the work again, the way chosen — offered once it ended blocked or failed. */
+  onStartAgain?: (mode: WorkLaunchMode) => void
   /** Another request's title, for the links between requests handed over and taken over. */
   requestTitle?: (requestId: string) => string | undefined
   /** Open another request, from those links. */
@@ -67,10 +79,13 @@ function Pending({
   onReject,
   busy,
   onOpenFull,
+  defaultMode,
+  initialChoosing,
 }: Pick<
   FeatureRequestDecisionProps,
-  'fromLabel' | 'onAccept' | 'onReject' | 'busy' | 'onOpenFull'
+  'fromLabel' | 'onAccept' | 'onReject' | 'busy' | 'onOpenFull' | 'defaultMode' | 'initialChoosing'
 >) {
+  const [choosing, setChoosing] = useState(initialChoosing === true)
   const { theme, status } = useNativeTheme()
   const [confirming, setConfirming] = useState(false)
   const [reason, setReason] = useState('')
@@ -109,7 +124,7 @@ function Pending({
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: nativeSpace[2] }}>
-        <Button size="sm" variant="primary" onPress={onAccept} disabled={busy}>
+        <Button size="sm" variant="primary" onPress={() => setChoosing(true)} disabled={busy}>
           Accept &amp; start work
         </Button>
         <Button size="sm" variant="secondary" onPress={() => setConfirming(true)} disabled={busy}>
@@ -117,10 +132,48 @@ function Pending({
         </Button>
         <OpenFull onOpenFull={onOpenFull} />
       </View>
+      {choosing ? (
+        <WorkLaunchChooser
+          options={workLaunchOptions({ workLaunchMode: defaultMode })}
+          onChoose={onAccept}
+          onCancel={() => setChoosing(false)}
+          busy={busy}
+        />
+      ) : null}
       <Text style={{ fontSize: 12, lineHeight: 17, color: theme.text.secondary }}>
         {featureRequestAcceptHint(fromLabel)}
       </Text>
     </>
+  )
+}
+
+/** Starting the work of a request accepted for a process run whose launch was left unconfirmed. */
+function StartWork({
+  onStartWork,
+  defaultMode,
+  busy,
+}: Required<Pick<FeatureRequestDecisionProps, 'onStartWork'>> &
+  Pick<FeatureRequestDecisionProps, 'defaultMode' | 'busy'>) {
+  const { theme } = useNativeTheme()
+  const [choosing, setChoosing] = useState(false)
+  return choosing ? (
+    <WorkLaunchChooser
+      options={workLaunchOptions({ workLaunchMode: defaultMode })}
+      onChoose={onStartWork}
+      onCancel={() => setChoosing(false)}
+      busy={busy}
+    />
+  ) : (
+    <View style={{ gap: nativeSpace[2] }}>
+      <View style={{ flexDirection: 'row' }}>
+        <Button size="sm" variant="primary" onPress={() => setChoosing(true)} disabled={busy}>
+          Start work
+        </Button>
+      </View>
+      <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+        Its work has not started yet.
+      </Text>
+    </View>
   )
 }
 
@@ -227,6 +280,21 @@ export default function FeatureRequestDecision(props: FeatureRequestDecisionProp
           ) : null}
         </View>
       )}
+      {props.onStartWork && request.status === 'accepted' && !request.handling?.work ? (
+        <StartWork
+          onStartWork={props.onStartWork}
+          {...(props.defaultMode ? { defaultMode: props.defaultMode } : {})}
+          {...(busy !== undefined ? { busy } : {})}
+        />
+      ) : null}
+      {props.onStartAgain && canStartFeatureRequestAgain(request) ? (
+        <FeatureRequestStartAgain
+          failed={request.status === 'failed'}
+          onStartAgain={props.onStartAgain}
+          {...(request.handling?.work ? { lastMode: request.handling.work.mode } : {})}
+          busy={busy}
+        />
+      ) : null}
       <FeatureRequestSettledNote
         settled={featureRequestSettledLine(request, titleOf)}
         takenOver={featureRequestTakenOverLinks(request, titleOf)}

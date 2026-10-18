@@ -205,6 +205,19 @@ export const CHAT_TO_BASE_ASK = {
     `${base} lacks ${lacking ?? 'some of them'}. Approving closes them anyway.`,
 } as const
 
+/** The tool that accepts a feature request sent to the chat's project. */
+export const ACCEPT_REQUEST_TOOL = 'acceptProjectFeatureRequest'
+
+/** Copy for accepting a feature request — the card where the way its work starts is picked. */
+export const ACCEPT_REQUEST_ASK = {
+  ask: 'The agent wants to accept a feature request',
+  tag: 'Feature request',
+  headline: 'Accept the request',
+  consequence: 'It goes on a story here, and its work starts the way you pick.',
+  verb: 'Accept',
+  how: 'Start work',
+} as const
+
 /** The tool that answers a question a run raised on a feature. */
 export const FEATURE_QUESTION_TOOL = 'submitFeatureQuestionAnswer'
 

@@ -24,6 +24,8 @@ export interface ProcessOpenWorkView {
   /** The features this launch would add to it or build on top of it. */
   adds?: string
   options: ProcessOpenWorkOptionView[]
+  /** Why the launch cannot start at all, when no way is open — the run is live and can take none of it. */
+  blocked?: string
 }
 
 /** The approval's metadata for a choice over open work — what the launch validates. */

@@ -4,6 +4,8 @@ import {
   emptySourceForm,
   sourceToForm,
   formToSourceInput,
+  formToSourcePatch,
+  isTaskSource,
   validateSourceForm,
   humanizeMs,
   isSourceFresh,
@@ -128,5 +130,76 @@ describe('isSourceFresh', () => {
     expect(isSourceFresh(SOURCE, now)).toBe(true)
     expect(isSourceFresh(SOURCE, now + 86_400_000)).toBe(false)
     expect(isSourceFresh({ ...SOURCE, lastRefreshedAt: undefined }, now)).toBe(false)
+  })
+})
+
+const TASK_SOURCE: DataSource = {
+  id: 'wargames:official-sources',
+  name: 'Official sources',
+  recordType: 'official-source-report',
+  freshness: 7 * 86_400_000,
+  autoUpdate: false,
+  projectId: 'wargames',
+  adapter: {
+    itemsPath: 'items',
+    kind: 'snapshot',
+    map: { key: 'key' },
+    task: { script: 'monitor:sources', args: ['--json'] },
+  },
+  createdAt: 't',
+  updatedAt: 't',
+}
+
+describe('task sources', () => {
+  it('tells a task source from a fetch source', () => {
+    expect(isTaskSource(TASK_SOURCE)).toBe(true)
+    expect(isTaskSource(SOURCE)).toBe(false)
+  })
+
+  it('reads a task source into the form with its script and no URL', () => {
+    expect(sourceToForm(TASK_SOURCE)).toMatchObject({
+      adapterKind: 'task',
+      taskScript: 'monitor:sources --json',
+      name: 'Official sources',
+      freshnessValue: '7',
+      freshnessUnit: 'days',
+      autoUpdate: false,
+      url: '',
+      method: '',
+      itemsPath: 'items',
+      kind: 'snapshot',
+      mapKey: 'key',
+    })
+  })
+
+  it('reads a script with no arguments', () => {
+    const noArgs: DataSource = {
+      ...TASK_SOURCE,
+      adapter: { itemsPath: 'items', map: { key: 'key' }, task: { script: 'monitor:sources' } },
+    }
+    expect(sourceToForm(noArgs).taskScript).toBe('monitor:sources')
+  })
+
+  it('marks a fetch source as fetch with no script', () => {
+    expect(sourceToForm(SOURCE)).toMatchObject({ adapterKind: 'fetch', taskScript: '' })
+    expect(emptySourceForm()).toMatchObject({ adapterKind: 'fetch', taskScript: '' })
+  })
+
+  it('validates only the schedule of a task source', () => {
+    const form = sourceToForm(TASK_SOURCE)
+    expect(validateSourceForm(form)).toBeNull()
+    expect(validateSourceForm({ ...form, name: '', mapKey: '' })).toBeNull()
+    expect(validateSourceForm({ ...form, freshnessValue: '0' })).toMatch(/freshness/i)
+    expect(validateSourceForm({ ...form, freshnessValue: 'x' })).toMatch(/freshness/i)
+  })
+
+  it('saves only freshness and auto-update for a task source', () => {
+    const form = { ...sourceToForm(TASK_SOURCE), freshnessValue: '1', autoUpdate: true }
+    expect(formToSourcePatch(form)).toEqual({ freshness: 86_400_000, autoUpdate: true })
+  })
+
+  it('saves the whole source for a fetch source', () => {
+    const form = sourceToForm(SOURCE)
+    expect(formToSourcePatch(form)).toEqual(formToSourceInput(form))
   })
 })

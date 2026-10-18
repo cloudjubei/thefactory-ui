@@ -1,3 +1,5 @@
+import type { NavCurrentReply } from './appDeepLinkTypes'
+
 /** A deep-link target for an embedded app view (F.2 app link), resolved from the App tab's route params. */
 export interface AppDeepLink {
   view: string
@@ -65,4 +67,64 @@ export function serializeAppDeepLink(dl: AppDeepLink | null | undefined): string
  */
 export function shouldPushDeepLink(prev: string | null, next: string): boolean {
   return prev !== null && prev !== next
+}
+
+function paramValue(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return undefined
+}
+
+/**
+ * The deep-link an app reports as `overseer:nav.changed` (`{ view, params }`), or `null` when it
+ * names no view. Number and boolean params become strings; route params, which the App tab's
+ * read would drop, are dropped here too.
+ */
+export function parseAppDeepLink(payload: unknown): AppDeepLink | null {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return null
+  const rec = payload as Record<string, unknown>
+  const view = typeof rec.view === 'string' ? rec.view.trim() : ''
+  if (!view) return null
+  const params: Record<string, string> = {}
+  const raw = rec.params
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (ROUTE_PARAM_KEYS.has(key)) continue
+      const v = paramValue(value)
+      if (v !== undefined) params[key] = v
+    }
+  }
+  return { view, params }
+}
+
+/** The App tab's query for a deep-link — `view` and its params — encoded as {@link appDeepLinkFromParams} reads it. */
+export function appDeepLinkQuery(dl: AppDeepLink): Record<string, string> {
+  const query: Record<string, string> = { view: dl.view }
+  for (const [key, value] of Object.entries(dl.params)) {
+    if (!ROUTE_PARAM_KEYS.has(key)) query[key] = value
+  }
+  return query
+}
+
+/**
+ * The route-param patch that moves a screen from its `current` params to deep-link `dl` (expo-router's
+ * `setParams` merges, so a param the new deep-link lacks is cleared with `undefined`). Route params stay.
+ */
+export function appDeepLinkParamsPatch(
+  current: Record<string, string | string[] | undefined>,
+  dl: AppDeepLink,
+): Record<string, string | undefined> {
+  const next: Record<string, string | undefined> = appDeepLinkQuery(dl)
+  for (const key of Object.keys(current)) {
+    if (!ROUTE_PARAM_KEYS.has(key) && !(key in next)) next[key] = undefined
+  }
+  return next
+}
+
+/** The `nav.current` answer: the deep-link, when there is one, with the absolute Overseer URL of the app's route. */
+export function navCurrentReply(
+  deepLink: AppDeepLink | null | undefined,
+  appUrl: string,
+): NavCurrentReply {
+  return deepLink ? { view: deepLink.view, params: deepLink.params, appUrl } : { appUrl }
 }

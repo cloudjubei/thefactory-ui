@@ -48,6 +48,7 @@ import {
 import { processTimeDetailsView } from './processTimeDetails'
 import { formatProcessDuration, PROCESS_OUTCOME_VIEW, type VerifyReviewStatus } from './processView'
 import { runModelOf } from './runModel'
+import { signoffOutsideScopeLine } from './signoffOutsideScope'
 import { signoffWorkOf } from './signoffWork'
 import {
   codeReviewVerdict,
@@ -1346,7 +1347,15 @@ export function buildStorySignoff(input: BuildStorySignoffInput): StorySignoff {
       : runReviewFacts(sumFacts([...chosenRuns, ...storyRuns])),
     evidenceRunIds,
     work: signoffWorkOf(scope),
+    ...outsideScopeOf(
+      scope ? processRuns.filter((r) => scope.processRunIds.has(r.id)) : processRuns,
+    ),
   }
+}
+
+function outsideScopeOf(runs: readonly StorySignoffProcessRun[]): { outsideScope?: string } {
+  const line = signoffOutsideScopeLine(runs)
+  return line ? { outsideScope: line } : {}
 }
 
 function isStepReport(t: EvidenceTile): boolean {

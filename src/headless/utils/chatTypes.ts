@@ -145,6 +145,11 @@ export type ChatMessageLike = {
   processRunId?: string
   /** Set on a message telling the person `processRunId` waits on them: when that park began. */
   processRunParkedAt?: number
+  /**
+   * Set on a message telling the person a checks attempt of `processRunId` passed only with
+   * out-of-tree code at its stable branch — that attempt's ledger entry, read live off the run.
+   */
+  processRunChecksEntryId?: string
   /** Set on a message announcing a group run — the id of that group run. */
   processGroupRunId?: string
   /**

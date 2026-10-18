@@ -225,6 +225,10 @@ export const CHECK_LAST_RUN_VERBS: Record<ProjectCheckRunMemory['status'], strin
 /** A chip's callout lead when the project's scan found the check but this branch never ran it. */
 export const CHECK_AVAILABLE_SENTENCE = 'Available in this project, but not run on this branch.'
 
+/** Leads the callout of a capture whose page the browser tools cannot serve. */
+export const CHECK_UNSERVABLE_LEAD =
+  'Its page can’t be served here, so nothing can be captured. Ask for a way to serve it here.'
+
 /** The state an available-but-not-run chip reads as, to a screen reader. */
 export const CHECK_AVAILABLE_LABEL = 'available'
 

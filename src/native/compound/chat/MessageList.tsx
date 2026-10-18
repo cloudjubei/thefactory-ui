@@ -27,6 +27,7 @@ import {
   cliLabel,
   messageModelTag,
   parseCliAgentModelTag,
+  storedChatAskIds,
   storedChatAskRows,
 } from '../../../headless/utils/cliRunner'
 import { cliRowAsks, withAsksAwaitingOutcome } from '../../../headless/utils/pendingToolGrants'
@@ -317,6 +318,8 @@ export default function MessageList({
     () => storedChatAskRows(messages, pendingRowAsks, decidedAsks ?? []),
     [messages, pendingRowAsks, decidedAsks],
   )
+  // A CLI turn's call whose ask the chat stores a row for is shown by that row alone.
+  const storedAskIds = useMemo(() => storedChatAskIds(messages), [messages])
   const approvals = useInlineApprovals(`chat:${chatId ?? ''}`, renderable, cliAsks, onClaimAsks)
   // Cold-start signal: only the chat's FIRST cli run (turn 1) pays the boot;
   // resident turns 2..N are warm. Keyed by cliRunId so it survives windowing.
@@ -535,6 +538,7 @@ export default function MessageList({
                     : {})}
                   cliAsks={cliAsks}
                   decidedAsks={decidedAsks}
+                  storedAskIds={storedAskIds}
                   onClaimAsks={onClaimAsks}
                   onDeleteTurn={onDeleteLastMessage}
                   deleteControl={deleteControl}
@@ -638,6 +642,7 @@ export default function MessageList({
               {...(cliBlockedOn ? { blockedOn: cliBlockedOn } : {})}
               cliAsks={cliAsks}
               decidedAsks={decidedAsks}
+              storedAskIds={storedAskIds}
               onClaimAsks={onClaimAsks}
             />
           </View>

@@ -11,6 +11,7 @@ import type {
   ProcessVerifyReview,
 } from 'thefactory-tools/types'
 import { costChipLabel, formatCostUSD } from './costDetails'
+import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
 import { processIntegrationBadge } from './processIntegration'
 import { processRunManagerLine } from './processRunStop'
 import {
@@ -645,6 +646,7 @@ export function processRunCardView(run: ProcessRun, now: number): ProcessRunCard
       body: {
         text:
           processRunManagerLine(run, now) ??
+          (run.park?.circling ? PROCESS_CIRCLING_CARD_LINE : undefined) ??
           (run.park?.reason === 'gate'
             ? 'Ready to sign off — decide in the run'
             : '1 decision pending — answer it in the run'),

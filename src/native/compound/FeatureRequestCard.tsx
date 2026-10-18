@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { nativeFontFamilies, nativeRadii, nativeSpace } from '../../tokens/native'
 // Spacing/radii tokens are integer-keyed objects (e.g. `nativeSpace[3]`), not callables.
@@ -16,6 +16,10 @@ import type {
   FeatureRequestHandoverForm,
 } from '../../headless/hooks/useCrossProjectRequests'
 import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
+import { FeatureRequestStartAgain } from './FeatureRequestStartAgain'
+import WorkLaunchChooser from './WorkLaunchChooser'
+import { workLaunchOptions } from '../../headless/utils/workLaunchView'
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 
 /** The cross-project feature-request lifecycle states (mirrors `FeatureRequestStatus`). */
 export type FeatureRequestCardStatus =
@@ -40,6 +44,8 @@ export interface FeatureRequestCardData {
   status: FeatureRequestCardStatus
   /** A → B → A deadlock detected at emit (D.5) — surfaced as a warning, never blocking. */
   cycleDetected?: boolean
+  /** While its work and another request's wait on each other: who is in it and which side decides first — `featureRequestWaitCycleWarning`. */
+  waitCycleWarning?: string
   /** The review branch B put the work on, once in review / completed. */
   reviewBranch?: string
   /** The request's summary (or, on an older request, its description). */
@@ -83,8 +89,13 @@ const STATUS_COLOR: Record<FeatureRequestCardStatus, string> = {
 
 export interface FeatureRequestCardProps {
   request: FeatureRequestCardData
-  /** Accept the request (shown only while `pending`). Host owns the backend call. */
-  onAccept?: () => void
+  /**
+   * Accept the request (shown only while `pending`), its work carried out the way the person
+   * chose on the card. Host owns the backend call.
+   */
+  onAccept?: (mode: WorkLaunchMode) => void
+  /** How work last started in the target project — offered first. */
+  defaultMode?: WorkLaunchMode
   /** Reject the request (shown only while `pending`). */
   onReject?: () => void
   /** True while an accept/reject call is in flight — disables the buttons. */
@@ -95,6 +106,8 @@ export interface FeatureRequestCardProps {
   onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
   /** Hand the request over to another project's request or story — offered likewise. */
   onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Start the work again — offered once it ended blocked or failed. */
+  onStartAgain?: (mode: WorkLaunchMode) => void
   /** Open another request, from the links between requests handed over and taken over. */
   onOpenRequest?: (requestId: string) => void
   /** Opens a settle form at once, for a fixed showcase state. */
@@ -111,11 +124,13 @@ export interface FeatureRequestCardProps {
 export function FeatureRequestCard({
   request,
   onAccept,
+  defaultMode,
   onReject,
   busy,
   onOpenFull,
   onMarkDelivered,
   onHandOver,
+  onStartAgain,
   onOpenRequest,
   initialSettleMode,
   footer,
@@ -127,6 +142,7 @@ export function FeatureRequestCard({
     fromProjectId,
     status,
     cycleDetected,
+    waitCycleWarning,
     reviewBranch,
     summary,
     countsLine,
@@ -136,6 +152,7 @@ export function FeatureRequestCard({
     takenOver,
   } = request
   const canDecide = status === 'pending' && (onAccept || onReject)
+  const [choosing, setChoosing] = useState(false)
   const mono = { fontFamily: nativeFontFamilies.mono }
 
   return (
@@ -191,7 +208,9 @@ export function FeatureRequestCard({
         <Text style={{ fontSize: 12, color: '#d97706' }}>{statusReason}</Text>
       ) : null}
 
-      {cycleDetected ? (
+      {waitCycleWarning ? (
+        <Text style={{ fontSize: 11, color: '#d97706' }}>⚠ {waitCycleWarning}</Text>
+      ) : cycleDetected ? (
         <Text style={{ fontSize: 11, color: '#d97706' }}>
           ⚠ {targetProjectId} is already waiting on {fromProjectId ?? 'this project'} — this may
           deadlock.
@@ -208,12 +227,26 @@ export function FeatureRequestCard({
         <Text style={{ fontSize: 11, color: theme.text.secondary, ...mono }}>{reviewBranch}</Text>
       ) : null}
 
+      {choosing && onAccept && status === 'pending' ? (
+        <WorkLaunchChooser
+          options={workLaunchOptions({ workLaunchMode: defaultMode })}
+          onChoose={onAccept}
+          onCancel={() => setChoosing(false)}
+          {...(busy !== undefined ? { busy } : {})}
+        />
+      ) : null}
+
       {(canDecide || onOpenFull || footer) && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: nativeSpace[3] }}>
           {canDecide ? (
             <>
               {onAccept ? (
-                <Button size="sm" variant="primary" onPress={onAccept} disabled={busy}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={() => setChoosing(true)}
+                  disabled={busy}
+                >
                   Accept
                 </Button>
               ) : null}
@@ -232,6 +265,13 @@ export function FeatureRequestCard({
           {footer}
         </View>
       )}
+      {onStartAgain && (status === 'blocked' || status === 'failed') ? (
+        <FeatureRequestStartAgain
+          failed={status === 'failed'}
+          onStartAgain={onStartAgain}
+          busy={busy}
+        />
+      ) : null}
       {canSettleFeatureRequest({ status }) ? (
         <FeatureRequestSettleActions
           fromLabel={fromProjectId ?? targetProjectId}

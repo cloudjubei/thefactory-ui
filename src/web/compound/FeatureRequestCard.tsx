@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { cn } from '../utils/cn'
 import { Button } from '../primitives/Button'
 import { FEATURE_REQUEST_OPEN_FULL_LABEL } from '../../headless/utils/featureRequestViewConstants'
@@ -13,6 +13,10 @@ import type {
   FeatureRequestHandoverForm,
 } from '../../headless/hooks/useCrossProjectRequests'
 import { FeatureRequestSettleActions, FeatureRequestSettledNote } from './FeatureRequestSettle'
+import { FeatureRequestStartAgain } from './FeatureRequestStartAgain'
+import WorkLaunchChooser from './WorkLaunchChooser'
+import { workLaunchOptions } from '../../headless/utils/workLaunchView'
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 
 /** The cross-project feature-request lifecycle states (mirrors `FeatureRequestStatus`). */
 export type FeatureRequestCardStatus =
@@ -37,6 +41,8 @@ export type FeatureRequestCardData = {
   status: FeatureRequestCardStatus
   /** A → B → A deadlock was detected at emit (D.5) — surfaced as a warning, never blocking. */
   cycleDetected?: boolean
+  /** While its work and another request's wait on each other: who is in it and which side decides first — `featureRequestWaitCycleWarning`. */
+  waitCycleWarning?: string
   /** The review branch B put the work on, once in review / completed. */
   reviewBranch?: string
   /** The request's summary (or, on an older request, its description). */
@@ -80,8 +86,13 @@ const STATUS_PILL: Record<FeatureRequestCardStatus, string> = {
 
 export type FeatureRequestCardProps = {
   request: FeatureRequestCardData
-  /** Accept the request (shown only while `pending`). Host owns the backend call. */
-  onAccept?: () => void
+  /**
+   * Accept the request (shown only while `pending`), its work carried out the way the person
+   * chose on the card. Host owns the backend call.
+   */
+  onAccept?: (mode: WorkLaunchMode) => void
+  /** How work last started in the target project — offered first. */
+  defaultMode?: WorkLaunchMode
   /** Reject the request (shown only while `pending`). */
   onReject?: () => void
   /** True while an accept/reject call is in flight — disables the buttons. */
@@ -94,6 +105,8 @@ export type FeatureRequestCardProps = {
   onMarkDelivered?: (input: FeatureRequestDeliveryForm) => void
   /** Hand the request over to another project's request or story — offered likewise. */
   onHandOver?: (input: FeatureRequestHandoverForm) => void
+  /** Start the work again — offered once it ended blocked or failed. */
+  onStartAgain?: (mode: WorkLaunchMode) => void
   /** Open another request, from the links between requests handed over and taken over. */
   onOpenRequest?: (requestId: string) => void
   /** Opens a settle form at once, for a fixed showcase state. */
@@ -112,12 +125,14 @@ export type FeatureRequestCardProps = {
 export function FeatureRequestCard({
   request,
   onAccept,
+  defaultMode,
   onReject,
   busy,
   onOpenReceiver,
   onOpenFull,
   onMarkDelivered,
   onHandOver,
+  onStartAgain,
   onOpenRequest,
   initialSettleMode,
   footer,
@@ -129,6 +144,7 @@ export function FeatureRequestCard({
     fromProjectId,
     status,
     cycleDetected,
+    waitCycleWarning,
     reviewBranch,
     summary,
     countsLine,
@@ -138,6 +154,7 @@ export function FeatureRequestCard({
     takenOver,
   } = request
   const canDecide = status === 'pending' && (onAccept || onReject)
+  const [choosing, setChoosing] = useState(false)
 
   return (
     <div
@@ -183,7 +200,11 @@ export function FeatureRequestCard({
         <div className="mt-1.5 text-[12px] text-amber-600 dark:text-amber-400">{statusReason}</div>
       ) : null}
 
-      {cycleDetected ? (
+      {waitCycleWarning ? (
+        <div className="mt-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400">
+          ⚠ {waitCycleWarning}
+        </div>
+      ) : cycleDetected ? (
         <div className="mt-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400">
           ⚠ {targetProjectId} is already waiting on {fromProjectId ?? 'this project'} — this may
           deadlock.
@@ -204,12 +225,26 @@ export function FeatureRequestCard({
         <div className="mt-1.5 font-mono text-[11px] text-(--text-secondary)">{reviewBranch}</div>
       ) : null}
 
+      {choosing && onAccept && status === 'pending' ? (
+        <WorkLaunchChooser
+          options={workLaunchOptions({ workLaunchMode: defaultMode })}
+          onChoose={onAccept}
+          onCancel={() => setChoosing(false)}
+          {...(busy !== undefined ? { busy } : {})}
+        />
+      ) : null}
+
       {(canDecide || onOpenReceiver || onOpenFull || footer) && (
         <div className="mt-2 flex items-center gap-2 flex-wrap">
           {canDecide ? (
             <>
               {onAccept ? (
-                <Button size="sm" variant="primary" onClick={onAccept} disabled={busy}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setChoosing(true)}
+                  disabled={busy}
+                >
                   Accept
                 </Button>
               ) : null}
@@ -233,6 +268,16 @@ export function FeatureRequestCard({
           {footer}
         </div>
       )}
+
+      {onStartAgain && (status === 'blocked' || status === 'failed') ? (
+        <div className="mt-2">
+          <FeatureRequestStartAgain
+            failed={status === 'failed'}
+            onStartAgain={onStartAgain}
+            busy={busy}
+          />
+        </div>
+      ) : null}
 
       {canSettleFeatureRequest({ status }) ? (
         <div className="mt-2">

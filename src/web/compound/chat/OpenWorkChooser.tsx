@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import {
   OPEN_WORK_PICK_HINT,
   OPEN_WORK_RISKY_TAG,
@@ -13,13 +15,17 @@ export type OpenWorkChooserProps = {
   choice: ProcessOpenWorkChoice | undefined
   busy?: boolean
   onChoose: (choice: ProcessOpenWorkChoice) => void
+  /** The host's live card for a process run, opening it on click — shows the open run. */
+  renderRun?: (processRunId: string) => ReactNode
 }
 
 /**
  * The story already has open work — a run still going, or finished and not
- * merged. Says which run and where it stands, offers the three ways to proceed
- * as one row of choices, and says what the picked one entails and what could go
- * wrong; the launch waits for a pick. Native peer:
+ * merged. Says which run and where it stands (its live card, when the host
+ * gives one), offers the ways to proceed as one row of choices — only adding
+ * to a run still live — and says what the picked one entails and what could go
+ * wrong; the launch waits for a pick, or says it cannot start when no way is
+ * open. Native peer:
  * `native/compound/chat/OpenWorkChooser`.
  */
 export default function OpenWorkChooser({
@@ -27,12 +33,14 @@ export default function OpenWorkChooser({
   choice,
   busy = false,
   onChoose,
+  renderRun,
 }: OpenWorkChooserProps) {
   const view = processOpenWorkView(openWork)
   const picked = view.options.find((o) => o.choice === choice)
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-(--status-working-soft-border) bg-(--status-working-soft-bg) px-2.5 py-2">
       <span className="text-[12.5px] font-semibold text-(--text-primary)">{view.headline}</span>
+      {renderRun ? renderRun(openWork.runId) : null}
       {view.holds || view.adds ? (
         <span className="text-[11.5px] text-(--text-secondary)">
           {view.holds ? `It holds: ${view.holds}.` : ''}{' '}
@@ -77,7 +85,11 @@ export default function OpenWorkChooser({
           )
         })}
       </div>
-      {picked ? (
+      {view.blocked ? (
+        <span className="text-[11.5px] font-medium text-(--status-stuck-soft-fg)">
+          {view.blocked}
+        </span>
+      ) : picked ? (
         <span className="text-[11.5px] leading-snug text-(--text-secondary)">{picked.detail}</span>
       ) : (
         <span className="text-[11px] font-medium text-(--status-working-soft-fg)">

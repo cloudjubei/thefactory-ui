@@ -77,11 +77,13 @@ export {
 } from './hooks/useIncomingFeatureRequest'
 export {
   canSettleFeatureRequest,
+  canStartFeatureRequestAgain,
   featureRequestAcceptHint,
   featureRequestBriefOfToolArgs,
   featureRequestChatContext,
   featureRequestCountsLine,
   featureRequestCycleWarning,
+  featureRequestWaitCycleWarning,
   featureRequestPhase,
   featureRequestRejectedLine,
   featureRequestRejectPrompt,
@@ -89,6 +91,7 @@ export {
   featureRequestSettledLine,
   featureRequestSettleFormReady,
   featureRequestSettleHint,
+  featureRequestStartAgainChoice,
   featureRequestStatusView,
   featureRequestStoryLabel,
   featureRequestSummary,
@@ -104,6 +107,7 @@ export {
   FEATURE_REQUEST_OPEN_FULL_LABEL,
   FEATURE_REQUEST_SECTION_TITLES,
   FEATURE_REQUEST_SETTLE_WORDS,
+  FEATURE_REQUEST_START_AGAIN_WORDS,
   FEATURE_REQUEST_STATUS_VIEW,
 } from './utils/featureRequestViewConstants'
 export type {
@@ -112,6 +116,7 @@ export type {
   FeatureRequestPhase,
   FeatureRequestSettledView,
   FeatureRequestSettleMode,
+  FeatureRequestStartAgainChoice,
   FeatureRequestSectionId,
   FeatureRequestSectionView,
   FeatureRequestStatusView,
@@ -181,6 +186,17 @@ export {
 export { useStorageBackedState, type SyncKVStorage } from './hooks/useStorageBackedState'
 export { useProjectSettings, type ProjectSettingsApi } from './hooks/useProjectSettings'
 export { useDirtyGuard, type UseDirtyGuard } from './hooks/useDirtyGuard'
+export { useAppDirtyGuard, type UseAppDirtyGuard } from './hooks/useAppDirtyGuard'
+export {
+  LeaveGuardProvider,
+  useLeaveBlocker,
+  useLeaveGuardState,
+  useLeaveGuardStore,
+  useRequestLeave,
+} from './contexts/LeaveGuardContext'
+export { LeaveGuardStore } from './utils/leaveGuardStore'
+export { LEAVE_CONFIRM_LABEL, LEAVE_CONFIRM_TITLE } from './utils/leaveGuardConstants'
+export type { LeaveGuardListener, LeaveGuardState, PendingLeave } from './utils/leaveGuardTypes'
 export {
   useToastQueue,
   type ToastAction,
@@ -333,6 +349,27 @@ export type {
   ParkToken,
 } from './utils/processParkStandingTypes'
 export { useProcessParkStanding } from './hooks/useProcessParkStanding'
+export {
+  newestChecksEntryId,
+  siblingFallbackCheckSets,
+  siblingFallbackNoticeState,
+  siblingFallbackView,
+} from './utils/siblingFallbackView'
+export * from './utils/siblingFallbackViewConstants'
+export type {
+  SiblingFallbackCheckSet,
+  SiblingFallbackCheckSetId,
+  SiblingFallbackChip,
+  SiblingFallbackNoticeState,
+  SiblingFallbackView,
+} from './utils/siblingFallbackViewTypes'
+export { useSiblingFallbackNotice } from './hooks/useSiblingFallbackNotice'
+export {
+  projectStableBranchError,
+  projectStableBranchField,
+  projectStableBranchOf,
+} from './utils/projectStableBranch'
+export * from './utils/projectStableBranchConstants'
 
 // Badge aggregation
 export {
@@ -712,6 +749,7 @@ export type {
 export {
   CHECK_AVAILABLE_LABEL,
   CHECK_AVAILABLE_SENTENCE,
+  CHECK_UNSERVABLE_LEAD,
   CHECK_CHIP_MARKS,
   CHECK_METHOD_LABELS,
   CHECK_METHOD_ORDER,
@@ -1340,10 +1378,15 @@ export { rawFileUrl } from './utils/rawFileUrl'
 export { persistAppDataCapabilities } from './utils/dataCapabilities'
 export {
   appDeepLinkFromParams,
+  appDeepLinkParamsPatch,
+  appDeepLinkQuery,
+  navCurrentReply,
+  parseAppDeepLink,
   serializeAppDeepLink,
   shouldPushDeepLink,
   type AppDeepLink,
 } from './utils/appDeepLink'
+export type { NavCurrentReply } from './utils/appDeepLinkTypes'
 export { resolveResourceNav, type ResourceNav } from './utils/resourceNav'
 export { linkedFeatureStep } from './utils/featureLink'
 export { FEATURE_LINK_PARAM } from './utils/featureLinkConstants'
@@ -1695,15 +1738,18 @@ export { useLaunchAgentPick } from './hooks/useLaunchAgentPick'
 export {
   launchAgentPickMetadata,
   launchAgentPickRunner,
+  launchAgentPickSuggestionAgent,
   pickLaunchApi,
   pickLaunchCli,
   pickLaunchModel,
 } from './utils/launchAgentPick'
 export { NO_LAUNCH_AGENT_PICK } from './utils/launchAgentPickConstants'
 export type {
+  LaunchAgentAsked,
   LaunchAgentPick,
   LaunchAgentPickMetadata,
   LaunchModelChipSlot,
+  LaunchSuggestionAgent,
 } from './utils/launchAgentPickTypes'
 export { useRunModelChip } from './hooks/useRunModelChip'
 export {
@@ -2508,6 +2554,14 @@ export type {
 } from './utils/processWaitingViewTypes'
 export type { ParkNoteCopy, RequestProofChoice } from './utils/processParkNoteTypes'
 export {
+  circlingRetryTakesNote,
+  processCirclingView,
+  processParkCirclingView,
+  processStepCirclingView,
+} from './utils/processCirclingView'
+export * from './utils/processCirclingViewConstants'
+export type { ProcessCirclingView } from './utils/processCirclingViewTypes'
+export {
   isIntegratingApproval,
   processIntegrationBadge,
   processIntegrationChoices,
@@ -2672,6 +2726,7 @@ export {
   processOpenWorkView,
 } from './utils/processOpenWork'
 export {
+  OPEN_WORK_BLOCKED,
   OPEN_WORK_EXTEND_LABEL,
   OPEN_WORK_FRESH_LABEL,
   OPEN_WORK_NEW_ON_BRANCH_LABEL,
@@ -2686,6 +2741,25 @@ export type {
   ProcessOpenWorkOptionView,
   ProcessOpenWorkView,
 } from './utils/processOpenWorkTypes'
+export { launchOverlapView } from './utils/launchOverlap'
+export type { LaunchOverlapView } from './utils/launchOverlapTypes'
+export { signoffOutsideScopeLine } from './utils/signoffOutsideScope'
+export {
+  attemptUiImpactNote,
+  reviewUiImpactNote,
+  screensDecisionNote,
+  screensDecisionUiImpact,
+} from './utils/uiImpactView'
+export {
+  REVIEW_UI_IMPACT_DISAGREES,
+  REVIEW_UI_IMPACT_JUDGED,
+  SCREENS_DECISION_LABELS,
+  UI_IMPACT_HIDDEN_LABEL,
+  UI_IMPACT_JUDGE_WORDS,
+  UI_IMPACT_SHOWS_LABEL,
+} from './utils/uiImpactViewConstants'
+export type { ScreensDecisionNote, UiImpactNote, UiImpactTone } from './utils/uiImpactViewTypes'
+export type { ChangeScreensDecision } from 'thefactory-tools/types'
 // The process engine's pure readers, re-exported so apps reach them through
 // `thefactory-ui` rather than importing `thefactory-tools` directly. They must
 // agree with the driver's own derivation — `processStepStates` projects a run
@@ -2694,6 +2768,7 @@ export type {
 export {
   isProcessGateLoop,
   isProcessParkChoiceOffered,
+  processAlreadyDoneLines,
   isProcessRunParkChoiceOffered,
   isReflectedPark,
   processBaseMovedNote,
@@ -2843,6 +2918,7 @@ export type {
   ProcessIntegrationMode,
   ProcessIntegrationOptions,
   ProcessOpenWork,
+  ProcessFeatureDelivery,
   ProcessLaunchDecision,
   ProcessOpenWorkChoice,
   ProcessOpenWorkDecision,
@@ -2931,11 +3007,68 @@ export type { ProjectDataQuery, ProjectDataPutInput, ProjectDataRef } from './ap
 export {
   BRIDGE_PREFIX,
   bridgeMessageName,
+  buildBridgePush,
   buildBridgeResponse,
   parseBridgeMessage,
   type BridgeRequest,
   type BridgeResponse,
 } from './utils/appBridge'
+export * from './utils/appBridgeConstants'
+export {
+  appLiveDataEntry,
+  appSourceNotFound,
+  appSourceSchedule,
+  dataChangedPush,
+  declaredSourceId,
+  findAppSource,
+  liveDataChangedPush,
+  parseAppSchedulePayload,
+  parseAppSourceId,
+  projectSourceId,
+  schedulePatch,
+  withSourceSchedules,
+} from './utils/appLiveData'
+export * from './utils/appLiveDataConstants'
+export type {
+  AppDataChangedPayload,
+  AppLiveDataChangedPayload,
+  AppLiveDataEntry,
+  AppLiveDataSchedule,
+  AppLiveDataScheduleRequest,
+} from './utils/appLiveDataTypes'
+export { currentUserFromCredentials } from './utils/appUser'
+export { APP_USER_NONE } from './utils/appUserConstants'
+export type { AppCurrentUser, AppUserCredential } from './utils/appUserTypes'
+export { AppPushChannel } from './utils/appPushChannel'
+export type { AppPushListener } from './utils/appPushChannelTypes'
+export { useAppBridgePushes } from './hooks/useAppBridgePushes'
+export {
+  isWorkStartRequest,
+  parseWorkStartPayload,
+  workStartDeclined,
+  workStartDraftError,
+  workStartEditable,
+  workStartFeatures,
+  workStartStarted,
+} from './utils/appWorkStart'
+export * from './utils/appWorkStartConstants'
+export { AppWorkStartStore } from './utils/appWorkStartStore'
+export type {
+  AppWorkFeatureDraft,
+  AppWorkStartAsk,
+  AppWorkStartDraft,
+  AppWorkStartListener,
+  AppWorkStartProgress,
+  AppWorkStartReply,
+} from './utils/appWorkStartTypes'
+export { useAppWorkStart, type UseAppWorkStart } from './hooks/useAppWorkStart'
+export { appDirtyLeaveMessage, isAppDirtyRequest, parseAppDirtyPayload } from './utils/appDirty'
+export {
+  APP_DIRTY_DEFAULT_MESSAGE,
+  APP_DIRTY_MESSAGE,
+  APP_DIRTY_TYPE,
+} from './utils/appDirtyConstants'
+export type { AppDirtyPayload } from './utils/appDirtyTypes'
 
 // Entities (knowledge graph nodes) for the active project. Listens to the
 // `entities:updated` WS topic.
@@ -2956,9 +3089,12 @@ export {
   emptySourceForm,
   sourceToForm,
   formToSourceInput,
+  formToSourcePatch,
   validateSourceForm,
   humanizeMs,
   isSourceFresh,
+  isTaskAdapter,
+  isTaskSource,
   type LiveDataSourceForm,
 } from './utils/liveDataForm'
 
@@ -3026,9 +3162,7 @@ export { ToolsProvider, useTools, type ToolsContextValue } from './contexts/Tool
 export {
   AgentsProvider,
   useAgents,
-  AGENT_TYPES,
   type AgentsContextValue,
-  type AgentType,
   type RunChat,
 } from './contexts/AgentsContext'
 
@@ -3237,3 +3371,31 @@ export {
   listSlotTops,
 } from './utils/listDragSlots'
 export type { ListDropSide, ListDropTarget } from './utils/listReorderTypes'
+export {
+  launchSuggestionBody,
+  launchSuggestionPicks,
+  launchSuggestionProofEdits,
+  launchSuggestionRows,
+  workLaunchOptions,
+} from './utils/workLaunchView'
+export * from './utils/workLaunchViewConstants'
+export type {
+  LaunchSuggestionBody,
+  LaunchSuggestionInput,
+  LaunchSuggestionPicks,
+  LaunchSuggestionRow,
+  WorkLaunchChoice,
+  WorkLaunchOptionView,
+} from './utils/workLaunchViewTypes'
+export { storyLaunchGrant, type StoryLaunchGrantInput } from './utils/storyLaunchGrant'
+export {
+  startStoryWorkRequest,
+  useLaunchSuggestion,
+  useProjectWorkLaunch,
+  type LaunchSuggestionState,
+  type StoryWorkStarted,
+} from './hooks/useWorkLaunch'
+export { startRequestWork } from './hooks/useCrossProjectRequests'
+export { useStartWork, type StartWorkState } from './hooks/useStartWork'
+export type { StartWorkOutcome, StartWorkTarget } from './utils/workLaunchViewTypes'
+export { useFeatureRequestStart, type FeatureRequestStart } from './hooks/useFeatureRequestStart'

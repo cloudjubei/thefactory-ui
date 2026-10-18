@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { Text, View } from 'react-native'
 
 import { Switch } from '../../primitives/Switch'
@@ -10,6 +11,7 @@ import { nativeRadii } from '../../../tokens/native'
 import { useStories } from '../../../headless/contexts/StoriesContext'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import {
+  acceptRequestDecisionMetadata,
   featureQuestionAnswerMetadata,
   featureQuestionAnswerProblem,
   toolAskCardView,
@@ -17,6 +19,7 @@ import {
   toolAskScopeOptions,
 } from '../../../headless/utils/toolAskCard'
 import {
+  ACCEPT_REQUEST_ASK,
   CHAT_REVIEW_ASK,
   FEATURE_QUESTION_ASK,
   TOOL_ASK_COPY,
@@ -25,6 +28,10 @@ import {
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
 import DesignAskBox from '../design/DesignAskBox'
+import WorkLaunchChooser from '../WorkLaunchChooser'
+import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
+import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
+import { workLaunchOptions } from '../../../headless/utils/workLaunchView'
 
 export type ToolAskApprovalPanelProps = {
   grant: PendingToolGrant
@@ -192,6 +199,48 @@ function QuestionBox({
   )
 }
 
+/** Native peer of web's `AcceptRequestBox`: the request, and the way its work starts. */
+function AcceptRequestBox({
+  requestId,
+  mode,
+  onMode,
+  disabled,
+}: {
+  requestId: string
+  mode: WorkLaunchMode
+  onMode: (next: WorkLaunchMode) => void
+  disabled: boolean
+}) {
+  const { theme } = useNativeTheme()
+  const request = useFeatureRequestRecord(requestId)
+  const summary = request ? featureRequestSummary(request) : ''
+  return (
+    <View style={{ gap: 8 }}>
+      <Boxed>
+        <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text.primary }}>
+          {request?.title ?? requestId}
+        </Text>
+        {request?.requestedBy.fromProjectId ? (
+          <Text style={{ fontSize: 12, color: theme.text.secondary }}>
+            {`From ${request.requestedBy.fromProjectId}`}
+          </Text>
+        ) : null}
+        {summary ? (
+          <Text style={{ fontSize: 12.5, color: theme.text.secondary }}>{summary}</Text>
+        ) : null}
+      </Boxed>
+      <Text style={{ fontSize: 12, fontWeight: '500', color: theme.text.secondary }}>
+        {ACCEPT_REQUEST_ASK.how}
+      </Text>
+      <WorkLaunchChooser
+        options={workLaunchOptions({ workLaunchMode: mode })}
+        onChoose={onMode}
+        busy={disabled}
+      />
+    </View>
+  )
+}
+
 /**
  * Native peer of
  * [web's `ToolAskApprovalPanel`](../../../web/compound/chat/ToolAskApprovalPanel.tsx).
@@ -213,6 +262,9 @@ export default function ToolAskApprovalPanel({
   const startAwait = view.body.kind === 'message' ? view.body.awaitReply : false
   const [awaitReply, setAwaitReply] = useState(startAwait)
   const [answer, setAnswer] = useState(view.body.kind === 'question' ? view.body.answer : '')
+  const [acceptMode, setAcceptMode] = useState<WorkLaunchMode>(
+    view.body.kind === 'accept-request' ? (view.body.mode ?? 'process') : 'process',
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -226,7 +278,9 @@ export default function ToolAskApprovalPanel({
           ? { args: { awaitReply } }
           : view.body.kind === 'question'
             ? featureQuestionAnswerMetadata(view.body, answer)
-            : undefined
+            : view.body.kind === 'accept-request'
+              ? acceptRequestDecisionMetadata(acceptMode)
+              : undefined
     grant
       .decide(decision, metadata)
       .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
@@ -296,6 +350,13 @@ export default function ToolAskApprovalPanel({
           <ReviewBox body={body} />
         ) : body.kind === 'question' ? (
           <QuestionBox body={body} answer={answer} onAnswer={setAnswer} disabled={busy} />
+        ) : body.kind === 'accept-request' ? (
+          <AcceptRequestBox
+            requestId={body.requestId}
+            mode={acceptMode}
+            onMode={setAcceptMode}
+            disabled={busy}
+          />
         ) : body.kind === 'design' ? (
           <DesignAskBox
             {...(body.projectId ? { projectId: body.projectId } : {})}

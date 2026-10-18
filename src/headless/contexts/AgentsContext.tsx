@@ -5,42 +5,9 @@ import {
   abortCliAgentRun,
   deleteChat,
   rateChat,
-  startAgentRun,
-  type ChatContext as ChatCtx,
   type GetChatResponse,
-  type StartAgentRunData,
 } from '../api/generated'
-import { agentRunLlmConfig } from '../utils/llmConfigBilling'
 import { useChats } from './createChatsContext'
-import { useLLMConfigs } from './LLMConfigsContext'
-
-export type AgentType = StartAgentRunData['body']['params']['agentType']
-
-/**
- * The roles a user can start directly from a story.
- *
- * One, now. `speccer` / `planner` / `contexter` / `tester` were a
- * hand-sequenced pipeline in which each role reset the feature to `pending` for
- * the next; a PROCESS expresses that sequencing as data instead, with retries
- * and a place to stop, and is launched from the chat. What is left here is the
- * escape hatch: run the implementing agent once, on one story, with no ceremony.
- *
- * `verifier` / `capture` / `judge` / `remedy` are deliberately absent — each
- * examines or repairs work that already exists, so starting one from a story
- * with nothing landed has nothing to act on.
- */
-export const AGENT_TYPES: readonly AgentType[] = ['developer'] as const
-
-const DEFAULT_AGENT_SETTINGS: StartAgentRunData['body']['settings'] = {
-  limitTurns: true,
-  maxTurns: 50,
-  numberMessagesToSend: 30,
-  availableTools: [],
-  forceFinishTools: [],
-  finishTurnOnErrors: true,
-  allowNoCallResponses: true,
-  allowErrorResponses: true,
-}
 
 /**
  * A chat whose context is an agent-run (`AGENT_RUN_STORY` or
@@ -56,18 +23,6 @@ export type AgentsContextValue = {
   runsActive: RunChat[]
   /** Subset that have finished. */
   runsHistory: RunChat[]
-
-  /**
-   * Start an agent run for the given target. Resolves to the new agentRunId.
-   * Throws if an LLM config is missing, or when the backend refuses — e.g. the
-   * project has no git credential (the backend resolves it; none is sent).
-   */
-  startAgent: (params: {
-    agentType: AgentType
-    projectId: string
-    storyId: string
-    featureId?: string
-  }) => Promise<{ agentRunId: string; chatContext: ChatCtx }>
 
   /**
    * Cancel an in-flight run by aborting its completion. The backend
@@ -93,13 +48,6 @@ const isAgentRunChat = (c: GetChatResponse): c is RunChat =>
 
 export function AgentsProvider({ children }: { children: ReactNode }) {
   const { chats, refresh: refreshChats, getChatLiveState } = useChats()
-  const {
-    configs: llmConfigs,
-    activeAgentRunConfig,
-    activeRunnerKind,
-    activeAgentRunCliModel,
-  } = useLLMConfigs()
-
   const runs = useMemo<RunChat[]>(() => chats.filter(isAgentRunChat), [chats])
 
   const runsActive = useMemo<RunChat[]>(
@@ -108,74 +56,6 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
   )
 
   const runsHistory = useMemo<RunChat[]>(() => runs, [runs])
-
-  const startAgent = useCallback<AgentsContextValue['startAgent']>(
-    async ({ agentType, projectId, storyId, featureId }) => {
-      // The Run button uses the per-user-global active agent: API (an LLM
-      // config) or CLI (a CLI agent). `llmConfig` is always sent (the backend
-      // contract requires it) but is ignored when runner==='cli'.
-      const runCli = activeRunnerKind === 'cli'
-      const llmConfig = activeAgentRunConfig ?? llmConfigs[0]
-      if (!llmConfig) throw new Error('Configure an LLM before starting an agent run.')
-      if (runCli) {
-        if (!activeAgentRunCliModel) {
-          throw new Error('Select a CLI agent before starting a CLI agent run.')
-        }
-        // A CLI run needs a resolved auth credential; the orchestrator rejects a
-        // runner with neither auth nor api-key credential. Catch it here with a
-        // clear message instead of failing late mid-run.
-        if (!activeAgentRunCliModel.credentialId) {
-          throw new Error(
-            `Sign in to ${activeAgentRunCliModel.cli} (Settings → CLI agents) before starting a CLI agent run.`,
-          )
-        }
-      }
-      const agentRunId = `${Date.now()}`
-      const chatContext: ChatCtx = featureId
-        ? { type: 'AGENT_RUN_FEATURE', projectId, storyId, featureId, agentRunId }
-        : { type: 'AGENT_RUN_STORY', projectId, storyId, agentRunId }
-
-      const params: StartAgentRunData['body']['params'] = {
-        agentType,
-        chatContext: chatContext as StartAgentRunData['body']['params']['chatContext'],
-        llmConfig: agentRunLlmConfig(llmConfig),
-      }
-
-      await startAgentRun({
-        body: {
-          params,
-          settings: DEFAULT_AGENT_SETTINGS,
-          isolated: true,
-          runner: runCli ? 'cli' : 'api',
-          ...(runCli && activeAgentRunCliModel
-            ? {
-                cliRunner: {
-                  cli: activeAgentRunCliModel.cli,
-                  ...(activeAgentRunCliModel.credentialId
-                    ? { authCredentialId: activeAgentRunCliModel.credentialId }
-                    : {}),
-                  ...(activeAgentRunCliModel.modelId
-                    ? { model: activeAgentRunCliModel.modelId }
-                    : {}),
-                  ...(activeAgentRunCliModel.effort
-                    ? { effort: activeAgentRunCliModel.effort }
-                    : {}),
-                },
-              }
-            : {}),
-        },
-        throwOnError: true,
-      })
-
-      // Surface the run's chat in the list right away. The run persists its chat
-      // asynchronously, so this is best-effort for the immediate navigation; the
-      // backend also broadcasts `chats:updated` as the run streams.
-      await refreshChats()
-
-      return { agentRunId, chatContext }
-    },
-    [llmConfigs, activeAgentRunConfig, activeRunnerKind, activeAgentRunCliModel, refreshChats],
-  )
 
   const cancelRun = useCallback<AgentsContextValue['cancelRun']>(
     async (run) => {
@@ -235,12 +115,11 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       runs,
       runsActive,
       runsHistory,
-      startAgent,
       cancelRun,
       deleteRun,
       rateRun,
     }),
-    [runs, runsActive, runsHistory, startAgent, cancelRun, deleteRun, rateRun],
+    [runs, runsActive, runsHistory, cancelRun, deleteRun, rateRun],
   )
 
   return <AgentsContext.Provider value={value}>{children}</AgentsContext.Provider>

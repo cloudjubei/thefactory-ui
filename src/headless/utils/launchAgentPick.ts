@@ -1,7 +1,12 @@
 // The agent a launch card's chip picks for one run: the API, a CLI and its
 // login, a model — carried on the decision, never written back to the chat.
 
-import type { LaunchAgentPick, LaunchAgentPickMetadata } from './launchAgentPickTypes'
+import type {
+  LaunchAgentAsked,
+  LaunchAgentPick,
+  LaunchAgentPickMetadata,
+  LaunchSuggestionAgent,
+} from './launchAgentPickTypes'
 
 /** The API for the run, forgetting any CLI picked before. Pure. */
 export function pickLaunchApi(): LaunchAgentPick {
@@ -44,4 +49,24 @@ export function launchAgentPickRunner(
 ): 'api' | 'cli' {
   if (pick.api) return 'api'
   return pick.cli ? 'cli' : fallback
+}
+
+/**
+ * The CLI agent a launch's suggested setup is asked of: the one picked on the card,
+ * else the one the agent asked for — the picked CLI never takes the agent's sign-in
+ * or model for another. None when the API is picked. Pure.
+ */
+export function launchAgentPickSuggestionAgent(
+  pick: LaunchAgentPick,
+  asked: LaunchAgentAsked,
+): LaunchSuggestionAgent {
+  if (pick.api) return {}
+  const cliTool = pick.cli ?? asked.cliTool
+  const model = pick.model ?? (pick.cli ? undefined : asked.cliModel)
+  const cliCredentialId = pick.cli ? pick.credentialId : asked.cliCredentialId
+  return {
+    ...(cliTool ? { cliTool } : {}),
+    ...(model ? { model } : {}),
+    ...(cliCredentialId ? { cliCredentialId } : {}),
+  }
 }

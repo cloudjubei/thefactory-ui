@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { useLaunchAgentPick } from '../../../headless/hooks/useLaunchAgentPick'
 import {
   launchAgentPickMetadata,
+  launchAgentPickSuggestionAgent,
   launchAgentPickRunner,
 } from '../../../headless/utils/launchAgentPick'
 import type { LaunchModelChipSlot } from '../../../headless/utils/launchAgentPickTypes'
@@ -30,6 +31,7 @@ import { FEATURE_WORK_ASK } from '../../../headless/utils/toolAskCardConstants'
 import { runProposalArgs } from '../../../headless/utils/runProposalView'
 import { processProposalView } from '../../../headless/utils/processProposalView'
 import {
+  launchOverlapView,
   baseBranchChoice,
   baseBranchMetadata,
   featureProcessChoice,
@@ -46,6 +48,7 @@ import {
   proposalFeatureProcessId,
   processGrantTurnLimitView,
   processOpenWorkMetadata,
+  processOpenWorkView,
   processTurnLimitOfView,
   setLaunchProofNotes,
   toggleLaunchProofKind,
@@ -61,7 +64,9 @@ import type {
 import DependencyBullet from '../stories/DependencyBullet'
 import BaseBranchChooser from './BaseBranchChooser'
 import FeatureProcessChooser from './FeatureProcessChooser'
+import LaunchOverlapNote from './LaunchOverlapNote'
 import OpenWorkChooser from './OpenWorkChooser'
+import AlreadyDoneNote from './AlreadyDoneNote'
 import LaunchFeatureList from './LaunchFeatureList'
 import ProjectNoteChip from '../chips/ProjectNoteChip'
 import GitSetupApprovalPanel from './GitSetupApprovalPanel'
@@ -69,6 +74,16 @@ import GroupWorkLaunchPanel from './GroupWorkLaunchPanel'
 import GitChangeApprovalPanel from './GitChangeApprovalPanel'
 import RunProposalApprovalPanel from './RunProposalApprovalPanel'
 import { TurnLimitField } from '../TurnLimitField'
+import SegmentedControl from '../../primitives/SegmentedControl'
+import LaunchSuggestionPanel from './LaunchSuggestionPanel'
+import { useLaunchSuggestion } from '../../../headless/hooks/useWorkLaunch'
+import {
+  launchSuggestionPicks,
+  launchSuggestionProofEdits,
+  launchSuggestionRows,
+  workLaunchOptions,
+} from '../../../headless/utils/workLaunchView'
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 
 export type ApprovalPanelProps = {
   /** The lone pending permission grant this panel decides. */
@@ -90,6 +105,8 @@ export type ApprovalPanelProps = {
    * the label instead.
    */
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
+  /** The host's live card for a process run, opening it on click — shows a story's open run on a launch. */
+  renderProcessRun?: (processRunId: string) => ReactNode
   /**
    * Restore the composer WITHOUT deciding — the ask stays pending, so the user
    * can type first (a clarification, a change of plan) and decide later from
@@ -129,6 +146,7 @@ export default function ApprovalPanel(props: ApprovalPanelProps) {
         grant={props.grant}
         {...(props.groupId !== undefined ? { groupId: props.groupId } : {})}
         {...(props.renderModelChip ? { renderModelChip: props.renderModelChip } : {})}
+        {...(props.renderProcessRun ? { renderProcessRun: props.renderProcessRun } : {})}
         onDecideLater={props.onDecideLater}
         {...(props.onDecided ? { onDecided: props.onDecided } : {})}
       />
@@ -179,6 +197,7 @@ function ToolApprovalPanel({
   onDecideLater,
   onDecided,
   renderModelChip,
+  renderProcessRun,
 }: ApprovalPanelProps) {
   const isLaunch = isStartFeatureWorkGrant(grant)
   const summary = startFeatureWorkGrantSummary(grant)
@@ -214,6 +233,11 @@ function ToolApprovalPanel({
   >(undefined)
   const turnLimit = turnLimitPick ?? turnLimitStart
 
+  // A process run or the chat: the agent's proposal first, the person's to switch.
+  const [mode, setMode] = useState<WorkLaunchMode>(summary.mode ?? 'process')
+  const inChat = mode === 'chat'
+  // The story process — the agent's, until a suggestion the person used changes it.
+  const [processPick, setProcessPick] = useState<string | undefined>(summary.processId)
   const story = isLaunch && summary.storyId ? getStory(summary.storyId) : undefined
   // The story's open features, never its launch plan: whether they may start
   // (a blocker not done yet) is the proposal's refusal, shown on the card.
@@ -231,8 +255,9 @@ function ToolApprovalPanel({
   } = useProcessProposal({
     projectId,
     storyId: isLaunch ? summary.storyId : undefined,
-    ...(summary.processId ? { processId: summary.processId } : {}),
+    ...(processPick ? { processId: processPick } : {}),
     ...(featureProcessPick ? { featureProcessId: featureProcessPick } : {}),
+    ...(summary.featureIds ? { featureIds: summary.featureIds } : {}),
   })
   const featureProcess = featureProcessChoice(proposal, featureProcessPick)
   // The story process's own way of working features, as first proposed — the
@@ -247,6 +272,7 @@ function ToolApprovalPanel({
   // launch waits for the person to choose how to proceed over it; the choice is
   // theirs, carried on the decision on either transport.
   const openWork = proposal?.openWork
+  const overlapView = launchOverlapView(proposal?.overlap)
   const [openWorkChoice, setOpenWorkChoice] = useState<ProcessOpenWorkChoice | undefined>(undefined)
   const openWorkMeta = openWork ? processOpenWorkMetadata(openWork, openWorkChoice) : undefined
   // Work added to an open run is worked the way that run works its own.
@@ -274,6 +300,31 @@ function ToolApprovalPanel({
     joinsOpenRun || saveProofPlans,
     canonicalize,
   )
+  const suggestion = useLaunchSuggestion({
+    projectId,
+    storyId: summary.storyId,
+    runner: launchRunner,
+    ...(summary.featureIds ? { featureIds: summary.featureIds } : {}),
+    ...(processPick ? { processId: processPick } : {}),
+    ...(featureProcess ? { featureProcessId: featureProcess } : {}),
+    ...(baseBranch ? { baseBranch } : {}),
+    ...(launchRunner === 'cli' ? launchAgentPickSuggestionAgent(agentPick, summary) : {}),
+    ...(grant.chatContextId ? { chatContextId: grant.chatContextId } : {}),
+    turnLimit: processTurnLimitOfView(turnLimit),
+  })
+  const applySuggestion = () => {
+    const s = suggestion.suggestion
+    if (!s) return
+    const picks = launchSuggestionPicks(s)
+    if (picks.processId) setProcessPick(picks.processId)
+    if (picks.featureProcessId) setFeatureProcessPick(picks.featureProcessId)
+    if (picks.baseBranch) setBasePick(picks.baseBranch)
+    if (picks.turnLimit) setTurnLimitPick(picks.turnLimit)
+    if (picks.model && launchRunner === 'cli') chipSlot.onPick(picks.model)
+    const proof = launchSuggestionProofEdits(proposal, s)
+    if (Object.keys(proof).length > 0) setProofPlanEdits((prev) => ({ ...prev, ...proof }))
+    suggestion.dismiss()
+  }
   const view = featureWorkAskView({
     ...(story?.title ? { storyTitle: story.title } : {}),
     joinsOpenRun,
@@ -282,11 +333,13 @@ function ToolApprovalPanel({
   })
   // Until the preview has answered, whether the story has open work is unknown —
   // a launch then would be refused for want of a choice nobody was shown.
+  const openWorkBlocked = openWork ? processOpenWorkView(openWork).blocked : undefined
+  const launchRefusal = refusal ?? openWorkBlocked
   const check = featureWorkLaunchCheck({
     ...(summary.storyId !== undefined ? { storyId: summary.storyId } : {}),
     proposalLoaded,
-    ...(refusal !== undefined ? { refusal } : {}),
-    openWorkUnchosen: openWork !== undefined && openWorkMeta === undefined,
+    ...(launchRefusal !== undefined ? { refusal: launchRefusal } : {}),
+    openWorkUnchosen: !inChat && openWork !== undefined && openWorkMeta === undefined,
     storyLoaded: story !== undefined,
     featureCount: features.length,
   })
@@ -301,20 +354,30 @@ function ToolApprovalPanel({
     void grant
       .decide(
         decision,
-        isLaunch
+        isLaunch && inChat
           ? {
-              // Proof is no longer a dock toggle — it belongs to the process the
-              // agent chose (its Verify → Report chain), so the launch carries
-              // the agent's own choice unchanged rather than overriding it here.
+              mode: 'chat',
               ...(trimmedNote ? { note: trimmedNote } : {}),
               ...launchAgentPickMetadata(agentPick),
-              turnLimit: processTurnLimitOfView(turnLimit),
-              ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
-              ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
-              ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
-              ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
             }
-          : undefined,
+          : isLaunch
+            ? {
+                // Proof is no longer a dock toggle — it belongs to the process the
+                // agent chose (its Verify → Report chain), so the launch carries
+                // the agent's own choice unchanged rather than overriding it here.
+                mode: 'process',
+                ...(processPick && processPick !== summary.processId
+                  ? { processId: processPick }
+                  : {}),
+                ...(trimmedNote ? { note: trimmedNote } : {}),
+                ...launchAgentPickMetadata(agentPick),
+                turnLimit: processTurnLimitOfView(turnLimit),
+                ...(decision === 'once' && openWorkMeta ? openWorkMeta : {}),
+                ...(decision === 'once' && featureProcessMeta ? featureProcessMeta : {}),
+                ...(decision === 'once' && baseBranchMeta ? baseBranchMeta : {}),
+                ...(decision === 'once' && proofPlanMeta ? proofPlanMeta : {}),
+              }
+            : undefined,
       )
       .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
       .catch((err: unknown) => {
@@ -379,21 +442,38 @@ function ToolApprovalPanel({
           </div>
         ) : null}
 
-        {openWork ? (
+        {isLaunch ? (
+          <SegmentedControl
+            size="sm"
+            ariaLabel="How the work is done"
+            className="self-start"
+            value={mode}
+            onChange={(next) => setMode(next as WorkLaunchMode)}
+            options={workLaunchOptions(undefined).map((o) => ({ value: o.mode, label: o.label }))}
+          />
+        ) : null}
+
+        {!inChat && openWork ? (
           <OpenWorkChooser
             openWork={openWork}
             choice={openWorkChoice}
             busy={busy}
             onChoose={setOpenWorkChoice}
+            {...(renderProcessRun ? { renderRun: renderProcessRun } : {})}
           />
         ) : null}
+        {!inChat && proposal?.alreadyDone ? (
+          <AlreadyDoneNote deliveries={proposal.alreadyDone} />
+        ) : null}
+
+        {!inChat && overlapView ? <LaunchOverlapNote view={overlapView} /> : null}
 
         <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
             {LAUNCH_HOW_IT_RUNS_HEADING}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            {proposalFeatureProcessId(proposal) !== undefined ? (
+            {!inChat && proposalFeatureProcessId(proposal) !== undefined ? (
               <FeatureProcessChooser
                 choice={featureProcess}
                 {...(defaultFeatureProcess !== undefined
@@ -404,14 +484,16 @@ function ToolApprovalPanel({
                 onChoose={setFeatureProcessPick}
               />
             ) : null}
-            <BaseBranchChooser
-              options={proposal?.baseBranches}
-              {...(summary.baseBranch !== undefined ? { asked: summary.baseBranch } : {})}
-              picked={basePick}
-              followsOpenRun={followsOpenRun}
-              busy={busy}
-              onChoose={setBasePick}
-            />
+            {inChat ? null : (
+              <BaseBranchChooser
+                options={proposal?.baseBranches}
+                {...(summary.baseBranch !== undefined ? { asked: summary.baseBranch } : {})}
+                picked={basePick}
+                followsOpenRun={followsOpenRun}
+                busy={busy}
+                onChoose={setBasePick}
+              />
+            )}
             {renderModelChip ? (
               renderModelChip(chipSlot)
             ) : (
@@ -439,16 +521,30 @@ function ToolApprovalPanel({
               </Tooltip>
             )}
           </div>
-          <TurnLimitField
-            {...turnLimitStart}
-            limited={turnLimit.limited}
-            maxTurns={turnLimit.maxTurns}
-            disabled={busy}
-            onChange={setTurnLimitPick}
-          />
+          {inChat ? null : (
+            <TurnLimitField
+              {...turnLimitStart}
+              limited={turnLimit.limited}
+              maxTurns={turnLimit.maxTurns}
+              disabled={busy}
+              onChange={setTurnLimitPick}
+            />
+          )}
+          {inChat ? null : (
+            <LaunchSuggestionPanel
+              rows={launchSuggestionRows(suggestion.suggestion)}
+              {...(suggestion.answeredBy ? { answeredBy: suggestion.answeredBy } : {})}
+              busy={suggestion.busy}
+              {...(suggestion.error ? { error: suggestion.error } : {})}
+              onAsk={suggestion.ask}
+              onApply={applySuggestion}
+              onDismiss={suggestion.dismiss}
+              disabled={busy || !summary.storyId}
+            />
+          )}
         </div>
 
-        {featureRows.length > 0 ? (
+        {!inChat && featureRows.length > 0 ? (
           <LaunchFeatureList
             {...(summary.storyId ? { storyId: summary.storyId } : {})}
             rows={featureRows}

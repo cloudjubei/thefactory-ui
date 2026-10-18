@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProcessRun, ProcessStepOutcome } from 'thefactory-tools/types'
 import { AGENT_RUN_TYPES, PROCESS_STEP_KINDS } from 'thefactory-tools/constants'
 import { emptyProcessTimeBreakdown } from 'thefactory-tools/utils'
+import { PROCESS_CIRCLING_CARD_LINE } from './processCirclingViewConstants'
 import {
   PROCESS_OUTCOME_VIEW,
   PROCESS_RUN_STATUS_VIEW,
@@ -1271,6 +1272,33 @@ describe('processRunBadge — a stop its agent manager has', () => {
     expect(card.body?.text).toMatch(/^Manager: looking at /)
     expect(processRunCardView(stopped({}), 20).body?.text).toBe(
       '1 decision pending — answer it in the run',
+    )
+  })
+})
+
+describe('processRunCardView — a stop on an attempt going in circles', () => {
+  const circling = {
+    summary: 'Going in circles: ran out of turns (50 of 50); changed nothing.',
+    signals: ['no-change' as const],
+    ranOut: true,
+    streak: 1,
+    at: 0,
+  }
+  const stopped = (over: Partial<ProcessRun> = {}) =>
+    run({
+      status: 'parked',
+      park: { reason: 'turn-limit', message: 'm', parkedAt: 0, circling },
+      ...over,
+    })
+
+  it('says so on the chat card, read from the run as it is now', () => {
+    expect(processRunCardView(stopped(), 20).body?.text).toBe(PROCESS_CIRCLING_CARD_LINE)
+  })
+
+  it('leaves the manager’s line in its place while the manager has the stop', () => {
+    const turn = { runId: 'r', parkedAt: 0, signature: 's', startedAt: 10, chatContextId: 'c' }
+    expect(processRunCardView(stopped({ manager: { turn } }), 20).body?.text).toMatch(
+      /^Manager: looking at /,
     )
   })
 })

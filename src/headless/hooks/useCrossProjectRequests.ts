@@ -6,8 +6,12 @@ import {
   listFeatureRequests,
   markFeatureRequestDelivered,
   rejectFeatureRequest,
+  startFeatureRequestAgain,
+  startFeatureRequestWork,
 } from '../api/generated'
-import { useApi } from '../api/ApiContext'
+import { useApi, useOptionalApi } from '../api/ApiContext'
+import type { FeatureRequestStartAgainChoice } from '../utils/featureRequestViewTypes'
+import type { WorkLaunchChoice } from '../utils/workLaunchViewTypes'
 import {
   badgeCount,
   featureRequestsSnapshot,
@@ -37,8 +41,13 @@ export interface CrossProjectRequestsState {
   inboxFor: (targetProjectId: string) => FeatureRequest[]
   /** The live record behind a `requestProjectFeature` tool result, or undefined until it seeds. */
   requestById: (id: string) => FeatureRequest | undefined
-  /** Accept a pending request (single-tenant: the operator may accept on B's behalf). */
-  accept: (id: string) => Promise<FeatureRequest | undefined>
+  /**
+   * Accept a pending request (single-tenant: the operator may accept on B's behalf), its work
+   * carried out the way chosen: in its chat at once, or a process run once its launch card is confirmed.
+   */
+  accept: (id: string, choice: WorkLaunchChoice) => Promise<FeatureRequest | undefined>
+  /** Start the work of a request accepted and placed but not started yet. */
+  startWork: (id: string, choice: WorkLaunchChoice) => Promise<FeatureRequest | undefined>
   /** Reject a pending request; a reason given is kept on it and passed on to the asking chat. */
   reject: (id: string, reason?: string) => Promise<FeatureRequest | undefined>
   /** Mark a request delivered by other work — a commit, run or story. */
@@ -48,6 +57,11 @@ export interface CrossProjectRequestsState {
   ) => Promise<FeatureRequest | undefined>
   /** Hand a request over to another project's request or story. */
   handOver: (id: string, input: FeatureRequestHandoverForm) => Promise<FeatureRequest | undefined>
+  /** Start a blocked or failed request's work again, the way chosen. */
+  startAgain: (
+    id: string,
+    choice: FeatureRequestStartAgainChoice,
+  ) => Promise<FeatureRequest | undefined>
 }
 
 /** What the person typed to mark a request delivered. */
@@ -95,9 +109,34 @@ export async function handOverRequest(
   return updated
 }
 
+/** Start a request's work again, keeping the record the server answers with. */
+export async function startRequestAgain(
+  id: string,
+  choice: FeatureRequestStartAgainChoice,
+): Promise<FeatureRequest | undefined> {
+  const res = await startFeatureRequestAgain({ path: { id }, body: choice, throwOnError: true })
+  const updated = res.data as FeatureRequest | undefined
+  if (updated) upsertFeatureRequest(updated)
+  return updated
+}
+
 /** Accept, optimistically upserting the returned record so the widget/inspector update at once. */
-async function acceptRequest(id: string): Promise<FeatureRequest | undefined> {
-  const res = await acceptFeatureRequest({ path: { id }, throwOnError: true })
+async function acceptRequest(
+  id: string,
+  choice: WorkLaunchChoice,
+): Promise<FeatureRequest | undefined> {
+  const res = await acceptFeatureRequest({ path: { id }, body: choice, throwOnError: true })
+  const updated = res.data as FeatureRequest | undefined
+  if (updated) upsertFeatureRequest(updated)
+  return updated
+}
+
+/** Start an accepted request's work, keeping the record the server answers with. */
+export async function startRequestWork(
+  id: string,
+  choice: WorkLaunchChoice,
+): Promise<FeatureRequest | undefined> {
+  const res = await startFeatureRequestWork({ path: { id }, body: choice, throwOnError: true })
   const updated = res.data as FeatureRequest | undefined
   if (updated) upsertFeatureRequest(updated)
   return updated
@@ -157,6 +196,21 @@ export function holdFeatureRequests(ws: FeatureRequestSocket): () => void {
 }
 
 /**
+ * One request's record from the shared store, kept current while shown when the
+ * API is there to hold the feed — read as it stands where it is not.
+ */
+export function useFeatureRequestRecord(id: string): FeatureRequest | undefined {
+  const ws = useOptionalApi()?.ws
+  const snapshot = useSyncExternalStore(
+    subscribeFeatureRequests,
+    featureRequestsSnapshot,
+    featureRequestsSnapshot,
+  )
+  useEffect(() => (ws ? holdFeatureRequests(ws) : undefined), [ws])
+  return requestById(snapshot, id)
+}
+
+/**
  * Live, account-global view of cross-project feature requests, kept current by
  * `featureRequest:updated` (the full record is broadcast) and read from the list
  * endpoint when the first view showing them mounts — every view shares that.
@@ -180,8 +234,10 @@ export function useCrossProjectRequests(): CrossProjectRequestsState {
     inboxFor: inboxForFn,
     requestById: requestByIdFn,
     accept: acceptRequest,
+    startWork: startRequestWork,
     reject: rejectRequest,
     markDelivered: markRequestDelivered,
     handOver: handOverRequest,
+    startAgain: startRequestAgain,
   }
 }

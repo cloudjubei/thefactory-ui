@@ -1,3 +1,4 @@
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 import type { PendingToolGrantDecision } from './chatTypes'
 
 /** The tile a waiting tool's card shows in its header. */
@@ -37,6 +38,8 @@ export type ToolAskBody =
   | { kind: 'references'; text: string }
   | { kind: 'git' }
   | { kind: 'launch' }
+  /** Accepting a feature request: the request, and the way its work starts — the agent's proposal, when it made one. */
+  | { kind: 'accept-request'; requestId: string; mode?: WorkLaunchMode }
   | { kind: 'proposal' }
   | {
       kind: 'review'

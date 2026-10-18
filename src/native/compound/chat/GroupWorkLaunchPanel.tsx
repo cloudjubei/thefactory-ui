@@ -35,6 +35,8 @@ export type GroupWorkLaunchPanelProps = {
   groupId?: string
   /** The app's model chip for this chat — the agent every project's work runs on. */
   renderModelChip?: (picked: LaunchModelChipSlot) => ReactNode
+  /** The host's live card for a process run, opening it on press — shows a story's open run. */
+  renderProcessRun?: (processRunId: string) => ReactNode
   onDecideLater: () => void
   /** The launch was decided — what its one line says. */
   onDecided?: (line: ToolAskDecidedLine) => void
@@ -53,6 +55,7 @@ export default function GroupWorkLaunchPanel({
   grant,
   groupId,
   renderModelChip,
+  renderProcessRun,
   onDecideLater,
   onDecided,
 }: GroupWorkLaunchPanelProps) {
@@ -197,6 +200,12 @@ export default function GroupWorkLaunchPanel({
                       {waitsFor ? (
                         <Text style={{ fontSize: 11, color: theme.text.muted }}>{waitsFor}</Text>
                       ) : null}
+                      {(leg.alreadyDone ?? []).map((line) => (
+                        <Text key={line} style={{ fontSize: 11, color: status.review.softFg }}>
+                          {line}
+                        </Text>
+                      ))}
+                      {leg.openRunId && renderProcessRun ? renderProcessRun(leg.openRunId) : null}
                     </View>
                   )
                 })}

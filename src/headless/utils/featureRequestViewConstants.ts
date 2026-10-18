@@ -57,3 +57,21 @@ export const FEATURE_REQUEST_ACCEPTANCE_LINES: Record<FeatureRequestAcceptance, 
 
 /** The heading over a waiting request's decision in the full request. */
 export const FEATURE_REQUEST_DECIDE_HEADING = 'Take this on?'
+
+/** How a request in a wait cycle with other requests reads on its card. */
+export const FEATURE_REQUEST_WAIT_CYCLE_WORDS = {
+  lead: (projectIds: readonly string[]) =>
+    `This request and ${projectIds.length === 1 ? 'the request' : 'the requests'} in ${projectIds.join(', ')} are waiting on each other.`,
+  decideHere: 'This side owns what the other waits on: decide it here first.',
+  decideThere: (projectId: string) =>
+    `Decide first in ${projectId}, which owns what this side waits on.`,
+} as const
+
+/** How a request whose work ended blocked or failed offers to start it again. */
+export const FEATURE_REQUEST_START_AGAIN_WORDS = {
+  action: 'Start again',
+  hint: (failed: boolean) =>
+    failed
+      ? 'Its work failed. Start it again on its story.'
+      : 'Its work stopped. Start it again on its story.',
+} as const

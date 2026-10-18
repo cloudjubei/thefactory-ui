@@ -18,7 +18,6 @@ import type {
   ResumeCompletionData,
   SendCompletionData,
   SendCompletionWithToolsData,
-  StartAgentRunData,
   // Coverage / tests
   CoverageResult,
   GetLastCoverageResponses,
@@ -69,7 +68,6 @@ export type SendCompletionInput = SendCompletionData['body']
 export type SendWithToolsInput = SendCompletionWithToolsData['body']
 export type ResumeCompletionInput = ResumeCompletionData['body']
 export type AbortCompletionInput = AbortCompletionData['body']
-export type StartAgentRunInput = StartAgentRunData['body']
 
 // --- Entities ---
 //
@@ -126,11 +124,18 @@ export type FetchInput = GitFetchData['body']
 // `liveData:updated` event has no REST schema, so it's hand-written here.
 export type LiveDataUpdatedEvent = {
   sourceId: string
+  /** Set for a source a project declares, so that project's open app can follow it. */
+  projectId?: string
   status: 'fetching' | 'fresh' | 'error'
   recordType?: string
   itemCount?: number
   error?: string
 }
+
+/** The backend's `data:updated` WS payload: a DataStorage record changed. `scope` is the project id. */
+export type DataUpdatedEvent =
+  | { action: 'upserted'; scope: string; type: string; key: string | null }
+  | { action: 'deleted'; scope: string; type: string; key: string }
 
 // --- Web search keys ---
 //

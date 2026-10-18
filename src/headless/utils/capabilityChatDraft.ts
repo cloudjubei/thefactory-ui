@@ -56,6 +56,8 @@ function availabilityLine(label: string, availability: ApproachAvailability): st
     }
     case 'not-allowed':
       return `- ${label}: not allowed — ${availability.reason}`
+    case 'unservable':
+      return `- ${label}: cannot be served — ${availability.reason}`
     case 'not-applicable':
       return `- ${label}: not applicable — ${availability.reason}`
   }

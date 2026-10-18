@@ -11,7 +11,7 @@ vi.mock('../api/generated', () => ({
   markFeatureRequestDelivered: (...args: unknown[]) => markFeatureRequestDelivered(...args),
   handOverFeatureRequest: (...args: unknown[]) => handOverFeatureRequest(...args),
 }))
-vi.mock('../api/ApiContext', () => ({ useApi: vi.fn() }))
+vi.mock('../api/ApiContext', () => ({ useApi: vi.fn(), useOptionalApi: () => null }))
 
 import { featureRequestsSnapshot, replaceFeatureRequests } from './featureRequestsStore'
 import {

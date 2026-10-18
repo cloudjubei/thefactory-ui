@@ -1,9 +1,14 @@
+import { APP_BRIDGE_ASK_SCENES } from '../scenes/appBridgeAsks'
 import { CHAT_SCENES } from '../scenes/chat'
+import { CIRCLING_SCENES } from '../scenes/circling'
 import { CHAT_CHANGES_SCENES } from '../scenes/chatChanges'
 import { CHAT_PAUSED_RUN_SCENES } from '../scenes/chatPausedRun'
 import { DESIGN_SCENES } from '../scenes/design'
 import { FEATURE_REQUEST_CARD_SCENES } from '../scenes/featureRequestCard'
+import { FEATURE_REQUEST_WAIT_CYCLE_SCENES } from '../scenes/featureRequestWaitCycle'
 import { LAND_NOTICE_SCENES } from '../scenes/landNotice'
+import { LEAVE_GUARD_SCENES } from '../scenes/leaveGuard'
+import { OPEN_RUN_SCENES } from '../scenes/openRun'
 import { PRIMITIVE_SCENES } from '../scenes/primitives'
 import { PARK_CLOSING_SCENES } from '../scenes/parkClosing'
 import { PROCESS_SCENES } from '../scenes/process'
@@ -11,9 +16,14 @@ import { PROCESS_CHECKS_SCENES } from '../scenes/processChecks'
 import { PROCESS_FEATURE_SCENES } from '../scenes/processFeatures'
 import { PROCESS_MODEL_SCENES } from '../scenes/processModel'
 import { PROOF_CHANGE_SCENES } from '../scenes/proofChange'
+import { REGENERATED_MERGE_SCENES } from '../scenes/regeneratedMerge'
 import { RUNNING_TONE_SCENES } from '../scenes/runningTone'
+import { SIBLING_STABLE_BRANCH_SCENES } from '../scenes/siblingStableBranch'
 import { RUN_TIME_DETAILS_SCENES } from '../scenes/runTimeDetails'
 import { STORY_WORK_SCENES } from '../scenes/storyWork'
+import { UI_IMPACT_SCENES } from '../scenes/uiImpact'
+import { WORK_LAUNCH_SCENES } from '../scenes/workLaunch'
+import { WORKFLOW_GUARD_SCENES } from '../scenes/workflowGuards'
 import {
   DESIGN_PLAYGROUND_PLAY_PARAM,
   DESIGN_PLAYGROUND_SCENE_PARAM,
@@ -33,17 +43,27 @@ export const SCENES: readonly Scene[] = [
   ...CHAT_CHANGES_SCENES,
   ...CHAT_PAUSED_RUN_SCENES,
   ...FEATURE_REQUEST_CARD_SCENES,
+  ...FEATURE_REQUEST_WAIT_CYCLE_SCENES,
+  ...OPEN_RUN_SCENES,
   ...LAND_NOTICE_SCENES,
   ...PROCESS_SCENES,
   ...RUN_TIME_DETAILS_SCENES,
   ...PROCESS_CHECKS_SCENES,
+  ...SIBLING_STABLE_BRANCH_SCENES,
   ...PROCESS_FEATURE_SCENES,
   ...PROCESS_MODEL_SCENES,
   ...PROOF_CHANGE_SCENES,
+  ...UI_IMPACT_SCENES,
   ...PARK_CLOSING_SCENES,
+  ...CIRCLING_SCENES,
+  ...REGENERATED_MERGE_SCENES,
   ...RUNNING_TONE_SCENES,
   ...STORY_WORK_SCENES,
+  ...WORK_LAUNCH_SCENES,
+  ...WORKFLOW_GUARD_SCENES,
   ...DESIGN_SCENES,
+  ...LEAVE_GUARD_SCENES,
+  ...APP_BRIDGE_ASK_SCENES,
   ...PRIMITIVE_SCENES,
 ]
 

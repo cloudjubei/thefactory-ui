@@ -41,6 +41,7 @@ import {
   managerOutcomeView,
 } from '../../../headless/utils/managerCards'
 import { nativeRadii } from '../../../tokens/native'
+import { CirclingNotice } from '../process/CirclingNotice'
 import { useNativeTheme } from '../../hooks/useNativeTheme'
 import {
   IconAgent,
@@ -183,6 +184,7 @@ export function ManagerBriefCardView({
             gap: 12,
           }}
         >
+          {view.circling ? <CirclingNotice view={view.circling} showHint={false} /> : null}
           <View style={{ gap: 6 }}>
             <Caption>{MANAGER_BRIEF_STOPPED}</Caption>
             <Text style={{ fontSize: 13, color: theme.text.primary }}>{view.stopped}</Text>

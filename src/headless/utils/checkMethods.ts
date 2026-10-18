@@ -20,6 +20,7 @@ import type {
 import {
   CHECK_AVAILABLE_LABEL,
   CHECK_AVAILABLE_SENTENCE,
+  CHECK_UNSERVABLE_LEAD,
   CHECK_CHIP_MARKS,
   CHECK_FLAGGED_DETAIL,
   CHECK_LAST_RUN_VERBS,
@@ -88,6 +89,19 @@ function withheldReason(
   const availability = approaches.find((a) => a.spec.id === CHECK_METHOD_APPROACH[id])?.availability
   if (availability?.status === 'not-allowed') return availability.reason
   return availability?.status === 'unavailable' ? availability.withheld : undefined
+}
+
+/**
+ * Why the project's page cannot be served for the approach that would prove a
+ * method, or `undefined` when it can. Fixed by giving the page a way to be
+ * served — an agent can set that up — never by installing anything.
+ */
+function unservableReason(
+  approaches: readonly VerificationApproachOption[],
+  id: CheckMethodId,
+): string | undefined {
+  const availability = approaches.find((a) => a.spec.id === CHECK_METHOD_APPROACH[id])?.availability
+  return availability?.status === 'unservable' ? availability.reason : undefined
 }
 
 function trimmedOrUndefined(value: string | undefined): string | undefined {
@@ -398,6 +412,7 @@ function absentDetail(
       : 'Not captured on this branch.'
   }
   const why = [
+    unservableReason(approaches, id),
     approachHints(approaches, CHECK_METHOD_APPROACH[id]),
     withheldReason(approaches, id),
   ].filter((part): part is string => part !== undefined)
@@ -532,6 +547,9 @@ export function checkMethodRows(input: {
       checkIds: matched.map((c) => c.id),
       ...(available ? { available } : {}),
       ...(isErroredOnly(matched) ? { errored: true } : {}),
+      ...(state === 'unconfigured' && captured === 0 && unservableReason(approaches, id)
+        ? { unservable: true as const }
+        : {}),
     }
   })
 }
@@ -680,6 +698,7 @@ export type CheckRowLayout = {
  */
 export function checkCallout(row: CheckMethodRow): CheckCallout {
   if (row.action.kind === 'allow') return { lead: row.action.reason, detail: undefined }
+  if (row.unservable) return { lead: CHECK_UNSERVABLE_LEAD, detail: row.detail }
   const lead =
     row.state === 'unconfigured'
       ? `There is no ${row.noun} in this project, so there is no tab for it. Ask for it here.`

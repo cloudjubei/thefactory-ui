@@ -433,6 +433,7 @@ export {
 export { default as NavIndicator, type NavIndicatorProps } from './compound/shell/NavIndicator'
 export { default as InkBadge, type InkBadgeProps } from './compound/shell/InkBadge'
 export { default as ScreenShell, type ScreenShellProps } from './compound/shell/ScreenShell'
+export { default as LeaveGuard } from './compound/shell/LeaveGuard'
 
 // Text / code viewers
 export { default as Markdown, type MarkdownProps } from './compound/Markdown'
@@ -597,6 +598,15 @@ export {
   type TicketConnectionPickerValue,
 } from './compound/projects/TicketConnectionPicker'
 export {
+  default as ProjectStableBranchField,
+  type ProjectStableBranchFieldProps,
+} from './compound/projects/ProjectStableBranchField'
+export {
+  default as SiblingFallbackNotice,
+  RunSiblingFallbackNotice,
+  type SiblingFallbackNoticeProps,
+} from './compound/process/SiblingFallbackNotice'
+export {
   default as ProjectTicketSettings,
   type ProjectTicketSettingsProps,
 } from './compound/projects/ProjectTicketSettings'
@@ -686,6 +696,14 @@ export type {
 
 // Template picker — native peer of the matching web compound. Same prop API.
 //
+export {
+  default as AppWorkStartSheet,
+  type AppWorkStartSheetProps,
+} from './compound/AppWorkStartSheet'
+export {
+  default as LiveDataTaskSourceFields,
+  type LiveDataTaskSourceFieldsProps,
+} from './compound/LiveDataTaskSourceFields'
 // `ProjectAppView` is **deliberately not exported here**. It depends on
 // `react-native-webview` (an optional peer), and a top-level barrel
 // export would force every native consumer to install + build the native
@@ -718,3 +736,19 @@ export {
   default as AssistantConversationList,
   type AssistantConversationListProps,
 } from './compound/chat/AssistantConversationList'
+export {
+  default as WorkLaunchChooser,
+  type WorkLaunchChooserProps,
+} from './compound/WorkLaunchChooser'
+export {
+  default as StoryLaunchDock,
+  type StoryLaunchDockProps,
+} from './compound/chat/StoryLaunchDock'
+export {
+  default as LaunchSuggestionPanel,
+  type LaunchSuggestionPanelProps,
+} from './compound/chat/LaunchSuggestionPanel'
+export {
+  default as StartWorkDialog,
+  type StartWorkDialogProps,
+} from './compound/chat/StartWorkDialog'

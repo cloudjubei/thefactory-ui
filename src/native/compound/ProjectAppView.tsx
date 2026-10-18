@@ -2,12 +2,16 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import {
+  bridgeMessageName,
   buildBridgeResponse,
   buildNavOpenMessage,
   parseBridgeMessage,
   type BridgeRequest,
 } from '../../headless/utils/appBridge'
+import { NAV_CHANGED_MESSAGE } from '../../headless/utils/appBridgeConstants'
+import type { AppPushChannel } from '../../headless/utils/appPushChannel'
 import {
+  parseAppDeepLink,
   serializeAppDeepLink,
   shouldPushDeepLink,
   type AppDeepLink,
@@ -39,6 +43,14 @@ export type ProjectAppViewProps = {
    * under it. `box-none` lets touches outside the chip reach the WebView.
    */
   topRightOverlay?: ReactNode
+  /** Host→app pushes (`useAppBridgePushes`), each delivered into the running app as it is posted. */
+  pushes?: AppPushChannel
+  /**
+   * The app reported where it is (`overseer:nav.changed {view, params}`). The host mirrors it in its own
+   * URL (a replace, never a remount); the deep-link that comes back from that is not pushed to the app
+   * as `nav.open`, since the app is already there. Omit to pass the message to `onBridgeMessage`.
+   */
+  onNavChanged?: (deepLink: AppDeepLink) => void
   style?: StyleProp<ViewStyle>
 }
 
@@ -52,6 +64,8 @@ export default function ProjectAppView({
   onBridgeMessage,
   deepLink,
   topRightOverlay,
+  pushes,
+  onNavChanged,
   style,
 }: ProjectAppViewProps) {
   const webviewRef = useRef<WebView | null>(null)
@@ -73,10 +87,27 @@ export default function ProjectAppView({
     deliver(webviewRef.current, buildNavOpenMessage(deepLink))
   }, [serializedDeepLink, url, remountKey, deepLink])
 
+  useEffect(() => {
+    if (!pushes || !url) return
+    return pushes.subscribe((message) => deliver(webviewRef.current, message))
+  }, [pushes, url])
+
   const handleMessage = async (event: WebViewMessageEvent) => {
-    if (!onBridgeMessage) return
     const req = parseBridgeMessage(event.nativeEvent.data)
     if (!req) return
+    if (onNavChanged && bridgeMessageName(req.type) === NAV_CHANGED_MESSAGE) {
+      const reported = parseAppDeepLink(req.payload)
+      if (reported) {
+        // The route change this causes comes back as the deepLink prop; the app is already there.
+        lastSerializedRef.current = serializeAppDeepLink(reported)
+        onNavChanged(reported)
+      }
+      if (req.id !== undefined) {
+        deliver(webviewRef.current, buildBridgeResponse(req, { result: { ok: true } }))
+      }
+      return
+    }
+    if (!onBridgeMessage) return
     try {
       const result = await onBridgeMessage(req)
       if (req.id !== undefined) deliver(webviewRef.current, buildBridgeResponse(req, { result }))
@@ -112,7 +143,7 @@ export default function ProjectAppView({
         source={{ uri: url }}
         originWhitelist={['*']}
         javaScriptEnabled
-        onMessage={onBridgeMessage ? handleMessage : undefined}
+        onMessage={onBridgeMessage || onNavChanged ? handleMessage : undefined}
         // Match the fixed-page feel of the web/desktop iframe: no rubber-band
         // overscroll, which would otherwise reveal the WebView backing behind the
         // app's own background.

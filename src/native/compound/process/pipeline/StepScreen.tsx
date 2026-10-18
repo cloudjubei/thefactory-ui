@@ -4,10 +4,12 @@ import type { ProcessLedgerEntry, ProcessStepState } from 'thefactory-tools/type
 
 import {
   agentNeverStartedNote,
+  attemptUiImpactNote,
   processAttemptLeaf,
   processLeafReview,
   processStepStates,
   reportBodyView,
+  reviewUiImpactNote,
   useProcessRun,
   useStepFiling,
   type ProcessNodeRunRef,
@@ -23,6 +25,7 @@ import RunChatButton, { type RunChatButtonProps } from '../RunChatButton'
 import VerificationReview from '../VerificationReview'
 import CodeReviewPanel from '../signoff/CodeReviewPanel'
 import SignoffReportPanel from '../signoff/SignoffReportPanel'
+import UiImpactNote from '../UiImpactNote'
 
 /** Which step's output the screen shows — an attempt of it, when one is named. */
 export type StepPanelTarget = { runId: string; stepId: string; entryId?: string }
@@ -76,6 +79,12 @@ export default function StepScreen({
       : undefined
   const switchable = canTranscript && (hasOutput || leafReview !== undefined)
   const neverStarted = agentNeverStartedNote(entry)
+  const impact =
+    run && state && entry
+      ? state.step.kind === 'judge'
+        ? reviewUiImpactNote(entry, run.ledger)
+        : attemptUiImpactNote(entry)
+      : undefined
   const transcript =
     neverStarted !== undefined ? (
       <Text style={{ padding: nativeSpace[4], fontSize: 13, color: theme.text.secondary }}>
@@ -157,14 +166,21 @@ export default function StepScreen({
       ) : view === 'transcript' && transcript ? (
         <View style={{ flex: 1 }}>{transcript}</View>
       ) : (
-        <StepOutput
-          run={run}
-          state={state}
-          entry={entry}
-          leafReview={leafReview}
-          {...(transcript ? { transcript } : {})}
-          {...(onSaveFile ? { onSaveFile } : {})}
-        />
+        <>
+          {impact ? (
+            <View style={{ paddingHorizontal: nativeSpace[4], paddingTop: nativeSpace[4] }}>
+              <UiImpactNote note={impact} />
+            </View>
+          ) : null}
+          <StepOutput
+            run={run}
+            state={state}
+            entry={entry}
+            leafReview={leafReview}
+            {...(transcript ? { transcript } : {})}
+            {...(onSaveFile ? { onSaveFile } : {})}
+          />
+        </>
       )}
     </View>
   )

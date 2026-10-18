@@ -957,6 +957,9 @@ export function normalizeCliTranscript(entries: CliRunTranscriptEntry[]): CliTra
  * ask as `toolCall.approvalId`. Any other call the host answered without
  * running stays `not_allowed`, so an ask decided long ago no longer reads as
  * waiting. Each ask is tied to one row at most.
+ *
+ * `opts.storedAskIds` — the asks the chat stores rows of its own for: a call
+ * raising one of them is left to that row, never shown twice.
  */
 export function cliTranscriptToMessages(
   entries: CliRunTranscriptEntry[],
@@ -968,6 +971,7 @@ export function cliTranscriptToMessages(
     /** The run these entries are from — what tells a later call that carried an approval out. */
     runId?: string
     usage?: MessageUsageLike
+    storedAskIds?: ReadonlySet<string>
   },
 ): ChatMessageLike[] {
   const showThinking = opts?.showThinking ?? true
@@ -1009,6 +1013,7 @@ export function cliTranscriptToMessages(
       })
     } else if (step.kind === 'tool') {
       if (recalls.has(step) || ranNothing(step)) continue
+      if (askStoredElsewhere(step, askByStep.get(step), opts?.storedAskIds)) continue
       const ask = askByStep.get(step)
       const asking = ask !== undefined && ask.awaitingOutcome !== true
       const approvalId = asking && ask.decidedOnRow ? ask.id : undefined
@@ -1079,6 +1084,16 @@ export function cliTranscriptToMessages(
     if (firstAssistant) firstAssistant.usage = usage
   }
   return shown
+}
+
+/** The asks a chat's stored rows stand for — what a CLI turn's rows leave to them. Pure. */
+export function storedChatAskIds(messages: readonly ChatMessageLike[]): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (const m of messages) {
+    const actionId = m.role === 'tool' ? m.toolResult?.actionId : undefined
+    if (actionId !== undefined) ids.add(actionId)
+  }
+  return ids
 }
 
 /**
@@ -1505,6 +1520,20 @@ function parsedResultText(text: string): unknown {
   } catch {
     return text
   }
+}
+
+/** Whether the ask a call raised — named by its host outcome, or tied to it — has a stored row of its own in the chat. */
+function askStoredElsewhere(
+  step: CliToolStep,
+  ask: CliPendingAsk | undefined,
+  storedAskIds: ReadonlySet<string> | undefined,
+): boolean {
+  if (!storedAskIds || storedAskIds.size === 0) return false
+  const actionId = step.hostOutcome?.actionId
+  return (
+    (actionId !== undefined && storedAskIds.has(actionId)) ||
+    (ask !== undefined && storedAskIds.has(ask.id))
+  )
 }
 
 /**

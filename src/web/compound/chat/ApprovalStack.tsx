@@ -14,6 +14,7 @@ export type ApprovalStackProps = {
   onDecideLater: () => void
   onDecided?: (grantId: string, line: ToolAskDecidedLine) => void
   renderModelChip?: ApprovalPanelProps['renderModelChip']
+  renderProcessRun?: ApprovalPanelProps['renderProcessRun']
 }
 
 /**
@@ -28,6 +29,7 @@ export default function ApprovalStack({
   onDecideLater,
   onDecided,
   renderModelChip,
+  renderProcessRun,
 }: ApprovalStackProps) {
   const ids = useMemo(() => grants.map((g) => g.id), [grants])
   const [chosenId, setChosenId] = useState<string>()
@@ -52,6 +54,7 @@ export default function ApprovalStack({
           ? { onDecided: (line: ToolAskDecidedLine) => onDecided(shown.id, line) }
           : {})}
         {...(renderModelChip ? { renderModelChip } : {})}
+        {...(renderProcessRun ? { renderProcessRun } : {})}
       />
     </div>
   )

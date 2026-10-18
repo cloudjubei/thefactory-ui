@@ -28,6 +28,7 @@ import type {
   ManagerOutcomeView,
   ManagerPreReadStanding,
 } from './managerCardsTypes'
+import { processCirclingView } from './processCirclingView'
 import type { ParkStanding } from './processParkStandingTypes'
 import { formatFriendlyTimestamp } from './time'
 
@@ -45,6 +46,7 @@ export function managerBriefView(card: ProcessManagerBriefCard): ManagerBriefVie
     tries: MANAGER_BRIEF_TRIES(card.triesUsed, card.triesMax),
     triesShare: card.triesMax > 0 ? Math.min(1, card.triesUsed / card.triesMax) : 0,
     limits: MANAGER_BRIEF_LIMITS,
+    ...(card.circling ? { circling: processCirclingView(card.circling) } : {}),
   }
 }
 

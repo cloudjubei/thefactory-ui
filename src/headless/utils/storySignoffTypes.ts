@@ -343,6 +343,8 @@ export type StorySignoff = {
    * carries totals.
    */
   work: SignoffWork | undefined
+  /** "Outside the feature’s scope: …" — changed files a code review was told lie outside the features' scope. */
+  outsideScope?: string
 }
 
 /** Where one of the sources a sign-off is computed from stands. */

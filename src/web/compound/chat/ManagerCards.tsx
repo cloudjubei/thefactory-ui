@@ -47,6 +47,7 @@ import {
   IconWarningTriangle,
 } from '../../icons'
 import Markdown from '../Markdown'
+import { CirclingNotice } from '../process/CirclingNotice'
 import ParkClosureLine from './ParkClosureLine'
 
 /** How a manager card renders references and in-app links in what it quotes. */
@@ -140,6 +141,11 @@ export function ManagerBriefCardView({
       </button>
       {open ? (
         <div className="grid gap-3.5 border-t border-(--border-subtle) py-3 pr-3.5 pl-11 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
+          {view.circling ? (
+            <div className="col-span-full">
+              <CirclingNotice view={view.circling} showHint={false} />
+            </div>
+          ) : null}
           <div className="flex flex-col gap-1.5">
             <div className={CAPTION}>{MANAGER_BRIEF_STOPPED}</div>
             <div className="text-[13px] leading-normal text-(--text-primary)">{view.stopped}</div>

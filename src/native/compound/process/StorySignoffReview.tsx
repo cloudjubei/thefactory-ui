@@ -18,6 +18,8 @@ import {
   ranReviewChecks,
   requestChangesProofPreset,
   requestProofChoices,
+  screensDecisionNote,
+  screensDecisionUiImpact,
   reviewCheckGroups,
   reviewTabOrder,
   reviewTabs,
@@ -62,6 +64,7 @@ import {
   type SignoffMergeHold,
   type ProcessWorkBranch,
   type ProofKind,
+  type ChangeScreensDecision,
   type ProofKindUnavailable,
   type ReviewTabId,
   type ScreenPair,
@@ -89,11 +92,13 @@ import {
   WalkthroughTab,
   type SaveFileHandler,
 } from '../chat/signoff'
+import ProjectFlakesList from './ProjectFlakesList'
 import DependencyRef from '../stories/DependencyRef'
 import FeatureReviewSection from './FeatureReviewSection'
 import IntegrationChooser from './IntegrationChooser'
 import ParkNoteComposer from './ParkNoteComposer'
 import ProofPlanMarks from './ProofPlanMarks'
+import ScreensDecisionNote from './ScreensDecisionNote'
 import CodeReviewPanel from './signoff/CodeReviewPanel'
 import Pill from './signoff/Pill'
 import SignoffDecisionList from './signoff/SignoffDecisionList'
@@ -136,6 +141,8 @@ export type StorySignoffReviewProps = {
   proofUnavailable?: readonly ProofKindUnavailable[]
   /** The files of the story's change that alter what users see; empty, and screens are never preset. */
   changeUiPaths?: readonly string[]
+  /** Whether the story's change must be shown on screen, what decided it and why. */
+  changeScreensDecision?: ChangeScreensDecision
 }
 
 const TEST_METHODS: readonly CheckMethodId[] = ['tests']
@@ -252,6 +259,7 @@ function StorySignoffPanel({
   onOpenStep,
   proofUnavailable,
   changeUiPaths,
+  changeScreensDecision,
   signoff,
   evidence,
   evidenceState,
@@ -294,7 +302,11 @@ function StorySignoffPanel({
     plannedKinds: signoff.features.flatMap((f) => f.proofPlan?.map((r) => r.kind) ?? []),
     ...(proofUnavailable ? { unavailable: proofUnavailable } : {}),
     ...(changeUiPaths ? { uiPaths: changeUiPaths } : {}),
+    ...(screensDecisionUiImpact(changeScreensDecision)
+      ? { uiImpact: screensDecisionUiImpact(changeScreensDecision) }
+      : {}),
   })
+  const screensNote = screensDecisionNote(changeScreensDecision)
 
   const sections = useMemo(
     () => signoffSections(signoff, evidence.tiles),
@@ -653,6 +665,11 @@ function StorySignoffPanel({
               {signoff.headline.detail}
             </Text>
           ) : null}
+          {signoff.outsideScope ? (
+            <Text style={{ fontSize: 12.5, color: status.review.softFg }}>
+              {signoff.outsideScope}
+            </Text>
+          ) : null}
           <SignoffDecisionList
             projectId={projectId}
             items={decisionItems}
@@ -947,6 +964,8 @@ function StorySignoffPanel({
         })}
       </View>
 
+      {screensNote ? <ScreensDecisionNote note={screensNote} /> : null}
+
       {overall && chips.length > 0 ? (
         <View accessibilityLabel={SIGNOFF_SECTION_TITLES.evidence} style={card}>
           <View
@@ -986,12 +1005,17 @@ function StorySignoffPanel({
               onRequestImage={evidence.requestImage}
             />
           ) : current?.target.tab === 'tests' ? (
-            <ChecksTab
-              methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
-              checks={testChecks}
-              branch={undefined}
-              busyId={undefined}
-            />
+            <View style={{ gap: 8 }}>
+              <ChecksTab
+                methods={overall.rows.filter((r) => TEST_METHODS.includes(r.id))}
+                checks={testChecks}
+                branch={undefined}
+                busyId={undefined}
+              />
+              {projectChecks?.knownFlakes ? (
+                <ProjectFlakesList flakes={projectChecks.knownFlakes} />
+              ) : null}
+            </View>
           ) : current?.target.tab === 'build' ? (
             <ChecksTab
               methods={overall.rows.filter((r) => BUILD_METHODS.includes(r.id))}

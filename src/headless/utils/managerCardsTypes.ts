@@ -1,5 +1,6 @@
 import type { ProcessManagerIntervention } from 'thefactory-tools/types'
 
+import type { ProcessCirclingView } from './processCirclingViewTypes'
 import type { ParkClosure, ParkStanding } from './processParkStandingTypes'
 
 /** The manager's brief as its card reads: the one line, and what opening it shows. */
@@ -23,6 +24,8 @@ export type ManagerBriefView = {
   triesShare: number
   /** The limits it works within. */
   limits: string
+  /** The step went in circles — a major issue the turn must find the cause of. */
+  circling?: ProcessCirclingView
 }
 
 /** What came of a manager turn, as its outcome card reads. */

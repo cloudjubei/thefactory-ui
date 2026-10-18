@@ -46,6 +46,20 @@ describe('managerBriefView', () => {
     expect(view.stopLine.startsWith('Verify stopped · ')).toBe(true)
   })
 
+  it('carries the flag of a step going in circles, and nothing without one', () => {
+    const circling = {
+      summary: 'Going in circles: ran out of turns (50 of 50); changed nothing.',
+      signals: ['no-change' as const],
+      ranOut: true,
+      streak: 1,
+      at: 1,
+    }
+    expect(managerBriefView(brief({ circling })).circling?.headline).toBe(
+      'Ran out of turns; changed nothing.',
+    )
+    expect(managerBriefView(brief())).not.toHaveProperty('circling')
+  })
+
   it('reads a pre-read as the sign-off waiting for the person', () => {
     const view = managerBriefView(brief({ mode: 'pre-read', stepName: 'Sign-off', message: '' }))
     expect(view.mode).toBe('Pre-read')
@@ -156,6 +170,11 @@ describe('managerEscalationView', () => {
       recommendation: 'Retry with a fresh agent.',
     },
   }
+
+  it('heads a step that keeps going in circles as such', () => {
+    const circling = { ...card, escalation: { ...card.escalation, why: 'circling' as const } }
+    expect(managerEscalationView(circling).headline).toBe('It keeps going in circles')
+  })
 
   it('heads the card by why it is the person’s, with what happened, was found and tried', () => {
     expect(managerEscalationView(card)).toEqual({

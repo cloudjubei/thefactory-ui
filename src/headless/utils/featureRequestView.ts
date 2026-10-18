@@ -1,5 +1,9 @@
 import { PROOF_KIND_LABELS } from 'thefactory-tools/constants'
-import { featureRequestHandoverTarget, featureRequestSettleRefusal } from 'thefactory-tools/utils'
+import {
+  featureRequestHandoverTarget,
+  featureRequestRestartRefusal,
+  featureRequestSettleRefusal,
+} from 'thefactory-tools/utils'
 import type {
   ChatContext,
   FeatureRequest,
@@ -11,6 +15,7 @@ import { isProofKind } from 'thefactory-tools/validations'
 import {
   FEATURE_REQUEST_SECTION_TITLES,
   FEATURE_REQUEST_STATUS_VIEW,
+  FEATURE_REQUEST_WAIT_CYCLE_WORDS,
 } from './featureRequestViewConstants'
 import type {
   FeatureRequestLinkView,
@@ -19,6 +24,7 @@ import type {
   FeatureRequestSectionView,
   FeatureRequestSettledView,
   FeatureRequestSettleMode,
+  FeatureRequestStartAgainChoice,
   FeatureRequestStatusView,
 } from './featureRequestViewTypes'
 
@@ -150,11 +156,35 @@ export function featureRequestCountsLine(brief: FeatureRequestBrief): string {
     .join(' · ')
 }
 
-/** The warning a request carries when accepting it can leave both projects waiting on each other. */
+/**
+ * The warning a request carries while its work and another request's wait on each other: who is
+ * in it, and which side decides first. Nothing is decided for the person.
+ */
+export function featureRequestWaitCycleWarning(
+  request: Partial<Pick<FeatureRequest, 'id' | 'waitCycle'>>,
+): string | undefined {
+  const cycle = request.waitCycle
+  if (!cycle) return undefined
+  const others = [
+    ...new Set(cycle.waits.filter((w) => w.requestId !== request.id).map((w) => w.projectId)),
+  ]
+  const decider = cycle.waits.find((w) => w.requestId === cycle.decideFirstRequestId)?.projectId
+  const lead = FEATURE_REQUEST_WAIT_CYCLE_WORDS.lead(others)
+  return cycle.decideFirstRequestId === request.id || !decider
+    ? `${lead} ${FEATURE_REQUEST_WAIT_CYCLE_WORDS.decideHere}`
+    : `${lead} ${FEATURE_REQUEST_WAIT_CYCLE_WORDS.decideThere(decider)}`
+}
+
+/**
+ * The warning a request carries when its work waits on another request's that waits on it, or
+ * when accepting it can leave both projects waiting on each other.
+ */
 export function featureRequestCycleWarning(
-  request: Pick<FeatureRequest, 'cycleFlag'>,
+  request: Partial<Pick<FeatureRequest, 'id' | 'cycleFlag' | 'waitCycle'>>,
   fromLabel: string,
 ): string | undefined {
+  const waiting = featureRequestWaitCycleWarning(request)
+  if (waiting) return waiting
   return request.cycleFlag?.detected
     ? `This project is already waiting on ${fromLabel}. Accepting can leave each waiting on the other.`
     : undefined
@@ -171,7 +201,7 @@ export function featureRequestStoryLabel(
 
 /** What accepting does, said under the buttons. */
 export function featureRequestAcceptHint(fromLabel: string): string {
-  return `Accepting places it on a story here, starts an agent in this chat, and reports each step back to ${fromLabel}.`
+  return `Accepting places it on a story here and starts the work the way you choose. Each step is reported back to ${fromLabel}.`
 }
 
 /** The label above the reason box when rejecting. */
@@ -187,6 +217,20 @@ export function featureRequestWaitingLine(fromLabel: string): string {
 /** The line a rejected request's card shows. */
 export function featureRequestRejectedLine(fromLabel: string): string {
   return `${fromLabel} was told; nothing was started.`
+}
+
+/** Whether a request's work can be started again: it ended blocked or failed, on a story. */
+export function canStartFeatureRequestAgain(
+  request: Pick<FeatureRequest, 'status' | 'handling'>,
+): boolean {
+  return featureRequestRestartRefusal(request) === undefined
+}
+
+/** How a request's work starts again when nothing else is chosen: the way its last work went. */
+export function featureRequestStartAgainChoice(
+  request: Pick<FeatureRequest, 'handling'> | undefined,
+): FeatureRequestStartAgainChoice {
+  return { mode: request?.handling?.work?.mode ?? 'chat' }
 }
 
 /** Whether a request can still be marked delivered or handed over — a rejected one included. */

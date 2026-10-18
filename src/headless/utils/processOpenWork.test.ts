@@ -1,3 +1,4 @@
+import { PROCESS_RESOLUTION_REVIEW_TEXT } from 'thefactory-tools/constants'
 import { describe, expect, it } from 'vitest'
 import type {
   ProcessLedgerEntry,
@@ -16,6 +17,7 @@ import {
   AMENDMENT_REOPENED_ENDED,
   AMENDMENT_SEND_BACK,
   AMENDMENT_SET_ASIDE_PARK,
+  OPEN_WORK_BLOCKED,
   OPEN_WORK_EXTEND_LABEL,
   OPEN_WORK_FRESH_LABEL,
   OPEN_WORK_NEW_ON_BRANCH_LABEL,
@@ -69,6 +71,35 @@ describe('processOpenWorkView — where the open work stands', () => {
     const view = processOpenWorkView(openWork({ state: 'awaiting-sign-off' }))
     expect(view.headline).toBe('“Fonts” is waiting for your sign-off on this story.')
     expect(view.warnings).toEqual([OPEN_WORK_WARNING_UNREVIEWED, OPEN_WORK_WARNING_PARALLEL])
+  })
+
+  it('warns of nothing in parallel when only adding to the live run is offered', () => {
+    const view = processOpenWorkView(
+      openWork({
+        state: 'awaiting-sign-off',
+        options: [
+          { choice: 'extend', available: true },
+          { choice: 'new-on-branch', available: false, reason: 'open' },
+          { choice: 'fresh', available: false, reason: 'open' },
+        ],
+      }),
+    )
+    expect(view.warnings).toEqual([OPEN_WORK_WARNING_UNREVIEWED])
+    expect(view.blocked).toBeUndefined()
+  })
+
+  it('says the launch cannot start when the live run can take none of the work', () => {
+    const view = processOpenWorkView(
+      openWork({
+        options: [
+          { choice: 'extend', available: false, reason: 'nothing new' },
+          { choice: 'new-on-branch', available: false, reason: 'open' },
+          { choice: 'fresh', available: false, reason: 'open' },
+        ],
+      }),
+    )
+    expect(view.blocked).toBe(OPEN_WORK_BLOCKED)
+    expect(view.warnings).toEqual([])
   })
 
   it('says what the run holds and what this launch would add', () => {
@@ -225,6 +256,41 @@ describe('processAmendmentView', () => {
       ),
     )
     expect(view.notes[0]).toContain(AMENDMENT_SET_ASIDE_PARK)
+  })
+
+  it('says a review was added because resolving a conflict changed reviewed code (run bfcf0aa2)', () => {
+    const view = processAmendmentView(
+      run([
+        {
+          at,
+          stepIds: ['walkthrough'],
+          afterStepId: 'features:f3',
+          resolutionReview: {
+            conflict: { baseRef: 'dev', baseSha: 'a4d8976', commits: 4, paths: ['a.ts'] },
+            checksStepId: 'features:f3',
+          },
+        },
+      ]),
+    )
+    expect(view.notes).toEqual([
+      `Added ${date}: Walkthrough. ${PROCESS_RESOLUTION_REVIEW_TEXT.amendmentNote}`,
+    ])
+  })
+
+  it('says checks and a review were added because the manager committed to the work branch', () => {
+    const view = processAmendmentView(
+      run([
+        {
+          at,
+          stepIds: ['walkthrough'],
+          afterStepId: 'features:f3',
+          managerChangeReview: { changes: [{ id: 'm1', sha: 'b', summary: 'Commit' }] },
+        },
+      ]),
+    )
+    expect(view.notes).toEqual([
+      `Added ${date}: Walkthrough. ${PROCESS_RESOLUTION_REVIEW_TEXT.managerAmendmentNote}`,
+    ])
   })
 
   it('says a reopened run had its earlier approval set aside', () => {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { WorkLaunchMode } from 'thefactory-tools/types'
 import { Switch } from '../../primitives/Switch'
 import { Textarea } from '../../primitives/Textarea'
 import RichText from '../files/RichText'
@@ -6,6 +7,7 @@ import ToolAskCard, { ToolAskScopeChoice } from './ToolAskCard'
 import { useStories } from '../../../headless/contexts/StoriesContext'
 import { grantDecideErrorMessage } from '../../../headless/utils/pendingToolGrants'
 import {
+  acceptRequestDecisionMetadata,
   featureQuestionAnswerMetadata,
   featureQuestionAnswerProblem,
   toolAskCardView,
@@ -13,6 +15,7 @@ import {
   toolAskScopeOptions,
 } from '../../../headless/utils/toolAskCard'
 import {
+  ACCEPT_REQUEST_ASK,
   CHAT_REVIEW_ASK,
   FEATURE_QUESTION_ASK,
   TOOL_ASK_COPY,
@@ -21,6 +24,10 @@ import {
 import type { ToolAskBody, ToolAskDecidedLine } from '../../../headless/utils/toolAskCardTypes'
 import type { PendingToolGrant, PendingToolGrantDecision } from '../../../headless/utils/chatTypes'
 import DesignAskBox from '../design/DesignAskBox'
+import WorkLaunchChooser from '../WorkLaunchChooser'
+import { useFeatureRequestRecord } from '../../../headless/hooks/useCrossProjectRequests'
+import { featureRequestSummary } from '../../../headless/utils/featureRequestView'
+import { workLaunchOptions } from '../../../headless/utils/workLaunchView'
 
 export type ToolAskApprovalPanelProps = {
   grant: PendingToolGrant
@@ -153,11 +160,51 @@ function QuestionBox({
   )
 }
 
+/** Accepting a feature request: the request as it stands, and the way its work starts — the launch card's choice. */
+function AcceptRequestBox({
+  requestId,
+  mode,
+  onMode,
+  disabled,
+}: {
+  requestId: string
+  mode: WorkLaunchMode
+  onMode: (next: WorkLaunchMode) => void
+  disabled: boolean
+}) {
+  const request = useFeatureRequestRecord(requestId)
+  const summary = request ? featureRequestSummary(request) : ''
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1 rounded-lg border border-(--border-subtle) px-3 py-2.5">
+        <span className="text-[13.5px] font-semibold text-(--text-primary)">
+          {request?.title ?? requestId}
+        </span>
+        {request?.requestedBy.fromProjectId ? (
+          <span className="text-[12px] text-(--text-secondary)">
+            From {request.requestedBy.fromProjectId}
+          </span>
+        ) : null}
+        {summary ? <span className="text-[12.5px] text-(--text-secondary)">{summary}</span> : null}
+      </div>
+      <span className="text-[12px] font-medium text-(--text-secondary)">
+        {ACCEPT_REQUEST_ASK.how}
+      </span>
+      <WorkLaunchChooser
+        options={workLaunchOptions({ workLaunchMode: mode })}
+        onChoose={onMode}
+        busy={disabled}
+      />
+    </div>
+  )
+}
+
 /**
  * A waiting tool's ask on the shared card: the package, host, page, message,
  * new file or delete it is about, the radio for how far an approval reaches
  * where one may stand, and what the person may change before approving: a
- * message's wait-for-reply, an answer's words.
+ * message's wait-for-reply, an answer's words, the way an accepted request's
+ * work starts.
  */
 export default function ToolAskApprovalPanel({
   grant,
@@ -175,6 +222,9 @@ export default function ToolAskApprovalPanel({
   const startAwait = view.body.kind === 'message' ? view.body.awaitReply : false
   const [awaitReply, setAwaitReply] = useState(startAwait)
   const [answer, setAnswer] = useState(view.body.kind === 'question' ? view.body.answer : '')
+  const [acceptMode, setAcceptMode] = useState<WorkLaunchMode>(
+    view.body.kind === 'accept-request' ? (view.body.mode ?? 'process') : 'process',
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -188,7 +238,9 @@ export default function ToolAskApprovalPanel({
           ? { args: { awaitReply } }
           : view.body.kind === 'question'
             ? featureQuestionAnswerMetadata(view.body, answer)
-            : undefined
+            : view.body.kind === 'accept-request'
+              ? acceptRequestDecisionMetadata(acceptMode)
+              : undefined
     grant
       .decide(decision, metadata)
       .then(() => onDecided?.(toolAskDecidedLine(view, decision)))
@@ -257,6 +309,13 @@ export default function ToolAskApprovalPanel({
         <ReviewBox body={body} />
       ) : body.kind === 'question' ? (
         <QuestionBox body={body} answer={answer} onAnswer={setAnswer} disabled={busy} />
+      ) : body.kind === 'accept-request' ? (
+        <AcceptRequestBox
+          requestId={body.requestId}
+          mode={acceptMode}
+          onMode={setAcceptMode}
+          disabled={busy}
+        />
       ) : body.kind === 'design' ? (
         <DesignAskBox
           {...(body.projectId ? { projectId: body.projectId } : {})}

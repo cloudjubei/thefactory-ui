@@ -37,6 +37,7 @@ import SubagentSteps from './ToolCall/SubagentSteps'
 import BackgroundResultsRow from './BackgroundResultsRow'
 import { ManagerCardView } from './ManagerCards'
 import { RunParkClosure } from './ParkClosureLine'
+import { RunSiblingFallbackNotice } from '../process/SiblingFallbackNotice'
 import AnsweredQuestionBubble from './AnsweredQuestionBubble'
 import { answeredQuestionOf } from '../../../headless/utils/agentQuestions'
 import { isOpenChangesCardOnlyMessage } from '../../../headless/utils/openChangesNotice'
@@ -724,6 +725,14 @@ function MessageRow({
         {isAssistant && msg.processRunId && msg.processRunParkedAt !== undefined ? (
           <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
             <RunParkClosure runId={msg.processRunId} parkedAt={msg.processRunParkedAt} />
+          </View>
+        ) : null}
+        {isAssistant && msg.processRunId && msg.processRunChecksEntryId ? (
+          <View style={{ width: '100%', marginTop: nativeSpace[2] }}>
+            <RunSiblingFallbackNotice
+              runId={msg.processRunId}
+              entryId={msg.processRunChecksEntryId}
+            />
           </View>
         ) : null}
         {isAssistant && msg.processRunId && renderProcessRun ? (

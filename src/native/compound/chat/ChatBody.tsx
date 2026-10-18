@@ -540,6 +540,7 @@ export default function ChatBody({
               onDecideLater={() => setApprovalDismissedKey(approvalKey)}
               onDecided={(line) => addDecidedLine(shownApproval.id, line)}
               {...(renderApprovalModelChip ? { renderModelChip: renderApprovalModelChip } : {})}
+              {...(renderProcessRun ? { renderProcessRun } : {})}
             />
           ) : null}
         </View>
